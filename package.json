@@ -1,8 +1,10 @@
 {
-  "name": "untangle",
+  "name": "UNTangle",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["frontend"],
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
