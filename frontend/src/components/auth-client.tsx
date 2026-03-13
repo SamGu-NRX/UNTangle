@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
@@ -38,12 +39,13 @@ export function AuthClient() {
     <AuthShell
       eyebrow="Planner access"
       title="Sign in without the homepage doing too much."
-      description="Saved plans and synced course states live here. Browse first, or enter directly if you are ready to keep your planner across sessions."
+      description="Saved plans, synced course states, and recovery all live here. Browse first, or enter directly if you are ready to keep your planner across sessions."
       aside={
         <>
           {[
             "Guest mode still gets the full planner flow.",
             "Signed-in changes persist across sessions.",
+            "Password recovery stays available without leaving the auth surface.",
           ].map((item, index) => (
             <div
               key={item}
@@ -120,6 +122,15 @@ export function AuthClient() {
             </button>
           </div>
         </form>
+
+        <div className="mt-6 flex flex-col gap-3 border-t border-[color:var(--line)] pt-5 text-sm text-[color:var(--copy)] sm:flex-row sm:items-center sm:justify-between">
+          <Link href="/forgot-password" className="font-semibold text-[color:var(--green-800)]">
+            Forgot password?
+          </Link>
+          <Link href="/" className="text-[color:var(--muted)]">
+            Read the overview first
+          </Link>
+        </div>
       </div>
     </AuthShell>
   );
