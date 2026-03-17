@@ -55,7 +55,11 @@ export function LandingClient() {
 
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
             {featureCards.map((item, index) => (
-              <article key={item} className="subtle-panel px-5 py-4">
+              <article
+                key={item}
+                className="subtle-panel animate-rise-in px-5 py-4"
+                style={{ animationDelay: `${index * 90}ms` }}
+              >
                 <p className="text-sm leading-7 text-[color:var(--copy)]">{item}</p>
               </article>
             ))}
@@ -67,7 +71,11 @@ export function LandingClient() {
             <p className="editorial-label">Flow preview</p>
             <div className="mt-5 space-y-4">
               {flowPreview.map((item, index) => (
-                <div key={item.step} className="subtle-panel flex gap-4 px-5 py-5">
+                <div
+                  key={item.step}
+                  className="subtle-panel animate-rise-in flex gap-4 px-5 py-5"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
                   <div className="step-pill h-fit border-[rgba(79,127,95,0.22)] bg-[color:var(--green-100)] text-[color:var(--green-800)]">
                     {item.step}
                   </div>
