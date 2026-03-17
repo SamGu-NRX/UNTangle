@@ -1,8 +1,52 @@
+# Package managers / dependencies
 node_modules/
+.pnp*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+package-lock.json
+
+# -----------------------------------------------------------------------------
+# Build artifacts & caches
+dist/
+build/
+out/
 .next/
-*.pyc
-__pycache__/
-db.sqlite3
-.env
-.env.local
+.turbo/
+.vercel/
+coverage/
+reports/
+*.tsbuildinfo
+next-env.d.ts
+.react-email/
+
+# -----------------------------------------------------------------------------
+# Runtime
+workers/
+migration-backups/
+db-current/
+*.tmp
+
+# -----------------------------------------------------------------------------
+# Logs & diagnostics
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# -----------------------------------------------------------------------------
+# Environment
+.env*
+!.env*.example
+
+# -----------------------------------------------------------------------------
+# Misc 
 .DS_Store
+Thumbs.db
+*.pem
+.idea/
+.vscode/
+.playwright-cli/

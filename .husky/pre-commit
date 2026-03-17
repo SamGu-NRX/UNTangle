@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+./scripts/format-staged.sh
+
+readonly_index=false
+if ! touch .git/.husky-pre-commit-touch 2>/dev/null; then
+  readonly_index=true
+else
+  rm -f .git/.husky-pre-commit-touch
+fi
+
+if [ "$readonly_index" = true ]; then
+  cat <<'EOF' >&2
+[warn] Skipping git update-index --again because the Git metadata is read-only.
+EOF
+else
+  git update-index --ignore-missing --again
+fi
