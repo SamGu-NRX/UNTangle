@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Login</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background: #f4f6f4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .login-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: #ffffff;
+      border: 1px solid #dde8dd;
+      border-radius: 16px;
+      padding: 44px 36px 40px;
+      box-shadow: 0 4px 24px rgba(0, 60, 20, 0.08);
+    }
+
+    /* Step dots at top */
+    .login-steps {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 28px;
+    }
+    .login-step {
+      height: 3px;
+      border-radius: 2px;
+      flex: 1;
+      background: #dde8dd;
+    }
+    .login-step.active { background: #00a855; }
+
+    /* Logo */
+    .login-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 28px;
+      color: #1a2e1a;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .login-logo span { color: #00512b; }
+
+    .login-tagline {
+      font-size: 13px;
+      color: #6b826b;
+      margin-bottom: 28px;
+    }
+
+    /* Labels */
+    .login-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b826b;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+
+    /* Inputs */
+    .login-input {
+      width: 100%;
+      background: #f8faf8;
+      border: 1px solid #dde8dd;
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: #1a2e1a;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .login-input:focus {
+      border-color: #00512b;
+      box-shadow: 0 0 0 3px rgba(0, 81, 43, 0.1);
+      background: #ffffff;
+    }
+    .login-input::placeholder { color: #a3b8a3; }
+
+    /* Button row */
+    .login-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .login-actions .btn { flex: 1; justify-content: center; }
+
+    /* Divider */
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 18px 0;
+      font-size: 12px;
+      color: #a3b8a3;
+    }
+    .login-divider::before,
+    .login-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #dde8dd;
+    }
+
+    /* Forgot */
+    .login-footer {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 12px;
+      color: #a3b8a3;
+    }
+    .login-footer a {
+      color: #00512b;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .login-footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="login-wrapper">
+    <div class="login-card">
+
+      <!-- Step progress bar — step 1 active -->
+      <div class="login-steps">
+        <div class="login-step active"></div>
+        <div class="login-step"></div>
+        <div class="login-step"></div>
+        <div class="login-step"></div>
+      </div>
+
+      <!-- Logo -->
+      <div class="login-logo">Un<span>Tangle</span></div>
+      <p class="login-tagline">UNT Schedule Optimizer</p>
+
+      <!-- Email field (was missing in original) -->
+      <div class="login-label">Email / Username</div>
+      <input
+        class="login-input"
+        type="email"
+        placeholder="eagleid@unt.edu"
+        id="email"
+      >
+
+      <!-- Password -->
+      <div class="login-label">Password</div>
+      <input
+        class="login-input"
+        type="password"
+        placeholder="••••••••"
+        id="password"
+      >
+
+      <!-- Log In + Sign Up side by side -->
+      <div class="login-actions">
+        <button class="btn btn-primary" onclick="goToCourses()">Log In</button>
+        <button class="btn btn-ghost"   onclick="goToCourses()">Sign Up</button>
+      </div>
+
+      <div class="login-divider">or</div>
+
+      <!-- Guest — full width -->
+      <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="goToCourses()">
+        Continue as Guest
+      </button>
+
+      <div class="login-footer">
+        <a href="#" onclick="alert('A reset link has been sent to your UNT email.'); return false;">
+          Forgot password?
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function goToCourses() {
+      window.location.href = 'courses.html';
+    }
+  </script>
+
+</body>
+</html>

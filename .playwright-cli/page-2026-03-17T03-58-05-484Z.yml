@@ -1,0 +1,53 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e84] [cursor=pointer]:
+    - img [ref=e85]
+  - alert [ref=e88]
+  - generic [ref=e503]:
+    - banner [ref=e504]:
+      - generic [ref=e505]:
+        - link "UNTangle" [ref=e506] [cursor=pointer]:
+          - /url: /
+        - paragraph [ref=e507]: Schedule optimizer for UNT
+      - generic [ref=e514]: Guest mode
+    - main [ref=e515]:
+      - generic [ref=e516]:
+        - generic [ref=e517]:
+          - paragraph [ref=e518]: Map
+          - generic [ref=e519]:
+            - generic [ref=e520]:
+              - heading "Finish with a route you can actually use." [level=1] [ref=e521]
+              - paragraph [ref=e522]: "The last screen now behaves like a destination instead of an afterthought: the class order, day switching, and walking route live beside a real Google campus map rather than a flat mock screenshot."
+            - generic [ref=e523]:
+              - paragraph [ref=e524]: Step 4 of 4
+              - paragraph [ref=e525]: Map
+        - generic [ref=e527]:
+          - complementary [ref=e528]:
+            - generic [ref=e529]:
+              - paragraph [ref=e530]: Select day
+              - generic [ref=e531]:
+                - button "Mon" [ref=e532]
+                - button "Tue" [ref=e533]
+                - button "Wed" [ref=e534]
+                - button "Thu" [ref=e535]
+                - button "Fri" [ref=e536]
+            - generic [ref=e537]:
+              - generic [ref=e538]:
+                - generic [ref=e539]: 0 stops
+                - generic [ref=e540]: —
+                - generic [ref=e541]: —
+              - generic [ref=e543]: No classes are scheduled on this day.
+            - generic [ref=e544]:
+              - button "Print itinerary" [ref=e545]
+              - button "Download route brief" [ref=e546]
+              - link "Back to schedule" [ref=e547] [cursor=pointer]:
+                - /url: /schedule
+          - generic [ref=e551]:
+            - paragraph [ref=e552]: Google Maps not configured
+            - heading "Add your API key to unlock the live campus map." [level=2] [ref=e553]
+            - paragraph [ref=e554]: "The route rail and planner logic are already wired. Set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` and `NEXT_PUBLIC_GOOGLE_MAP_ID` to render the embedded walking route."
+      - complementary [ref=e555]:
+        - generic [ref=e556]:
+          - paragraph [ref=e557]: Map notes
+          - generic [ref=e558]:
+            - paragraph [ref=e559]: Google routing is used for now to preserve familiar campus detail and walking expectations.
+            - paragraph [ref=e560]: Custom UNT-aware route logic can replace the current renderer later without redesigning the panel layout.
