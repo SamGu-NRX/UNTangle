@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Schedule</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Page-specific overrides: white bg ── */
+    body { background: #f4f6f4; color: #1a2e1a; }
+
+    /* ── Layout ── */
+    .schedule-shell {
+      display: grid;
+      grid-template-columns: 256px 1fr;
+      height: calc(100vh - 57px - 57px);
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sched-sidebar {
+      background: #ffffff;
+      border-right: 1px solid #dde8dd;
+      padding: 22px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .sb-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: #6b826b;
+      margin-bottom: 8px; margin-top: 4px;
+    }
+    .sb-divider { height: 1px; background: #dde8dd; margin: 16px 0; }
+
+    /* Opt rows */
+    .opt-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #dde8dd;
+      background: #ffffff;
+      cursor: pointer; margin-bottom: 6px;
+      transition: all 0.15s;
+    }
+    .opt-row:hover { border-color: #007a40; background: #f0fdf4; }
+    .opt-row.active { border-color: #00a855; background: #f0fdf4; }
+    .opt-dot {
+      width: 15px; height: 15px; border-radius: 50%;
+      border: 2px solid #dde8dd; flex-shrink: 0; margin-top: 2px;
+      transition: all 0.15s;
+    }
+    .opt-row.active .opt-dot { border-color: #00512b; background: #00512b; }
+    .opt-title { font-size: 13px; font-weight: 600; color: #1a2e1a; }
+    .opt-desc  { font-size: 11px; color: #6b826b; margin-top: 1px; }
+    .opt-row.active .opt-title { color: #00512b; }
+
+    /* Course pills */
+    .course-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 11px; border-radius: 8px;
+      margin-bottom: 5px; border: 1px solid;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 600;
+    }
+    .pill-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+    .pill-sub { font-size: 10px; font-weight: 400; opacity: 0.75; }
+
+    .pill-cs   { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .pill-math { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+    .pill-gov  { background: #fefce8; border-color: #fde047; color: #713f12; }
+    .pill-phys { background: #faf5ff; border-color: #d8b4fe; color: #581c87; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-box {
+      background: #f4f6f4; border: 1px solid #dde8dd;
+      border-radius: 8px; padding: 10px; text-align: center;
+    }
+    .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; color: #00512b; }
+    .stat-lbl { font-size: 10px; color: #6b826b; margin-top: 2px; }
+
+    /* ── Calendar main ── */
+    .sched-main {
+      display: flex; flex-direction: column;
+      overflow: hidden; padding: 22px 26px 0;
+      background: #f4f6f4;
+    }
+    .sched-topbar {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 16px; flex-shrink: 0; gap: 12px;
+    }
+    .sched-title {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px;
+      color: #1a2e1a; margin-bottom: 3px; letter-spacing: -0.3px;
+    }
+    .sched-sub { font-size: 13px; color: #6b826b; }
+    .credit-tag {
+      font-size: 12px; font-weight: 600; padding: 5px 13px;
+      border-radius: 99px; border: 1px solid #dde8dd;
+      background: #ffffff; color: #00512b; white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Calendar grid */
+    .cal-scroll { flex: 1; overflow-y: auto; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: 52px repeat(5, 1fr);
+      border: 1px solid #dde8dd;
+      border-radius: 10px; overflow: hidden;
+      background: #ffffff;
+    }
+    .cal-corner { background: #f8faf8; border-bottom: 1px solid #dde8dd; border-right: 1px solid #dde8dd; }
+    .cal-header {
+      background: #f8faf8; padding: 10px 6px;
+      text-align: center;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px;
+      color: #6b826b; border-bottom: 1px solid #dde8dd; border-right: 1px solid #dde8dd;
+    }
+    .cal-header:last-child { border-right: none; }
+    .cal-time {
+      font-size: 10px; color: #6b826b; padding: 5px 4px 0; text-align: right;
+      border-right: 1px solid #dde8dd; border-bottom: 1px solid #dde8dd;
+      height: 54px;
+    }
+    .cal-cell {
+      border-right: 1px solid #dde8dd; border-bottom: 1px solid #dde8dd;
+      height: 54px; position: relative;
+    }
+    .cal-cell:last-child { border-right: none; }
+    .cal-event {
+      position: absolute; inset: 3px;
+      border-radius: 7px; cursor: pointer;
+      padding: 5px 7px; display: flex; flex-direction: column; justify-content: center;
+      border-left: 3px solid; transition: all 0.12s;
+    }
+    .cal-event:hover { filter: brightness(0.96); transform: scale(1.01); z-index: 2; }
+    .ev-cs   { background: #f0fdf4; border-left-color: #16a34a; color: #166534; }
+    .ev-math { background: #eff6ff; border-left-color: #2563eb; color: #1e40af; }
+    .ev-gov  { background: #fefce8; border-left-color: #ca8a04; color: #713f12; }
+    .ev-phys { background: #faf5ff; border-left-color: #7c3aed; color: #581c87; }
+    .ev-label  { font-size: 10px; font-weight: 700; line-height: 1.2; font-family: 'DM Sans', sans-serif; }
+    .ev-detail { font-size: 9px; opacity: 0.7; margin-top: 1px; font-family: 'DM Sans', sans-serif; }
+
+    /* Legend */
+    .legend {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      padding: 12px 0 74px; flex-shrink: 0;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b826b; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 3px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(26, 46, 26, 0.4);
+      z-index: 500; align-items: center; justify-content: center;
+      padding: 20px; backdrop-filter: blur(2px);
+    }
+    .modal-box {
+      background: #ffffff; border-radius: 14px;
+      width: 100%; max-width: 540px;
+      border: 1px solid #dde8dd;
+      box-shadow: 0 16px 48px rgba(0,60,20,0.14);
+      overflow: hidden;
+      animation: modalIn 0.2s ease both;
+    }
+    @keyframes modalIn { from{opacity:0;transform:translateY(10px)scale(0.98)} to{opacity:1;transform:none} }
+    .modal-head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 20px 22px 16px; border-bottom: 1px solid #dde8dd;
+      background: #f8faf8;
+    }
+    .modal-head-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; color: #1a2e1a; }
+    .modal-head-sub   { font-size: 12px; color: #6b826b; margin-top: 3px; }
+    .modal-close {
+      background: #dde8dd; border: none; border-radius: 6px;
+      width: 28px; height: 28px; cursor: pointer; font-size: 12px;
+      color: #6b826b; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: #c8d8c8; color: #1a2e1a; }
+    .modal-body { padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+
+    .sec-card {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 15px; border-radius: 10px;
+      border: 1px solid #dde8dd; background: #ffffff;
+      transition: all 0.12s; gap: 12px;
+    }
+    .sec-card:hover { border-color: #007a40; }
+    .sec-card.active { border-color: #00a855; background: #f0fdf4; }
+    .sec-days    { font-size: 13px; font-weight: 700; color: #1a2e1a; margin-bottom: 3px; font-family: 'DM Sans', sans-serif; }
+    .sec-meta    { font-size: 11px; color: #6b826b; font-family: 'DM Sans', sans-serif; }
+    .sec-stars   { font-size: 12px; color: #f59e0b; margin-top: 3px; }
+    .sec-stars span { color: #6b826b; font-size: 11px; margin-left: 3px; font-family: 'DM Sans', sans-serif; }
+    .sec-btn {
+      font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+      padding: 8px 16px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+      border: 1px solid #00512b; background: transparent; color: #00512b;
+      transition: all 0.15s;
+    }
+    .sec-btn:hover { background: #00512b; color: #ffffff; }
+    .sec-btn.picked { background: #f0fdf4; color: #00512b; cursor: default; }
+
+    /* ── Footer ── */
+    .page-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 57px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      background: #ffffff; border-top: 1px solid #dde8dd;
+      z-index: 150;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 68px; left: 50%; transform: translateX(-50%);
+      background: #1a2e1a; color: #fff; border-radius: 99px;
+      padding: 10px 20px; font-size: 13px; font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+      z-index: 9999; white-space: nowrap; pointer-events: none;
+      animation: tIn 0.2s ease, tOut 0.3s ease 1.9s forwards;
+    }
+    @keyframes tIn  { from{opacity:0;transform:translate(-50%,10px)} to{opacity:1;transform:translate(-50%,0)} }
+    @keyframes tOut { from{opacity:1} to{opacity:0} }
+  </style>
+</head>
+<body>
+
+  <!-- NAV — matches courses.html exactly -->
+  <nav class="nav-light">
+    <div class="logo-light">Un<span class="logo-accent">Tangle</span></div>
+    <div class="steps">
+      <div class="step done"></div>
+      <div class="step done"></div>
+      <div class="step active"></div>
+      <div class="step"></div>
+    </div>
+    <div class="nav-right-label">Step 3 of 4</div>
+  </nav>
+
+  <div class="schedule-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sched-sidebar">
+      <div class="sb-label">Optimization</div>
+
+      <div class="opt-row active" data-opt="morning" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Cluster Morning</div><div class="opt-desc">All classes before noon</div></div>
+      </div>
+      <div class="opt-row" data-opt="night" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Cluster Night</div><div class="opt-desc">All classes after 5 PM</div></div>
+      </div>
+      <div class="opt-row" data-opt="compact" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Compact Days</div><div class="opt-desc">Fewer days on campus</div></div>
+      </div>
+      <div class="opt-row" data-opt="distance" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Minimize Walking</div><div class="opt-desc">Shortest path between buildings</div></div>
+      </div>
+      <div class="opt-row" data-opt="rmp" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Best Professors</div><div class="opt-desc">Highest RMP scores</div></div>
+      </div>
+
+      <div class="sb-divider"></div>
+      <div class="sb-label">Your Courses</div>
+
+      <div class="course-pill pill-cs">
+        <div class="pill-dot" style="background:#16a34a;"></div>
+        <div><div>CSCE 1030</div><div class="pill-sub">Computer Science I</div></div>
+      </div>
+      <div class="course-pill pill-math">
+        <div class="pill-dot" style="background:#2563eb;"></div>
+        <div><div>MATH 1710</div><div class="pill-sub">Calculus I</div></div>
+      </div>
+      <div class="course-pill pill-gov">
+        <div class="pill-dot" style="background:#ca8a04;"></div>
+        <div><div>GOVT 2305</div><div class="pill-sub">U.S. Government</div></div>
+      </div>
+      <div class="course-pill pill-phys">
+        <div class="pill-dot" style="background:#7c3aed;"></div>
+        <div><div>PHYS 2220</div><div class="pill-sub">Electricity &amp; Magnetism</div></div>
+      </div>
+
+      <div class="sb-divider"></div>
+      <div class="sb-label">Schedule Stats</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val">13</div><div class="stat-lbl">Credit Hours</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-days">5</div><div class="stat-lbl">Days/Week</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-early">8am</div><div class="stat-lbl">Earliest</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-late">3pm</div><div class="stat-lbl">Latest</div></div>
+      </div>
+    </aside>
+
+    <!-- CALENDAR -->
+    <main class="sched-main">
+      <div class="sched-topbar">
+        <div>
+          <div class="sched-title">Fall 2026 Schedule</div>
+          <div class="sched-sub" id="opt-desc">Optimized: all classes clustered before noon.</div>
+        </div>
+        <div class="credit-tag">13 Credit Hours</div>
+      </div>
+
+      <div class="cal-scroll">
+        <div class="cal-grid" id="cal">
+          <div class="cal-corner"></div>
+          <div class="cal-header">Monday</div>
+          <div class="cal-header">Tuesday</div>
+          <div class="cal-header">Wednesday</div>
+          <div class="cal-header">Thursday</div>
+          <div class="cal-header">Friday</div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#16a34a;"></div>Computer Science I</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#2563eb;"></div>Calculus I</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ca8a04;"></div>U.S. Government</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#7c3aed;"></div>Electricity &amp; Magnetism</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal" onclick="maybeClose(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <div class="modal-head-title" id="modal-title">Switch Section</div>
+          <div class="modal-head-sub"   id="modal-sub">Select a different time</div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER — matches courses.html footer pattern -->
+  <div class="page-footer">
+    <button class="btn btn-ghost" onclick="window.location.href='courses.html'">&#8592; Back</button>
+    <button class="btn btn-primary" onclick="window.location.href='map.html'">Generate Campus Map &#8594;</button>
+  </div>
+
+  <script>
+    /* ── DATA ─────────────────────────────────────────────── */
+    var sections = {
+      'CSCE 1030': [
+        { days:[0,2,4], hour:8,  room:'GAB 104',  prof:'Dr. Smith',    rating:4.2 },
+        { days:[0,2,4], hour:10, room:'GAB 201',  prof:'Dr. Patel',    rating:4.7 },
+        { days:[1,3],   hour:11, room:'DISC 104', prof:'Dr. Johnson',  rating:3.9 },
+        { days:[0,2,4], hour:14, room:'GAB 104',  prof:'Dr. Smith',    rating:4.2 },
+        { days:[1,3],   hour:17, room:'DISC 201', prof:'Dr. Lee',      rating:4.5 },
+        { days:[1,3],   hour:9,  room:'GAB 105',  prof:'Dr. Nguyen',   rating:4.6 },
+      ],
+      'MATH 1710': [
+        { days:[1,3],   hour:8,  room:'WH 316',   prof:'Dr. Brown',    rating:4.0 },
+        { days:[1,3],   hour:10, room:'WH 212',   prof:'Dr. Garcia',   rating:4.6 },
+        { days:[0,2,4], hour:9,  room:'GAB 107',  prof:'Dr. White',    rating:3.8 },
+        { days:[1,3],   hour:14, room:'WH 316',   prof:'Dr. Brown',    rating:4.0 },
+        { days:[1,3],   hour:18, room:'WH 110',   prof:'Dr. Kim',      rating:4.3 },
+        { days:[0,2,4], hour:11, room:'WH 104',   prof:'Dr. Ortiz',    rating:4.5 },
+      ],
+      'GOVT 2305': [
+        { days:[0,2,4], hour:9,  room:'Sage 218', prof:'Dr. Davis',    rating:4.1 },
+        { days:[0,2,4], hour:11, room:'Sage 103', prof:'Dr. Wilson',   rating:4.4 },
+        { days:[1,3],   hour:13, room:'Sage 218', prof:'Dr. Davis',    rating:4.1 },
+        { days:[0,2,4], hour:15, room:'Sage 103', prof:'Dr. Wilson',   rating:4.4 },
+        { days:[1,3],   hour:18, room:'Sage 305', prof:'Dr. Moore',    rating:3.7 },
+        { days:[0,2,4], hour:8,  room:'Sage 101', prof:'Dr. Rivera',   rating:4.8 },
+      ],
+      'PHYS 2220': [
+        { days:[0,2,4], hour:8,  room:'SCI 112',  prof:'Dr. Taylor',   rating:4.3 },
+        { days:[1,3],   hour:9,  room:'SCI 205',  prof:'Dr. Martinez', rating:4.8 },
+        { days:[0,2,4], hour:11, room:'SCI 112',  prof:'Dr. Taylor',   rating:4.3 },
+        { days:[0,2,4], hour:14, room:'SCI 301',  prof:'Dr. Anderson', rating:3.9 },
+        { days:[1,3],   hour:16, room:'SCI 205',  prof:'Dr. Martinez', rating:4.8 },
+        { days:[0,2,4], hour:10, room:'SCI 108',  prof:'Dr. Chen',     rating:4.1 },
+      ],
+    };
+
+    var chosen = { 'CSCE 1030':0, 'MATH 1710':1, 'GOVT 2305':1, 'PHYS 2220':0 };
+
+    var presets = {
+      morning:  { 'CSCE 1030':0, 'MATH 1710':0, 'GOVT 2305':5, 'PHYS 2220':0 },
+      night:    { 'CSCE 1030':4, 'MATH 1710':4, 'GOVT 2305':4, 'PHYS 2220':4 },
+      compact:  { 'CSCE 1030':2, 'MATH 1710':1, 'GOVT 2305':2, 'PHYS 2220':1 },
+      distance: { 'CSCE 1030':0, 'MATH 1710':5, 'GOVT 2305':1, 'PHYS 2220':2 },
+      rmp:      { 'CSCE 1030':5, 'MATH 1710':1, 'GOVT 2305':5, 'PHYS 2220':1 },
+    };
+
+    var optText = {
+      morning:  'Optimized: all classes clustered before noon.',
+      night:    'Optimized: all classes scheduled after 5 PM.',
+      compact:  'Optimized: fewer campus days — classes on Tue/Thu.',
+      distance: 'Optimized: shortest walking path between buildings.',
+      rmp:      'Optimized: highest-rated professors for every course.',
+    };
+
+    var courseClass = { 'CSCE 1030':'ev-cs', 'MATH 1710':'ev-math', 'GOVT 2305':'ev-gov', 'PHYS 2220':'ev-phys' };
+    var dayNames    = ['Mon','Tue','Wed','Thu','Fri'];
+    function hfmt(h){ return h < 12 ? h+'am' : h===12 ? '12pm' : (h-12)+'pm'; }
+
+    /* ── BUILD CALENDAR ─────────────────────────────────── */
+    function buildCal() {
+      var cal = document.getElementById('cal');
+      var heads = [].slice.call(cal.children).slice(0,6);
+      cal.innerHTML = '';
+      heads.forEach(function(h){ cal.appendChild(h); });
+
+      var slots = {};
+      Object.keys(chosen).forEach(function(course) {
+        var sec = sections[course][chosen[course]];
+        sec.days.forEach(function(d){ slots[d+'-'+sec.hour] = { course:course, sec:sec }; });
+      });
+
+      for (var rh = 7; rh <= 20; rh++) {
+        var tc = document.createElement('div');
+        tc.className = 'cal-time';
+        tc.textContent = hfmt(rh);
+        cal.appendChild(tc);
+
+        for (var d = 0; d < 5; d++) {
+          var cell = document.createElement('div');
+          cell.className = 'cal-cell';
+          var info = slots[d+'-'+rh];
+          if (info) {
+            var ev = document.createElement('div');
+            ev.className = 'cal-event ' + courseClass[info.course];
+            ev.innerHTML = '<div class="ev-label">' + info.course + '</div><div class="ev-detail">' + info.sec.room + '</div>';
+            ev.onclick = (function(c){ return function(){ openModal(c); }; })(info.course);
+            cell.appendChild(ev);
+          }
+          cal.appendChild(cell);
+        }
+      }
+      updateStats();
+    }
+
+    function updateStats() {
+      var hours = [], days = {};
+      Object.keys(chosen).forEach(function(c) {
+        var sec = sections[c][chosen[c]];
+        hours.push(sec.hour);
+        sec.days.forEach(function(d){ days[d]=1; });
+      });
+      document.getElementById('stat-days').textContent  = Object.keys(days).length;
+      document.getElementById('stat-early').textContent = hfmt(Math.min.apply(null,hours));
+      document.getElementById('stat-late').textContent  = hfmt(Math.max.apply(null,hours)+1);
+    }
+
+    /* ── OPTIMIZATION ────────────────────────────────────── */
+    function setOpt(el) {
+      document.querySelectorAll('.opt-row').forEach(function(r){ r.classList.remove('active'); });
+      el.classList.add('active');
+      var opt = el.dataset.opt;
+      Object.assign(chosen, presets[opt]);
+      document.getElementById('opt-desc').textContent = optText[opt];
+      buildCal();
+      showToast('✓ ' + el.querySelector('.opt-title').textContent + ' applied');
+    }
+
+    /* ── MODAL ───────────────────────────────────────────── */
+    function openModal(course) {
+      document.getElementById('modal-title').textContent = course + ' — Switch Section';
+      document.getElementById('modal-sub').textContent   = sections[course].length + ' sections available';
+      var body = document.getElementById('modal-body');
+      body.innerHTML = '';
+
+      sections[course].forEach(function(sec, idx) {
+        var active = chosen[course] === idx;
+        var dayStr = sec.days.map(function(d){ return dayNames[d]; }).join('/');
+        var stars  = '★'.repeat(Math.floor(sec.rating)) + '☆'.repeat(5-Math.floor(sec.rating));
+
+        var card = document.createElement('div');
+        card.className = 'sec-card' + (active ? ' active' : '');
+        card.innerHTML =
+          '<div>' +
+            '<div class="sec-days">' + dayStr + ' &nbsp;·&nbsp; ' + hfmt(sec.hour) + '</div>' +
+            '<div class="sec-meta">' + sec.room + ' &nbsp;·&nbsp; ' + sec.prof + '</div>' +
+            '<div class="sec-stars">' + stars + ' <span>' + sec.rating.toFixed(1) + '</span></div>' +
+          '</div>' +
+          '<button class="sec-btn' + (active ? ' picked' : '') + '">' + (active ? '✓ Selected' : 'Select') + '</button>';
+
+        if (!active) {
+          card.querySelector('.sec-btn').onclick = (function(i) {
+            return function() {
+              chosen[course] = i;
+              buildCal();
+              closeModal();
+              showToast('✓ Section updated — ' + course);
+            };
+          })(idx);
+        }
+        body.appendChild(card);
+      });
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function closeModal()       { document.getElementById('modal').style.display = 'none'; }
+    function maybeClose(e)      { if (e.target.id === 'modal') closeModal(); }
+
+    function showToast(msg) {
+      var ex = document.querySelector('.toast'); if (ex) ex.remove();
+      var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function(){ if(t.parentNode) t.remove(); }, 2400);
+    }
+
+    buildCal();
+  </script>
+</body>
+</html>
