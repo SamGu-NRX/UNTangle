@@ -1,0 +1,74 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "UNTangle" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - paragraph [ref=e7]: Schedule optimizer for UNT
+      - generic [ref=e14]: Guest mode
+    - main [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: Entry
+          - generic [ref=e19]:
+            - generic [ref=e20]:
+              - heading "A quieter, clearer way to build your UNT schedule." [level=1] [ref=e21]
+              - paragraph [ref=e22]: The old flow had the right bones. This version keeps the same four steps, but sharpens the pacing, typography, and interaction quality so the experience feels intentional from the first screen.
+            - generic [ref=e23]:
+              - paragraph [ref=e24]: Step 1 of 4
+              - paragraph [ref=e25]: Access
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - paragraph [ref=e30]: Flow preview
+            - generic [ref=e31]:
+              - generic [ref=e32]:
+                - paragraph [ref=e33]: "01"
+                - paragraph [ref=e34]: Review prior courses with prerequisite context.
+              - generic [ref=e35]:
+                - paragraph [ref=e36]: "02"
+                - paragraph [ref=e37]: Let the optimizer choose a starting semester layout.
+              - generic [ref=e38]:
+                - paragraph [ref=e39]: "03"
+                - paragraph [ref=e40]: Swap sections without walking into overlap.
+              - generic [ref=e41]:
+                - paragraph [ref=e42]: "04"
+                - paragraph [ref=e43]: Finish with a live campus route instead of a static mock.
+          - generic [ref=e44]:
+            - article [ref=e45]:
+              - paragraph [ref=e46]: Why this flow works
+              - heading "Prerequisite-aware intake" [level=2] [ref=e47]
+              - paragraph [ref=e48]: Review prior coursework, see what is complete, and move forward with a cleaner academic snapshot.
+            - article [ref=e49]:
+              - paragraph [ref=e50]: Why this flow works
+              - heading "Optimization that feels legible" [level=2] [ref=e51]
+              - paragraph [ref=e52]: Shift the semester toward morning focus, compact days, shorter walks, or stronger professor ratings.
+            - article [ref=e53]:
+              - paragraph [ref=e54]: Why this flow works
+              - heading "Campus map as a destination" [level=2] [ref=e55]
+              - paragraph [ref=e56]: Finish with a route-first view designed for real campus movement instead of a static screenshot.
+      - complementary [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - generic [ref=e60]: Guest-friendly
+            - generic [ref=e61]: Better Auth
+            - generic [ref=e62]: Google campus map
+          - generic [ref=e63]:
+            - button "Sign in" [ref=e64]
+            - button "Create account" [ref=e65]
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - generic [ref=e68]: Email / Username
+              - textbox "Email / Username" [ref=e69]: eagleid@unt.edu
+            - generic [ref=e70]:
+              - generic [ref=e71]: Password
+              - textbox "Password" [ref=e72]:
+                - /placeholder: At least 8 characters
+            - generic [ref=e73]:
+              - button "Sign in" [ref=e74]
+              - button "Continue as guest" [ref=e75]
+          - generic [ref=e76]:
+            - link "Forgot password?" [ref=e77] [cursor=pointer]:
+              - /url: /forgot-password
+            - generic [ref=e78]: Saved plans unlock cross-session persistence.
+  - button "Open Next.js Dev Tools" [ref=e84] [cursor=pointer]:
+    - img [ref=e85]
