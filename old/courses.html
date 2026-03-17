@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Courses</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: #f4f6f4; color: #1a2e1a; }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 57px;
+      background: #ffffff;
+      border-bottom: 1px solid #dde8dd;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: #00512b;
+    }
+    .logo span { color: #6b826b; font-weight: 400; }
+
+    .steps { display: flex; gap: 6px; }
+    .step { width: 72px; height: 4px; border-radius: 2px; background: #dde8dd; transition: background 0.3s; }
+    .step.done   { background: #007a40; }
+    .step.active { background: #00a855; }
+
+    .courses-page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 24px 100px;
+    }
+
+    .courses-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .courses-header h2 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      margin-bottom: 3px;
+    }
+
+    .section-sub { font-size: 13px; color: #6b826b; }
+
+    .header-counts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .count-chip {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 99px;
+      border: 1px solid;
+    }
+    .done-chip { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+    .prog-chip { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+    .none-chip { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
+
+    .search-bar {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #dde8dd;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: #1a2e1a;
+      outline: none;
+      margin-bottom: 8px;
+      transition: border-color 0.18s;
+    }
+    .search-bar:focus { border-color: #00512b; box-shadow: 0 0 0 3px rgba(0,81,43,0.1); }
+    .search-bar::placeholder { color: #a3b8a3; }
+
+    .dept-label {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      color: #6b826b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 22px;
+      margin-bottom: 8px;
+    }
+
+    .course-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #ffffff;
+      border: 1px solid #dde8dd;
+      border-radius: 10px;
+      padding: 11px 14px;
+      margin-bottom: 7px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .course-chip[data-status="none"]     { border-color: #e2e8f0; }
+    .course-chip[data-status="progress"] { border-color: #fde68a; }
+    .course-chip[data-status="done"]     { border-color: #86efac; background: #fafffe; }
+
+    .chip-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+
+    .status-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid;
+      min-width: 52px;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .badge-none     { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
+    .badge-progress { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+    .badge-done     { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+
+    .chip-info { min-width: 0; }
+    .course-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .course-code { font-size: 11px; color: #6b826b; margin-top: 2px; }
+
+    .status-btns { display: flex; gap: 5px; flex-shrink: 0; }
+
+    .status-btn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid #dde8dd;
+      background: transparent;
+      color: #6b826b;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .status-btn:hover { border-color: #6b826b; color: #1a2e1a; }
+    .active-none     { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    .active-progress { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+    .active-done     { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+
+    .page-footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 57px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      background: #ffffff;
+      border-top: 1px solid #dde8dd;
+      z-index: 100;
+    }
+
+    .selected-count { font-size: 13px; color: #6b826b; }
+    .selected-count strong { color: #00512b; }
+
+    .btn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn-primary { background: #00512b; color: #ffffff; }
+    .btn-primary:hover { background: #007a40; }
+    .btn-ghost { background: transparent; color: #6b826b; border: 1px solid #dde8dd; }
+    .btn-ghost:hover { border-color: #00512b; color: #00512b; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">UnTangle <span>/ Courses</span></div>
+    <div class="steps">
+      <div class="step done"></div>
+      <div class="step active"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+    </div>
+  </nav>
+
+  <div class="courses-page">
+
+    <div class="courses-header">
+      <div>
+        <h2>Previous Courses</h2>
+        <p class="section-sub">Mark each course with your current status.</p>
+      </div>
+      <div class="header-counts">
+        <span class="count-chip done-chip"><span id="done-count">3</span> Done</span>
+        <span class="count-chip prog-chip"><span id="progress-count">1</span> In Progress</span>
+        <span class="count-chip none-chip"><span id="none-count">7</span> Not Taken</span>
+      </div>
+    </div>
+
+    <input class="search-bar" placeholder="Search courses..." oninput="filterCourses(this.value)">
+
+    <div id="course-list">
+
+      <div class="dept-label">CSCE — Computer Science</div>
+
+      <div class="course-chip" data-status="done">
+        <div class="chip-left">
+          <span class="status-badge badge-done">Done</span>
+          <div class="chip-info">
+            <div class="course-name">Computer Science I</div>
+            <div class="course-code">CSCE 1030</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn"             onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn active-done" onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="course-chip" data-status="done">
+        <div class="chip-left">
+          <span class="status-badge badge-done">Done</span>
+          <div class="chip-info">
+            <div class="course-name">Computer Science II</div>
+            <div class="course-code">CSCE 1040</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn"             onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn active-done" onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">Foundations of Computing</div>
+            <div class="course-code">CSCE 2100</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="dept-label">MATH — Mathematics</div>
+
+      <div class="course-chip" data-status="done">
+        <div class="chip-left">
+          <span class="status-badge badge-done">Done</span>
+          <div class="chip-info">
+            <div class="course-name">Calculus I</div>
+            <div class="course-code">MATH 1710</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn"             onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn active-done" onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="course-chip" data-status="progress">
+        <div class="chip-left">
+          <span class="status-badge badge-progress">Taking</span>
+          <div class="chip-info">
+            <div class="course-name">Calculus II</div>
+            <div class="course-code">MATH 1720</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn"                 onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn active-progress" onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"                 onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">Linear Algebra</div>
+            <div class="course-code">MATH 2700</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="dept-label">PHYS — Physics</div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">Electricity &amp; Magnetism</div>
+            <div class="course-code">PHYS 2220</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">Mechanics</div>
+            <div class="course-code">PHYS 2210</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="dept-label">GOVT — Government</div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">U.S. Government</div>
+            <div class="course-code">GOVT 2305</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="dept-label">HIST — History</div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">U.S. History to 1865</div>
+            <div class="course-code">HIST 2610</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+      <div class="course-chip" data-status="none">
+        <div class="chip-left">
+          <span class="status-badge badge-none">None</span>
+          <div class="chip-info">
+            <div class="course-name">U.S. History from 1865</div>
+            <div class="course-code">HIST 2620</div>
+          </div>
+        </div>
+        <div class="status-btns">
+          <button class="status-btn active-none" onclick="setStatus(this,'none')">None</button>
+          <button class="status-btn"             onclick="setStatus(this,'progress')">Taking</button>
+          <button class="status-btn"             onclick="setStatus(this,'done')">Done</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span class="selected-count">
+      <strong id="done-count-footer">3</strong> done &nbsp;·&nbsp;
+      <strong id="progress-count-footer">1</strong> in progress
+    </span>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-ghost"   onclick="window.location.href='index.html'">&#8592; Back</button>
+      <button class="btn btn-primary" onclick="window.location.href='schedule.html'">Optimize Schedule &#8594;</button>
+    </div>
+  </div>
+
+  <script>
+    function setStatus(btn, newStatus) {
+      var chip = btn.closest('.course-chip');
+      chip.dataset.status = newStatus;
+
+      chip.querySelectorAll('.status-btn').forEach(function(b) {
+        b.classList.remove('active-none', 'active-progress', 'active-done');
+      });
+      btn.classList.add('active-' + newStatus);
+
+      var badge = chip.querySelector('.status-badge');
+      badge.className = 'status-badge';
+      if (newStatus === 'none') {
+        badge.classList.add('badge-none');
+        badge.textContent = 'None';
+      } else if (newStatus === 'progress') {
+        badge.classList.add('badge-progress');
+        badge.textContent = 'Taking';
+      } else {
+        badge.classList.add('badge-done');
+        badge.textContent = 'Done';
+      }
+
+      updateCounts();
+    }
+
+    function updateCounts() {
+      var chips = document.querySelectorAll('.course-chip');
+      var done = 0, progress = 0, none = 0;
+
+      chips.forEach(function(chip) {
+        if (chip.dataset.status === 'done')     done++;
+        if (chip.dataset.status === 'progress') progress++;
+        if (chip.dataset.status === 'none')     none++;
+      });
+
+      document.getElementById('done-count').textContent     = done;
+      document.getElementById('progress-count').textContent = progress;
+      document.getElementById('none-count').textContent     = none;
+
+      document.getElementById('done-count-footer').textContent     = done;
+      document.getElementById('progress-count-footer').textContent = progress;
+    }
+
+    function filterCourses(query) {
+      query = query.toLowerCase();
+
+      document.querySelectorAll('.course-chip').forEach(function(chip) {
+        chip.style.display = chip.innerText.toLowerCase().includes(query) ? '' : 'none';
+      });
+
+      document.querySelectorAll('.dept-label').forEach(function(label) {
+        var sib = label.nextElementSibling;
+        var anyVisible = false;
+        while (sib && sib.classList.contains('course-chip')) {
+          if (sib.style.display !== 'none') anyVisible = true;
+          sib = sib.nextElementSibling;
+        }
+        label.style.display = anyVisible ? '' : 'none';
+      });
+    }
+  </script>
+
+</body>
+</html>
