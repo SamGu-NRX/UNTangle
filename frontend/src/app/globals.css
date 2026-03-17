@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --font-display-family: var(--font-display);
-  --font-body-family: var(--font-body);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
   --bg: #f4f0e7;
   --bg-muted: #e9e2d3;
   --surface: rgba(255, 252, 247, 0.9);
@@ -24,8 +24,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-body-family);
-  --font-display: var(--font-display-family);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
   --color-bg: var(--bg);
   --color-bg-muted: var(--bg-muted);
   --color-ink: var(--ink);
@@ -53,7 +53,7 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-body-family);
+  font-family: var(--font-body);
   color: var(--ink);
   background:
     radial-gradient(circle at top left, rgba(111, 157, 119, 0.14), transparent 28%),
@@ -73,11 +73,6 @@ input {
 
 ::selection {
   background: rgba(79, 127, 95, 0.18);
-}
-
-@utility glass-panel {
-  @apply rounded-[1.75rem] border border-[color:var(--line)] bg-[color:var(--surface)] backdrop-blur-[8px];
-  box-shadow: var(--shadow-soft);
 }
 
 @utility surface-panel {
@@ -161,11 +156,7 @@ input {
 }
 
 @utility font-display {
-  font-family: var(--font-display-family);
-}
-
-@utility animate-enter {
-  animation: page-enter 240ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  font-family: var(--font-display);
 }
 
 @utility animate-page-in {
