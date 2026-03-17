@@ -6,3 +6,12 @@ db.sqlite3
 .env
 .env.local
 .DS_Store
+
+# Playwright CLI output
+.playwright-cli/
+
+# VS Code workspace settings (local)
+.vscode/
+
+# Turborepo build cache & logs
+.turbo/

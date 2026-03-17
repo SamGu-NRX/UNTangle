@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --font-body: "Avenir Next", "Segoe UI", "Trebuchet MS", sans-serif;
+  --ink: #1d241d;
+  --copy: #526156;
+  --muted: #6f7768;
+  --green-900: #102614;
+  --green-800: #154127;
+  --green-700: #27623a;
+  --green-600: #3e7d4a;
+  --green-500: #5da15a;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --color-ink: var(--ink);
+  --color-copy: var(--copy);
+  --color-muted: var(--muted);
+  --color-green-900: var(--green-900);
+  --color-green-800: var(--green-800);
+  --color-green-700: var(--green-700);
+  --color-green-600: var(--green-600);
+  --color-green-500: var(--green-500);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: #f2ede2;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+@utility glass-panel {
+  @apply rounded-[1.75rem] border border-[rgba(16,38,20,0.08)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.92),_rgba(247,243,234,0.78))] shadow-[0_20px_54px_rgba(27,36,24,0.08)] backdrop-blur-[20px];
+}
+
+@utility field-label {
+  @apply mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[var(--muted)];
+}
+
+@utility field-input {
+  @apply w-full rounded-2xl border border-[rgba(16,38,20,0.1)] bg-white/92 px-4 py-[0.95rem] text-[var(--green-900)] focus:border-[rgba(39,98,58,0.6)] focus:outline-none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 180ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  box-shadow: 0 0 #0000;
+
+  &:focus {
+    box-shadow: 0 0 0 4px rgba(39, 98, 58, 0.08);
+  }
+}
+
+@utility primary-button {
+  @apply rounded-full border border-[var(--green-800)] bg-[linear-gradient(180deg,#1b4d2f,#143524)] px-5 py-[0.95rem] text-[0.92rem] font-bold text-white shadow-[0_14px_28px_rgba(20,65,39,0.18)] hover:-translate-y-px;
+  transition:
+    transform 180ms cubic-bezier(0.215, 0.61, 0.355, 1),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+@utility secondary-button {
+  @apply rounded-full border border-[rgba(16,38,20,0.12)] bg-white/84 px-5 py-[0.95rem] text-[0.92rem] font-bold text-[var(--green-900)] hover:-translate-y-px;
+  transition:
+    transform 180ms cubic-bezier(0.215, 0.61, 0.355, 1),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+@utility animate-enter {
+  animation: page-enter 320ms cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
