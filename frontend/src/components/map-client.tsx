@@ -140,6 +140,7 @@ export function MapClient() {
   const { plannerState, routeStops, setActiveDay } = usePlanner();
   const [routeSummary, setRouteSummary] = useState({ distanceText: "—", durationText: "—" });
   const stops = routeStops[plannerState.activeDay];
+  const summaryDisplay = stops.length < 2 ? { distanceText: "—", durationText: "—" } : routeSummary;
 
   const itinerarySummary = useMemo(
     () =>
@@ -182,14 +183,14 @@ export function MapClient() {
           <div className="surface-panel px-5 py-5">
             <div className="flex flex-wrap gap-2">
               <StatusChip label={`${stops.length} stops`} tone="stone" />
-              <StatusChip label={routeSummary.distanceText} tone="gold" />
-              <StatusChip label={routeSummary.durationText} tone="green" />
+              <StatusChip label={summaryDisplay.distanceText} tone="gold" />
+              <StatusChip label={summaryDisplay.durationText} tone="green" />
             </div>
 
             <div className="mt-5 space-y-3">
               {stops.length === 0 ? (
-                <div className="px-4 py-4 text-sm text-[color:var(--copy)]">
-                  No classes scheduled yet.
+                <div className="subtle-panel border-dashed px-4 py-4 text-sm text-[color:var(--copy)]">
+                  No classes are scheduled on this day.
                 </div>
               ) : (
                 stops.map((stop, index) => (

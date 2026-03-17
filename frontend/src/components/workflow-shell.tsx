@@ -52,7 +52,7 @@ export function WorkflowShell({
               {sessionResult.data?.user ? (
                 <button
                   type="button"
-                  className="secondary-button"
+                  className="ghost-button"
                   onClick={async () => {
                     await authClient.signOut();
                     router.push("/");
@@ -61,7 +61,7 @@ export function WorkflowShell({
                   Sign out
                 </button>
               ) : (
-                <Link href="/auth" className="secondary-button">
+                <Link href="/auth" className="ghost-button">
                   Sign in
                 </Link>
               )}
@@ -94,7 +94,7 @@ export function WorkflowShell({
         </header>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <main className="min-w-0">
+          <main className="animate-page-in min-w-0">
             <div className="mb-6 max-w-4xl">
               <p className="editorial-label">{eyebrow}</p>
               <h1 className="mt-3 font-display text-[clamp(2.7rem,5vw,4.5rem)] font-bold leading-[0.92] tracking-[-0.08em] text-[color:var(--green-900)]">
@@ -105,7 +105,7 @@ export function WorkflowShell({
             {children}
           </main>
 
-          {aside ? <aside className="self-start lg:sticky lg:top-5">{aside}</aside> : null}
+          {aside ? <aside className="animate-page-in self-start lg:sticky lg:top-5">{aside}</aside> : null}
         </div>
       </div>
     </div>

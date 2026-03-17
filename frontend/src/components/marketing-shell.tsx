@@ -18,7 +18,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href="/auth" className="secondary-button hidden sm:inline-flex">
+            <Link href="/auth" className="ghost-button hidden sm:inline-flex">
               Sign in
             </Link>
             <Link href="/courses" className="secondary-button">
@@ -27,7 +27,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 py-8 sm:py-10">{children}</main>
+        <main className="animate-page-in flex-1 py-8 sm:py-10">{children}</main>
       </div>
     </div>
   );
