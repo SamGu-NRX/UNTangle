@@ -1,0 +1,126 @@
+[
+    {
+        "course_number": "JAPN1010",
+        "title": "Elementary Japanese  (JAPN 1411)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171435"
+    },
+    {
+        "course_number": "JAPN1020",
+        "title": "Elementary Japanese  (JAPN 1412)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "JAPN 1010 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN1010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171436"
+    },
+    {
+        "course_number": "JAPN3042",
+        "title": "Japanese Society Today",
+        "number_of_hours": "3 hours",
+        "description": "Exploration of contemporary Japanese society through readings and discussions.",
+        "prerequisites": "JAPN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173665"
+    },
+    {
+        "course_number": "JAPN4080",
+        "title": "Business Japanese",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to Japanese business culture and development of appropriate advanced language skills.",
+        "prerequisites": "9 hours of advanced Japanese or consent of department.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173666"
+    },
+    {
+        "course_number": "JAPN4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "NONE",
+        "prerequisites": "Consent of department. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171445"
+    },
+    {
+        "course_number": "JAPN3068",
+        "title": "Japanese Extensive Reading",
+        "number_of_hours": "3 hours",
+        "description": "Enhance reading proficiency and other skills through cultural materials.",
+        "prerequisites": "JAPN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173667"
+    },
+    {
+        "course_number": "JAPN3066",
+        "title": "Building Japanese Fluency and Listening Skills",
+        "number_of_hours": "3 hours",
+        "description": "Improvement of fluency and listening skills to aid in transition from intermediate to advanced Japanese. Promotion of critical thinking in discussions on issues in diversity, equity, and inclusion in Japan is enhanced with a drama series for students\u2019 fluency development.",
+        "prerequisites": "JAPN 2050 or the equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174255"
+    },
+    {
+        "course_number": "JAPN3030",
+        "title": "Advanced Japanese II",
+        "number_of_hours": "3 hours",
+        "description": "Advanced listening, speaking, reading, writing and grammar. Topics include Japanese society, culture, history and intercultural communications.",
+        "prerequisites": "JAPN 3020 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN3020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171442"
+    },
+    {
+        "course_number": "JAPN2050",
+        "title": "Intermediate Japanese  (JAPN 2312)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "JAPN 2040 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN2040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171438"
+    },
+    {
+        "course_number": "JAPN4030",
+        "title": "Advanced Japanese IV",
+        "number_of_hours": "3 hours",
+        "description": "Continuation of advanced listening, speaking, reading, writing and grammar. Topics may include Japanese arts, culture, history and politics.",
+        "prerequisites": "9 hours of advanced Japanese or consent of department.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173406"
+    },
+    {
+        "course_number": "JAPN2040",
+        "title": "Intermediate Japanese  (JAPN 2311)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "JAPN 1020 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN1020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171437"
+    },
+    {
+        "course_number": "JAPN3020",
+        "title": "Advanced Japanese I",
+        "number_of_hours": "3 hours",
+        "description": "Advanced listening, speaking, reading, writing and grammar. Topics include Japanese society, culture, history and intercultural communications.",
+        "prerequisites": "JAPN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "JAPN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171441"
+    }
+]

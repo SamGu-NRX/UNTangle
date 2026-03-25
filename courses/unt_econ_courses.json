@@ -1,0 +1,242 @@
+[
+    {
+        "course_number": "ECON4020",
+        "title": "Money and Financial Institutions",
+        "number_of_hours": "3 hours",
+        "description": "Nature and functions of money; modern banking institutions and central banks; credit control and monetary stabilization.",
+        "prerequisites": "ECON 1100 , ECON 1110 .",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170860"
+    },
+    {
+        "course_number": "ECON4850",
+        "title": "International Trade",
+        "number_of_hours": "3 hours",
+        "description": "Ricardian and Neoclassical economic theories; Heckscher-Ohlin and specific-factors models relevant to trade, immigration, foreign direct investment, and welfare; the political economy of trade policies; global and preferential trading arrangements; the global supply chain; and intra-industry trade.",
+        "prerequisites": "ECON 1100 and ECON 1110 , or consent of department. May not be repeated at the graduate level as ECON 5850.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110",
+            "ECON5850"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170879"
+    },
+    {
+        "course_number": "ECON1100",
+        "title": "Principles of Microeconomics  (ECON 2302)",
+        "number_of_hours": "3 hours",
+        "description": "Business organization and market economy; theory of the firm; techniques of economic analysis in current economic problems; comparative economic systems. Prerequisite for most upper-level ECON courses. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170851"
+    },
+    {
+        "course_number": "ECON4875",
+        "title": "Empirical Linear Modeling",
+        "number_of_hours": "3 hours",
+        "description": "Develops the tools necessary to analyze, interpret and develop empirical applications of econometric estimation procedures. Exploration of an assortment of applied problems that are typically encountered in quantitative research with particular attention given to the examination of real-world, economic and other business-related phenomena. Particular attention is given to developing proficiency in the following four areas: organizing and manipulating data, estimating linear regression models, interpreting econometric results and computer output, and working with computer software.",
+        "prerequisites": "ECON 4870 .",
+        "prerequisites_course_codes": [
+            "ECON4870"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170881"
+    },
+    {
+        "course_number": "ECON4630",
+        "title": "Data Analysis in Economics",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Research methodology for business and the social sciences; descriptive statistics; basic probability theory; discrete and continuous probability distributions; hypothesis testing; and introductory regression techniques. Lab with Microsoft Excel covers essential functions and data analysis.",
+        "prerequisites": "ECON 1100 ; MATH 1100 or MATH 1180 . May not be repeated at the graduate level as ECON 5630.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "MATH1100",
+            "MATH1180",
+            "ECON5630"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170877"
+    },
+    {
+        "course_number": "ECON4550",
+        "title": "Law and Economics",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the mutual interaction between legal systems and economic activity. Topics include an introduction to legal systems and institutions, legal analysis, application of economic concepts to various legal doctrines, contracts, torts, criminal law, constitutional law, regulation and antitrust. Emphasis is placed on using economic theory to develop and test hypotheses regarding the effects of laws on incentives and economic behavior, the allocation of resources, and the distribution of income.",
+        "prerequisites": "ECON 1100 .",
+        "prerequisites_course_codes": [
+            "ECON1100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170874"
+    },
+    {
+        "course_number": "ECON4290",
+        "title": "Labor Economics",
+        "number_of_hours": "3 hours",
+        "description": "Labor supply and demand; minimum wage; gender and racial wage gaps; the interaction of the labor market with migration and immigration, educational returns, and income inequality.",
+        "prerequisites": "ECON 3550 .",
+        "prerequisites_course_codes": [
+            "ECON3550"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170867"
+    },
+    {
+        "course_number": "ECON4030",
+        "title": "Economic Cycles and Forecasting",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on time series analysis and forecasting methodologies applied to problems typically encountered in economics and finance. Computer applications will be used to reinforce the theoretical models.",
+        "prerequisites": "ECON 1100 and ECON 1110 ; ECON 4630 with a grade of C or better. ECON 4630 can be replaced with MATH 3680 or DSCI 3710 with a grade of C or better. May not be repeated at the graduate level as ECON 5080.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110",
+            "ECON4630",
+            "MATH3680",
+            "DSCI3710",
+            "ECON5080"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170861"
+    },
+    {
+        "course_number": "ECON1110",
+        "title": "Principles of Macroeconomics  (ECON 2301)",
+        "number_of_hours": "3 hours",
+        "description": "Principles of economic organization and growth in modern, industrial society; money and banking, monetary and fiscal policy; determinants of national income and business fluctuations. Prerequisite for most upper-level ECON courses. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170852"
+    },
+    {
+        "course_number": "ECON4420",
+        "title": "Open Economy Macroeconomics",
+        "number_of_hours": "3 hours",
+        "description": "Macroeconomic policy options and impacts in the open economy; international monetary reforms; examinations of the impact of balance of payments adjustments under different monetary systems; role of foreign investment in economic growth.",
+        "prerequisites": "ECON 1100 and ECON 1110 . May not be repeated at the graduate level as ECON 5420. Usually offered in spring.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110",
+            "ECON5420"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170868"
+    },
+    {
+        "course_number": "ECON3200",
+        "title": "Behavioral Economics for Non-Economics Majors",
+        "number_of_hours": "3 hours",
+        "description": "Psychological, cognitive, emotional, social, and cultural factors in decision-making; discrepancies between neoclassical economic theory and behavioral economics theory. Course not open to BA, BS, or BBA Economics majors.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173973"
+    },
+    {
+        "course_number": "ECON4440",
+        "title": "Economics of Natural Resources and Environment",
+        "number_of_hours": "3 hours",
+        "description": "Natural resource management and use: problems of renewable and non-renewable resources, including scarcity and market responses, role of property rights, externalities, benefit-cost analysis and energy policy with emphasis on Texas, analysis of environmental problems and policy formulation.",
+        "prerequisites": "ECON 1100 or consent of department. May not be repeated at the graduate level as ECON 5440.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON5440"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170869"
+    },
+    {
+        "course_number": "ECON3550",
+        "title": "Intermediate Micro-Theory",
+        "number_of_hours": "3 hours",
+        "description": "Demand and supply analysis, consumer choice theory, production and cost theory and market equilibrium under different market structures.",
+        "prerequisites": "ECON 1100 with a grade of C or better; MATH 1190 or MATH 1710 , with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "MATH1190",
+            "MATH1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170858"
+    },
+    {
+        "course_number": "ECON3300",
+        "title": "Webonomics",
+        "number_of_hours": "3 hours",
+        "description": "Production, distribution, and consumption of goods, services, and ideas over the World Wide Web; legal, economic, social, and technical aspects of national and international policy; Internet ecosystem; technological convergence; regulation; intellectual property; privacy and cybersecurity; artificial intelligence and machine learning.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174418"
+    },
+    {
+        "course_number": "ECON3050",
+        "title": "The Economics of Consumption",
+        "number_of_hours": "3 hours",
+        "description": "Micro and macroeconomic concepts and the role of consumers in the U.S. economy; the time value of money; consumer credit; interest rates, and other financial information important to consumer decision-making.",
+        "prerequisites": "ECON 1100 , ECON 1110 .",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170855"
+    },
+    {
+        "course_number": "ECON3560",
+        "title": "Intermediate Macro-Theory",
+        "number_of_hours": "3 hours",
+        "description": "Factors affecting income level, employment and output; national income concepts and measurements; application of economic policy to current problems.",
+        "prerequisites": "ECON 1100 and ECON 1110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170859"
+    },
+    {
+        "course_number": "ECON4510",
+        "title": "History of Economic Thought",
+        "number_of_hours": "3 hours",
+        "description": "Economic thought since the Middle Ages.",
+        "prerequisites": "ECON 1100 - ECON 1110 . May not be repeated at the graduate level as ECON 5090.",
+        "prerequisites_course_codes": [
+            "ECON1100",
+            "ECON1110",
+            "ECON5090"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170873"
+    },
+    {
+        "course_number": "ECON4650",
+        "title": "Economics of Cities",
+        "number_of_hours": "3 hours",
+        "description": "Economic forces that cause cities to form and that have shaped cities over recent centuries; interplay of central cities and suburbs; the determinants of where people live and work; and the economics of housing and transportation within cities.",
+        "prerequisites": "ECON 3550 . May not be repeated at the graduate level as ECON 5750.",
+        "prerequisites_course_codes": [
+            "ECON3550",
+            "ECON5750"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170878"
+    },
+    {
+        "course_number": "ECON4140",
+        "title": "Managerial Economics",
+        "number_of_hours": "3 hours",
+        "description": "Integrates microeconomic theory with accounting, finance, marketing and production management. Demand and cost estimation and forecasting; pricing; business strategy; case studies.",
+        "prerequisites": "ECON 3550 and MATH 1190 . May not be repeated at the graduate level as ECON 5140.",
+        "prerequisites_course_codes": [
+            "ECON3550",
+            "MATH1190",
+            "ECON5140"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170863"
+    },
+    {
+        "course_number": "ECON4870",
+        "title": "Introduction to Econometrics",
+        "number_of_hours": "3 hours",
+        "description": "Focus on simple and multiple regression using ordinary least squares (OLS). Topics include linear and intrinsically linear regression models; estimation under ideal and non-ideal conditions; linear hypothesis testing; multicollinearity and models with dummy variables.",
+        "prerequisites": "ECON 4630 or MATH 3680 or DSCI 3710 ; MATH 1190 or MATH 1710 . Usually offered fall and spring semesters. May not be repeated at the graduate level as ECON 5640.",
+        "prerequisites_course_codes": [
+            "ECON4630",
+            "MATH3680",
+            "DSCI3710",
+            "MATH1190",
+            "MATH1710",
+            "ECON5640"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170880"
+    }
+]

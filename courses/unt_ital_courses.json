@@ -1,0 +1,24 @@
+[
+    {
+        "course_number": "ITAL1020",
+        "title": "Elementary Italian  (ITAL 1412)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "ITAL 1010 or equivalent.",
+        "prerequisites_course_codes": [
+            "ITAL1010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171425"
+    },
+    {
+        "course_number": "ITAL2050",
+        "title": "Intermediate Italian  (ITAL 2312)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "ITAL 2040 or equivalent.",
+        "prerequisites_course_codes": [
+            "ITAL2040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171427"
+    }
+]

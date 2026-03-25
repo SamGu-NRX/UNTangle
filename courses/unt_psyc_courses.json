@@ -1,0 +1,339 @@
+[
+    {
+        "course_number": "PSYC2900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172486"
+    },
+    {
+        "course_number": "PSYC4020",
+        "title": "Psychology of Death and Dying",
+        "number_of_hours": "3 hours",
+        "description": "Concepts and attitudes concerning death and dying from a psychological perspective; current research on death and dying; development of insights and understanding to prepare the student to interact effectively with people who are terminally ill and their family members.",
+        "prerequisites": "C or better in PSYC 1630 and one of the following: PSYC 2580 , PSYC 3100 , or PSYC 3620 and Junior Standing.",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC2580",
+            "PSYC3100",
+            "PSYC3620"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172498"
+    },
+    {
+        "course_number": "PSYC3000",
+        "title": "Positive Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Nature of psychology with emphases on the development of strengths and virtues, positive emotion, positive cognition, prosocial behavior, positive interventions, and positive environments.",
+        "prerequisites": "PSYC 1630 or PSYC 1650 .",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC1650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173216"
+    },
+    {
+        "course_number": "PSYC4820",
+        "title": "Sensation and Perception",
+        "number_of_hours": "3 hours",
+        "description": "The philosophical history of perception, psychophysics, neurobiological substrates of human sensory systems leading to phenomenological perception, body-brain sensory processing pathways, and the neuropsychology of disrupted sensation and perception.",
+        "prerequisites": "C or better in PSYC 1650 and PSYC 3650 , or consent of department.",
+        "prerequisites_course_codes": [
+            "PSYC1650",
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173934"
+    },
+    {
+        "course_number": "PSYC1650",
+        "title": "Biological Psychology  (PSYC 2330)",
+        "number_of_hours": "3 hours",
+        "description": "Nature of psychology with emphases on the physiological basis of behavior and psychological processes, including learning, motivation, perception and emotion.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172481"
+    },
+    {
+        "course_number": "PSYC3620",
+        "title": "Developmental Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Basic theories and research in life-span developmental psychology, with an emphasis on the first two decades of life; unique and interactive features of socio-emotional, physical and cognitive development.",
+        "prerequisites": "C or Better in PSYC 1630 .",
+        "prerequisites_course_codes": [
+            "PSYC1630"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172493"
+    },
+    {
+        "course_number": "PSYC4030",
+        "title": "Multicultural Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Study of various theories and concepts of multicultural psychology, the impact of cultural factors on human behaviors, and challenges faced by underrepresented groups in society. Emphasis placed on the development of students\u2019 multicultural knowledge and experience.",
+        "prerequisites": "C or better in one of the following: PSYC 3100 or PSYC 3620 and Junior Standing.",
+        "prerequisites_course_codes": [
+            "PSYC3100",
+            "PSYC3620"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173360"
+    },
+    {
+        "course_number": "PSYC3530",
+        "title": "Forensic Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Psychological processes related to the legal system from accused to victim to the courtroom. Dynamics involved in, but not limited to, sexual assault, intimate partner abuse, stalking, homicide, non-violent crimes, incarceration and investigations.",
+        "prerequisites": "C or better in PSYC 1630 and upper-level standing.",
+        "prerequisites_course_codes": [
+            "PSYC1630"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172492"
+    },
+    {
+        "course_number": "PSYC4640",
+        "title": "Psychophysiology",
+        "number_of_hours": "3 hours",
+        "description": "Chemical, biological, and physiological processes in relation to the central and peripheral nervous systems, learning and memory, neuroanatomy, psychopharmacology, and emotion. Background in biology or chemistry strongly encouraged.",
+        "prerequisites": "C or better in both PSYC 1650 and PSYC 3650 and Junior Standing, or Consent of Department.",
+        "prerequisites_course_codes": [
+            "PSYC1650",
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172508"
+    },
+    {
+        "course_number": "PSYC1630",
+        "title": "General Psychology I  (PSYC 2301)",
+        "number_of_hours": "3 hours",
+        "description": "Nature of psychology with emphases on the study of personality development, decision making, reactions to frustration, mental health, and how the individual interacts with and is influenced by others. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172480"
+    },
+    {
+        "course_number": "PSYC3100",
+        "title": "Social Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Survey of psychological research and theory on social behavior with attention to person perception, interpersonal attraction, group processes, attitudes, helping behavior, aggression and applied social psychology.",
+        "prerequisites": "C or better in either PSYC 1630 or PSYC 1650 .",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC1650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172488"
+    },
+    {
+        "course_number": "PSYC2580",
+        "title": "Health Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Examines psychological, physiological, social and behavioral factors as they influence and are influenced by physical health. Health psychology is concerned with the acquisition and maintenance of health through behavior change strategies, the prevention and/or treatment of illnesses, the role of psychosocial and stress factors in the development of physical illness, and the formulation of health care policy.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172484"
+    },
+    {
+        "course_number": "PSYC4950",
+        "title": "Honors Thesis",
+        "number_of_hours": "3 hours",
+        "description": "Research project for outstanding psychology students. The project must involve planning, conducting and defending an actual project.",
+        "prerequisites": "PSYC 2317 , PSYC 3650 , PSYC 3630 . For psychology majors with a minimum of 18 hours in psychology and a minimum grade point average of 3.5 in psychology and 3.0 overall.",
+        "prerequisites_course_codes": [
+            "PSYC2317",
+            "PSYC3650",
+            "PSYC3630"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172515"
+    },
+    {
+        "course_number": "PSYC3640",
+        "title": "Intimate Partnerships and Caregiving",
+        "number_of_hours": "3 hours",
+        "description": "Physiological, psychological, and socioeconomic factors involved in intimate partnerships and caregiving; practical education for adjusting to and within a partnership and providing caregiving to family members of all ages.",
+        "prerequisites": "C or better in PSYC 1630 or PSYC 2600 or PSYC 2480 , and Sophomore Standing.",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC2600",
+            "PSYC2480"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172495"
+    },
+    {
+        "course_number": "PSYC4520",
+        "title": "Personality",
+        "number_of_hours": "3 hours",
+        "description": "Major approaches to conceptualization of personality; psychodynamic, phenomenological and trait-type learning models.",
+        "prerequisites": "C or better in PSYC 3650 .",
+        "prerequisites_course_codes": [
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172504"
+    },
+    {
+        "course_number": "PSYC3520",
+        "title": "Introduction to Industrial Organizational Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Personnel and organizational psychology; selection and testing procedures, test validation, and theories of organization, leadership and job performance.",
+        "prerequisites": "C or better in PSYC 1630 and Sophomore Standing.",
+        "prerequisites_course_codes": [
+            "PSYC1630"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172491"
+    },
+    {
+        "course_number": "PSYC4850",
+        "title": "Research in Psychology",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Conduct research on a psychological science question in association with a UNT faculty researcher. Research takes place in a human participants laboratory setting.",
+        "prerequisites": "Psychology major status, PSYC 3650 and consent of department. May be repeated for credit for a maximum of 6 hours.",
+        "prerequisites_course_codes": [
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174267"
+    },
+    {
+        "course_number": "PSYC4690",
+        "title": "Introduction to Learning and Memory",
+        "number_of_hours": "3 hours",
+        "description": "Explores the processes of acquiring and using knowledge. Basic principles in conditioning, concept learning and human behavior are taught as a foundation to the understanding of learning.",
+        "prerequisites": "PSYC 3650 or consent of department.",
+        "prerequisites_course_codes": [
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172510"
+    },
+    {
+        "course_number": "PSYC4830",
+        "title": "Cognitive Psychology",
+        "number_of_hours": "3 hours",
+        "description": "Classic and contemporary theories of human thinking processes as related to perception, attention, memory, knowledge representation, reasoning, decision making, language, problem solving and consciousness.",
+        "prerequisites": "C or better in PSYC 3650 .",
+        "prerequisites_course_codes": [
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173935"
+    },
+    {
+        "course_number": "PSYC2317",
+        "title": "Quantitative Methods  (PSYC 2317)",
+        "number_of_hours": "3 hours",
+        "description": "Techniques appropriate for treatment of psychological data; frequency distributions, percentiles, measures of central tendency and variability, normal curve function, simple correlational analyses, and applications of sampling theory. Laboratory offers practice in quantitative methodology and an introduction to the computer statistical program SPSS.",
+        "prerequisites": "MATH 1680 or MATH 1681X Corequisite(s): PSYC 3317 .",
+        "prerequisites_course_codes": [
+            "MATH1680",
+            "PSYC3317"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172482"
+    },
+    {
+        "course_number": "PSYC4600",
+        "title": "History and Systems",
+        "number_of_hours": "3 hours",
+        "description": "Principal historical antecedents of modern psychology, relevance to major contemporary systematic positions; philosophy of science, associationism, structuralism, behaviorism, functionalism, Gestalt and psychoanalysis; recent psychological theories.",
+        "prerequisites": "Grade of C or better in PSYC 3650 .",
+        "prerequisites_course_codes": [
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172505"
+    },
+    {
+        "course_number": "PSYC3490",
+        "title": "Psychology of Women and Gender",
+        "number_of_hours": "3 hours",
+        "description": "Comparison of health, wellness, social norms, personality, and cultural factors associated with gender identities. Emphasis on women.",
+        "prerequisites": "C or better in PSYC 1630 and Sophomore Standing.",
+        "prerequisites_course_codes": [
+            "PSYC1630"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172490"
+    },
+    {
+        "course_number": "PSYC4951",
+        "title": "Honors College Capstone Thesis",
+        "number_of_hours": "3 hours",
+        "description": "Major research project prepared by the student under the supervision of a faculty member and presented in standard thesis format. An oral defense is required of each student for successful completion of the thesis.",
+        "prerequisites": "Completion of at least 6 hours in honors courses; completion of at least 12 hours in the major department in which the thesis is prepared; approval of the department chair and the dean of the school or college in which the thesis is prepared; approval of the dean of the Honors College. May be substituted for HNRS 4000 . Course may be taken only once for Honors College credit.",
+        "prerequisites_course_codes": [
+            "HNRS4000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172516"
+    },
+    {
+        "course_number": "PSYC4470",
+        "title": "Sexual Behavior",
+        "number_of_hours": "3 hours",
+        "description": "Impact of psychosocial factors on development and expression of human sexuality.",
+        "prerequisites": "C or better in PSYC 1630 and one of the following: PSYC 2580 , PSYC 3490 , or PSYC 3620 and Junior Standing.",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC2580",
+            "PSYC3490",
+            "PSYC3620"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172501"
+    },
+    {
+        "course_number": "PSYC4610",
+        "title": "Psychopathology",
+        "number_of_hours": "3 hours",
+        "description": "Major psychoses, neuroses and other types of maladaptive behavior patterns that are common problems in society; descriptions of symptomatology, theoretical approaches and epidemiological variables.",
+        "prerequisites": "C or better in PSYC 3650 and Junior standing.",
+        "prerequisites_course_codes": [
+            "PSYC3650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172506"
+    },
+    {
+        "course_number": "PSYC2480",
+        "title": "Psychosocial Adjustment  (PSYC 2315)",
+        "number_of_hours": "3 hours",
+        "description": "Processes involved in adjustment of individuals to their personal and social environments; role of conflict, frustration and healthy and pathological strategies of adjustment.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172483"
+    },
+    {
+        "course_number": "PSYC3650",
+        "title": "Experimental Methods",
+        "number_of_hours": "4 hours",
+        "description": "(4;3) Basic experimental procedures and designs, laboratory apparatus, and treatment of experimental data. Experiments and experimental reports required of each student.",
+        "prerequisites": "PSYC 1630 , PSYC 2317 , PSYC 3317 , and TECM 2700 or ENGL 1320 .",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC2317",
+            "PSYC3317",
+            "TECM2700",
+            "ENGL1320"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172487"
+    },
+    {
+        "course_number": "PSYC3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173083"
+    },
+    {
+        "course_number": "PSYC4510",
+        "title": "Practicum",
+        "number_of_hours": "1\u20133 hours",
+        "description": "In-depth study of areas of specific interest. Practical experience in supervised settings.",
+        "prerequisites": "Junior Standing May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172503"
+    },
+    {
+        "course_number": "PSYC3300",
+        "title": "Psychology of Addictive Behaviors",
+        "number_of_hours": "3 hours",
+        "description": "The etiology, theories, cognitive neuroscience, and psychological and behavioral effects of addictive behaviors, including substance use, gambling, and other behaviors being considered as potential addictions, such as binge eating, hypersexuality, and compulsive electronic media use.",
+        "prerequisites": "PSYC 1630 and PSYC 1650 .",
+        "prerequisites_course_codes": [
+            "PSYC1630",
+            "PSYC1650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174114"
+    }
+]

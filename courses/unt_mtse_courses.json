@@ -1,0 +1,179 @@
+[
+    {
+        "course_number": "MTSE3000",
+        "title": "Fundamentals of Materials Science and Engineering - I",
+        "number_of_hours": "3 hours",
+        "description": "Introduces the fundamentals of materials science and engineering, including atomic interactions, introduction of crystalline and non-crystalline structures, the concept of materials defects, the evolution of microstructure/structure, the influence of composition and processing on microstructure, and how composition and structure impact the properties of a wide variety of engineering materials.",
+        "prerequisites": "CHEM 1410 / CHEM 1430 or CHEM 1415 / CHEM 1435 .",
+        "prerequisites_course_codes": [
+            "CHEM1410",
+            "CHEM1430",
+            "CHEM1415",
+            "CHEM1435"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173264"
+    },
+    {
+        "course_number": "MTSE4900",
+        "title": "Special Topics in Materials Science and Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Lectures, laboratory or other experiences covering specially selected topics in materials science and engineering.",
+        "prerequisites": "MATH 1710 , CHEM 1410 / CHEM 1430 . May be repeated as topics vary. Maximum of 8 credits allowed.",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "CHEM1410",
+            "CHEM1430"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171854"
+    },
+    {
+        "course_number": "MTSE2900",
+        "title": "Introduction to Materials Science Research",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individualized laboratory instruction. Students may begin training on laboratory research techniques. May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171831"
+    },
+    {
+        "course_number": "MTSE4910",
+        "title": "Materials Science Research",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Introduction to research; may consist of an experimental, theoretical or review topic. May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171855"
+    },
+    {
+        "course_number": "MTSE2000",
+        "title": "Stuff Matters: Materials and Civilization",
+        "number_of_hours": "3 hours",
+        "description": "Specifically designed for non-science and non-engineering students. Materials have defined the \u201cage\u201d in which we live throughout history, e.g. \u201cStone\u201d age, \u201cBronze\u201d age, \u201cIron\u201d age, \u201cSilicon\u201d age. Materials breakthroughs and failures continue to shape our everyday lives. Students learn the basics of materials science: processing/structure/property/performance relationships. In-class and hands-on demonstrations, and guest lecturers. Students examine historical and contemporary issues for materials scientists. Materials such as metals and their alloys, ceramics, polymers and composites are discussed in context of our daily lives. Students work in teams to address modern materials issues. Corequisite(s): MTSE 2002 . Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174115"
+    },
+    {
+        "course_number": "MTSE3001",
+        "title": "Fundamentals of Materials Science and Engineering - II",
+        "number_of_hours": "3 hours",
+        "description": "This course covers the following in detail: metal alloy processing and classification; ceramic structure, properties and processing; polymer processing and applications; composite material principles, classification, preparation and properties; corrosion degradation mechanisms, electrochemical reactions and protection methods; electrical properties of metals, semiconductors and dielectrics; thermal properties of metals and non-metals; magnetic material fundamentals, properties and applications; optical material fundamentals, properties and applications.",
+        "prerequisites": "MTSE 3000 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "MTSE3000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173465"
+    },
+    {
+        "course_number": "MTSE4100",
+        "title": "Senior Capstone Project",
+        "number_of_hours": "3 hours",
+        "description": "Provides every student with experience in \u201creal world\u201d engineering design that draws on many of the skills that have been mastered during their studies in the Department of Materials Science and Engineering at the University of North Texas. Students will exhibit an ability to design a system, component or process to meet a desired need. Two-course sequence with the second course (this course, MTSE 4100) providing time for completion of a design project setup during the first course (evaluating the project plan from last semester, performing work toward completion of project, and presenting progress of work both orally and in writing).",
+        "prerequisites": "MTSE 4090 .",
+        "prerequisites_course_codes": [
+            "MTSE4090"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171851"
+    },
+    {
+        "course_number": "MTSE3080",
+        "title": "Materials Processing",
+        "number_of_hours": "3 hours",
+        "description": "Basic principles and strategies for processing metals, ceramics, polymers, composites and electronic materials.",
+        "prerequisites": "MTSE 3040 .",
+        "prerequisites_course_codes": [
+            "MTSE3040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171840"
+    },
+    {
+        "course_number": "MTSE3050",
+        "title": "Mechanical Properties of Materials",
+        "number_of_hours": "3 hours",
+        "description": "Macroscopic mechanical response of ceramics, metals, polymers and composite materials, with an introduction to the underlying microstructural processes during deformation and fracture. Geometrical considerations and size effects of structural components for mechanical testing; resultant stresses, strains and deflections of components.",
+        "prerequisites": "ENGR 3000 .",
+        "prerequisites_course_codes": [
+            "ENGR3000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171837"
+    },
+    {
+        "course_number": "MTSE4050",
+        "title": "Polymer Science and Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Chemical structures, polymerization, molar masses, chain conformations. Rubber elasticity, polymer solutions, glassy state and aging. Mechanical properties, fracture mechanics and viscoelasticity. Dielectric properties. Polymer liquid crystals. Semi-crystalline polymers, polymer melts, rheology and processing. Thermal analysis, microscopy, diffractometry and spectroscopy of polymers. Computer simulations of polymer-based materials.",
+        "prerequisites": "MTSE 3000 .",
+        "prerequisites_course_codes": [
+            "MTSE3000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171847"
+    },
+    {
+        "course_number": "MTSE3060",
+        "title": "Phase Transformations in Materials",
+        "number_of_hours": "3 hours",
+        "description": "Principles of structural transformations in materials. Thermodynamics and kinetics of nucleation, growth, precipitation and martensitic reactions.",
+        "prerequisites": "MTSE 3010 , MTSE 3030 , MTSE 3040 .",
+        "prerequisites_course_codes": [
+            "MTSE3010",
+            "MTSE3030",
+            "MTSE3040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171838"
+    },
+    {
+        "course_number": "MTSE4040",
+        "title": "Computational Materials Science",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the basic principles used to simulate, model and visualize the structure and properties of materials. Topics include the various methods used at different length and time scales ranging from the atomistic to the macroscopic.",
+        "prerequisites": "MTSE 3010 , MTSE 3030 , MATH 3410 .",
+        "prerequisites_course_codes": [
+            "MTSE3010",
+            "MTSE3030",
+            "MATH3410"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171846"
+    },
+    {
+        "course_number": "MTSE3110",
+        "title": "Materials Aspects of Quantum Mechanics",
+        "number_of_hours": "3 hours",
+        "description": "Provides a basic understanding of the materials aspects of quantum mechanics concepts as it applies to engineering students. Quantum mechanics was once mostly of interest to physicists and chemists. Nowadays, the concepts and techniques of quantum mechanics are essential in many areas of engineering and science such as materials science, nanotechnology, electronic devices and photonics. This course provides a substantial introduction to the materials aspects of quantum mechanics and its applications. It is specifically designed to be accessible to students and technical professionals over a wide range of engineering backgrounds. Recommended: MATH 1710 and MTSE 3000 ; PHYS 1420 or PHYS 2220 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173966"
+    },
+    {
+        "course_number": "MTSE4120",
+        "title": "Micro-electro-mechanical-systems (MEMS): Materials, Devices and Applications",
+        "number_of_hours": "3 hours",
+        "description": "(2;1) This course is designed to provide an introduction to conventional micro-electro-mechanical systems (MEMS), where the course starts with an overview of the semiconducting properties of silicon, the workhorse of the microelectronics industry. The impact of continued miniaturization on transistor performance is highlighted according to Moore\u2019s Law. Moving from Silicon as an electronic material, its mechanical properties are discussed which has been pivotal in the creation of the field of MEMS. A review of microfabrication technology conventionally used to form MEMS structures and devices using batch-fabrication is provided, which includes topics such as: photolithography, etching, physical vapor deposition, chemical vapor deposition, surface micromachining and bulk micromachining. Soft materials and thick film processes are also discussed that have been key enablers for microfluidics and BioMEMS. The practical applications of MEMS for sensors and actuators are highlighted, where electrostatic, thermal, piezoelectric and magnetic transduction schemes are used for actuation and sensing, including for RF wireless systems and bio-related applications for Lab-on-Chip (LOC). Students will gain a broad perspective in the area of miniaturized systems for sensors and actuators. The laboratory modules are intended to reinforce the concepts discussed in the lectures, with practical hands-on learning exercises. The lectures and accompanying lab modules will help cultivate interdisciplinary perspectives with hands-on exercises developed for the students. Recommended: PHYS 1710 . CHEM 1410 / CHEM 1430 or CHEM 1415 / CHEM 1435 or equivalent. May not be counted toward a major or minor in Materials Science and Engineering.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174078"
+    },
+    {
+        "course_number": "MTSE3070",
+        "title": "Electrical, Optical and Magnetic Properties of Materials",
+        "number_of_hours": "3 hours",
+        "description": "Bonding and the electronic structure and properties of metallic, ceramic, semiconducting and polymeric materials.",
+        "prerequisites": "ENGR 3450 and MTSE 3000 .",
+        "prerequisites_course_codes": [
+            "ENGR3450",
+            "MTSE3000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171839"
+    },
+    {
+        "course_number": "MTSE4070",
+        "title": "Electronic Materials",
+        "number_of_hours": "3 hours",
+        "description": "Intensive study of electronic, optical and magnetic properties of materials with an emphasis on the fundamental physics and chemistry associated with these material systems.",
+        "prerequisites": "MTSE 3000 , MATH 3410 .",
+        "prerequisites_course_codes": [
+            "MTSE3000",
+            "MATH3410"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171849"
+    }
+]
