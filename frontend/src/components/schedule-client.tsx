@@ -10,10 +10,12 @@ import { usePlanner, useToast } from "@/components/planner-provider";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
+  getActiveCourseCodes,
   getCourseByCode,
   getDailySpan,
   getSectionDuration,
   getSectionsForCourse,
+  getUnscheduledActiveCourses,
   sectionConflicts,
   summarizeCredits,
 } from "@/lib/planner";
@@ -116,6 +118,11 @@ export function ScheduleClient() {
 
   const pickerSections = pickerCourseCode ? getSectionsForCourse(pickerCourseCode) : [];
   const pickerCourse = pickerCourseCode ? getCourseByCode(pickerCourseCode) : undefined;
+  const activeCourseCodes = useMemo(() => getActiveCourseCodes(plannerState), [plannerState]);
+  const unscheduledActiveCourses = useMemo(
+    () => getUnscheduledActiveCourses(plannerState),
+    [plannerState],
+  );
 
   return (
     <NavShell
@@ -144,6 +151,13 @@ export function ScheduleClient() {
         {conflicts.length > 0 ? (
           <ConflictBanner>
             Time conflict detected: {conflicts.join(" · ")}. Click an event to swap sections.
+          </ConflictBanner>
+        ) : null}
+
+        {unscheduledActiveCourses.length > 0 ? (
+          <ConflictBanner>
+            No section data yet for {unscheduledActiveCourses.map((course) => course.code).join(", ")}.
+            Those courses are marked Taking, but they will not appear on the map until a section exists.
           </ConflictBanner>
         ) : null}
 
@@ -194,7 +208,12 @@ export function ScheduleClient() {
                     {s.courseCode}
                   </span>
                 ))}
-                {selectedSections.length === 0 ? (
+                {unscheduledActiveCourses.map((course) => (
+                  <span key={course.code} className="course-pill" style={{ opacity: 0.64 }}>
+                    {course.code}
+                  </span>
+                ))}
+                {activeCourseCodes.length === 0 ? (
                   <span style={{ fontSize: "0.82rem", color: "var(--copy)" }}>
                     Mark courses as &ldquo;Taking&rdquo; on the previous step.
                   </span>
@@ -214,7 +233,7 @@ export function ScheduleClient() {
                   fontSize: "0.85rem",
                 }}
               >
-                <Metric label="Credits" value={String(summarizeCredits())} />
+                <Metric label="Credits" value={String(summarizeCredits(plannerState))} />
                 <Metric label="Longest day" value={`${longestDayHours}h`} />
                 <Metric label="Earliest" value={earliestStart} />
                 <Metric label="Latest" value={latestEnd} />

@@ -13,7 +13,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import {
   buildScheduleEvents,
-  getInProgressCourseCodes,
+  getActiveCourseCodes,
   getInitialPlannerState,
   isCourseLocked,
   normalizePlannerState,
@@ -140,7 +140,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         setPlannerState((current) => ({
           ...current,
           optimization,
-          selectedSections: recommendSections(optimization, getInProgressCourseCodes(current)),
+          selectedSections: recommendSections(optimization, getActiveCourseCodes(current)),
           updatedAt: new Date().toISOString(),
         }));
       },
