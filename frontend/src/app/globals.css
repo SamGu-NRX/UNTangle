@@ -903,11 +903,128 @@ textarea {
   animation: pop-dot 350ms var(--ease-bounce) both;
   white-space: nowrap;
 }
+.map-marker--start,
+.map-marker--end {
+  box-shadow:
+    0 0 0 5px rgba(0, 81, 43, 0.14),
+    0 6px 18px rgba(0, 60, 20, 0.36);
+}
+.map-marker--end {
+  background: var(--ink);
+}
+.map-marker--course-1 {
+  --ev-solid: var(--course-1-solid);
+}
+.map-marker--course-2 {
+  --ev-solid: var(--course-2-solid);
+}
+.map-marker--course-3 {
+  --ev-solid: var(--course-3-solid);
+}
+.map-marker--course-4 {
+  --ev-solid: var(--course-4-solid);
+}
+.map-marker--course-5 {
+  --ev-solid: var(--course-5-solid);
+}
+.map-marker--course-6 {
+  --ev-solid: var(--course-6-solid);
+}
+.map-marker--course-7 {
+  --ev-solid: var(--course-7-solid);
+}
+.map-marker--course-8 {
+  --ev-solid: var(--course-8-solid);
+}
 .map-marker--label strong {
   max-width: 9rem;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.74rem;
+}
+.unt-map-div-icon {
+  background: transparent;
+  border: 0;
+}
+.unt-leaflet-map {
+  width: 100%;
+  min-height: 620px;
+  height: 100%;
+  background: #dfe7dc;
+  z-index: 0;
+}
+.unt-leaflet-map .leaflet-control-attribution {
+  border-top-left-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--copy);
+  font-size: 0.68rem;
+}
+.unt-map-notice {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 500;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 1rem;
+  background: rgba(17, 46, 29, 0.9);
+  color: #fff;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.82rem;
+  box-shadow: 0 16px 32px rgba(17, 46, 29, 0.18);
+}
+.unt-map-loading {
+  min-height: 620px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 1.45rem;
+  background: linear-gradient(160deg, rgba(231, 239, 232, 0.96), rgba(207, 222, 211, 0.92));
+  color: var(--brand-900);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.route-leg-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.route-leg {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 0.62rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 248, 0.86));
+}
+.route-leg__dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 81, 43, 0.1);
+  color: var(--brand-900);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.route-leg__title {
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.route-leg__meta {
+  margin-top: 2px;
+  color: var(--copy);
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 /* Spinner */
