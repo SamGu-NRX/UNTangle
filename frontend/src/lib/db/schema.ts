@@ -80,6 +80,7 @@ export const plannerStates = pgTable("planner_state", {
   selectedSections: jsonb("selected_sections").notNull(),
   optimization: text("optimization").notNull(),
   activeDay: text("active_day").notNull(),
+  selectedMajor: text("selected_major"),
   routeStops: jsonb("route_stops").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
