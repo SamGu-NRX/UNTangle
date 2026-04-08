@@ -24,6 +24,7 @@ export async function loadPlannerState(userId: string): Promise<PlannerApiPayloa
     selectedSections: plannerState.selectedSections as PlannerState["selectedSections"],
     optimization: plannerState.optimization as PlannerState["optimization"],
     activeDay: plannerState.activeDay as PlannerState["activeDay"],
+    selectedMajor: plannerState.selectedMajor as PlannerState["selectedMajor"],
     updatedAt: plannerState.updatedAt.toISOString(),
     routeStops: plannerState.routeStops as PlannerApiPayload["routeStops"],
   };
@@ -44,6 +45,7 @@ export async function savePlannerState(userId: string, state: PlannerState) {
       selectedSections: payload.selectedSections,
       optimization: payload.optimization,
       activeDay: payload.activeDay,
+      selectedMajor: payload.selectedMajor,
       routeStops: payload.routeStops,
       updatedAt: new Date(payload.updatedAt),
     })
@@ -54,6 +56,7 @@ export async function savePlannerState(userId: string, state: PlannerState) {
         selectedSections: payload.selectedSections,
         optimization: payload.optimization,
         activeDay: payload.activeDay,
+        selectedMajor: payload.selectedMajor,
         routeStops: payload.routeStops,
         updatedAt: new Date(payload.updatedAt),
       },
