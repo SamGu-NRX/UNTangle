@@ -1,8 +1,8 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { NavShell } from "@/components/nav-shell";
-import { CourseImportPanel } from "@/components/course-import-panel";
 import { MajorSelectionModal } from "@/components/major-selection-modal";
 import { Toggle } from "@/components/ui/Toggle";
 import { SearchBar } from "@/components/ui/SearchBar";
@@ -19,7 +19,7 @@ import {
   getMissingPrerequisites,
   summarizeMajorProgress,
 } from "@/lib/planner";
-import type { Course, CourseStatus } from "@/lib/types";
+import type { Course, CourseStatus, TranscriptCourseRecord } from "@/lib/types";
 
 const departments = Array.from(new Set(courses.map((c) => c.department))).sort();
 
@@ -163,14 +163,8 @@ export function CoursesClient() {
           </div>
         )}
 
-        <CourseImportPanel
-          courseStatuses={plannerState.courseStatuses}
-          setCourseStatus={setCourseStatus}
-          toast={toast}
-        />
-
-        <div className="surface-card" style={{ padding: "0.85rem 1rem" }}>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
+        <div className="courses-tools surface-card">
+          <div className="courses-tools__filters">
             <SearchBar
               placeholder="Search courses, departments, codes…"
               value={query}
@@ -190,6 +184,15 @@ export function CoursesClient() {
               ))}
             </Select>
           </div>
+          <div className="courses-tools__import">
+            <div>
+              <strong>Use your myUNT transcript PDF</strong>
+              <span>Import once, then review the courses UNTangle found.</span>
+            </div>
+            <Link href="/courses/import" className="btn-secondary">
+              Import PDF
+            </Link>
+          </div>
         </div>
 
         {grouped.coreList.length > 0 ? (
@@ -200,7 +203,14 @@ export function CoursesClient() {
             <div style={{ display: "grid", gap: 8 }}>
               <StaggerGroup>
                 {grouped.coreList.map((course) =>
-                  renderRow(course, plannerState.courseStatuses, isLocked, setCourseStatus, toast),
+                  renderRow(
+                    course,
+                    plannerState.courseStatuses,
+                    plannerState.transcriptRecords,
+                    isLocked,
+                    setCourseStatus,
+                    toast,
+                  ),
                 )}
               </StaggerGroup>
             </div>
@@ -215,7 +225,14 @@ export function CoursesClient() {
             <div style={{ display: "grid", gap: 8 }}>
               <StaggerGroup>
                 {list.map((course) =>
-                  renderRow(course, plannerState.courseStatuses, isLocked, setCourseStatus, toast),
+                  renderRow(
+                    course,
+                    plannerState.courseStatuses,
+                    plannerState.transcriptRecords,
+                    isLocked,
+                    setCourseStatus,
+                    toast,
+                  ),
                 )}
               </StaggerGroup>
             </div>
@@ -248,6 +265,7 @@ export function CoursesClient() {
 function renderRow(
   course: Course,
   courseStatuses: Record<string, CourseStatus>,
+  transcriptRecords: TranscriptCourseRecord[],
   isLocked: (code: string) => boolean,
   setCourseStatus: (code: string, status: CourseStatus) => void,
   toast: (msg: string) => void,
@@ -255,7 +273,7 @@ function renderRow(
   const status = courseStatuses[course.code] ?? "notTaken";
   const locked = isLocked(course.code);
   const completed = status === "completed";
-  const missing = getMissingPrerequisites(course.code, courseStatuses);
+  const missing = getMissingPrerequisites(course.code, courseStatuses, transcriptRecords);
 
   return (
     <article

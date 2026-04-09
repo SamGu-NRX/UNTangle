@@ -194,6 +194,7 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
       ...defaultPlannerState.selectedSections,
       ...(state.selectedSections ?? {}),
     },
+    transcriptRecords: Array.isArray(state.transcriptRecords) ? state.transcriptRecords : [],
   };
   const activeCourseCodes = getActiveCourseCodes(merged);
   const activeCourseCodeSet = new Set(activeCourseCodes);
@@ -396,15 +397,16 @@ export function getCoreCoursesForMajor(id: MajorId | null | undefined): Course[]
 export function getMissingPrerequisites(
   courseCode: string,
   courseStatuses: Record<string, CourseStatus>,
+  transcriptRecords: PlannerState["transcriptRecords"] = [],
 ): string[] {
   return prerequisiteEdges
     .filter((edge) => edge.courseCode === courseCode)
     .map((edge) => edge.prerequisiteCode)
-    .filter((prereqCode) => courseStatuses[prereqCode] !== "completed");
+    .filter((prereqCode) => !doesCourseSatisfyPrerequisite(prereqCode, courseStatuses, transcriptRecords));
 }
 
 export function isCourseLocked(state: PlannerState, courseCode: string) {
-  return getMissingPrerequisites(courseCode, state.courseStatuses).length > 0;
+  return getMissingPrerequisites(courseCode, state.courseStatuses, state.transcriptRecords).length > 0;
 }
 
 export function summarizeMajorProgress(state: PlannerState) {
@@ -417,4 +419,41 @@ export function summarizeMajorProgress(state: PlannerState) {
     (course) => state.courseStatuses[course.code] === "completed",
   ).length;
   return { completed, total, pct: Math.round((completed / total) * 100) };
+}
+
+export function doesCourseSatisfyPrerequisite(
+  courseCode: string,
+  courseStatuses: Record<string, CourseStatus>,
+  transcriptRecords: PlannerState["transcriptRecords"] = [],
+) {
+  if (courseStatuses[courseCode] !== "completed") {
+    return false;
+  }
+
+  const transcriptEvidence = transcriptRecords.filter(
+    (record) => record.code === courseCode && record.appliedStatus === "completed",
+  );
+
+  if (transcriptEvidence.length === 0) {
+    return true;
+  }
+
+  return transcriptEvidence.some((record) => record.prerequisiteSatisfied);
+}
+
+export function mergeTranscriptRecords(
+  current: PlannerState["transcriptRecords"],
+  incoming: PlannerState["transcriptRecords"],
+) {
+  const byId = new Map<string, PlannerState["transcriptRecords"][number]>();
+
+  [...current, ...incoming].forEach((record) => {
+    byId.set(record.id, record);
+  });
+
+  return [...byId.values()].sort((a, b) => {
+    const codeOrder = a.code.localeCompare(b.code);
+    if (codeOrder !== 0) return codeOrder;
+    return a.term.localeCompare(b.term);
+  });
 }

@@ -130,5 +130,6 @@ export const defaultPlannerState: PlannerState = {
   optimization: "clusterMorning",
   activeDay: "Mon",
   selectedMajor: null,
+  transcriptRecords: [],
   updatedAt: new Date().toISOString(),
 };

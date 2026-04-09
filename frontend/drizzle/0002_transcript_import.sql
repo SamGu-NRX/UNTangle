@@ -1,0 +1,1 @@
+ALTER TABLE "planner_state" ADD COLUMN "transcript_records" jsonb DEFAULT '[]'::jsonb NOT NULL;

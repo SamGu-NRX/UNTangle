@@ -81,6 +81,7 @@ export const plannerStates = pgTable("planner_state", {
   optimization: text("optimization").notNull(),
   activeDay: text("active_day").notNull(),
   selectedMajor: text("selected_major"),
+  transcriptRecords: jsonb("transcript_records").default([]).notNull(),
   routeStops: jsonb("route_stops").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

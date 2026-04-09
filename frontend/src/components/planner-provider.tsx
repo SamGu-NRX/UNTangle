@@ -16,6 +16,7 @@ import {
   getActiveCourseCodes,
   getInitialPlannerState,
   isCourseLocked,
+  mergeTranscriptRecords,
   normalizePlannerState,
   readPlannerStateFromSessionStorage,
   recommendSections,
@@ -23,7 +24,14 @@ import {
   writePlannerStateToSessionStorage,
 } from "@/lib/planner";
 import { courses } from "@/lib/seed-data";
-import type { CourseStatus, MajorId, OptimizationKey, PlannerState, WeekDay } from "@/lib/types";
+import type {
+  CourseStatus,
+  MajorId,
+  OptimizationKey,
+  PlannerState,
+  TranscriptCourseRecord,
+  WeekDay,
+} from "@/lib/types";
 
 type PlannerContextValue = {
   hydrated: boolean;
@@ -35,6 +43,7 @@ type PlannerContextValue = {
   lockedCourses: Set<string>;
   isLocked: (courseCode: string) => boolean;
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
+  applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setOptimization: (optimization: OptimizationKey) => void;
   setSection: (courseCode: string, sectionId: string) => void;
   setActiveDay: (day: WeekDay) => void;
@@ -133,8 +142,49 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             ...current.courseStatuses,
             [courseCode]: status,
           },
+          transcriptRecords:
+            status === "completed"
+              ? (current.transcriptRecords ?? []).map((record) =>
+                  record.code === courseCode
+                    ? {
+                        ...record,
+                        prerequisiteSatisfied: true,
+                        reviewRequired: false,
+                        rationale: record.rationale.includes("Manually marked done in course review.")
+                          ? record.rationale
+                          : `${record.rationale} Manually marked done in course review.`,
+                      }
+                    : record,
+                )
+              : current.transcriptRecords,
           updatedAt: new Date().toISOString(),
         }));
+      },
+      applyTranscriptRecords: (records) => {
+        setPlannerState((current) => {
+          const courseStatuses = { ...current.courseStatuses };
+
+          records.forEach((record) => {
+            if (record.appliedStatus === "completed") {
+              courseStatuses[record.code] = "completed";
+              return;
+            }
+
+            if (
+              record.appliedStatus === "inProgress" &&
+              (courseStatuses[record.code] ?? "notTaken") !== "completed"
+            ) {
+              courseStatuses[record.code] = "inProgress";
+            }
+          });
+
+          return {
+            ...current,
+            courseStatuses,
+            transcriptRecords: mergeTranscriptRecords(current.transcriptRecords ?? [], records),
+            updatedAt: new Date().toISOString(),
+          };
+        });
       },
       setOptimization: (optimization) => {
         setPlannerState((current) => ({
