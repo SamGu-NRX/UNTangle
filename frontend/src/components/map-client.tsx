@@ -1,406 +1,57 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
-import {
-  APIProvider,
-  AdvancedMarker,
-  Map as GoogleMap,
-  useMap,
-  useMapsLibrary,
-} from "@vis.gl/react-google-maps";
+import dynamic from "next/dynamic";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { NavShell } from "@/components/nav-shell";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { Toggle } from "@/components/ui/Toggle";
 import { usePlanner } from "@/components/planner-provider";
 import { formatTime } from "@/lib/planner";
-import {
-  buildCampusGeocodeQuery,
-  normalizeLocationLabel,
-  untCampusBounds,
-  untCampusCenter,
-} from "@/lib/campus-locations";
 import { weekDays } from "@/lib/types";
-import type { MapStop, WeekDay } from "@/lib/types";
+import type { MapResolutionSummary, MapRouteDetails, MapRouteSummary, WeekDay } from "@/lib/types";
 
-type RouteSummary = { distanceText: string; durationText: string };
-type ResolutionSummary = { resolvedCount: number; unresolvedCount: number; resolving: boolean };
-type GeocodedLocation = { lat: number; lng: number; formattedAddress?: string };
-type ResolvedMapStop = Omit<MapStop, "lat" | "lng" | "resolutionStatus"> & {
-  lat: number;
-  lng: number;
-  resolutionStatus: "local" | "geocoded";
-};
-
-const emptyRouteSummary: RouteSummary = { distanceText: "—", durationText: "—" };
-const emptyResolutionSummary: ResolutionSummary = {
+const emptyRouteSummary: MapRouteSummary = { distanceText: "-", durationText: "-" };
+const emptyResolutionSummary: MapResolutionSummary = {
   resolvedCount: 0,
   unresolvedCount: 0,
   resolving: false,
 };
-const geocodeCache: globalThis.Map<string, GeocodedLocation | null> = new globalThis.Map();
+const emptyRouteDetails: MapRouteDetails = {
+  source: null,
+  isApproximate: false,
+  legs: [],
+};
 
-function paletteIndex(courseCode: string) {
-  let h = 0;
-  for (let i = 0; i < courseCode.length; i += 1) {
-    h = (h * 31 + courseCode.charCodeAt(i)) >>> 0;
-  }
-  return (h % 8) + 1;
-}
-
-function paletteVars(courseCode: string): CSSProperties {
-  const i = paletteIndex(courseCode);
-  return {
-    ["--ev-bg" as string]: `var(--course-${i}-bg)`,
-    ["--ev-border" as string]: `var(--course-${i}-border)`,
-    ["--ev-solid" as string]: `var(--course-${i}-solid)`,
-  } as CSSProperties;
-}
-
-function stopLocationKey(stop: Pick<MapStop, "location">) {
-  return normalizeLocationLabel(stop.location);
-}
-
-function hasCoordinates(stop: MapStop): stop is MapStop & { lat: number; lng: number } {
-  return typeof stop.lat === "number" && typeof stop.lng === "number";
-}
-
-function isInsideUntBounds(location: GeocodedLocation) {
-  return (
-    location.lat >= untCampusBounds.south &&
-    location.lat <= untCampusBounds.north &&
-    location.lng >= untCampusBounds.west &&
-    location.lng <= untCampusBounds.east
-  );
-}
-
-async function geocodeStop(geocoder: google.maps.Geocoder, stop: MapStop) {
-  const response = await geocoder.geocode({
-    address: stop.geocodeQuery || buildCampusGeocodeQuery(stop.location),
-    bounds: untCampusBounds,
-    region: "us",
-  });
-  const candidates = response.results
-    .map((result) => {
-      const location = result.geometry.location;
-      return {
-        lat: location.lat(),
-        lng: location.lng(),
-        formattedAddress: result.formatted_address,
-      };
-    })
-    .filter((result) => Number.isFinite(result.lat) && Number.isFinite(result.lng));
-
-  return candidates.find(isInsideUntBounds) ?? candidates[0] ?? null;
-}
-
-function RouteRenderer({
-  stops,
-  onSummary,
-}: {
-  stops: ResolvedMapStop[];
-  onSummary: (summary: RouteSummary) => void;
-}) {
-  const map = useMap();
-  const routesLibrary = useMapsLibrary("routes");
-
-  useEffect(() => {
-    if (!map || !routesLibrary || stops.length < 2) {
-      onSummary(emptyRouteSummary);
-      return;
-    }
-
-    const directionsService = new routesLibrary.DirectionsService();
-    const directionsRenderer = new routesLibrary.DirectionsRenderer({
-      map,
-      suppressMarkers: true,
-      polylineOptions: {
-        strokeColor: "#154127",
-        strokeOpacity: 0.92,
-        strokeWeight: 6,
-      },
-    });
-
-    directionsService.route(
-      {
-        origin: { lat: stops[0].lat, lng: stops[0].lng },
-        destination: { lat: stops[stops.length - 1].lat, lng: stops[stops.length - 1].lng },
-        waypoints: stops.slice(1, -1).map((stop) => ({
-          location: { lat: stop.lat, lng: stop.lng },
-          stopover: true,
-        })),
-        travelMode: google.maps.TravelMode.WALKING,
-      },
-      (response, status) => {
-        if (status === "OK" && response?.routes?.[0]) {
-          directionsRenderer.setDirections(response);
-          const summary = response.routes[0].legs.reduce(
-            (acc, leg) => {
-              acc.distance += leg.distance?.value ?? 0;
-              acc.duration += leg.duration?.value ?? 0;
-              return acc;
-            },
-            { distance: 0, duration: 0 },
-          );
-          onSummary({
-            distanceText: `${(summary.distance / 1609.34).toFixed(2)} mi`,
-            durationText: `${Math.round(summary.duration / 60)} min`,
-          });
-        } else {
-          onSummary({ distanceText: "Route unavailable", durationText: "—" });
-        }
-      },
-    );
-
-    return () => {
-      directionsRenderer.setMap(null);
-    };
-  }, [map, onSummary, routesLibrary, stops]);
-
-  return null;
-}
-
-function MapViewport({ stops }: { stops: ResolvedMapStop[] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!map) {
-      return;
-    }
-
-    if (stops.length === 0) {
-      map.setCenter(untCampusCenter);
-      map.setZoom(15);
-      return;
-    }
-
-    if (stops.length === 1) {
-      map.panTo({ lat: stops[0].lat, lng: stops[0].lng });
-      map.setZoom(17);
-      return;
-    }
-
-    const bounds = new google.maps.LatLngBounds();
-    stops.forEach((stop) => bounds.extend({ lat: stop.lat, lng: stop.lng }));
-    map.fitBounds(bounds, 72);
-  }, [map, stops]);
-
-  return null;
-}
-
-function MapContent({
-  stops,
-  activeDay,
-  showLabels,
-  onSummary,
-  onResolutionChange,
-}: {
-  stops: MapStop[];
-  activeDay: WeekDay;
-  showLabels: boolean;
-  onSummary: (summary: RouteSummary) => void;
-  onResolutionChange: (summary: ResolutionSummary) => void;
-}) {
-  const geocodingLibrary = useMapsLibrary("geocoding");
-  const geocoder = useMemo(
-    () => (geocodingLibrary ? new geocodingLibrary.Geocoder() : null),
-    [geocodingLibrary],
-  );
-  const [geocodedLocations, setGeocodedLocations] = useState<Record<string, GeocodedLocation | null>>(
-    () => Object.fromEntries(geocodeCache),
-  );
-
-  useEffect(() => {
-    if (!geocoder) {
-      return;
-    }
-
-    const queue = stops.filter((stop) => !hasCoordinates(stop) && !geocodeCache.has(stopLocationKey(stop)));
-    if (queue.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-    void Promise.all(
-      queue.map(async (stop) => {
-        const key = stopLocationKey(stop);
-        try {
-          geocodeCache.set(key, await geocodeStop(geocoder, stop));
-        } catch {
-          geocodeCache.set(key, null);
-        }
-      }),
-    ).then(() => {
-      if (!cancelled) {
-        setGeocodedLocations(Object.fromEntries(geocodeCache));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [geocoder, stops]);
-
-  const resolvedStops = useMemo(
-    () =>
-      stops.flatMap<ResolvedMapStop>((stop) => {
-        if (hasCoordinates(stop)) {
-          return [{ ...stop, lat: stop.lat, lng: stop.lng, resolutionStatus: "local" }];
-        }
-
-        const cached = geocodedLocations[stopLocationKey(stop)];
-        if (!cached) {
-          return [];
-        }
-
-        return [
-          {
-            ...stop,
-            lat: cached.lat,
-            lng: cached.lng,
-            buildingName: cached.formattedAddress ?? stop.buildingName,
-            resolutionStatus: "geocoded",
-          },
-        ];
-      }),
-    [geocodedLocations, stops],
-  );
-
-  const resolving = stops.some((stop) => !hasCoordinates(stop) && !geocodeCache.has(stopLocationKey(stop)));
-  const unresolvedCount = stops.length - resolvedStops.length;
-
-  useEffect(() => {
-    onResolutionChange({
-      resolvedCount: resolvedStops.length,
-      unresolvedCount,
-      resolving: Boolean(geocoder && resolving),
-    });
-  }, [geocoder, onResolutionChange, resolvedStops.length, resolving, unresolvedCount]);
-
-  return (
-    <>
-      <MapViewport stops={resolvedStops} />
-      {resolvedStops.map((stop, index) => (
-        <AdvancedMarker
-          key={`${activeDay}-${stop.courseCode}-${stop.start}-${stopLocationKey(stop)}`}
-          position={{ lat: stop.lat, lng: stop.lng }}
-        >
-          <div
-            className={`map-marker ${showLabels ? "map-marker--label" : ""}`}
-            style={paletteVars(stop.courseCode)}
-          >
-            <span>{index + 1}</span>
-            {showLabels ? <strong>{stop.shortName}</strong> : null}
-          </div>
-        </AdvancedMarker>
-      ))}
-      <RouteRenderer stops={resolvedStops} onSummary={onSummary} />
-      {unresolvedCount > 0 ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 16,
-            right: 16,
-            bottom: 16,
-            zIndex: 1,
-            border: "1px solid rgba(255,255,255,0.72)",
-            borderRadius: "1rem",
-            background: "rgba(17,46,29,0.9)",
-            color: "#fff",
-            padding: "0.75rem 0.9rem",
-            fontSize: "0.82rem",
-            boxShadow: "0 16px 32px rgba(17,46,29,0.18)",
-          }}
-        >
-          {resolving ? "Resolving UNT building labels..." : "Some class locations could not be mapped yet."}
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function MapCanvas({
-  stops,
-  activeDay,
-  showLabels,
-  onSummary,
-  onResolutionChange,
-}: {
-  stops: MapStop[];
-  activeDay: WeekDay;
-  showLabels: boolean;
-  onSummary: (summary: RouteSummary) => void;
-  onResolutionChange: (summary: ResolutionSummary) => void;
-}) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || undefined;
-
-  useEffect(() => {
-    if (!apiKey) {
-      onResolutionChange({
-        resolvedCount: stops.filter(hasCoordinates).length,
-        unresolvedCount: stops.filter((stop) => !hasCoordinates(stop)).length,
-        resolving: false,
-      });
-    }
-  }, [apiKey, onResolutionChange, stops]);
-
-  if (!apiKey) {
-    return (
-      <div className="flex h-full min-h-[620px] items-center justify-center rounded-[1.8rem] border border-[color:var(--line)] bg-[linear-gradient(160deg,_rgba(24,48,36,0.96),_rgba(42,74,57,0.9))] p-8 text-center text-white">
-        <div className="max-w-md space-y-3">
-          <p className="text-xs uppercase tracking-[0.24em] text-[#b6d1bf]">Google Maps not configured</p>
-          <h2 className="font-display text-3xl font-bold">Add an API key to render the live campus map.</h2>
-          <p className="text-sm leading-7 text-[#dce7df]">
-            Set <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>. A map ID is optional; unresolved UNT
-            building labels use the Google Maps JavaScript geocoding library.
-          </p>
-        </div>
+const MapCanvas = dynamic(
+  () => import("@/components/map-leaflet-canvas").then((module) => module.MapLeafletCanvas),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="unt-map-loading">
+        <span className="spinner" aria-hidden="true" />
+        <span>Loading campus map...</span>
       </div>
-    );
-  }
-
-  return (
-    <APIProvider apiKey={apiKey}>
-      <div className="relative h-full min-h-[620px] overflow-hidden rounded-[1.8rem]">
-        <GoogleMap
-          defaultCenter={untCampusCenter}
-          defaultZoom={16}
-          mapId={mapId}
-          gestureHandling="greedy"
-          disableDefaultUI={true}
-          className="h-full min-h-[620px] w-full"
-        >
-          <MapContent
-            stops={stops}
-            activeDay={activeDay}
-            showLabels={showLabels}
-            onSummary={onSummary}
-            onResolutionChange={onResolutionChange}
-          />
-        </GoogleMap>
-      </div>
-    </APIProvider>
-  );
-}
+    ),
+  },
+);
 
 export function MapClient() {
   const { plannerState, routeStops, setActiveDay } = usePlanner();
-  const [routeSummary, setRouteSummary] = useState<RouteSummary>(emptyRouteSummary);
-  const [resolutionSummary, setResolutionSummary] = useState<ResolutionSummary>(emptyResolutionSummary);
+  const [routeSummary, setRouteSummary] = useState<MapRouteSummary>(emptyRouteSummary);
+  const [routeDetails, setRouteDetails] = useState<MapRouteDetails>(emptyRouteDetails);
+  const [resolutionSummary, setResolutionSummary] = useState<MapResolutionSummary>(emptyResolutionSummary);
   const [showLabels, setShowLabels] = useState(true);
   const stops = useMemo(
     () => routeStops[plannerState.activeDay] ?? [],
     [plannerState.activeDay, routeStops],
   );
   const summaryDisplay = resolutionSummary.resolvedCount < 2 ? emptyRouteSummary : routeSummary;
+  const firstPopulatedDay = useMemo(
+    () => weekDays.find((day) => (routeStops[day] ?? []).length > 0),
+    [routeStops],
+  );
+  const manualDaySelection = useRef(false);
 
   const tabRefs = useRef<Record<WeekDay, HTMLButtonElement | null>>({} as Record<WeekDay, HTMLButtonElement | null>);
   const [indicator, setIndicator] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
@@ -412,6 +63,24 @@ export function MapClient() {
     }
   }, [plannerState.activeDay]);
 
+  useEffect(() => {
+    if (
+      !manualDaySelection.current &&
+      stops.length === 0 &&
+      firstPopulatedDay &&
+      firstPopulatedDay !== plannerState.activeDay
+    ) {
+      setActiveDay(firstPopulatedDay);
+    }
+  }, [firstPopulatedDay, plannerState.activeDay, setActiveDay, stops.length]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setRouteSummary(emptyRouteSummary);
+      setRouteDetails(emptyRouteDetails);
+    });
+  }, [plannerState.activeDay, stops]);
+
   const itinerarySummary = useMemo(
     () =>
       stops.map(
@@ -422,7 +91,7 @@ export function MapClient() {
   );
 
   return (
-    <NavShell step={2} back={{ href: "/schedule", label: "Schedule" }}>
+    <NavShell step={2}>
       <div style={{ display: "grid", gap: 18 }}>
         <header>
           <p className="editorial-label">Step 3 - Map</p>
@@ -469,7 +138,10 @@ export function MapClient() {
                     }}
                     className="day-tab"
                     data-active={plannerState.activeDay === day ? "true" : "false"}
-                    onClick={() => setActiveDay(day)}
+                    onClick={() => {
+                      manualDaySelection.current = true;
+                      setActiveDay(day);
+                    }}
                   >
                     {day}
                   </button>
@@ -483,6 +155,12 @@ export function MapClient() {
                 <StatusMark label={`${resolutionSummary.resolvedCount} mapped`} tone="completed" />
                 <StatusMark label={summaryDisplay.distanceText} tone="review" />
                 <StatusMark label={summaryDisplay.durationText} tone="completed" />
+                {routeDetails.source ? (
+                  <StatusMark
+                    label={routeDetails.isApproximate ? "approximate" : "walking route"}
+                    tone={routeDetails.isApproximate ? "review" : "completed"}
+                  />
+                ) : null}
                 {resolutionSummary.unresolvedCount > 0 ? (
                   <StatusMark
                     label={
@@ -526,6 +204,23 @@ export function MapClient() {
                       </article>
                     ))}
                   </StaggerGroup>
+                  {routeDetails.legs.length > 0 ? (
+                    <div className="route-leg-list" aria-label="Route legs">
+                      {routeDetails.legs.map((leg, index) => (
+                        <div key={`${leg.from}-${leg.to}-${index}`} className="route-leg">
+                          <span className="route-leg__dot">{index + 1}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <p className="route-leg__title">
+                              {leg.from} to {leg.to}
+                            </p>
+                            <p className="route-leg__meta">
+                              {leg.fromMeta} | {leg.toMeta}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               )}
             </section>
@@ -569,6 +264,7 @@ export function MapClient() {
               activeDay={plannerState.activeDay}
               showLabels={showLabels}
               onSummary={setRouteSummary}
+              onRouteDetails={setRouteDetails}
               onResolutionChange={setResolutionSummary}
             />
           </section>
