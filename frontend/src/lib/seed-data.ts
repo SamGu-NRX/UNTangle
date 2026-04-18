@@ -17,6 +17,8 @@ export const buildings = generatedBuildings.map((building) => {
   return aliasSource
     ? {
         ...building,
+        ...aliasSource,
+        id: building.id,
         aliases: aliasSource.aliases,
         address: aliasSource.address,
       }
