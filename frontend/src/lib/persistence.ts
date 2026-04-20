@@ -25,6 +25,7 @@ export async function loadPlannerState(userId: string): Promise<PlannerApiPayloa
     optimization: plannerState.optimization as PlannerState["optimization"],
     activeDay: plannerState.activeDay as PlannerState["activeDay"],
     selectedMajor: plannerState.selectedMajor as PlannerState["selectedMajor"],
+    transcriptRecords: plannerState.transcriptRecords as PlannerState["transcriptRecords"],
     updatedAt: plannerState.updatedAt.toISOString(),
     routeStops: plannerState.routeStops as PlannerApiPayload["routeStops"],
   };
@@ -46,6 +47,7 @@ export async function savePlannerState(userId: string, state: PlannerState) {
       optimization: payload.optimization,
       activeDay: payload.activeDay,
       selectedMajor: payload.selectedMajor,
+      transcriptRecords: payload.transcriptRecords,
       routeStops: payload.routeStops,
       updatedAt: new Date(payload.updatedAt),
     })
@@ -57,6 +59,7 @@ export async function savePlannerState(userId: string, state: PlannerState) {
         optimization: payload.optimization,
         activeDay: payload.activeDay,
         selectedMajor: payload.selectedMajor,
+        transcriptRecords: payload.transcriptRecords,
         routeStops: payload.routeStops,
         updatedAt: new Date(payload.updatedAt),
       },
