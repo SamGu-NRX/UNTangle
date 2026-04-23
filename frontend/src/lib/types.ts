@@ -2,6 +2,8 @@ export const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 
 export type WeekDay = (typeof weekDays)[number];
 export type CourseStatus = "completed" | "inProgress" | "notTaken";
+export type TranscriptAppliedStatus = "completed" | "inProgress" | "ignored" | "needsReview";
+export type TranscriptSourceKind = "unt" | "transfer" | "exam" | "current" | "unknown";
 export type OptimizationKey =
   | "clusterMorning"
   | "clusterNight"
@@ -158,12 +160,38 @@ export type RouteLeg = {
   distanceMiles: number;
 };
 
+export type TranscriptCourseRecord = {
+  id: string;
+  code: string;
+  title: string;
+  term: string;
+  grade: string;
+  credits: number | null;
+  sourceKind: TranscriptSourceKind;
+  confidence: number;
+  rationale: string;
+  duplicateExcluded: boolean;
+  appliedStatus: TranscriptAppliedStatus;
+  prerequisiteSatisfied: boolean;
+  reviewRequired: boolean;
+};
+
+export type TranscriptImportSummary = {
+  detected: number;
+  applied: number;
+  ignored: number;
+  needsReview: number;
+  modelUsed: string;
+  extractionMode: "text" | "rendered-pages" | "local";
+};
+
 export type PlannerState = {
   courseStatuses: Record<string, CourseStatus>;
   selectedSections: Record<string, string>;
   optimization: OptimizationKey;
   activeDay: WeekDay;
   selectedMajor: MajorId | null;
+  transcriptRecords: TranscriptCourseRecord[];
   updatedAt: string;
 };
 
