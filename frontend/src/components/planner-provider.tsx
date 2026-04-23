@@ -150,7 +150,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
                         ...record,
                         prerequisiteSatisfied: true,
                         reviewRequired: false,
-                        rationale: `${record.rationale} Manually marked done in course review.`,
+                        rationale: record.rationale.includes("Manually marked done in course review.")
+                          ? record.rationale
+                          : `${record.rationale} Manually marked done in course review.`,
                       }
                     : record,
                 )

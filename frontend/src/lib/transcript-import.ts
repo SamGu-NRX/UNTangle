@@ -416,19 +416,43 @@ function compactCandidateRows(records: RawTranscriptCourse[]) {
   }));
 }
 
-function payloadFromUnknown(value: unknown): TranscriptAnalysisPayload | null {
-  if (!value || typeof value !== "object") return null;
-  if (Array.isArray(value)) return { records: value as RawTranscriptCourse[] };
+function objectFromUnknown(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
 
-  const candidate = value as {
-    records?: unknown;
-    courses?: unknown;
-    data?: unknown;
-    output?: unknown;
+function rawTranscriptCourseFromUnknown(value: unknown): RawTranscriptCourse | null {
+  const candidate = objectFromUnknown(value);
+  if (!candidate) return null;
+
+  return {
+    code: candidate.code,
+    title: candidate.title,
+    term: candidate.term,
+    grade: candidate.grade,
+    credits: candidate.credits,
+    sourceKind: candidate.sourceKind,
+    confidence: candidate.confidence,
+    rationale: candidate.rationale,
+    duplicateExcluded: candidate.duplicateExcluded,
   };
+}
 
-  if (Array.isArray(candidate.records)) return { records: candidate.records as RawTranscriptCourse[] };
-  if (Array.isArray(candidate.courses)) return { records: candidate.courses as RawTranscriptCourse[] };
+function recordsFromUnknown(value: unknown): RawTranscriptCourse[] | null {
+  if (!Array.isArray(value)) return null;
+  return value
+    .map(rawTranscriptCourseFromUnknown)
+    .filter((record): record is RawTranscriptCourse => Boolean(record));
+}
+
+function payloadFromUnknown(value: unknown): TranscriptAnalysisPayload | null {
+  const records = recordsFromUnknown(value);
+  if (records) return { records };
+
+  const candidate = objectFromUnknown(value);
+  if (!candidate) return null;
+
+  const candidateRecords = recordsFromUnknown(candidate.records) ?? recordsFromUnknown(candidate.courses);
+  if (candidateRecords) return { records: candidateRecords };
   return payloadFromUnknown(candidate.data) ?? payloadFromUnknown(candidate.output);
 }
 
