@@ -27,6 +27,7 @@ export default async function CourseDetailsPage({
       step={0}
       back={{ href: "/courses", label: "Courses" }}
       next={{ href: "/schedule", label: "Optimize schedule" }}
+      stickyFooter={false}
     >
       <div className="detail-shell">
         <header className="detail-header">

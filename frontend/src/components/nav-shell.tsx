@@ -15,11 +15,13 @@ export function NavShell({
   step,
   back,
   next,
+  stickyFooter = true,
   children,
 }: {
   step: number; // 0 = courses, 1 = schedule, 2 = map
   back?: { href: string; label: string };
   next?: { href: string; label: string };
+  stickyFooter?: boolean;
   children: ReactNode;
 }) {
   const sessionResult = authClient.useSession();
@@ -147,7 +149,7 @@ export function NavShell({
       {back || next ? (
         <footer
           style={{
-            position: "sticky",
+            position: stickyFooter ? "sticky" : "static",
             bottom: 0,
             background: "rgba(244, 246, 244, 0.85)",
             backdropFilter: "blur(8px)",
