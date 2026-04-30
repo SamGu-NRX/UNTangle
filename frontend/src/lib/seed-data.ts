@@ -1,62 +1,13 @@
 import type {
-  CampusBuilding,
   Course,
   CourseSection,
+  Major,
   PlannerState,
   PrerequisiteEdge,
 } from "@/lib/types";
+import { campusBuildings } from "@/lib/campus-locations";
 
-export const buildings: CampusBuilding[] = [
-  {
-    id: "gab",
-    name: "General Academic Building",
-    shortName: "GAB",
-    lat: 33.210783,
-    lng: -97.146668,
-  },
-  {
-    id: "wh",
-    name: "Wooten Hall",
-    shortName: "WH",
-    lat: 33.208907,
-    lng: -97.146777,
-  },
-  {
-    id: "sage",
-    name: "Sage Hall",
-    shortName: "SAGE",
-    lat: 33.212188,
-    lng: -97.149834,
-  },
-  {
-    id: "sci",
-    name: "Science Research Building",
-    shortName: "SCI",
-    lat: 33.208298,
-    lng: -97.149315,
-  },
-  {
-    id: "union",
-    name: "UNT Union",
-    shortName: "UNION",
-    lat: 33.210042,
-    lng: -97.145061,
-  },
-  {
-    id: "willis",
-    name: "Willis Library",
-    shortName: "WILLIS",
-    lat: 33.209414,
-    lng: -97.143878,
-  },
-  {
-    id: "music",
-    name: "Music Annex",
-    shortName: "MUSX",
-    lat: 33.208353,
-    lng: -97.14356,
-  },
-];
+export const buildings = campusBuildings;
 
 export const courses: Course[] = [
   {
@@ -158,6 +109,65 @@ export const prerequisiteEdges: PrerequisiteEdge[] = courses.flatMap((course) =>
   })),
 );
 
+export const majors: Major[] = [
+  {
+    id: "cs",
+    name: "Computer Science",
+    department: "CSCE",
+    icon: "</>",
+    coreCourseCodes: ["CSCE 1030", "CSCE 1040", "CSCE 2100", "MATH 1710", "MATH 1720"],
+  },
+  {
+    id: "ce",
+    name: "Computer Engineering",
+    department: "CSCE",
+    icon: "{}",
+    coreCourseCodes: ["CSCE 1030", "CSCE 1040", "MATH 1710", "MATH 1720", "PHYS 2220"],
+  },
+  {
+    id: "math",
+    name: "Mathematics",
+    department: "MATH",
+    icon: "f(x)",
+    coreCourseCodes: ["MATH 1710", "MATH 1720", "MATH 2700"],
+  },
+  {
+    id: "biol",
+    name: "Biology",
+    department: "BIOL",
+    icon: "DNA",
+    coreCourseCodes: ["MATH 1710", "PHYS 2220"],
+  },
+  {
+    id: "busi",
+    name: "Business",
+    department: "BUSI",
+    icon: "$",
+    coreCourseCodes: ["GOVT 2305", "MATH 1710"],
+  },
+  {
+    id: "psyc",
+    name: "Psychology",
+    department: "PSYC",
+    icon: "Ψ",
+    coreCourseCodes: ["HIST 2610", "HIST 2620", "GOVT 2305"],
+  },
+  {
+    id: "engl",
+    name: "English",
+    department: "ENGL",
+    icon: "Aa",
+    coreCourseCodes: ["HIST 2610", "HIST 2620"],
+  },
+  {
+    id: "other",
+    name: "Undeclared",
+    department: "—",
+    icon: "?",
+    coreCourseCodes: [],
+  },
+];
+
 export const sections: CourseSection[] = [
   {
     id: "csce-1030-a",
@@ -166,9 +176,9 @@ export const sections: CourseSection[] = [
     professor: "Dr. Reed",
     rating: 4.2,
     meetings: [
-      { day: "Mon", start: "08:00", end: "08:50", buildingId: "gab" },
-      { day: "Wed", start: "08:00", end: "08:50", buildingId: "gab" },
-      { day: "Fri", start: "08:00", end: "08:50", buildingId: "gab" },
+      { day: "Mon", start: "08:00", end: "08:50", location: "General Academic Building", buildingId: "gab" },
+      { day: "Wed", start: "08:00", end: "08:50", location: "General Academic Building", buildingId: "gab" },
+      { day: "Fri", start: "08:00", end: "08:50", location: "General Academic Building", buildingId: "gab" },
     ],
   },
   {
@@ -178,8 +188,8 @@ export const sections: CourseSection[] = [
     professor: "Prof. Velasquez",
     rating: 4.8,
     meetings: [
-      { day: "Tue", start: "09:30", end: "10:50", buildingId: "gab" },
-      { day: "Thu", start: "09:30", end: "10:50", buildingId: "gab" },
+      { day: "Tue", start: "09:30", end: "10:50", location: "BLB" },
+      { day: "Thu", start: "09:30", end: "10:50", location: "BLB" },
     ],
   },
   {
@@ -189,8 +199,8 @@ export const sections: CourseSection[] = [
     professor: "Dr. Gao",
     rating: 4.1,
     meetings: [
-      { day: "Tue", start: "08:00", end: "09:20", buildingId: "wh" },
-      { day: "Thu", start: "08:00", end: "09:20", buildingId: "wh" },
+      { day: "Tue", start: "08:00", end: "09:20", location: "Wooten Hall", buildingId: "wh" },
+      { day: "Thu", start: "08:00", end: "09:20", location: "Wooten Hall", buildingId: "wh" },
     ],
   },
   {
@@ -200,9 +210,9 @@ export const sections: CourseSection[] = [
     professor: "Dr. Henson",
     rating: 4.7,
     meetings: [
-      { day: "Mon", start: "11:00", end: "11:50", buildingId: "wh" },
-      { day: "Wed", start: "11:00", end: "11:50", buildingId: "wh" },
-      { day: "Fri", start: "11:00", end: "11:50", buildingId: "wh" },
+      { day: "Mon", start: "11:00", end: "11:50", location: "Wooten Hall", buildingId: "wh" },
+      { day: "Wed", start: "11:00", end: "11:50", location: "Wooten Hall", buildingId: "wh" },
+      { day: "Fri", start: "11:00", end: "11:50", location: "Wooten Hall", buildingId: "wh" },
     ],
   },
   {
@@ -212,9 +222,9 @@ export const sections: CourseSection[] = [
     professor: "Dr. Soto",
     rating: 3.9,
     meetings: [
-      { day: "Mon", start: "09:00", end: "09:50", buildingId: "sage" },
-      { day: "Wed", start: "09:00", end: "09:50", buildingId: "sage" },
-      { day: "Fri", start: "09:00", end: "09:50", buildingId: "sage" },
+      { day: "Mon", start: "09:00", end: "09:50", location: "Sage Hall", buildingId: "sage" },
+      { day: "Wed", start: "09:00", end: "09:50", location: "Sage Hall", buildingId: "sage" },
+      { day: "Fri", start: "09:00", end: "09:50", location: "Sage Hall", buildingId: "sage" },
     ],
   },
   {
@@ -224,8 +234,8 @@ export const sections: CourseSection[] = [
     professor: "Prof. Hamid",
     rating: 4.5,
     meetings: [
-      { day: "Tue", start: "13:00", end: "14:20", buildingId: "sage" },
-      { day: "Thu", start: "13:00", end: "14:20", buildingId: "sage" },
+      { day: "Tue", start: "13:00", end: "14:20", location: "Sage Hall", buildingId: "sage" },
+      { day: "Thu", start: "13:00", end: "14:20", location: "Sage Hall", buildingId: "sage" },
     ],
   },
   {
@@ -235,9 +245,9 @@ export const sections: CourseSection[] = [
     professor: "Dr. Iyengar",
     rating: 4.0,
     meetings: [
-      { day: "Mon", start: "12:00", end: "12:50", buildingId: "sci" },
-      { day: "Wed", start: "12:00", end: "12:50", buildingId: "sci" },
-      { day: "Fri", start: "12:00", end: "12:50", buildingId: "sci" },
+      { day: "Mon", start: "12:00", end: "12:50", location: "Science Research Building", buildingId: "sci" },
+      { day: "Wed", start: "12:00", end: "12:50", location: "Science Research Building", buildingId: "sci" },
+      { day: "Fri", start: "12:00", end: "12:50", location: "Science Research Building", buildingId: "sci" },
     ],
   },
   {
@@ -247,8 +257,8 @@ export const sections: CourseSection[] = [
     professor: "Prof. McDonald",
     rating: 4.9,
     meetings: [
-      { day: "Tue", start: "15:30", end: "16:50", buildingId: "sci" },
-      { day: "Thu", start: "15:30", end: "16:50", buildingId: "sci" },
+      { day: "Tue", start: "15:30", end: "16:50", location: "Chemistry Building" },
+      { day: "Thu", start: "15:30", end: "16:50", location: "Chemistry Building" },
     ],
   },
 ];
@@ -273,5 +283,6 @@ export const defaultPlannerState: PlannerState = {
   selectedSections: {},
   optimization: "clusterMorning",
   activeDay: "Mon",
+  selectedMajor: null,
   updatedAt: new Date().toISOString(),
 };
