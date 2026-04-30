@@ -1,8 +1,19 @@
-import { buildings, courses, defaultPlannerState, plannedCourseCodes, sections } from "@/lib/seed-data";
+import {
+  buildings,
+  courses,
+  defaultPlannerState,
+  majors,
+  plannedCourseCodes,
+  prerequisiteEdges,
+  sections,
+} from "@/lib/seed-data";
+import { buildCampusGeocodeQuery, resolveCampusLocation } from "@/lib/campus-locations";
 import type {
   CampusBuilding,
   Course,
   CourseSection,
+  CourseStatus,
+  MajorId,
   MapStop,
   OptimizationKey,
   PlannerApiPayload,
@@ -11,6 +22,8 @@ import type {
   SectionMeeting,
   WeekDay,
 } from "@/lib/types";
+
+const validMajorIds = new Set<MajorId>(majors.map((m) => m.id));
 
 const plannerStorageKey = "untangle-planner-state";
 
@@ -23,8 +36,16 @@ function durationMinutes(start: string, end: string) {
   return toMinutes(end) - toMinutes(start);
 }
 
-function getBuilding(buildingId: string) {
+function getBuilding(buildingId: string | null | undefined) {
+  if (!buildingId) {
+    return undefined;
+  }
+
   return buildings.find((building) => building.id === buildingId);
+}
+
+function getMeetingBuilding(meeting: SectionMeeting) {
+  return resolveCampusLocation(meeting.location, meeting.buildingId) ?? getBuilding(meeting.buildingId);
 }
 
 function distanceMiles(a: CampusBuilding, b: CampusBuilding) {
@@ -75,8 +96,8 @@ function scoreSchedule(option: OptimizationKey, candidateSections: CourseSection
     dayMeetings.sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
     for (let index = 1; index < dayMeetings.length; index += 1) {
       gapMinutes += Math.max(0, toMinutes(dayMeetings[index].start) - toMinutes(dayMeetings[index - 1].end));
-      const previousBuilding = getBuilding(dayMeetings[index - 1].buildingId);
-      const currentBuilding = getBuilding(dayMeetings[index].buildingId);
+      const previousBuilding = getMeetingBuilding(dayMeetings[index - 1]);
+      const currentBuilding = getMeetingBuilding(dayMeetings[index]);
       if (previousBuilding && currentBuilding) {
         travelMiles += distanceMiles(previousBuilding, currentBuilding);
       }
@@ -129,9 +150,12 @@ export function recommendSections(option: OptimizationKey) {
 
 export function normalizePlannerState(state: PlannerState): PlannerState {
   const recommended = recommendSections(state.optimization);
+  const selectedMajor =
+    state.selectedMajor && validMajorIds.has(state.selectedMajor) ? state.selectedMajor : null;
   return {
     ...defaultPlannerState,
     ...state,
+    selectedMajor,
     selectedSections:
       Object.keys(state.selectedSections).length > 0 ? state.selectedSections : recommended,
   };
@@ -155,6 +179,7 @@ export function buildScheduleEvents(state: PlannerState): ScheduleEvent[] {
       sectionId: selectedSection.id,
       professor: selectedSection.professor,
       rating: selectedSection.rating,
+      location: meeting.location,
       buildingId: meeting.buildingId,
       day: meeting.day,
       start: meeting.start,
@@ -168,19 +193,19 @@ export function buildStopsForDay(state: PlannerState, day: WeekDay): MapStop[] {
     .filter((event) => event.day === day)
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
     .map((event) => {
-      const building = getBuilding(event.buildingId);
-      if (!building) {
-        throw new Error(`Missing building data for ${event.buildingId}`);
-      }
+      const building = resolveCampusLocation(event.location, event.buildingId) ?? getBuilding(event.buildingId);
 
       return {
         courseCode: event.courseCode,
         title: event.title,
-        buildingId: building.id,
-        buildingName: building.name,
-        shortName: building.shortName,
-        lat: building.lat,
-        lng: building.lng,
+        location: event.location,
+        buildingId: building?.id ?? event.buildingId,
+        buildingName: building?.name ?? event.location,
+        shortName: building?.shortName ?? event.location,
+        lat: building?.lat,
+        lng: building?.lng,
+        resolutionStatus: building ? "local" : "unresolved",
+        geocodeQuery: buildCampusGeocodeQuery(event.location),
         day,
         start: event.start,
         end: event.end,
@@ -239,7 +264,7 @@ export function getCourseByCode(courseCode: string): Course | undefined {
   return courses.find((course) => course.code === courseCode);
 }
 
-export function getBuildingById(buildingId: string) {
+export function getBuildingById(buildingId: string | null | undefined) {
   return buildings.find((building) => building.id === buildingId);
 }
 
@@ -286,4 +311,43 @@ export function getSectionDuration(section: CourseSection) {
     (total, meeting) => total + durationMinutes(meeting.start, meeting.end),
     0,
   );
+}
+
+export function getMajorById(id: MajorId | null | undefined) {
+  if (!id) return undefined;
+  return majors.find((major) => major.id === id);
+}
+
+export function getCoreCoursesForMajor(id: MajorId | null | undefined): Course[] {
+  const major = getMajorById(id);
+  if (!major) return [];
+  return major.coreCourseCodes
+    .map((code) => courses.find((course) => course.code === code))
+    .filter((course): course is Course => Boolean(course));
+}
+
+export function getMissingPrerequisites(
+  courseCode: string,
+  courseStatuses: Record<string, CourseStatus>,
+): string[] {
+  return prerequisiteEdges
+    .filter((edge) => edge.courseCode === courseCode)
+    .map((edge) => edge.prerequisiteCode)
+    .filter((prereqCode) => courseStatuses[prereqCode] !== "completed");
+}
+
+export function isCourseLocked(state: PlannerState, courseCode: string) {
+  return getMissingPrerequisites(courseCode, state.courseStatuses).length > 0;
+}
+
+export function summarizeMajorProgress(state: PlannerState) {
+  const coreCourses = getCoreCoursesForMajor(state.selectedMajor);
+  const total = coreCourses.length;
+  if (total === 0) {
+    return { completed: 0, total: 0, pct: 0 };
+  }
+  const completed = coreCourses.filter(
+    (course) => state.courseStatuses[course.code] === "completed",
+  ).length;
+  return { completed, total, pct: Math.round((completed / total) * 100) };
 }

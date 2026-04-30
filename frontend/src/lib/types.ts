@@ -9,11 +9,30 @@ export type OptimizationKey =
   | "minimizeDistance"
   | "maximizeProfessor";
 
+export type MajorId =
+  | "cs"
+  | "ce"
+  | "math"
+  | "biol"
+  | "busi"
+  | "psyc"
+  | "engl"
+  | "other";
+
+export type Major = {
+  id: MajorId;
+  name: string;
+  department: string;
+  icon: string;
+  coreCourseCodes: string[];
+};
+
 export type SectionMeeting = {
   day: WeekDay;
   start: string;
   end: string;
-  buildingId: string;
+  location: string;
+  buildingId?: string;
 };
 
 export type CourseSection = {
@@ -46,6 +65,8 @@ export type CampusBuilding = {
   shortName: string;
   lat: number;
   lng: number;
+  aliases?: string[];
+  address?: string;
 };
 
 export type ScheduleEvent = {
@@ -54,7 +75,8 @@ export type ScheduleEvent = {
   sectionId: string;
   professor: string;
   rating: number;
-  buildingId: string;
+  location: string;
+  buildingId?: string;
   day: WeekDay;
   start: string;
   end: string;
@@ -63,11 +85,14 @@ export type ScheduleEvent = {
 export type MapStop = {
   courseCode: string;
   title: string;
-  buildingId: string;
+  location: string;
+  buildingId?: string;
   buildingName: string;
   shortName: string;
-  lat: number;
-  lng: number;
+  lat?: number;
+  lng?: number;
+  resolutionStatus: "local" | "unresolved";
+  geocodeQuery: string;
   day: WeekDay;
   start: string;
   end: string;
@@ -85,6 +110,7 @@ export type PlannerState = {
   selectedSections: Record<string, string>;
   optimization: OptimizationKey;
   activeDay: WeekDay;
+  selectedMajor: MajorId | null;
   updatedAt: string;
 };
 
