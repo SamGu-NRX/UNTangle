@@ -1,0 +1,504 @@
+[
+    {
+        "course_number": "JOUR4353",
+        "title": "Audio and Video Long Form Storytelling",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on journalistic long-form audio/video storytelling. Includes brainstorming sessions, critiques, audio/video screenings and in-class work on projects.",
+        "prerequisites": "JOUR majors and minors that have successfully taken JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3343 and JOUR 3315 .",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3343",
+            "JOUR3315"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174168"
+    },
+    {
+        "course_number": "JOUR4350",
+        "title": "Sports Journalism",
+        "number_of_hours": "3 hours",
+        "description": "Teaches sports reporting, writing, photojournalism and performance for multi-platform use, including web, broadcast and print. Studies column writing, reporting on competition, ethics in sports journalism, sports entertainment, sports business and the impact of sports in society.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Journalism minor status: JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171480"
+    },
+    {
+        "course_number": "JOUR3401",
+        "title": "Public Relations Principles for Non-majors",
+        "number_of_hours": "3 hours",
+        "description": "Exploration of the public relations covering practices, law, ethics and technology. Considers a variety of organizational structures in a global environment.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174397"
+    },
+    {
+        "course_number": "JOUR4800",
+        "title": "Professional Internship",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Practical experience through employment under the supervision of department chair and professional at the work site. Student must submit bi-weekly reports, work samples and evaluation report at the end of internship; professional supervisor must submit mid-term and final evaluations. Internship and total work and credit hours to be completed must be arranged in advance of enrollment by application to the school. For each hour of credit, student must work a minimum of 100 hours.",
+        "prerequisites": "Internships are intended for Journalism Majors to take in their final year in the program. Students must complete specific prerequisites for their chosen professional concentration in Journalism before they can be granted permission to enroll. Students wanting to request course credit for a professional internship must complete the Departmental Request and Site Approval Form before they can be enrolled. See Journalism.unt.edu for more details, information and the request form. May be repeated for credit; however, no more than 3 hours of total credit for JOUR 4800 and JOUR 4805 or JOUR 4810 may be applied to the journalism degree requirements.",
+        "prerequisites_course_codes": [
+            "JOUR4800",
+            "JOUR4805",
+            "JOUR4810"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171489"
+    },
+    {
+        "course_number": "JOUR4240",
+        "title": "Comparative International Media Systems",
+        "number_of_hours": "3 hours",
+        "description": "Study of mass media throughout the world with special attention to how media institutions contribute to building democracy. Comparison of print and broadcast news systems, the sources and flow of international news and the challenges of globalism.",
+        "prerequisites": "Completion of at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171473"
+    },
+    {
+        "course_number": "JOUR3220",
+        "title": "Professional Practice Studies  1 hour  Rotating professional training in news, advertising and public relations offered in a flexible format. May repeat for credit as topics vary for up to",
+        "number_of_hours": "3 hours",
+        "description": ".",
+        "prerequisites": "Consent of department. May be repeated for credit as topics vary for a maximum of 3 hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173994"
+    },
+    {
+        "course_number": "JOUR3430",
+        "title": "Crisis Communication",
+        "number_of_hours": "3 hours",
+        "description": "The course focuses on professional crisis communication including research, planning, writing, communication, evaluation and analysis skills. Students gain an understanding of appropriate responses/work products for nonprofit, corporate, presidential, governmental organization, social media and media reporting communications. Students use critical thinking and public relations writing skills, working under pressure to convey targeted messages.",
+        "prerequisites": "Students must have at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173644"
+    },
+    {
+        "course_number": "JOUR4999",
+        "title": "News Capstone",
+        "number_of_hours": "3 hours",
+        "description": "(1;2) Culmination of the entire college learning experience by integrating concepts and skills of journalism learned in the classroom with real-life experiences of a working newsroom. Students learn and practice online, print, broadcast and photo journalism together in a newsroom setting. Capstone experience course required of all journalism majors with concentrations in digital/print, broadcast and photojournalism.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 ; either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 ; and one of the following: JOUR 3310 , JOUR 4321 , JOUR 3700 or JOUR 4323 . Should be taken during final 30 hours of study.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323",
+            "JOUR3310",
+            "JOUR4321",
+            "JOUR3700",
+            "JOUR4323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173349"
+    },
+    {
+        "course_number": "JOUR4210",
+        "title": "Topics in Journalism and Mass Media",
+        "number_of_hours": "3 hours",
+        "description": "Rotating topics in both news and strategic communications.",
+        "prerequisites": "Consent of school. May be repeated for credit as topics vary.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171472"
+    },
+    {
+        "course_number": "JOUR3323",
+        "title": "News Writing for Broadcast and Web",
+        "number_of_hours": "3 hours",
+        "description": "Theory and practice of writing and editing for radio, television and web-based news. Topics include news judgment, script formats and style for radio, TV and web news. Regular writing assignments, lectures and critiques. Possible hands-on writing for student media including student web sites.",
+        "prerequisites": "JOUR 2310 and JOUR 3300 ; or consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR2310",
+            "JOUR3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171458"
+    },
+    {
+        "course_number": "JOUR3700",
+        "title": "Fundamentals of Photojournalism",
+        "number_of_hours": "3 hours",
+        "description": "(3;3) Instruction in fundamental photojournalism skills and methods including image production and digital post-production, candid documentary observation, visual sequencing, photography critique, visual news judgement, photojournalism writing, and ethical and legal limits concerning photographic coverage and publication. Covers a variety of photographic subjects outside of class. Also prepare students to be effective problem solvers for situations that may arise during the scope of their reporting. An overview of the history of photojournalism, technological advances, ever-changing business practices and opportunities facing the profession are provided.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 and JOUR 3300 . Journalism minor status: JOUR 2310 and JOUR 3300 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171462"
+    },
+    {
+        "course_number": "JOUR3410",
+        "title": "Public Relations for Non-Profits",
+        "number_of_hours": "3 hours",
+        "description": "Designed for both majors and non-majors. Examines the philosophical and theoretical foundations of public relations and volunteerism in the United States. Students learn to apply these theories to public relations campaigns in the non-profit sector. Strategic communication strategies relating to both internal and external publics are explored, including the unique legal and ethical issues impacting non-profits.",
+        "prerequisites": "Completion of at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171460"
+    },
+    {
+        "course_number": "JOUR3321",
+        "title": "News Reporting and Writing",
+        "number_of_hours": "3 hours",
+        "description": "(3;4) Continued practice in news gathering and writing to develop news judgment, build writing skills and handle complex news stories. Includes regular campus beat and special assignment reporting. Also examines the editor\u2019s role in news copy, with emphasis on writing quality, copy editing, AP style, headline and caption writing, and basic graphics.",
+        "prerequisites": "Journalism major status: JOUR 1210 and JOUR 2310 . Journalism minor status: JOUR 2310 ; or consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171457"
+    },
+    {
+        "course_number": "JOUR4410",
+        "title": "Reporting of Public Affairs",
+        "number_of_hours": "3 hours",
+        "description": "Police, court, political and governmental news with typical practical news assignments assigned to professional reporters; background and practice in writing enterprise and investigative stories, including long-form non-fiction narrative writing. Focus on the role of the journalist, the role of the government and the Freedom of Information Act and open government acts. Students cover meetings and police, some at night and possibly on weekends.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3321 and JOUR 3322 or JOUR 3323 . JOUR minor status: JOUR 2310 , JOUR 3300 , JOUR 3321 and JOUR 3322 or JOUR 3323 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171482"
+    },
+    {
+        "course_number": "JOUR1210",
+        "title": "Mass Communication and Society  (COMM 1307)",
+        "number_of_hours": "3 hours",
+        "description": "Principles of mass communication including historical, economic, social, ethical and legal factors influencing the operation and content of the mass media. Impact of new technology in changing the media. A survey of mass communication areas (newspapers, magazines, advertising, public relations, television, wire services, Internet and networks), and careers they offer. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171447"
+    },
+    {
+        "course_number": "JOUR3300",
+        "title": "Introduction to Visual Communication for News",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to basic video photography and editing, still photography and editing, and audio recording and editing for use in news and a digital multi-media environment. Instruction in theory and practice of visual and audio storytelling for news programming. Instruction may include the operation of digital video cameras, digital still cameras, voice recorders and video and audio editing software and hardware including non-linear editing systems.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171451"
+    },
+    {
+        "course_number": "JOUR4820",
+        "title": "History of American Media",
+        "number_of_hours": "3 hours",
+        "description": "Main trends and economic, social, political and technological factors and people that produced the institutions and traditions of the American mass media; emphasis on the changing roles of media and the impact of new communications technologies in the 21st century.",
+        "prerequisites": "Completion of at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171491"
+    },
+    {
+        "course_number": "JOUR4810",
+        "title": "News or Sports Practicum",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Supervised, intensive practical experience for journalism students to cover news or sports events on a daily basis. Includes interviewing, writing, reporting, shooting, editing reports for the North Texas Daily , NTDaily.com, NTDaily TV, or other appropriate web, broadcast or print venue approved by supervising journalism faculty. Requires a minimum of 100 hours of work for each hour of credit.",
+        "prerequisites": "Journalism major status: Passing score on GSP (grammar, spelling & punctuation) exam and successfully completed JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3322 and either JOUR 3321 or JOUR 3323 . Consent of school. May be repeated for credit; however, no more than 3 hours total credit for JOUR 4800 or JOUR 4810 may be applied to the journalism degree requirements.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3322",
+            "JOUR3321",
+            "JOUR3323",
+            "JOUR4800",
+            "JOUR4810"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171490"
+    },
+    {
+        "course_number": "JOUR4270",
+        "title": "Strategic Social Media",
+        "number_of_hours": "3 hours",
+        "description": "In a collaborative atmosphere, students explore strategic applications of a variety of social media platforms used for strategic communications and journalism. Students are challenged to bring new ideas to the classroom while adapting social media tools to traditional communications planning and measurement methods. Students with specific expertise/interests are encouraged to present to class.",
+        "prerequisites": "Completion of at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173179"
+    },
+    {
+        "course_number": "JOUR4460",
+        "title": "Public Relations Communication",
+        "number_of_hours": "3 hours",
+        "description": "Advanced PR writing, planning and media relations, including writing strategic communications plans as well as writing, editing and producing a wide range of public relations communications materials for traditional and new media. Students work with actual clients individually and in groups to produce a PR campaign and professional portfolio.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3200 , ADVG 1100 , JOUR 3322 , JOUR 2400 and JOUR 3420 .",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3200",
+            "ADVG1100",
+            "JOUR3322",
+            "JOUR2400",
+            "JOUR3420"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171483"
+    },
+    {
+        "course_number": "JOUR4215",
+        "title": "Media Performance for News and Public Relations",
+        "number_of_hours": "3 hours",
+        "description": "Students are introduced to the methods of professional media performance for live on-camera work delivering news, interviewing subjects and conducting public relations event/press conferences.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173647"
+    },
+    {
+        "course_number": "JOUR4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Special Problems in Journalism.",
+        "prerequisites": "Consent of school. May be repeated for credit as topics vary for a maximum of 3 hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171493"
+    },
+    {
+        "course_number": "JOUR3322",
+        "title": "Copyediting",
+        "number_of_hours": "3 hours",
+        "description": "Course introduces students to the theory and practice of editing text for print and digital media, with an emphasis on news stories. The course will focus on fundamental grammar, punctuation and journalistic style. The purpose of this course is to assist students in becoming critical consumers of news and develop skills that can help them write for news audiences on online platforms.",
+        "prerequisites": "Journalism major status: JOUR 1210 and JOUR 2310 . Journalism minor status: JOUR 2310 ; consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173779"
+    },
+    {
+        "course_number": "JOUR2300",
+        "title": "Principles of News  (COMM 2302)",
+        "number_of_hours": "3 hours",
+        "description": "Understanding the fundamentals of news and news gathering through lectures, discussions, group projects, hands-on activities, guest speakers and multimedia to educate students on the skills, methods and practices of the twenty-first century journalist. Introduction to the business of journalism, audience information needs, reader/viewer engagement and news judgment. Students also learn news writing and reporting principles used in print, photojournalism, broadcast and digital/online journalism. Core Category: Component Area Option B",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173177"
+    },
+    {
+        "course_number": "JOUR3343",
+        "title": "Visual News Storytelling",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on video storytelling for television, web and emerging platforms. Reporting, shooting, editing, and writing short stories. Explores different styles of visual journalism, including natural sound storytelling and short-format documentary. Extensive hands-on experience with camera and editing equipment. Instruction on basic graphic and text creation. Students produce multiple stories, content for student media, Television and webcasts.",
+        "prerequisites": "Journalism major or minor status: JOUR 1210 , JOUR 2310 , JOUR 3300 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171479"
+    },
+    {
+        "course_number": "JOUR2400",
+        "title": "Fundamentals of Public Relations Practices",
+        "number_of_hours": "3 hours",
+        "description": "Broad overview of public relations practices covering the history, mechanism and processes of public relations in various workplace settings and types of relations. Emphasis is on the four-step public relations process, strategic planning, writing formats and real-world cases. Implications of technological changes, globalization as well as unethical and illegal practices are discussed.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173244"
+    },
+    {
+        "course_number": "JOUR4730",
+        "title": "Advanced Photojournalism Portfolio",
+        "number_of_hours": "3 hours",
+        "description": "(3;3) Guides students through the production of a cumulative online portfolio of their best photojournalism which may feature student photography and video created both before and during the course. Topical discussions include advanced image post-production techniques, digital asset management, online portfolio content management, and field and studio lighting techniques. Course explores various career paths and professional and business practice in photography and photo editing in both freelance and staff contests. Students produce visual projects and critically analyze the works of others from practical, aesthetic, ethical, legal and cultural perspectives.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3700 and either ( JOUR 3321 and JOUR 3322 )or JOUR 3323 only. JOUR minor status: JOUR 2310 , JOUR 3300 , JOUR 3700 and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3700",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171488"
+    },
+    {
+        "course_number": "JOUR2310",
+        "title": "Introduction to Media Writing  (COMM 2311)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Fundamentals of writing, reporting and information gathering for a variety of journalism professions including advertising, newspapers, public relations, broadcast and web.",
+        "prerequisites": "Journalism major or minor status; ENGL 1310 and ENGL 1320 ; consent of school.",
+        "prerequisites_course_codes": [
+            "ENGL1310",
+            "ENGL1320"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171450"
+    },
+    {
+        "course_number": "JOUR3340",
+        "title": "Digital Media for Journalists",
+        "number_of_hours": "3 hours",
+        "description": "Fast-paced course providing students principles and practice in using digital tools to report, write, blog and produce content in multiple platforms: print, online, social, broadcast and mobile. Includes focus on role and impact of digital-first thinking and technology on journalist\u2019s news gathering and distribution. Also addresses fundamentals of social media, curation, web site analytics and new business models. Content for class shared with NTDaily, NTDaily.com and Denton Community Television.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Journalism minor status: JOUR 2310 , JOUR 3300 , ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only; consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171459"
+    },
+    {
+        "course_number": "JOUR4250",
+        "title": "Race, Gender and the Media: A Methods Approach",
+        "number_of_hours": "3 hours",
+        "description": "Students critically analyze media portrayals of race, gender, sexuality and class and learn to use scholarly research methods to evaluate them. Students examine historical and modern patterns in news media, advertising, television, film, video gaming, popular music, and other mass media. Discussion and writing are major components to this class.",
+        "prerequisites": "Completion of at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171474"
+    },
+    {
+        "course_number": "JOUR3420",
+        "title": "Public Relations Writing",
+        "number_of_hours": "3 hours",
+        "description": "Writing-intensive course that focuses on professional-level writing skills needed by new practitioners of public relations. Components include news releases, pitch letters, media advisories, feature writing, Web writing, business formats, message design concepts and broadcast forms, as well as communication theory, ethics and law. Editing, grammar and AP style are discussed.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , ADVG 1100 , JOUR 3322 and JOUR 2400 ; consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "ADVG1100",
+            "JOUR3322",
+            "JOUR2400"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171461"
+    },
+    {
+        "course_number": "JOUR4355",
+        "title": "Sport Media Relations",
+        "number_of_hours": "3 hours",
+        "description": "Course explores the purpose, processes and careers in sport media relations including history, media convergence, economics, budgets, operations, law and ethics of sport media communication. Course will survey sport media careers and provide a better understanding of sport media career opportunities.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , either ADVG 1100 or JOUR 3300 and either JOUR 3321 or JOUR 3322 or JOUR 3323 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "ADVG1100",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173638"
+    },
+    {
+        "course_number": "JOUR3310",
+        "title": "Feature Writing",
+        "number_of_hours": "3 hours",
+        "description": "Analysis of newspaper and magazine feature material, from human interest stories to magazine articles; clinical course to develop writing skills, freelance abilities and interests of journalism students.",
+        "prerequisites": "Journalism major status and successfully completed JOUR 1210 , JOUR 2310 , either JOUR 3321 and JOUR 3322 or JOUR 3323 only; consent of school. JOUR minor status and successfully completed JOUR 2310 , either JOUR 3321 and JOUR 3322 or JOUR 3323 only; or consent of Mayborn school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171456"
+    },
+    {
+        "course_number": "JOUR4321",
+        "title": "Opinion Writing",
+        "number_of_hours": "3 hours",
+        "description": "Writing for the editorial page: editorials and columns. Writing critical reviews of the performing arts, visual arts and popular culture. Emphasis on editorials, arts reviews and personal columns.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Journalism minor status: JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171477"
+    },
+    {
+        "course_number": "JOUR4280",
+        "title": "Media Management",
+        "number_of_hours": "3 hours",
+        "description": "Course introduces media management issues including leadership, management, marketing and budget. Students gain analytical tools to help understand the current state of media and to help develop new models for the future. Students read, discuss, listen, observe, analyze and make recommendations about how media has changed, what\u2019s going on now and how it can be changed for the future. Students will also meet and discuss current issues and trends with media executives.",
+        "prerequisites": "Completion of at least 45 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173659"
+    },
+    {
+        "course_number": "JOUR4620",
+        "title": "Mass Communication Law and Ethics",
+        "number_of_hours": "3 hours",
+        "description": "Examination of law and ethics used by working journalists. Law topics include First Amendment, libel, privacy, access to information among other topics. Also examines critical ethical challenges and the ethical decision-making process in today\u2019s changing media.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 or ADVG 1100 . Journalism minor status: JOUR 2310 , JOUR 3300 , and ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 or ADVG 1100 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3321",
+            "JOUR3322",
+            "JOUR3323",
+            "ADVG1100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171486"
+    },
+    {
+        "course_number": "JOUR4323",
+        "title": "Advanced Writing and Reporting for Broadcast and Web",
+        "number_of_hours": "3 hours",
+        "description": "Advanced news writing, reporting and storytelling for television, web and radio. Includes information gathering, writing, interviewing, working a news beat, developing sources and ideas, editing copy, and learning specific formats. Hands-on experience writing, producing and editing news pieces and webcasts for student and area media outlets and web sites.",
+        "prerequisites": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3315 , JOUR 3323 . Consent of school.",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300",
+            "JOUR3315",
+            "JOUR3323"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171478"
+    },
+    {
+        "course_number": "JOUR4480",
+        "title": "Public Relations Campaigns",
+        "number_of_hours": "3 hours",
+        "description": "Provides classroom situation where students work in teams to research, plan, create, execute and evaluate a multimedia public relations campaign for a designated client. Students use their accumulated knowledge from their major courses.",
+        "prerequisites": "Journalism majors: JOUR 1210 , JOUR 2310 , JOUR 3322 , and JOUR 3420 .",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3322",
+            "JOUR3420"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173781"
+    },
+    {
+        "course_number": "JOUR3315",
+        "title": "Video News Research and Reporting",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on research and use of data and open records when reporting for video and electronic formats, along with writing, video shooting and editing to produce news packages. Also includes basics of how newsrooms use research and analytics when making business decisions and how that information can influence story choice (as well as a discussion about the ethics of this issue).",
+        "prerequisites": "Journalism majors: JOUR 1210 , JOUR 2310 and JOUR 3300 .",
+        "prerequisites_course_codes": [
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174127"
+    },
+    {
+        "course_number": "JOUR3200",
+        "title": "Mass Communication Research Methods",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to quantitative and qualitative methods used to study audiences, contents and effects of mass media, especially focusing on advertising and public relations communication and utilizing social science research skills and statistical analysis. Approaches include content analysis, survey research, focus groups and other experimental studies.",
+        "prerequisites": "Journalism major status: MATH 1680 , JOUR 1210 , JOUR 2310 . Journalism minor status: JOUR 2300 and MATH 1680 . Or consent of Mayborn school.",
+        "prerequisites_course_codes": [
+            "MATH1680",
+            "JOUR1210",
+            "JOUR2310",
+            "JOUR2300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171455"
+    }
+]

@@ -1,0 +1,73 @@
+[
+    {
+        "course_number": "FREN4050",
+        "title": "French Tourism",
+        "number_of_hours": "3 hours",
+        "description": "Exploration of current trends and facets of tourism in France. Overview of French regions with their characteristics, landmarks for visits and excursions, transportation, types of accommodation available to tourists, and cuisine. Emphasis on task-based approach and digital literacy for the French tourism industry.",
+        "prerequisites": "3 hours of advanced French or consent of department.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171134"
+    },
+    {
+        "course_number": "FREN3120",
+        "title": "Advanced Readings in French",
+        "number_of_hours": "3 hours",
+        "description": "Selected readings from French literature and other types of texts such as advertisements and film, with emphasis on conversational and written practice.",
+        "prerequisites": "FREN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "FREN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171123"
+    },
+    {
+        "course_number": "FREN2040",
+        "title": "Intermediate French  (FREN 2311)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "FREN 1020 or equivalent.",
+        "prerequisites_course_codes": [
+            "FREN1020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171119"
+    },
+    {
+        "course_number": "FREN1020",
+        "title": "Elementary French  (FREN 1412)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "FREN 1010 or equivalent.",
+        "prerequisites_course_codes": [
+            "FREN1010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171116"
+    },
+    {
+        "course_number": "FREN4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "NONE",
+        "prerequisites": "Consent of department. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171142"
+    },
+    {
+        "course_number": "FREN2050",
+        "title": "Intermediate French  (FREN 2312)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "FREN 2040 or equivalent.",
+        "prerequisites_course_codes": [
+            "FREN2040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171120"
+    },
+    {
+        "course_number": "FREN1010",
+        "title": "Elementary French  (FREN 1411)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171115"
+    }
+]

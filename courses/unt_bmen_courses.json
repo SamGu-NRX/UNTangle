@@ -1,0 +1,152 @@
+[
+    {
+        "course_number": "BMEN4920",
+        "title": "Cooperative Education/Internship in Biomedical Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Supervised field work in a job/co-op/internship, directly related to the student\u2019s major field of study or career objective. Offer letter from company or organization is required.",
+        "prerequisites": "Junior or senior standing; good academic standing in biomedical engineering. Consent of department required",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=178295"
+    },
+    {
+        "course_number": "BMEN4222",
+        "title": "Senior Design II",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Continuation of BMEN 4212 . Team biomedical engineering design project involving development of alternative approaches for solution, implementation of design techniques and error analysis.",
+        "prerequisites": "BMEN 4212 .",
+        "prerequisites_course_codes": [
+            "BMEN4212"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173319"
+    },
+    {
+        "course_number": "BMEN4900",
+        "title": "Special Problems in Biomedical Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individual instruction in theoretical, experimental or research problems. For technical elective credit only.",
+        "prerequisites": "Consent of instructor. May be repeated for credit as topics vary for a maximum of 6 hours, but a maximum of 3 credit hours apply to major from BMEN 4900 or BMEN 4910 .",
+        "prerequisites_course_codes": [
+            "BMEN4900",
+            "BMEN4910"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173367"
+    },
+    {
+        "course_number": "BMEN2210",
+        "title": "Biomedical Circuits and Data Acquisition Best Practices",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Data acquisition and quantitative analysis of biomedical and physiological signals using LabVIEW; A/D conversion; basic transforms; power supply consideration for biomedical systems; filtering of biomedical signals; electrical circuits and analog representations of physiological systems.",
+        "prerequisites": "MATH 1720 .",
+        "prerequisites_course_codes": [
+            "MATH1720"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173413"
+    },
+    {
+        "course_number": "BMEN3312",
+        "title": "Introduction to Biomechanics",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Introduction into the mechanics of deformable media in biomechanics, including biomaterials and biological tissues with an emphasis in mechano-biology within the context of 1) kinematics, 2) the concept of stress, 3) equilibrium, 4) constitutive relations and 5) boundary conditions.",
+        "prerequisites": "BMEN 2320 , BMEN 3310 , PHYS 1710 .",
+        "prerequisites_course_codes": [
+            "BMEN2320",
+            "BMEN3310",
+            "PHYS1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173316"
+    },
+    {
+        "course_number": "BMEN2900",
+        "title": "Special Problems in Biomedical Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individual instruction in theoretical, experimental or research problems. For elective credit only, may not be substituted for BMEN courses.",
+        "prerequisites": "Consent of instructor. May be repeated for credit as topics vary for a maximum of 6 hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173365"
+    },
+    {
+        "course_number": "BMEN1400",
+        "title": "Software for Biomedical Engineers",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Introduction and exposure to common programming languages used in biomedical engineering practice; develop functions and algorithms for analysis of data; develop basic data acquisition functions.",
+        "prerequisites": "MATH 1650 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH1650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173571"
+    },
+    {
+        "course_number": "BMEN4326",
+        "title": "Principles of Biomolecular Engineering",
+        "number_of_hours": "3 hours",
+        "description": "To engineer biological systems, it is essential to develop biomolecular components with novel, desirable functions. These components include enzymes, structural proteins, receptors and other macromolecules. Recent advances in biomolecular engineering open many new possibilities in protein design and protein construction. Discusses a wide range of strategies in designing macromolecules, generating libraries of these parts and screening desirable candidates. Additionally, trains students in reading, analyzing and discussing materials from academic research articles. Recommended: BMEN 3310 . Meets with BMEN 5326",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174022"
+    },
+    {
+        "course_number": "BMEN4319",
+        "title": "Cardiovascular Flows",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Blood flow is essential for normal body function. The dynamics of blood flow and the heart functioning as a pump are regulated by, and in turn, regulate many physiological processes in the human body. Understanding the flow of blood in the human body provides valuable insights into human physiology and the interdependence of various organ systems. Cardiovascular diseases disrupt normal blood flow in the human body, affecting many essential processes and organs (giving rise to a plumbing problem!). Students learn about the nature of blood and regulation of blood flow in normal and diseased situations using fundamental principles including physiology, engineering, analytical and computational models, mechanistic approaches and clinical viewpoints. State-of-the-art therapeutic techniques and medical devices currently used by clinicians for detecting and treating cardiovascular diseases also are discussed. Recommended: BMEN 3310 and BMEN 3350 . Meets with BMEN 5319.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173851"
+    },
+    {
+        "course_number": "BMEN4320",
+        "title": "Biomedical Microelectromechanical Systems",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Comprehensive introduction to the science and technology of miniaturization and its applications in biomedical engineering. Methods and tools to create submicron electromechanical and fluidic architectures, with hands-on lab practice and software modeling. Different types of lithography methods will be presented and different techniques such as chemical etching and reactive ion etching will be discussed. Applications in bio micro-electro-mechanical systems (BioMEMS) will also be discussed in different subjects, such as biosensor, microfluidics and BioMEMS for diagnosis and tissue engineering.",
+        "prerequisites": "BMEN 3311 , BMEN 3321 .",
+        "prerequisites_course_codes": [
+            "BMEN3311",
+            "BMEN3321"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173464"
+    },
+    {
+        "course_number": "BMEN4100",
+        "title": "Biomedical Mechatronics",
+        "number_of_hours": "3 hours",
+        "description": "Modeling and analysis of electrical and mechanical systems (spring mass damper), data acquisition and measurements, sensors, actuators and micro-controller programming. A lab component with emphasis on building electrical circuits, data acquisition using LabVIEW, and integration of sensors, actuators and micro-controller programming (Arduino) to create a mechatronics system. Recommended: BMEN 2210 , BMEN 2320 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174197"
+    },
+    {
+        "course_number": "BMEN4314",
+        "title": "Tissue Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Tissue engineering provides new therapies for patients with severe injuries or chronic diseases. The successful development of tissue engineered replacements depends on complementary advances in biomedicine, cell biology, material science and engineering. Comprehensive course designed for senior level study. Covers the fundamental concepts, multidisciplinary approaches and clinical applications of tissue engineering and regenerative medicine. Students gain the fundamental understandings of structure-function relationship in normal and pathological mammalian tissues. Principles of tissue engineering; biological mechanisms; experimental, analytical and computational approaches; animal models, as well as their respective clinical applications are integrated to address problems in current tissue regeneration field. Recommended: BMEN 3321 and senior classification. Meets with BMEN 5314.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173850"
+    },
+    {
+        "course_number": "BMEN3321",
+        "title": "Biomaterials",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the properties of natural and man-made materials commonly encountered in biomedicine and biomedical engineering; the basics of material structures, including crystalline and chemical structure, and microstructure; and characteristics of the materials are developed from the microscopic origins.",
+        "prerequisites": "BMEN 3310 , CHEM 1410 , PHYS 1710 .",
+        "prerequisites_course_codes": [
+            "BMEN3310",
+            "CHEM1410",
+            "PHYS1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173317"
+    },
+    {
+        "course_number": "BMEN2320",
+        "title": "Biomedical Instrumentation I",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Introduction to biomedical instrumentation design; design, building and testing of bioinstrumentation circuits including power supplies, analog signal amplifiers and analog filter circuits.",
+        "prerequisites": "BMEN 1300 ; BMEN 2210 ; BMEN 1400 or concurrent enrollment.",
+        "prerequisites_course_codes": [
+            "BMEN1300",
+            "BMEN2210",
+            "BMEN1400"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173313"
+    }
+]

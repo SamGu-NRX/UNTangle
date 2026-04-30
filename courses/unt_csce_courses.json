@@ -1,0 +1,674 @@
+[
+    {
+        "course_number": "CSCE2900",
+        "title": "Special Problems in Computer Science and Engineering",
+        "number_of_hours": "1\u20134 hours",
+        "description": "Individualized instruction in theoretical or experimental problems.",
+        "prerequisites": "Students must get instructor consent by email, as well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Students must upload the instructor consent and all other consent/approval documentation in the form. For elective credit only. May be repeated for credit for a maximum of 6 hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170688"
+    },
+    {
+        "course_number": "CSCE4815",
+        "title": "Bioinformatics",
+        "number_of_hours": "3 hours",
+        "description": "Familiarize students with state-of-the-art methodologies in Bioinformatics and Computational Biology, and help them understand how to apply these techniques to solving biological and biomedical problems.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174394"
+    },
+    {
+        "course_number": "CSCE3214",
+        "title": "Software Development for Artificial Intelligence",
+        "number_of_hours": "3 hours",
+        "description": "New paradigms for developing software are needed to create and manage systems with AI capabilities, particularly for practitioners without extensive programming experience. Students in this course will be taught how to leverage available artificial intelligence APIs flexibly and reliably through a series of demo-driven tasks. Additionally, as data management is integral to AI system development, an emphasis will be made to collect and process data for AI system training and testing. Traditional programming concepts and software design principles will be covered in a task-oriented manner to interface with advanced AI libraries and frameworks in order to build and maintain AI infrastructure.",
+        "prerequisites": "MATH 1650 with a grade of C or better, or instructor consent. This course is for non-computer science and engineering majors. Experience with Python is helpful as it is used extensively in the course, but significant prior programming experience with any language will be sufficient.",
+        "prerequisites_course_codes": [
+            "MATH1650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174025"
+    },
+    {
+        "course_number": "CSCE4560",
+        "title": "Secure Electronic Commerce",
+        "number_of_hours": "3 hours",
+        "description": "Electronic commerce technology, models and issues, with emphasis on security issues. Supporting technology such as cryptography, digital signatures, certificates and public key infrastructure (PKI). Security-conscious programming for web-based applications. Exposure to interaction between technical issues and business, legal and ethical issues.",
+        "prerequisites": "CSCE 2110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170729"
+    },
+    {
+        "course_number": "CSCE4565",
+        "title": "Secure Software Development",
+        "number_of_hours": "(3;0;1)",
+        "description": "Software-based attacks and the security design principles which foster the design, implementation and verification/validation of secure software systems and architectures. Studies approaches, mechanisms and tools used to make software systems more secure and cover principles and practices of a secure and high assurance software development process, including architectural approaches to building secure software, security development lifecycle models and design/verification/validation using languages and tools such as UML. Tools and techniques for code analysis and test as well as evaluation and certification of software are emphasized.",
+        "prerequisites": "CSCE 3550 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3550"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173854"
+    },
+    {
+        "course_number": "CSCE4380",
+        "title": "Data Mining",
+        "number_of_hours": "3 hours",
+        "description": "Fundamental concepts and techniques of data mining, including data attributes, data pre-processing, statistical foundations, association discovery, mining frequent patterns, classification methods, prediction and cluster analysis.",
+        "prerequisites": "CSCE 2110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173519"
+    },
+    {
+        "course_number": "CSCE4650",
+        "title": "Introduction to Compilation Techniques",
+        "number_of_hours": "3 hours",
+        "description": "Topics include parsing, syntax-directed translation, run-time storage management, error recovery, code generation and optimization. A significant project is required.",
+        "prerequisites": "CSCE 2100 , CSCE 2110 and CSCE 3600 , each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110",
+            "CSCE3600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170705"
+    },
+    {
+        "course_number": "CSCE3201",
+        "title": "Applied Artificial Intelligence",
+        "number_of_hours": "3 hours",
+        "description": "Core concepts and terminology in artificial intelligence will be introduced to understand the taxonomy of AI applications - the relationships between the tools and frameworks available for intelligent, data-driven decision making. This will include a demo-driven introduction to machine learning, with general principles of powerful predictive models discussed and the role of unsupervised and semi-supervised learning techniques in powering many state-of-the-art decision systems.",
+        "prerequisites": "MATH 1650 with a grade of C or better or consent instructor. This course is for non-computer science and engineering majors. Experience with Python is helpful as it is used extensively in the course, but significant prior programming experience with any language will be sufficient.",
+        "prerequisites_course_codes": [
+            "MATH1650"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174026"
+    },
+    {
+        "course_number": "CSCE4915",
+        "title": "Computer Engineering Design II",
+        "number_of_hours": "3 hours",
+        "description": "Second course in the senior capstone design sequence. Focus is the application of techniques to the design of electronic systems that have digital hardware and software components. Students apply the theory acquired from numerous engineering courses to solve real-world design problems. The design will consider realistic constraints including economic, environmental, sustainability, manufacturability, ethical, social and safety.",
+        "prerequisites": "CSCE 4910 with a grade of C or better. CSCE 4915 must be completed in the long term/semester immediately following the completion of CSCE 4910 .",
+        "prerequisites_course_codes": [
+            "CSCE4910",
+            "CSCE4915"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170741"
+    },
+    {
+        "course_number": "CSCE3600",
+        "title": "Principles of Systems Programming",
+        "number_of_hours": "(3;0;1)",
+        "description": "Introduction to the design and operation of systems software. Analysis is made of current system software technology, including operating systems, language translation systems and file systems.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 , with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170702"
+    },
+    {
+        "course_number": "CSCE4250",
+        "title": "Topics in Game Development",
+        "number_of_hours": "3 hours",
+        "description": "Advanced topics in game development, possibly including but not limited to character animation, procedural content generation, shader techniques and graphics special effects. Discussion of articles from the recent academic and technical literature on game development and related material from relevant computer science areas.",
+        "prerequisites": "CSCE 4210 with a grade of C or better. Corequisite(s): CSCE 4220 . May be repeated for credit as topics vary for a maximum of 6 hours.",
+        "prerequisites_course_codes": [
+            "CSCE4210",
+            "CSCE4220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170716"
+    },
+    {
+        "course_number": "CSCE3610",
+        "title": "Introduction to Computer Architecture",
+        "number_of_hours": "3 hours",
+        "description": "Design of simple and pipelined processors, introduction to co-processor design, techniques to improve performance, memory hierarchy, cache memories, input-output system and interrupts.",
+        "prerequisites": "CSCE 2610 or CSCE 4127 , and CSCE 3730 , with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2610",
+            "CSCE4127",
+            "CSCE3730"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173441"
+    },
+    {
+        "course_number": "CSCE3550",
+        "title": "Foundations of Cybersecurity",
+        "number_of_hours": "(3;0;1)",
+        "description": "Security goals, threats and vulnerabilities. Cryptography, program security and operating system security issues. Basic network security. Planning, policies and risk analysis. Corequisite(s): CSCE 2110 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170728"
+    },
+    {
+        "course_number": "CSCE3444",
+        "title": "Software Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Modular design and implementation of software systems. Topics include requirements and specifications development, documentation of the design using current design tools such as UML, testing of software implementation, and system and user documentation.",
+        "prerequisites": "CSCE 2110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170724"
+    },
+    {
+        "course_number": "CSCE4160",
+        "title": "Parallel Programming",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to processing in parallel and distributed computing environments. General concepts of parallel machine models, processes, threads, mutual exclusion, synchronization and message passing. Design and analysis of parallel algorithms for engineering and scientific applications. Parallel programming using message passing and shared memory paradigms.",
+        "prerequisites": "CSCE 3600 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170691"
+    },
+    {
+        "course_number": "CSCE4290",
+        "title": "Introduction to Natural Language Processing",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to natural language processing, modern theories of syntax, context free parsing, transformational syntax and parsing, computational semantics and survey of natural language processing systems.",
+        "prerequisites": "CSCE 2110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173395"
+    },
+    {
+        "course_number": "CSCE4999",
+        "title": "Senior Thesis",
+        "number_of_hours": "3 hours",
+        "description": "Intended to be a serious exercise in the organization and presentation of written material. Students select their own topics, in consultation with their faculty advisor. The thesis is a research paper and students are responsible, with the advice of their faculty, for the investigation of sources, the accumulation of data, the selection of pertinent material and the preparation of the thesis in acceptable form.",
+        "prerequisites": "Senior standing. Students must submit their own topics for thesis, with designated advisor approval, before they are allowed to register for the course. Instructor consent by email and departmental consent required.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170748"
+    },
+    {
+        "course_number": "CSCE4920",
+        "title": "Cooperative Education in Computer Science and Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Supervised field work in a job directly related to the student\u2019s major field of study or career objective.",
+        "prerequisites": "Junior or senior standing in computer science, computer engineering or information technology, consent of instructor, and departmental consent. May be repeated for credit, maximum 6 credit hours. Pass/No Pass only.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170742"
+    },
+    {
+        "course_number": "CSCE4930",
+        "title": "Topics in Computer Science and Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Topics vary.",
+        "prerequisites": "Junior or senior standing in computer science, computer engineering or information technology, and consent of instructor. Required instructor consent via email and departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor\u2019s consent in the form. May be repeated for credit, a maximum of 6 credit hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170744"
+    },
+    {
+        "course_number": "CSCE4905",
+        "title": "Information Technology Capstone I",
+        "number_of_hours": "3 hours",
+        "description": "First of a two-course sequence in which students develop a complex IT system starting from customer requirements and progressing through the entire analysis, design, implementation, testing and delivery lifecycle. Students work in teams to develop a project plan, complete the technical components of the project, prepare a variety of deliverable documents and finally, deliver the finished product to the customer. The first course focuses on the analysis and design of the system.",
+        "prerequisites": "CSCE 3055 and CSCE 3615 (or CSCE 3444 ), each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3055",
+            "CSCE3615",
+            "CSCE3444"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170739"
+    },
+    {
+        "course_number": "CSCE4355",
+        "title": "Database Administration",
+        "number_of_hours": "3 hours",
+        "description": "Database administration skills covering installation, configuration and tuning a database; administering servers and server groups; managing and optimizing schemas, tables, indexes and views; creating logins; configuring permissions; assigning roles, and performing other essential security tasks, backup and recovery strategies, automation and maintenance.",
+        "prerequisites": "CSCE 4350 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE4350"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170719"
+    },
+    {
+        "course_number": "CSCE2100",
+        "title": "Foundations of Computing",
+        "number_of_hours": "(3;0;1)",
+        "description": "Conceptual and formal models, efficiency and levels of abstraction as used in the field of computing, combinatorics and conditional probability, basic operations of sets, functions, relations, trees and graphs, regular expressions, and finite state machines to describe patterns in strings.",
+        "prerequisites": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): MATH 1710 . Can be taken concurrently with CSCE 2110 .",
+        "prerequisites_course_codes": [
+            "CSCE1040",
+            "CSCE1045",
+            "MATH1710",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170683"
+    },
+    {
+        "course_number": "CSCE4050",
+        "title": "Applications of Cryptography",
+        "number_of_hours": "3 hours",
+        "description": "Introduces the fundamentals of cryptography and their applications. The knowledge gained from this course will enable students to apply cryptographic algorithms as building blocks for designing security solutions.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 , each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173198"
+    },
+    {
+        "course_number": "CSCE4555",
+        "title": "Computer Forensics",
+        "number_of_hours": "(3;0;1)",
+        "description": "Fundamentals of computer forensics and cyber-crime scene analysis including laws, regulations, international standards and formal methodology for conducting computer forensic investigations. Topics include advanced computer forensic science capabilities such as target hardening and software, tools for data duplication, recovery and analysis, and development of pre-search or on-scene computer investigative techniques.",
+        "prerequisites": "CSCE 2110 with a grade of C or better OR consent of instructor.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173620"
+    },
+    {
+        "course_number": "CSCE1010",
+        "title": "Discovering Computer Science  (COSC 1301)",
+        "number_of_hours": "3 hours",
+        "description": "(3;0) A breadth-first introduction to computer science based upon 7 \u201cBig Ideas,\u201d namely: 1) computing is a creative activity, 2) abstraction reduces information and detail to facilitate focus on relevant concepts, 3) data and information facilitate the creation of knowledge, 4) algorithms are used to develop and express solutions to computational problems, 5) programming enables problem solving, human expression and creation of knowledge, 6) the Internet pervades modern computing and 7) computing has global impacts. Core Category: Component Area Option B",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170676"
+    },
+    {
+        "course_number": "CSCE4201",
+        "title": "Introduction to Artificial Intelligence",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to concepts and ideas in artificial intelligence, including topics such as search techniques, knowledge representation, problem-solving, logic, probabilistic reasoning, learning, perception and natural language processing.",
+        "prerequisites": "CSCE 2110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170717"
+    },
+    {
+        "course_number": "CSCE1035",
+        "title": "Computer Programming I",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Overview of computers and programming. Focus is on problem analysis and techniques used in the development of algorithms and computer programs using a modern programming language. Topics include data types, expressions, statements, operators, input/output, conditional statements, iteration, functions, lists and debugging. No prior knowledge of programming is assumed.",
+        "prerequisites": "CSCE 1010 with a grade of C or better, and MATH 1100 or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors).",
+        "prerequisites_course_codes": [
+            "CSCE1010",
+            "MATH1100",
+            "MATH1650",
+            "MATH1710",
+            "CSCE1015"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170679"
+    },
+    {
+        "course_number": "CSCE3560",
+        "title": "Cloud Security",
+        "number_of_hours": "(3;0;1)",
+        "description": "Introduces theoretical and practical aspects of computer systems security and present ways to protect a computer system. Topics include operating system security, hardware security modules, cryptoprocessors, hypervisors, trusted platform modules, virtualization security, storage security, trusted hardware, application isolation, and cloud and IoT security. Students will also explore emerging security challenges facing computer systems based on recent research papers.",
+        "prerequisites": "CSCE 3600 and CSCE 3550 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3600",
+            "CSCE3550"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173914"
+    },
+    {
+        "course_number": "CSCE4927",
+        "title": "Cybersecurity Capstone II",
+        "number_of_hours": "3 hours",
+        "description": "Second of a two-course sequence in which students apply cybersecurity principles and techniques to develop a complex information system starting from customer requirements and progressing through the entire analysis, design, implementation and delivery lifecycle. Students work in teams to develop a project plan, complete the technical components of the project, prepare a variety of deliverable documents and finally, deliver the finished product to the customer. The second course focuses on the implementation, testing and delivery of the secure system.",
+        "prerequisites": "CSCE 4907 with a grade of C or better. CSCE 4927 must be completed in the long term/semester immediately following the completion of CSCE 4907 .",
+        "prerequisites_course_codes": [
+            "CSCE4907",
+            "CSCE4927"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173856"
+    },
+    {
+        "course_number": "CSCE4110",
+        "title": "Algorithms",
+        "number_of_hours": "3 hours",
+        "description": "Time complexity of algorithms; algorithm design methodologies including divide and conquer, greedy, and dynamic programming; exposure to approximation algorithms for NP-hard problems; performance evaluation of algorithms.",
+        "prerequisites": "CSCE 2110 with a C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170709"
+    },
+    {
+        "course_number": "CSCE1045",
+        "title": "Computer Programming II",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Continues the progression of students\u2019 software development skills through programming, designing, and implementing larger software projects and emphasizes more advanced topics such as dynamic data structures and object-oriented paradigms using one or more modern programming languages.",
+        "prerequisites": "CSCE 1035 with a grade of C or better. MATH 1100 or MATH 1650 or MATH 1710 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE1035",
+            "MATH1100",
+            "MATH1650",
+            "MATH1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170681"
+    },
+    {
+        "course_number": "CSCE2610",
+        "title": "Assembly Language and Computer Organization  (COSC 2325 or COSC 2425)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Principles of computer systems organization, instruction sets, assembly language programming, computer arithmetic, data and control paths, and introduction to memory hierarchy.",
+        "prerequisites": "CSCE 2100 with a grade of C or better. Corequisite(s): CSCI majors: EENG 2710 . CMPE majors: EENG 2710 taken concurrently with EENG 2711 .",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "EENG2710",
+            "EENG2711"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170686"
+    },
+    {
+        "course_number": "CSCE3612",
+        "title": "Embedded Systems Design",
+        "number_of_hours": "(3;0;2)",
+        "description": "Computer systems as embedded computing elements and micro-controllers. System specification using UML or other high-level abstract models. Issues and constraints on embedded computing systems, including power, performance, memory and size. Use of DSP, ASIC and micro-controllers in a single design.",
+        "prerequisites": "CSCE 2610 or CSCE 4127 ; ENGR 2720 / ENGR 2730 or EENG 2710 / EENG 2711 , with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2610",
+            "CSCE4127",
+            "ENGR2720",
+            "ENGR2730",
+            "EENG2710",
+            "EENG2711"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170704"
+    },
+    {
+        "course_number": "CSCE1030",
+        "title": "Computer Science I  (COSC 1336 or COSC 1436)",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Introduction to computer science and engineering, problem-solving techniques, algorithmic processes, software design and development.",
+        "prerequisites": "CSCE 1010 (for CSE majors only) with a grade of C or better and MATH 1100 , or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors only).",
+        "prerequisites_course_codes": [
+            "CSCE1010",
+            "MATH1100",
+            "MATH1650",
+            "MATH1710",
+            "CSCE1015"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170678"
+    },
+    {
+        "course_number": "CSCE3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. As well as Departmental Consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload documentation of consent in the form. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173089"
+    },
+    {
+        "course_number": "CSCE2110",
+        "title": "Foundations of Data Structures  (COSC 2336 or COSC 2436)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Introduces students to more advanced data structures and algorithms. Time complexity of algorithms; merge sort and heap sort; data structures for trees and graphs; elementary graph algorithms; breadth-first search; depth-first search; topological sorting; Prim\u2019s algorithm and Kruskal\u2019s algorithm. Additionally, the effective use of regular expressions to parse text and the use of hash tables to store data are covered. By the end of the foundation courses, each student will have a solid foundation in conceptual and formal models and levels of abstraction as used in the field of computer science, as well as greater proficiency in software development.",
+        "prerequisites": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): This course can be taken concurrently with CSCE 2100 .",
+        "prerequisites_course_codes": [
+            "CSCE1040",
+            "CSCE1045",
+            "CSCE2100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170684"
+    },
+    {
+        "course_number": "CSCE4902",
+        "title": "Software Development Capstone II",
+        "number_of_hours": "3 hours",
+        "description": "Second course in the senior capstone sequence. Focus is the application of techniques to the design of software systems and software components. Students apply the theory acquired from numerous engineering courses to solve real-world design problems. The design will consider realistic constraints including economic, environmental, sustainability, manufacturability, ethical, social and safety.",
+        "prerequisites": "CSCE 4901 with a grade of C or better. CSCE 4902 must be completed in the long term/semester immediately following the completion of CSCE 4901 .",
+        "prerequisites_course_codes": [
+            "CSCE4901",
+            "CSCE4902"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173663"
+    },
+    {
+        "course_number": "CSCE4600",
+        "title": "Introduction to Operating Systems",
+        "number_of_hours": "(3;0;1)",
+        "description": "Concepts in operating system analysis and design. General topics of process, resource and file management are presented and analyzed in the context of different system architectures and performance constraints.",
+        "prerequisites": "CSCE 3600 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170730"
+    },
+    {
+        "course_number": "CSCE3055",
+        "title": "IT Project Management",
+        "number_of_hours": "3 hours",
+        "description": "Provides students with the tools and techniques needed to manage a wide variety of IT systems projects, including software design and development, IT systems design and installation, network management and support and others. Students develop and practice skills through the use of case studies and other project-based exercises.",
+        "prerequisites": "CSCE 2100 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170692"
+    },
+    {
+        "course_number": "CSCE4010",
+        "title": "Social Issues in Computing",
+        "number_of_hours": "3 hours",
+        "description": "The effect of computer science and engineering on the home and workplace, with emphasis on the role of computer professional in modern society.",
+        "prerequisites": "CSCE 3600 with a C or better. For non-CSE majors, departmental consent can be obtained by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor\u2019s consent in the form.",
+        "prerequisites_course_codes": [
+            "CSCE3600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170708"
+    },
+    {
+        "course_number": "CSCE4610",
+        "title": "Computer Architecture",
+        "number_of_hours": "3 hours",
+        "description": "Study of performance issues and power requirements related to modern computer systems, including Instruction Level Parallelism, out-of-order instruction scheduling, branch prediction, speculative execution, cache memory and concurrency.",
+        "prerequisites": "CSCE 2610 or CSCE 4127 , and CSCE 3600 ; or CSCE 3610 . Each course must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2610",
+            "CSCE4127",
+            "CSCE3600",
+            "CSCE3610"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170731"
+    },
+    {
+        "course_number": "CSCE4535",
+        "title": "Introduction to Network Administration",
+        "number_of_hours": "3 hours",
+        "description": "Students explore topics in network administration in theoretical and practical ways, study different software platforms, control, shared resources, administration, security, anti-virus procedures and methodologies.",
+        "prerequisites": "CSCE 3530 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3530"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170701"
+    },
+    {
+        "course_number": "CSCE3420",
+        "title": "Internet Programming",
+        "number_of_hours": "3 hours",
+        "description": "Covers Internet programming in depth, including client-server peer-to-peer and web applications. Primary goal is to help students understand the principles of how distributed applications are built, while also giving them practical experience in creating common Internet applications.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 both with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173134"
+    },
+    {
+        "course_number": "CSCE2210",
+        "title": "Introduction to Visual Scripting for Games",
+        "number_of_hours": "3 hours",
+        "description": "This introductory course is tailored to immerse students in the realm of game development with a specific focus on visual scripting using industry standard game engine tools Students will gain hands-on experience predominantly with visual scripting, while also exploring other core features of the game engines such as actors, inputs, user interfaces, collisions, graphics, animations, audio, diagnostics, and optimizations. The course will emphasize best practices in visual scripting for game design, fostering creativity within game engine frameworks, and understanding the integration of visual scripting with other game engine aspects. Participants will learn to develop well-structured, extensible projects that leverage the power of visual scripting, and work effectively with complex platforms, frameworks, and toolsets. This introductory course immerses students in game development, focusing on visual scripting using common industrial game engine systems. It covers core features such as actors, inputs, user interfaces, and more, emphasizing best practices in game design and visual scripting integration.",
+        "prerequisites": "CSCE 1010 or consent of instructor.",
+        "prerequisites_course_codes": [
+            "CSCE1010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=178331"
+    },
+    {
+        "course_number": "CSCE4901",
+        "title": "Software Development Capstone I",
+        "number_of_hours": "3 hours",
+        "description": "First of a two course sequence in which students develop a complex Software System starting from customer requirements and progressing through the entire analysis, design, implementation, testing and delivery lifecycle. Students work in teams to develop a project plan, complete the technical components of the project, prepare a variety of deliverable documents and finally, deliver the finished product to the customer. The first course will focus on the analysis and design of the system.",
+        "prerequisites": "CSCE 3444 and TECM 2700 , each with a grade of C or better. Senior standing.",
+        "prerequisites_course_codes": [
+            "CSCE3444",
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170738"
+    },
+    {
+        "course_number": "CSCE4240",
+        "title": "Introduction to Digital Image Processing",
+        "number_of_hours": "3 hours",
+        "description": "Covers fundamental knowledge of digital image processing techniques, including image formation, filtering and image enhancement, restoration, region and edge segmentation, and image coding.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 , each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170715"
+    },
+    {
+        "course_number": "CSCE4300",
+        "title": "Intro to Big Data and Data Science",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to Big Data and Data Science includes an overview of the field, technical challenges, computational approaches, practical applications, structured and unstructured data processing, empirical methods in computer science, data analytics and learning, data visualization, privacy and ethics. Emphasis will be on Big Data and its effect on other topics within Data Science, its technical characteristics, and state-of-the-art Big Data analytics architectures and tools.",
+        "prerequisites": "CSCE 2110 with a grade of C or higher, or consent of instructor.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174000"
+    },
+    {
+        "course_number": "CSCE1040",
+        "title": "Computer Science II  (COSC 1337 or COSC 1437)",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Continuation of CSCE 1030 . Software design, structured programming, object-oriented design and programming.",
+        "prerequisites": "CSCE 1030 with a grade of C or better; and MATH 1100 or MATH 1650 or MATH 1710 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE1030",
+            "MATH1100",
+            "MATH1650",
+            "MATH1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170680"
+    },
+    {
+        "course_number": "CSCE3530",
+        "title": "Introduction to Computer Networks",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to data communications; asynchronous, synchronous, networks and current technology.",
+        "prerequisites": "CSCE 3600 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170700"
+    },
+    {
+        "course_number": "CSCE3020",
+        "title": "Communications Systems",
+        "number_of_hours": "(3;0;2)",
+        "description": "Introduction to the concepts of analysis and design of communication system components using signal analysis techniques. Amplitude and angle modulation for the transmission of continuous-time signals. Introduction to analog and digital filter design and analysis.",
+        "prerequisites": "CSCE 3010 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170690"
+    },
+    {
+        "course_number": "CSCE4460",
+        "title": "Software Testing and Empirical Methodologies",
+        "number_of_hours": "3 hours",
+        "description": "Addresses recent advances in the field of software testing, including empirical methodologies that provide a systematic way to investigate various software engineering techniques and methodologies. Students learn various fundamental testing techniques and the state of the art in testing techniques, and understanding how to design, conduct, analyze and write up empirical studies of software engineering technologies.",
+        "prerequisites": "CSCE 2110 a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173484"
+    },
+    {
+        "course_number": "CSCE4220",
+        "title": "Game Programming II",
+        "number_of_hours": "3 hours",
+        "description": "Game engine programming techniques, including real-time 3D graphics programming, shader techniques, terrain rendering, level of detail, collision detection, particle engines, 3D sound and character animation.",
+        "prerequisites": "CSCE 4210 , CSCE 4255 , each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE4210",
+            "CSCE4255"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170713"
+    },
+    {
+        "course_number": "CSCE4430",
+        "title": "Programming Languages",
+        "number_of_hours": "3 hours",
+        "description": "Syntax, semantics and computation models of programming languages. Formal foundations of major programming paradigms and in-depth study of key features of high-level programming languages from each paradigm.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 , each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170722"
+    },
+    {
+        "course_number": "CSCE3220",
+        "title": "Human Computer Interfaces",
+        "number_of_hours": "3 hours",
+        "description": "Human-Computer Interaction (HCI). Methods for designing, prototyping and evaluating user interfaces for computing applications. Human capabilities, interface technology, interface design methods and interface evaluation tools and techniques.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 , Each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173133"
+    },
+    {
+        "course_number": "CSCE4925",
+        "title": "Information Technology Capstone II",
+        "number_of_hours": "3 hours",
+        "description": "Second of a two-course sequence in which students develop a complex IT system starting from customer requirements and progressing through the entire analysis, design, implementation, testing and delivery lifecycle. Students work in teams to develop a project plan, complete the technical components of the project, prepare a variety of deliverable documents and finally, deliver the finished product to the customer. The second course focuses on the implementation, testing and delivery of the system.",
+        "prerequisites": "CSCE 4905 with a grade of C or better. CSCE 4925 must be completed in the long term/semester immediately following the completion of CSCE 4905 .",
+        "prerequisites_course_codes": [
+            "CSCE4905",
+            "CSCE4925"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170743"
+    },
+    {
+        "course_number": "CSCE3605",
+        "title": "Systems Administration",
+        "number_of_hours": "3 hours",
+        "description": "Prepares students with an understanding of virtual machines with universal principles that apply to all operating systems structure and operation including the concepts of processes, resource and file management and performance. Students also develop an understanding of the pervasive use of Unix-based operating systems in the design of various systems such as switches, routers, load balances, wireless controllers and network management platforms to provide various services to support interaction between computer-based systems.",
+        "prerequisites": "CSCE 3600 with a C or better.",
+        "prerequisites_course_codes": [
+            "CSCE3600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170703"
+    },
+    {
+        "course_number": "CSCE4205",
+        "title": "Introduction to Machine Learning",
+        "number_of_hours": "3 hours",
+        "description": "Theory and practice of machine learning. Linear regression, logistic regression, decision trees, neural network learning, support vector machines, kernel methods, bagging, boosting, random forests, ensemble learning, deep learning, unsupervised learning including k-means and hierarchical agglomerative clustering, semi-supervised learning, active learning and reinforcement learning. Practical applications of machine learning algorithms. Topics in experimental design and computational learning theory.",
+        "prerequisites": "CSCE 2110 with a grade of C or better. Non-CSE majors must have Instructor consent by email. As well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor\u2019s consent in the form.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173685"
+    },
+    {
+        "course_number": "CSCE4350",
+        "title": "Fundamentals of Database Systems",
+        "number_of_hours": "3 hours",
+        "description": "Logical and physical database system organization; logical models; design issues; secondary storage considerations.",
+        "prerequisites": "CSCE 2100 and CSCE 2110 , each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170718"
+    }
+]

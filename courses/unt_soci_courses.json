@@ -1,0 +1,217 @@
+[
+    {
+        "course_number": "SOCI4250",
+        "title": "Gender and Society",
+        "number_of_hours": "3 hours",
+        "description": "Analyzes gender as a major social institution which intersects with all other institutions, especially the family, work, religion, politics and education. Stresses programs to change the unequal treatment of women and men in these areas. Surveys contemporary changes and cultural variability in gender role definitions.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172738"
+    },
+    {
+        "course_number": "SOCI3280",
+        "title": "Quantitative Data Analysis",
+        "number_of_hours": "3 hours",
+        "description": "Role of quantitative methods in social research; application of quantitative techniques and procedures to social data, statistical inference; data processing.",
+        "prerequisites": "SOCI 3220 or equivalent Required of all sociology majors.",
+        "prerequisites_course_codes": [
+            "SOCI3220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172724"
+    },
+    {
+        "course_number": "SOCI3220",
+        "title": "Quantitative Data Collection",
+        "number_of_hours": "3 hours",
+        "description": "Principles and procedures, sources of data, techniques of collection and analysis of quantitative data. Focus on survey research, secondary data analysis and other quantitative methods.",
+        "prerequisites": "SOCI 1510 and advanced (junior or senior) standing. Required of all BS with a major in sociology majors. A grade of C or better in this course is required for graduation.",
+        "prerequisites_course_codes": [
+            "SOCI1510"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172722"
+    },
+    {
+        "course_number": "SOCI3300",
+        "title": "Urban Sociology",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the rise of the city, trends in urbanization and suburbanization in the U.S. and globally, and urban social problems. May cover topics such as homelessness; gentrification; and urban social policy such as urban renewal and public housing.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172725"
+    },
+    {
+        "course_number": "SOCI3120",
+        "title": "Sociology of Health and Illness",
+        "number_of_hours": "3 hours",
+        "description": "Effects of social factors, such as age, sex, race and social class, on health and illness; differential access to health care services among subgroups of the U.S. population, including Blacks, Hispanics, Indians and the elderly; strains in the organization of the health care delivery system.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172719"
+    },
+    {
+        "course_number": "SOCI3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173065"
+    },
+    {
+        "course_number": "SOCI3200",
+        "title": "Sociological Theory",
+        "number_of_hours": "3 hours",
+        "description": "Survey of development of sociological theory; emphasizes nature and types of contemporary theory.",
+        "prerequisites": "SOCI 1510 or equivalent. Required of all sociology majors.",
+        "prerequisites_course_codes": [
+            "SOCI1510"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172721"
+    },
+    {
+        "course_number": "SOCI3540",
+        "title": "Racial and Ethnic Minorities",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the conditions and distribution of race and ethnic minorities; patterns of and explanations for racial inequalities; representations in media and culture.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172745"
+    },
+    {
+        "course_number": "SOCI4950",
+        "title": "Sociology Internship",
+        "number_of_hours": "3 hours",
+        "description": "Supervised work in a job directly related to the student\u2019s major, professional field of study or career objective.",
+        "prerequisites": "Junior/Senior status and at least 9 credit hours in Sociology. Pass/no pass only.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174170"
+    },
+    {
+        "course_number": "SOCI1510",
+        "title": "Introduction to Sociology  (SOCI 1301)",
+        "number_of_hours": "3 hours",
+        "description": "Introduces significant sociological concepts, theories, and social research methods, including social structure, culture, poverty, inequality, health, race, class, gender, and social change. Required of all sociology majors. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172711"
+    },
+    {
+        "course_number": "SOCI4260",
+        "title": "Topics in Sociology",
+        "number_of_hours": "3 hours",
+        "description": "Investigation, analysis and discussion of a significant, contemporary topic. May be repeated for credit as topics vary.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172739"
+    },
+    {
+        "course_number": "SOCI3330",
+        "title": "Social Inequality and Stratification",
+        "number_of_hours": "3 hours",
+        "description": "Bases of social differentiation; status, power and mobility in social systems; influence of stratification on behavior; class structure in the United States.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172726"
+    },
+    {
+        "course_number": "SOCI3700",
+        "title": "Sociology of Religion",
+        "number_of_hours": "3 hours",
+        "description": "Explores the sociological approach to studying religion in society. Provides an overview of historical and current sociological research on religion. Topics may include the social and structural influences on individuals\u2019 and societies\u2019 religiosity; secularization theory; denominationalism and congregationalism; church-sect theory; religion and race, class and gender; and separation of church and state.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172733"
+    },
+    {
+        "course_number": "SOCI4170",
+        "title": "Environmental Sociology",
+        "number_of_hours": "3 hours",
+        "description": "Examines the social causes of global warming, the climate crisis, extinction of living organisms, environmental degradation, and potential solutions. Considers the unequal effects of climate change and natural disasters on lower-income marginalized communities, referred to as Environmental (in)Justice.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173970"
+    },
+    {
+        "course_number": "SOCI4600",
+        "title": "Internet and Society",
+        "number_of_hours": "3 hours",
+        "description": "Social consequences of the internet and information technology; impacts on everyday life, family life, identity, social networks, social inequalities, and politics.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172747"
+    },
+    {
+        "course_number": "SOCI3000",
+        "title": "Sociology of Marriage and Family",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the role and influence of the family as a primary group and social institution; marriage and family dynamics; and contemporary and historical patterns in the U.S. and other countries. Other topics may include dating and hooking up, cohabitation, breaking up and divorce, domestic violence, and single parents.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172717"
+    },
+    {
+        "course_number": "SOCI4240",
+        "title": "Sociology of Sexuality",
+        "number_of_hours": "3 hours",
+        "description": "Sexuality and how it is perceived, defined and experienced in the context of society. Course explores sexuality as a social and historical construction and focuses on how sexuality influences our lives as reflected in social norms, attitudes and beliefs, and through public and private policies and practices.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172737"
+    },
+    {
+        "course_number": "SOCI2050",
+        "title": "Sociology of Sport",
+        "number_of_hours": "3 hours",
+        "description": "Study of social behavior in sport, with particular emphasis on its relationship to the cultural perspectives of socialization, minorities, economics, politics and current issues.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172714"
+    },
+    {
+        "course_number": "SOCI1520",
+        "title": "Contemporary Social Problems  (SOCI 1306)",
+        "number_of_hours": "3 hours",
+        "description": "Exploration of past and current social problems related to social inequality, problems of deviance and conformity, and social institutions through the lens of sociological theoretical perspectives. Emphasis may vary, but the focus is on social problems related to wealth and power, the environment, poverty, crime and justice, the economy, work, family, and/or health care.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172712"
+    },
+    {
+        "course_number": "SOCI3240",
+        "title": "Qualitative Research Methods",
+        "number_of_hours": "3 hours",
+        "description": "Introduces theories and practices that guide the collection and analysis of qualitative data, focusing on how sociologists use interviews, participant observation, focus groups and other qualitative methods.",
+        "prerequisites": "SOCI 1510 and advanced (junior or senior) standing. Required of all BS with a major in sociology majors. A grade of C or better in this course is required for graduation.",
+        "prerequisites_course_codes": [
+            "SOCI1510"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172723"
+    },
+    {
+        "course_number": "SOCI4750",
+        "title": "World Population Trends and Problems",
+        "number_of_hours": "3 hours",
+        "description": "Patterns of population growth; trends of fertility and mortality; migration; social and economic consequences of population change.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172749"
+    },
+    {
+        "course_number": "SOCI4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172750"
+    },
+    {
+        "course_number": "SOCI3110",
+        "title": "Sociology of Mental Health, Mental Illness and Mental Health Care",
+        "number_of_hours": "3 hours",
+        "description": "Effects of social stresses and social integration on the mental health of various age, sex, ethnic and other groups within society; the mental health care system and problems of access to that system among different subgroups in the population.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172718"
+    }
+]

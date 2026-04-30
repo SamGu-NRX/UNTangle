@@ -1,0 +1,65 @@
+[
+    {
+        "course_number": "HIST3000",
+        "title": "The Historian\u2019s Craft",
+        "number_of_hours": "3 hours",
+        "description": "Explores the methods professional historians use to conduct their work, the diverse meanings of modern historical interpretation, and the philosophical and political stakes that rest at the heart of historical scholarship.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174147"
+    },
+    {
+        "course_number": "HIST4261",
+        "title": "Topics in United States History",
+        "number_of_hours": "3 hours",
+        "description": "Specific historical topics in U.S. history. May be repeated for credit as topics vary. Satisfies Group A requirements.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171285"
+    },
+    {
+        "course_number": "HIST4060",
+        "title": "Russia in the 20th and 21st Centuries",
+        "number_of_hours": "3 hours",
+        "description": "Social, political and cultural history of Russia in the 20th century, and the most recent events of the 21st century. Considers Soviet socialist experiments as an alternative way to modernity; also emphasizes the developments of Stalinism, based on modern approaches of Western and Russian historiography and new revelations from the Russian archives.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171253"
+    },
+    {
+        "course_number": "HIST4246",
+        "title": "Imperialism in the Modern Middle East",
+        "number_of_hours": "3 hours",
+        "description": "The modern history of imperialism in the Middle East. Historical foundation concerning classic Islamic styles of empire and the history of European and Ottoman imperialism, as well as anti-imperial and post-colonial movements, in the past 200-plus years. Includes many contrasting arguments about empire and postcolonialism to give students a wider sense of the variety of issues, ideas and historical conclusions concerning this dynamic and influential region.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171283"
+    },
+    {
+        "course_number": "HIST4885",
+        "title": "History of Sports and American Society",
+        "number_of_hours": "3 hours",
+        "description": "Historical survey of the impact of sports and recreation from the colonial period to the present. Investigates the history of sporting and athletic endeavors by tracing their rise from informal folk games to a multi-billion dollar entertainment industry in the course of U.S. history. Examines the humble beginnings of these \u201c wicked amusements \u201d in colonial and pre-colonial America and follows them forward to the present time, including current controversies such as stadium welfare, steroids and Native American mascots.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173939"
+    },
+    {
+        "course_number": "HIST4263",
+        "title": "Topics in African-, Asian- or Latin American History",
+        "number_of_hours": "3 hours",
+        "description": "Specific historical topics in African-, Asian- or Latin American history. May be repeated for credit as topics vary. Satisfies Group C requirements.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171287"
+    },
+    {
+        "course_number": "HIST4276",
+        "title": "Animal Histories",
+        "number_of_hours": "3 hours",
+        "description": "Surveys the environmental and cultural histories of animal-human relationships and explores the role of nonhuman animals as historical actors.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173474"
+    }
+]

@@ -1,0 +1,260 @@
+[
+    {
+        "course_number": "PHYS1510",
+        "title": "General Physics I with Calculus",
+        "number_of_hours": "(3;0;1)",
+        "description": "Principles of mechanics including conservation laws and applications such as nuclear processes and heat.",
+        "prerequisites": "MATH 1710 or MATH 1810 (may be taken concurrently). Corequisite(s): PHYS 1530 . Calculus-based physics sequence suitable for physics majors, bio-chemistry, math majors, chemistry majors, future science teachers, and for pre-medicine and other health-related preprofessional students. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "MATH1810",
+            "PHYS1530"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172370"
+    },
+    {
+        "course_number": "PHYS1420",
+        "title": "General Physics II  (PHYS 1302)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Principles and applications of electricity, magnetism, light and atomic physics.",
+        "prerequisites": "PHYS 1410 or consent of department. Corequisite(s): PHYS 1440 . Non-calculus based physics sequence suitable for life sciences majors and preprofessional students. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "PHYS1410",
+            "PHYS1440"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172367"
+    },
+    {
+        "course_number": "PHYS1270",
+        "title": "Science and Technology of Musical Sound",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Sound production; nature of vibrations in percussion, string, and wind instruments. Sound propagation; sound speed; echoes. Sound intensity, physical and perceived. Sound pitch, physical and perceived; intervals. Complex sounds; harmonic series. Room acoustics; reverberation time; ideal listening rooms. Wave phenomena; interference and diffraction. Digital sound recording; musical scales; the human voice. Includes weekly laboratory exercises.",
+        "prerequisites": "MATH 1100 or above. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "MATH1100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172363"
+    },
+    {
+        "course_number": "PHYS4955",
+        "title": "Senior Thesis Capstone",
+        "number_of_hours": "3 hours",
+        "description": "Individual research project prepared by the student under the supervision of a faculty member. A written thesis and oral presentation are required for successful completion of the thesis.",
+        "prerequisites": "PHYS 4950 and consent of supervising faculty member.",
+        "prerequisites_course_codes": [
+            "PHYS4950"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173130"
+    },
+    {
+        "course_number": "PHYS4110",
+        "title": "Statistical and Thermal Physics",
+        "number_of_hours": "(3;0;1)",
+        "description": "Basic probability concepts; statistical description of systems of particles; statistical thermodynamics and thermodynamic laws; macroscopic and microscopic descriptions of systems; phase transformation.",
+        "prerequisites": "PHYS 3010 , PHYS 3030 .",
+        "prerequisites_course_codes": [
+            "PHYS3010",
+            "PHYS3030"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172386"
+    },
+    {
+        "course_number": "PHYS4310",
+        "title": "Quantum Mechanics",
+        "number_of_hours": "(3;0;1)",
+        "description": "Origins of the modern theory of atomic structure; Schr\u00f6dinger\u2019s formulation of non-relativistic, single-particle quantum mechanics and application to simple systems; the one-electron atom.",
+        "prerequisites": "PHYS 3010 / PHYS 3030 and MATH 3410 .",
+        "prerequisites_course_codes": [
+            "PHYS3010",
+            "PHYS3030",
+            "MATH3410"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172392"
+    },
+    {
+        "course_number": "PHYS3010",
+        "title": "Modern Physics",
+        "number_of_hours": "(3;0;1)",
+        "description": "Relativity, quantum physics, atomic structure, properties of matter and nuclear physics.",
+        "prerequisites": "PHYS 2220 or PHYS 1520 . MATH 1720 or MATH 1830 (either may be taken concurrently). Corequisite(s): It is recommended that the course be taken concurrently with PHYS 3030 . Calculus-based, suitable for physics, engineering, mathematics, computer science and chemistry majors.",
+        "prerequisites_course_codes": [
+            "PHYS2220",
+            "PHYS1520",
+            "MATH1720",
+            "MATH1830",
+            "PHYS3030"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172380"
+    },
+    {
+        "course_number": "PHYS4150",
+        "title": "Experimental Physics I",
+        "number_of_hours": "3 hours",
+        "description": "(1;6) Laboratory experience via use of research-quality instruments. Modern experiments in solid state, nuclear, atomic and molecular physics. Topics, which may vary, cover recent developments in modern physics suitable for advanced undergraduates and graduate students. Topics, which may vary, include nonlinear dynamics and chaos in circuits and lasers; SQUIDS and high temperature superconductivity; holography; X-ray diffraction; electron scanning microscopy; Rutherford scattering, low energy nuclear reactions; ion-induced inner shell ionization at MeV energies; nuclear magnetic resonance to obtain local electronic structure; magnetic transport and magneto-optics; and modern techniques in surface analysis (ion sputtering). In addition, ion beam based experimental techniques for materials growth and modification may be done.",
+        "prerequisites": "PHYS 3010 , PHYS 3030 . May be repeated for credit up to 9 hours.",
+        "prerequisites_course_codes": [
+            "PHYS3010",
+            "PHYS3030"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172387"
+    },
+    {
+        "course_number": "PHYS1410",
+        "title": "General Physics I  (PHYS 1301)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Principles and applications of mechanics, sound and heat. Corequisite(s): PHYS 1430 . Recommended: Proficiency in algebra and trigonometry. Non-calculus based physics sequence suitable for life sciences majors and preprofessional students. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172366"
+    },
+    {
+        "course_number": "PHYS4500",
+        "title": "Introduction to Solid-State Physics",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the major areas of solid-state physics, including crystal structure and symmetry, lattice vibrations and phonons, thermal properties, energy bands, semiconductors, superconductivity, and magnetic properties.",
+        "prerequisites": "PHYS 3010 / PHYS 3030 .",
+        "prerequisites_course_codes": [
+            "PHYS3010",
+            "PHYS3030"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172396"
+    },
+    {
+        "course_number": "PHYS4610",
+        "title": "Topics in Astronomy",
+        "number_of_hours": "(3;0;1)",
+        "description": "Selected topics in planetary and stellar astronomy: techniques of astronomical observation and measurement; evolution, composition and properties of our solar system and the universe; history of astronomy. Designed for students seeking secondary physical science/science teacher certification. The recitation hour for PHYS 4610 serves to cover teaching methods in astronomy, including the demonstration of measurement equipment (e.g., spectrometers, digital imaging, telescopes, etc.).",
+        "prerequisites": "Consent of department. May be repeated up to twice, for a total of 9 hours of credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172400"
+    },
+    {
+        "course_number": "PHYS4950",
+        "title": "Senior Thesis",
+        "number_of_hours": "3 hours",
+        "description": "Individual research on a problem chosen in consultation with a faculty member. Research may be conducted on campus, during an internship off-campus, or as an exchange student in a study abroad program.",
+        "prerequisites": "Consent of supervising faculty member.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172407"
+    },
+    {
+        "course_number": "PHYS3420",
+        "title": "Electronics",
+        "number_of_hours": "4 hours",
+        "description": "(1\u20133;4\u20136) Electronics. Analog and digital electronics, applications and diagnostic techniques. Direct and alternating current circuits and measurements; selections from fundamentals of semiconductor devices; uses of diodes, transistors, etc., as switches and circuit elements; applications of Boolean algebra; memory and storage devices; counters and shift registers; computer structures; feedback and operational amplifiers; digital and analog instrumentation and interfacing with computers. Labs on basic circuits, instrumentation and measurements that primarily focus on physical implementation and may include circuit simulation.",
+        "prerequisites": "PHYS 1420 / PHYS 1440 , PHYS 1520 / PHYS 1540 , or PHYS 2220 / PHYS 2240 . MATH 1710 with a C or higher or MATH 1820 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "PHYS1420",
+            "PHYS1440",
+            "PHYS1520",
+            "PHYS1540",
+            "PHYS2220",
+            "PHYS2240",
+            "MATH1710",
+            "MATH1820"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172385"
+    },
+    {
+        "course_number": "PHYS1052",
+        "title": "The Solar System  (ASTR 1404 or PHYS 1404)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) History of astronomy and the physical properties of the earth, moon, planets and minor bodies. Includes weekly outdoor and indoor laboratory exercises. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172360"
+    },
+    {
+        "course_number": "PHYS3510",
+        "title": "Physics, Computation and Software Applications",
+        "number_of_hours": "3 hours",
+        "description": "A basic survey of selected topics at the intersection of computer science, engineering and physics. Student will learn computer programming for applications in physics as well as the physics underlying computation and its physical implementation. Topics include: automated control in experimental physics, symbolic computation/analysis, simulation of physical phenomena; physical basis of contemporary computers and computation; physical constraints with respect to size, speed, energy and architecture; classical and quantum computation and implementations.",
+        "prerequisites": "PHYS 1520 or PHYS 2220 .",
+        "prerequisites_course_codes": [
+            "PHYS1520",
+            "PHYS2220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173774"
+    },
+    {
+        "course_number": "PHYS1062",
+        "title": "Stars and the Universe  (ASTR 1403 or PHYS 1403)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Properties of stars and stellar systems and a study of the origin, evolution and future of the universe. Includes weekly outdoor and indoor laboratory exercises. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172361"
+    },
+    {
+        "course_number": "PHYS1520",
+        "title": "General Physics II with Calculus",
+        "number_of_hours": "(3;0;1)",
+        "description": "Principles and applications of electricity, magnetism, and light.",
+        "prerequisites": "PHYS 1510 completed with a grade of C or better. MATH 1710 completed with a grade of C or better, or MATH 1820 (may be taken concurrently). Corequisite(s): PHYS 1540 . Calculus-based physics sequence suitable for physics majors, biochemistry, chemistry majors, math majors, future science teachers, and for pre-medicine and other health-related preprofessional students. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "PHYS1510",
+            "MATH1710",
+            "MATH1820",
+            "PHYS1540"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172371"
+    },
+    {
+        "course_number": "PHYS2220",
+        "title": "Electricity and Magnetism  (PHYS 2326)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Electric fields, DC and AC circuits, magnetic fields and magnetic induction. Electric and magnetic properties of matter, and properties of light.",
+        "prerequisites": "PHYS 1420 or PHYS 1710 each with a grade of C or better; or PHYS 1510 . MATH 1720 or MATH 1830 (either may be taken concurrently). Corequisite(s): PHYS 2240 . Calculus-based, suitable for engineering, computer science majors. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "PHYS1420",
+            "PHYS1710",
+            "PHYS1510",
+            "MATH1720",
+            "MATH1830",
+            "PHYS2240"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172376"
+    },
+    {
+        "course_number": "PHYS4520",
+        "title": "Physics of Nanoscale Materials",
+        "number_of_hours": "(3;0;1)",
+        "description": "Introduction to the physics of nanoscale materials including a study of their properties, synthesis, characterization and applications. Applications of nanoscale materials also are discussed.",
+        "prerequisites": "PHYS 3010 .",
+        "prerequisites_course_codes": [
+            "PHYS3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172397"
+    },
+    {
+        "course_number": "PHYS4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "N/A",
+        "prerequisites": "Must have the consent of the faculty member prior to enrollment. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172405"
+    },
+    {
+        "course_number": "PHYS1710",
+        "title": "Mechanics  (PHYS 2325)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Laws of motion; inertia, acceleration, force, energy, momentum and angular momentum. Rotational and oscillatory motion. Gravitation.",
+        "prerequisites": "MATH 1710 with a grade of C or better or MATH 1820 (may be taken concurrently). Corequisite(s): PHYS 1730 . Calculus-based, suitable for engineering, and computer science. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "MATH1820",
+            "PHYS1730"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172374"
+    },
+    {
+        "course_number": "PHYS2900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individualized instruction in theoretical or experimental problems. For elective credit only. May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172378"
+    }
+]

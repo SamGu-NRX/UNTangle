@@ -1,0 +1,256 @@
+[
+    {
+        "course_number": "GEOG1200",
+        "title": "Global Societies  (GEOG 1303)",
+        "number_of_hours": "3 hours",
+        "description": "Explores the changing world by understanding how the far and near are connected by globalization, why markets rise and fall, why income gaps and international poverty persists, how terror and conflicts are produced, and how cultures are re-invented. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171147"
+    },
+    {
+        "course_number": "GEOG4590",
+        "title": "Advanced GIS Programming",
+        "number_of_hours": "3 hours",
+        "description": "Methods of creating new applications and improving productivity in GIS through computer programming, culminating in a programming project. Topics include accessing maps and data layers, querying and selecting features, updating databases, and accessing raster and TIN/Terrain layers.",
+        "prerequisites": "GEOG 4560 or consent of department.",
+        "prerequisites_course_codes": [
+            "GEOG4560"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171177"
+    },
+    {
+        "course_number": "GEOG3500",
+        "title": "Introduction to Geographic Information Systems",
+        "number_of_hours": "3 hours",
+        "description": "(1;0;2*) Introduces the concepts and applications of computer-based spatial data handling, known as geographic information systems (GIS) technology. Illustrates the essential methods of GIS and its applications in fields including geography, business, administration, planning and environmental science. Students gain application skills via a series of practical exercises illustrating problem-solving strategies using up-to-date GIS software packages. *These hours are combined lab and lecture.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171155"
+    },
+    {
+        "course_number": "GEOG4185",
+        "title": "Statistical Research Methods in Geography",
+        "number_of_hours": "3 hours",
+        "description": "Application of statistical techniques and mathematical models to spatial analysis, including both point and areal patterns. Examples drawn from both earth and regional science.",
+        "prerequisites": "MATH 1680 , or consent of department. Meets with GEOG 5185.",
+        "prerequisites_course_codes": [
+            "MATH1680",
+            "GEOG5185"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171154"
+    },
+    {
+        "course_number": "GEOG4260",
+        "title": "Oceanography",
+        "number_of_hours": "3 hours",
+        "description": "3 hours Examines the structure, origins, and processes operating in the world\u2019s oceans. Covers the interactions among geology, chemistry, physics, climatology, environmental science, and biology in ocean contexts. Explores the impacts of humans on ocean life, environments, and global society.",
+        "prerequisites": "GEOG 1710 or GEOL 1610 or by consent of department.",
+        "prerequisites_course_codes": [
+            "GEOG1710",
+            "GEOL1610"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174125"
+    },
+    {
+        "course_number": "GEOG4800",
+        "title": "Geography Capstone",
+        "number_of_hours": "3 hours",
+        "description": "Capstone course required of all geography majors. Requires comprehensive research paper. Problem solving by application of geographic concepts, methodologies and techniques. Examples drawn from physical and human geography.",
+        "prerequisites": "GEOG 2110 and MATH 1680 , plus 9 advanced hours in geography, and junior or senior standing.",
+        "prerequisites_course_codes": [
+            "GEOG2110",
+            "MATH1680"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171179"
+    },
+    {
+        "course_number": "GEOG4550",
+        "title": "Advanced Geographic Information Systems",
+        "number_of_hours": "3 hours",
+        "description": "(1;0;2*) Advanced spatial analysis through the use of specialized software and the design and development of spatial databases and applications. The course includes GIS data models, project planning, raster-based data manipulation and analysis, three-dimensional (3D) analysis, network analysis, and other advanced topics in spatial analysis. Students gain advanced application skills through practical exercises and implementation of a GIS project in an area pertinent to the student\u2019s interests.",
+        "prerequisites": "GEOG 3500 (with a grade of C or better) or consent of department. *These hours are combined lab and lecture.",
+        "prerequisites_course_codes": [
+            "GEOG3500"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171173"
+    },
+    {
+        "course_number": "GEOG1710",
+        "title": "Earth Science  (GEOL 1401)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Principles and processes of physical geography. Introduction to mapping, weather and climate, soil and vegetation, and landforms of rivers, coasts and deserts. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171149"
+    },
+    {
+        "course_number": "GEOG3800",
+        "title": "Weather and Climate",
+        "number_of_hours": "3 hours",
+        "description": "Explores atmospheric environment emphasizing the understanding and application of meteorological principles. Topics may include the composition, origin, and structure of the atmosphere, air mass, middle latitude cyclones, weather prediction, thunderstorms, tornadoes, hurricanes, global climate, climate change, and air pollution.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171157"
+    },
+    {
+        "course_number": "GEOG4420",
+        "title": "Capitalism, Nature and Climate Change",
+        "number_of_hours": "3 hours",
+        "description": "Examines political-economy of human and natural resources and their implications for our environment and global climate change. Focuses on human population and its implications for our environmental, food and energy needs. Examines debates on sustainability across geographical scales. Fosters critical thinking and environmental responsibility.",
+        "prerequisites": "Junior or Senior standing.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171171"
+    },
+    {
+        "course_number": "GEOG3010",
+        "title": "Economic Geography",
+        "number_of_hours": "3 hours",
+        "description": "Examines the inter-connected and inter-dependent world economy. Focuses on world-systems, production, distribution, finance, labor, economic policies and economic change, and their socio-cultural implications. Fosters critical thinking along with social and environmental responsibility.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171152"
+    },
+    {
+        "course_number": "GEOG4350",
+        "title": "Geomorphology",
+        "number_of_hours": "3 hours",
+        "description": "Processes of landform analysis. Glacial, desert, fluvial and other settings are reviewed along with basic processes of construction, erosion and weathering.",
+        "prerequisites": "GEOG 1710 , GEOG 2180 , or consent of department.",
+        "prerequisites_course_codes": [
+            "GEOG1710",
+            "GEOG2180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171168"
+    },
+    {
+        "course_number": "GEOG3100",
+        "title": "United States and Canada: Economies, Cities and Sustainability",
+        "number_of_hours": "3 hours",
+        "description": "Analysis of the economic and urban environments that have developed in the United States and Canada. Examination of the cross-border relationships that tie the two countries, with a focus on the resource and population issues that relate to sustainable development.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171153"
+    },
+    {
+        "course_number": "GEOG1000",
+        "title": "National Parks: America\u2019s Best Idea",
+        "number_of_hours": "3 hours",
+        "description": "Explores the history, processes, and values involved in developing national parks as places worth preserving for the American public. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173983"
+    },
+    {
+        "course_number": "GEOG4530",
+        "title": "Remote Sensing and Digital Image Processing",
+        "number_of_hours": "3 hours",
+        "description": "Approaches to digital image analysis and processing. Includes topics on photo interpretation, information extraction from remotely sensed imagery for use in a variety of disciplines, including environmental and ecological science.",
+        "prerequisites": "GEOG 3500 or equivalent.",
+        "prerequisites_course_codes": [
+            "GEOG3500"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173868"
+    },
+    {
+        "course_number": "GEOG4920",
+        "title": "Internship Experience",
+        "number_of_hours": "3 hours",
+        "description": "Job experience in a government, nonprofit, or business setting. Requires formal report. Work should apply and build on skillsets developed in other classes the student has taken in major.",
+        "prerequisites": "Geography majors only. A minimum of 12 hours completed in the major, a 3.0 GPA in the major and consent of the department. May apply toward any Earth Science, Human Geography or Techniques group requirement at discretion of the department. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171182"
+    },
+    {
+        "course_number": "GEOG4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171180"
+    },
+    {
+        "course_number": "GEOG3420",
+        "title": "Applied Biogeography",
+        "number_of_hours": "3 hours",
+        "description": "Survey of biogeographic principles and their application to wildlife and ecosystem conservation and management practices.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172959"
+    },
+    {
+        "course_number": "GEOG4210",
+        "title": "Urban Geography",
+        "number_of_hours": "3 hours",
+        "description": "Examines urban processes, urban landscapes, and urban transformations. Specific topics include structure of cities, gentrification, suburbia, ghettoization, displacement, race, class, and ethnic dispossession, globalization of cities, urban riots, slums and homelessness, and social justice.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171164"
+    },
+    {
+        "course_number": "GEOG3200",
+        "title": "Sustainability",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to sustainability concepts and practices. Includes topics on energy, water, waste, and transportation. Students conduct campus-based research projects on an area of sustainability.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173796"
+    },
+    {
+        "course_number": "GEOG3050",
+        "title": "Introduction to Cartography",
+        "number_of_hours": "3 hours",
+        "description": "(1;2) Technical aspects of cartography. Topics include map projections, geodetic datums and coordinate systems, scale, elevation, topographic maps, thematic mapping, introduction to total station surveying, GPS surveying and GIS.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171160"
+    },
+    {
+        "course_number": "GEOG4560",
+        "title": "Introduction to Python Programming",
+        "number_of_hours": "3 hours",
+        "description": "(1;0;2*) Automation is an important component of data processing, analysis, and visualization. Python is a powerful, general purpose programming language that is used for automation, scientific analysis, and other data management and visualization tasks. Examines the basics of writing computer programs in Python, input and output operations, logic and data structures, object-oriented programming, and data visualization using graphing libraries. *These hours are combined lab and lecture.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171174"
+    },
+    {
+        "course_number": "GEOG2180",
+        "title": "Geosystems, Environment and Society",
+        "number_of_hours": "3 hours",
+        "description": "Examines the physical and human dynamics associated with topics such as earthquakes, landslides, volcanoes, coastal processes, streams and flooding, soils, ground water, mineral extraction/processing, air pollution, energy production, water resources, and waste disposal. Explores contemporary environmental issues and events, including some of the key environmental issues in North Texas.",
+        "prerequisites": "GEOG 1710 or consent of instructor.",
+        "prerequisites_course_codes": [
+            "GEOG1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171189"
+    },
+    {
+        "course_number": "GEOG2110",
+        "title": "Foundations of Geographic Research",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to research for entry-level geography majors. Journal articles are examined in detail with reference to exploring research design and implementation. Students also develop an area of research interest, choose a specific topic, and formulate research questions from which hypotheses are developed. Culminates in the development of a research plan and prospectus for a topical research question.",
+        "prerequisites": "Geography major status.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171150"
+    },
+    {
+        "course_number": "GEOG2170",
+        "title": "Culture, Environment and Society  (GEOG 1302)",
+        "number_of_hours": "3 hours",
+        "description": "Exploration of the dynamic relations between culture and environment addressing ethnic diversity and conflict, development and underdevelopment, settlement patterns, movement of commodities and people (including refugees), and environmental degradation.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171146"
+    },
+    {
+        "course_number": "GEOG3120",
+        "title": "Medical Geography",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the geographic aspects of disease ecology, health care delivery, and environment and health. Including the spatial pattern of diseases and associated explanatory variables including geological, meteorological, biological and cultural phenomena, as well as the social, political and economic barriers to healthy living.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171162"
+    }
+]

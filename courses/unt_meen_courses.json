@@ -1,0 +1,294 @@
+[
+    {
+        "course_number": "MEEN4110",
+        "title": "Renewable Energy",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the physics, systems and methods of energy conversion from non-conventional energy sources, such as solar, geothermal, ocean-thermal, biomass, tidal, hydroelectric, wind and wave energy. Advantages and disadvantages of alternative energy sources and engineering challenges for the harnessing of such forms of energy. Energy storage. Fuel cells.",
+        "prerequisites": "MEEN 3110 ; MEEN 3210 , all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN3110",
+            "MEEN3210"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171722"
+    },
+    {
+        "course_number": "MEEN4180",
+        "title": "Feedback Control Systems",
+        "number_of_hours": "3 hours",
+        "description": "Overview of feedback controls, modeling of dynamics systems, dynamic responses. Analysis and design of control systems, PID control, frequency response design and introduction to digital control. Various control systems design principles and case studies Recommended: MEEN 2240 with a C or better. MEEN 3230 with a C or better.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173748"
+    },
+    {
+        "course_number": "MEEN4730",
+        "title": "Advanced Solid Mechanics",
+        "number_of_hours": "3 hours",
+        "description": "Introduces advanced aspects of mechanics of materials. Once completed, students are able to solve complex solid mechanics problems such as torsion, bending of beam and stability problems.",
+        "prerequisites": "MEEN 2332 or ENGR 2332 . May be repeated for credit.",
+        "prerequisites_course_codes": [
+            "MEEN2332",
+            "ENGR2332"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173863"
+    },
+    {
+        "course_number": "MEEN2240",
+        "title": "Programming for Mechanical Engineers",
+        "number_of_hours": "3 hours",
+        "description": "Introduces engineering students to problem solving, algorithm development and programming in MATLAB and Simulink. Examples of applications in mechanical engineering are given. Interactive course taught in a computer classroom.",
+        "prerequisites": "MEEN 1000 with a grade of C or better. Corequisite(s): MATH 2700 .",
+        "prerequisites_course_codes": [
+            "MEEN1000",
+            "MATH2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173346"
+    },
+    {
+        "course_number": "MEEN4810",
+        "title": "Topics in Mechanical and Energy Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Varying topics in mechanical and energy engineering.",
+        "prerequisites": "Consent of instructor. May be repeated for credit as topics vary.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171727"
+    },
+    {
+        "course_number": "MEEN4332",
+        "title": "Fundamentals of Air Pollution Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Fundamental theories of air pollution and atmospheric science. Air pollution causes and impacts; atmospheric chemistry and physics; meteorology; and an introduction to air quality models. Control technology of particulate and gaseous air pollutants; process design variables; and industrial and engineering applications of control technologies.",
+        "prerequisites": "MEEN 3110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN3110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173147"
+    },
+    {
+        "course_number": "MEEN3210",
+        "title": "Heat Transfer",
+        "number_of_hours": "3 hours",
+        "description": "Basic concepts of steady and unsteady conduction. Elements of radiation. Black and gray body radiation. F-factor analysis. Thermal boundary layers, convection, heat transfer correlations. Combined modes of heat transfer. Simple heat exchange devices and systems.",
+        "prerequisites": "MEEN 3120 ; MEEN 3110 ; MEEN 3250 all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN3120",
+            "MEEN3110",
+            "MEEN3250"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171717"
+    },
+    {
+        "course_number": "MEEN4151",
+        "title": "Manufacturing of Renewable Biocomposites for Lightweight Energy Efficient Structure",
+        "number_of_hours": "3 hours",
+        "description": "Manufacturing processes for renewable lightweight biocomposite products, including wood and other bio-based composites, for energy efficient structure, such as building structure.",
+        "prerequisites": "MEEN 2301 or ENGR 2301 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN2301",
+            "ENGR2301"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173241"
+    },
+    {
+        "course_number": "MEEN3240",
+        "title": "Mechanical and Energy Engineering Laboratory I",
+        "number_of_hours": "2 hours",
+        "description": "(1;3) Principles of experimentation. Measurement techniques and instruments. Statistical analysis of experimental data and error analysis. Presentation of data and report writing. Students perform a series of experiments in areas of mechanical engineering and undertake a project in which they design an experiment to obtain data.",
+        "prerequisites": "MATH 3410 ; MEEN 2210 ; MEEN 2110 , all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH3410",
+            "MEEN2210",
+            "MEEN2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171719"
+    },
+    {
+        "course_number": "MEEN4250",
+        "title": "Capstone Design in Mechanical and Energy Engineering",
+        "number_of_hours": "3 hours",
+        "description": "(0;9) Capstone Core course in Mechanical and Energy Engineering (MEE) culminating the experience of the Bachelor of Science degree in MEE and a direct continuation of MEEN 4150 - MEEN Design I. Student teams complete product design, development and manufacturing projects conceived to promote the common good of society. Patterned on a professional work-place environment that allows students to make connections between different areas of knowledge. Students learn decision-making strategies that include ethical analysis by planning and managing resources while adhering to an overall project schedule. As a major learning outcome of this capstone course, students are able to express ways that exposure to different ideas, perspectives and viewpoints enriches their thinking.",
+        "prerequisites": "MEEN 4150 and MEEN 3100 with a grade of C or better. Required for the BS degree in mechanical and energy engineering at UNT.",
+        "prerequisites_course_codes": [
+            "MEEN4150",
+            "MEEN3100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171725"
+    },
+    {
+        "course_number": "MEEN3120",
+        "title": "Fluid Mechanics",
+        "number_of_hours": "3 hours",
+        "description": "Fundamental concepts and properties of fluids; hydrostatics; basic equations of fluid flow in differential and integral form. Dimensional analysis, potential and viscous flow. Viscous boundary layers, pipe flow, turbulence and fluid flow correlations for objects of simple shape.",
+        "prerequisites": "MATH 2730 , MATH 3410 , MEEN 2210 and MEEN 2332 or ENGR 2332 all with a C or better.",
+        "prerequisites_course_codes": [
+            "MATH2730",
+            "MATH3410",
+            "MEEN2210",
+            "MEEN2332",
+            "ENGR2332"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171713"
+    },
+    {
+        "course_number": "MEEN3110",
+        "title": "Thermodynamics II",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to steam and gas cycles, improvements on cycles, advanced thermodynamics cycles, psychrometrics and psychrometric charts, chemical reactions and chemical equilibria, combustion, flame temperature.",
+        "prerequisites": "MEEN 2210 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN2210"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171712"
+    },
+    {
+        "course_number": "MEEN4150",
+        "title": "Mechanical and Energy Engineering Systems Design I",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Advanced treatment of engineering design principles with an emphasis on product and systems design, development and manufacture. Mimics \u201creal world\u201d environment with students working in teams to prepare product specification, develop several concepts, perform detailed design, and construct prototypes subject to engineering, performance and economic constraints.",
+        "prerequisites": "EENG 2610 ; MEEN 3130 ; MEEN 3210 ; MEEN 3230 ; MEEN 3242 , all with a grade of C or better. Corequisite(s): MEEN 3100 .",
+        "prerequisites_course_codes": [
+            "EENG2610",
+            "MEEN3130",
+            "MEEN3210",
+            "MEEN3230",
+            "MEEN3242",
+            "MEEN3100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171724"
+    },
+    {
+        "course_number": "MEEN4315",
+        "title": "Nanoscale Energy Transport Process",
+        "number_of_hours": "3 hours",
+        "description": "Microscopic heat carriers and transport; material waves; energy states in solids; statistical description of thermodynamics; waves; particle transport process; semiconductor materials; interfacial phenomena for non-conventional liquids.",
+        "prerequisites": "MEEN 3110 ; MEEN 3120 ; MEEN 3210 , all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN3110",
+            "MEEN3120",
+            "MEEN3210"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173158"
+    },
+    {
+        "course_number": "MEEN2900",
+        "title": "Special Problems in Mechanical and Energy Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individual instruction in theoretical, experimental or research problems.",
+        "prerequisites": "Consent of instructor. Each course may be repeated for 6 credit hours. For elective credit only; may not be substituted for required MEEN courses.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171709"
+    },
+    {
+        "course_number": "MEEN4920",
+        "title": "Cooperative Education in Mechanical and Energy Engineering  1 hour (0;0;3) Supervised field work in a job directly related to the student\u2019s major, professional field of study or career objectives, requiring a minimum of",
+        "number_of_hours": "(0;0;3)",
+        "description": "of work each semester. Weekly reports, a final report, and supervisor evaluation are required.",
+        "prerequisites": "Sophomore level equivalent. May be repeated for credit up to a maximum of 3 semester credit hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171731"
+    },
+    {
+        "course_number": "MEEN3230",
+        "title": "System Dynamics and Control",
+        "number_of_hours": "3 hours",
+        "description": "Review of basic modeling techniques of the dynamic behavior of mechanical and electrical systems. Linear dynamics. Block diagrams. Feedback and compensation. Computer simulations of steady-state and dynamic behavior. Root locus and frequency response methods. Vibration analysis, control and suppression.",
+        "prerequisites": "MATH 3410 ; MATH 2700 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH3410",
+            "MATH2700",
+            "MEEN2302",
+            "ENGR2302"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171718"
+    },
+    {
+        "course_number": "MEEN3100",
+        "title": "Manufacturing Processes",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Major manufacturing processes, their capabilities, analysis and economics. Study of the fundamentals of engineering processes in manufacturing as related to design and production and materials properties. Traditional and non-traditional manufacturing process and selection optimization. Students are given laboratory assignments in material removal, forming, casting, joining, forging and computer-aided machining.",
+        "prerequisites": "MEEN 2332 or ENGR 2332 with a grade of C or better; ENGR 3450 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MEEN2332",
+            "ENGR2332",
+            "ENGR3450"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171711"
+    },
+    {
+        "course_number": "MEEN1000",
+        "title": "Discover Mechanical and Energy Engineering",
+        "number_of_hours": "2 hours",
+        "description": "Introductory course in Mechanical and Energy Engineering (MEE). Topics include experiences of practicing engineers; engineering ethics, professional conduct and values; and an introduction to the principle disciplines of MEE taught through a hands-on energy-concentrated project.",
+        "prerequisites": "MATH 1650 (with grade of C or better) or MATH 1710 with a grade of C or better. Required for the BS degree in mechanical and energy engineering at UNT.",
+        "prerequisites_course_codes": [
+            "MATH1650",
+            "MATH1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171703"
+    },
+    {
+        "course_number": "MEEN4140",
+        "title": "Finite Element Analysis",
+        "number_of_hours": "(2;3;1)",
+        "description": "A numerical technique for finding approximate solutions to engineering solids and structural problems. The displacement method of finite element analysis using the iso-parametric formulation. Geometric modeling of solids and structures. Numerical coding with MATLAB for simple structural, fluid and thermal analyses. Practice with commercial finite element software such as ABAQUS or ANSYS.",
+        "prerequisites": "MATH 3410 ; MEEN 2332 or ENGR 2332 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH3410",
+            "MEEN2332",
+            "ENGR2332",
+            "MEEN2302",
+            "ENGR2302"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173154"
+    },
+    {
+        "course_number": "MEEN2110",
+        "title": "Engineering Data Analysis",
+        "number_of_hours": "3 hours",
+        "description": "Designed for engineering students to use statistical methods for engineering problem solving. Discusses using techniques for the analysis of experimental data and interpretation of problems related to mechanical and energy engineering. Statistical techniques used include analysis of variance, hypothesis testing, factorial design, linear regression and correlation.",
+        "prerequisites": "MATH 2700 with a grade of C or better; MEEN 1000 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH2700",
+            "MEEN1000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173369"
+    },
+    {
+        "course_number": "MEEN2210",
+        "title": "Thermodynamics I",
+        "number_of_hours": "3 hours",
+        "description": "Zeroth, first and second laws of thermodynamics with applications to engineering and energy conversion, open and closed systems, thermodynamic properties of simple substances, equations of state, thermodynamic properties of mixtures, psychrometrics and psychrometric charts.",
+        "prerequisites": "MATH 1720 with a grade of C or better; PHYS 1710 with a grade of C or better; MEEN 1000 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH1720",
+            "PHYS1710",
+            "MEEN1000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171707"
+    },
+    {
+        "course_number": "MEEN3250",
+        "title": "Numerical Methods for MEE Engineers",
+        "number_of_hours": "3 hours",
+        "description": "Applications of mathematical methods and computational techniques to typical engineering problems. Topics include analysis of linear systems, numerical integration of ordinary differential equations, conditions for optimality and an introduction to finite element analysis.",
+        "prerequisites": "MATH 3410 with a grade of C or better; MEEN 2240 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH3410",
+            "MEEN2240"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171721"
+    },
+    {
+        "course_number": "MEEN3130",
+        "title": "Machine Elements",
+        "number_of_hours": "3 hours",
+        "description": "Applications of the principles of mechanics and mechanics of materials to machine design. The elements of machines are analyzed in terms of their dynamic behavior. Selection and sizing of machine elements. Students use the finite element technique for the analysis of machines and their components.",
+        "prerequisites": "ENGR 1304 with a grade of C or better; MEEN 2332 or ENGR 2332 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "ENGR1304",
+            "MEEN2332",
+            "ENGR2332"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171715"
+    }
+]

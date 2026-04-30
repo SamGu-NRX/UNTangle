@@ -1,0 +1,232 @@
+[
+    {
+        "course_number": "CNET4170",
+        "title": "Construction Management",
+        "number_of_hours": "3 hours",
+        "description": "Planning, organizing, scheduling and managing construction projects. Includes preconstruction planning, cost and quality control, materials procurement, subcontractor management, start-up and close-out.",
+        "prerequisites": "CNET 3160 .",
+        "prerequisites_course_codes": [
+            "CNET3160"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170611"
+    },
+    {
+        "course_number": "CNET4630",
+        "title": "Construction Management for Mechanical, Electrical and Plumbing (MEP) Systems",
+        "number_of_hours": "3 hours",
+        "description": "3 Investigation into the integrated approach of managing and scheduling the installation of MEP systems, including the study and analysis of basic mechanical, electrical and plumbing components in construction and their relationships to the overall building.",
+        "prerequisites": "CNET 2180 .",
+        "prerequisites_course_codes": [
+            "CNET2180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170614"
+    },
+    {
+        "course_number": "CNET3465",
+        "title": "Soils and Foundations",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Study of the properties of subsurface materials and the principles of subsurface construction. Topics include soil classification and testing, soil mechanics and foundation systems.",
+        "prerequisites": "CNET 2180 and ENGR 2304 .",
+        "prerequisites_course_codes": [
+            "CNET2180",
+            "ENGR2304"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173921"
+    },
+    {
+        "course_number": "CNET4795",
+        "title": "Senior Design II",
+        "number_of_hours": "3 hours",
+        "description": "Perform design and management analysis of an engineering or construction product or process. Oral and written documentation required. Projects to be supplied by local construction industry whenever possible.",
+        "prerequisites": "CNET 4785 . Recommended:",
+        "prerequisites_course_codes": [
+            "CNET4785"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173927"
+    },
+    {
+        "course_number": "CNET4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20134 hours",
+        "description": "Individualized instruction in theoretical or experimental problems. Written report required.",
+        "prerequisites": "Consent of instructor and program coordinator. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170617"
+    },
+    {
+        "course_number": "CNET4920",
+        "title": "Cooperative Education Internship  1 hour  Supervised industrial internship requiring a minimum of",
+        "number_of_hours": "150 hours",
+        "description": "of work per experience.",
+        "prerequisites": "Consent of department. May be repeated for credit up to a maximum of 3 semester credit hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170619"
+    },
+    {
+        "course_number": "CNET3160",
+        "title": "Construction Cost Estimating",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Procedures, techniques and systems of construction cost estimating. Includes work classification, quantity detailing, specification interpretation and bid preparation.",
+        "prerequisites": "CNET 2180 .",
+        "prerequisites_course_codes": [
+            "CNET2180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170604"
+    },
+    {
+        "course_number": "CNET2300",
+        "title": "Construction Graphics and Modeling",
+        "number_of_hours": "3 hours",
+        "description": "(1,4) Interpretation and creation of construction plans using hand drafting, CAD and BIM methods.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170601"
+    },
+    {
+        "course_number": "CNET3460",
+        "title": "Soils and Foundations",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Study of the properties of subsurface materials and the principles of subsurface construction. Topics include soil classification and testing, soil mechanics and foundation systems.",
+        "prerequisites": "CNET 2180 , ENGR 2332 .",
+        "prerequisites_course_codes": [
+            "CNET2180",
+            "ENGR2332"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170609"
+    },
+    {
+        "course_number": "CNET3190",
+        "title": "Construction Scheduling",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Study of construction scheduling utilizing current techniques including Critical Path Method (CPM), the Precedence Method (PM), the Program Evaluation and Review Technique (PERT) and a probabilistic method.",
+        "prerequisites": "CNET 2180 .",
+        "prerequisites_course_codes": [
+            "CNET2180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170605"
+    },
+    {
+        "course_number": "CNET3440",
+        "title": "Steel Structures",
+        "number_of_hours": "3 hours",
+        "description": "Principles, analysis and methodologies for conceptual and detailed design of steel structures. Emphasis on the role of mechanics in modern structural engineering design specifications with a focus on load and resistance factor design. Topics include behavior and design of hot-rolled and cold-formed steel, connections, members frames and advanced analysis techniques.",
+        "prerequisites": "CNET 3430 .",
+        "prerequisites_course_codes": [
+            "CNET3430"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170608"
+    },
+    {
+        "course_number": "CNET4910",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20134 hours",
+        "description": "Individualized instruction in theoretical or experimental problems. Written report required.",
+        "prerequisites": "Consent of instructor and program coordinator. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170618"
+    },
+    {
+        "course_number": "CNET3410",
+        "title": "Occupational Safety and Liability",
+        "number_of_hours": "3 hours",
+        "description": "Study of basic concepts of accident prevention, safety education, economic impact and environmental hazard control. Includes OSHA regulations and other regulations as they relate to the employer, the employee and the public.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170606"
+    },
+    {
+        "course_number": "CNET4180",
+        "title": "Problems in Project Management",
+        "number_of_hours": "3 hours",
+        "description": "Construction project management simulation involving bid preparation, cost control, scheduling, contract preparation, construction documents interpretation, punchlist management and project evaluation.",
+        "prerequisites": "CNET 4170 .",
+        "prerequisites_course_codes": [
+            "CNET4170"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170612"
+    },
+    {
+        "course_number": "CNET4230",
+        "title": "Introduction to Risk Management in Construction",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to risk management strategies by identifying potential risks and assigning mitigation control measures.",
+        "prerequisites": "CNET 2180 . Recommended:",
+        "prerequisites_course_codes": [
+            "CNET2180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173938"
+    },
+    {
+        "course_number": "CNET3445",
+        "title": "Steel Structures",
+        "number_of_hours": "3 hours",
+        "description": "Principles, analysis and methodologies for conceptual and detailed design of steel structures. Emphasis on the role of mechanics in modern structural engineering design specifications with a focus on load and resistance factor design. Topics include behavior and design of hot-rolled and cold-formed steel, connections, members frames and advanced analysis techniques.",
+        "prerequisites": "CNET 3435 . Recommended:",
+        "prerequisites_course_codes": [
+            "CNET3435"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173923"
+    },
+    {
+        "course_number": "CNET4620",
+        "title": "Advanced Design in Cold-Formed Steel Structures",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Study of the theories of design and behavior of cold-formed/light gauge steel structural members, connections and systems. Relevant design specifications and computer applications are included.",
+        "prerequisites": "CNET 3430 .",
+        "prerequisites_course_codes": [
+            "CNET3430"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170613"
+    },
+    {
+        "course_number": "CNET1160",
+        "title": "Construction Methods and Materials",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the materials, systems, methods and procedures of building construction.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170599"
+    },
+    {
+        "course_number": "CNET2200",
+        "title": "Surveying for Construction",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Surveying principles, instruments, measurements and calculations fundamentals of surveying for building construction; survey drawings and mapping.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173579"
+    },
+    {
+        "course_number": "CNET4190",
+        "title": "Quality Management in Construction",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the principles and techniques associated with quality management and six sigma concepts as practiced in the construction industry.",
+        "prerequisites": "CNET 2180 . Recommended:",
+        "prerequisites_course_codes": [
+            "CNET2180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173937"
+    },
+    {
+        "course_number": "CNET2180",
+        "title": "Building Construction Techniques",
+        "number_of_hours": "3 hours",
+        "description": "(1,4) Contemporary techniques used in the construction industry; nature, use and characteristics of materials; construction methodology, application and sequencing in the building process. Course will include hands-on construction of a scale model of a building.",
+        "prerequisites": "CNET 1160 .",
+        "prerequisites_course_codes": [
+            "CNET1160"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170600"
+    },
+    {
+        "course_number": "CNET4790",
+        "title": "Senior Design II",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Perform design and management analysis of an engineering or construction product or process. Oral and written documentation required. Projects to be supplied by local construction industry whenever possible.",
+        "prerequisites": "CNET 4780 .",
+        "prerequisites_course_codes": [
+            "CNET4780"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170616"
+    }
+]

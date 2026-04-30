@@ -1,0 +1,204 @@
+[
+    {
+        "course_number": "SPAN3080",
+        "title": "Spanish Language Proficiency for Educators",
+        "number_of_hours": "3 hours",
+        "description": "Development of Spanish proficiency through reading, writing, listening and speaking. Emphasis is given to the use of academic Spanish and literary concepts in bilingual school settings. Prepares students for the LOTE and other state certification exams related to bilingual certification in Texas. Taught in Spanish. Recommended: Open to students seeking certification in bilingual education.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172788"
+    },
+    {
+        "course_number": "SPAN3002",
+        "title": "Advanced Conversation for Native/Heritage Speakers",
+        "number_of_hours": "3 hours",
+        "description": "A variety of focused oral activities for native speakers of Spanish.",
+        "prerequisites": "SPAN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173536"
+    },
+    {
+        "course_number": "SPAN3003",
+        "title": "Advanced Grammar",
+        "number_of_hours": "3 hours",
+        "description": "Advanced study of Spanish grammar with emphasis on especially challenging aspects for Spanish language learners.",
+        "prerequisites": "SPAN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173537"
+    },
+    {
+        "course_number": "SPAN1030",
+        "title": "Review of Elementary Spanish",
+        "number_of_hours": "3 hours",
+        "description": "One-semester review of elementary Spanish. Emphasis on the enhancement of listening, reading, writing and speaking skills in Spanish. Recommended: Two years of high school Spanish or equivalent. May not be taken if credit has been received for SPAN 1010 or SPAN 1020 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173383"
+    },
+    {
+        "course_number": "SPAN3001",
+        "title": "Advanced Conversation for Non-Native Speakers",
+        "number_of_hours": "3 hours",
+        "description": "A variety of focused oral activities for non-native speakers of Spanish.",
+        "prerequisites": "SPAN 2050 or its equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173535"
+    },
+    {
+        "course_number": "SPAN3004",
+        "title": "Advanced Composition",
+        "number_of_hours": "3 hours",
+        "description": "Both native and non-native learners of Spanish will improve their writing abilities in the language by writing diverse types of compositions.",
+        "prerequisites": "SPAN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173538"
+    },
+    {
+        "course_number": "SPAN3180",
+        "title": "Latin American Culture Through Film",
+        "number_of_hours": "3 hours",
+        "description": "An introduction to Latin American culture through film which includes linguistic varieties, socio-economic and historical context and gender roles.",
+        "prerequisites": "3 hours of advanced (3000- or 4000- level) Spanish or consent of department.",
+        "prerequisites_course_codes": [
+            "OR4000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172817"
+    },
+    {
+        "course_number": "SPAN3520",
+        "title": "Spanish for Social Services",
+        "number_of_hours": "3 hours",
+        "description": "Emphasis on Spanish language skills needed in the area of social services to communicate with Hispanic clients and staff. Includes specialized vocabulary, workplace scenarios, dialogues and information on Hispanic culture related to this profession.",
+        "prerequisites": "SPAN 2050 .",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172795"
+    },
+    {
+        "course_number": "SPAN3510",
+        "title": "Spanish for Law Enforcement",
+        "number_of_hours": "3 hours",
+        "description": "Emphasizes the Spanish language capabilities needed in the law enforcement field to communicate with the Spanish speaking population. Specialized vocabulary, scenarios, sample dialogues and information on Hispanic culture as they relate to law enforcement.",
+        "prerequisites": "SPAN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172794"
+    },
+    {
+        "course_number": "SPAN4040",
+        "title": "Spanish Writing for the Mass Media Professions",
+        "number_of_hours": "3 hours",
+        "description": "Emphasizes the writing skills needed in the mass media profession to communicate with a wider Hispanic community. Cultural differences and writing styles are addressed through authentic oral and written ads.",
+        "prerequisites": "3 hours of advanced (3000- or 4000- level) Spanish or consent of department.",
+        "prerequisites_course_codes": [
+            "OR4000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172803"
+    },
+    {
+        "course_number": "SPAN2040",
+        "title": "Intermediate Spanish  (SPAN 2311)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "SPAN 1020 , SPAN 1030 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN1020",
+            "SPAN1030"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172780"
+    },
+    {
+        "course_number": "SPAN1010",
+        "title": "Elementary Spanish  (SPAN 1411)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172778"
+    },
+    {
+        "course_number": "SPAN3050",
+        "title": "Readings in Hispanic Literature",
+        "number_of_hours": "3 hours",
+        "description": "Selected readings in modern Spanish and Spanish-American literature with emphasis on conversational and written practice.",
+        "prerequisites": "SPAN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172785"
+    },
+    {
+        "course_number": "SPAN3560",
+        "title": "Spanish for the Medical Professions II",
+        "number_of_hours": "3 hours",
+        "description": "Extension of Spanish for the Medical Professions I, further building the Spanish language skills needed in the medical field to communicate with Hispanic patients and/or employees. Focuses on specialized medical vocabulary, medical scenarios, sample medical dialogues and information on Hispanic culture as it relates to health care.",
+        "prerequisites": "SPAN 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172799"
+    },
+    {
+        "course_number": "SPAN3120",
+        "title": "Aspects of Contemporary Spanish Culture",
+        "number_of_hours": "3 hours",
+        "description": "Study of specific aspects in Spanish culture, including historical, literary, artistic, political and economic arenas.",
+        "prerequisites": "3 hours of advanced (3000- or 4000-level) Spanish or consent of department.",
+        "prerequisites_course_codes": [
+            "OR4000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172802"
+    },
+    {
+        "course_number": "SPAN1020",
+        "title": "Elementary Spanish  (SPAN 1412)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "SPAN 1010 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN1010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172779"
+    },
+    {
+        "course_number": "SPAN4320",
+        "title": "Survey of Spanish Literature",
+        "number_of_hours": "3 hours",
+        "description": "Spanish literature since 1700. Readings, lectures, discussions and term projects.",
+        "prerequisites": "SPAN 3110 .",
+        "prerequisites_course_codes": [
+            "SPAN3110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172813"
+    },
+    {
+        "course_number": "SPAN4242",
+        "title": "Latin American Fantastic Literature and Science Fiction",
+        "number_of_hours": "3 hours",
+        "description": "Chronological study of fantastic literature and science fiction genres in Latin America from the nineteenth and twentieth centuries.",
+        "prerequisites": "6 hours of upper level Spanish.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173341"
+    },
+    {
+        "course_number": "SPAN2050",
+        "title": "Intermediate Spanish  (SPAN 2312)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "SPAN 2040 or equivalent.",
+        "prerequisites_course_codes": [
+            "SPAN2040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172781"
+    }
+]

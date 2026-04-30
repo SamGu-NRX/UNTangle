@@ -1,0 +1,56 @@
+[
+    {
+        "course_number": "INST4850",
+        "title": "International Studies Seminar",
+        "number_of_hours": "3 hours",
+        "description": "Topics vary and may cover any of the six areas of concentration of the major: international politics and diplomacy, international business and economics, international development, area studies, international security, and peace and human rights issues. Students explore issues that affect our world in the 21st century. May be repeated for credit for a maximum of 6 hours.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171417"
+    },
+    {
+        "course_number": "INST4855",
+        "title": "International Relations and Politics of the Middle East",
+        "number_of_hours": "3 hours",
+        "description": "Introduces students to international relations and politics of the Middle East, with focus on critical security issues. Surveys rise of the state system in the Middle East and crises of authority and identity. Examines Middle East regional relations and role of Middle East in international affairs.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174238"
+    },
+    {
+        "course_number": "INST4852",
+        "title": "Critical Issues in Global Economics Senior Seminar",
+        "number_of_hours": "3 hours",
+        "description": "Explores contemporary global economic issues including the restrictions on trade, the relationships between exchange rates and the flows of goods, fiscal and monetary policy in open and closed economy, international debt crisis, foreign direct investment, economic regional integration, and the roles of international economic organizations. Recommended: Senior status and international studies major with area of concentration in international business and economics.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171419"
+    },
+    {
+        "course_number": "INST4853",
+        "title": "Global Development: Issues and Challenges",
+        "number_of_hours": "3 hours",
+        "description": "Explores competing perspectives for development and various factors which explain why some countries are more developed than others. Survey of global challenges such as environmental, foreign aid, gender empowerment, international migrants, refugees and Indigenous people, the role of culture and religion in development, and corruption and public sector reform. Recommended: International studies majors whose area of concentration is international development and regional studies and senior status.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171420"
+    },
+    {
+        "course_number": "INST4858",
+        "title": "Refugees: Histories and Contemporary Issues",
+        "number_of_hours": "3 hours",
+        "description": "Presents a global interdisciplinary approach to histories of and contemporary issues around refugees.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174242"
+    },
+    {
+        "course_number": "INST2100",
+        "title": "Introduction to International Studies",
+        "number_of_hours": "3 hours",
+        "description": "Introduces students to the five areas of concentration of the major\u2014international security and diplomacy, international business and economics, international development and humanitarian affairs, regional studies, and peace studies. Core Category: Component Area Option B",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171415"
+    }
+]

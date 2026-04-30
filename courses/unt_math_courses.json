@@ -1,0 +1,363 @@
+[
+    {
+        "course_number": "MATH4450",
+        "title": "Introduction to the Theory of Matrices",
+        "number_of_hours": "3 hours",
+        "description": "Congruence (Hermitian); similarity; orthogonality, matrices with polynomial elements and minimal polynomials; Cayley-Hamilton theorem; bilinear and quadratic forms; eigenvalues.",
+        "prerequisites": "MATH 2700 .",
+        "prerequisites_course_codes": [
+            "MATH2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171674"
+    },
+    {
+        "course_number": "MATH1650",
+        "title": "Pre-Calculus  (MATH 2312 or MATH 2412)",
+        "number_of_hours": "5 hours",
+        "description": "Preparatory course for calculus: trigonometric functions, their graphs and applications; sequences and series; exponential and logarithmic functions and their graphs; graphs of polynomial and rational functions; general discussion of functions and their properties.",
+        "prerequisites": "MATH 1100 with a grade of C or better. MATH 1650 covers approximately the same material as MATH 1600 and MATH 1610 together. Students who already have credit for both MATH 1600 and MATH 1610 may not receive credit for MATH 1650. Core Category: Mathematics",
+        "prerequisites_course_codes": [
+            "MATH1100",
+            "MATH1650",
+            "MATH1600",
+            "MATH1610"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171643"
+    },
+    {
+        "course_number": "MATH3860",
+        "title": "Financial Mathematics",
+        "number_of_hours": "3 hours",
+        "description": "The mathematical theory of interest with applications to investments and corporate finance. Topics include present and future values; annuities and variable cash flows; yield rates; amortization schedules; loans; valuation of stocks, bonds and other securities; and the assessment of corporate financial performance using standard financial methods.",
+        "prerequisites": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . MATH 3680 (may be taken concurrently) and FINA 3770 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "MATH1720",
+            "MATH1830",
+            "MATH3680",
+            "FINA3770"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173402"
+    },
+    {
+        "course_number": "MATH4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171679"
+    },
+    {
+        "course_number": "MATH1780",
+        "title": "Probability Models",
+        "number_of_hours": "3 hours",
+        "description": "Probability theory, discrete and continuous random variables, Markov chains, limit theorems, stochastic processes, models for phenomena with statistical regularity.",
+        "prerequisites": "MATH 1710 or MATH 1810 .",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "MATH1810"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171648"
+    },
+    {
+        "course_number": "MATH3180",
+        "title": "Probability for Engineers",
+        "number_of_hours": "3 hours",
+        "description": "Fundamental course in probability for engineering students. Covers classical probability tools, including counting rules, multiplication and additional rules, Bayes theorem, conditional probability, and independence, both discrete and continuous case of single/multiple random variables and their probability distributions, and Gaussian random vectors.",
+        "prerequisites": "MATH 2700 and MATH 2730 .",
+        "prerequisites_course_codes": [
+            "MATH2700",
+            "MATH2730"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174316"
+    },
+    {
+        "course_number": "MATH4500",
+        "title": "Introduction to Topology",
+        "number_of_hours": "3 hours",
+        "description": "Point set topology; connectedness, compactness, continuous functions and metric spaces.",
+        "prerequisites": "MATH 3610 .",
+        "prerequisites_course_codes": [
+            "MATH3610"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171675"
+    },
+    {
+        "course_number": "MATH4060",
+        "title": "Foundations of Geometry",
+        "number_of_hours": "3 hours",
+        "description": "Selections from synthetic, analytic, projective, Euclidean and non-Euclidean geometry.",
+        "prerequisites": "MATH 3000 . Prior or concurrent enrollment in MATH 3510 or MATH 3610 is strongly recommended.",
+        "prerequisites_course_codes": [
+            "MATH3000",
+            "MATH3510",
+            "MATH3610"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171670"
+    },
+    {
+        "course_number": "MATH1720",
+        "title": "Calculus II  (MATH 2314 or MATH 2414)",
+        "number_of_hours": "(3;0;2)",
+        "description": "Differentiation and integration of exponential, logarithmic and transcendental functions; integration techniques; indeterminate forms; improper integrals; area and arc length in polar coordinates; infinite series; power series; Taylor\u2019s theorem.",
+        "prerequisites": "A grade of C or higher in MATH 1710 . Core Category: Component Area Option A",
+        "prerequisites_course_codes": [
+            "MATH1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171647"
+    },
+    {
+        "course_number": "MATH3680",
+        "title": "Applied Statistics",
+        "number_of_hours": "3 hours",
+        "description": "Descriptive statistics, elements of probability, random variables, confidence intervals, hypothesis testing, regression, contingency tables.",
+        "prerequisites": "MATH 1710 . MATH 1720 (may be taken concurrently) or MATH 1810 , MATH 1820 , MATH 1830 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "MATH1720",
+            "MATH1810",
+            "MATH1820",
+            "MATH1830"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171665"
+    },
+    {
+        "course_number": "MATH3410",
+        "title": "Differential Equations I",
+        "number_of_hours": "3 hours",
+        "description": "First-order equations, existence-uniqueness theorem, linear equations, separation of variables, higher-order linear equations, systems of linear equations, series solutions and numerical solutions.",
+        "prerequisites": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . MATH 2700 recommended (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "MATH1720",
+            "MATH1830",
+            "MATH2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171660"
+    },
+    {
+        "course_number": "MATH1680",
+        "title": "Elementary Probability and Statistics  (MATH 1342)",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Introductory course to serve students of any field who want to apply statistical inference. Descriptive statistics, elementary probability, estimation, hypothesis testing and small samples.",
+        "prerequisites": "TSI complete. Core Category: Mathematics",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171644"
+    },
+    {
+        "course_number": "MATH3350",
+        "title": "Introduction to Numerical Analysis",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) Description and mathematical analysis of methods used for solving problems of a mathematical nature on the computer. Roots of equations, systems of linear equations, polynomial interpolation and approximation, least-squares approximation, numerical solution of ordinary differential equations.",
+        "prerequisites": "MATH 2700 . Computer programming ability.",
+        "prerequisites_course_codes": [
+            "MATH2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171658"
+    },
+    {
+        "course_number": "MATH2100",
+        "title": "Functions and Modeling for Secondary Mathematics Instruction",
+        "number_of_hours": "3 hours",
+        "description": "In-depth study of topics in secondary school mathematics. Emphasis is on modeling with linear, exponential and trigonometric functions; curve fitting; discrete and continuous models. Exploratory work with presentations of findings is an integral part of the course. Pedagogical uses of appropriate technology are explored.",
+        "prerequisites": "MATH 1710 , MATH 1720 (may be taken concurrently) or MATH 1810 , MATH 1820 , MATH 1830 (may be taken concurrently), TNTX 1100 (may be taken concurrently), or consent of the Teach North Texas advisor.",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "MATH1720",
+            "MATH1810",
+            "MATH1820",
+            "MATH1830",
+            "TNTX1100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171649"
+    },
+    {
+        "course_number": "MATH3000",
+        "title": "Real Analysis I",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to mathematical proofs through real analysis. Topics include sets, relations, types of proofs, continuity and topology of the real line.",
+        "prerequisites": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . Grade of A, B, or C in MATH 2000 . Students who are neither mathematics nor interdisciplinary studies majors must contact a mathematics advisor at < MathAdvising@unt.edu > prior to registering for Math 3000.\u201d",
+        "prerequisites_course_codes": [
+            "MATH1720",
+            "MATH1830",
+            "MATH2000",
+            "MATH3000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171655"
+    },
+    {
+        "course_number": "MATH4815",
+        "title": "Bioinformatics",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the interdisciplinary field of bioinformatics. Databases and genome browser tools. Methods and algorithms for biological sequence analysis. Applications to problems in biology or medicine.",
+        "prerequisites": "Consent of department. CSCE 4815 .",
+        "prerequisites_course_codes": [
+            "CSCE4815"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174393"
+    },
+    {
+        "course_number": "MATH1710",
+        "title": "Calculus I  (MATH 2313 or MATH 2413)",
+        "number_of_hours": "(3;0;2)",
+        "description": "Limits and continuity, derivatives and integrals; differentiation and integration of polynomial, rational, trigonometric and algebraic functions; applications, including slope, velocity, extrema, area, volume and work.",
+        "prerequisites": "A grade of C or higher in MATH 1650 ; or a grade of C or higher in both MATH 1600 and MATH 1610 . Core Category: Mathematics",
+        "prerequisites_course_codes": [
+            "MATH1650",
+            "MATH1600",
+            "MATH1610"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171646"
+    },
+    {
+        "course_number": "MATH2730",
+        "title": "Multivariable Calculus  (MATH 2315 or MATH 2415)",
+        "number_of_hours": "3 hours",
+        "description": "Vectors and analytic geometry in 3-space; partial and directional derivatives; extrema; double and triple integrals and applications; cylindrical and spherical coordinates.",
+        "prerequisites": "Grade of A, B, or C in either MATH 1720 or MATH 1830 .",
+        "prerequisites_course_codes": [
+            "MATH1720",
+            "MATH1830"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171651"
+    },
+    {
+        "course_number": "MATH1190",
+        "title": "Business Calculus  (MATH 1325)",
+        "number_of_hours": "3 hours",
+        "description": "Differential and integral calculus with emphasis on applications to business.",
+        "prerequisites": "Two years of high school algebra and consent of department; or MATH 1100 or MATH 1180 with a grade of C or better. Core Category: Mathematics",
+        "prerequisites_course_codes": [
+            "MATH1100",
+            "MATH1180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171635"
+    },
+    {
+        "course_number": "MATH4951",
+        "title": "Honors College Capstone Thesis",
+        "number_of_hours": "3 hours",
+        "description": "Major research project prepared by the student under the supervision of a faculty member and presented in standard thesis format. An oral defense is required of each student for successful completion of the thesis.",
+        "prerequisites": "Completion of at least 6 hours in honors courses; completion of at least 12 hours in the major department in which the thesis is prepared; approval of the department chair and the dean of the school or college in which the thesis is prepared; approval of the dean of the Honors College. May be substituted for HNRS 4000 . Course may be taken only once for Honors College credit.",
+        "prerequisites_course_codes": [
+            "HNRS4000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171681"
+    },
+    {
+        "course_number": "MATH1180",
+        "title": "College Math for Business, Economics and Related Fields  (MATH 1324)",
+        "number_of_hours": "(3;0;1)",
+        "description": "Topics from algebra (linear equations, quadratic equations, functions and graphs, inequalities), mathematics of finance (simple and compound interest, annuities), linear programming, matrices, systems of linear equations, applications to management, economics and business.",
+        "prerequisites": "Two years of high school algebra and one year of geometry, and consent of department. Students who feel they acquired solid algebra skills in high school are strongly encouraged to take the mathematics placement exam to see if they may begin in MATH 1190 instead. A grade C or better in MATH 1180 is required when MATH 1180 is a prerequisite for other mathematics courses. Core Category: Mathematics",
+        "prerequisites_course_codes": [
+            "MATH1190",
+            "MATH1180"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171634"
+    },
+    {
+        "course_number": "MATH1580",
+        "title": "Survey of Mathematics with Applications  (MATH 1332)",
+        "number_of_hours": "3 hours",
+        "description": "Topics include probability, statistics, algebra, logic and the mathematics of finance. Additional topics are selected from geometry, sets, cryptography, fair division, voting theory and graph theory. Emphasis is on applications. Recreational and historical aspects of selected topics are also included. Technology is used extensively. MATH 1580 is not intended to prepare students for calculus, science, engineering or business courses.",
+        "prerequisites": "Two years of high school algebra and one year of high school geometry and consent of department. Students may not receive credit for both MATH 1580 and MATH 1581X . Core Category: Mathematics",
+        "prerequisites_course_codes": [
+            "MATH1580"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171639"
+    },
+    {
+        "course_number": "MATH3420",
+        "title": "Differential Equations II",
+        "number_of_hours": "3 hours",
+        "description": "Ordinary differential equations arising from partial differential equations by means of separation of variables; method of characteristics for first-order PDEs; boundary value problems for ODEs; comparative study of heat equation, wave equation and Laplace\u2019s equation by separation of variables and numerical methods; further topics in numerical solution of ODEs.",
+        "prerequisites": "MATH 2730 , MATH 3410 .",
+        "prerequisites_course_codes": [
+            "MATH2730",
+            "MATH3410"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171661"
+    },
+    {
+        "course_number": "MATH4610",
+        "title": "Probability",
+        "number_of_hours": "3 hours",
+        "description": "Combinatorial analysis, probability, conditional probability, independence, random variables, expectation, parameterized distributions, limit theorems, joint distributions, conditional distributions, and correlation.",
+        "prerequisites": "MATH 2730 and either MATH 3680 or consent of department.",
+        "prerequisites_course_codes": [
+            "MATH2730",
+            "MATH3680"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171677"
+    },
+    {
+        "course_number": "MATH4650",
+        "title": "Statistics",
+        "number_of_hours": "3 hours",
+        "description": "Sampling distributions, point estimation, interval estimation, hypothesis testing, goodness of fit tests, regression and correlation, analysis of variance, and non-parametric methods.",
+        "prerequisites": "MATH 4610 . MATH 3680 or at least a 4 on the AP Statistics test.",
+        "prerequisites_course_codes": [
+            "MATH4610",
+            "MATH3680"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171678"
+    },
+    {
+        "course_number": "MATH2700",
+        "title": "Linear Algebra and Vector Geometry  (MATH 2318 or MATH 2418)",
+        "number_of_hours": "3 hours",
+        "description": "Vector spaces over the real number field; applications to systems of linear equations and analytic geometry in En, linear transformations, matrices, determinants and eigenvalues.",
+        "prerequisites": "A grade of C or higher in MATH 1720 .",
+        "prerequisites_course_codes": [
+            "MATH1720"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171650"
+    },
+    {
+        "course_number": "MATH1100",
+        "title": "Algebra  (MATH 1314 or MATH 1414)",
+        "number_of_hours": "(3;0;2)",
+        "description": "Designed to build technical proficiency in algebra for students who will need strong algebra skills in a higher level mathematics course. Study of polynomial, radical, rational, logarithmic and exponential functions with applications; building functions from data; systems of equations. Note that MATH 1100 at UNT does not satisfy the mathematics component of the core curriculum. Students who feel they acquired solid algebra skills in high school are strongly encouraged to take the mathematics placement exam to begin in a higher-level mathematics course.",
+        "prerequisites": "Two years of high school algebra and one year of geometry, and consent of department. A grade of C or better in MATH 1100 is required when MATH 1100 is a prerequisite for other mathematics courses.",
+        "prerequisites_course_codes": [
+            "MATH1100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171633"
+    },
+    {
+        "course_number": "MATH3740",
+        "title": "Vector Calculus",
+        "number_of_hours": "3 hours",
+        "description": "Theory of vector-valued functions on Euclidean space. Derivative as best linear-transformation approximation to a function. Divergence, gradient, curl. Vector fields, path integrals, surface integrals. Constrained extrema and Lagrange multipliers. Implicit function theorem. Jacobian matrices. Green\u2019s, Stokes\u2019, and Gauss\u2019 (divergence) theorems in Euclidean space. Differential forms and an introduction to differential geometry.",
+        "prerequisites": "MATH 2700 , MATH 2730 .",
+        "prerequisites_course_codes": [
+            "MATH2700",
+            "MATH2730"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171666"
+    },
+    {
+        "course_number": "MATH2000",
+        "title": "Discrete Mathematics  (MATH 2305)",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to proof-writing, logic, sets, relations and functions, induction and recursion, combinatorics and counting techniques, discrete probability, and graphs.",
+        "prerequisites": "MATH 1710 or MATH 1810 (may be taken concurrently by math majors).",
+        "prerequisites_course_codes": [
+            "MATH1710",
+            "MATH1810"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171652"
+    },
+    {
+        "course_number": "MATH3510",
+        "title": "Abstract Algebra I",
+        "number_of_hours": "3 hours",
+        "description": "Groups, rings, integral domains, polynomial rings and fields.",
+        "prerequisites": "MATH 3000 ; MATH 2700 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "MATH3000",
+            "MATH2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171662"
+    }
+]

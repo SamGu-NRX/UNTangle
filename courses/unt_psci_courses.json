@@ -1,0 +1,289 @@
+[
+    {
+        "course_number": "PSCI3310",
+        "title": "Political Theory: Quest for Justice",
+        "number_of_hours": "3 hours",
+        "description": "Examines enduring questions about community, the individual, happiness, and justice through the analysis of such works as Plato\u2019s \u201cRepublic,\u201d Machiavelli\u2019s \u201cPrince,\u201d and Hannah Arendt\u2019s \u201cThe Human Condition.\u201d Other themes include the ideal political order, the character of human excellence, the relationship between politics and society, the political responsibilities of philosophy, and the relationship between education and justice.",
+        "prerequisites": "3 hours of political science.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172433"
+    },
+    {
+        "course_number": "PSCI4952",
+        "title": "Political Science Capstone Seminar",
+        "number_of_hours": "3 hours",
+        "description": "Integration of concepts and skills developed throughout the political science curriculum, including both experiential and classroom-based components.",
+        "prerequisites": "Senior standing; completion of: PSCI 2306 and PSCI 2305 or their equivalents; PSCI 3300 ; and at least four advanced courses from three fields of PSCI.",
+        "prerequisites_course_codes": [
+            "PSCI2306",
+            "PSCI2305",
+            "PSCI3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173193"
+    },
+    {
+        "course_number": "PSCI4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172476"
+    },
+    {
+        "course_number": "PSCI4100",
+        "title": "Political Parties",
+        "number_of_hours": "3 hours",
+        "description": "Development, nature, problems, organization, operation and functions. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172442"
+    },
+    {
+        "course_number": "PSCI3130",
+        "title": "Interest Groups",
+        "number_of_hours": "3 hours",
+        "description": "The theory, development, types, operations and effectiveness of interest groups in American politics. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172429"
+    },
+    {
+        "course_number": "PSCI3210",
+        "title": "The U.S. Supreme Court",
+        "number_of_hours": "3 hours",
+        "description": "Explores varying aspects of the U.S. Supreme Court, including how the Supreme Court selects and decides cases, how justices are appointed to the Supreme Court, how the Supreme Court interacts with other branches of government and interest groups, and how decisions are implemented. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172432"
+    },
+    {
+        "course_number": "PSCI4821",
+        "title": "International Conflict",
+        "number_of_hours": "3 hours",
+        "description": "Examines the forces that promote conflict and peace within the international system, including change over time. Students survey the scholarly literature on war to learn what leading research can explain about international conflict. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172467"
+    },
+    {
+        "course_number": "PSCI2316",
+        "title": "Honors U.S. and Texas Constitutions and Institutions",
+        "number_of_hours": "3 hours",
+        "description": "An introduction to the institutions of government, with particular emphasis on the U.S. and Texas Constitutions. Focus on the structure and powers of the three branches of government (both national and Texas); the division of power between those branches (separation of powers); the division of power between the national and state governments (federalism); and issues related to civil rights and civil liberties. Satisfies the legislative requirement for a course emphasizing the Texas constitution.",
+        "prerequisites": "Acceptance to Honors College. Satisfies the requirement of a course emphasizing U.S. and Texas constitutions. Core Category: Government/Political Science",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172418"
+    },
+    {
+        "course_number": "PSCI4820",
+        "title": "Contemporary International Problems",
+        "number_of_hours": "3 hours",
+        "description": "Major contemporary problems and conflicts confronting the international system. Recommended: PSCI 2306 , PSCI 2305 , or consent of instructor. May be repeated for credit as topics vary.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172466"
+    },
+    {
+        "course_number": "PSCI4661",
+        "title": "Politics of Autocracy",
+        "number_of_hours": "3 hours",
+        "description": "Provides a general overview of types of authoritarian and totalitarian regimes and the institutions and internal dynamics of such regimes. Uses case studies to illustrate the evolution and function of such governments.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173958"
+    },
+    {
+        "course_number": "PSCI3101",
+        "title": "Latino Politics",
+        "number_of_hours": "3 hours",
+        "description": "Overview of the political status and experiences of Latinos in the United States. Deals with group identity and solidarity; historical experiences of different Latino national origin groups; representation in the electoral and policymaking process in local, state and federal governments; and theories of minority group politics.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173824"
+    },
+    {
+        "course_number": "PSCI3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173082"
+    },
+    {
+        "course_number": "PSCI4410",
+        "title": "Education Politics and Policy",
+        "number_of_hours": "3 hours",
+        "description": "Explores major policy debates shaping the American school system. Focuses on how the American education system functions, how it has changed over time, and how actors have influenced the system.",
+        "prerequisites": "PSCI 2305 , PSCI 2306 .",
+        "prerequisites_course_codes": [
+            "PSCI2305",
+            "PSCI2306"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=178235"
+    },
+    {
+        "course_number": "PSCI4954",
+        "title": "Research Capstone",
+        "number_of_hours": "3 hours",
+        "description": "A guided research seminar designed to have students explore the impact of political institutions and/or behavior on the world community.",
+        "prerequisites": "Senior standing with an overall and major GPA of 3.0 or better; completion of PSCI 2306 and PSCI 2305 or their equivalents, PSCI 3300 , and at least four advanced courses from three fields of PSCI.",
+        "prerequisites_course_codes": [
+            "PSCI2306",
+            "PSCI2305",
+            "PSCI3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173195"
+    },
+    {
+        "course_number": "PSCI2305",
+        "title": "US Political Behavior and Policy  (GOVT 2305)",
+        "number_of_hours": "3 hours",
+        "description": "Explores the connection between the will of the people and the policies implemented by government by focusing on individual political values and attitudes, the mechanisms that connect individual beliefs to government action (parties, interest groups, the media, and elections), the US Constitution, and the outcomes of government policy. Satisfies one of the political science requirements of the University Core Curriculum. Core Category: Government/Political Science",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172419"
+    },
+    {
+        "course_number": "PSCI4953",
+        "title": "Capstone Internship",
+        "number_of_hours": "3 hours",
+        "description": "Practical experience in the political process, learning how various governmental or non-governmental entities on the international, national, state, or local level formulate public policy and how these entities interact with the government, their constituents and each other.",
+        "prerequisites": "Senior standing; completion of PSCI 2306 and PSCI 2305 or their equivalents; PSCI 3300 ; at least four advanced courses from three fields of PSCI; completion of departmental application process; and consent of department.",
+        "prerequisites_course_codes": [
+            "PSCI2306",
+            "PSCI2305",
+            "PSCI3300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173194"
+    },
+    {
+        "course_number": "PSCI2315",
+        "title": "Honors US Political Behavior and Policy",
+        "number_of_hours": "3 hours",
+        "description": "Explores the connection between the will of the people and the policies implemented by government by focusing on individual political values and attitudes, the mechanisms that connect individual beliefs to government action (parties, interest groups, the media, and elections), and the outcomes of government policy. Satisfies one of the political science requirements of the University Core Curriculum.",
+        "prerequisites": "PSCI 2306 or PSCI 2316 . Acceptance to Honors College. Core Category: Government/Political Science",
+        "prerequisites_course_codes": [
+            "PSCI2306",
+            "PSCI2316"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172420"
+    },
+    {
+        "course_number": "PSCI3500",
+        "title": "Human Security",
+        "number_of_hours": "3 hours",
+        "description": "Origins and extent of violence in human relations, foreign and domestic.",
+        "prerequisites": "PSCI 2306 , PSCI 2305 .",
+        "prerequisites_course_codes": [
+            "PSCI2306",
+            "PSCI2305"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172436"
+    },
+    {
+        "course_number": "PSCI3300",
+        "title": "Political Science Research Methods",
+        "number_of_hours": "3 hours",
+        "description": "Emphasizes the conceptual and analytical tools necessary for conducting and understanding research in political science. Includes an introduction to statistical analysis and computer use.",
+        "prerequisites": "PSCI 2306 / PSCI 2316 or PSCI 2305 / PSCI 2315 , or consent of department.",
+        "prerequisites_course_codes": [
+            "PSCI2306",
+            "PSCI2316",
+            "PSCI2305",
+            "PSCI2315"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172423"
+    },
+    {
+        "course_number": "PSCI4330",
+        "title": "Topics in Political Theory",
+        "number_of_hours": "3 hours",
+        "description": "This course addresses either the work of selected theorists, such as Plato, Thucydides, Machiavelli, Locke or Marx, or themes, such as morality and politics, liberalism and authoritarianism. Recommended: 3 hours of political science. May be repeated for credit as topics vary.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172450"
+    },
+    {
+        "course_number": "PSCI3600",
+        "title": "Governments and Politics around the World",
+        "number_of_hours": "3 hours",
+        "description": "Major concepts and approaches to comparative government and politics. Recommended: 3 hours of political science.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172437"
+    },
+    {
+        "course_number": "PSCI4230",
+        "title": "The Constitution and the Rights of Criminal Defendants",
+        "number_of_hours": "3 hours",
+        "description": "An in-depth examination of the constitutional rights and liberties enjoyed by defendants in the criminal justice process. Explores the U.S. Supreme Court\u2019s interpretation of constitutional guarantees as that interpretation has developed through the evolution of case law in a political and historical context. Recommended: PSCI 2306 and PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173323"
+    },
+    {
+        "course_number": "PSCI3704",
+        "title": "U.S.-Latin American Relations",
+        "number_of_hours": "3 hours",
+        "description": "International relations of Latin America from independence to the end of the Cold War and the current period, with an emphasis on its relations with the United States. Topics will cover colonial rule in Latin America, experience from the early 1800s to World War II; political and economic changes in the 1950s - 1980s; the impact of the Cold War on U.S. foreign policy making; and the end of the Cold War, immigration, NAFTA, and the spread of illicit drugs across borders.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173831"
+    },
+    {
+        "course_number": "PSCI3200",
+        "title": "The American Legal System",
+        "number_of_hours": "3 hours",
+        "description": "Institutions and processes; courts and judicial behavior. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172431"
+    },
+    {
+        "course_number": "PSCI3110",
+        "title": "The Legislative Process",
+        "number_of_hours": "3 hours",
+        "description": "Legislative behavior, representation, selection of legislators, organization and procedures; relationships to other branches of government. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172427"
+    },
+    {
+        "course_number": "PSCI3100",
+        "title": "Topics in American Government",
+        "number_of_hours": "3 hours",
+        "description": "Major areas of research and controversy in American politics. Representative topics include political campaigning, minority group politics, and science fiction and politics. May be repeated for credit as topics vary. Recommended: PSCI 2306 , PSCI 2305 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172426"
+    },
+    {
+        "course_number": "PSCI2306",
+        "title": "US and Texas Constitutions and Institutions  (GOVT 2306)",
+        "number_of_hours": "3 hours",
+        "description": "An introduction to the institutions of government, with particular emphasis on the U.S. and Texas Constitutions. Focus on the structure and powers of the three branches of government (both national and Texas); the division of power between those branches (separation of powers); the division of power between the national and state governments (federalism); and issues related to civil rights and civil liberties. Satisfies the legislative requirement for a course emphasizing the Texas constitution. PSCI 2306 must be taken to satisfy the requirement of a course emphasizing U.S. and Texas constitutions. Core Category: Government/Political Science",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172417"
+    },
+    {
+        "course_number": "PSCI4810",
+        "title": "International Law",
+        "number_of_hours": "3 hours",
+        "description": "Theoretical and political foundations of the law among nations; formation, change, application and enforcement of law; modern trends. Recommended: PSCI 3200 or PSCI 3810 , or consent of instructor.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172465"
+    },
+    {
+        "course_number": "PSCI3102",
+        "title": "U.S. Immigration Policy",
+        "number_of_hours": "3 hours",
+        "description": "Examines immigration issues from an interdisciplinary perspective incorporating readings from economics, sociology, demography, and political science as well as the depiction of immigration in popular culture. Topics will include the historical evolution of American immigration policy, push and pull theories of immigration, the economic costs and benefits of immigration, and the future direction of US immigration policy.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173825"
+    }
+]
