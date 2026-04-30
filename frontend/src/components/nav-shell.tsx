@@ -144,42 +144,44 @@ export function NavShell({
         {children}
       </main>
 
-      <footer
-        style={{
-          position: "sticky",
-          bottom: 0,
-          background: "rgba(244, 246, 244, 0.85)",
-          backdropFilter: "blur(8px)",
-          borderTop: "1px solid var(--line)",
-        }}
-      >
-        <div
+      {back || next ? (
+        <footer
           style={{
-            maxWidth: 1280,
-            margin: "0 auto",
-            padding: "0.8rem 1.25rem",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
+            position: "sticky",
+            bottom: 0,
+            background: "rgba(244, 246, 244, 0.85)",
+            backdropFilter: "blur(8px)",
+            borderTop: "1px solid var(--line)",
           }}
         >
-          {back ? (
-            <Link href={back.href} className="btn-ghost">
-              ← {back.label}
-            </Link>
-          ) : (
-            <span />
-          )}
-          {next ? (
-            <Link href={next.href} className="btn-primary">
-              {next.label} →
-            </Link>
-          ) : (
-            <span />
-          )}
-        </div>
-      </footer>
+          <div
+            style={{
+              maxWidth: 1280,
+              margin: "0 auto",
+              padding: "0.8rem 1.25rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            {back ? (
+              <Link href={back.href} className="btn-ghost">
+                ← {back.label}
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next ? (
+              <Link href={next.href} className="btn-primary">
+                {next.label} →
+              </Link>
+            ) : (
+              <span />
+            )}
+          </div>
+        </footer>
+      ) : null}
     </div>
   );
 }
