@@ -4,13 +4,12 @@ const fromEmail = process.env.RESEND_FROM_EMAIL ?? "UNTangle <onboarding@resend.
 
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   if (!process.env.RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY is not configured. Skipping password reset email.");
-    return;
+    throw new Error("RESEND_API_KEY is not configured.");
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: fromEmail,
     to: [email],
     subject: "Reset your UNTangle password",
@@ -32,4 +31,8 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(`Failed to send password reset email: ${error.message}`);
+  }
 }
