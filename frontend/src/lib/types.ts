@@ -63,10 +63,13 @@ export type CampusBuilding = {
   id: string;
   name: string;
   shortName: string;
+  mnemonic?: string;
+  buildingNumber?: string;
   lat: number;
   lng: number;
   aliases?: string[];
   address?: string;
+  isOffCampus?: boolean;
 };
 
 export type ScheduleEvent = {
@@ -96,6 +99,56 @@ export type MapStop = {
   day: WeekDay;
   start: string;
   end: string;
+};
+
+export type MapResolutionStatus = "local" | "geocoded" | "unresolved";
+
+export type MapResolvedLocation = {
+  location: string;
+  buildingId?: string;
+  buildingName: string;
+  shortName: string;
+  lat?: number;
+  lng?: number;
+  resolutionStatus: MapResolutionStatus;
+  geocodeQuery: string;
+  unsupportedReason?: string;
+};
+
+export type MapRoutePoint = {
+  lat: number;
+  lng: number;
+};
+
+export type MapRouteResponse = {
+  geometry: MapRoutePoint[];
+  distanceMeters: number;
+  durationSeconds: number;
+  source: "ors" | "fallback";
+};
+
+export type MapRouteSummary = {
+  distanceText: string;
+  durationText: string;
+};
+
+export type MapRouteLegDisplay = {
+  from: string;
+  to: string;
+  fromMeta: string;
+  toMeta: string;
+};
+
+export type MapRouteDetails = {
+  source: "ors" | "fallback" | null;
+  isApproximate: boolean;
+  legs: MapRouteLegDisplay[];
+};
+
+export type MapResolutionSummary = {
+  resolvedCount: number;
+  unresolvedCount: number;
+  resolving: boolean;
 };
 
 export type RouteLeg = {

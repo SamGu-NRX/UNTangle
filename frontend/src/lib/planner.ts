@@ -3,11 +3,14 @@ import {
   courses,
   defaultPlannerState,
   majors,
-  plannedCourseCodes,
   prerequisiteEdges,
   sections,
 } from "@/lib/seed-data";
-import { buildCampusGeocodeQuery, resolveCampusLocation } from "@/lib/campus-locations";
+import {
+  buildCampusGeocodeQuery,
+  resolveCampusBuilding,
+  resolveCampusLocation,
+} from "@/lib/campus-locations";
 import type {
   CampusBuilding,
   Course,
@@ -45,7 +48,7 @@ function getBuilding(buildingId: string | null | undefined) {
 }
 
 function getMeetingBuilding(meeting: SectionMeeting) {
-  return resolveCampusLocation(meeting.location, meeting.buildingId) ?? getBuilding(meeting.buildingId);
+  return resolveCampusLocation(meeting.location, meeting.buildingId);
 }
 
 function distanceMiles(a: CampusBuilding, b: CampusBuilding) {
@@ -74,9 +77,14 @@ export function getSectionsForCourse(courseCode: string) {
   return sections.filter((section) => section.courseCode === courseCode);
 }
 
-export function getInProgressCourseCodes(state: PlannerState) {
+export function getActiveCourseCodes(state: PlannerState) {
+  const courseStatuses = {
+    ...defaultPlannerState.courseStatuses,
+    ...(state.courseStatuses ?? {}),
+  };
+
   return courses
-    .filter((course) => (state.courseStatuses[course.code] ?? "notTaken") === "inProgress")
+    .filter((course) => courseStatuses[course.code] === "inProgress")
     .map((course) => course.code);
 }
 
@@ -128,10 +136,26 @@ function scoreSchedule(option: OptimizationKey, candidateSections: CourseSection
   }
 }
 
-export function recommendSections(option: OptimizationKey, courseCodes = plannedCourseCodes) {
-  const sectionOptions = courseCodes.map((courseCode) => getSectionsForCourse(courseCode));
-  let bestSelection: CourseSection[] = [];
+export function recommendSections(
+  option: OptimizationKey,
+  courseCodes: string[] = courses.filter((course) => course.planned).map((course) => course.code),
+  fixedSelections: Record<string, string> = {},
+) {
+  const activeCodes = [...new Set(courseCodes)];
+  const fixedSections = activeCodes
+    .map((courseCode) => sections.find((section) => section.id === fixedSelections[courseCode]))
+    .filter((section): section is CourseSection => Boolean(section));
+  const fixedCourseCodes = new Set(fixedSections.map((section) => section.courseCode));
+  const sectionOptions = activeCodes
+    .filter((courseCode) => !fixedCourseCodes.has(courseCode))
+    .map((courseCode) => getSectionsForCourse(courseCode))
+    .filter((courseSections) => courseSections.length > 0);
+  let bestSelection: CourseSection[] = [...fixedSections];
   let bestScore = Number.NEGATIVE_INFINITY;
+
+  if (fixedSections.length === 0 && sectionOptions.length === 0) {
+    return {};
+  }
 
   function walk(index: number, current: CourseSection[]) {
     if (index === sectionOptions.length) {
@@ -153,48 +177,47 @@ export function recommendSections(option: OptimizationKey, courseCodes = planned
     });
   }
 
-  walk(0, []);
+  walk(0, [...fixedSections]);
 
   return Object.fromEntries(bestSelection.map((section) => [section.courseCode, section.id]));
 }
 
 export function normalizePlannerState(state: PlannerState): PlannerState {
-  const baseState = {
+  const merged: PlannerState = {
     ...defaultPlannerState,
     ...state,
     courseStatuses: {
       ...defaultPlannerState.courseStatuses,
       ...state.courseStatuses,
     },
+    selectedSections: {
+      ...defaultPlannerState.selectedSections,
+      ...(state.selectedSections ?? {}),
+    },
   };
-  const inProgressCourseCodes = getInProgressCourseCodes(baseState);
-  const recommended = recommendSections(baseState.optimization, inProgressCourseCodes);
-  const selectedMajor =
-    state.selectedMajor && validMajorIds.has(state.selectedMajor) ? state.selectedMajor : null;
-  const selectedSections = Object.fromEntries(
-    inProgressCourseCodes.flatMap((courseCode) => {
-      const selectedSectionId = baseState.selectedSections[courseCode];
-      const selectedSection = sections.find(
-        (section) => section.id === selectedSectionId && section.courseCode === courseCode,
-      );
-
-      return [[courseCode, selectedSection?.id ?? recommended[courseCode]]].filter(
-        (entry): entry is [string, string] => Boolean(entry[1]),
-      );
-    }),
+  const activeCourseCodes = getActiveCourseCodes(merged);
+  const activeCourseCodeSet = new Set(activeCourseCodes);
+  const preservedSelections = Object.fromEntries(
+    Object.entries(merged.selectedSections).filter(([courseCode, sectionId]) =>
+      activeCourseCodeSet.has(courseCode) &&
+      sections.some((section) => section.courseCode === courseCode && section.id === sectionId),
+    ),
   );
-
+  const recommended = recommendSections(merged.optimization, activeCourseCodes, preservedSelections);
+  const selectedMajor =
+    merged.selectedMajor && validMajorIds.has(merged.selectedMajor) ? merged.selectedMajor : null;
   return {
-    ...baseState,
+    ...merged,
     selectedMajor,
-    selectedSections,
+    selectedSections: recommended,
   };
 }
 
 export function buildScheduleEvents(state: PlannerState): ScheduleEvent[] {
   const normalized = normalizePlannerState(state);
+  const activeCourseCodes = getActiveCourseCodes(normalized);
 
-  return getInProgressCourseCodes(normalized).flatMap((courseCode) => {
+  return activeCourseCodes.flatMap((courseCode) => {
     const selectedSectionId = normalized.selectedSections[courseCode];
     const selectedSection = sections.find((section) => section.id === selectedSectionId);
     const course = courses.find((courseEntry) => courseEntry.code === courseCode);
@@ -223,18 +246,19 @@ export function buildStopsForDay(state: PlannerState, day: WeekDay): MapStop[] {
     .filter((event) => event.day === day)
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
     .map((event) => {
-      const building = resolveCampusLocation(event.location, event.buildingId) ?? getBuilding(event.buildingId);
+      const auditedBuilding = resolveCampusLocation(event.location, event.buildingId);
+      const buildingMetadata = resolveCampusBuilding(event.location, event.buildingId) ?? getBuilding(event.buildingId);
 
       return {
         courseCode: event.courseCode,
         title: event.title,
         location: event.location,
-        buildingId: building?.id ?? event.buildingId,
-        buildingName: building?.name ?? event.location,
-        shortName: building?.shortName ?? event.location,
-        lat: building?.lat,
-        lng: building?.lng,
-        resolutionStatus: building ? "local" : "unresolved",
+        buildingId: buildingMetadata?.id ?? event.buildingId,
+        buildingName: buildingMetadata?.name ?? event.location,
+        shortName: buildingMetadata?.shortName ?? event.location,
+        lat: auditedBuilding?.lat,
+        lng: auditedBuilding?.lng,
+        resolutionStatus: auditedBuilding ? "local" : "unresolved",
         geocodeQuery: buildCampusGeocodeQuery(event.location),
         day,
         start: event.start,
@@ -244,14 +268,15 @@ export function buildStopsForDay(state: PlannerState, day: WeekDay): MapStop[] {
 }
 
 export function serializePlannerPayload(state: PlannerState): PlannerApiPayload {
+  const normalized = normalizePlannerState(state);
   return {
-    ...normalizePlannerState(state),
+    ...normalized,
     routeStops: {
-      Mon: buildStopsForDay(state, "Mon"),
-      Tue: buildStopsForDay(state, "Tue"),
-      Wed: buildStopsForDay(state, "Wed"),
-      Thu: buildStopsForDay(state, "Thu"),
-      Fri: buildStopsForDay(state, "Fri"),
+      Mon: buildStopsForDay(normalized, "Mon"),
+      Tue: buildStopsForDay(normalized, "Tue"),
+      Wed: buildStopsForDay(normalized, "Wed"),
+      Thu: buildStopsForDay(normalized, "Thu"),
+      Fri: buildStopsForDay(normalized, "Fri"),
     },
   };
 }
@@ -307,12 +332,23 @@ export function formatTime(value: string) {
   return `${normalizedHour}:${`${normalizedMinutes}`.padStart(2, "0")} ${suffix}`;
 }
 
-export function summarizeCredits() {
-  return courses
-    .filter((course) => course.planned)
-    .reduce((total, course) => {
-      return total + course.creditHours;
-    }, 0);
+export function summarizeCredits(state: PlannerState) {
+  return getActiveCourseCodes(state).reduce((total, courseCode) => {
+    const course = getCourseByCode(courseCode);
+    return total + (course?.creditHours ?? 0);
+  }, 0);
+}
+
+export function getUnscheduledActiveCourses(state: PlannerState): Course[] {
+  const normalized = normalizePlannerState(state);
+
+  return getActiveCourseCodes(normalized)
+    .filter((courseCode) => {
+      const selectedSectionId = normalized.selectedSections[courseCode];
+      return !sections.some((section) => section.courseCode === courseCode && section.id === selectedSectionId);
+    })
+    .map((courseCode) => getCourseByCode(courseCode))
+    .filter((course): course is Course => Boolean(course));
 }
 
 export function summarizeCompletedCourses(state: PlannerState) {
