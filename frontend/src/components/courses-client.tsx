@@ -1,200 +1,327 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
-import Link from "next/link";
-import { StatusChip } from "@/components/status-chip";
-import { WorkflowShell } from "@/components/workflow-shell";
-import { usePlanner } from "@/components/planner-provider";
-import { courses, prerequisiteEdges } from "@/lib/seed-data";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { NavShell } from "@/components/nav-shell";
+import { CourseImportPanel } from "@/components/course-import-panel";
+import { MajorSelectionModal } from "@/components/major-selection-modal";
+import { Toggle } from "@/components/ui/Toggle";
+import { SearchBar } from "@/components/ui/SearchBar";
+import { Select } from "@/components/ui/Select";
+import { Button } from "@/components/ui/Button";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { StatusMark } from "@/components/ui/StatusMark";
+import { StaggerGroup } from "@/components/ui/StaggerGroup";
+import { usePlanner, useToast } from "@/components/planner-provider";
+import { courses } from "@/lib/seed-data";
 import {
-  courseMap,
-  summarizeCompletedCourses,
-  summarizeInProgressCourses,
-  summarizeNotTakenCourses,
+  getCoreCoursesForMajor,
+  getMajorById,
+  getMissingPrerequisites,
+  summarizeMajorProgress,
 } from "@/lib/planner";
-import type { CourseStatus } from "@/lib/types";
+import type { Course, CourseStatus } from "@/lib/types";
 
-function statusLabel(value: CourseStatus) {
-  if (value === "completed") return "Done";
-  if (value === "inProgress") return "Taking";
+const departments = Array.from(new Set(courses.map((c) => c.department))).sort();
+
+function statusToTone(s: CourseStatus): "completed" | "in-progress" | "neutral" {
+  if (s === "completed") return "completed";
+  if (s === "inProgress") return "in-progress";
+  return "neutral";
+}
+function statusLabel(s: CourseStatus) {
+  if (s === "completed") return "Done";
+  if (s === "inProgress") return "Taking";
   return "Not taken";
 }
 
-function statusTone(value: CourseStatus) {
-  if (value === "completed") return "green";
-  if (value === "inProgress") return "gold";
-  return "stone";
-}
-
 export function CoursesClient() {
-  const { plannerState, setCourseStatus, isRegistered } = usePlanner();
+  const { hydrated, plannerState, setCourseStatus, setSelectedMajor, isLocked } = usePlanner();
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
-  const [focusedCourseCode, setFocusedCourseCode] = useState("CSCE 2100");
+  const [department, setDepartment] = useState("All");
   const deferredQuery = useDeferredValue(query);
-  const courseByCode = useMemo(() => courseMap(), []);
 
-  const groupedCourses = useMemo(() => {
-    const normalizedQuery = deferredQuery.toLowerCase().trim();
-    return [...courses]
-      .filter((course) =>
-        normalizedQuery.length === 0
-          ? true
-          : `${course.code} ${course.title} ${course.department}`.toLowerCase().includes(normalizedQuery),
-      )
-      .reduce<Record<string, typeof courses>>((groups, course) => {
-        groups[course.department] ??= [];
-        groups[course.department].push(course);
-        return groups;
-      }, {});
-  }, [deferredQuery]);
+  const [majorOpen, setMajorOpen] = useState(false);
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
+  const firstLoadRef = useRef(true);
 
-  const focusedCourse = courseByCode.get(focusedCourseCode);
-  const focusedPrerequisites = prerequisiteEdges.filter((edge) => edge.courseCode === focusedCourseCode);
-  const courseGroups = Object.entries(groupedCourses);
+  useEffect(() => {
+    if (!hydrated || !firstLoadRef.current) {
+      return;
+    }
+
+    firstLoadRef.current = false;
+    if (plannerState.selectedMajor === null) {
+      setMajorOpen(true);
+    }
+  }, [hydrated, plannerState.selectedMajor]);
+
+  const major = getMajorById(plannerState.selectedMajor);
+  const coreCourses = useMemo(
+    () => getCoreCoursesForMajor(plannerState.selectedMajor),
+    [plannerState.selectedMajor],
+  );
+  const coreCodes = useMemo(() => new Set(coreCourses.map((c) => c.code)), [coreCourses]);
+  const progress = summarizeMajorProgress(plannerState);
+
+  const filtered = useMemo(() => {
+    const q = deferredQuery.toLowerCase().trim();
+    return courses.filter((course) => {
+      if (department !== "All" && course.department !== department) return false;
+      if (!q) return true;
+      return `${course.code} ${course.title} ${course.department}`.toLowerCase().includes(q);
+    });
+  }, [deferredQuery, department]);
+
+  const grouped = useMemo(() => {
+    const coreList = filtered.filter((c) => coreCodes.has(c.code));
+    const others = filtered.filter((c) => !coreCodes.has(c.code));
+    const byDept = others.reduce<Record<string, Course[]>>((acc, c) => {
+      (acc[c.department] ??= []).push(c);
+      return acc;
+    }, {});
+    return { coreList, byDept };
+  }, [filtered, coreCodes]);
+
+  function openMajorModal(e: React.MouseEvent<HTMLButtonElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    setOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    setMajorOpen(true);
+  }
 
   return (
-    <WorkflowShell
+    <NavShell
       step={0}
-      eyebrow="Previous Courses"
-      title="Mark the courses you have already handled."
-      description="This step should feel like a clean academic intake. Search quickly, update statuses in place, and keep prerequisite context present but secondary."
+      next={{ href: "/schedule", label: "Optimize schedule" }}
     >
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <section className="surface-panel min-w-0 px-5 py-5 sm:px-6">
-          <div className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <StatusChip label={`${summarizeCompletedCourses(plannerState)} done`} tone="green" />
-              <StatusChip label={`${summarizeInProgressCourses(plannerState)} taking`} tone="gold" />
-              <StatusChip label={`${summarizeNotTakenCourses(plannerState)} not taken`} tone="stone" />
+      <div style={{ display: "grid", gap: 18 }}>
+        <header>
+          <p className="editorial-label">Step 1 — Previous courses</p>
+          <h1
+            className="font-display"
+            style={{
+              marginTop: 4,
+              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
+              fontWeight: 800,
+              color: "var(--brand-900)",
+              letterSpacing: "-0.03em",
+              lineHeight: 1.05,
+            }}
+          >
+            Mark the courses you have already handled.
+          </h1>
+          <p style={{ marginTop: 6, fontSize: "0.92rem", color: "var(--copy)", maxWidth: 720 }}>
+            Search, set each one to Done, Taking, or Not taken. Locked courses unlock as you complete prerequisites.
+          </p>
+        </header>
+
+        {major ? (
+          <div
+            className="surface-card"
+            style={{
+              padding: "0.95rem 1.1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+              <p className="editorial-label">Major</p>
+              <p style={{ marginTop: 2, fontWeight: 700, color: "var(--ink)" }}>
+                {major.name}
+                <span style={{ marginLeft: 8, color: "var(--copy)", fontWeight: 500 }}>
+                  · {major.department}
+                </span>
+              </p>
             </div>
-            <input
-              className="field-input max-w-xl"
-              placeholder="Search courses, departments, or codes"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-
-          <div className="mt-6 space-y-7">
-            {courseGroups.length === 0 ? (
-              <div className="subtle-panel px-5 py-6 text-sm text-[color:var(--copy)]">
-                No courses match that search yet. Try a department code or a broader keyword.
-              </div>
-            ) : (
-              courseGroups.map(([department, departmentCourses]) => (
-                <section key={department}>
-                  <p className="editorial-label mb-3">{department}</p>
-                  <div className="space-y-3">
-                    {departmentCourses.map((course) => {
-                      const status = plannerState.courseStatuses[course.code] ?? "notTaken";
-                      const selected = focusedCourseCode === course.code;
-
-                      return (
-                        <article
-                          key={course.code}
-                          className={`subtle-panel px-4 py-4 transition-transform duration-200 ease-out ${
-                            selected ? "border-[rgba(53,97,74,0.22)] bg-[rgba(255,255,255,0.98)]" : ""
-                          }`}
-                        >
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <button
-                              type="button"
-                              className="min-w-0 text-left"
-                              onClick={() => setFocusedCourseCode(course.code)}
-                            >
-                              <div className="flex items-center gap-3">
-                                <StatusChip label={statusLabel(status)} tone={statusTone(status)} />
-                                <div>
-                                  <h2 className="text-base font-semibold text-[color:var(--green-900)]">
-                                    {course.title}
-                                  </h2>
-                                  <p className="text-sm text-[color:var(--muted)]">{course.code}</p>
-                                </div>
-                              </div>
-                            </button>
-
-                            <div className="flex flex-wrap gap-2">
-                              {([
-                                ["notTaken", "Not taken"],
-                                ["inProgress", "Taking"],
-                                ["completed", "Done"],
-                              ] as const).map(([value, label]) => (
-                                <button
-                                  key={value}
-                                  type="button"
-                                  className={`rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors duration-150 ${
-                                    status === value
-                                      ? "border-[color:var(--green-700)] bg-[color:var(--green-800)] text-white"
-                                      : "border-[color:var(--line)] bg-[rgba(255,255,255,0.78)] text-[color:var(--muted)] hover:border-[rgba(53,97,74,0.22)] hover:text-[color:var(--green-900)]"
-                                  }`}
-                                  onClick={() => setCourseStatus(course.code, value)}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))
-            )}
-          </div>
-        </section>
-
-        <aside className="space-y-4">
-          <section className="surface-panel px-5 py-5">
-            <p className="editorial-label">Focused course</p>
-            <h2 className="mt-3 font-display text-[2.15rem] font-bold tracking-[-0.06em] text-[color:var(--green-900)]">
-              {focusedCourse?.code}
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-[color:var(--copy)]">{focusedCourse?.description}</p>
-
-            <div className="mt-5 space-y-3">
-              {focusedPrerequisites.length === 0 ? (
-                <div className="subtle-panel border-dashed px-4 py-4 text-sm text-[color:var(--copy)]">
-                  This course can be taken without a prerequisite chain.
-                </div>
-              ) : (
-                focusedPrerequisites.map((edge) => {
-                  const prerequisite = courseByCode.get(edge.prerequisiteCode);
-                  const prerequisiteStatus = plannerState.courseStatuses[edge.prerequisiteCode] ?? "notTaken";
-
-                  return (
-                    <div key={`${edge.courseCode}-${edge.prerequisiteCode}`} className="subtle-panel px-4 py-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
-                        Requires
-                      </p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[color:var(--green-900)]">{prerequisite?.title}</p>
-                          <p className="text-xs text-[color:var(--muted)]">{prerequisite?.code}</p>
-                        </div>
-                        <StatusChip label={statusLabel(prerequisiteStatus)} tone={statusTone(prerequisiteStatus)} />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+              <ProgressBar
+                pct={progress.pct}
+                label={`${progress.completed} of ${progress.total} core complete`}
+              />
             </div>
-          </section>
-
-          <section className="surface-panel px-5 py-5">
-            <p className="editorial-label">Persistence</p>
-            <p className="mt-3 text-sm leading-7 text-[color:var(--copy)]">
-              {isRegistered
-                ? "Signed-in changes persist automatically as you move through the planner."
-                : "Guest changes stay in this browser session until you close it or sign in later."}
+            <button type="button" className="btn-ghost" onClick={openMajorModal}>
+              Change
+            </button>
+          </div>
+        ) : (
+          <div
+            className="surface-card"
+            style={{
+              padding: "1rem 1.15rem",
+              display: "flex",
+              gap: 14,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <p style={{ flex: 1, color: "var(--copy)", fontSize: "0.9rem" }}>
+              Pick your major to see your core courses and unlock relevant prerequisites.
             </p>
+            <Button onClick={openMajorModal}>Choose major</Button>
+          </div>
+        )}
 
-            <Link className="primary-button mt-5 w-full" href="/schedule">
-              Continue to schedule
-            </Link>
+        <CourseImportPanel
+          courseStatuses={plannerState.courseStatuses}
+          setCourseStatus={setCourseStatus}
+          toast={toast}
+        />
+
+        <div className="surface-card" style={{ padding: "0.85rem 1rem" }}>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
+            <SearchBar
+              placeholder="Search courses, departments, codes…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search courses"
+            />
+            <Select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              aria-label="Filter by department"
+            >
+              <option value="All">All departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
+        {grouped.coreList.length > 0 ? (
+          <section>
+            <p className="editorial-label" style={{ marginBottom: 8 }}>
+              {major?.name} core courses
+            </p>
+            <div style={{ display: "grid", gap: 8 }}>
+              <StaggerGroup>
+                {grouped.coreList.map((course) =>
+                  renderRow(course, plannerState.courseStatuses, isLocked, setCourseStatus, toast),
+                )}
+              </StaggerGroup>
+            </div>
           </section>
-        </aside>
+        ) : null}
+
+        {Object.entries(grouped.byDept).map(([dept, list]) => (
+          <section key={dept}>
+            <p className="editorial-label" style={{ marginBottom: 8 }}>
+              {dept}
+            </p>
+            <div style={{ display: "grid", gap: 8 }}>
+              <StaggerGroup>
+                {list.map((course) =>
+                  renderRow(course, plannerState.courseStatuses, isLocked, setCourseStatus, toast),
+                )}
+              </StaggerGroup>
+            </div>
+          </section>
+        ))}
+
+        {filtered.length === 0 ? (
+          <div className="surface-card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--copy)" }}>
+            No courses match that search.
+          </div>
+        ) : null}
       </div>
-    </WorkflowShell>
+
+      <MajorSelectionModal
+        open={majorOpen}
+        current={plannerState.selectedMajor}
+        origin={origin}
+        closable={plannerState.selectedMajor !== null}
+        onClose={() => setMajorOpen(false)}
+        onConfirm={(id) => {
+          setSelectedMajor(id);
+          setMajorOpen(false);
+          toast(`Major set: ${getMajorById(id)?.name}`);
+        }}
+      />
+    </NavShell>
+  );
+}
+
+function renderRow(
+  course: Course,
+  courseStatuses: Record<string, CourseStatus>,
+  isLocked: (code: string) => boolean,
+  setCourseStatus: (code: string, status: CourseStatus) => void,
+  toast: (msg: string) => void,
+) {
+  const status = courseStatuses[course.code] ?? "notTaken";
+  const locked = isLocked(course.code);
+  const completed = status === "completed";
+  const missing = getMissingPrerequisites(course.code, courseStatuses);
+
+  return (
+    <article
+      key={course.code}
+      className="course-row"
+      data-locked={locked && !completed ? "true" : "false"}
+      data-completed={completed ? "true" : "false"}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span className="course-row__title">{course.title}</span>
+          <StatusMark label={statusLabel(status)} tone={statusToTone(status)} />
+        </div>
+        <div className="course-row__meta">
+          {course.code} · {course.creditHours} cr
+        </div>
+        {locked && !completed ? (
+          <div className="course-row__lock">
+            🔒 Requires: {missing.join(", ")}
+          </div>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["notTaken", "inProgress", "completed"] as const).map((value) => {
+            const active = status === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setCourseStatus(course.code, value);
+                  if (value === "completed") toast(`${course.code} marked done`);
+                }}
+                disabled={locked && !completed && value !== "notTaken"}
+                style={{
+                  padding: "0.32rem 0.6rem",
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  borderRadius: 999,
+                  border: `1px solid ${active ? "var(--brand-700)" : "var(--line)"}`,
+                  background: active ? "var(--brand-900)" : "var(--surface)",
+                  color: active ? "#fff" : "var(--copy)",
+                  cursor: "pointer",
+                  transition:
+                    "background-color var(--d-hover) var(--ease), color var(--d-hover) var(--ease), border-color var(--d-hover) var(--ease)",
+                }}
+              >
+                {value === "notTaken" ? "Not taken" : value === "inProgress" ? "Taking" : "Done"}
+              </button>
+            );
+          })}
+        </div>
+        <Toggle
+          on={completed}
+          ariaLabel={`Mark ${course.code} as done`}
+          disabled={locked && !completed}
+          onChange={(next) => {
+            const newStatus = next ? "completed" : "notTaken";
+            setCourseStatus(course.code, newStatus);
+            if (next) toast(`${course.code} marked done`);
+          }}
+        />
+      </div>
+    </article>
   );
 }
