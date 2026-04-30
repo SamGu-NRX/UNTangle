@@ -34,6 +34,11 @@ function statusLabel(s: CourseStatus) {
   return "Not taken";
 }
 
+function courseDetailsHref(code: string) {
+  const [subject, number] = code.split(/\s+/);
+  return `/courses/${subject}/${number}`;
+}
+
 export function CoursesClient() {
   const { hydrated, plannerState, setCourseStatus, setSelectedMajor, isLocked } = usePlanner();
   const { toast } = useToast();
@@ -297,6 +302,9 @@ function renderRow(
         ) : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Link href={courseDetailsHref(course.code)} className="btn-ghost">
+          Details
+        </Link>
         <div style={{ display: "flex", gap: 4 }}>
           {(["notTaken", "inProgress", "completed"] as const).map((value) => {
             const active = status === value;

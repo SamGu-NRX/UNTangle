@@ -6,12 +6,14 @@
     "frontend"
   ],
   "scripts": {
-    "setup": "git submodule update --init --recursive && bun install --frozen-lockfile && (cd backend && bun install --frozen-lockfile)",
+    "setup": "node scripts/dev.mjs --setup-only",
     "backend:install": "cd backend && bun install --frozen-lockfile",
     "backend:check": "cd backend && bun run check",
     "backend:seed": "cd backend && bun run seed",
     "backend:dev": "cd backend && bun run dev",
-    "dev": "turbo dev",
+    "frontend:dev": "cd frontend && bun run dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:turbo": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint"
   },

@@ -203,6 +203,10 @@ textarea {
   background: var(--brand-700);
   border-color: var(--brand-700);
 }
+a.btn-primary,
+.btn-primary {
+  color: #fff;
+}
 .btn-primary:active {
   transform: scale(0.98);
 }
@@ -735,6 +739,298 @@ textarea {
   font-size: 0.74rem;
   color: var(--danger);
   font-weight: 600;
+}
+
+/* Grade details */
+.detail-shell {
+  display: grid;
+  gap: 16px;
+}
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0 0.15rem;
+}
+.detail-title h1 {
+  margin: 0;
+  color: var(--brand-900);
+  font-size: clamp(1.55rem, 3.4vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1;
+}
+.detail-title p {
+  margin: 0.4rem 0 0;
+  color: var(--copy);
+  max-width: 760px;
+  font-size: 0.95rem;
+}
+.detail-stats {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding-top: 0.2rem;
+}
+.detail-stat,
+.gpa-badge {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 88px;
+}
+.detail-stat strong,
+.gpa-badge strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.08rem;
+  line-height: 1;
+}
+.detail-stat span,
+.gpa-badge span {
+  display: block;
+  color: var(--copy);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.gpa-badge[data-tone="strong"] {
+  color: var(--brand-900);
+}
+.gpa-badge[data-tone="warning"],
+.gpa-badge[data-tone="risk"] {
+  color: var(--warn);
+}
+.detail-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 1rem 1.05rem;
+}
+.detail-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.detail-section__head h2,
+.rmp-panel h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+.detail-section__head > p {
+  margin: 0;
+  color: var(--copy);
+  font-size: 0.82rem;
+  text-align: right;
+}
+.detail-grid {
+  display: grid;
+  gap: 16px;
+}
+.detail-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.detail-grid--sidebar {
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: stretch;
+}
+.detail-list,
+.course-group-list {
+  display: grid;
+  gap: 0;
+}
+.detail-row,
+.course-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.78rem 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  transition:
+    color var(--d-hover) var(--ease),
+    background-color var(--d-hover) var(--ease);
+}
+.detail-row:hover,
+.course-group:hover {
+  color: var(--brand-900);
+  background: linear-gradient(90deg, rgba(0, 81, 43, 0.035), transparent 68%);
+}
+.detail-row strong,
+.course-group strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.detail-row__main > span,
+.course-group span {
+  display: block;
+  margin-top: 2px;
+  color: var(--copy);
+  font-size: 0.78rem;
+}
+.detail-row-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--copy);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.detail-row-metrics b {
+  min-width: 46px;
+  text-align: right;
+  color: var(--brand-900);
+  font-weight: 700;
+}
+.rmp-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.rmp-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.rmp-panel__head a {
+  color: var(--brand-900);
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: color var(--d-hover) var(--ease);
+}
+.rmp-panel__head a:hover {
+  color: var(--brand-700);
+}
+.rmp-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+.rmp-score strong {
+  color: var(--brand-900);
+  font-size: 2.55rem;
+  line-height: 1;
+}
+.rmp-score[data-empty="true"] strong {
+  color: var(--copy);
+}
+.rmp-score span {
+  color: var(--copy);
+  font-size: 0.82rem;
+  margin: 0;
+}
+.rmp-meta-grid {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+.rmp-meta-grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.rmp-meta-grid span {
+  display: block;
+  color: var(--copy);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.rmp-meta-grid strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.1;
+  text-align: right;
+}
+.rmp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.95rem;
+}
+.rmp-tags span {
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.25rem 0.4rem;
+  color: var(--copy);
+  font-size: 0.72rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rmp-empty {
+  margin: 0.55rem 0 0;
+  color: var(--copy);
+  font-size: 0.82rem;
+}
+.course-group {
+  display: grid;
+  grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 1.4rem;
+  padding-bottom: 1rem;
+}
+.course-group__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.course-group .grade-chart {
+  min-width: 0;
+}
+.grade-tooltip {
+  display: grid;
+  gap: 2px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--sh-sm);
+  color: var(--copy);
+  font-size: 0.78rem;
+}
+.grade-tooltip strong {
+  color: var(--ink);
+}
+.grade-chart-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  color: var(--copy);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .detail-grid--two,
+  .detail-grid--sidebar {
+    grid-template-columns: 1fr;
+  }
+  .detail-header,
+  .detail-section__head {
+    display: grid;
+  }
+  .detail-section__head > p {
+    text-align: left;
+  }
+  .course-group {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
 }
 
 /* Course import review */
