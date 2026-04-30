@@ -47,10 +47,14 @@ function courseTone(courseCode: string) {
 
 export function ScheduleClient() {
   const { plannerState, scheduleEvents, setOptimization, setSection } = usePlanner();
-  const [focusedCourseCode, setFocusedCourseCode] = useState("CSCE 1030");
+  const [focusedCourseCode, setFocusedCourseCode] = useState("");
+  const currentCourseCodes = useMemo(() => Object.keys(plannerState.selectedSections), [plannerState.selectedSections]);
+  const activeFocusedCourseCode = currentCourseCodes.includes(focusedCourseCode)
+    ? focusedCourseCode
+    : currentCourseCodes[0] ?? "";
 
-  const focusedSections = useMemo(() => getSectionsForCourse(focusedCourseCode), [focusedCourseCode]);
-  const focusedCourse = getCourseByCode(focusedCourseCode);
+  const focusedSections = useMemo(() => getSectionsForCourse(activeFocusedCourseCode), [activeFocusedCourseCode]);
+  const focusedCourse = getCourseByCode(activeFocusedCourseCode);
 
   const selectedSections = useMemo(
     () =>
@@ -79,7 +83,7 @@ export function ScheduleClient() {
                   Credits
                 </p>
                 <p className="mt-2 font-display text-3xl font-bold tracking-[-0.05em] text-[color:var(--green-900)]">
-                  {summarizeCredits()}
+                  {summarizeCredits(plannerState)}
                 </p>
               </div>
               <div className="subtle-panel px-4 py-4">
@@ -122,16 +126,18 @@ export function ScheduleClient() {
           <div className="surface-panel px-5 py-5">
             <p className="editorial-label">Section swap</p>
             <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.06em] text-[color:var(--green-900)]">
-              {focusedCourse?.code}
+              {focusedCourse?.code ?? "No courses"}
             </h2>
-            <p className="mt-1 text-sm text-[color:var(--copy)]">{focusedCourse?.title}</p>
+            <p className="mt-1 text-sm text-[color:var(--copy)]">
+              {focusedCourse?.title ?? "Mark courses as Taking on the Courses page to build a schedule."}
+            </p>
             <div className="mt-4 space-y-3">
               {focusedSections.map((section) => {
                 const conflicts = sectionConflicts(
                   section,
                   selectedSections.filter((selectedSection) => selectedSection.courseCode !== section.courseCode),
                 );
-                const selected = plannerState.selectedSections[focusedCourseCode] === section.id;
+                const selected = plannerState.selectedSections[activeFocusedCourseCode] === section.id;
                 return (
                   <button
                     key={section.id}
@@ -144,7 +150,7 @@ export function ScheduleClient() {
                           : "border-[color:var(--line)] bg-[rgba(255,255,255,0.84)] hover:border-[rgba(79,127,95,0.24)]"
                     }`}
                     disabled={conflicts}
-                    onClick={() => setSection(focusedCourseCode, section.id)}
+                    onClick={() => setSection(activeFocusedCourseCode, section.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -168,7 +174,12 @@ export function ScheduleClient() {
         <section className="space-y-5">
           <div className="surface-panel px-5 py-5">
             <div className="flex flex-wrap gap-2">
-              {Object.keys(plannerState.selectedSections).map((courseCode) => (
+              {currentCourseCodes.length === 0 ? (
+                <p className="text-sm text-[color:var(--copy)]">
+                  No current courses yet. Return to Courses and mark at least one course as Taking.
+                </p>
+              ) : null}
+              {currentCourseCodes.map((courseCode) => (
                 <button
                   key={courseCode}
                   type="button"

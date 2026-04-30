@@ -1,4 +1,4 @@
-import { buildings, courses, defaultPlannerState, plannedCourseCodes, sections } from "@/lib/seed-data";
+import { buildings, courses, defaultPlannerState, sections } from "@/lib/seed-data";
 import type {
   CampusBuilding,
   Course,
@@ -53,7 +53,17 @@ export function getSectionsForCourse(courseCode: string) {
   return sections.filter((section) => section.courseCode === courseCode);
 }
 
+export function getInProgressCourseCodes(state: PlannerState) {
+  return courses
+    .filter((course) => (state.courseStatuses[course.code] ?? "notTaken") === "inProgress")
+    .map((course) => course.code);
+}
+
 function scoreSchedule(option: OptimizationKey, candidateSections: CourseSection[]) {
+  if (candidateSections.length === 0) {
+    return 0;
+  }
+
   if (option === "maximizeProfessor") {
     return candidateSections.reduce((total, section) => total + section.rating * 10, 0);
   }
@@ -97,8 +107,8 @@ function scoreSchedule(option: OptimizationKey, candidateSections: CourseSection
   }
 }
 
-export function recommendSections(option: OptimizationKey) {
-  const sectionOptions = plannedCourseCodes.map((courseCode) => getSectionsForCourse(courseCode));
+export function recommendSections(option: OptimizationKey, courseCodes: string[]) {
+  const sectionOptions = courseCodes.map((courseCode) => getSectionsForCourse(courseCode));
   let bestSelection: CourseSection[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
 
@@ -128,19 +138,39 @@ export function recommendSections(option: OptimizationKey) {
 }
 
 export function normalizePlannerState(state: PlannerState): PlannerState {
-  const recommended = recommendSections(state.optimization);
-  return {
+  const baseState = {
     ...defaultPlannerState,
     ...state,
-    selectedSections:
-      Object.keys(state.selectedSections).length > 0 ? state.selectedSections : recommended,
+    courseStatuses: {
+      ...defaultPlannerState.courseStatuses,
+      ...state.courseStatuses,
+    },
+  };
+  const inProgressCourseCodes = getInProgressCourseCodes(baseState);
+  const recommended = recommendSections(baseState.optimization, inProgressCourseCodes);
+  const selectedSections = Object.fromEntries(
+    inProgressCourseCodes.flatMap((courseCode) => {
+      const selectedSectionId = baseState.selectedSections[courseCode];
+      const selectedSection = sections.find(
+        (section) => section.id === selectedSectionId && section.courseCode === courseCode,
+      );
+
+      return [[courseCode, selectedSection?.id ?? recommended[courseCode]]].filter(
+        (entry): entry is [string, string] => Boolean(entry[1]),
+      );
+    }),
+  );
+
+  return {
+    ...baseState,
+    selectedSections,
   };
 }
 
 export function buildScheduleEvents(state: PlannerState): ScheduleEvent[] {
   const normalized = normalizePlannerState(state);
 
-  return plannedCourseCodes.flatMap((courseCode) => {
+  return getInProgressCourseCodes(normalized).flatMap((courseCode) => {
     const selectedSectionId = normalized.selectedSections[courseCode];
     const selectedSection = sections.find((section) => section.id === selectedSectionId);
     const course = courses.find((courseEntry) => courseEntry.code === courseCode);
@@ -252,8 +282,8 @@ export function formatTime(value: string) {
   return `${normalizedHour}:${`${normalizedMinutes}`.padStart(2, "0")} ${suffix}`;
 }
 
-export function summarizeCredits() {
-  return plannedCourseCodes.reduce((total, courseCode) => {
+export function summarizeCredits(state: PlannerState) {
+  return getInProgressCourseCodes(state).reduce((total, courseCode) => {
     const course = getCourseByCode(courseCode);
     return total + (course?.creditHours ?? 0);
   }, 0);
