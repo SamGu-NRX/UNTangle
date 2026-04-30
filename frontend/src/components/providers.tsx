@@ -1,7 +1,11 @@
 "use client";
 
-import { PlannerProvider } from "@/components/planner-provider";
+import { PlannerProvider, ToastProvider } from "@/components/planner-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <PlannerProvider>{children}</PlannerProvider>;
+  return (
+    <PlannerProvider>
+      <ToastProvider>{children}</ToastProvider>
+    </PlannerProvider>
+  );
 }

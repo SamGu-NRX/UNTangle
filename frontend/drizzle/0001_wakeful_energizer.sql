@@ -1,0 +1,1 @@
+ALTER TABLE "planner_state" ADD COLUMN "selected_major" text;

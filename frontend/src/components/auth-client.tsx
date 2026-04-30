@@ -4,31 +4,86 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
+import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
 import { authClient } from "@/lib/auth-client";
+import { isUntEmail, untEmailRequirementMessage } from "@/lib/unt-auth";
+
+type AuthMessage = {
+  tone: "error" | "success";
+  text: string;
+};
 
 export function AuthClient() {
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
-  const [email, setEmail] = useState("eagleid@unt.edu");
+  const [magicEmail, setMagicEmail] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("Mean Green Student");
-  const [message, setMessage] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [message, setMessage] = useState<AuthMessage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMagicSubmitting, setIsMagicSubmitting] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
   const router = useRouter();
+
+  async function handleMagicLink(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isUntEmail(magicEmail)) {
+      setMessage({ tone: "error", text: untEmailRequirementMessage() });
+      return;
+    }
+
+    setIsMagicSubmitting(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/auth/sign-in/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: magicEmail,
+          name: magicEmail.split("@")[0],
+          callbackURL: "/courses",
+          newUserCallbackURL: "/courses",
+          errorCallbackURL: "/auth",
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        setMessage({ tone: "error", text: payload?.message ?? "Unable to send a sign-in link." });
+        return;
+      }
+
+      setMessage({ tone: "success", text: "Check your UNT inbox for a sign-in link." });
+    } catch {
+      setMessage({ tone: "error", text: "Unable to send a sign-in link." });
+    } finally {
+      setIsMagicSubmitting(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!isUntEmail(email)) {
+      setMessage({ tone: "error", text: untEmailRequirementMessage() });
+      return;
+    }
+
     setIsSubmitting(true);
     setMessage(null);
 
     const response =
       mode === "signIn"
         ? await authClient.signIn.email({ email, password })
-        : await authClient.signUp.email({ email, password, name });
+        : await authClient.signUp.email({ email, password, name: name || email });
 
     setIsSubmitting(false);
 
     if (response.error) {
-      setMessage(response.error.message ?? "Authentication failed.");
+      setMessage({ tone: "error", text: response.error.message ?? "Authentication failed." });
       return;
     }
 
@@ -36,101 +91,208 @@ export function AuthClient() {
   }
 
   return (
-    <AuthShell
-      eyebrow="Planner access"
-      title="Sign in without the homepage doing too much."
-      description="Saved plans, synced course states, and recovery all live here. Browse first, or enter directly if you are ready to keep your planner across sessions."
-      aside={
-        <>
-          {[
-            "Guest mode still gets the full planner flow.",
-            "Signed-in changes persist across sessions.",
-            "Password recovery stays available without leaving the auth surface.",
-          ].map((item, index) => (
-            <div
-              key={item}
-              className="subtle-panel animate-rise-in px-5 py-4"
-              style={{ animationDelay: `${index * 80}ms` }}
-            >
-              <p className="text-sm leading-7 text-[color:var(--copy)]">{item}</p>
-            </div>
-          ))}
-        </>
-      }
-    >
-      <div className="surface-panel mx-auto w-full max-w-[34rem] px-6 py-6 sm:px-7 sm:py-7">
-        <div className="rounded-full border border-[color:var(--line)] bg-[rgba(255,255,255,0.65)] p-1">
-          <div className="grid grid-cols-2 gap-1">
+    <AuthShell step={0}>
+      <div style={{ marginBottom: 18 }}>
+        <h1
+          className="font-display"
+          style={{
+            fontSize: "1.7rem",
+            fontWeight: 800,
+            color: "var(--brand-900)",
+            letterSpacing: "-0.03em",
+            lineHeight: 1.05,
+          }}
+        >
+          Sign in with your UNT email.
+        </h1>
+        <p style={{ marginTop: 6, fontSize: "0.85rem", color: "var(--copy)" }}>
+          Use a one-time link to create or open your planner account.
+        </p>
+      </div>
+
+      <form onSubmit={handleMagicLink} style={{ display: "grid", gap: 12 }}>
+        <Field
+          label="UNT email"
+          type="email"
+          value={magicEmail}
+          onChange={(e) => setMagicEmail(e.target.value)}
+          placeholder="eagleid@unt.edu"
+          autoComplete="email"
+          required
+          helper="@unt.edu and @my.unt.edu addresses are accepted."
+        />
+
+        {message ? (
+          <p
+            style={{
+              fontSize: "0.82rem",
+              color: message.tone === "error" ? "var(--danger)" : "var(--success-ink)",
+              padding: "0.55rem 0.7rem",
+              border: `1px solid ${
+                message.tone === "error" ? "var(--danger-border)" : "var(--success-border)"
+              }`,
+              borderRadius: "var(--r-sm)",
+              background: message.tone === "error" ? "var(--danger-bg)" : "var(--success-bg)",
+            }}
+          >
+            {message.text}
+          </p>
+        ) : null}
+
+        <Button type="submit" disabled={isMagicSubmitting} style={{ width: "100%", marginTop: 4 }}>
+          {isMagicSubmitting ? (
+            <>
+              <span className="spinner" />
+              <span>Sending…</span>
+            </>
+          ) : (
+            "Send UNT sign-in link"
+          )}
+        </Button>
+      </form>
+
+      <div
+        style={{
+          margin: "16px 0 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          color: "var(--faint)",
+          fontSize: "0.7rem",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+        }}
+      >
+        <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
+        <span>or</span>
+        <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => router.push("/courses")}
+        style={{ width: "100%" }}
+      >
+        Continue as guest
+      </Button>
+
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => setLocalOpen((current) => !current)}
+        style={{ width: "100%", marginTop: 8 }}
+      >
+        {localOpen ? "Hide password sign-in" : "Use password instead"}
+      </Button>
+
+      {localOpen ? (
+        <div
+          className="animate-content-enter"
+          style={{
+            marginTop: 16,
+            padding: "0.9rem",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-md)",
+            background: "var(--surface-muted)",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 4,
+              padding: 4,
+              border: "1px solid var(--line)",
+              borderRadius: "var(--r-md)",
+              background: "var(--surface)",
+              marginBottom: 12,
+            }}
+          >
             {(["signIn", "signUp"] as const).map((value) => (
               <button
                 key={value}
                 type="button"
-                className={`rounded-full px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-                  mode === value
-                    ? "bg-[color:var(--green-800)] text-white shadow-[0_10px_22px_rgba(38,69,52,0.14)]"
-                    : "text-[color:var(--muted)]"
-                }`}
                 onClick={() => setMode(value)}
+                style={{
+                  padding: "0.5rem",
+                  borderRadius: "var(--r-sm)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: mode === value ? "#fff" : "var(--copy)",
+                  background: mode === value ? "var(--brand-900)" : "transparent",
+                  transition: "background-color var(--d-hover) var(--ease), color var(--d-hover) var(--ease)",
+                }}
               >
-                {value === "signIn" ? "Sign in" : "Create account"}
+                {value === "signIn" ? "Log in" : "Sign up"}
               </button>
             ))}
           </div>
-        </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          {mode === "signUp" ? (
-            <label className="block">
-              <span className="field-label">Name</span>
-              <input className="field-input" value={name} onChange={(event) => setName(event.target.value)} />
-            </label>
-          ) : null}
-
-          <label className="block">
-            <span className="field-label">Email / Username</span>
-            <input
-              className="field-input"
+          <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+            {mode === "signUp" ? (
+              <Field
+                label="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            ) : null}
+            <Field
+              label="Email"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="eagleid@unt.edu"
+              autoComplete="email"
+              required
             />
-          </label>
-
-          <label className="block">
-            <span className="field-label">Password</span>
-            <input
-              className="field-input"
+            <Field
+              label="Password"
               type="password"
-              placeholder="At least 8 characters"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+              required
+              minLength={8}
             />
-          </label>
 
-          {message ? (
-            <p className="rounded-[1.25rem] border border-[#e5c1c1] bg-[#fff6f4] px-4 py-3 text-sm text-[#8a3b3b]">
-              {message}
-            </p>
-          ) : null}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button className="primary-button w-full" disabled={isSubmitting} type="submit">
-              {isSubmitting ? "Working..." : mode === "signIn" ? "Sign in" : "Create account"}
-            </button>
-            <button type="button" className="secondary-button w-full" onClick={() => router.push("/courses")}>
-              Continue as guest
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-6 flex flex-col gap-3 border-t border-[color:var(--line)] pt-5 text-sm text-[color:var(--copy)] sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/forgot-password" className="font-semibold text-[color:var(--green-800)]">
-            Forgot password?
-          </Link>
-          <Link href="/" className="text-[color:var(--muted)]">
-            Read the overview first
-          </Link>
+            <Button type="submit" disabled={isSubmitting} style={{ width: "100%", marginTop: 4 }}>
+              {isSubmitting ? (
+                <>
+                  <span className="spinner" />
+                  <span>Working…</span>
+                </>
+              ) : mode === "signIn" ? (
+                "Log in"
+              ) : (
+                "Create account"
+              )}
+            </Button>
+          </form>
         </div>
+      ) : null}
+
+      <div
+        style={{
+          marginTop: 16,
+          paddingTop: 14,
+          borderTop: "1px solid var(--line)",
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: "0.78rem",
+        }}
+      >
+        <Link href="/forgot-password" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
+          Forgot password?
+        </Link>
+        <Link href="/" style={{ color: "var(--copy)" }}>
+          Back home
+        </Link>
       </div>
     </AuthShell>
   );
