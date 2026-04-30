@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Courses</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f4f6f4; color: #1a2e1a; font-family: 'DM Sans', sans-serif; }
+
+    /* NAV */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 57px;
+      background: #fff; border-bottom: 1px solid #dde8dd;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; color: #00512b; }
+    .logo span { color: #6b826b; font-weight: 400; }
+    .steps { display: flex; gap: 6px; }
+    .step { width: 72px; height: 4px; border-radius: 2px; background: #dde8dd; transition: background 0.3s; }
+    .step.done { background: #007a40; }
+    .step.active { background: #00a855; }
+
+    /* MAJOR MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; backdrop-filter: blur(4px);
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 36px 32px;
+      width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,60,20,0.18);
+      animation: popIn 0.2s ease;
+    }
+    @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal h2 { font-family: 'Syne', sans-serif; font-size: 22px; margin-bottom: 6px; }
+    .modal p { font-size: 13px; color: #6b826b; margin-bottom: 24px; }
+    .major-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+    .major-btn {
+      padding: 12px 10px; border: 1.5px solid #dde8dd; border-radius: 10px;
+      background: #f8faf8; font-family: 'DM Sans', sans-serif; font-size: 12px;
+      font-weight: 600; color: #1a2e1a; cursor: pointer; text-align: left;
+      transition: all 0.15s; line-height: 1.3;
+    }
+    .major-btn:hover { border-color: #00512b; background: #f0fdf4; }
+    .major-btn.selected { border-color: #00512b; background: #f0fdf4; color: #00512b; }
+    .major-btn .dept-tag { display: block; font-size: 10px; color: #6b826b; margin-top: 2px; font-weight: 400; }
+    .modal-confirm {
+      width: 100%; padding: 12px; border-radius: 8px; border: none;
+      background: #00512b; color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.18s;
+    }
+    .modal-confirm:hover { background: #007a40; }
+    .modal-confirm:disabled { background: #a3b8a3; cursor: not-allowed; }
+
+    /* MAIN */
+    .courses-page { max-width: 760px; margin: 0 auto; padding: 28px 24px 100px; }
+
+    /* Major pill + change */
+    .major-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border: 1px solid #dde8dd; border-radius: 10px;
+      padding: 12px 16px; margin-bottom: 20px;
+    }
+    .major-bar-left { display: flex; align-items: center; gap: 10px; }
+    .major-icon { font-size: 18px; }
+    .major-name { font-weight: 600; font-size: 14px; }
+    .major-sub { font-size: 12px; color: #6b826b; }
+    .change-btn {
+      font-size: 12px; font-weight: 600; color: #00512b; background: none;
+      border: none; cursor: pointer; text-decoration: underline;
+    }
+
+    /* Progress bar */
+    .progress-bar-wrap { margin-bottom: 20px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #6b826b; margin-bottom: 6px; }
+    .progress-label strong { color: #00512b; }
+    .progress-track { height: 6px; background: #dde8dd; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #00a855; border-radius: 3px; transition: width 0.4s ease; }
+
+    /* Filter row */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 4px; }
+    .search-bar {
+      flex: 1; background: #fff; border: 1px solid #dde8dd;
+      border-radius: 8px; padding: 10px 14px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; color: #1a2e1a;
+      outline: none; transition: border-color 0.18s;
+    }
+    .search-bar:focus { border-color: #00512b; box-shadow: 0 0 0 3px rgba(0,81,43,0.1); }
+    .search-bar::placeholder { color: #a3b8a3; }
+    .dept-select {
+      background: #fff; border: 1px solid #dde8dd; border-radius: 8px;
+      padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+      color: #1a2e1a; outline: none; cursor: pointer;
+    }
+
+    /* Section label */
+    .dept-label {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px;
+      color: #6b826b; text-transform: uppercase; letter-spacing: 0.1em;
+      margin-top: 22px; margin-bottom: 8px;
+    }
+
+    /* Course row */
+    .course-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: #fff; border: 1px solid #dde8dd; border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 6px; transition: all 0.2s;
+    }
+    .course-row.completed { border-color: #86efac; background: #fafffe; }
+    .course-row.locked { opacity: 0.55; }
+
+    .row-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+    .course-info { min-width: 0; flex: 1; }
+    .course-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .course-meta { font-size: 11px; color: #6b826b; margin-top: 2px; }
+    .prereq-note { font-size: 11px; color: #d97706; margin-top: 3px; }
+    .prereq-note.locked-note { color: #dc2626; }
+
+    /* Toggle */
+    .toggle-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+    .toggle-label { font-size: 12px; color: #6b826b; white-space: nowrap; }
+    .toggle {
+      position: relative; width: 40px; height: 22px; cursor: pointer;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0; background: #dde8dd;
+      border-radius: 11px; transition: background 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: #00a855; }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; background: #fff;
+      border-radius: 50%; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+    .toggle.disabled { cursor: not-allowed; }
+    .toggle.disabled .toggle-track { background: #e2e8f0; }
+
+    /* Lock icon */
+    .lock-icon { font-size: 14px; flex-shrink: 0; }
+
+    /* States */
+    .loading-state { text-align: center; padding: 60px 20px; color: #6b826b; font-size: 14px; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #dde8dd; border-top-color: #00512b; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    .page-footer {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 57px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; background: #fff; border-top: 1px solid #dde8dd; z-index: 100;
+    }
+    .footer-count { font-size: 13px; color: #6b826b; }
+    .footer-count strong { color: #00512b; }
+    .btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.18s; }
+    .btn-primary { background: #00512b; color: #fff; }
+    .btn-primary:hover { background: #007a40; }
+    .btn-ghost { background: transparent; color: #6b826b; border: 1px solid #dde8dd; }
+    .btn-ghost:hover { border-color: #00512b; color: #00512b; }
+  </style>
+</head>
+<body>
+
+  <!-- MAJOR SELECTION MODAL -->
+  <div class="modal-overlay" id="major-modal">
+    <div class="modal">
+      <h2>What's your major? 🎓</h2>
+      <p>We'll show the courses most relevant to your degree plan.</p>
+      <div class="major-grid" id="major-grid"></div>
+      <button class="modal-confirm" id="modal-confirm" disabled onclick="confirmMajor()">Continue</button>
+    </div>
+  </div>
+
+  <nav>
+    <div class="logo">UnTangle <span>/ Courses</span></div>
+    <div class="steps">
+      <div class="step done"></div>
+      <div class="step active"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+    </div>
+  </nav>
+
+  <div class="courses-page">
+
+    <!-- Major bar -->
+    <div class="major-bar" id="major-bar" style="display:none;">
+      <div class="major-bar-left">
+        <span class="major-icon" id="major-bar-icon">🎓</span>
+        <div>
+          <div class="major-name" id="major-bar-name"></div>
+          <div class="major-sub">Your degree plan is active</div>
+        </div>
+      </div>
+      <button class="change-btn" onclick="openMajorModal()">Change</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-bar-wrap" id="progress-wrap" style="display:none;">
+      <div class="progress-label">
+        <span><strong id="completed-count">0</strong> of <span id="total-count">0</span> courses completed</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-row">
+      <input class="search-bar" id="search" placeholder="Search courses, e.g. CSCE 3600 or Calculus..." oninput="filterCourses()">
+      <select class="dept-select" id="dept-filter" onchange="filterCourses()">
+        <option value="">All Departments</option>
+      </select>
+    </div>
+
+    <div id="course-list">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        Loading courses...
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span class="footer-count"><strong id="footer-completed">0</strong> courses completed</span>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" onclick="window.location.href='DraftLogin.html'">← Back</button>
+      <button class="btn btn-primary" onclick="goToSchedule()">Optimize Schedule →</button>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001/api';
+
+    // ── MAJORS ────────────────────────────────────────────────────────────────
+    const MAJORS = [
+      { id: 'cs',       name: 'Computer Science',         dept: 'CSCE',  icon: '💻', core: ['CSCE1030','CSCE1040','CSCE2100','CSCE2110','CSCE2120','CSCE3100','CSCE3530','CSCE4600'] },
+      { id: 'ce',       name: 'Computer Engineering',     dept: 'CSCE',  icon: '⚙️', core: ['CSCE1030','CSCE1040','CSCE2100','CSCE2110','CSCE3444','CSCE4510'] },
+      { id: 'math',     name: 'Mathematics',              dept: 'MATH',  icon: '📐', core: ['MATH1710','MATH1720','MATH2730','MATH2700','MATH3000','MATH3410'] },
+      { id: 'bio',      name: 'Biology',                  dept: 'BIOL',  icon: '🧬', core: ['BIOL1710','BIOL1720','BIOL2451','BIOL3451','BIOL3510'] },
+      { id: 'business', name: 'Business',                 dept: 'BUSI',  icon: '📊', core: ['BUSI1300','MGMT3000','ACCT2010','MKTG3010','BUSI4900'] },
+      { id: 'psych',    name: 'Psychology',               dept: 'PSYC',  icon: '🧠', core: ['PSYC1010','PSYC2010','PSYC3310','PSYC4010'] },
+      { id: 'english',  name: 'English',                  dept: 'ENGL',  icon: '📚', core: ['ENGL2210','ENGL2220','ENGL3000','ENGL4000'] },
+      { id: 'other',    name: 'Other / Undecided',        dept: '',      icon: '🎓', core: [] },
+    ];
+
+    // ── PREREQS ───────────────────────────────────────────────────────────────
+    // key = courseSubject+number, value = array of prereq keys that must be completed
+    const PREREQS = {
+      'CSCE1040': ['CSCE1030'],
+      'CSCE2100': ['CSCE1040'],
+      'CSCE2110': ['CSCE1040'],
+      'CSCE2120': ['CSCE1040'],
+      'CSCE3100': ['CSCE2100','CSCE2110'],
+      'CSCE3530': ['CSCE2110'],
+      'CSCE3444': ['CSCE2110'],
+      'CSCE4600': ['CSCE3100'],
+      'CSCE4510': ['CSCE3444'],
+      'MATH1720': ['MATH1710'],
+      'MATH2730': ['MATH1720'],
+      'MATH2700': ['MATH1720'],
+      'MATH3000': ['MATH2730'],
+      'MATH3410': ['MATH2730'],
+      'BIOL1720': ['BIOL1710'],
+      'BIOL2451': ['BIOL1720'],
+      'BIOL3451': ['BIOL2451'],
+      'BIOL3510': ['BIOL2451'],
+      'PSYC2010': ['PSYC1010'],
+      'PSYC3310': ['PSYC2010'],
+      'PSYC4010': ['PSYC3310'],
+    };
+
+    // ── STATE ─────────────────────────────────────────────────────────────────
+    let allSections = [];
+    let completed = {}; // { "CSCE1030": true }
+    let selectedMajor = null;
+
+    const savedCompleted = sessionStorage.getItem('completed_courses');
+    if (savedCompleted) completed = JSON.parse(savedCompleted);
+    const savedMajor = sessionStorage.getItem('selected_major');
+    if (savedMajor) selectedMajor = JSON.parse(savedMajor);
+
+    // ── MAJOR MODAL ───────────────────────────────────────────────────────────
+    function buildMajorGrid() {
+      const grid = document.getElementById('major-grid');
+      grid.innerHTML = '';
+      MAJORS.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'major-btn' + (selectedMajor?.id === m.id ? ' selected' : '');
+        btn.innerHTML = `${m.icon} ${m.name}<span class="dept-tag">${m.dept || 'All departments'}</span>`;
+        btn.onclick = () => {
+          grid.querySelectorAll('.major-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedMajor = m;
+          document.getElementById('modal-confirm').disabled = false;
+        };
+        grid.appendChild(btn);
+      });
+    }
+
+    function openMajorModal() {
+      buildMajorGrid();
+      document.getElementById('major-modal').classList.remove('hidden');
+    }
+
+    function confirmMajor() {
+      sessionStorage.setItem('selected_major', JSON.stringify(selectedMajor));
+      document.getElementById('major-modal').classList.add('hidden');
+      updateMajorBar();
+      filterCourses();
+    }
+
+    function updateMajorBar() {
+      if (!selectedMajor) return;
+      document.getElementById('major-bar-icon').textContent = selectedMajor.icon;
+      document.getElementById('major-bar-name').textContent = selectedMajor.name;
+      document.getElementById('major-bar').style.display = 'flex';
+      document.getElementById('progress-wrap').style.display = 'block';
+    }
+
+    // ── DATA ──────────────────────────────────────────────────────────────────
+    async function init() {
+      // Show modal if no major selected
+      if (!selectedMajor) {
+        buildMajorGrid();
+      } else {
+        document.getElementById('major-modal').classList.add('hidden');
+        updateMajorBar();
+      }
+
+      try {
+        const subRes = await fetch(API + '/courses/subjects');
+        const subjects = await subRes.json();
+        const sel = document.getElementById('dept-filter');
+        subjects.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s; opt.textContent = s;
+          sel.appendChild(opt);
+        });
+
+        const res = await fetch(API + '/courses');
+        allSections = await res.json();
+        filterCourses();
+      } catch (e) {
+        document.getElementById('course-list').innerHTML =
+          '<div class="loading-state" style="color:#dc2626;">⚠️ Cannot connect to backend.<br>Make sure the server is running.</div>';
+      }
+    }
+
+    // ── GROUPING ──────────────────────────────────────────────────────────────
+    function groupByCourse(sections) {
+      const map = {};
+      sections.forEach(s => {
+        const key = s.subject + s.number;
+        if (!map[key]) map[key] = { subject: s.subject, number: s.number, title: s.title, credits: s.credits, sections: [] };
+        map[key].sections.push(s);
+      });
+      return Object.values(map);
+    }
+
+    // ── PREREQ HELPERS ────────────────────────────────────────────────────────
+    function isLocked(key) {
+      const prereqs = PREREQS[key];
+      if (!prereqs || prereqs.length === 0) return false;
+      return prereqs.some(p => !completed[p]);
+    }
+
+    function missingPrereqs(key) {
+      const prereqs = PREREQS[key];
+      if (!prereqs) return [];
+      return prereqs.filter(p => !completed[p]);
+    }
+
+    // ── RENDER ────────────────────────────────────────────────────────────────
+    function filterCourses() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      const dept = document.getElementById('dept-filter').value;
+
+      let filtered = allSections;
+      if (dept) filtered = filtered.filter(s => s.subject === dept);
+
+      let courses = groupByCourse(filtered);
+
+      // If major selected and no search, prioritize major courses first
+      if (selectedMajor && selectedMajor.core.length > 0 && !q && !dept) {
+        const coreSet = new Set(selectedMajor.core);
+        const core = courses.filter(c => coreSet.has(c.subject + c.number));
+        const rest = courses.filter(c => !coreSet.has(c.subject + c.number));
+        courses = [...core, ...rest];
+      }
+
+      if (q) {
+        courses = courses.filter(c =>
+          c.title.toLowerCase().includes(q) ||
+          (c.subject + c.number).toLowerCase().includes(q) ||
+          c.subject.toLowerCase().includes(q)
+        );
+      }
+
+      renderCourses(courses);
+    }
+
+    function renderCourses(courses) {
+      const list = document.getElementById('course-list');
+      list.innerHTML = '';
+
+      if (courses.length === 0) {
+        list.innerHTML = '<div class="loading-state">No courses found.</div>';
+        return;
+      }
+
+      // If major active and no filter, show "Your Major" section first
+      const q = document.getElementById('search').value.trim();
+      const dept = document.getElementById('dept-filter').value;
+      if (selectedMajor && selectedMajor.core.length > 0 && !q && !dept) {
+        const coreSet = new Set(selectedMajor.core);
+        const coreCourses = courses.filter(c => coreSet.has(c.subject + c.number));
+        const otherCourses = courses.filter(c => !coreSet.has(c.subject + c.number));
+
+        if (coreCourses.length > 0) {
+          const label = document.createElement('div');
+          label.className = 'dept-label';
+          label.textContent = `${selectedMajor.icon} ${selectedMajor.name} — Core Courses`;
+          list.appendChild(label);
+          coreCourses.forEach(c => list.appendChild(makeCourseRow(c)));
+        }
+
+        if (otherCourses.length > 0) {
+          renderBySubject(otherCourses, list);
+        }
+      } else {
+        renderBySubject(courses, list);
+      }
+
+      updateProgress();
+    }
+
+    function renderBySubject(courses, list) {
+      const bySubject = {};
+      courses.forEach(c => {
+        if (!bySubject[c.subject]) bySubject[c.subject] = [];
+        bySubject[c.subject].push(c);
+      });
+      Object.keys(bySubject).sort().forEach(subj => {
+        const label = document.createElement('div');
+        label.className = 'dept-label';
+        label.textContent = subj;
+        list.appendChild(label);
+        bySubject[subj].sort((a,b) => a.number.localeCompare(b.number)).forEach(c => list.appendChild(makeCourseRow(c)));
+      });
+    }
+
+    function makeCourseRow(course) {
+      const key = course.subject + course.number;
+      const isDone = !!completed[key];
+      const locked = isLocked(key);
+      const missing = missingPrereqs(key);
+
+      const row = document.createElement('div');
+      row.className = 'course-row' + (isDone ? ' completed' : '') + (locked ? ' locked' : '');
+      row.dataset.key = key;
+
+      const prereqHtml = locked
+        ? `<div class="prereq-note locked-note">🔒 Complete first: ${missing.join(', ')}</div>`
+        : missing.length === 0 && PREREQS[key]
+          ? `<div class="prereq-note">✓ Prereqs met</div>`
+          : PREREQS[key]
+            ? `<div class="prereq-note">Prereqs: ${PREREQS[key].join(', ')}</div>`
+            : '';
+
+      row.innerHTML = `
+        <div class="row-left">
+          <div class="course-info">
+            <div class="course-title">${course.title}</div>
+            <div class="course-meta">${course.subject} ${course.number} · ${course.credits} cr · ${course.sections.length} section${course.sections.length !== 1 ? 's' : ''}</div>
+            ${prereqHtml}
+          </div>
+        </div>
+        <div class="toggle-wrap">
+          <span class="toggle-label">${isDone ? 'Completed' : locked ? 'Locked' : 'Not yet'}</span>
+          <label class="toggle ${locked ? 'disabled' : ''}">
+            <input type="checkbox" ${isDone ? 'checked' : ''} ${locked ? 'disabled' : ''} onchange="toggleCourse('${key}', this)">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+      `;
+
+      return row;
+    }
+
+    function toggleCourse(key, checkbox) {
+      if (isLocked(key)) { checkbox.checked = false; return; }
+
+      completed[key] = checkbox.checked;
+      if (!checkbox.checked) delete completed[key];
+      sessionStorage.setItem('completed_courses', JSON.stringify(completed));
+
+      // Re-render to update lock states of dependent courses
+      filterCourses();
+    }
+
+    function updateProgress() {
+      const allCourses = groupByCourse(allSections);
+      const total = allCourses.length;
+      const done = Object.keys(completed).length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      document.getElementById('completed-count').textContent = done;
+      document.getElementById('total-count').textContent = total;
+      document.getElementById('progress-pct').textContent = pct + '%';
+      document.getElementById('progress-fill').style.width = pct + '%';
+      document.getElementById('footer-completed').textContent = done;
+    }
+
+    function goToSchedule() {
+      sessionStorage.setItem('completed_courses', JSON.stringify(completed));
+      window.location.href = 'schedule.html';
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Campus Map</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f4f6f4; color: #1a2e1a; font-family: 'DM Sans', sans-serif; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 57px;
+      background: #fff; border-bottom: 1px solid #dde8dd;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; color: #00512b; }
+    .logo span { color: #6b826b; font-weight: 400; }
+    .steps { display: flex; gap: 6px; }
+    .step { width: 72px; height: 4px; border-radius: 2px; background: #dde8dd; }
+    .step.done { background: #007a40; }
+    .step.active { background: #00a855; }
+
+    .map-shell { display: grid; grid-template-columns: 256px 1fr; height: calc(100vh - 57px - 57px); overflow: hidden; }
+
+    .map-sidebar { background: #fff; border-right: 1px solid #dde8dd; padding: 22px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 0; }
+    .sb-label { font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #6b826b; margin-bottom: 8px; margin-top: 4px; }
+    .sb-divider { height: 1px; background: #dde8dd; margin: 16px 0; }
+
+    .day-tabs { display: flex; gap: 4px; background: #f4f6f4; border-radius: 8px; padding: 3px; margin-bottom: 16px; }
+    .day-tab { flex: 1; font-size: 12px; font-weight: 600; padding: 6px 4px; border: none; border-radius: 6px; cursor: pointer; background: transparent; color: #6b826b; transition: all 0.15s; }
+    .day-tab.active { background: #fff; color: #00512b; box-shadow: 0 1px 4px rgba(0,60,20,0.1); }
+    .day-tab:hover:not(.active) { color: #1a2e1a; }
+
+    .stop-item { display: flex; align-items: flex-start; gap: 9px; padding: 10px 11px; border-radius: 8px; border: 1px solid #dde8dd; background: #fff; margin-bottom: 5px; border-left: 3px solid; }
+    .stop-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 11px; border: 2px solid; flex-shrink: 0; }
+    .stop-course { font-size: 12px; font-weight: 700; margin-bottom: 1px; }
+    .stop-detail { font-size: 11px; color: #6b826b; }
+
+    .walk-row { display: flex; align-items: center; gap: 7px; padding: 3px 11px 3px 20px; font-size: 11px; color: #6b826b; }
+    .walk-arrow { color: #00a855; font-size: 14px; }
+    .walk-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: #f0fdf4; border: 1px solid #86efac; color: #00512b; }
+
+    .no-class { text-align: center; padding: 28px 12px; background: #f4f6f4; border-radius: 8px; border: 1px dashed #dde8dd; color: #6b826b; font-size: 13px; }
+
+    .stats-row { display: flex; border: 1px solid #dde8dd; border-radius: 8px; overflow: hidden; background: #fff; }
+    .stat-box { flex: 1; padding: 10px 6px; text-align: center; border-right: 1px solid #dde8dd; }
+    .stat-box:last-child { border-right: none; }
+    .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; color: #00512b; }
+    .stat-lbl { font-size: 9px; color: #6b826b; margin-top: 1px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .tog-row { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: 12px; color: #1a2e1a; cursor: pointer; }
+    .tog-row input { accent-color: #00512b; width: 14px; height: 14px; cursor: pointer; }
+
+    .dl-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; margin-bottom: 5px; border: 1px solid #dde8dd; background: #fff; color: #1a2e1a; }
+    .dl-btn:hover { border-color: #00512b; color: #00512b; background: #f0fdf4; }
+    .dl-btn.primary { background: #00512b; color: #fff; border-color: #00512b; }
+    .dl-btn.primary:hover { background: #007a40; }
+
+    .map-canvas { position: relative; overflow: hidden; background: #f4f6f4; flex: 1; }
+    #campus-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .map-tooltip { position: absolute; background: #fff; border: 1px solid #dde8dd; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #1a2e1a; pointer-events: none; display: none; z-index: 10; box-shadow: 0 4px 14px rgba(0,60,20,0.1); }
+    .tip-title { font-weight: 700; color: #00512b; margin-bottom: 2px; }
+    .tip-sub   { color: #6b826b; }
+
+    @keyframes drawLine { to { stroke-dashoffset: 0; } }
+    @keyframes popDot   { from{opacity:0;transform:scale(0.2)} to{opacity:1;transform:scale(1)} }
+    @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+
+    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 57px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; background: #fff; border-top: 1px solid #dde8dd; z-index: 150; }
+    .btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.18s; }
+    .btn-ghost { background: transparent; color: #6b826b; border: 1px solid #dde8dd; }
+    .btn-ghost:hover { border-color: #00512b; color: #00512b; }
+    .btn-primary { background: #00512b; color: #fff; }
+    .btn-primary:hover { background: #007a40; }
+
+    .toast { position: fixed; bottom: 68px; left: 50%; transform: translateX(-50%); background: #1a2e1a; color: #fff; border-radius: 99px; padding: 10px 20px; font-size: 13px; font-weight: 500; box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 9999; white-space: nowrap; pointer-events: none; animation: tIn 0.2s ease, tOut 0.3s ease 1.9s forwards; }
+    @keyframes tIn  { from{opacity:0;transform:translate(-50%,10px)} to{opacity:1;transform:translate(-50%,0)} }
+    @keyframes tOut { from{opacity:1} to{opacity:0} }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">UnTangle <span>/ Map</span></div>
+    <div class="steps">
+      <div class="step done"></div>
+      <div class="step done"></div>
+      <div class="step done"></div>
+      <div class="step active"></div>
+    </div>
+  </nav>
+
+  <div class="map-shell">
+    <aside class="map-sidebar">
+      <div class="sb-label">Select Day</div>
+      <div class="day-tabs">
+        <button class="day-tab active" data-day="0" onclick="pickDay(this)">Mon</button>
+        <button class="day-tab"        data-day="1" onclick="pickDay(this)">Tue</button>
+        <button class="day-tab"        data-day="2" onclick="pickDay(this)">Wed</button>
+        <button class="day-tab"        data-day="3" onclick="pickDay(this)">Thu</button>
+        <button class="day-tab"        data-day="4" onclick="pickDay(this)">Fri</button>
+      </div>
+
+      <div class="sb-label">Route — <span id="day-label">Monday</span></div>
+      <div id="stop-list"></div>
+
+      <div class="sb-divider"></div>
+      <div class="sb-label">Summary</div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-val" id="stat-stops">—</div><div class="stat-lbl">Stops</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-dist">—</div><div class="stat-lbl">Walk</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-mins">—</div><div class="stat-lbl">Min</div></div>
+      </div>
+
+      <div class="sb-divider"></div>
+      <div class="sb-label">Display</div>
+      <label class="tog-row"><input type="checkbox" id="tog-labels" checked onchange="drawMap()"> Building labels</label>
+      <label class="tog-row"><input type="checkbox" id="tog-walk"   checked onchange="drawMap()"> Walk times</label>
+      <label class="tog-row"><input type="checkbox" id="tog-all"          onchange="drawMap()"> All buildings</label>
+      <label class="tog-row"><input type="checkbox" id="tog-grid"         onchange="drawMap()"> Grid lines</label>
+
+      <div class="sb-divider"></div>
+      <button class="dl-btn primary" onclick="downloadSVG()">&#8681; Download Map</button>
+      <button class="dl-btn" onclick="window.print()">&#9113; Print</button>
+    </aside>
+
+    <div class="map-canvas" id="map-wrap">
+      <svg id="campus-svg" viewBox="0 0 900 620" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="map-tooltip" id="tooltip"></div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <button class="btn btn-ghost" onclick="window.location.href='schedule.html'">&#8592; Back</button>
+    <span style="font-size:13px;color:#6b826b;">🎓 &nbsp;You're all set for Fall 2025!</span>
+  </div>
+
+  <script>
+    // ── REAL UNT BUILDING COORDINATES (mapped to SVG 900x620) ──────────────
+    // These are approximate positions based on the actual UNT campus layout
+    const BUILDINGS = {
+      'GAB':    { name: 'General Academic Building',    abbr: 'GAB',    x: 305, y: 108, w: 128, h: 62,  fill: '#e8f5ee', stroke: '#a3c9b3' },
+      'WH':     { name: 'Wooten Hall',                  abbr: 'WH',     x: 128, y: 236, w: 108, h: 56,  fill: '#e8f0fb', stroke: '#a3b8e8' },
+      'BLB':    { name: 'Business Leadership Building', abbr: 'BLB',    x: 496, y: 252, w: 118, h: 56,  fill: '#fdf4e8', stroke: '#e8c98a' },
+      'LIFE':   { name: 'Life Sciences Complex',        abbr: 'LIFE',   x: 476, y: 386, w: 128, h: 62,  fill: '#f5e8fb', stroke: '#c9a3e8' },
+      'LANG':   { name: 'Language Building',            abbr: 'LANG',   x: 128, y: 380, w: 98,  h: 54,  fill: '#e8f5ee', stroke: '#a3c9b3' },
+      'CHEM':   { name: 'Chemistry Building',           abbr: 'CHEM',   x: 486, y: 116, w: 98,  h: 50,  fill: '#e8f5ee', stroke: '#a3c9b3' },
+      'AUD':    { name: 'Auditorium Building',          abbr: 'AUD',    x: 646, y: 126, w: 98,  h: 50,  fill: '#fef9e8', stroke: '#e8d98a' },
+      'MUSI':   { name: 'Music Building',               abbr: 'MUSI',   x: 136, y: 494, w: 94,  h: 48,  fill: '#fce8e8', stroke: '#e8a3a3' },
+      'ENV':    { name: 'Environmental Science',        abbr: 'ENV',    x: 628, y: 326, w: 116, h: 56,  fill: '#e8f5ee', stroke: '#a3c9b3' },
+      'GATE':   { name: 'Gateway Center',               abbr: 'GATE',   x: 284, y: 356, w: 106, h: 54,  fill: '#e8f0fb', stroke: '#a3b8e8' },
+      'MATT':   { name: 'Matthews Hall',                abbr: 'MATT',   x: 128, y: 132, w: 108, h: 56,  fill: '#fdf4e8', stroke: '#e8c98a' },
+      'HICK':   { name: 'Hickory Hall',                 abbr: 'HICK',   x: 646, y: 236, w: 98,  h: 50,  fill: '#f5e8fb', stroke: '#c9a3e8' },
+      'ART':    { name: 'Art Building',                 abbr: 'ART',    x: 284, y: 460, w: 100, h: 50,  fill: '#fce8e8', stroke: '#e8a3a3' },
+      'ARTA':   { name: 'Art Annex',                    abbr: 'ARTA',   x: 284, y: 530, w: 94,  h: 48,  fill: '#fce8e8', stroke: '#e8a3a3' },
+      'NTDP':   { name: 'Discovery Park',               abbr: 'DISC',   x: 720, y: 430, w: 130, h: 70,  fill: '#e8f0fb', stroke: '#a3b8e8' },
+    };
+
+    // Parse days string to array of day indices
+    function parseDays(days) {
+      if (!days) return [];
+      const result = [];
+      let i = 0;
+      while (i < days.length) {
+        if (days[i]==='T' && days[i+1]==='u') { result.push(1); i+=2; }
+        else if (days[i]==='T' && days[i+1]==='h') { result.push(3); i+=2; }
+        else if (days[i]==='M') { result.push(0); i++; }
+        else if (days[i]==='W') { result.push(2); i++; }
+        else if (days[i]==='F') { result.push(4); i++; }
+        else i++;
+      }
+      return result;
+    }
+
+    function timeToHour(t) {
+      if (!t) return 8;
+      const [h,m] = t.split(':').map(Number);
+      return h + m/60;
+    }
+
+    function timeFmt(t) {
+      if (!t) return '';
+      const [h,m] = t.split(':').map(Number);
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const hh = h > 12 ? h-12 : h===0 ? 12 : h;
+      return hh + ':' + (m<10?'0'+m:m) + ' ' + ampm;
+    }
+
+    // Load schedule from sessionStorage
+    const scheduleData = JSON.parse(sessionStorage.getItem('schedule_data') || '{}');
+
+    let activeDay = 0;
+    const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+
+    function center(b) { return { x: b.x + b.w/2, y: b.y + b.h/2 }; }
+    function dst(a,b)  { const dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
+    function toMi(px)  { return (px/900*1.4).toFixed(2); }
+    function toMin(px) { return Math.max(1, Math.round(px/900*28)); }
+
+    function getBldgFromCode(code) {
+      if (!code) return null;
+      // code might be "CHEM" or "Discovery Park (NTDP)"
+      // Try direct match first
+      if (BUILDINGS[code]) return { id: code, ...BUILDINGS[code] };
+      // Try to find a partial match
+      const key = Object.keys(BUILDINGS).find(k => code.includes(k));
+      return key ? { id: key, ...BUILDINGS[key] } : null;
+    }
+
+    function getStops(day) {
+      const stops = [];
+      Object.values(scheduleData).forEach(entry => {
+        const sec = entry.section;
+        if (!sec) return;
+        const days = parseDays(sec.days);
+        if (days.includes(day)) {
+          const bldg = getBldgFromCode(sec.building_code);
+          stops.push({
+            key:   entry.course,
+            title: entry.title,
+            hour:  timeToHour(sec.start_time),
+            start: sec.start_time,
+            end:   sec.end_time,
+            location: sec.location,
+            bldg,
+            color: entry.color,
+          });
+        }
+      });
+      return stops.sort((a,b) => a.hour - b.hour);
+    }
+
+    // ── SVG HELPERS ───────────────────────────────────────────
+    const NS = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      const e = document.createElementNS(NS, tag);
+      Object.keys(attrs).forEach(k => e.setAttribute(k, attrs[k]));
+      return e;
+    }
+    function tx(tag, attrs, text) { const e = el(tag, attrs); e.textContent = text; return e; }
+
+    // ── DRAW MAP ──────────────────────────────────────────────
+    function drawMap() {
+      const svg = document.getElementById('campus-svg');
+      svg.innerHTML = '';
+
+      const stops     = getStops(activeDay);
+      const showLabels = document.getElementById('tog-labels').checked;
+      const showWalk   = document.getElementById('tog-walk').checked;
+      const showAll    = document.getElementById('tog-all').checked;
+      const showGrid   = document.getElementById('tog-grid').checked;
+
+      const activeIds = stops
+        .filter(s => s.bldg)
+        .map(s => s.bldg.id);
+
+      // Background
+      svg.appendChild(el('rect', { width:900, height:620, fill:'#f4f6f4' }));
+
+      // Grid
+      if (showGrid) {
+        for (let gx=0; gx<900; gx+=60)
+          svg.appendChild(el('line', {x1:gx,y1:0,x2:gx,y2:620,stroke:'#dde8dd','stroke-width':'1'}));
+        for (let gy=0; gy<620; gy+=60)
+          svg.appendChild(el('line', {x1:0,y1:gy,x2:900,y2:gy,stroke:'#dde8dd','stroke-width':'1'}));
+      }
+
+      // Roads
+      [[0,184,900,184],[0,318,900,318],[0,458,900,458],
+       [254,0,254,620],[454,0,454,620],[638,0,638,620]].forEach(r => {
+        svg.appendChild(el('line',{x1:r[0],y1:r[1],x2:r[2],y2:r[3],stroke:'#d8e8d8','stroke-width':'16','stroke-linecap':'square'}));
+        svg.appendChild(el('line',{x1:r[0],y1:r[1],x2:r[2],y2:r[3],stroke:'#b8d0b8','stroke-width':'1.5','stroke-dasharray':'10,10'}));
+      });
+
+      svg.appendChild(tx('text',{x:18,y:181,fill:'#a3bca3','font-family':'DM Sans,Arial','font-size':'10'},'W Hickory St'));
+      svg.appendChild(tx('text',{x:18,y:315,fill:'#a3bca3','font-family':'DM Sans,Arial','font-size':'10'},'W Mulberry St'));
+      svg.appendChild(tx('text',{x:18,y:455,fill:'#a3bca3','font-family':'DM Sans,Arial','font-size':'10'},'W Sycamore St'));
+
+      // Buildings
+      Object.entries(BUILDINGS).forEach(([id, b]) => {
+        const isActive = activeIds.includes(id);
+        if (!showAll && !isActive) return;
+
+        const grp = document.createElementNS(NS, 'g');
+        grp.setAttribute('opacity', isActive ? 1 : 0.35);
+        grp.style.cursor = 'pointer';
+
+        grp.appendChild(el('rect', {
+          x:b.x, y:b.y, width:b.w, height:b.h, rx:'7',
+          fill: isActive ? b.fill : '#f0f4f0',
+          stroke: isActive ? b.stroke : '#dde8dd',
+          'stroke-width': isActive ? '1.5' : '1',
+        }));
+
+        if (showLabels) {
+          grp.appendChild(tx('text', {
+            x: b.x+b.w/2, y: b.y+b.h/2+(isActive?-4:4),
+            'text-anchor':'middle','font-family':'Syne,Arial','font-size':'11','font-weight':'700',
+            fill: isActive ? '#1a2e1a' : '#7a917a',
+          }, b.abbr));
+          if (isActive) {
+            grp.appendChild(tx('text', {
+              x: b.x+b.w/2, y: b.y+b.h/2+9,
+              'text-anchor':'middle','font-family':'DM Sans,Arial','font-size':'9','font-weight':'500',
+              fill: '#4a5e4a',
+            }, b.name.length > 20 ? b.abbr : b.name));
+          }
+        }
+
+        grp.addEventListener('mouseenter', e => {
+          const tip = document.getElementById('tooltip');
+          const match = stops.find(s => s.bldg && s.bldg.id === id);
+          tip.innerHTML = `<div class="tip-title">${b.name}</div>` +
+            (match ? `<div class="tip-sub">${match.key} · ${timeFmt(match.start)}</div>` : '');
+          tip.style.display = 'block';
+        });
+        grp.addEventListener('mousemove', e => {
+          const r = document.getElementById('map-wrap').getBoundingClientRect();
+          const tip = document.getElementById('tooltip');
+          tip.style.left = (e.clientX-r.left+14)+'px';
+          tip.style.top  = (e.clientY-r.top-10)+'px';
+        });
+        grp.addEventListener('mouseleave', () => {
+          document.getElementById('tooltip').style.display = 'none';
+        });
+        svg.appendChild(grp);
+      });
+
+      // Route lines between stops that have known buildings
+      const mappedStops = stops.filter(s => s.bldg);
+      if (mappedStops.length > 1) {
+        for (let i = 0; i < mappedStops.length - 1; i++) {
+          const from = center(mappedStops[i].bldg);
+          const to   = center(mappedStops[i+1].bldg);
+          const d    = dst(from, to);
+          const dl   = (i*0.55)+'s';
+          const pl   = Math.round(d)+60;
+
+          svg.appendChild(el('line',{x1:from.x,y1:from.y,x2:to.x,y2:to.y,stroke:'rgba(0,168,85,0.12)','stroke-width':'12','stroke-linecap':'round'}));
+
+          const line = el('line',{x1:from.x,y1:from.y,x2:to.x,y2:to.y,stroke:'#00a855','stroke-width':'2.5','stroke-linecap':'round','stroke-dasharray':pl,'stroke-dashoffset':pl});
+          line.style.animation = `drawLine 1.2s ease forwards ${dl}`;
+          svg.appendChild(line);
+
+          const mx=(from.x+to.x)/2, my=(from.y+to.y)/2;
+          const ang=Math.atan2(to.y-from.y,to.x-from.x)*180/Math.PI;
+          const ag=document.createElementNS(NS,'g');
+          ag.setAttribute('transform',`rotate(${ang} ${mx} ${my})`);
+          const at=tx('text',{x:mx,y:my+5,'text-anchor':'middle','font-size':'12',fill:'#00a855'},'▶');
+          at.style.animation=`fadeIn 0.3s ease forwards ${(parseFloat(dl)+0.8)}s`;
+          at.style.opacity='0';
+          ag.appendChild(at); svg.appendChild(ag);
+
+          if (showWalk) {
+            const cw=80,ch=18,cx=mx-cw/2,cy=my+18;
+            const bg=el('rect',{x:cx,y:cy,width:cw,height:ch,rx:'9',fill:'#fff',stroke:'#dde8dd','stroke-width':'1'});
+            bg.style.animation=`fadeIn 0.3s ease forwards ${(parseFloat(dl)+0.9)}s`;
+            bg.style.opacity='0';
+            svg.appendChild(bg);
+            const wt=tx('text',{x:cx+cw/2,y:cy+12,'text-anchor':'middle','font-family':'DM Sans,Arial','font-size':'9','font-weight':'600',fill:'#4a5e4a'},toMi(d)+' mi · '+toMin(d)+' min');
+            wt.style.animation=`fadeIn 0.3s ease forwards ${(parseFloat(dl)+0.9)}s`;
+            wt.style.opacity='0';
+            svg.appendChild(wt);
+          }
+        }
+      }
+
+      // Stop dots
+      mappedStops.forEach((stop, idx) => {
+        const c   = center(stop.bldg);
+        const col = stop.color;
+        const dl  = (idx*0.38+0.25)+'s';
+
+        const halo = el('circle',{cx:c.x,cy:c.y,r:'16',fill:'#fff',stroke:col.border,'stroke-width':'2'});
+        halo.style.animation=`popDot 0.35s cubic-bezier(.34,1.56,.64,1) forwards ${dl}`;
+        halo.style.opacity='0'; svg.appendChild(halo);
+
+        const dot = el('circle',{cx:c.x,cy:c.y,r:'12',fill:col.bg,stroke:col.solid,'stroke-width':'2'});
+        dot.style.animation=`popDot 0.35s cubic-bezier(.34,1.56,.64,1) forwards ${dl}`;
+        dot.style.opacity='0'; svg.appendChild(dot);
+
+        const num = tx('text',{x:c.x,y:c.y+4,'text-anchor':'middle','font-family':'Syne,Arial','font-size':'11','font-weight':'800',fill:col.fg},''+(idx+1));
+        num.style.animation=`fadeIn 0.2s ease forwards ${(parseFloat(dl)+0.15)}s`;
+        num.style.opacity='0'; svg.appendChild(num);
+
+        const lx=c.x+18, ly=c.y-20;
+        const lb=el('rect',{x:lx-4,y:ly-12,width:100,height:30,rx:'6',fill:col.bg,stroke:col.border,'stroke-width':'1.5'});
+        lb.style.animation=`fadeIn 0.25s ease forwards ${(parseFloat(dl)+0.2)}s`;
+        lb.style.opacity='0'; svg.appendChild(lb);
+
+        const lt=tx('text',{x:lx+46,y:ly-1,'text-anchor':'middle','font-family':'Syne,Arial','font-size':'11','font-weight':'800',fill:col.fg},stop.key);
+        lt.style.animation=`fadeIn 0.25s ease forwards ${(parseFloat(dl)+0.22)}s`;
+        lt.style.opacity='0'; svg.appendChild(lt);
+
+        const ls=tx('text',{x:lx+46,y:ly+10,'text-anchor':'middle','font-family':'DM Sans,Arial','font-size':'9',fill:col.fg,opacity:'0.8'},timeFmt(stop.start));
+        ls.style.animation=`fadeIn 0.25s ease forwards ${(parseFloat(dl)+0.22)}s`;
+        ls.style.opacity='0'; svg.appendChild(ls);
+      });
+
+      renderSidebar(stops, mappedStops);
+    }
+
+    function renderSidebar(stops, mappedStops) {
+      const list = document.getElementById('stop-list');
+      list.innerHTML = '';
+
+      if (stops.length === 0) {
+        list.innerHTML = `<div class="no-class">No classes on ${dayNames[activeDay]}.<br>Enjoy the day off! 🎉</div>`;
+        document.getElementById('stat-stops').textContent = '0';
+        document.getElementById('stat-dist').textContent  = '—';
+        document.getElementById('stat-mins').textContent  = '—';
+        return;
+      }
+
+      let totalPx = 0;
+      stops.forEach((stop, idx) => {
+        const col = stop.color;
+        const item = document.createElement('div');
+        item.className = 'stop-item';
+        item.style.borderLeftColor = col.solid;
+        item.innerHTML = `
+          <div class="stop-num" style="background:${col.bg};color:${col.fg};border-color:${col.solid}">${idx+1}</div>
+          <div>
+            <div class="stop-course" style="color:${col.solid}">${stop.key}</div>
+            <div class="stop-detail">${timeFmt(stop.start)} – ${timeFmt(stop.end)}</div>
+            <div class="stop-detail">${stop.location || 'Location TBA'}</div>
+          </div>`;
+        list.appendChild(item);
+
+        if (idx < stops.length-1 && stop.bldg && stops[idx+1].bldg) {
+          const fc = center(stop.bldg);
+          const tc = center(stops[idx+1].bldg);
+          const d  = dst(fc, tc);
+          totalPx += d;
+
+          const wr = document.createElement('div');
+          wr.className = 'walk-row';
+          wr.innerHTML = `<span class="walk-arrow">↓</span><span class="walk-tag">${toMin(d)} min</span><span>${toMi(d)} mi</span>`;
+          list.appendChild(wr);
+        }
+      });
+
+      const totalDist = mappedStops.length > 1
+        ? mappedStops.reduce((sum, s, i) => {
+            if (i === 0) return 0;
+            return sum + dst(center(mappedStops[i-1].bldg), center(s.bldg));
+          }, 0)
+        : 0;
+
+      document.getElementById('stat-stops').textContent = stops.length;
+      document.getElementById('stat-dist').textContent  = toMi(totalDist)+' mi';
+      document.getElementById('stat-mins').textContent  = toMin(totalDist)+'m';
+    }
+
+    function pickDay(btn) {
+      document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      activeDay = parseInt(btn.dataset.day);
+      document.getElementById('day-label').textContent = dayNames[activeDay];
+      drawMap();
+    }
+
+    function downloadSVG() {
+      const svg  = document.getElementById('campus-svg');
+      const data = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([data],{type:'image/svg+xml'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href=url; a.download='untangle-map.svg'; a.click();
+      URL.revokeObjectURL(url);
+      showToast('Map saved!');
+    }
+
+    function showToast(msg) {
+      const ex=document.querySelector('.toast'); if(ex) ex.remove();
+      const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+      document.body.appendChild(t);
+      setTimeout(() => { if(t.parentNode) t.remove(); },2400);
+    }
+
+    drawMap();
+  </script>
+</body>
+</html>

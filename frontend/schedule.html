@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Schedule</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f4f6f4; color: #1a2e1a; font-family: 'DM Sans', sans-serif; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 57px;
+      background: #fff; border-bottom: 1px solid #dde8dd;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; color: #00512b; }
+    .logo span { color: #6b826b; font-weight: 400; }
+    .steps { display: flex; gap: 6px; }
+    .step { width: 72px; height: 4px; border-radius: 2px; background: #dde8dd; transition: background 0.3s; }
+    .step.done { background: #007a40; }
+    .step.active { background: #00a855; }
+
+    .schedule-shell {
+      display: grid; grid-template-columns: 256px 1fr;
+      height: calc(100vh - 57px - 57px); overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sched-sidebar {
+      background: #fff; border-right: 1px solid #dde8dd;
+      padding: 22px 16px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .sb-label {
+      font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: #6b826b; margin-bottom: 8px; margin-top: 4px;
+    }
+    .sb-divider { height: 1px; background: #dde8dd; margin: 16px 0; }
+
+    .opt-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 8px; border: 1px solid #dde8dd;
+      background: #fff; cursor: pointer; margin-bottom: 6px; transition: all 0.15s;
+    }
+    .opt-row:hover { border-color: #007a40; background: #f0fdf4; }
+    .opt-row.active { border-color: #00a855; background: #f0fdf4; }
+    .opt-dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #dde8dd; flex-shrink: 0; margin-top: 2px; transition: all 0.15s; }
+    .opt-row.active .opt-dot { border-color: #00512b; background: #00512b; }
+    .opt-title { font-size: 13px; font-weight: 600; color: #1a2e1a; }
+    .opt-desc  { font-size: 11px; color: #6b826b; margin-top: 1px; }
+    .opt-row.active .opt-title { color: #00512b; }
+
+    .course-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 11px; border-radius: 8px; margin-bottom: 5px; border: 1px solid;
+      font-size: 12px; font-weight: 600;
+    }
+    .pill-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+    .pill-sub { font-size: 10px; font-weight: 400; opacity: 0.75; }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-box { background: #f4f6f4; border: 1px solid #dde8dd; border-radius: 8px; padding: 10px; text-align: center; }
+    .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; color: #00512b; }
+    .stat-lbl { font-size: 10px; color: #6b826b; margin-top: 2px; }
+
+    /* Calendar */
+    .sched-main { display: flex; flex-direction: column; overflow: hidden; padding: 22px 26px 0; background: #f4f6f4; }
+    .sched-topbar {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 16px; flex-shrink: 0; gap: 12px;
+    }
+    .sched-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; color: #1a2e1a; margin-bottom: 3px; }
+    .sched-sub { font-size: 13px; color: #6b826b; }
+    .credit-tag { font-size: 12px; font-weight: 600; padding: 5px 13px; border-radius: 99px; border: 1px solid #dde8dd; background: #fff; color: #00512b; white-space: nowrap; }
+
+    .cal-scroll { flex: 1; overflow-y: auto; }
+    .cal-grid {
+      display: grid; grid-template-columns: 52px repeat(5, 1fr);
+      border: 1px solid #dde8dd; border-radius: 10px; overflow: hidden; background: #fff;
+    }
+    .cal-corner { background: #f8faf8; border-bottom: 1px solid #dde8dd; border-right: 1px solid #dde8dd; }
+    .cal-header {
+      background: #f8faf8; padding: 10px 6px; text-align: center;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px;
+      color: #6b826b; border-bottom: 1px solid #dde8dd; border-right: 1px solid #dde8dd;
+    }
+    .cal-header:last-child { border-right: none; }
+    .cal-time {
+      font-size: 10px; color: #6b826b; padding: 5px 4px 0; text-align: right;
+      border-right: 1px solid #dde8dd; border-bottom: 1px solid #dde8dd; height: 54px;
+    }
+    .cal-cell { border-right: 1px solid #dde8dd; border-bottom: 1px solid #dde8dd; height: 54px; position: relative; }
+    .cal-cell:last-child { border-right: none; }
+    .cal-event {
+      position: absolute; inset: 3px; border-radius: 7px; cursor: pointer;
+      padding: 5px 7px; display: flex; flex-direction: column; justify-content: center;
+      border-left: 3px solid; transition: all 0.12s;
+    }
+    .cal-event:hover { filter: brightness(0.96); transform: scale(1.01); z-index: 2; }
+    .ev-label  { font-size: 10px; font-weight: 700; line-height: 1.2; }
+    .ev-detail { font-size: 9px; opacity: 0.7; margin-top: 1px; }
+
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 12px 0 74px; flex-shrink: 0; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b826b; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 3px; }
+
+    /* Conflict warning */
+    .conflict-banner {
+      background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
+      padding: 10px 14px; font-size: 12px; color: #dc2626; margin-bottom: 12px;
+      display: none;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(26,46,26,0.4); z-index: 500;
+      align-items: center; justify-content: center;
+      padding: 20px; backdrop-filter: blur(2px);
+    }
+    .modal-box {
+      background: #fff; border-radius: 14px; width: 100%; max-width: 540px;
+      border: 1px solid #dde8dd; box-shadow: 0 16px 48px rgba(0,60,20,0.14);
+      overflow: hidden; animation: modalIn 0.2s ease both;
+    }
+    @keyframes modalIn { from{opacity:0;transform:translateY(10px)scale(0.98)} to{opacity:1;transform:none} }
+    .modal-head {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 20px 22px 16px; border-bottom: 1px solid #dde8dd; background: #f8faf8;
+    }
+    .modal-head-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; color: #1a2e1a; }
+    .modal-head-sub   { font-size: 12px; color: #6b826b; margin-top: 3px; }
+    .modal-close { background: #dde8dd; border: none; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 12px; color: #6b826b; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: #c8d8c8; color: #1a2e1a; }
+    .modal-body { padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+
+    .sec-card {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 15px; border-radius: 10px; border: 1px solid #dde8dd;
+      background: #fff; transition: all 0.12s; gap: 12px;
+    }
+    .sec-card:hover { border-color: #007a40; }
+    .sec-card.active { border-color: #00a855; background: #f0fdf4; }
+    .sec-card.conflict { border-color: #fca5a5; background: #fef2f2; }
+    .sec-days { font-size: 13px; font-weight: 700; color: #1a2e1a; margin-bottom: 3px; }
+    .sec-meta { font-size: 11px; color: #6b826b; }
+    .sec-conflict-tag { font-size: 10px; color: #dc2626; font-weight: 600; margin-top: 3px; }
+    .sec-btn {
+      font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 7px;
+      cursor: pointer; white-space: nowrap; border: 1px solid #00512b;
+      background: transparent; color: #00512b; transition: all 0.15s;
+    }
+    .sec-btn:hover { background: #00512b; color: #fff; }
+    .sec-btn.picked { background: #f0fdf4; color: #00512b; cursor: default; }
+
+    .page-footer {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 57px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; background: #fff; border-top: 1px solid #dde8dd; z-index: 150;
+    }
+    .btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.18s; }
+    .btn-primary { background: #00512b; color: #fff; }
+    .btn-primary:hover { background: #007a40; }
+    .btn-ghost { background: transparent; color: #6b826b; border: 1px solid #dde8dd; }
+    .btn-ghost:hover { border-color: #00512b; color: #00512b; }
+
+    .toast {
+      position: fixed; bottom: 68px; left: 50%; transform: translateX(-50%);
+      background: #1a2e1a; color: #fff; border-radius: 99px;
+      padding: 10px 20px; font-size: 13px; font-weight: 500;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15); z-index: 9999; white-space: nowrap; pointer-events: none;
+      animation: tIn 0.2s ease, tOut 0.3s ease 1.9s forwards;
+    }
+    @keyframes tIn  { from{opacity:0;transform:translate(-50%,10px)} to{opacity:1;transform:translate(-50%,0)} }
+    @keyframes tOut { from{opacity:1} to{opacity:0} }
+
+    .loading-state { text-align: center; padding: 60px 20px; color: #6b826b; font-size: 14px; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #dde8dd; border-top-color: #00512b; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">UnTangle <span>/ Schedule</span></div>
+    <div class="steps">
+      <div class="step done"></div>
+      <div class="step done"></div>
+      <div class="step active"></div>
+      <div class="step"></div>
+    </div>
+  </nav>
+
+  <div class="schedule-shell">
+    <aside class="sched-sidebar">
+      <div class="sb-label">Optimization</div>
+      <div class="opt-row active" data-opt="morning" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Cluster Morning</div><div class="opt-desc">All classes before noon</div></div>
+      </div>
+      <div class="opt-row" data-opt="evening" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Cluster Evening</div><div class="opt-desc">All classes after 3 PM</div></div>
+      </div>
+      <div class="opt-row" data-opt="compact" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">Compact Days</div><div class="opt-desc">Fewer days on campus</div></div>
+      </div>
+      <div class="opt-row" data-opt="noconflict" onclick="setOpt(this)">
+        <div class="opt-dot"></div>
+        <div><div class="opt-title">No Conflicts</div><div class="opt-desc">Avoid time overlaps</div></div>
+      </div>
+
+      <div class="sb-divider"></div>
+      <div class="sb-label">Your Courses</div>
+      <div id="course-pills"></div>
+
+      <div class="sb-divider"></div>
+      <div class="sb-label">Schedule Stats</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val" id="stat-credits">0</div><div class="stat-lbl">Credits</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-days">0</div><div class="stat-lbl">Days/Week</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-early">—</div><div class="stat-lbl">Earliest</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-late">—</div><div class="stat-lbl">Latest</div></div>
+      </div>
+    </aside>
+
+    <main class="sched-main">
+      <div class="sched-topbar">
+        <div>
+          <div class="sched-title">Fall 2025 Schedule</div>
+          <div class="sched-sub" id="opt-desc">Click a class to switch sections.</div>
+        </div>
+        <div class="credit-tag" id="credit-tag">0 Credit Hours</div>
+      </div>
+
+      <div id="conflict-banner" class="conflict-banner">
+        ⚠️ <span id="conflict-text"></span>
+      </div>
+
+      <div class="cal-scroll">
+        <div class="cal-grid" id="cal">
+          <div class="cal-corner"></div>
+          <div class="cal-header">Monday</div>
+          <div class="cal-header">Tuesday</div>
+          <div class="cal-header">Wednesday</div>
+          <div class="cal-header">Thursday</div>
+          <div class="cal-header">Friday</div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal" onclick="maybeClose(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <div class="modal-head-title" id="modal-title">Switch Section</div>
+          <div class="modal-head-sub" id="modal-sub">Select a different time</div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <button class="btn btn-ghost" onclick="window.location.href='courses.html'">&#8592; Back</button>
+    <button class="btn btn-primary" onclick="saveAndContinue()">Generate Campus Map &#8594;</button>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001/api';
+
+    // Color palette for courses
+    const PALETTE = [
+      { bg:'#f0fdf4', border:'#86efac', solid:'#16a34a', fg:'#166534' },
+      { bg:'#eff6ff', border:'#93c5fd', solid:'#2563eb', fg:'#1e40af' },
+      { bg:'#fefce8', border:'#fde047', solid:'#ca8a04', fg:'#713f12' },
+      { bg:'#faf5ff', border:'#d8b4fe', solid:'#7c3aed', fg:'#581c87' },
+      { bg:'#fff1f2', border:'#fda4af', solid:'#e11d48', fg:'#9f1239' },
+      { bg:'#f0f9ff', border:'#7dd3fc', solid:'#0284c7', fg:'#0c4a6e' },
+      { bg:'#fdf4ff', border:'#e879f9', solid:'#a21caf', fg:'#701a75' },
+      { bg:'#fff7ed', border:'#fdba74', solid:'#ea580c', fg:'#7c2d12' },
+    ];
+
+    let courseData   = {};   // { "CSCE3600": { subject, number, title, credits, sections[] } }
+    let chosen       = {};   // { "CSCE3600": sectionIndex }
+    let courseColors = {};   // { "CSCE3600": paletteEntry }
+    let activeOpt    = 'morning';
+
+    // Days parsing: "MWF" → [0,2,4], "TuTh" → [1,3], "MW" → [0,2], etc.
+    function parseDays(days) {
+      if (!days) return [];
+      const map = { 'M':0, 'Tu':1, 'W':2, 'Th':3, 'F':4 };
+      const result = [];
+      let i = 0;
+      while (i < days.length) {
+        if (days[i]==='T' && days[i+1]==='u') { result.push(1); i+=2; }
+        else if (days[i]==='T' && days[i+1]==='h') { result.push(3); i+=2; }
+        else if (days[i]==='M') { result.push(0); i++; }
+        else if (days[i]==='W') { result.push(2); i++; }
+        else if (days[i]==='F') { result.push(4); i++; }
+        else i++;
+      }
+      return result;
+    }
+
+    function timeToHour(t) {
+      if (!t) return 8;
+      const [h,m] = t.split(':').map(Number);
+      return h + m/60;
+    }
+
+    function hfmt(h) {
+      const whole = Math.floor(h);
+      return whole < 12 ? whole+'am' : whole===12 ? '12pm' : (whole-12)+'pm';
+    }
+
+    function timeFmt(t) {
+      if (!t) return '';
+      const [h,m] = t.split(':').map(Number);
+      const ampm = h < 12 ? 'am' : 'pm';
+      const hh = h > 12 ? h-12 : h===0 ? 12 : h;
+      return hh+':'+(m<10?'0'+m:m)+ampm;
+    }
+
+    async function init() {
+      const selectedKeys = JSON.parse(sessionStorage.getItem('selected_courses') || '[]');
+
+      if (selectedKeys.length === 0) {
+        document.querySelector('.sched-main').innerHTML =
+          '<div class="loading-state">No courses selected. <a href="courses.html">Go back and select some courses.</a></div>';
+        return;
+      }
+
+      // Show loading
+      document.getElementById('cal').innerHTML =
+        '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#6b826b"><div class="spinner" style="margin:0 auto 12px"></div>Loading sections...</div>';
+
+      // Fetch sections for each selected course
+      let colorIdx = 0;
+      for (const key of selectedKeys) {
+        const subject = key.replace(/\d.*/, '');
+        const number  = key.replace(/^[A-Z]+/, '');
+        try {
+          const res  = await fetch(`${API}/courses/${subject}/${number}`);
+          const data = await res.json();
+          if (data && data.sections && data.sections.length > 0) {
+            courseData[key]   = data;
+            courseColors[key] = PALETTE[colorIdx % PALETTE.length];
+            chosen[key]       = 0; // default to first section
+            colorIdx++;
+          }
+        } catch(e) { /* skip */ }
+      }
+
+      // Apply default optimization
+      applyOpt('morning');
+      buildSidebar();
+      buildCal();
+    }
+
+    // ── OPTIMIZATION ──────────────────────────────────────────
+    function applyOpt(opt) {
+      activeOpt = opt;
+      Object.keys(courseData).forEach(key => {
+        const sections = courseData[key].sections;
+        let best = 0;
+
+        if (opt === 'morning') {
+          // Prefer sections that start before noon
+          best = sections.reduce((bi, s, i) => {
+            const h = timeToHour(s.start_time);
+            const bh = timeToHour(sections[bi].start_time);
+            return (h < 12 && h > timeToHour('07:00') && h < bh) ? i : bi;
+          }, 0);
+        } else if (opt === 'evening') {
+          // Prefer sections that start after 15:00
+          best = sections.reduce((bi, s, i) => {
+            const h = timeToHour(s.start_time);
+            const bh = timeToHour(sections[bi].start_time);
+            return (h >= 15 && h > bh) ? i : bi;
+          }, 0);
+        } else if (opt === 'compact') {
+          // Prefer TuTh sections (2 days instead of 3)
+          best = sections.findIndex(s => s.days && (s.days.includes('Th') || (s.days === 'TuTh')));
+          if (best === -1) best = 0;
+        } else if (opt === 'noconflict') {
+          // Already chosen — just re-render to highlight conflicts
+          best = chosen[key] || 0;
+        }
+
+        chosen[key] = best;
+      });
+    }
+
+    function setOpt(el) {
+      document.querySelectorAll('.opt-row').forEach(r => r.classList.remove('active'));
+      el.classList.add('active');
+      const opt = el.dataset.opt;
+      const labels = {
+        morning:    'Optimized: classes clustered before noon.',
+        evening:    'Optimized: classes clustered after 3 PM.',
+        compact:    'Optimized: fewer campus days (TuTh preferred).',
+        noconflict: 'Optimized: all time conflicts resolved.',
+      };
+      applyOpt(opt);
+      buildCal();
+      document.getElementById('opt-desc').textContent = labels[opt];
+      showToast('✓ ' + el.querySelector('.opt-title').textContent + ' applied');
+    }
+
+    // ── SIDEBAR ─────────────────────────────────────────────
+    function buildSidebar() {
+      const pills = document.getElementById('course-pills');
+      pills.innerHTML = '';
+      Object.keys(courseData).forEach(key => {
+        const c = courseData[key];
+        const col = courseColors[key];
+        const pill = document.createElement('div');
+        pill.className = 'course-pill';
+        pill.style.cssText = `background:${col.bg};border-color:${col.border};color:${col.fg}`;
+        pill.innerHTML = `<div class="pill-dot" style="background:${col.solid}"></div>
+          <div><div>${c.subject} ${c.number}</div><div class="pill-sub">${c.title}</div></div>`;
+        pills.appendChild(pill);
+      });
+    }
+
+    // ── CALENDAR ─────────────────────────────────────────────
+    function buildCal() {
+      const cal = document.getElementById('cal');
+      // Keep headers
+      const headers = Array.from(cal.children).slice(0, 6);
+      cal.innerHTML = '';
+      headers.forEach(h => cal.appendChild(h));
+
+      // Build slot map: "day-hour" → event info
+      const slots = {};
+      const conflicts = [];
+
+      Object.keys(chosen).forEach(key => {
+        const sec = courseData[key].sections[chosen[key]];
+        if (!sec) return;
+        const days = parseDays(sec.days);
+        const startH = Math.floor(timeToHour(sec.start_time));
+        const endH   = Math.ceil(timeToHour(sec.end_time));
+
+        days.forEach(d => {
+          for (let h = startH; h < endH; h++) {
+            const slotKey = d + '-' + h;
+            if (slots[slotKey]) {
+              conflicts.push(`${key} conflicts with ${slots[slotKey].key} at ${timeFmt(sec.start_time)}`);
+            }
+            slots[slotKey] = { key, sec, col: courseColors[key] };
+          }
+        });
+      });
+
+      // Show conflict banner
+      const banner = document.getElementById('conflict-banner');
+      if (conflicts.length > 0) {
+        banner.style.display = 'block';
+        document.getElementById('conflict-text').textContent = conflicts[0] + (conflicts.length > 1 ? ` (+${conflicts.length-1} more)` : '');
+      } else {
+        banner.style.display = 'none';
+      }
+
+      // Draw rows from 7am to 9pm
+      for (let rh = 7; rh <= 21; rh++) {
+        const tc = document.createElement('div');
+        tc.className = 'cal-time';
+        tc.textContent = hfmt(rh);
+        cal.appendChild(tc);
+
+        for (let d = 0; d < 5; d++) {
+          const cell = document.createElement('div');
+          cell.className = 'cal-cell';
+          const info = slots[d + '-' + rh];
+          if (info) {
+            const col = info.col;
+            const ev = document.createElement('div');
+            ev.className = 'cal-event';
+            ev.style.cssText = `background:${col.bg};border-left-color:${col.solid};color:${col.fg}`;
+            ev.innerHTML = `<div class="ev-label">${info.key}</div><div class="ev-detail">${info.sec.location || ''}</div>`;
+            ev.onclick = (function(k){ return () => openModal(k); })(info.key);
+            cell.appendChild(ev);
+          }
+          cal.appendChild(cell);
+        }
+      }
+
+      updateStats();
+      buildLegend();
+    }
+
+    function updateStats() {
+      let totalCredits = 0, allHours = [], allDays = new Set();
+      Object.keys(chosen).forEach(key => {
+        const c = courseData[key];
+        const sec = c.sections[chosen[key]];
+        if (!sec) return;
+        totalCredits += c.credits || 3;
+        const h = timeToHour(sec.start_time);
+        const eh = timeToHour(sec.end_time);
+        allHours.push(h, eh);
+        parseDays(sec.days).forEach(d => allDays.add(d));
+      });
+
+      document.getElementById('stat-credits').textContent = totalCredits;
+      document.getElementById('stat-days').textContent    = allDays.size;
+      document.getElementById('stat-early').textContent   = allHours.length ? hfmt(Math.min(...allHours)) : '—';
+      document.getElementById('stat-late').textContent    = allHours.length ? hfmt(Math.max(...allHours)) : '—';
+      document.getElementById('credit-tag').textContent   = totalCredits + ' Credit Hours';
+    }
+
+    function buildLegend() {
+      const leg = document.getElementById('legend');
+      leg.innerHTML = '';
+      Object.keys(courseData).forEach(key => {
+        const col = courseColors[key];
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `<div class="legend-dot" style="background:${col.solid}"></div>${courseData[key].title}`;
+        leg.appendChild(item);
+      });
+    }
+
+    // ── MODAL ────────────────────────────────────────────────
+    function openModal(key) {
+      const c   = courseData[key];
+      const col = courseColors[key];
+      document.getElementById('modal-title').textContent = `${key} — Switch Section`;
+      document.getElementById('modal-sub').textContent   = `${c.sections.length} sections available`;
+      const body = document.getElementById('modal-body');
+      body.innerHTML = '';
+
+      c.sections.forEach((sec, idx) => {
+        const active = chosen[key] === idx;
+        // Check if this section conflicts with others
+        const hasConflict = wouldConflict(key, idx);
+
+        const card = document.createElement('div');
+        card.className = 'sec-card' + (active ? ' active' : '') + (hasConflict && !active ? ' conflict' : '');
+
+        card.innerHTML = `
+          <div>
+            <div class="sec-days">${sec.days || '—'} &nbsp;·&nbsp; ${timeFmt(sec.start_time)} – ${timeFmt(sec.end_time)}</div>
+            <div class="sec-meta">${sec.location || '—'} &nbsp;·&nbsp; ${sec.instructor || 'TBA'}</div>
+            ${hasConflict && !active ? '<div class="sec-conflict-tag">⚠️ Time conflict</div>' : ''}
+          </div>
+          <button class="sec-btn${active ? ' picked' : ''}">${active ? '✓ Selected' : 'Select'}</button>
+        `;
+
+        if (!active) {
+          card.querySelector('.sec-btn').onclick = () => {
+            chosen[key] = idx;
+            buildCal();
+            closeModal();
+            showToast('✓ Section updated — ' + key);
+          };
+        }
+        body.appendChild(card);
+      });
+
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function wouldConflict(key, idx) {
+      const sec  = courseData[key].sections[idx];
+      if (!sec) return false;
+      const days = parseDays(sec.days);
+      const startH = timeToHour(sec.start_time);
+      const endH   = timeToHour(sec.end_time);
+
+      for (const otherKey of Object.keys(chosen)) {
+        if (otherKey === key) continue;
+        const otherSec = courseData[otherKey].sections[chosen[otherKey]];
+        if (!otherSec) continue;
+        const otherDays = parseDays(otherSec.days);
+        const otherStart = timeToHour(otherSec.start_time);
+        const otherEnd   = timeToHour(otherSec.end_time);
+        const dayOverlap = days.some(d => otherDays.includes(d));
+        const timeOverlap = startH < otherEnd && endH > otherStart;
+        if (dayOverlap && timeOverlap) return true;
+      }
+      return false;
+    }
+
+    function closeModal()  { document.getElementById('modal').style.display = 'none'; }
+    function maybeClose(e) { if (e.target.id === 'modal') closeModal(); }
+
+    function showToast(msg) {
+      const ex = document.querySelector('.toast'); if (ex) ex.remove();
+      const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { if (t.parentNode) t.remove(); }, 2400);
+    }
+
+    function saveAndContinue() {
+      // Save chosen sections to sessionStorage for map page
+      const scheduleData = {};
+      Object.keys(chosen).forEach(key => {
+        const sec = courseData[key].sections[chosen[key]];
+        scheduleData[key] = {
+          course:    key,
+          title:     courseData[key].title,
+          section:   sec,
+          color:     courseColors[key],
+        };
+      });
+      sessionStorage.setItem('schedule_data', JSON.stringify(scheduleData));
+      window.location.href = 'map.html';
+    }
+
+    init();
+  </script>
+</body>
+</html>

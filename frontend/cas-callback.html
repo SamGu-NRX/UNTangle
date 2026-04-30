@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UnTangle — Logging in...</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f4f6f4; display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; font-family: 'DM Sans', sans-serif; color: #1a2e1a;
+    }
+    .card {
+      text-align: center; padding: 48px 40px;
+      background: #fff; border: 1px solid #dde8dd; border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,60,20,0.08); max-width: 360px; width: 100%;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; color: #1a2e1a; margin-bottom: 24px; }
+    .logo span { color: #00512b; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #dde8dd; border-top-color: #00512b; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { font-size: 14px; color: #6b826b; }
+    .error { color: #dc2626; margin-top: 12px; display: none; }
+    a { color: #00512b; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Un<span>Tangle</span></div>
+    <div class="spinner"></div>
+    <p>Verifying your UNT credentials...</p>
+    <p class="error" id="err">Login failed. <a href="DraftLogin.html">Try again</a></p>
+  </div>
+
+  <script>
+    const ticket = new URLSearchParams(window.location.search).get('ticket');
+
+    if (!ticket) {
+      window.location.href = 'DraftLogin.html';
+    } else {
+      fetch('http://localhost:3001/api/auth/unt/callback?ticket=' + ticket, {
+        credentials: 'include'
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.user) {
+          sessionStorage.setItem('untangle_user', JSON.stringify(data.user));
+          window.location.href = 'courses.html';
+        } else {
+          document.getElementById('err').style.display = 'block';
+          document.querySelector('.spinner').style.display = 'none';
+          document.querySelector('p').style.display = 'none';
+        }
+      })
+      .catch(() => {
+        document.getElementById('err').style.display = 'block';
+        document.querySelector('.spinner').style.display = 'none';
+      });
+    }
+  </script>
+</body>
+</html>

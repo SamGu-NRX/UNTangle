@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnTangle — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f4f6f4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .login-wrapper { width: 100%; display: flex; justify-content: center; padding: 40px 20px; }
+    .login-card {
+      width: 100%; max-width: 400px;
+      background: #ffffff;
+      border: 1px solid #dde8dd;
+      border-radius: 16px;
+      padding: 44px 36px 40px;
+      box-shadow: 0 4px 24px rgba(0,60,20,0.08);
+    }
+    .login-steps { display: flex; gap: 5px; margin-bottom: 28px; }
+    .login-step { height: 3px; border-radius: 2px; flex: 1; background: #dde8dd; }
+    .login-step.active { background: #00a855; }
+    .login-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; color: #1a2e1a; letter-spacing: -0.5px; margin-bottom: 4px; }
+    .login-logo span { color: #00512b; }
+    .login-tagline { font-size: 13px; color: #6b826b; margin-bottom: 28px; }
+    .login-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #6b826b; margin-bottom: 6px; margin-top: 16px; }
+    .login-input {
+      width: 100%; background: #f8faf8; border: 1px solid #dde8dd;
+      border-radius: 8px; padding: 11px 14px;
+      font-family: 'DM Sans', sans-serif; font-size: 14px; color: #1a2e1a;
+      outline: none; transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .login-input:focus { border-color: #00512b; box-shadow: 0 0 0 3px rgba(0,81,43,0.1); background: #fff; }
+    .login-input::placeholder { color: #a3b8a3; }
+    .login-actions { display: flex; gap: 10px; margin-top: 24px; }
+    .login-actions .btn { flex: 1; justify-content: center; }
+    .btn {
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+      transition: all 0.18s; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-primary { background: #00512b; color: #fff; }
+    .btn-primary:hover { background: #007a40; }
+    .btn-primary:disabled { background: #a3b8a3; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: #6b826b; border: 1px solid #dde8dd; }
+    .btn-ghost:hover { border-color: #00512b; color: #00512b; }
+    .login-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 18px 0; font-size: 12px; color: #a3b8a3;
+    }
+    .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: #dde8dd; }
+    .login-footer { text-align: center; margin-top: 18px; font-size: 12px; color: #a3b8a3; }
+    .login-footer a { color: #00512b; text-decoration: none; font-weight: 500; }
+    .login-footer a:hover { text-decoration: underline; }
+    .error-msg { font-size: 12px; color: #dc2626; margin-top: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-steps">
+        <div class="login-step active"></div>
+        <div class="login-step"></div>
+        <div class="login-step"></div>
+        <div class="login-step"></div>
+      </div>
+
+      <div class="login-logo">Un<span>Tangle</span></div>
+      <p class="login-tagline">UNT Schedule Optimizer</p>
+
+      <div class="login-label">Email / Username</div>
+      <input class="login-input" type="email" placeholder="eagleid@unt.edu" id="email">
+
+      <div class="login-label">Password</div>
+      <input class="login-input" type="password" placeholder="••••••••" id="password">
+
+      <div class="error-msg" id="error-msg">Something went wrong. Please try again.</div>
+
+      <div class="login-actions">
+        <button class="btn btn-primary" id="login-btn" onclick="handleUNTLogin()">Log In</button>
+        <button class="btn btn-ghost" onclick="handleUNTLogin()">Sign Up</button>
+      </div>
+
+      <div class="login-divider">or</div>
+
+      <button class="btn btn-ghost" id="guest-btn" style="width:100%;justify-content:center;" onclick="handleGuest()">
+        Continue as Guest
+      </button>
+
+      <div class="login-footer">
+        <a href="#" onclick="alert('A reset link has been sent to your UNT email.'); return false;">Forgot password?</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001/api';
+
+    // UNT SSO — redirect to CAS
+    function handleUNTLogin() {
+      window.location.href = API + '/auth/unt/login';
+    }
+
+    // Guest — hit the backend, get a cookie, go to courses
+    async function handleGuest() {
+      const btn = document.getElementById('guest-btn');
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+
+      try {
+        const res  = await fetch(API + '/auth/guest', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        const data = await res.json();
+
+        if (data.user) {
+          sessionStorage.setItem('untangle_user', JSON.stringify(data.user));
+          window.location.href = 'courses.html';
+        } else {
+          showError('Could not start guest session.');
+        }
+      } catch (e) {
+        showError('Cannot connect to server. Is the backend running?');
+      } finally {
+        btn.textContent = 'Continue as Guest';
+        btn.disabled = false;
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
