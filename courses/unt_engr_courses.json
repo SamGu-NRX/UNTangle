@@ -1,0 +1,94 @@
+[
+    {
+        "course_number": "ENGR2301",
+        "title": "Statics  (ENGR 2301 or ENGR 2401)",
+        "number_of_hours": "3 hours",
+        "description": "Basic theory of engineering mechanics, using calculus, involving the description of forces, moments and couples acting on stationary engineering structures. Equilibrium in 2 and 3 dimensions, free-body diagrams, friction, centroids, centers of gravity and moments of inertia.",
+        "prerequisites": "PHYS 1710 and PHYS 1730 , all with a grade of C",
+        "prerequisites_course_codes": [
+            "PHYS1710",
+            "PHYS1730"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171089"
+    },
+    {
+        "course_number": "ENGR2302",
+        "title": "Dynamics  (ENGR 2302 or ENGR 2402)",
+        "number_of_hours": "3 hours",
+        "description": "Basic theory of engineering mechanics, using calculus, involving the motion of particles, rigid bodies and systems of particles; Newton\u2019s Laws; work and energy relationships; principles of impulse and momentum; application of kinetics and kinematics to the solution of engineering problems.",
+        "prerequisites": "ENGR 2301 and MATH 1720 all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "ENGR2301",
+            "MATH1720"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171090"
+    },
+    {
+        "course_number": "ENGR2332",
+        "title": "Mechanics of Materials  (ENGR 2332)",
+        "number_of_hours": "3 hours",
+        "description": "(3;0) Relationships among loads placed on structural components; shape and size of components; resultant stresses, strains and deflections of components.",
+        "prerequisites": "ENGR 2301 .",
+        "prerequisites_course_codes": [
+            "ENGR2301"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171091"
+    },
+    {
+        "course_number": "ENGR1030",
+        "title": "Technological Systems",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to technological systems with focus on societal interrelationships; past, present and future trends; and influence and impact on technological literacy. Core Category: Component Area Option A",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171085"
+    },
+    {
+        "course_number": "ENGR1304",
+        "title": "Engineering Graphics  (ENGR 1204 or ENGR 1304)",
+        "number_of_hours": "3 hours",
+        "description": "Fundamentals and principles of engineering drafting practices used in technical processes.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171087"
+    },
+    {
+        "course_number": "ENGR3000",
+        "title": "Foundations of Manufacturing",
+        "number_of_hours": "3 hours",
+        "description": "Technological knowledge foundation to the principles and practices of manufacturing engineering with the intention of applying this knowledge to product development. Offers an understanding of traditional and emergent manufacturing technologies used in industry and will relate the design requirements of a product to the appropriate manufacturing processes. The global challenges to product performance, quality, environmental, ethics and economic considerations will be investigated.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174027"
+    },
+    {
+        "course_number": "ENGR3450",
+        "title": "Engineering Materials",
+        "number_of_hours": "4 hours",
+        "description": "Interrelationships of processing-microstructure-properties-performance in solid materials; diffusion laws and heat treatment of engineering alloys; the principles of materials microstructure characterization and mechanical testing; materials selection methodologies for mechanical systems design; fundamental knowledge for evaluation and analysis of materials failure and corrosion.",
+        "prerequisites": "ENGR 2332 and PHYS 1710 . CHEM 1410 / PHYS 1430 or CHEM 1415 / CHEM 1435 all with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "ENGR2332",
+            "PHYS1710",
+            "CHEM1410",
+            "PHYS1430",
+            "CHEM1415",
+            "CHEM1435"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171097"
+    },
+    {
+        "course_number": "ENGR2304",
+        "title": "Statics and Strength of Materials",
+        "number_of_hours": "3 hours",
+        "description": "This course includes a study of applied engineering mechanics including forces, static equilibrium and simple truss analysis. An emphasis is placed on the concepts and mathematical calculations of stress, strain and deflection within structural elements encountered in construction. The rationale and factors of safety for sizing and design of these elements is reviewed.",
+        "prerequisites": "MATH 1190 (or MATH 1710 ) with a grade of C or better and PHYS 1410 ( PHYS 1710 ) with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "MATH1190",
+            "MATH1710",
+            "PHYS1410",
+            "PHYS1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173922"
+    }
+]

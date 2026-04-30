@@ -1,0 +1,208 @@
+[
+    {
+        "course_number": "TECM4920",
+        "title": "Cooperative Education in Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Supervised work in a job directly related to the student\u2019s major, professional field of study or career objective.",
+        "prerequisites": "TECM 2700 ; consent of department. May be repeated for credit.",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172862"
+    },
+    {
+        "course_number": "TECM1700",
+        "title": "Introduction to Professional, Science, and Technical Writing",
+        "number_of_hours": "3 hours",
+        "description": "A process-oriented introduction to writing, especially for science, pre-engineering and business students. Focuses on understanding the writing situation and provides students the opportunity to practice writing in response to professional, science and technical situations. Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172848"
+    },
+    {
+        "course_number": "TECM4250",
+        "title": "Writing Technical Procedures and Manuals",
+        "number_of_hours": "3 hours",
+        "description": "Application of the principles of technical style to the writing of technical procedures and manuals. Intensive practice in writing technical procedures and manuals.",
+        "prerequisites": "TECM 2700 . Programs outside of the Dept. of Technical Communication that allow (but not require) TECM 4250 as part of major requirements:",
+        "prerequisites_course_codes": [
+            "TECM2700",
+            "TECM4250"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172858"
+    },
+    {
+        "course_number": "TECM1600",
+        "title": "AI in Professional Settings",
+        "number_of_hours": "3 hours",
+        "description": "Explores various applications and ethical considerations of Artificial Intelligence (AI), including the benefits and limitations of AI-assisted writing tools and the potential impacts of AI on jobs and the workforce. Core Category: Component Area Option A",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174367"
+    },
+    {
+        "course_number": "TECM4180",
+        "title": "Advanced Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Practical application of technical communication style, conventions, genre, and technologies in industry, business and the sciences.",
+        "prerequisites": "TECM 2700 .",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172855"
+    },
+    {
+        "course_number": "TECM4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172860"
+    },
+    {
+        "course_number": "TECM4100",
+        "title": "Proposal Writing",
+        "number_of_hours": "3 hours",
+        "description": "Provides a foundation in proposal writing. Focuses on each component of the proposal writing process: identifying appropriate revenue streams, developing fundable themes, writing specific work plans and budgets, and understanding the review process.",
+        "prerequisites": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate.",
+        "prerequisites_course_codes": [
+            "TECM2700",
+            "TECM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172854"
+    },
+    {
+        "course_number": "TECM4200",
+        "title": "Research Methods for the Practitioner",
+        "number_of_hours": "3 hours",
+        "description": "Explores the research tasks that professional and technical communicators face in real-world situations and, in some cases, work with a real-world client to investigate a research question. Explores the relationship between theory and research and learning how to design and carry out empirical studies using both quantitative and qualitative methods.",
+        "prerequisites": "TECM 2700 .",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172857"
+    },
+    {
+        "course_number": "TECM3500",
+        "title": "Digital Media for Professional Communication",
+        "number_of_hours": "3 hours",
+        "description": "Combines theory and hands-on experience to focus on how a variety of emerging technologies, including mobile and social media, are used in professional settings.",
+        "prerequisites": "TECM 2700 .",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173306"
+    },
+    {
+        "course_number": "TECM4010",
+        "title": "AI and Automation in Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Explores the impact of Artificial Intelligence (AI) and automation on professional and technical communication. Skills in using AI-assisted tools for content creation, project management, and user-experience design.",
+        "prerequisites": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate.",
+        "prerequisites_course_codes": [
+            "TECM2700",
+            "TECM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174370"
+    },
+    {
+        "course_number": "TECM1500",
+        "title": "New Media Experience",
+        "number_of_hours": "3 hours",
+        "description": "Provides an overview of the user experience design and development process: How people in the technology industry work together to ideate, validate, develop, and sell digital media products; what job roles are involved in the process; and what avenues students can choose to pursue those roles. Core Category: Component Area Option B",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172847"
+    },
+    {
+        "course_number": "TECM4190",
+        "title": "Technical Editing",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the techniques for editing technical documents, including proofreading; copyediting; and comprehensive editing for audience, content, organization, style, and design.",
+        "prerequisites": "TECM 2700 .",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172856"
+    },
+    {
+        "course_number": "TECM4950",
+        "title": "Senior Capstone Course",
+        "number_of_hours": "3 hours",
+        "description": "Culmination of the BA in professional and technical communication. Create a capstone portfolio and then present it to the professional and technical communication faculty and industry professionals.",
+        "prerequisites": "Professional and Technical Communication major status with 90 or more semester credit hours only.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172863"
+    },
+    {
+        "course_number": "TECM3010",
+        "title": "The Profession of Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Provides a foundation for understanding technical communication as a profession. Focuses on the competencies required for information product creation; the tools used by technical communication professionals; collaboration techniques for effective team-based projects; and professional development through interaction with industry professionals.",
+        "prerequisites": "TECM 2700 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173515"
+    },
+    {
+        "course_number": "TECM2700",
+        "title": "Technical Writing  (ENGL 2311)",
+        "number_of_hours": "3 hours",
+        "description": "Expository writing, especially for science, pre-engineering and business students.",
+        "prerequisites": "ENGL 1310 or TECM 1700 . May be substituted for ENGL 1320 in some programs; students should consult advisors in their majors. Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites_course_codes": [
+            "ENGL1310",
+            "TECM1700",
+            "ENGL1320"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172849"
+    },
+    {
+        "course_number": "TECM4500",
+        "title": "Content Analysis in Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Covers the systematic, objective, and quantitative analysis of message characteristics with a professional communication focus. Explores various approaches to analyzing content, including computer-aided, human-coded, and sentiment analysis.",
+        "prerequisites": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate.",
+        "prerequisites_course_codes": [
+            "TECM2700",
+            "TECM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173516"
+    },
+    {
+        "course_number": "TECM4700",
+        "title": "Writing in the Sciences",
+        "number_of_hours": "3 hours",
+        "description": "Intensive investigation of the genres of writing in the sciences. Applying appropriate structures for reporting general information and specific data for a variety of scientific contexts.",
+        "prerequisites": "TECM 2700 .",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172859"
+    },
+    {
+        "course_number": "TECM3100",
+        "title": "Visual Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Learning and applying theoretically-driven strategies for producing commercial publications for high-tech industries. Designing visual information using industry-standard software.",
+        "prerequisites": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate.",
+        "prerequisites_course_codes": [
+            "TECM2700",
+            "TECM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172852"
+    },
+    {
+        "course_number": "TECM3550",
+        "title": "Content Strategy in Technical Communication",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the theories and methodologies associated with content strategy for online media in professional communication settings. Covers how technical communicators can use social media in their work and how professional communicators can plan, organize and develop online content.",
+        "prerequisites": "TECM 2700 .",
+        "prerequisites_course_codes": [
+            "TECM2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173390"
+    }
+]

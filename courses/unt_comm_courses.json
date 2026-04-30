@@ -1,0 +1,325 @@
+[
+    {
+        "course_number": "COMM3880",
+        "title": "Debate Practicum",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Practicum. Instruction and practice in competitive debate. Advanced discussion of argumentation theory and debate practice with an emphasis on contemporary intercollegiate debate. Requires participation in debate tournaments and weekly team meetings.",
+        "prerequisites": "Participation on UNT Debate Team and consent of instructor. May be repeated for credit for a maximum of 9 hours; however, no more than 3 hours total credit for COMM 3880 may be applied to the communication studies major or minor requirements.",
+        "prerequisites_course_codes": [
+            "COMM3880"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173325"
+    },
+    {
+        "course_number": "COMM4360",
+        "title": "Performance Composition",
+        "number_of_hours": "(2;0;1)",
+        "description": "Contemporary performance practices as critical and persuasive tools. Develops skills in reading, writing, analyzing and performing a broad range of texts to acquaint students with the variety of methods whereby performances can be composed.",
+        "prerequisites": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2060 or THEA 1050 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2060",
+            "THEA1050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170654"
+    },
+    {
+        "course_number": "COMM3320",
+        "title": "Communication and Conflict Management",
+        "number_of_hours": "(1;0;2)",
+        "description": "Examination of the role of communication in the effective management of conflict and introduction to basic mediation topics such as gender, intercultural and nonverbal communication. Study of conflict in various common contexts: intrapersonal, interpersonal, group and organizational.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 or PSCI 4821 or PSCI 4822X or PSCI 4825X or PADM 4000 or PADM 3100 or PADM 4060 or MGMT 3720 or MGMT 3721 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020",
+            "PSCI4821",
+            "PADM4000",
+            "PADM3100",
+            "PADM4060",
+            "MGMT3720",
+            "MGMT3721"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170633"
+    },
+    {
+        "course_number": "COMM4320",
+        "title": "Communications and Virtual Gaming",
+        "number_of_hours": "(1;0;2)",
+        "description": "Exploration of fundamental concepts related to games and gamers from socio-cultural, psychological and technological viewpoints. Explores the role of gaming technologies in communication, focusing on how they change the nature of communication and their impacts on people\u2019s lives and on society, and develops analytical abilities for examining games and gaming technology.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling.",
+        "prerequisites_course_codes": [
+            "COMM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173307"
+    },
+    {
+        "course_number": "COMM4520",
+        "title": "Theories of Persuasion",
+        "number_of_hours": "3 hours",
+        "description": "Applications of theory and research in persuasive communication; persuasion techniques across a variety of contexts; affective, cognitive, and behavioral responses relevant to persuasion processes.",
+        "prerequisites": "Communication studies majors must complete COMM 3010 prior to enrolling; minors and other majors must complete COMM 2020 or PSYC 2600 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020",
+            "PSYC2600"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173649"
+    },
+    {
+        "course_number": "COMM4800",
+        "title": "Communication Internship",
+        "number_of_hours": "1\u20133 hours",
+        "description": "(0;0;1\u20133) Supervised work in a job directly related to the student\u2019s major, professional field of study or career objective.",
+        "prerequisites": "Communication studies major; junior or senior classification; minimum GPA of 3.0 on courses taken at UNT; completion of department core plus at least 6 upper-level hours in communication studies at UNT; student must meet employer\u2019s requirements and have consent of department internship supervisor. May be repeated, but a maximum of 3 semesters credit hours of internship credit may be applied to the major in communication studies.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170658"
+    },
+    {
+        "course_number": "COMM3420",
+        "title": "Communication and New Technology",
+        "number_of_hours": "(1;0;2)",
+        "description": "Examination of communication in technologically mediated environments. Emphasis on how these environments affect impression formation and management, deception and trust, attraction and relationship formation, group dynamics, social support and networking, community building, etc.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling.",
+        "prerequisites_course_codes": [
+            "COMM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170635"
+    },
+    {
+        "course_number": "COMM4120",
+        "title": "Communication and Sport",
+        "number_of_hours": "(1;0;2)",
+        "description": "Examination of sport communication research from three perspectives: (1) a practical perspective aimed at improving performance, (2) an interpretive perspective addressing how participants make sense of their participation, and (3) a critical perspective interrogating problematic aspects of sport, including issues of gender, race and class.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173397"
+    },
+    {
+        "course_number": "COMM1010",
+        "title": "Introduction to Communication  (SPCH 1311)",
+        "number_of_hours": "(1;0;2)",
+        "description": "Examination of how communication principles and skills influence our understanding of current social problems such as global climate crisis, health care, and poverty. Focus on communication and community engagement includes experimental learning with community partners. Oral communication skills and collaborative group building skills are emphasized. Core Category: Component Area Option B",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170621"
+    },
+    {
+        "course_number": "COMM2020",
+        "title": "Interpersonal Communication  (SPCH 1318)",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to interpersonal communication research results and theories with application in two-person and small group relationships in a variety of human communication contexts. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170623"
+    },
+    {
+        "course_number": "COMM2140",
+        "title": "Advocating in Public",
+        "number_of_hours": "(1;0;2)",
+        "description": "Introduction to the critical dimensions of rhetoric and argument through presentation and evaluation of public discourse. Balanced attention to the theory and practice enabling students to analyze the persuasive function of public discourse; to discuss the role of audience in the construction of public discourse; and to develop skills for constructing, supporting, and evaluating public discourse. Core Category: Component Area Option A",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170626"
+    },
+    {
+        "course_number": "COMM3120",
+        "title": "Nonverbal Communication",
+        "number_of_hours": "(1;0;2)",
+        "description": "Applications of research and theory in understanding the impact of nonverbal communication in a variety of human contexts.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170629"
+    },
+    {
+        "course_number": "COMM3840",
+        "title": "Argumentation and Debate",
+        "number_of_hours": "(2;0;1)",
+        "description": "Theory, research and practice in developing and presenting arguments on public policy issues; reasoning, strategy and oral advocacy.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2140"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170641"
+    },
+    {
+        "course_number": "COMM3260",
+        "title": "Storytelling, Narrative and Everyday Life",
+        "number_of_hours": "(1;0;2)",
+        "description": "Investigation of the role of story in the formation of identity and culture, as well as exploration of the narrative structure of everyday life.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling.",
+        "prerequisites_course_codes": [
+            "COMM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170631"
+    },
+    {
+        "course_number": "COMM3325",
+        "title": "Social Science Methods in Communication Research",
+        "number_of_hours": "3 hours",
+        "description": "Survey of social scientific research methods in communication. Emphasis on social scientific research processes, including research design, data collection and analysis, and presentation of data to various public audiences.",
+        "prerequisites": "Non-Majors: COMM 2020 . Majors: COMM 3010 .",
+        "prerequisites_course_codes": [
+            "COMM2020",
+            "COMM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174409"
+    },
+    {
+        "course_number": "COMM3720",
+        "title": "Small Group Communication",
+        "number_of_hours": "(2;0;1)",
+        "description": "Theory, research and laboratory experience in small group communication; problems in group discussion; decision-making techniques.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 or PSYC 3100 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020",
+            "PSYC3100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170639"
+    },
+    {
+        "course_number": "COMM3220",
+        "title": "Health Communication",
+        "number_of_hours": "(1;0;2)",
+        "description": "Communication in medical settings; origins, nature and impact of communication practices and beliefs in the health-care delivery system; role of interaction on human well-being.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170630"
+    },
+    {
+        "course_number": "COMM4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "N/A",
+        "prerequisites": "Problem must be approved by department chair. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170663"
+    },
+    {
+        "course_number": "COMM4829",
+        "title": "Topics in Interpersonal/Organizational Studies",
+        "number_of_hours": "(2;0;1)",
+        "description": "Rotating topics in interpersonal communication, organizational communication, or communication research methods.",
+        "prerequisites": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 . May be repeated for credit as topics vary.",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170660"
+    },
+    {
+        "course_number": "COMM4540",
+        "title": "Communication Theories of Sexuality",
+        "number_of_hours": "(1;0;2)",
+        "description": "Examines the ways in which sexuality is constituted through (public) discourses. Uses critical theories to investigate rhetorics that sustain multiple and intersecting sexual identities and gender performances, and apply to everyday experiences with popular culture. Topics addressed include the rhetorical construction and disciplining of heteronormativity, homonormativity, heterosexual and queer sexualities, as well as performances of masculinity and femininity.",
+        "prerequisites": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 or WGST 2100 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2140",
+            "WGST2100"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173355"
+    },
+    {
+        "course_number": "COMM2060",
+        "title": "Performance of Literature  (SPCH 2341)",
+        "number_of_hours": "(1;0;2)",
+        "description": "Performance as a method of textual study. An introduction to the theory and practice of analyzing, rehearsing and performing non-dramatic texts. Recommended for elementary education majors. Core Category: Creative Arts",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170625"
+    },
+    {
+        "course_number": "COMM3820",
+        "title": "Social Media Perspectives",
+        "number_of_hours": "(1;0;2)",
+        "description": "Examination of how emerging communication tools and technologies change the nature of human communication. Provides a socio-historical understanding of the changing nature of media technology and the rise of social media as well as an exploration of driving factors and future trends in social media technology development.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling.",
+        "prerequisites_course_codes": [
+            "COMM3010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173305"
+    },
+    {
+        "course_number": "COMM4340",
+        "title": "Rhetoric and Politics",
+        "number_of_hours": "(2;0;1)",
+        "description": "Rhetoric of political campaigns, presidential rhetoric, legal communication, and the rhetorical creation, maintenance, use and legitimization of symbolic power.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2140"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170653"
+    },
+    {
+        "course_number": "COMM3865",
+        "title": "Adaptation and Staging",
+        "number_of_hours": "(1;0;2)",
+        "description": "Adaptation and staging for performance. Focus on the visual language of stage composition, adaptation and staging non-dramatic materials, examinations of the roles of the director, actor and audience member.",
+        "prerequisites": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2060 or THEA 1050 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2060",
+            "THEA1050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170643"
+    },
+    {
+        "course_number": "COMM3010",
+        "title": "Communication Perspectives",
+        "number_of_hours": "(1;0;2)",
+        "description": "Intensive research and writing course in which students learn concepts and skills necessary to review communication research, engage in critical research about communication phenomena and write a research proposal. This course must be taken prior to or concurrently with a student\u2019s first enrollment in upper-division COMM courses. A student who fails to complete the course successfully after two attempts (either through withdrawal or failure to achieve a grade of C or better) will not be permitted to enroll in subsequent semesters.",
+        "prerequisites": "Completion of 30 hours college course work with a cumulative grade point average of 2.50 or higher, including the English Composition and Rhetoric portion of the University Core Curriculum, COMM 1010 , COMM 2020 , COMM 2060 and COMM 2140 all with grade of C or better. Communication majors only.",
+        "prerequisites_course_codes": [
+            "COMM1010",
+            "COMM2020",
+            "COMM2060",
+            "COMM2140"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170628"
+    },
+    {
+        "course_number": "COMM4849",
+        "title": "Topics in Rhetorical Studies",
+        "number_of_hours": "(2;0;1)",
+        "description": "Investigation of various topics related to the study of humans using symbolic discourse to influence others. Theory and application using qualitative and historical/critical methodologies.",
+        "prerequisites": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 . May be repeated for credit as topics vary.",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2140"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170661"
+    },
+    {
+        "course_number": "COMM4220",
+        "title": "Theories of Crisis Communication",
+        "number_of_hours": "3 hours",
+        "description": "Examines communication within the context of organizational crises from theoretical and practical perspectives.",
+        "prerequisites": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling. Minors and other majors must complete COMM 2020 .",
+        "prerequisites_course_codes": [
+            "COMM3010",
+            "COMM2020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173867"
+    },
+    {
+        "course_number": "COMM2040",
+        "title": "Public Speaking  (SPCH 1315)",
+        "number_of_hours": "(1;0;2)",
+        "description": "Introduction to principles of and practice in preparing public speaking speeches. Stresses the role of public speaking in democratic decision making. Core Category: Component Area Option A",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170624"
+    }
+]

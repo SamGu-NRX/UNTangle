@@ -1,0 +1,563 @@
+[
+    {
+        "course_number": "BIOL4055",
+        "title": "Ornithology",
+        "number_of_hours": "3 hours",
+        "description": "Classification, distribution, ecology, adaptations, and behavior of birds. Emphasis on both local and global species.",
+        "prerequisites": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. Corequisite(s): BIOL 4056 . Meets with BIOL 5055. May not be repeated at the graduate level as BIOL 5055.",
+        "prerequisites_course_codes": [
+            "BIOL4056",
+            "BIOL5055"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173123"
+    },
+    {
+        "course_number": "BIOL4801",
+        "title": "Microbial Genetics",
+        "number_of_hours": "3 hours",
+        "description": "Genetic structure, inheritance and gene expression in microorganisms and their viruses.",
+        "prerequisites": "Completion of foundation requirements for a declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 must be completed. If these requirements are not met, department consent is required. Meets with BIOL 5800. Genetics course is recommended. May not be repeated at the graduate level as BIOL 5800.",
+        "prerequisites_course_codes": [
+            "BIOL2041",
+            "BIOL2042",
+            "CHEM2380",
+            "BIOL5800"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173028"
+    },
+    {
+        "course_number": "BIOL4380",
+        "title": "Fundamentals of Aquatic Toxicology",
+        "number_of_hours": "3 hours",
+        "description": "(2;3) Theory and methodologies used by scientists, regulatory agencies and industry to measure the impact of man\u2019s activities on freshwater aquatic ecosystems. The course has its foundations in history, but concentrates on current methodologies and theories.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5380.",
+        "prerequisites_course_codes": [
+            "BIOL5380"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170449"
+    },
+    {
+        "course_number": "BIOL4091",
+        "title": "Parasitology",
+        "number_of_hours": "3 hours",
+        "description": "Biology, ecology and classification of animal parasites; immunology and physiology of host-parasite interaction.",
+        "prerequisites": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. May not be repeated at the graduate level as BIOL 5091.",
+        "prerequisites_course_codes": [
+            "BIOL5091"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170427"
+    },
+    {
+        "course_number": "BIOL1132",
+        "title": "Environmental Science  (BIOL 2306/2106; BIOL 2406)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Interdisciplinary approach to understanding basic concepts in environmental science including critical scientific thought, biodiversity, resource management, pollution, global climate change, resource consumption and population growth. Emphasis on how these concepts affect and are affected by human society. Includes laboratory. May not be counted toward a major or minor in biology. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170375"
+    },
+    {
+        "course_number": "BIOL4505",
+        "title": "Comparative Animal Physiology",
+        "number_of_hours": "3 hours",
+        "description": "Comparison of structure and physiological function in a wide variety of animals. Emphasis on thermoregulation and on respiratory, circulatory, excretory, endocrine and digestive systems.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5505.",
+        "prerequisites_course_codes": [
+            "BIOL5505"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170459"
+    },
+    {
+        "course_number": "BIOL1720",
+        "title": "Biology for Science Majors II  (BIOL 1307; BIOL 1407)",
+        "number_of_hours": "3 hours",
+        "description": "An integrated approach to the anatomical, physiological and functional aspects of nutrition, gas exchange, transport, reproduction, development, regulation, response and ecology of microorganisms, plants and animals. Recommended: For students preparing for advanced study in the biological sciences. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170378"
+    },
+    {
+        "course_number": "BIOL4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individual readings and laboratory research projects in biological sciences.",
+        "prerequisites": "Approval of supervisory faculty member, proposal filed in department advising office prior to registration and junior or senior standing. Three hours may be applied to advanced biology electives for the BS degree, but not the BA degree in biology. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170479"
+    },
+    {
+        "course_number": "BIOL4330",
+        "title": "Developmental Biology",
+        "number_of_hours": "3 hours",
+        "description": "Mechanisms of development, differentiation and growth in animals at the molecular, cellular and genetic levels. Areas of particular emphasis include transcriptional control mechanisms, embryonic patterning, cell\u2013cell interactions, growth factors and signal transduction, and regulatory hierarchies. Coverage also includes the roles that environmental factors play in development, the medical applications of our knowledge of development and the roles that development plays in evolution.",
+        "prerequisites": "Completion of Foundation requirements for the declared biological sciences major. If major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5330.",
+        "prerequisites_course_codes": [
+            "BIOL5330"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170447"
+    },
+    {
+        "course_number": "BIOL2041",
+        "title": "Microbiology  (BIOL 2321; BIOL 2421)",
+        "number_of_hours": "3 hours",
+        "description": "Survey of the microbial world; classification, ecology, morphology and physiology of eukaryotic and prokaryotic microorganisms.",
+        "prerequisites": "C or higher in the following: BIOL 1710 , either BIOL 1750 or BIOL 1760 (may be taken concurrently), and CHEM 1420 (may be taken concurrently). Corequisite(s): Concurrent enrollment in BIOL 2042 is recommended but not required.",
+        "prerequisites_course_codes": [
+            "BIOL1710",
+            "BIOL1750",
+            "BIOL1760",
+            "CHEM1420",
+            "BIOL2042"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170386"
+    },
+    {
+        "course_number": "BIOL4503",
+        "title": "Plant Physiology and Development",
+        "number_of_hours": "3 hours",
+        "description": "How plants live, grow and interact with their environments from the molecular to the organismal level and with ecosystem considerations. Topics include nutrient acquisition and distribution, biochemistry and metabolism, growth and development.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5503.",
+        "prerequisites_course_codes": [
+            "BIOL2041",
+            "BIOL2042",
+            "BIOL5503"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170457"
+    },
+    {
+        "course_number": "BIOL4480",
+        "title": "Medical Genetics",
+        "number_of_hours": "3 hours",
+        "description": "Human genetics including cytogenetics, immunogenetics, population genetics, molecular genetics and human biochemical genetics.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5840.",
+        "prerequisites_course_codes": [
+            "BIOL3451",
+            "BIOL3452",
+            "BIOL3350",
+            "CHEM2380",
+            "CHEM3601",
+            "BIOL5840"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170454"
+    },
+    {
+        "course_number": "BIOL4951",
+        "title": "Honors College Capstone Thesis",
+        "number_of_hours": "3 hours",
+        "description": "Major research project prepared by the student under the supervision of a faculty member and presented in standard thesis format. An oral defense is required of each student for successful completion of the thesis.",
+        "prerequisites": "Completion of at least 6 hours in honors courses; completion of at least 12 hours in the major department in which the thesis is prepared; approval of the department chair and the dean of the school or college in which the thesis is prepared; approval of the dean of the Honors College. May be substituted for HNRS 4000 . Course may be taken only once for Honors College credit.",
+        "prerequisites_course_codes": [
+            "HNRS4000"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170485"
+    },
+    {
+        "course_number": "BIOL3900",
+        "title": "Advanced Research in Life Sciences",
+        "number_of_hours": "3 hours",
+        "description": "(2;4) Topics in life science research. Participants conduct authentic research on a life science question in association with a UNT faculty researcher. Research takes place in a laboratory class setting.",
+        "prerequisites": "Consent of instructor. May not be repeated.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173121"
+    },
+    {
+        "course_number": "BIOL4580",
+        "title": "Molecular Biology and Biotechnology Laboratory",
+        "number_of_hours": "2 hours",
+        "description": "(0;5) Experiments in recombinant DNA techniques, gene regulation and other areas of molecular biology.",
+        "prerequisites": "BIOL 4570 (may be taken concurrently) or BIOL 3770 (may be taken concurrently), or consent of department.",
+        "prerequisites_course_codes": [
+            "BIOL4570",
+            "BIOL3770"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170465"
+    },
+    {
+        "course_number": "BIOL2301",
+        "title": "Human Anatomy and Physiology I  (BIOL 2301; BIOL 2401)",
+        "number_of_hours": "3 hours",
+        "description": "Functional anatomy and physiology of the human body including biological chemistry, cell morphology, membrane and tissue physiology, musculoskeletal system and the nervous system. Corequisite(s): BIOL 2311 . For kinesiology, dance majors; allied health, and biology students. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170391"
+    },
+    {
+        "course_number": "BIOL4800",
+        "title": "Biological Sciences Seminar Series  1 hour  A weekly seminar series covering a broad range of biological research topics. Invited speakers are prominent local, regional or national researchers. Prerequisite(s): Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. Maximum of",
+        "number_of_hours": "2 hours",
+        "description": "N/A",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. Maximum of 2 hours may be used toward advanced biology electives in the BS Biology degree, but not the BA degree with a major in biology. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170474"
+    },
+    {
+        "course_number": "BIOL4752",
+        "title": "Neuroscience II: Brain and Plasticity",
+        "number_of_hours": "3 hours",
+        "description": "Brain basis of motivation, sex, emotion, sleep, mental illness, memory; plasticity in developing and adult brain.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. BIOL 4751 recommended. May not be repeated at the graduate level as BIOL 5752.",
+        "prerequisites_course_codes": [
+            "BIOL4751",
+            "BIOL5752"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170471"
+    },
+    {
+        "course_number": "BIOL4370",
+        "title": "General Toxicology",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the basic principles of toxicology. Focus on absorption, distribution, metabolism and elimination of toxicants; target organ toxicity mechanisms of toxic action; carcinogenesis; and risk assessment.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major. If major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170448"
+    },
+    {
+        "course_number": "BIOL3160",
+        "title": "Conservation Biology",
+        "number_of_hours": "3 hours",
+        "description": "Principles and values relating to natural biological resources; ecological concepts applied to resource management and protection of aquatic and terrestrial ecosystems.",
+        "prerequisites": "Completion of the foundation requirements for your declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170403"
+    },
+    {
+        "course_number": "BIOL4201",
+        "title": "Immunology",
+        "number_of_hours": "3 hours",
+        "description": "Immune defense mechanisms including immunobiology, immunochemistry, immunogenetics, immune response to infectious agents, allergy and autoimmune diseases.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and CHEM 2380 (may be taken concurrently). If major is outside of biological sciences, must complete foundation requirements for the biology BA and CHEM 2380 (may be taken concurrently). If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5201.",
+        "prerequisites_course_codes": [
+            "CHEM2380",
+            "BIOL5201"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170437"
+    },
+    {
+        "course_number": "BIOL4260",
+        "title": "Principles of Evolution",
+        "number_of_hours": "3 hours",
+        "description": "Population genetics; ecological, geographical and historical concepts of evolution.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 3451 / BIOL 3452 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 3451 / BIOL 3452 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5260.",
+        "prerequisites_course_codes": [
+            "BIOL3451",
+            "BIOL3452",
+            "BIOL5260"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170443"
+    },
+    {
+        "course_number": "BIOL4910",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individual readings and laboratory research projects in biological sciences.",
+        "prerequisites": "Approval of supervisory faculty member, proposal filed in department advising office prior to registration and junior or senior standing. Three hours may be applied to advanced biology electives for the BS degree, but not the BA degree in biology. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170480"
+    },
+    {
+        "course_number": "BIOL2251",
+        "title": "Biodiversity and Conservation of Animals",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on basic principles of form, function, evolution, biogeography and ecology of animals, as well as modern topics related to the theory and practice of conservation.",
+        "prerequisites": "C or higher in: BIOL 1710 , BIOL 1720 , and BIOL 1750 or BIOL 1760 or BIOL 1761 .",
+        "prerequisites_course_codes": [
+            "BIOL1710",
+            "BIOL1720",
+            "BIOL1750",
+            "BIOL1760",
+            "BIOL1761"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170390"
+    },
+    {
+        "course_number": "BIOL2996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by a freshman or sophomore honors student under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; freshman or sophomore class status; consent of Honors College dean. May only be taken once for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172982"
+    },
+    {
+        "course_number": "BIOL3080",
+        "title": "Physiological Bases of Exercise and Sport",
+        "number_of_hours": "3 hours",
+        "description": "Applied physiology course of study including bioenergetics, neuromuscular factors, and cardiovascular and pulmonary dynamics during exercise. Emphasis is placed on acute and chronic responses of human physiology to exercise stress.",
+        "prerequisites": "Completion of the Foundation requirements for your declared Biological Sciences major and C or higher in either BIOL 3800 or BIOL 4505 , or Department consent. If major is outside of Biological Sciences, follow the Foundation requirements for the Biology BA.",
+        "prerequisites_course_codes": [
+            "BIOL3800",
+            "BIOL4505"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173192"
+    },
+    {
+        "course_number": "BIOL4300",
+        "title": "Histology",
+        "number_of_hours": "4 hours",
+        "description": "(3;3) Microstructure and ultrastructure of animal cells and tissues; relationship of structure and function in tissues and organs. Computer-assisted analysis of tissue structure.",
+        "prerequisites": "Completion of foundation requirements for your declared biological sciences major. If major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170446"
+    },
+    {
+        "course_number": "BIOL4051",
+        "title": "Community Ecology",
+        "number_of_hours": "3 hours",
+        "description": "Structure, dynamics and diversity of biotic communities and ecosystems. Focus on population interactions, niche relationships and processing of matter and energy.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2140 / BIOL 2141 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2140 / BIOL 2141 must be completed. If these requirements are not met, department consent is required. Corequisite(s): BIOL 4052 . May not be repeated at the graduate level as BIOL 5051.",
+        "prerequisites_course_codes": [
+            "BIOL2140",
+            "BIOL2141",
+            "BIOL4052",
+            "BIOL5051"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170422"
+    },
+    {
+        "course_number": "BIOL1500",
+        "title": "Medical Terminology",
+        "number_of_hours": "2 hours",
+        "description": "Basic-level medical terminology using a word building system in a programmed learning format. Emphasis is on learning Latin and Greek prefixes and word roots and utilizing these to build medical terms. Recommended elective to assist students in preprofessional programs leading to working in medicine, physical therapy, and other health care fields or for those wishing to seek advanced degrees relating to human medical research.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170412"
+    },
+    {
+        "course_number": "BIOL2302",
+        "title": "Human Anatomy and Physiology II  (BIOL 2302; BIOL 2402)",
+        "number_of_hours": "3 hours",
+        "description": "Functional anatomy and physiology of the human body including the endocrine, digestive, respiratory, cardiovascular, urinary and reproductive systems.",
+        "prerequisites": "BIOL 2301 / BIOL 2311 . Corequisite(s): BIOL 2312 . For kinesiology, dance majors, allied health, and biology students. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "BIOL2301",
+            "BIOL2311",
+            "BIOL2312"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170392"
+    },
+    {
+        "course_number": "BIOL3331",
+        "title": "Biomedical Criminalistics",
+        "number_of_hours": "3 hours",
+        "description": "Survey of the various forensic sciences with emphasis on direct examination of human remains and directly related biological evidence; e.g. anthropology, pathology, odontology. Students learn how cases arise, i.e. how remains are located, recovered and processed. Supporting biological, clinical and physical sciences will also be covered; e.g. toxicology, entomology, DNA science, forensic geology/palynology and remote sensing.",
+        "prerequisites": "Consent of Forensic Science Program.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170405"
+    },
+    {
+        "course_number": "BIOL3381",
+        "title": "Medical Bacteriology",
+        "number_of_hours": "3 hours",
+        "description": "Bacteria and disease; host-parasite relationships, immunology and epidemiology.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 must be completed. If these requirements are not met, department consent is required.",
+        "prerequisites_course_codes": [
+            "BIOL2041",
+            "BIOL2042"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170408"
+    },
+    {
+        "course_number": "BIOL1722",
+        "title": "Honors Biology for Science Majors II",
+        "number_of_hours": "3 hours",
+        "description": "An integrated approach to the anatomical, physiological and functional aspects of nutrition, gas exchange, transport, reproduction, development, regulation, response and ecology of microorganisms, plants and animals.",
+        "prerequisites": "High school pre-AP/AP biology and chemistry are highly recommended. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170379"
+    },
+    {
+        "course_number": "BIOL1750",
+        "title": "Introductory Biology Research Laboratory I",
+        "number_of_hours": "2 hours",
+        "description": "(1;5) Research-based course in which students learn experimental approaches and techniques as applied to biological research. Students generate novel biological data that contributes to answering a larger biological research question. Primary focus is on wet lab techniques and explorations.",
+        "prerequisites": "Concurrent enrollment in BIOL 1710 and consent of department. Core Category: Component Area Option A (when combined with BIOL 1755 )",
+        "prerequisites_course_codes": [
+            "BIOL1710",
+            "BIOL1755"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170384"
+    },
+    {
+        "course_number": "BIOL2700",
+        "title": "Human Evolution and Physical Anthropology  (ANTH 2401 and ANTH 2301/ANTH 2101)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Study of human biological evolution from primate beginnings to the present era. Emphasis is placed upon anatomical and physiological variations and their adaptive significance.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170397"
+    },
+    {
+        "course_number": "BIOL3451",
+        "title": "Genetics",
+        "number_of_hours": "3 hours",
+        "description": "Genetic structure and inheritance in viruses, bacteria and higher organisms with emphasis on gene biochemistry, Mendelian genetics and population genetics.",
+        "prerequisites": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170410"
+    },
+    {
+        "course_number": "BIOL4815",
+        "title": "Bioinformatics",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the interdisciplinary field of Bioinformatics. Databases and genome browser tools. Methods and algorithms for biological sequence analysis. Applications to problems in biology or medicine. Recommended: Completion of Foundation Requirements for the declared Biological Sciences major. If major is outside of Biological Sciences, Foundation Requirements for the Biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated for graduate credit as BIOL 5815.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174300"
+    },
+    {
+        "course_number": "BIOL4220",
+        "title": "Neuropsychopharmacology",
+        "number_of_hours": "3 hours",
+        "description": "Comprehensive examination of the physiological effects of major psychotropic drug classes that affect the central nervous system, including the interactions between neurotransmitter systems and physiology; neuroanatomical pathways and behavior; synaptic functions and behavioral disorders.",
+        "prerequisites": "Completion of the foundation requirements for your declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. Open to all majors. May not be repeated at the graduate level as BIOL 5220.",
+        "prerequisites_course_codes": [
+            "BIOL5220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170439"
+    },
+    {
+        "course_number": "BIOL4590",
+        "title": "Forensic Molecular Biology Laboratory",
+        "number_of_hours": "3 hours",
+        "description": "(2;6) Experiments in evidence processing and forensic DNA analysis. Lectures and exercises include DNA extraction techniques, DNA quantification, PCR amplification of polymorphic nuclear and mtDNA loci, and fragment analysis utilizing capillary electrophoresis. Recommended: Completion of Foundation requirements for your declared Biological Sciences major and C or higher in BIOL 4570 or BIOC 4570 . If major is outside of Biological Sciences, must complete foundation requirements for the Biology BA and C or higher in BIOL 4570 or BIOC 4570 . If you do not meet these requirements, Department consent is required.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170466"
+    },
+    {
+        "course_number": "BIOL3800",
+        "title": "Animal Physiology",
+        "number_of_hours": "3 hours",
+        "description": "Cardiovascular, respiratory, renal, gastrointestinal, endocrine, muscular and nervous system functions.",
+        "prerequisites": "Completion of foundation requirements for your declared biological sciences major and C or higher in PHYS 1410 / PHYS 1430 or PHYS 1510 / PHYS 1530 or PHYS 1710 / PHYS 1730 . If major is outside of biological sciences, foundation requirements for the biology BA must be completed and PHYS 1410 / PHYS 1430 or PHYS 1510 / PHYS 1530 or PHYS 1710 / PHYS 1730 must be completed with a C or higher. If these requirements are not met, department consent is required.",
+        "prerequisites_course_codes": [
+            "PHYS1410",
+            "PHYS1430",
+            "PHYS1510",
+            "PHYS1530",
+            "PHYS1710",
+            "PHYS1730"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170415"
+    },
+    {
+        "course_number": "BIOL3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173069"
+    },
+    {
+        "course_number": "BIOL1112",
+        "title": "Contemporary Biology  (BIOL 1308/BIOL 1108; BIOL 1408)",
+        "number_of_hours": "3 hours",
+        "description": "(3;3) Study of major theories and principles of biology pertaining to cell and molecular biology, form and function of tissue and organ systems, and principles of ecology as they relate to animal and plant diversity and evolution; ethical and social issues relating to humans as components of living systems. Includes laboratory. May not be counted toward a major or minor in biology. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170373"
+    },
+    {
+        "course_number": "BIOL2140",
+        "title": "Principles of Ecology",
+        "number_of_hours": "3 hours",
+        "description": "Ecological and evolutionary approach to understanding distribution, abundance, dispersion and form-function diversity of organisms. Focus on organisms, their physiological and life history adaptations, and populations.",
+        "prerequisites": "C or higher in: BIOL 1710 , BIOL 1720 , and BIOL 1750 or BIOL 1760 or BIOL 1761 .",
+        "prerequisites_course_codes": [
+            "BIOL1710",
+            "BIOL1720",
+            "BIOL1750",
+            "BIOL1760",
+            "BIOL1761"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170388"
+    },
+    {
+        "course_number": "BIOL4440",
+        "title": "Stream Ecology",
+        "number_of_hours": "4 hours",
+        "description": "(3;4) Ecological principles of how stream dynamics influence the biological and hydrologic patterns and processes occurring in stream ecosystems. Laboratory studies are designed to teach techniques and test hypotheses related to environmental assessment.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 or BIOL 2140 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 or BIOL 2140 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5440.",
+        "prerequisites_course_codes": [
+            "BIOL2041",
+            "BIOL2042",
+            "BIOL2140",
+            "BIOL5440"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170452"
+    },
+    {
+        "course_number": "BIOL4005",
+        "title": "Contemporary Topics in Biology",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Contemporary topics in biological sciences. Specific titles vary but may include microbiology, molecular biology, physiology/neuroscience, ecology/environmental science, botany and zoology.",
+        "prerequisites": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. May be repeated for credit as topics vary. Same topic may not be repeated at the graduate level as BIOL 5005.",
+        "prerequisites_course_codes": [
+            "BIOL5005"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170419"
+    },
+    {
+        "course_number": "BIOL3170",
+        "title": "Plants and Human Society",
+        "number_of_hours": "3 hours",
+        "description": "Relationships of plants to the environment and human activities; impact of plants on human social development, history, economics and religion.",
+        "prerequisites": "Completion of the Foundation requirements for your declared Biological Sciences major or Department consent. If major is outside of Biological Sciences, follow the Foundation requirements for the Biology BA.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170404"
+    },
+    {
+        "course_number": "BIOL4054",
+        "title": "Tracing Darwin\u2019s Path",
+        "number_of_hours": "3 hours",
+        "description": "An annual in-depth field course that introduces students to the sub-Antarctic biota, geography, history, cultures and ecosystems of the Cape Horn Biosphere Reserve using the Omora Ethnobotanical Park as a field site that demonstrates the integration of ecological science and field environmental ethics in a novel approach to biocultural diversity.",
+        "prerequisites": "Upper level academic standing and consent of department.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173122"
+    },
+    {
+        "course_number": "BIOL3510",
+        "title": "Cell Biology",
+        "number_of_hours": "3 hours",
+        "description": "Structure and function of animal and plant cells with emphasis on cell membranes, cytoplasmic organelles and the nucleus.",
+        "prerequisites": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. Concurrent enrollment in CHEM 2380 strongly encouraged.",
+        "prerequisites_course_codes": [
+            "CHEM2380"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170413"
+    },
+    {
+        "course_number": "BIOL1760",
+        "title": "Biology for Science Majors Laboratory  (BIOL 1106/1107; BIOL 1406/1407)",
+        "number_of_hours": "2 hours",
+        "description": "(0;5) Laboratory techniques and research methods for introductory biology. Recommended: Credit for or concurrent enrollment in BIOL 1710 or BIOL 1711 or BIOL 1720 or BIOL 1722 .",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173352"
+    },
+    {
+        "course_number": "BIOL4570",
+        "title": "Biochemistry and Molecular Biology of the Gene",
+        "number_of_hours": "3 hours",
+        "description": "Mechanisms and regulation of genetic expression, chromosome replication, mutagenesis and DNA repair, and gene cloning in prokaryotic and eukaryotic systems.",
+        "prerequisites": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 3451 / BIOL 3452 or BIOL 3510 / BIOL 3520 or BIOC 4540 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 3451 / BIOL 3452 or BIOL 3510 / BIOL 3520 or BIOC 4540 must be completed. If these requirements are not met, department consent is required.",
+        "prerequisites_course_codes": [
+            "BIOL3451",
+            "BIOL3452",
+            "BIOL3510",
+            "BIOL3520",
+            "BIOC4540"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170464"
+    },
+    {
+        "course_number": "BIOL1710",
+        "title": "Biology for Science Majors I  (BIOL 1306; BIOL 1406)",
+        "number_of_hours": "3 hours",
+        "description": "An integrated approach to cell and molecular biology with an emphasis on biological chemistry, cell structure and function, Mendelian and molecular genetics, evolutionary biology. Recommended: For students preparing for advanced study in the biological sciences. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170376"
+    }
+]

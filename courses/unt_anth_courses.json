@@ -1,0 +1,216 @@
+[
+    {
+        "course_number": "ANTH4520",
+        "title": "Food, Culture and Globalization",
+        "number_of_hours": "3 hours",
+        "description": "Critically analyzes the multiple and complex relationships amongst food, culture, and processes of globalization focusing on issues of food and power to identify and problematize the institutions, processes, and beliefs that inform our relationship to food in the United States.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174185"
+    },
+    {
+        "course_number": "ANTH4400",
+        "title": "Environmental Anthropology",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on major environmental questions, theories, problems, issues and possible solutions illustrated by case studies from different parts of the world. Examines environmental issues pertaining to land, sea and natural resources; food production systems; deforestation; population problems; poverty and environmental justice; natural hazards and risks; resource conflicts and warfare; over-fishing; economic development; mineral and oil extraction; landscapes; and biodiversity conservation.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170195"
+    },
+    {
+        "course_number": "ANTH1010",
+        "title": "Introduction to Anthropology  (ANTH 2346)",
+        "number_of_hours": "3 hours",
+        "description": "Surveys and explains the cultural, linguistic and biological legacy of humankind, from antiquity to the present, using the research tools of anthropology. Anthropology is both a scientific and humanistic endeavor that attempts to explain the differences and similarities between and among human groups. Anthropology studies where people come from, who they are, what they do, and why they do it. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170160"
+    },
+    {
+        "course_number": "ANTH2700",
+        "title": "Introduction to Physical Anthropology  (ANTH 2401)",
+        "number_of_hours": "3 hours",
+        "description": "(3;2) Study of human biological evolution from primate beginnings to the present era. Emphasis is placed upon anatomical and physiological variations and their adaptive significance.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170168"
+    },
+    {
+        "course_number": "ANTH3300",
+        "title": "Peoples and Cultures of the Pacific",
+        "number_of_hours": "3 hours",
+        "description": "Surveys the diverse cultures and traditions of the Pacific, each with its own unique style and history covering thousands of years. Geography, politics, history, ethnography and economics of many cultural groups in the region, from the discovery of these islands to the present. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170177"
+    },
+    {
+        "course_number": "ANTH3710",
+        "title": "Peoples and Cultures of East Asia",
+        "number_of_hours": "3 hours",
+        "description": "Overview of cultures and contemporary issues in societies in the Far East, in the context of social and political change and development. Anthropological and ethnographic studies, supplemented by selected research from sociology, history and political science, and specific areas of cultural and social change in each society, including kinship and family, ethnicity, economic and political development, industrialization, urbanization, and health and social policy. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170184"
+    },
+    {
+        "course_number": "ANTH1150",
+        "title": "World Cultures Through Film",
+        "number_of_hours": "3 hours",
+        "description": "Through the use of ethnographic and documentary film, as well as lecture/discussion, this web-based course illustrates the life ways, values and beliefs of human societies throughout the world. This survey includes examples from native North America, Latin America, Australia, Southeast Asia, Africa, East Asia, Melanesia, Polynesia, modern North America and Europe. Core Category: Component Area Option A",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170162"
+    },
+    {
+        "course_number": "ANTH3140",
+        "title": "Latinos in the U.S.",
+        "number_of_hours": "3 hours",
+        "description": "Uses identity and resistance theories to explore the various constructions of Latin@ race, ethnicity and identity, and the social and political implications of being Latin@ today. Explores the ways in which Latin@s have been excluded from the national imaginary while maintaining and transforming their own cultural identify. How this process of marginalization has deeply changed the racial and cultural landscape for Latin@s and non-Latin@s. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170173"
+    },
+    {
+        "course_number": "ANTH4021",
+        "title": "Development of Anthropological Thought",
+        "number_of_hours": "3 hours",
+        "description": "Overview of the history of anthropological thought from its origins to the contemporary schools of anthropology, with emphasis on the scientific, intellectual and sociopolitical causes and consequences of changes in major conceptual orientations to man and culture.",
+        "prerequisites": "ANTH 2300 . Recommended: Recommended that student have upper level standing.",
+        "prerequisites_course_codes": [
+            "ANTH2300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170189"
+    },
+    {
+        "course_number": "ANTH4910",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170207"
+    },
+    {
+        "course_number": "ANTH3700",
+        "title": "Peoples and Cultures of South Asia",
+        "number_of_hours": "3 hours",
+        "description": "A survey of the culturally rich and diverse cultures and traditions of South Asia, each with its own unique history covering thousands of years. From the days of prehistory to the present period of profound social, economic, political and technological changes, this course provides an in-depth background and understanding of the peoples and cultures of this area. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170183"
+    },
+    {
+        "course_number": "ANTH3101",
+        "title": "Issues in Contemporary American Culture and Society",
+        "number_of_hours": "3 hours",
+        "description": "Shifting American cultural values, emergent and contested identities, and complex social institutions undergird some of the most significant social issues in America today. Oriented around the core concept of culture and cultural groups, the course is designed to introduce anthropological frameworks for understanding cultural diversity, and to develop critical thinking skills for identifying, describing and explaining the social complexities of American (U.S.) culture. Ethnographic case studies combine with current events to orient the intricacies of cultural diversity, while discussion and critical reflection raise awareness and broaden perspectives of lives and livelihoods in the United States. Special time and attention are devoted to both mainstream and subcultural identities in this pluralist, secular, nation-state culture. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170169"
+    },
+    {
+        "course_number": "ANTH4920",
+        "title": "Internship in Anthropology",
+        "number_of_hours": "3 hours",
+        "description": "Supervised work in a job directly related to the student\u2019s major, professional field of study or career objective.",
+        "prerequisites": "Must have taken ANTH 2300 ; UNT or Overall GPA of at least 3.00; junior or senior standing (60+ earned hours); must have taken at least 15 hours of ANTH course work; must be an ANTH major. Consent of department. Students must submit and have their ANTH 4920 application approved by department in the semester prior to enrollment. Students must meet all of the above prerequisites to enroll; exceptions will be considered on a case-by-case basis.",
+        "prerequisites_course_codes": [
+            "ANTH2300",
+            "ANTH4920"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170208"
+    },
+    {
+        "course_number": "ANTH4220",
+        "title": "Anthropology in Public Health",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the contributions of anthropology in public health. Sociocultural perspective on the fundamentals of public health, including but not limited to international health, domestic health, epidemiology, infectious disease, child survival, women\u2019s and men\u2019s health, and health policy.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170193"
+    },
+    {
+        "course_number": "ANTH4765",
+        "title": "Urban Beings",
+        "number_of_hours": "3 hours",
+        "description": "Examines the human experience in cross-cultural urban contexts from an anthropological perspective. Balancing materialist and ideological explanations of sociocultural arrangements, ethnographic readings and case studies showcase stunning diversity and surprising similarity in urban dwellings and dwellers. Students conduct independent research analyzing urban beings in the DFW Metroplex.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174183"
+    },
+    {
+        "course_number": "ANTH4300",
+        "title": "Migrants and Refugees",
+        "number_of_hours": "3 hours",
+        "description": "Anthropological understanding of \u201cuprooted\u201d and displaced social groups who leave their country and culture. Worldwide political, economic and social issues are analyzed, as are the processes of accommodation, adaptation and re-creation of their cultural systems in different socioeconomic and political contexts. Beginning with general characteristics of the anthropological discussion on \u201cdisplacement\u201d, the course then ventures into different models for the analysis and understanding of migration and refugee movements.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170194"
+    },
+    {
+        "course_number": "ANTH4011",
+        "title": "Anthropological Field Methods",
+        "number_of_hours": "3 hours",
+        "description": "For Anthropology majors only. Engages with the methods of anthropological thinking and how anthropologists \u201cdo\u201d anthropology. Highlights how the ethnographer/informant relationship informs how questions over \u201cculture\u201d are both found and framed. Focuses on ethnographic data collection and methods of analysis.",
+        "prerequisites": "ANTH major status, ANTH 2300 , and have completed at least 60 hours.",
+        "prerequisites_course_codes": [
+            "ANTH2300"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170188"
+    },
+    {
+        "course_number": "ANTH4720",
+        "title": "Human Rights Anthropology",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the events that led to the burgeoning of human rights as a concept and as something in need of protection. Evaluates human rights theories and practices, and examines the global, regional, and local ideologies and doctrines at the heart of human rights violations and studies across the globe.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174186"
+    },
+    {
+        "course_number": "ANTH2300",
+        "title": "Culture and Society  (ANTH 2351)",
+        "number_of_hours": "3 hours",
+        "description": "Cultural anthropology is the social science that tries to make sense out of people\u2019s lifestyles around the world, encompassing many subjects such as law, religion, politics, health, language, economics and globalization. It involves analyzing human ways of life with holistic, comparative, global, and relativistic perspective. As we compare and contrast different cultures around the world, we just as often analyze ourselves. Core Category: Social and Behavioral Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170166"
+    },
+    {
+        "course_number": "ANTH3200",
+        "title": "Latin America",
+        "number_of_hours": "3 hours",
+        "description": "The Indigenous, colonial and mestizo cultures of Latin America from prehistoric, historic and contemporary perspectives. The dominant culture groups that have comprised this region, and specific issues of conquest and colonialism, neocolonialism, the role of religion, peasants and social movements; and migration. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170174"
+    },
+    {
+        "course_number": "ANTH2400",
+        "title": "AnthroPop: Symbolic Anthropology and the Artistry of Popular Culture",
+        "number_of_hours": "3 hours",
+        "description": "Engaging the medium of \u201cfan-art\u201d as a discursive platform for re-imagining everyday realities through the lens of symbolic anthropology. Focus on global franchises and contemporary trends inclusive of fantasy literature, film, gaming, and genres as platforms through which \u201cfanartists\u201d use the grammar of \u201cfiction\u201d to curate and negotiate cultural \u201crealities.\u201d Core Category: Creative Arts",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174406"
+    },
+    {
+        "course_number": "ANTH3110",
+        "title": "Indigenous Peoples of North America",
+        "number_of_hours": "3 hours",
+        "description": "Examines the common stereotypes and media (mis)interpretations of Indigenous peoples and cultures in order to see beyond such one-dimensional portrayals of the American Indian. Introduction to a number of important themes in the history of Native American peoples over the last 500 years, including colonization, culture change and sovereignty. Students gain a sense of the richness and diversity of Native American culture and experience. Core Category: Language, Philosophy and Culture",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170170"
+    },
+    {
+        "course_number": "ANTH4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170206"
+    }
+]

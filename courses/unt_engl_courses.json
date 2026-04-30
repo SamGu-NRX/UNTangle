@@ -1,0 +1,439 @@
+[
+    {
+        "course_number": "ENGL4450",
+        "title": "Special Studies in a Single or Dual Author(s)",
+        "number_of_hours": "3 hours",
+        "description": "In-depth study of the works of a major author or of two related authors. May be repeated for credit as topics vary for a maximum of 6 hours.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171070"
+    },
+    {
+        "course_number": "ENGL3110",
+        "title": "Writing and Rhetoric in the Humanities",
+        "number_of_hours": "3 hours",
+        "description": "Intermediate-level study in literacies, rhetorics and writing processes. Practice-centered approach to writing, focusing on drafting, revision, and research-based persuasion.",
+        "prerequisites": "ENGL 1320 or equivalent. Fulfills the requirements for the English concentration in Language Arts, including readiness standards in writing required by the State of Texas.",
+        "prerequisites_course_codes": [
+            "ENGL1320"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173335"
+    },
+    {
+        "course_number": "ENGL3900",
+        "title": "Writing for Careers",
+        "number_of_hours": "3 hours",
+        "description": "Demonstrates how skills from the humanities can be leveraged into careers in the private sector and nonprofit organizations. Identify strengths and preferences to guide job activity and career choices. Emphasis on developing digital literacy and shaping work into a writing portfolio.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173807"
+    },
+    {
+        "course_number": "ENGL4430",
+        "title": "Shakespeare",
+        "number_of_hours": "3 hours",
+        "description": "Representative comedies, histories and tragedies; survey of Shakespeare\u2019s life; his relation to his predecessors and contemporaries.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171068"
+    },
+    {
+        "course_number": "ENGL3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173073"
+    },
+    {
+        "course_number": "ENGL3225",
+        "title": "Games, Play, and Stories",
+        "number_of_hours": "3 hours",
+        "description": "Theories of play and how play is expressed in games. Emphasis on game literacy and games as complex cultural and aesthetic objects. Inquiry into the social, political, and ethical issues that inform game stories, game design, game genres, game aesthetics, player decision-making, and role-playing and identity within games",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174030"
+    },
+    {
+        "course_number": "ENGL4100",
+        "title": "Advanced Fiction Writing",
+        "number_of_hours": "3 hours",
+        "description": "Advanced study and practice of fiction writing in a workshop setting.",
+        "prerequisites": "ENGL 3140 .",
+        "prerequisites_course_codes": [
+            "ENGL3140"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171054"
+    },
+    {
+        "course_number": "ENGL3924",
+        "title": "Women\u2019s Literature",
+        "number_of_hours": "3 hours",
+        "description": "Studies in literature written by or about women.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171053"
+    },
+    {
+        "course_number": "ENGL4665",
+        "title": "Studies in Science Fiction",
+        "number_of_hours": "3 hours",
+        "description": "In-depth study of science fiction, from a particular critical, cultural, historical, or philosophical perspective.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173805"
+    },
+    {
+        "course_number": "ENGL2100",
+        "title": "Introduction to Creative Writing  (ENGL 2307)",
+        "number_of_hours": "3 hours",
+        "description": "Workshop and discussion based. Examines how writers explore their experiences of the larger world using the technical and expressive possibilities available in poetry, fiction and creative nonfiction. This course is designed as an elective for both non-ENGL majors and for ENGL majors who want to explore multiple genres before taking 3000-level genre-specific creative writing classes.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171020"
+    },
+    {
+        "course_number": "ENGL4195",
+        "title": "Advanced Grammar and Usage",
+        "number_of_hours": "3 hours",
+        "description": "Covers basic and advanced concepts of grammar; usage and punctuation; and techniques and practices for effective writing and publishing in the humanities.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171060"
+    },
+    {
+        "course_number": "ENGL4431",
+        "title": "Studies in Medieval Literature",
+        "number_of_hours": "3 hours",
+        "description": "In-depth study of Medieval literature, from a particular critical, cultural, historical, or philosophical perspective. May be repeated as topics vary for a maximum of 6 hours.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173044"
+    },
+    {
+        "course_number": "ENGL3450",
+        "title": "Short Story",
+        "number_of_hours": "3 hours",
+        "description": "Comparative survey of the short story from its inception in the 19th century to the present day, comprising representative works by African, Asian, British, Russian, North and South American, and European writers, in English or in translation.",
+        "prerequisites": "ENGL 1310 , ENGL 1311 , or equivalent. Core Category: Language, Philosophy and Culture",
+        "prerequisites_course_codes": [
+            "ENGL1310",
+            "ENGL1311"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171041"
+    },
+    {
+        "course_number": "ENGL1320",
+        "title": "First-Year Writing II  (ENGL 1302)",
+        "number_of_hours": "3 hours",
+        "description": "Writing as inquiry. Develops habits of critical thinking, research-based inquiry, and argument through written engagement with relevant social and cultural issues.",
+        "prerequisites": "ENGL 1310 , ENGL 1311 or equivalent. Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites_course_codes": [
+            "ENGL1310",
+            "ENGL1311"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171016"
+    },
+    {
+        "course_number": "ENGL4610",
+        "title": "Children\u2019s and Young Adult Literature",
+        "number_of_hours": "3 hours",
+        "description": "In-depth study of children\u2019s and young adult literature and its roots in nineteenth century folklore and fairy tales. Course texts will be examined from a particular critical, cultural, historical or philosophical perspective. Readings may include the works of such authors as J. K. Rowling, Suzanne Collins, Rick Riordan, Philip Reeve, Mark Haddon, and others.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173812"
+    },
+    {
+        "course_number": "ENGL3000",
+        "title": "Introduction to Literary Analysis",
+        "number_of_hours": "3 hours",
+        "description": "Prepares majors to understand literature and to articulate their understanding in essays supported by carefully analyzed evidence from assigned works. Covers basic critical vocabulary, the major literary genres (poetry, drama, fiction) and the conventions that govern these genres. Students learn to evaluate multiple interpretations of a text.",
+        "prerequisites": "6 hours of first-year writing.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171031"
+    },
+    {
+        "course_number": "ENGL4260",
+        "title": "African American Literature",
+        "number_of_hours": "3 hours",
+        "description": "Study of the cultural and historical specificity of African American literature. Works may range widely in their chronological and geographic origin, ideological perspective, and relation to mainstream European and/or U.S. literary traditions.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171050"
+    },
+    {
+        "course_number": "ENGL3150",
+        "title": "Beginning Poetry Writing",
+        "number_of_hours": "3 hours",
+        "description": "Principles and practices in the writing of poetry.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171035"
+    },
+    {
+        "course_number": "ENGL4680",
+        "title": "Game Narratives as Literature",
+        "number_of_hours": "3 hours",
+        "description": "A survey covering the implementation of and experimentation with narrative in video games, from the late 1960s to the present, with emphasis on psychological realism, the ethics implied in world-building, and game narrative as a form of literary experience.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173806"
+    },
+    {
+        "course_number": "ENGL2326",
+        "title": "American Literature  (ENGL 2326)",
+        "number_of_hours": "3 hours",
+        "description": "Selected works of American literature from the wide range of cultures that comprise the nation and over the full range of literary history on the North American continent, including works of prose, poetry, drama, and fiction in relation to their historical and cultural contexts. Texts will be selected from among a diverse group of authors.",
+        "prerequisites": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173810"
+    },
+    {
+        "course_number": "ENGL4145",
+        "title": "Worldbuilding and Mythopoesis",
+        "number_of_hours": "3 hours",
+        "description": "Study of worldbuilding characteristics and techniques including myth-making, archetypes, and systems of fictional worlds and societies.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=178250"
+    },
+    {
+        "course_number": "ENGL4660",
+        "title": "Literature and the Holocaust",
+        "number_of_hours": "3 hours",
+        "description": "Study of literary responses to the Holocaust. \u201cCanonical\u201d Holocaust authors such as Primo Levi, Eli Wiesel and Anne Frank are read alongside criticism, theory, graphic novels, film and the works of lesser-known authors. Topics of discussion include the relationship between Holocaust literature and film, language and trauma, literature and genocide, storytelling and history, art and ethics.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171076"
+    },
+    {
+        "course_number": "ENGL4630",
+        "title": "Studies in Literature and Medicine",
+        "number_of_hours": "3 hours",
+        "description": "Interdisciplinary exploration of the relationships between literature and medicine in any historical period. May be repeated for credit for a maximum of 6 hours.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173488"
+    },
+    {
+        "course_number": "ENGL2351",
+        "title": "Mexican American Literature  (ENGL 2351)",
+        "number_of_hours": "3 hours",
+        "description": "A survey of Mexican American/Chicanx literature from Mesoamerica to the present, including literary works of fiction, poetry, drama, essays, and memoirs in relation to their historical, linguistic, political, regional, gendered, and cultural contexts. Texts will be selected from a diverse group of authors, literary movements, and media forms. Topics and themes may include the literary performance of identity and culture, aesthetic mediation of racialization, struggle and protest, and artistic activism.",
+        "prerequisites": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173808"
+    },
+    {
+        "course_number": "ENGL4140",
+        "title": "Advanced Narrative Design for Gaming",
+        "number_of_hours": "3 hours",
+        "description": "Advanced techniques of interactive narrative and world-building in gaming through choice-based experience, branching strategies, and non-linear storytelling.",
+        "prerequisites": "ENGL 3500 .",
+        "prerequisites_course_codes": [
+            "ENGL3500"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174377"
+    },
+    {
+        "course_number": "ENGL3160",
+        "title": "Beginning Creative Nonfiction Writing",
+        "number_of_hours": "3 hours",
+        "description": "Principles and practices in the writing of non-fiction.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171036"
+    },
+    {
+        "course_number": "ENGL4120",
+        "title": "Advanced Creative Nonfiction Writing",
+        "number_of_hours": "3 hours",
+        "description": "Advanced study and practice of non-fiction writing in a workshop setting.",
+        "prerequisites": "ENGL 3160 .",
+        "prerequisites_course_codes": [
+            "ENGL3160"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171056"
+    },
+    {
+        "course_number": "ENGL1325",
+        "title": "Writing About Literature II",
+        "number_of_hours": "3 hours",
+        "description": "Study of relationship between writing and research with research topics drawn from readings from prose fiction. Emphasis on the process of perfecting the essay through the writing of several drafts.",
+        "prerequisites": "ENGL 1315 or equivalent. May be substituted for ENGL 1320 . Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites_course_codes": [
+            "ENGL1315",
+            "ENGL1320"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171019"
+    },
+    {
+        "course_number": "ENGL1321",
+        "title": "Honors First-Year Writing II",
+        "number_of_hours": "3 hours",
+        "description": "Offers intensive practice in research-based writing and develops skills in critical thinking, inquiry, research, and argument.",
+        "prerequisites": "Acceptance to Honors College. May be substituted for ENGL 1320 . Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites_course_codes": [
+            "ENGL1320"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171017"
+    },
+    {
+        "course_number": "ENGL3500",
+        "title": "Beginning Game Writing Workshop: Storytelling Through Narrative Design",
+        "number_of_hours": "3 hours",
+        "description": "An introduction into major concepts in story development for game writing and an online workshop for student writing focused on game-specific characterization and narrative structures.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173778"
+    },
+    {
+        "course_number": "ENGL1311",
+        "title": "Honors First-Year Writing I",
+        "number_of_hours": "3 hours",
+        "description": "Offers intensive practice in writing processes and rhetorical strategies through modes such as analysis, observation, and self-reflection. Introduces essential concepts, knowledge, skills, methods, and conventions for writing.",
+        "prerequisites": "Acceptance to Honors College. May be substituted for ENGL 1310 . Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites_course_codes": [
+            "ENGL1310"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171013"
+    },
+    {
+        "course_number": "ENGL3200",
+        "title": "Rhetorical History and Historiography",
+        "number_of_hours": "3 hours",
+        "description": "Explores the construction of the rhetorical tradition through canonical texts and figures; questions alternatives to the received tradition.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171037"
+    },
+    {
+        "course_number": "ENGL3430",
+        "title": "British Literature to 1780",
+        "number_of_hours": "3 hours",
+        "description": "A broad survey of British literature from the Anglo-Saxon period to the late-18th century; includes the study of a variety of literary genres and traditions.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171039"
+    },
+    {
+        "course_number": "ENGL3440",
+        "title": "British Anglophone Literature 1780 to the Present",
+        "number_of_hours": "3 hours",
+        "description": "A broad survey of British and Anglophone literature from the Romantic period to the present; includes the study of a variety of literary genres, movements and traditions.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171040"
+    },
+    {
+        "course_number": "ENGL4250",
+        "title": "Latinx Literature",
+        "number_of_hours": "3 hours",
+        "description": "Study of historical as well as contemporary Latinx literature, including a preponderance of Mexican American and Chicanx literature and cultural production. Works may range from the local to the national and global, and may include Indigenous American, Spanish colonial and writings from a range of Latin American nations.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171051"
+    },
+    {
+        "course_number": "ENGL1310",
+        "title": "First-Year Writing I  (ENGL 1301)",
+        "number_of_hours": "3 hours",
+        "description": "Writing as discovery. Introduces essential concepts, knowledge, skills, methods, and conventions for writing. Focuses on practicing writing processes and developing rhetorical knowledge through analysis, observation, and self-reflection. Core Category: Communication (English Composition and Rhetoric)",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171012"
+    },
+    {
+        "course_number": "ENGL4440",
+        "title": "Milton",
+        "number_of_hours": "3 hours",
+        "description": "Prose and poetry of Milton; political and religious thought of his day; his relation to his predecessors and his contemporaries and his legacy to later writers.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171069"
+    },
+    {
+        "course_number": "ENGL2341",
+        "title": "Forms of Literature  (ENGL 2341)",
+        "number_of_hours": "3 hours",
+        "description": "A study of one of more genres including, but not limited to, drama, poetry, creative nonfiction, novels, graphic novels, comics, or film, or the study of a topic or theme as represented in multiple literary forms.",
+        "prerequisites": "3 hours of freshman-level English or equivalent. Core Category: Language, Philosophy and Culture",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173447"
+    },
+    {
+        "course_number": "ENGL3920",
+        "title": "Ethnic American Literatures",
+        "number_of_hours": "3 hours",
+        "description": "Study of the literatures of several ethnic communities, including, but not limited to, African-American, Chicano (Mexican-American), Latino, Native American and Jewish-American. Comparison of divergent worldviews and ideologies articulated in ethnic literatures.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171049"
+    },
+    {
+        "course_number": "ENGL4110",
+        "title": "Advanced Poetry Writing",
+        "number_of_hours": "3 hours",
+        "description": "Advanced study and practice of poetry writing in a workshop setting.",
+        "prerequisites": "ENGL 3150 .",
+        "prerequisites_course_codes": [
+            "ENGL3150"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171055"
+    },
+    {
+        "course_number": "ENGL2331",
+        "title": "World Literature  (ENGL 2331)",
+        "number_of_hours": "3 hours",
+        "description": "Selected works of world literature from the ancient world to the present, including works of prose, poetry, drama, and fiction in relation to their historical and cultural contexts. Texts will be selected from a diverse group of authors and traditions.",
+        "prerequisites": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173811"
+    },
+    {
+        "course_number": "ENGL3840",
+        "title": "American Literature 1870 to the Present",
+        "number_of_hours": "3 hours",
+        "description": "A broad survey of American literature from the late-19th century to the present; includes the study of a variety of literary genres, movements and traditions.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171043"
+    },
+    {
+        "course_number": "ENGL4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "May be repeated for credit.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171081"
+    },
+    {
+        "course_number": "ENGL2321",
+        "title": "British Literature  (ENGL 2321)",
+        "number_of_hours": "3 hours",
+        "description": "Selected works of British literature from the Anglo-Saxon period to the present, including works of prose, poetry, drama, and fiction in relation to their historical and cultural contexts. Texts will be selected from a diverse group of authors and traditions.",
+        "prerequisites": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173809"
+    },
+    {
+        "course_number": "ENGL3140",
+        "title": "Beginning Fiction Writing",
+        "number_of_hours": "3 hours",
+        "description": "Principles and practices in the writing of fiction.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171034"
+    },
+    {
+        "course_number": "ENGL3830",
+        "title": "American Literature to 1870",
+        "number_of_hours": "3 hours",
+        "description": "A broad survey of early American literature from the colonial period through the Civil War; includes the study of a variety of literary genres, movements and traditions.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171042"
+    }
+]

@@ -1,0 +1,319 @@
+[
+    {
+        "course_number": "EENG3910",
+        "title": "Embedded  System Design Project",
+        "number_of_hours": "3 hours",
+        "description": "(2;2) To study the fundamentals of microcontroller-based embedded systems, and the software and hardware design techniques for peripheral interfacing and communication, input/output signal interfacing, real-time processing and control, and embedded system development. Focuses on hands-on software development with a high-level programming language such as C, and hardware design, implementation, and experiments with a microcontroller development platform.",
+        "prerequisites": "EENG 2905 , EENG 2620 (and EENG 2621 for electrical engineering students), and EENG 2920 , all of which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2905",
+            "EENG2620",
+            "EENG2621",
+            "EENG2920"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170982"
+    },
+    {
+        "course_number": "EENG4320",
+        "title": "Systems Modeling and Simulation",
+        "number_of_hours": "3 hours",
+        "description": "Systematically introduces concepts and analytical tools required to abstract engineering problems from real-world applications, and to simulate and analyze such problems. Main topics include the modeling of dynamical systems using ordinary differential equations, state-space representations, input-output equations and transfer functions, the analysis of system response, and a brief introduction to control systems including PID controllers design. Recommended: EENG 2620 and EENG 2621 . Must be completed with a C or better.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174329"
+    },
+    {
+        "course_number": "EENG3920",
+        "title": "Modern Communication System Design Project",
+        "number_of_hours": "3 hours",
+        "description": "(2;2) Students are required to design electronic communication systems with electronic devices such as MOS transistors, capacitors and resistors. Topics include LC circuits and oscillators, AM modulation, SSB communications and FM modulation.",
+        "prerequisites": "EENG 2920 completed with a C or better. Corequisite(s): EENG 3520 and EENG 3810 / EENG 3811 (each course must be completed with a grade of C or better).",
+        "prerequisites_course_codes": [
+            "EENG2920",
+            "EENG3520",
+            "EENG3810",
+            "EENG3811"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170983"
+    },
+    {
+        "course_number": "EENG4720",
+        "title": "Embedded Controller Organization",
+        "number_of_hours": "3 hours",
+        "description": "Fundamentals of embedded system organization including CPU architectures, memory systems, basic input/output and software development for embedded systems in assembly and C. Recommended: EENG 2710 , EENG 2711 , and EENG 3910 , each with a grade of C or better.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174142"
+    },
+    {
+        "course_number": "EENG4810",
+        "title": "Computer Networks",
+        "number_of_hours": "3 hours",
+        "description": "History and overview of computer networks, protocols and network layers, application layer, socket programming, transport layer protocols and TCP, network layer protocols and IP, network routing, data link and physical layers, introduction to network security.",
+        "prerequisites": "EENG 3810 (and EENG 3811 for electrical engineering students) which must be completed with a C or better. Must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG3810",
+            "EENG3811"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170988"
+    },
+    {
+        "course_number": "EENG4760",
+        "title": "Reconfigurable Computing",
+        "number_of_hours": "3 hours",
+        "description": "Focuses on the fundamental architectural aspects of different reconfigurable devices including some of the commercially available FPGAs, and coarse-grained reconfigurable fabrics from academia and industry. Includes both a description of the architectures and discussion of pros and cons of these architectures for different applications and user needs, including the need for run-time reconfiguration. Also covers various low power reconfigurable devices.",
+        "prerequisites": "EENG 2710 (and EENG 2711 for electrical engineering students) which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2710",
+            "EENG2711"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170987"
+    },
+    {
+        "course_number": "EENG3710",
+        "title": "Computer Organization",
+        "number_of_hours": "3 hours",
+        "description": "Principles of computer system organization, instruction sets, computer arithmetic, data and control paths, memory hierarchies.",
+        "prerequisites": "CSCE 1030 and CSCE 1015, EENG 2710 (and EENG 2711 for electrical engineering students), all of which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "CSCE1030",
+            "CSCE1015",
+            "EENG2710",
+            "EENG2711"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170980"
+    },
+    {
+        "course_number": "EENG4990",
+        "title": "Senior Design II",
+        "number_of_hours": "3 hours",
+        "description": "A comprehensive electrical engineering design course providing major design experience. Builds upon the project proposal and conceptual design developed in EENG 4910 . Encompasses detailed design, implementation and documentation of the project. Project deliverables include a comprehensive project final report, oral presentation and demonstration of the project.",
+        "prerequisites": "EENG 4910 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "EENG4910"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170994"
+    },
+    {
+        "course_number": "EENG4920",
+        "title": "Cooperative Education in Electrical Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Supervised field work in a job directly related to the student\u2019s major field of study or career objective.",
+        "prerequisites": "Junior- or senior-level standing in electrical engineering. May be repeated for credit for a maximum of 6 hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170992"
+    },
+    {
+        "course_number": "EENG4510",
+        "title": "Digital Communications",
+        "number_of_hours": "3 hours",
+        "description": "Introduces the basics for the analysis and design of digital communication systems. Topics include channel modeling, signal analysis, digital modulation schemes, optimum receivers for additive white Gaussian noise channels, and selected topics in advanced digital communications. Recommended: EENG 3810 and EENG 3811 . Must be completed with a C or better.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174328"
+    },
+    {
+        "course_number": "EENG1910",
+        "title": "Introduction to Electrical Engineering",
+        "number_of_hours": "3 hours",
+        "description": "(2;2) Learning to Learn (L2L) is based on sound cognitive and pedagogical techniques that improve learning outcomes and make lifelong learning habitual. Students develop an understanding of how engineering is learned and how they can facilitate and develop the lifelong learning process, both individually and in teams. Topics covered include consciousness and self-awareness, knowledge representation, cognition, learning styles, memory, language, reading, effective verbal and written communication, project-based learning, critical thinking, problem solving and creativity, design process, globalization and contemporary issues, professionalism and ethics.",
+        "prerequisites": "Electrical Engineering major or Pre-Electrical Engineering major or consent of department. Pre-Electrical Engineering majors and Electrical Engineering majors must attain a C or better in this course.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170969"
+    },
+    {
+        "course_number": "EENG3410",
+        "title": "Engineering Electromagnetics",
+        "number_of_hours": "3 hours",
+        "description": "Electromagnetic theory as applied to electrical engineering: vector calculus; electrostatics and magnetostatics; Maxwell\u2019s equations, including Poynting\u2019s theorem and boundary conditions; uniform plane-wave propagation; transmission lines \u2013 TEM modes, including treatment of general, lossless line and pulse propagation; introduction to guided waves; introduction to radiation and scattering concepts.",
+        "prerequisites": "EENG 2610 (and EENG 2611 for electrical engineering students) and MATH 2730 which must be completed with a C or better. Corequisite(s): EENG 3411 for electrical engineering students which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2610",
+            "EENG2611",
+            "MATH2730",
+            "EENG3411"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170977"
+    },
+    {
+        "course_number": "EENG4010",
+        "title": "Topics in Electrical Engineering",
+        "number_of_hours": "3 hours",
+        "description": "Technical elective specifically designed by the instructor each term/semester to cover topics in the latest state-of-the-art technology advancements in electrical engineering.",
+        "prerequisites": "Consent of the instructor. Must be completed with a C or better. May be repeated for credit as topics vary for a maximum of 12 hours.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170984"
+    },
+    {
+        "course_number": "EENG4900",
+        "title": "Special Problems in Electrical Engineering",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individualized instruction in theoretical or experimental problems in electrical engineering. Consent of instructor and must be completed with a C or better. May be repeated for credit. For elective credit only.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170990"
+    },
+    {
+        "course_number": "EENG3510",
+        "title": "Electronics I (Devices and Materials)",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to contemporary electronic devices, terminal characteristics of active semiconductor devices, and models of the BJT and MOSFET in cutoff and saturation region are introduced. Incremental and DC models of junction diodes, bipolar transistors (BJTs), and metal-oxide semiconductor field effect transistors (MOSFETs) are studied to design single and multistage amplifiers.",
+        "prerequisites": "EENG 2610 (and EENG 2611 for electrical engineering students) which must be completed with a C or better. Corequisite(s): EENG 3511 for electrical engineering students which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2610",
+            "EENG2611",
+            "EENG3511"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170978"
+    },
+    {
+        "course_number": "EENG2905",
+        "title": "Engineering Tools",
+        "number_of_hours": "3 hours",
+        "description": "This modular course introduces assorted tools beneficial to the analysis of electrical engineering problems.",
+        "prerequisites": "CSCE 1030 and CSCE 1015. Must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "CSCE1030",
+            "CSCE1015"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174324"
+    },
+    {
+        "course_number": "EENG2610",
+        "title": "Circuit Analysis",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to electrical elements, sources and interconnects. Ohm\u2019s law, Kirchoff\u2019s law, superposition and Thevenin\u2019s theorems are introduced. The resistive circuit, OP Amp, RL, RC circuits, Sinusoidal analysis.",
+        "prerequisites": "MATH 1720 with a C or better. Corequisite(s): PHYS 2220 / PHYS 2240 ( MATH 3410 and EENG 2611 for electrical engineering students) with a C or better in each course.",
+        "prerequisites_course_codes": [
+            "MATH1720",
+            "PHYS2220",
+            "PHYS2240",
+            "MATH3410",
+            "EENG2611"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170971"
+    },
+    {
+        "course_number": "EENG3810",
+        "title": "Communications Systems",
+        "number_of_hours": "3 hours",
+        "description": "Introduction to the concepts of transmission of information via communication channels. Amplitude and angle modulation for the transmission of continuous-time signals. Analog-to-digital conversion and pulse code modulation. Transmission of digital data. Introduction to random signals and noise and their effects on communication. Optimum detection systems in the presence of noise.",
+        "prerequisites": "EENG 2620 (and EENG 2621 for electrical engineering students), EENG 3510 (and EENG 3511 for electrical engineering students), and MATH 3180 , all of which must be completed with a C or better. Corequisite(s): EENG 3811 .",
+        "prerequisites_course_codes": [
+            "EENG2620",
+            "EENG2621",
+            "EENG3510",
+            "EENG3511",
+            "MATH3180",
+            "EENG3811"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170981"
+    },
+    {
+        "course_number": "EENG2710",
+        "title": "Digital Logic Design",
+        "number_of_hours": "3 hours",
+        "description": "History and overview; switching theory; combinational logic circuits; modular design of combinational circuits; memory elements; sequential logic circuits; digital system design; fault models and testing.",
+        "prerequisites": "Engineering or engineering technology majors. Corequisite(s): EENG 2711 for electrical engineering majors (which must be completed with a C or better). Must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2711"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170973"
+    },
+    {
+        "course_number": "EENG2620",
+        "title": "Signals and Systems",
+        "number_of_hours": "3 hours",
+        "description": "Elementary concepts of continuous-time and discrete-time signals and systems. Linear time-invariant (LTI) systems, impulse response, convolution, Fourier series, Fourier transforms and frequency-domain analysis of LTI systems. Laplace transforms, z-transforms and rational function descriptions of LTI systems.",
+        "prerequisites": "EENG 2610 (and EENG 2611 for electrical engineering students). Both must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2610",
+            "EENG2611"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170972"
+    },
+    {
+        "course_number": "EENG4310",
+        "title": "Control Systems Design",
+        "number_of_hours": "3 hours",
+        "description": "Transform domain and state space representations of linear systems. System response, system stability, root locus method, frequency response-based design and state space system analysis and design.",
+        "prerequisites": "EENG 2620 (and EENG 2621 for electrical engineering students) which must be completed with a C or better. Must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG2620",
+            "EENG2621"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172962"
+    },
+    {
+        "course_number": "EENG3520",
+        "title": "Electronics II",
+        "number_of_hours": "3 hours",
+        "description": "Concepts, analysis and design of electronic circuits and systems are introduced. Topics include principle of DC biasing, small signal analysis, frequency response, feedback amplifiers, active filters, non-linear op-amp applications and oscillators.",
+        "prerequisites": "EENG 3510 (and EENG 3511 for electrical engineering students) which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG3510",
+            "EENG3511"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170979"
+    },
+    {
+        "course_number": "EENG2900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individualized instruction in theoretical or experimental problems in electrical engineering.",
+        "prerequisites": "Consent of instructor and must be completed with a C or better. May be repeated for credit. For elective credit only.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170974"
+    },
+    {
+        "course_number": "EENG4110",
+        "title": "Photonics and Optical Engineering",
+        "number_of_hours": "3 hours",
+        "description": "The nature of light and its properties, basic geometrical and physical optics, optical system and design considerations.",
+        "prerequisites": "EENG 3410 and EENG 3411 , both completed with a C or better. Meets with EENG 5110.",
+        "prerequisites_course_codes": [
+            "EENG3410",
+            "EENG3411",
+            "EENG5110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=199015"
+    },
+    {
+        "course_number": "EENG4910",
+        "title": "Senior Design I",
+        "number_of_hours": "3 hours",
+        "description": "A comprehensive electrical engineering design course providing major design experience. Students form teams and work under the supervision of a faculty advisor. Scope of the course includes identifying, formulating and solving an electrical engineering design problem of practical value under realistic design and implementation constraints by conforming to the appropriate engineering standards. Development of an awareness of contemporary issues, global issues and professional ethics are included in the scope of the course. Each project team is required to submit a project proposal, and present a written report about the conceptual design of their project at the end of the semester.",
+        "prerequisites": "EENG 3810 and EENG 3811 , EENG 3910 , EENG 3920 , all of which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG3810",
+            "EENG3811",
+            "EENG3910",
+            "EENG3920"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170991"
+    },
+    {
+        "course_number": "EENG2920",
+        "title": "Analog and Digital Circuit Design Project",
+        "number_of_hours": "3 hours",
+        "description": "(2;2) Students learn to use basic electrical engineering lab equipment, to build and test simple circuits in the lab and to design and analyze circuits using CAD software tools. Includes simulation and design experiments and a final comprehensive design project to complement the circuit analysis course.",
+        "prerequisites": "EENG 1910 , EENG 2610 (and EENG 2611 for electrical engineering students), and EENG 2710 (and EENG 2711 for electrical engineering students), each of which must be completed with a C or better.",
+        "prerequisites_course_codes": [
+            "EENG1910",
+            "EENG2610",
+            "EENG2611",
+            "EENG2710",
+            "EENG2711"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170976"
+    },
+    {
+        "course_number": "EENG4450",
+        "title": "Micro-Electro-Mechanical-Systems (MEMS)",
+        "number_of_hours": "3 hours",
+        "description": "(3;3) Designed to provide an introduction to conventional micro-electro-mechanical systems (MEMS). Begins with an overview of the semiconducting properties of silicon, the workhorse of the microelectronics industry. The impact of continued miniaturization on transistor performance is highlighted according to Moore\u2019s Law. Moving from Silicon as an electronic material, its mechanical properties are discussed which has been pivotal in the creation of the field of MEMS. A review of microfabrication technology conventionally used to form MEMS structures and devices using batch-fabrication is provided, which includes topics such as: photolithography, etching, physical vapor deposition, chemical vapor deposition, surface micromachining and bulk micromachining. Soft materials and thick film processes are also discussed that have been key enablers for microfluidics and BioMEMS. The practical applications of MEMS for sensors and actuators are highlighted, where electrostatic, thermal, piezoelectric and magnetic transduction schemes are used for actuation and sensing, including for RF wireless systems and bio-related applications for Lab-on-Chip (LOC). Students gain a broad perspective in the area of miniaturized systems for sensors and actuators. The laboratory modules are intended to reinforce the concepts discussed in the lectures, with practical hands-on learning exercises. The lectures and accompanying lab modules will help cultivate interdisciplinary perspectives with hands-on exercises developed for the students. Recommended: PHYS 1710 , CHEM 1410 / CHEM 1430 or CHEM 1430 / CHEM 1435 or equivalent, each with a grade of C or better is required.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=174278"
+    }
+]

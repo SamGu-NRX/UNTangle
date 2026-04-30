@@ -1,0 +1,249 @@
+[
+    {
+        "course_number": "CHEM2900",
+        "title": "Introduction to Chemical Research",
+        "number_of_hours": "1\u20133 hours",
+        "description": "Individualized laboratory instruction. Students may begin training on laboratory research techniques.",
+        "prerequisites": "CHEM 1430 (should be taken concurrently) and consent of instructor. For elective credit only; may not be substituted for required chemistry courses. May be repeated for credit.",
+        "prerequisites_course_codes": [
+            "CHEM1430"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170523"
+    },
+    {
+        "course_number": "CHEM4631",
+        "title": "Instrumental Analysis",
+        "number_of_hours": "3 hours",
+        "description": "Principles and theory of chemical analysis utilizing absorption spectroscopy in ultraviolet, visible and infrared regions, nuclear and electron spin resonance, mass spectrometry, chromatography, polarography and other advanced instrumental techniques.",
+        "prerequisites": "C or better in CHEM 3451 and CHEM 3452 . Corequisite(s): CHEM 4632 .",
+        "prerequisites_course_codes": [
+            "CHEM3451",
+            "CHEM3452",
+            "CHEM4632"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170541"
+    },
+    {
+        "course_number": "CHEM4930",
+        "title": "Selected Topics in Chemistry",
+        "number_of_hours": "3 hours",
+        "description": "Topics of current interest, which vary from year to year.",
+        "prerequisites": "Consent of department. May be repeated for credit as topics vary.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170549"
+    },
+    {
+        "course_number": "CHEM3996",
+        "title": "Honors College Mentored Research Experience",
+        "number_of_hours": "3 hours",
+        "description": "Research experience conducted by an honors student with at least junior standing under the supervision of a faculty member.",
+        "prerequisites": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173070"
+    },
+    {
+        "course_number": "CHEM4530",
+        "title": "Materials Chemistry",
+        "number_of_hours": "3 hours",
+        "description": "Application of chemical principles to understand the general behavior of materials. Course includes semiconductors, metals, catalysts and \u201cnano-designed\u201d materials (e.g. quantum wells). Recommended: Concurrent enrollment in CHEM 3520 or equivalent, or consent of department. May not be repeated at the graduate level as CHEM 5530.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170538"
+    },
+    {
+        "course_number": "CHEM1360",
+        "title": "Context of Chemistry",
+        "number_of_hours": "3 hours",
+        "description": "Fundamentals of chemistry for students who are not science majors. Applications of chemistry to its role in the world. Topics include historical and philosophical development of modern chemistry, the environment, energy, industrial and economic development, modern materials, and popular perspectives of chemistry. May not be counted toward a major or minor in chemistry. Core Category: Life and Physical Sciences",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170510"
+    },
+    {
+        "course_number": "CHEM4351",
+        "title": "Forensic Chemistry",
+        "number_of_hours": "3 hours",
+        "description": "(2;6) Analytical chemistry applied to forensic science. Statistics and error analysis of drugs and physical evidence. Identification and analysis of forensic evidence through absorption and transmission spectroscopy, chromatography (TLC, HPLC, GC), electrophoresis, mass spectrometry, and atomic emission and analysis.",
+        "prerequisites": "C or better in each of the following: CHEM 2380 , CHEM 3451 and CHEM 3452 .",
+        "prerequisites_course_codes": [
+            "CHEM2380",
+            "CHEM3451",
+            "CHEM3452"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170537"
+    },
+    {
+        "course_number": "CHEM1423",
+        "title": "Honors General Chemistry II",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Thermodynamics, reaction rates, equilibrium, electrochemistry and nuclear chemistry. This course is strongly advised and may be required for students planning to engage in undergraduate chemical research.",
+        "prerequisites": "C or better in CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "CHEM1413",
+            "CHEM1440"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170517"
+    },
+    {
+        "course_number": "CHEM3451",
+        "title": "Quantitative Analysis",
+        "number_of_hours": "3 hours",
+        "description": "Statistical treatment of data; theory and principles of sampling and transfer techniques, gravimetric, and volumetric methods; introductory instrumental analysis.",
+        "prerequisites": "C or better in CHEM 1420 . Corequisite(s): CHEM 3452 .",
+        "prerequisites_course_codes": [
+            "CHEM1420",
+            "CHEM3452"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170529"
+    },
+    {
+        "course_number": "CHEM3530",
+        "title": "Physical Chemistry for Life Science",
+        "number_of_hours": "4 hours",
+        "description": "Fundamental principles of physical chemistry applied to biological systems; thermodynamics, equilibrium and bioenergetics, ionic equilibria, pH, buffers, ionic strength, and electrical properties of amino acids and proteins; kinetics, enzyme catalysis and inhibition; physical properties of biological macromolecules and transport properties in living systems.",
+        "prerequisites": "C or better in one of the following: CHEM 1420 , CHEM 1422 or CHEM 1423 . For chemistry (BA) and life science majors, and preprofessional students.",
+        "prerequisites_course_codes": [
+            "CHEM1420",
+            "CHEM1422",
+            "CHEM1423"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170533"
+    },
+    {
+        "course_number": "CHEM1410",
+        "title": "General Chemistry I for Science Majors  (CHEM 1311)",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Fundamental concepts, states of matter, periodic table, structure and bonding, stoichiometry, oxidation and reduction, solutions and compounds of representative elements.",
+        "prerequisites": "C or better in MATH 1100 or equivalent. Corequisite(s): CHEM 1430 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "MATH1100",
+            "CHEM1430"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170511"
+    },
+    {
+        "course_number": "CHEM2380",
+        "title": "Organic Chemistry II  (CHEM 2325)",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Nucleophilic and electrophilic reaction mechanisms; molecular rearrangements; radical reactions; organic synthesis; absorption spectra of organic compounds of biological interest.",
+        "prerequisites": "CHEM 2370 with a grade of C or better. Corequisite(s): CHEM 3220 . *This hour is a problem-solving session.",
+        "prerequisites_course_codes": [
+            "CHEM2370",
+            "CHEM3220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170522"
+    },
+    {
+        "course_number": "CHEM3510",
+        "title": "Physical Chemistry I",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Thermodynamics, kinetic theory, solutions and phase equilibria, chemical equilibrium, photochemistry and chemical kinetics.",
+        "prerequisites": "C or better in CHEM 1420 , CHEM 1422 or CHEM 1423 ; and C or better in MATH 1720 or C or better in MATH 1820 and co-enrolled in MATH 1830 ; and C or better in PHYS 1410 , PHYS 1510 , or PHYS 1710 . Corequisite(s): CHEM 3230 with the exception of declared biochemistry majors. *This hour is a problem-solving session.",
+        "prerequisites_course_codes": [
+            "CHEM1420",
+            "CHEM1422",
+            "CHEM1423",
+            "MATH1720",
+            "MATH1820",
+            "MATH1830",
+            "PHYS1410",
+            "PHYS1510",
+            "PHYS1710",
+            "CHEM3230"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170531"
+    },
+    {
+        "course_number": "CHEM1420",
+        "title": "General Chemistry II for Science Majors  (CHEM 1312)",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Thermodynamics, reaction rates, equilibrium, acid/base chemistry, electrochemistry, radioactivity and nuclear reactions.",
+        "prerequisites": "C or better in CHEM 1410 , CHEM 1412 or CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "CHEM1410",
+            "CHEM1412",
+            "CHEM1413",
+            "CHEM1440"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170515"
+    },
+    {
+        "course_number": "CHEM4360",
+        "title": "Principles of Forensic Science",
+        "number_of_hours": "3 hours",
+        "description": "(3;1) This course is designed to reinforce knowledge of forensic techniques and skills critical to evidence preservation and collection. It will also provide students with an understanding of professional ethics in forensic science and courtroom techniques.",
+        "prerequisites": "C or better in CHEM 3330 .",
+        "prerequisites_course_codes": [
+            "CHEM3330"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173836"
+    },
+    {
+        "course_number": "CHEM1422",
+        "title": "General Chemistry II for the Honors College",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Thermodynamics, reaction rates, equilibrium, electrochemistry, organic chemistry, polymers, radioactivity and nuclear reactions, historical context, practical consequences.",
+        "prerequisites": "C or better in CHEM 1412 or CHEM 1413 (or CHEM 1410 with grade B or better and permission of the department), MATH 1100 or equivalent, admission to Honors College. Corequisite(s): CHEM 1440 . Core Category: Life and Physical Sciences",
+        "prerequisites_course_codes": [
+            "CHEM1412",
+            "CHEM1413",
+            "CHEM1410",
+            "MATH1100",
+            "CHEM1440"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170516"
+    },
+    {
+        "course_number": "CHEM4910",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "A written report is required each term/semester.",
+        "prerequisites": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each.",
+        "prerequisites_course_codes": [
+            "CHEM3220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170547"
+    },
+    {
+        "course_number": "CHEM4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "A written report is required each term/semester.",
+        "prerequisites": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each.",
+        "prerequisites_course_codes": [
+            "CHEM3220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170546"
+    },
+    {
+        "course_number": "CHEM2370",
+        "title": "Organic Chemistry I  (CHEM 2323)",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Structure, nomenclature, occurrence and uses of main classes of organic compounds; functional groups and their interconversion; character of chemical bonding; stereochemistry; structure and reactivity; acid/base reactions, resonance, inductive and steric effects; reaction mechanisms.",
+        "prerequisites": "\u201cC\u201d or better in CHEM 1415 , CHEM 1420 , CHEM 1422 , or CHEM 1423 . Corequisite(s): CHEM 3210 . *This hour is a problem-solving session.",
+        "prerequisites_course_codes": [
+            "CHEM1415",
+            "CHEM1420",
+            "CHEM1422",
+            "CHEM1423",
+            "CHEM3210"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170521"
+    },
+    {
+        "course_number": "CHEM3520",
+        "title": "Physical Chemistry II",
+        "number_of_hours": "3 hours",
+        "description": "(3;0;1*) Quantum mechanics: atomic structure and molecular orbital theory. Spectroscopy: microwave, infrared, electronic, photoelectron, electron spin and NMR.",
+        "prerequisites": "C or better in CHEM 3510 ; and C or better in MATH 1720 or MATH 1830 ; and C or better in PHYS 1520 or PHYS 2220 . Corequisite(s): CHEM 3240 with the exception of declared biochemistry majors. *This hour is a problem-solving session.",
+        "prerequisites_course_codes": [
+            "CHEM3510",
+            "MATH1720",
+            "MATH1830",
+            "PHYS1520",
+            "PHYS2220",
+            "CHEM3240"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170532"
+    }
+]

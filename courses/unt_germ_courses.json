@@ -1,0 +1,73 @@
+[
+    {
+        "course_number": "GERM1020",
+        "title": "Elementary German  (GERM 1412)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "GERM 1010 or equivalent.",
+        "prerequisites_course_codes": [
+            "GERM1010"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171193"
+    },
+    {
+        "course_number": "GERM1010",
+        "title": "Elementary German  (GERM 1411)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar and phonetics; reading, composition and oral-aural practice.",
+        "prerequisites": "",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171192"
+    },
+    {
+        "course_number": "GERM4312",
+        "title": "The Weimar Republic",
+        "number_of_hours": "3 hours",
+        "description": "Overview of the cultural life and artistic output during the Weimar Republic, the German state between 1918-1933. Taught entirely in German.",
+        "prerequisites": "3 hours of advanced German or consent of instructor.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=173943"
+    },
+    {
+        "course_number": "GERM3070",
+        "title": "Advanced German II (Written Communication)",
+        "number_of_hours": "3 hours",
+        "description": "Intensive practice in written German through an exploration of civilization topics.",
+        "prerequisites": "GERM 2050 or equivalent.",
+        "prerequisites_course_codes": [
+            "GERM2050"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171201"
+    },
+    {
+        "course_number": "GERM2050",
+        "title": "Intermediate German  (GERM 2312)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "GERM 2040 or equivalent.",
+        "prerequisites_course_codes": [
+            "GERM2040"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171195"
+    },
+    {
+        "course_number": "GERM2040",
+        "title": "Intermediate German  (GERM 2311)",
+        "number_of_hours": "3 hours",
+        "description": "Grammar, composition, oral-aural practice and readings.",
+        "prerequisites": "GERM 1020 or equivalent.",
+        "prerequisites_course_codes": [
+            "GERM1020"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171194"
+    },
+    {
+        "course_number": "GERM4900",
+        "title": "Special Problems",
+        "number_of_hours": "1\u20133 hours",
+        "description": "NONE",
+        "prerequisites": "Consent of department. May be repeated for credit.",
+        "prerequisites_course_codes": [],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=171207"
+    }
+]
