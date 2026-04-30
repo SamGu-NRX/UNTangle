@@ -10,7 +10,6 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #f4f6f4; color: #1a2e1a; font-family: 'DM Sans', sans-serif; }
 
-    /* NAV */
     nav {
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; height: 57px;
@@ -24,71 +23,76 @@
     .step.done { background: #007a40; }
     .step.active { background: #00a855; }
 
-    /* MAJOR MODAL */
+    /* MODAL */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
       display: flex; align-items: center; justify-content: center;
       z-index: 200; backdrop-filter: blur(4px);
     }
     .modal-overlay.hidden { display: none; }
     .modal {
-      background: #fff; border-radius: 16px; padding: 36px 32px;
-      width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,60,20,0.18);
+      background: #fff; border-radius: 16px; padding: 32px 28px;
+      width: 100%; max-width: 560px; max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,60,20,0.2);
       animation: popIn 0.2s ease;
     }
     @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .modal h2 { font-family: 'Syne', sans-serif; font-size: 22px; margin-bottom: 6px; }
-    .modal p { font-size: 13px; color: #6b826b; margin-bottom: 24px; }
-    .major-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+    .modal > p { font-size: 13px; color: #6b826b; margin-bottom: 20px; }
+    .college-section { margin-bottom: 18px; }
+    .college-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #a3b8a3; margin-bottom: 8px; }
+    .major-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
     .major-btn {
-      padding: 12px 10px; border: 1.5px solid #dde8dd; border-radius: 10px;
+      padding: 11px 12px; border: 1.5px solid #dde8dd; border-radius: 10px;
       background: #f8faf8; font-family: 'DM Sans', sans-serif; font-size: 12px;
       font-weight: 600; color: #1a2e1a; cursor: pointer; text-align: left;
-      transition: all 0.15s; line-height: 1.3;
+      transition: all 0.15s; line-height: 1.35;
     }
     .major-btn:hover { border-color: #00512b; background: #f0fdf4; }
     .major-btn.selected { border-color: #00512b; background: #f0fdf4; color: #00512b; }
     .major-btn .dept-tag { display: block; font-size: 10px; color: #6b826b; margin-top: 2px; font-weight: 400; }
     .modal-confirm {
-      width: 100%; padding: 12px; border-radius: 8px; border: none;
+      width: 100%; padding: 12px; border-radius: 8px; border: none; margin-top: 20px;
       background: #00512b; color: #fff; font-family: 'DM Sans', sans-serif;
       font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.18s;
     }
     .modal-confirm:hover { background: #007a40; }
     .modal-confirm:disabled { background: #a3b8a3; cursor: not-allowed; }
 
-    /* MAIN */
-    .courses-page { max-width: 760px; margin: 0 auto; padding: 28px 24px 100px; }
+    /* PAGE */
+    .courses-page { max-width: 800px; margin: 0 auto; padding: 24px 24px 100px; }
 
-    /* Major pill + change */
     .major-bar {
       display: flex; align-items: center; justify-content: space-between;
       background: #fff; border: 1px solid #dde8dd; border-radius: 10px;
-      padding: 12px 16px; margin-bottom: 20px;
+      padding: 12px 16px; margin-bottom: 16px;
     }
     .major-bar-left { display: flex; align-items: center; gap: 10px; }
     .major-icon { font-size: 18px; }
     .major-name { font-weight: 600; font-size: 14px; }
-    .major-sub { font-size: 12px; color: #6b826b; }
-    .change-btn {
-      font-size: 12px; font-weight: 600; color: #00512b; background: none;
-      border: none; cursor: pointer; text-decoration: underline;
-    }
+    .major-sub { font-size: 11px; color: #6b826b; }
+    .change-btn { font-size: 12px; font-weight: 600; color: #00512b; background: none; border: none; cursor: pointer; text-decoration: underline; }
 
-    /* Progress bar */
-    .progress-bar-wrap { margin-bottom: 20px; }
-    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #6b826b; margin-bottom: 6px; }
+    .progress-bar-wrap { margin-bottom: 18px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #6b826b; margin-bottom: 5px; }
     .progress-label strong { color: #00512b; }
     .progress-track { height: 6px; background: #dde8dd; border-radius: 3px; overflow: hidden; }
     .progress-fill { height: 100%; background: #00a855; border-radius: 3px; transition: width 0.4s ease; }
 
-    /* Filter row */
+    .tab-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 7px 14px; border-radius: 99px; border: 1.5px solid #dde8dd;
+      background: #fff; font-family: 'DM Sans', sans-serif; font-size: 12px;
+      font-weight: 600; color: #6b826b; cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn:hover { border-color: #00512b; color: #00512b; }
+    .tab-btn.active { background: #00512b; border-color: #00512b; color: #fff; }
+
     .filter-row { display: flex; gap: 8px; margin-bottom: 4px; }
     .search-bar {
-      flex: 1; background: #fff; border: 1px solid #dde8dd;
-      border-radius: 8px; padding: 10px 14px;
-      font-family: 'DM Sans', sans-serif; font-size: 14px; color: #1a2e1a;
-      outline: none; transition: border-color 0.18s;
+      flex: 1; background: #fff; border: 1px solid #dde8dd; border-radius: 8px;
+      padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+      color: #1a2e1a; outline: none; transition: border-color 0.18s;
     }
     .search-bar:focus { border-color: #00512b; box-shadow: 0 0 0 3px rgba(0,81,43,0.1); }
     .search-bar::placeholder { color: #a3b8a3; }
@@ -98,60 +102,102 @@
       color: #1a2e1a; outline: none; cursor: pointer;
     }
 
-    /* Section label */
+    .college-section-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 26px; margin-bottom: 4px;
+    }
+    .college-section-header h3 {
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+      color: #1a2e1a; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .college-pill {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+      color: #fff; white-space: nowrap;
+    }
     .dept-label {
-      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px;
-      color: #6b826b; text-transform: uppercase; letter-spacing: 0.1em;
-      margin-top: 22px; margin-bottom: 8px;
+      font-size: 11px; font-weight: 600; color: #6b826b;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-top: 14px; margin-bottom: 6px; padding-left: 2px;
     }
 
-    /* Course row */
     .course-row {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
       background: #fff; border: 1px solid #dde8dd; border-radius: 10px;
-      padding: 12px 14px; margin-bottom: 6px; transition: all 0.2s;
+      padding: 11px 14px; margin-bottom: 5px; transition: all 0.18s;
     }
     .course-row.completed { border-color: #86efac; background: #fafffe; }
-    .course-row.locked { opacity: 0.55; }
+    .course-row.locked { opacity: 0.5; }
+    .course-row.core-course { border-left: 3px solid #00a855; }
+    .course-row.elective-course { border-left: 3px solid #60a5fa; }
 
-    .row-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+    .row-left { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; }
     .course-info { min-width: 0; flex: 1; }
-    .course-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .course-title-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .course-title { font-size: 13px; font-weight: 500; }
     .course-meta { font-size: 11px; color: #6b826b; margin-top: 2px; }
-    .prereq-note { font-size: 11px; color: #d97706; margin-top: 3px; }
+    .prereq-note { font-size: 11px; margin-top: 3px; }
     .prereq-note.locked-note { color: #dc2626; }
+    .prereq-note.met-note { color: #16a34a; }
+    .prereq-note.unmet-note { color: #d97706; }
+    .course-tag {
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+    }
+    .tag-core { background: #dcfce7; color: #15803d; }
+    .tag-elective { background: #dbeafe; color: #1d4ed8; }
 
-    /* Toggle */
     .toggle-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
-    .toggle-label { font-size: 12px; color: #6b826b; white-space: nowrap; }
-    .toggle {
-      position: relative; width: 40px; height: 22px; cursor: pointer;
-    }
+    .toggle-label { font-size: 11px; color: #6b826b; white-space: nowrap; }
+    .toggle { position: relative; width: 38px; height: 21px; cursor: pointer; }
     .toggle input { opacity: 0; width: 0; height: 0; }
-    .toggle-track {
-      position: absolute; inset: 0; background: #dde8dd;
-      border-radius: 11px; transition: background 0.2s;
-    }
+    .toggle-track { position: absolute; inset: 0; background: #dde8dd; border-radius: 11px; transition: background 0.2s; }
     .toggle input:checked + .toggle-track { background: #00a855; }
-    .toggle-thumb {
-      position: absolute; top: 3px; left: 3px;
-      width: 16px; height: 16px; background: #fff;
-      border-radius: 50%; transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+    .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; background: #fff; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(17px); }
     .toggle.disabled { cursor: not-allowed; }
     .toggle.disabled .toggle-track { background: #e2e8f0; }
 
-    /* Lock icon */
-    .lock-icon { font-size: 14px; flex-shrink: 0; }
-
-    /* States */
     .loading-state { text-align: center; padding: 60px 20px; color: #6b826b; font-size: 14px; }
     .spinner { width: 28px; height: 28px; border: 3px solid #dde8dd; border-top-color: #00512b; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Footer */
+    /* ═══════════════════════════════════════════════════════
+       PREREQ TREE VIEW STYLES — responsive department tree
+    ═══════════════════════════════════════════════════════ */
+    .prereq-tree-wrapper { width: 100%; max-width: 100%; overflow: hidden; padding: 8px 0 30px 0; }
+    .prereq-tree { width: 100%; display: grid; grid-template-columns: repeat(var(--tree-levels, 4), minmax(0, 1fr)); gap: 10px; align-items: start; }
+    .tree-level { min-width: 0; position: relative; display: flex; flex-direction: column; align-items: stretch; }
+    .tree-level::before { content: ''; position: absolute; top: 38px; bottom: 0; left: 50%; width: 2px; background: #dde8dd; z-index: 0; }
+    .tree-level-label { align-self: center; background: #f4f6f4; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; color: #6b826b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; z-index: 1; border: 1px solid #dde8dd; white-space: nowrap; }
+    .tree-nodes { display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; min-width: 0; }
+    .tree-connector { display: none; }
+    .tree-node { background: #fff; border: 2px solid #dde8dd; border-radius: 10px; padding: 10px 10px; width: 100%; min-width: 0; cursor: pointer; transition: all 0.18s; position: relative; overflow: hidden; }
+    .tree-node:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .tree-node.completed { border-color: #86efac; background: #fafffe; }
+    .tree-node.available { border-color: #00a855; background: #f0fdf4; }
+    .tree-node.locked { border-color: #d97706; background: #fffbeb; }
+    .tree-node-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; min-width: 0; }
+    .tree-node-code { font-size: clamp(10px, 0.85vw, 12px); font-weight: 700; color: #1a2e1a; white-space: nowrap; }
+    .tree-node-title { font-size: clamp(9px, 0.78vw, 11px); color: #6b826b; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .tree-node-prereqs { font-size: clamp(8px, 0.7vw, 10px); color: #a3b8a3; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #dde8dd; line-height: 1.25; word-break: break-word; }
+    .tree-node-prereqs .needs { color: #d97706; }
+    .tree-node-prereqs .has { color: #16a34a; }
+    .tree-node.has-children::after { content: none; }
+    .tree-node-status-badge { display: inline-flex; align-items: center; gap: 3px; font-size: clamp(7px, 0.65vw, 9px); font-weight: 700; padding: 2px 5px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; flex-shrink: 0; }
+    .status-done { background: #dcfce7; color: #15803d; }
+    .status-available { background: #dcfce7; color: #15803d; }
+    .status-locked { background: #fef3c7; color: #d97706; }
+    .tree-legend { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: #fff; border: 1px solid #dde8dd; border-radius: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tree-hint { font-size: 11px; color: #6b826b; margin-left: auto; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b826b; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; flex-shrink: 0; }
+    .legend-dot.done { border-color: #86efac; background: #fafffe; }
+    .legend-dot.available { border-color: #00a855; background: #f0fdf4; }
+    .legend-dot.locked { border-color: #d97706; background: #fffbeb; }
+    .tree-empty { text-align: center; padding: 40px 20px; color: #6b826b; background: #fff; border: 1px solid #dde8dd; border-radius: 10px; }
+    .tree-empty-icon { font-size: 40px; margin-bottom: 12px; }
+    @media (max-width: 900px) { .courses-page { max-width: 100%; } .prereq-tree { gap: 6px; } .tree-node { padding: 8px 7px; } .tree-node-status-badge { display: none; } }
+
     .page-footer {
       position: fixed; bottom: 0; left: 0; right: 0; height: 57px;
       display: flex; align-items: center; justify-content: space-between;
@@ -168,363 +214,752 @@
 </head>
 <body>
 
-  <!-- MAJOR SELECTION MODAL -->
-  <div class="modal-overlay" id="major-modal">
-    <div class="modal">
-      <h2>What's your major? 🎓</h2>
-      <p>We'll show the courses most relevant to your degree plan.</p>
-      <div class="major-grid" id="major-grid"></div>
-      <button class="modal-confirm" id="modal-confirm" disabled onclick="confirmMajor()">Continue</button>
+<div class="modal-overlay" id="major-modal">
+  <div class="modal">
+    <h2>What's your major? 🎓</h2>
+    <p>We'll organize your degree plan and highlight what you need to take.</p>
+    <div id="major-grid-container"></div>
+    <button class="modal-confirm" id="modal-confirm" disabled onclick="confirmMajor()">Let's go →</button>
+  </div>
+</div>
+
+<nav>
+  <div class="logo">UnTangle <span>/ Courses</span></div>
+  <div class="steps">
+    <div class="step done"></div>
+    <div class="step active"></div>
+    <div class="step"></div>
+    <div class="step"></div>
+  </div>
+</nav>
+
+<div class="courses-page">
+  <div class="major-bar" id="major-bar" style="display:none;">
+    <div class="major-bar-left">
+      <span class="major-icon" id="major-bar-icon">🎓</span>
+      <div>
+        <div class="major-name" id="major-bar-name"></div>
+        <div class="major-sub" id="major-bar-college"></div>
+      </div>
     </div>
+    <button class="change-btn" onclick="openMajorModal()">Change major</button>
   </div>
 
-  <nav>
-    <div class="logo">UnTangle <span>/ Courses</span></div>
-    <div class="steps">
-      <div class="step done"></div>
-      <div class="step active"></div>
-      <div class="step"></div>
-      <div class="step"></div>
+  <div class="progress-bar-wrap" id="progress-wrap" style="display:none;">
+    <div class="progress-label">
+      <span><strong id="completed-count">0</strong> of <span id="total-count">0</span> courses completed</span>
+      <span id="progress-pct">0%</span>
     </div>
-  </nav>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
 
-  <div class="courses-page">
+  <div class="tab-row" id="tab-row" style="display:none;">
+    <button class="tab-btn active" onclick="setTab('major',this)">My Degree Plan</button>
+    <button class="tab-btn" onclick="setTab('all',this)">All Courses</button>
+    <button class="tab-btn" onclick="setTab('completed',this)">Completed ✓</button>
+    <button class="tab-btn" onclick="setTab('locked',this)">Locked 🔒</button>
+    <button class="tab-btn" onclick="setTab('tree',this)">📊 Prereq Tree</button>
+  </div>
 
-    <!-- Major bar -->
-    <div class="major-bar" id="major-bar" style="display:none;">
-      <div class="major-bar-left">
-        <span class="major-icon" id="major-bar-icon">🎓</span>
-        <div>
-          <div class="major-name" id="major-bar-name"></div>
-          <div class="major-sub">Your degree plan is active</div>
+  <div class="filter-row">
+    <input class="search-bar" id="search" placeholder="Search by name or code, e.g. CSCE 3600..." oninput="renderPage()">
+    <select class="dept-select" id="dept-filter" onchange="renderPage()">
+      <option value="">All Departments</option>
+    </select>
+  </div>
+
+  <div id="course-list">
+    <div class="loading-state"><div class="spinner"></div>Loading courses...</div>
+  </div>
+</div>
+
+<div class="page-footer">
+  <span class="footer-count"><strong id="footer-completed">0</strong> completed · <strong id="footer-locked">0</strong> locked</span>
+  <div style="display:flex;gap:10px;">
+    <button class="btn btn-ghost" onclick="window.location.href='DraftLogin.html'">← Back</button>
+    <button class="btn btn-primary" onclick="goToSchedule()">Optimize Schedule →</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// UNT COLLEGES & MAJORS (based on actual UNT departments)
+// ═══════════════════════════════════════════════════════
+const COLLEGES = {
+  'College of Engineering': {
+    color: '#1d4ed8',
+    majors: [
+      { id:'csce', name:'Computer Science', icon:'💻', depts:['CSCE'],
+        core:['CSCE1030','CSCE1040','CSCE2100','CSCE2110','CSCE2210','CSCE2610','CSCE3100','CSCE3444','CSCE3530','CSCE3600','CSCE4600','MATH1710','MATH1720','MATH2730','ENGR1304','ENGR2301','ENGR2302'],
+        electives:['CSCE3020','CSCE3055','CSCE3201','CSCE3214','CSCE3220','CSCE3420','CSCE3550','CSCE3560','CSCE4010','CSCE4050','CSCE4110','CSCE4160','CSCE4201','CSCE4205','CSCE4220','CSCE4240','CSCE4250','CSCE4290','CSCE4300','CSCE4350','CSCE4380','CSCE4430','CSCE4460','CSCE4535','CSCE4555','CSCE4560','CSCE4565','CSCE4610','CSCE4650'] },
+      { id:'ce', name:'Computer Engineering', icon:'⚙️', depts:['CSCE','EENG'],
+        core:['CSCE1030','CSCE1040','CSCE2110','EENG1910','EENG2610','EENG2620','EENG2710','EENG3410','EENG3510','MATH1710','MATH1720','MATH2730','ENGR1304','ENGR2301'],
+        electives:['CSCE3444','CSCE3530','EENG4010','EENG4110','EENG4310','EENG4320','EENG4450','EENG4510'] },
+      { id:'ee', name:'Electrical Engineering', icon:'⚡', depts:['EENG'],
+        core:['EENG1910','EENG2610','EENG2620','EENG2710','EENG3410','EENG3510','EENG3520','EENG3710','EENG3810','MATH1710','MATH1720','MATH2730','ENGR1304','ENGR2301','ENGR2302'],
+        electives:['EENG4010','EENG4110','EENG4310','EENG4320','EENG4450','EENG4510','EENG4720','EENG4760'] },
+      { id:'me', name:'Mechanical Engineering', icon:'🔧', depts:['MEEN'],
+        core:['MEEN1000','MEEN2110','MEEN2210','MEEN2240','MEEN3100','MEEN3110','MEEN3120','MEEN3130','MEEN3210','MEEN3230','MATH1710','MATH1720','MATH2730','ENGR1304','ENGR2301'],
+        electives:['MEEN4110','MEEN4140','MEEN4150','MEEN4180','MEEN4250','MEEN4315','MEEN4332','MEEN4730'] },
+      { id:'bme', name:'Biomedical Engineering', icon:'🫀', depts:['BMEN'],
+        core:['BMEN1400','BMEN2210','BMEN2320','BMEN3312','BMEN3321','BMEN4100','BIOL1710','BIOL1720','MATH1710','MATH1720'],
+        electives:['BMEN4222','BMEN4314','BMEN4319','BMEN4320','BMEN4326'] },
+      { id:'cnet', name:'Computer Networking', icon:'🌐', depts:['CNET'],
+        core:['CNET1160','CNET2180','CNET2200','CNET2300','CNET3160','CNET3190','CNET3410','CNET3440'],
+        electives:['CNET3445','CNET3460','CNET3465','CNET4170','CNET4180','CNET4190','CNET4230','CNET4620','CNET4630'] },
+    ]
+  },
+  'College of Science': {
+    color: '#059669',
+    majors: [
+      { id:'math', name:'Mathematics', icon:'📐', depts:['MATH'],
+        core:['MATH1710','MATH1720','MATH2730','MATH2700','MATH3000','MATH3410','MATH3420','MATH3510'],
+        electives:['MATH3180','MATH3350','MATH3680','MATH3740','MATH3860','MATH4060','MATH4450','MATH4500','MATH4610','MATH4650'] },
+      { id:'biol', name:'Biology', icon:'🧬', depts:['BIOL'],
+        core:['BIOL1710','BIOL1720','BIOL2251','BIOL2301','BIOL2302','BIOL3080','BIOL3160','BIOL3331','BIOL3451'],
+        electives:['BIOL3170','BIOL3381','BIOL3510','BIOL3800','BIOL4005','BIOL4051','BIOL4054','BIOL4091','BIOL4201','BIOL4220','BIOL4260','BIOL4300','BIOL4330','BIOL4370','BIOL4380','BIOL4440','BIOL4480'] },
+      { id:'phys', name:'Physics', icon:'🔭', depts:['PHYS'],
+        core:['PHYS1710','PHYS1720','MATH1710','MATH1720','MATH2730'],
+        electives:[] },
+    ]
+  },
+  'College of Liberal Arts & Social Sciences': {
+    color: '#7c3aed',
+    majors: [
+      { id:'psyc', name:'Psychology', icon:'🧠', depts:['PSYC'],
+        core:['PSYC1630','PSYC1650','PSYC2317','PSYC2900','PSYC3000','PSYC3100','PSYC3300','PSYC3520'],
+        electives:['PSYC3490','PSYC3530','PSYC3620','PSYC3640','PSYC3650','PSYC4020','PSYC4030','PSYC4470','PSYC4510','PSYC4520','PSYC4600','PSYC4610','PSYC4640','PSYC4690'] },
+      { id:'soci', name:'Sociology', icon:'👥', depts:['SOCI'],
+        core:['SOCI1510','SOCI1520','SOCI2050','SOCI3000','SOCI3110','SOCI3120','SOCI3200','SOCI3300'],
+        electives:['SOCI3220','SOCI3240','SOCI3280','SOCI3330','SOCI3540','SOCI3700','SOCI4170','SOCI4240','SOCI4250','SOCI4260','SOCI4600','SOCI4750'] },
+      { id:'anth', name:'Anthropology', icon:'🏛️', depts:['ANTH'],
+        core:['ANTH1010','ANTH1150','ANTH2700','ANTH3300','ANTH3710'],
+        electives:['ANTH2300','ANTH2400','ANTH3101','ANTH3110','ANTH3140','ANTH3200','ANTH3700','ANTH4011','ANTH4021','ANTH4220','ANTH4300','ANTH4400','ANTH4520','ANTH4720','ANTH4765'] },
+      { id:'engl', name:'English', icon:'📚', depts:['ENGL'],
+        core:['ENGL1310','ENGL1320','ENGL2210','ENGL2220','ENGL3060','ENGL3070'],
+        electives:['ENGL3000','ENGL3010','ENGL3020','ENGL3030','ENGL3040','ENGL3050','ENGL4000','ENGL4010','ENGL4020'] },
+      { id:'hist', name:'History', icon:'📜', depts:['HIST'],
+        core:['HIST1610','HIST1620','HIST2610','HIST2620'],
+        electives:['HIST3010','HIST3020','HIST3030','HIST4010','HIST4020'] },
+      { id:'phil', name:'Philosophy', icon:'🤔', depts:['PHIL'],
+        core:['PHIL1010','PHIL1020','PHIL2010','PHIL2020','PHIL3010'],
+        electives:['PHIL3020','PHIL3030','PHIL4010','PHIL4020'] },
+      { id:'psci', name:'Political Science', icon:'🏛', depts:['PSCI'],
+        core:['PSCI1040','PSCI1050','PSCI2010','PSCI2020','PSCI3010','PSCI3020'],
+        electives:['PSCI3030','PSCI3040','PSCI4010','PSCI4020','PSCI4030'] },
+      { id:'econ', name:'Economics', icon:'📊', depts:['ECON'],
+        core:['ECON1100','ECON1110','ECON2100','ECON2110','ECON3110'],
+        electives:['ECON3120','ECON3130','ECON3140','ECON4110','ECON4120'] },
+    ]
+  },
+  'Mayborn School of Journalism': {
+    color: '#b45309',
+    majors: [
+      { id:'jour', name:'Journalism', icon:'📰', depts:['JOUR'],
+        core:['JOUR1210','JOUR2300','JOUR2310','JOUR2400','JOUR3200','JOUR3220','JOUR3300'],
+        electives:['JOUR3310','JOUR3315','JOUR3321','JOUR3322','JOUR3323','JOUR3340','JOUR3401','JOUR3410','JOUR3420','JOUR3430','JOUR4210','JOUR4240','JOUR4250','JOUR4270','JOUR4280'] },
+      { id:'comm', name:'Communication Studies', icon:'🎙️', depts:['COMM'],
+        core:['COMM1010','COMM2020','COMM2040','COMM3010','COMM3120','COMM3220'],
+        electives:['COMM2060','COMM2140','COMM3260','COMM3320','COMM3325','COMM3420','COMM3720','COMM3820','COMM4120','COMM4220','COMM4320','COMM4340','COMM4360'] },
+    ]
+  },
+  'College of Languages': {
+    color: '#0891b2',
+    majors: [
+      { id:'span', name:'Spanish', icon:'🇪🇸', depts:['SPAN'], core:[], electives:[] },
+      { id:'fren', name:'French', icon:'🇫🇷', depts:['FREN'], core:[], electives:[] },
+      { id:'germ', name:'German', icon:'🇩🇪', depts:['GERM'], core:[], electives:[] },
+      { id:'japn', name:'Japanese', icon:'🇯🇵', depts:['JAPN'], core:[], electives:[] },
+    ]
+  },
+  'Other': {
+    color: '#6b7280',
+    majors: [
+      { id:'geog', name:'Geography', icon:'🗺️', depts:['GEOG'], core:[], electives:[] },
+      { id:'other', name:'Undecided / Other', icon:'🎓', depts:[], core:[], electives:[] },
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// PREREQ MAP (real UNT prereqs from course catalog)
+// ═══════════════════════════════════════════════════════
+const PREREQS = {
+  // CSCE chain
+  'CSCE1040':['CSCE1030'], 'CSCE1045':['CSCE1035'],
+  'CSCE2100':['CSCE1040'], 'CSCE2110':['CSCE1040'], 'CSCE2210':['CSCE1040'], 'CSCE2610':['CSCE1040'],
+  'CSCE3020':['CSCE2110'], 'CSCE3055':['CSCE2110'], 'CSCE3100':['CSCE2100','CSCE2110'],
+  'CSCE3201':['CSCE2110'], 'CSCE3214':['CSCE2110'], 'CSCE3220':['CSCE2110'], 'CSCE3420':['CSCE2110'],
+  'CSCE3444':['CSCE2110'], 'CSCE3530':['CSCE2110'], 'CSCE3550':['CSCE2110'], 'CSCE3560':['CSCE2110'],
+  'CSCE3600':['CSCE2100','CSCE2110'], 'CSCE3605':['CSCE3600'], 'CSCE3610':['CSCE2110'], 'CSCE3612':['CSCE3610'],
+  'CSCE4010':['CSCE3100'], 'CSCE4050':['CSCE3100'], 'CSCE4110':['CSCE3100'], 'CSCE4160':['CSCE3100'],
+  'CSCE4201':['CSCE3201'], 'CSCE4205':['CSCE3444'], 'CSCE4220':['CSCE3220'], 'CSCE4240':['CSCE3100'],
+  'CSCE4250':['CSCE3530'], 'CSCE4290':['CSCE3100'], 'CSCE4300':['CSCE3600'], 'CSCE4350':['CSCE3100'],
+  'CSCE4355':['CSCE3100'], 'CSCE4380':['CSCE3530'], 'CSCE4430':['CSCE3100'], 'CSCE4460':['CSCE3600'],
+  'CSCE4510':['CSCE3444'], 'CSCE4535':['CSCE3530'], 'CSCE4555':['CSCE3100'], 'CSCE4560':['CSCE3560'],
+  'CSCE4565':['CSCE3444'], 'CSCE4600':['CSCE3100'], 'CSCE4610':['CSCE3600'], 'CSCE4650':['CSCE3600'],
+  // EENG chain
+  'EENG2610':['EENG1910'], 'EENG2620':['EENG2610'], 'EENG2710':['EENG2610'],
+  'EENG3410':['EENG2620','EENG2710'], 'EENG3510':['EENG2620'], 'EENG3520':['EENG3510'],
+  'EENG3710':['EENG2710'], 'EENG3810':['EENG3410'],
+  'EENG4010':['EENG3410'], 'EENG4110':['EENG3410'], 'EENG4310':['EENG3810'], 'EENG4320':['EENG3810'],
+  'EENG4450':['EENG3520'], 'EENG4510':['EENG3520'], 'EENG4720':['EENG3710'], 'EENG4760':['EENG3710'],
+  // MEEN chain
+  'MEEN2110':['MEEN1000'], 'MEEN2210':['MEEN1000'], 'MEEN2240':['MEEN2210'],
+  'MEEN3100':['MEEN2110','MEEN2210'], 'MEEN3110':['MEEN2110'], 'MEEN3120':['MEEN3110'],
+  'MEEN3130':['MEEN3110'], 'MEEN3210':['MEEN2240'], 'MEEN3230':['MEEN3210'],
+  'MEEN3240':['MEEN3210'], 'MEEN3250':['MEEN3210'],
+  'MEEN4110':['MEEN3100'], 'MEEN4140':['MEEN3120'], 'MEEN4150':['MEEN3120'],
+  'MEEN4180':['MEEN3130'], 'MEEN4250':['MEEN3100'], 'MEEN4315':['MEEN3100'],
+  'MEEN4332':['MEEN3100'], 'MEEN4730':['MEEN3230'],
+  // BMEN chain
+  'BMEN2210':['BMEN1400'], 'BMEN2320':['BMEN1400'],
+  'BMEN3312':['BMEN2210','BMEN2320'], 'BMEN3321':['BMEN2210'],
+  'BMEN4100':['BMEN3312'], 'BMEN4222':['BMEN3321'], 'BMEN4314':['BMEN3312'],
+  'BMEN4319':['BMEN3321'], 'BMEN4320':['BMEN4314'], 'BMEN4326':['BMEN3321'],
+  // CNET chain
+  'CNET2180':['CNET1160'], 'CNET2200':['CNET1160'], 'CNET2300':['CNET1160'],
+  'CNET3160':['CNET2180'], 'CNET3190':['CNET2200'], 'CNET3410':['CNET2300'], 'CNET3440':['CNET2180'],
+  'CNET3445':['CNET3440'], 'CNET3460':['CNET3190'], 'CNET3465':['CNET3410'],
+  'CNET4170':['CNET3160'], 'CNET4180':['CNET3160'], 'CNET4190':['CNET3190'],
+  'CNET4230':['CNET3410'], 'CNET4620':['CNET3445'], 'CNET4630':['CNET3465'],
+  // MATH chain
+  'MATH1720':['MATH1710'], 'MATH1780':['MATH1710'], 'MATH2000':['MATH1720'],
+  'MATH2100':['MATH1720'], 'MATH2700':['MATH1720'], 'MATH2730':['MATH1720'],
+  'MATH3000':['MATH2730'], 'MATH3180':['MATH2730'], 'MATH3350':['MATH2730'],
+  'MATH3410':['MATH2730'], 'MATH3420':['MATH3410'], 'MATH3510':['MATH2730'],
+  'MATH3680':['MATH2730'], 'MATH3740':['MATH2730'], 'MATH3860':['MATH2730'],
+  'MATH4060':['MATH3000'], 'MATH4450':['MATH3410'], 'MATH4500':['MATH3510'],
+  'MATH4610':['MATH3000'], 'MATH4650':['MATH3000'],
+  // BIOL chain
+  'BIOL1720':['BIOL1710'], 'BIOL1722':['BIOL1720'], 'BIOL2041':['BIOL1720'],
+  'BIOL2140':['BIOL1720'], 'BIOL2251':['BIOL1720'], 'BIOL2301':['BIOL1720'], 'BIOL2302':['BIOL2301'],
+  'BIOL3080':['BIOL2251'], 'BIOL3160':['BIOL2251'], 'BIOL3170':['BIOL3160'],
+  'BIOL3331':['BIOL2251'], 'BIOL3381':['BIOL2251'], 'BIOL3451':['BIOL2251'],
+  'BIOL3510':['BIOL2251'], 'BIOL3800':['BIOL2301'],
+  'BIOL4005':['BIOL3160'], 'BIOL4051':['BIOL3451'], 'BIOL4054':['BIOL3451'],
+  'BIOL4055':['BIOL3451'], 'BIOL4091':['BIOL3331'], 'BIOL4201':['BIOL3331'],
+  'BIOL4220':['BIOL3160'], 'BIOL4260':['BIOL3160'], 'BIOL4300':['BIOL3451'],
+  'BIOL4330':['BIOL3451'], 'BIOL4370':['BIOL3381'], 'BIOL4380':['BIOL3331'],
+  'BIOL4440':['BIOL3451'], 'BIOL4480':['BIOL3160'],
+  // PSYC chain
+  'PSYC2317':['PSYC1630'], 'PSYC2480':['PSYC1630'], 'PSYC2580':['PSYC1630'],
+  'PSYC3000':['PSYC1650','PSYC2317'], 'PSYC3100':['PSYC2317'], 'PSYC3300':['PSYC2317'],
+  'PSYC3490':['PSYC2317'], 'PSYC3520':['PSYC2317'], 'PSYC3530':['PSYC3520'],
+  'PSYC3620':['PSYC2317'], 'PSYC3640':['PSYC2317'], 'PSYC3650':['PSYC2317'],
+  'PSYC4020':['PSYC3000'], 'PSYC4030':['PSYC3000'], 'PSYC4470':['PSYC3000'],
+  'PSYC4510':['PSYC3300'], 'PSYC4520':['PSYC3300'], 'PSYC4600':['PSYC3000'],
+  'PSYC4610':['PSYC3000'], 'PSYC4640':['PSYC3000'], 'PSYC4690':['PSYC3000'],
+  // SOCI chain
+  'SOCI2050':['SOCI1510'], 'SOCI3000':['SOCI1510'], 'SOCI3110':['SOCI1510'],
+  'SOCI3120':['SOCI1510'], 'SOCI3200':['SOCI1510'], 'SOCI3220':['SOCI1510'],
+  'SOCI3240':['SOCI1510'], 'SOCI3280':['SOCI1510'],
+  'SOCI3300':['SOCI3000'], 'SOCI3330':['SOCI3000'], 'SOCI3540':['SOCI3000'], 'SOCI3700':['SOCI3000'],
+  'SOCI4170':['SOCI3110'], 'SOCI4240':['SOCI3200'], 'SOCI4250':['SOCI3200'],
+  'SOCI4260':['SOCI3200'], 'SOCI4600':['SOCI3300'], 'SOCI4750':['SOCI3300'],
+  // ANTH chain
+  'ANTH2700':['ANTH1010'], 'ANTH3101':['ANTH1010'], 'ANTH3110':['ANTH1010'],
+  'ANTH3140':['ANTH1010'], 'ANTH3200':['ANTH1010'], 'ANTH3300':['ANTH1010'],
+  'ANTH3700':['ANTH2700'], 'ANTH3710':['ANTH2700'],
+  'ANTH4011':['ANTH3300'], 'ANTH4021':['ANTH3300'], 'ANTH4220':['ANTH3300'],
+  'ANTH4300':['ANTH3300'], 'ANTH4400':['ANTH3300'], 'ANTH4520':['ANTH3300'],
+  'ANTH4720':['ANTH3700'], 'ANTH4765':['ANTH3710'],
+  // JOUR chain
+  'JOUR2300':['JOUR1210'], 'JOUR2310':['JOUR1210'], 'JOUR2400':['JOUR1210'],
+  'JOUR3200':['JOUR2300'], 'JOUR3220':['JOUR2300'], 'JOUR3300':['JOUR2300'],
+  'JOUR3310':['JOUR2310'], 'JOUR3315':['JOUR2310'],
+  'JOUR3321':['JOUR3300'], 'JOUR3322':['JOUR3300'], 'JOUR3323':['JOUR3300'],
+  'JOUR3340':['JOUR2400'], 'JOUR3401':['JOUR3200'], 'JOUR3410':['JOUR3300'],
+  'JOUR3420':['JOUR3300'], 'JOUR3430':['JOUR3300'],
+  'JOUR4210':['JOUR3200'], 'JOUR4215':['JOUR3200'], 'JOUR4240':['JOUR3200'],
+  'JOUR4250':['JOUR3220'], 'JOUR4270':['JOUR3401'], 'JOUR4280':['JOUR3410'],
+  'JOUR4321':['JOUR3321'], 'JOUR4323':['JOUR3323'], 'JOUR4350':['JOUR3310'],
+  'JOUR4353':['JOUR3315'], 'JOUR4355':['JOUR3310'], 'JOUR4410':['JOUR3300'],
+  // COMM chain
+  'COMM2020':['COMM1010'], 'COMM2040':['COMM1010'],
+  'COMM3010':['COMM2020'], 'COMM3120':['COMM2020'], 'COMM3220':['COMM2040'],
+  'COMM3260':['COMM2020'], 'COMM3320':['COMM2020'], 'COMM3325':['COMM2020'],
+  'COMM3420':['COMM3120'], 'COMM3720':['COMM3010'], 'COMM3820':['COMM3010'], 'COMM3840':['COMM3010'],
+  'COMM4120':['COMM3120'], 'COMM4220':['COMM3220'], 'COMM4320':['COMM3320'],
+  'COMM4340':['COMM3420'], 'COMM4360':['COMM3720'],
+};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const API = 'http://localhost:3001/api';
+let allSections = [];
+let completed = {};
+let selectedMajor = null;
+let currentTab = 'major';
+
+const savedCompleted = sessionStorage.getItem('completed_courses');
+if (savedCompleted) completed = JSON.parse(savedCompleted);
+const savedMajor = sessionStorage.getItem('selected_major');
+if (savedMajor) { selectedMajor = JSON.parse(savedMajor); }
+
+// Build dept→college lookup
+const DEPT_TO_COLLEGE = {};
+Object.entries(COLLEGES).forEach(([college, data]) => {
+  data.majors.forEach(m => m.depts.forEach(d => { DEPT_TO_COLLEGE[d] = { college, color: data.color }; }));
+});
+
+// ═══════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════
+function buildMajorModal() {
+  const container = document.getElementById('major-grid-container');
+  container.innerHTML = '';
+  Object.entries(COLLEGES).forEach(([collegeName, data]) => {
+    const sec = document.createElement('div');
+    sec.className = 'college-section';
+    sec.innerHTML = `<div class="college-label" style="color:${data.color}">${collegeName}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'major-grid';
+    data.majors.forEach(m => {
+      const btn = document.createElement('button');
+      btn.className = 'major-btn' + (selectedMajor?.id === m.id ? ' selected' : '');
+      btn.innerHTML = `${m.icon} ${m.name}<span class="dept-tag">${m.depts.join(', ') || 'All depts'}</span>`;
+      btn.onclick = () => {
+        document.querySelectorAll('.major-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedMajor = { ...m, college: collegeName, collegeColor: data.color };
+        document.getElementById('modal-confirm').disabled = false;
+      };
+      grid.appendChild(btn);
+    });
+    sec.appendChild(grid);
+    container.appendChild(sec);
+  });
+}
+
+function openMajorModal() {
+  buildMajorModal();
+  document.getElementById('major-modal').classList.remove('hidden');
+}
+
+function confirmMajor() {
+  sessionStorage.setItem('selected_major', JSON.stringify(selectedMajor));
+  document.getElementById('major-modal').classList.add('hidden');
+  updateMajorBar();
+  currentTab = 'major';
+  updateTabUI();
+  renderPage();
+}
+
+function updateMajorBar() {
+  if (!selectedMajor) return;
+  document.getElementById('major-bar-icon').textContent = selectedMajor.icon;
+  document.getElementById('major-bar-name').textContent = selectedMajor.name;
+  document.getElementById('major-bar-college').textContent = selectedMajor.college + ' · UNT';
+  document.getElementById('major-bar').style.display = 'flex';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('tab-row').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════
+function setTab(tab, btn) {
+  currentTab = tab;
+  updateTabUI();
+  renderPage();
+}
+function updateTabUI() {
+  const tabs = ['major','all','completed','locked','tree'];
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === currentTab));
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+  if (!selectedMajor) { buildMajorModal(); }
+  else { document.getElementById('major-modal').classList.add('hidden'); updateMajorBar(); }
+
+  try {
+    const subRes = await fetch(API + '/courses/subjects');
+    const subjects = await subRes.json();
+    const sel = document.getElementById('dept-filter');
+    subjects.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o); });
+
+    const res = await fetch(API + '/courses');
+    allSections = await res.json();
+    renderPage();
+  } catch(e) {
+    document.getElementById('course-list').innerHTML =
+      '<div class="loading-state" style="color:#dc2626;">⚠️ Cannot connect to backend. Make sure the server is running.</div>';
+  }
+}
+
+function groupByCourse(sections) {
+  const map = {};
+  sections.forEach(s => {
+    const key = s.subject + s.number;
+    if (!map[key]) map[key] = { subject: s.subject, number: s.number, title: s.title, credits: s.credits, sections: [] };
+    map[key].sections.push(s);
+  });
+  return Object.values(map);
+}
+function isLocked(key) {
+  const p = PREREQS[key]; return p && p.some(x => !completed[x]);
+}
+function missingPrereqs(key) {
+  return (PREREQS[key] || []).filter(x => !completed[x]);
+}
+function getRole(key) {
+  if (!selectedMajor) return 'none';
+  if ((selectedMajor.core || []).includes(key)) return 'core';
+  if ((selectedMajor.electives || []).includes(key)) return 'elective';
+  return 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════
+function renderPage() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const dept = document.getElementById('dept-filter').value;
+
+  let filtered = allSections;
+  if (dept) filtered = filtered.filter(s => s.subject === dept);
+  let courses = groupByCourse(filtered);
+  if (q) courses = courses.filter(c => c.title.toLowerCase().includes(q) || (c.subject+c.number).toLowerCase().includes(q) || c.subject.toLowerCase().includes(q));
+
+  if (currentTab === 'major' && selectedMajor && !q && !dept) {
+    const all = new Set([...(selectedMajor.core||[]), ...(selectedMajor.electives||[])]);
+    courses = courses.filter(c => all.has(c.subject+c.number));
+  } else if (currentTab === 'completed') {
+    courses = courses.filter(c => completed[c.subject+c.number]);
+  } else if (currentTab === 'locked') {
+    courses = courses.filter(c => isLocked(c.subject+c.number) && !completed[c.subject+c.number]);
+  }
+
+  const list = document.getElementById('course-list');
+  list.innerHTML = '';
+
+  if (currentTab === 'tree') {
+    renderPrereqTree();
+    return;
+  }
+
+  if (courses.length === 0) {
+    list.innerHTML = '<div class="loading-state">No courses found.</div>';
+    updateProgress(); return;
+  }
+
+  if (currentTab === 'major' && selectedMajor && !q && !dept) {
+    renderMajorView(courses, list);
+  } else {
+    renderByCollege(courses, list);
+  }
+  updateProgress();
+}
+
+function renderMajorView(courses, list) {
+  const coreSet = new Set(selectedMajor.core || []);
+  const electSet = new Set(selectedMajor.electives || []);
+  const core = courses.filter(c => coreSet.has(c.subject+c.number));
+  const elec = courses.filter(c => electSet.has(c.subject+c.number));
+
+  if (core.length > 0) {
+    const h = document.createElement('div');
+    h.className = 'college-section-header';
+    h.innerHTML = `<h3>Required Core Courses</h3><span class="college-pill" style="background:#00512b">${core.length} courses</span>`;
+    list.appendChild(h);
+    core.forEach(c => list.appendChild(makeCourseRow(c)));
+  }
+  if (elec.length > 0) {
+    const h = document.createElement('div');
+    h.className = 'college-section-header';
+    h.innerHTML = `<h3>Electives</h3><span class="college-pill" style="background:#2563eb">${elec.length} options</span>`;
+    list.appendChild(h);
+    elec.forEach(c => list.appendChild(makeCourseRow(c)));
+  }
+}
+
+function renderByCollege(courses, list) {
+  const byCollege = {};
+  courses.forEach(c => {
+    const info = DEPT_TO_COLLEGE[c.subject] || { college: 'Other Departments', color: '#6b7280' };
+    if (!byCollege[info.college]) byCollege[info.college] = { color: info.color, depts: {} };
+    if (!byCollege[info.college].depts[c.subject]) byCollege[info.college].depts[c.subject] = [];
+    byCollege[info.college].depts[c.subject].push(c);
+  });
+
+  Object.entries(byCollege).sort(([a],[b]) => a.localeCompare(b)).forEach(([college, data]) => {
+    const total = Object.values(data.depts).flat().length;
+    const header = document.createElement('div');
+    header.className = 'college-section-header';
+    header.innerHTML = `<h3>${college}</h3><span class="college-pill" style="background:${data.color}">${total} courses</span>`;
+    list.appendChild(header);
+
+    Object.keys(data.depts).sort().forEach(dept => {
+      const dl = document.createElement('div');
+      dl.className = 'dept-label'; dl.textContent = dept;
+      list.appendChild(dl);
+      data.depts[dept].sort((a,b) => a.number.localeCompare(b.number)).forEach(c => list.appendChild(makeCourseRow(c)));
+    });
+  });
+}
+
+function makeCourseRow(course) {
+  const key = course.subject + course.number;
+  const isDone = !!completed[key];
+  const locked = !isDone && isLocked(key);
+  const missing = missingPrereqs(key);
+  const role = getRole(key);
+
+  const row = document.createElement('div');
+  let cls = 'course-row';
+  if (isDone) cls += ' completed';
+  if (locked) cls += ' locked';
+  if (role === 'core') cls += ' core-course';
+  else if (role === 'elective') cls += ' elective-course';
+  row.className = cls;
+
+  const roleTag = role === 'core' ? '<span class="course-tag tag-core">Core</span>'
+                : role === 'elective' ? '<span class="course-tag tag-elective">Elective</span>' : '';
+
+  let prereqHtml = '';
+  if (locked) prereqHtml = `<div class="prereq-note locked-note">🔒 Complete first: ${missing.join(', ')}</div>`;
+  else if (isDone && PREREQS[key]?.length) prereqHtml = `<div class="prereq-note met-note">✓ Prereqs met</div>`;
+  else if (!isDone && PREREQS[key]?.length) prereqHtml = `<div class="prereq-note unmet-note">Prereqs: ${PREREQS[key].join(', ')}</div>`;
+
+  row.innerHTML = `
+    <div class="row-left">
+      <div class="course-info">
+        <div class="course-title-row">
+          <span class="course-title">${course.title}</span>
+          ${roleTag}
         </div>
-      </div>
-      <button class="change-btn" onclick="openMajorModal()">Change</button>
-    </div>
-
-    <!-- Progress -->
-    <div class="progress-bar-wrap" id="progress-wrap" style="display:none;">
-      <div class="progress-label">
-        <span><strong id="completed-count">0</strong> of <span id="total-count">0</span> courses completed</span>
-        <span id="progress-pct">0%</span>
-      </div>
-      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filter-row">
-      <input class="search-bar" id="search" placeholder="Search courses, e.g. CSCE 3600 or Calculus..." oninput="filterCourses()">
-      <select class="dept-select" id="dept-filter" onchange="filterCourses()">
-        <option value="">All Departments</option>
-      </select>
-    </div>
-
-    <div id="course-list">
-      <div class="loading-state">
-        <div class="spinner"></div>
-        Loading courses...
+        <div class="course-meta">${course.subject} ${course.number} · ${course.credits} cr · ${course.sections.length} section${course.sections.length!==1?'s':''}</div>
+        ${prereqHtml}
       </div>
     </div>
-  </div>
+    <div class="toggle-wrap">
+      <span class="toggle-label">${isDone ? 'Done ✓' : locked ? 'Locked' : ''}</span>
+      <label class="toggle ${locked?'disabled':''}">
+        <input type="checkbox" ${isDone?'checked':''} ${locked?'disabled':''} onchange="toggleCourse('${key}',this)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>`;
+  return row;
+}
 
-  <div class="page-footer">
-    <span class="footer-count"><strong id="footer-completed">0</strong> courses completed</span>
-    <div style="display:flex;gap:10px;">
-      <button class="btn btn-ghost" onclick="window.location.href='DraftLogin.html'">← Back</button>
-      <button class="btn btn-primary" onclick="goToSchedule()">Optimize Schedule →</button>
-    </div>
-  </div>
+function toggleCourse(key, cb) {
+  if (isLocked(key)) { cb.checked = false; return; }
+  if (cb.checked) completed[key] = true; else delete completed[key];
+  sessionStorage.setItem('completed_courses', JSON.stringify(completed));
+  renderPage();
+}
 
-  <script>
-    const API = 'http://localhost:3001/api';
+function updateProgress() {
+  const all = groupByCourse(allSections);
+  const total = all.length;
+  const done = Object.keys(completed).length;
+  const pct = total > 0 ? Math.round((done/total)*100) : 0;
+  document.getElementById('completed-count').textContent = done;
+  document.getElementById('total-count').textContent = total;
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('footer-completed').textContent = done;
+  document.getElementById('footer-locked').textContent = all.filter(c => isLocked(c.subject+c.number) && !completed[c.subject+c.number]).length;
+}
 
-    // ── MAJORS ────────────────────────────────────────────────────────────────
-    const MAJORS = [
-      { id: 'cs',       name: 'Computer Science',         dept: 'CSCE',  icon: '💻', core: ['CSCE1030','CSCE1040','CSCE2100','CSCE2110','CSCE2120','CSCE3100','CSCE3530','CSCE4600'] },
-      { id: 'ce',       name: 'Computer Engineering',     dept: 'CSCE',  icon: '⚙️', core: ['CSCE1030','CSCE1040','CSCE2100','CSCE2110','CSCE3444','CSCE4510'] },
-      { id: 'math',     name: 'Mathematics',              dept: 'MATH',  icon: '📐', core: ['MATH1710','MATH1720','MATH2730','MATH2700','MATH3000','MATH3410'] },
-      { id: 'bio',      name: 'Biology',                  dept: 'BIOL',  icon: '🧬', core: ['BIOL1710','BIOL1720','BIOL2451','BIOL3451','BIOL3510'] },
-      { id: 'business', name: 'Business',                 dept: 'BUSI',  icon: '📊', core: ['BUSI1300','MGMT3000','ACCT2010','MKTG3010','BUSI4900'] },
-      { id: 'psych',    name: 'Psychology',               dept: 'PSYC',  icon: '🧠', core: ['PSYC1010','PSYC2010','PSYC3310','PSYC4010'] },
-      { id: 'english',  name: 'English',                  dept: 'ENGL',  icon: '📚', core: ['ENGL2210','ENGL2220','ENGL3000','ENGL4000'] },
-      { id: 'other',    name: 'Other / Undecided',        dept: '',      icon: '🎓', core: [] },
-    ];
+function goToSchedule() {
+  sessionStorage.setItem('completed_courses', JSON.stringify(completed));
+  sessionStorage.setItem('selected_major', JSON.stringify(selectedMajor));
+  window.location.href = 'schedule.html';
+}
 
-    // ── PREREQS ───────────────────────────────────────────────────────────────
-    // key = courseSubject+number, value = array of prereq keys that must be completed
-    const PREREQS = {
-      'CSCE1040': ['CSCE1030'],
-      'CSCE2100': ['CSCE1040'],
-      'CSCE2110': ['CSCE1040'],
-      'CSCE2120': ['CSCE1040'],
-      'CSCE3100': ['CSCE2100','CSCE2110'],
-      'CSCE3530': ['CSCE2110'],
-      'CSCE3444': ['CSCE2110'],
-      'CSCE4600': ['CSCE3100'],
-      'CSCE4510': ['CSCE3444'],
-      'MATH1720': ['MATH1710'],
-      'MATH2730': ['MATH1720'],
-      'MATH2700': ['MATH1720'],
-      'MATH3000': ['MATH2730'],
-      'MATH3410': ['MATH2730'],
-      'BIOL1720': ['BIOL1710'],
-      'BIOL2451': ['BIOL1720'],
-      'BIOL3451': ['BIOL2451'],
-      'BIOL3510': ['BIOL2451'],
-      'PSYC2010': ['PSYC1010'],
-      'PSYC3310': ['PSYC2010'],
-      'PSYC4010': ['PSYC3310'],
+// ═══════════════════════════════════════════════════════
+// PREREQUISITE TREE VIEW
+// ═══════════════════════════════════════════════════════
+
+function normalizeCourseCode(key) {
+  return key.replace(/^([A-Z]+)(\d+)$/, '$1 $2');
+}
+
+function selectedTreeDepartment() {
+  return document.getElementById('dept-filter').value;
+}
+
+function buildPrereqTree() {
+  const dept = selectedTreeDepartment();
+  if (!dept) return null;
+
+  const deptCourses = groupByCourse(allSections)
+    .filter(c => c.subject === dept)
+    .map(c => c.subject + c.number);
+
+  const prereqCourses = Object.keys(PREREQS)
+    .filter(key => key.startsWith(dept) || (PREREQS[key] || []).some(p => p.startsWith(dept)));
+
+  const treeCourses = [...new Set([...deptCourses, ...prereqCourses.filter(k => k.startsWith(dept))])]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const titleLookup = {};
+  allSections.forEach(s => {
+    const key = s.subject + s.number;
+    if (!titleLookup[key]) titleLookup[key] = s.title || normalizeCourseCode(key);
+  });
+
+  const courseMap = {};
+  treeCourses.forEach(key => {
+    courseMap[key] = {
+      key,
+      code: normalizeCourseCode(key),
+      name: titleLookup[key] || normalizeCourseCode(key),
+      prereqs: (PREREQS[key] || []).filter(p => p.startsWith(dept)),
+      dependents: []
     };
+  });
 
-    // ── STATE ─────────────────────────────────────────────────────────────────
-    let allSections = [];
-    let completed = {}; // { "CSCE1030": true }
-    let selectedMajor = null;
-
-    const savedCompleted = sessionStorage.getItem('completed_courses');
-    if (savedCompleted) completed = JSON.parse(savedCompleted);
-    const savedMajor = sessionStorage.getItem('selected_major');
-    if (savedMajor) selectedMajor = JSON.parse(savedMajor);
-
-    // ── MAJOR MODAL ───────────────────────────────────────────────────────────
-    function buildMajorGrid() {
-      const grid = document.getElementById('major-grid');
-      grid.innerHTML = '';
-      MAJORS.forEach(m => {
-        const btn = document.createElement('button');
-        btn.className = 'major-btn' + (selectedMajor?.id === m.id ? ' selected' : '');
-        btn.innerHTML = `${m.icon} ${m.name}<span class="dept-tag">${m.dept || 'All departments'}</span>`;
-        btn.onclick = () => {
-          grid.querySelectorAll('.major-btn').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          selectedMajor = m;
-          document.getElementById('modal-confirm').disabled = false;
+  Object.values(courseMap).forEach(course => {
+    course.prereqs.forEach(p => {
+      if (!courseMap[p]) {
+        courseMap[p] = {
+          key: p,
+          code: normalizeCourseCode(p),
+          name: titleLookup[p] || normalizeCourseCode(p),
+          prereqs: (PREREQS[p] || []).filter(x => x.startsWith(dept)),
+          dependents: []
         };
-        grid.appendChild(btn);
-      });
-    }
+      }
+    });
+  });
 
-    function openMajorModal() {
-      buildMajorGrid();
-      document.getElementById('major-modal').classList.remove('hidden');
-    }
+  Object.values(courseMap).forEach(course => { course.dependents = []; });
+  Object.values(courseMap).forEach(course => {
+    course.prereqs.forEach(p => {
+      if (courseMap[p]) courseMap[p].dependents.push(course.key);
+    });
+  });
 
-    function confirmMajor() {
-      sessionStorage.setItem('selected_major', JSON.stringify(selectedMajor));
-      document.getElementById('major-modal').classList.add('hidden');
-      updateMajorBar();
-      filterCourses();
-    }
+  const memo = {};
+  function getLevel(key, visiting = new Set()) {
+    if (memo[key] !== undefined) return memo[key];
+    if (visiting.has(key)) return 0;
+    visiting.add(key);
+    const prereqs = courseMap[key]?.prereqs || [];
+    memo[key] = prereqs.length === 0 ? 0 : 1 + Math.max(...prereqs.map(p => getLevel(p, visiting)));
+    visiting.delete(key);
+    return memo[key];
+  }
 
-    function updateMajorBar() {
-      if (!selectedMajor) return;
-      document.getElementById('major-bar-icon').textContent = selectedMajor.icon;
-      document.getElementById('major-bar-name').textContent = selectedMajor.name;
-      document.getElementById('major-bar').style.display = 'flex';
-      document.getElementById('progress-wrap').style.display = 'block';
-    }
+  const levels = [];
+  Object.keys(courseMap).forEach(key => {
+    const level = getLevel(key);
+    if (!levels[level]) levels[level] = [];
+    levels[level].push(courseMap[key]);
+  });
 
-    // ── DATA ──────────────────────────────────────────────────────────────────
-    async function init() {
-      // Show modal if no major selected
-      if (!selectedMajor) {
-        buildMajorGrid();
-      } else {
-        document.getElementById('major-modal').classList.add('hidden');
-        updateMajorBar();
+  levels.forEach(level => level.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true })));
+  return { dept, levels: levels.filter(Boolean), courseMap };
+}
+
+function renderPrereqTree() {
+  const list = document.getElementById('course-list');
+  const dept = selectedTreeDepartment();
+
+  if (!dept) {
+    list.innerHTML = `
+      <div class="tree-empty">
+        <div class="tree-empty-icon">🌳</div>
+        <p><strong>Pick a department first.</strong></p>
+        <p>Use the department dropdown above, like CSCE, MATH, BIOL, EENG, etc. The tree will build from that department's courses.</p>
+      </div>`;
+    updateProgress();
+    return;
+  }
+
+  const tree = buildPrereqTree();
+  if (!tree || tree.levels.length === 0) {
+    list.innerHTML = `
+      <div class="tree-empty">
+        <div class="tree-empty-icon">📚</div>
+        <p>No prerequisite tree found for ${dept}.</p>
+      </div>`;
+    updateProgress();
+    return;
+  }
+
+  list.innerHTML = `
+    <div class="tree-legend">
+      <div class="legend-item"><div class="legend-dot done"></div><span>Completed</span></div>
+      <div class="legend-item"><div class="legend-dot available"></div><span>Ready</span></div>
+      <div class="legend-item"><div class="legend-dot locked"></div><span>Locked</span></div>
+      <span class="tree-hint">${dept} prerequisite tree · click unlocked cards to mark complete</span>
+    </div>
+    <div class="prereq-tree-wrapper">
+      <div class="prereq-tree" id="prereq-tree-inner"></div>
+    </div>`;
+
+  const treeInner = document.getElementById('prereq-tree-inner');
+  treeInner.style.setProperty('--tree-levels', tree.levels.length);
+
+  tree.levels.forEach((courses, index) => {
+    const levelDiv = document.createElement('div');
+    levelDiv.className = 'tree-level';
+    const levelLabel = document.createElement('div');
+    levelLabel.className = 'tree-level-label';
+    levelLabel.textContent = `Level ${index + 1}`;
+    levelDiv.appendChild(levelLabel);
+
+    const nodesContainer = document.createElement('div');
+    nodesContainer.className = 'tree-nodes';
+
+    courses.forEach(course => {
+      const isDone = !!completed[course.key];
+      const missing = course.prereqs.filter(p => !completed[p]);
+      const locked = !isDone && missing.length > 0;
+
+      let statusClass = 'available';
+      let statusBadge = '<span class="tree-node-status-badge status-available">Ready</span>';
+      if (isDone) {
+        statusClass = 'completed';
+        statusBadge = '<span class="tree-node-status-badge status-done">✓ Done</span>';
+      } else if (locked) {
+        statusClass = 'locked';
+        statusBadge = `<span class="tree-node-status-badge status-locked">🔒 ${missing.length}</span>`;
       }
 
-      try {
-        const subRes = await fetch(API + '/courses/subjects');
-        const subjects = await subRes.json();
-        const sel = document.getElementById('dept-filter');
-        subjects.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s; opt.textContent = s;
-          sel.appendChild(opt);
-        });
+      const prereqHtml = course.prereqs.length > 0
+        ? `<div class="tree-node-prereqs">Needs: ${course.prereqs.map(p => completed[p] ? `<span class="has">✓ ${p}</span>` : `<span class="needs">✗ ${p}</span>`).join(', ')}</div>`
+        : '';
 
-        const res = await fetch(API + '/courses');
-        allSections = await res.json();
-        filterCourses();
-      } catch (e) {
-        document.getElementById('course-list').innerHTML =
-          '<div class="loading-state" style="color:#dc2626;">⚠️ Cannot connect to backend.<br>Make sure the server is running.</div>';
-      }
-    }
-
-    // ── GROUPING ──────────────────────────────────────────────────────────────
-    function groupByCourse(sections) {
-      const map = {};
-      sections.forEach(s => {
-        const key = s.subject + s.number;
-        if (!map[key]) map[key] = { subject: s.subject, number: s.number, title: s.title, credits: s.credits, sections: [] };
-        map[key].sections.push(s);
-      });
-      return Object.values(map);
-    }
-
-    // ── PREREQ HELPERS ────────────────────────────────────────────────────────
-    function isLocked(key) {
-      const prereqs = PREREQS[key];
-      if (!prereqs || prereqs.length === 0) return false;
-      return prereqs.some(p => !completed[p]);
-    }
-
-    function missingPrereqs(key) {
-      const prereqs = PREREQS[key];
-      if (!prereqs) return [];
-      return prereqs.filter(p => !completed[p]);
-    }
-
-    // ── RENDER ────────────────────────────────────────────────────────────────
-    function filterCourses() {
-      const q = document.getElementById('search').value.trim().toLowerCase();
-      const dept = document.getElementById('dept-filter').value;
-
-      let filtered = allSections;
-      if (dept) filtered = filtered.filter(s => s.subject === dept);
-
-      let courses = groupByCourse(filtered);
-
-      // If major selected and no search, prioritize major courses first
-      if (selectedMajor && selectedMajor.core.length > 0 && !q && !dept) {
-        const coreSet = new Set(selectedMajor.core);
-        const core = courses.filter(c => coreSet.has(c.subject + c.number));
-        const rest = courses.filter(c => !coreSet.has(c.subject + c.number));
-        courses = [...core, ...rest];
-      }
-
-      if (q) {
-        courses = courses.filter(c =>
-          c.title.toLowerCase().includes(q) ||
-          (c.subject + c.number).toLowerCase().includes(q) ||
-          c.subject.toLowerCase().includes(q)
-        );
-      }
-
-      renderCourses(courses);
-    }
-
-    function renderCourses(courses) {
-      const list = document.getElementById('course-list');
-      list.innerHTML = '';
-
-      if (courses.length === 0) {
-        list.innerHTML = '<div class="loading-state">No courses found.</div>';
-        return;
-      }
-
-      // If major active and no filter, show "Your Major" section first
-      const q = document.getElementById('search').value.trim();
-      const dept = document.getElementById('dept-filter').value;
-      if (selectedMajor && selectedMajor.core.length > 0 && !q && !dept) {
-        const coreSet = new Set(selectedMajor.core);
-        const coreCourses = courses.filter(c => coreSet.has(c.subject + c.number));
-        const otherCourses = courses.filter(c => !coreSet.has(c.subject + c.number));
-
-        if (coreCourses.length > 0) {
-          const label = document.createElement('div');
-          label.className = 'dept-label';
-          label.textContent = `${selectedMajor.icon} ${selectedMajor.name} — Core Courses`;
-          list.appendChild(label);
-          coreCourses.forEach(c => list.appendChild(makeCourseRow(c)));
-        }
-
-        if (otherCourses.length > 0) {
-          renderBySubject(otherCourses, list);
-        }
-      } else {
-        renderBySubject(courses, list);
-      }
-
-      updateProgress();
-    }
-
-    function renderBySubject(courses, list) {
-      const bySubject = {};
-      courses.forEach(c => {
-        if (!bySubject[c.subject]) bySubject[c.subject] = [];
-        bySubject[c.subject].push(c);
-      });
-      Object.keys(bySubject).sort().forEach(subj => {
-        const label = document.createElement('div');
-        label.className = 'dept-label';
-        label.textContent = subj;
-        list.appendChild(label);
-        bySubject[subj].sort((a,b) => a.number.localeCompare(b.number)).forEach(c => list.appendChild(makeCourseRow(c)));
-      });
-    }
-
-    function makeCourseRow(course) {
-      const key = course.subject + course.number;
-      const isDone = !!completed[key];
-      const locked = isLocked(key);
-      const missing = missingPrereqs(key);
-
-      const row = document.createElement('div');
-      row.className = 'course-row' + (isDone ? ' completed' : '') + (locked ? ' locked' : '');
-      row.dataset.key = key;
-
-      const prereqHtml = locked
-        ? `<div class="prereq-note locked-note">🔒 Complete first: ${missing.join(', ')}</div>`
-        : missing.length === 0 && PREREQS[key]
-          ? `<div class="prereq-note">✓ Prereqs met</div>`
-          : PREREQS[key]
-            ? `<div class="prereq-note">Prereqs: ${PREREQS[key].join(', ')}</div>`
-            : '';
-
-      row.innerHTML = `
-        <div class="row-left">
-          <div class="course-info">
-            <div class="course-title">${course.title}</div>
-            <div class="course-meta">${course.subject} ${course.number} · ${course.credits} cr · ${course.sections.length} section${course.sections.length !== 1 ? 's' : ''}</div>
-            ${prereqHtml}
-          </div>
+      const node = document.createElement('div');
+      node.className = `tree-node ${statusClass}`;
+      if (course.dependents.length > 0) node.classList.add('has-children');
+      node.style.cursor = locked ? 'not-allowed' : 'pointer';
+      node.innerHTML = `
+        <div class="tree-node-header">
+          <span class="tree-node-code">${course.code}</span>
+          ${statusBadge}
         </div>
-        <div class="toggle-wrap">
-          <span class="toggle-label">${isDone ? 'Completed' : locked ? 'Locked' : 'Not yet'}</span>
-          <label class="toggle ${locked ? 'disabled' : ''}">
-            <input type="checkbox" ${isDone ? 'checked' : ''} ${locked ? 'disabled' : ''} onchange="toggleCourse('${key}', this)">
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
+        <div class="tree-node-title">${course.name}</div>
+        ${prereqHtml}
       `;
 
-      return row;
-    }
+      node.onclick = () => {
+        if (locked) return;
+        if (completed[course.key]) delete completed[course.key];
+        else completed[course.key] = true;
+        sessionStorage.setItem('completed_courses', JSON.stringify(completed));
+        renderPage();
+      };
+      nodesContainer.appendChild(node);
+    });
 
-    function toggleCourse(key, checkbox) {
-      if (isLocked(key)) { checkbox.checked = false; return; }
+    levelDiv.appendChild(nodesContainer);
+    treeInner.appendChild(levelDiv);
+  });
+  updateProgress();
+}
 
-      completed[key] = checkbox.checked;
-      if (!checkbox.checked) delete completed[key];
-      sessionStorage.setItem('completed_courses', JSON.stringify(completed));
-
-      // Re-render to update lock states of dependent courses
-      filterCourses();
-    }
-
-    function updateProgress() {
-      const allCourses = groupByCourse(allSections);
-      const total = allCourses.length;
-      const done = Object.keys(completed).length;
-      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
-      document.getElementById('completed-count').textContent = done;
-      document.getElementById('total-count').textContent = total;
-      document.getElementById('progress-pct').textContent = pct + '%';
-      document.getElementById('progress-fill').style.width = pct + '%';
-      document.getElementById('footer-completed').textContent = done;
-    }
-
-    function goToSchedule() {
-      sessionStorage.setItem('completed_courses', JSON.stringify(completed));
-      window.location.href = 'schedule.html';
-    }
-
-    init();
-  </script>
+init();
+</script>
 </body>
 </html>
