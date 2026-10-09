@@ -1,10 +1,15 @@
 import { courses } from "@/lib/seed-data";
+import { compareAcademicTerms } from "@/lib/term-chronology";
 import type {
   Course,
   TranscriptCourseRecord,
   TranscriptImportSummary,
   TranscriptSourceKind,
 } from "@/lib/types";
+
+// Chronological term ordering lives in @/lib/term-chronology (shared with the
+// planner); re-exported here so importer consumers keep a single import site.
+export { compareAcademicTerms };
 
 export type RawTranscriptCourse = {
   code?: unknown;
@@ -77,38 +82,6 @@ export function normalizeTranscriptCode(value: unknown) {
   const match = raw.match(/^([A-Z]{2,5})[\s._-]*(\d{4})$/);
   if (!match) return null;
   return `${match[1]} ${match[2]}`;
-}
-
-const seasonRanks: Record<string, number> = {
-  spring: 0,
-  summer: 1,
-  fall: 2,
-  winter: 3,
-};
-
-function parseAcademicTerm(term: string): { year: number; season: number } | null {
-  const normalized = term.toLowerCase();
-  const season = normalized.match(/\b(fall|spring|summer|winter)\b/);
-  const year = normalized.match(/\b20\d{2}\b/);
-  if (!season || !year) return null;
-  return { year: Number(year[0]), season: seasonRanks[season[1]] };
-}
-
-// Orders transcript terms chronologically regardless of label direction
-// ("2025 Fall" and "Fall 2025" are equivalent). Winter is the December
-// intersession, so within one labeled year it ranks after Fall and before the
-// next year's Spring. Unparseable terms (including the "Unknown term" and
-// "Needs review" sentinels) sort after all known terms.
-export function compareAcademicTerms(a: string, b: string) {
-  const parsedA = parseAcademicTerm(a);
-  const parsedB = parseAcademicTerm(b);
-  if (parsedA && parsedB) {
-    if (parsedA.year !== parsedB.year) return parsedA.year - parsedB.year;
-    return parsedA.season - parsedB.season;
-  }
-  if (parsedA) return -1;
-  if (parsedB) return 1;
-  return 0;
 }
 
 function stableRecordId(record: {
