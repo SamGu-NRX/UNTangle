@@ -8,8 +8,8 @@ UNTangle is a course-catalog and semester planner for University of North Texas 
 - **Transcript import.** Upload the unofficial myUNT transcript PDF (up to 12 MB) at `/courses/import`. It is read in your browser with pdf.js, identity fields are best-effort redacted (text) or band-masked (scanned pages), and the Puter browser AI SDK extracts the course rows. Nothing is applied until you review and approve it. Read the privacy note in [`frontend/README.md`](frontend/README.md) first — redaction and masking are not complete anonymization.
 - **Schedule optimization.** Five one-click modes — Cluster mornings, Cluster nights, Compact days, Minimize walking, Strong professors (`frontend/src/components/schedule-client.tsx`) — pick the best conflict-free combination of bundled section meeting times (`frontend/src/lib/planner.ts`). Individual sections can be pinned, and time conflicts are flagged on the week grid.
 - **Campus map with walking routes.** Class stops for a day are resolved against a bundled UNT building database (`frontend/src/lib/campus-locations.ts`; names/addresses from UNT Facilities, coordinates checked against OSM building footprints) and drawn on a Leaflet map with OpenStreetMap tiles. With an `ORS_API_KEY`, routes between stops use OpenRouteService foot-walking directions; without one, the map still draws straight-line segments between buildings, labeled "approximate." Print the itinerary or download it as a text brief (`frontend/src/components/map-client.tsx`).
-- **Course and instructor grade pages.** Grade distributions (A–Z plus suppressed grades), average GPA, enrollment, per-term sections, and RateMyProfessors rating/difficulty/tags, served by the backend API (`frontend/src/app/courses/[subject]/[number]/page.tsx`, `frontend/src/app/instructors/[id]/page.tsx`). Catalog data is bundled at build time and grade data comes from the backend — neither is fetched live from UNT.
-- **Accounts.** Email/password sign-in via better-auth (`frontend/src/lib/auth.ts`). Guests keep their planner in `sessionStorage`; signed-in users sync it to Postgres through `/api/planner` (`frontend/src/lib/persistence.ts`).
+- **Course and instructor grade pages.** Grade distributions (A–F plus pass/fail, withdrawal, incomplete, and suppressed "Hidden" buckets), average GPA, enrollment, per-term sections, and RateMyProfessors rating/difficulty/tags, served by the backend API (`frontend/src/app/courses/[subject]/[number]/page.tsx`, `frontend/src/app/instructors/[id]/page.tsx`). Catalog data is bundled at build time and grade data comes from the backend — neither is fetched live from UNT.
+- **Accounts.** Sign-in via better-auth (`frontend/src/lib/auth.ts`): a one-time email link for UNT addresses (`@unt.edu` / `@my.unt.edu`, enforced in `frontend/src/lib/unt-auth.ts`) or email/password, with password-reset emails sent through Resend. Guests keep their planner in `sessionStorage`; signed-in users sync it to Postgres through `/api/planner` (`frontend/src/lib/persistence.ts`).
 
 ## Architecture
 
@@ -73,6 +73,10 @@ bun dev
 ### Environment variables
 
 Every variable the frontend reads — and which features degrade without each — is documented in [`frontend/README.md`](frontend/README.md), with a matching [`frontend/.env.example`](frontend/.env.example).
+
+### Repository notes
+
+- `.husky/pre-commit` calls `scripts/format-staged.sh`, which is not in the repository. The hook is inert in normal clones (nothing installs or activates it), but do not enable husky without restoring that script.
 
 ## Privacy
 
