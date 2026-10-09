@@ -60,3 +60,5 @@ The transcript import at `/courses/import` sends data to a third-party AI servic
 7. **What is kept.** The PDF and its raw text never leave your browser except as described above. Only the course rows you approve are applied to your planner; like the rest of your planner data, they sync to the server when you are signed in.
 
 Course/instructor grade data is unrelated to this flow: it is fetched from the backend API server-side.
+
+Binding decisions for planner payload handling, auth secrets, term chronology, infrastructure limits, and third-party data policy live in [`docs/planner-policy.md`](../docs/planner-policy.md).
