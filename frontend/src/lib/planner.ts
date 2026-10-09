@@ -11,6 +11,13 @@ import {
   resolveCampusBuilding,
   resolveCampusLocation,
 } from "@/lib/campus-locations";
+import {
+  isValidCourseStatus,
+  isValidOptimization,
+  isValidWeekDay,
+  sanitizeTranscriptRecords,
+} from "@/lib/planner-validation";
+import { compareAcademicTerms } from "@/lib/term-chronology";
 import type {
   CampusBuilding,
   Course,
@@ -27,6 +34,7 @@ import type {
 } from "@/lib/types";
 
 const validMajorIds = new Set<MajorId>(majors.map((m) => m.id));
+const catalogCourseCodes = new Set(courses.map((course) => course.code));
 
 const plannerStorageKey = "untangle-planner-state";
 
@@ -183,18 +191,30 @@ export function recommendSections(
 }
 
 export function normalizePlannerState(state: PlannerState): PlannerState {
+  const optimization = isValidOptimization(state.optimization)
+    ? state.optimization
+    : defaultPlannerState.optimization;
+  const activeDay = isValidWeekDay(state.activeDay) ? state.activeDay : defaultPlannerState.activeDay;
+  const userCourseStatuses: Record<string, CourseStatus> = {};
+  Object.entries(state.courseStatuses ?? {}).forEach(([courseCode, status]) => {
+    if (isValidCourseStatus(status) && catalogCourseCodes.has(courseCode)) {
+      userCourseStatuses[courseCode] = status;
+    }
+  });
   const merged: PlannerState = {
     ...defaultPlannerState,
     ...state,
     courseStatuses: {
       ...defaultPlannerState.courseStatuses,
-      ...state.courseStatuses,
+      ...userCourseStatuses,
     },
     selectedSections: {
       ...defaultPlannerState.selectedSections,
       ...(state.selectedSections ?? {}),
     },
-    transcriptRecords: Array.isArray(state.transcriptRecords) ? state.transcriptRecords : [],
+    transcriptRecords: sanitizeTranscriptRecords(state.transcriptRecords),
+    optimization,
+    activeDay,
   };
   const activeCourseCodes = getActiveCourseCodes(merged);
   const activeCourseCodeSet = new Set(activeCourseCodes);
@@ -454,6 +474,6 @@ export function mergeTranscriptRecords(
   return [...byId.values()].sort((a, b) => {
     const codeOrder = a.code.localeCompare(b.code);
     if (codeOrder !== 0) return codeOrder;
-    return a.term.localeCompare(b.term);
+    return compareAcademicTerms(a.term, b.term);
   });
 }
