@@ -30,7 +30,8 @@ export type TranscriptReconcileResult = {
 const courseCodePattern = /\b([A-Z]{2,5})[\s._-]*(\d{4})\b/gi;
 const transcriptRowPattern =
   /\b([A-Z]{2,5})\s+(\d{4})\s+(.+?)\s+(\d+\.\d{3})\s+(\d+\.\d{3})\s+(?:(A|B|C|D|F|P|CR|NP|I|W|Z|EN|IP)\s+)?(\d+\.\d{3})/g;
-const termPattern = /\b(20\d{2}\s+(?:Fall|Spring|Summer|Winter))\b/g;
+const termPattern =
+  /\b((?:20\d{2}\s+(?:Fall|Spring|Summer|Winter))|(?:(?:Fall|Spring|Summer|Winter)\s+20\d{2}))\b/g;
 const completedGrades = new Set(["A", "B", "C", "CR"]);
 const reviewCompletedGrades = new Set(["D", "P"]);
 const inProgressGrades = new Set(["EN", "IP"]);
@@ -76,6 +77,38 @@ export function normalizeTranscriptCode(value: unknown) {
   const match = raw.match(/^([A-Z]{2,5})[\s._-]*(\d{4})$/);
   if (!match) return null;
   return `${match[1]} ${match[2]}`;
+}
+
+const seasonRanks: Record<string, number> = {
+  spring: 0,
+  summer: 1,
+  fall: 2,
+  winter: 3,
+};
+
+function parseAcademicTerm(term: string): { year: number; season: number } | null {
+  const normalized = term.toLowerCase();
+  const season = normalized.match(/\b(fall|spring|summer|winter)\b/);
+  const year = normalized.match(/\b20\d{2}\b/);
+  if (!season || !year) return null;
+  return { year: Number(year[0]), season: seasonRanks[season[1]] };
+}
+
+// Orders transcript terms chronologically regardless of label direction
+// ("2025 Fall" and "Fall 2025" are equivalent). Winter is the December
+// intersession, so within one labeled year it ranks after Fall and before the
+// next year's Spring. Unparseable terms (including the "Unknown term" and
+// "Needs review" sentinels) sort after all known terms.
+export function compareAcademicTerms(a: string, b: string) {
+  const parsedA = parseAcademicTerm(a);
+  const parsedB = parseAcademicTerm(b);
+  if (parsedA && parsedB) {
+    if (parsedA.year !== parsedB.year) return parsedA.year - parsedB.year;
+    return parsedA.season - parsedB.season;
+  }
+  if (parsedA) return -1;
+  if (parsedB) return 1;
+  return 0;
 }
 
 function stableRecordId(record: {
@@ -231,7 +264,7 @@ export function reconcileTranscriptCourses({
   });
 
   const reconciled = [...deduped.values()].sort((a, b) => {
-    const termOrder = a.term.localeCompare(b.term);
+    const termOrder = compareAcademicTerms(a.term, b.term);
     if (termOrder !== 0) return termOrder;
     return a.code.localeCompare(b.code);
   });
