@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { MarketingShell } from "@/components/marketing-shell";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
