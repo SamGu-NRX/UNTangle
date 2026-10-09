@@ -6,12 +6,26 @@ import {
   resolveCampusLocation,
   untCampusBounds,
 } from "@/lib/campus-locations";
+import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
 import type { MapResolvedLocation } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const maxLocations = 20;
-const geocodeCache = new Map<string, MapResolvedLocation>();
+
+const failureTtlMs = 5 * 60 * 1000;
+const rateLimitWindowMs = 60 * 1000;
+const rateLimitMaxRequests = 60;
+
+const geocodeCache = new TtlLruCache<MapResolvedLocation>({
+  maxEntries: 500,
+  ttlMs: 24 * 60 * 60 * 1000,
+  failureTtlMs,
+});
+const limiter = new SlidingWindowRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: rateLimitMaxRequests,
+});
 
 type ResolveInput = {
   locations?: Array<{
@@ -77,12 +91,7 @@ function cacheKey(location: string, buildingId?: string) {
   return `${buildingId ?? ""}|${location}`.toLowerCase();
 }
 
-async function geocodeWithOpenRouteService(location: string, buildingId?: string) {
-  const apiKey = process.env.ORS_API_KEY;
-  if (!apiKey) {
-    return unresolved(location, buildingId);
-  }
-
+async function geocodeWithOpenRouteService(location: string, buildingId: string | undefined, apiKey: string) {
   const query = buildCampusGeocodeQuery(location);
   const params = new URLSearchParams({
     api_key: apiKey,
@@ -140,6 +149,14 @@ async function geocodeWithOpenRouteService(location: string, buildingId?: string
 }
 
 export async function POST(request: Request) {
+  const limit = limiter.check(clientIpFromRequest(request));
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let body: ResolveInput;
 
   try {
@@ -177,8 +194,13 @@ export async function POST(request: Request) {
         return cached;
       }
 
-      const geocoded = await geocodeWithOpenRouteService(location, buildingId);
-      geocodeCache.set(key, geocoded);
+      const apiKey = process.env.ORS_API_KEY;
+      if (!apiKey) {
+        return unresolved(location, buildingId);
+      }
+
+      const geocoded = await geocodeWithOpenRouteService(location, buildingId, apiKey);
+      geocodeCache.set(key, geocoded, { failure: geocoded.resolutionStatus !== "geocoded" });
       return geocoded;
     }),
   );
