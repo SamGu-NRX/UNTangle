@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { isInsideUntBounds } from "@/lib/campus-locations";
+import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
 import type { MapRoutePoint, MapRouteResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const maxStops = 12;
-const routeCache = new Map<string, MapRouteResponse>();
+
+const failureTtlMs = 5 * 60 * 1000;
+const rateLimitWindowMs = 60 * 1000;
+const rateLimitMaxRequests = 60;
+
+const routeCache = new TtlLruCache<MapRouteResponse>({
+  maxEntries: 200,
+  ttlMs: 6 * 60 * 60 * 1000,
+  failureTtlMs,
+});
+const limiter = new SlidingWindowRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: rateLimitMaxRequests,
+});
 
 type RouteInput = {
   stops?: Array<{
@@ -93,6 +107,14 @@ function parseStops(input: RouteInput) {
 }
 
 export async function POST(request: Request) {
+  const limit = limiter.check(clientIpFromRequest(request));
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let body: RouteInput;
 
   try {
@@ -135,13 +157,13 @@ export async function POST(request: Request) {
     });
   } catch {
     const fallback = fallbackRoute(parsed.stops);
-    routeCache.set(key, fallback);
+    routeCache.set(key, fallback, { failure: true });
     return NextResponse.json(fallback);
   }
 
   if (!response.ok) {
     const fallback = fallbackRoute(parsed.stops);
-    routeCache.set(key, fallback);
+    routeCache.set(key, fallback, { failure: true });
     return NextResponse.json(fallback);
   }
 
@@ -154,7 +176,7 @@ export async function POST(request: Request) {
 
   if (geometry.length < 2) {
     const fallback = fallbackRoute(parsed.stops);
-    routeCache.set(key, fallback);
+    routeCache.set(key, fallback, { failure: true });
     return NextResponse.json(fallback);
   }
 
