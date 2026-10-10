@@ -222,3 +222,8 @@ export function diffSavedPlanAgainstWorking(
     changedFieldCount,
   };
 }
+
+/** Shared with the restore adapter so previews quote the same strings. */
+export function sectionMeetingsSummary(section: CourseSection): string {
+  return meetingsSummary(section);
+}
