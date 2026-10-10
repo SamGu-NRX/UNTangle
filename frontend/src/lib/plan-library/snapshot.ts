@@ -1,0 +1,327 @@
+import { courses, sections } from "@/lib/seed-data";
+import { getMissingPrerequisites } from "@/lib/planner";
+import { validatePlannerStatePayload } from "@/lib/planner-validation";
+import type { Course, CourseSection, CourseStatus, PlannerState } from "@/lib/types";
+import {
+  SAVED_PLAN_SCHEMA_VERSION,
+  type SavedPlanAssumptions,
+  type SavedPlanCatalogIdentity,
+  type SavedPlanSnapshot,
+  type SavedPlanSource,
+} from "./snapshot-types";
+
+export { SAVED_PLAN_SCHEMA_VERSION };
+export type { SavedPlanSnapshot } from "./snapshot-types";
+
+/**
+ * Reference resolution for a saved plan's selected sections against the
+ * *running* catalog. The planner's normalize step silently re-recommends any
+ * selection it cannot preserve; this report exists so that replacement is
+ * decided in the open, per reference, before a restore runs.
+ */
+export type SectionReferenceStatus = "preserved" | "stale" | "inactive" | "unknownCourse";
+
+export type SectionReferenceFinding = {
+  courseCode: string;
+  sectionId: string;
+  status: SectionReferenceStatus;
+  /** Catalog metadata when the reference resolves in the running catalog. */
+  section: CourseSection | null;
+  course: Course | null;
+};
+
+export type SectionReferenceReport = {
+  findings: SectionReferenceFinding[];
+  preserved: SectionReferenceFinding[];
+  /** Section id is not in the catalog for its course; restore would replace it. */
+  stale: SectionReferenceFinding[];
+  /** Section id resolves, but the plan does not declare the course in progress. */
+  inactive: SectionReferenceFinding[];
+  /** Course codes that do not exist in the running catalog at all. */
+  unknownCourses: SectionReferenceFinding[];
+};
+
+export type SavedPlanValidation =
+  | { ok: true; snapshot: SavedPlanSnapshot; references: SectionReferenceReport }
+  | { ok: false; reason: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** FNV-1a (32-bit) over a string, as 8 hex characters. Not cryptographic —
+ * it is a drift signal for catalog slices, nothing else. */
+export function stableHash(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function meetingLine(section: CourseSection): string {
+  return section.meetings
+    .map(
+      (meeting) =>
+        `M\t${meeting.day}\t${meeting.start}\t${meeting.end}\t${meeting.buildingId ?? "-"}\t${meeting.location}`,
+    )
+    .sort()
+    .join("\n");
+}
+
+/**
+ * Fingerprint of the catalog slice a plan references: every declared
+ * (non-`notTaken`) course and every selected section, serialized in a stable
+ * order with the exact metadata (title, credits, professor, rating, meetings,
+ * rooms) the planner shows. A change to any of those fields changes the
+ * fingerprint; additions elsewhere in the catalog do not.
+ */
+export function computeCatalogFingerprint(state: PlannerState): SavedPlanCatalogIdentity {
+  const declaredCodes = new Set<string>();
+  Object.entries(state.courseStatuses ?? {}).forEach(([courseCode, status]) => {
+    if (status !== "notTaken") {
+      declaredCodes.add(courseCode);
+    }
+  });
+  Object.keys(state.selectedSections ?? {}).forEach((courseCode) => {
+    declaredCodes.add(courseCode);
+  });
+
+  const courseLines: string[] = [];
+  const sectionLines: string[] = [];
+  declaredCodes.forEach((courseCode) => {
+    const course = courses.find((entry) => entry.code === courseCode);
+    if (course) {
+      courseLines.push(`C\t${course.code}\t${course.title}\t${course.creditHours}`);
+    }
+  });
+  Object.entries(state.selectedSections ?? {}).forEach(([courseCode, sectionId]) => {
+    const section = sections.find(
+      (entry) => entry.id === sectionId && entry.courseCode === courseCode,
+    );
+    if (section) {
+      sectionLines.push(
+        `S\t${section.id}\t${section.courseCode}\t${section.professor}\t${section.rating}\t${meetingLine(section)}`,
+      );
+    }
+  });
+
+  const payload = [...courseLines.sort(), ...sectionLines.sort()].join("\n");
+  return {
+    fingerprint: stableHash(payload),
+    referencedCourseCount: declaredCodes.size,
+    referencedSectionCount: sectionLines.length,
+  };
+}
+
+/**
+ * Resolve every selected section of a planner state against the running
+ * catalog. Read-only: uses the same `sections` data the planner uses, and the
+ * same active-course rule (a section only survives normalize for a course the
+ * plan declares in progress).
+ */
+export function resolveSectionReferences(state: PlannerState): SectionReferenceReport {
+  const findings: SectionReferenceFinding[] = [];
+  const byStatus = { ...state.courseStatuses };
+
+  Object.entries(state.selectedSections ?? {}).forEach(([courseCode, sectionId]) => {
+    const course = courses.find((entry) => entry.code === courseCode) ?? null;
+    const section =
+      sections.find((entry) => entry.id === sectionId && entry.courseCode === courseCode) ?? null;
+
+    let status: SectionReferenceStatus;
+    if (!course) {
+      status = "unknownCourse";
+    } else if (!section) {
+      status = "stale";
+    } else if ((byStatus[courseCode] ?? "notTaken") !== "inProgress") {
+      status = "inactive";
+    } else {
+      status = "preserved";
+    }
+
+    findings.push({ courseCode, sectionId, status, section, course });
+  });
+
+  findings.sort((a, b) => a.courseCode.localeCompare(b.courseCode) || a.sectionId.localeCompare(b.sectionId));
+  return {
+    findings,
+    preserved: findings.filter((finding) => finding.status === "preserved"),
+    stale: findings.filter((finding) => finding.status === "stale"),
+    inactive: findings.filter((finding) => finding.status === "inactive"),
+    unknownCourses: findings.filter(
+      (finding) => finding.status === "unknownCourse",
+    ),
+  };
+}
+
+function validateAssumptions(value: unknown): SavedPlanAssumptions | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { declaredStatusCounts, major, optimization, transcriptRecordCount, prerequisiteOutstanding } = value;
+  if (!isRecord(declaredStatusCounts)) return null;
+  if (major !== null && typeof major !== "string") return null;
+  if (typeof optimization !== "string") return null;
+  if (typeof transcriptRecordCount !== "number") return null;
+  if (!isRecord(prerequisiteOutstanding)) return null;
+  if (!Object.values(declaredStatusCounts).every((count) => typeof count === "number")) return null;
+  if (
+    !Object.values(prerequisiteOutstanding).every(
+      (missing) => Array.isArray(missing) && missing.every((code) => typeof code === "string"),
+    )
+  ) {
+    return null;
+  }
+  return value as unknown as SavedPlanAssumptions;
+}
+
+function validateSource(value: unknown): SavedPlanSource | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { kind, detail, capturedAt } = value;
+  if (kind !== "workingState" && kind !== "import" && kind !== "duplicate") {
+    return null;
+  }
+  if (typeof detail !== "string" || typeof capturedAt !== "string") {
+    return null;
+  }
+  return value as unknown as SavedPlanSource;
+}
+
+/**
+ * Validate an untrusted saved-plan payload (library record or imported file).
+ *
+ * Structural identity is checked here; the planner state inside is checked by
+ * the planner's own `validatePlannerStatePayload`, and catalog references are
+ * resolved (not silently dropped) so the caller can show them. Stale or
+ * unknown references do NOT fail validation — they are reported, because a
+ * plan may still be restorable with the user's explicit confirmation.
+ */
+export function validateSavedPlanPayload(raw: unknown): SavedPlanValidation {
+  if (!isRecord(raw)) {
+    return { ok: false, reason: "A saved plan must be a JSON object." };
+  }
+
+  if (raw.schemaVersion !== SAVED_PLAN_SCHEMA_VERSION) {
+    return {
+      ok: false,
+      reason: `Unsupported saved-plan schema version: ${String(raw.schemaVersion)}. This library reads version ${SAVED_PLAN_SCHEMA_VERSION}.`,
+    };
+  }
+
+  const { planId, name, createdAt, snapshotTakenAt, archivedAt, source, catalog, state, assumptions } = raw;
+
+  if (typeof planId !== "string" || planId.length === 0) {
+    return { ok: false, reason: "A saved plan must carry a planId string." };
+  }
+  if (typeof name !== "string" || name.length === 0) {
+    return { ok: false, reason: "A saved plan must carry a name string." };
+  }
+  if (typeof createdAt !== "string" || typeof snapshotTakenAt !== "string") {
+    return { ok: false, reason: "A saved plan must carry createdAt and snapshotTakenAt timestamps." };
+  }
+  if (archivedAt !== null && typeof archivedAt !== "string") {
+    return { ok: false, reason: "A saved plan's archivedAt must be a timestamp or null." };
+  }
+  const validatedSource = validateSource(source);
+  if (!validatedSource) {
+    return { ok: false, reason: "A saved plan must carry a valid source identity." };
+  }
+  if (
+    !isRecord(catalog) ||
+    typeof catalog.fingerprint !== "string" ||
+    typeof catalog.referencedCourseCount !== "number" ||
+    typeof catalog.referencedSectionCount !== "number"
+  ) {
+    return { ok: false, reason: "A saved plan must carry its catalog identity." };
+  }
+  const validatedAssumptions = validateAssumptions(assumptions);
+  if (!validatedAssumptions) {
+    return { ok: false, reason: "A saved plan must carry its declared assumptions." };
+  }
+
+  const plannerValidation = validatePlannerStatePayload(state);
+  if (!plannerValidation.ok) {
+    return { ok: false, reason: `Planner state inside the saved plan is invalid: ${plannerValidation.reason}` };
+  }
+
+  const snapshot: SavedPlanSnapshot = {
+    schemaVersion: SAVED_PLAN_SCHEMA_VERSION,
+    planId,
+    name,
+    createdAt,
+    snapshotTakenAt,
+    archivedAt: archivedAt ?? null,
+    source: validatedSource,
+    catalog: {
+      fingerprint: catalog.fingerprint,
+      referencedCourseCount: catalog.referencedCourseCount,
+      referencedSectionCount: catalog.referencedSectionCount,
+    },
+    state: plannerValidation.state,
+    assumptions: validatedAssumptions,
+  };
+
+  return { ok: true, snapshot, references: resolveSectionReferences(plannerValidation.state) };
+}
+
+function declaredStatusCounts(statuses: Record<string, CourseStatus>): Record<string, number> {
+  const counts: Record<string, number> = {};
+  Object.values(statuses).forEach((status) => {
+    counts[status] = (counts[status] ?? 0) + 1;
+  });
+  return counts;
+}
+
+function prerequisiteOutstanding(state: PlannerState): Record<string, string[]> {
+  const outstanding: Record<string, string[]> = {};
+  Object.entries(state.courseStatuses).forEach(([courseCode, status]) => {
+    if (status === "notTaken") {
+      return;
+    }
+    const missing = getMissingPrerequisites(courseCode, state.courseStatuses, state.transcriptRecords);
+    if (missing.length > 0) {
+      outstanding[courseCode] = missing;
+    }
+  });
+  return outstanding;
+}
+
+/**
+ * Capture a snapshot from a (provider-normalized) planner state. The state is
+ * preserved verbatim — this function reads the planner and the catalog, and
+ * writes nothing.
+ */
+export function buildSavedPlanSnapshot(input: {
+  state: PlannerState;
+  name: string;
+  source: Omit<SavedPlanSource, "capturedAt">;
+  planId?: string;
+  now?: Date;
+}): SavedPlanSnapshot {
+  const now = (input.now ?? new Date()).toISOString();
+  const statusCounts = declaredStatusCounts(input.state.courseStatuses);
+  const catalogIdentity = computeCatalogFingerprint(input.state);
+
+  return {
+    schemaVersion: SAVED_PLAN_SCHEMA_VERSION,
+    planId: input.planId ?? crypto.randomUUID(),
+    name: input.name,
+    createdAt: now,
+    snapshotTakenAt: input.state.updatedAt,
+    archivedAt: null,
+    source: { ...input.source, capturedAt: now },
+    catalog: catalogIdentity,
+    state: input.state,
+    assumptions: {
+      declaredStatusCounts: statusCounts,
+      major: input.state.selectedMajor,
+      optimization: input.state.optimization,
+      transcriptRecordCount: input.state.transcriptRecords.length,
+      prerequisiteOutstanding: prerequisiteOutstanding(input.state),
+    },
+  };
+}
