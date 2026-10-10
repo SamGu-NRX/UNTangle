@@ -201,9 +201,11 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
       userCourseStatuses[courseCode] = status;
     }
   });
+  // Pick only the known planner fields: a request body may carry arbitrary
+  // extra keys (e.g. a spoofed userId or id), and none of them may reach
+  // persistence.
   const merged: PlannerState = {
     ...defaultPlannerState,
-    ...state,
     courseStatuses: {
       ...defaultPlannerState.courseStatuses,
       ...userCourseStatuses,
@@ -215,6 +217,9 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
     transcriptRecords: sanitizeTranscriptRecords(state.transcriptRecords),
     optimization,
     activeDay,
+    selectedMajor: state.selectedMajor ?? null,
+    updatedAt:
+      typeof state.updatedAt === "string" ? state.updatedAt : defaultPlannerState.updatedAt,
   };
   const activeCourseCodes = getActiveCourseCodes(merged);
   const activeCourseCodeSet = new Set(activeCourseCodes);
