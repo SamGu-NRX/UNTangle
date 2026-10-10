@@ -1,0 +1,36 @@
+{
+  "experiment": "l2-degree-plan",
+  "generatedAt": "2026-10-10T20:13:17.589Z",
+  "sourceHashes": {
+    "catalog": "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
+    "manifest": "f41bd1b15f0db8fc69f8ae3675d083616a414ed1751864f4d987ca22cac85103"
+  },
+  "offeringAssumptions": {
+    "defaultPattern": "F,S",
+    "summerOffered": false,
+    "overrides": {},
+    "provenance": "Derived 2026-10-10 from frontend/src/lib/generated/seed-data.json, which contains no offering metadata. Every offering decision in this experiment is an assumption, listed here and flagged on emitted plans."
+  },
+  "excludedMajors": {
+    "psyc": "core courses HIST 2610/HIST 2620/GOVT 2305 are absent from the generated catalog — nothing to plan (see catalog-gaps test)",
+    "engl": "core courses HIST 2610/HIST 2620 are absent from the generated catalog — nothing to plan",
+    "other": "undeclared: empty core list by definition"
+  },
+  "tally": {
+    "cases": 298,
+    "verdictAgreements": 298,
+    "verdictDisagreements": 0,
+    "optimumComparable": 259,
+    "optimumAgreements": 259,
+    "optimumDisagreements": 0,
+    "countComparable": 245,
+    "countAgreements": 245,
+    "countDisagreements": 0,
+    "boundedIncomplete": 53,
+    "exhaustiveIncomplete": 0,
+    "infeasibleCases": 39,
+    "witnessedInfeasible": 39
+  },
+  "disagreements": [],
+  "casesFile": "cases.json"
+}
