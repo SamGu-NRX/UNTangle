@@ -77,3 +77,64 @@ The witnesses pin the contract the implementation must satisfy:
 
 Milestones 2–3 make these witnesses pass; milestone 4 adds Playwright and
 axe evidence. Check results at each milestone are appended below.
+
+## Milestone 2 — journey usability (detail route, catalog reference, planner actions)
+
+Implemented on top of the milestone 1 witnesses; all three detail witnesses
+now pass. The import-state witness passed after milestone 3's module landed.
+
+New files: `frontend/src/lib/course-catalog.ts` (case-insensitive
+`resolveCourseLocator` + `courseDetailHref`), `frontend/src/lib/course-detail.ts`
+(`buildCourseDetailModel` presenter: catalog facts, source-attributed grades and
+external ratings, `availability: "catalog-only"`, unresolved prerequisite
+guidance), `frontend/src/components/course-plan-actions.tsx` (reuses the
+planner's `setCourseStatus`/`setSection` — no second store), and
+`frontend/src/app/courses/[subject]/[number]/not-found.tsx` (branded
+not-found state with recovery link).
+
+Rewritten: `frontend/src/app/courses/[subject]/[number]/page.tsx` — an unknown
+code renders the branded not-found state; a known code with an unreachable
+grade service renders the catalog block plus a visible "grade data
+unavailable" state instead of a bare 404. `frontend/src/components/courses-client.tsx`
+now uses the shared href helper.
+
+New tests: `frontend/tests/course-catalog.test.ts` (locator normalization,
+href shape) and the detail-witness assertions over
+`buildCourseDetailModel`.
+
+## Milestone 3 — import boundary (text import reachable, unresolved codes explicit)
+
+New files: `frontend/src/lib/course-import-state.ts` (`beginReview`,
+`unresolvedCodes`, `computeImportApply`, `ImportReadGuard`),
+`frontend/src/components/course-import-switch.tsx` (hosts the text panel and
+the PDF transcript client as two switched modes — the transcript client owns
+its own NavShell, so nesting them would double-render the shell; the panel
+reuses the planner provider's public actions).
+
+Rewritten: `frontend/src/components/course-import-panel.tsx` — the review no
+longer wipes the pasted text (the milestone 1 defect), unknown codes render
+as explicit "Unresolved" chips sourced from `unresolvedCodes`, per-row
+planner statuses are chosen with radios and applied through
+`computeImportApply`, and an `ImportReadGuard` token discards superseded
+async file reads. Wired into `frontend/src/app/courses/import/page.tsx`.
+
+New tests: `frontend/tests/course-import-boundary.test.ts` (guard staleness,
+unknown codes never entering `matched`, duplicate reporting, malformed digit
+groups not matching).
+
+## Check results after milestones 2–3 (working tree, pre-commit)
+
+- `bun test`: **136 pass, 0 fail** (5,257 expect() calls, 14 files).
+- `./node_modules/.bin/tsc --noEmit`: clean.
+- `bun run lint`: clean.
+- `bun run build` (next build): success — `/courses/[subject]/[number]`
+  server-rendered on demand, `/courses/import` prerendered static.
+
+Witness contract refinement note: the milestone 1 import witness originally
+assumed `matched[].course.code`; the parser's real `ImportedCourse` is flat
+(`code`, `title`, `department` — `frontend/src/lib/course-import.ts`), and
+`computeImportApply` takes requested per-row statuses explicitly. The witness
+was corrected to the verified contracts during implementation; the pinned
+behaviors (text preserved, unknown codes unresolved, idempotent apply) are
+unchanged.
+

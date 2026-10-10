@@ -43,7 +43,7 @@ describe("malformed text import (witness)", () => {
     const state = beginReview(initialState, "CSCE 3444");
     expect(state.error).toBeNull();
     expect(state.text).toBe("CSCE 3444");
-    expect(state.result?.matched.map((m) => m.course.code)).toContain("CSCE 3444");
+    expect(state.result?.matched.map((m) => m.code)).toContain("CSCE 3444");
   });
 });
 
@@ -52,20 +52,21 @@ describe("unknown-code boundary (witness)", () => {
     const state = beginReview(initialState, "CSCE 9999");
     const unresolved = unresolvedCodes(state.result);
     expect(unresolved).toContainEqual({ code: "CSCE 9999", status: "unresolved" });
-    expect(state.result?.matched.every((m) => m.course.code !== "CSCE 9999")).toBe(true);
+    expect(state.result?.matched.every((m) => m.code !== "CSCE 9999")).toBe(true);
   });
 });
 
 describe("duplicate submission (witness)", () => {
   test("applying the same review twice produces no second diff", () => {
     const state = beginReview(initialState, "CSCE 3444");
+    const requested: Record<string, CourseStatus> = { "CSCE 3444": "inProgress" };
     const currentStatuses: Record<string, CourseStatus> = {};
-    const first = computeImportApply(state.result, currentStatuses);
+    const first = computeImportApply(state.result, requested, currentStatuses);
     expect(first.length).toBe(1);
     expect(first[0]?.courseCode).toBe("CSCE 3444");
 
-    const updated: Record<string, CourseStatus> = { "CSCE 3444": "completed" };
-    const second = computeImportApply(state.result, updated);
+    const updated: Record<string, CourseStatus> = { "CSCE 3444": "inProgress" };
+    const second = computeImportApply(state.result, requested, updated);
     expect(second).toEqual([]);
   });
 });
