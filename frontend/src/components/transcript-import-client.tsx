@@ -10,8 +10,11 @@ import {
   buildLocalFallbackPayload,
   buildTranscriptImagePrompt,
   buildTranscriptPrompt,
+  effectiveTranscriptRecord,
   extractTranscriptJson,
   reconcileTranscriptCourses,
+  redactRenderedTranscriptPage,
+  selectApprovedTranscriptRecords,
   type TranscriptReconcileResult,
 } from "@/lib/transcript-import";
 import type {
@@ -198,24 +201,6 @@ function StepIcon({ status }: { status: PhaseStatus }) {
   return <span className="transcript-step-icon transcript-step-icon--pending" aria-hidden="true" />;
 }
 
-function effectiveRecord(
-  record: TranscriptCourseRecord,
-  override: TranscriptAppliedStatus | undefined,
-): TranscriptCourseRecord {
-  if (!override || override === record.appliedStatus) return record;
-
-  return {
-    ...record,
-    appliedStatus: override,
-    prerequisiteSatisfied: override === "completed" ? record.grade !== "D" : false,
-    reviewRequired: override === "needsReview",
-    rationale:
-      override === "completed" || override === "inProgress"
-        ? `${record.rationale} Manually included during transcript review.`
-        : record.rationale,
-  };
-}
-
 function safeDataUrlForOcr(value: unknown) {
   return typeof value === "string" ? value : "";
 }
@@ -348,21 +333,6 @@ async function preparePuterImageInputs({
       addEvent("Deleted temporary redacted page images from Puter.");
     },
   };
-}
-
-function redactRenderedTranscriptPage(
-  canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D,
-  pageNumber: number,
-) {
-  const height = Math.round(canvas.height * (pageNumber === 1 ? 0.2 : 0.075));
-  context.save();
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, height);
-  context.fillStyle = "#6b826b";
-  context.font = `${Math.max(14, Math.round(canvas.width * 0.014))}px sans-serif`;
-  context.fillText("student identity redacted", Math.round(canvas.width * 0.04), Math.round(height * 0.55));
-  context.restore();
 }
 
 async function extractPdf(file: File, reportPhase?: PhaseReporter): Promise<PdfExtraction> {
@@ -675,12 +645,8 @@ export function TranscriptImportClient() {
   );
 
   const grouped = useMemo(() => {
-    const rows = records.map((record) => effectiveRecord(record, overrides[record.id]));
-    const willSave = rows.filter(
-      (record) =>
-        included.has(record.id) &&
-        (record.appliedStatus === "completed" || record.appliedStatus === "inProgress"),
-    );
+    const rows = records.map((record) => effectiveTranscriptRecord(record, overrides[record.id]));
+    const willSave = selectApprovedTranscriptRecords(records, included, overrides);
     const needsReview = rows.filter(
       (record) =>
         !willSave.some((candidate) => candidate.id === record.id) &&
@@ -782,13 +748,7 @@ export function TranscriptImportClient() {
   }
 
   function saveDetectedCourses() {
-    const selectedRecords = records
-      .map((record) => effectiveRecord(record, overrides[record.id]))
-      .filter(
-        (record) =>
-          included.has(record.id) &&
-          (record.appliedStatus === "completed" || record.appliedStatus === "inProgress"),
-      );
+    const selectedRecords = selectApprovedTranscriptRecords(records, included, overrides);
 
     if (selectedRecords.length === 0) {
       setError("Select at least one completed or in-progress course before saving.");
