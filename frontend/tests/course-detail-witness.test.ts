@@ -3,7 +3,8 @@ import type { CourseGradeDetail } from "@/lib/backend-api";
 import { buildCourseDetailModel } from "@/lib/course-detail";
 import { resolveCourseLocator } from "@/lib/course-catalog";
 import { courses } from "@/lib/seed-data";
-import type { Course, GradeData } from "@/lib/types";
+import type { Course } from "@/lib/types";
+import type { GradeData } from "@/lib/grades";
 
 /**
  * Milestone 1 witnesses — course journey, deep links + catalog fields.

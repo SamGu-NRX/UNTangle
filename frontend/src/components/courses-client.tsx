@@ -12,6 +12,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { usePlanner, useToast } from "@/components/planner-provider";
+import { courseDetailsHref } from "@/lib/course-catalog";
 import { courses } from "@/lib/seed-data";
 import {
   getCoreCoursesForMajor,
@@ -32,11 +33,6 @@ function statusLabel(s: CourseStatus) {
   if (s === "completed") return "Done";
   if (s === "inProgress") return "Taking";
   return "Not taken";
-}
-
-function courseDetailsHref(code: string) {
-  const [subject, number] = code.split(/\s+/);
-  return `/courses/${subject}/${number}`;
 }
 
 export function CoursesClient() {
