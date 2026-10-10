@@ -2,6 +2,7 @@ import { courses } from "@/lib/seed-data";
 import { compareAcademicTerms } from "@/lib/term-chronology";
 import type {
   Course,
+  TranscriptAppliedStatus,
   TranscriptCourseRecord,
   TranscriptImportSummary,
   TranscriptSourceKind,
@@ -513,7 +514,6 @@ function lastTermIndex(value: string) {
   const matches = [...value.matchAll(termPattern)];
   return matches.at(-1)?.index ?? -1;
 }
-
 export function redactTranscriptText(transcriptText: string) {
   return transcriptText
     .replace(/Name:\s*.*?(?=\s+Student ID:)/gi, "Name: [redacted]")
@@ -524,4 +524,54 @@ export function redactTranscriptText(transcriptText: string) {
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
     .replace(/\b\d{3}[-.\s]\d{2}[-.\s]\d{4}\b/g, "[redacted id]")
     .replace(/\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g, "[redacted phone]");
+}
+
+export function redactRenderedTranscriptPage(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+  pageNumber: number,
+) {
+  const height = Math.round(canvas.height * (pageNumber === 1 ? 0.2 : 0.075));
+  context.save();
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, height);
+  context.fillStyle = "#6b826b";
+  context.font = `${Math.max(14, Math.round(canvas.width * 0.014))}px sans-serif`;
+  context.fillText("student identity redacted", Math.round(canvas.width * 0.04), Math.round(height * 0.55));
+  context.restore();
+}
+
+export function effectiveTranscriptRecord(
+  record: TranscriptCourseRecord,
+  override: TranscriptAppliedStatus | undefined,
+): TranscriptCourseRecord {
+  if (!override || override === record.appliedStatus) return record;
+
+  return {
+    ...record,
+    appliedStatus: override,
+    prerequisiteSatisfied: override === "completed" ? record.grade !== "D" : false,
+    reviewRequired: override === "needsReview",
+    rationale:
+      override === "completed" || override === "inProgress"
+        ? `${record.rationale} Manually included during transcript review.`
+        : record.rationale,
+  };
+}
+
+// The apply gate for the transcript import review step: only rows the user
+// explicitly included (per-row approval) that still resolve to completed or
+// in-progress credit are applied to the planner.
+export function selectApprovedTranscriptRecords(
+  records: TranscriptCourseRecord[],
+  included: ReadonlySet<string>,
+  overrides: Record<string, TranscriptAppliedStatus> = {},
+): TranscriptCourseRecord[] {
+  return records
+    .map((record) => effectiveTranscriptRecord(record, overrides[record.id]))
+    .filter(
+      (record) =>
+        included.has(record.id) &&
+        (record.appliedStatus === "completed" || record.appliedStatus === "inProgress"),
+    );
 }
