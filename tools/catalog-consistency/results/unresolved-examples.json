@@ -1,0 +1,118 @@
+{
+  "unresolvedExamplesVersion": 1,
+  "toolVersion": 1,
+  "note": "Every unresolved finding with example records. Nothing here is an allowlist: entries document defects and their committed repair locations, decided in REPAIR-LOCATIONS.md.",
+  "unknownReferences": {
+    "check": "majorCoreToCourse",
+    "count": 6,
+    "examples": [
+      {
+        "majorId": "busi",
+        "majorName": "Business",
+        "code": "GOVT 2305",
+        "titleAnnotatedEquivalent": {
+          "courseCode": "PSCI 2305",
+          "title": "US Political Behavior and Policy  (GOVT 2305)"
+        }
+      },
+      {
+        "majorId": "psyc",
+        "majorName": "Psychology",
+        "code": "HIST 2610"
+      },
+      {
+        "majorId": "psyc",
+        "majorName": "Psychology",
+        "code": "HIST 2620"
+      },
+      {
+        "majorId": "psyc",
+        "majorName": "Psychology",
+        "code": "GOVT 2305",
+        "titleAnnotatedEquivalent": {
+          "courseCode": "PSCI 2305",
+          "title": "US Political Behavior and Policy  (GOVT 2305)"
+        }
+      },
+      {
+        "majorId": "engl",
+        "majorName": "English",
+        "code": "HIST 2610"
+      },
+      {
+        "majorId": "engl",
+        "majorName": "English",
+        "code": "HIST 2620"
+      }
+    ]
+  },
+  "duplicateIds": {
+    "count": 0
+  },
+  "meetingBounds": {
+    "count": 0
+  },
+  "externalPrerequisites": {
+    "edges": 222,
+    "distinctCodes": 123,
+    "inSourceCorpus": {
+      "codes": 0,
+      "examples": []
+    },
+    "notInSourceCorpus": {
+      "codes": 123,
+      "examples": [
+        {
+          "code": "ADVG 1100",
+          "edges": 4,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOC 4540",
+          "edges": 1,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 1755",
+          "edges": 1,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 1761",
+          "edges": 2,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 2042",
+          "edges": 5,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 2141",
+          "edges": 1,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 2311",
+          "edges": 1,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 2312",
+          "edges": 1,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 3350",
+          "edges": 1,
+          "inSourceCorpus": false
+        },
+        {
+          "code": "BIOL 3452",
+          "edges": 3,
+          "inSourceCorpus": false
+        }
+      ]
+    }
+  }
+}

@@ -377,14 +377,18 @@ function parseArgs(argv) {
 }
 
 /** Load and normalize everything the audit needs from the repository working tree. */
-export function loadCatalog({ inputPath }) {
-  const inputBuf = readFileSync(inputPath);
+export function loadCatalog({ inputPath, majorsPath = null }) {
+  const inputAbs = resolve(inputPath);
+  const inputBuf = readFileSync(inputAbs);
   const data = JSON.parse(inputBuf.toString("utf8"));
-  const majorsPath = join(dirname(inputPath), "..", "seed-data.ts");
-  const majorsBuf = readFileSync(majorsPath);
+  const majorsAbs = majorsPath ? resolve(majorsPath) : join(dirname(inputAbs), "..", "seed-data.ts");
+  const majorsBuf = readFileSync(majorsAbs);
   const majors = parseMajorsFromTs(majorsBuf.toString("utf8"));
-  const corpusDir = resolve(inputPath, "../../../courses");
-  return { inputBuf, data, majorsPath, majorsBuf, majors, corpusDir };
+  // inputAbs is `<root>/frontend/src/lib/generated/seed-data.json`; `..`
+  // pops the file itself first, so five levels up is the repository root,
+  // where `courses/` lives.
+  const corpusDir = resolve(inputAbs, "../../../../../courses");
+  return { inputBuf, data, majorsPath: majorsAbs, majorsBuf, majors, corpusDir };
 }
 
 function writeResult(outDir, name, value) {
@@ -523,7 +527,7 @@ function runReplay({ replayDir }) {
   const verdict = {
     replayVersion: REPLAY_VERSION,
     toolVersion: TOOL_VERSION,
-    replayOf: dir,
+    replayOf: replayDir, // exactly as passed — keeps the committed verdict portable
     inputUnchanged,
     majorsSourceUnchanged: majorsUnchanged,
     countsMatch,

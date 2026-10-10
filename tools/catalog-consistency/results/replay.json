@@ -1,0 +1,12 @@
+{
+  "replayVersion": 1,
+  "toolVersion": 1,
+  "replayOf": "tools/catalog-consistency/results",
+  "inputUnchanged": true,
+  "majorsSourceUnchanged": true,
+  "countsMatch": true,
+  "reportByteIdentical": true,
+  "examplesStable": true,
+  "differences": [],
+  "result": "match"
+}

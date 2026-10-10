@@ -1,0 +1,195 @@
+{
+  "reportVersion": 1,
+  "toolVersion": 1,
+  "rulesVersion": 1,
+  "sourceCommit": "203bef7c987a75654dfb45a826dfc980493b742a",
+  "input": {
+    "path": "frontend/src/lib/generated/seed-data.json",
+    "sha256": "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
+    "bytes": 1701755
+  },
+  "majorsSource": {
+    "path": "frontend/src/lib/seed-data.ts",
+    "sha256": "4c2ad4fb634f96a536254b3f612219b19dad80c4fa6298cd32fc937554a44517",
+    "bytes": 3475
+  },
+  "counts": {
+    "buildings": 15,
+    "courses": 656,
+    "sections": 2704,
+    "majors": 8,
+    "courseStatusEntries": 656,
+    "sectionMeetings": 5984,
+    "prerequisiteEdges": 879
+  },
+  "violations": {
+    "duplicateIds": 0,
+    "meetingBounds": 0,
+    "unknownReferences": 6
+  },
+  "findings": {
+    "duplicateIds": {
+      "courseCodes": {
+        "count": 0,
+        "examples": []
+      },
+      "sectionIds": {
+        "count": 0,
+        "examples": []
+      },
+      "buildingIds": {
+        "count": 0,
+        "examples": []
+      }
+    },
+    "meetingBounds": {
+      "meetingsChecked": 5984,
+      "endTimeNotAfterStart": {
+        "count": 0,
+        "examples": []
+      },
+      "malformedTime": {
+        "count": 0,
+        "examples": []
+      },
+      "dayOutsideCommittedVocabulary": {
+        "count": 0,
+        "examples": []
+      }
+    },
+    "references": {
+      "sectionToCourse": {
+        "checked": 2704,
+        "unresolved": 0,
+        "examples": []
+      },
+      "meetingToBuilding": {
+        "checked": 5984,
+        "unresolved": 0,
+        "examples": []
+      },
+      "courseStatusToCourse": {
+        "checked": 656,
+        "unresolved": 0,
+        "examples": []
+      },
+      "majorCoreToCourse": {
+        "checked": 22,
+        "unresolved": 6,
+        "examples": [
+          {
+            "majorId": "busi",
+            "majorName": "Business",
+            "code": "GOVT 2305",
+            "titleAnnotatedEquivalent": {
+              "courseCode": "PSCI 2305",
+              "title": "US Political Behavior and Policy  (GOVT 2305)"
+            }
+          },
+          {
+            "majorId": "psyc",
+            "majorName": "Psychology",
+            "code": "HIST 2610"
+          },
+          {
+            "majorId": "psyc",
+            "majorName": "Psychology",
+            "code": "HIST 2620"
+          },
+          {
+            "majorId": "psyc",
+            "majorName": "Psychology",
+            "code": "GOVT 2305",
+            "titleAnnotatedEquivalent": {
+              "courseCode": "PSCI 2305",
+              "title": "US Political Behavior and Policy  (GOVT 2305)"
+            }
+          },
+          {
+            "majorId": "engl",
+            "majorName": "English",
+            "code": "HIST 2610"
+          },
+          {
+            "majorId": "engl",
+            "majorName": "English",
+            "code": "HIST 2620"
+          }
+        ]
+      },
+      "prerequisites": {
+        "edgesTotal": 879,
+        "internalEdges": 657,
+        "external": {
+          "edges": 222,
+          "distinctCodes": 123,
+          "classification": "intentional external prerequisites — the bundled catalog is a subset of the university catalog (README); prerequisite codes outside the bundle are counted, not failed",
+          "inSourceCorpus": {
+            "codes": 0,
+            "examples": []
+          },
+          "notInSourceCorpus": {
+            "codes": 123,
+            "examples": [
+              {
+                "code": "ADVG 1100",
+                "edges": 4,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOC 4540",
+                "edges": 1,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 1755",
+                "edges": 1,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 1761",
+                "edges": 2,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 2042",
+                "edges": 5,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 2141",
+                "edges": 1,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 2311",
+                "edges": 1,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 2312",
+                "edges": 1,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 3350",
+                "edges": 1,
+                "inSourceCorpus": false
+              },
+              {
+                "code": "BIOL 3452",
+                "edges": 3,
+                "inSourceCorpus": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    "violations": {
+      "duplicateIds": 0,
+      "meetingBounds": 0,
+      "unknownReferences": 6
+    }
+  }
+}

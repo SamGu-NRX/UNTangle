@@ -1,0 +1,25 @@
+{
+  "receiptVersion": 1,
+  "toolVersion": 1,
+  "rulesVersion": 1,
+  "sourceCommit": "203bef7c987a75654dfb45a826dfc980493b742a",
+  "input": {
+    "path": "frontend/src/lib/generated/seed-data.json",
+    "sha256": "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
+    "bytes": 1701755
+  },
+  "majorsSource": {
+    "path": "frontend/src/lib/seed-data.ts",
+    "sha256": "4c2ad4fb634f96a536254b3f612219b19dad80c4fa6298cd32fc937554a44517",
+    "bytes": 3475
+  },
+  "counts": {
+    "buildings": 15,
+    "courses": 656,
+    "sections": 2704,
+    "majors": 8,
+    "courseStatusEntries": 656,
+    "sectionMeetings": 5984,
+    "prerequisiteEdges": 879
+  }
+}
