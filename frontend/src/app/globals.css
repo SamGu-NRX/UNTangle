@@ -8,7 +8,7 @@
 
   /* Text */
   --ink: #1a2e1a;
-  --copy: #6b826b;
+  --copy: #586e58;
   --faint: #a3b8a3;
 
   /* Lines */
@@ -700,6 +700,7 @@ a.btn-primary,
 .course-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.85rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--line);
@@ -709,6 +710,17 @@ a.btn-primary,
     border-color 200ms var(--ease),
     background-color 200ms var(--ease),
     opacity 160ms var(--ease);
+}
+
+.course-row > div {
+  /* Let flex children shrink: a no-wrap title+actions cluster otherwise
+     inflates the page column on narrow screens. */
+  min-width: 0;
+}
+
+.course-row > div:last-child {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .course-row:hover {
   border-color: var(--line-strong);
@@ -1054,7 +1066,14 @@ a.btn-primary,
 .courses-tools__filters {
   display: grid;
   gap: 0.65rem;
-  grid-template-columns: minmax(0, 2fr) minmax(210px, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.courses-tools > *,
+.courses-tools__filters > * {
+  /* Grid items must be allowed to shrink: the department select's intrinsic
+     option width otherwise inflates the whole page column on narrow screens. */
+  min-width: 0;
 }
 .courses-tools__import {
   display: flex;

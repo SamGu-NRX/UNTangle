@@ -138,3 +138,67 @@ was corrected to the verified contracts during implementation; the pinned
 behaviors (text preserved, unknown codes unresolved, idempotent apply) are
 unchanged.
 
+
+## Milestone 4 — accessibility and evidence (Playwright, axe, both viewports)
+
+New tooling: `playwright` and `@axe-core/playwright` dev dependencies and
+`frontend/evidence/course-journey.mjs` — a Playwright suite against the
+production build (`next build` + `next start` on :3100) that walks the course
+journey at 1440x900 and 390x844, audits five states with axe
+(wcag2a/wcag2aa/wcag21a/wcag21aa), and writes
+`frontend/evidence/screenshots/` (14 PNGs + `results.json`, all committed).
+
+First run: **17/24 checks passed** — two failure classes.
+
+1. `color-contrast` (serious) on every audited state (9-13 nodes each).
+   Root cause: the shared `--copy` token `#6b826b` measured 3.63-4.17:1
+   across the four surface backgrounds (`#ffffff`, `#f8faf8`, `#f4f6f4`,
+   `#edf0ed`) — below the 4.5:1 AA threshold for normal text. Fix
+   (`frontend/src/app/globals.css`): `--copy` darkened to `#586e58`, same
+   muted-sage family, computed 4.83-5.55:1 on the same four backgrounds.
+2. 223px horizontal overflow on mobile `/courses`. Browser diagnostics showed
+   every block from `header` to `.course-row` at a uniform 592.688px computed
+   width inside a 350px grid column: flex/grid children with implicit
+   `min-width: auto` let the department select's intrinsic option width and
+   the no-wrap title+actions cluster inflate the page column. Fix: the filter
+   grid uses `minmax(0, ...)` columns with `min-width: 0` children, and
+   `.course-row` plus its action cluster get `min-width: 0` and
+   `flex-wrap: wrap`.
+
+Final run: **24/24 checks passed** (`frontend/evidence/screenshots/results.json`):
+
+- Catalog at real size: 656 `.course-row`s render; keyboard search narrows to
+  1 row; explicit "No courses match that search." empty state; department
+  filter narrows to 23 rows.
+- Deep links: Details reachable by keyboard (Tab order, visible focus);
+  Enter deep-links to `/courses/ANTH/1010`; unknown code returns HTTP 404
+  with the branded not-found state.
+- Detail separation: catalog description present (1393 chars for ANTH 1010);
+  "Grade data is unavailable." and instructor-ratings unavailable states
+  render visibly when no service responds — no silent fallback.
+- Import boundary: review keeps the pasted text (CSCE 3444 matched, CSCE 9999
+  rendered as unresolved); applying the diff shows the success toast.
+- Long content: the longest description (MTSE 4120, 1739 chars) shows no
+  horizontal overflow at 1440x900.
+- Reduced motion: with `prefers-reduced-motion: reduce` emulated, all content
+  is visible after load — the existing global reduced-motion rules verified
+  live (no change was needed to them).
+- Mobile (390x844): zero horizontal overflow on courses, detail, not-found,
+  and import review; the first-visit major modal fits the viewport.
+- axe: **zero serious/critical violations** on all five audited states
+  (courses list, catalog-only detail, long-content detail, not-found, import
+  review — desktop and mobile).
+
+## Full check suite after milestone 4 (pre-commit)
+
+- `bun test`: pass (no regressions; the CSS changes have no unit-test
+  surface).
+- `./node_modules/.bin/tsc --noEmit`: clean.
+- `bun run lint`: clean.
+- `bun run build` (next build): success; production server re-verified with
+  the evidence run above.
+
+No `prep-for-prod` script exists in `frontend/package.json`; the established
+validation flow is lint + `tsc --noEmit` + `bun test` + `next build`, all
+green above.
+
