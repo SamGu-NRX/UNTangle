@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "suite": "a11y-polish",
+  "startedAt": "2026-10-11T22:48:10.861Z",
+  "finishedAt": "2026-10-11T22:51:18.629Z",
+  "target": {
+    "dir": "/home/user/work/clone-ui-suites",
+    "sha": "e89fec760361556efa06b51662538bf0eed636da",
+    "actualHead": "5a694f981f2274e9f61d2ff8c20f618cd2640a7e"
+  },
+  "runtime": {
+    "bun": "1.3.14",
+    "node": "v20.20.2",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "playwright": "1.64.0",
+    "os": "Linux 6.1.158+ x64"
+  },
+  "stack": [
+    {
+      "step": "target-dir",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "/home/user/work/clone-ui-suites",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-target-dir.log"
+    },
+    {
+      "step": "contract-present",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "/home/user/work/clone-ui-suites/evals/CONTRACT.md",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-contract-present.log"
+    },
+    {
+      "step": "submodule-backend",
+      "status": "pass",
+      "durationMs": 37,
+      "detail": "already initialized at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-submodule-backend.log"
+    },
+    {
+      "step": "backend-install",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "cached install present (better-sqlite3 native binding + tsx)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-install.log"
+    },
+    {
+      "step": "backend-sqlite-build",
+      "status": "pass",
+      "durationMs": 3680,
+      "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-sqlite-build.log"
+    },
+    {
+      "step": "postgres-init",
+      "status": "pass",
+      "durationMs": 1201,
+      "detail": "fresh cluster at /home/user/work/pgdata-default/run-1791758894595-142235",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-postgres-init.log"
+    },
+    {
+      "step": "postgres-start",
+      "status": "pass",
+      "durationMs": 192,
+      "detail": "postgres up on 127.0.0.1:54320, database untangle created",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-postgres-start.log"
+    },
+    {
+      "step": "migrations-apply",
+      "status": "pass",
+      "durationMs": 767,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54320/untangle",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-migrations-apply.log"
+    },
+    {
+      "step": "db-roundtrip",
+      "status": "pass",
+      "durationMs": 22,
+      "detail": "probe row roundtrip-fbaa07b83c870bda written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-db-roundtrip.log"
+    },
+    {
+      "step": "frontend-install",
+      "status": "pass",
+      "durationMs": 5,
+      "detail": "cached workspace install present (next + drizzle-kit)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-install.log"
+    },
+    {
+      "step": "backend-start",
+      "status": "pass",
+      "durationMs": 1246,
+      "detail": "backend healthy on http://127.0.0.1:3950 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-start.log"
+    },
+    {
+      "step": "frontend-build",
+      "status": "pass",
+      "durationMs": 46705,
+      "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-build.log"
+    },
+    {
+      "step": "frontend-start",
+      "status": "pass",
+      "durationMs": 1412,
+      "detail": "frontend serving http://localhost:3900 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-start.log"
+    },
+    {
+      "step": "playwright-launch",
+      "status": "pass",
+      "durationMs": 1186,
+      "detail": "chromium (headless) launched and rendered http://localhost:3900/ (body 6029 chars)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-playwright-launch.log"
+    }
+  ],
+  "infrastructure": {
+    "ok": true,
+    "brokenStep": null
+  },
+  "cases": [
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-home",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: evaluate: TypeError: axe.run arguments are invalid\n    at qD (<anonymous>:12:544852)\n    at axe.run (<anonymous>:12:549218)\n    at eval (eval at evaluate (:370:30), <anonymous>:5:20)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-courses",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: evaluate: TypeError: axe.run arguments are invalid\n    at qD (<anonymous>:12:544852)\n    at axe.run (<anonymous>:12:549218)\n    at eval (eval at evaluate (:370:30), <anonymous>:5:20)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-detail",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: evaluate: TypeError: axe.run arguments are invalid\n    at qD (<anonymous>:12:544852)\n    at axe.run (<anonymous>:12:549218)\n    at eval (eval at evaluate (:370:30), <anonymous>:5:20)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-instructor",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: focus: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a.detail-row').first()\u001b[22m\n"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-schedule",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: evaluate: TypeError: axe.run arguments are invalid\n    at qD (<anonymous>:12:544852)\n    at axe.run (<anonymous>:12:549218)\n    at eval (eval at evaluate (:370:30), <anonymous>:5:20)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-map",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: evaluate: TypeError: axe.run arguments are invalid\n    at qD (<anonymous>:12:544852)\n    at axe.run (<anonymous>:12:549218)\n    at eval (eval at evaluate (:370:30), <anonymous>:5:20)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-auth",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: evaluate: TypeError: axe.run arguments are invalid\n    at qD (<anonymous>:12:544852)\n    at axe.run (<anonymous>:12:549218)\n    at eval (eval at evaluate (:370:30), <anonymous>:5:20)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/keyboard-core-path",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: focus: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('link', { name: 'Schedule', exact: true }).first()\u001b[22m\n"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/focus-indicator",
+      "status": "pass",
+      "measured": "outline none 3px; boxShadow rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/reduced-motion",
+      "status": "pass",
+      "measured": "0 long-running animations under prefers-reduced-motion: reduce",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/no-horizontal-overflow-mobile",
+      "status": "fail",
+      "measured": "/courses: scrollWidth 613 > clientWidth 390",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "horizontal overflow at 390x844"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/image-icon-labeling",
+      "status": "pass",
+      "measured": "all images have alt; icons are labelled or hidden",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    }
+  ],
+  "blockedRmpRequests": 0,
+  "stubs": [
+    {
+      "label": "backend-runtime-fallback",
+      "reason": "the pinned backend's better-sqlite3 native addon crashes Bun (NAPI panic), so the backend ran under its documented Node/tsx runtime with the same rmp-block preload injected via NODE_OPTIONS"
+    }
+  ],
+  "hashes": {
+    "contractMd": "86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a",
+    "barsJson": "c23e2119dec43debb2381a5aed70fabc3d0b173dc1e4a3923db3ffbc2aa0ae7a"
+  }
+}
