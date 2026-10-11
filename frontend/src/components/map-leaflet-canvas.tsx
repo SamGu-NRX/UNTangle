@@ -1,19 +1,26 @@
 "use client";
 
-import { divIcon, latLngBounds, type DivIcon, type LatLngTuple } from "leaflet";
+import { divIcon, latLngBounds, type DivIcon } from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   buildCampusGeocodeQuery,
-  normalizeCampusLocationKey,
   untCampusCenter,
 } from "@/lib/campus-locations";
+import {
+  createMapDataCaches,
+  fetchRouteWithCache,
+  planResolveQueue,
+  resolveStopsWithCache,
+  routeKeyForStops,
+  stopLocationKey,
+  type ClientRoute,
+} from "@/lib/map-client-data";
 import { formatTime } from "@/lib/planner";
 import type {
   MapRouteDetails,
   MapResolutionSummary,
   MapResolvedLocation,
-  MapRouteResponse,
   MapRouteSummary,
   MapStop,
   WeekDay,
@@ -23,13 +30,6 @@ type ResolvedMapStop = Omit<MapStop, "lat" | "lng" | "resolutionStatus"> & {
   lat: number;
   lng: number;
   resolutionStatus: "local" | "geocoded";
-};
-
-type ClientRoute = {
-  positions: LatLngTuple[];
-  distanceMeters: number;
-  durationSeconds: number;
-  source: "ors" | "fallback";
 };
 
 export const emptyRouteSummary: MapRouteSummary = { distanceText: "-", durationText: "-" };
@@ -44,8 +44,7 @@ export const emptyRouteDetails: MapRouteDetails = {
   legs: [],
 };
 
-const resolutionCache: globalThis.Map<string, MapResolvedLocation | null> = new globalThis.Map();
-const routeCache: globalThis.Map<string, ClientRoute | null> = new globalThis.Map();
+const mapDataCaches = createMapDataCaches();
 const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const tileAttribution =
   process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ||
@@ -90,12 +89,8 @@ function hasCoordinates(stop: MapStop): stop is MapStop & { lat: number; lng: nu
   return typeof stop.lat === "number" && typeof stop.lng === "number";
 }
 
-function stopLocationKey(stop: Pick<MapStop, "location" | "buildingId">) {
-  return `${stop.buildingId ?? ""}|${normalizeCampusLocationKey(stop.location)}`;
-}
-
 function routeKey(stops: ResolvedMapStop[]) {
-  return stops.map((stop) => `${stop.lat.toFixed(6)},${stop.lng.toFixed(6)}`).join("|");
+  return routeKeyForStops(stops);
 }
 
 function sameStop(a: Pick<ResolvedMapStop, "lat" | "lng">, b: Pick<ResolvedMapStop, "lat" | "lng">) {
@@ -206,65 +201,43 @@ export function MapLeafletCanvas({
   onResolutionChange: (summary: MapResolutionSummary) => void;
 }) {
   const [resolvedSnapshot, setResolvedSnapshot] = useState<Record<string, MapResolvedLocation | null>>(
-    () => Object.fromEntries(resolutionCache),
+    () => Object.fromEntries(mapDataCaches.resolutions),
   );
   const [route, setRoute] = useState<ClientRoute | null>(null);
   const [resolvingCount, setResolvingCount] = useState(0);
 
   useEffect(() => {
-    const queue = stops.filter((stop) => !hasCoordinates(stop) && !resolutionCache.has(stopLocationKey(stop)));
+    queueMicrotask(() => setResolvedSnapshot(Object.fromEntries(mapDataCaches.resolutions)));
 
+    const queue = planResolveQueue(stops, mapDataCaches, Date.now());
     if (queue.length === 0) {
       queueMicrotask(() => setResolvingCount(0));
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     queueMicrotask(() => setResolvingCount(queue.length));
 
-    void fetch("/api/map/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        locations: queue.map((stop) => ({
-          location: stop.location,
-          buildingId: stop.buildingId,
-        })),
-      }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Resolution unavailable");
+    resolveStopsWithCache(stops, mapDataCaches, { signal: controller.signal })
+      .then((snapshot) => {
+        if (controller.signal.aborted) {
+          return; // superseded by a newer resolve; it owns the caches now
         }
-
-        return (await response.json()) as { locations?: MapResolvedLocation[] };
-      })
-      .then((payload) => {
-        queue.forEach((stop, index) => {
-          const key = stopLocationKey(stop);
-          const resolved = payload.locations?.[index];
-          resolutionCache.set(
-            key,
-            typeof resolved?.lat === "number" &&
-              typeof resolved.lng === "number" &&
-              resolved.resolutionStatus !== "unresolved"
-              ? resolved
-              : null,
-          );
-        });
+        setResolvedSnapshot(snapshot);
+        setResolvingCount(0);
       })
       .catch(() => {
-        queue.forEach((stop) => resolutionCache.set(stopLocationKey(stop), null));
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setResolvedSnapshot(Object.fromEntries(resolutionCache));
-          setResolvingCount(0);
+        if (controller.signal.aborted) {
+          return; // aborted or superseded: the newer request owns the UI
         }
+        // Partial successes before the failure are still worth applying;
+        // the failure itself stays retryable (TTL'd, never cached as final).
+        setResolvedSnapshot(Object.fromEntries(mapDataCaches.resolutions));
+        setResolvingCount(0);
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [stops]);
 
@@ -319,55 +292,34 @@ export function MapLeafletCanvas({
       return;
     }
 
-    const cached = routeCache.get(currentRouteKey);
+    const cached = mapDataCaches.routes.get(currentRouteKey);
     if (cached) {
       queueMicrotask(() => setRoute(cached));
       onSummary(routeSummary(cached));
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     const fallback = fallbackRoute(routeStops);
     queueMicrotask(() => setRoute(null));
 
-    void fetch("/api/map/route", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        stops: routeStops.map((stop) => ({ lat: stop.lat, lng: stop.lng })),
-      }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Route unavailable");
+    fetchRouteWithCache(routeStops, mapDataCaches, { signal: controller.signal })
+      .then((orsRoute) => {
+        if (controller.signal.aborted) {
+          return; // superseded by a newer route request
         }
-
-        return (await response.json()) as MapRouteResponse;
-      })
-      .then((payload) => {
-        const orsRoute = {
-          positions: payload.geometry.map((point) => [point.lat, point.lng] as LatLngTuple),
-          distanceMeters: payload.distanceMeters,
-          durationSeconds: payload.durationSeconds,
-          source: payload.source,
-        } satisfies ClientRoute;
-
-        routeCache.set(currentRouteKey, orsRoute);
-        if (!cancelled) {
-          setRoute(orsRoute);
-          onSummary(routeSummary(orsRoute));
-        }
+        // A failure is never cached as a fallback — the next attempt for the
+        // same stop path retries the real routing service.
+        const next = orsRoute ?? fallback;
+        setRoute(next);
+        onSummary(routeSummary(next));
       })
       .catch(() => {
-        routeCache.set(currentRouteKey, fallback);
-        if (!cancelled) {
-          setRoute(fallback);
-          onSummary(routeSummary(fallback));
-        }
+        // Aborted or superseded: the newer request owns the UI.
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [currentRouteKey, onSummary, routeStops]);
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "bun test tests/harness.test.ts tests/map-hardening.test.ts tests/map-client-state.test.tsx",
+    "test": "bun test tests/harness.test.ts tests/map-hardening.test.ts tests/map-client-data.test.ts tests/map-client-state.test.tsx",
     "test:e2e": "bun x playwright test"
   },
   "dependencies": {
