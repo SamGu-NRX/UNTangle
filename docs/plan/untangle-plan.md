@@ -97,6 +97,13 @@ Directions still open: OSRM's foot profile as a routing alternative, if the A* e
   reset needs Resend and stays an external gate.
 - University policy (prerequisite intent, the academic calendar) is never inferred. Unknowns stay unknown.
 
+## Contract changes
+
+- 2026-10-11 15:27Z: route source order is now the campus walkway graph, then ORS (when a key is set), then the
+  straight line, instead of ORS first. Accepted on PR #15 because the offline graph is campus-tuned (steps,
+  crossings, entrances), needs no external service, and no consumer depends on the order. The source names are
+  unchanged: `"ors" | "campus-network" | "fallback"`.
+
 ## Stop rule
 
 Stop a workstream when its suite meets its bars on `alpha`, or when two consecutive rounds don't move any of
