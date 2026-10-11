@@ -85,37 +85,41 @@ function wayClass(tags) {
 }
 
 // Local equirectangular projection around a reference latitude (meters).
-function makeProjector(refLat) {
+function makeProjector(refLat, refLng = 0) {
   const latScale = (Math.PI / 180) * EARTH_RADIUS_M;
   const lngScale = latScale * Math.cos((refLat * Math.PI) / 180);
   return {
-    toXY: (lat, lng) => [lng * lngScale, lat * latScale],
-    fromXY: (x, y) => [y / latScale, x / lngScale],
+    // Project relative to (refLat, refLng): shoelace sums on absolute
+    // coordinates around 1e7 m suffer catastrophic cancellation.
+    toXY: (lat, lng) => [(lng - refLng) * lngScale, (lat - refLat) * latScale],
+    fromXY: (x, y) => [refLat + y / latScale, refLng + x / lngScale],
   };
 }
 
 function polygonAreaMeters(coords) {
-  // coords: [[lat, lng], ...] closed ring (first == last) or open ring.
-  const proj = makeProjector(coords[0][0]);
+  // coords: [[lat, lng], ...] ring; duplicate closing vertex allowed or not.
+  const proj = makeProjector(coords[0][0], coords[0][1]);
   const ring = coords.map(([lat, lng]) => proj.toXY(lat, lng));
   let area = 0;
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  for (let i = 0; i < ring.length; i += 1) {
+    const j = (i + 1) % ring.length; // include the wrap-around edge
+    area += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
   }
   return Math.abs(area / 2);
 }
 
 function polygonCentroid(coords) {
-  const proj = makeProjector(coords[0][0]);
+  const proj = makeProjector(coords[0][0], coords[0][1]);
   const ring = coords.map(([lat, lng]) => proj.toXY(lat, lng));
   let a = 0;
   let cx = 0;
   let cy = 0;
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    const cross = ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  for (let i = 0; i < ring.length; i += 1) {
+    const j = (i + 1) % ring.length; // include the wrap-around edge
+    const cross = ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
     a += cross;
-    cx += (ring[i][0] + ring[i + 1][0]) * cross;
-    cy += (ring[i][1] + ring[i + 1][1]) * cross;
+    cx += (ring[i][0] + ring[j][0]) * cross;
+    cy += (ring[i][1] + ring[j][1]) * cross;
   }
   if (a === 0) {
     const sum = ring.slice(0, -1).reduce((acc, [x, y]) => [acc[0] + x, acc[1] + y], [0, 0]);

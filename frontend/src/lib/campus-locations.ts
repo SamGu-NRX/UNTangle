@@ -15,10 +15,13 @@ function address(value: string) {
   return `${value}, ${dentonSuffix}`;
 }
 
-// Names, mnemonics, building numbers, and addresses come from UNT Facilities.
-// Coordinates are checked against UNT Names where available and OSM building
-// footprints for the map pin center, so generated course seed coordinates never
-// become the source of truth for campus pins.
+// Names, mnemonics, building numbers, and addresses come from UNT Facilities
+// (facilities.unt.edu/resources/building-information.html). Coordinates for the
+// original 16 entries were checked against UNT Names and OSM building
+// footprints; the entries added 2026-10-11 use the official UNT GIS
+// Building_Cartographic_Shape layer (LON/LAT, WGS84). Registrar building-code
+// research (facilities registry, registrar Learning Spaces inventory, GIS
+// HISTORY) confirmed the mnemonics and the code conflicts documented below.
 export const campusBuildings: CampusBuilding[] = [
   {
     id: "art",
@@ -43,6 +46,20 @@ export const campusBuildings: CampusBuilding[] = [
     aliases: ["arta", "artf", "art annex", "unt art annex"],
   },
   {
+    id: "ath1",
+    name: "Air Force ROTC Building",
+    shortName: "ATH1",
+    mnemonic: "ATH1",
+    buildingNumber: "305",
+    address: address("712 North Texas Blvd."),
+    lat: 33.2076379,
+    lng: -97.1565785,
+    aliases: ["ath1", "ath", "afrotc", "air force rotc", "air force rotc building"],
+    // A block west of untCampusBounds, on North Texas Blvd: outside the walkway
+    // graph and the routing bounds, so it is excluded from route resolution.
+    isOffCampus: true,
+  },
+  {
     id: "aud",
     name: "Auditorium Building",
     shortName: "AUD",
@@ -52,6 +69,17 @@ export const campusBuildings: CampusBuilding[] = [
     lat: 33.2139537,
     lng: -97.1472998,
     aliases: ["aud", "audb", "auditorium", "auditorium building", "auditorium english building"],
+  },
+  {
+    id: "bain",
+    name: "Bain Hall",
+    shortName: "BAIN",
+    mnemonic: "BAIN",
+    buildingNumber: "122",
+    address: address("1820 W. Highland St."),
+    lat: 33.2096924,
+    lng: -97.152477,
+    aliases: ["bain", "bain hall"],
   },
   {
     id: "blb",
@@ -65,6 +93,17 @@ export const campusBuildings: CampusBuilding[] = [
     aliases: ["blb", "business leadership", "business leadership bldg", "business leadership building"],
   },
   {
+    id: "chil",
+    name: "Chilton Hall",
+    shortName: "CHIL",
+    mnemonic: "CHIL",
+    buildingNumber: "126",
+    address: address("410 S. Avenue C"),
+    lat: 33.2110353,
+    lng: -97.1513335,
+    aliases: ["chil", "chilton", "chilton hall"],
+  },
+  {
     id: "chem",
     name: "Chemistry Building",
     shortName: "CHEM",
@@ -74,6 +113,50 @@ export const campusBuildings: CampusBuilding[] = [
     lat: 33.2140405,
     lng: -97.1499791,
     aliases: ["chem", "chemistry", "chemistry bldg", "chemistry building"],
+  },
+  {
+    id: "col",
+    name: "Coliseum",
+    shortName: "COL",
+    mnemonic: "COL",
+    buildingNumber: "154",
+    address: address("601 North Texas Blvd."),
+    lat: 33.2086577,
+    lng: -97.1541414,
+    aliases: ["col", "coliseum"],
+  },
+  {
+    id: "cury",
+    name: "Curry Hall",
+    shortName: "CURY",
+    mnemonic: "CURY",
+    buildingNumber: "107",
+    address: address("200 Avenue A"),
+    lat: 33.2135195,
+    lng: -97.1466553,
+    aliases: ["cury", "curry", "curry hall"],
+  },
+  {
+    id: "dath",
+    name: "Dance and Theatre Building",
+    shortName: "DATH",
+    mnemonic: "DATH",
+    buildingNumber: "159",
+    address: address("300 Bernard St."),
+    lat: 33.212103,
+    lng: -97.1416788,
+    aliases: ["dath", "dance and theatre", "dance and theatre building", "dance and theater", "dance theater"],
+  },
+  {
+    id: "essc",
+    name: "Eagle Student Services Center",
+    shortName: "ESSC",
+    mnemonic: "ESSC",
+    buildingNumber: "113",
+    address: address("1147 Union Circle"),
+    lat: 33.2103345,
+    lng: -97.1479731,
+    aliases: ["essc", "eagle student services", "eagle student services center"],
   },
   {
     id: "env",
@@ -86,6 +169,10 @@ export const campusBuildings: CampusBuilding[] = [
     lng: -97.1513851,
     aliases: [
       "env",
+      // The classroom system schedules this building as "ESB" and UNT pages
+      // commonly call it "EESAT" (facilities mnemonic is ENV) — all map here.
+      "esb",
+      "eesat",
       "environmental science",
       "environmental science building",
       "environmental education science technology",
@@ -161,6 +248,17 @@ export const campusBuildings: CampusBuilding[] = [
     aliases: ["matt", "matthews", "matthews hall"],
   },
   {
+    id: "musa",
+    name: "Music Annex",
+    shortName: "MUSA",
+    mnemonic: "MUSA",
+    buildingNumber: "115",
+    address: address("1630 W. Highland St."),
+    lat: 33.2097157,
+    lng: -97.1499891,
+    aliases: ["musa", "music annex", "music annex building"],
+  },
+  {
     id: "musi",
     name: "Music Building",
     shortName: "MUSI",
@@ -184,6 +282,52 @@ export const campusBuildings: CampusBuilding[] = [
     isOffCampus: true,
   },
   {
+    id: "pac",
+    name: "Performing Arts Center",
+    shortName: "PAC",
+    mnemonic: "PAC",
+    buildingNumber: "129",
+    address: address("2100 N. I-35E"),
+    lat: 33.2063395,
+    lng: -97.1550339,
+    // Named for Lucille "Lupe" Murchison; the classroom system misspells it
+    // "Murchinson" — both resolve here.
+    aliases: ["pac", "mpac", "murchison", "murchison performing arts center", "murchinson performing arts center", "performing arts center"],
+  },
+  {
+    id: "peb",
+    name: "Physical Education Building",
+    shortName: "PEB",
+    mnemonic: "PEB",
+    buildingNumber: "117",
+    address: address("1921 Chestnut St."),
+    lat: 33.210908,
+    lng: -97.1529673,
+    aliases: ["peb", "physical education", "physical education building"],
+  },
+  {
+    id: "phys",
+    name: "Physics Building",
+    shortName: "PHYS",
+    mnemonic: "PHYS",
+    buildingNumber: "119",
+    address: address("210 Avenue A"),
+    lat: 33.2130886,
+    lng: -97.1466173,
+    aliases: ["phys", "physics", "physics building", "physics bldg"],
+  },
+  {
+    id: "rtfp",
+    name: "Radio, TV, Film & Performing Arts Building",
+    shortName: "RTFP",
+    mnemonic: "RTFP",
+    buildingNumber: "140",
+    address: address("1179 Union Circle"),
+    lat: 33.2120796,
+    lng: -97.1456902,
+    aliases: ["rtfp", "radio tv film and performing arts", "radio tv film and performing arts building"],
+  },
+  {
     id: "sage",
     name: "Sage Hall",
     shortName: "SAGE",
@@ -192,7 +336,40 @@ export const campusBuildings: CampusBuilding[] = [
     address: address("1167 Union Circle"),
     lat: 33.2121066,
     lng: -97.1467423,
-    aliases: ["sage", "sage hall"],
+    aliases: ["sage", "sage hall", "business administration building"],
+  },
+  {
+    id: "symr",
+    name: "Sycamore Hall",
+    shortName: "SYMR",
+    mnemonic: "SYMR",
+    buildingNumber: "111",
+    address: address("307 S. Avenue B"),
+    lat: 33.2121076,
+    lng: -97.1479211,
+    aliases: ["symr", "sycamore", "sycamore hall", "information sciences building"],
+  },
+  {
+    id: "th",
+    name: "Terrill Hall",
+    shortName: "TH",
+    mnemonic: "TH",
+    buildingNumber: "131",
+    address: address("1611 W. Mulberry St."),
+    lat: 33.2131906,
+    lng: -97.1495662,
+    aliases: ["th", "terrill", "terrill hall"],
+  },
+  {
+    id: "uu",
+    name: "University Union",
+    shortName: "UU",
+    mnemonic: "UU",
+    buildingNumber: "155",
+    address: address("1155 Union Circle"),
+    lat: 33.210906,
+    lng: -97.14735,
+    aliases: ["uu", "union", "university union", "student union"],
   },
   {
     id: "wh",
@@ -204,6 +381,20 @@ export const campusBuildings: CampusBuilding[] = [
     lat: 33.2098557,
     lng: -97.1456764,
     aliases: ["wh", "wooten", "wooten hall"],
+  },
+  {
+    id: "mgvp",
+    name: "MGV Building P",
+    shortName: "MGVP",
+    mnemonic: "MGVP",
+    buildingNumber: "464",
+    address: address("1500 S. Bonnie Brae St."),
+    lat: 33.201171,
+    lng: -97.1619982,
+    aliases: ["mgvp", "mgv building p", "mean green village p"],
+    // Mean Green Village athletics zone, south of untCampusBounds and outside
+    // the walkway graph: excluded from route resolution.
+    isOffCampus: true,
   },
 ];
 

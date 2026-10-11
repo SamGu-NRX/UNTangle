@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T14:04:27.122Z",
+  "generatedAt": "2026-10-11T14:46:01.869Z",
   "generator": "tools/campus-geodata/build.mjs",
   "commands": {
     "fetch": "node tools/campus-geodata/fetch-osm.mjs [--refresh]",
@@ -35,8 +35,8 @@
     },
     "buildings": {
       "path": "frontend/src/lib/campus/data/buildings.json",
-      "sha256": "b0c5614da5adb092aa66c65ba3b9474b83c238e25b7206999c94bf17902ae6d4",
-      "bytes": 398857
+      "sha256": "e3244118a6394df04c3275d39312d7f97b6f11175b03df6e117674c7f8a8e492",
+      "bytes": 391927
     }
   },
   "counts": {

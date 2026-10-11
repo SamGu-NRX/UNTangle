@@ -21,7 +21,7 @@ committed JSON artifacts and serves real walkway routing from them.
 # from the repository root
 node tools/campus-geodata/fetch-osm.mjs          # downloads once; --refresh forces a new fetch
 node tools/campus-geodata/build.mjs              # rebuild artifacts + receipt from raw/
-cd frontend && bun ../tools/campus-geodata/build-matrix.ts   # rebuild the walking-time matrix
+bun tools/campus-geodata/build-matrix.ts         # rebuild the walking-time matrix
 ```
 
 ## Way filter
@@ -37,6 +37,14 @@ streets a pedestrian may legally walk on. `footway=crossing` and
 `footway=sidewalk` are recorded as their own classes. The same filter is
 documented in `evals/fixtures/METHOD.md`, so fixture distances and runtime
 distances describe the same network.
+
+## Known limitations
+
+- Building outlines capture simple closed OSM **ways** only. Buildings mapped
+  as multipolygon **relations** (currently the Art Building and Art Annex) have
+  no outline in buildings.json, so the matrix anchors their registry pins
+  with the nearest-node fallback ("pin-fallback", all current connectors
+  ≤ 30 m). Relation support would upgrade those anchors to entrance-anchored.
 
 ## Walking-speed model
 
