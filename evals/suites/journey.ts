@@ -20,6 +20,7 @@ import {
   activateCoursesAndOpenSchedule,
   chooseMajorIfOpen,
   courseRow,
+  escapeRegExp,
   expectDetailNot404,
   missingElement,
   PLANS,
@@ -62,8 +63,8 @@ async function enter(
   }
   const account = syntheticPersona();
   await signUp(cb.page, account, ctx.frontendOrigin);
-  await activate(cb.page, cb.page.getByRole("link", { name: "Courses", exact: true }).first());
-  await cb.page.waitForURL("**/courses", { timeout: 30_000 });
+  // Sign-up leaves the user on /auth, whose shell has no step nav — go direct.
+  await cb.page.goto(`${ctx.frontendOrigin}/courses`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await settle(cb.page);
   await chooseMajorIfOpen(cb.page);
   return cb.page;
@@ -74,15 +75,20 @@ async function landOnCourses(ctx: SuiteContext, caseId: string, persona: Persona
   return enter(ctx, persona, viewport);
 }
 
-/** First code visible after searching, read from the row's own heading. */
-async function firstSearchedCode(page: Page, what: string): Promise<string> {
+/** First code visible after a department search — read only after the filter applied. */
+async function firstSearchedCode(page: Page, term: string): Promise<string> {
+  // The unfiltered catalog can linger for a moment after fill(); wait until the
+  // visible first row actually carries the searched prefix, else the code is
+  // read from a row that the filter is about to remove.
   const firstRow = page.locator("article.course-row").first();
-  const rowCode = (await firstRow.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
-  const code = rowCode.match(/\b[A-Z]{2,4}\s\d{4}\b/)?.[0];
-  if (!code) {
-    throw new Error(`${what} journey could not read a course code from the first course row after search`);
+  const codePattern = new RegExp(`\\b${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`);
+  for (let i = 0; i < 40; i++) {
+    const text = (await firstRow.textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
+    const code = text.match(codePattern)?.[0];
+    if (code) return code;
+    await page.waitForTimeout(300);
   }
-  return code;
+  throw new Error(`search for "${term}" never showed a matching first course row`);
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +100,7 @@ async function runDiscover(ctx: SuiteContext, caseId: string, persona: PersonaNa
   const page = await landOnCourses(ctx, caseId, persona, viewport);
   await page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await page.waitForTimeout(700);
-  const code = await firstSearchedCode(page, "discover");
+  const code = await firstSearchedCode(page, "CSCE"); // discover searches CSCE
   await activate(page, courseRow(page, code).getByRole("link", { name: "Details" }).first());
   await page.waitForURL("**/courses/**", { timeout: 20_000 });
   await expectDetailNot404(page, page.url());
@@ -114,7 +120,7 @@ async function runInstructor(ctx: SuiteContext, caseId: string, persona: Persona
   const page = await landOnCourses(ctx, caseId, persona, viewport);
   await page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await page.waitForTimeout(700);
-  const code = await firstSearchedCode(page, "instructor");
+  const code = await firstSearchedCode(page, "CSCE"); // instructor searches CSCE
   await activate(page, courseRow(page, code).getByRole("link", { name: "Details" }).first());
   await page.waitForURL("**/courses/**", { timeout: 20_000 });
   await expectDetailNot404(page, page.url());

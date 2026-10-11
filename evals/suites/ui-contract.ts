@@ -57,7 +57,7 @@ export async function chooseMajorIfOpen(page: Page): Promise<void> {
   await dialog.waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
 }
 
-function escapeRegExp(text: string): string {
+export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
