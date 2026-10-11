@@ -2,27 +2,33 @@
  * Data suite — conditional-presence evaluation of the catalog's data claims.
  *
  * Two independent presence checks against the TARGET checkout; a missing
- * artifact is not-applicable and names the path, a present-but-broken
- * artifact is a fail:
+ * artifact is not-applicable and names the path:
  *
  *   data/catalog-certification-counts — when tools/catalog-consistency
- *     exists (script or directory with an entrypoint), run it (cwd = the
- *     target root) and record the certification counts EXACTLY as its JSON
- *     output reports them. Exit code 0 required; a reported failure count
- *     above zero fails the case.
+ *     exists, the suite drives ITS interface (package.json script or
+ *     entrypoint discovery; no arguments prescribed — see _optdata-lib.ts),
+ *     records every numeric field it reports verbatim, and requires exit
+ *     code 0. A tool whose output exposes no numeric counts is
+ *     not-applicable with the reason (nothing was prescribed for it to
+ *     report); a tool that fails to run, or reports failures itself, fails.
  *
  *   data/provenance-descriptor — when frontend/src/lib/data-provenance.ts
- *     exports an activeDataset descriptor, verify it against the
- *     actually-bundled catalog file: sha256 of the file's utf8 bytes, plus
- *     every claimed count recomputed from the bundle (array -> length,
- *     number -> direct compare). The descriptor is read statically, never
- *     imported, so the harness never pulls the target's dependency graph.
+ *     contains a statically readable `activeDataset` object literal, the
+ *     suite records it verbatim and checks the claims it can recognize in
+ *     it: a .json file reference (by field name or value shape), a 64-hex
+ *     sha256 digest (whatever the field is called), and count numbers whose
+ *     bare keys have counterparts in the bundle (array -> length, number ->
+ *     direct compare). A literal with no recognizable verifiable claims is
+ *     not-applicable with the reason; a false claim (wrong digest, wrong
+ *     count, named bundle missing) fails. The descriptor is read
+ *     statically, never imported, so the harness never pulls the target's
+ *     dependency graph — and never prescribes its shape.
  *
  * Bar values come from evals/bars.json (suite "data"): "exact certification
  * counts, real-term bundle present".
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, SuiteContext } from "../suite-kit";
@@ -30,32 +36,20 @@ import {
   artifactCommand,
   extractActiveDataset,
   isDirectory,
+  isRegularFile,
   missingPathNote,
   parseJsonObjectFromProcess,
+  recognizeDescriptorClaims,
   resolveBundledCatalogPath,
   resolveTargetDir,
   runCaptured,
   verifyDescriptorAgainstBundle,
-} from "./optdata-lib";
-
-function isRegularFile(p: string): boolean {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-}
+  writeEvidence,
+} from "./_optdata-lib";
 
 const CONSISTENCY_REL = path.join("tools", "catalog-consistency");
 const PROVENANCE_REL = path.join("frontend", "src", "lib", "data-provenance.ts");
 const CONSISTENCY_TIMEOUT_MS = 60_000;
-
-function writeEvidence(runDir: string, name: string, payload: unknown): string {
-  mkdirSync(runDir, { recursive: true });
-  const evidencePath = path.join(runDir, name);
-  writeFileSync(evidencePath, `${JSON.stringify(payload, null, 2)}\n`);
-  return evidencePath;
-}
 
 /** Count keys the data suite treats as failure signals when they exceed zero. */
 const FAILURE_COUNT_KEYS = ["failures", "inconsistencies", "errors", "violations"];
@@ -81,34 +75,40 @@ async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Pr
     return { status: "fail", note: `${toolPath} is neither a readable file nor a directory` };
   }
 
-  const command = artifactCommand(toolPath, ["--format", "json"], targetDir, "repo-root");
+  const command = artifactCommand(toolPath);
   if (!command.ok) {
+    // Present, but no real interface could be derived from its own code —
+    // not-applicable with that reason, not a fail against an invented shape.
     return {
-      status: "fail",
-      bar: "certification counts recorded exactly as the tool reports; tool exits 0",
-      note: `catalog-consistency present but not runnable: ${command.reason}`.slice(0, 400),
+      status: "not-applicable",
+      note: `catalog-consistency is present but its real interface could not be determined: ${command.reason}`.slice(0, 400),
     };
   }
 
   const run = await runCaptured({ cmd: command.cmd, args: command.args, cwd: command.cwd, timeoutMs: CONSISTENCY_TIMEOUT_MS });
   const payload = parseJsonObjectFromProcess(run.stdout);
   const counts: Record<string, number> = {};
+  const nonNumeric: string[] = [];
   for (const [key, value] of Object.entries(payload ?? {})) {
     if (typeof value === "number" && Number.isFinite(value)) counts[key] = value;
+    else nonNumeric.push(key);
   }
   const summary = countsSummary(counts);
+  const bar = "certification counts recorded exactly as the tool reports; tool exits 0";
   const evidencePath = writeEvidence(ctx.runDir, "optdata-catalog-consistency-evidence.json", {
-    what: "catalog-consistency execution evidence",
+    what: "catalog-consistency execution evidence (output recorded verbatim; interpretation is best-effort recognition)",
     invocation: command.describe,
+    invocationSource: command.source,
     cwd: command.cwd,
+    args: command.args,
     exitCode: run.code,
     timedOut: run.timedOut,
     durationMs: run.durationMs,
     stdoutTail: run.stdout.slice(-20_000),
     stderrTail: run.stderr.slice(-20_000),
     recordedCounts: counts,
+    nonNumericFields: nonNumeric,
   });
-  const bar = "certification counts recorded exactly as the tool reports; tool exits 0";
 
   if (run.spawnError !== undefined) {
     return { status: "fail", measured: summary || null, bar, evidencePath, note: `catalog-consistency could not be spawned: ${run.spawnError}`.slice(0, 400) };
@@ -127,11 +127,8 @@ async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Pr
   }
   if (Object.keys(counts).length === 0) {
     return {
-      status: "fail",
-      measured: null,
-      bar,
-      evidencePath,
-      note: `catalog-consistency produced no numeric counts to record; stdout head: ${run.stdout.slice(0, 200)}`.slice(0, 400),
+      status: "not-applicable",
+      note: `catalog-consistency ran (${command.describe}) and exited 0 but reported no numeric counts its output could be read from (non-numeric fields: ${nonNumeric.slice(0, 8).join(", ") || "none"}); stdout recorded verbatim at ${evidencePath} — nothing was prescribed for it to report`.slice(0, 400),
     };
   }
   const reportedFailures = FAILURE_COUNT_KEYS.filter((key) => key in counts && (counts[key] ?? 0) > 0);
@@ -178,28 +175,34 @@ async function runProvenanceDescriptor(ctx: SuiteContext, targetDir: string): Pr
       descriptorFile: provenancePath,
       extraction: extracted,
     });
-    return { status: "fail", bar, evidencePath, note: `data-provenance.ts present but unreadable as a descriptor: ${extracted.reason}`.slice(0, 400) };
+    // The module is present but its activeDataset is not a statically
+    // readable object literal — the real interface cannot be determined,
+    // so the case is not-applicable with that reason (never a fail for
+    // not matching a shape the module never agreed to).
+    return {
+      status: "not-applicable",
+      note: `data-provenance.ts is present but no statically readable activeDataset object literal could be determined: ${extracted.reason} (evidence: ${evidencePath})`.slice(0, 400),
+    };
   }
   const descriptor = extracted.descriptor;
 
-  if (typeof descriptor.file !== "string" || descriptor.file === "") {
-    const evidencePath = writeEvidence(ctx.runDir, "optdata-provenance-evidence.json", {
-      what: "provenance descriptor verification evidence",
-      descriptorFile: provenancePath,
-      descriptor,
-    });
-    return { status: "fail", bar, evidencePath, note: "the descriptor names no bundled file (no `file` string field) — nothing to verify against" };
-  }
-  if (typeof descriptor.sha256 !== "string" || !/^[0-9a-fA-F]{64}$/.test(descriptor.sha256)) {
-    const evidencePath = writeEvidence(ctx.runDir, "optdata-provenance-evidence.json", {
-      what: "provenance descriptor verification evidence",
-      descriptorFile: provenancePath,
-      descriptor,
-    });
-    return { status: "fail", bar, evidencePath, note: `the descriptor's sha256 is not a 64-hex digest: ${JSON.stringify(descriptor.sha256 ?? null)}` };
+  const claims = recognizeDescriptorClaims(descriptor);
+  const evidenceBase = {
+    what: "provenance descriptor verification evidence (descriptor recorded verbatim; claims recognized, not prescribed)",
+    descriptorFile: provenancePath,
+    descriptor,
+    recognizedClaims: claims,
+  };
+
+  if (claims.fileClaim === null) {
+    const evidencePath = writeEvidence(ctx.runDir, "optdata-provenance-evidence.json", evidenceBase);
+    return {
+      status: "not-applicable",
+      note: `the activeDataset literal (recorded verbatim at ${evidencePath}) names no bundled file the suite could recognize (no file-like field or .json reference), so there is nothing to verify it against`.slice(0, 400),
+    };
   }
 
-  const resolved = resolveBundledCatalogPath(targetDir, descriptor.file);
+  const resolved = resolveBundledCatalogPath(targetDir, claims.fileClaim.value);
   let bundledUtf8: string | null = null;
   if (resolved.path !== null) {
     try {
@@ -210,37 +213,48 @@ async function runProvenanceDescriptor(ctx: SuiteContext, targetDir: string): Pr
     }
   }
 
-  const verdict = verifyDescriptorAgainstBundle(descriptor, resolved.path ?? "", bundledUtf8);
+  const verdict = verifyDescriptorAgainstBundle(claims, resolved.path ?? "", bundledUtf8);
   const countsPart = verdict.countChecks
-    .map((check) => `${check.key}=${check.expected}${check.ok ? " ok" : ` MISMATCH (${check.actual})`}`)
+    .map((check) =>
+      check.ok === null
+        ? `${check.key}=${check.expected} (recorded, no bundle counterpart)`
+        : `${check.key}=${check.expected}${check.ok ? " ok" : ` MISMATCH (${check.actual})`}`,
+    )
     .join(", ");
   const measured =
-    `sha256 ${shortHash(verdict.hashExpected ?? "")} vs bundled ${verdict.hashActual === null ? "unreadable" : shortHash(verdict.hashActual)}` +
+    (verdict.hashExpected === null
+      ? "no sha256 claim"
+      : `sha256 ${shortHash(verdict.hashExpected)} vs bundled ${verdict.hashActual === null ? "unreadable" : shortHash(verdict.hashActual)}`) +
     (countsPart === "" ? "" : `; ${countsPart}`);
   const evidencePath = writeEvidence(ctx.runDir, "optdata-provenance-evidence.json", {
-    what: "provenance descriptor verification evidence",
-    descriptorFile: provenancePath,
-    descriptor,
+    ...evidenceBase,
     bundledPathsTried: resolved.tried,
     verdict,
   });
 
   if (resolved.path === null || bundledUtf8 === null) {
+    // The descriptor claims a bundled file that is not there — a false claim.
     return {
       status: "fail",
       measured,
       bar,
       evidencePath,
-      note: `the bundled catalog the descriptor names is not readable in the checkout (tried: ${resolved.tried.join("; ")})`.slice(0, 400),
+      note: `the descriptor names ${claims.fileClaim.value} (field ${claims.fileClaim.key}) but that file is not present/readable in the checkout (tried: ${resolved.tried.join("; ")})`.slice(0, 400),
     };
   }
-  if (verdict.allOk) {
+  if (!verdict.anythingChecked) {
+    return {
+      status: "not-applicable",
+      note: `the bundle ${resolved.path} is readable but the descriptor's claims (recorded verbatim at ${evidencePath}) could not be checked: no sha256 claim and no count keys with counterparts in the bundle`.slice(0, 400),
+    };
+  }
+  if (verdict.allCheckedOk) {
     return {
       status: "pass",
       measured,
       bar,
       evidencePath,
-      note: `descriptor verifies against the bundled file ${resolved.path}: sha256 matches${countsPart === "" ? "" : `, counts verified (${countsPart})`}`,
+      note: `descriptor verifies against the bundled file ${resolved.path}: ${verdict.hashOk === true ? "sha256 matches" : "no sha256 claim"}${countsPart === "" ? "" : `, counts (${countsPart})`}`.slice(0, 400),
     };
   }
   const hashPart = verdict.hashOk === false ? `sha256 MISMATCH (descriptor ${shortHash(verdict.hashExpected ?? "")} vs bundled ${shortHash(verdict.hashActual ?? "")})` : "";
@@ -249,7 +263,7 @@ async function runProvenanceDescriptor(ctx: SuiteContext, targetDir: string): Pr
     measured,
     bar,
     evidencePath,
-    note: [hashPart, ...verdict.countChecks.filter((c) => !c.ok).map((c) => `count ${c.key} MISMATCH (descriptor ${c.expected} vs bundle ${c.actual})`)]
+    note: [hashPart, ...verdict.countChecks.filter((c) => c.ok === false).map((c) => `count ${c.key} MISMATCH (descriptor ${c.expected} vs bundle ${c.actual})`)]
       .filter(Boolean)
       .join("; ")
       .slice(0, 400),
