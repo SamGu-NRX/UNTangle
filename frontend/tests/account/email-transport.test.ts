@@ -3,7 +3,11 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { outboxDirectory, readOutboxMessages, resolveEmailTransport } from "@/lib/email";
+// Load the REAL transport module. A sibling suite in the full run registers a
+// module mock for "@/lib/email" that would otherwise shadow it here; the
+// versioned specifier resolves to a fresh, unmocked copy of the module.
+const email = (await import("@/lib/email" + "?test-real")) as typeof import("@/lib/email");
+const { outboxDirectory, readOutboxMessages, resolveEmailTransport } = email;
 
 // The resend client is injected, so no test can reach the network and no
 // module mocking is needed: the recorder only observes what would be sent.
