@@ -50,7 +50,8 @@ function makeFakeDb(): unknown {
 }
 
 mock.module("@/lib/db", () => ({ db: makeFakeDb(), hasDatabaseUrl: true }));
-mock.module("@/lib/email", () => ({ sendPasswordResetEmail: async () => {} }));
+mock.module("@/lib/email", () => ({
+  sendMagicLinkEmail: async () => {}, sendPasswordResetEmail: async () => {} }));
 
 let POST: PostFn;
 
