@@ -1,0 +1,8 @@
+{
+  "variant": "scorer",
+  "minifiedBytes": 2341,
+  "gzippedBytes": 1094,
+  "outputKinds": [
+    "entry-point"
+  ]
+}

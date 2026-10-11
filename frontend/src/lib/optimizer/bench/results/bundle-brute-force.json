@@ -1,0 +1,8 @@
+{
+  "variant": "brute-force",
+  "minifiedBytes": 6869,
+  "gzippedBytes": 2633,
+  "outputKinds": [
+    "entry-point"
+  ]
+}
