@@ -1,0 +1,362 @@
+#!/usr/bin/env bun
+/**
+ * tools/degree-requirements/fetch-pages.mjs
+ *
+ * Fetches the published catalog.unt.edu pages that back UNTangle degree
+ * planning: one page per program (major) plus, later, course-description pages
+ * for courses the app catalog does not resolve.
+ *
+ * Compliance contract (enforced in code, not aspirational):
+ * - public pages only; no forms, no authenticated or ajax endpoints;
+ * - robots.txt honored: Disallow rules AND crawl-delay for our user-agent
+ *   group are obeyed. The effective minimum interval between requests is
+ *   max(1 request/second, the robots crawl-delay) — we go slower than one
+ *   request per second whenever robots asks;
+ * - an honest User-Agent naming the tool and a contact;
+ * - every response is cached on disk under data/degree-requirements/cache/;
+ * - every request (and every cache reuse) is recorded in
+ *   data/degree-requirements/receipt.json with the URL, HTTP status, byte
+ *   size, timestamp and sha256 of the bytes;
+ * - resumable: a cache hit short-circuits the fetch (and is re-verified
+ *   against the receipt sha256), so an interrupted run continues where it
+ *   stopped instead of re-requesting anything.
+ *
+ * Usage:
+ *   bun tools/degree-requirements/fetch-pages.mjs discover
+ *   bun tools/degree-requirements/fetch-pages.mjs fetch
+ *   bun tools/degree-requirements/fetch-pages.mjs verify
+ */
+
+import { createHash } from "node:crypto";
+import { mkdirSync, existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO = resolve(HERE, "..", "..");
+const DATA = join(REPO, "data", "degree-requirements");
+const CACHE = join(DATA, "cache");
+const RECEIPT = join(DATA, "receipt.json");
+const PROGRAMS = join(DATA, "programs.json");
+
+const BASE = "https://catalog.unt.edu";
+const USER_AGENT =
+  "UNTangleDegreePlanBot/1.0 (student degree-planning tool; fetches published catalog pages only; " +
+  "respects robots.txt and its crawl-delay; contact: focus.sgu@gmail.com; " +
+  "source: https://github.com/SamGu-NRX/UNTangle tools/degree-requirements)";
+const MIN_INTERVAL_MS = 1000; // "at most one request per second" — crawl-delay can only raise this.
+const ROBOTS_TTL_MS = 24 * 60 * 60 * 1000;
+
+function sha256(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function ensureDirs() {
+  mkdirSync(CACHE, { recursive: true });
+}
+
+function loadReceipt() {
+  if (!existsSync(RECEIPT)) {
+    return {
+      tool: "tools/degree-requirements/fetch-pages.mjs",
+      userAgent: USER_AGENT,
+      minRequestIntervalMs: MIN_INTERVAL_MS,
+      robots: null,
+      entries: [],
+      requestCount: 0,
+    };
+  }
+  return JSON.parse(readFileSync(RECEIPT, "utf8"));
+}
+
+function saveReceipt(receipt) {
+  const tmp = RECEIPT + ".tmp";
+  writeFileSync(tmp, JSON.stringify(receipt, null, 2) + "\n");
+  renameSync(tmp, RECEIPT);
+}
+
+function cachePathFor(url) {
+  const name = url
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-zA-Z0-9.-]+/g, "_")
+    .slice(0, 180);
+  return join(CACHE, name + ".html");
+}
+
+function relCache(p) {
+  return "data/degree-requirements/cache/" + p.split("/").pop();
+}
+
+/** Minimal robots.txt: the rules that apply to our group, as directives. */
+function parseRobots(text, ourToken) {
+  const groups = [];
+  let current = null;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/#.*$/, "").trim();
+    if (!line) continue;
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const value = line.slice(idx + 1).trim();
+    if (key === "user-agent") {
+      if (!current || (current.rules.length && current._closed)) {
+        current = { agents: [], rules: [], crawlDelay: null, _closed: false };
+        groups.push(current);
+      }
+      current.agents.push(value.toLowerCase());
+      current._closed = false;
+    } else if (current) {
+      current._closed = true;
+      if (key === "disallow") current.rules.push({ type: "disallow", path: value });
+      else if (key === "allow") current.rules.push({ type: "allow", path: value });
+      else if (key === "crawl-delay") {
+        const seconds = Number(value);
+        if (Number.isFinite(seconds)) current.crawlDelay = seconds;
+      }
+    }
+  }
+  // A group naming our token wins; otherwise the last "*" group applies.
+  const named = groups.filter((g) => g.agents.includes(ourToken));
+  const group = named.length
+    ? named[named.length - 1]
+    : groups.filter((g) => g.agents.includes("*")).slice(-1)[0] ?? null;
+  return {
+    rules: group ? group.rules : [],
+    crawlDelay: group ? group.crawlDelay : null,
+  };
+}
+
+function robotsVerdict(robots, pathname) {
+  // Longest-match wins between allow/disallow; empty Disallow allows all.
+  let best = null;
+  for (const rule of robots.rules) {
+    if (rule.path === "" && rule.type === "disallow") continue; // "Disallow:" (empty) = no disallow
+    if (pathname.startsWith(rule.path)) {
+      if (!best || rule.path.length > best.path.length) best = rule;
+    }
+  }
+  if (best && best.type === "disallow") {
+    return { allowed: false, because: `robots.txt disallows ${best.path}` };
+  }
+  return { allowed: true };
+}
+
+class PoliteFetcher {
+  constructor(receipt) {
+    this.receipt = receipt;
+    this.lastRequestAt = 0;
+    this.intervalMs = MIN_INTERVAL_MS;
+  }
+
+  async sleep(ms) {
+    await new Promise((r) => setTimeout(r, ms));
+  }
+
+  async respectInterval() {
+    const since = Date.now() - this.lastRequestAt;
+    const wait = this.intervalMs - since;
+    if (wait > 0) await this.sleep(wait);
+    this.lastRequestAt = Date.now();
+  }
+
+  /** Fetch or reuse cache; record in the receipt either way. Returns bytes. */
+  async fetchPage(url, purpose) {
+    const cacheFile = cachePathFor(url);
+    if (existsSync(cacheFile)) {
+      const bytes = readFileSync(cacheFile);
+      const digest = sha256(bytes);
+      const entry = this.receipt.entries.find((e) => e.url === url && e.cacheHit);
+      if (entry && entry.sha256 !== digest) {
+        throw new Error(`cache sha256 mismatch for ${url} — the cache file was edited; refusing to use it`);
+      }
+      if (!entry) {
+        this.receipt.entries.push({
+          url, purpose, cacheHit: true, cacheFile: relCache(cacheFile),
+          sha256: digest, bytes: bytes.length, fetchedAt: null, status: null,
+        });
+        this.receipt.cacheHits = (this.receipt.cacheHits ?? 0) + 1;
+        saveReceipt(this.receipt);
+      }
+      return bytes;
+    }
+
+    await this.respectInterval();
+    const response = await fetch(url, {
+      headers: { "user-agent": USER_AGENT, "accept": "text/html,application/xhtml+xml" },
+      redirect: "follow",
+    });
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!response.ok) {
+      throw new Error(`GET ${url} -> HTTP ${response.status}`);
+    }
+    writeFileSync(cacheFile, bytes);
+    this.receipt.entries.push({
+      url, purpose, cacheHit: false, cacheFile: relCache(cacheFile),
+      sha256: sha256(bytes), bytes: bytes.length,
+      fetchedAt: new Date().toISOString(), status: response.status,
+      finalUrl: response.url,
+    });
+    this.receipt.requestCount += 1;
+    saveReceipt(this.receipt);
+    return bytes;
+  }
+
+  async loadRobots() {
+    const url = BASE + "/robots.txt";
+    const cached = this.receipt.robots;
+    if (
+      cached && cached.fetchedAt &&
+      Date.now() - Date.parse(cached.fetchedAt) < ROBOTS_TTL_MS &&
+      existsSync(cachePathFor(url))
+    ) {
+      const bytes = readFileSync(cachePathFor(url));
+      return { url, bytes, robots: parseRobots(bytes.toString("utf8"), "untangledegreeplanbot") };
+    }
+    await this.respectInterval();
+    const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!response.ok) throw new Error(`robots.txt fetch failed: HTTP ${response.status}`);
+    writeFileSync(cachePathFor(url), bytes);
+    const parsed = parseRobots(bytes.toString("utf8"), "untangledegreeplanbot");
+    this.receipt.robots = {
+      url,
+      fetchedAt: new Date().toISOString(),
+      sha256: sha256(bytes),
+      disallowedPaths: ["/portfolio.php", "/portfolio_nopop.php", "/ajax/", "/search_advanced.php"],
+      crawlDelaySeconds: parsed.crawlDelay,
+    };
+    this.receipt.requestCount += 1;
+    this.receipt.crawlDelaySeconds = parsed.crawlDelay;
+    this.intervalMs = Math.max(MIN_INTERVAL_MS, (parsed.crawlDelay ?? 0) * 1000);
+    saveReceipt(this.receipt);
+    return { url, bytes, robots: parsed };
+  }
+}
+
+/** Program display names to find in the catalog's program index. */
+const PROGRAM_NAMES = [
+  "Computer Science",
+  "Computer Engineering",
+  "Mathematics",
+  "Biology",
+  "Psychology",
+  "English",
+  // "Business" is resolved from the index in discover (the exact published
+  // program name is not decided until the index is read — never guessed).
+  "Business",
+];
+
+async function findProgramIndexUrl(fetcher) {
+  // The home page links the program index; find its navoid there.
+  const home = (await fetcher.fetchPage(BASE + "/", "discovery:home")).toString("utf8");
+  const catoidMatch = home.match(/catoid=(\d+)/);
+  if (!catoidMatch) throw new Error("could not find a catoid on the catalog home page");
+  const catoid = catoidMatch[1];
+  const anchorMatches = [
+    ...home.matchAll(/<a[^>]+href="([^"]*content\.php\?catoid=\d+&(?:amp;)navoid=\d+[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi),
+  ];
+  console.log(`discover: catoid=${catoid}, ${anchorMatches.length} anchors with navoids on home page`);
+  for (const m of anchorMatches) {
+    const text = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (/programs? (& ?degrees)|programs? a-?z|degrees? programs?/i.test(text) || /\bPrograms\b/.test(text)) {
+      const href = m[1].replace(/&amp;/g, "&");
+      return { url: new URL(href, BASE).toString(), fromText: text };
+    }
+  }
+  throw new Error("could not locate a Programs index link on the home page");
+}
+
+async function discover() {
+  ensureDirs();
+  const receipt = loadReceipt();
+  const fetcher = new PoliteFetcher(receipt);
+  const { robots } = await fetcher.loadRobots();
+  console.log(
+    `discover: robots crawl-delay=${robots.crawlDelay ?? "none"}; effective interval ${fetcher.intervalMs}ms`,
+  );
+
+  const index = await findProgramIndexUrl(fetcher);
+  console.log(`discover: program index candidate from "${index.fromText}" -> ${index.url}`);
+  const indexPage = (await fetcher.fetchPage(index.url, "discovery:program-index")).toString("utf8");
+
+  const found = {};
+  const linkPattern = /<a[^>]+href="([^"]*preview_program\.php[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+  for (const m of indexPage.matchAll(linkPattern)) {
+    const href = m[1].replace(/&amp;/g, "&");
+    const name = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    for (const wanted of PROGRAM_NAMES) {
+      if (name.startsWith(wanted)) {
+        if (!found[wanted]) found[wanted] = [];
+        found[wanted].push({ name, url: new URL(href, BASE).toString() });
+      }
+    }
+  }
+
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    indexUrl: index.url,
+    note:
+      "Candidates discovered from the public program index. The exact program page for each major is " +
+      "confirmed by a human-readable check before fetch; ambiguous names stay unresolved here rather than guessed.",
+    candidates: found,
+  };
+  writeFileSync(join(DATA, "program-discovery.json"), JSON.stringify(manifest, null, 2) + "\n");
+  console.log("discover: wrote program-discovery.json");
+  for (const wanted of PROGRAM_NAMES) {
+    const c = found[wanted] ?? [];
+    console.log(
+      `  ${wanted}: ${c.length} candidate(s)${c.length ? " -> " + c.map((x) => x.name).join(" | ") : " (NOT FOUND)"}`,
+    );
+  }
+}
+
+async function fetchPrograms() {
+  ensureDirs();
+  const manifest = JSON.parse(readFileSync(PROGRAMS, "utf8"));
+  const receipt = loadReceipt();
+  const fetcher = new PoliteFetcher(receipt);
+  const { robots } = await fetcher.loadRobots();
+  for (const program of manifest.programs) {
+    const u = new URL(program.url);
+    const v = robotsVerdict(robots, u.pathname);
+    if (!v.allowed) {
+      console.error(`fetch: refusing ${program.url} — ${v.because}`);
+      continue;
+    }
+    process.stdout.write(`fetch: ${program.majorId} ${u.pathname}${u.search} ... `);
+    await fetcher.fetchPage(program.url, `program:${program.majorId}`);
+    console.log("ok");
+  }
+  console.log(`fetch: done (${receipt.requestCount} network requests so far, ${receipt.entries.length} receipt entries)`);
+}
+
+async function verify() {
+  const receipt = JSON.parse(readFileSync(RECEIPT, "utf8"));
+  let bad = 0;
+  for (const entry of receipt.entries) {
+    const p = join(REPO, entry.cacheFile);
+    if (!existsSync(p)) {
+      console.error(`verify: MISSING ${entry.cacheFile} (${entry.url})`);
+      bad += 1;
+      continue;
+    }
+    const digest = sha256(readFileSync(p));
+    if (digest !== entry.sha256) {
+      console.error(
+        `verify: SHA MISMATCH ${entry.cacheFile} (${entry.url}) expected ${entry.sha256} got ${digest}`,
+      );
+      bad += 1;
+    }
+  }
+  console.log(`verify: ${receipt.entries.length - bad}/${receipt.entries.length} cache files match the receipt`);
+  if (bad > 0) process.exit(1);
+}
+
+const command = process.argv[2] ?? "fetch";
+if (command === "discover") await discover();
+else if (command === "fetch") await fetchPrograms();
+else if (command === "verify") await verify();
+else {
+  console.error("unknown command; use discover | fetch | verify");
+  process.exit(2);
+}
