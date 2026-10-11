@@ -22,6 +22,7 @@ import type { MajorId } from "./types";
 export type DegreeRequirementNode =
   | { kind: "course"; courseCode: string; title: string; creditHours: number | null }
   | { kind: "choose"; label: string; chooseHours: number; options: DegreeRequirementNode[] }
+  | { kind: "anyOf"; label: string; items: DegreeRequirementNode[] }
   | { kind: "group"; label: string; hoursLabel: string | null; items: DegreeRequirementNode[] }
   | { kind: "advisor"; label: string; note: string | null };
 
@@ -121,6 +122,24 @@ export function evaluateNode(
     const status: RequirementNodeStatus =
       done >= node.chooseHours ? "satisfied" : inProgress ? "inProgress" : "unmet";
     return { status, hoursDone: done, hoursTarget: node.chooseHours, partial, children };
+  }
+  if (node.kind === "anyOf") {
+    // The page lists alternatives ("MATH 1780 or MATH 3680"): satisfied when at
+    // least one branch is satisfied. Hours are the best branch's — never a sum
+    // across alternatives, which would double-count one requirement.
+    const children = node.items.map((item) => evaluateNode(item, completedCodes, inProgressCodes, hoursFor));
+    const satisfiedBranch = children.find((c) => c.status === "satisfied");
+    const hoursDone = satisfiedBranch ? satisfiedBranch.hoursDone : Math.max(0, ...children.map((c) => c.hoursDone));
+    const hoursTarget = children.reduce<number | null>(
+      (best, c) => (c.hoursTarget != null && (best == null || c.hoursTarget > best) ? c.hoursTarget : best),
+      null,
+    );
+    const status: RequirementNodeStatus = satisfiedBranch
+      ? "satisfied"
+      : hasAnyStatus(children, "inProgress")
+        ? "inProgress"
+        : "unmet";
+    return { status, hoursDone, hoursTarget, partial: children.some((c) => c.partial), children };
   }
   // group: progress is the sum of its items (no own target beyond that).
   let done = 0;

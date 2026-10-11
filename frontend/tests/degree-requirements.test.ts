@@ -280,3 +280,54 @@ describe("evaluateDegreeRequirements — CS, BS fixture", () => {
     expect(major.status).toBe("inProgress");
   });
 });
+
+
+describe("anyOf nodes", () => {
+  const anyOfReqs = {
+    majorId: "cs",
+    majorName: "x",
+    catalogYear: "t",
+    sourceUrl: "u",
+    fetchedAt: "f",
+    sourceSha256: "s",
+    totalHours: null,
+    advancedHours: null,
+    majorHours: null,
+    sections: [
+      {
+        label: "math",
+        hoursLabel: null,
+        items: [
+          {
+            kind: "anyOf",
+            label: "MATH 1780 or MATH 3680",
+            items: [
+              { kind: "course", courseCode: "MATH 1780", title: "Probability Models", creditHours: 3 },
+              { kind: "course", courseCode: "MATH 3680", title: "Applied Statistics", creditHours: 3 },
+            ],
+          },
+        ],
+      },
+    ],
+    advisorNotes: [],
+  } as unknown as Parameters<typeof evaluateDegreeRequirements>[0];
+
+  test("one satisfied branch satisfies it; hours are that branch's", () => {
+    for (const code of ["MATH 1780", "MATH 3680"]) {
+      const p = evaluateDegreeRequirements(anyOfReqs, [{ code }], [], () => null);
+      expect(p.sections[0].items[0].status).toBe("satisfied");
+      expect(p.sections[0].hoursDone).toBe(3);
+    }
+  });
+
+  test("both branches done still counts once", () => {
+    const p = evaluateDegreeRequirements(anyOfReqs, [{ code: "MATH 1780" }, { code: "MATH 3680" }], [], () => null);
+    expect(p.sections[0].hoursDone).toBe(3);
+  });
+
+  test("no branch done leaves it unmet", () => {
+    const p = evaluateDegreeRequirements(anyOfReqs, [], [], () => null);
+    expect(p.sections[0].items[0].status).toBe("unmet");
+    expect(p.sections[0].hoursDone).toBe(0);
+  });
+});
