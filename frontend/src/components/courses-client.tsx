@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { NavShell } from "@/components/nav-shell";
 import { MajorSelectionModal } from "@/components/major-selection-modal";
 import { Toggle } from "@/components/ui/Toggle";
@@ -14,6 +15,27 @@ import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import { courseDetailsHref } from "@/lib/course-catalog";
 import { courses } from "@/lib/seed-data";
+import { gpaFor, sampleRatingFor } from "@/lib/course-filters";
+import {
+  CREDIT_OPTIONS,
+  DAY_LABELS,
+  GPA_BANDS,
+  LEVEL_LABELS,
+  PLANNER_STATUS_LABELS,
+  SAMPLE_RATING_BANDS,
+  SORT_LABELS,
+  TIME_WINDOW_LABELS,
+  activeFilterCount,
+  applyCourseFilters,
+  computeFacetCounts,
+  courseFiltersToParams,
+  COURSE_FILTER_DEFAULTS,
+  parseCourseFilters,
+  type CourseFilterState,
+  type CourseSort,
+  type FacetCounts,
+  type PlannerStatusFilter,
+} from "@/lib/course-filters";
 import {
   getCoreCoursesForMajor,
   getMajorById,
@@ -38,13 +60,75 @@ function statusLabel(s: CourseStatus) {
 export function CoursesClient() {
   const { hydrated, plannerState, setCourseStatus, setSelectedMajor, isLocked } = usePlanner();
   const { toast } = useToast();
-  const [query, setQuery] = useState("");
-  const [department, setDepartment] = useState("All");
+  const searchParams = useSearchParams();
+
+  // The URL is the initial source of truth for filters (shareable deep links
+  // like /courses?level=3000&gpa=3.5); afterwards the state owns the URL via
+  // history.replaceState, which keeps the view live without navigation.
+  const [filters, setFilters] = useState<CourseFilterState>(() =>
+    parseCourseFilters(new URLSearchParams(searchParams.toString())),
+  );
+  const [query, setQuery] = useState(filters.query);
   const deferredQuery = useDeferredValue(query);
+
+  useEffect(() => {
+    setFilters((prev) => (prev.query === deferredQuery ? prev : { ...prev, query: deferredQuery }));
+  }, [deferredQuery]);
+
+  useEffect(() => {
+    const params = courseFiltersToParams(filters);
+    const search = params.toString();
+    const current = new URLSearchParams(window.location.search);
+    if (current.toString() !== search) {
+      const url = search ? `${window.location.pathname}?${search}` : window.location.pathname;
+      window.history.replaceState(window.history.state, "", url);
+    }
+  }, [filters]);
 
   const [majorOpen, setMajorOpen] = useState(false);
   const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
   const firstLoadRef = useRef(true);
+
+  const plannerContext = useMemo(
+    () => ({ courseStatuses: plannerState.courseStatuses, isLocked }),
+    [plannerState.courseStatuses, isLocked],
+  );
+
+  const filtered = useMemo(
+    () => applyCourseFilters(courses, filters, plannerContext),
+    [filters, plannerContext],
+  );
+
+  const facetCounts: FacetCounts = useMemo(
+    () => computeFacetCounts(courses, filters, plannerContext),
+    [filters, plannerContext],
+  );
+
+  const activeCount = activeFilterCount(filters);
+
+  function updateFilter(patch: Partial<CourseFilterState>) {
+    setFilters((prev) => ({ ...prev, ...patch }));
+  }
+
+  function toggleFacetValue(facet: FilterGroupFacet, value: string) {
+    if (
+      facet === "gpaBand" ||
+      facet === "sampleRatingBand" ||
+      facet === "plannerStatus"
+    ) {
+      return; // single-select facets toggle through updateFilter, not here
+    }
+    setFilters((prev) => {
+      const values = prev[facet];
+      const next = values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
+      return { ...prev, [facet]: next };
+    });
+  }
+
+  function clearAllFilters() {
+    setFilters({ ...COURSE_FILTER_DEFAULTS });
+    setQuery("");
+  }
 
   useEffect(() => {
     if (!hydrated || !firstLoadRef.current) {
@@ -64,15 +148,6 @@ export function CoursesClient() {
   );
   const coreCodes = useMemo(() => new Set(coreCourses.map((c) => c.code)), [coreCourses]);
   const progress = summarizeMajorProgress(plannerState);
-
-  const filtered = useMemo(() => {
-    const q = deferredQuery.toLowerCase().trim();
-    return courses.filter((course) => {
-      if (department !== "All" && course.department !== department) return false;
-      if (!q) return true;
-      return `${course.code} ${course.title} ${course.department}`.toLowerCase().includes(q);
-    });
-  }, [deferredQuery, department]);
 
   const grouped = useMemo(() => {
     const coreList = filtered.filter((c) => coreCodes.has(c.code));
@@ -169,22 +244,124 @@ export function CoursesClient() {
             <SearchBar
               placeholder="Search courses, departments, codes…"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => updateFilter({ query: e.target.value })}
               aria-label="Search courses"
             />
             <Select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              aria-label="Filter by department"
+              value={filters.sort}
+              onChange={(e) => updateFilter({ sort: e.target.value as CourseSort })}
+              aria-label="Sort courses"
             >
-              <option value="All">All departments</option>
-              {departments.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              {Object.entries(SORT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </Select>
           </div>
+          <div className="courses-facets" role="group" aria-label="Course filters">
+            <FilterGroup
+              label="Department"
+              facet="departments"
+              options={Object.fromEntries(departments.map((d) => [d, d]))}
+              selected={filters.departments}
+              counts={facetCounts.departments}
+              onToggle={toggleFacetValue}
+              clear={() => updateFilter({ departments: [] })}
+            />
+            <FilterGroup
+              label="Level"
+              facet="levels"
+              options={LEVEL_LABELS}
+              selected={filters.levels}
+              counts={facetCounts.levels}
+              onToggle={toggleFacetValue}
+              clear={() => updateFilter({ levels: [] })}
+            />
+            <FilterGroup
+              label="Credits"
+              facet="credits"
+              options={CREDIT_OPTIONS}
+              selected={filters.credits}
+              counts={facetCounts.credits}
+              onToggle={toggleFacetValue}
+              clear={() => updateFilter({ credits: [] })}
+            />
+            <FilterGroup
+              label="Meets on (sample sections)"
+              facet="days"
+              options={DAY_LABELS}
+              selected={filters.days}
+              counts={facetCounts.days}
+              onToggle={toggleFacetValue}
+              clear={() => updateFilter({ days: [] })}
+            />
+            <FilterGroup
+              label="Starts (sample sections)"
+              facet="timeWindows"
+              options={TIME_WINDOW_LABELS}
+              selected={filters.timeWindows}
+              counts={facetCounts.timeWindows}
+              onToggle={toggleFacetValue}
+              clear={() => updateFilter({ timeWindows: [] })}
+            />
+            <FilterGroup
+              label="Historical GPA (2017–19)"
+              facet="gpaBand"
+              options={GPA_BANDS}
+              selected={filters.gpaBand ? [filters.gpaBand] : []}
+              counts={facetCounts.gpaBand}
+              onToggle={(facet, value) => {
+                if (facet !== "gpaBand") return;
+                updateFilter({
+                  gpaBand: filters.gpaBand === value ? null : (value as CourseFilterState["gpaBand"]),
+                });
+              }}
+              clear={() => updateFilter({ gpaBand: null })}
+            />
+            <FilterGroup
+              label="Sample rating (bundled sections)"
+              facet="sampleRatingBand"
+              options={SAMPLE_RATING_BANDS}
+              selected={filters.sampleRatingBand ? [filters.sampleRatingBand] : []}
+              counts={facetCounts.sampleRatingBand}
+              onToggle={(facet, value) => {
+                if (facet !== "sampleRatingBand") return;
+                updateFilter({
+                  sampleRatingBand:
+                    filters.sampleRatingBand === value
+                      ? null
+                      : (value as CourseFilterState["sampleRatingBand"]),
+                });
+              }}
+              clear={() => updateFilter({ sampleRatingBand: null })}
+            />
+            <FilterGroup
+              label="Planner status"
+              facet="plannerStatus"
+              options={PLANNER_STATUS_LABELS}
+              selected={filters.plannerStatus ? [filters.plannerStatus] : []}
+              counts={facetCounts.plannerStatus}
+              onToggle={(facet, value) => {
+                if (facet !== "plannerStatus") return;
+                updateFilter({
+                  plannerStatus:
+                    filters.plannerStatus === value ? null : (value as PlannerStatusFilter),
+                });
+              }}
+              clear={() => updateFilter({ plannerStatus: null })}
+            />
+          </div>
+          {activeCount > 0 && (
+            <button type="button" className="btn-ghost courses-clear" onClick={clearAllFilters}>
+              Clear all filters
+            </button>
+          )}
+          <p className="courses-tools__count" role="status">
+            {filtered.length} of {courses.length} courses · {activeCount} filter
+            {activeCount === 1 ? "" : "s"} active · counts stay live as other filters narrow the
+            list
+          </p>
           <div className="courses-tools__import">
             <div>
               <strong>Use your myUNT transcript PDF</strong>
@@ -274,6 +451,86 @@ export function CoursesClient() {
   );
 }
 
+function FilterGroup({
+  label,
+  facet,
+  options,
+  selected,
+  counts,
+  onToggle,
+  clear,
+}: {
+  label: string;
+  facet: FilterGroupFacet;
+  options: Record<string, string>;
+  selected: string[];
+  counts: Record<string, number>;
+  onToggle: (facet: FilterGroupFacet, value: string) => void;
+  clear: () => void;
+}) {
+  const anySelected = selected.length > 0;
+  return (
+    <fieldset className="course-facets__group">
+      <legend>
+        {label}
+        {anySelected && (
+          <button type="button" className="course-facets__clear" onClick={clear}>
+            clear
+          </button>
+        )}
+      </legend>
+      <div className="course-facets__options">
+        {Object.entries(options).map(([value, optionLabel]) => {
+          const count = counts[value] ?? 0;
+          const checked = selected.includes(value);
+          return (
+            <FacetCheck
+              key={value}
+              label={optionLabel}
+              count={count}
+              checked={checked}
+              disabled={!checked && count === 0}
+              onChange={() => onToggle(facet, value)}
+            />
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+type FilterGroupFacet =
+  | "departments"
+  | "levels"
+  | "credits"
+  | "days"
+  | "timeWindows"
+  | "gpaBand"
+  | "sampleRatingBand"
+  | "plannerStatus";
+
+function FacetCheck({
+  label,
+  count,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  count: number;
+  checked: boolean;
+  disabled: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label className="course-facets__option">
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
+      <span>{label}</span>
+      <span className="course-facets__count">{count}</span>
+    </label>
+  );
+}
+
 function renderRow(
   course: Course,
   courseStatuses: Record<string, CourseStatus>,
@@ -301,7 +558,13 @@ function renderRow(
           <StatusMark label={statusLabel(status)} tone={statusToTone(status)} />
         </div>
         <div className="course-row__meta">
-          {course.code} · {course.creditHours} cr
+          {course.code} · {course.creditHours} cr ·{" "}
+          {gpaFor(course.code) !== null
+            ? `GPA ${gpaFor(course.code)?.toFixed(2)} (2017–19 grades)`
+            : "no grade history"}
+          {sampleRatingFor(course.code) !== null
+            ? ` · sample rating ${sampleRatingFor(course.code)?.toFixed(1)}/5`
+            : ""}
         </div>
         {locked && !completed ? (
           <div className="course-row__lock">
