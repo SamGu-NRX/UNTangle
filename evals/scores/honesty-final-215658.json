@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "suite": "honesty",
+  "startedAt": "2026-10-11T22:22:36.623Z",
+  "finishedAt": "2026-10-11T22:24:27.524Z",
+  "target": {
+    "dir": "/home/user/work/clone-ui-suites",
+    "sha": "e89fec760361556efa06b51662538bf0eed636da",
+    "actualHead": "853c90db67ce7a8e53a7376ffb5aed92800e97d4"
+  },
+  "runtime": {
+    "bun": "1.3.14",
+    "node": "v20.20.2",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "playwright": "1.64.0",
+    "os": "Linux 6.1.158+ x64"
+  },
+  "stack": [
+    {
+      "step": "target-dir",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "/home/user/work/clone-ui-suites",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-target-dir.log"
+    },
+    {
+      "step": "contract-present",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "/home/user/work/clone-ui-suites/evals/CONTRACT.md",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-contract-present.log"
+    },
+    {
+      "step": "submodule-backend",
+      "status": "pass",
+      "durationMs": 70,
+      "detail": "already initialized at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-submodule-backend.log"
+    },
+    {
+      "step": "backend-install",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "cached install present (better-sqlite3 native binding + tsx)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-install.log"
+    },
+    {
+      "step": "backend-sqlite-build",
+      "status": "pass",
+      "durationMs": 3604,
+      "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-sqlite-build.log"
+    },
+    {
+      "step": "postgres-init",
+      "status": "pass",
+      "durationMs": 1034,
+      "detail": "fresh cluster at /home/user/work/pgdata-default/run-1791757360302-100460",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-postgres-init.log"
+    },
+    {
+      "step": "postgres-start",
+      "status": "pass",
+      "durationMs": 234,
+      "detail": "postgres up on 127.0.0.1:54320, database untangle created",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-postgres-start.log"
+    },
+    {
+      "step": "migrations-apply",
+      "status": "pass",
+      "durationMs": 876,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54320/untangle",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-migrations-apply.log"
+    },
+    {
+      "step": "db-roundtrip",
+      "status": "pass",
+      "durationMs": 28,
+      "detail": "probe row roundtrip-cd01c0804f0e75da written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-db-roundtrip.log"
+    },
+    {
+      "step": "frontend-install",
+      "status": "pass",
+      "durationMs": 3,
+      "detail": "cached workspace install present (next + drizzle-kit)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-install.log"
+    },
+    {
+      "step": "backend-start",
+      "status": "pass",
+      "durationMs": 1681,
+      "detail": "backend healthy on http://127.0.0.1:3950 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-start.log"
+    },
+    {
+      "step": "frontend-build",
+      "status": "pass",
+      "durationMs": 38913,
+      "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-build.log"
+    },
+    {
+      "step": "frontend-start",
+      "status": "pass",
+      "durationMs": 1072,
+      "detail": "frontend serving http://localhost:3900 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-start.log"
+    },
+    {
+      "step": "playwright-launch",
+      "status": "pass",
+      "durationMs": 621,
+      "detail": "chromium (headless) launched and rendered http://localhost:3900/ (body 6029 chars)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-playwright-launch.log"
+    }
+  ],
+  "infrastructure": {
+    "ok": true,
+    "brokenStep": null
+  },
+  "cases": [
+    {
+      "suite": "honesty",
+      "id": "honesty/rmp-labels-when-unavailable",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "RMP is blocked at the network boundary but no honest unavailable label was found (no 'No RateMyProfessors match yet', no 'N/A', no 'No RMP' row badge)"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/sample-data-notice",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "Required contract surface absent: `status` named 'Sample data notice' with sample wording (contract: /courses, required)"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/stale-rating-notice",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "Stale/unavailable-data signaling missing: Required contract surface absent: 'Grade data unavailable' / 'Grade records unavailable' status (contract: /courses/[subject]/[number]); Required contract surface absent: ratings-unavailable `status` notice (contract: /courses/[subject]/[number])"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/unverified-savings-disclaimer",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 violations",
+      "note": "Required contract surface absent: /plans returned HTTP 404 — no plans page to assert disclaimers on (contract: /plans)"
+    },
+    {
+      "suite": "honesty",
+      "id": "honesty/no-fabricated-precision",
+      "status": "pass",
+      "measured": "no fabricated precise numbers presented as verified on /schedule",
+      "bar": "0 violations"
+    }
+  ],
+  "blockedRmpRequests": 0,
+  "stubs": [
+    {
+      "label": "backend-runtime-fallback",
+      "reason": "the pinned backend's better-sqlite3 native addon crashes Bun (NAPI panic), so the backend ran under its documented Node/tsx runtime with the same rmp-block preload injected via NODE_OPTIONS"
+    }
+  ],
+  "hashes": {
+    "contractMd": "86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a",
+    "barsJson": "c23e2119dec43debb2381a5aed70fabc3d0b173dc1e4a3923db3ffbc2aa0ae7a"
+  }
+}
