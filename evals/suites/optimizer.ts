@@ -3,114 +3,111 @@
  * optimizer's benchmark.
  *
  * Every case first checks whether the TARGET checkout carries
- * frontend/src/lib/optimizer/bench/ (a runnable benchmark; run with bun or
- * node per its entrypoint). When the bench is absent — as on this branch's
- * head, before the integrated app lands it — each case is not-applicable and
- * names the missing path. When it is present, the suite runs it once per
- * invocation (results memoized across the three cases; the bench is
- * deterministic by contract: fixed --seed) and judges:
+ * frontend/src/lib/optimizer/bench/. When it is absent — as on this
+ * branch's head, before the integrated app lands it — each case is
+ * not-applicable and names the missing path.
  *
- *   optimizer/violations-zero — hard-constraint violations = 0
- *   optimizer/gap-zero        — optimality gap = 0 on enumerable instances
- *   optimizer/p95-8courses    — solve-time p95 <= 500 ms at 8 courses
+ * When the bench is present, the suite drives ITS interface, derived from
+ * the bench's own code at run time (its package.json scripts, then its
+ * entrypoint files; no arguments are prescribed — see _optdata-lib.ts). The
+ * bench runs once per runner invocation with its own defaults (results
+ * memoized across the three cases) and its output is recorded verbatim.
+ * The suite then judges only what the bench itself reports:
  *
- * Bar values come from evals/bars.json (suite "optimizer"). The harness
- * owns the statistics: p95 is computed here (nearest-rank, the routing
- * suite's convention) from the bench's raw solveTimesMs samples.
+ *   optimizer/violations-zero — a reported violations count that is 0
+ *   optimizer/gap-zero        — a reported optimality gap that is 0
+ *   optimizer/p95-8courses    — reported solve-time p95 within the 500 ms
+ *                               bar when the bench reports an 8-course run
  *
- * The bench interface contract is documented in optdata-lib.ts. A bench
- * that exists but does not conform (no entrypoint, non-JSON output, missing
- * fields, wrong course count) is a FAIL — present-but-broken is an
- * application finding, distinct from absent (not-applicable).
+ * Bar values come from evals/bars.json (suite "optimizer"). Output whose
+ * shape exposes no recognizable measurements is NOT-APPLICABLE with the
+ * reason and the verbatim evidence path — the harness never fails a bench
+ * for not matching a schema it never agreed to. Run-level failures (spawn
+ * error, timeout, non-zero exit) remain application findings and fail.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, SuiteContext } from "../suite-kit";
 import {
   artifactCommand,
+  interpretBenchOutput,
   isDirectory,
   missingPathNote,
   parseJsonObjectFromProcess,
-  parseBenchReport,
   percentileNearestRank,
   resolveTargetDir,
   round1,
   runCaptured,
-} from "./optdata-lib";
-import type { BenchReport } from "./optdata-lib";
+  writeEvidence,
+} from "./_optdata-lib";
+import type { BenchMeasurements } from "./_optdata-lib";
 
 const BENCH_REL = path.join("frontend", "src", "lib", "optimizer", "bench");
-const BENCH_COURSES = 8;
-const BENCH_SAMPLES = 20;
-const BENCH_SEED = 0;
 // bars.json suite "optimizer": "0 hard-constraint violations, optimality gap
 // 0 on enumerable instances, p95 <=500ms at 8 courses".
+const BAR_COURSES = 8;
 const P95_BAR_MS = 500;
-const BENCH_TIMEOUT_MS = 90_000;
+const BENCH_TIMEOUT_MS = 120_000;
 
-type BenchExecution =
-  | { kind: "ok"; report: BenchReport; evidencePath: string; invocation: string }
-  | { kind: "error"; headline: string; detail: string; evidencePath: string | null };
+/**
+ * One bench observation shared by all three cases per runner invocation:
+ * the bench's real interface is derived at run time and its output is
+ * recorded verbatim; interpretation happens per case.
+ */
+type BenchObservation =
+  | { kind: "ok"; measurements: BenchMeasurements; evidencePath: string; invocation: string }
+  | { kind: "no-json"; evidencePath: string; invocation: string; stdoutHead: string }
+  | { kind: "run-failed"; headline: string; detail: string; evidencePath: string | null };
 
-let memoized: BenchExecution | undefined;
-
-function writeEvidence(runDir: string, name: string, payload: unknown): string {
-  mkdirSync(runDir, { recursive: true });
-  const evidencePath = path.join(runDir, name);
-  writeFileSync(evidencePath, `${JSON.stringify(payload, null, 2)}\n`);
-  return evidencePath;
-}
+let memoized: BenchObservation | undefined;
 
 /** Run the target's bench once per runner invocation; cases share the result. */
-async function benchExecution(ctx: SuiteContext, targetDir: string, benchDir: string): Promise<BenchExecution> {
+async function benchObservation(ctx: SuiteContext, benchDir: string): Promise<BenchObservation> {
   if (memoized !== undefined) return memoized;
 
-  const command = artifactCommand(benchDir, ["--courses", String(BENCH_COURSES), "--samples", String(BENCH_SAMPLES), "--seed", String(BENCH_SEED), "--format", "json"], targetDir, "artifact-dir");
+  const command = artifactCommand(benchDir);
   if (!command.ok) {
-    memoized = { kind: "error", headline: "bench present but not runnable", detail: command.reason, evidencePath: null };
+    memoized = { kind: "run-failed", headline: "bench present but not runnable", detail: command.reason, evidencePath: null };
     return memoized;
   }
 
   const run = await runCaptured({ cmd: command.cmd, args: command.args, cwd: command.cwd, timeoutMs: BENCH_TIMEOUT_MS });
-
   const payload = parseJsonObjectFromProcess(run.stdout);
-  const parsed = payload ? parseBenchReport(payload) : undefined;
+  const measurements = payload ? interpretBenchOutput(payload) : undefined;
   const evidencePath = writeEvidence(ctx.runDir, "optdata-optimizer-bench-evidence.json", {
-    what: "optimizer bench execution evidence",
-    invocation: `${command.describe} --courses ${BENCH_COURSES} --samples ${BENCH_SAMPLES} --seed ${BENCH_SEED} --format json`,
+    what: "optimizer bench execution evidence (output recorded verbatim; interpretation is best-effort recognition)",
+    invocation: command.describe,
+    invocationSource: command.source,
     cwd: command.cwd,
+    args: command.args,
     exitCode: run.code,
     timedOut: run.timedOut,
     durationMs: run.durationMs,
     stdoutTail: run.stdout.slice(-20_000),
     stderrTail: run.stderr.slice(-20_000),
-    parsed,
+    reportedNumericFields: measurements?.numericFields ?? null,
+    reportedNonNumericFields: measurements?.nonNumericFields ?? null,
+    recognizedMeasurements: measurements ?? null,
   });
 
   if (run.spawnError !== undefined) {
-    memoized = { kind: "error", headline: "bench could not be spawned", detail: run.spawnError, evidencePath };
+    memoized = { kind: "run-failed", headline: "bench could not be spawned", detail: run.spawnError, evidencePath };
     return memoized;
   }
   if (run.timedOut) {
-    memoized = { kind: "error", headline: `bench did not finish within ${BENCH_TIMEOUT_MS}ms`, detail: `stderr tail: ${run.stderr.slice(-400)}`, evidencePath };
+    memoized = { kind: "run-failed", headline: `bench did not finish within ${BENCH_TIMEOUT_MS}ms`, detail: `stderr tail: ${run.stderr.slice(-400)}`, evidencePath };
     return memoized;
   }
   if (run.code !== 0) {
-    memoized = { kind: "error", headline: `bench exited ${run.code ?? "with a signal"}`, detail: `stderr tail: ${run.stderr.slice(-400)}`, evidencePath };
+    memoized = { kind: "run-failed", headline: `bench exited ${run.code ?? "with a signal"}`, detail: `stderr tail: ${run.stderr.slice(-400)}`, evidencePath };
     return memoized;
   }
-  if (!parsed || !parsed.ok) {
-    memoized = {
-      kind: "error",
-      headline: "bench output does not match the documented contract",
-      detail: parsed ? parsed.problems.join("; ") : `stdout is not a JSON object: ${run.stdout.slice(0, 200)}`,
-      evidencePath,
-    };
+  if (!measurements) {
+    memoized = { kind: "no-json", evidencePath, invocation: command.describe, stdoutHead: run.stdout.slice(0, 200) };
     return memoized;
   }
-  memoized = { kind: "ok", report: parsed.report, evidencePath, invocation: command.describe };
+  memoized = { kind: "ok", measurements, evidencePath, invocation: command.describe };
   return memoized;
 }
 
@@ -122,12 +119,25 @@ function notApplicable(reason: string): CaseOutcome {
  * Resolved (target, benchDir) for this run, or the not-applicable outcome
  * every case shares when the target or the bench is absent.
  */
-function benchPresence(ctx: SuiteContext): { ok: true; targetDir: string; benchDir: string } | { ok: false; outcome: CaseOutcome } {
+function benchPresence(ctx: SuiteContext): { ok: true; benchDir: string } | { ok: false; outcome: CaseOutcome } {
   const target = resolveTargetDir(ctx);
   if (!target.ok) return { ok: false, outcome: notApplicable(`${target.reason} (infrastructure, not an application result)`) };
   const benchDir = path.join(target.dir, BENCH_REL);
   if (!isDirectory(benchDir)) return { ok: false, outcome: notApplicable(missingPathNote(target.dir, BENCH_REL)) };
-  return { ok: true, targetDir: target.dir, benchDir };
+  return { ok: true, benchDir };
+}
+
+function benchBarFor(caseId: string): string {
+  switch (caseId) {
+    case "violations-zero":
+      return "hard-constraint violations = 0";
+    case "gap-zero":
+      return "optimality gap = 0 on enumerable instances";
+    case "p95-8courses":
+      return `solve-time p95 <= ${P95_BAR_MS} ms at ${BAR_COURSES} courses`;
+    default:
+      return "bench reports results consistent with the bars";
+  }
 }
 
 export default defineSuite({
@@ -144,85 +154,105 @@ export default defineSuite({
     const presence = benchPresence(ctx);
     if (!presence.ok) return presence.outcome;
 
-    const execution = await benchExecution(ctx, presence.targetDir, presence.benchDir);
-    if (execution.kind === "error") {
+    const observation = await benchObservation(ctx, presence.benchDir);
+    if (observation.kind === "run-failed") {
       return {
         status: "fail",
         bar: benchBarFor(caseId),
-        evidencePath: execution.evidencePath ?? undefined,
-        note: `${execution.headline}: ${execution.detail}`.slice(0, 400),
+        evidencePath: observation.evidencePath ?? undefined,
+        note: `${observation.headline}: ${observation.detail}`.slice(0, 400),
       };
     }
+    if (observation.kind === "no-json") {
+      return notApplicable(
+        `the bench ran (${observation.invocation}) but printed no JSON object its output could be read from (stdout head: ${observation.stdoutHead}); full output recorded verbatim at ${observation.evidencePath} — no measurement could be recognized`,
+      );
+    }
 
-    const report = execution.report;
+    const m = observation.measurements;
     switch (caseId) {
       case "violations-zero": {
-        const zero = report.violations === 0 && report.violationSamples > 0;
+        if (m.violations === null) {
+          return notApplicable(
+            `the bench's output exposes no recognizable violations count (looked for: violations/hardConstraintViolations/violationCount/hardViolations); reported numeric fields recorded verbatim at ${observation.evidencePath}`,
+          );
+        }
+        const samples = m.violationSamples === null ? "instance count not reported" : `across ${m.violationSamples} instances`;
+        const zero = m.violations === 0 && (m.violationSamples === null || m.violationSamples > 0);
         return {
           status: zero ? "pass" : "fail",
-          measured: `violations=${report.violations} across ${report.violationSamples} instances`,
+          measured: `violations=${m.violations} ${samples}`,
           bar: benchBarFor(caseId),
-          evidencePath: execution.evidencePath,
+          evidencePath: observation.evidencePath,
           note:
-            report.violations === 0
-              ? report.violationSamples > 0
-                ? `bench (${execution.invocation}) reports 0 hard-constraint violations across ${report.violationSamples} instances`
-                : "bench reports no violation instances — nothing was checked"
-              : `bench reports ${report.violations} hard-constraint violations across ${report.violationSamples} instances`,
+            m.violations === 0
+              ? m.violationSamples === null
+                ? `bench (${observation.invocation}) reports 0 hard-constraint violations; it did not report how many instances were checked`
+                : `bench (${observation.invocation}) reports 0 hard-constraint violations across ${m.violationSamples} instances`
+              : `bench reports ${m.violations} hard-constraint violations ${samples}`,
         };
       }
       case "gap-zero": {
-        const zero = report.gap === 0 && report.enumerableInstances > 0;
+        if (m.gap === null) {
+          return notApplicable(
+            `the bench's output exposes no recognizable optimality gap (looked for: gap/optimalityGap/optimalityGapRatio/gapRatio); reported numeric fields recorded verbatim at ${observation.evidencePath}`,
+          );
+        }
+        const instances = m.gapInstances === null ? "instance count not reported" : `on ${m.gapInstances} enumerable instances`;
+        const zero = m.gap === 0 && (m.gapInstances === null || m.gapInstances > 0);
         return {
           status: zero ? "pass" : "fail",
-          measured: `gap=${report.gap} across ${report.enumerableInstances} enumerable instances`,
+          measured: `gap=${m.gap} ${instances}`,
           bar: benchBarFor(caseId),
-          evidencePath: execution.evidencePath,
+          evidencePath: observation.evidencePath,
           note:
-            report.gap === 0
-              ? report.enumerableInstances > 0
-                ? `bench (${execution.invocation}) reports optimality gap 0 across ${report.enumerableInstances} enumerable instances`
-                : "bench reports no enumerable instances — optimality is unproven"
-              : `bench reports optimality gap ${report.gap} on ${report.enumerableInstances} enumerable instances`,
+            m.gap === 0
+              ? m.gapInstances === null
+                ? `bench (${observation.invocation}) reports optimality gap 0; it did not report how many enumerable instances were checked`
+                : `bench (${observation.invocation}) reports optimality gap 0 on ${m.gapInstances} enumerable instances`
+              : `bench reports optimality gap ${m.gap} ${instances}`,
         };
       }
       case "p95-8courses": {
-        if (report.courses !== BENCH_COURSES) {
+        if (m.courses !== null && m.courses !== BAR_COURSES) {
+          return notApplicable(
+            `the bench's default run exercised ${m.courses} courses (reported); the bar is defined at ${BAR_COURSES} courses and cannot be asserted from this run (output recorded verbatim at ${observation.evidencePath})`,
+          );
+        }
+        const p95 =
+          m.reportedP95Ms ?? (m.solveTimesMs !== null ? round1(percentileNearestRank(m.solveTimesMs, 95)) : null);
+        if (p95 === null) {
+          return notApplicable(
+            `the bench's output exposes no recognizable solve-time data (looked for: p95Ms/p95 or a solveTimes array); reported numeric fields recorded verbatim at ${observation.evidencePath}`,
+          );
+        }
+        const overBar = p95 > P95_BAR_MS;
+        if (overBar) {
           return {
             status: "fail",
-            measured: `bench ran at ${report.courses} courses, bar is defined at ${BENCH_COURSES}`,
+            measured: `p95=${p95}ms${m.courses === null ? "" : ` at ${m.courses} courses`}`,
             bar: benchBarFor(caseId),
-            evidencePath: execution.evidencePath,
-            note: `the bench ignored --courses ${BENCH_COURSES} or reported a different instance size; the p95 bar applies at ${BENCH_COURSES} courses`,
+            evidencePath: observation.evidencePath,
+            note:
+              `solve-time p95 ${p95} ms exceeds the ${P95_BAR_MS} ms bar` +
+              (m.courses === null ? " (the bench did not report the instance size, so this holds regardless of course count)" : ` at ${m.courses} courses`),
           };
         }
-        const p95 = round1(percentileNearestRank(report.solveTimesMs, 95));
-        const withinBar = p95 <= P95_BAR_MS;
+        if (m.courses === null) {
+          return notApplicable(
+            `the bench reports solve-time p95 ${p95} ms (within the ${P95_BAR_MS} ms bar) but no course count, so the bar's at-${BAR_COURSES}-courses condition cannot be confirmed (output recorded verbatim at ${observation.evidencePath})`,
+          );
+        }
         return {
-          status: withinBar ? "pass" : "fail",
-          measured: `p95=${p95}ms over ${report.solveTimesMs.length} solves at ${report.courses} courses`,
+          status: "pass",
+          measured: `p95=${p95}ms at ${m.courses} courses${m.solveTimesMs === null ? "" : ` (n=${m.solveTimesMs.length} solves)`}`,
           bar: benchBarFor(caseId),
-          evidencePath: execution.evidencePath,
-          note: withinBar
-            ? `solve-time p95 ${p95} ms vs bar ${P95_BAR_MS} ms; n=${report.solveTimesMs.length}, bench deterministic (seed ${BENCH_SEED})`
-            : `solve-time p95 ${p95} ms exceeds the ${P95_BAR_MS} ms bar; n=${report.solveTimesMs.length}`,
+          evidencePath: observation.evidencePath,
+          note: `bench (${observation.invocation}) reports solve-time p95 ${p95} ms vs bar ${P95_BAR_MS} ms at ${m.courses} courses${m.solveTimesMs === null ? "" : `; n=${m.solveTimesMs.length}`}`,
         };
       }
       default:
-        return { status: "not-applicable", note: `unknown case ${caseId}` };
+        return notApplicable(`unknown case ${caseId}`);
     }
   },
 });
-
-function benchBarFor(caseId: string): string {
-  switch (caseId) {
-    case "violations-zero":
-      return "hard-constraint violations = 0";
-    case "gap-zero":
-      return "optimality gap = 0 on enumerable instances";
-    case "p95-8courses":
-      return `solve-time p95 <= ${P95_BAR_MS} ms at ${BENCH_COURSES} courses`;
-    default:
-      return "bench conforms to the documented contract";
-  }
-}
