@@ -93,8 +93,11 @@ Directions still open: OSRM's foot profile as a routing alternative, if the A* e
   gt-credits-style motion.
 
 - Branches of #3, #4 and #5 belong to live threads in another workspace. Read them; never push to them.
-- Accepted work merges into `alpha` with `--no-ff`, after the lead's accept and the caretaker's pass. Never into
-  `main`. Nothing deploys from this repo: there are no workflows, webhooks or deployments, and only CodeRabbit
+- A PR head merges into `alpha` with `--no-ff` as soon as it passes its own tests and its latest independent review
+  (the native Codex Sol reviewer, `~/.long-run/obvious-fleet/reviews/UNTangle.jsonl`, plus the GitHub review bots)
+  has no blockers. It doesn't wait for the lead's final accept or the caretaker. Each merge records the head SHA.
+  A merge that breaks `alpha` is reverted with a new commit, never by rewriting history. Never merge into `main`.
+  (Sam, 18:05Z; replaces the accept-and-caretaker gate.) Nothing deploys from this repo: there are no workflows, webhooks or deployments, and only CodeRabbit
   reports.
 - No paid providers. ORS stays optional. The pinned backend calls RateMyProfessors live on cache misses, so every
   real-backend run blocks that host with a fetch-wrapping `--preload` file kept outside the backend, and counts the
