@@ -1,563 +1,853 @@
 #!/usr/bin/env node
 /**
- * UNTangle catalog consistency audit.
+ * catalog-consistency auditor — version 2 (producer).
  *
- * Audits the internal consistency of the committed catalog records:
- * courses, sections, buildings (from the generated seed-data.json) and
- * majors (from the committed seed-data.ts presets). It intentionally does
- * NOT judge scheduling feasibility, teaching loads, or any university
- * policy — those belong to the schedule oracle and planner. Rules are
- * defined in RULES.md next to this file; each rule is grounded in the
- * repository's own committed types, loader, or README claims.
+ * Reads the committed catalog records and the prerequisite source corpus,
+ * reports catalog-consistency findings, and writes an input receipt binding
+ * every source consumed (hashes of the exact bytes) plus a manifest binding
+ * the written evidence files. It never repairs data and never edits inputs.
  *
- * Usage (from the repository root):
- *   node tools/catalog-consistency/audit.mjs \
- *     --input frontend/src/lib/generated/seed-data.json \
- *     --out   tools/catalog-consistency/results
+ * What v2 changes over v1 (v1 was retired; see RULES.md):
+ *  - Every finding reports the EXACT total of matching records over the full
+ *    inputs; `examples` are capped displays (first 10 in deterministic order)
+ *    and are never used as totals.
+ *  - External prerequisite codes are classified by committed EVIDENCE per
+ *    code (corpus occurrence > title annotation in the bundle > unknown);
+ *    unknown intent is preserved and never relabeled "intentional".
+ *  - Unresolved references carry typed evidence (or null) so that
+ *    "unresolved" is never conflated with "confirmed bad".
+ *  - The receipt binds: the generated catalog, the majors TS source, all
+ *    rule-freeze sources, every corpus file (plus an aggregate digest), and
+ *    the section source backend/data/compD.csv with its submodule pin.
+ *  - A provenance block cross-matches sections to the bound compD.csv and
+ *    reports the section source as a finding (synthetic/generated evidence),
+ *    not as a repaired fact.
+ *  - Independent verification is done by verify.mjs (same directory), which
+ *    re-derives everything from the receipt-bound raw inputs. This program
+ *    no longer supports --replay; verification of stored bytes is the
+ *    verifier's job.
  *
- *   node tools/catalog-consistency/audit.mjs --replay tools/catalog-consistency/results
+ * Semantics are specified in tools/catalog-consistency/RULES.md (v2) and the
+ * format contract in tools/catalog-consistency/FORMAT-v2.md. Both producer
+ * and verifier implement that contract exactly.
  *
- * Inputs are read-only. The audit never edits generated data; it only
- * writes receipts, reports, and replay verdicts under --out.
+ * Usage:
+ *   node tools/catalog-consistency/audit.mjs --input <seed-data.json> [--out <dir>] [--section-source <compD.csv>]
+ *
+ * Exit codes: 0 success; 2 usage error; 1 missing/unparsable required input.
  */
 
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { execSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { parseArgs } from "node:util";
 
-export const TOOL_VERSION = 1;
-export const RULES_VERSION = 1;
-export const RECEIPT_VERSION = 1;
-export const REPORT_VERSION = 1;
-export const REPLAY_VERSION = 1;
+export const TOOL_VERSION = 2;
+export const RULES_VERSION = 2;
+export const RECEIPT_VERSION = 2;
+export const REPORT_VERSION = 2;
+export const ANNEX_VERSION = 2;
+export const MANIFEST_VERSION = 1;
 
-/** How many example records each finding retains (deterministic input order). */
 export const EXAMPLE_LIMIT = 10;
-
-/**
- * Day vocabulary mirrored from the committed type `weekDays` in
- * frontend/src/lib/types.ts. Meetings using tokens outside this set are
- * internally inconsistent with the shape the app itself commits to.
- */
 export const DAY_VOCABULARY = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+export const TITLE_ANNOTATION_PATTERN = /\(([A-Z]{2,5} \d{1,4}[A-Z]?)\)/g;
+export const TERM_COLUMN_PATTERN = /term|semester|session|year/i;
 
-/** Strict zero-padded 24-hour HH:MM, the uniform form used by every committed meeting. */
-const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+export const UNKNOWN_PREREQ_NOTE =
+  "no committed evidence of external intent; consistent with the subset-catalog claim (README) but unverified per code — intent unresolved";
 
-export function sha256(buf) {
-  return createHash("sha256").update(buf).digest("hex");
+export const ASSESSMENT_BOUND =
+  "the committed sections and their meetings are fully derived from backend/data/compD.csv (bound in the receipt); compD.csv carries no term/semester/session/year column and its section-number lattice (every course carries section 001 and 002, with additional section numbers appearing in exact count pairs) is characteristic of generated rather than recorded offerings — treated as synthetic/generated, not a real-term export; no data repaired";
+
+export const ASSESSMENT_UNBOUND =
+  "section source not available — backend/data/compD.csv absent; provenance not established";
+
+/* ---------------------------------- hashing ---------------------------------- */
+
+export function sha256(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
-/**
- * Extract the majors array literal from the committed TypeScript source
- * (frontend/src/lib/seed-data.ts). The literal is plain JS, so evaluating it
- * yields exactly the committed major records.
- */
-export function parseMajorsFromTs(text) {
-  const match = text.match(/export const majors: Major\[\] = ([\s\S]*?\n\]);/);
-  if (!match) {
-    throw new Error("majors array not found in majors source (expected `export const majors: Major[] = [...]`)");
-  }
-  return new Function(`return (${match[1]})`)();
+export function canonicalStringify(value) {
+  return JSON.stringify(value, null, 2) + "\n";
 }
 
-function pushExample(list, example) {
-  if (list.length < EXAMPLE_LIMIT) list.push(example);
+/* ------------------------------ code normalization ---------------------------- */
+
+/** "ANTH4520" -> "ANTH 4520" (corpus / compD course_number form). */
+export function normalizeCourseCode(code) {
+  const m = /^([A-Z]+)(\d{1,4})$/.exec(code);
+  return m ? `${m[1]} ${m[2]}` : code;
 }
 
-/** First duplicate key per record collection: { key, count } per duplicated identity. */
-function findDuplicates(records, keyOf) {
-  const seen = new Map();
-  const duplicated = new Map();
-  for (const record of records) {
-    const key = keyOf(record);
-    if (seen.has(key)) {
-      // Count extra occurrences beyond the first sighting.
-      duplicated.set(key, (duplicated.get(key) ?? 0) + 1);
-    } else {
-      seen.set(key, record);
-    }
-  }
-  // Deterministic: sort duplicated keys lexicographically.
-  return [...duplicated.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+/** "ANTH 4520" -> "ANTH4520" (provenance match key side). */
+export function stripSpaces(code) {
+  return String(code).replace(/ /g, "");
 }
 
-function normalizeSourceCode(courseNumber) {
-  // Source corpus files use `"course_number": "ANTH4520"`; the generated
-  // catalog uses "ANTH 4520". This normalizes the corpus spelling for
-  // comparison only.
-  const match = /^([A-Z]+)(\d{1,4})$/.exec(courseNumber);
-  return match ? `${match[1]} ${match[2]}` : courseNumber;
-}
-
-const TITLE_ANNOTATION_PATTERN = /\(([A-Z]{2,5} \d{1,4}[A-Z]?)\)/;
-
-/**
- * Build the set of course codes present in the committed source corpus
- * (`courses/*.json`), either as course_number or as a parenthesized title
- * annotation. Returns null when the directory is unavailable so callers can
- * report "source corpus not available" instead of an empty set.
- */
-export function buildSourceCorpusCodes(corpusDir) {
-  if (!corpusDir || !existsSync(corpusDir)) return null;
-  /** @type {Map<string, Set<string>>} code -> file paths */
-  const byCode = new Map();
-  const add = (code, file) => {
-    if (!code) return;
-    if (!byCode.has(code)) byCode.set(code, new Set());
-    byCode.get(code).add(file);
-  };
-  for (const file of readdirSync(corpusDir).filter((f) => f.endsWith(".json")).sort()) {
-    const path = join(corpusDir, file);
-    let entries;
-    try {
-      entries = JSON.parse(readFileSync(path, "utf8"));
-    } catch {
-      continue;
-    }
-    if (!Array.isArray(entries)) continue;
-    for (const entry of entries) {
-      if (entry && typeof entry === "object") {
-        if (typeof entry.course_number === "string") add(normalizeSourceCode(entry.course_number), file);
-        const annotation = typeof entry.title === "string" ? TITLE_ANNOTATION_PATTERN.exec(entry.title) : null;
-        if (annotation) add(annotation[1], file);
-      }
-    }
-  }
-  const out = new Map();
-  for (const [code, files] of [...byCode.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-    out.set(code, [...files].sort());
-  }
+/** Title annotations like "(GOVT 2305)" inside a course/section title. */
+export function titleAnnotations(title) {
+  if (typeof title !== "string") return [];
+  const out = [];
+  for (const m of title.matchAll(TITLE_ANNOTATION_PATTERN)) out.push(m[1]);
   return out;
 }
 
+/* --------------------------------- majors source ------------------------------ */
+
 /**
- * Core audit over in-memory records. Pure and deterministic: same inputs
- * produce the same findings object every time.
+ * The majors records live in committed TypeScript (seed-data.ts) as a plain
+ * object-literal array. Parse exactly that literal; nothing else in the file
+ * is evaluated.
  */
-export function auditRecords({ courses, sections, buildings, courseStatuses, majors, corpusCodes = null }) {
-  const courseCodes = new Set(courses.map((course) => course.code));
-  const buildingIds = new Set(buildings.map((building) => building.id));
+export function parseMajorsFromTs(text) {
+  const declMarker = "export const majors: Major[] = ";
+  const decl = text.indexOf(declMarker);
+  if (decl < 0) return null;
+  // First bracket AFTER the declaration is the literal's — `Major[]` sits inside the marker.
+  const start = text.indexOf("[", decl + declMarker.length);
+  if (start < 0) return null;
+  if (text.startsWith("[]", start)) return [];
+  const end = text.indexOf("];", start); // first `];` is the literal's closer — stringify emits no semicolons
+  if (end < 0) return null;
+  const literal = text.slice(start, end + 1); // includes the closing ]
+  const majors = new Function(`return (${literal});`)();
+  if (!Array.isArray(majors)) return null;
+  return majors;
+}
 
-  // ---- R1: duplicate identifiers --------------------------------------
-  const duplicateCourseCodes = findDuplicates(courses, (course) => course.code);
-  const duplicateSectionIds = findDuplicates(sections, (section) => section.id);
-  const duplicateBuildingIds = findDuplicates(buildings, (building) => building.id);
+/* ------------------------------ prerequisite corpus --------------------------- */
 
-  // ---- R3: meeting bounds ---------------------------------------------
+/**
+ * Walk the corpus directory (courses/*.json), returning sorted file bindings,
+ * a code -> sorted-file-paths map (course_number or title-annotation codes),
+ * and the aggregate corpus digest: sha256 over "<sha256hex>  <path>\n" lines
+ * (paths relative to the repo root, sorted by path).
+ */
+export function buildSourceCorpusCodes(corpusDir) {
+  if (!fs.existsSync(corpusDir) || !fs.statSync(corpusDir).isDirectory()) {
+    return { files: [], codes: new Map(), digest: sha256(Buffer.alloc(0)), present: false };
+  }
+  const repoRoot = path.dirname(corpusDir);
+  const filePaths = fs
+    .readdirSync(corpusDir)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => path.join(corpusDir, f));
+
+  const codes = new Map();
+  const fileBindings = [];
+  const digestLines = [];
+
+  for (const fp of filePaths) {
+    const rel = path.relative(repoRoot, fp).split(path.sep).join("/");
+    const buf = fs.readFileSync(fp);
+    digestLines.push(`${sha256(buf)}  ${rel}\n`);
+    let parsed;
+    try {
+      parsed = JSON.parse(buf.toString("utf8"));
+    } catch {
+      continue; // unparsable corpus files bind by hash but contribute no codes
+    }
+    if (!Array.isArray(parsed)) continue;
+    for (const rec of parsed) {
+      const found = [];
+      if (typeof rec?.course_number === "string") found.push(normalizeCourseCode(rec.course_number));
+      for (const a of titleAnnotations(rec?.title)) found.push(a);
+      for (const code of found) {
+        const list = codes.get(code) ?? [];
+        list.push(rel);
+        codes.set(code, list);
+      }
+    }
+  }
+
+  for (const [code, files] of codes) codes.set(code, [...files].sort());
+  for (const fp of filePaths) {
+    const buf = fs.readFileSync(fp);
+    fileBindings.push({ path: path.relative(repoRoot, fp).split(path.sep).join("/"), sha256: sha256(buf), bytes: buf.byteLength });
+  }
+
+  return { files: fileBindings, codes, digest: sha256(Buffer.from(digestLines.join(""), "utf8")), present: true };
+}
+
+/** Code -> up to 3 annotated titles, in input order (courses then sections). */
+export function buildBundleAnnotations(courses, sections) {
+  const map = new Map();
+  const add = (code, title) => {
+    const list = map.get(code) ?? [];
+    if (list.length < 3) list.push(title);
+    map.set(code, list);
+  };
+  for (const c of courses ?? []) for (const code of titleAnnotations(c?.title)) add(code, c.title);
+  for (const s of sections ?? []) for (const code of titleAnnotations(s?.title)) add(code, s.title);
+  return map;
+}
+
+/* ---------------------------------- findings ---------------------------------- */
+
+function duplicateFindings(courses, sections, buildings) {
+  const mk = (items, keyOf) => {
+    const counts = new Map();
+    for (const item of items ?? []) {
+      const key = keyOf(item);
+      if (key == null) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const dupes = [...counts.entries()]
+      .filter(([, n]) => n > 1)
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    return {
+      total: dupes.length,
+      examples: dupes.slice(0, EXAMPLE_LIMIT).map(([key, n]) => ({ key, extraOccurrences: n - 1 })),
+    };
+  };
+  return {
+    courseCodes: mk(courses, (c) => c?.code),
+    sectionIds: mk(sections, (s) => s?.id),
+    buildingIds: mk(buildings, (b) => b?.id),
+  };
+}
+
+function meetingExample(section, meeting) {
+  return {
+    sectionId: section.id,
+    day: meeting?.day ?? null,
+    start: meeting?.start ?? null,
+    end: meeting?.end ?? null,
+    buildingId: meeting?.buildingId ?? null,
+  };
+}
+
+function meetingBoundsFindings(sections) {
   let meetingsChecked = 0;
-  const endTimeNotAfterStart = [];
-  const malformedTime = [];
-  const dayOutsideVocabulary = [];
-  for (const section of sections) {
-    for (const meeting of section.meetings ?? []) {
-      meetingsChecked += 1;
-      const context = () => ({
-        sectionId: section.id,
-        day: meeting.day,
-        start: meeting.start,
-        end: meeting.end,
-        buildingId: meeting.buildingId ?? null,
-      });
-      if (typeof meeting.day !== "string" || !DAY_VOCABULARY.includes(meeting.day)) {
-        pushExample(dayOutsideVocabulary, { sectionId: section.id, day: meeting.day ?? null });
-      }
-      if (!TIME_PATTERN.test(meeting.start ?? "") || !TIME_PATTERN.test(meeting.end ?? "")) {
-        pushExample(malformedTime, context());
-        continue; // bounds comparison is meaningless for malformed times
-      }
-      if (meeting.end <= meeting.start) {
-        pushExample(endTimeNotAfterStart, context());
-      }
-    }
-  }
+  let endNotAfter = 0;
+  let malformed = 0;
+  let badDay = 0;
+  const exEnd = [];
+  const exMal = [];
+  const exDay = [];
 
-  // ---- R2: missing references ------------------------------------------
-  const sectionToCourse = { checked: 0, unresolved: 0, examples: [] };
-  for (const section of sections) {
-    sectionToCourse.checked += 1;
-    if (!courseCodes.has(section.courseCode)) {
-      sectionToCourse.unresolved += 1;
-      pushExample(sectionToCourse.examples, { sectionId: section.id, courseCode: section.courseCode });
-    }
-  }
-
-  const meetingToBuilding = { checked: 0, unresolved: 0, examples: [] };
-  for (const section of sections) {
-    for (const meeting of section.meetings ?? []) {
-      if (meeting.buildingId === undefined || meeting.buildingId === null) continue;
-      meetingToBuilding.checked += 1;
-      if (!buildingIds.has(meeting.buildingId)) {
-        meetingToBuilding.unresolved += 1;
-        pushExample(meetingToBuilding.examples, { sectionId: section.id, buildingId: meeting.buildingId });
-      }
-    }
-  }
-
-  const courseStatusToCourse = { checked: 0, unresolved: 0, examples: [] };
-  for (const code of Object.keys(courseStatuses)) {
-    courseStatusToCourse.checked += 1;
-    if (!courseCodes.has(code)) {
-      courseStatusToCourse.unresolved += 1;
-      pushExample(courseStatusToCourse.examples, { courseCode: code, status: courseStatuses[code] });
-    }
-  }
-
-  // Major core-course references. Majors are app-level presets that plan
-  // progress against the bundled catalog (planner.ts getCoreCoursesForMajor
-  // silently drops codes it cannot resolve), so an unresolved code is a dead
-  // reference inside the app's own data — not an external prerequisite.
-  const majorCoreToCourse = { checked: 0, unresolved: 0, examples: [] };
-  for (const major of majors) {
-    for (const code of major.coreCourseCodes ?? []) {
-      majorCoreToCourse.checked += 1;
-      if (!courseCodes.has(code)) {
-        majorCoreToCourse.unresolved += 1;
-        const example = { majorId: major.id, majorName: major.name, code };
-        // Factual string match: a bundled course whose title annotates the
-        // same code, e.g. `PSCI 2305` titled "US Political Behavior and
-        // Policy  (GOVT 2305)". Recorded as evidence only.
-        const equivalent = courses.find((course) => course.title?.includes(`(${code})`));
-        if (equivalent) {
-          example.titleAnnotatedEquivalent = { courseCode: equivalent.code, title: equivalent.title };
+  for (const section of sections ?? []) {
+    for (const meeting of section?.meetings ?? []) {
+      meetingsChecked++;
+      const startOk = typeof meeting?.start === "string" && TIME_PATTERN.test(meeting.start);
+      const endOk = typeof meeting?.end === "string" && TIME_PATTERN.test(meeting.end);
+      if (startOk && endOk) {
+        if (meeting.end <= meeting.start) {
+          endNotAfter++;
+          if (exEnd.length < EXAMPLE_LIMIT) exEnd.push(meetingExample(section, meeting));
         }
-        pushExample(majorCoreToCourse.examples, example);
-      }
-    }
-  }
-
-  // Prerequisite edges. The README commits the catalog as a *bundled subset*
-  // ("A bundled UNT catalog (656 courses ...) built from courses/*.json"), so
-  // a prerequisite code outside the bundle is classified as an intentional
-  // external prerequisite — counted and reported, never failed as an unknown
-  // reference and never silently allowlisted.
-  const prerequisiteEdges = courses.flatMap((course) =>
-    (course.prerequisites ?? []).map((prerequisiteCode) => ({ courseCode: course.code, prerequisiteCode })),
-  );
-  const externalPrereqByCode = new Map();
-  let internalPrereqEdges = 0;
-  for (const edge of prerequisiteEdges) {
-    if (courseCodes.has(edge.prerequisiteCode)) {
-      internalPrereqEdges += 1;
-      continue;
-    }
-    const current = externalPrereqByCode.get(edge.prerequisiteCode) ?? { code: edge.prerequisiteCode, edges: 0 };
-    current.edges += 1;
-    externalPrereqByCode.set(edge.prerequisiteCode, current);
-  }
-  const externalCodes = [...externalPrereqByCode.keys()].sort();
-  const externalInCorpus = [];
-  const externalNotInCorpus = [];
-  for (const code of externalCodes) {
-    const record = { code, edges: externalPrereqByCode.get(code).edges };
-    if (corpusCodes) {
-      const files = corpusCodes.get(code);
-      if (files) {
-        record.inSourceCorpus = true;
-        record.sourceFiles = files;
-        externalInCorpus.push(record);
       } else {
-        record.inSourceCorpus = false;
-        externalNotInCorpus.push(record);
+        malformed++;
+        if (exMal.length < EXAMPLE_LIMIT) exMal.push(meetingExample(section, meeting));
       }
-    } else {
-      record.inSourceCorpus = null;
-      externalNotInCorpus.push(record);
+      if (!DAY_VOCABULARY.includes(meeting?.day)) {
+        badDay++;
+        if (exDay.length < EXAMPLE_LIMIT) exDay.push({ sectionId: section.id, day: meeting?.day ?? null });
+      }
     }
   }
-
-  const unknownReferenceEdges =
-    sectionToCourse.unresolved +
-    meetingToBuilding.unresolved +
-    courseStatusToCourse.unresolved +
-    majorCoreToCourse.unresolved;
 
   return {
-    duplicateIds: {
-      courseCodes: { count: duplicateCourseCodes.length, examples: duplicateCourseCodes.slice(0, EXAMPLE_LIMIT).map(([key, extra]) => ({ key, extraOccurrences: extra })) },
-      sectionIds: { count: duplicateSectionIds.length, examples: duplicateSectionIds.slice(0, EXAMPLE_LIMIT).map(([key, extra]) => ({ key, extraOccurrences: extra })) },
-      buildingIds: { count: duplicateBuildingIds.length, examples: duplicateBuildingIds.slice(0, EXAMPLE_LIMIT).map(([key, extra]) => ({ key, extraOccurrences: extra })) },
-    },
-    meetingBounds: {
-      meetingsChecked,
-      endTimeNotAfterStart: { count: endTimeNotAfterStart.length, examples: endTimeNotAfterStart },
-      malformedTime: { count: malformedTime.length, examples: malformedTime },
-      dayOutsideCommittedVocabulary: { count: dayOutsideVocabulary.length, examples: dayOutsideVocabulary },
-    },
-    references: {
-      sectionToCourse,
-      meetingToBuilding,
-      courseStatusToCourse,
-      majorCoreToCourse,
-      prerequisites: {
-        edgesTotal: prerequisiteEdges.length,
-        internalEdges: internalPrereqEdges,
-        external: {
-          edges: prerequisiteEdges.length - internalPrereqEdges,
-          distinctCodes: externalCodes.length,
-          classification:
-            "intentional external prerequisites — the bundled catalog is a subset of the university catalog (README); prerequisite codes outside the bundle are counted, not failed",
-          inSourceCorpus: { codes: externalInCorpus.length, examples: externalInCorpus.slice(0, EXAMPLE_LIMIT) },
-          notInSourceCorpus: { codes: externalNotInCorpus.length, examples: externalNotInCorpus.slice(0, EXAMPLE_LIMIT) },
-        },
+    meetingsChecked,
+    endTimeNotAfterStart: { total: endNotAfter, examples: exEnd },
+    malformedTime: { total: malformed, examples: exMal },
+    dayOutsideCommittedVocabulary: { total: badDay, examples: exDay },
+  };
+}
+
+function referenceFindings(courses, sections, buildings, courseStatuses, majors) {
+  const courseCodes = new Set((courses ?? []).map((c) => c?.code));
+  const buildingIds = new Set((buildings ?? []).map((b) => b?.id));
+
+  let sChecked = 0;
+  let sBad = 0;
+  const sEx = [];
+  for (const section of sections ?? []) {
+    sChecked++;
+    if (!courseCodes.has(section?.courseCode)) {
+      sBad++;
+      if (sEx.length < EXAMPLE_LIMIT) sEx.push({ sectionId: section.id, courseCode: section.courseCode });
+    }
+  }
+
+  let mChecked = 0;
+  let mBad = 0;
+  const mEx = [];
+  for (const section of sections ?? []) {
+    for (const meeting of section?.meetings ?? []) {
+      if (meeting?.buildingId == null) continue;
+      mChecked++;
+      if (!buildingIds.has(meeting.buildingId)) {
+        mBad++;
+        if (mEx.length < EXAMPLE_LIMIT) mEx.push({ sectionId: section.id, buildingId: meeting.buildingId });
+      }
+    }
+  }
+
+  let stChecked = 0;
+  let stBad = 0;
+  const stEx = [];
+  for (const [code, status] of Object.entries(courseStatuses ?? {})) {
+    stChecked++;
+    if (!courseCodes.has(code)) {
+      stBad++;
+      if (stEx.length < EXAMPLE_LIMIT) stEx.push({ courseCode: code, status });
+    }
+  }
+
+  let mcChecked = 0;
+  let mcBad = 0;
+  const mcEx = [];
+  for (const major of majors ?? []) {
+    for (const code of major?.coreCourseCodes ?? []) {
+      mcChecked++;
+      if (!courseCodes.has(code)) {
+        mcBad++;
+        const annotated = (courses ?? []).find(
+          (c) => typeof c?.title === "string" && c.title.includes(`(${code})`),
+        );
+        const evidence = annotated
+          ? { kind: "titleAnnotatedEquivalent", courseCode: annotated.code, title: annotated.title }
+          : null;
+        if (mcEx.length < EXAMPLE_LIMIT) mcEx.push({ majorId: major.id, majorName: major.name, code, evidence });
+      }
+    }
+  }
+
+  return {
+    sectionToCourse: { checked: sChecked, unresolved: { total: sBad, examples: sEx } },
+    meetingToBuilding: { checked: mChecked, unresolved: { total: mBad, examples: mEx } },
+    courseStatusToCourse: { checked: stChecked, unresolved: { total: stBad, examples: stEx } },
+    majorCoreToCourse: { checked: mcChecked, unresolved: { total: mcBad, examples: mcEx } },
+  };
+}
+
+function prerequisiteFindings(courses, corpusCodes, bundleAnnotations) {
+  const courseCodes = new Set((courses ?? []).map((c) => c?.code));
+  let edgesTotal = 0;
+  let internalEdges = 0;
+  const external = new Map(); // code -> edge count
+  for (const course of courses ?? []) {
+    for (const prereq of course?.prerequisites ?? []) {
+      edgesTotal++;
+      if (courseCodes.has(prereq)) {
+        internalEdges++;
+      } else {
+        external.set(prereq, (external.get(prereq) ?? 0) + 1);
+      }
+    }
+  }
+
+  const classified = { inSourceCorpus: new Map(), titleAnnotatedInBundle: new Map(), unknown: new Map() };
+  const sortedExternal = [...external.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  for (const [code, edges] of sortedExternal) {
+    if (corpusCodes.has(code)) classified.inSourceCorpus.set(code, edges);
+    else if (bundleAnnotations.has(code)) classified.titleAnnotatedInBundle.set(code, edges);
+    else classified.unknown.set(code, edges);
+  }
+
+  const toView = (map, kind) => {
+    const codes = [...map.keys()];
+    const edges = [...map.values()].reduce((a, b) => a + b, 0);
+    const examples = codes.slice(0, EXAMPLE_LIMIT).map((code) => ({
+      code,
+      edges: map.get(code),
+      category: kind,
+      evidence:
+        kind === "inSourceCorpus"
+          ? { kind: "sourceCorpusFile", files: corpusCodes.get(code) }
+          : kind === "titleAnnotatedInBundle"
+            ? { kind: "titleAnnotationInBundle", titles: bundleAnnotations.get(code) }
+            : null,
+    }));
+    const view = { codes: codes.length, edges, examples };
+    if (kind === "unknown") view.note = UNKNOWN_PREREQ_NOTE;
+    return view;
+  };
+
+  return {
+    edgesTotal,
+    internalEdges,
+    external: {
+      edges: edgesTotal - internalEdges,
+      distinctCodes: external.size,
+      categories: {
+        inSourceCorpus: toView(classified.inSourceCorpus, "inSourceCorpus"),
+        titleAnnotatedInBundle: toView(classified.titleAnnotatedInBundle, "titleAnnotatedInBundle"),
+        unknown: toView(classified.unknown, "unknown"),
       },
-    },
-    violations: {
-      // Duplicate ids and contradictory meeting bounds are violations by rule.
-      // Unknown references are unresolved references OUTSIDE the external-
-      // prerequisite class (sections→courses, meetings→buildings, statuses→
-      // courses, majors→courses).
-      duplicateIds: duplicateCourseCodes.length + duplicateSectionIds.length + duplicateBuildingIds.length,
-      meetingBounds: endTimeNotAfterStart.length + malformedTime.length + dayOutsideVocabulary.length,
-      unknownReferences: unknownReferenceEdges,
     },
   };
 }
 
-function gitHeadSha() {
+/* ---------------------------------- provenance -------------------------------- */
+
+/** Minimal RFC-4180 CSV parser: quoted fields, CRLF or LF, no dependencies. */
+export function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      field += ch;
+      i++;
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(field);
+      field = "";
+      i++;
+      continue;
+    }
+    if (ch === "\n" || ch === "\r") {
+      row.push(field);
+      field = "";
+      rows.push(row);
+      row = [];
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      i++;
+      continue;
+    }
+    field += ch;
+    i++;
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.length > 1 || (r.length === 1 && r[0] !== ""));
+}
+
+/** Last ALL-CAPS parenthetical in a compD location string, e.g. "(CHEM)". */
+export function locationShortCode(location) {
+  if (typeof location !== "string") return null;
+  const matches = [...location.matchAll(/\(([A-Z]{2,6})\)/g)];
+  return matches.length ? matches[matches.length - 1][1] : null;
+}
+
+const DAY_TOKEN_MAP = { M: "Mon", Tu: "Tue", T: "Tue", W: "Wed", Th: "Thu", F: "Fri" };
+
+/** Expand a compD day pattern like "MWF" / "TuTh" into day names. */
+export function expandDayTokens(days) {
+  const tokens = [];
+  let i = 0;
+  const s = typeof days === "string" ? days : "";
+  while (i < s.length) {
+    const two = s.slice(i, i + 2);
+    if (two === "Tu" || two === "Th") {
+      tokens.push(two);
+      i += 2;
+    } else {
+      tokens.push(s[i]);
+      i += 1;
+    }
+  }
+  return tokens.map((t) => DAY_TOKEN_MAP[t] ?? null);
+}
+
+function meetingTuple(meeting) {
+  return JSON.stringify([meeting?.day ?? null, meeting?.start ?? null, meeting?.end ?? null, meeting?.buildingId ?? null]);
+}
+
+function multisetEqual(a, b) {
+  if (a.length !== b.length) return false;
+  const counts = new Map();
+  for (const v of a) counts.set(v, (counts.get(v) ?? 0) + 1);
+  for (const v of b) {
+    const n = counts.get(v) ?? 0;
+    if (n === 0) return false;
+    counts.set(v, n - 1);
+  }
+  return true;
+}
+
+export function readCompd(compdAbsPath) {
+  if (!fs.existsSync(compdAbsPath) || !fs.statSync(compdAbsPath).isFile()) return { present: false, rows: [], header: [] };
+  const rows = parseCsv(fs.readFileSync(compdAbsPath, "utf8"));
+  if (rows.length === 0) return { present: true, rows: [], header: [] };
+  const header = rows[0].map((h) => h.trim());
+  const col = (name) => header.indexOf(name);
+  const cCourse = col("course_number");
+  const cSection = col("section_number");
+  const cStart = col("start_time");
+  const cEnd = col("end_time");
+  const cDays = col("days");
+  const cLocation = col("location");
+  const dataRows = [];
+  for (const raw of rows.slice(1)) {
+    const get = (idx) => (idx >= 0 && raw[idx] != null ? raw[idx] : null);
+    dataRows.push({
+      courseNumber: get(cCourse),
+      sectionNumber: get(cSection),
+      start: get(cStart),
+      end: get(cEnd),
+      days: get(cDays),
+      location: get(cLocation),
+    });
+  }
+  return { present: true, rows: dataRows, header };
+}
+
+/**
+ * Cross-match committed sections against the bound compD.csv.
+ * See FORMAT-v2.md §5 for the exact semantics; this implements them
+ * independently of any verification logic.
+ */
+export function computeProvenance({ data, sectionSourceRecordPath, compdAbsPath, submoduleCommit }) {
+  const unbound = () => ({
+    bound: false,
+    path: sectionSourceRecordPath,
+    submoduleCommit: submoduleCommit ?? null,
+    rows: 0,
+    sectionPairsMatched: 0,
+    sectionPairsUnmatched: 0,
+    meetingsFromDayPatterns: 0,
+    sectionsMeetingsAgree: 0,
+    sectionsMeetingsDisagree: 0,
+    buildingShortCodes: 0,
+    buildingCodesInBundle: 0,
+    termColumns: [],
+    assessment: ASSESSMENT_UNBOUND,
+  });
+
+  const compd = readCompd(compdAbsPath);
+  if (!compd.present) return unbound();
+
+  const shortToId = new Map((data.buildings ?? []).map((b) => [b?.shortName, b?.id]));
+  const rowsBySection = new Map();
+  for (const row of compd.rows) {
+    const key = `${stripSpaces(normalizeCourseCode(row.courseNumber ?? ""))}|${row.sectionNumber}`;
+    const list = rowsBySection.get(key) ?? [];
+    list.push(row);
+    rowsBySection.set(key, list);
+  }
+
+  const shortCodes = new Set();
+  for (const row of compd.rows) {
+    const code = locationShortCode(row.location);
+    if (code != null) shortCodes.add(code);
+  }
+
+  let matched = 0;
+  let unmatched = 0;
+  let meetingsFromPatterns = 0;
+  let agree = 0;
+  let disagree = 0;
+
+  for (const section of data.sections ?? []) {
+    const id = typeof section?.id === "string" ? section.id : "";
+    const secNo = id.slice(id.lastIndexOf("-") + 1);
+    const key = `${stripSpaces(section?.courseCode ?? "")}|${secNo}`;
+    const row = rowsBySection.get(key)?.[0];
+    if (!row) {
+      unmatched++;
+      continue;
+    }
+    matched++;
+    const buildingCode = locationShortCode(row.location);
+    const buildingId = buildingCode != null && shortToId.has(buildingCode) ? shortToId.get(buildingCode) : null;
+    const expansion = expandDayTokens(row.days).map((day) => ({ day, start: row.start, end: row.end, buildingId }));
+    meetingsFromPatterns += expansion.length;
+    const actual = (section?.meetings ?? []).map(meetingTuple);
+    if (multisetEqual(actual, expansion.map(meetingTuple))) agree++;
+    else disagree++;
+  }
+
+  const sortedShortCodes = [...shortCodes].sort();
+  return {
+    bound: true,
+    path: sectionSourceRecordPath,
+    submoduleCommit: submoduleCommit ?? null,
+    rows: compd.rows.length,
+    sectionPairsMatched: matched,
+    sectionPairsUnmatched: unmatched,
+    meetingsFromDayPatterns: meetingsFromPatterns,
+    sectionsMeetingsAgree: agree,
+    sectionsMeetingsDisagree: disagree,
+    buildingShortCodes: sortedShortCodes.length,
+    buildingCodesInBundle: sortedShortCodes.filter((c) => shortToId.has(c)).length,
+    termColumns: compd.header.filter((h) => TERM_COLUMN_PATTERN.test(h)),
+    assessment: ASSESSMENT_BOUND,
+  };
+}
+
+/* ------------------------------------ git ------------------------------------- */
+
+function gitPlumbing(args, cwd) {
   try {
-    return execSync("git rev-parse HEAD", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   } catch {
     return null;
   }
 }
 
-/** Build the versioned input receipt binding record counts to the exact input files. */
-export function buildReceipt({ inputPath, inputBuf, majorsPath, majorsBuf, majors, data, sourceCommit }) {
+/* ---------------------------------- document builds --------------------------- */
+
+export function buildInputBinding({ role, recordPath, absPath, required = false }) {
+  const present = fs.existsSync(absPath) && fs.statSync(absPath).isFile();
+  if (!present) {
+    if (required) throw new Error(`required input missing: ${absPath}`);
+    return { role, path: recordPath, sha256: null, bytes: 0, present: false };
+  }
+  const buf = fs.readFileSync(absPath);
+  return { role, path: recordPath, sha256: sha256(buf), bytes: buf.byteLength, present: true };
+}
+
+export function buildCounts({ data, majors, corpus, compd }) {
+  return {
+    buildings: (data.buildings ?? []).length,
+    courses: (data.courses ?? []).length,
+    sections: (data.sections ?? []).length,
+    majors: (majors ?? []).length,
+    courseStatusEntries: Object.keys(data.courseStatuses ?? {}).length,
+    sectionMeetings: (data.sections ?? []).reduce((sum, s) => sum + (s?.meetings?.length ?? 0), 0),
+    prerequisiteEdges: (data.courses ?? []).reduce((sum, c) => sum + (c?.prerequisites?.length ?? 0), 0),
+    corpusFiles: corpus.files.length,
+    compDRows: compd.rows.length,
+  };
+}
+
+export function buildReceipt({ sourceCommit, inputs, submodulePins, corpusDigest, counts }) {
   return {
     receiptVersion: RECEIPT_VERSION,
     toolVersion: TOOL_VERSION,
     rulesVersion: RULES_VERSION,
-    sourceCommit,
-    input: { path: inputPath, sha256: sha256(inputBuf), bytes: inputBuf.byteLength },
-    majorsSource: { path: majorsPath, sha256: sha256(majorsBuf), bytes: majorsBuf.byteLength },
-    counts: {
-      buildings: data.buildings.length,
-      courses: data.courses.length,
-      sections: data.sections.length,
-      majors: majors.length,
-      courseStatusEntries: Object.keys(data.courseStatuses ?? {}).length,
-      sectionMeetings: data.sections.reduce((sum, section) => sum + (section.meetings?.length ?? 0), 0),
-      prerequisiteEdges: data.courses.reduce((sum, course) => sum + (course.prerequisites?.length ?? 0), 0),
-    },
+    sourceCommit: sourceCommit ?? null,
+    inputs,
+    submodulePins,
+    corpusDigest: { algorithm: "sha256", digest: corpusDigest },
+    counts,
   };
 }
 
-/** Assemble the full report object from a receipt and audit findings. */
-export function buildReport({ receipt, findings }) {
+export function buildReport({ sourceCommit, inputs, counts, provenance, findings }) {
   return {
     reportVersion: REPORT_VERSION,
     toolVersion: TOOL_VERSION,
     rulesVersion: RULES_VERSION,
-    sourceCommit: receipt.sourceCommit,
-    input: receipt.input,
-    majorsSource: receipt.majorsSource,
-    counts: receipt.counts,
-    violations: findings.violations,
+    sourceCommit: sourceCommit ?? null,
+    inputs,
+    counts,
+    provenance,
+    violations: {
+      duplicateIds:
+        findings.duplicateIds.courseCodes.total +
+        findings.duplicateIds.sectionIds.total +
+        findings.duplicateIds.buildingIds.total,
+      meetingBounds:
+        findings.meetingBounds.endTimeNotAfterStart.total +
+        findings.meetingBounds.malformedTime.total +
+        findings.meetingBounds.dayOutsideCommittedVocabulary.total,
+      unknownReferences:
+        findings.references.sectionToCourse.unresolved.total +
+        findings.references.meetingToBuilding.unresolved.total +
+        findings.references.courseStatusToCourse.unresolved.total +
+        findings.references.majorCoreToCourse.unresolved.total,
+    },
     findings,
   };
 }
 
-function stringifyStable(value) {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
-
-function parseArgs(argv) {
-  const args = { input: null, out: null, replay: null };
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--input") args.input = argv[++i];
-    else if (arg === "--out") args.out = argv[++i];
-    else if (arg === "--replay") args.replay = argv[++i];
-    else throw new Error(`unknown argument: ${arg}`);
-  }
-  return args;
-}
-
-/** Load and normalize everything the audit needs from the repository working tree. */
-export function loadCatalog({ inputPath, majorsPath = null }) {
-  const inputAbs = resolve(inputPath);
-  const inputBuf = readFileSync(inputAbs);
-  const data = JSON.parse(inputBuf.toString("utf8"));
-  const majorsAbs = majorsPath ? resolve(majorsPath) : join(dirname(inputAbs), "..", "seed-data.ts");
-  const majorsBuf = readFileSync(majorsAbs);
-  const majors = parseMajorsFromTs(majorsBuf.toString("utf8"));
-  // inputAbs is `<root>/frontend/src/lib/generated/seed-data.json`; `..`
-  // pops the file itself first, so five levels up is the repository root,
-  // where `courses/` lives.
-  const corpusDir = resolve(inputAbs, "../../../../../courses");
-  return { inputBuf, data, majorsPath: majorsAbs, majorsBuf, majors, corpusDir };
-}
-
-function writeResult(outDir, name, value) {
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, name), stringifyStable(value));
-}
-
-function runAudit({ input, out }) {
-  // Receipts record the paths exactly as passed (repo-relative when run from
-  // the repository root) so replay stays portable across checkouts.
-  const inputRaw = input;
-  const majorsRaw = join(dirname(inputRaw), "..", "seed-data.ts");
-  const outDir = resolve(out);
-  const { inputBuf, data, majorsBuf, majors, corpusDir } = loadCatalog({ inputPath: inputRaw, majorsPath: majorsRaw });
-  const corpusCodes = buildSourceCorpusCodes(corpusDir);
-  const findings = auditRecords({
-    courses: data.courses,
-    sections: data.sections,
-    buildings: data.buildings,
-    courseStatuses: data.courseStatuses ?? {},
-    majors,
-    corpusCodes,
-  });
-  const receipt = buildReceipt({
-    inputPath: inputRaw,
-    majorsPath: majorsRaw,
-    inputBuf,
-    majorsBuf,
-    majors,
-    data,
-    sourceCommit: gitHeadSha(),
-  });
-  const report = buildReport({ receipt, findings });
-
-  const unresolvedExamples = {
-    unresolvedExamplesVersion: 1,
+export function buildAnnex({ report, provenance }) {
+  return {
+    unresolvedExamplesVersion: ANNEX_VERSION,
     toolVersion: TOOL_VERSION,
-    note:
-      "Every unresolved finding with example records. Nothing here is an allowlist: entries document defects and their committed repair locations, decided in REPAIR-LOCATIONS.md.",
-    unknownReferences: findings.references.majorCoreToCourse.unresolved > 0
-      ? { check: "majorCoreToCourse", count: findings.references.majorCoreToCourse.unresolved, examples: findings.references.majorCoreToCourse.examples }
-      : { check: "majorCoreToCourse", count: 0, examples: [] },
-    duplicateIds: findings.violations.duplicateIds > 0 ? findings.duplicateIds : { count: 0 },
-    meetingBounds: findings.violations.meetingBounds > 0 ? findings.meetingBounds : { count: 0 },
-    externalPrerequisites: {
-      edges: findings.references.prerequisites.external.edges,
-      distinctCodes: findings.references.prerequisites.external.distinctCodes,
-      inSourceCorpus: findings.references.prerequisites.external.inSourceCorpus,
-      notInSourceCorpus: findings.references.prerequisites.external.notInSourceCorpus,
+    note: "Every unresolved finding with example records, capped at 10 per class; exact totals live in report.json. Nothing here is an allowlist: entries document defects and their committed repair locations (REPAIR-LOCATIONS.md).",
+    referenceExamples: [
+      { check: "sectionToCourse", total: report.findings.references.sectionToCourse.unresolved.total, examples: report.findings.references.sectionToCourse.unresolved.examples },
+      { check: "meetingToBuilding", total: report.findings.references.meetingToBuilding.unresolved.total, examples: report.findings.references.meetingToBuilding.unresolved.examples },
+      { check: "courseStatusToCourse", total: report.findings.references.courseStatusToCourse.unresolved.total, examples: report.findings.references.courseStatusToCourse.unresolved.examples },
+      { check: "majorCoreToCourse", total: report.findings.references.majorCoreToCourse.unresolved.total, examples: report.findings.references.majorCoreToCourse.unresolved.examples },
+    ],
+    externalPrerequisites: report.findings.references.prerequisites.external,
+    provenanceSummary: { bound: provenance.sectionSource.bound, assessment: provenance.sectionSource.assessment },
+  };
+}
+
+/* ------------------------------------ audit run ------------------------------- */
+
+export function runAudit({ inputPath, outDir, sectionSourceAbsPath }) {
+  const inputAbs = path.resolve(inputPath);
+  if (!fs.existsSync(inputAbs) || !fs.statSync(inputAbs).isFile()) {
+    throw new Error(`input not found: ${inputAbs}`);
+  }
+  // input sits at <repoRoot>/frontend/src/lib/generated/seed-data.json — five levels up to the root.
+  const repoRoot = path.resolve(inputAbs, "..", "..", "..", "..", "..");
+
+  const rawCatalog = fs.readFileSync(inputAbs, "utf8");
+  let data;
+  try {
+    data = JSON.parse(rawCatalog);
+  } catch (err) {
+    throw new Error(`unparsable generated catalog (${inputAbs}): ${err.message}`);
+  }
+
+  const majorsAbs = path.resolve(inputAbs, "..", "..", "seed-data.ts");
+  const majorsText = fs.readFileSync(majorsAbs, "utf8");
+  const majors = parseMajorsFromTs(majorsText);
+  if (majors == null) throw new Error(`unparsable majors source (${majorsAbs})`);
+
+  const corpusDir = path.join(repoRoot, "courses");
+  const corpus = buildSourceCorpusCodes(corpusDir);
+
+  const sectionSourceRecordPath = sectionSourceAbsPath
+    ? path.relative(repoRoot, path.resolve(sectionSourceAbsPath)).split(path.sep).join("/")
+    : "backend/data/compD.csv";
+  const compdAbs = sectionSourceAbsPath ? path.resolve(sectionSourceAbsPath) : path.join(repoRoot, "backend", "data", "compD.csv");
+
+  const sourceCommit = gitPlumbing(["rev-parse", "HEAD"], repoRoot);
+  const lsTree = gitPlumbing(["ls-tree", "HEAD", "backend"], repoRoot);
+  const pinMatch = lsTree ? /^040000 commit ([0-9a-f]{40})\tbackend$/m.exec(lsTree) : null;
+  const submoduleCommit = pinMatch ? pinMatch[1] : null;
+
+  const compd = readCompd(compdAbs);
+  const bundleAnnotations = buildBundleAnnotations(data.courses, data.sections);
+
+  const findings = {
+    duplicateIds: duplicateFindings(data.courses, data.sections, data.buildings),
+    meetingBounds: meetingBoundsFindings(data.sections),
+    references: {
+      ...referenceFindings(data.courses, data.sections, data.buildings, data.courseStatuses, majors),
+      prerequisites: prerequisiteFindings(data.courses, corpus.codes, bundleAnnotations),
     },
   };
 
-  writeResult(outDir, "input-receipt.json", receipt);
-  writeResult(outDir, "report.json", report);
-  writeResult(outDir, "unresolved-examples.json", unresolvedExamples);
+  const counts = buildCounts({ data, majors, corpus, compd });
 
-  const v = report.violations;
-  process.stdout.write(
-    [
-      `catalog-consistency audit ${TOOL_VERSION}`,
-      `input: ${receipt.input.path} sha256=${receipt.input.sha256}`,
-      `counts: buildings=${receipt.counts.buildings} courses=${receipt.counts.courses} sections=${receipt.counts.sections} majors=${receipt.counts.majors} meetings=${receipt.counts.sectionMeetings} prerequisiteEdges=${receipt.counts.prerequisiteEdges}`,
-      `violations: duplicateIds=${v.duplicateIds} meetingBounds=${v.meetingBounds} unknownReferences=${v.unknownReferences}`,
-      `external prerequisites: ${findings.references.prerequisites.external.edges} edges / ${findings.references.prerequisites.external.distinctCodes} distinct codes (counted, not failed)`,
-      `wrote: ${outDir}/{input-receipt.json,report.json,unresolved-examples.json}`,
-    ].join("\n"),
-  );
-}
+  const inputs = [];
+  inputs.push(buildInputBinding({ role: "generated-catalog", recordPath: path.relative(repoRoot, inputAbs).split(path.sep).join("/"), absPath: inputAbs, required: true }));
+  inputs.push(buildInputBinding({ role: "majors-source", recordPath: path.relative(repoRoot, majorsAbs).split(path.sep).join("/"), absPath: majorsAbs, required: true }));
+  for (const rel of ["frontend/src/lib/types.ts", "frontend/src/lib/planner.ts", "README.md", "tools/catalog-consistency/RULES.md"]) {
+    inputs.push(buildInputBinding({ role: "rule-source", recordPath: rel, absPath: path.join(repoRoot, rel) }));
+  }
+  for (const file of corpus.files) {
+    inputs.push({ role: "prerequisite-corpus", path: file.path, sha256: file.sha256, bytes: file.bytes, present: true });
+  }
+  inputs.push(buildInputBinding({ role: "section-source", recordPath: sectionSourceRecordPath, absPath: compdAbs }));
 
-function runReplay({ replayDir }) {
-  const dir = resolve(replayDir);
-  const readJson = (name) => JSON.parse(readFileSync(join(dir, name), "utf8"));
-  const receipt = readJson("input-receipt.json");
-  const committedReport = readJson("report.json");
-  const committedExamples = readJson("unresolved-examples.json");
-
-  const differences = [];
-  const { inputBuf, data, majorsBuf, majors, corpusDir } = loadCatalog({
-    inputPath: receipt.input.path,
-    majorsPath: receipt.majorsSource.path,
-  });
-  const inputUnchanged = sha256(inputBuf) === receipt.input.sha256;
-  if (!inputUnchanged) differences.push("input sha256 no longer matches input-receipt.json");
-  const majorsUnchanged = sha256(majorsBuf) === receipt.majorsSource.sha256;
-  if (!majorsUnchanged) differences.push("majors source sha256 no longer matches input-receipt.json");
-
-  const corpusCodes = buildSourceCorpusCodes(corpusDir);
-  const findings = auditRecords({
-    courses: data.courses,
-    sections: data.sections,
-    buildings: data.buildings,
-    courseStatuses: data.courseStatuses ?? {},
-    majors,
-    corpusCodes,
-  });
-  const recomputedReceipt = buildReceipt({
-    inputPath: receipt.input.path,
-    inputBuf,
-    majorsPath: receipt.majorsSource.path,
-    majorsBuf,
-    majors,
-    data,
-    sourceCommit: receipt.sourceCommit, // replay compares against the recorded commit
-  });
-  const countsMatch =
-    JSON.stringify(recomputedReceipt.counts) === JSON.stringify(receipt.counts);
-  if (!countsMatch) differences.push("record counts no longer match input-receipt.json");
-
-  const report = buildReport({ receipt: recomputedReceipt, findings });
-  const reportBytes = stringifyStable(report);
-  const committedReportBytes = stringifyStable(committedReport);
-  const reportMatches = reportBytes === committedReportBytes;
-  if (!reportMatches) differences.push("recomputed report differs from committed report.json");
-
-  // Independent recheck of the committed examples: every unresolved example
-  // must still be present in the recomputed findings.
-  const examplesStable =
-    stringifyStable({
-      unknownReferences: { count: findings.references.majorCoreToCourse.unresolved, examples: findings.references.majorCoreToCourse.examples },
-      externalPrerequisites: {
-        edges: findings.references.prerequisites.external.edges,
-        distinctCodes: findings.references.prerequisites.external.distinctCodes,
-        inSourceCorpus: findings.references.prerequisites.external.inSourceCorpus,
-        notInSourceCorpus: findings.references.prerequisites.external.notInSourceCorpus,
-      },
-    }) ===
-    stringifyStable({
-      unknownReferences: {
-        count: committedExamples.unknownReferences?.count ?? 0,
-        examples: committedExamples.unknownReferences?.examples ?? [],
-      },
-      externalPrerequisites: committedExamples.externalPrerequisites,
-    });
-  if (!examplesStable) differences.push("committed unresolved-examples.json no longer matches recomputed findings");
-
-  const verdict = {
-    replayVersion: REPLAY_VERSION,
-    toolVersion: TOOL_VERSION,
-    replayOf: replayDir, // exactly as passed — keeps the committed verdict portable
-    inputUnchanged,
-    majorsSourceUnchanged: majorsUnchanged,
-    countsMatch,
-    reportByteIdentical: reportMatches,
-    examplesStable,
-    differences,
-    result: differences.length === 0 ? "match" : "mismatch",
+  const provenance = {
+    sectionSource: computeProvenance({
+      data,
+      sectionSourceRecordPath,
+      compdAbsPath: compdAbs,
+      submoduleCommit,
+    }),
   };
-  writeResult(dir, "replay.json", verdict);
-  process.stdout.write(
-    [
-      `replay of ${dir}`,
-      `inputUnchanged=${inputUnchanged} countsMatch=${countsMatch} reportByteIdentical=${reportMatches} examplesStable=${examplesStable}`,
-      `result: ${verdict.result}`,
-    ].join("\n"),
-  );
-  if (verdict.result !== "match") process.exitCode = 1;
+
+  const receipt = buildReceipt({
+    sourceCommit,
+    inputs,
+    submodulePins: [{ path: "backend", commit: submoduleCommit }],
+    corpusDigest: corpus.digest,
+    counts,
+  });
+  const report = buildReport({ sourceCommit, inputs, counts, provenance, findings });
+  const annex = buildAnnex({ report, provenance });
+
+  fs.mkdirSync(outDir, { recursive: true });
+  const written = {};
+  for (const [name, doc] of [
+    ["input-receipt.json", receipt],
+    ["report.json", report],
+    ["unresolved-examples.json", annex],
+  ]) {
+    const bytes = Buffer.from(canonicalStringify(doc), "utf8");
+    fs.writeFileSync(path.join(outDir, name), bytes);
+    written[name] = { sha256: sha256(bytes), bytes: bytes.byteLength };
+  }
+  const manifest = {
+    manifestVersion: MANIFEST_VERSION,
+    files: {
+      "input-receipt.json": written["input-receipt.json"],
+      "report.json": written["report.json"],
+      "unresolved-examples.json": written["unresolved-examples.json"],
+    },
+  };
+  fs.writeFileSync(path.join(outDir, "results-manifest.json"), Buffer.from(canonicalStringify(manifest), "utf8"));
+
+  return { receipt, report, annex, manifest };
 }
 
-export function main(argv) {
-  const args = parseArgs(argv);
-  if (args.replay) {
-    runReplay({ replayDir: args.replay });
-  } else if (args.input) {
-    runAudit({ input: args.input, out: args.out ?? "tools/catalog-consistency/results" });
-  } else {
-    throw new Error("pass --input <seed-data.json> --out <dir>, or --replay <dir>");
+/* -------------------------------------- CLI ----------------------------------- */
+
+export function parseCliArgs(argv) {
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      options: {
+        input: { type: "string" },
+        out: { type: "string", default: "tools/catalog-consistency/results" },
+        "section-source": { type: "string" },
+        // Declared only so parseArgs accepts it; the guard below rejects it.
+        replay: { type: "boolean" },
+      },
+    });
+  } catch (err) {
+    return { error: `usage error: ${err.message}` };
+  }
+  if (parsed.values.replay != null) {
+    return { error: "usage error: --replay was retired in v2; byte-level verification is done by verify.mjs (node tools/catalog-consistency/verify.mjs --results <dir>)" };
+  }
+  if (!parsed.values.input) return { error: "usage error: --input <seed-data.json path> is required" };
+  return {
+    input: parsed.values.input,
+    out: parsed.values.out,
+    sectionSource: parsed.values["section-source"] ?? undefined,
+  };
+}
+
+export function main(argv = process.argv.slice(2)) {
+  const args = parseCliArgs(argv);
+  if (args.error) {
+    process.stderr.write(`${args.error}\n`);
+    return 2;
+  }
+  try {
+    const result = runAudit({ inputPath: args.input, outDir: args.out, sectionSourceAbsPath: args.sectionSource });
+    const v = result.report.violations;
+    const ext = result.report.findings.references.prerequisites.external;
+    process.stdout.write(`catalog-consistency auditor v${TOOL_VERSION} (rules v${RULES_VERSION})\n`);
+    process.stdout.write(
+      `records: ${result.report.counts.courses} courses, ${result.report.counts.sections} sections, ${result.report.counts.buildings} buildings, ${result.report.counts.majors} majors, ${result.report.counts.corpusFiles} corpus files\n`,
+    );
+    process.stdout.write(`violations: duplicates ${v.duplicateIds}, meeting bounds ${v.meetingBounds}, unresolved references ${v.unknownReferences}\n`);
+    process.stdout.write(
+      `external prerequisites: ${ext.edges} edges / ${ext.distinctCodes} codes (corpus ${ext.categories.inSourceCorpus.codes}, bundle-annotated ${ext.categories.titleAnnotatedInBundle.codes}, unknown ${ext.categories.unknown.codes})\n`,
+    );
+    process.stdout.write(`provenance: ${result.report.provenance.sectionSource.bound ? "bound" : "unbound"} — ${result.report.provenance.sectionSource.assessment}\n`);
+    process.stdout.write(`wrote: ${args.out}/input-receipt.json, report.json, unresolved-examples.json, results-manifest.json\n`);
+    process.stdout.write(`verify with: node tools/catalog-consistency/verify.mjs --results ${args.out}\n`);
+    return 0;
+  } catch (err) {
+    process.stderr.write(`audit failed: ${err.message}\n`);
+    return 1;
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main(process.argv.slice(2));
+if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1])}`).href) {
+  process.exitCode = main();
 }
