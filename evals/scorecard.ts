@@ -66,9 +66,9 @@ export interface Scorecard {
   /** Honest labels for degraded/stubbed behavior the run observed. */
   stubs: Array<{ label: string; reason: string }>;
   hashes: {
-    /** sha256 of the target checkout's evals/CONTRACT.md. */
+    /** sha256 of the harness checkout's evals/CONTRACT.md. */
     contractMd: string;
-    /** sha256 of the target checkout's evals/bars.json. */
+    /** sha256 of the harness checkout's evals/bars.json. */
     barsJson: string;
   };
 }
