@@ -25,10 +25,7 @@
  * PERFORMANCE — measured on the pinned suite under Bun: HiGHS's presolve is
  * dramatically counterproductive on this z-structured encoding (plain-m:
  * ~1.9s with defaults vs ~0.3s with presolve off, symmetry detection off,
- * and heuristics off), so those options are pinned here. The one-time
- * warm-up solve below (charged to initMs per the contract's "solver load and
- * one-time init") compiles the WASM/JIT paths a dense pair-linearized model
- * touches; without it a cold first solve can be several times slower.
+ * and heuristics off), so those options are pinned here.
  *
  * STATUS HONESTY: `optimal` is returned only when the enumeration finished —
  * either the final tier was closed by an Infeasible cap solve (the top-k
@@ -74,54 +71,6 @@ function fastSolveOptions(timeLimitSeconds: number): SolveOptions {
 }
 
 /**
- * Deterministic dense pair-linearized warm-up model: 12 groups of 5 binaries
- * with exactly-one rows plus a full cross-group z-block with lower-bound
- * rows — the same row shapes as the real encoding, at comparable scale. Its
- * solve result is discarded; it exists only to compile the WASM/JIT paths a
- * first real solve would otherwise pay for inside the request budget.
- * Fully deterministic (fixed structure, fixed options), no request data,
- * no Math.random, no network.
- */
-const WARMUP_PROBLEM = (() => {
-  const objective: string[] = [];
-  const rows: string[] = [];
-  const binaries: string[] = [];
-  const groups = 12;
-  const perGroup = 5;
-  for (let g = 0; g < groups; g++) {
-    const terms: string[] = [];
-    for (let p = 0; p < perGroup; p++) {
-      const v = `x${g}_${p}`;
-      terms.push(v);
-      binaries.push(v);
-      objective.push(`-1 ${v}`);
-    }
-    rows.push(` pick${g}: ${terms.join(" + ")} = 1`);
-  }
-  let z = 0;
-  for (let g = 0; g < groups - 1; g++) {
-    for (let p = 0; p < perGroup; p++) {
-      for (let q = 0; q < perGroup; q++) {
-        const zv = `z${z}`;
-        binaries.push(zv);
-        objective.push(`0.5 ${zv}`);
-        rows.push(` zb${z}: ${zv} - x${g}_${p} - x${g + 1}_${q} >= -1`);
-        z++;
-      }
-    }
-  }
-  return [
-    "Minimize",
-    ` obj: ${objective.join(" + ")}`,
-    "Subject To",
-    ...rows,
-    "Binaries",
-    `  ${binaries.join(" ")}`,
-    " End",
-  ].join("\n");
-})();
-
-/**
  * Budget discipline: the checker's status-timeout-budget rule sums initMs +
  * searchMs against the request budget (+50 ms tolerance) whenever status is
  * timeout. Model build time and HiGHS's own time-limit slack both land
@@ -130,18 +79,12 @@ const WARMUP_PROBLEM = (() => {
  * the deadline.
  */
 const REMAINING_GUARD_S = 0.25;
-const SOLVE_MARGIN_S = 0.25;
+const SOLVE_MARGIN_S = 0.5;
 
 /** One-time WASM/solver initialization, shared across optimize() calls. */
 let solverPromise: Promise<LegacyHighs> | null = null;
 function getSolver(): Promise<LegacyHighs> {
   solverPromise ??= Promise.resolve(highsLoader()).then((instance): LegacyHighs => {
-    // Warm up once: the first solve of a dense pair-linearized model pays
-    // several-fold JIT/WASM compilation cost that later solves do not. A
-    // bounded throwaway solve on a synthetic shape moves that cost into
-    // one-time init (initMs), out of the per-request search budget. The
-    // status is irrelevant; the time limit keeps init bounded.
-    instance.solve(WARMUP_PROBLEM, { ...fastSolveOptions(1) });
     // Route through a narrow adapter so this module depends only on the
     // legacy one-shot solve API of the package.
     return {
