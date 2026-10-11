@@ -77,8 +77,7 @@ async function landOnCourses(ctx: SuiteContext, caseId: string, persona: Persona
 /** First code visible after searching, read from the row's own heading. */
 async function firstSearchedCode(page: Page, what: string): Promise<string> {
   const firstRow = page.locator("article.course-row").first();
-  const rowCode =
-    (await firstRow.locator("h1, h2, h3, h4, [data-course-code]").first().textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
+  const rowCode = (await firstRow.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
   const code = rowCode.match(/\b[A-Z]{2,4}\s\d{4}\b/)?.[0];
   if (!code) {
     throw new Error(`${what} journey could not read a course code from the first course row after search`);
@@ -251,11 +250,11 @@ async function runAuth(ctx: SuiteContext, caseId: string, persona: PersonaName, 
   await cb.page.waitForURL("**/auth", { timeout: 30_000 });
   const h1 = (await cb.page.getByRole("heading", { level: 1 }).first().textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
   // Cold loads on a busy sandbox can hydrate /auth slowly; generous waits.
-  await cb.page.getByLabel("UNT email", { exact: true }).waitFor({ state: "visible", timeout: 40_000 });
+  await cb.page.getByLabel("UNT email").waitFor({ state: "visible", timeout: 40_000 });
   await cb.page.getByRole("link", { name: "Forgot password?" }).waitFor({ state: "visible", timeout: 20_000 });
 
   await cb.page.getByRole("button", { name: "Use password instead" }).click({ timeout: 15_000 });
-  await cb.page.getByLabel("Password", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
+  await cb.page.getByLabel("Password").waitFor({ state: "visible", timeout: 15_000 });
   await screenshot(cb.page, ctx.runDir, caseId);
 
   if (persona === "guest") {

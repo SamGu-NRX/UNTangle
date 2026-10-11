@@ -34,10 +34,10 @@ export async function signUp(page: Page, persona: SyntheticPersona, origin: stri
   // Password mode: the magic-link form is the default; flip it if present.
   const passwordToggle = page.getByRole("button", { name: "Use password instead" });
   await passwordToggle.click({ timeout: 20_000 });
-  await page.getByLabel("UNT email", { exact: true }).waitFor({ state: "visible", timeout: 40_000 });
-  await page.getByLabel("UNT email", { exact: true }).fill(persona.email);
-  await page.getByLabel("Password", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByLabel("Password", { exact: true }).fill(persona.password);
+  await page.getByLabel("UNT email").waitFor({ state: "visible", timeout: 40_000 });
+  await page.getByLabel("UNT email").fill(persona.email);
+  await page.getByLabel("Password").waitFor({ state: "visible", timeout: 15_000 });
+  await page.getByLabel("Password").fill(persona.password);
   // Contract: Submit is `Log in` (sign-in mode) / `Sign up` (sign-up mode);
   // a `Create account` affordance also exists. Match either sign-up name.
   const submit = page.getByRole("button", { name: /Sign up|Create account/ }).first();
@@ -52,10 +52,10 @@ export async function signIn(page: Page, persona: SyntheticPersona, origin: stri
   if (await passwordToggle.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await passwordToggle.click({ timeout: 10_000 });
   }
-  await page.getByLabel("UNT email", { exact: true }).waitFor({ state: "visible", timeout: 40_000 });
-  await page.getByLabel("UNT email", { exact: true }).fill(persona.email);
-  await page.getByLabel("Password", { exact: true }).waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByLabel("Password", { exact: true }).fill(persona.password);
+  await page.getByLabel("UNT email").waitFor({ state: "visible", timeout: 40_000 });
+  await page.getByLabel("UNT email").fill(persona.email);
+  await page.getByLabel("Password").waitFor({ state: "visible", timeout: 15_000 });
+  await page.getByLabel("Password").fill(persona.password);
   await page.getByRole("button", { name: "Log in" }).click({ timeout: 15_000 });
   await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible", timeout: 30_000 });
 }

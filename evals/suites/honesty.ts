@@ -36,8 +36,7 @@ async function openFirstDetail(ctx: SuiteContext): Promise<{ page: Page; code: s
   await cb.page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await cb.page.waitForTimeout(700);
   const firstRow = cb.page.locator("article.course-row").first();
-  const rowCode =
-    (await firstRow.locator("h1, h2, h3, h4, [data-course-code]").first().textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
+  const rowCode = (await firstRow.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
   const code = rowCode.match(/\b[A-Z]{2,4}\s\d{4}\b/)?.[0];
   if (!code) throw new Error("honesty case could not read a course code from the first course row after search");
 

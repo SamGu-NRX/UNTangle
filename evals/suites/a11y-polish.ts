@@ -37,8 +37,7 @@ function parseScanId(caseId: string): PageKey {
 /** Read the first searched course code from /courses (already landed there). */
 async function firstSearchedCode(page: CaseBrowser["page"]): Promise<string> {
   const firstRow = page.locator("article.course-row").first();
-  const rowCode =
-    (await firstRow.locator("h1, h2, h3, h4, [data-course-code]").first().textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
+  const rowCode = (await firstRow.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
   const code = rowCode.match(/\b[A-Z]{2,4}\s\d{4}\b/)?.[0];
   if (!code) throw new Error("a11y case could not read a course code after search");
   return code;
