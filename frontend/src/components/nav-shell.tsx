@@ -9,6 +9,7 @@ const STEPS = [
   { href: "/courses", label: "Courses" },
   { href: "/schedule", label: "Schedule" },
   { href: "/map", label: "Map" },
+  { href: "/plans", label: "Plans" },
 ];
 
 export function NavShell({
@@ -18,7 +19,7 @@ export function NavShell({
   stickyFooter = true,
   children,
 }: {
-  step: number; // 0 = courses, 1 = schedule, 2 = map
+  step: number; // 0 = courses, 1 = schedule, 2 = map, 3 = plans
   back?: { href: string; label: string };
   next?: { href: string; label: string };
   stickyFooter?: boolean;
