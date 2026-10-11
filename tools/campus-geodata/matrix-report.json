@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T14:47:36.139Z",
+  "generatedAt": "2026-10-11T15:03:21.473Z",
   "buildings": 29,
   "anchors": {
     "art": {
@@ -264,6 +264,6 @@
       "connectorMeters": 25.8
     }
   },
-  "maxMinutes": 20.3830990064373,
+  "maxMinutes": 20.579189258647304,
   "asymmetries": 0
 }

@@ -214,7 +214,7 @@ function main() {
     if (!isFootUsable(way.tags ?? {})) continue;
     const coords = way.geometry.map((point) => [point.lat, point.lon ?? point.lng]);
     if (coords.length < 2) continue;
-    const c = wayClass(way.tags ?? {});
+    const cls = wayClass(way.tags ?? {});
     const fragments = [];
     let n = [];
     let lastIdx = -2;
@@ -241,7 +241,7 @@ function main() {
       lastIdx = idx;
     }
     if (n.length >= 2) fragments.push(n);
-    for (const frag of fragments) usableWays.push({ osmId: way.id, c, n: frag });
+    for (const frag of fragments) usableWays.push({ osmId: way.id, c: cls.c, s: cls.s, n: frag });
   }
   usableWays.sort((a, b) => a.osmId - b.osmId);
 
