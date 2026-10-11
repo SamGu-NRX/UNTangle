@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { authClient } from "@/lib/auth-client";
+import {
+  magicLinkFlowReducer,
+  signInErrorMessage,
+  type MagicLinkFlowState,
+} from "@/lib/magic-link-flow";
 import { isUntEmail, untEmailRequirementMessage } from "@/lib/unt-auth";
+
+const initialMagicLinkFlow: MagicLinkFlowState = { phase: "form", errorMessage: null };
 
 type AuthMessage = {
   tone: "error" | "success";
@@ -22,28 +29,35 @@ export function AuthClient() {
   const [name, setName] = useState("");
   const [message, setMessage] = useState<AuthMessage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isMagicSubmitting, setIsMagicSubmitting] = useState(false);
   const [localOpen, setLocalOpen] = useState(false);
+  const [flow, dispatchFlow] = useReducer(magicLinkFlowReducer, initialMagicLinkFlow);
+  const inboxHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const router = useRouter();
 
-  async function handleMagicLink(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const magicPending = flow.phase === "sending";
+  const magicFormVisible =
+    flow.phase === "form" || (flow.phase === "sending" && flow.from === "form");
+  const inboxVisible =
+    flow.phase === "checkInbox" || (flow.phase === "sending" && flow.from === "checkInbox");
+  const sentTo = flow.phase === "form" ? null : flow.sentTo;
 
-    if (!isUntEmail(magicEmail)) {
-      setMessage({ tone: "error", text: untEmailRequirementMessage() });
-      return;
+  // Move focus to the check-inbox heading so keyboard and screen-reader
+  // users land on the state the page just switched to.
+  useEffect(() => {
+    if (flow.phase === "checkInbox") {
+      inboxHeadingRef.current?.focus();
     }
+  }, [flow.phase]);
 
-    setIsMagicSubmitting(true);
-    setMessage(null);
-
+  async function requestMagicLink(requestEmail: string) {
+    dispatchFlow({ type: "sendStart", email: requestEmail });
     try {
       const response = await fetch("/api/auth/sign-in/magic-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: magicEmail,
-          name: magicEmail.split("@")[0],
+          email: requestEmail,
+          name: requestEmail.split("@")[0],
           callbackURL: "/courses",
           newUserCallbackURL: "/courses",
           errorCallbackURL: "/auth",
@@ -51,17 +65,31 @@ export function AuthClient() {
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        setMessage({ tone: "error", text: payload?.message ?? "Unable to send a sign-in link." });
+        const payload = (await response.json().catch(() => null)) as { message?: unknown } | null;
+        dispatchFlow({
+          type: "sendFailed",
+          message: signInErrorMessage(response.status, payload),
+        });
         return;
       }
 
-      setMessage({ tone: "success", text: "Check your UNT inbox for a sign-in link." });
+      dispatchFlow({ type: "sendSucceeded", email: requestEmail });
     } catch {
-      setMessage({ tone: "error", text: "Unable to send a sign-in link." });
-    } finally {
-      setIsMagicSubmitting(false);
+      dispatchFlow({ type: "sendFailed", message: null });
     }
+  }
+
+  async function handleMagicLink(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    // Client-side gate mirrors the server hook: fail fast with the same
+    // message the endpoint would send, before any request leaves the page.
+    if (!isUntEmail(magicEmail)) {
+      dispatchFlow({ type: "sendFailed", message: untEmailRequirementMessage() });
+      return;
+    }
+
+    await requestMagicLink(magicEmail);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -110,46 +138,126 @@ export function AuthClient() {
         </p>
       </div>
 
-      <form onSubmit={handleMagicLink} style={{ display: "grid", gap: 12 }}>
-        <Field
-          label="UNT email"
-          type="email"
-          value={magicEmail}
-          onChange={(e) => setMagicEmail(e.target.value)}
-          placeholder="eagleid@unt.edu"
-          autoComplete="email"
-          required
-          helper="@unt.edu and @my.unt.edu addresses are accepted."
-        />
+      {magicFormVisible ? (
+        <form onSubmit={handleMagicLink} style={{ display: "grid", gap: 12 }}>
+          <Field
+            label="UNT email"
+            type="email"
+            value={magicEmail}
+            onChange={(e) => setMagicEmail(e.target.value)}
+            placeholder="eagleid@unt.edu"
+            autoComplete="email"
+            required
+            helper="@unt.edu and @my.unt.edu addresses are accepted."
+          />
 
-        {message ? (
-          <p
+          {flow.phase === "form" && flow.errorMessage ? (
+            <p
+              role="alert"
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--danger)",
+                padding: "0.55rem 0.7rem",
+                border: "1px solid var(--danger-border)",
+                borderRadius: "var(--r-sm)",
+                background: "var(--danger-bg)",
+              }}
+            >
+              {flow.errorMessage}
+            </p>
+          ) : null}
+
+          {/* The submit keeps one stable accessible name in every state;
+              the busy signal is aria-busy plus the spinner, not a label swap. */}
+          <Button
+            type="submit"
+            disabled={magicPending}
+            aria-busy={magicPending}
+            style={{ width: "100%", marginTop: 4 }}
+          >
+            {magicPending ? (
+              <>
+                <span className="spinner" />
+                <span>Sign in with your UNT email</span>
+              </>
+            ) : (
+              "Sign in with your UNT email"
+            )}
+          </Button>
+        </form>
+      ) : null}
+
+      {inboxVisible && sentTo ? (
+        <div
+          role="status"
+          style={{
+            display: "grid",
+            gap: 12,
+            padding: "1rem",
+            border: "1px solid var(--success-border)",
+            borderRadius: "var(--r-md)",
+            background: "var(--success-bg)",
+          }}
+        >
+          <h2
+            ref={inboxHeadingRef}
+            tabIndex={-1}
+            className="font-display"
             style={{
-              fontSize: "0.82rem",
-              color: message.tone === "error" ? "var(--danger)" : "var(--success-ink)",
-              padding: "0.55rem 0.7rem",
-              border: `1px solid ${
-                message.tone === "error" ? "var(--danger-border)" : "var(--success-border)"
-              }`,
-              borderRadius: "var(--r-sm)",
-              background: message.tone === "error" ? "var(--danger-bg)" : "var(--success-bg)",
+              margin: 0,
+              fontSize: "1.2rem",
+              fontWeight: 800,
+              color: "var(--brand-900)",
+              letterSpacing: "-0.02em",
+              outline: "none",
             }}
           >
-            {message.text}
+            Check your UNT inbox
+          </h2>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--copy)", lineHeight: 1.5 }}>
+            We sent a one-time sign-in link to <strong>{sentTo}</strong>. Open it on this
+            device to finish signing in — the link works once and expires in five minutes.
           </p>
-        ) : null}
-
-        <Button type="submit" disabled={isMagicSubmitting} style={{ width: "100%", marginTop: 4 }}>
-          {isMagicSubmitting ? (
-            <>
-              <span className="spinner" />
-              <span>Sending…</span>
-            </>
-          ) : (
-            "Send UNT sign-in link"
-          )}
-        </Button>
-      </form>
+          {process.env.NODE_ENV === "development" ? (
+            <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--faint)" }}>
+              Development: links land in the{" "}
+              <Link href="/dev/outbox" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
+                dev outbox
+              </Link>
+              .
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => requestMagicLink(sentTo)}
+            disabled={magicPending}
+            aria-busy={magicPending}
+            style={{ width: "100%" }}
+          >
+            {magicPending ? (
+              <>
+                <span className="spinner" />
+                <span>Resend link</span>
+              </>
+            ) : (
+              "Resend link"
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={magicPending}
+            onClick={() => {
+              setMagicEmail("");
+              dispatchFlow({ type: "restart" });
+            }}
+            style={{ width: "100%" }}
+          >
+            Use a different email
+          </Button>
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -273,6 +381,24 @@ export function AuthClient() {
                 "Create account"
               )}
             </Button>
+
+            {message ? (
+              <p
+                role="alert"
+                style={{
+                  fontSize: "0.82rem",
+                  color: message.tone === "error" ? "var(--danger)" : "var(--success-ink)",
+                  padding: "0.55rem 0.7rem",
+                  border: `1px solid ${
+                    message.tone === "error" ? "var(--danger-border)" : "var(--success-border)"
+                  }`,
+                  borderRadius: "var(--r-sm)",
+                  background: message.tone === "error" ? "var(--danger-bg)" : "var(--success-bg)",
+                }}
+              >
+                {message.text}
+              </p>
+            ) : null}
           </form>
         </div>
       ) : null}
