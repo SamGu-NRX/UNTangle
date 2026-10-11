@@ -1,8 +1,8 @@
 /**
  * Black-box routing suite for the UNTangle eval harness.
  *
- * Talks ONLY to a running app over HTTP (env UNTANGLE_BASE_URL, default
- * http://127.0.0.1:3000). It never imports application code and never needs
+ * Talks ONLY to a running app over HTTP (base URL precedence: explicit env
+ * UNTANGLE_BASE_URL, then the stack-provided origin, then http://127.0.0.1:3000). It never imports application code and never needs
  * files inside the target checkout. Pair data comes from
  * evals/fixtures/campus-routes.json (see evals/fixtures/METHOD.md — all pair
  * distances there are map-derived from OpenStreetMap, not physically walked).
@@ -24,7 +24,7 @@
  */
 import fixtureJson from "../fixtures/campus-routes.json";
 import { defineSuite } from "../suite-kit";
-import type { CaseResult, CaseSpec } from "../suite-kit";
+import type { CaseResult, CaseSpec, SuiteContext } from "../suite-kit";
 
 // ---------------------------------------------------------------------------
 // Fixture types (only the fields the suite reads; see evals/fixtures/METHOD.md)
@@ -61,7 +61,13 @@ const fixture = fixtureJson as unknown as CampusRoutesFixture;
 // ---------------------------------------------------------------------------
 // Typed access without @types/node: only the env map is needed.
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
-const BASE_URL = (env.UNTANGLE_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/+$/, "");
+const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
+/**
+ * Base URL precedence: explicit UNTANGLE_BASE_URL (standalone/dev runs) >
+ * the stack-provided ctx.frontendOrigin (the runner boots the app on a free
+ * port) > the dev default. Re-resolved at the start of every case run.
+ */
+let activeBaseUrl = (env.UNTANGLE_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
 
 /** Fixed-interval pacing: >= 1050 ms between request starts (~57 req/min < 60). */
 const MIN_REQUEST_INTERVAL_MS = 1_050;
@@ -87,7 +93,7 @@ type PostResult = { status: number; text: string; elapsedMs: number };
 async function postJson(path: string, body: unknown): Promise<PostResult> {
   await pace();
   const started = performance.now();
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${activeBaseUrl}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -460,12 +466,13 @@ export default defineSuite({
       bar: `12-stop route p95 warm <= ${PLAN_BAR_WARM_P95_MS} ms; ORS disabled, cold/warm separate, 200-only, paced < 60 req/min`,
     },
   ],
-  run: async (caseId: string): Promise<CaseResult> => {
+  run: async (caseId: string, ctx: SuiteContext): Promise<CaseResult> => {
+    activeBaseUrl = (env.UNTANGLE_BASE_URL ?? ctx.frontendOrigin ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     if (!(await appIsReachable())) {
       return {
         id: caseId,
         status: "not-applicable",
-        note: `app not reachable at ${BASE_URL} (infrastructure, not an application result)`,
+        note: `app not reachable at ${activeBaseUrl} (infrastructure, not an application result)`,
       };
     }
     switch (caseId) {
