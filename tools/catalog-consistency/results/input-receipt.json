@@ -1,17 +1,271 @@
 {
-  "receiptVersion": 1,
-  "toolVersion": 1,
-  "rulesVersion": 1,
-  "sourceCommit": "203bef7c987a75654dfb45a826dfc980493b742a",
-  "input": {
-    "path": "frontend/src/lib/generated/seed-data.json",
-    "sha256": "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
-    "bytes": 1701755
-  },
-  "majorsSource": {
-    "path": "frontend/src/lib/seed-data.ts",
-    "sha256": "4c2ad4fb634f96a536254b3f612219b19dad80c4fa6298cd32fc937554a44517",
-    "bytes": 3475
+  "receiptVersion": 2,
+  "toolVersion": 2,
+  "rulesVersion": 2,
+  "sourceCommit": "24a798d053ebb76f2342fe298cd2c73effcfd283",
+  "inputs": [
+    {
+      "role": "generated-catalog",
+      "path": "frontend/src/lib/generated/seed-data.json",
+      "sha256": "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
+      "bytes": 1701755,
+      "present": true
+    },
+    {
+      "role": "majors-source",
+      "path": "frontend/src/lib/seed-data.ts",
+      "sha256": "4c2ad4fb634f96a536254b3f612219b19dad80c4fa6298cd32fc937554a44517",
+      "bytes": 3475,
+      "present": true
+    },
+    {
+      "role": "rule-source",
+      "path": "frontend/src/lib/types.ts",
+      "sha256": "8c8095aa2b52a0b78bdad2ca068218d4214ecf53e14f939ddbb7ec4790339c34",
+      "bytes": 4053,
+      "present": true
+    },
+    {
+      "role": "rule-source",
+      "path": "frontend/src/lib/planner.ts",
+      "sha256": "419cd184768dcff198e5f73d939aabd7f66fb7db852003b7f3bd615c9becdeb4",
+      "bytes": 15983,
+      "present": true
+    },
+    {
+      "role": "rule-source",
+      "path": "README.md",
+      "sha256": "b5fb3e85c15b381ff2a639a8e4728f5f57fc1505c55f959f3650ddf6d7c77c53",
+      "bytes": 7318,
+      "present": true
+    },
+    {
+      "role": "rule-source",
+      "path": "tools/catalog-consistency/RULES.md",
+      "sha256": "dd9796538c37c7257de1a11585360b6e67b9b6c6e92ff6561e94eb62327afd45",
+      "bytes": 10720,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_anth_courses.json",
+      "sha256": "c71b9be446ff6e3b6b11352c0402ddb4dcd6d1c1f5bf2e997e0165c4b9b0a490",
+      "bytes": 16712,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_biol_courses.json",
+      "sha256": "ae1686d9900ee75a40d24aa9924e989d26fb96622177b4c242c15d3f59f5270f",
+      "bytes": 41109,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_bmen_courses.json",
+      "sha256": "9293103b905a2bbf9a773a5a2f32c4e5c50afc79cf9b2b7045f79959c94164c6",
+      "bytes": 11051,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_chem_courses.json",
+      "sha256": "01b5da7c2b9d1bbbd5bacb84eb57cde2d2cbf2531b6d02a7b0d850eefbf15649",
+      "bytes": 14321,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_cnet_courses.json",
+      "sha256": "ecde84266a50e124647b4b5fba745155a76c98df9215f99066bc81c6fdac5b73",
+      "bytes": 12290,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_comm_courses.json",
+      "sha256": "410bef88efca2db1465674781b095118209810a069069828c7caeb348b56572d",
+      "bytes": 20885,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_csce_courses.json",
+      "sha256": "53f686ec1b5e960dcbad8cb9e67bb9d77657fbc4c14f53640d54df3de49e3e11",
+      "bytes": 46323,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_econ_courses.json",
+      "sha256": "d1aea3a2d3cdc98a597396d2fecdde7e8d98fd07adafc640858f298f9da837c9",
+      "bytes": 13866,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_eeng_courses.json",
+      "sha256": "7fdc3aca2050295e4ffef78c151e63b17a37c57879890460795570b0b6062caf",
+      "bytes": 22846,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_engl_courses.json",
+      "sha256": "49b015941d4e1e6927f4a5612b0a523786a9898e4de9fd8f9cd3e1f728529bb7",
+      "bytes": 25950,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_engr_courses.json",
+      "sha256": "45e424aec2d13353de178963f31f619bb1acd1c86a8d3c5bcb932ca16738abd0",
+      "bytes": 5597,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_fren_courses.json",
+      "sha256": "a3ec1436e2a7d4880831cb447c1488ef6d91baae04a084138ba12b8f095046a9",
+      "bytes": 3298,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_geog_courses.json",
+      "sha256": "90df31912792e9465541382cf5f37905d98a75b083fc56a3e34b4dd6bf69b3b5",
+      "bytes": 16734,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_germ_courses.json",
+      "sha256": "7eecc657b76b2ce7b3243d9be84874581a09205707beddaefd454c4e778d801e",
+      "bytes": 3074,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_hist_courses.json",
+      "sha256": "f10291335087848140285b3f8983de0f29d5596dba62788eb16e181577d5d719",
+      "bytes": 4280,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_inst_courses.json",
+      "sha256": "c88ebcabbf4e01ef07dd234e2a0cc29727c292e9cbc6a9421a6292d588ce7021",
+      "bytes": 4045,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_ital_courses.json",
+      "sha256": "3345f4b370e2dfa5b3cfb236a7e4b68e46e98974c809074aaeba415e57af8e56",
+      "bytes": 891,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_japn_courses.json",
+      "sha256": "676d92b6fd22d4a352f5eb756ff9e6649c07e3204802fd5bdb279918be770ecc",
+      "bytes": 5690,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_jour_courses.json",
+      "sha256": "ee154518d5f25ea6a9a135b562aa201c9b0f0bc1e89b6fd2e4516dc1bbf484be",
+      "bytes": 34574,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_math_courses.json",
+      "sha256": "088f74be369803892e2bf2de433f087da1d1c223b8f54a53bbc706d08b2187dd",
+      "bytes": 21581,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_meen_courses.json",
+      "sha256": "0fcf9d0a9875ca7f80c97146f97e7b7164901dbce191dc4736bd9a87608b1394",
+      "bytes": 18406,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_mtse_courses.json",
+      "sha256": "4b1414821d04c6aecb86ac0fb0d7f43f34ab24e58c3c40cd918f010563a8bc8c",
+      "bytes": 13110,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_phil_courses.json",
+      "sha256": "c6daf41c6b91356f2785449cc2941bf9ed92d0a021ae0fb7bdf912085d63ca2a",
+      "bytes": 12115,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_phys_courses.json",
+      "sha256": "7aeb2e930a0817190eabca62fc737471f0d7210f12fa13e2591d4bc041b6fa17",
+      "bytes": 16266,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_psci_courses.json",
+      "sha256": "2bc910f9e1d4a97beedbd09bb114a0f151bbe1eef245746d13c648e57fc122b8",
+      "bytes": 18619,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_psyc_courses.json",
+      "sha256": "fd08520ec1b56663e564d18bccabdfa64f42c30a8839fda7c287e9ac8b37b5ab",
+      "bytes": 18744,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_soci_courses.json",
+      "sha256": "6588cd8c6207328688e28cc6804616e558aafc9dd926449fbd1fcec3a610e497",
+      "bytes": 13166,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_span_courses.json",
+      "sha256": "5c345ca308833fb588ffe904b3c0778518a0e525be14085562a621e33b3e1418",
+      "bytes": 10239,
+      "present": true
+    },
+    {
+      "role": "prerequisite-corpus",
+      "path": "courses/unt_tecm_courses.json",
+      "sha256": "74444d81c7f714ff150747063937c48c8b53ad937fefab170747e1e1c0a73675",
+      "bytes": 12367,
+      "present": true
+    },
+    {
+      "role": "section-source",
+      "path": "backend/data/compD.csv",
+      "sha256": "c81759456a874fd0995a9a28d7b55775728e45781c84531872e05fa5e7ce2383",
+      "bytes": 201156,
+      "present": true
+    }
+  ],
+  "submodulePins": [
+    {
+      "path": "backend",
+      "commit": null
+    }
+  ],
+  "corpusDigest": {
+    "algorithm": "sha256",
+    "digest": "4633da9535decebe1c1a84e9485703ec6f58dbfaeca0ea601d9b9eb9ef7a1911"
   },
   "counts": {
     "buildings": 15,
@@ -20,6 +274,8 @@
     "majors": 8,
     "courseStatusEntries": 656,
     "sectionMeetings": 5984,
-    "prerequisiteEdges": 879
+    "prerequisiteEdges": 879,
+    "corpusFiles": 29,
+    "compDRows": 2704
   }
 }

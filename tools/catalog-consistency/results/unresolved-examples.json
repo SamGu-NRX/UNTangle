@@ -1,118 +1,159 @@
 {
-  "unresolvedExamplesVersion": 1,
-  "toolVersion": 1,
-  "note": "Every unresolved finding with example records. Nothing here is an allowlist: entries document defects and their committed repair locations, decided in REPAIR-LOCATIONS.md.",
-  "unknownReferences": {
-    "check": "majorCoreToCourse",
-    "count": 6,
-    "examples": [
-      {
-        "majorId": "busi",
-        "majorName": "Business",
-        "code": "GOVT 2305",
-        "titleAnnotatedEquivalent": {
-          "courseCode": "PSCI 2305",
-          "title": "US Political Behavior and Policy  (GOVT 2305)"
-        }
-      },
-      {
-        "majorId": "psyc",
-        "majorName": "Psychology",
-        "code": "HIST 2610"
-      },
-      {
-        "majorId": "psyc",
-        "majorName": "Psychology",
-        "code": "HIST 2620"
-      },
-      {
-        "majorId": "psyc",
-        "majorName": "Psychology",
-        "code": "GOVT 2305",
-        "titleAnnotatedEquivalent": {
-          "courseCode": "PSCI 2305",
-          "title": "US Political Behavior and Policy  (GOVT 2305)"
-        }
-      },
-      {
-        "majorId": "engl",
-        "majorName": "English",
-        "code": "HIST 2610"
-      },
-      {
-        "majorId": "engl",
-        "majorName": "English",
-        "code": "HIST 2620"
-      }
-    ]
-  },
-  "duplicateIds": {
-    "count": 0
-  },
-  "meetingBounds": {
-    "count": 0
-  },
-  "externalPrerequisites": {
-    "edges": 222,
-    "distinctCodes": 123,
-    "inSourceCorpus": {
-      "codes": 0,
+  "unresolvedExamplesVersion": 2,
+  "toolVersion": 2,
+  "note": "Every unresolved finding with example records, capped at 10 per class; exact totals live in report.json. Nothing here is an allowlist: entries document defects and their committed repair locations (REPAIR-LOCATIONS.md).",
+  "referenceExamples": [
+    {
+      "check": "sectionToCourse",
+      "total": 0,
       "examples": []
     },
-    "notInSourceCorpus": {
-      "codes": 123,
+    {
+      "check": "meetingToBuilding",
+      "total": 0,
+      "examples": []
+    },
+    {
+      "check": "courseStatusToCourse",
+      "total": 0,
+      "examples": []
+    },
+    {
+      "check": "majorCoreToCourse",
+      "total": 6,
       "examples": [
         {
-          "code": "ADVG 1100",
-          "edges": 4,
-          "inSourceCorpus": false
+          "majorId": "busi",
+          "majorName": "Business",
+          "code": "GOVT 2305",
+          "evidence": {
+            "kind": "titleAnnotatedEquivalent",
+            "courseCode": "PSCI 2305",
+            "title": "US Political Behavior and Policy  (GOVT 2305)"
+          }
         },
         {
-          "code": "BIOC 4540",
-          "edges": 1,
-          "inSourceCorpus": false
+          "majorId": "psyc",
+          "majorName": "Psychology",
+          "code": "HIST 2610",
+          "evidence": null
         },
         {
-          "code": "BIOL 1755",
-          "edges": 1,
-          "inSourceCorpus": false
+          "majorId": "psyc",
+          "majorName": "Psychology",
+          "code": "HIST 2620",
+          "evidence": null
         },
         {
-          "code": "BIOL 1761",
-          "edges": 2,
-          "inSourceCorpus": false
+          "majorId": "psyc",
+          "majorName": "Psychology",
+          "code": "GOVT 2305",
+          "evidence": {
+            "kind": "titleAnnotatedEquivalent",
+            "courseCode": "PSCI 2305",
+            "title": "US Political Behavior and Policy  (GOVT 2305)"
+          }
         },
         {
-          "code": "BIOL 2042",
-          "edges": 5,
-          "inSourceCorpus": false
+          "majorId": "engl",
+          "majorName": "English",
+          "code": "HIST 2610",
+          "evidence": null
         },
         {
-          "code": "BIOL 2141",
-          "edges": 1,
-          "inSourceCorpus": false
-        },
-        {
-          "code": "BIOL 2311",
-          "edges": 1,
-          "inSourceCorpus": false
-        },
-        {
-          "code": "BIOL 2312",
-          "edges": 1,
-          "inSourceCorpus": false
-        },
-        {
-          "code": "BIOL 3350",
-          "edges": 1,
-          "inSourceCorpus": false
-        },
-        {
-          "code": "BIOL 3452",
-          "edges": 3,
-          "inSourceCorpus": false
+          "majorId": "engl",
+          "majorName": "English",
+          "code": "HIST 2620",
+          "evidence": null
         }
       ]
     }
+  ],
+  "externalPrerequisites": {
+    "edges": 222,
+    "distinctCodes": 123,
+    "categories": {
+      "inSourceCorpus": {
+        "codes": 0,
+        "edges": 0,
+        "examples": []
+      },
+      "titleAnnotatedInBundle": {
+        "codes": 0,
+        "edges": 0,
+        "examples": []
+      },
+      "unknown": {
+        "codes": 123,
+        "edges": 222,
+        "examples": [
+          {
+            "code": "ADVG 1100",
+            "edges": 4,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOC 4540",
+            "edges": 1,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 1755",
+            "edges": 1,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 1761",
+            "edges": 2,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 2042",
+            "edges": 5,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 2141",
+            "edges": 1,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 2311",
+            "edges": 1,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 2312",
+            "edges": 1,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 3350",
+            "edges": 1,
+            "category": "unknown",
+            "evidence": null
+          },
+          {
+            "code": "BIOL 3452",
+            "edges": 3,
+            "category": "unknown",
+            "evidence": null
+          }
+        ],
+        "note": "no committed evidence of external intent; consistent with the subset-catalog claim (README) but unverified per code — intent unresolved"
+      }
+    }
+  },
+  "provenanceSummary": {
+    "bound": true,
+    "assessment": "the committed sections and their meetings are fully derived from backend/data/compD.csv (bound in the receipt); compD.csv carries no term/semester/session/year column and its section-number lattice (every course carries section 001 and 002, with additional section numbers appearing in exact count pairs) is characteristic of generated rather than recorded offerings — treated as synthetic/generated, not a real-term export; no data repaired"
   }
 }
