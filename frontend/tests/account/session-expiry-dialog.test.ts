@@ -26,6 +26,7 @@ describe("sendMagicLink (dialog + link-error resend path)", () => {
     const body = JSON.parse(String(seen.init.body));
     expect(body.email).toBe("person@my.unt.edu");
     expect(body.callbackURL).toBe("/courses");
+    expect(body.errorCallbackURL).toBe("/sign-in/link-error");
   });
 
   test("maps a rate limit to the honest rate-limit copy", async () => {

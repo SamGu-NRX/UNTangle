@@ -76,7 +76,7 @@ export async function sendMagicLink(
     const response = await fetchLike("/api/auth/sign-in/magic-link", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, callbackURL: "/courses" }),
+      body: JSON.stringify({ email, callbackURL: "/courses", errorCallbackURL: "/sign-in/link-error" }),
     });
     const payload = (await response.json().catch(() => null)) as {
       message?: unknown;
@@ -84,5 +84,32 @@ export async function sendMagicLink(
     return { ok: response.ok, message: signInErrorMessage(response.status, payload) };
   } catch {
     return { ok: false, message: MAGIC_LINK_GENERIC_ERROR };
+  }
+}
+
+export const LINK_EXPIRED_ERROR =
+  "That sign-in link expired. Links last five minutes — request a fresh one.";
+export const LINK_USED_ERROR =
+  "That sign-in link was already used. Each link works once — request a fresh one.";
+export const LINK_INVALID_ERROR =
+  "That sign-in link is not valid. Request a fresh one.";
+export const LINK_UNKNOWN_ERROR =
+  "That sign-in link did not work. Request a fresh one, or sign in from the start.";
+
+/**
+ * Maps better-auth's magic-link verify error param (the plugin redirects to
+ * the error callback URL with ?error=<CODE>) to plain-language copy. Codes
+ * verified against better-auth 1.5.5's magic-link plugin source.
+ */
+export function linkErrorMessage(errorParam: string | null): string {
+  switch (errorParam) {
+    case "EXPIRED_TOKEN":
+      return LINK_EXPIRED_ERROR;
+    case "ATTEMPTS_EXCEEDED":
+      return LINK_USED_ERROR;
+    case "INVALID_TOKEN":
+      return LINK_INVALID_ERROR;
+    default:
+      return LINK_UNKNOWN_ERROR;
   }
 }

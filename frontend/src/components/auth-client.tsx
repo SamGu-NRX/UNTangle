@@ -60,7 +60,7 @@ export function AuthClient() {
           name: requestEmail.split("@")[0],
           callbackURL: "/courses",
           newUserCallbackURL: "/courses",
-          errorCallbackURL: "/auth",
+          errorCallbackURL: "/sign-in/link-error",
         }),
       });
 
