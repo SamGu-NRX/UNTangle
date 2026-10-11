@@ -121,8 +121,14 @@ export function pruneCandidates(req: OptimizeRequest): { courseCode: string; sec
  */
 export function findLockedConflict(req: OptimizeRequest): string | null {
   const excluded = new Set(req.excludedSectionIds);
+  const poolById = new Map(req.sections.map((section) => [section.id, section] as const));
   for (const id of req.lockedSectionIds) {
-    if (excluded.has(id)) return id;
+    if (!excluded.has(id)) continue;
+    // Only a pool section of a REQUESTED course can conflict: a locked (or
+    // excluded) id of a non-requested course is inert per the pinned
+    // semantics, and IIS sub-instances rely on that when courses are pruned.
+    const section = poolById.get(id);
+    if (section && req.requestedCourseCodes.includes(section.courseCode)) return id;
   }
   return null;
 }
