@@ -47,13 +47,29 @@ async function withTempOutbox<T>(run: (dir: string) => Promise<T>): Promise<T> {
 }
 
 describe("email transport selection", () => {
-  test("uses Resend whenever RESEND_API_KEY is configured", () => {
-    const transport = resolveEmailTransport({ RESEND_API_KEY: "re_test-key" });
+  test("uses Resend in production when RESEND_API_KEY is configured", () => {
+    const transport = resolveEmailTransport({ NODE_ENV: "production", RESEND_API_KEY: "re_test-key" });
     expect(transport.label).toBe("resend");
   });
 
   test("uses the local outbox in development when no key is configured", () => {
     const transport = resolveEmailTransport({ NODE_ENV: "development" });
+    expect(transport.label).toBe("outbox");
+  });
+
+  test("keeps development on the local outbox even when a key is configured", async () => {
+    await withTempOutbox(async (dir) => {
+      const transport = resolveEmailTransport({ NODE_ENV: "development", RESEND_API_KEY: "re_test-key" });
+      expect(transport.label).toBe("outbox");
+      await transport.send("magic-link", "eval-1@my.unt.edu", "https://example.com/link");
+      const messages = await readOutboxMessages(dir);
+      expect(messages).toHaveLength(1);
+      expect(messages[0].kind).toBe("magic-link");
+    });
+  });
+
+  test("keeps the test environment on the local outbox even when a key is configured", () => {
+    const transport = resolveEmailTransport({ NODE_ENV: "test", RESEND_API_KEY: "re_test-key" });
     expect(transport.label).toBe("outbox");
   });
 
@@ -87,7 +103,7 @@ describe("outbox transport", () => {
 describe("resend transport", () => {
   test("sends the magic-link email with a branded subject and the url", async () => {
     const recorder = recorderClient();
-    const transport = resolveEmailTransport({ RESEND_API_KEY: "re_test-key" }, recorder.factory);
+    const transport = resolveEmailTransport({ NODE_ENV: "production", RESEND_API_KEY: "re_test-key" }, recorder.factory);
     await transport.send("magic-link", "eval-2@my.unt.edu", "https://example.com/magic");
 
     expect(recorder.payloads).toHaveLength(1);
@@ -99,7 +115,7 @@ describe("resend transport", () => {
 
   test("sends the password-reset email", async () => {
     const recorder = recorderClient();
-    const transport = resolveEmailTransport({ RESEND_API_KEY: "re_test-key" }, recorder.factory);
+    const transport = resolveEmailTransport({ NODE_ENV: "production", RESEND_API_KEY: "re_test-key" }, recorder.factory);
     await transport.send("password-reset", "eval-3@my.unt.edu", "https://example.com/reset");
 
     expect(recorder.payloads).toHaveLength(1);
@@ -110,7 +126,7 @@ describe("resend transport", () => {
   test("surfaces provider errors instead of dropping the email", async () => {
     const recorder = recorderClient();
     recorder.failNext("provider down");
-    const transport = resolveEmailTransport({ RESEND_API_KEY: "re_test-key" }, recorder.factory);
+    const transport = resolveEmailTransport({ NODE_ENV: "production", RESEND_API_KEY: "re_test-key" }, recorder.factory);
     expect(
       transport.send("magic-link", "eval-4@my.unt.edu", "https://example.com/x"),
     ).rejects.toThrow(/provider down/);

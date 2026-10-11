@@ -48,15 +48,18 @@ type ResendLikeClient = {
 };
 
 /**
- * Transport selection, injectable for tests. Resend whenever a key exists;
- * otherwise a development-only local outbox. Production without a key fails
- * loudly rather than silently dropping authentication email.
+ * Transport selection, injectable for tests. Resend is used only in
+ * production with a configured key. Development and test always use the
+ * development-only local outbox, even when a key is present, so a stray
+ * key in a dev shell can never send real authentication email. Production
+ * without a key fails loudly rather than silently dropping email.
  */
 export function resolveEmailTransport(
   env: Record<string, string | undefined> = process.env,
   createClient: (apiKey: string) => ResendLikeClient = (apiKey) => new Resend(apiKey),
 ): Transport {
-  if (env.RESEND_API_KEY) {
+  const isProduction = env.NODE_ENV === "production";
+  if (isProduction && env.RESEND_API_KEY) {
     const client = createClient(env.RESEND_API_KEY);
     return {
       label: "resend",
@@ -74,7 +77,7 @@ export function resolveEmailTransport(
     };
   }
 
-  if (env.NODE_ENV === "production") {
+  if (isProduction) {
     throw new Error(
       "RESEND_API_KEY is not configured. UNTangle refuses to run authentication email in production without an email provider.",
     );
