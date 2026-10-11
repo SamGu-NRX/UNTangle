@@ -158,7 +158,12 @@ class PoliteFetcher {
       existsSync(cachePathFor(url))
     ) {
       const bytes = readFileSync(cachePathFor(url));
-      return { url, bytes, robots: parseRobots(decodeBytes(bytes), "untangledegreeplanbot") };
+      const robots = parseRobots(decodeBytes(bytes), "untangledegreeplanbot");
+      // The crawl-delay drives EVERY request, including cache-hit runs —
+      // re-apply it here too (a cache hit must not relax pacing).
+      this.intervalMs = effectiveIntervalMs(robots.crawlDelay);
+      this.receipt.crawlDelaySeconds = robots.crawlDelay;
+      return { url, bytes, robots };
     }
     await this.respectInterval();
     const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
@@ -204,13 +209,21 @@ async function findProgramIndexUrl(fetcher) {
     ...home.matchAll(/<a[^>]+href="([^"]*content\.php\?catoid=\d+&(?:amp;)?navoid=\d+[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi),
   ];
   console.log(`discover: catoid=${catoid}, ${anchorMatches.length} anchors with navoids on home page`);
+  let programsCandidate = null;
   for (const m of anchorMatches) {
     const text = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    if (/programs? (& ?degrees)|programs? a-?z|degrees? programs?/i.test(text) || /\bPrograms\b/.test(text)) {
+    // Prefer the single-page majors listing ("Majors, Minors, Certificates"),
+    // then any Programs A-Z style index, then any page mentioning Programs.
+    const isMajors = /majors?/i.test(text);
+    const isPrograms = /programs?/i.test(text);
+    if (isMajors || isPrograms) {
       const href = m[1].replace(/&amp;/g, "&");
-      return { url: new URL(href, BASE).toString(), fromText: text };
+      const candidate = { url: new URL(href, BASE).toString(), fromText: text, isMajors };
+      if (isMajors) return candidate;
+      if (!programsCandidate) programsCandidate = candidate;
     }
   }
+  if (programsCandidate) return programsCandidate;
   throw new Error("could not locate a Programs index link on the home page");
 }
 
