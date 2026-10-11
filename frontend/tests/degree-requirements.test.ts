@@ -242,10 +242,23 @@ describe("evaluateDegreeRequirements — CS, BS fixture", () => {
     const advisorItems = major.items.filter((i) => i.status === "info");
     expect(advisorItems).toHaveLength(2);
     expect(progress.sections[1].items[1].status).toBe("satisfied"); // MATH 1710
-    // lab required group fully satisfied by the PHYS pair; the choose-8 is not started
+    // lab required group needs ALL FOUR PHYS courses; semester 1 completes only
+    // the Mechanics pair, so the group is unmet with 4 of its 8 hours done
+    const lab = progress.sections[2];
+    expect(lab.items[0].status).toBe("unmet");
+    expect(lab.items[0].hoursDone).toBe(4);
+    expect(lab.items[1].status).toBe("unmet");
+    expect(lab.hoursTarget).toBe(16);
+  });
+
+  test("a fully completed required group flips to satisfied without touching the choose-8", () => {
+    const allLabRequired = ["PHYS 1710", "PHYS 1730", "PHYS 2220", "PHYS 2240"].map((code) => ({ code }));
+    const progress = evaluateDegreeRequirements(CS_FIXTURE, allLabRequired, [], hoursFor);
     const lab = progress.sections[2];
     expect(lab.items[0].status).toBe("satisfied");
+    expect(lab.items[0].hoursDone).toBe(8);
     expect(lab.items[1].status).toBe("unmet");
+    expect(lab.hoursDone).toBe(8);
     expect(lab.hoursTarget).toBe(16);
   });
 
