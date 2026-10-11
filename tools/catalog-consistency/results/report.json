@@ -2,7 +2,7 @@
   "reportVersion": 2,
   "toolVersion": 2,
   "rulesVersion": 2,
-  "sourceCommit": "8ea8c4d2f20951b703f4ec09202441508860147d",
+  "sourceCommit": "6d78374ec0e237a622955938326fa289b0144dda",
   "inputs": [
     {
       "role": "generated-catalog",
