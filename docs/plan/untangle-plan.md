@@ -59,6 +59,11 @@ adversarial cases, Sol for correctness, Opus for integration).
     guest mode, and app-wide loading, error and not-found states.
   - `untangle-real-schedule-data-f1`: a survey of permitted real-term sources, and an ingest if one exists. Real-term
     data is in scope: Sam's "making into a real working tool" (2026-10-11) supersedes the July portfolio framing.
+  - `untangle-grades-history-f1`: real course and instructor history from Sam's chosen source,
+    github.com/dyl-joseph/grades-unt, through its MCP endpoint only. The adapter rations itself to 20 requests a
+    minute and 300 an hour, writes to a git-ignored cache, and commits only small attributed fixtures. The UI
+    credits the source. No code is copied (the repo has no licence) and the encrypted files are never touched.
+    Times and rooms stay labeled samples until an official registrar export (Sam, 18:10Z).
   - `untangle-degree-plan-f1`: multi-term degree planning from published catalog.unt.edu requirements, rebuilt
     from #5's experiment with an independent exact reference.
   - `untangle-today-pwa-f1`: a Today view (next class and the walk to it) and an installable app that works offline.
