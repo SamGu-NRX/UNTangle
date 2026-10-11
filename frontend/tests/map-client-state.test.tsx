@@ -1,8 +1,6 @@
-// Failing-first MapClient state tests. These pin the desired behaviors for
-// M1-M3: useful empty-day recovery, single-stop messaging, duplicate-stop
-// explanation, unavailable-building labeling, and day-tab keyboard navigation.
-// At M0 exactly these five fail on the current UI while the populated-day
-// sanity test passes; each M1/M2 milestone flips its share of them green.
+// MapClient state tests. These pin the itinerary behaviors: useful empty-day
+// recovery, single-stop messaging, duplicate-stop explanation,
+// unavailable-building labeling, and day-tab keyboard navigation.
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
@@ -35,7 +33,7 @@ mock.module("@/lib/auth-client", () => ({
   },
 }));
 
-function MapLeafletCanvas(_props: unknown) {
+function MapLeafletCanvas() {
   return <div data-testid="map-canvas-stub" />;
 }
 
@@ -70,29 +68,9 @@ function renderMapClient() {
 }
 
 /*
- * Failing-first client-state tests for /map.
- *
- * The five `testFails` cases describe itinerary behaviors that do not exist
- * yet (M1/M2 will add them). They report green today precisely because the
- * behaviors are missing; when a behavior is implemented, flip its test from
- * `testFails` to `test` — a green test still wrapped in `testFails` fails
- * loudly with the instruction to flip it.
+ * Client-state tests for /map. Each test pins one itinerary behavior that
+ * now exists in MapClient; the assertions below are the contract.
  */
-function testFails(name: string, fn: () => Promise<void> | void) {
-  test(name, async () => {
-    let failed = false;
-    try {
-      await fn();
-    } catch {
-      failed = true; // expected while the behavior is missing
-    }
-    if (!failed) {
-      throw new Error(
-        `"${name}" now PASSES — the behavior exists. Flip this test from testFails to test and keep the assertions.`,
-      );
-    }
-  });
-}
 
 describe("MapClient itinerary states", () => {
   afterEach(() => {
@@ -111,7 +89,7 @@ describe("MapClient itinerary states", () => {
     expect(screen.getByTestId("map-canvas-stub")).toBeTruthy();
   });
 
-  testFails("empty days offer a one-click recovery to the nearest populated day", async () => {
+  test("empty days offer a one-click recovery to the nearest populated day", async () => {
     seedGuestPlanner(multiStopMondayPicks());
     renderMapClient();
     await flushAsyncWork();
@@ -127,7 +105,7 @@ describe("MapClient itinerary states", () => {
     expect(screen.getByText("3 stops")).toBeTruthy();
   });
 
-  testFails("single-stop days do not render placeholder dash chips", async () => {
+  test("single-stop days do not render placeholder dash chips", async () => {
     seedGuestPlanner(singleStopMondayPicks());
     renderMapClient();
     await flushAsyncWork();
@@ -139,7 +117,7 @@ describe("MapClient itinerary states", () => {
     expect(dashes.length).toBe(0);
   });
 
-  testFails("duplicate same-building stops explain the collapsed route", async () => {
+  test("duplicate same-building stops explain the collapsed route", async () => {
     seedGuestPlanner(duplicateStopMondayPicks());
     renderMapClient();
     await flushAsyncWork();
@@ -149,7 +127,7 @@ describe("MapClient itinerary states", () => {
     expect(explanation).toBeTruthy();
   });
 
-  testFails("unavailable buildings are labeled with a reason, not a bare lookup chip", async () => {
+  test("unavailable buildings are labeled with a reason, not a bare lookup chip", async () => {
     seedGuestPlanner(unresolvedStopMondayPicks());
     renderMapClient();
     await flushAsyncWork();
@@ -161,7 +139,7 @@ describe("MapClient itinerary states", () => {
     expect(screen.getByText(/outside mapped campus/i)).toBeTruthy();
   });
 
-  testFails("day tabs move focus with arrow keys", async () => {
+  test("day tabs move focus with arrow keys", async () => {
     seedGuestPlanner(multiStopMondayPicks());
     renderMapClient();
     await flushAsyncWork();

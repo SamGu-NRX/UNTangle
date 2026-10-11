@@ -19,6 +19,7 @@ import {
 import { formatTime } from "@/lib/planner";
 import type {
   MapRouteDetails,
+  MapRouteLegDisplay,
   MapResolutionSummary,
   MapResolvedLocation,
   MapRouteSummary,
@@ -127,39 +128,51 @@ function fallbackRoute(stops: ResolvedMapStop[]): ClientRoute {
   };
 }
 
-function routeSummary(route: ClientRoute): MapRouteSummary {
-  const miles = route.distanceMeters / 1609.34;
-  if (route.source === "fallback") {
+function routeLegDisplay(
+  leg: ClientRoute | null,
+  from: ResolvedMapStop,
+  to: ResolvedMapStop,
+): MapRouteLegDisplay {
+  const base = {
+    from: `${from.courseCode} · ${from.shortName}`,
+    to: `${to.courseCode} · ${to.shortName}`,
+    fromMeta: `${formatTime(from.end)} from ${from.buildingName}`,
+    toMeta: `${formatTime(to.start)} at ${to.buildingName}`,
+  };
+
+  if (!leg) {
+    return { ...base, state: "unavailable", source: null, distanceText: null, durationText: null };
+  }
+
+  const miles = (leg.distanceMeters / 1609.34).toFixed(2);
+
+  if (leg.source === "fallback") {
+    // A straight-line estimate can honestly report a distance, but never a
+    // walking-time claim.
     return {
-      distanceText: `~${miles.toFixed(2)} mi`,
-      durationText: "route unavailable",
+      ...base,
+      state: "approximate",
+      source: "fallback",
+      distanceText: `~${miles} mi`,
+      durationText: null,
     };
   }
 
   return {
-    distanceText: `${miles.toFixed(2)} mi`,
-    durationText: `${Math.round(route.durationSeconds / 60)} min`,
+    ...base,
+    state: "route",
+    source: "ors",
+    distanceText: `${miles} mi`,
+    durationText: `${Math.round(leg.durationSeconds / 60)} min`,
   };
 }
 
-function routeDetails(route: ClientRoute | null, stops: ResolvedMapStop[]): MapRouteDetails {
-  if (!route || stops.length < 2) {
-    return emptyRouteDetails;
-  }
-
-  return {
-    source: route.source,
-    isApproximate: route.source === "fallback",
-    legs: stops.slice(1).map((stop, index) => {
-      const previous = stops[index];
-      return {
-        from: `${previous.courseCode} · ${previous.shortName}`,
-        to: `${stop.courseCode} · ${stop.shortName}`,
-        fromMeta: `${formatTime(previous.end)} from ${previous.buildingName}`,
-        toMeta: `${formatTime(stop.start)} at ${stop.buildingName}`,
-      };
-    }),
-  };
+function legClientRoute(
+  leg: ClientRoute | null,
+  from: ResolvedMapStop,
+  to: ResolvedMapStop,
+): ClientRoute {
+  return leg ?? fallbackRoute([from, to]);
 }
 
 function MapViewport({ stops }: { stops: ResolvedMapStop[] }) {
@@ -203,7 +216,7 @@ export function MapLeafletCanvas({
   const [resolvedSnapshot, setResolvedSnapshot] = useState<Record<string, MapResolvedLocation | null>>(
     () => Object.fromEntries(mapDataCaches.resolutions),
   );
-  const [route, setRoute] = useState<ClientRoute | null>(null);
+  const [routeLegs, setRouteLegs] = useState<Array<ClientRoute | null>>([]);
   const [resolvingCount, setResolvingCount] = useState(0);
 
   useEffect(() => {
@@ -287,45 +300,96 @@ export function MapLeafletCanvas({
 
   useEffect(() => {
     if (routeStops.length < 2) {
-      queueMicrotask(() => setRoute(null));
+      queueMicrotask(() => setRouteLegs([]));
       onSummary(emptyRouteSummary);
-      return;
-    }
-
-    const cached = mapDataCaches.routes.get(currentRouteKey);
-    if (cached) {
-      queueMicrotask(() => setRoute(cached));
-      onSummary(routeSummary(cached));
+      onRouteDetails(emptyRouteDetails);
       return;
     }
 
     const controller = new AbortController();
-    const fallback = fallbackRoute(routeStops);
-    queueMicrotask(() => setRoute(null));
+    queueMicrotask(() => setRouteLegs([]));
 
-    fetchRouteWithCache(routeStops, mapDataCaches, { signal: controller.signal })
-      .then((orsRoute) => {
+    (async () => {
+      const legs: Array<ClientRoute | null> = [];
+      // Each consecutive pair is its own walking-route question, cached per
+      // pair. Same-building pairs are already collapsed out of routeStops.
+      for (let index = 0; index < routeStops.length - 1; index += 1) {
+        const from = routeStops[index];
+        const to = routeStops[index + 1];
+        const fetched = await fetchRouteWithCache([from, to], mapDataCaches, {
+          signal: controller.signal,
+        });
+
         if (controller.signal.aborted) {
           return; // superseded by a newer route request
         }
-        // A failure is never cached as a fallback — the next attempt for the
-        // same stop path retries the real routing service.
-        const next = orsRoute ?? fallback;
-        setRoute(next);
-        onSummary(routeSummary(next));
-      })
-      .catch(() => {
-        // Aborted or superseded: the newer request owns the UI.
-      });
+
+        legs.push(fetched);
+        setRouteLegs([...legs]);
+      }
+    })().catch(() => {
+      // Aborted or superseded: the newer request owns the UI. A failure is
+      // never cached as a fallback — the next attempt for the same pair
+      // retries the real routing service.
+    });
 
     return () => {
       controller.abort();
     };
-  }, [currentRouteKey, onSummary, routeStops]);
+  }, [currentRouteKey, onSummary, onRouteDetails, routeStops]);
+
+  const legDisplays = useMemo(
+    () =>
+      routeLegs.map((leg, index) =>
+        routeLegDisplay(leg, routeStops[index], routeStops[index + 1]),
+      ),
+    [routeLegs, routeStops],
+  );
+
+  const route = useMemo<ClientRoute | null>(() => {
+    if (routeStops.length < 2 || routeLegs.length === 0) {
+      return null;
+    }
+
+    const anyApproximate = routeLegs.some((leg) => !leg || leg.source === "fallback");
+    return {
+      positions: routeLegs.flatMap((leg, index) =>
+        legClientRoute(leg, routeStops[index], routeStops[index + 1]).positions,
+      ),
+      distanceMeters: routeLegs.reduce(
+        (total, leg, index) =>
+          total +
+          (leg?.distanceMeters ??
+            fallbackRoute([routeStops[index], routeStops[index + 1]]).distanceMeters),
+        0,
+      ),
+      durationSeconds: routeLegs.reduce(
+        (total, leg) => total + (leg?.source === "ors" ? leg.durationSeconds : 0),
+        0,
+      ),
+      source: anyApproximate ? "fallback" : "ors",
+    };
+  }, [routeLegs, routeStops]);
 
   useEffect(() => {
-    onRouteDetails(routeDetails(route, routeStops));
-  }, [onRouteDetails, route, routeStops]);
+    if (routeStops.length < 2 || routeLegs.length === 0 || !route) {
+      return; // the fetch effect owns the empty state
+    }
+
+    const anyApproximate = route.source === "fallback";
+    const allReal = routeLegs.every((leg) => leg?.source === "ors");
+    onSummary({
+      // Straight-line legs make the total a "~" estimate, and a total walking
+      // time is only claimable when every leg has a real answer.
+      distanceText: `${anyApproximate ? "~" : ""}${(route.distanceMeters / 1609.34).toFixed(2)} mi`,
+      durationText: allReal ? `${Math.round(route.durationSeconds / 60)} min` : "route unavailable",
+    });
+    onRouteDetails({
+      source: route.source,
+      isApproximate: anyApproximate,
+      legs: legDisplays,
+    });
+  }, [legDisplays, onRouteDetails, onSummary, route, routeLegs]);
 
   return (
     <div className="relative h-full min-h-[620px] overflow-hidden rounded-[1.45rem]">

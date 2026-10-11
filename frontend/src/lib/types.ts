@@ -134,11 +134,18 @@ export type MapRouteSummary = {
   durationText: string;
 };
 
+export type MapRouteLegState = "route" | "approximate" | "unavailable";
+
 export type MapRouteLegDisplay = {
   from: string;
   to: string;
   fromMeta: string;
   toMeta: string;
+  /** Honest answer state for this leg: real walking route, straight-line estimate, or no answer. */
+  state: MapRouteLegState;
+  source: "ors" | "fallback" | null;
+  distanceText: string | null;
+  durationText: string | null;
 };
 
 export type MapRouteDetails = {

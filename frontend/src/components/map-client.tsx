@@ -23,6 +23,14 @@ const emptyRouteDetails: MapRouteDetails = {
   legs: [],
 };
 
+const dayLongNames: Record<WeekDay, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+};
+
 const MapCanvas = dynamic(
   () => import("@/components/map-leaflet-canvas").then((module) => module.MapLeafletCanvas),
   {
@@ -46,7 +54,16 @@ export function MapClient() {
     () => routeStops[plannerState.activeDay] ?? [],
     [plannerState.activeDay, routeStops],
   );
-  const summaryDisplay = resolutionSummary.resolvedCount < 2 ? emptyRouteSummary : routeSummary;
+  const hasSameBuildingPair = useMemo(
+    () =>
+      stops.some(
+        (stop, index) =>
+          index > 0 &&
+          ((stop.buildingId && stop.buildingId === stops[index - 1].buildingId) ||
+            stop.location === stops[index - 1].location),
+      ),
+    [stops],
+  );
   const firstPopulatedDay = useMemo(
     () => weekDays.find((day) => (routeStops[day] ?? []).length > 0),
     [routeStops],
@@ -122,7 +139,24 @@ export function MapClient() {
               <p className="editorial-label" style={{ marginBottom: 8 }}>
                 Day
               </p>
-              <div className="day-tabs" role="tablist">
+              <div
+                className="day-tabs"
+                role="tablist"
+                aria-label="Planner days"
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+                    return;
+                  }
+                  event.preventDefault();
+                  const offset = event.key === "ArrowRight" ? 1 : -1;
+                  const currentIndex = weekDays.indexOf(plannerState.activeDay);
+                  const next =
+                    weekDays[(currentIndex + offset + weekDays.length) % weekDays.length];
+                  manualDaySelection.current = true;
+                  tabRefs.current[next]?.focus();
+                  setActiveDay(next);
+                }}
+              >
                 <span
                   className="day-tab__indicator"
                   style={{ transform: `translateX(${indicator.left - 4}px)`, width: indicator.width }}
@@ -133,6 +167,7 @@ export function MapClient() {
                     type="button"
                     role="tab"
                     aria-selected={plannerState.activeDay === day}
+                    tabIndex={plannerState.activeDay === day ? 0 : -1}
                     ref={(el) => {
                       tabRefs.current[day] = el;
                     }}
@@ -151,11 +186,32 @@ export function MapClient() {
 
             <section className="surface-card" style={{ padding: "0.85rem 0.95rem" }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                <StatusMark label={`${stops.length} stops`} tone="neutral" />
+                <StatusMark
+                  label={stops.length === 1 ? "1 stop" : `${stops.length} stops`}
+                  tone="neutral"
+                />
                 <StatusMark label={`${resolutionSummary.resolvedCount} mapped`} tone="completed" />
-                <StatusMark label={summaryDisplay.distanceText} tone="review" />
-                <StatusMark label={summaryDisplay.durationText} tone="completed" />
-                {routeDetails.source ? (
+                {stops.length >= 2 && resolutionSummary.resolvedCount >= 2 ? (
+                  <>
+                    <StatusMark
+                      label={
+                        routeSummary.distanceText === "-"
+                          ? "measuring route"
+                          : routeSummary.distanceText
+                      }
+                      tone="review"
+                    />
+                    <StatusMark
+                      label={
+                        routeSummary.durationText === "-"
+                          ? "measuring route"
+                          : routeSummary.durationText
+                      }
+                      tone="completed"
+                    />
+                  </>
+                ) : null}
+                {routeDetails.source && stops.length >= 2 ? (
                   <StatusMark
                     label={routeDetails.isApproximate ? "approximate" : "walking route"}
                     tone={routeDetails.isApproximate ? "review" : "completed"}
@@ -181,9 +237,21 @@ export function MapClient() {
                     borderRadius: "var(--r-md)",
                     fontSize: "0.85rem",
                     color: "var(--copy)",
+                    display: "grid",
+                    gap: 10,
+                    justifyItems: "start",
                   }}
                 >
-                  No classes scheduled on {plannerState.activeDay}.
+                  <span>No classes scheduled on {plannerState.activeDay}.</span>
+                  {firstPopulatedDay ? (
+                    <button
+                      className="btn-secondary"
+                      type="button"
+                      onClick={() => setActiveDay(firstPopulatedDay)}
+                    >
+                      Show {dayLongNames[firstPopulatedDay]}
+                    </button>
+                  ) : null}
                 </div>
               ) : (
                 <div style={{ display: "grid", gap: 8 }}>
@@ -198,12 +266,25 @@ export function MapClient() {
                           </p>
                         </div>
                         <StatusMark
-                          label={stop.resolutionStatus === "local" ? stop.shortName : "lookup"}
+                          label={
+                            stop.resolutionStatus === "local"
+                              ? stop.shortName
+                              : "outside mapped campus bounds"
+                          }
                           tone={stop.resolutionStatus === "local" ? "neutral" : "review"}
                         />
                       </article>
                     ))}
                   </StaggerGroup>
+                  {stops.length === 1 ? (
+                    <p className="stop-meta">No walking route needed for a single stop.</p>
+                  ) : null}
+                  {hasSameBuildingPair ? (
+                    <p className="stop-meta">
+                      Consecutive stops share the same building — the walking route skips that
+                      hop.
+                    </p>
+                  ) : null}
                   {routeDetails.legs.length > 0 ? (
                     <div className="route-leg-list" aria-label="Route legs">
                       {routeDetails.legs.map((leg, index) => (
@@ -215,6 +296,13 @@ export function MapClient() {
                             </p>
                             <p className="route-leg__meta">
                               {leg.fromMeta} | {leg.toMeta}
+                            </p>
+                            <p className="route-leg__meta" data-leg-state={leg.state}>
+                              {leg.state === "route"
+                                ? `${leg.distanceText} | ${leg.durationText}`
+                                : leg.state === "approximate"
+                                  ? `${leg.distanceText} | walking time unavailable`
+                                  : "walking route unavailable for this leg"}
                             </p>
                           </div>
                         </div>
