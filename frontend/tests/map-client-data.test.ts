@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  FALLBACK_ROUTE_TTL_MS,
   RESOLVE_FAILURE_TTL_MS,
   ROUTE_FAILURE_TTL_MS,
   createMapDataCaches,
@@ -339,6 +340,60 @@ describe("route cache semantics", () => {
     expect(fallback?.source).toBe("fallback");
     expect(fallbackCaches.routes.size).toBe(1);
     void calls;
+  });
+
+  test("a fallback answer upgrades to an ors answer after its TTL", async () => {
+    const caches = createMapCaches();
+    let nowMs = 5_000_000;
+    const now = () => nowMs;
+    const { fetchImpl, calls } = scriptedFetch((attempt) =>
+      jsonResponse(
+        attempt === 1
+          ? {
+              geometry: [
+                { lat: 33.2, lng: -97.11 },
+                { lat: 33.21, lng: -97.13 },
+              ],
+              distanceMeters: 1300,
+              durationSeconds: 0,
+              source: "fallback",
+            }
+          : {
+              geometry: [
+                { lat: 33.2, lng: -97.11 },
+                { lat: 33.205, lng: -97.12 },
+                { lat: 33.21, lng: -97.13 },
+              ],
+              distanceMeters: 1500,
+              durationSeconds: 1080,
+              source: "ors",
+            },
+      ),
+    );
+
+    // First answer is a server-said fallback and is cached.
+    const fallback = await fetchRouteWithCache(STOPS, caches, { fetchImpl, now });
+    expect(fallback?.source).toBe("fallback");
+    expect(caches.routes.size).toBe(1);
+
+    // Within the fallback TTL the cached estimate is served, not refetched.
+    nowMs += FALLBACK_ROUTE_TTL_MS - 1;
+    const stillFallback = await fetchRouteWithCache(STOPS, caches, { fetchImpl, now });
+    expect(stillFallback?.source).toBe("fallback");
+    expect(calls()).toBe(1);
+
+    // After the TTL the stale estimate no longer blocks the upgrade.
+    nowMs += 2;
+    const upgraded = await fetchRouteWithCache(STOPS, caches, { fetchImpl, now });
+    expect(calls()).toBe(2);
+    expect(upgraded?.source).toBe("ors");
+    expect(upgraded?.distanceMeters).toBe(1500);
+
+    // A real ors answer sticks for the rest of the session.
+    nowMs += 10 * FALLBACK_ROUTE_TTL_MS;
+    const sticky = await fetchRouteWithCache(STOPS, caches, { fetchImpl, now });
+    expect(sticky?.source).toBe("ors");
+    expect(calls()).toBe(2);
   });
 
   test("an aborted route request writes nothing into the caches", async () => {

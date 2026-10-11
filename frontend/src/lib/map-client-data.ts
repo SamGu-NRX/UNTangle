@@ -19,11 +19,21 @@ import type { MapResolvedLocation, MapStop } from "@/lib/types";
 export const RESOLVE_FAILURE_TTL_MS = 5_000;
 export const ROUTE_FAILURE_TTL_MS = 5_000;
 
+/**
+ * How long a server-said fallback (straight-line estimate) may keep serving a
+ * route path. Fallback answers are honest-but-degraded; caching them for the
+ * session would let a stale estimate outlive an ORS recovery, so they expire
+ * quickly and the next request can upgrade the path to a real answer.
+ */
+export const FALLBACK_ROUTE_TTL_MS = 60_000;
+
 export type ClientRoute = {
   positions: [number, number][];
   distanceMeters: number;
   durationSeconds: number;
   source: "ors" | "fallback";
+  /** Epoch ms recorded when the answer entered the cache. */
+  cachedAt?: number;
 };
 
 export type MapStopLocationKey = string;
@@ -272,6 +282,9 @@ export async function resolveStopsWithCache(
  * route, or null when routing is unavailable right now (the caller should use
  * its uncached fallback). Only server responses are cached — a client-side
  * fallback is computed fresh each time so an outage recovers on its own.
+ * ORS answers persist for the session; a server-said fallback answer is
+ * cached only for FALLBACK_ROUTE_TTL_MS so an ORS recovery upgrades the path
+ * instead of being blocked by a stale estimate.
  */
 export async function fetchRouteWithCache(
   stops: Array<{ lat: number; lng: number }>,
@@ -287,7 +300,16 @@ export async function fetchRouteWithCache(
 
   const cached = caches.routes.get(key);
   if (cached) {
-    return cached;
+    const fresh =
+      cached.source === "ors" || now() - (cached.cachedAt ?? now()) < FALLBACK_ROUTE_TTL_MS;
+
+    if (fresh) {
+      return cached;
+    }
+
+    // A stale fallback answer must not block the upgrade the next request
+    // can deliver; drop it and re-ask.
+    caches.routes.delete(key);
   }
 
   const failedAt = caches.routeFailures.get(key);
@@ -347,7 +369,7 @@ export async function fetchRouteWithCache(
       source,
     };
 
-    caches.routes.set(key, route);
+    caches.routes.set(key, { ...route, cachedAt: now() });
     caches.routeFailures.delete(key);
     return route;
   } catch (error) {
