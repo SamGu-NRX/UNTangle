@@ -4,6 +4,10 @@ import {
   type CandidateBundle,
 } from "../../../tools/catalog-ingest/lib/schema";
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- fixtures deliberately
+   build defective bundles (wrong value types, extra keys) before passing them
+   to validateBundle, so the mutation mirrors must stay loosely typed. */
+
 function validBundle(): CandidateBundle {
   return {
     term: {
