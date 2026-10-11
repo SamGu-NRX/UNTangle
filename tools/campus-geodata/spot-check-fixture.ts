@@ -38,3 +38,13 @@ const max = errors[errors.length - 1] ?? 0;
 console.log(`\n${measured.length}/${rows.length} pairs routed; median |error| ${median.toFixed(1)}%, max ${max.toFixed(1)}%`);
 const within = measured.filter((r) => Math.abs(r.errorPct!) <= 20).length;
 console.log(`pairs within 20%: ${within}/${measured.length}`);
+
+// Plan accuracy bars (median absolute error <= 10%, max <= 20%).
+const medianGate = median <= 10;
+const maxGate = max <= 20;
+console.log(
+  `accuracy gates (median |error| <= 10%: ${medianGate ? "ok" : "over"}; max <= 20%: ${maxGate ? "ok" : "over"}): ${medianGate && maxGate ? "PASS" : "FAIL"}`,
+);
+for (const r of measured.filter((r) => Math.abs(r.errorPct!) > 20)) {
+  console.log(`  over 20% bar: ${r.id} fixture ${r.fixture}m computed ${r.mine!.toFixed(1)}m error ${r.errorPct! >= 0 ? "+" : ""}${r.errorPct!.toFixed(1)}%`);
+}
