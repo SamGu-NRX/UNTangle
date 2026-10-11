@@ -68,6 +68,7 @@ export function NavShell({
           <nav
             style={{
               display: "flex",
+              flexWrap: "wrap",
               gap: 4,
               padding: 4,
               border: "1px solid var(--line)",

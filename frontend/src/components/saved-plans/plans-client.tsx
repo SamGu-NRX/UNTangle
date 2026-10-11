@@ -93,13 +93,19 @@ export function PlansClient() {
   }, [store, storeVersion]);
   const bumpLibrary = useCallback(() => setStoreVersion((version) => version + 1), []);
   const listState = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING_LIST);
+  // Availability is read through a store snapshot too: the server renders the
+  // storage-disabled state and React re-renders after hydration, so the banner
+  // never causes a hydration mismatch.
+  const storeAvailable = useSyncExternalStore(
+    noopSubscribe,
+    () => store.available,
+    () => false,
+  );
 
   const plans = listState.phase === "ready" ? listState.doc.plans : [];
   const activePlans = plans.filter((plan) => !plan.archivedAt);
   const archivedPlans = plans.filter((plan) => plan.archivedAt);
   const unreadable = listState.phase === "ready" ? listState.doc.unreadable : [];
-  const storeAvailable = store.available;
-
   const saveCurrent = () => {
     const saved = store.savePlan({
       state: planner.plannerState,

@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -30,8 +31,21 @@ export function Modal({
   closable?: boolean;
 }) {
   const [exiting, setExiting] = useState(false);
+  const titleId = useId();
   const triggerRef = useRef<HTMLElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  // Keep the last real title while the exit animation plays so the dialog
+  // stays programmatically named (and no empty heading renders) as it closes.
+  const [retainedTitle, setRetainedTitle] = useState<ReactNode>(undefined);
+  const [prevTitle, setPrevTitle] = useState(title);
+  if (prevTitle !== title) {
+    setPrevTitle(title);
+    if (title) {
+      setRetainedTitle(title);
+    }
+  }
+  const shownTitle = title || (exiting ? retainedTitle : undefined);
+  const hasTitle = Boolean(shownTitle);
   const mounted = open || exiting;
 
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,17 +122,18 @@ export function Modal({
         data-state={state}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={hasTitle ? titleId : undefined}
         style={{ maxWidth }}
       >
-        {title || closable ? (
+        {shownTitle || closable ? (
           <div className="modal-head">
             <div style={{ minWidth: 0 }}>
-              {typeof title === "string" ? (
-                <h2 className="font-display" style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--brand-900)" }}>
-                  {title}
+              {typeof shownTitle === "string" ? (
+                <h2 id={titleId} className="font-display" style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--brand-900)" }}>
+                  {shownTitle}
                 </h2>
               ) : (
-                title
+                shownTitle
               )}
             </div>
             {closable ? (
