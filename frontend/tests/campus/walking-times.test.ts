@@ -4,7 +4,11 @@ import {
   getWalkingSeconds,
   matrixBuildingIds,
   walkingSecondsBetween,
+  walkingTimeForResolvedPair,
 } from "@/lib/campus/walking-times";
+import { haversineMetersBetween } from "@/lib/campus/geo";
+import { WALKING_SPEED_MPS } from "@/lib/campus/speeds";
+import type { CampusBuilding } from "@/lib/types";
 import walkingTimesJson from "@/lib/campus/data/walking-times.json";
 
 // The matrix JSON is deeply typed by its literal contents; widen it so the
@@ -80,35 +84,61 @@ describe("getWalkingSeconds — matrix pairs", () => {
 });
 
 describe("getWalkingSeconds — straight-line branch", () => {
-  // NOT_RUN: unconnectable-but-registry building. The committed registry holds
-  // 32 buildings; the 3 off-campus ones are excluded from the matrix, and
-  // every on-campus registry building IS in the committed 29x29 matrix
-  // (build-matrix.ts hard-fails on an unroutable routable pair, and the
-  // precondition test above pins that). With the bundled data the
-  // straight-line branch is therefore unreachable through the public exports,
-  // the contract forbids adding exports beyond the three named ones, and
-  // process-wide module mocking would poison sibling test files that import
-  // the real matrix. The branch stays implemented (haversine registry-pin
-  // distance / 1.4 m/s base speed, rounded to 0.1 s) and unexercised against
-  // real data. Unskip when the registry gains an on-campus building that
-  // lacks a matrix entry.
-  test.skip(
-    "unconnectable on-campus registry pair -> straight-line estimate (NOT_RUN: no such building in the bundled data)",
-    () => {
-      // Expected contract once such a building exists (registry pins, 1.4 m/s,
-      // haversineMetersBetween from @/lib/campus/geo, WALKING_SPEED_MPS from
-      // @/lib/campus/speeds):
-      // const from = resolveCampusBuilding("<new-id>")!;
-      // const to = resolveCampusBuilding("life")!;
-      // expect(getWalkingSeconds("<new-id>", "life")).toEqual({
-      //   seconds: Number((haversineMetersBetween(from, to) / WALKING_SPEED_MPS).toFixed(1)),
-      //   source: "straight-line",
-      // });
-      throw new Error(
-        "NOT_RUN: no on-campus registry building is missing from the bundled matrix",
-      );
-    },
-  );
+  // Through getWalkingSeconds the straight-line branch is unreachable with
+  // the bundled data: the matrix build hard-fails on an unroutable pair, so
+  // every on-campus registry building is in the matrix (pinned by the
+  // precondition test above). Rather than process-wide module mocking — which
+  // would poison sibling test files that import the real matrix — these tests
+  // drive the branch through walkingTimeForResolvedPair, the internal
+  // decision getWalkingSeconds delegates to, with an injected matrix view.
+
+  // Synthetic on-campus registry entry standing in for "a registry entry
+  // added without a matrix rebuild": shaped like a registry building
+  // (on-campus, real pin inside untCampusBounds) but absent from the matrix.
+  const unconnected: CampusBuilding = {
+    id: "zz-unconnected",
+    name: "Synthetic Unconnected Hall",
+    shortName: "SYN",
+    lat: 33.2117,
+    lng: -97.1501,
+    aliases: ["zz-unconnected"],
+  };
+  const life = resolveCampusBuilding("life")!;
+
+  test("synthetic on-campus building absent from the matrix -> straight-line estimate", () => {
+    const wt = walkingTimeForResolvedPair(unconnected, life, {});
+    expect(wt.source).toBe("straight-line");
+    expect(wt.seconds).toBeCloseTo(haversineMetersBetween(unconnected, life) / WALKING_SPEED_MPS, 1);
+
+    const back = walkingTimeForResolvedPair(life, unconnected, {});
+    expect(back.source).toBe("straight-line");
+    expect(back.seconds).toBeCloseTo(
+      haversineMetersBetween(life, unconnected) / WALKING_SPEED_MPS,
+      1,
+    );
+  });
+
+  test("injected matrix missing a real registry pair -> straight-line estimate from the registry pins", () => {
+    const art = resolveCampusBuilding("art")!;
+    const wt = walkingTimeForResolvedPair(art, life, {});
+    expect(wt).toEqual({
+      seconds: Number((haversineMetersBetween(art, life) / WALKING_SPEED_MPS).toFixed(1)),
+      source: "straight-line",
+    });
+  });
+
+  test("the same seam still prefers a matrix hit when the injected matrix has the pair", () => {
+    // Injected views mirror the real matrix's shape: both directions present.
+    const injected = { "zz-unconnected": { life: 123 }, life: { "zz-unconnected": 123 } };
+    expect(walkingTimeForResolvedPair(unconnected, life, injected)).toEqual({
+      seconds: 123,
+      source: "campus-network",
+    });
+    expect(walkingTimeForResolvedPair(life, unconnected, injected)).toEqual({
+      seconds: 123,
+      source: "campus-network",
+    });
+  });
 });
 
 describe("getWalkingSeconds — off-campus registry buildings", () => {

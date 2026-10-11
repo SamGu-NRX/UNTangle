@@ -61,10 +61,17 @@ export function matrixBuildingIds(): string[] {
  * Same-building pairs return 0.
  */
 export function walkingSecondsBetween(fromBuildingId: string, toBuildingId: string): number | null {
-  const from = file.seconds[fromBuildingId.toLowerCase()];
-  if (!from) return null;
-  const seconds = from[toBuildingId.toLowerCase()];
-  return typeof seconds === "number" ? seconds : null;
+  return lookupMatrixSeconds(file.seconds, fromBuildingId, toBuildingId);
+}
+
+function lookupMatrixSeconds(
+  seconds: Record<string, Record<string, number>>,
+  fromId: string,
+  toId: string,
+): number | null {
+  const from = seconds[fromId.toLowerCase()];
+  const hit = from?.[toId.toLowerCase()];
+  return typeof hit === "number" ? hit : null;
 }
 
 /** Network walking distance (meters) between two matrix buildings; null rules as walkingSecondsBetween. */
@@ -108,18 +115,35 @@ export const getWalkingSeconds: WalkingTimeFn = (fromBuildingId, toBuildingId) =
   const to = resolveCampusBuilding(toBuildingId);
   if (!from || !to) return { seconds: null, source: "unknown" };
   if (from.isOffCampus || to.isOffCampus) return { seconds: null, source: "unknown" };
-  if (from.id === to.id) return { seconds: 0, source: "campus-network" };
 
-  const matrixSeconds = walkingSecondsBetween(from.id, to.id);
-  if (matrixSeconds !== null) return { seconds: matrixSeconds, source: "campus-network" };
+  return walkingTimeForResolvedPair(from, to, file.seconds);
+};
+
+/**
+ * Walking-time decision for two RESOLVED on-campus buildings over a given
+ * matrix view: same building, then the matrix, then the straight-line
+ * estimate. Internal seam for tests — tests inject a matrix in which a
+ * synthetic on-campus building is absent, exercising the straight-line branch
+ * (unreachable through the bundled data, where the matrix build hard-fails on
+ * an unroutable pair) without process-wide module mocking. Not part of the
+ * public contract; getWalkingSeconds delegates here with the real matrix.
+ */
+export function walkingTimeForResolvedPair(
+  from: CampusBuilding,
+  to: CampusBuilding,
+  matrixSeconds: Record<string, Record<string, number>>,
+): WalkingTime {
+  if (from.id === to.id) return { seconds: 0, source: "campus-network" };
 
   // On-campus pair absent from the matrix: the matrix build routes every
   // routable registry pair through the runtime's own router and hard-fails on
   // a missing route, so absence here means the graph cannot connect the pair
   // (e.g. a registry entry added without a matrix rebuild). Estimate
   // straight-line from the registry pins at the base speed.
+  const matrixHit = lookupMatrixSeconds(matrixSeconds, from.id, to.id);
+  if (matrixHit !== null) return { seconds: matrixHit, source: "campus-network" };
   return { seconds: straightLineSecondsBetween(from, to), source: "straight-line" };
-};
+}
 
 /** Straight-line estimate: haversine pin-to-pin at the base walking speed. */
 function straightLineSecondsBetween(from: CampusBuilding, to: CampusBuilding): number {
