@@ -1,5 +1,5 @@
 /**
- * src/lib/degree-requirements.ts
+ * src/lib/degree/degree-requirements.ts
  *
  * The degree-requirements model the /degree experience consumes. Data
  * originates from the published UNT catalog (ingested by

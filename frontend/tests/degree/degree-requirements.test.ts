@@ -17,7 +17,7 @@ import {
   evaluateNode,
   type DegreeRequirementNode,
   type DegreeRequirements,
-} from "../src/lib/degree-requirements";
+} from "../../src/lib/degree/degree-requirements";
 
 // Hours as used by the app catalog for the CS foundation (the planner's
 // seed-data carries these; the catalog page itself does not state hours on

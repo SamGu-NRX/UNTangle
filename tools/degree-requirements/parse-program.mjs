@@ -3,7 +3,7 @@
  *
  * Parses a Courseleaf/acalog program page (the shape served by
  * catalog.unt.edu) into the DegreeRequirements structure defined in
- * frontend/src/lib/degree-requirements.ts.
+ * frontend/src/lib/degree/degree-requirements.ts.
  *
  * Traceability contract:
  * - this module never fetches; it parses receipt-verified bytes only;

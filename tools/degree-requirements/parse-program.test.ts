@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { buildRequirements, parseCourseleafBlocks, parseDegreeMeta, parseProgramTitle } from "./parse-program.mjs";
-import { evaluateDegreeRequirements } from "../../frontend/src/lib/degree-requirements";
-import type { DegreeRequirements } from "../../frontend/src/lib/degree-requirements";
+import { evaluateDegreeRequirements } from "../../frontend/src/lib/degree/degree-requirements";
+import type { DegreeRequirements } from "../../frontend/src/lib/degree/degree-requirements";
 
 const fixture = readFileSync(new URL("./fixtures/cs-2023-24-archived.html", import.meta.url), "utf8");
 const html = fixture.slice(fixture.indexOf('<div class="acalog-core">'));
