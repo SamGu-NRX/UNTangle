@@ -2,7 +2,7 @@
   "reportVersion": 2,
   "toolVersion": 2,
   "rulesVersion": 2,
-  "sourceCommit": "24a798d053ebb76f2342fe298cd2c73effcfd283",
+  "sourceCommit": "8ea8c4d2f20951b703f4ec09202441508860147d",
   "inputs": [
     {
       "role": "generated-catalog",
@@ -272,7 +272,7 @@
     "sectionSource": {
       "bound": true,
       "path": "backend/data/compD.csv",
-      "submoduleCommit": null,
+      "submoduleCommit": "0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
       "rows": 2704,
       "sectionPairsMatched": 2704,
       "sectionPairsUnmatched": 0,
