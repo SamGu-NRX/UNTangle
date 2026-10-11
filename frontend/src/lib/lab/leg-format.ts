@@ -32,3 +32,22 @@ export function dayLegNotice(summary: DayLegSummary): string | null {
     ? "One leg is a straight-line estimate — the routing service could not provide a walking path."
     : `${summary.approximateLegs} legs are straight-line estimates — the routing service could not provide walking paths.`;
 }
+
+/** One-line honest description of a leg, used by the itinerary and sheet. */
+export function legLine(leg: LabLeg): string {
+  if (leg.status === "same-building") {
+    return "Same building — no walk needed";
+  }
+  if (leg.status === "unresolved") {
+    return "Location unresolved — no route shown";
+  }
+  const distance = formatMeters(leg.distanceMeters) + (leg.status === "approximate" ? " (approx.)" : "");
+  const time = leg.durationSeconds !== null ? " · " + formatWalkingMinutes(leg.durationSeconds) : " · no walking time";
+  const source =
+    leg.source === "ors"
+      ? "Route © OpenStreetMap contributors via ORS"
+      : leg.source === "campus-network"
+        ? "Campus walking network"
+        : "Straight-line estimate";
+  return distance + time + " · " + source;
+}

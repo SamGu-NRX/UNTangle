@@ -27,7 +27,7 @@ const PAD = 28;
 
 /** A static, source-honest sketch of the day's legs. No tiles, no panning — the
  * per-leg list below carries the detail; this shows shape and gaps. */
-export function LegMap({ legs }: { legs: LabLeg[] }) {
+export function LegMap({ legs, showLabels = false }: { legs: LabLeg[]; showLabels?: boolean }) {
   const segments = legs
     .filter((leg) => leg.status === "walking" || leg.status === "approximate")
     .map((leg) => ({ leg, points: positionsOf(leg) }));
@@ -67,6 +67,26 @@ export function LegMap({ legs }: { legs: LabLeg[] }) {
           />
         ) : null,
       )}
+      {showLabels &&
+        segments.map(({ leg, points }, index) => {
+          if (points.length < 2) return null;
+          const head = { name: leg.from.shortName, point: points[0] };
+          const tail = index === segments.length - 1 ? { name: leg.to.shortName, point: points[points.length - 1] } : null;
+          return [head, tail];
+        })
+          .flat()
+          .filter((entry): entry is { name: string; point: Point } => entry !== null)
+          .map((entry, index) => (
+            <text
+              key={"label-" + index}
+              className="lab-map__label"
+              x={px(entry.point.lng).toFixed(1)}
+              y={(py(entry.point.lat) - 9).toFixed(1)}
+              textAnchor="middle"
+            >
+              {entry.name}
+            </text>
+          ))}
       {dots.map((point, index) => (
         <circle
           key={"dot-" + index}

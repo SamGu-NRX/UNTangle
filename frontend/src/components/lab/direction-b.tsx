@@ -6,30 +6,14 @@ import { usePlanner } from "@/components/planner-provider";
 import { LabChrome } from "@/components/lab/lab-chrome";
 import { useDayLegs } from "@/components/lab/use-day-legs";
 import { LegMap } from "@/components/lab/leg-map";
-import { summarizeDayLegs, type LabLeg } from "@/lib/lab/leg-routing";
-import { dayLegNotice, formatMeters, formatWalkingMinutes, pickLongestLeg } from "@/lib/lab/leg-format";
-import { labPlannerState, labSectionMeetingSummary, labSectionOptions } from "@/lib/lab/lab-plans";
+import { summarizeDayLegs } from "@/lib/lab/leg-routing";
+import { dayLegNotice, formatMeters, formatWalkingMinutes, legLine, pickLongestLeg } from "@/lib/lab/leg-format";
+import { labPlannerState } from "@/lib/lab/lab-plans";
+import { LabStopCard } from "@/components/lab/stop-card";
 import type { WeekDay } from "@/lib/types";
 
 const DAYS: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
-function legLabel(leg: LabLeg): string {
-  if (leg.status === "same-building") {
-    return "Same building — no walk needed";
-  }
-  if (leg.status === "unresolved") {
-    return "Location unresolved — no route shown";
-  }
-  const distance = formatMeters(leg.distanceMeters) + (leg.status === "approximate" ? " (approx.)" : "");
-  const time = leg.durationSeconds !== null ? " · " + formatWalkingMinutes(leg.durationSeconds) : " · no walking time";
-  const source =
-    leg.source === "ors"
-      ? "Route © OpenStreetMap contributors via ORS"
-      : leg.source === "campus-network"
-        ? "Campus walking network"
-        : "Straight-line estimate";
-  return distance + time + " · " + source;
-}
 
 export function DirectionB() {
   useEffect(() => {
@@ -125,54 +109,17 @@ export function DirectionB() {
                   <li key={stop.courseCode + "-" + index} className="lab-itin__item">
                     {leg && (
                       <div className={"lab-itin__leg lab-itin__leg--" + leg.status}>
-                        <span aria-label={"Walk to the next class"}>{legLabel(leg)}</span>
+                        <span aria-label={"Walk to the next class"}>{legLine(leg)}</span>
                       </div>
                     )}
-                    <article className="lab-itin__card" aria-label={stop.courseCode + " at " + stop.start}>
-                      <header className="lab-itin__cardhead">
-                        <h3 className="font-display">
-                          {stop.courseCode} · {stop.shortName}
-                        </h3>
-                        <span className="lab-itin__time">
-                          {stop.start}–{stop.end}
-                        </span>
-                      </header>
-                      <p className="lab-itin__where">{stop.buildingName}</p>
-                      <div className="lab-itin__badges">
-                        {conflicts > 0 && (
-                          <span className="lab-badge lab-badge--conflict">
-                            Overlaps {conflicts} {conflicts === 1 ? "class" : "classes"}
-                          </span>
-                        )}
-                        {isLocked(stop.courseCode) && <span className="lab-badge">Prerequisite locked</span>}
-                      </div>
-                      <details className="lab-itin__sections">
-                        <summary>Sections</summary>
-                        <ul role="list">
-                          {labSectionOptions(plannerState, stop.courseCode).map((option) => (
-                            <li key={option.sectionId}>
-                              <button
-                                type="button"
-                                className="lab-itin__section"
-                                aria-pressed={option.sectionId === current}
-                                onClick={() => setSection(stop.courseCode, option.sectionId)}
-                              >
-                                <span>
-                                  {option.sectionId} · {labSectionMeetingSummary(stop.courseCode, option.sectionId)}
-                                </span>
-                                <span className="lab-itin__sectionnote">
-                                  {option.sectionId === current
-                                    ? "current"
-                                    : option.conflictCount > 0
-                                      ? option.conflictCount + " " + (option.conflictCount === 1 ? "conflict" : "conflicts")
-                                      : "no conflicts"}
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    </article>
+                    <LabStopCard
+                        state={plannerState}
+                        stop={stop}
+                        conflicts={conflicts}
+                        currentSectionId={current}
+                        onSectionChange={setSection}
+                        isLocked={isLocked(stop.courseCode)}
+                      />
                   </li>
                 );
               })}
