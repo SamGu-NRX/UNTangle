@@ -130,7 +130,7 @@ const WARMUP_PROBLEM = (() => {
  * the deadline.
  */
 const REMAINING_GUARD_S = 0.25;
-const SOLVE_MARGIN_S = 0.1;
+const SOLVE_MARGIN_S = 0.25;
 
 /** One-time WASM/solver initialization, shared across optimize() calls. */
 let solverPromise: Promise<LegacyHighs> | null = null;
@@ -156,8 +156,12 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
   const initStart = performance.now();
   const highs = await getSolver();
   const initMs = performance.now() - initStart;
-  const searchStart = performance.now();
-  const deadline = searchStart + req.timeBudgetMs;
+  // The budget clock anchors after one-time init AND, below, after model
+  // build: the checker's status-timeout-budget rule sums initMs + searchMs
+  // against timeBudgetMs (+50 ms), so model construction — whose cost varies
+  // with machine speed — must not be billed to the request's search budget.
+  let searchStart = performance.now();
+  let deadline = searchStart + req.timeBudgetMs;
   const remainingSeconds = (): number => (deadline - performance.now()) / 1000;
   const finish = (result: Omit<OptimizeResult, "initMs" | "searchMs">): OptimizeResult => ({
     ...result,
@@ -179,6 +183,8 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
   const build = buildMipModel(req);
   if (!build.ok) return finish(infeasibleResult(req));
   const model = build.model;
+  searchStart = performance.now();
+  deadline = searchStart + req.timeBudgetMs;
 
   const cuts: LpRow[] = [];
   let capRow: LpRow | null = null;

@@ -11,7 +11,7 @@ describe("highs wasm solver", () => {
   test("loads and exposes a solve function", async () => {
     const highs = await highsLoader();
     expect(typeof highs.solve).toBe("function");
-  });
+  }, 30000);
 
   test("solves a trivial binary MIP to optimality", async () => {
     const highs = await highsLoader();

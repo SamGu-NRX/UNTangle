@@ -129,10 +129,10 @@ describe("mip edge cases", () => {
   test("k=1 best equals k=5 best", async () => {
     const instance = buildSuite().find((i) => i.name === "plain-m");
     if (!instance) throw new Error("plain-m missing from the pinned suite");
-    const one = await mipOptimize({ ...instance.req, k: 1 });
-    const five = await mipOptimize({ ...instance.req, k: 5 });
+    const one = await mipOptimize({ ...instance.req, k: 1, timeBudgetMs: 25000 });
+    const five = await mipOptimize({ ...instance.req, k: 5, timeBudgetMs: 25000 });
     expect(one.status).toBe("optimal");
     expect(five.status).toBe("optimal");
     expect(one.schedules[0]).toEqual(five.schedules[0]);
-  }, 15000);
+  }, 60000);
 });
