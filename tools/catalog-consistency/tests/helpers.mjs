@@ -209,14 +209,17 @@ export function expectedCleanProvenance() {
     path: "backend/data/compD.csv",
     submoduleCommit: null,
     rows: 2,
-    sectionPairsMatched: 2,
-    sectionPairsUnmatched: 0,
+    sectionsMatchedToRows: 2,
+    sectionsUnmatchedToRows: 0,
+    rowsMatchedToSections: 2,
+    rowsUnmatchedToSections: 0,
     meetingsFromDayPatterns: 4,
     sectionsMeetingsAgree: 2,
     sectionsMeetingsDisagree: 0,
     buildingShortCodes: 2,
     buildingCodesInBundle: 2,
     termColumns: [],
+    lattice: { ok: true, coursesChecked: 1, violations: 0, firstFailingCourse: null },
     assessment: ASSESSMENT_BOUND,
   };
 }
@@ -327,15 +330,19 @@ export function expectedNegativeProvenance() {
     path: "backend/data/compD.csv",
     submoduleCommit: null,
     rows: 2,
-    sectionPairsMatched: 3,
-    sectionPairsUnmatched: 3,
+    sectionsMatchedToRows: 3,
+    sectionsUnmatchedToRows: 3,
+    rowsMatchedToSections: 2,
+    rowsUnmatchedToSections: 0,
     meetingsFromDayPatterns: 6,
     sectionsMeetingsAgree: 2,
     sectionsMeetingsDisagree: 1,
     buildingShortCodes: 2,
     buildingCodesInBundle: 2,
     termColumns: [],
-    assessment: ASSESSMENT_BOUND,
+    lattice: { ok: false, coursesChecked: 3, violations: 1, firstFailingCourse: "GHOST1010" },
+    assessment:
+      "premises unmet — sections unmatched to compD rows: 3, compD rows unmatched to sections: 0, term/semester/session/year columns present: 0, section-number lattice violations: 1 courses (first: GHOST1010) — sections cannot be certified fully derived from compD.csv; no data repaired",
   };
 }
 
@@ -362,3 +369,4 @@ export function writeTree(root, { seedData, majors, corpusFiles = {}, compdCsv =
   }
   return root;
 }
+

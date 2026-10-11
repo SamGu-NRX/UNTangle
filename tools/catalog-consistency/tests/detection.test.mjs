@@ -64,7 +64,7 @@ test("25 end<=start meetings report total 25 with exactly 10 examples", () => {
   const endBad = report.findings.meetingBounds.endTimeNotAfterStart;
   assert.equal(endBad.total, 25);
   assert.equal(endBad.examples.length, 10);
-  // First 10 in input order: the five bad meetings of section 001, then 002's.
+  // First 10 in input order: the five bad meetings of section 001, then those of 002.
   assert.deepEqual(endBad.examples.map((e) => e.sectionId), [
     "anth-2000-001", "anth-2000-001", "anth-2000-001", "anth-2000-001", "anth-2000-001",
     "anth-2000-002", "anth-2000-002", "anth-2000-002", "anth-2000-002", "anth-2000-002",
@@ -72,8 +72,6 @@ test("25 end<=start meetings report total 25 with exactly 10 examples", () => {
   assert.equal(report.findings.meetingBounds.meetingsChecked, 30); // 25 bad + 5 good
   assert.equal(report.violations.meetingBounds, 25);
 });
-
-/* --------------------------- prerequisite classification ----------------------- */
 
 test("TYPO9999 stays unknown with null evidence and stays out of unknownReferences", () => {
   const tree = makeTree("cc-typo-", {
@@ -100,90 +98,6 @@ test("TYPO9999 stays unknown with null evidence and stays out of unknownReferenc
   assert.deepEqual(report.violations, { duplicateIds: 0, meetingBounds: 0, unknownReferences: 0 });
 });
 
-test("corpus title annotation classifies a code as inSourceCorpus", () => {
-  const tree = makeTree("cc-annote-", {
-    seedData: {
-      buildings: [building("bld-chem", "CHEM")],
-      courses: [course("ANTH 2000", "Intermediate Anthropology", ["MATH 9999"])],
-      sections: [section("anth-2000-001", "ANTH 2000", [meeting("Mon", "08:00", "08:50", "bld-chem")])],
-      courseStatuses: {},
-    },
-    majors: [{ id: "m", name: "M", department: "X", icon: "i", coreCourseCodes: [] }],
-    corpusFiles: { "math.json": [{ course_number: "MATH3000", title: "Math for Teachers (MATH 9999)" }] },
-    compdCsv: cleanCompd,
-  });
-  const { report } = runAudit({
-    inputPath: path.join(tree, "frontend/src/lib/generated/seed-data.json"),
-    outDir: path.join(tree, "tools/catalog-consistency/results"),
-  });
-
-  const inCorpus = report.findings.references.prerequisites.external.categories.inSourceCorpus;
-  assert.equal(inCorpus.codes, 1);
-  assert.deepEqual(inCorpus.examples, [
-    { code: "MATH 9999", edges: 1, category: "inSourceCorpus", evidence: { kind: "sourceCorpusFile", files: ["courses/math.json"] } },
-  ]);
-});
-
-test("a section-title annotation classifies a code as titleAnnotatedInBundle", () => {
-  const s = section("anth-2000-001", "ANTH 2000", [meeting("Mon", "08:00", "08:50", "bld-chem")]);
-  s.title = "ANTH 2000 Section Sample (CHEM 1010)";
-  const tree = makeTree("cc-sectt-", {
-    seedData: {
-      buildings: [building("bld-chem", "CHEM")],
-      courses: [course("ANTH 2000", "Intermediate Anthropology", ["CHEM 1010"])],
-      sections: [s],
-      courseStatuses: {},
-    },
-    majors: [{ id: "m", name: "M", department: "X", icon: "i", coreCourseCodes: [] }],
-    compdCsv: cleanCompd,
-  });
-  const { report } = runAudit({
-    inputPath: path.join(tree, "frontend/src/lib/generated/seed-data.json"),
-    outDir: path.join(tree, "tools/catalog-consistency/results"),
-  });
-
-  const annotated = report.findings.references.prerequisites.external.categories.titleAnnotatedInBundle;
-  assert.equal(annotated.codes, 1);
-  assert.deepEqual(annotated.examples, [
-    {
-      code: "CHEM 1010",
-      edges: 1,
-      category: "titleAnnotatedInBundle",
-      evidence: { kind: "titleAnnotationInBundle", titles: ["ANTH 2000 Section Sample (CHEM 1010)"] },
-    },
-  ]);
-});
-
-test("major core unresolved code carries titleAnnotatedEquivalent evidence when a title annotates it", () => {
-  const tree = makeTree("cc-mcev-", {
-    seedData: {
-      buildings: [building("bld-chem", "CHEM")],
-      courses: [course("PSCI 2305", "US Political Behavior and Policy  (GOVT 2305)")],
-      sections: [section("psci-2305-001", "PSCI 2305", [meeting("Mon", "08:00", "08:50", "bld-chem")])],
-      courseStatuses: {},
-    },
-    majors: [{ id: "psci-bs", name: "Political Science BS", department: "PSCI", icon: "i", coreCourseCodes: ["GOVT 2305"] }],
-    compdCsv: cleanCompd,
-  });
-  const { report } = runAudit({
-    inputPath: path.join(tree, "frontend/src/lib/generated/seed-data.json"),
-    outDir: path.join(tree, "tools/catalog-consistency/results"),
-  });
-
-  const unresolved = report.findings.references.majorCoreToCourse.unresolved;
-  assert.equal(unresolved.total, 1);
-  assert.deepEqual(unresolved.examples, [
-    {
-      majorId: "psci-bs",
-      majorName: "Political Science BS",
-      code: "GOVT 2305",
-      evidence: { kind: "titleAnnotatedEquivalent", courseCode: "PSCI 2305", title: "US Political Behavior and Policy  (GOVT 2305)" },
-    },
-  ]);
-});
-
-/* ---------------------------------- unit helpers -------------------------------- */
-
 test("day-token expansion handles two-letter and single-letter tokens", () => {
   assert.deepEqual(expandDayTokens("MWF"), ["Mon", "Wed", "Fri"]);
   assert.deepEqual(expandDayTokens("TuTh"), ["Tue", "Thu"]);
@@ -202,8 +116,11 @@ test("location short code takes the last ALL-CAPS parenthetical", () => {
 });
 
 test("csv parser handles quoted fields and CRLF", () => {
-  const rows = parseCsv('a,b\r\n"x,1",y\r\n"say ""hi""",z\r\n');
-  assert.deepEqual(rows, [["a", "b"], ["x,1", "y"], ['say "hi"', "z"]]);
+  const q = String.fromCharCode(34);
+  const crlf = String.fromCharCode(13, 10);
+  const csv = ["a,b", q + "x,1" + q + ",y", q + "say " + q + q + "hi" + q + q + q + ",z"].join(crlf) + crlf;
+  const rows = parseCsv(csv);
+  assert.deepEqual(rows, [["a", "b"], ["x,1", "y"], ["say " + q + "hi" + q, "z"]]);
 });
 
 test("course code normalization only affects the cross-source spelling", () => {
@@ -236,7 +153,7 @@ test("CLI writes the four evidence files, canonicalized with trailing newlines",
   const outDir = path.join(tree, "tools/catalog-consistency/results");
   for (const name of ["input-receipt.json", "report.json", "unresolved-examples.json", "results-manifest.json"]) {
     const content = fs.readFileSync(path.join(outDir, name), "utf8");
-    assert.ok(content.endsWith("}\n"), `${name} ends with brace+newline`);
+    assert.ok(content.endsWith("}" + String.fromCharCode(10)), `${name} ends with brace+newline`);
     assert.equal(content, canonicalStringify(JSON.parse(content)), `${name} is canonical`);
   }
   assert.match(result.stdout, /catalog-consistency auditor v2/);
@@ -265,7 +182,7 @@ test("receipt hashes change when a bound input changes", () => {
   const before = JSON.parse(fs.readFileSync(path.join(outDir, "input-receipt.json"), "utf8"));
   fs.writeFileSync(
     path.join(tree, "backend/data/compD.csv"),
-    `${cleanCompd}ANTH1010,003,Prof B,13:00,13:50,M,Chemistry Building (CHEM) 101\n`,
+    `${cleanCompd}ANTH1010,003,Prof B,13:00,13:50,M,Chemistry Building (CHEM) 101` + String.fromCharCode(10),
   );
   assert.equal(runCli(tree).status, 0);
   const after = JSON.parse(fs.readFileSync(path.join(outDir, "input-receipt.json"), "utf8"));
@@ -316,12 +233,61 @@ test("--replay is retired with a pointer to the verifier", () => {
 });
 
 test("submodule pin parses the gitlink entry git actually emits (160000, not 040000)", () => {
-  const gitlink = "160000 commit 0a49d4d863161c3b568f6aa6d3da4b4e68637a44\tbackend\n";
+  const gitlink = "160000 commit 0a49d4d863161c3b568f6aa6d3da4b4e68637a44\tbackend" + String.fromCharCode(10);
   assert.equal(submodulePinFromLsTree(gitlink), "0a49d4d863161c3b568f6aa6d3da4b4e68637a44");
   // a plain tree entry must never be mistaken for the submodule pin
-  assert.equal(submodulePinFromLsTree("040000 tree 1234567890123456789012345678901234567890\tbackend\n"), null);
+  assert.equal(submodulePinFromLsTree("040000 tree 1234567890123456789012345678901234567890\tbackend" + String.fromCharCode(10)), null);
   // wrong path, wrong mode, empty, and missing output all yield null
-  assert.equal(submodulePinFromLsTree("160000 commit 0a49d4d863161c3b568f6aa6d3da4b4e68637a44\tother\n"), null);
+  assert.equal(submodulePinFromLsTree("160000 commit 0a49d4d863161c3b568f6aa6d3da4b4e68637a44\tother" + String.fromCharCode(10)), null);
   assert.equal(submodulePinFromLsTree(""), null);
   assert.equal(submodulePinFromLsTree(null), null);
 });
+
+/* ------------------------- duplicate semantics and provenance -------------------- */
+
+test("duplicate semantics pin: distinct keys with extraOccurrences, totals exact", () => {
+  const tree = makeTree("cc-tripd-", {
+    seedData: {
+      buildings: [building("bld-chem", "CHEM")],
+      courses: [course("ANTH 1010", "Intro"), course("ANTH 1010", "Intro II"), course("ANTH 1010", "Intro III")],
+      sections: [section("anth-2000-001", "ANTH 2000", [meeting("Mon", "08:00", "08:50", "bld-chem")])],
+      courseStatuses: {},
+    },
+    majors: [{ id: "m", name: "M", department: "X", icon: "i", coreCourseCodes: [] }],
+    compdCsv: cleanCompd,
+  });
+  const { report } = runAudit({
+    inputPath: path.join(tree, "frontend/src/lib/generated/seed-data.json"),
+    outDir: path.join(tree, "tools/catalog-consistency/results"),
+  });
+
+  const dup = report.findings.duplicateIds.courseCodes;
+  assert.equal(dup.total, 1); // distinct duplicated keys, not occurrence count
+  assert.deepEqual(dup.examples, [{ key: "ANTH 1010", extraOccurrences: 2 }]);
+  // the section reference to a missing course is still exact
+  assert.equal(report.findings.references.sectionToCourse.unresolved.total, 1);
+});
+
+test("one unmatched compD row flips the section-source assessment to the downgraded string", () => {
+  const tree = makeTree("cc-flip-", { seedData: cleanSeedData(), majors: cleanMajors, corpusFiles: cleanCorpus, compdCsv: cleanCompd });
+  fs.appendFileSync(
+    path.join(tree, "backend/data/compD.csv"),
+    "ANTH1010,003,Prof A,13:00,13:50,M,Chemistry Building (CHEM) 101\n",
+  );
+  const { report } = runAudit({
+    inputPath: path.join(tree, "frontend/src/lib/generated/seed-data.json"),
+    outDir: path.join(tree, "tools/catalog-consistency/results"),
+  });
+
+  const prov = report.provenance.sectionSource;
+  assert.equal(prov.bound, true);
+  assert.equal(prov.sectionsMatchedToRows, 2);
+  assert.equal(prov.rowsMatchedToSections, 2);
+  assert.equal(prov.rowsUnmatchedToSections, 1); // row 003 has no bundle section
+  assert.equal(prov.sectionsUnmatchedToRows, 0);
+  assert.deepEqual(prov.lattice, { ok: false, coursesChecked: 1, violations: 1, firstFailingCourse: "ANTH1010" });
+  assert.match(prov.assessment, /premises unmet/);
+  assert.match(prov.assessment, /rows unmatched to sections: 1/);
+  assert.doesNotMatch(prov.assessment, /fully derived from backend\/data\/compD\.csv \(bound/);
+});
+

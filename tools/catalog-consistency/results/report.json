@@ -2,7 +2,7 @@
   "reportVersion": 2,
   "toolVersion": 2,
   "rulesVersion": 2,
-  "sourceCommit": "6d78374ec0e237a622955938326fa289b0144dda",
+  "sourceCommit": "620b05ee3a4c9536081c4dcfc57aab3aae97e2de",
   "inputs": [
     {
       "role": "generated-catalog",
@@ -252,9 +252,9 @@
     {
       "role": "section-source",
       "path": "backend/data/compD.csv",
-      "sha256": "c81759456a874fd0995a9a28d7b55775728e45781c84531872e05fa5e7ce2383",
-      "bytes": 201156,
-      "present": true
+      "sha256": null,
+      "bytes": 0,
+      "present": false
     }
   ],
   "counts": {
@@ -266,23 +266,31 @@
     "sectionMeetings": 5984,
     "prerequisiteEdges": 879,
     "corpusFiles": 29,
-    "compDRows": 2704
+    "compDRows": 0
   },
   "provenance": {
     "sectionSource": {
-      "bound": true,
+      "bound": false,
       "path": "backend/data/compD.csv",
       "submoduleCommit": "0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
-      "rows": 2704,
-      "sectionPairsMatched": 2704,
-      "sectionPairsUnmatched": 0,
-      "meetingsFromDayPatterns": 5984,
-      "sectionsMeetingsAgree": 2704,
+      "rows": 0,
+      "sectionsMatchedToRows": 0,
+      "sectionsUnmatchedToRows": 0,
+      "rowsMatchedToSections": 0,
+      "rowsUnmatchedToSections": 0,
+      "meetingsFromDayPatterns": 0,
+      "sectionsMeetingsAgree": 0,
       "sectionsMeetingsDisagree": 0,
-      "buildingShortCodes": 15,
-      "buildingCodesInBundle": 15,
+      "buildingShortCodes": 0,
+      "buildingCodesInBundle": 0,
       "termColumns": [],
-      "assessment": "the committed sections and their meetings are fully derived from backend/data/compD.csv (bound in the receipt); compD.csv carries no term/semester/session/year column and its section-number lattice (every course carries section 001 and 002, with additional section numbers appearing in exact count pairs) is characteristic of generated rather than recorded offerings — treated as synthetic/generated, not a real-term export; no data repaired"
+      "lattice": {
+        "ok": false,
+        "coursesChecked": 0,
+        "violations": 0,
+        "firstFailingCourse": null
+      },
+      "assessment": "section source not available — backend/data/compD.csv absent; provenance not established"
     }
   },
   "violations": {

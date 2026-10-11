@@ -19,13 +19,16 @@
  *  - The receipt binds: the generated catalog, the majors TS source, all
  *    rule-freeze sources, every corpus file (plus an aggregate digest), and
  *    the section source backend/data/compD.csv with its submodule pin.
- *  - A provenance block cross-matches sections to the bound compD.csv and
- *    reports the section source as a finding (synthetic/generated evidence),
- *    not as a repaired fact.
+ *  - A provenance block cross-matches every bundle section to the bound
+ *    compD.csv AND every compD row back to a bundle section (building-aware
+ *    on both directions, unmatched rows reported on both sides), and derives
+ *    the section-source assessment from stated premises (all sections
+ *    matched, no term column, the section-number lattice) — it reports the
+ *    section source as a finding (synthetic/generated evidence), not as a
+ *    repaired fact.
  *  - Independent verification is done by verify.mjs (same directory), which
  *    re-derives everything from the receipt-bound raw inputs. This program
- *    no longer supports --replay; verification of stored bytes is the
- *    verifier's job.
+ *    no longer supports --replay; byte-level verification belongs to verify.mjs.
  *
  * Semantics are specified in tools/catalog-consistency/RULES.md (v2) and the
  * format contract in tools/catalog-consistency/FORMAT-v2.md. Both producer
@@ -96,7 +99,7 @@ export function titleAnnotations(title) {
   return out;
 }
 
-/* --------------------------------- majors source ------------------------------ */
+/* ------------------------------- majors source ------------------------------ */
 
 /**
  * The majors records live in committed TypeScript (seed-data.ts) as a plain
@@ -107,11 +110,11 @@ export function parseMajorsFromTs(text) {
   const declMarker = "export const majors: Major[] = ";
   const decl = text.indexOf(declMarker);
   if (decl < 0) return null;
-  // First bracket AFTER the declaration is the literal's — `Major[]` sits inside the marker.
+  // First bracket AFTER the declaration is the literal opening — Major[] sits inside the marker.
   const start = text.indexOf("[", decl + declMarker.length);
   if (start < 0) return null;
   if (text.startsWith("[]", start)) return [];
-  const end = text.indexOf("];", start); // first `];` is the literal's closer — stringify emits no semicolons
+  const end = text.indexOf("];", start); // first ]; is the literal closer — stringify emits no semicolons
   if (end < 0) return null;
   const literal = text.slice(start, end + 1); // includes the closing ]
   const majors = new Function(`return (${literal});`)();
@@ -331,7 +334,7 @@ function prerequisiteFindings(courses, corpusCodes, bundleAnnotations) {
   const courseCodes = new Set((courses ?? []).map((c) => c?.code));
   let edgesTotal = 0;
   let internalEdges = 0;
-  const external = new Map(); // code -> edge count
+  const external = new Map(); // raw code -> edge count
   for (const course of courses ?? []) {
     for (const prereq of course?.prerequisites ?? []) {
       edgesTotal++;
@@ -397,9 +400,9 @@ export function parseCsv(text) {
   while (i < text.length) {
     const ch = text[i];
     if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
+      if (ch === "\"") {
+        if (text[i + 1] === "\"") {
+          field += "\"";
           i += 2;
           continue;
         }
@@ -411,7 +414,7 @@ export function parseCsv(text) {
       i++;
       continue;
     }
-    if (ch === '"') {
+    if (ch === "\"") {
       inQuotes = true;
       i++;
       continue;
@@ -512,9 +515,50 @@ export function readCompd(compdAbsPath) {
 }
 
 /**
- * Cross-match committed sections against the bound compD.csv.
- * See FORMAT-v2.md §5 for the exact semantics; this implements them
- * independently of any verification logic.
+ * The section-number lattice premise (P4): every course — by normalized
+ * course key, across BOTH the bundle sections and the compD rows — carries
+ * section numbers 1 and 2, and any section numbers beyond {1, 2} occur as
+ * consecutive pairs (e.g. 3&4 or 501&502). This is the generator-shaped
+ * numbering the strong assessment describes; a course violating it fails
+ * the premise and downgrades the assessment.
+ */
+export function sectionLattice(courseNumbers) {
+  const courses = [...courseNumbers.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  let violations = 0;
+  let firstFailingCourse = null;
+  for (const [course, numbers] of courses) {
+    const distinct = [...new Set([...numbers].map((n) => (/^\d+$/.test(n) ? Number(n) : NaN)).filter((n) => Number.isInteger(n)))].sort(
+      (a, b) => a - b,
+    );
+    let ok = distinct.length >= 2 && distinct[0] === 1 && distinct[1] === 2;
+    if (ok) {
+      const extras = distinct.slice(2);
+      if (extras.length % 2 !== 0) ok = false;
+      else for (let i = 0; i < extras.length; i += 2) if (extras[i + 1] !== extras[i] + 1) { ok = false; break; }
+    }
+    if (!ok) {
+      violations++;
+      if (firstFailingCourse == null) firstFailingCourse = course;
+    }
+  }
+  return { ok: violations === 0 && courses.length > 0, coursesChecked: courses.length, violations, firstFailingCourse };
+}
+
+/**
+ * Deterministic downgraded assessment: rendered whenever any provenance
+ * premise fails. The producer, the verifier, and the hand-computed test
+ * literals all render this exact template from their own counters.
+ */
+export function downgradedAssessment({ sectionsUnmatched, rowsUnmatched, termColumnCount, lattice }) {
+  return `premises unmet — sections unmatched to compD rows: ${sectionsUnmatched}, compD rows unmatched to sections: ${rowsUnmatched}, term/semester/session/year columns present: ${termColumnCount}, section-number lattice violations: ${lattice.violations} courses (first: ${lattice.firstFailingCourse}) — sections cannot be certified fully derived from compD.csv; no data repaired`;
+}
+
+/**
+ * Cross-match committed sections against the bound compD.csv — in BOTH
+ * directions: every bundle section must match a compD row, and every compD
+ * row must match back to a bundle section. Meeting comparison includes the
+ * building short code resolved to the bundle building id. The assessment is
+ * a conclusion COMPUTED from the stated premises, never a constant.
  */
 export function computeProvenance({ data, sectionSourceRecordPath, compdAbsPath, submoduleCommit }) {
   const unbound = () => ({
@@ -522,14 +566,17 @@ export function computeProvenance({ data, sectionSourceRecordPath, compdAbsPath,
     path: sectionSourceRecordPath,
     submoduleCommit: submoduleCommit ?? null,
     rows: 0,
-    sectionPairsMatched: 0,
-    sectionPairsUnmatched: 0,
+    sectionsMatchedToRows: 0,
+    sectionsUnmatchedToRows: 0,
+    rowsMatchedToSections: 0,
+    rowsUnmatchedToSections: 0,
     meetingsFromDayPatterns: 0,
     sectionsMeetingsAgree: 0,
     sectionsMeetingsDisagree: 0,
     buildingShortCodes: 0,
     buildingCodesInBundle: 0,
     termColumns: [],
+    lattice: { ok: false, coursesChecked: 0, violations: 0, firstFailingCourse: null },
     assessment: ASSESSMENT_UNBOUND,
   });
 
@@ -537,6 +584,7 @@ export function computeProvenance({ data, sectionSourceRecordPath, compdAbsPath,
   if (!compd.present) return unbound();
 
   const shortToId = new Map((data.buildings ?? []).map((b) => [b?.shortName, b?.id]));
+
   const rowsBySection = new Map();
   for (const row of compd.rows) {
     const key = `${stripSpaces(normalizeCourseCode(row.courseNumber ?? ""))}|${row.sectionNumber}`;
@@ -544,29 +592,38 @@ export function computeProvenance({ data, sectionSourceRecordPath, compdAbsPath,
     list.push(row);
     rowsBySection.set(key, list);
   }
+  // First bundle section per pair key, for the reverse (row -> section) direction.
+  const sectionsByPair = new Map();
+  for (const section of data.sections ?? []) {
+    const id = typeof section?.id === "string" ? section.id : "";
+    const secNo = id.slice(id.lastIndexOf("-") + 1);
+    const key = `${stripSpaces(section?.courseCode ?? "")}|${secNo}`;
+    if (!sectionsByPair.has(key)) sectionsByPair.set(key, section);
+  }
 
+  // Building short codes are a census over ALL compD rows, matched or not.
   const shortCodes = new Set();
   for (const row of compd.rows) {
     const code = locationShortCode(row.location);
     if (code != null) shortCodes.add(code);
   }
 
-  let matched = 0;
-  let unmatched = 0;
+  // Direction 1: every bundle section must match a compD row.
+  let sectionsMatched = 0;
+  let sectionsUnmatched = 0;
   let meetingsFromPatterns = 0;
   let agree = 0;
   let disagree = 0;
-
   for (const section of data.sections ?? []) {
     const id = typeof section?.id === "string" ? section.id : "";
     const secNo = id.slice(id.lastIndexOf("-") + 1);
     const key = `${stripSpaces(section?.courseCode ?? "")}|${secNo}`;
     const row = rowsBySection.get(key)?.[0];
     if (!row) {
-      unmatched++;
+      sectionsUnmatched++;
       continue;
     }
-    matched++;
+    sectionsMatched++;
     const buildingCode = locationShortCode(row.location);
     const buildingId = buildingCode != null && shortToId.has(buildingCode) ? shortToId.get(buildingCode) : null;
     const expansion = expandDayTokens(row.days).map((day) => ({ day, start: row.start, end: row.end, buildingId }));
@@ -576,21 +633,57 @@ export function computeProvenance({ data, sectionSourceRecordPath, compdAbsPath,
     else disagree++;
   }
 
+  // Direction 2: every compD row must match back to a bundle section.
+  let rowsMatched = 0;
+  let rowsUnmatched = 0;
+  for (const row of compd.rows) {
+    const key = `${stripSpaces(normalizeCourseCode(row.courseNumber ?? ""))}|${row.sectionNumber}`;
+    if (sectionsByPair.has(key)) rowsMatched++;
+    else rowsUnmatched++;
+  }
+
+  // Section-number lattice over the union of bundle sections and compD rows.
+  const courseNumbers = new Map();
+  const addNumber = (courseRaw, num) => {
+    if (courseRaw == null || num == null || num === "") return;
+    const key = stripSpaces(normalizeCourseCode(String(courseRaw)));
+    if (!key) return;
+    const set = courseNumbers.get(key) ?? new Set();
+    set.add(String(num));
+    courseNumbers.set(key, set);
+  };
+  for (const section of data.sections ?? []) {
+    const id = typeof section?.id === "string" ? section.id : "";
+    addNumber(section?.courseCode, id.slice(id.lastIndexOf("-") + 1));
+  }
+  for (const row of compd.rows) addNumber(row.courseNumber, row.sectionNumber);
+  const lattice = sectionLattice(courseNumbers);
+
+  const termColumns = compd.header.filter((h) => TERM_COLUMN_PATTERN.test(h));
+  const allPremisesHold =
+    sectionsUnmatched === 0 && rowsUnmatched === 0 && termColumns.length === 0 && lattice.ok;
+  const assessment = allPremisesHold
+    ? ASSESSMENT_BOUND
+    : downgradedAssessment({ sectionsUnmatched, rowsUnmatched, termColumnCount: termColumns.length, lattice });
+
   const sortedShortCodes = [...shortCodes].sort();
   return {
     bound: true,
     path: sectionSourceRecordPath,
     submoduleCommit: submoduleCommit ?? null,
     rows: compd.rows.length,
-    sectionPairsMatched: matched,
-    sectionPairsUnmatched: unmatched,
+    sectionsMatchedToRows: sectionsMatched,
+    sectionsUnmatchedToRows: sectionsUnmatched,
+    rowsMatchedToSections: rowsMatched,
+    rowsUnmatchedToSections: rowsUnmatched,
     meetingsFromDayPatterns: meetingsFromPatterns,
     sectionsMeetingsAgree: agree,
     sectionsMeetingsDisagree: disagree,
     buildingShortCodes: sortedShortCodes.length,
     buildingCodesInBundle: sortedShortCodes.filter((c) => shortToId.has(c)).length,
-    termColumns: compd.header.filter((h) => TERM_COLUMN_PATTERN.test(h)),
-    assessment: ASSESSMENT_BOUND,
+    termColumns,
+    lattice,
+    assessment,
   };
 }
 
@@ -858,3 +951,4 @@ export function main(argv = process.argv.slice(2)) {
 if (process.argv[1] && import.meta.url === new URL(`file://${path.resolve(process.argv[1])}`).href) {
   process.exitCode = main();
 }
+
