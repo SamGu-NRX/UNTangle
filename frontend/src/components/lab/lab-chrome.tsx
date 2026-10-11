@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NavShell } from "@/components/nav-shell";
+import { writePlannerStateToSessionStorage } from "@/lib/planner";
+import { labPlannerState } from "@/lib/lab/lab-plans";
 
 const DIRECTIONS = [
   { id: "a", href: "/lab/a", label: "A · Week grid + day map" },
@@ -41,6 +43,16 @@ export function LabChrome({
                 {item.label}
               </Link>
             ))}
+            <button
+              type="button"
+              className="lab-switch__reset"
+              onClick={() => {
+                writePlannerStateToSessionStorage(labPlannerState);
+                window.location.reload();
+              }}
+            >
+              Reset sample plan
+            </button>
           </nav>
           <header className="lab-header">
             <h1 className="font-display">{title}</h1>
