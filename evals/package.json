@@ -1,0 +1,20 @@
+{
+  "name": "untangle-evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UNTangle eval harness. This package never depends on files inside the target checkout at runtime; it drives a target checkout (a UNTangle tree) from the outside. See CONTRACT.md for the UI contract, README.md for the harness architecture, SCHEMA.md for the scorecard format, and bars.json for the (uncalibrated, proposed) suite bars.",
+  "scripts": {
+    "typecheck": "bun x tsc --noEmit",
+    "selfcheck": "bun run.ts --suite selfcheck"
+  },
+  "dependencies": {
+    "pg": "^8.19.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/bun": "^1.3.0",
+    "@types/pg": "^8.19.0",
+    "typescript": "^5.9.0"
+  }
+}
