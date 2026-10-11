@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import {
   buildLocalFallbackPayload,
+  isSparseTranscriptText,
   buildTranscriptImagePrompt,
   buildTranscriptPrompt,
   effectiveTranscriptRecord,
@@ -66,7 +67,6 @@ type PdfExtraction = {
 type PhaseReporter = (id: PhaseId, status: PhaseStatus, note?: string) => void;
 
 const maxPdfBytes = 12 * 1024 * 1024;
-const textMinimum = 600;
 const puterScriptUrl = "https://js.puter.com/v2/";
 const models = [
   { id: "gpt-5.4-mini", label: "GPT-5.4 mini" },
@@ -101,10 +101,6 @@ function isPdf(file: File) {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 }
 
-function isSparseTranscriptText(text: string) {
-  const codeMatches = text.match(/\b[A-Z]{2,5}\s*\d{4}\b/g)?.length ?? 0;
-  return text.trim().length < textMinimum || codeMatches < 4;
-}
 
 function responseText(error: unknown) {
   return error instanceof Error ? error.message : "Transcript import failed.";
