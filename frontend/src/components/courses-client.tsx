@@ -22,6 +22,7 @@ import {
   GPA_BANDS,
   LEVEL_LABELS,
   PLANNER_STATUS_LABELS,
+  PREREQ_FILTER_LABELS,
   SAMPLE_RATING_BANDS,
   SORT_LABELS,
   TIME_WINDOW_LABELS,
@@ -35,6 +36,7 @@ import {
   type CourseSort,
   type FacetCounts,
   type PlannerStatusFilter,
+  type PrereqFilter,
 } from "@/lib/course-filters";
 import {
   getCoreCoursesForMajor,
@@ -114,7 +116,8 @@ export function CoursesClient() {
     if (
       facet === "gpaBand" ||
       facet === "sampleRatingBand" ||
-      facet === "plannerStatus"
+      facet === "plannerStatus" ||
+      facet === "prereqs"
     ) {
       return; // single-select facets toggle through updateFilter, not here
     }
@@ -351,6 +354,20 @@ export function CoursesClient() {
               }}
               clear={() => updateFilter({ plannerStatus: null })}
             />
+            <FilterGroup
+              label="Prerequisites (vs. completed)"
+              facet="prereqs"
+              options={PREREQ_FILTER_LABELS}
+              selected={filters.prereqs ? [filters.prereqs] : []}
+              counts={facetCounts.prereqs}
+              onToggle={(facet, value) => {
+                if (facet !== "prereqs") return;
+                updateFilter({
+                  prereqs: filters.prereqs === value ? null : (value as PrereqFilter),
+                });
+              }}
+              clear={() => updateFilter({ prereqs: null })}
+            />
           </div>
           {activeCount > 0 && (
             <button type="button" className="btn-ghost courses-clear" onClick={clearAllFilters}>
@@ -507,7 +524,8 @@ type FilterGroupFacet =
   | "timeWindows"
   | "gpaBand"
   | "sampleRatingBand"
-  | "plannerStatus";
+  | "plannerStatus"
+  | "prereqs";
 
 function FacetCheck({
   label,

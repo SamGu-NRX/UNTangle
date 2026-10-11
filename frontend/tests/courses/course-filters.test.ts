@@ -88,6 +88,35 @@ describe("course filter application", () => {
     }
   });
 
+  test("prereq facet follows the planner lock policy", () => {
+    const statuses: Record<string, string> = { "CSCE 2100": "completed" };
+    const planner = {
+      courseStatuses: statuses as never,
+      isLocked: (code: string) => code !== "CSCE 2100",
+    };
+    const met = applyCourseFilters(courses, withFilters({ prereqs: "met" }), planner);
+    expect(met).toHaveLength(1);
+    expect(met[0]?.code).toBe("CSCE 2100");
+    const outstanding = applyCourseFilters(courses, withFilters({ prereqs: "outstanding" }), planner);
+    expect(outstanding.some((c) => c.code === "CSCE 2100")).toBe(false);
+    expect(outstanding.length).toBe(courses.length - 1);
+  });
+
+  test("prereq facet round-trips through the URL", () => {
+    const state = withFilters({ prereqs: "met" });
+    expect(parseCourseFilters(courseFiltersToParams(state))).toEqual(state);
+    expect(parseCourseFilters(new URLSearchParams("prereq=bogus")).prereqs).toBeNull();
+  });
+
+  test("prereq facet counts partition the catalog", () => {
+    const counts = computeFacetCounts(courses, COURSE_FILTER_DEFAULTS, {
+      courseStatuses: {},
+      isLocked: (code) => code.startsWith("MATH"),
+    });
+    const sum = Object.values(counts.prereqs).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(courses.length);
+  });
+
   test("planner status filter uses course statuses, defaulting to notTaken", () => {
     const statuses: Record<string, string> = { "CSCE 2100": "completed" };
     const result = applyCourseFilters(

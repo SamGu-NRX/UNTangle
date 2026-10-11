@@ -14,6 +14,7 @@ import type { Course, CourseStatus } from "./types";
 
 export type CourseSort = "code" | "gpa-desc" | "gpa-asc" | "rating-desc" | "credits-desc";
 export type PlannerStatusFilter = "completed" | "inProgress" | "notTaken";
+export type PrereqFilter = "met" | "outstanding";
 export type GpaBand = "3.5" | "3.0" | "2.5" | "low";
 export type SampleRatingBand = "4.5" | "4.0" | "3.5" | "low";
 
@@ -25,7 +26,8 @@ export type FacetKey =
   | "timeWindows"
   | "gpaBand"
   | "sampleRatingBand"
-  | "plannerStatus";
+  | "plannerStatus"
+  | "prereqs";
 
 export type CourseFilterState = {
   query: string;
@@ -37,6 +39,7 @@ export type CourseFilterState = {
   gpaBand: GpaBand | null;
   sampleRatingBand: SampleRatingBand | null;
   plannerStatus: PlannerStatusFilter | null;
+  prereqs: PrereqFilter | null;
   sort: CourseSort;
 };
 
@@ -50,6 +53,7 @@ export const COURSE_FILTER_DEFAULTS: CourseFilterState = {
   gpaBand: null,
   sampleRatingBand: null,
   plannerStatus: null,
+  prereqs: null,
   sort: "code",
 };
 
@@ -104,6 +108,11 @@ export const PLANNER_STATUS_LABELS: Record<PlannerStatusFilter, string> = {
   completed: "Completed",
   inProgress: "In progress",
   notTaken: "Not taken",
+};
+
+export const PREREQ_FILTER_LABELS: Record<PrereqFilter, string> = {
+  met: "Prereqs satisfied",
+  outstanding: "Prereqs outstanding",
 };
 
 export interface PlannerFilterContext {
@@ -234,6 +243,12 @@ function passesExcept(
     const status = plannerContext.courseStatuses[course.code] ?? "notTaken";
     if (status !== filters.plannerStatus) return false;
   }
+  if (skip !== "prereqs" && filters.prereqs) {
+    // Same lock policy the planner enforces on writes: a course is locked
+    // while its bundled-catalog prerequisites are not all completed.
+    const locked = plannerContext.isLocked(course.code);
+    if (filters.prereqs === "met" ? locked : !locked) return false;
+  }
   return true;
 }
 
@@ -295,6 +310,7 @@ export function computeFacetCounts(
     gpaBand: {},
     sampleRatingBand: {},
     plannerStatus: {},
+    prereqs: {},
   };
   const bump = (record: Record<string, number>, key: string) => {
     record[key] = (record[key] ?? 0) + 1;
@@ -343,6 +359,11 @@ export function computeFacetCounts(
           bump(counts.plannerStatus, status);
           break;
         }
+        case "prereqs": {
+          const locked = plannerContext.isLocked(course.code);
+          bump(counts.prereqs, locked ? "outstanding" : "met");
+          break;
+        }
       }
     }
   }
@@ -360,6 +381,7 @@ export function activeFilterCount(filters: CourseFilterState): number {
   if (filters.gpaBand) count += 1;
   if (filters.sampleRatingBand) count += 1;
   if (filters.plannerStatus) count += 1;
+  if (filters.prereqs) count += 1;
   if (filters.sort !== "code") count += 1;
   return count;
 }
@@ -379,6 +401,7 @@ const WINDOW_KEYS = Object.keys(TIME_WINDOW_LABELS);
 const GPA_KEYS = Object.keys(GPA_BANDS);
 const RATING_KEYS = Object.keys(SAMPLE_RATING_BANDS);
 const STATUS_KEYS: PlannerStatusFilter[] = ["completed", "inProgress", "notTaken"];
+const PREREQ_KEYS: PrereqFilter[] = ["met", "outstanding"];
 const SORT_KEYS = Object.keys(SORT_LABELS);
 
 /** Inverse of courseFiltersToParams; unknown values are dropped so shareable
@@ -388,6 +411,7 @@ export function parseCourseFilters(params: URLSearchParams): CourseFilterState {
   const gpaBand = params.get("gpa") as GpaBand | null;
   const sampleRatingBand = params.get("rating") as SampleRatingBand | null;
   const plannerStatus = params.get("status") as PlannerStatusFilter | null;
+  const prereqs = params.get("prereq") as PrereqFilter | null;
   return {
     query: params.get("q") ?? "",
     departments: parseList(params.get("dept")),
@@ -400,6 +424,7 @@ export function parseCourseFilters(params: URLSearchParams): CourseFilterState {
       sampleRatingBand && RATING_KEYS.includes(sampleRatingBand) ? sampleRatingBand : null,
     plannerStatus:
       plannerStatus && STATUS_KEYS.includes(plannerStatus) ? plannerStatus : null,
+    prereqs: prereqs && PREREQ_KEYS.includes(prereqs) ? prereqs : null,
     sort: sort && SORT_KEYS.includes(sort) ? sort : "code",
   };
 }
@@ -416,6 +441,7 @@ export function courseFiltersToParams(filters: CourseFilterState): URLSearchPara
   if (filters.gpaBand) params.set("gpa", filters.gpaBand);
   if (filters.sampleRatingBand) params.set("rating", filters.sampleRatingBand);
   if (filters.plannerStatus) params.set("status", filters.plannerStatus);
+  if (filters.prereqs) params.set("prereq", filters.prereqs);
   if (filters.sort !== "code") params.set("sort", filters.sort);
   return params;
 }
