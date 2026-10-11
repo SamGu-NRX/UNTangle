@@ -325,9 +325,11 @@
 }
 
 .lab-days__tab--active {
-  background: var(--brand-700);
-  border-color: var(--brand-700);
-  color: var(--surface);
+  /* Explicit lab tones: var(--brand-700) with var(--surface) text failed axe color-contrast
+     and rendered near-invisible in the round-one screenshots. #586e58 on #ffffff is ~5.5:1 (AA). */
+  background: #586e58;
+  border-color: #586e58;
+  color: #ffffff;
 }
 
 .lab-itin-wrap {
