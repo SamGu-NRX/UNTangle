@@ -66,6 +66,11 @@ adversarial cases, Sol for correctness, Opus for integration).
     search; these directions, ranked alternatives and infeasibility explanations are the lead's proposal, not Sam's
     request; today's `recommendSections` is an exhaustive depth-first enumeration with a conflict check) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
     sheet).
+- **Independent verification (from 16:40Z).** Read-only audits at pinned PR heads, reported as PR comments plus
+  `audits/<PR>/<SHA>.md` on each audit's own branch: `untangle-audit-algorithms-f1` (#14, #15, #17),
+  `untangle-audit-data-f1` (#6, #16), `untangle-audit-app-f1` (#7, #8, #19), `untangle-audit-map-ux-f1` (#11, #18),
+  and `untangle-evals-rerun-f1` (#13's harness, re-run on fresh seeds against the task heads). The council weighs
+  audit findings before any accept.
 - **Optimizer council.** When `untangle-optimizer-round1-f1` returns, a council (Sol for correctness, Astra for
   adversarial instances, Opus for integration) reads the benchmark results. The lead's accept line names the
   winning variant and the accepted SHA. Integration depends on that line.
