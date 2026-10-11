@@ -88,7 +88,16 @@ adversarial cases, Sol for correctness, Opus for integration).
   source. Then fix the failing eval cases, one task per gap with its own files, and polish from the council's
   critique.
 
-Directions still open: OSRM's foot profile as a routing alternative, if the A* engine misses the routing bars.
+Directions still open:
+- OSRM's foot profile as a routing alternative, if the A* engine misses the routing bars.
+- Step-free routes (`untangle-step-free-f1`, queued after the routing recovery): a wheelchair-friendly profile from OSM
+  step and accessibility tags, end to end across the map, schedule, optimizer and Today.
+- Compare alternatives: the optimizer's top-k schedules side by side.
+- Instructor history from grades-unt on instructor pages and in section choice.
+
+Acceptance runs from 18:45Z: the lead is UNTangle's acceptance owner. Drafts merge into `alpha` (via a candidate
+branch) and are run end to end in a focus sandbox, because this Mac's disk is under the lease floor. A PR goes ready
+only after an accept from such a run. The module map is `~/.long-run/obvious-fleet/acceptance/untangle.md`.
 
 ## Rules every task inherits
 
