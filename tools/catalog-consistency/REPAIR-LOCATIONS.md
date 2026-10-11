@@ -2,7 +2,7 @@
 
 Audit: `node tools/catalog-consistency/audit.mjs --input frontend/src/lib/generated/seed-data.json --out tools/catalog-consistency/results`
 Inputs bound: `input-receipt.json` (sha256 + byte size of the generated catalog, the majors source, the committed rule sources, all 29 `courses/*.json` corpus files with an aggregate digest `4633da9535decebe1c1a84e9485703ec6f58dbfaeca0ea601d9b9eb9ef7a1911`, and the section source `backend/data/compD.csv`), plus `report.json`, `unresolved-examples.json`, `results-manifest.json`.
-Source commit audited: `24a798d053ebb76f2342fe298cd2c73effcfd283` (receipt `sourceCommit`). Backend submodule working tree at `0a49d4d863161c3b568f6aa6d3da4b4e68637a44` (see "Tool defects", F1, for why the receipt's own pin field is `null`).
+Source commit audited: `24a798d053ebb76f2342fe298cd2c73effcfd283` (certification-run receipt `sourceCommit`). Backend submodule working tree at `0a49d4d863161c3b568f6aa6d3da4b4e68637a44` — bound by sha256/byte size throughout, and bound by commit pin in the regenerated receipt (F1, resolved below).
 
 Verification of this run (all reproduced independently of `audit.mjs`, from the raw inputs, by a scratch script that imports nothing from the auditor):
 
@@ -95,13 +95,13 @@ Consequence for repair: the section lattice, meetings, professors, and locations
 
 These are findings about the audit tooling discovered by this run; none changes the data numbers above.
 
-- **F1 — receipt records a `null` submodule pin although the submodule is initialized.** `audit.mjs` extracts the pin with `/^040000 commit ([0-9a-f]{40})\tbackend$/m` over `git ls-tree HEAD backend`, but git records submodule entries with mode `160000`, so the regex never matches and `input-receipt.json` carries `submodulePins: [{path: "backend", commit: null}]`. The actual pin at audit time is `0a49d4d863161c3b568f6aa6d3da4b4e68637a44`. Provenance is otherwise sound: `backend/data/compD.csv` is bound by sha256/byte size regardless. Repair location: the pin regex in `tools/catalog-consistency/audit.mjs` (`040000` → `160000`), plus a test asserting a non-null pin when the submodule exists.
+- **F1 — receipt records a `null` submodule pin although the submodule is initialized.** `audit.mjs` extracted the pin with `/^040000 commit ([0-9a-f]{40})\tbackend$/m` over `git ls-tree HEAD backend`, but git records submodule entries with mode `160000`, so the regex never matched and the certification-run receipt carried `submodulePins: [{path: "backend", commit: null}]`. The actual pin at audit time is `0a49d4d863161c3b568f6aa6d3da4b4e68637a44`. Provenance was otherwise sound: `backend/data/compD.csv` is bound by sha256/byte size regardless. **Resolved** in the follow-up commit on this branch: pin extraction is now the exported `submodulePinFromLsTree`, matching the gitlink mode git actually emits (`160000`) and never a tree entry (`040000`), covered by unit tests; the regenerated `input-receipt.json` binds the pin and `results-manifest.json` rebinds the receipt bytes.
 - **F2 — `verify.mjs` is documented but not committed.** `RULES.md` (§ "Input binding and verification (method)") and `README.md` name `tools/catalog-consistency/verify.mjs` as "the only supported replay path", but no such file exists in the tree — the documented verification command cannot run. This certification used an independent scratch re-derivation from the raw inputs instead (all totals matched); the repo should either commit the verifier or drop the claim. Repair location: `tools/catalog-consistency/verify.mjs` (create) or the `RULES.md`/`README.md` references.
 - **F3 — stale v1 artifact removed.** `results/replay.json` (the v1 `--replay` output, `replayVersion: 1`) was still tracked from run 1. v2 retires `--replay` and does not write that file; it is removed in this commit so the results directory contains exactly what the v2 run produced.
 
 ## Determinism of this run
 
-Two auditor runs over identical inputs produced byte-identical outputs (sha256, all four files):
+Two auditor runs over identical inputs produced byte-identical outputs (sha256, all four files; the hashes below record the certification run at `24a798d` — the regenerated results after the F1 pin fix were re-proven byte-stable the same way, and the final committed hashes are self-documented in `results-manifest.json`):
 
 | File | sha256 (run 1 = run 2) |
 | --- | --- |

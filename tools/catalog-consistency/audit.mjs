@@ -604,6 +604,14 @@ function gitPlumbing(args, cwd) {
   }
 }
 
+// A submodule entry in `git ls-tree` output is a gitlink: mode 160000.
+// (Trees are 040000; the v1 regex used 040000 and never matched.)
+export function submodulePinFromLsTree(lsTree) {
+  if (!lsTree) return null;
+  const match = /^160000 commit ([0-9a-f]{40})\tbackend$/m.exec(lsTree);
+  return match ? match[1] : null;
+}
+
 /* ---------------------------------- document builds --------------------------- */
 
 export function buildInputBinding({ role, recordPath, absPath, required = false }) {
@@ -720,8 +728,7 @@ export function runAudit({ inputPath, outDir, sectionSourceAbsPath }) {
 
   const sourceCommit = gitPlumbing(["rev-parse", "HEAD"], repoRoot);
   const lsTree = gitPlumbing(["ls-tree", "HEAD", "backend"], repoRoot);
-  const pinMatch = lsTree ? /^040000 commit ([0-9a-f]{40})\tbackend$/m.exec(lsTree) : null;
-  const submoduleCommit = pinMatch ? pinMatch[1] : null;
+  const submoduleCommit = submodulePinFromLsTree(lsTree);
 
   const compd = readCompd(compdAbs);
   const bundleAnnotations = buildBundleAnnotations(data.courses, data.sections);

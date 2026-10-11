@@ -21,6 +21,7 @@ import {
   parseMajorsFromTs,
   runAudit,
   sha256,
+  submodulePinFromLsTree,
 } from "../audit.mjs";
 import {
   TOOL_DIR,
@@ -312,4 +313,15 @@ test("--replay is retired with a pointer to the verifier", () => {
   const result = spawnSync(process.execPath, [AUDIT_CLI, "--replay"], { cwd: os.tmpdir(), encoding: "utf8" });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /verify\.mjs/);
+});
+
+test("submodule pin parses the gitlink entry git actually emits (160000, not 040000)", () => {
+  const gitlink = "160000 commit 0a49d4d863161c3b568f6aa6d3da4b4e68637a44\tbackend\n";
+  assert.equal(submodulePinFromLsTree(gitlink), "0a49d4d863161c3b568f6aa6d3da4b4e68637a44");
+  // a plain tree entry must never be mistaken for the submodule pin
+  assert.equal(submodulePinFromLsTree("040000 tree 1234567890123456789012345678901234567890\tbackend\n"), null);
+  // wrong path, wrong mode, empty, and missing output all yield null
+  assert.equal(submodulePinFromLsTree("160000 commit 0a49d4d863161c3b568f6aa6d3da4b4e68637a44\tother\n"), null);
+  assert.equal(submodulePinFromLsTree(""), null);
+  assert.equal(submodulePinFromLsTree(null), null);
 });
