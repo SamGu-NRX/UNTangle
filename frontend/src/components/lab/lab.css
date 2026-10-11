@@ -505,8 +505,9 @@
 
 .lab-stage {
   position: relative;
+  /* Explicit width: margin:auto in the flex column shrinks an all-absolute child tree to its border box. */
+  width: min(30rem, 100%);
   height: min(75vh, 640px);
-  max-width: 30rem;
   margin: 0 auto;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);

@@ -21,9 +21,9 @@ export function DirectionA() {
       description="The current week schedule, with a live route panel for the selected day beside it. Swap sections in the grid and the route follows."
     >
       <div className="lab-split">
-        <section aria-label="Week schedule" className="lab-split__schedule">
+        <div className="lab-split__schedule">
           <ScheduleClient />
-        </section>
+        </div>
         <aside aria-label="Walking route for the selected day" className="lab-split__panel">
           <DayRoutePanel />
         </aside>

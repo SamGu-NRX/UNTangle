@@ -5,9 +5,12 @@ import { useDayLegs } from "@/components/lab/use-day-legs";
 import { summarizeDayLegs } from "@/lib/lab/leg-routing";
 import { dayLegNotice, formatMeters, formatWalkingMinutes, pickLongestLeg } from "@/lib/lab/leg-format";
 import { LegMap } from "@/components/lab/leg-map";
+import type { WeekDay } from "@/lib/types";
+
+const DAYS: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 export function DayRoutePanel() {
-  const { routeStops, plannerState } = usePlanner();
+  const { routeStops, plannerState, setActiveDay } = usePlanner();
   const activeDay = plannerState.activeDay;
   const stops = routeStops[activeDay] ?? [];
   const { legs, state: panelState, recheck } = useDayLegs(stops);
@@ -23,6 +26,20 @@ export function DayRoutePanel() {
         <button type="button" className="lab-route__reload" onClick={recheck}>
           Recheck route
         </button>
+      </div>
+
+      <div role="group" aria-label="Choose day" className="lab-days">
+        {DAYS.map((day) => (
+          <button
+            key={day}
+            type="button"
+            className={"lab-days__tab" + (day === activeDay ? " lab-days__tab--active" : "")}
+            aria-pressed={day === activeDay}
+            onClick={() => setActiveDay(day)}
+          >
+            {day}
+          </button>
+        ))}
       </div>
 
       {stops.length === 0 && <p className="lab-route__empty">No classes on {activeDay} — nothing to walk.</p>}
