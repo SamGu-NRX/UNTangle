@@ -126,7 +126,7 @@ export type MapRouteResponse = {
   geometry: MapRoutePoint[];
   distanceMeters: number;
   durationSeconds: number;
-  source: "ors" | "fallback" | "walkway";
+  source: "ors" | "campus-network" | "fallback";
 };
 
 export type MapRouteSummary = {

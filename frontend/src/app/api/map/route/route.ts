@@ -108,7 +108,7 @@ function parseStops(input: RouteInput) {
 }
 
 /**
- * Offline walkway routing (source: "walkway"): each consecutive stop pair is
+ * Offline walkway routing (source: "campus-network"): each consecutive stop pair is
  * routed over the committed OSM walkway graph (A*, steps-aware durations).
  * No network calls, no API key. Returns null when any leg cannot be routed on
  * the graph, letting the caller fall back to ORS, then straight-line.
@@ -130,7 +130,7 @@ function walkwayRoute(stops: MapRoutePoint[]): MapRouteResponse | null {
   }
 
   if (geometry.length < 2) return null;
-  return { geometry, distanceMeters, durationSeconds, source: "walkway" };
+  return { geometry, distanceMeters, durationSeconds, source: "campus-network" };
 }
 
 export async function POST(request: Request) {

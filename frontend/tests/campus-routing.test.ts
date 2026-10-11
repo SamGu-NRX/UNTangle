@@ -161,7 +161,7 @@ describe("map route API walkway tier", () => {
       distanceMeters?: number;
       durationSeconds?: number;
     };
-    expect(payload.source).toBe("walkway");
+    expect(payload.source).toBe("campus-network");
     expect(payload.geometry!.length).toBeGreaterThanOrEqual(3);
     expect(payload.distanceMeters!).toBeGreaterThan(300);
     expect(payload.distanceMeters!).toBeLessThan(1200);
@@ -185,7 +185,7 @@ describe("map route API walkway tier", () => {
       );
       expect(response.status).toBe(200);
       const payload = (await response.json()) as { durationSeconds?: number; source?: string };
-      expect(payload.source).toBe("walkway");
+      expect(payload.source).toBe("campus-network");
 
       const matrixSeconds = walkingSecondsBetween(fromId, toId)!;
       const apiSeconds = payload.durationSeconds!;
