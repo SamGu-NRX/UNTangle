@@ -7,9 +7,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import {
   buildScheduleEvents,
@@ -23,6 +25,12 @@ import {
   serializePlannerPayload,
   writePlannerStateToSessionStorage,
 } from "@/lib/planner";
+import { SessionExpiryDialog } from "@/components/session-expiry-dialog";
+import {
+  initialSessionRecoveryState,
+  sessionRecoveryReducer,
+  shouldPauseAutosave,
+} from "@/lib/session-recovery";
 import { courses } from "@/lib/seed-data";
 import type {
   CourseStatus,
@@ -59,8 +67,76 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const hasBootstrapped = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<PlannerState | null>(null);
+  const router = useRouter();
+
+  const [recovery, dispatchRecovery] = useReducer(
+    sessionRecoveryReducer,
+    initialSessionRecoveryState,
+  );
 
   const isRegistered = Boolean(sessionResult.data?.user);
+
+  const savePlannerState = useCallback(
+    async (state: PlannerState, opts: { isRetry: boolean }) => {
+      try {
+        const response = await fetch("/api/planner", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state),
+        });
+        if (response.status === 401) {
+          // Park the payload and surface recovery; planner state is never cleared.
+          pendingSave.current = state;
+          dispatchRecovery({
+            type: opts.isRetry ? "retryUnauthorized" : "saveUnauthorized",
+          });
+          return;
+        }
+        if (response.ok) {
+          pendingSave.current = null;
+          if (opts.isRetry) {
+            dispatchRecovery({ type: "retrySucceeded" });
+          }
+          return;
+        }
+        console.error(`Planner save failed with status ${response.status}.`);
+      } catch (error) {
+        console.error("Planner save request failed.", error);
+        if (opts.isRetry) {
+          dispatchRecovery({ type: "retryUnreachable" });
+        }
+      }
+    },
+    [],
+  );
+
+  const retryPendingRecovery = useCallback(async () => {
+    dispatchRecovery({ type: "retryStart" });
+    const pending = pendingSave.current;
+    if (pending) {
+      await savePlannerState(pending, { isRetry: true });
+      return;
+    }
+
+    // No parked save: the 401 came from the bootstrap load, so re-run it.
+    try {
+      const response = await fetch("/api/planner", { cache: "no-store" });
+      if (response.status === 401) {
+        dispatchRecovery({ type: "retryUnauthorized" });
+      } else if (response.ok) {
+        const payload = (await response.json()) as { state: PlannerState | null };
+        if (payload.state) {
+          setPlannerState(normalizePlannerState(payload.state));
+        }
+        dispatchRecovery({ type: "retrySucceeded" });
+      } else {
+        dispatchRecovery({ type: "retryUnreachable" });
+      }
+    } catch {
+      dispatchRecovery({ type: "retryUnreachable" });
+    }
+  }, [savePlannerState]);
 
   useEffect(() => {
     if (sessionResult.isPending || hasBootstrapped.current) {
@@ -72,14 +148,18 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       if (sessionResult.data?.user) {
         try {
           const response = await fetch("/api/planner", { cache: "no-store" });
-          if (response.ok) {
+          if (response.status === 401) {
+            // The session is gone server-side: surface recovery without
+            // touching whatever is on screen.
+            dispatchRecovery({ type: "loadUnauthorized" });
+          } else if (response.ok) {
             const payload = (await response.json()) as { state: PlannerState | null };
             if (payload.state) {
               setPlannerState(normalizePlannerState(payload.state));
             }
           }
         } catch {
-          setPlannerState(getInitialPlannerState());
+          // Network failure: keep the current planner state — never clear edits.
         }
       } else {
         setPlannerState(readPlannerStateFromSessionStorage() ?? getInitialPlannerState());
@@ -100,13 +180,13 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
     saveTimer.current = setTimeout(() => {
       if (sessionResult.data?.user) {
-        void fetch("/api/planner", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(plannerState),
-        });
+        // While recovery is active the edit is parked, not posted: no 401
+        // storm on every keystroke, and the retry sends the latest state.
+        if (shouldPauseAutosave(recovery)) {
+          pendingSave.current = plannerState;
+          return;
+        }
+        void savePlannerState(plannerState, { isRetry: false });
       } else {
         writePlannerStateToSessionStorage(plannerState);
       }
@@ -117,7 +197,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(saveTimer.current);
       }
     };
-  }, [hydrated, plannerState, sessionResult.data]);
+  }, [hydrated, plannerState, recovery, savePlannerState, sessionResult.data]);
 
   const value = useMemo<PlannerContextValue>(() => {
     const normalized = normalizePlannerState(plannerState);
@@ -224,7 +304,17 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [hydrated, isRegistered, plannerState, sessionResult.isPending]);
 
-  return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>;
+  return (
+    <>
+      <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>
+      <SessionExpiryDialog
+        recovery={recovery}
+        onRetry={retryPendingRecovery}
+        onDismiss={() => dispatchRecovery({ type: "dismiss" })}
+        onSignIn={() => router.push("/sign-in")}
+      />
+    </>
+  );
 }
 
 export function usePlanner() {
