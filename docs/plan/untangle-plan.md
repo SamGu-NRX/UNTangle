@@ -18,6 +18,15 @@ The data must say what it is. The course catalog text is real (catalog.unt.edu).
 synthetic (`backend/data/compD.csv`: exactly 15 buildings and no term) and are labeled as samples until a
 permitted real-term source is ingested.
 
+## Integration base
+
+`alpha` was cut from `main` at 361cf3044046132ee9e043cda2ba61afb18f7b76 (2026-10-11, checked 11:58Z). Main is the
+project's definitive latest version. Its last app change is f08067b (2026-04-29), after vishyj's jointv2 UI overhaul
+was merged, and its newest commits are the agent-skills PRs #9 and #10. No remote branch has commits from between
+2026-04-30 and 2026-10-09: the July polish work (`feat/ui-overhaul-jointv2`, `google-maps`) was never pushed. Every
+branch newer than main is an unmerged fleet draft (#3-#11), which enters `alpha` only through review. The older
+branches are April backups or vishyj's design sources, which main already absorbed.
+
 ## Evals that decide "best"
 
 The harness lives in `evals/` (task `untangle-evals-f1`). Bars sit in `evals/bars.json`. They are proposals with
