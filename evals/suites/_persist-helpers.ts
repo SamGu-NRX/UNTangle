@@ -82,9 +82,32 @@ export async function gotoDoc(page: Page, url: string, label: string): Promise<v
  * the protocol is unresponsive.
  */
 export async function launchCaseBrowser(): Promise<{ browser: Browser; server: BrowserServer }> {
-  const server = await chromium.launchServer({ headless: true });
-  const browser = await chromium.connect(server.wsEndpoint());
-  return { browser, server };
+  const started = Date.now();
+  let server: BrowserServer | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        console.error("[persistence-faults] launch: starting browser server");
+        server = await chromium.launchServer({ headless: true });
+        const browser = await chromium.connect(server.wsEndpoint());
+        console.error(`[persistence-faults] launch: browser connected in ${Date.now() - started}ms`);
+        return { browser, server };
+      })(),
+      sleep(90_000).then(() => {
+        throw new Error(`browser launch/connect exceeded 90s (launchServer ${server ? "up" : "never came up"})`);
+      }),
+    ]);
+  } catch (error) {
+    // A launch that lost the race must not leave its server process behind.
+    if (server) {
+      try {
+        await server.close();
+      } catch {
+        // best-effort only
+      }
+    }
+    throw error;
+  }
 }
 
 /**
