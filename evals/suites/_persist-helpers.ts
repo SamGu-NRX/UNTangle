@@ -47,6 +47,30 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Per-await breadcrumb inside shared helpers, so a stalled helper call names itself. */
+function helperPhase(what: string): void {
+  console.error(`[persistence-faults] helper: ${what}`);
+}
+
+/**
+ * Bounded teardown: a wedged renderer can hang browser.close() forever (it has
+ * no default timeout), which would burn the runner's whole case budget. If the
+ * close does not finish in 20s the case moves on; the process may leak and the
+ * leak is reported rather than hidden.
+ */
+export async function closeBrowser(browser: Browser): Promise<void> {
+  try {
+    await Promise.race([
+      browser.close(),
+      sleep(20_000).then(() => {
+        throw new Error("browser.close() exceeded 20s — moving on; the browser process may leak");
+      }),
+    ]);
+  } catch (error) {
+    console.error(`[persistence-faults] ${(error as Error).message}`);
+  }
+}
+
 /** Phase breadcrumb: one run.log line per case step, so a stalled case localizes itself. */
 export function phase(caseId: string, what: string): void {
   console.error(`[persistence-faults] ${caseId}: ${what}`);
@@ -90,36 +114,44 @@ export function collectPageErrors(page: Page): { messages: string[] } {
 /** Signs up a fresh synthetic persona through the UI; resolves once signed in. */
 export async function registerPersonaThroughUi(page: Page, origin: string): Promise<Persona> {
   const persona = newPersona();
+  helperPhase("register: goto /auth");
   await page.goto(`${origin}/auth`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Use password instead" }).click();
   await page.getByRole("button", { name: "Sign up", exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill(persona.name);
   await page.getByLabel("Email", { exact: true }).fill(persona.email);
   await page.getByLabel("Password", { exact: true }).fill(persona.password);
+  helperPhase("register: submitting signup form");
   await page.locator("form").getByRole("button", { name: "Create account", exact: true }).click();
   await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible", timeout: 30_000 });
+  helperPhase("register: signed in");
   return persona;
 }
 
 /** Password sign-in for an existing persona; resolves once signed in. */
 export async function signInThroughUi(page: Page, origin: string, persona: Persona): Promise<void> {
+  helperPhase("signIn: goto /auth");
   await page.goto(`${origin}/auth`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Use password instead" }).click();
   await page.getByLabel("Email", { exact: true }).fill(persona.email);
   await page.getByLabel("Password", { exact: true }).fill(persona.password);
+  helperPhase("signIn: submitting login form");
   await page.locator("form").getByRole("button", { name: "Log in", exact: true }).click();
   await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible", timeout: 30_000 });
 }
 
 /** Signs out through the nav and waits for the redirect to the landing page. */
 export async function signOutThroughUi(page: Page, origin: string): Promise<void> {
+  helperPhase("signOut: clicking sign out");
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.waitForURL(`${origin}/`, { timeout: 20_000 }).catch(() => undefined);
 }
 
 /** Guest entry from the landing page. */
 export async function continueAsGuest(page: Page, origin: string): Promise<void> {
+  helperPhase("guest: goto /");
   await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
+  helperPhase("guest: clicking guest link");
   await page.getByRole("link", { name: "Continue as guest" }).click();
   await page.waitForURL(/\/courses\/?$/, { timeout: 20_000 });
 }
@@ -135,6 +167,7 @@ export async function continueAsGuest(page: Page, origin: string): Promise<void>
  * hydration), so the next armed save-waiter can only match a deliberate edit.
  */
 export async function gotoRegisteredCourses(page: Page, origin: string): Promise<void> {
+  helperPhase("registered /courses: arming hydration waiters");
   const writeback = page
     .waitForResponse((response) => PLANNER_API.test(response.url()) && response.request().method() === "POST", {
       timeout: 20_000,
@@ -145,6 +178,7 @@ export async function gotoRegisteredCourses(page: Page, origin: string): Promise
     { timeout: 20_000 },
   );
   await page.goto(`${origin}/courses`, { waitUntil: "domcontentloaded" });
+  helperPhase("registered /courses: awaiting hydration response");
   await hydration;
   await writeback;
   await page.locator("article.course-row").first().waitFor({ state: "visible", timeout: 20_000 });
@@ -157,7 +191,9 @@ export async function gotoRegisteredCourses(page: Page, origin: string): Promise
  * hydration read failure is caught by the app and leaves the default state.
  */
 export async function gotoGuestCourses(page: Page, origin: string): Promise<void> {
+  helperPhase("guest /courses: goto");
   await page.goto(`${origin}/courses`, { waitUntil: "domcontentloaded" });
+  helperPhase("guest /courses: waiting for major prompt / rows");
   await page.getByText("Choose your major").waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
   await page.locator("article.course-row").first().waitFor({ state: "visible", timeout: 20_000 });
   await sleep(600);
@@ -170,9 +206,11 @@ export async function gotoGuestCourses(page: Page, origin: string): Promise<void
  */
 export async function chooseMajorIfPrompted(page: Page, opts: { registered: boolean }): Promise<boolean> {
   const modalLabel = page.getByText("Choose your major");
+  helperPhase("chooseMajor: checking modal visibility");
   if (!(await modalLabel.isVisible().catch(() => false))) {
     return false;
   }
+  helperPhase("chooseMajor: answering modal");
   await page.getByRole("button", { name: MAJOR_NAME }).first().click();
   if (opts.registered) {
     const save = page.waitForResponse(
@@ -215,8 +253,10 @@ export async function markCourseDone(
   courseCode: string,
   opts: { registered: boolean },
 ): Promise<{ rowCompleted: boolean; saveResponse: Response | null }> {
+  helperPhase("markDone: locating row");
   const row = plannerRow(page, courseCode);
   await row.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+  helperPhase("markDone: clicking status button");
   const save = opts.registered
     ? page
         .waitForResponse(

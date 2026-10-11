@@ -35,6 +35,7 @@ import {
   gotoGuestCourses,
   gotoRegisteredCourses,
   markCourseDone,
+  closeBrowser,
   openSession,
   phase,
   probeContractElements,
@@ -182,7 +183,7 @@ async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence
     }
     return { status: "pass", measured: measuredJson(underlying) };
   } finally {
-    await browser.close();
+    await closeBrowser(browser);
   }
 }
 
@@ -298,7 +299,7 @@ async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): 
     }
     return { status: "pass", measured: measuredJson({ retryResponseStatus: retryResponse.status() }) };
   } finally {
-    await browser.close();
+    await closeBrowser(browser);
   }
 }
 
@@ -364,7 +365,7 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
     }
     return { status: "pass", measured: measuredJson({ appKeptWorking, exportScheduleButtonCount: probes.exportScheduleButtonCount }) };
   } finally {
-    await browser.close();
+    await closeBrowser(browser);
   }
 }
 
@@ -476,7 +477,7 @@ async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence)
     }
     return { status: "pass", measured: measuredJson({ appLoads, quarantineCopyFound }) };
   } finally {
-    await browser.close();
+    await closeBrowser(browser);
   }
 }
 
@@ -555,7 +556,7 @@ async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence)
     }
     return { status: "pass", measured: measuredJson({ conflictDialogCount: probes.conflictDialogCount }) };
   } finally {
-    await browser.close();
+    await closeBrowser(browser);
   }
 }
 
@@ -616,7 +617,7 @@ async function runCleanTabAdoptsNewer(ctx: SuiteContext, evidence: Evidence): Pr
     }
     return { status: "pass", measured: measuredJson({ adoptedInPlace }) };
   } finally {
-    await browser.close();
+    await closeBrowser(browser);
   }
 }
 
