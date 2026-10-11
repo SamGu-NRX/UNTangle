@@ -29,7 +29,7 @@ type ClientRoute = {
   positions: LatLngTuple[];
   distanceMeters: number;
   durationSeconds: number;
-  source: "ors" | "fallback" | "walkway";
+  source: "ors" | "campus-network" | "fallback";
 };
 
 export const emptyRouteSummary: MapRouteSummary = { distanceText: "-", durationText: "-" };
@@ -392,23 +392,23 @@ export function MapLeafletCanvas({
             <Polyline
               positions={route.positions}
               pathOptions={{
-                color: route.source === "fallback" ? "#ffffff" : "#f4fff7",
-                dashArray: route.source === "fallback" ? "10 12" : undefined,
+                color: route.source === "ors" ? "#f4fff7" : "#ffffff",
+                dashArray: route.source === "ors" ? undefined : "10 12",
                 lineCap: "round",
                 lineJoin: "round",
-                opacity: route.source === "fallback" ? 0.72 : 0.82,
+                opacity: route.source === "ors" ? 0.82 : 0.72,
                 weight: 12,
               }}
             />
             <Polyline
               positions={route.positions}
               pathOptions={{
-                color: route.source === "fallback" ? "#536258" : "#154127",
-                dashArray: route.source === "fallback" ? "10 12" : undefined,
+                color: route.source === "ors" ? "#154127" : "#536258",
+                dashArray: route.source === "ors" ? undefined : "10 12",
                 lineCap: "round",
                 lineJoin: "round",
-                opacity: route.source === "fallback" ? 0.88 : 0.96,
-                weight: route.source === "fallback" ? 4 : 5,
+                opacity: route.source === "ors" ? 0.96 : 0.88,
+                weight: route.source === "ors" ? 5 : 4,
               }}
             />
           </>

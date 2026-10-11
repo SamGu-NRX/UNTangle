@@ -142,7 +142,7 @@ export type MapRouteLegDisplay = {
 };
 
 export type MapRouteDetails = {
-  source: "ors" | "fallback" | "walkway" | null;
+  source: "ors" | "fallback" | "campus-network" | null;
   isApproximate: boolean;
   legs: MapRouteLegDisplay[];
 };
