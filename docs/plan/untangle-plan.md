@@ -26,10 +26,10 @@ no calibration evidence yet and will be revised with a reason when the first sco
 | Suite | What it measures | Proposed bar |
 |---|---|---|
 | journey | Both personas complete the full journey through normal routes at 1440x900 and 390x844 | every case passes |
-| persistence-faults | Lost edits, and a false "Saved", under 500s, dropped connections, expired sessions, second tabs, denied or corrupt storage | 0 and 0 |
+| persistence-faults | The five durability rules in the planner and evals tasks: acknowledged saves survive reload and re-sign-in; a failed save is never shown as Saved; denied storage keeps edits in memory with a warning and an export; corrupt bytes are quarantined intact; a cross-tab conflict is shown, never silently overwritten | each rule holds in every injected case |
 | honesty | A straight line shown as walking time, an outage shown as a missing course, unlabeled sample data | 0 violations |
 | routing | Building coverage for the bundled and compD data; distance error on at least 15 hand-measured routes; p95 latency for 12 stops | 100% coverage; median error ≤10% and max ≤20%; p95 ≤200 ms |
-| optimizer | Hard-constraint violations; optimality gap and top-k agreement against brute force; infeasibility explanations verified by removal; p95 latency | 0 violations; gap 0 on enumerable instances; p95 ≤500 ms at 8 courses |
+| optimizer | Hard-constraint violations; optimality gap and top-k agreement against brute force; irreducible infeasible subsets verified (the subset is infeasible, and every one-member removal is feasible); p95 latency | 0 violations; gap 0 on enumerable instances; p95 ≤500 ms at 8 courses |
 | a11y-polish | axe, keyboard-only journey, reduced motion, layout shift, overflow with long names | 0 serious or critical; journey completes; no clipping |
 | data | Exact catalog certification counts; a real-term bundle present | exact; present, or the survey is blocked with evidence |
 
@@ -50,10 +50,14 @@ adversarial cases, Sol for correctness, Opus for integration).
   - Variant rounds: `untangle-optimizer-round1-f1` (branch-and-bound, MIP, and propagation with large-neighborhood
     search) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
     sheet).
-- **R1 join.** `untangle-integration-f1` merges the accepted work into a branch off `alpha`, wires the winning
-  optimizer and the walking times, and scores the integrated app with the harness.
-- **Council 1.** Run `alpha` in the T3 browser preview. Pick the optimizer and UX winners, list the gaps by
-  suite, and write R2.
+- **Optimizer council.** When `untangle-optimizer-round1-f1` returns, a council (Sol for correctness, Astra for
+  adversarial instances, Opus for integration) reads the benchmark results. The lead's accept line names the
+  winning variant and the accepted SHA. Integration depends on that line.
+- **R1 join.** `untangle-integration-f1` merges the exact accepted SHAs into a branch off `alpha`, wires the winning
+  optimizer and the walking times, makes one test command cover every inherited suite, and scores the integrated
+  app with the harness.
+- **Council 1.** Run `alpha` in the T3 browser preview, under the Mac's one-heavy-job lease. Pick the UX winner,
+  list the gaps by suite, and write R2.
 - **R2 and later.** Port the winning UX direction into production pages. Adopt real-term data if the survey found a
   source. Then fix the failing eval cases, one task per gap with its own files, and polish from the council's
   critique.
@@ -67,8 +71,10 @@ multi-term degree planning from #5, which belongs to another workspace's thread 
 - Accepted work merges into `alpha` with `--no-ff`, after the lead's accept and the caretaker's pass. Never into
   `main`. Nothing deploys from this repo: there are no workflows, webhooks or deployments, and only CodeRabbit
   reports.
-- No paid providers. ORS stays optional. RateMyProfessors is read only from the backend cache. Email uses the dev
-  path.
+- No paid providers. ORS stays optional. The pinned backend calls RateMyProfessors live on cache misses, so every
+  real-backend run blocks that host with a fetch-wrapping `--preload` file kept outside the backend, and counts the
+  blocked requests. Changing the backend itself is an external gate for its owner. Sign-up sends no email; password
+  reset needs Resend and stays an external gate.
 - University policy (prerequisite intent, the academic calendar) is never inferred. Unknowns stay unknown.
 
 ## Stop rule
