@@ -62,3 +62,27 @@ export function magicLinkFlowReducer(
       return { phase: "form", errorMessage: null };
   }
 }
+
+/**
+ * Shared request for the existing magic-link endpoint, used by the sign-in
+ * page, the session-expiry dialog, and the link-error page. Injectable fetch
+ * keeps it unit-testable; the callback route must exist, so it stays /courses.
+ */
+export async function sendMagicLink(
+  fetchLike: typeof fetch,
+  email: string,
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const response = await fetchLike("/api/auth/sign-in/magic-link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, callbackURL: "/courses" }),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      message?: unknown;
+    } | null;
+    return { ok: response.ok, message: signInErrorMessage(response.status, payload) };
+  } catch {
+    return { ok: false, message: MAGIC_LINK_GENERIC_ERROR };
+  }
+}
