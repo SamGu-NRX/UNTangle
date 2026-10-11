@@ -1,0 +1,199 @@
+/**
+ * The mip variant entry point: `optimize(req) -> OptimizeResult` on the
+ * frozen round-1 contract (../types.ts). Solved with the `highs` WASM
+ * package; see model.ts for the encoding and the solver-choice rationale.
+ *
+ * SEARCH — best-first enumeration by no-good cuts: each solve returns an
+ * optimal solution; adding `sum_{s in S} x_s <= |S| - 1` for the found
+ * solution S and re-solving yields the next-best schedule. Every returned
+ * schedule has exactly one section per requested course, so the cut excludes
+ * exactly S and no other schedule.
+ *
+ * TIES — the contract orders equal costs by the lexicographic ascending
+ * join of sorted section ids. A single second-stage rank-sum solve cannot
+ * reproduce string-lexicographic join order in general, so exact ties are
+ * resolved by materializing the whole optimal tier instead: the first solve
+ * fixes the optimal cost C, a cap row `objective <= C + 1e-9` is added, and
+ * the cut loop enumerates every cost-C schedule; the tier is then sorted by
+ * scorer's compareSchedules (cost, then joined sorted ids). Exact-tie tiers
+ * are tiny on the pinned suites, and every solve stays under the time
+ * budget, so this stays bounded in practice.
+ *
+ * STATUS HONESTY: `optimal` is returned only when the enumeration finished —
+ * either k schedules were collected or the model was proven exhausted
+ * (Infeasible with no cap row active). An exhausted time budget or a
+ * time-limited solve returns `timeout` with the best schedules found
+ * (possibly none; incumbents are validated before inclusion). Forced-
+ * infeasible requests and a first-solve infeasibility return `infeasible`
+ * with an IIS derived by deletion filtering over the shared reference
+ * helpers (iis-reference's findIis with brute force's isFeasible); the
+ * independent checker verifies it. The `feasible` status is never produced:
+ * whenever optimality is unproven, the budget was also hit, which is
+ * `timeout` by the contract.
+ */
+import highsLoader from "highs";
+import type { LegacyHighs } from "highs";
+import { compareSchedules, computeBreakdown, computeDiversity, findLockedConflict } from "../scorer";
+import { isFeasible as bruteForceIsFeasible } from "../brute-force";
+import { findIis } from "../iis-reference";
+import type { OptimizeRequest, OptimizeResult, OptimizedSchedule, OptimizerSection } from "../types";
+import { renderLp, type LpRow } from "./lp";
+import { buildMipModel, chosenSetProblems, type MipModel } from "./model";
+
+type SolveOptions = Parameters<LegacyHighs["solve"]>[1];
+type SolveResult = ReturnType<LegacyHighs["solve"]>;
+
+/** One-time WASM/solver initialization, shared across optimize() calls. */
+let solverPromise: Promise<LegacyHighs> | null = null;
+function getSolver(): Promise<LegacyHighs> {
+  solverPromise ??= Promise.resolve(highsLoader()).then((instance): LegacyHighs => {
+    // Route through a narrow adapter so this module depends only on the
+    // legacy one-shot solve API of the package.
+    return {
+      solve: (problem: string, options?: SolveOptions) => instance.solve(problem, options),
+    };
+  });
+  return solverPromise;
+}
+
+/** The mip variant's contract entry point. */
+export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
+  const initStart = performance.now();
+  const highs = await getSolver();
+  const initMs = performance.now() - initStart;
+  const searchStart = performance.now();
+  const deadline = searchStart + req.timeBudgetMs;
+  const remainingSeconds = (): number => (deadline - performance.now()) / 1000;
+  const finish = (result: Omit<OptimizeResult, "initMs" | "searchMs">): OptimizeResult => ({
+    ...result,
+    initMs,
+    searchMs: performance.now() - searchStart,
+  });
+
+  // Empty request: feasible with the empty schedule (pinned semantics).
+  if (req.requestedCourseCodes.length === 0) {
+    const schedules: OptimizedSchedule[] =
+      req.k > 0 ? [{ sectionIds: [], byCourse: {}, breakdown: computeBreakdown(req, []) }] : [];
+    return finish({ status: "optimal", schedules, diversity: 0 });
+  }
+
+  // Forced infeasibility: a locked-and-excluded section of a requested
+  // course, a locked section that cannot legally be chosen, or a requested
+  // course with no remaining candidate — all derivable from the build.
+  if (findLockedConflict(req) !== null) return finish(infeasibleResult(req));
+  const build = buildMipModel(req);
+  if (!build.ok) return finish(infeasibleResult(req));
+  const model = build.model;
+
+  const cuts: LpRow[] = [];
+  let capRow: LpRow | null = null;
+  let cutCounter = 0;
+  const found: OptimizedSchedule[] = [];
+  let timedOut = false;
+
+  // k=0 still gets one solve: it settles feasibility honestly.
+  while (found.length < Math.max(req.k, 1)) {
+    if (remainingSeconds() <= 0) {
+      timedOut = true;
+      break;
+    }
+    const text = renderLp(model.data, capRow === null ? cuts : [...cuts, capRow]);
+    const solution = highs.solve(text, {
+      output_flag: false,
+      random_seed: 0,
+      mip_rel_gap: 0,
+      time_limit: Math.max(0.001, remainingSeconds()),
+    });
+    if (solution.Status === "Infeasible") {
+      if (capRow !== null) {
+        capRow = null; // the tie tier is exhausted; move to the next tier
+        continue;
+      }
+      break; // the model is exhausted: everything was enumerated
+    }
+    if (solution.Status !== "Optimal") {
+      // Any other status (e.g. "Time limit reached") is an unproven search:
+      // harvest the incumbent if one exists and report timeout honestly.
+      timedOut = true;
+      const harvest = extractChosen(req, model, solution);
+      if (harvest.problems.length === 0) found.push(assembleSchedule(req, harvest.chosen));
+      break;
+    }
+    const { indexes, chosen, problems } = extractChosen(req, model, solution);
+    if (problems.length > 0) {
+      throw new Error(`mip: the model returned a contract-violating schedule (encoding bug): ${problems.join("; ")}`);
+    }
+    found.push(assembleSchedule(req, chosen));
+    if (capRow === null) capRow = objectiveCapRow(model, solution.ObjectiveValue);
+    cuts.push(noGoodRow(indexes, `cut${cutCounter++}`));
+    if (req.k <= 0) break; // k=0: a single solve settles feasibility
+  }
+
+  if (found.length === 0) {
+    if (timedOut) return finish({ status: "timeout", schedules: [], diversity: 0 });
+    return finish(infeasibleResult(req));
+  }
+
+  found.sort(compareSchedules);
+  const schedules = found.slice(0, Math.max(req.k, 0));
+  return finish({
+    status: timedOut ? "timeout" : "optimal",
+    schedules,
+    diversity: computeDiversity(schedules, req.requestedCourseCodes.length),
+  });
+}
+
+function extractChosen(
+  req: OptimizeRequest,
+  model: MipModel,
+  solution: SolveResult,
+): { indexes: number[]; chosen: OptimizerSection[]; problems: string[] } {
+  // The legacy result type models only the Infeasible column shape without
+  // `Primal`; every solved status carries primal values at runtime.
+  const columns = solution.Columns as unknown as Record<string, { readonly Primal: number }>;
+  const indexes: number[] = [];
+  for (const [name, column] of Object.entries(columns)) {
+    if (!name.startsWith("x")) continue;
+    const index = Number(name.slice(1));
+    if (!Number.isInteger(index) || index < 0 || index >= model.candidates.length) continue;
+    if (column.Primal > 0.5) indexes.push(index);
+  }
+  const chosen = indexes.map((index) => model.candidates[index]);
+  return { indexes, chosen, problems: chosenSetProblems(req, chosen) };
+}
+
+function assembleSchedule(req: OptimizeRequest, chosen: OptimizerSection[]): OptimizedSchedule {
+  return {
+    sectionIds: chosen.map((section) => section.id).sort(),
+    byCourse: Object.fromEntries(chosen.map((section) => [section.courseCode, section.id])),
+    breakdown: computeBreakdown(req, chosen),
+  };
+}
+
+/** No-good cut: exclude exactly the found schedule S (all schedules pick one section per course, so no same-size subset of S can differ). */
+function noGoodRow(indexes: readonly number[], name: string): LpRow {
+  return {
+    name,
+    terms: indexes.map((index) => [1, index] as const),
+    sense: "<=",
+    rhs: indexes.length - 1,
+  };
+}
+
+/** Cost cap for the current tie tier: the model objective (all nonzero columns) must stay within 1e-9 of the tier cost. */
+function objectiveCapRow(model: MipModel, cost: number, name = "cap"): LpRow {
+  const terms: Array<readonly [number, number]> = [];
+  model.data.columns.forEach((column, index) => {
+    if (column.objective !== 0) terms.push([column.objective, index]);
+  });
+  return { name, terms, sense: "<=", rhs: cost + 1e-9 };
+}
+
+function infeasibleResult(req: OptimizeRequest): Omit<OptimizeResult, "initMs" | "searchMs"> {
+  return {
+    status: "infeasible",
+    schedules: [],
+    diversity: 0,
+    infeasibleSubset: findIis(req, (sub) => bruteForceIsFeasible(sub)),
+  };
+}
