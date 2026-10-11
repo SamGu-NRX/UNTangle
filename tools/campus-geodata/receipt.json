@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-10-11T14:04:27.122Z",
+  "generator": "tools/campus-geodata/build.mjs",
+  "commands": {
+    "fetch": "node tools/campus-geodata/fetch-osm.mjs [--refresh]",
+    "build": "node tools/campus-geodata/build.mjs"
+  },
+  "attribution": "© OpenStreetMap contributors (data: ODbL 1.0)",
+  "license": "OpenStreetMap data is available under the Open Database License (ODbL) v1.0; this summary does not alter that terms set. Keep the attribution '© OpenStreetMap contributors' with any use of the data.",
+  "sourceUrls": {
+    "pedestrian": "https://overpass-api.de/api/interpreter (mirror: https://overpass.kumi.systems/api/interpreter)",
+    "buildings": "https://overpass-api.de/api/interpreter (mirror: https://overpass.kumi.systems/api/interpreter)"
+  },
+  "queries": {
+    "pedestrian": "[out:json][timeout:180];(way[\"highway\"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;",
+    "buildings": "[out:json][timeout:180];(way[\"building\"](33.2025,-97.1585,33.2175,-97.1345);node[\"entrance\"](33.2025,-97.1585,33.2175,-97.1345);node[\"highway\"=\"entrance\"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;"
+  },
+  "raw": {
+    "pedestrian": {
+      "path": "tools/campus-geodata/raw/overpass-pedestrian-snapshot.json",
+      "sha256": "078e2a8c44f193a78a45a82a98ea51458206d6a4480631262def3caf7cadffc5",
+      "bytes": 1660850
+    },
+    "buildings": {
+      "path": "tools/campus-geodata/raw/overpass-buildings-snapshot.json",
+      "sha256": "f0997a5b389a67ee100f9f65d01e4a2c5ce1a91a5fc7cb436728d77566fdde98",
+      "bytes": 1150175
+    }
+  },
+  "outputs": {
+    "walkways": {
+      "path": "frontend/src/lib/campus/data/walkways.json",
+      "sha256": "dabcaa2f80e72f48709003a900e26dee269680d957c6d3ad2b1e69a1b4638455",
+      "bytes": 354032
+    },
+    "buildings": {
+      "path": "frontend/src/lib/campus/data/buildings.json",
+      "sha256": "b0c5614da5adb092aa66c65ba3b9474b83c238e25b7206999c94bf17902ae6d4",
+      "bytes": 398857
+    }
+  },
+  "counts": {
+    "rawPedestrianWays": 2659,
+    "footUsableWays": 2598,
+    "graphNodes": 8129,
+    "graphEdges": 9816,
+    "buildingOutlines": 1353,
+    "entranceNodes": 147,
+    "entranceNodesAttached": 138
+  },
+  "connectivity": {
+    "largestComponentNodes": 8091,
+    "componentCount": 10,
+    "largestComponentShare": 0.9953
+  }
+}
