@@ -340,9 +340,14 @@ export function MapLeafletCanvas({
 
   const legDisplays = useMemo(
     () =>
-      routeLegs.map((leg, index) =>
-        routeLegDisplay(leg, routeStops[index], routeStops[index + 1]),
-      ),
+      // Stale legs from a previous day must never index past the current stop
+      // list: on an empty or shorter day the old legs would have routeLegDisplay
+      // read undefined stops and crash the page before the fetch effect clears them.
+      routeLegs
+        .slice(0, Math.max(0, routeStops.length - 1))
+        .map((leg, index) =>
+          routeLegDisplay(leg, routeStops[index], routeStops[index + 1]),
+        ),
     [routeLegs, routeStops],
   );
 
