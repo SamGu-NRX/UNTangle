@@ -109,6 +109,26 @@ function discoverSuites(): DiscoveredSuite[] {
   return discovered;
 }
 
+async function resolveSuites(discovered: DiscoveredSuite[]): Promise<DiscoveredSuite[]> {
+  // A helper that names itself like a suite (optdata-lib.ts) must be skipped
+  // with a note, not crash --suite all: discovery accepts any non-underscore
+  // .ts file, so suite-ness is validated by loading the module.
+  const real: DiscoveredSuite[] = [];
+  for (const d of discovered) {
+    try {
+      const module = (await import(d.path)) as { default?: unknown; suite?: unknown };
+      if (isSuiteDefinition(module.default ?? module.suite)) {
+        real.push(d);
+      } else {
+        console.error(`[run] skipping ${d.name} (helper file, not a suite: no defineSuite export)`);
+      }
+    } catch (error) {
+      console.error(`[run] skipping ${d.name} (not loadable as a suite: ${(error as Error).message})`);
+    }
+  }
+  return real;
+}
+
 async function loadSuite(discovered: DiscoveredSuite): Promise<SuiteDefinition> {
   const module = (await import(discovered.path)) as { default?: unknown; suite?: unknown };
   const candidate = module.default ?? module.suite;
@@ -340,15 +360,14 @@ async function writeOutputs(scorecard: Scorecard, outPath: string): Promise<void
   writeFileSync(resolved.replace(/\.json$/, ".md"), markdownSummary(scorecard));
 }
 
-async function hashTargetFiles(targetDir: string): Promise<{ contractHash: string; barsHash: string }> {
-  // The target checkout normally carries its own evals/bars.json (the harness
-  // lives there); when pointing at a bare UNTangle checkout that lacks it, fall
-  // back to the harness's own bars — SCHEMA.md documents this.
-  const targetBars = path.join(targetDir, "evals", "bars.json");
-  const barsSource = existsSync(targetBars) ? targetBars : path.join(HARNESS_DIR, "bars.json");
+async function hashTargetFiles(): Promise<{ contractHash: string; barsHash: string }> {
+  // The contract and bars belong to the HARNESS checkout, never the target:
+  // baseline targets are application states that do not carry evals/ at all.
+  // The scorecard hashes identify exactly which harness ran — the contract
+  // and bar set actually enforced.
   return {
-    contractHash: await sha256File(path.join(targetDir, "evals", "CONTRACT.md")),
-    barsHash: await sha256File(barsSource),
+    contractHash: await sha256File(path.join(HARNESS_DIR, "CONTRACT.md")),
+    barsHash: await sha256File(path.join(HARNESS_DIR, "bars.json")),
   };
 }
 
@@ -360,8 +379,11 @@ async function main(): Promise<number> {
   }
   const args = parseRunArgs(argv);
 
-  if (!existsSync(path.join(args.targetDir, "evals", "CONTRACT.md"))) {
-    usageError(usage, `--target-dir has no evals/CONTRACT.md — is it a UNTangle checkout? ${args.targetDir}`);
+  // The contract, bars, and suites belong to the HARNESS checkout, never the
+  // target: baseline targets are application states that do not (and should
+  // not) carry evals/.
+  if (!existsSync(path.join(HARNESS_DIR, "CONTRACT.md"))) {
+    usageError(usage, `harness checkout has no evals/CONTRACT.md — is this the harness checkout? ${HARNESS_DIR}`);
   }
 
   // Attribution guard: warn loudly when the checkout is not at --target-sha.
@@ -378,7 +400,7 @@ async function main(): Promise<number> {
   }
 
   const bars = loadBars();
-  const discovered = discoverSuites();
+  const discovered = await resolveSuites(discoverSuites());
   const chosen = args.suite === "all" ? discovered : discovered.filter((d) => d.name === args.suite);
   if (chosen.length === 0) {
     console.error(
@@ -391,7 +413,7 @@ async function main(): Promise<number> {
   console.error(`[run] suites: ${chosen.map((d) => d.name).join(", ")}`);
 
   const startedAt = new Date().toISOString();
-  const hashes = await hashTargetFiles(args.targetDir);
+  const hashes = await hashTargetFiles();
 
   let stack: RunningStack | null = null;
   try {
