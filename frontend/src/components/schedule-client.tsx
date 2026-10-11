@@ -7,6 +7,7 @@ import { ConflictBanner } from "@/components/ui/ConflictBanner";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { usePlanner, useToast } from "@/components/planner-provider";
+import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
@@ -160,6 +161,8 @@ export function ScheduleClient() {
             Those courses are marked Taking, but they will not appear on the map until a section exists.
           </ConflictBanner>
         ) : null}
+
+        <PlannerPersistencePanel />
 
         <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 260px) minmax(0, 1fr)" }}>
           {/* Sidebar */}

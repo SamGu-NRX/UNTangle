@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
+import { hasDatabaseUrl } from "@/lib/db";
 import { loadPlannerState, savePlannerState } from "@/lib/persistence";
 import { normalizePlannerState } from "@/lib/planner";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
@@ -14,7 +15,9 @@ export async function GET() {
 
   try {
     const state = await loadPlannerState(session.user.id);
-    return NextResponse.json({ state });
+    // `persistent: false` tells the client this deployment stores nothing
+    // server-side, so a `Saved` acknowledgement must never be shown.
+    return NextResponse.json({ state, persistent: hasDatabaseUrl });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load planner state" },
@@ -43,7 +46,9 @@ export async function POST(request: Request) {
 
   try {
     const state = await savePlannerState(session.user.id, normalizePlannerState(validation.state));
-    return NextResponse.json({ state });
+    // `state: null` (no storage on this deployment) surfaces as `Not saved…`
+    // in the client, never as a false `Saved`.
+    return NextResponse.json({ state, persistent: state !== null });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save planner state" },

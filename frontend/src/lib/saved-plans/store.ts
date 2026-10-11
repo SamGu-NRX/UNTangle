@@ -28,6 +28,16 @@ export const SAVED_PLANS_STORE_SCHEMA_VERSION = 1;
 const QUARANTINE_PREFIX = "untangle.saved-plans.corrupt-";
 const MAX_FRESHNESS_ATTEMPTS = 3;
 
+/** Quarantine keys are unique per event: a same-millisecond collision must
+ * never overwrite an earlier quarantine (that would destroy stored bytes). */
+function newQuarantineKey(): string {
+  const unique =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  return `${QUARANTINE_PREFIX}${Date.now()}-${unique}`;
+}
+
 export type SavedPlanStoreFailure = {
   kind:
     | "storageUnavailable"
@@ -157,6 +167,12 @@ export type SavedPlanStore = {
   /** True when localStorage is usable at all. */
   readonly available: boolean;
   list(): StoreReadResult;
+  /** Quarantined unreadable documents: bytes kept from failed reads, listed
+   * newest-first. Lets the UI tell the user where the kept bytes live and
+   * proves quarantine preserved them rather than silently discarding. */
+  listQuarantined(): Array<{ key: string; size: number }>;
+  /** Raw quarantined bytes for a key (null when missing or unreadable). */
+  readQuarantined(key: string): string | null;
   savePlan(input: { state: PlannerState; name?: string; now?: Date }): StoreWriteResult<SavedPlanSnapshot>;
   renamePlan(planId: string, name: string): StoreWriteResult<SavedPlanSnapshot>;
   duplicatePlan(planId: string, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
@@ -181,12 +197,13 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
     if (!resolvedStorage) {
       return undefined;
     }
-    const quarantineKey = `${QUARANTINE_PREFIX}${Date.now()}`;
+    const quarantineKey = newQuarantineKey();
     try {
       resolvedStorage.setItem(quarantineKey, raw);
       return quarantineKey;
     } catch {
-      // Quarantine is best-effort; the notice already says the library reset.
+      // Quarantine is best-effort; when it fails the notice must not claim
+      // the bytes were kept — the caller reports the honest outcome.
       return undefined;
     }
   }
@@ -218,7 +235,15 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
       const parsed = parseDoc(raw);
       if (parsed.notice?.kind === "corruptDataRecovered" && parsed.doc.plans.length === 0) {
         const quarantinedTo = quarantine(raw);
-        const notice: SavedPlanStoreFailure = { ...parsed.notice, quarantinedTo };
+        const notice: SavedPlanStoreFailure = {
+          ...parsed.notice,
+          // When the quarantine write failed, the message must not imply the
+          // bytes were preserved. Name the location only when it exists.
+          message: quarantinedTo
+            ? parsed.notice.message
+            : "Saved-plan storage held unreadable data; the library restarted empty, and the unreadable bytes could not be kept because storage refused the write.",
+          quarantinedTo,
+        };
         return { ok: true, doc: emptyDoc(), notices: [notice] };
       }
       return {
@@ -318,6 +343,40 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
 
   return {
     available,
+    listQuarantined() {
+      if (!resolvedStorage) {
+        return [];
+      }
+      const keys: Array<{ key: string; size: number }> = [];
+      for (let index = resolvedStorage.length - 1; index >= 0; index -= 1) {
+        let key: string | null = null;
+        try {
+          key = resolvedStorage.key(index);
+        } catch {
+          continue;
+        }
+        if (key && key.startsWith(QUARANTINE_PREFIX)) {
+          try {
+            keys.push({ key, size: (resolvedStorage.getItem(key) ?? "").length });
+          } catch {
+            keys.push({ key, size: 0 });
+          }
+        }
+      }
+      return keys;
+    },
+
+    readQuarantined(key: string) {
+      if (!resolvedStorage || !key.startsWith(QUARANTINE_PREFIX)) {
+        return null;
+      }
+      try {
+        return resolvedStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+
     list() {
       if (!available) {
         return { ok: false, failure: storageUnavailableFailure() };

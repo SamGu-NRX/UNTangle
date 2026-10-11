@@ -13,7 +13,9 @@ import {
 import type { SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
 import {
   describeRestoreSteps,
+  describeSkippedReferences,
   dispatchRestore,
+  workingStateFingerprint,
 } from "@/lib/saved-plans/restore-adapter";
 
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
@@ -74,6 +76,10 @@ export function PlansClient() {
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [openCompareId, setOpenCompareId] = useState<string | null>(null);
   const [restorePlanId, setRestorePlanId] = useState<string | null>(null);
+  // Fingerprint of the working schedule captured when the restore preview was
+  // opened; confirm re-checks it so a schedule that changed in between cannot
+  // be replaced silently.
+  const restoreFingerprintRef = useRef<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -199,9 +205,30 @@ export function PlansClient() {
   // needed, and the React Compiler cannot prove the deps stay unmutated.
   const restoreReferences = restorePlan ? resolveSectionReferences(restorePlan.state) : null;
   const restoreDrift = restorePlan ? assessRestoreDrift(restorePlan, planner.plannerState) : null;
+  const restoreSkipWarnings =
+    restorePlan && restoreReferences ? describeSkippedReferences(restoreReferences) : [];
+  // listQuarantined() is a cheap localStorage key scan; recomputed per render
+  // so it refreshes whenever the library version (listState) changes.
+  const quarantinedKeys = store.listQuarantined();
 
-  const confirmRestore = () => {
+  const openRestore = (plan: SavedPlanSnapshot) => {
+    restoreFingerprintRef.current = workingStateFingerprint(planner.plannerState);
+    setRestorePlanId(plan.planId);
+  };
+
+  const confirmRestore = async () => {
     if (!restorePlan || !restoreReferences) return;
+    // Hydration gate: the working schedule must be fully loaded (or decided
+    // not to load) before a restore may overwrite it.
+    await planner.afterHydration();
+    if (
+      restoreFingerprintRef.current !== null &&
+      workingStateFingerprint(planner.plannerState) !== restoreFingerprintRef.current
+    ) {
+      toast("Your working schedule changed since the preview was opened. Re-check the preview, then restore again.");
+      setRestorePlanId(null);
+      return;
+    }
     const outcome = dispatchRestore(planner, restorePlan, restoreReferences);
     const skipped = outcome.staleSkipped.length + outcome.inactiveSkipped.length + outcome.unknownSkipped.length;
     const skipNote = skipped > 0 ? `; ${skipped} section reference${skipped === 1 ? "" : "s"} no longer resolve and were skipped` : "";
@@ -245,7 +272,7 @@ export function PlansClient() {
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
           {!archived ? (
-            <button type="button" className="btn-primary" disabled={busy} onClick={() => setRestorePlanId(plan.planId)}>
+            <button type="button" className="btn-primary" disabled={busy} onClick={() => openRestore(plan)}>
               Preview restore
             </button>
           ) : null}
@@ -467,6 +494,26 @@ export function PlansClient() {
                 </ul>
               </section>
             ) : null}
+
+            {quarantinedKeys.length > 0 ? (
+              <section aria-labelledby="quarantine-heading" style={{ border: "1px dashed var(--line)", borderRadius: "var(--r-md)", padding: "0.9rem 1rem" }}>
+                <h2 id="quarantine-heading" className="font-display" style={{ fontSize: "1rem", fontWeight: 700 }}>
+                  Kept unreadable data ({quarantinedKeys.length})
+                </h2>
+                <p style={{ fontSize: "0.85rem", color: "var(--copy)" }}>
+                  When saved-plan storage could not be read, the raw bytes were kept (not deleted) so
+                  nothing is silently destroyed. Nothing on this page uses them unless you restore them
+                  by hand.
+                </p>
+                <ul style={{ margin: 0, paddingInlineStart: "1.1rem", fontSize: "0.82rem", color: "var(--copy)" }}>
+                  {quarantinedKeys.map((entry) => (
+                    <li key={entry.key}>
+                      <code>{entry.key}</code> — {entry.size} characters kept
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -483,6 +530,16 @@ export function PlansClient() {
               <p role="alert" style={{ margin: 0, border: "1px solid var(--brand-700)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.88rem" }}>
                 {restoreDrift.message}
               </p>
+            ) : null}
+            {restoreSkipWarnings.length > 0 ? (
+              <div role="alert" style={{ border: "1px solid var(--brand-700)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.88rem", display: "grid", gap: "0.3rem" }}>
+                <strong>{restoreSkipWarnings.length} saved section reference{restoreSkipWarnings.length === 1 ? "" : "s"} will not carry over:</strong>
+                <ul style={{ margin: 0, paddingInlineStart: "1.1rem", display: "grid", gap: "0.2rem" }}>
+                  {restoreSkipWarnings.map((warning) => (
+                    <li key={`skip-${warning.courseCode}-${warning.sectionId}`}>{warning.warning}</li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
             <ol style={{ margin: 0, paddingInlineStart: "1.2rem", display: "grid", gap: "0.35rem", fontSize: "0.9rem" }}>
               {describeRestoreSteps(restorePlan, restoreReferences).map((step, index) => (

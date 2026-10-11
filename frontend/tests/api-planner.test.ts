@@ -12,6 +12,7 @@ const savePlannerState = mock<SaveFn>(async () => null);
 
 mock.module("@/lib/auth-server", () => ({ getServerSession }));
 mock.module("@/lib/persistence", () => ({ loadPlannerState, savePlannerState }));
+mock.module("@/lib/db", () => ({ db: {}, hasDatabaseUrl: true }));
 
 let GET: typeof import("@/app/api/planner/route").GET;
 let POST: typeof import("@/app/api/planner/route").POST;
@@ -48,7 +49,9 @@ describe("GET /api/planner", () => {
     loadPlannerState.mockImplementation(async () => stored);
     const response = await GET();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ state: stored });
+    // `persistent: true` tells the client this deployment stores rows, so the
+    // UI may acknowledge a save as durable.
+    expect(await response.json()).toEqual({ state: stored, persistent: true });
   });
 
   test("propagates persistence failures as 500", async () => {
@@ -129,6 +132,17 @@ describe("POST /api/planner", () => {
     const savedState = saved as ReturnType<typeof getInitialPlannerState>;
     expect(savedState.courseStatuses[courses[0].code]).toBe("inProgress");
     expect(savedState.updatedAt).toEqual(base.updatedAt);
+  });
+
+  test("reports non-persistence when storage is unavailable", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    // persistence.ts returns null instead of writing when the deployment has
+    // no database URL; the route must surface that honestly (state: null,
+    // persistent: false), not as a fake `Saved`.
+    savePlannerState.mockImplementation(async () => null);
+    const response = await POST(postRequest(getInitialPlannerState()));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: null, persistent: false });
   });
 
   test("recovers semantically-invalid values instead of rejecting", async () => {

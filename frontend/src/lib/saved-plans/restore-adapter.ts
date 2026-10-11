@@ -289,6 +289,55 @@ export function describeRestoreSteps(
 }
 
 /**
+ * Human-readable warnings for saved section references that no longer resolve.
+ * Rendered in the restore preview BEFORE anything is applied, so restoring a
+ * plan with stale, inactive or unknown sections shows what will change first
+ * instead of destroying the working schedule's shape silently.
+ */
+export function describeSkippedReferences(
+  references: SectionReferenceReport,
+): Array<{ courseCode: string; sectionId: string; warning: string }> {
+  const warnings: Array<{ courseCode: string; sectionId: string; warning: string }> = [];
+  const detail = (courseCode: string, sectionId: string, reason: string, consequence: string) => ({
+    courseCode,
+    sectionId,
+    warning: `${courseCode} → saved section ${sectionId} ${reason} ${consequence}`,
+  });
+
+  references.stale.forEach((finding) => {
+    warnings.push(
+      detail(
+        finding.courseCode,
+        finding.sectionId,
+        "is no longer offered in the current catalog (stale).",
+        "The optimizer will pick the current best section for that course instead of the saved one.",
+      ),
+    );
+  });
+  references.inactive.forEach((finding) => {
+    warnings.push(
+      detail(
+        finding.courseCode,
+        finding.sectionId,
+        "is not active in the current catalog.",
+        "The optimizer will pick an active section for that course instead of the saved one.",
+      ),
+    );
+  });
+  references.unknownCourses.forEach((finding) => {
+    warnings.push(
+      detail(
+        finding.courseCode,
+        finding.sectionId,
+        "references a course this catalog does not know.",
+        "No section can be restored for it; that course will leave the restored schedule.",
+      ),
+    );
+  });
+  return warnings;
+}
+
+/**
  * Fingerprint of the semantic fields of a working state (timestamps excluded).
  * The restore confirmation re-checks it so a schedule that changed between
  * preview and confirm cannot be replaced silently.
