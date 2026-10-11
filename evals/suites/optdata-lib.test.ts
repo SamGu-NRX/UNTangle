@@ -223,17 +223,45 @@ describe("extractActiveDataset", () => {
     expect(extracted.found).toBe(true);
     if (extracted.found) expect(extracted.descriptor.dataset).toBe("UNT '26 fall");
   });
-  test("nested values are rejected with the offending keys named", () => {
-    const source = "export const activeDataset = { file: 'f.json', counts: { courses: 84 } };";
+  test("nested counts groups flatten to bare count keys", () => {
+    const source = "export const activeDataset = { file: 'f.json', sha256: 'a'.repeat(64), counts: { courses: 84, buildings: 9 } };";
+    const extracted = extractActiveDataset(source);
+    expect(extracted.found).toBe(true);
+    if (extracted.found) {
+      expect(extracted.descriptor.counts.courses).toBe(84);
+      expect(extracted.descriptor.counts.buildings).toBe(9);
+      expect(extracted.descriptor.fields["counts.courses"]).toBe(84);
+      expect(extracted.descriptor.ignored).toEqual([]);
+    }
+  });
+  test("deep or array metadata is ignored, not fatal, and never misread", () => {
+    const source = "export const activeDataset = { file: 'f.json', sha256: 'a'.repeat(64), counts: { deep: { b: 1 }, list: [1, 2] }, changelog: [\"x\"], courses: 3 };";
+    const extracted = extractActiveDataset(source);
+    expect(extracted.found).toBe(true);
+    if (extracted.found) {
+      expect(extracted.descriptor.counts.courses).toBe(3);
+      expect(extracted.descriptor.counts["counts.deep"]).toBeUndefined();
+      expect(extracted.descriptor.ignored).toContain("counts.deep");
+      expect(extracted.descriptor.ignored).toContain("counts.list");
+      expect(extracted.descriptor.ignored).toContain("changelog");
+      expect(extracted.descriptor.file).toBe("f.json");
+    }
+  });
+  test("a computed contract field is rejected with the field named", () => {
+    const source = "export const activeDataset = { file: 'f.json', sha256: computeHash(), courses: 3 };";
     const extracted = extractActiveDataset(source);
     expect(extracted.found).toBe(false);
-    if (!extracted.found) expect(extracted.reason).toContain("counts");
+    if (!extracted.found) expect(extracted.reason).toContain("sha256");
   });
   test("a non-primitive value's interior keys are not misread", () => {
-    const source = "export const activeDataset = { file: 'f.json', pick: cond ? { a: 1 } : { b: 2 }, courses: 3 };";
+    const source = "export const activeDataset = { file: 'f.json', sha256: 'a'.repeat(64), pick: cond ? { a: 1 } : { b: 2 }, courses: 3 };";
     const extracted = extractActiveDataset(source);
-    expect(extracted.found).toBe(false);
-    if (!extracted.found) expect(extracted.reason).toContain("pick");
+    expect(extracted.found).toBe(true);
+    if (extracted.found) {
+      expect(extracted.descriptor.ignored).toContain("pick");
+      expect(extracted.descriptor.counts.courses).toBe(3);
+      expect(extracted.descriptor.counts["pick.a"]).toBeUndefined();
+    }
   });
   test("no declaration at all", () => {
     const extracted = extractActiveDataset("export const other = 1;");
@@ -263,6 +291,7 @@ describe("verifyDescriptorAgainstBundle / resolveBundledCatalogPath", () => {
       file: "b.json",
       sha256: bundleHash,
       counts: { courses: 3, sections: 7 },
+      ignored: [],
     };
     const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
     expect(verdict.hashOk).toBe(true);
@@ -275,27 +304,28 @@ describe("verifyDescriptorAgainstBundle / resolveBundledCatalogPath", () => {
       file: "b.json",
       sha256: "f".repeat(64),
       counts: { courses: 3 },
+      ignored: [],
     };
     const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
     expect(verdict.hashOk).toBe(false);
     expect(verdict.allOk).toBe(false);
   });
   test("a count mismatch is a failed check naming both sides", () => {
-    const descriptor = { fields: { sections: 8 }, counts: { sections: 8 } };
+    const descriptor = { fields: { sections: 8 }, counts: { sections: 8 }, ignored: [] };
     const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
     const sections = verdict.countChecks.find((c) => c.key === "sections");
     expect(sections?.ok).toBe(false);
     expect(sections?.actual).toBe("array length 7");
   });
   test("missing count key in the bundle fails", () => {
-    const descriptor = { fields: { rooms: 4 }, counts: { rooms: 4 } };
+    const descriptor = { fields: { rooms: 4 }, counts: { rooms: 4 }, ignored: [] };
     const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
     const rooms = verdict.countChecks.find((c) => c.key === "rooms");
     expect(rooms?.ok).toBe(false);
     expect(rooms?.kind).toBe("not-array-or-number");
   });
   test("missing bundle file: hash unknown, allOk false", () => {
-    const descriptor = { fields: { file: "b.json", sha256: bundleHash }, file: "b.json", sha256: bundleHash, counts: {} };
+    const descriptor = { fields: { file: "b.json", sha256: bundleHash }, file: "b.json", sha256: bundleHash, counts: {}, ignored: [] };
     const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/missing.json", null);
     expect(verdict.hashOk).toBeNull();
     expect(verdict.allOk).toBe(false);

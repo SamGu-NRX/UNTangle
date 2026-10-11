@@ -402,14 +402,17 @@ export function parseBenchReport(payload: Record<string, unknown>): BenchReportP
 // ---------------------------------------------------------------------------
 
 export interface ActiveDatasetDescriptor {
-  /** Every primitive string/number/boolean field seen, verbatim. */
+  /** Every primitive string/number/boolean field seen, verbatim (nested
+   * group members get dotted keys like "counts.courses"). */
   fields: Record<string, string | number | boolean>;
   /** The keys required by the contract (presence checked by the caller). */
   dataset?: string;
   file?: string;
   sha256?: string;
-  /** Numeric count keys (courses, sections, ...) claimed by the descriptor. */
+  /** Numeric count keys (courses, counts.buildings, ...) claimed by the descriptor. */
   counts: Record<string, number>;
+  /** Keys whose values could not be verified (arrays, spreads, computed values). */
+  ignored: string[];
 }
 
 export type DescriptorExtraction =
@@ -419,8 +422,11 @@ export type DescriptorExtraction =
 /**
  * Statically extract `export const activeDataset = { ... }` from the target's
  * data-provenance.ts WITHOUT importing it (the harness never pulls the
- * target's dependency graph). Only a flat literal of primitives satisfies the
- * contract; nested values are reported as a reason, never silently skipped.
+ * target's dependency graph). Flat primitives are read directly; one-level
+ * nested groups of primitives (e.g. `counts: { courses: 84 }`) flatten to
+ * dotted keys; other non-primitive values are recorded as ignored — they are
+ * metadata, not part of the verifiable contract. The extraction fails only
+ * when a contract field (file, sha256) itself is not statically readable.
  */
 export function extractActiveDataset(sourceText: string): DescriptorExtraction {
   const decl = /activeDataset\s*:(?!:)|activeDataset\s*=(?!=)/.exec(sourceText);
@@ -466,9 +472,11 @@ export function extractActiveDataset(sourceText: string): DescriptorExtraction {
 
   const fields: Record<string, string | number | boolean> = {};
   const counts: Record<string, number> = {};
-  const nestedKeys: string[] = [];
+  const ignored: string[] = [];
+  const unreadableContract: string[] = [];
 
-  // Top-level "key: value" pairs only; values must be primitives.
+  // Top-level "key: value" pairs; primitives are read directly, one-level
+  // nested primitive groups flatten to dotted keys, anything else is ignored.
   const pair = /([A-Za-z_$][\w$]*)\s*:\s*/g;
   pair.lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -479,39 +487,39 @@ export function extractActiveDataset(sourceText: string): DescriptorExtraction {
     // Skip whitespace and comments between ":" and the value.
     while (cursor < literal.length && /\s/.test(literal[cursor] ?? "")) cursor += 1;
     const rest = literal.slice(cursor);
-    if (rest.startsWith("{") || rest.startsWith("[") || rest.startsWith("...") || rest.startsWith("(")) {
-      nestedKeys.push(key);
-      // Skip past this nested structure so its inner "key: value" pairs are
-      // not misread as top-level fields.
-      const openCh = rest[0];
-      const closeCh = openCh === "{" ? "}" : openCh === "[" ? "]" : ")";
-      let d = 0;
-      let j = cursor;
-      let str: string | null = null;
-      while (j < literal.length) {
-        const c = literal[j] ?? "";
-        if (str !== null) {
-          if (c === "\\") j += 1;
-          else if (c === str) str = null;
-        } else if (c === '"' || c === "'" || c === "`") {
-          str = c;
-        } else if (c === openCh) {
-          d += 1;
-        } else if (c === closeCh) {
-          d -= 1;
-          if (d === 0) break;
-        }
-        j += 1;
+    if (rest.startsWith("{")) {
+      // One-level nested groups flatten. A group named `counts` is the
+      // conventional count container — its members ARE the count names
+      // (`counts: { buildings: 16 }` claims 16 buildings), so numeric
+      // members merge under their bare names. Any other group is metadata:
+      // members are kept as dotted fields for evidence but never become
+      // count checks (the bundle lookup is top-level only).
+      const group = parsePrimitiveGroup(literal, cursor);
+      const isCountGroup = key === "counts";
+      for (const [innerKey, innerValue] of group.entries) {
+        fields[`${key}.${innerKey}`] = innerValue;
+        if (typeof innerValue === "number" && isCountGroup) counts[innerKey] = innerValue;
       }
-      pair.lastIndex = j + 1;
+      for (const innerIgnored of group.ignored) ignored.push(`${key}.${innerIgnored}`);
+      pair.lastIndex = group.endIndex;
+      continue;
+    }
+    if (rest.startsWith("[") || rest.startsWith("...") || rest.startsWith("(")) {
+      // Arrays, spreads and call results are metadata the harness cannot
+      // verify statically; they are not part of the verifiable contract
+      // (file/sha256/counts), so record and move on.
+      ignored.push(key);
+      pair.lastIndex = skipToTopLevelSeparator(literal, cursor);
       continue;
     }
     const value = /^(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|(-?\d+(?:\.\d+)?)|(true|false))/.exec(rest);
     if (value === null) {
-      // Not a primitive literal (identifier, template, arithmetic) — the
-      // contract requires a flat literal of primitives. Skip past the value
-      // so its interior (ternaries etc.) is never misread as top-level keys.
-      nestedKeys.push(key);
+      // Not a primitive literal (identifier, template, arithmetic). Skip past
+      // the value so its interior (ternaries etc.) is never misread as
+      // top-level keys. A computed CONTRACT field is fatal; computed
+      // metadata is merely unverifiable.
+      if (key === "file" || key === "sha256") unreadableContract.push(key);
+      else ignored.push(key);
       pair.lastIndex = skipToTopLevelSeparator(literal, cursor);
       continue;
     }
@@ -526,16 +534,80 @@ export function extractActiveDataset(sourceText: string): DescriptorExtraction {
     pair.lastIndex = cursor + (value[0]?.length ?? 0);
   }
 
-  if (nestedKeys.length > 0) {
+  if (unreadableContract.length > 0) {
     return {
       found: false,
-      reason: `activeDataset is not a flat object literal of primitives (non-primitive value at key(s): ${nestedKeys.join(
-        ", ",
-      )}); the descriptor contract requires file, sha256 and numeric counts as plain literals`,
+      reason: `activeDataset's ${unreadableContract.join(" and ")} is not a statically readable plain literal (computed or templated value); the contract requires plain string literals to verify`,
     };
   }
 
-  return { found: true, descriptor: { fields, counts, dataset: asString(fields.dataset), file: asString(fields.file), sha256: asString(fields.sha256) } };
+  return { found: true, descriptor: { fields, counts, ignored, dataset: asString(fields.dataset), file: asString(fields.file), sha256: asString(fields.sha256) } };
+}
+
+/**
+ * Parse a one-level object literal (starting at openBraceIdx) whose members
+ * are primitives. Non-primitive or nested members are recorded in `ignored`;
+ * the scanner never descends into them. endIndex is the index just past the
+ * group's closing brace (or text.length if unbalanced).
+ */
+function parsePrimitiveGroup(text: string, openBraceIdx: number): {
+  entries: [string, string | number | boolean][];
+  ignored: string[];
+  endIndex: number;
+} {
+  // String-aware scan for the matching closing brace.
+  let depth = 0;
+  let close = -1;
+  let str: string | null = null;
+  for (let i = openBraceIdx; i < text.length; i += 1) {
+    const ch = text[i] ?? "";
+    if (str !== null) {
+      if (ch === "\\") i += 1;
+      else if (ch === str) str = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") str = ch;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        close = i;
+        break;
+      }
+    }
+  }
+  const entries: [string, string | number | boolean][] = [];
+  const ignored: string[] = [];
+  if (close === -1) return { entries, ignored, endIndex: text.length };
+  const inner = text.slice(openBraceIdx + 1, close);
+
+  const pair = /([A-Za-z_$][\w$]*)\s*:\s*/g;
+  pair.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pair.exec(inner)) !== null) {
+    const key = match[1];
+    if (key === undefined) break;
+    let cursor = match.index + match[0].length;
+    while (cursor < inner.length && /\s/.test(inner[cursor] ?? "")) cursor += 1;
+    const rest = inner.slice(cursor);
+    if (rest.startsWith("{") || rest.startsWith("[") || rest.startsWith("...") || rest.startsWith("(")) {
+      ignored.push(key);
+      pair.lastIndex = skipToTopLevelSeparator(inner, cursor);
+      continue;
+    }
+    const value = /^(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|(-?\d+(?:\.\d+)?)|(true|false))/.exec(rest);
+    if (value === null) {
+      ignored.push(key);
+      pair.lastIndex = skipToTopLevelSeparator(inner, cursor);
+      continue;
+    }
+    if (value[1] !== undefined) entries.push([key, JSON.parse(`"${value[1]}"`) as string]);
+    else if (value[2] !== undefined) entries.push([key, value[2].replace(/\\'/g, "'")]);
+    else if (value[3] !== undefined) entries.push([key, Number(value[3])]);
+    else entries.push([key, value[4] === "true"]);
+    pair.lastIndex = cursor + (value[0]?.length ?? 0);
+  }
+  return { entries, ignored, endIndex: close + 1 };
 }
 
 function asString(value: string | number | boolean | undefined): string | undefined {
