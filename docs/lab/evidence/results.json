@@ -2,14 +2,15 @@
   {
     "direction": "a",
     "viewport": "desktop",
-    "loadMs": 2106,
-    "routeApiCallsOnLoad": 0,
+    "measuredDay": "Tue",
+    "loadMs": 1145,
+    "routeApiCallsOnDaySwitch": 0,
     "longestWalkInDom": 0,
     "axeViolations": [
       {
         "id": "color-contrast",
         "impact": "serious",
-        "count": 2,
+        "count": 3,
         "sample": [
           "div:nth-child(8) > .cal-event[type=\"button\"] > .cal-event__meta:nth-child(3)",
           "div:nth-child(10) > .cal-event[type=\"button\"] > .cal-event__meta:nth-child(3)"
@@ -45,16 +46,17 @@
   {
     "direction": "b",
     "viewport": "desktop",
-    "loadMs": 2230,
-    "routeApiCallsOnLoad": 0,
+    "measuredDay": "Tue",
+    "loadMs": 2157,
+    "routeApiCallsOnDaySwitch": 0,
     "longestWalkInDom": 0,
     "axeViolations": [
       {
-        "id": "heading-order",
-        "impact": "moderate",
+        "id": "color-contrast",
+        "impact": "serious",
         "count": 1,
         "sample": [
-          "h3"
+          ".lab-days__tab--active"
         ]
       }
     ]
@@ -62,16 +64,17 @@
   {
     "direction": "c",
     "viewport": "desktop",
-    "loadMs": 2417,
-    "routeApiCallsOnLoad": 0,
+    "measuredDay": "Tue",
+    "loadMs": 2238,
+    "routeApiCallsOnDaySwitch": 0,
     "longestWalkInDom": 0,
     "axeViolations": [
       {
-        "id": "heading-order",
-        "impact": "moderate",
+        "id": "color-contrast",
+        "impact": "serious",
         "count": 1,
         "sample": [
-          "h3"
+          ".lab-days__tab--active"
         ]
       }
     ]
@@ -79,10 +82,20 @@
   {
     "direction": "a",
     "viewport": "mobile",
-    "loadMs": 2333,
-    "routeApiCallsOnLoad": 0,
-    "longestWalkInDom": 0,
+    "measuredDay": "Tue",
+    "loadMs": 1688,
+    "routeApiCallsOnDaySwitch": 3,
+    "longestWalkInDom": 1,
     "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 3,
+        "sample": [
+          ".conflict-banner > span:nth-child(2)",
+          ".course-pill:nth-child(2)"
+        ]
+      },
       {
         "id": "landmark-main-is-top-level",
         "impact": "moderate",
@@ -113,16 +126,25 @@
   {
     "direction": "b",
     "viewport": "mobile",
-    "loadMs": 2252,
-    "routeApiCallsOnLoad": 0,
-    "longestWalkInDom": 0,
+    "measuredDay": "Tue",
+    "loadMs": 3823,
+    "routeApiCallsOnDaySwitch": 2,
+    "longestWalkInDom": 1,
     "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 1,
+        "sample": [
+          ".lab-days__tab--active"
+        ]
+      },
       {
         "id": "heading-order",
         "impact": "moderate",
         "count": 1,
         "sample": [
-          "h3"
+          "article[aria-label=\"ANTH 3200 at 09:00\"] > .lab-itin__cardhead > h3"
         ]
       }
     ]
@@ -130,16 +152,17 @@
   {
     "direction": "c",
     "viewport": "mobile",
-    "loadMs": 2199,
-    "routeApiCallsOnLoad": 0,
-    "longestWalkInDom": 0,
+    "measuredDay": "Tue",
+    "loadMs": 3296,
+    "routeApiCallsOnDaySwitch": 2,
+    "longestWalkInDom": 1,
     "axeViolations": [
       {
         "id": "heading-order",
         "impact": "moderate",
         "count": 1,
         "sample": [
-          "h3"
+          "article[aria-label=\"ANTH 3200 at 09:00\"] > .lab-itin__cardhead > h3"
         ]
       }
     ]
