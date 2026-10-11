@@ -52,7 +52,12 @@ export type CourseDetailModel = {
       name: string;
       gpa: number | null;
       rmpRating: number | null;
+      rmpDifficulty: number | null;
+      rmpNumRatings: number | null;
       rmpProfileUrl: string | null;
+      rmpTags: Array<{ tagCount: number; tagName: string }>;
+      rmpUpdatedAt: string | null;
+      rmpWouldTakeAgain: number | null;
       sectionCount: number;
       totalEnroll: number;
     }>;
@@ -88,7 +93,12 @@ export function buildCourseDetailModel({
         name: instructor.name,
         gpa: instructor.gpa,
         rmpRating: instructor.rmpRating,
+        rmpDifficulty: instructor.rmpDifficulty,
+        rmpNumRatings: instructor.rmpNumRatings,
         rmpProfileUrl: instructor.rmpProfileUrl,
+        rmpTags: instructor.rmpTags ?? [],
+        rmpUpdatedAt: instructor.rmpUpdatedAt,
+        rmpWouldTakeAgain: instructor.rmpWouldTakeAgain,
         sectionCount: instructor.sectionCount,
         totalEnroll: instructor.totalEnroll,
       }))

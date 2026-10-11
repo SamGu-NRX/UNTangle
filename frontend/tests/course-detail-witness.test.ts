@@ -160,6 +160,32 @@ describe("course detail catalog fields (witness)", () => {
     expect(model.ratings.source).toBe("external");
   });
 
+  test("carries the full external-rating payload an instructor cache holds", () => {
+    const model = buildCourseDetailModel({
+      catalogCourse: csce3444,
+      gradeDetail: fixtureGradeDetail(),
+    });
+    const [instructor] = model.ratings.instructors;
+    expect(instructor.rmpDifficulty).toBe(3.1);
+    expect(instructor.rmpNumRatings).toBe(55);
+    expect(instructor.rmpWouldTakeAgain).toBe(78);
+    expect(instructor.rmpTags).toEqual([{ tagCount: 4, tagName: "tough grader" }]);
+    expect(instructor.rmpUpdatedAt).toBe("2026-01-01");
+    expect(instructor.rmpProfileUrl).toBe("https://www.ratemyprofessors.com/example");
+  });
+
+  test("survives instructors whose tag list is absent from the grade payload", () => {
+    const fixture = fixtureGradeDetail();
+    // The grades route can omit the tags array entirely for cache misses.
+    const [instructor] = fixture.instructors;
+    instructor.rmpTags = undefined as unknown as Array<{ tagCount: number; tagName: string }>;
+    const model = buildCourseDetailModel({
+      catalogCourse: csce3444,
+      gradeDetail: fixture,
+    });
+    expect(model.ratings.instructors[0].rmpTags).toEqual([]);
+  });
+
   test("marks unresolvable prerequisites as unresolved guidance, not links", () => {
     // BIOL 2302 declares prerequisites BIOL 2311/2312 that no catalog row satisfies.
     const model = buildCourseDetailModel({ catalogCourse: biol2302, gradeDetail: null });

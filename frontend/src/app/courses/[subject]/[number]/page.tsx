@@ -142,26 +142,47 @@ export default async function CourseDetailsPage({
                 <p>Grade service records</p>
               </div>
               <div className="detail-list">
-                {ratings.instructors.map((instructor) => (
-                  <Link key={instructor.id} href={`/instructors/${instructor.id}`} className="detail-row">
-                    <span className="detail-row__main">
-                      <strong>{instructor.name}</strong>
-                      <span>
-                        {instructor.sectionCount} sections · {instructor.totalEnroll.toLocaleString()} students
+                {ratings.instructors.map((instructor) => {
+                  const hasRmp = instructor.rmpRating !== null;
+                  const topTag = instructor.rmpTags
+                    .slice()
+                    .sort((a, b) => b.tagCount - a.tagCount)[0];
+                  return (
+                    <Link key={instructor.id} href={`/instructors/${instructor.id}`} className="detail-row">
+                      <span className="detail-row__main">
+                        <strong>{instructor.name}</strong>
+                        <span>
+                          {instructor.sectionCount} sections · {instructor.totalEnroll.toLocaleString()} students
+                          {hasRmp && instructor.rmpDifficulty !== null
+                            ? ` · difficulty ${instructor.rmpDifficulty.toFixed(1)}`
+                            : ""}
+                        </span>
+                        {hasRmp && topTag ? (
+                          <span className="rmp-tags" style={{ marginTop: "0.25rem" }}>
+                            <span>{topTag.tagName}</span>
+                          </span>
+                        ) : null}
                       </span>
-                    </span>
-                    <span className="detail-row-metrics">
-                      {instructor.rmpRating
-                        ? `${instructor.rmpRating.toFixed(1)} RMP (external)`
-                        : "No external rating"}
-                      <b>{formatGpa(instructor.gpa)}</b>
-                    </span>
-                  </Link>
-                ))}
+                      <span className="detail-row-metrics">
+                        {instructor.rmpRating !== null
+                          ? `${instructor.rmpRating.toFixed(1)} RMP (external)`
+                          : "No external rating"}
+                        <b>{formatGpa(instructor.gpa)}</b>
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
               <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: "0.75rem 0 0" }}>
                 RMP ratings are external RateMyProfessors data fetched through the grade service —
                 not part of the UNTangle catalog.
+                {ratings.instructors.some((instructor) => instructor.rmpUpdatedAt)
+                  ? ` Latest cache update: ${ratings.instructors
+                      .map((instructor) => instructor.rmpUpdatedAt)
+                      .filter((updated): updated is string => updated !== null)
+                      .sort()
+                      .at(-1)}.`
+                  : ""}
               </p>
             </div>
 
