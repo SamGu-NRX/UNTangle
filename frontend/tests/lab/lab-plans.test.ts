@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildScheduleEvents, isCourseLocked, normalizePlannerState, serializePlannerPayload } from "@/lib/planner";
-import { labPlan, labPlannerState, labScheduleEvents } from "@/lib/lab/lab-plans";
+import { labPlan, labPlannerState, labScheduleEvents, labSectionMeetingSummary, labSectionOptions } from "@/lib/lab/lab-plans";
 import type { PlannerState } from "@/lib/types";
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -112,5 +112,35 @@ describe("lab plan fixture", () => {
       }
     }
     expect(maxGap).toBeGreaterThan(0);
+  });
+});
+
+describe("labSectionOptions", () => {
+  test("exists for every active course and includes its current section", () => {
+    Object.entries(labPlannerState.selectedSections).forEach(([courseCode, sectionId]) => {
+      const options = labSectionOptions(labPlannerState, courseCode);
+      expect(options.length).toBeGreaterThanOrEqual(1);
+      const current = options.find((option) => option.sectionId === sectionId);
+      expect(current).toBeDefined();
+      expect(current?.conflictCount).toBe(1);
+    });
+  });
+
+  test("offers a conflict-free alternative for the engineered Tuesday pair", () => {
+    const [courseA] = labPlan.conflictCourseCodes;
+    const currentA = labPlannerState.selectedSections[courseA];
+    const options = labSectionOptions(labPlannerState, courseA);
+    const alternatives = options.filter((option) => option.sectionId !== currentA);
+    expect(alternatives.some((option) => option.conflictCount === 0)).toBe(true);
+  });
+});
+
+describe("labSectionMeetingSummary", () => {
+  test("summarizes meetings per day with a time range", () => {
+    Object.entries(labPlannerState.selectedSections).forEach(([courseCode, sectionId]) => {
+      const summary = labSectionMeetingSummary(courseCode, sectionId);
+      expect(summary).not.toBe(sectionId);
+      expect(summary).toMatch(/:/);
+    });
   });
 });

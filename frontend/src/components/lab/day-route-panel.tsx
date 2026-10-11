@@ -1,45 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import { fetchDayLegs, summarizeDayLegs } from "@/lib/lab/leg-routing";
-import type { LabLeg } from "@/lib/lab/leg-routing";
+import { useDayLegs } from "@/components/lab/use-day-legs";
+import { summarizeDayLegs } from "@/lib/lab/leg-routing";
 import { dayLegNotice, formatMeters, formatWalkingMinutes, pickLongestLeg } from "@/lib/lab/leg-format";
 import { LegMap } from "@/components/lab/leg-map";
-
-type PanelState = "loading" | "ready" | "error";
 
 export function DayRoutePanel() {
   const { routeStops, plannerState } = usePlanner();
   const activeDay = plannerState.activeDay;
   const stops = routeStops[activeDay] ?? [];
-  const [legs, setLegs] = useState<LabLeg[]>([]);
-  const [panelState, setPanelState] = useState<PanelState>("loading");
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    if (stops.length < 2) {
-      setLegs([]);
-      setPanelState("ready");
-      return;
-    }
-    let alive = true;
-    setPanelState("loading");
-    fetchDayLegs(stops)
-      .then((result) => {
-        if (!alive) return;
-        setLegs(result.legs);
-        setPanelState("ready");
-      })
-      .catch(() => {
-        if (!alive) return;
-        setLegs([]);
-        setPanelState("error");
-      });
-    return () => {
-      alive = false;
-    };
-  }, [stops, reloadKey]);
+  const { legs, state: panelState, recheck } = useDayLegs(stops);
 
   const summary = summarizeDayLegs(legs);
   const longest = pickLongestLeg(legs);
@@ -49,11 +20,7 @@ export function DayRoutePanel() {
     <div className="lab-route">
       <div className="lab-route__head">
         <h2 className="font-display">Walking route — {activeDay}</h2>
-        <button
-          type="button"
-          className="lab-route__reload"
-          onClick={() => setReloadKey((key) => key + 1)}
-        >
+        <button type="button" className="lab-route__reload" onClick={recheck}>
           Recheck route
         </button>
       </div>
@@ -69,8 +36,8 @@ export function DayRoutePanel() {
 
       {panelState === "error" && (
         <p className="lab-route__status" role="status">
-          The route service did not answer. Distances below are straight-line estimates; no
-          walking times are shown.
+          The route service did not answer. Distances below are straight-line estimates; no walking
+          times are shown.
         </p>
       )}
 

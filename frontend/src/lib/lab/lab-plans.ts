@@ -232,3 +232,53 @@ export const labPlannerState: PlannerState = normalizePlannerState(labPlan.plann
 export function labScheduleEvents() {
   return buildScheduleEvents(labPlannerState);
 }
+
+/** Section alternatives for one course with the conflict count each would
+ * produce if selected, computed through the real planner machinery.
+ */
+export function labSectionOptions(
+  state: PlannerState,
+  courseCode: string,
+): Array<{ sectionId: string; conflictCount: number }> {
+  return sections
+    .filter((section) => section.courseCode === courseCode)
+    .map((section) => {
+      const swapped: PlannerState = {
+        ...state,
+        selectedSections: { ...state.selectedSections, [courseCode]: section.id },
+      };
+      return {
+        sectionId: section.id,
+        conflictCount: countOverlaps(buildScheduleEvents(normalizePlannerState(swapped))),
+      };
+    });
+}
+
+function countOverlaps(events: ReturnType<typeof buildScheduleEvents>): number {
+  let conflicts = 0;
+  for (let i = 0; i < events.length; i += 1) {
+    for (let j = i + 1; j < events.length; j += 1) {
+      if (events[i].day === events[j].day && events[i].start < events[j].end && events[j].start < events[i].end) {
+        conflicts += 1;
+      }
+    }
+  }
+  return conflicts;
+}
+
+/** Human meeting summary for a section, e.g. "Tue 9:00-9:50 · Thu 11:00-11:50". */
+export function labSectionMeetingSummary(courseCode: string, sectionId: string): string {
+  const section = sections.find((entry) => entry.courseCode === courseCode && entry.id === sectionId);
+  if (!section) {
+    return sectionId;
+  }
+  const byDay = new Map<WeekDay, string[]>();
+  section.meetings.forEach((meeting) => {
+    const times = byDay.get(meeting.day) ?? [];
+    times.push(meeting.start + "-" + meeting.end);
+    byDay.set(meeting.day, times);
+  });
+  return Array.from(byDay.entries())
+    .map(([day, times]) => day + " " + times.join(", "))
+    .join(" · ");
+}

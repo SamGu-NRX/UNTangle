@@ -300,3 +300,196 @@
     transition: none;
   }
 }
+
+.lab-days {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lab-days__tab {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease), border-color 150ms var(--ease);
+}
+
+.lab-days__tab:hover {
+  border-color: var(--brand-200);
+  background: var(--surface-muted);
+}
+
+.lab-days__tab--active {
+  background: var(--brand-700);
+  border-color: var(--brand-700);
+  color: var(--surface);
+}
+
+.lab-itin-wrap {
+  display: grid;
+  gap: 0.9rem;
+  max-width: 44rem;
+}
+
+.lab-itin {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.lab-itin__summary {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.lab-itin__list,
+.lab-itin__item {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lab-itin__list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lab-itin__item {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lab-itin__card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  padding: 0.8rem 1rem;
+}
+
+.lab-itin__cardhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lab-itin__cardhead h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.lab-itin__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--copy);
+  font-size: 0.9rem;
+}
+
+.lab-itin__where {
+  margin: 0.2rem 0 0;
+  color: var(--copy);
+  font-size: 0.9rem;
+}
+
+.lab-itin__badges {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
+}
+
+.lab-badge {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.78rem;
+  color: var(--copy);
+  background: var(--surface-muted);
+}
+
+.lab-badge--conflict {
+  border-color: var(--brand-700);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+
+.lab-itin__sections {
+  margin-top: 0.5rem;
+}
+
+.lab-itin__sections summary {
+  cursor: pointer;
+  color: var(--brand-700);
+  font-size: 0.88rem;
+}
+
+.lab-itin__sections ul {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.lab-itin__section {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-muted);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.86rem;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 150ms var(--ease), border-color 150ms var(--ease);
+}
+
+.lab-itin__section:hover {
+  border-color: var(--brand-200);
+  background: var(--surface);
+}
+
+.lab-itin__section[aria-pressed="true"] {
+  border-color: var(--brand-700);
+  background: var(--surface);
+}
+
+.lab-itin__sectionnote {
+  color: var(--copy);
+  white-space: nowrap;
+}
+
+.lab-itin__leg {
+  margin-left: 1.2rem;
+  padding: 0.3rem 0 0.3rem 0.9rem;
+  border-left: 3px solid var(--brand-500);
+  font-size: 0.84rem;
+  color: var(--copy);
+}
+
+.lab-itin__leg--approximate {
+  border-left-style: dashed;
+  border-left-color: var(--copy);
+}
+
+.lab-itin__leg--same-building,
+.lab-itin__leg--unresolved {
+  border-left-color: var(--line);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-days__tab,
+  .lab-itin__section {
+    transition: none;
+  }
+}
