@@ -81,7 +81,7 @@ async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Pr
     return { status: "fail", note: `${toolPath} is neither a readable file nor a directory` };
   }
 
-  const command = artifactCommand(toolPath, ["--format", "json"], targetDir);
+  const command = artifactCommand(toolPath, ["--format", "json"], targetDir, "repo-root");
   if (!command.ok) {
     return {
       status: "fail",

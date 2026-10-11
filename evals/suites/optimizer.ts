@@ -67,7 +67,7 @@ function writeEvidence(runDir: string, name: string, payload: unknown): string {
 async function benchExecution(ctx: SuiteContext, targetDir: string, benchDir: string): Promise<BenchExecution> {
   if (memoized !== undefined) return memoized;
 
-  const command = artifactCommand(benchDir, ["--courses", String(BENCH_COURSES), "--samples", String(BENCH_SAMPLES), "--seed", String(BENCH_SEED), "--format", "json"], targetDir);
+  const command = artifactCommand(benchDir, ["--courses", String(BENCH_COURSES), "--samples", String(BENCH_SAMPLES), "--seed", String(BENCH_SEED), "--format", "json"], targetDir, "artifact-dir");
   if (!command.ok) {
     memoized = { kind: "error", headline: "bench present but not runnable", detail: command.reason, evidencePath: null };
     return memoized;

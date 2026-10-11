@@ -98,11 +98,27 @@ describe("discoverEntrypointInDir / artifactCommand", () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep3-"));
     try {
       expect(discoverEntrypointInDir(dir)).toBeUndefined();
-      const resolved = artifactCommand(dir, [], dir);
+      const resolved = artifactCommand(dir, [], dir, "artifact-dir");
       expect(resolved.ok).toBe(false);
       if (!resolved.ok) expect(resolved.reason).toContain("no runnable entrypoint");
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  test("directory artifact's cwd follows the policy: repo-root vs artifact-dir", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep5-"));
+    const repoRoot = mkdtempSync(path.join(os.tmpdir(), "optdata-ep5-repo-"));
+    try {
+      writeFileSync(path.join(dir, "run.ts"), "export {};\n");
+      const asRepoRoot = artifactCommand(dir, ["--format", "json"], repoRoot, "repo-root");
+      expect(asRepoRoot.ok).toBe(true);
+      if (asRepoRoot.ok) expect(asRepoRoot.cwd).toBe(repoRoot);
+      const asArtifactDir = artifactCommand(dir, ["--format", "json"], repoRoot, "artifact-dir");
+      expect(asArtifactDir.ok).toBe(true);
+      if (asArtifactDir.ok) expect(asArtifactDir.cwd).toBe(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      rmSync(repoRoot, { recursive: true, force: true });
     }
   });
   test("a bare .ts file runs with bun from the fallback cwd", () => {
@@ -110,7 +126,7 @@ describe("discoverEntrypointInDir / artifactCommand", () => {
     try {
       const script = path.join(dir, "consistency.ts");
       writeFileSync(script, "export {};\n");
-      const resolved = artifactCommand(script, ["--format", "json"], dir);
+      const resolved = artifactCommand(script, ["--format", "json"], dir, "repo-root");
       expect(resolved.ok).toBe(true);
       if (resolved.ok) {
         expect(resolved.cmd).toBe("bun");

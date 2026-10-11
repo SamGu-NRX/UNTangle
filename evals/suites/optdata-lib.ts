@@ -271,7 +271,11 @@ export function discoverEntrypointInDir(dir: string): EntryPoint | undefined {
 /**
  * Resolve a runnable command for a conditional-presence artifact that may be
  * a directory (entrypoint discovery inside it) or a script file (.ts -> bun,
- * .js -> node, anything else -> executed directly).
+ * .js -> node, anything else -> executed directly). cwdPolicy states which
+ * working directory the artifact's contract assumes: "artifact-dir" (the
+ * optimizer bench reads fixtures relative to its own directory) or
+ * "repo-root" (repo tools like catalog-consistency resolve repo paths from
+ * the target root).
  */
 export type ArtifactCommand =
   | { ok: true; cmd: string; args: string[]; cwd: string; describe: string }
@@ -281,6 +285,7 @@ export function artifactCommand(
   artifactPath: string,
   extraArgs: string[],
   fallbackCwd: string,
+  cwdPolicy: "artifact-dir" | "repo-root",
 ): ArtifactCommand {
   if (isDirectory(artifactPath)) {
     const entry = discoverEntrypointInDir(artifactPath);
@@ -296,7 +301,7 @@ export function artifactCommand(
       ok: true,
       cmd: entry.cmd,
       args: [...entry.args, ...extraArgs],
-      cwd: artifactPath,
+      cwd: cwdPolicy === "artifact-dir" ? artifactPath : fallbackCwd,
       describe: `${entry.cmd} ${path.relative(fallbackCwd, entry.entryPath) || entry.entryPath}`,
     };
   }
