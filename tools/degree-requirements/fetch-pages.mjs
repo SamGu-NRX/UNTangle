@@ -31,6 +31,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CATALOG_BASE, decodeBytes, effectiveIntervalMs, parseRobots, robotsVerdict } from "./fetch-lib.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "..", "..");
@@ -39,7 +40,7 @@ const CACHE = join(DATA, "cache");
 const RECEIPT = join(DATA, "receipt.json");
 const PROGRAMS = join(DATA, "programs.json");
 
-const BASE = "https://catalog.unt.edu";
+const BASE = CATALOG_BASE;
 const USER_AGENT =
   "UNTangleDegreePlanBot/1.0 (student degree-planning tool; fetches published catalog pages only; " +
   "respects robots.txt and its crawl-delay; contact: focus.sgu@gmail.com; " +
@@ -87,59 +88,6 @@ function relCache(p) {
   return "data/degree-requirements/cache/" + p.split("/").pop();
 }
 
-/** Minimal robots.txt: the rules that apply to our group, as directives. */
-function parseRobots(text, ourToken) {
-  const groups = [];
-  let current = null;
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*$/, "").trim();
-    if (!line) continue;
-    const idx = line.indexOf(":");
-    if (idx === -1) continue;
-    const key = line.slice(0, idx).trim().toLowerCase();
-    const value = line.slice(idx + 1).trim();
-    if (key === "user-agent") {
-      if (!current || (current.rules.length && current._closed)) {
-        current = { agents: [], rules: [], crawlDelay: null, _closed: false };
-        groups.push(current);
-      }
-      current.agents.push(value.toLowerCase());
-      current._closed = false;
-    } else if (current) {
-      current._closed = true;
-      if (key === "disallow") current.rules.push({ type: "disallow", path: value });
-      else if (key === "allow") current.rules.push({ type: "allow", path: value });
-      else if (key === "crawl-delay") {
-        const seconds = Number(value);
-        if (Number.isFinite(seconds)) current.crawlDelay = seconds;
-      }
-    }
-  }
-  // A group naming our token wins; otherwise the last "*" group applies.
-  const named = groups.filter((g) => g.agents.includes(ourToken));
-  const group = named.length
-    ? named[named.length - 1]
-    : groups.filter((g) => g.agents.includes("*")).slice(-1)[0] ?? null;
-  return {
-    rules: group ? group.rules : [],
-    crawlDelay: group ? group.crawlDelay : null,
-  };
-}
-
-function robotsVerdict(robots, pathname) {
-  // Longest-match wins between allow/disallow; empty Disallow allows all.
-  let best = null;
-  for (const rule of robots.rules) {
-    if (rule.path === "" && rule.type === "disallow") continue; // "Disallow:" (empty) = no disallow
-    if (pathname.startsWith(rule.path)) {
-      if (!best || rule.path.length > best.path.length) best = rule;
-    }
-  }
-  if (best && best.type === "disallow") {
-    return { allowed: false, because: `robots.txt disallows ${best.path}` };
-  }
-  return { allowed: true };
-}
 
 class PoliteFetcher {
   constructor(receipt) {
@@ -210,14 +158,14 @@ class PoliteFetcher {
       existsSync(cachePathFor(url))
     ) {
       const bytes = readFileSync(cachePathFor(url));
-      return { url, bytes, robots: parseRobots(bytes.toString("utf8"), "untangledegreeplanbot") };
+      return { url, bytes, robots: parseRobots(decodeBytes(bytes), "untangledegreeplanbot") };
     }
     await this.respectInterval();
     const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (!response.ok) throw new Error(`robots.txt fetch failed: HTTP ${response.status}`);
     writeFileSync(cachePathFor(url), bytes);
-    const parsed = parseRobots(bytes.toString("utf8"), "untangledegreeplanbot");
+    const parsed = parseRobots(decodeBytes(bytes), "untangledegreeplanbot");
     this.receipt.robots = {
       url,
       fetchedAt: new Date().toISOString(),
@@ -227,7 +175,7 @@ class PoliteFetcher {
     };
     this.receipt.requestCount += 1;
     this.receipt.crawlDelaySeconds = parsed.crawlDelay;
-    this.intervalMs = Math.max(MIN_INTERVAL_MS, (parsed.crawlDelay ?? 0) * 1000);
+    this.intervalMs = effectiveIntervalMs(parsed.crawlDelay);
     saveReceipt(this.receipt);
     return { url, bytes, robots: parsed };
   }
@@ -248,7 +196,7 @@ const PROGRAM_NAMES = [
 
 async function findProgramIndexUrl(fetcher) {
   // The home page links the program index; find its navoid there.
-  const home = (await fetcher.fetchPage(BASE + "/", "discovery:home")).toString("utf8");
+  const home = decodeBytes(await fetcher.fetchPage(BASE + "/", "discovery:home"));
   const catoidMatch = home.match(/catoid=(\d+)/);
   if (!catoidMatch) throw new Error("could not find a catoid on the catalog home page");
   const catoid = catoidMatch[1];
@@ -277,7 +225,7 @@ async function discover() {
 
   const index = await findProgramIndexUrl(fetcher);
   console.log(`discover: program index candidate from "${index.fromText}" -> ${index.url}`);
-  const indexPage = (await fetcher.fetchPage(index.url, "discovery:program-index")).toString("utf8");
+  const indexPage = decodeBytes(await fetcher.fetchPage(index.url, "discovery:program-index"));
 
   const found = {};
   const linkPattern = /<a[^>]+href="([^"]*preview_program\.php[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
