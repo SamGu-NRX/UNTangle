@@ -16,24 +16,18 @@ function fail(message: string): never {
   process.exit(2);
 }
 
+function readJson(path: string): unknown {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    fail(`cannot read or parse ${path}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 const path = process.argv[2];
 if (!path) fail("missing candidate bundle path");
 
-let raw: string;
-try {
-  raw = readFileSync(path, "utf8");
-} catch (err) {
-  fail(`cannot read ${path}: ${err instanceof Error ? err.message : String(err)}`);
-}
-
-let parsed: unknown;
-try {
-  parsed = JSON.parse(raw);
-} catch (err) {
-  fail(`${path} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
-}
-
-const result = validateBundle(parsed);
+const result = validateBundle(readJson(path));
 if (result.ok) {
   console.log(`OK: ${path} is a valid candidate bundle`);
   process.exit(0);

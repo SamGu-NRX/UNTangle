@@ -244,7 +244,9 @@ describe("candidate bundle validator", () => {
       }),
     );
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('sections[0].meetings[0].buildingId: "zzz" does not resolve to buildings[].id');
+    expect(errors[0]).toContain(
+      'sections[0].meetings[0].buildingId: "zzz" does not resolve to buildings[].id',
+    );
   });
 
   test("rejects an online section with a non-null buildingId", () => {
@@ -256,7 +258,9 @@ describe("candidate bundle validator", () => {
       }),
     );
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('sections[1].meetings[0].buildingId: "art" must be null for online sections');
+    expect(errors[0]).toContain(
+      'sections[1].meetings[0].buildingId: "art" must be null for online sections',
+    );
   });
 
   test("rejects an in-person section with a null buildingId", () => {

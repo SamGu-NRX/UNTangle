@@ -184,9 +184,7 @@ export function validateBundle(input: unknown): ValidateResult {
       errors.push(`root: missing required top-level key "${key}"`);
     }
   }
-  if (
-    !(TOP_LEVEL_KEYS as readonly string[]).every((k) => k in bundle)
-  ) {
+  if (!(TOP_LEVEL_KEYS as readonly string[]).every((k) => k in bundle)) {
     return { ok: false, errors: sortErrors(errors) };
   }
 
@@ -205,17 +203,13 @@ export function validateBundle(input: unknown): ValidateResult {
     if (checkType(errors, `${termPath}.label`, term.label, "string") && (term.label as string).length === 0) {
       errors.push(`${termPath}.label: must be a non-empty string`);
     }
-    const startOk = checkDate(errors, `${termPath}.classesStart`, term.classesStart);
-    const endOk = checkDate(errors, `${termPath}.classesEnd`, term.classesEnd);
-    if (
-      startOk &&
-      endOk &&
-      term.classesStart !== null &&
-      term.classesEnd !== null &&
-      term.classesStart > term.classesEnd
-    ) {
+    const startVal = term.classesStart;
+    const endVal = term.classesEnd;
+    const startOk = checkDate(errors, `${termPath}.classesStart`, startVal);
+    const endOk = checkDate(errors, `${termPath}.classesEnd`, endVal);
+    if (startOk && endOk && startVal !== null && endVal !== null && startVal > endVal) {
       errors.push(
-        `${termPath}: classesStart ${fmt(term.classesStart)} must be on or before classesEnd ${fmt(term.classesEnd)}`,
+        `${termPath}: classesStart ${fmt(startVal)} must be on or before classesEnd ${fmt(endVal)}`,
       );
     }
   } else {
@@ -285,7 +279,7 @@ export function validateBundle(input: unknown): ValidateResult {
         const creditHours = entry.creditHours as number;
         if (!Number.isInteger(creditHours) || creditHours <= 0) {
           errors.push(
-            `${path}.creditHours: expected positive integer, got number ${fmt(entry.creditHours)}`,
+            `${path}.creditHours: expected positive integer, got ${fmt(entry.creditHours)}`,
           );
         }
       }
@@ -383,11 +377,13 @@ export function validateBundle(input: unknown): ValidateResult {
           if (checkType(errors, `${mPath}.day`, meeting.day, "string") && !(DAY_ENUM as readonly string[]).includes(meeting.day as string)) {
             errors.push(`${mPath}: day ${fmt(meeting.day)} not in day enum`);
           }
-          const startOk = checkTime(errors, mPath, "start", meeting.start);
-          const endOk = checkTime(errors, mPath, "end", meeting.end);
+          const startVal = meeting.start;
+          const endVal = meeting.end;
+          const startOk = checkTime(errors, mPath, "start", startVal);
+          const endOk = checkTime(errors, mPath, "end", endVal);
           if (startOk && endOk) {
-            if (toMinutes(meeting.start) >= toMinutes(meeting.end)) {
-              errors.push(`${mPath}: start ${fmt(meeting.start)} must be before end ${fmt(meeting.end)}`);
+            if (toMinutes(startVal) >= toMinutes(endVal)) {
+              errors.push(`${mPath}: start ${fmt(startVal)} must be before end ${fmt(endVal)}`);
             }
           }
           if (meeting.buildingId !== null) {
