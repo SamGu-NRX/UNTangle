@@ -1,0 +1,359 @@
+{
+  "schemaVersion": 1,
+  "suite": "journey",
+  "startedAt": "2026-10-11T21:57:02.918Z",
+  "finishedAt": "2026-10-11T22:03:28.109Z",
+  "target": {
+    "dir": "/home/user/work/clone-ui-suites",
+    "sha": "e89fec760361556efa06b51662538bf0eed636da",
+    "actualHead": "e89fec760361556efa06b51662538bf0eed636da"
+  },
+  "runtime": {
+    "bun": "1.3.14",
+    "node": "v20.20.2",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "playwright": "1.64.0",
+    "os": "Linux 6.1.158+ x64"
+  },
+  "stack": [
+    {
+      "step": "target-dir",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "/home/user/work/clone-ui-suites",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-target-dir.log"
+    },
+    {
+      "step": "contract-present",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "/home/user/work/clone-ui-suites/evals/CONTRACT.md",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-contract-present.log"
+    },
+    {
+      "step": "submodule-backend",
+      "status": "pass",
+      "durationMs": 602,
+      "detail": "submodule fetched at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-submodule-backend.log"
+    },
+    {
+      "step": "backend-install",
+      "status": "pass",
+      "durationMs": 770,
+      "detail": "bun install --frozen-lockfile; better-sqlite3 native binding present",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-install.log"
+    },
+    {
+      "step": "backend-sqlite-build",
+      "status": "pass",
+      "durationMs": 3119,
+      "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-sqlite-build.log"
+    },
+    {
+      "step": "postgres-init",
+      "status": "pass",
+      "durationMs": 941,
+      "detail": "fresh cluster at /home/user/work/pgdata-default/run-1791755827432-79374",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-postgres-init.log"
+    },
+    {
+      "step": "postgres-start",
+      "status": "pass",
+      "durationMs": 189,
+      "detail": "postgres up on 127.0.0.1:54320, database untangle created",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-postgres-start.log"
+    },
+    {
+      "step": "migrations-apply",
+      "status": "pass",
+      "durationMs": 697,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54320/untangle",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-migrations-apply.log"
+    },
+    {
+      "step": "db-roundtrip",
+      "status": "pass",
+      "durationMs": 20,
+      "detail": "probe row roundtrip-ed3b223cdde96384 written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-db-roundtrip.log"
+    },
+    {
+      "step": "frontend-install",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "cached workspace install present (next + drizzle-kit)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-install.log"
+    },
+    {
+      "step": "backend-start",
+      "status": "pass",
+      "durationMs": 1235,
+      "detail": "backend healthy on http://127.0.0.1:3950 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-backend-start.log"
+    },
+    {
+      "step": "frontend-build",
+      "status": "pass",
+      "durationMs": 35326,
+      "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-build.log"
+    },
+    {
+      "step": "frontend-start",
+      "status": "pass",
+      "durationMs": 1730,
+      "detail": "frontend serving http://localhost:3900 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-frontend-start.log"
+    },
+    {
+      "step": "playwright-launch",
+      "status": "pass",
+      "durationMs": 876,
+      "detail": "chromium (headless) launched and rendered http://localhost:3900/ (body 6029 chars)",
+      "logPath": "/home/user/work/untangle-ui-final-215658/preflight-logs/step-playwright-launch.log"
+    }
+  ],
+  "infrastructure": {
+    "ok": true,
+    "brokenStep": null
+  },
+  "cases": [
+    {
+      "suite": "journey",
+      "id": "journey/discover-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Course grade summary' region (contract: /courses/[subject]/[number])"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Course grade summary' region (contract: /courses/[subject]/[number])"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Course grade summary' region (contract: /courses/[subject]/[number])"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/discover-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Course grade summary' region (contract: /courses/[subject]/[number])"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "instructor journey: no a.detail-row instructor link on the course detail page"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "instructor journey: no a.detail-row instructor link on the course detail page"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "instructor journey: no a.detail-row instructor link on the course detail page"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/instructor-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "instructor journey: no a.detail-row instructor link on the course detail page"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: `Optimize schedule` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: `Optimize schedule` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: `Optimize schedule` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/build-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: `Optimize schedule` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Data persisted on this head, but the contract's durability acknowledgment is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Data persisted on this head, but the contract's durability acknowledgment is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Data persisted on this head, but the contract's durability acknowledgment is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/save-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Data persisted on this head, but the contract's durability acknowledgment is missing: Required contract surface absent: `Save state` status region (contract: /schedule, required — durability acknowledgment); Required contract surface absent: `Print schedule` button (contract: /schedule, required); Required contract surface absent: `Download .ics` button (contract: /schedule, required)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: /plans returned HTTP 404 — missing saved-plan library page (contract: /plans)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: /plans returned HTTP 404 — missing saved-plan library page (contract: /plans)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: /plans returned HTTP 404 — missing saved-plan library page (contract: /plans)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/plan-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: /plans returned HTTP 404 — missing saved-plan library page (contract: /plans)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "Required contract surface absent: 'Route legs' region (contract: /map) (no route legs/stops rendered for active courses CSCE 1030, CSCE 1040)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: course list never reflected the search \"CSCE\" within 45000ms (first meta: ANTH 1010 · 3 cr)"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/map-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: goto: net::ERR_CONNECTION_REFUSED at http://localhost:3900/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3900/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-guest-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: goto: net::ERR_CONNECTION_REFUSED at http://localhost:3900/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3900/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-guest-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: goto: net::ERR_CONNECTION_REFUSED at http://localhost:3900/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3900/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-registered-desktop",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: goto: net::ERR_CONNECTION_REFUSED at http://localhost:3900/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3900/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "suite": "journey",
+      "id": "journey/auth-registered-mobile",
+      "status": "fail",
+      "measured": null,
+      "bar": "every case passes for both personas at both viewports",
+      "note": "case threw: goto: net::ERR_CONNECTION_REFUSED at http://localhost:3900/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3900/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    }
+  ],
+  "blockedRmpRequests": 0,
+  "stubs": [
+    {
+      "label": "backend-runtime-fallback",
+      "reason": "the pinned backend's better-sqlite3 native addon crashes Bun (NAPI panic), so the backend ran under its documented Node/tsx runtime with the same rmp-block preload injected via NODE_OPTIONS"
+    }
+  ],
+  "hashes": {
+    "contractMd": "86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a",
+    "barsJson": "c23e2119dec43debb2381a5aed70fabc3d0b173dc1e4a3923db3ffbc2aa0ae7a"
+  }
+}
