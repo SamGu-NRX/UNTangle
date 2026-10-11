@@ -11,6 +11,7 @@
   "dependencies": {
     "better-auth": "^1.5.5",
     "drizzle-orm": "^0.45.1",
+    "highs": "1.15.3",
     "leaflet": "^1.9.4",
     "next": "16.1.6",
     "pdfjs-dist": "^5.7.284",
