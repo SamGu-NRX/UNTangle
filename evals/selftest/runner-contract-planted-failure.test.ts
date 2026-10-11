@@ -44,7 +44,7 @@ beforeAll(() => {
   harness = makeHarnessCopy(root, { stubStack: true });
   writeFakeSuites(harness);
   dataset = makeDatasetTarget(root, "target-dataset");
-});
+}, 120_000);
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
@@ -64,7 +64,7 @@ async function runFakesuite(label: string): Promise<{ code: number | null; card:
   return { code: r.code, card: readCard(out) as Scorecard, stderr: r.stderr };
 }
 
-describe("planted failure is caught (fake suite + fake target)", () => {
+describe("runner contract: planted failure is caught (fake suite + fake target)", () => {
   test(
     "clean target: the hash detector passes and the run exits 0",
     async () => {

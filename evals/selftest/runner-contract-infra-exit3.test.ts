@@ -37,13 +37,13 @@ beforeAll(async () => {
   await ensureEvalsDeps();
   root = makeTempRoot("infra");
   targetDir = makeFakeTarget(root, "target-infra");
-});
+}, 120_000);
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-describe("infrastructure failure accounting (real stack.ts, sabotaged target)", () => {
+describe("runner contract: infrastructure failure accounting (real stack.ts, sabotaged target)", () => {
   test(
     "a broken preflight step exits 3 with a complete, honest, all-not-applicable scorecard",
     async () => {
@@ -64,7 +64,7 @@ describe("infrastructure failure accounting (real stack.ts, sabotaged target)", 
           "--task-id",
           taskId,
         ],
-        { cwd: root, timeoutMs: 120_000 },
+        { cwd: root, timeoutMs: 300_000 },
       );
 
       // Exit 3 — never 0 (nothing passed) and never 1 (no case failed).

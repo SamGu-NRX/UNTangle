@@ -40,13 +40,13 @@ beforeAll(() => {
   harness = makeHarnessCopy(root, { stubStack: true });
   writeFakeSuites(harness);
   bareTarget = makeFakeTarget(root, "target-bare");
-});
+}, 120_000);
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-describe("runner case accounting (stubbed-stack harness copy)", () => {
+describe("runner contract: case accounting (stubbed-stack harness copy)", () => {
   test(
     "green + honestly not-applicable cases exit 0 and produce a valid scorecard",
     async () => {

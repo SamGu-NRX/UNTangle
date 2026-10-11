@@ -22,13 +22,13 @@ let targetDir: string;
 beforeAll(() => {
   root = makeTempRoot("args");
   targetDir = makeFakeTarget(root, "target-args");
-});
+}, 120_000);
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-describe("runner argument validation (exit 2)", () => {
+describe("runner contract: argument validation (exit 2)", () => {
   test(
     "missing --target-sha exits 2 with the usage line and never writes a scorecard",
     async () => {

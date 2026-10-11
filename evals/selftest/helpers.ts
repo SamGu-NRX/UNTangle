@@ -50,10 +50,16 @@ const STREAM_TAIL_CHARS = 40_000;
 export function spawnBounded(
   cmd: string,
   args: string[],
-  opts: { cwd?: string; timeoutMs: number },
+  opts: { cwd?: string; timeoutMs: number; env?: Record<string, string | undefined> },
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"] });
+    // Extra env vars merge over the inherited environment (the runner needs
+    // PATH, HOME, etc.); omitting env keeps the default full inheritance.
+    const child = spawn(cmd, args, {
+      cwd: opts.cwd,
+      env: opts.env === undefined ? undefined : { ...process.env, ...opts.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -398,6 +404,178 @@ export function readCard(outPath: string): unknown {
   return JSON.parse(readFileSync(outPath, "utf8"));
 }
 
+// ---------------------------------------------------------------------------
+// Real-suite planted-defect fixtures
+//
+// Each builder plants a defect at the boundary a REAL suite observes, without
+// touching the repo tree: optimizer -> the target's bench artifact; data ->
+// the target's descriptor/bundle/tool artifacts; routing -> an HTTP app whose
+// /api/map/* responses the suite consumes (the stub stack's ctx points the
+// suite at it via UNTANGLE_SELFTEST_FRONTEND_ORIGIN).
+// ---------------------------------------------------------------------------
+
+/** The optimizer bench's conformance shape (evals/suites/optdata-lib.ts). */
+export interface BenchPlant {
+  violations: number;
+}
+
+/**
+ * Plant a CONFORMING bench at frontend/src/lib/optimizer/bench/ (run.ts, the
+ * suite's preferred entrypoint) reporting the given violation count. The
+ * report is otherwise healthy: courses 8, gap 0, 20/20 instances, p95 far
+ * under the 500 ms bar — so a failing violations-zero is attributable to the
+ * planted violations alone.
+ */
+export function writeBenchArtifact(targetDir: string, plant: BenchPlant): string {
+  const benchDir = path.join(targetDir, "frontend", "src", "lib", "optimizer", "bench");
+  mkdirSync(benchDir, { recursive: true });
+  writeFileSync(
+    path.join(benchDir, "run.ts"),
+    `// selftest-planted bench: conforms to the optdata-lib bench contract
+const report = {
+  courses: 8,
+  violations: ${plant.violations},
+  violationSamples: 20,
+  gap: 0,
+  enumerableInstances: 20,
+  solveTimesMs: Array.from({ length: 20 }, (_, i) => 40 + i),
+};
+process.stdout.write(JSON.stringify(report));
+`,
+  );
+  return benchDir;
+}
+
+export interface DataArtifacts {
+  bundlePath: string;
+  descriptorPath: string;
+  toolDir: string;
+  /** Mutate one byte of the bundled catalog: the descriptor's sha256 no longer matches, counts still do. */
+  corruptBundle(): void;
+}
+
+/**
+ * Plant the data suite's two target artifacts, healthy by default:
+ *   - frontend/src/lib/data-provenance.ts: an activeDataset descriptor whose
+ *     sha256/counts exactly match the bundled catalog file;
+ *   - frontend/src/data/catalog/complete.json: the bundled catalog bundle;
+ *   - tools/catalog-consistency/run.ts: a conforming certification tool
+ *     (exit 0, numeric counts, failures 0).
+ */
+export function writeDataArtifacts(targetDir: string, opts: { toolFailures?: number } = {}): DataArtifacts {
+  const bundlePath = path.join(targetDir, "frontend", "src", "data", "catalog", "complete.json");
+  const descriptorPath = path.join(targetDir, "frontend", "src", "lib", "data-provenance.ts");
+  const toolDir = path.join(targetDir, "tools", "catalog-consistency");
+  mkdirSync(path.dirname(bundlePath), { recursive: true });
+  mkdirSync(path.dirname(descriptorPath), { recursive: true });
+  mkdirSync(toolDir, { recursive: true });
+
+  writeFileSync(
+    bundlePath,
+    JSON.stringify({
+      courses: Array.from({ length: 84 }, (_, i) => `UNTC-${1000 + i}`),
+      sections: Array.from({ length: 312 }, (_, i) => ({ id: i, seats: 30 })),
+      instructors: 57,
+    }),
+  );
+  const goodHash = createHash("sha256").update(readFileSync(bundlePath, "utf8")).digest("hex");
+  writeFileSync(
+    descriptorPath,
+    `// selftest-planted data-provenance descriptor (flat primitive literal)
+export const activeDataset = {
+  dataset: "UNT 2026 fall",
+  file: "src/data/catalog/complete.json",
+  sha256: "${goodHash}",
+  courses: 84,
+  sections: 312,
+  instructors: 57,
+} as const;
+`,
+  );
+  writeFileSync(
+    path.join(toolDir, "run.ts"),
+    `// selftest-planted catalog-consistency tool: conforms (exit 0, failures ${opts.toolFailures ?? 0})
+process.stdout.write(JSON.stringify({ certifiedCourses: 84, verifiedSections: 312, instructors: 57, failures: ${opts.toolFailures ?? 0} }));
+`,
+  );
+
+  return {
+    bundlePath,
+    descriptorPath,
+    toolDir,
+    corruptBundle(): void {
+      const before = readFileSync(bundlePath, "utf8");
+      writeFileSync(bundlePath, `${before} `); // array lengths unchanged; hash changes
+    },
+  };
+}
+
+export interface FakeRoutingApp {
+  origin: string;
+  /** Resolve the serving promise (Bun.serve keeps the process alive until stopped). */
+  stop(): Promise<void>;
+}
+
+/**
+ * A fake UNTangle app at the routing suite's real boundary (POST
+ * /api/map/resolve and /api/map/route), healthy unless plantSubGeodesic:
+ * then every route response reports a distance far below the great-circle
+ * floor — the lead's "mutated /api/map/route response" defect. Building
+ * coverage is unaffected (resolve answers exactly from the fixture roster),
+ * so a failing route-geodesic-floor is attributable to the plant.
+ */
+export function startFakeRoutingApp(harness: HarnessCopy, opts: { plantSubGeodesic?: boolean } = {}): FakeRoutingApp {
+  const fixture = JSON.parse(
+    readFileSync(path.join(harness.evalsDir, "fixtures", "campus-routes.json"), "utf8"),
+  ) as {
+    buildings: Array<{ id: string; name: string; shortName: string; inRoutingBounds: boolean }>;
+  };
+  const server = Bun.serve({
+    port: 0,
+    idleTimeout: 30,
+    async fetch(request): Promise<Response> {
+      const url = new URL(request.url);
+      if (request.method !== "POST") return new Response("not found", { status: 404 });
+      if (url.pathname === "/api/map/resolve") {
+        const body = JSON.parse(await request.text()) as { locations?: Array<{ location?: string }> };
+        const locations = (body.locations ?? []).map(({ location }) => {
+          const wanted = (location ?? "").trim().toLowerCase();
+          const building = fixture.buildings.find(
+            (b) => b.name.toLowerCase() === wanted || b.shortName.toLowerCase() === wanted,
+          );
+          if (building === undefined) return { location: location ?? "", resolutionStatus: "missing" };
+          return building.inRoutingBounds
+            ? { location: location ?? "", buildingId: building.id, resolutionStatus: "local", lat: 33.2, lng: -97.15 }
+            : {
+                location: location ?? "",
+                buildingId: building.id,
+                resolutionStatus: "unresolved",
+                unsupportedReason: "off-campus",
+              };
+        });
+        return Response.json({ locations });
+      }
+      if (url.pathname === "/api/map/route") {
+        const body = JSON.parse(await request.text()) as { stops?: Array<{ lat: number; lng: number }> };
+        const stops = body.stops ?? [];
+        const [a, b] = stops;
+        const earthRadiusMeters = 6_371_000;
+        const dLat = (((b?.lat ?? 0) - (a?.lat ?? 0)) * Math.PI) / 180;
+        const dLng = (((b?.lng ?? 0) - (a?.lng ?? 0)) * Math.PI) / 180;
+        const h =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(((a?.lat ?? 0) * Math.PI) / 180) * Math.cos(((b?.lat ?? 0) * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+        const greatCircle = 2 * earthRadiusMeters * Math.asin(Math.sqrt(h));
+        // Healthy: a legal walking distance (floor + margin). Planted: far below the floor.
+        const distanceMeters = opts.plantSubGeodesic === true ? 1 : Math.round(greatCircle + 25);
+        return Response.json({ distanceMeters, geometry: stops, source: "selftest-fake-app" });
+      }
+      return new Response("not found", { status: 404 });
+    },
+  });
+  return { origin: `http://127.0.0.1:${server.port}`, stop: () => server.stop(true) };
+}
+
 export interface RunnerInvocation {
   harness: HarnessCopy;
   targetDir: string;
@@ -405,6 +583,8 @@ export interface RunnerInvocation {
   outPath: string;
   taskId: string;
   timeoutMs?: number;
+  /** Extra env for the spawned runner (e.g. the stub stack's origin wiring). */
+  env?: Record<string, string | undefined>;
 }
 
 export interface RunnerResult extends SpawnResult {
@@ -428,7 +608,7 @@ export async function runRunner(inv: RunnerInvocation): Promise<RunnerResult> {
       "--task-id",
       inv.taskId,
     ],
-    { cwd: inv.harness.root, timeoutMs: inv.timeoutMs ?? 90_000 },
+    { cwd: inv.harness.root, timeoutMs: inv.timeoutMs ?? 90_000, env: inv.env },
   );
   return { ...result, outPath: inv.outPath };
 }
