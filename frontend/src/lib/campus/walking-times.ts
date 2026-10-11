@@ -10,8 +10,11 @@
  *
  * Data © OpenStreetMap contributors, ODbL 1.0.
  */
+import { resolveCampusBuilding } from "@/lib/campus-locations";
+import type { CampusBuilding } from "@/lib/types";
 import walkingTimesJson from "./data/walking-times.json";
-import type { LatLng } from "./geo";
+import { haversineMetersBetween, type LatLng } from "./geo";
+import { WALKING_SPEED_MPS } from "./speeds";
 
 type AnchorFile = {
   anchor: [number, number];
@@ -70,4 +73,55 @@ export function walkingDistanceBetween(fromBuildingId: string, toBuildingId: str
   if (!from) return null;
   const meters = from[toBuildingId.toLowerCase()];
   return typeof meters === "number" ? meters : null;
+}
+
+/**
+ * Planner-facing walking-time result.
+ *
+ * - `campus-network`: a real time over the committed walkway graph (matrix
+ *   hit, or zero for the same on-campus building).
+ * - `straight-line`: a haversine estimate at the 1.4 m/s base speed for an
+ *   on-campus pair the graph cannot connect. Clearly an estimate, never a
+ *   network time.
+ * - `unknown`: an id the registry does not know, or a pair touching an
+ *   off-campus registry entry. `seconds` is null — a missing measurement must
+ *   never read as a zero-second walk.
+ */
+export type WalkingTime =
+  | { seconds: number; source: "campus-network" | "straight-line" }
+  | { seconds: null; source: "unknown" };
+
+export type WalkingTimeFn = (fromBuildingId: string, toBuildingId: string) => WalkingTime;
+
+/**
+ * Walking seconds between two registry buildings. Inputs are canonical
+ * lowercase ids (life, art, blb, ...); registrar codes, mnemonics, and aliases
+ * resolve through the registry to those ids, case-insensitively.
+ *
+ * Order of decisions: unknown id, then off-campus (excluded from campus
+ * routing entirely, even against itself — build-matrix.ts filters such
+ * entries before ever touching the graph), then same building, then the
+ * matrix, then the straight-line estimate.
+ */
+export const getWalkingSeconds: WalkingTimeFn = (fromBuildingId, toBuildingId) => {
+  const from = resolveCampusBuilding(fromBuildingId);
+  const to = resolveCampusBuilding(toBuildingId);
+  if (!from || !to) return { seconds: null, source: "unknown" };
+  if (from.isOffCampus || to.isOffCampus) return { seconds: null, source: "unknown" };
+  if (from.id === to.id) return { seconds: 0, source: "campus-network" };
+
+  const matrixSeconds = walkingSecondsBetween(from.id, to.id);
+  if (matrixSeconds !== null) return { seconds: matrixSeconds, source: "campus-network" };
+
+  // On-campus pair absent from the matrix: the matrix build routes every
+  // routable registry pair through the runtime's own router and hard-fails on
+  // a missing route, so absence here means the graph cannot connect the pair
+  // (e.g. a registry entry added without a matrix rebuild). Estimate
+  // straight-line from the registry pins at the base speed.
+  return { seconds: straightLineSecondsBetween(from, to), source: "straight-line" };
+};
+
+/** Straight-line estimate: haversine pin-to-pin at the base walking speed. */
+function straightLineSecondsBetween(from: CampusBuilding, to: CampusBuilding): number {
+  return Number((haversineMetersBetween(from, to) / WALKING_SPEED_MPS).toFixed(1));
 }
