@@ -93,6 +93,14 @@ export type InstructorGradeDetail = {
   terms: string[];
 };
 
+/**
+ * Per-attempt timeout for backend probes. Without it a hung backend would
+ * hang the whole request (these calls run inside server components); with it
+ * an unresponsive backend degrades to the catalog-only state within seconds
+ * per candidate URL.
+ */
+const BACKEND_TIMEOUT_MS = 2_500;
+
 async function backendFetch<T>(path: string): Promise<T | null> {
   const errors: string[] = [];
 
@@ -100,6 +108,7 @@ async function backendFetch<T>(path: string): Promise<T | null> {
     try {
       const response = await fetch(`${baseUrl}${path}`, {
         cache: "no-store",
+        signal: AbortSignal.timeout(BACKEND_TIMEOUT_MS),
       });
 
       if (response.status === 404) {

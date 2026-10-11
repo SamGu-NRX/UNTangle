@@ -108,6 +108,11 @@ export default async function InstructorDetailsPage({
             ) : (
               <p className="rmp-empty">No RateMyProfessors match yet.</p>
             )}
+            {instructor.rmpUpdatedAt ? (
+              <p style={{ color: "var(--muted)", fontSize: "0.8rem", margin: "0.5rem 0 0" }}>
+                Cache updated {instructor.rmpUpdatedAt.slice(0, 10)}
+              </p>
+            ) : null}
           </aside>
         </section>
 

@@ -575,3 +575,16 @@ export function selectApprovedTranscriptRecords(
         (record.appliedStatus === "completed" || record.appliedStatus === "inProgress"),
     );
 }
+
+const textMinimum = 600;
+
+/**
+ * A transcript PDF whose text layer lacks readable course codes cannot feed
+ * the local parser — the component routes it to rendered-page analysis
+ * instead. Lives in the lib (not the component) so offline tests can pin
+ * the routing rule without importing the component's Puter.js script chain.
+ */
+export function isSparseTranscriptText(text: string) {
+  const codeMatches = text.match(/\b[A-Z]{2,5}\s*\d{4}\b/g)?.length ?? 0;
+  return text.trim().length < textMinimum || codeMatches < 4;
+}

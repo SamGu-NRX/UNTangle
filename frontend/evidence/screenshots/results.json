@@ -1,0 +1,126 @@
+{
+  "base": "http://localhost:3100",
+  "results": [
+    {
+      "name": "courses list renders full catalog",
+      "ok": true,
+      "detail": "656 rows"
+    },
+    {
+      "name": "keyboard search narrows results",
+      "ok": true,
+      "detail": "1 rows"
+    },
+    {
+      "name": "explicit empty state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "department filter narrows results",
+      "ok": true,
+      "detail": "23 rows"
+    },
+    {
+      "name": "Details link reachable by keyboard",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Enter on Details deep-links to the detail route",
+      "ok": true,
+      "detail": "http://localhost:3100/courses/ANTH/1010"
+    },
+    {
+      "name": "detail shows catalog description",
+      "ok": true,
+      "detail": "1393 chars"
+    },
+    {
+      "name": "detail marks grade data unavailable without a service",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "detail marks instructor ratings unavailable without a service",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "detail (catalog-only): axe serious/critical = 0",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "unknown-code deep link returns 404",
+      "ok": true,
+      "detail": "status 404"
+    },
+    {
+      "name": "not-found: axe serious/critical = 0",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "review keeps the pasted text for correction",
+      "ok": true,
+      "detail": "CSCE 3444 and CSCE 9999"
+    },
+    {
+      "name": "import (review state): axe serious/critical = 0",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "apply applies the diff and toasts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "long-content detail (desktop): no horizontal overflow",
+      "ok": true,
+      "detail": "excess 0px"
+    },
+    {
+      "name": "detail (long content): axe serious/critical = 0",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "reduced motion keeps content visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "courses (mobile): no horizontal overflow",
+      "ok": true,
+      "detail": "excess 0px"
+    },
+    {
+      "name": "detail (mobile): no horizontal overflow",
+      "ok": true,
+      "detail": "excess 0px"
+    },
+    {
+      "name": "detail (mobile): axe serious/critical = 0",
+      "ok": true,
+      "detail": "clean"
+    },
+    {
+      "name": "not-found (mobile): no horizontal overflow",
+      "ok": true,
+      "detail": "excess 0px"
+    },
+    {
+      "name": "import review (mobile): no horizontal overflow",
+      "ok": true,
+      "detail": "excess 0px"
+    },
+    {
+      "name": "import (mobile): axe serious/critical = 0",
+      "ok": true,
+      "detail": "clean"
+    }
+  ],
+  "failures": 0
+}
