@@ -1,0 +1,113 @@
+{
+  "startedAt": "2026-10-11T18:31:11.147Z",
+  "checks": [
+    {
+      "name": "guestSaveAcknowledged",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guestSaveSurvivesReload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "cleanTabAdoptsNewerVersion",
+      "passed": true,
+      "detail": "choice=Cluster nightsPush classes later in the day."
+    },
+    {
+      "name": "crossTabConflictDialogShown",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "conflictResolutionAdoptsNewer",
+      "passed": true,
+      "detail": "A=Cluster morningsBias toward earlier starts. B=Cluster morningsBias toward earlier starts."
+    },
+    {
+      "name": "conflictVersionsMatchAcrossTabs",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "deniedStorageHonestStatus",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "deniedStorageExportOffered",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "keyboardReachesExport",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "keyboardExportDownloadsPlan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "planListedFromGuestSave",
+      "passed": true,
+      "detail": "M5 guest plan"
+    },
+    {
+      "name": "importedStalePlanListed",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "restorePreviewWarnsStale",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "restoreSkipsStaleReferences",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "reducedMotionPreviewOpens",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "reducedMotionConflictOpens",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mobileScheduleNoOverflow",
+      "passed": true,
+      "detail": "scrollWidth=390"
+    }
+  ],
+  "notes": [
+    "conflict resolution button: \"Use the newer version\""
+  ],
+  "axe": [
+    {
+      "label": "desktop: schedule after conflict resolution",
+      "passes": 33,
+      "violations": [
+        "color-contrast x4"
+      ]
+    },
+    {
+      "label": "desktop: restore preview with warnings",
+      "passes": 40,
+      "violations": []
+    },
+    {
+      "label": "mobile: schedule",
+      "passes": 33,
+      "violations": []
+    }
+  ],
+  "finishedAt": "2026-10-11T18:31:59.568Z"
+}
