@@ -38,7 +38,27 @@ streets a pedestrian may legally walk on. `footway=crossing` and
 documented in `evals/fixtures/METHOD.md`, so fixture distances and runtime
 distances describe the same network.
 
+## Route contract
+
+The route API and `WalkingTime` (`frontend/src/lib/campus/walking-times.ts`)
+are **separate contracts by design**. Do not unify them:
+
+1. **`POST /api/map/route`** (`frontend/src/app/api/map/route/route.ts`) —
+   when the campus graph cannot serve a route, it returns `source: "fallback"`:
+   a straight line with `durationSeconds: 0`. The UI shows it as an
+   **approximate distance only** — never a walking route or a walking time. A
+   computed duration here would invite exactly the false walking time the
+   honesty suite forbids.
+
+2. **`getWalkingSeconds`** — serves the optimizer, which needs a number:
+   - a registry building the graph cannot connect returns a straight-line
+     estimate at the 1.4 m/s base speed, labeled `source: "straight-line"`;
+   - an unknown or off-campus id returns `{ seconds: null, source: "unknown" }`
+     — unknown is **never** treated as free (a missing measurement must not
+     read as a zero-second walk).
+
 ## Known limitations
+
 
 - Building outlines capture simple closed OSM **ways** only. Buildings mapped
   as multipolygon **relations** (currently the Art Building and Art Annex) have
