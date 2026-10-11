@@ -57,7 +57,7 @@ export interface SuiteContext {
 
 export interface SuiteDefinition {
   name: string;
-  describe: () => CaseSpec[];
+  describe: () => CaseSpec[] | Promise<CaseSpec[]>;
   run: (caseId: string, ctx: SuiteContext) => Promise<CaseOutcome> | CaseOutcome;
   /** Per-case wall-clock cap (default 120000). */
   caseTimeoutMs?: number;

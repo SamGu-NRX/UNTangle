@@ -176,7 +176,7 @@ async function runCase(
 
 async function runSuite(discovered: DiscoveredSuite, stack: RunningStack, bars: BarsFile): Promise<CaseRecord[]> {
   const suite = await loadSuite(discovered);
-  const specs = suite.describe();
+  const specs = await suite.describe();
   const ctx = suiteContext(stack);
   const suiteBar = bars.bars[suite.name]?.bar;
   const records: CaseRecord[] = [];
@@ -407,7 +407,7 @@ async function main(): Promise<number> {
     for (const d of chosen) {
       let ids: string[] = [];
       try {
-        ids = (await loadSuite(d)).describe().map((s) => s.id);
+        ids = (await (await loadSuite(d)).describe()).map((s) => s.id);
       } catch (loadError) {
         console.error(`[run] could not load suite ${d.name} for the infra scorecard: ${(loadError as Error).message}`);
       }
