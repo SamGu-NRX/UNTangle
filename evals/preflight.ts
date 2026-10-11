@@ -54,7 +54,7 @@ export function parsePreflightArgs(argv: string[], usage: string): PreflightArgs
     return value;
   };
 
-  const unknown = argv.filter((arg) => !["--target-dir", "--target-sha", "--out"].includes(arg));
+  const unknown = argv.filter((arg) => arg.startsWith("--") && !["--target-dir", "--target-sha", "--out"].includes(arg));
   if (unknown.length > 0) {
     usageError(usage, `unrecognized argument(s): ${unknown.join(" ")}`);
   }

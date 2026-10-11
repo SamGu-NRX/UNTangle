@@ -43,7 +43,7 @@
 
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
-import { existsSync, openSync, closeSync, writeSync, readFileSync } from "node:fs";
+import { existsSync, openSync, closeSync, writeSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -346,6 +346,21 @@ async function ensureFontMock(runDir: string): Promise<string> {
   return mockPath;
 }
 
+/**
+ * A dir holding a `bunx` shim, prepended to spawned PATHs. Some hosts ship a
+ * dangling bunx symlink (or none); the backend's build script invokes `bunx
+ * tsc`, and a missing bunx must not fail the harness — `bun x` is equivalent.
+ */
+function ensureBunxShim(runDir: string): string {
+  const binDir = path.join(runDir, "bin");
+  const shim = path.join(binDir, "bunx");
+  if (!existsSync(shim)) {
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(shim, "#!/bin/sh\nexec bun x \"$@\"\n", { mode: 0o755 });
+  }
+  return binDir;
+}
+
 /** Transpile evals/rmp-block.ts to plain CJS for the node --require preload path. */
 async function ensureRmpPreloadCjs(harnessDir: string, runDir: string): Promise<string> {
   const { readFile } = await import("node:fs/promises");
@@ -404,6 +419,8 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
   const frontendDir = path.join(ctx.targetDir, "frontend");
 
   await mkdir(ctx.runDir, { recursive: true });
+  const shimBinDir = ensureBunxShim(ctx.runDir);
+  const pathWithShim = `${shimBinDir}:${process.env.PATH ?? ""}`;
 
   // --- target-dir + contract-present ----------------------------------------
   await step("target-dir", async () => {
@@ -482,6 +499,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     }
     const r = await runBounded("bun", ["install", "--frozen-lockfile"], {
       cwd: backendDir,
+      env: { ...process.env, PATH: pathWithShim },
       timeoutMs: 600_000,
       logPath: stepLog("backend-install"),
     });
@@ -499,6 +517,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
   await step("backend-sqlite-build", async () => {
     const probe = await runBounded("node", ["-e", SQLITE_PROBE_JS], {
       cwd: backendDir,
+      env: { ...process.env, PATH: pathWithShim },
       timeoutMs: 60_000,
       logPath: stepLog("backend-sqlite-build"),
     });
@@ -507,6 +526,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     }
     const build = await runBounded("bun", ["run", "build"], {
       cwd: backendDir,
+      env: { ...process.env, PATH: pathWithShim },
       timeoutMs: 300_000,
       logPath: stepLog("backend-sqlite-build"),
     });
@@ -634,6 +654,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
 
   const backendEnv: NodeJS.ProcessEnv = {
     ...process.env,
+    PATH: pathWithShim,
     PORT: String(backendPort),
     JWT_SECRET: randomSecret(),
     CORS_ALLOWED_ORIGINS: ctx.frontendOrigin,

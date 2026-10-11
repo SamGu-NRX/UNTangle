@@ -57,10 +57,17 @@ function readState(): RmpBlockState {
   }
 }
 
-const state: RmpBlockState = readState();
-
-function writeState(): void {
-  if (!LOG_PATH) return;
+/**
+ * Stateless record: every block re-reads the log, increments, and writes
+ * synchronously. Several processes can carry this preload (the tsx CLI parent
+ * and the backend child both see NODE_OPTIONS), so no process may cache state
+ * or flush it on exit — a stale writer would clobber another process's count.
+ */
+function recordBlock(url: string): number {
+  if (!LOG_PATH) return 0;
+  const state = readState();
+  state.blockedTotal += 1;
+  state.attempts.push({ url, at: new Date().toISOString() });
   try {
     fs.writeFileSync(LOG_PATH, JSON.stringify(state, null, 2));
   } catch (error) {
@@ -69,6 +76,7 @@ function writeState(): void {
       error instanceof Error ? error.message : String(error),
     );
   }
+  return state.blockedTotal;
 }
 
 function isRmpUrl(url: string): boolean {
@@ -95,10 +103,8 @@ globalThis.fetch = (async (
         : (input as Request).url;
 
   if (isRmpUrl(url)) {
-    state.blockedTotal += 1;
-    state.attempts.push({ url, at: new Date().toISOString() });
-    writeState();
-    console.error(`[rmp-block] BLOCKED request #${state.blockedTotal}: ${url}`);
+    const n = recordBlock(url);
+    console.error(`[rmp-block] BLOCKED request #${n}: ${url}`);
     throw new Error(
       `[untangle-evals] RateMyProfessors request blocked by eval harness (rmp-block preload): ${url}`,
     );
@@ -106,11 +112,3 @@ globalThis.fetch = (async (
 
   return originalFetch(input, init);
 }) as typeof fetch;
-
-process.on("exit", () => {
-  try {
-    writeState();
-  } catch {
-    // Best effort on exit — failures already surfaced via writeState's logger.
-  }
-});

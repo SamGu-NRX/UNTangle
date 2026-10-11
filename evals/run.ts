@@ -29,6 +29,7 @@ import {
   sha256File,
   type CaseRecord,
   type Scorecard,
+  type ScorecardRuntime,
   type StackStepRecord,
 } from "./scorecard";
 import { isSuiteDefinition, type CaseOutcome, type SuiteContext, type SuiteDefinition } from "./suite-kit";
@@ -63,7 +64,7 @@ function parseRunArgs(argv: string[]): RunArgs {
   };
 
   const knownFlags = ["--target-dir", "--target-sha", "--suite", "--out", "--task-id"];
-  const unknown = argv.filter((arg) => !knownFlags.includes(arg));
+  const unknown = argv.filter((arg) => arg.startsWith("--") && !knownFlags.includes(arg));
   if (unknown.length > 0) usageError(usage, `unrecognized argument(s): ${unknown.join(" ")}`);
 
   // parsePreflightArgs owns the strict rules for the three core flags; hand it
@@ -209,9 +210,44 @@ interface BuildOptions {
   startedAt: string;
   contractHash: string;
   barsHash: string;
+  runtime: ScorecardRuntime;
 }
 
-/** Pure assembler: Scorecard from observed facts; no I/O. */
+/**
+ * Bounded, failure-tolerant `binary --version` probe. Runtime versions are
+ * observability, never gates: a missing binary (e.g. UNTANGLE_PG_BIN pointing
+ * nowhere during a sabotage test) must not stop the scorecard from rendering.
+ */
+function safeVersion(cmd: string, args: string[]): string {
+  try {
+    const r = execFileSync(cmd, args, { encoding: "utf8", timeout: 5_000 });
+    return r.trim() || "unknown";
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return `unknown (${code ?? (error as Error).message})`;
+  }
+}
+
+function collectRuntime(): ScorecardRuntime {
+  let playwright = "unknown";
+  try {
+    const pkg = JSON.parse(readFileSync(path.join(HARNESS_DIR, "node_modules", "@playwright", "test", "package.json"), "utf8")) as { version?: string };
+    playwright = pkg.version ?? "unknown";
+  } catch {
+    // playwright metadata is optional context — degrade, don't crash.
+  }
+  return {
+    bun: process.versions.bun ?? "unknown",
+    node: safeVersion("node", ["--version"]),
+    postgres: safeVersion(path.join(process.env.UNTANGLE_PG_BIN ?? "/usr/lib/postgresql/17/bin", "postgres"), [
+      "--version",
+    ]),
+    playwright,
+    os: `${os.type()} ${os.release()} ${os.arch()}`,
+  };
+}
+
+/** Pure assembler: Scorecard from observed facts; the caller supplies runtime versions. */
 function buildScorecard(opts: BuildOptions): Scorecard {
   return {
     schemaVersion: 1,
@@ -219,15 +255,7 @@ function buildScorecard(opts: BuildOptions): Scorecard {
     startedAt: opts.startedAt,
     finishedAt: new Date().toISOString(),
     target: opts.target,
-    runtime: {
-      bun: process.versions.bun ?? "unknown",
-      node: execFileSync("node", ["--version"], { encoding: "utf8" }).trim(),
-      postgres: execFileSync(path.join(process.env.UNTANGLE_PG_BIN ?? "/usr/lib/postgresql/17/bin", "postgres"), ["--version"], { encoding: "utf8" }).trim(),
-      playwright: JSON.parse(
-        readFileSync(path.join(HARNESS_DIR, "node_modules", "@playwright", "test", "package.json"), "utf8"),
-      ).version as string,
-      os: `${os.type()} ${os.release()} ${os.arch()}`,
-    },
+    runtime: opts.runtime,
     stack: opts.stackSteps,
     infrastructure: {
       ok: opts.infraError === null,
@@ -405,6 +433,7 @@ async function main(): Promise<number> {
       startedAt,
       contractHash: hashes.contractHash,
       barsHash: hashes.barsHash,
+      runtime: collectRuntime(),
     });
     await writeOutputs(scorecard, args.out);
     console.error(`[run] infra scorecard: ${args.out}`);
@@ -441,6 +470,7 @@ async function main(): Promise<number> {
       startedAt,
       contractHash: hashes.contractHash,
       barsHash: hashes.barsHash,
+      runtime: collectRuntime(),
     });
     await writeOutputs(scorecard, args.out);
 

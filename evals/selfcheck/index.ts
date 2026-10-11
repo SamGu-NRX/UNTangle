@@ -96,11 +96,16 @@ export default defineSuite({
         // Ask the backend to reach RateMyProfessors through whatever route the
         // pinned backend exposes; the preload must block the outbound fetch and
         // count it. The route's own response (error, empty, or data-shaped) is
-        // irrelevant to this case — the counter is the evidence.
+        // irrelevant to this case — the counter is the evidence. The pinned
+        // backend's GET /api/rmp requires a lastName before it will attempt
+        // any outbound search (backend/src/routes/rmp.ts), so the probe
+        // includes one; without it the route 400s before fetching anything.
         const before = readBlockedTotal(ctx.blockedRmpLogPath);
         let backendReachable = false;
         try {
-          await fetch(`${ctx.backendOrigin}/api/rmp`, { signal: AbortSignal.timeout(10_000) });
+          await fetch(`${ctx.backendOrigin}/api/rmp?firstName=Eval&lastName=Probe`, {
+            signal: AbortSignal.timeout(10_000),
+          });
           backendReachable = true;
         } catch {
           // A timeout/refusal here still counts as "backend attempted the
