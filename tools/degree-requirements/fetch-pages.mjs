@@ -31,7 +31,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CATALOG_BASE, decodeBytes, effectiveIntervalMs, parseRobots, robotsVerdict } from "./fetch-lib.mjs";
+import { CATALOG_BASE, WafChallengeError, decodeBytes, effectiveIntervalMs, isWafChallengePage, parseRobots, robotsVerdict } from "./fetch-lib.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "..", "..");
@@ -137,6 +137,18 @@ class PoliteFetcher {
     if (!response.ok) {
       throw new Error(`GET ${url} -> HTTP ${response.status}`);
     }
+    // A WAF challenge page is an access-control response, not content:
+    // record it honestly and refuse to cache it as a fetched page.
+    if (isWafChallengePage(decodeBytes(bytes))) {
+      this.receipt.entries.push({
+        url, purpose, cacheHit: false, wafChallenge: true,
+        bytes: bytes.length, fetchedAt: new Date().toISOString(),
+        status: response.status, note: "challenge page; not cached as content",
+      });
+      this.receipt.requestCount += 1;
+      saveReceipt(this.receipt);
+      throw new WafChallengeError(url);
+    }
     writeFileSync(cacheFile, bytes);
     this.receipt.entries.push({
       url, purpose, cacheHit: false, cacheFile: relCache(cacheFile),
@@ -201,7 +213,7 @@ const PROGRAM_NAMES = [
 
 async function findProgramIndexUrl(fetcher) {
   // The home page links the program index; find its navoid there.
-  const home = decodeBytes(await fetcher.fetchPage(BASE + "/", "discovery:home"));
+  const home = decodeBytes(await fetchWithWafBackoff(fetcher, BASE + "/", "discovery:home"));
   const catoidMatch = home.match(/catoid=(\d+)/);
   if (!catoidMatch) throw new Error("could not find a catoid on the catalog home page");
   const catoid = catoidMatch[1];
@@ -227,6 +239,23 @@ async function findProgramIndexUrl(fetcher) {
   throw new Error("could not locate a Programs index link on the home page");
 }
 
+/** Fetch with a patient WAF backoff: challenge pages are retried after a
+ * multi-minute backoff, at most a few times, then reported and left unrun. */
+async function fetchWithWafBackoff(fetcher, url, purpose, { attempts = 3, backoffMs = 600000 } = {}) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fetcher.fetchPage(url, purpose);
+    } catch (err) {
+      if (err instanceof WafChallengeError && attempt < attempts) {
+        console.log(`waf: challenge on ${url}; backing off ${backoffMs / 1000}s (attempt ${attempt}/${attempts})`);
+        await fetcher.sleep(backoffMs);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function discover() {
   ensureDirs();
   const receipt = loadReceipt();
@@ -238,7 +267,7 @@ async function discover() {
 
   const index = await findProgramIndexUrl(fetcher);
   console.log(`discover: program index candidate from "${index.fromText}" -> ${index.url}`);
-  const indexPage = decodeBytes(await fetcher.fetchPage(index.url, "discovery:program-index"));
+  const indexPage = decodeBytes(await fetchWithWafBackoff(fetcher, index.url, "discovery:program-index"));
 
   const found = {};
   const linkPattern = /<a[^>]+href="([^"]*preview_program\.php[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;

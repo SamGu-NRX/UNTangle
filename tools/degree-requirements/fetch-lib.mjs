@@ -79,3 +79,23 @@ export function robotsVerdict(robots, pathname) {
 export function effectiveIntervalMs(crawlDelaySeconds) {
   return Math.max(1000, (crawlDelaySeconds ?? 0) * 1000);
 }
+
+/**
+ * AWS WAF serves a JavaScript challenge page ("verify that you're not a
+ * robot") instead of content when its rules fire. Such a page is NOT
+ * content: it must never be cached as a fetched page, and the honest
+ * response is to back off and retry rarely — or to stop.
+ */
+export function isWafChallengePage(text) {
+  return /AwsWafIntegration|challenge-container/.test(text);
+}
+
+export class WafChallengeError extends Error {
+  constructor(url) {
+    super(
+      `AWS WAF challenge page returned for ${url} — the site requires a JavaScript browser challenge here; ` +
+        "backing off and retrying rarely, never caching the challenge as content",
+    );
+    this.name = "WafChallengeError";
+  }
+}
