@@ -5,7 +5,7 @@ Owner: the UNTangle lead (focus/gushi fleet). Task prompts quote this file. Each
 
 ## End goal
 
-A UNT Denton student can open UNTangle on `fleet/beta` and, as a guest or a registered UNT-email user:
+A UNT Denton student can open UNTangle on `alpha` and, as a guest or a registered UNT-email user:
 
 1. find their courses and read real grade history and instructor ratings;
 2. turn them into a conflict-free weekly schedule that respects their constraints, with ranked alternatives and
@@ -33,7 +33,7 @@ no calibration evidence yet and will be revised with a reason when the first sco
 | a11y-polish | axe, keyboard-only journey, reduced motion, layout shift, overflow with long names | 0 serious or critical; journey completes; no clipping |
 | data | Exact catalog certification counts; a real-term bundle present | exact; present, or the survey is blocked with evidence |
 
-UI polish is also judged by a council critique of the running `fleet/beta` app (Fable for taste, Astra for
+UI polish is also judged by a council critique of the running `alpha` app (Fable for taste, Astra for
 adversarial cases, Sol for correctness, Opus for integration).
 
 ## Steps
@@ -50,9 +50,9 @@ adversarial cases, Sol for correctness, Opus for integration).
   - Variant rounds: `untangle-optimizer-round1-f1` (branch-and-bound, MIP, and propagation with large-neighborhood
     search) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
     sheet).
-- **R1 join.** `untangle-integration-f1` merges the accepted work into a branch off `fleet/beta`, wires the winning
+- **R1 join.** `untangle-integration-f1` merges the accepted work into a branch off `alpha`, wires the winning
   optimizer and the walking times, and scores the integrated app with the harness.
-- **Council 1.** Run `fleet/beta` in the T3 browser preview. Pick the optimizer and UX winners, list the gaps by
+- **Council 1.** Run `alpha` in the T3 browser preview. Pick the optimizer and UX winners, list the gaps by
   suite, and write R2.
 - **R2 and later.** Port the winning UX direction into production pages. Adopt real-term data if the survey found a
   source. Then fix the failing eval cases, one task per gap with its own files, and polish from the council's
@@ -64,7 +64,7 @@ multi-term degree planning from #5, which belongs to another workspace's thread 
 ## Rules every task inherits
 
 - Branches of #3, #4 and #5 belong to live threads in another workspace. Read them; never push to them.
-- Accepted work merges into `fleet/beta` with `--no-ff`, after the lead's accept and the caretaker's pass. Never into
+- Accepted work merges into `alpha` with `--no-ff`, after the lead's accept and the caretaker's pass. Never into
   `main`. Nothing deploys from this repo: there are no workflows, webhooks or deployments, and only CodeRabbit
   reports.
 - No paid providers. ORS stays optional. RateMyProfessors is read only from the backend cache. Email uses the dev
@@ -73,5 +73,5 @@ multi-term degree planning from #5, which belongs to another workspace's thread 
 
 ## Stop rule
 
-Stop a workstream when its suite meets its bars on `fleet/beta`, or when two consecutive rounds don't move any of
+Stop a workstream when its suite meets its bars on `alpha`, or when two consecutive rounds don't move any of
 its metrics. Record the reason here.
