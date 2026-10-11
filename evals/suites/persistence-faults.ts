@@ -22,7 +22,6 @@
  * that cannot exist.
  */
 
-import { chromium } from "@playwright/test";
 import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, CaseSpec, SuiteContext } from "../suite-kit";
 import {
@@ -35,7 +34,8 @@ import {
   gotoGuestCourses,
   gotoRegisteredCourses,
   markCourseDone,
-  closeBrowser,
+  closeCaseBrowser,
+  launchCaseBrowser,
   openSession,
   phase,
   probeContractElements,
@@ -109,7 +109,7 @@ async function safelyRun(
 }
 
 async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const browser = await chromium.launch({ headless: true });
+  const { browser, server } = await launchCaseBrowser();
   try {
     const { context, page } = await openSession(browser);
     const pageErrors = collectPageErrors(page);
@@ -183,12 +183,12 @@ async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence
     }
     return { status: "pass", measured: measuredJson(underlying) };
   } finally {
-    await closeBrowser(browser);
+    await closeCaseBrowser({ browser, server });
   }
 }
 
 async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const browser = await chromium.launch({ headless: true });
+  const { browser, server } = await launchCaseBrowser();
   try {
     const { context, page } = await openSession(browser);
     const pageErrors = collectPageErrors(page);
@@ -299,12 +299,12 @@ async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): 
     }
     return { status: "pass", measured: measuredJson({ retryResponseStatus: retryResponse.status() }) };
   } finally {
-    await closeBrowser(browser);
+    await closeCaseBrowser({ browser, server });
   }
 }
 
 async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const browser = await chromium.launch({ headless: true });
+  const { browser, server } = await launchCaseBrowser();
   try {
     const context = await browser.newContext();
     await context.addInitScript(denyBrowserStorage);
@@ -365,12 +365,12 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
     }
     return { status: "pass", measured: measuredJson({ appKeptWorking, exportScheduleButtonCount: probes.exportScheduleButtonCount }) };
   } finally {
-    await closeBrowser(browser);
+    await closeCaseBrowser({ browser, server });
   }
 }
 
 async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const browser = await chromium.launch({ headless: true });
+  const { browser, server } = await launchCaseBrowser();
   try {
     const { context, page } = await openSession(browser);
     const pageErrors = collectPageErrors(page);
@@ -477,12 +477,12 @@ async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence)
     }
     return { status: "pass", measured: measuredJson({ appLoads, quarantineCopyFound }) };
   } finally {
-    await closeBrowser(browser);
+    await closeCaseBrowser({ browser, server });
   }
 }
 
 async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const browser = await chromium.launch({ headless: true });
+  const { browser, server } = await launchCaseBrowser();
   try {
     const context = await browser.newContext(); // one context = one browser profile, two same-origin tabs
     const pageStale = await context.newPage();
@@ -556,12 +556,12 @@ async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence)
     }
     return { status: "pass", measured: measuredJson({ conflictDialogCount: probes.conflictDialogCount }) };
   } finally {
-    await closeBrowser(browser);
+    await closeCaseBrowser({ browser, server });
   }
 }
 
 async function runCleanTabAdoptsNewer(ctx: SuiteContext, evidence: Evidence): Promise<CaseOutcome> {
-  const browser = await chromium.launch({ headless: true });
+  const { browser, server } = await launchCaseBrowser();
   try {
     const context = await browser.newContext();
     const pageClean = await context.newPage();
@@ -617,7 +617,7 @@ async function runCleanTabAdoptsNewer(ctx: SuiteContext, evidence: Evidence): Pr
     }
     return { status: "pass", measured: measuredJson({ adoptedInPlace }) };
   } finally {
-    await closeBrowser(browser);
+    await closeCaseBrowser({ browser, server });
   }
 }
 

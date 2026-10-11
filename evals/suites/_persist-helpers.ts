@@ -12,7 +12,8 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { Browser, BrowserContext, Locator, Page, Response } from "@playwright/test";
+import { chromium } from "@playwright/test";
+import type { Browser, BrowserContext, BrowserServer, Locator, Page, Response } from "@playwright/test";
 import type { SuiteContext } from "../suite-kit";
 
 /** The planner persistence API (POST saves, GET loads for registered users). */
@@ -53,21 +54,71 @@ function helperPhase(what: string): void {
 }
 
 /**
- * Bounded teardown: a wedged renderer can hang browser.close() forever (it has
- * no default timeout), which would burn the runner's whole case budget. If the
- * close does not finish in 20s the case moves on; the process may leak and the
- * leak is reported rather than hidden.
+ * Navigates with waitUntil "commit" so a slow prod server cannot eat the
+ * journey budget waiting for domcontentloaded (observed: goto timeouts on
+ * /courses late in a run). One retry when the document never commits; the
+ * element-level waits after navigation stay the honest render evidence.
  */
-export async function closeBrowser(browser: Browser): Promise<void> {
+export async function gotoDoc(page: Page, url: string, label: string): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: "commit", timeout: 45_000 });
+      return;
+    } catch (error) {
+      const message = (error as Error).message.split("\n")[0];
+      console.error(`[persistence-faults] gotoDoc: ${label} attempt ${attempt} failed: ${message}`);
+      if (attempt === 2) throw error;
+      await sleep(3_000);
+    }
+  }
+}
+
+/**
+ * Launches a case browser through a local launchServer socket. A plain
+ * chromium.launch() exposes no typed handle to force-terminate a wedged
+ * browser (observed: browser.close() hanging past 20s mid-navigation, leaving
+ * orphaned chrome processes that starve later cases). The BrowserServer
+ * handle is the guarantee — close()/kill() terminate the OS process even when
+ * the protocol is unresponsive.
+ */
+export async function launchCaseBrowser(): Promise<{ browser: Browser; server: BrowserServer }> {
+  const server = await chromium.launchServer({ headless: true });
+  const browser = await chromium.connect(server.wsEndpoint());
+  return { browser, server };
+}
+
+/**
+ * Bounded teardown: a wedged renderer can hang browser.close() forever (it
+ * has no default timeout), which would burn the runner's whole case budget.
+ * The protocol close is raced against 20s; the server close (which kills the
+ * browser process) runs unconditionally afterwards and is itself bounded, so
+ * teardown can never orphan a browser nor block the case.
+ */
+export async function closeCaseBrowser(handle: { browser: Browser; server: BrowserServer }): Promise<void> {
   try {
     await Promise.race([
-      browser.close(),
+      handle.browser.close(),
       sleep(20_000).then(() => {
-        throw new Error("browser.close() exceeded 20s — moving on; the browser process may leak");
+        throw new Error("browser.close() exceeded 20s — proceeding to kill the browser server");
       }),
     ]);
   } catch (error) {
     console.error(`[persistence-faults] ${(error as Error).message}`);
+  }
+  try {
+    await Promise.race([
+      handle.server.close(),
+      sleep(10_000).then(() => {
+        throw new Error("server.close() exceeded 10s — killing the browser server");
+      }),
+    ]);
+  } catch (error) {
+    console.error(`[persistence-faults] ${(error as Error).message}`);
+    try {
+      await handle.server.kill();
+    } catch {
+      // best-effort only; a leaked process here is reported, not hidden
+    }
   }
 }
 
@@ -115,7 +166,7 @@ export function collectPageErrors(page: Page): { messages: string[] } {
 export async function registerPersonaThroughUi(page: Page, origin: string): Promise<Persona> {
   const persona = newPersona();
   helperPhase("register: goto /auth");
-  await page.goto(`${origin}/auth`, { waitUntil: "domcontentloaded" });
+  await gotoDoc(page, `${origin}/auth`, "register /auth");
   await page.getByRole("button", { name: "Use password instead" }).click();
   await page.getByRole("button", { name: "Sign up", exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill(persona.name);
@@ -123,7 +174,17 @@ export async function registerPersonaThroughUi(page: Page, origin: string): Prom
   await page.getByLabel("Password", { exact: true }).fill(persona.password);
   helperPhase("register: submitting signup form");
   await page.locator("form").getByRole("button", { name: "Create account", exact: true }).click();
-  await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible", timeout: 30_000 });
+  const signOut = page.getByRole("button", { name: "Sign out" });
+  try {
+    await signOut.waitFor({ state: "visible", timeout: 30_000 });
+  } catch {
+    // The signup response can lag under stack load; one reload-and-recheck
+    // before declaring the journey failed. If the session truly did not
+    // start, the recheck throws and the case records an honest journey error.
+    helperPhase("register: Sign out not visible in 30s — reloading /courses once to recheck");
+    await gotoDoc(page, `${origin}/courses`, "register recheck");
+    await signOut.waitFor({ state: "visible", timeout: 30_000 });
+  }
   helperPhase("register: signed in");
   return persona;
 }
@@ -131,7 +192,7 @@ export async function registerPersonaThroughUi(page: Page, origin: string): Prom
 /** Password sign-in for an existing persona; resolves once signed in. */
 export async function signInThroughUi(page: Page, origin: string, persona: Persona): Promise<void> {
   helperPhase("signIn: goto /auth");
-  await page.goto(`${origin}/auth`, { waitUntil: "domcontentloaded" });
+  await gotoDoc(page, `${origin}/auth`, "signIn /auth");
   await page.getByRole("button", { name: "Use password instead" }).click();
   await page.getByLabel("Email", { exact: true }).fill(persona.email);
   await page.getByLabel("Password", { exact: true }).fill(persona.password);
@@ -150,7 +211,7 @@ export async function signOutThroughUi(page: Page, origin: string): Promise<void
 /** Guest entry from the landing page. */
 export async function continueAsGuest(page: Page, origin: string): Promise<void> {
   helperPhase("guest: goto /");
-  await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
+  await gotoDoc(page, `${origin}/`, "landing");
   helperPhase("guest: clicking guest link");
   await page.getByRole("link", { name: "Continue as guest" }).click();
   await page.waitForURL(/\/courses\/?$/, { timeout: 20_000 });
@@ -177,7 +238,7 @@ export async function gotoRegisteredCourses(page: Page, origin: string): Promise
     (response) => PLANNER_API.test(response.url()) && response.request().method() === "GET",
     { timeout: 20_000 },
   );
-  await page.goto(`${origin}/courses`, { waitUntil: "domcontentloaded" });
+  await gotoDoc(page, `${origin}/courses`, "registered /courses");
   helperPhase("registered /courses: awaiting hydration response");
   await hydration;
   await writeback;
@@ -192,7 +253,7 @@ export async function gotoRegisteredCourses(page: Page, origin: string): Promise
  */
 export async function gotoGuestCourses(page: Page, origin: string): Promise<void> {
   helperPhase("guest /courses: goto");
-  await page.goto(`${origin}/courses`, { waitUntil: "domcontentloaded" });
+  await gotoDoc(page, `${origin}/courses`, "guest /courses");
   helperPhase("guest /courses: waiting for major prompt / rows");
   await page.getByText("Choose your major").waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
   await page.locator("article.course-row").first().waitFor({ state: "visible", timeout: 20_000 });
