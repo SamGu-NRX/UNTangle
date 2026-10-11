@@ -188,11 +188,53 @@ function firstSectionIndexOfCourse(sections: OptimizerSection[], courseCode: str
 }
 
 /**
+ * Carve a hard-feasible witness: one section per requested course (the
+ * locked pool section when present, else the first not-excluded), rewritten
+ * to a single meeting on a course-indexed day/slot so witness sections are
+ * pairwise disjoint BY CONSTRUCTION (courses sharing a day land 180 minutes
+ * apart). Returns null when some requested course has no candidate. Mutates
+ * `sections` in place; the witness profiles derive their constraints from
+ * the carved witness so their "feasible by construction" claim holds.
+ */
+function carveWitness(
+  sections: OptimizerSection[],
+  courseCodes: string[],
+  excludedSet: Set<string>,
+  lockedSectionIds: string[],
+): OptimizerSection[] | null {
+  const witness: OptimizerSection[] = [];
+  for (let c = 0; c < courseCodes.length; c++) {
+    const code = courseCodes[c];
+    const lockedSection = lockedSectionIds
+      .map((id) => sections.find((s) => s.id === id))
+      .find((s) => s !== undefined && s.courseCode === code);
+    const target = lockedSection ?? sections.find((s) => s.courseCode === code && !excludedSet.has(s.id));
+    if (!target) return null;
+    const start = 480 + 180 * Math.floor(c / 5);
+    const carved: OptimizerSection = {
+      ...target,
+      meetings: [
+        {
+          day: weekDays[c % 5],
+          start,
+          end: start + 60,
+          buildingId: BENCH_BUILDING_IDS[c % BENCH_BUILDING_IDS.length],
+        },
+      ],
+    };
+    sections[sections.indexOf(target)] = carved;
+    witness.push(carved);
+  }
+  return witness;
+}
+
+/**
  * Generate a complete benchmark request. Deterministic in (seed, size).
  * k is pinned to 3 and the time budget to 1000ms; ./instances.ts may
  * override the budget for the largest families.
  */
 export function generateInstance(seed: number, size: InstanceSize): OptimizeRequest {
+
   const rng = mulberry32(seed);
   const { sections, courseCodes, slots } = generateBase(rng, size);
   const hardConstraints: HardConstraints = {};
@@ -245,25 +287,19 @@ export function generateInstance(seed: number, size: InstanceSize): OptimizeRequ
 
   switch (size.profile) {
     case "anchors": {
-      // Witness schedule: per course, the first section not excluded. Anchors
-      // tighten around the witness; feasibility is by construction.
-      const witness = courseCodes.map(
-        (code) => sections.find((section) => section.courseCode === code && !excludedSet.has(section.id)),
-      );
-      if (witness.every(Boolean)) {
-        const witnessSections = witness as OptimizerSection[];
-        const earliest = Math.max(...witnessSections.map((s) => Math.min(...s.meetings.map((m) => m.start))));
-        const latest = Math.min(...witnessSections.map((s) => Math.max(...s.meetings.map((m) => m.end))));
-        if (earliest <= latest) {
-          earlyStartAnchorMinutes = earliest;
-          lateEndAnchorMinutes = latest;
-          hardConstraints.earliestStart = earliest;
-          hardConstraints.latestEnd = latest;
-          break;
-        }
+      // Witness schedule: one carved section per course with a single
+      // meeting on a course-indexed day/slot, so the witness is pairwise
+      // non-overlapping by construction; the anchors and the hard window are
+      // its exact envelope. Feasibility is guaranteed, not guessed.
+      const witness = carveWitness(sections, courseCodes, excludedSet, lockedSectionIds);
+      if (witness) {
+        const earliest = Math.min(...witness.flatMap((s) => s.meetings.map((m) => m.start)));
+        const latest = Math.max(...witness.flatMap((s) => s.meetings.map((m) => m.end)));
+        earlyStartAnchorMinutes = earliest;
+        lateEndAnchorMinutes = latest;
+        hardConstraints.earliestStart = earliest;
+        hardConstraints.latestEnd = latest;
       }
-      hardConstraints.earliestStart = 480;
-      hardConstraints.latestEnd = 1200;
       break;
     }
     case "daysOff": {
@@ -298,8 +334,14 @@ export function generateInstance(seed: number, size: InstanceSize): OptimizeRequ
       break;
     }
     case "credits": {
-      // Tightest feasible credit cap: forces the min-credit pick in every course.
-      hardConstraints.maxCredits = minCreditTotal;
+      // Tightest feasible credit cap derived from the carved witness (locked
+      // sections first): the witness satisfies it by construction. The old
+      // minCreditTotal cap ignored locks/exclusions and produced infeasible
+      // instances labeled feasible.
+      const witness = carveWitness(sections, courseCodes, excludedSet, lockedSectionIds);
+      hardConstraints.maxCredits = witness
+        ? witness.reduce((sum, section) => sum + section.credits, 0)
+        : minCreditTotal;
       break;
     }
     case "mixed": {
