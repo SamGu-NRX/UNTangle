@@ -201,7 +201,7 @@ async function findProgramIndexUrl(fetcher) {
   if (!catoidMatch) throw new Error("could not find a catoid on the catalog home page");
   const catoid = catoidMatch[1];
   const anchorMatches = [
-    ...home.matchAll(/<a[^>]+href="([^"]*content\.php\?catoid=\d+&(?:amp;)navoid=\d+[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi),
+    ...home.matchAll(/<a[^>]+href="([^"]*content\.php\?catoid=\d+&(?:amp;)?navoid=\d+[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi),
   ];
   console.log(`discover: catoid=${catoid}, ${anchorMatches.length} anchors with navoids on home page`);
   for (const m of anchorMatches) {
