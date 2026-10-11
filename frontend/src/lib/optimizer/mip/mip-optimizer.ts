@@ -121,6 +121,17 @@ const WARMUP_PROBLEM = (() => {
   ].join("\n");
 })();
 
+/**
+ * Budget discipline: the checker's status-timeout-budget rule sums initMs +
+ * searchMs against the request budget (+50 ms tolerance) whenever status is
+ * timeout. Model build time and HiGHS's own time-limit slack both land
+ * inside that sum, so a solve is launched only when the remaining budget can
+ * plausibly pay for it, and each solve is asked to finish slightly before
+ * the deadline.
+ */
+const REMAINING_GUARD_S = 0.25;
+const SOLVE_MARGIN_S = 0.1;
+
 /** One-time WASM/solver initialization, shared across optimize() calls. */
 let solverPromise: Promise<LegacyHighs> | null = null;
 function getSolver(): Promise<LegacyHighs> {
@@ -179,12 +190,12 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
   // Phase 1 collects k uncapped solutions; phase 2 (cap active) closes and
   // materializes the final tier, proving the top-k list complete.
   while (found.length < target || capRow !== null) {
-    if (remainingSeconds() <= 0) {
+    if (remainingSeconds() < REMAINING_GUARD_S) {
       timedOut = true;
       break;
     }
     const text = renderLp(model.data, capRow === null ? cuts : [...cuts, capRow]);
-    const solution = highs.solve(text, fastSolveOptions(remainingSeconds()));
+    const solution = highs.solve(text, fastSolveOptions(Math.max(0.001, remainingSeconds() - SOLVE_MARGIN_S)));
     if (solution.Status === "Infeasible") {
       if (capRow !== null) {
         capRow = null;

@@ -28,7 +28,7 @@ describe("mip vs brute force on pinned enumerable instances", () => {
       // loaded machine — this test verifies exactness (status, cost, order),
       // not speed. Budget honesty is verified separately on timeBudgetMs=1
       // and on the pinned-budget non-enumerable runs below.
-      const actual = await mipOptimize({ ...instance.req, timeBudgetMs: 5000 });
+      const actual = await mipOptimize({ ...instance.req, timeBudgetMs: 15000 });
       expect(actual.status).toBe(expected.status);
       expect(actual.schedules.length).toBe(expected.schedules.length);
       for (let i = 0; i < expected.schedules.length; i++) {

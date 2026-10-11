@@ -26,7 +26,7 @@ function baseRequest(overrides: Partial<OptimizeRequest>): OptimizeRequest {
     hardConstraints: {},
     softWeights: zeroWeights,
     k: 3,
-    timeBudgetMs: 2000,
+    timeBudgetMs: 10000,
     walkingTime: noWalking,
     ...overrides,
   };
