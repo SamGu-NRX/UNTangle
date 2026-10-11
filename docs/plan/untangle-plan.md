@@ -46,9 +46,13 @@ adversarial cases, Sol for correctness, Opus for integration).
   - `untangle-courses-f1`: courses, instructors and import against the real backend (#7).
   - `untangle-planner-f1`: schedule, persistence, saved plans and export, for guests and registered users (#8).
   - `apps-untangle-auditor-v2-f1`: catalog certification and provenance (#6).
-  - `untangle-real-schedule-data-f1`: a survey of permitted real-term sources, and an ingest if one exists.
+  - `untangle-account-shell-f1`: magic link through a dev outbox (today the button has no plugin behind it), honest
+    guest mode, and app-wide loading, error and not-found states.
+  - `untangle-real-schedule-data-f1`: a survey of permitted real-term sources, and an ingest if one exists. Real-term
+    data is in scope: Sam's "making into a real working tool" (2026-10-11) supersedes the July portfolio framing.
   - Variant rounds: `untangle-optimizer-round1-f1` (branch-and-bound, MIP, and propagation with large-neighborhood
-    search) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
+    search; these directions, ranked alternatives and infeasibility explanations are the lead's proposal, not Sam's
+    request; today's `recommendSections` is an exhaustive depth-first enumeration with a conflict check) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
     sheet).
 - **Optimizer council.** When `untangle-optimizer-round1-f1` returns, a council (Sol for correctness, Astra for
   adversarial instances, Opus for integration) reads the benchmark results. The lead's accept line names the
@@ -66,6 +70,11 @@ Directions still open: OSRM's foot profile as a routing alternative, if the A* e
 multi-term degree planning from #5, which belongs to another workspace's thread and stays read-only.
 
 ## Rules every task inherits
+
+- Never open, print, test or use any `.env*` file: a live Resend key was reported committed in this public repo, and
+  rotating it is Sam's call. Never push to the backend submodule (sunnyD1000's) or the `vishyj/*` branches.
+- Design source: vishyj's jointv2 UI on main (UNT green palette, Syne and DM Sans, compact and task-first) with
+  gt-credits-style motion.
 
 - Branches of #3, #4 and #5 belong to live threads in another workspace. Read them; never push to them.
 - Accepted work merges into `alpha` with `--no-ff`, after the lead's accept and the caretaker's pass. Never into
