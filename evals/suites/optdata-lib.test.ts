@@ -1,6 +1,12 @@
 /**
- * Unit tests for optdata-lib's pure logic. The runner skips *.test.* files,
+ * Unit tests for _optdata-lib's pure logic. The runner skips *.test.* files,
  * so this never registers as a suite. Run: bun test evals/suites/optdata-lib.test.ts
+ *
+ * These tests pin the DETECT-AND-ADAPT contracts: invocation derived from the
+ * artifact's own code (package scripts, then entry files; no prescribed
+ * args), verbatim output recording, best-effort recognition of measurements
+ * and claims, and not-applicable (never shape-fail) when nothing
+ * recognizable is exposed.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -9,17 +15,20 @@ import os from "node:os";
 import path from "node:path";
 import {
   artifactCommand,
+  collectNumericCounts,
   discoverEntrypointInDir,
+  discoverPackageScript,
   extractActiveDataset,
-  parseBenchReport,
+  interpretBenchOutput,
   parseJsonObject,
   parseJsonObjectFromProcess,
   percentileNearestRank,
+  recognizeDescriptorClaims,
   resolveBundledCatalogPath,
   resolveTargetDir,
   sha256Hex,
   verifyDescriptorAgainstBundle,
-} from "./optdata-lib";
+} from "./_optdata-lib";
 import type { SuiteContext } from "../suite-kit";
 
 function contextWithTargetDir(detail: string | undefined): SuiteContext {
@@ -70,8 +79,8 @@ describe("parseJsonObject / parseJsonObjectFromProcess", () => {
   });
 });
 
-describe("discoverEntrypointInDir / artifactCommand", () => {
-  test("prefers run.ts with bun", () => {
+describe("discoverPackageScript / artifactCommand", () => {
+  test("prefers run.ts with bun when no package script exists", () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep-"));
     try {
       writeFileSync(path.join(dir, "run.ts"), "export {};\n");
@@ -94,44 +103,74 @@ describe("discoverEntrypointInDir / artifactCommand", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-  test("empty directory has no entrypoint; artifactCommand reports it", () => {
+  test("an artifact's own bench package script wins over entry files", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-pkg-"));
+    try {
+      writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { bench: "bun ./bench.ts" } }));
+      writeFileSync(path.join(dir, "run.ts"), "export {};\n");
+      const resolved = artifactCommand(dir);
+      expect(resolved.ok).toBe(true);
+      if (resolved.ok) {
+        expect(resolved.cmd).toBe("bun");
+        expect(resolved.args).toEqual(["run", "bench"]); // no prescribed flags
+        expect(resolved.cwd).toBe(dir);
+        expect(resolved.source).toBe("package.json scripts");
+      }
+      expect(discoverPackageScript(dir)).toBe("bench");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  test("a single unambiguous script is used whatever its name", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-pkg2-"));
+    try {
+      writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { certify: "bun ./certify.ts" } }));
+      expect(discoverPackageScript(dir)).toBe("certify");
+      const resolved = artifactCommand(dir);
+      expect(resolved.ok).toBe(true);
+      if (resolved.ok) expect(resolved.args).toEqual(["run", "certify"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  test("an ambiguous package.json falls through to entry-file discovery", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-pkg3-"));
+    try {
+      writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify({ scripts: { lint: "eslint .", test: "bun test" } }),
+      );
+      expect(discoverPackageScript(dir)).toBeUndefined();
+      writeFileSync(path.join(dir, "main.ts"), "export {};\n");
+      const resolved = artifactCommand(dir);
+      expect(resolved.ok).toBe(true);
+      if (resolved.ok) expect(resolved.source).toBe("entrypoint file discovery");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  test("a directory with no derivable interface is reported, with what was looked for", () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep3-"));
     try {
       expect(discoverEntrypointInDir(dir)).toBeUndefined();
-      const resolved = artifactCommand(dir, [], dir, "artifact-dir");
+      const resolved = artifactCommand(dir);
       expect(resolved.ok).toBe(false);
-      if (!resolved.ok) expect(resolved.reason).toContain("no runnable entrypoint");
+      if (!resolved.ok) expect(resolved.reason).toContain("no runnable interface");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-  test("directory artifact's cwd follows the policy: repo-root vs artifact-dir", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep5-"));
-    const repoRoot = mkdtempSync(path.join(os.tmpdir(), "optdata-ep5-repo-"));
-    try {
-      writeFileSync(path.join(dir, "run.ts"), "export {};\n");
-      const asRepoRoot = artifactCommand(dir, ["--format", "json"], repoRoot, "repo-root");
-      expect(asRepoRoot.ok).toBe(true);
-      if (asRepoRoot.ok) expect(asRepoRoot.cwd).toBe(repoRoot);
-      const asArtifactDir = artifactCommand(dir, ["--format", "json"], repoRoot, "artifact-dir");
-      expect(asArtifactDir.ok).toBe(true);
-      if (asArtifactDir.ok) expect(asArtifactDir.cwd).toBe(dir);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-      rmSync(repoRoot, { recursive: true, force: true });
-    }
-  });
-  test("a bare .ts file runs with bun from the fallback cwd", () => {
+  test("a bare .ts file runs with bun, no prescribed args, cwd = its own directory", () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep4-"));
     try {
       const script = path.join(dir, "consistency.ts");
       writeFileSync(script, "export {};\n");
-      const resolved = artifactCommand(script, ["--format", "json"], dir, "repo-root");
+      const resolved = artifactCommand(script);
       expect(resolved.ok).toBe(true);
       if (resolved.ok) {
         expect(resolved.cmd).toBe("bun");
         expect(resolved.cwd).toBe(dir);
-        expect(resolved.args).toEqual([script, "--format", "json"]);
+        expect(resolved.args).toEqual([script]);
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -171,9 +210,9 @@ describe("resolveTargetDir", () => {
   });
 });
 
-describe("parseBenchReport", () => {
-  test("accepts a contract-shaped report and collects extras", () => {
-    const parsed = parseBenchReport({
+describe("interpretBenchOutput", () => {
+  test("recognizes a fully-instrumented bench report and records extras verbatim", () => {
+    const m = interpretBenchOutput({
       courses: 8,
       violations: 0,
       violationSamples: 20,
@@ -181,34 +220,71 @@ describe("parseBenchReport", () => {
       enumerableInstances: 20,
       solveTimesMs: [10, 20, 30],
       seed: 0,
+      label: "unt-fall-2026",
     });
-    expect(parsed.ok).toBe(true);
-    if (parsed.ok) {
-      expect(parsed.report.courses).toBe(8);
-      expect(parsed.report.solveTimesMs).toEqual([10, 20, 30]);
-      expect(parsed.report.extraCounts).toEqual({ seed: 0 });
-    }
+    expect(m.violations).toBe(0);
+    expect(m.violationSamples).toBe(20);
+    expect(m.gap).toBe(0);
+    expect(m.gapInstances).toBe(20);
+    expect(m.courses).toBe(8);
+    expect(m.solveTimesMs).toEqual([10, 20, 30]);
+    expect(m.reportedP95Ms).toBeNull();
+    expect(m.numericFields).toEqual({ courses: 8, violations: 0, violationSamples: 20, gap: 0, enumerableInstances: 20, seed: 0 });
+    // solveTimesMs (an array) and label are recorded as non-numeric fields.
+    expect(m.nonNumericFields).toEqual(["solveTimesMs", "label"]);
   });
-  test("collects every missing/mistyped field, not just the first", () => {
-    const parsed = parseBenchReport({ courses: "8", gap: 0 });
-    expect(parsed.ok).toBe(false);
-    if (!parsed.ok) {
-      expect(parsed.problems.length).toBeGreaterThanOrEqual(4); // violations, violationSamples, enumerableInstances, solveTimesMs, courses
-      expect(parsed.problems.some((p) => p.includes('"courses"'))).toBe(true);
-      expect(parsed.problems.some((p) => p.includes('"solveTimesMs"'))).toBe(true);
-    }
-  });
-  test("empty solveTimesMs is a problem", () => {
-    const parsed = parseBenchReport({
-      courses: 8,
-      violations: 0,
-      violationSamples: 1,
-      gap: 0,
-      enumerableInstances: 1,
-      solveTimesMs: [],
+  test("alternate field names are recognized, not required", () => {
+    const m = interpretBenchOutput({
+      hardConstraintViolations: 2,
+      instancesChecked: 50,
+      optimalityGap: 0.02,
+      gapSamples: 50,
+      courseCount: 6,
+      p95Ms: 640,
     });
-    expect(parsed.ok).toBe(false);
-    if (!parsed.ok) expect(parsed.problems.some((p) => p.includes("non-empty"))).toBe(true);
+    expect(m.violations).toBe(2);
+    expect(m.violationSamples).toBe(50);
+    expect(m.gap).toBe(0.02);
+    expect(m.gapInstances).toBe(50);
+    expect(m.courses).toBe(6);
+    expect(m.reportedP95Ms).toBe(640);
+  });
+  test("an unrecognizable shape yields nulls while numbers stay recorded", () => {
+    const m = interpretBenchOutput({ mode: "fast", score: 99, tags: ["a"] });
+    expect(m.violations).toBeNull();
+    expect(m.gap).toBeNull();
+    expect(m.courses).toBeNull();
+    expect(m.reportedP95Ms).toBeNull();
+    expect(m.solveTimesMs).toBeNull();
+    expect(m.numericFields).toEqual({ score: 99 });
+    expect(m.nonNumericFields).toEqual(["mode", "tags"]);
+  });
+  test("a solve-time array containing non-numbers is not recognized as samples", () => {
+    const m = interpretBenchOutput({ solveTimesMs: [10, "n/a", 30] });
+    expect(m.solveTimesMs).toBeNull();
+  });
+  test("a timings-array alias is recognized as solve-time samples", () => {
+    const m = interpretBenchOutput({ timings: [10, 20, 30] });
+    expect(m.solveTimesMs).toEqual([10, 20, 30]);
+  });
+});
+
+describe("collectNumericCounts", () => {
+  test("collects top-level and nested numbers under dotted keys", () => {
+    const { counts, nonNumericFields } = collectNumericCounts({
+      courses: 2,
+      totals: { sections: 5, buildings: 1 },
+      certified: true,
+      detail: { failures: 0 },
+      tags: ["x"],
+    });
+    expect(counts).toEqual({ courses: 2, "totals.sections": 5, "totals.buildings": 1, "detail.failures": 0 });
+    expect(nonNumericFields.sort()).toEqual(["certified", "tags"]);
+  });
+  test("an empty payload yields nothing to record", () => {
+    const { counts, nonNumericFields } = collectNumericCounts({});
+    expect(counts).toEqual({});
+    expect(nonNumericFields).toEqual([]);
   });
 });
 
@@ -227,17 +303,18 @@ describe("extractActiveDataset", () => {
     const extracted = extractActiveDataset(source);
     expect(extracted.found).toBe(true);
     if (extracted.found) {
-      expect(extracted.descriptor.dataset).toBe("UNT 2026 fall");
-      expect(extracted.descriptor.file).toBe("src/data/catalog/complete.json");
-      expect(extracted.descriptor.sha256).toBe("ab".repeat(32));
+      expect(extracted.descriptor.fields.dataset).toBe("UNT 2026 fall");
+      expect(extracted.descriptor.fields.file).toBe("src/data/catalog/complete.json");
+      expect(extracted.descriptor.fields.sha256).toBe("ab".repeat(32));
       expect(extracted.descriptor.counts).toEqual({ courses: 84, sections: 312 });
+      expect(extracted.descriptor.ignored).toEqual([]);
     }
   });
   test("single quotes and escaped quotes parse", () => {
     const source = "export const activeDataset = { dataset: 'UNT \\'26 fall', file: 'f.json' };";
     const extracted = extractActiveDataset(source);
     expect(extracted.found).toBe(true);
-    if (extracted.found) expect(extracted.descriptor.dataset).toBe("UNT '26 fall");
+    if (extracted.found) expect(extracted.descriptor.fields.dataset).toBe("UNT '26 fall");
   });
   test("nested counts groups flatten to bare count keys", () => {
     const source = "export const activeDataset = { file: 'f.json', sha256: 'a'.repeat(64), counts: { courses: 84, buildings: 9 } };";
@@ -247,7 +324,8 @@ describe("extractActiveDataset", () => {
       expect(extracted.descriptor.counts.courses).toBe(84);
       expect(extracted.descriptor.counts.buildings).toBe(9);
       expect(extracted.descriptor.fields["counts.courses"]).toBe(84);
-      expect(extracted.descriptor.ignored).toEqual([]);
+      // 'a'.repeat(64) is computed: recorded as ignored, never fatal.
+      expect(extracted.descriptor.ignored).toContain("sha256");
     }
   });
   test("deep or array metadata is ignored, not fatal, and never misread", () => {
@@ -260,14 +338,18 @@ describe("extractActiveDataset", () => {
       expect(extracted.descriptor.ignored).toContain("counts.deep");
       expect(extracted.descriptor.ignored).toContain("counts.list");
       expect(extracted.descriptor.ignored).toContain("changelog");
-      expect(extracted.descriptor.file).toBe("f.json");
+      expect(extracted.descriptor.fields.file).toBe("f.json");
     }
   });
-  test("a computed contract field is rejected with the field named", () => {
+  test("computed values are recorded as ignored, never a failure — the harness does not prescribe shape", () => {
     const source = "export const activeDataset = { file: 'f.json', sha256: computeHash(), courses: 3 };";
     const extracted = extractActiveDataset(source);
-    expect(extracted.found).toBe(false);
-    if (!extracted.found) expect(extracted.reason).toContain("sha256");
+    expect(extracted.found).toBe(true);
+    if (extracted.found) {
+      expect(extracted.descriptor.ignored).toContain("sha256");
+      expect(extracted.descriptor.fields.sha256).toBeUndefined();
+      expect(extracted.descriptor.counts.courses).toBe(3);
+    }
   });
   test("a non-primitive value's interior keys are not misread", () => {
     const source = "export const activeDataset = { file: 'f.json', sha256: 'a'.repeat(64), pick: cond ? { a: 1 } : { b: 2 }, courses: 3 };";
@@ -289,11 +371,38 @@ describe("extractActiveDataset", () => {
     const extracted = extractActiveDataset(source);
     // Either rejected outright or found-with-garbage is unacceptable; it must
     // never silently pass with fields it did not read. Rejection is expected
-    // because `{ a: 1 }` has no file/sha256 keys — the caller fails on those.
+    // because `{ a: 1 }` yields no recognizable claims — the caller
+    // reports not-applicable on those.
     if (extracted.found) {
-      expect(extracted.descriptor.file).toBeUndefined();
-      expect(extracted.descriptor.sha256).toBeUndefined();
+      expect(extracted.descriptor.fields.file).toBeUndefined();
+      expect(extracted.descriptor.fields.sha256).toBeUndefined();
     }
+  });
+});
+
+describe("recognizeDescriptorClaims", () => {
+  test("recognizes file claims by name and hash claims by shape, whatever the field is called", () => {
+    const descriptor = {
+      fields: { dataset: "UNT fall", file: "src/data/catalog/complete.json", digest: "f".repeat(64) },
+      counts: { courses: 84 },
+      ignored: [],
+    };
+    const claims = recognizeDescriptorClaims(descriptor);
+    expect(claims.fileClaim).toEqual({ key: "file", value: "src/data/catalog/complete.json" });
+    expect(claims.hashClaim).toEqual({ key: "digest", value: "f".repeat(64) });
+    expect(claims.countClaims).toEqual({ courses: 84 });
+  });
+  test("a .json-valued string is a file claim even under an unknown field name", () => {
+    const descriptor = { fields: { bundlePath: "data/complete.json" }, counts: {}, ignored: [] };
+    const claims = recognizeDescriptorClaims(descriptor);
+    expect(claims.fileClaim).toEqual({ key: "bundlePath", value: "data/complete.json" });
+  });
+  test("a descriptor with no recognizable claims yields nulls — never an invented schema", () => {
+    const descriptor = { fields: { dataset: "UNT fall", revision: 7 }, counts: { revision: 7 }, ignored: [] };
+    const claims = recognizeDescriptorClaims(descriptor);
+    expect(claims.fileClaim).toBeNull();
+    expect(claims.hashClaim).toBeNull();
+    expect(claims.countClaims).toEqual({ revision: 7 });
   });
 });
 
@@ -302,51 +411,104 @@ describe("verifyDescriptorAgainstBundle / resolveBundledCatalogPath", () => {
   const bundleHash = sha256Hex(bundle);
 
   test("matching hash and array-length counts verify", () => {
-    const descriptor = {
-      fields: { file: "b.json", sha256: bundleHash, courses: 3, sections: 7 },
-      file: "b.json",
-      sha256: bundleHash,
-      counts: { courses: 3, sections: 7 },
-      ignored: [],
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: { key: "sha256", value: bundleHash },
+      countClaims: { courses: 3, sections: 7 },
+      fileClaimCandidatesRejected: [],
     };
-    const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", bundle);
     expect(verdict.hashOk).toBe(true);
-    expect(verdict.countChecks.every((c) => c.ok)).toBe(true);
-    expect(verdict.allOk).toBe(true);
+    expect(verdict.countChecks.every((c) => c.ok === true)).toBe(true);
+    expect(verdict.allCheckedOk).toBe(true);
+    expect(verdict.anythingChecked).toBe(true);
   });
   test("a wrong hash fails while correct counts cannot save it", () => {
-    const descriptor = {
-      fields: { file: "b.json", sha256: "f".repeat(64) },
-      file: "b.json",
-      sha256: "f".repeat(64),
-      counts: { courses: 3 },
-      ignored: [],
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: { key: "sha256", value: "f".repeat(64) },
+      countClaims: { courses: 3 },
+      fileClaimCandidatesRejected: [],
     };
-    const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", bundle);
     expect(verdict.hashOk).toBe(false);
-    expect(verdict.allOk).toBe(false);
+    expect(verdict.allCheckedOk).toBe(false);
   });
   test("a count mismatch is a failed check naming both sides", () => {
-    const descriptor = { fields: { sections: 8 }, counts: { sections: 8 }, ignored: [] };
-    const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: null,
+      countClaims: { sections: 8 },
+      fileClaimCandidatesRejected: [],
+    };
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", bundle);
     const sections = verdict.countChecks.find((c) => c.key === "sections");
     expect(sections?.ok).toBe(false);
     expect(sections?.actual).toBe("array length 7");
+    expect(verdict.allCheckedOk).toBe(false);
   });
-  test("missing count key in the bundle fails", () => {
-    const descriptor = { fields: { rooms: 4 }, counts: { rooms: 4 }, ignored: [] };
-    const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/b.json", bundle);
+  test("a count with no bundle counterpart is recorded, not judged", () => {
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: { key: "sha256", value: bundleHash },
+      countClaims: { rooms: 4 },
+      fileClaimCandidatesRejected: [],
+    };
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", bundle);
     const rooms = verdict.countChecks.find((c) => c.key === "rooms");
-    expect(rooms?.ok).toBe(false);
-    expect(rooms?.kind).toBe("not-array-or-number");
+    expect(rooms?.ok).toBeNull();
+    expect(rooms?.kind).toBe("no-counterpart");
+    // The hash claim carried the case; the unjudged count does not fail it.
+    expect(verdict.allCheckedOk).toBe(true);
+    expect(verdict.anythingChecked).toBe(true);
   });
-  test("missing bundle file: hash unknown, allOk false", () => {
-    const descriptor = { fields: { file: "b.json", sha256: bundleHash }, file: "b.json", sha256: bundleHash, counts: {}, ignored: [] };
-    const verdict = verifyDescriptorAgainstBundle(descriptor, "/tmp/missing.json", null);
+  test("no hash claim but a matching count still checks something", () => {
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: null,
+      countClaims: { courses: 3 },
+      fileClaimCandidatesRejected: [],
+    };
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", bundle);
     expect(verdict.hashOk).toBeNull();
-    expect(verdict.allOk).toBe(false);
+    expect(verdict.allCheckedOk).toBe(true);
+    expect(verdict.anythingChecked).toBe(true);
   });
-  test("file claim resolves under frontend/ first", () => {
+  test("nothing checkable: no hash claim and only counterpart-less counts", () => {
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: null,
+      countClaims: { rooms: 4 },
+      fileClaimCandidatesRejected: [],
+    };
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", bundle);
+    expect(verdict.anythingChecked).toBe(false);
+    expect(verdict.allCheckedOk).toBe(true); // vacuously true; the caller reports n/a
+  });
+  test("unreadable bundle: hash unknown (the caller fails on the missing named file)", () => {
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: { key: "sha256", value: bundleHash },
+      countClaims: {},
+      fileClaimCandidatesRejected: [],
+    };
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/missing.json", null);
+    expect(verdict.hashOk).toBeNull();
+    expect(verdict.anythingChecked).toBe(false);
+  });
+  test("a non-JSON bundle with claimed counts is a failed check", () => {
+    const claims = {
+      fileClaim: { key: "file", value: "b.json" },
+      hashClaim: null,
+      countClaims: { courses: 3 },
+      fileClaimCandidatesRejected: [],
+    };
+    const verdict = verifyDescriptorAgainstBundle(claims, "/tmp/b.json", "not json at all");
+    const courses = verdict.countChecks.find((c) => c.key === "courses");
+    expect(courses?.ok).toBe(false);
+    expect(courses?.kind).toBe("bundle-not-json");
+  });
+  test("file claim resolves under frontend/ first, then repo root, then the module dir", () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "optdata-res-"));
     try {
       mkdirSync(path.join(root, "frontend", "src", "data"), { recursive: true });
