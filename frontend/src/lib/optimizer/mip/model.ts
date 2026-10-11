@@ -126,6 +126,7 @@ interface MeetingRef {
   readonly end: number;
   readonly buildingId: string;
   readonly candidate: number;
+  readonly course: string;
 }
 
 /** Consecutive-pair term: active iff both endpoints are chosen and no between candidate is. */
@@ -217,6 +218,7 @@ export function buildMipModel(req: OptimizeRequest): BuildOutcome {
         end: meeting.end,
         buildingId: meeting.buildingId,
         candidate: index,
+        course: section.courseCode,
       };
       const list = byDay.get(meeting.day);
       if (list) list.push(ref);
@@ -227,7 +229,9 @@ export function buildMipModel(req: OptimizeRequest): BuildOutcome {
     list.sort((a, b) => a.start - b.start || a.end - b.end || a.candidate - b.candidate);
   }
 
-  // Pairwise overlap rows over same-day meetings (half-open).
+  // Pairwise overlap rows over same-day meetings (half-open). Rows for
+  // same-course pairs are skipped: the exactly-one-per-course row already
+  // forbids choosing both, so the overlap row can never bind.
   let rowCounter = 0;
   const overlapSeen = new Set<string>();
   for (const list of byDay.values()) {
@@ -236,6 +240,7 @@ export function buildMipModel(req: OptimizeRequest): BuildOutcome {
         const a = list[i];
         const b = list[j];
         if (a.candidate === b.candidate) continue; // self-overlap already pruned
+        if (a.course === b.course) continue; // exactly-one row covers this pair
         const key = `${Math.min(a.candidate, b.candidate)}:${Math.max(a.candidate, b.candidate)}`;
         if (overlapSeen.has(key)) continue;
         overlapSeen.add(key);
@@ -263,6 +268,10 @@ export function buildMipModel(req: OptimizeRequest): BuildOutcome {
         const a = list[i];
         const b = list[j];
         if (b.start < a.end) continue; // overlapping: already cut above
+        // Same-course pairs are skipped outright: the exactly-one-per-course
+        // row means two sections of one course can never be chosen together,
+        // so neither a transfer row nor a cost term can ever activate.
+        if (a.course === b.course) continue;
         const gap = b.start - a.end;
         // Between-set: candidates with a meeting strictly inside the window
         // (non-strict on both ends so back-to-back chains count, matching
@@ -270,6 +279,7 @@ export function buildMipModel(req: OptimizeRequest): BuildOutcome {
         const between: number[] = [];
         for (const meeting of list) {
           if (meeting === a || meeting === b) continue;
+          if (meeting.course === a.course || meeting.course === b.course) continue;
           if (meeting.start >= a.end && meeting.end <= b.start && !between.includes(meeting.candidate)) {
             between.push(meeting.candidate);
           }
@@ -291,8 +301,10 @@ export function buildMipModel(req: OptimizeRequest): BuildOutcome {
           const zColumn = columnNames.length;
           columnNames.push(`z${zPairs.length}`);
           columnObjectives.push(zCost);
-          addRow(`zl${rowCounter++}`, [[1, zColumn], [-1, a.candidate]], "<=", 0);
-          addRow(`zr${rowCounter++}`, [[1, zColumn], [-1, b.candidate]], "<=", 0);
+          // Only the lower bound is needed: z carries a positive cost, so
+          // the solver pins it to exactly x_i + x_j - 1 - sum(between)
+          // whenever that is positive, and 0 otherwise. Upper rows
+          // (z <= x_i, z <= x_j) would be redundant.
           const terms: Array<readonly [number, number]> = [
             [1, zColumn],
             [-1, a.candidate],
