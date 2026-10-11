@@ -59,6 +59,9 @@ adversarial cases, Sol for correctness, Opus for integration).
     guest mode, and app-wide loading, error and not-found states.
   - `untangle-real-schedule-data-f1`: a survey of permitted real-term sources, and an ingest if one exists. Real-term
     data is in scope: Sam's "making into a real working tool" (2026-10-11) supersedes the July portfolio framing.
+  - `untangle-degree-plan-f1`: multi-term degree planning from published catalog.unt.edu requirements, rebuilt
+    from #5's experiment with an independent exact reference.
+  - `untangle-today-pwa-f1`: a Today view (next class and the walk to it) and an installable app that works offline.
   - Variant rounds: `untangle-optimizer-round1-f1` (branch-and-bound, MIP, and propagation with large-neighborhood
     search; these directions, ranked alternatives and infeasibility explanations are the lead's proposal, not Sam's
     request; today's `recommendSections` is an exhaustive depth-first enumeration with a conflict check) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
@@ -75,8 +78,7 @@ adversarial cases, Sol for correctness, Opus for integration).
   source. Then fix the failing eval cases, one task per gap with its own files, and polish from the council's
   critique.
 
-Directions still open: OSRM's foot profile as a routing alternative, if the A* engine misses the routing bars;
-multi-term degree planning from #5, which belongs to another workspace's thread and stays read-only.
+Directions still open: OSRM's foot profile as a routing alternative, if the A* engine misses the routing bars.
 
 ## Rules every task inherits
 
