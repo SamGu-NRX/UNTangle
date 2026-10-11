@@ -26,38 +26,58 @@ export async function isSignedIn(page: Page): Promise<boolean> {
 }
 
 /**
- * Create the synthetic account through the UI (sign-up mode of /auth).
+ * The app shows signed-in users without a chosen major a blocking
+ * choose-your-major modal (overlay intercepts pointer events). Complete it
+ * by picking the first major and confirming; no-op when not shown.
+ */
+export async function settleMajorModal(page: Page): Promise<void> {
+  const dialog = page.getByRole("heading", { name: "What are you studying?" });
+  if (!(await dialog.isVisible({ timeout: 4_000 }).catch(() => false))) return;
+  await page.getByRole("button", { name: "Computer Science" }).first().click({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Confirm" }).click({ timeout: 10_000 });
+  await dialog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+}
+
+/**
+ * Create the synthetic account through the UI (password sign-up mode of /auth).
  * better-auth signs the account in automatically after sign-up.
+ *
+ * Probe-verified DOM (evals/.probe-login.ts): the magic-link form and the
+ * password form COEXIST; the password form's email field is labeled `Email`,
+ * its submit is the only button[type=submit] (toggles are type=button), and
+ * it renders `Create account` in sign-up mode.
  */
 export async function signUp(page: Page, persona: SyntheticPersona, origin: string): Promise<void> {
   await page.goto(`${origin}/auth`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   // Password mode: the magic-link form is the default; flip it if present.
-  const passwordToggle = page.getByRole("button", { name: "Use password instead" });
-  await passwordToggle.click({ timeout: 20_000 });
-  await page.getByLabel("UNT email").waitFor({ state: "visible", timeout: 40_000 });
-  await page.getByLabel("UNT email").fill(persona.email);
-  await page.getByLabel("Password").waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByLabel("Password").fill(persona.password);
-  // Contract: Submit is `Log in` (sign-in mode) / `Sign up` (sign-up mode);
-  // a `Create account` affordance also exists. Match either sign-up name.
-  const submit = page.getByRole("button", { name: /Sign up|Create account/ }).first();
-  await submit.click({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Use password instead" }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Sign up", exact: true }).click({ timeout: 10_000 });
+  await page.getByLabel("Name", { exact: true }).fill("Eval Persona (synthetic)");
+  await page.getByLabel("Email", { exact: true }).fill(persona.email);
+  await page.getByLabel("Password", { exact: true }).fill(persona.password);
+  await page
+    .locator('button[type="submit"]', { hasText: /Create account|Sign up/ })
+    .first()
+    .click({ timeout: 15_000 });
   await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible", timeout: 30_000 });
+  await settleMajorModal(page);
 }
 
-/** Sign the synthetic persona in through the UI. */
+/** Sign the synthetic persona in through the UI (password sign-in mode). */
 export async function signIn(page: Page, persona: SyntheticPersona, origin: string): Promise<void> {
   await page.goto(`${origin}/auth`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   const passwordToggle = page.getByRole("button", { name: "Use password instead" });
   if (await passwordToggle.isVisible({ timeout: 8_000 }).catch(() => false)) {
     await passwordToggle.click({ timeout: 10_000 });
   }
-  await page.getByLabel("UNT email").waitFor({ state: "visible", timeout: 40_000 });
-  await page.getByLabel("UNT email").fill(persona.email);
-  await page.getByLabel("Password").waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByLabel("Password").fill(persona.password);
-  await page.getByRole("button", { name: "Log in" }).click({ timeout: 15_000 });
+  await page.getByLabel("Email", { exact: true }).fill(persona.email);
+  await page.getByLabel("Password", { exact: true }).fill(persona.password);
+  await page
+    .locator('button[type="submit"]', { hasText: "Log in" })
+    .first()
+    .click({ timeout: 15_000 });
   await page.getByRole("button", { name: "Sign out" }).waitFor({ state: "visible", timeout: 30_000 });
+  await settleMajorModal(page);
 }
 
 /** Sign out through the account exit control. */

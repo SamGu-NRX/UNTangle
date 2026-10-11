@@ -62,27 +62,24 @@ function escapeRegExp(text: string): string {
 }
 
 /**
- * The course row whose own heading/code element starts with the exact code —
- * never a row that merely mentions the code in a prerequisite list.
+ * The course row whose own code element starts with the exact code — never a
+ * row that merely mentions the code in a prerequisite list. Rows render the
+ * code in `.course-row__meta` text (no heading), so anchor on the meta span.
  */
 export function courseRow(page: Page, code: string): Locator {
-  const codeHeading = page
-    .locator("h1, h2, h3, h4, [data-course-code]")
+  const codeMeta = page
+    .locator(".course-row__meta")
     .filter({ hasText: new RegExp(`^\\s*${escapeRegExp(code)}\\b`) })
     .first();
-  return page.locator("article.course-row").filter({ has: codeHeading });
+  return page.locator("article.course-row").filter({ has: codeMeta });
 }
 
 /** Read the displayed code of the nth visible course row, or null. */
 export async function courseCodeAt(page: Page, index: number): Promise<string | null> {
   const row = page.locator("article.course-row").nth(index);
   if ((await row.count()) === 0) return null;
-  const text =
-    (await row
-      .locator("h1, h2, h3, h4, [data-course-code]")
-      .first()
-      .textContent({ timeout: 8_000 })
-      .catch(() => null)) ?? "";
+  // The code renders in .course-row__meta ("CSCE 1010 · 3 cr"), not a heading.
+  const text = (await row.textContent({ timeout: 8_000 }).catch(() => null)) ?? "";
   const match = text.match(/\b[A-Z]{2,4}\s\d{4}\b/);
   return match?.[0] ?? null;
 }

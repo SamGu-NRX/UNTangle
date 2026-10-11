@@ -233,7 +233,18 @@ async function runMap(ctx: SuiteContext, caseId: string, persona: PersonaName, v
 
   const tabs = page.getByRole("tablist").getByRole("tab");
   const tabCount = await tabs.count();
-  const routeLegs = await missingElement(page.getByText("Route legs").first(), "'Route legs' region (contract: /map)");
+  // Route legs are per-day (a leg needs ≥2 stops that day); give the head its
+  // best shot by visiting every day tab before declaring the region absent.
+  let legsSeen = false;
+  for (let i = 0; i < tabCount && !legsSeen; i++) {
+    await tabs.nth(i).click();
+    await settle(page, 900);
+    legsSeen = await page.locator('[aria-label="Route legs"]').isVisible().catch(() => false);
+  }
+  const routeLegs = await missingElement(
+    page.locator('[aria-label="Route legs"]').first(),
+    "'Route legs' region (contract: /map)",
+  );
   await screenshot(page, ctx.runDir, caseId);
 
   if (tabCount < 5) return { status: "fail", note: `expected a 5-day tablist on /map, found ${tabCount} tabs` };
