@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DirectionB } from "@/components/lab/direction-b";
-import "../lab.css";
+import "../../../components/lab/lab.css";
 
 export const metadata: Metadata = {
   title: "UNTangle · Direction B — day itinerary",

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import "./lab.css";
+import "../../components/lab/lab.css";
 
 export const metadata: Metadata = {
   title: "UNTangle · Round 1 UX lab",

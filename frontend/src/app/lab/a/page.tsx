@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DirectionA } from "@/components/lab/direction-a";
-import "../lab.css";
+import "../../../components/lab/lab.css";
 
 export const metadata: Metadata = {
   title: "UNTangle · Direction A — week grid + day map",
