@@ -30,10 +30,13 @@ export function CourseImportPanel({
   courseStatuses,
   setCourseStatus,
   toast,
+  plannerReady = true,
 }: {
   courseStatuses: Record<string, CourseStatus>;
   setCourseStatus: (code: string, status: CourseStatus) => void;
   toast: (message: string) => void;
+  /** False while the planner is still hydrating — apply must wait for it. */
+  plannerReady?: boolean;
 }) {
   const [review, setReview] = useState<ImportReviewState>(emptyImportReviewState);
   const [requested, setRequested] = useState<Record<string, CourseStatus>>({});
@@ -61,6 +64,7 @@ export function CourseImportPanel({
       const text = await file.text();
       // A newer import (another file or a paste) supersedes this in-flight read.
       if (readGuard.current.isStale(token)) return;
+      readGuard.current.settle();
       reviewText(text);
     } finally {
       if (!readGuard.current.isStale(token)) {
@@ -69,7 +73,20 @@ export function CourseImportPanel({
     }
   }
 
+  function onImportTextChange(nextText: string) {
+    setReview((current) => ({ ...current, text: nextText }));
+    // Text typed or pasted after a file read started must never be replaced
+    // when that read finishes — cancel the pending read immediately.
+    if (readGuard.current.invalidate()) {
+      setReadingFile(false);
+    }
+  }
+
   function applyImport() {
+    if (!plannerReady) {
+      toast("Your plan is still loading — try again in a moment");
+      return;
+    }
     if (changes.length === 0) {
       toast("Imported courses already match the chosen statuses");
       return;
@@ -101,7 +118,7 @@ export function CourseImportPanel({
         <textarea
           className="field-input"
           value={importText}
-          onChange={(event) => setReview((current) => ({ ...current, text: event.target.value }))}
+          onChange={(event) => onImportTextChange(event.target.value)}
           placeholder="Paste schedule text, for example: CSCE3444, MATH 1710, GOVT 2305..."
           rows={4}
           style={{ resize: "vertical", minHeight: 104 }}
@@ -160,11 +177,16 @@ export function CourseImportPanel({
               <Button
                 type="button"
                 onClick={applyImport}
-                disabled={result.matched.length === 0}
+                disabled={result.matched.length === 0 || !plannerReady}
               >
                 {changes.length > 0 ? `Apply ${changes.length} change${changes.length === 1 ? "" : "s"}` : "Nothing to apply"}
               </Button>
             </div>
+            {!plannerReady ? (
+              <p role="status" style={{ margin: 0, fontSize: "0.8rem", color: "var(--copy)" }}>
+                Your plan is still loading — applying unlocks when it finishes.
+              </p>
+            ) : null}
 
             {result.matched.map((course) => {
               const currentStatus = courseStatuses[course.code] ?? "notTaken";

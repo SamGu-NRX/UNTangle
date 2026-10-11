@@ -77,13 +77,33 @@ export function computeImportApply(
  */
 export class ImportReadGuard {
   private current = 0;
+  private inFlight = false;
 
   begin(): number {
     this.current += 1;
+    this.inFlight = true;
     return this.current;
   }
 
   isStale(token: number): boolean {
     return token !== this.current;
+  }
+
+  /** Mark the active read as finished so a later invalidate does not report a cancelled read. */
+  settle(): void {
+    this.inFlight = false;
+  }
+
+  /**
+   * Invalidate any in-flight read — the user edited the text (typed or pasted)
+   * after the read started, so its result must be discarded instead of
+   * replacing their newer text. Returns true when a read was cancelled, so the
+   * caller can reset the reading indicator.
+   */
+  invalidate(): boolean {
+    if (!this.inFlight) return false;
+    this.current += 1;
+    this.inFlight = false;
+    return true;
   }
 }

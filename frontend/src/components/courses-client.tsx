@@ -196,6 +196,15 @@ export function CoursesClient() {
           </div>
         </div>
 
+        <p
+          role="status"
+          aria-label="Sample data notice"
+          style={{ margin: "0.25rem 0 0", fontSize: "0.8rem", color: "var(--copy)" }}
+        >
+          Bundled sections and their sample ratings come from the offline catalog — not a real
+          term&apos;s offerings.
+        </p>
+
         {grouped.coreList.length > 0 ? (
           <section>
             <p className="editorial-label" style={{ marginBottom: 8 }}>
@@ -211,6 +220,7 @@ export function CoursesClient() {
                     isLocked,
                     setCourseStatus,
                     toast,
+                    hydrated,
                   ),
                 )}
               </StaggerGroup>
@@ -233,6 +243,7 @@ export function CoursesClient() {
                     isLocked,
                     setCourseStatus,
                     toast,
+                    hydrated,
                   ),
                 )}
               </StaggerGroup>
@@ -270,6 +281,7 @@ function renderRow(
   isLocked: (code: string) => boolean,
   setCourseStatus: (code: string, status: CourseStatus) => void,
   toast: (msg: string) => void,
+  hydrated: boolean,
 ) {
   const status = courseStatuses[course.code] ?? "notTaken";
   const locked = isLocked(course.code);
@@ -308,11 +320,12 @@ function renderRow(
               <button
                 key={value}
                 type="button"
+                aria-pressed={active}
                 onClick={() => {
                   setCourseStatus(course.code, value);
                   if (value === "completed") toast(`${course.code} marked done`);
                 }}
-                disabled={locked && !completed && value !== "notTaken"}
+                disabled={!hydrated || (locked && !completed && value !== "notTaken")}
                 style={{
                   padding: "0.32rem 0.6rem",
                   fontSize: "0.7rem",
@@ -336,7 +349,7 @@ function renderRow(
         <Toggle
           on={completed}
           ariaLabel={`Mark ${course.code} as done`}
-          disabled={locked && !completed}
+          disabled={!hydrated || (locked && !completed)}
           onChange={(next) => {
             const newStatus = next ? "completed" : "notTaken";
             setCourseStatus(course.code, newStatus);

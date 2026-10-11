@@ -18,7 +18,7 @@ type ImportMode = "text" | "transcript";
  */
 export function CourseImportSwitch({ initialMode = "text" }: { initialMode?: ImportMode }) {
   const [mode, setMode] = useState<ImportMode>(initialMode);
-  const { plannerState, setCourseStatus } = usePlanner();
+  const { hydrated, plannerState, setCourseStatus } = usePlanner();
   const { toast } = useToast();
 
   if (mode === "transcript") {
@@ -50,6 +50,7 @@ export function CourseImportSwitch({ initialMode = "text" }: { initialMode?: Imp
           courseStatuses={plannerState.courseStatuses}
           setCourseStatus={setCourseStatus}
           toast={toast}
+          plannerReady={hydrated}
         />
       </div>
     </NavShell>
