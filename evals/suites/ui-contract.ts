@@ -89,8 +89,29 @@ export async function markCourseTaking(page: Page, code: string): Promise<void> 
   await activate(page, courseRow(page, code).getByRole("button", { name: "Taking", exact: true }).first());
 }
 
+/**
+ * Wait until the visible first course row reflects the searched prefix. The
+ * page filters client-side via useDeferredValue, and the unfiltered catalog
+ * can linger for a while on a loaded host — reading codes before this resolves
+ * yields codes whose rows the filter is about to remove.
+ */
+export async function waitForFilteredRows(page: Page, term: string, timeoutMs = 45_000): Promise<void> {
+  const firstRow = page.locator("article.course-row").first();
+  const pattern = new RegExp(`\\b${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`);
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const text = (await firstRow.textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
+    if (pattern.test(text)) return;
+    if (Date.now() > deadline) {
+      throw new Error(`course list never reflected the search "${term}" within ${timeoutMs}ms (first row: ${text.slice(0, 80) || "none"})`);
+    }
+    await page.waitForTimeout(400);
+  }
+}
+
 /** Mark `count` courses taking, then follow the Optimize step-link to /schedule. */
-export async function activateCoursesAndOpenSchedule(page: Page, count: number): Promise<string[]> {
+export async function activateCoursesAndOpenSchedule(page: Page, count: number, searchTerm?: string): Promise<string[]> {
+  if (searchTerm) await waitForFilteredRows(page, searchTerm);
   const codes: string[] = [];
   for (let i = 0; i < count; i += 1) {
     const code = await courseCodeAt(page, i);

@@ -24,6 +24,7 @@ import {
   expectDetailNot404,
   missingElement,
   PLANS,
+  waitForFilteredRows,
 } from "./ui-contract";
 import type { Page } from "playwright";
 
@@ -77,18 +78,11 @@ async function landOnCourses(ctx: SuiteContext, caseId: string, persona: Persona
 
 /** First code visible after a department search — read only after the filter applied. */
 async function firstSearchedCode(page: Page, term: string): Promise<string> {
-  // The unfiltered catalog can linger for a moment after fill(); wait until the
-  // visible first row actually carries the searched prefix, else the code is
-  // read from a row that the filter is about to remove.
-  const firstRow = page.locator("article.course-row").first();
-  const codePattern = new RegExp(`\\b${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`);
-  for (let i = 0; i < 40; i++) {
-    const text = (await firstRow.textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
-    const code = text.match(codePattern)?.[0];
-    if (code) return code;
-    await page.waitForTimeout(300);
-  }
-  throw new Error(`search for "${term}" never showed a matching first course row`);
+  await waitForFilteredRows(page, term);
+  const text = (await page.locator("article.course-row").first().textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
+  const code = text.match(new RegExp(`\\b${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`))?.[0];
+  if (!code) throw new Error(`search for "${term}" never showed a matching first course row`);
+  return code;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,7 +149,7 @@ async function runBuild(ctx: SuiteContext, caseId: string, persona: PersonaName,
   const page = await landOnCourses(ctx, caseId, persona, viewport);
   await page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await page.waitForTimeout(700);
-  await activateCoursesAndOpenSchedule(page, 2);
+  await activateCoursesAndOpenSchedule(page, 2, "CSCE");
   await settle(page, 1200);
 
   // REQUIRED: explicit optimizer run button.
@@ -179,7 +173,7 @@ async function runSave(ctx: SuiteContext, caseId: string, persona: PersonaName, 
   const page = await landOnCourses(ctx, caseId, persona, viewport);
   await page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await page.waitForTimeout(700);
-  await activateCoursesAndOpenSchedule(page, 2);
+  await activateCoursesAndOpenSchedule(page, 2, "CSCE");
   await settle(page, 1200);
 
   // Durability probe: the edit must survive a reload.
@@ -232,7 +226,7 @@ async function runMap(ctx: SuiteContext, caseId: string, persona: PersonaName, v
   const page = await landOnCourses(ctx, caseId, persona, viewport);
   await page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await page.waitForTimeout(700);
-  const codes = await activateCoursesAndOpenSchedule(page, 2);
+  const codes = await activateCoursesAndOpenSchedule(page, 2, "CSCE");
   await activate(page, page.getByRole("link", { name: "Generate map →" }).first());
   await page.waitForURL("**/map", { timeout: 30_000 });
   await settle(page, 1500); // map canvas + route resolution
