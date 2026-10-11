@@ -36,10 +36,13 @@ function parseScanId(caseId: string): PageKey {
 
 /** Read the first searched course code from /courses (already landed there). */
 async function firstSearchedCode(page: CaseBrowser["page"]): Promise<string> {
-  const firstRow = page.locator("article.course-row").first();
-  const rowCode = (await firstRow.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
-  const code = rowCode.match(/\b[A-Z]{2,4}\s\d{4}\b/)?.[0];
-  if (!code) throw new Error("a11y case could not read a course code after search");
+  // The code element per the /courses contract is the row's meta span; the
+  // row's full text starts with the title, whose own "(COSC 1301)" mention
+  // would match first and name a course no row's meta carries.
+  const firstMeta = page.locator("article.course-row").first().locator(".course-row__meta");
+  const meta = (await firstMeta.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
+  const code = meta.match(/^\s*([A-Z]{2,4}\s?\d{4})\b/)?.[1];
+  if (!code) throw new Error(`a11y case could not read a course code after search (first meta: ${meta.slice(0, 80) || "none"})`);
   return code;
 }
 

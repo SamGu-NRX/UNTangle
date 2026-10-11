@@ -78,10 +78,13 @@ export function courseRow(page: Page, code: string): Locator {
 export async function courseCodeAt(page: Page, index: number): Promise<string | null> {
   const row = page.locator("article.course-row").nth(index);
   if ((await row.count()) === 0) return null;
-  // The code renders in .course-row__meta ("CSCE 1010 · 3 cr"), not a heading.
-  const text = (await row.textContent({ timeout: 8_000 }).catch(() => null)) ?? "";
-  const match = text.match(/\b[A-Z]{2,4}\s\d{4}\b/);
-  return match?.[0] ?? null;
+  // The code lives only in .course-row__meta ("CSCE 1010 · 3 cr"). The row's
+  // full text also carries the title's own code mentions (e.g. "(COSC 1336)")
+  // and status labels that butt against the meta ("...takenCSCE 1010"), so a
+  // whole-row scan matches the wrong course or no course at all.
+  const text = (await row.locator(".course-row__meta").textContent({ timeout: 8_000 }).catch(() => null)) ?? "";
+  const match = text.match(/^\s*([A-Z]{2,4}\s?\d{4})\b/);
+  return match?.[1] ?? null;
 }
 
 /** Mark a course as taking via its row status buttons (contract: /courses). */
@@ -96,14 +99,18 @@ export async function markCourseTaking(page: Page, code: string): Promise<void> 
  * yields codes whose rows the filter is about to remove.
  */
 export async function waitForFilteredRows(page: Page, term: string, timeoutMs = 45_000): Promise<void> {
-  const firstRow = page.locator("article.course-row").first();
-  const pattern = new RegExp(`\\b${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`);
+  // Anchor on the first row's meta span: the code element per the /courses
+  // contract. Whole-row text can't be pattern-matched for the code because the
+  // status label concatenates directly before it ("...takenCSCE 1010") leaving
+  // no word boundary for \bCSCE.
+  const firstMeta = page.locator("article.course-row").first().locator(".course-row__meta");
+  const pattern = new RegExp(`^\\s*${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`);
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const text = (await firstRow.textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
+    const text = (await firstMeta.textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
     if (pattern.test(text)) return;
     if (Date.now() > deadline) {
-      throw new Error(`course list never reflected the search "${term}" within ${timeoutMs}ms (first row: ${text.slice(0, 80) || "none"})`);
+      throw new Error(`course list never reflected the search "${term}" within ${timeoutMs}ms (first meta: ${text.slice(0, 80) || "none"})`);
     }
     await page.waitForTimeout(400);
   }

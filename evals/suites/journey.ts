@@ -79,9 +79,12 @@ async function landOnCourses(ctx: SuiteContext, caseId: string, persona: Persona
 /** First code visible after a department search — read only after the filter applied. */
 async function firstSearchedCode(page: Page, term: string): Promise<string> {
   await waitForFilteredRows(page, term);
-  const text = (await page.locator("article.course-row").first().textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
-  const code = text.match(new RegExp(`\\b${escapeRegExp(term.toUpperCase())}\\s?\\d{4}\\b`))?.[0];
-  if (!code) throw new Error(`search for "${term}" never showed a matching first course row`);
+  // The code element per the /courses contract is the row's meta span; the
+  // row's full text carries the title's own code mentions and butt-joined
+  // status labels, which defeat a boundary-anchored scan.
+  const text = (await page.locator("article.course-row").first().locator(".course-row__meta").textContent({ timeout: 5_000 }).catch(() => null)) ?? "";
+  const code = text.match(new RegExp(`^\\s*(${escapeRegExp(term.toUpperCase())}\\s?\\d{4})\\b`))?.[1];
+  if (!code) throw new Error(`search for "${term}" never showed a matching first course row (first meta: ${text.slice(0, 80) || "none"})`);
   return code;
 }
 

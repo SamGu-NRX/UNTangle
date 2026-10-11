@@ -61,7 +61,10 @@ export async function runAxe(page: Page): Promise<AxeScan> {
   const raw = await page.evaluate(() => {
     const axeCtor = (window as { axe?: { run: (ctx?: unknown, opts?: unknown) => Promise<unknown> } }).axe;
     if (!axeCtor) return null;
-    return axeCtor.run(undefined, { resultTypes: ["violations", "inapplicable"] });
+    // axe-core's promise form validates (context, options) strictly — an
+    // explicit `undefined` context throws "axe.run arguments are invalid".
+    // An empty context object means "scan the whole document".
+    return axeCtor.run({}, { resultTypes: ["violations", "inapplicable"] });
   });
   if (raw === null || raw === undefined) {
     throw new Error("axe-core failed to initialize in the page after injection");

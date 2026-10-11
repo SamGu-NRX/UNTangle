@@ -35,10 +35,13 @@ async function openFirstDetail(ctx: SuiteContext): Promise<{ page: Page; code: s
 
   await cb.page.getByRole("textbox", { name: "Search courses" }).fill("CSCE");
   await cb.page.waitForTimeout(700);
-  const firstRow = cb.page.locator("article.course-row").first();
-  const rowCode = (await firstRow.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
-  const code = rowCode.match(/\b[A-Z]{2,4}\s\d{4}\b/)?.[0];
-  if (!code) throw new Error("honesty case could not read a course code from the first course row after search");
+  // The code element per the /courses contract is the row's meta span; the
+  // row's full text starts with the title, whose own "(COSC 1306)" mention
+  // would match first and name a course no row's meta carries.
+  const firstMeta = cb.page.locator("article.course-row").first().locator(".course-row__meta");
+  const meta = (await firstMeta.textContent({ timeout: 10_000 }).catch(() => null)) ?? "";
+  const code = meta.match(/^\s*([A-Z]{2,4}\s?\d{4})\b/)?.[1];
+  if (!code) throw new Error(`honesty case could not read a course code from the first course row after search (first meta: ${meta.slice(0, 80) || "none"})`);
 
   await activate(cb.page, courseRow(cb.page, code).getByRole("link", { name: "Details" }).first());
   await cb.page.waitForURL("**/courses/**", { timeout: 20_000 });
