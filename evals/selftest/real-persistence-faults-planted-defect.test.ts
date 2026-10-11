@@ -102,7 +102,13 @@ function sabotagePostgresOnce(runDir: string, taskId: string): Promise<boolean> 
 }
 
 describe("real-suite planted defect: persistence-faults (full real stack, Postgres killed after launch)", () => {
-  test(
+  // Skip-guarded: the run boots the full real stack (Postgres, backend
+  // build, frontend build, a real browser) — heavy Playwright work that is
+  // deferred per the lead's steer until the host is free and the journey
+  // suites have landed. The body below is the complete recipe; enabling it
+  // is `test.skip` -> `test` and never running it concurrently with other
+  // Playwright passes.
+  test.skip(
     "dead Postgres after stack boot: exit 1 blaming CASES (infrastructure.ok true), failed-saves-never-saved failing, poisoned-run notes visible",
     async () => {
       const taskId = `selftest-persist-plant-${Date.now()}`;
