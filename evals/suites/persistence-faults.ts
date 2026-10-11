@@ -133,8 +133,12 @@ async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence
     await signOutThroughUi(page, ctx.frontendOrigin);
     await signInThroughUi(page, ctx.frontendOrigin, persona);
     await gotoRegisteredCourses(page, ctx.frontendOrigin);
-    evidence.survivedSignOutSignIn = await rowCompletedBecomes(page, COURSE_PRIMARY, true, 8_000);
+    // A reappearing major-selection prompt is itself diagnostic (it means the
+    // planner came back empty); record it, dismiss it, then measure the row.
+    evidence.majorPromptAfterSignIn = await chooseMajorIfPrompted(page, { registered: true });
+    evidence.survivedSignOutSignIn = await rowCompletedBecomes(page, COURSE_PRIMARY, true, 15_000);
     evidence.pageErrors = pageErrors.messages.slice(0, 5);
+    evidence.screenshots.afterSignIn = await snap(page, ctx, "acknowledged-saves-survive", "after-sign-in");
 
     const underlying = {
       editAcknowledged: probes.saveStateRegionCount > 0 && (probes.saveStateText ?? "").includes("Saved"),
@@ -144,6 +148,14 @@ async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence
     evidence.underlying = underlying;
 
     if (!underlying.editAcknowledged) {
+      const survivedBoth = underlying.survivedReload && underlying.survivedSignOutSignIn;
+      const dataPathClause = survivedBoth
+        ? "The underlying data path itself worked: the edit survived reload and sign-out/sign-in through the UI."
+        : `The underlying data path could not be confirmed on both horizons as measured (survivedReload: ${underlying.survivedReload}, survivedSignOutSignIn: ${underlying.survivedSignOutSignIn}${
+            evidence.majorPromptAfterSignIn === true
+              ? "; the major-selection prompt reappeared after sign-in, which is itself evidence the planner came back empty"
+              : ""
+          }).`;
       return {
         status: "fail",
         measured: measuredJson({
@@ -151,9 +163,10 @@ async function runAcknowledgedSavesSurvive(ctx: SuiteContext, evidence: Evidence
           savedAcknowledgmentLines: probes.savedAcknowledgmentLines,
           survivedReload: underlying.survivedReload,
           survivedSignOutSignIn: underlying.survivedSignOutSignIn,
+          majorPromptAfterSignIn: evidence.majorPromptAfterSignIn === true,
           editSaveResponseStatus: edit.saveResponse?.status() ?? null,
         }),
-        note: 'expected-fail: required contract element absent on this head — the Save state region (role="status", name "Save state") that would display "Saved"; the durability acknowledgment cannot be observed. The underlying data path itself worked (edit survived reload and sign-out/sign-in through the UI).',
+        note: `expected-fail: required contract element absent on this head — the Save state region (role="status", name "Save state") that would display "Saved"; the durability acknowledgment cannot be observed. ${dataPathClause}`,
       };
     }
     if (!underlying.survivedReload || !underlying.survivedSignOutSignIn) {
@@ -200,6 +213,21 @@ async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): 
     evidence.screenshots.afterReload = await snap(page, ctx, "failed-saves-never-saved", "after-reload");
 
     if (probes.saveStateRegionCount === 0) {
+      const noFeedback = probes.failureIndications.length === 0 && probes.retrySaveButtonCount === 0;
+      const outcomeClauses = [
+        noFeedback
+          ? "the injected-500 save produced zero UI feedback (no failure state, no retry offer)"
+          : `the UI surfaced ${probes.failureIndications.length} failure indication(s) and ${probes.retrySaveButtonCount} retry control(s)`,
+        evidence.rowClaimedInMemory === true
+          ? "the row still claimed the edit in memory"
+          : "the row did not claim the edit in memory",
+        lostAfterReload
+          ? "after reload the edit was gone (the server never received it)"
+          : "after reload the edit was still present",
+        probes.savedAcknowledgmentLines.length === 0
+          ? 'no "Saved" was ever shown, but only because the UI never speaks about saves at all'
+          : `saved-acknowledgment lines were observed: ${JSON.stringify(probes.savedAcknowledgmentLines)}`,
+      ];
       return {
         status: "fail",
         measured: measuredJson({
@@ -209,10 +237,9 @@ async function runFailedSavesNeverSaved(ctx: SuiteContext, evidence: Evidence): 
           retrySaveButtonCount: probes.retrySaveButtonCount,
           editSilentlyLostAfterReload: lostAfterReload,
         }),
-        note: 'expected-fail: required contract elements absent on this head — the Save state region (role="status", name "Save state") with its "Saving failed…" text and the "Retry save" button. The injected-500 save produced zero UI feedback (no failure state, no retry offer); the row still claimed the edit in memory, and after reload the edit was silently lost (the server never received it). No "Saved" was ever shown, but only because the UI never speaks about saves at all.',
+        note: `expected-fail: required contract elements absent on this head — the Save state region (role="status", name "Save state") with its "Saving failed…" text and the "Retry save" button. Measured: ${outcomeClauses.join("; ")}.`,
       };
     }
-
     // UI present: the failed save must not read "Saved", must read as a
     // failure, must offer the retry, and the retried save must complete.
     if ((probes.saveStateText ?? "").includes("Saved")) {
@@ -297,6 +324,16 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
 
     const appKeptWorking = edit.rowCompleted;
     if (probes.saveStateRegionCount === 0 || probes.exportScheduleButtonCount === 0) {
+      const memoryClause =
+        appKeptWorking && !survivedReload
+          ? "With storage denied the app did keep working memory-only (the edit stayed visible and was lost on reload, as memory-only implies)"
+          : appKeptWorking
+            ? "With storage denied the app kept the edit visible in memory as measured, but the reload-survival check did not read as expected"
+            : "With storage denied the app did not keep the edit working in memory as measured";
+      const errorClause =
+        pageErrors.messages.length > 0
+          ? "The denied-storage write failure surfaced as an uncaught page error."
+          : "No uncaught page error was observed.";
       return {
         status: "fail",
         measured: measuredJson({
@@ -307,7 +344,7 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
           exportScheduleButtonCount: probes.exportScheduleButtonCount,
           editsLostOnReload: !survivedReload,
         }),
-        note: 'expected-fail: required contract elements absent on this head — the Save state region (role="status", name "Save state") with its persistent "Not saved…" warning and the "Export schedule" button. With storage denied the app did keep working memory-only (the edit stayed visible and was lost on reload, as memory-only implies), but the user is never warned and offered no export. The denied-storage write failure surfaces as an uncaught page error.',
+        note: `expected-fail: required contract elements absent on this head — the Save state region (role="status", name "Save state") with its persistent "Not saved…" warning and the "Export schedule" button. ${memoryClause}, but the user is never warned and offered no export. ${errorClause}`,
       };
     }
     if (!probes.saveStateText?.includes("Not saved")) {
@@ -396,6 +433,18 @@ async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence)
     };
 
     if (probes.keptAtNoticeCount === 0 || plansResponse !== 200) {
+      const discardClause = corruptBytesDiscarded
+        ? quarantineCopyFound
+          ? "the corrupt bytes were replaced in place AND a copy of the corrupt marker also remained somewhere in storage"
+          : 'the corrupt bytes were silently discarded — no intact quarantine copy exists anywhere — which violates "never silently deleted"'
+        : "the corrupt bytes were not discarded as stored";
+      const loadClause = appLoads
+        ? "The app does still load"
+        : "The app did not load cleanly as measured";
+      const claimClause =
+        probes.recoveredClaimCount === 0
+          ? "nothing claims the plan was recovered (vacuously: nothing is claimed at all)"
+          : `${probes.recoveredClaimCount} recovered claim(s) were observed`;
       return {
         status: "fail",
         measured: measuredJson({
@@ -407,7 +456,7 @@ async function runCorruptBytesQuarantined(ctx: SuiteContext, evidence: Evidence)
           recoveredClaimCount: probes.recoveredClaimCount,
         }),
         note: "expected-fail: the quarantine handling lives on /plans, which does not exist on this head (HTTP " +
-          `${plansResponse}), and no quarantine notice (status whose text contains "kept at") is shown. Measured on the only stored plan bytes this head has (guest sessionStorage): the corrupt bytes were silently discarded — the read error is swallowed, the key is overwritten by the next save, and no intact quarantine copy exists anywhere — which violates "never silently deleted". The app does still load, and nothing claims the plan was recovered (vacuously: nothing is claimed at all).`,
+          `${plansResponse}), and no quarantine notice (status whose text contains "kept at") is shown. Measured on the only stored plan bytes this head has (guest sessionStorage): ${discardClause}. ${loadClause}, and ${claimClause}.`,
       };
     }
     if (probes.recoveredClaimCount > 0) {
@@ -460,16 +509,21 @@ async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence)
     evidence.pageErrors = pageErrors.messages.slice(0, 5);
 
     if (probes.conflictDialogCount === 0) {
+      const serverClause =
+        staleEditWon && newerEditSilentlyLost && stale.saveResponse?.status() === 200
+          ? "The stale tab's save landed last and the server silently adopted it: the newer tab's edit was overwritten with no conflict surfaced and nothing to choose."
+          : `Server outcome as measured: staleTabSaveStatus ${stale.saveResponse?.status() ?? null}, staleEditWon ${staleEditWon}, newerEditSilentlyLost ${newerEditSilentlyLost}.`;
       return {
         status: "fail",
         measured: measuredJson({
           conflictDialogCount: probes.conflictDialogCount,
           keepMyEditsButtonCount: probes.keepMyEditsButtonCount,
           useNewerVersionButtonCount: probes.useNewerVersionButtonCount,
+          staleTabSaveStatus: stale.saveResponse?.status() ?? null,
           staleEditWon,
           newerEditSilentlyLost,
         }),
-        note: 'expected-fail: required contract element absent on this head — the "Unsaved changes conflict" alertdialog (with "Keep my edits" / "Use the newer version" buttons). The stale tab\'s save landed last and the server silently adopted it: the newer tab\'s edit was overwritten with no conflict surfaced and nothing to choose.',
+        note: `expected-fail: required contract element absent on this head — the "Unsaved changes conflict" alertdialog (with "Keep my edits" / "Use the newer version" buttons). ${serverClause}`,
       };
     }
     if (probes.keepMyEditsButtonCount === 0 || probes.useNewerVersionButtonCount === 0) {
@@ -525,6 +579,11 @@ async function runCleanTabAdoptsNewer(ctx: SuiteContext, evidence: Evidence): Pr
     evidence.pageErrors = pageErrors.messages.slice(0, 5);
 
     if (probes.takenNewerNoticeCount === 0) {
+      const adoptClause = adoptedInPlace
+        ? "The clean tab did adopt the newer version in place as measured"
+        : adoptedAfterReload
+          ? "The clean tab never adopted the newer version in place: it sat stale until a full reload fetched the newer save"
+          : "The clean tab never adopted the newer version in place, and even after reload it did not show the newer edit";
       return {
         status: "fail",
         measured: measuredJson({
@@ -532,7 +591,7 @@ async function runCleanTabAdoptsNewer(ctx: SuiteContext, evidence: Evidence): Pr
           adoptedAfterReload,
           takenNewerNoticeCount: probes.takenNewerNoticeCount,
         }),
-        note: 'expected-fail: required contract element absent on this head — the "Loaded newer version from another tab" status notice. The clean tab never adopted the newer version in place either: it sat stale until a full reload fetched the newer save. Taken together the tab neither takes the newer version nor says so.',
+        note: `expected-fail: required contract element absent on this head — the "Loaded newer version from another tab" status notice. ${adoptClause}. Taken together the tab ${adoptedInPlace ? "takes the newer version but never says so" : "neither takes the newer version nor says so"}.`,
       };
     }
     if (!adoptedInPlace) {

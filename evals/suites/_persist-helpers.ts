@@ -12,7 +12,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { Browser, BrowserContext, Page, Response } from "@playwright/test";
+import type { Browser, BrowserContext, Locator, Page, Response } from "@playwright/test";
 import type { SuiteContext } from "../suite-kit";
 
 /** The planner persistence API (POST saves, GET loads for registered users). */
@@ -181,6 +181,22 @@ export async function chooseMajorIfPrompted(page: Page, opts: { registered: bool
   return true;
 }
 
+/** Escapes a course code for use inside a RegExp. */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, (ch) => `\\${ch}`);
+}
+/**
+ * The one course row whose CODE LINE names the course (the "ANTH 2300 · 3 cr"
+ * meta line). Other rows can mention the same code in prerequisites or
+ * cross-list text, so a plain hasText filter strict-matches several rows;
+ * anchoring on the code-line pattern keeps the locator unique.
+ */
+export function plannerRow(page: Page, courseCode: string): Locator {
+  return page.locator("article.course-row", {
+    has: page.getByText(new RegExp(`${escapeRegExp(courseCode)}\\s*·`)),
+  });
+}
+
 /**
  * Marks a course "Done" from its /courses row (the row's exact-name status
  * button, not the "Mark {COURSE} as done" toggle). For registered sessions
@@ -192,7 +208,7 @@ export async function markCourseDone(
   courseCode: string,
   opts: { registered: boolean },
 ): Promise<{ rowCompleted: boolean; saveResponse: Response | null }> {
-  const row = page.locator("article.course-row", { hasText: courseCode });
+  const row = plannerRow(page, courseCode);
   await row.scrollIntoViewIfNeeded();
   const save = opts.registered
     ? page
@@ -218,7 +234,7 @@ export async function rowCompletedBecomes(
   want: boolean,
   timeoutMs = 5_000,
 ): Promise<boolean> {
-  const row = page.locator("article.course-row", { hasText: courseCode });
+  const row = plannerRow(page, courseCode);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const value = await row.getAttribute("data-completed");
