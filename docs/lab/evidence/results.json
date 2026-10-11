@@ -1,0 +1,147 @@
+[
+  {
+    "direction": "a",
+    "viewport": "desktop",
+    "loadMs": 2106,
+    "routeApiCallsOnLoad": 0,
+    "longestWalkInDom": 0,
+    "axeViolations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "count": 2,
+        "sample": [
+          "div:nth-child(8) > .cal-event[type=\"button\"] > .cal-event__meta:nth-child(3)",
+          "div:nth-child(10) > .cal-event[type=\"button\"] > .cal-event__meta:nth-child(3)"
+        ]
+      },
+      {
+        "id": "landmark-main-is-top-level",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-split__schedule > div > main"
+        ]
+      },
+      {
+        "id": "landmark-no-duplicate-main",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-root > div > main"
+        ]
+      },
+      {
+        "id": "landmark-unique",
+        "impact": "moderate",
+        "count": 2,
+        "sample": [
+          ".lab-root > div > header > div > nav",
+          ".lab-root > div > main"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "b",
+    "viewport": "desktop",
+    "loadMs": 2230,
+    "routeApiCallsOnLoad": 0,
+    "longestWalkInDom": 0,
+    "axeViolations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "h3"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "c",
+    "viewport": "desktop",
+    "loadMs": 2417,
+    "routeApiCallsOnLoad": 0,
+    "longestWalkInDom": 0,
+    "axeViolations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "h3"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "a",
+    "viewport": "mobile",
+    "loadMs": 2333,
+    "routeApiCallsOnLoad": 0,
+    "longestWalkInDom": 0,
+    "axeViolations": [
+      {
+        "id": "landmark-main-is-top-level",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-split__schedule > div > main"
+        ]
+      },
+      {
+        "id": "landmark-no-duplicate-main",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          ".lab-root > div > main"
+        ]
+      },
+      {
+        "id": "landmark-unique",
+        "impact": "moderate",
+        "count": 2,
+        "sample": [
+          ".lab-root > div > header > div > nav",
+          ".lab-root > div > main"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "b",
+    "viewport": "mobile",
+    "loadMs": 2252,
+    "routeApiCallsOnLoad": 0,
+    "longestWalkInDom": 0,
+    "axeViolations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "h3"
+        ]
+      }
+    ]
+  },
+  {
+    "direction": "c",
+    "viewport": "mobile",
+    "loadMs": 2199,
+    "routeApiCallsOnLoad": 0,
+    "longestWalkInDom": 0,
+    "axeViolations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "count": 1,
+        "sample": [
+          "h3"
+        ]
+      }
+    ]
+  }
+]
