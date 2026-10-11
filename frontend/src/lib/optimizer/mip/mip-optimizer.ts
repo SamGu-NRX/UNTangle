@@ -12,15 +12,27 @@
  * TIES — the contract orders equal costs by the lexicographic ascending
  * join of sorted section ids. A single second-stage rank-sum solve cannot
  * reproduce string-lexicographic join order in general, so exact ties are
- * resolved by materializing the whole optimal tier instead: the first solve
- * fixes the optimal cost C, a cap row `objective <= C + 1e-9` is added, and
- * the cut loop enumerates every cost-C schedule; the tier is then sorted by
- * scorer's compareSchedules (cost, then joined sorted ids). Exact-tie tiers
- * are tiny on the pinned suites, and every solve stays under the time
- * budget, so this stays bounded in practice.
+ * resolved by materializing the whole final tier: the cut loop first
+ * collects k solutions WITHOUT a cap (cheap re-solves), then adds one cap
+ * row `objective <= C_k + 1e-9` (C_k = the k-th solution's cost) and keeps
+ * re-solving until Infeasible, which proves the top-k list is complete and
+ * materializes every cost-C_k schedule; the final list is sorted by scorer's
+ * compareSchedules (cost, then joined sorted ids). The cap is applied only
+ * to the last tier: an earlier tier's full membership is implied by the
+ * ascending-cost enumeration. Exact-tie tiers are tiny on the pinned suites,
+ * so the close phase adds at most a handful of solves.
+ *
+ * PERFORMANCE — measured on the pinned suite under Bun: HiGHS's presolve is
+ * dramatically counterproductive on this z-structured encoding (plain-m:
+ * ~1.9s with defaults vs ~0.3s with presolve off, symmetry detection off,
+ * and heuristics off), so those options are pinned here. The one-time
+ * warm-up solve below (charged to initMs per the contract's "solver load and
+ * one-time init") compiles the WASM/JIT paths a dense pair-linearized model
+ * touches; without it a cold first solve can be several times slower.
  *
  * STATUS HONESTY: `optimal` is returned only when the enumeration finished —
- * either k schedules were collected or the model was proven exhausted
+ * either the final tier was closed by an Infeasible cap solve (the top-k
+ * list is then proven complete) or the model was proven exhausted
  * (Infeasible with no cap row active). An exhausted time budget or a
  * time-limited solve returns `timeout` with the best schedules found
  * (possibly none; incumbents are validated before inclusion). Forced-
@@ -43,10 +55,82 @@ import { buildMipModel, chosenSetProblems, type MipModel } from "./model";
 type SolveOptions = Parameters<LegacyHighs["solve"]>[1];
 type SolveResult = ReturnType<LegacyHighs["solve"]>;
 
+/**
+ * Solver options pinned from measurement on the pinned suite: HiGHS presolve
+ * is several times slower than no presolve on this pair-linearized encoding,
+ * and symmetry detection plus heuristics only add overhead. `time_limit` is
+ * supplied per solve from the request budget.
+ */
+function fastSolveOptions(timeLimitSeconds: number): SolveOptions {
+  return {
+    output_flag: false,
+    random_seed: 0,
+    mip_rel_gap: 0,
+    mip_detect_symmetry: false,
+    mip_heuristic_effort: 0,
+    presolve: "off",
+    time_limit: Math.max(0.001, timeLimitSeconds),
+  };
+}
+
+/**
+ * Deterministic dense pair-linearized warm-up model: 12 groups of 5 binaries
+ * with exactly-one rows plus a full cross-group z-block with lower-bound
+ * rows — the same row shapes as the real encoding, at comparable scale. Its
+ * solve result is discarded; it exists only to compile the WASM/JIT paths a
+ * first real solve would otherwise pay for inside the request budget.
+ * Fully deterministic (fixed structure, fixed options), no request data,
+ * no Math.random, no network.
+ */
+const WARMUP_PROBLEM = (() => {
+  const objective: string[] = [];
+  const rows: string[] = [];
+  const binaries: string[] = [];
+  const groups = 12;
+  const perGroup = 5;
+  for (let g = 0; g < groups; g++) {
+    const terms: string[] = [];
+    for (let p = 0; p < perGroup; p++) {
+      const v = `x${g}_${p}`;
+      terms.push(v);
+      binaries.push(v);
+      objective.push(`-1 ${v}`);
+    }
+    rows.push(` pick${g}: ${terms.join(" + ")} = 1`);
+  }
+  let z = 0;
+  for (let g = 0; g < groups - 1; g++) {
+    for (let p = 0; p < perGroup; p++) {
+      for (let q = 0; q < perGroup; q++) {
+        const zv = `z${z}`;
+        binaries.push(zv);
+        objective.push(`0.5 ${zv}`);
+        rows.push(` zb${z}: ${zv} - x${g}_${p} - x${g + 1}_${q} >= -1`);
+        z++;
+      }
+    }
+  }
+  return [
+    "Minimize",
+    ` obj: ${objective.join(" + ")}`,
+    "Subject To",
+    ...rows,
+    "Binaries",
+    `  ${binaries.join(" ")}`,
+    " End",
+  ].join("\n");
+})();
+
 /** One-time WASM/solver initialization, shared across optimize() calls. */
 let solverPromise: Promise<LegacyHighs> | null = null;
 function getSolver(): Promise<LegacyHighs> {
   solverPromise ??= Promise.resolve(highsLoader()).then((instance): LegacyHighs => {
+    // Warm up once: the first solve of a dense pair-linearized model pays
+    // several-fold JIT/WASM compilation cost that later solves do not. A
+    // bounded throwaway solve on a synthetic shape moves that cost into
+    // one-time init (initMs), out of the per-request search budget. The
+    // status is irrelevant; the time limit keeps init bounded.
+    instance.solve(WARMUP_PROBLEM, { ...fastSolveOptions(1) });
     // Route through a narrow adapter so this module depends only on the
     // legacy one-shot solve API of the package.
     return {
@@ -90,24 +174,21 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
   let cutCounter = 0;
   const found: OptimizedSchedule[] = [];
   let timedOut = false;
-
   // k=0 still gets one solve: it settles feasibility honestly.
-  while (found.length < Math.max(req.k, 1)) {
+  const target = Math.max(req.k, 1);
+  // Phase 1 collects k uncapped solutions; phase 2 (cap active) closes and
+  // materializes the final tier, proving the top-k list complete.
+  while (found.length < target || capRow !== null) {
     if (remainingSeconds() <= 0) {
       timedOut = true;
       break;
     }
     const text = renderLp(model.data, capRow === null ? cuts : [...cuts, capRow]);
-    const solution = highs.solve(text, {
-      output_flag: false,
-      random_seed: 0,
-      mip_rel_gap: 0,
-      time_limit: Math.max(0.001, remainingSeconds()),
-    });
+    const solution = highs.solve(text, fastSolveOptions(remainingSeconds()));
     if (solution.Status === "Infeasible") {
       if (capRow !== null) {
-        capRow = null; // the tie tier is exhausted; move to the next tier
-        continue;
+        capRow = null;
+        break; // the final tier is fully materialized: top-k is proven
       }
       break; // the model is exhausted: everything was enumerated
     }
@@ -124,7 +205,9 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
       throw new Error(`mip: the model returned a contract-violating schedule (encoding bug): ${problems.join("; ")}`);
     }
     found.push(assembleSchedule(req, chosen));
-    if (capRow === null) capRow = objectiveCapRow(model, solution.ObjectiveValue);
+    if (req.k > 0 && found.length === req.k && capRow === null) {
+      capRow = objectiveCapRow(model, solution.ObjectiveValue); // close the final tier
+    }
     cuts.push(noGoodRow(indexes, `cut${cutCounter++}`));
     if (req.k <= 0) break; // k=0: a single solve settles feasibility
   }

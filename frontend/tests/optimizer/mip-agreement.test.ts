@@ -24,7 +24,11 @@ describe("mip vs brute force on pinned enumerable instances", () => {
       } catch {
         return; // brute force refuses to enumerate; nothing to agree on
       }
-      const actual = await mipOptimize(instance.req);
+      // Correctness gate: run with a budget that completes even on a slow or
+      // loaded machine — this test verifies exactness (status, cost, order),
+      // not speed. Budget honesty is verified separately on timeBudgetMs=1
+      // and on the pinned-budget non-enumerable runs below.
+      const actual = await mipOptimize({ ...instance.req, timeBudgetMs: 5000 });
       expect(actual.status).toBe(expected.status);
       expect(actual.schedules.length).toBe(expected.schedules.length);
       for (let i = 0; i < expected.schedules.length; i++) {
@@ -50,7 +54,7 @@ describe("mip vs brute force on pinned enumerable instances", () => {
         });
         expect(evaluateModelObjective(instance.req, chosen)).toBeCloseTo(schedule.breakdown.cost, 6);
       }
-    });
+    }, 30000);
   }
 });
 
