@@ -1,19 +1,27 @@
 "use client";
 
-import { divIcon, latLngBounds, type DivIcon, type LatLngTuple } from "leaflet";
+import { divIcon, latLngBounds, type DivIcon } from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   buildCampusGeocodeQuery,
-  normalizeCampusLocationKey,
   untCampusCenter,
 } from "@/lib/campus-locations";
+import {
+  createMapDataCaches,
+  fetchRouteWithCache,
+  planResolveQueue,
+  resolveStopsWithCache,
+  routeKeyForStops,
+  stopLocationKey,
+  type ClientRoute,
+} from "@/lib/map-client-data";
 import { formatTime } from "@/lib/planner";
 import type {
   MapRouteDetails,
+  MapRouteLegDisplay,
   MapResolutionSummary,
   MapResolvedLocation,
-  MapRouteResponse,
   MapRouteSummary,
   MapStop,
   WeekDay,
@@ -23,13 +31,6 @@ type ResolvedMapStop = Omit<MapStop, "lat" | "lng" | "resolutionStatus"> & {
   lat: number;
   lng: number;
   resolutionStatus: "local" | "geocoded";
-};
-
-type ClientRoute = {
-  positions: LatLngTuple[];
-  distanceMeters: number;
-  durationSeconds: number;
-  source: "ors" | "fallback";
 };
 
 export const emptyRouteSummary: MapRouteSummary = { distanceText: "-", durationText: "-" };
@@ -44,8 +45,7 @@ export const emptyRouteDetails: MapRouteDetails = {
   legs: [],
 };
 
-const resolutionCache: globalThis.Map<string, MapResolvedLocation | null> = new globalThis.Map();
-const routeCache: globalThis.Map<string, ClientRoute | null> = new globalThis.Map();
+const mapDataCaches = createMapDataCaches();
 const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const tileAttribution =
   process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ||
@@ -90,12 +90,8 @@ function hasCoordinates(stop: MapStop): stop is MapStop & { lat: number; lng: nu
   return typeof stop.lat === "number" && typeof stop.lng === "number";
 }
 
-function stopLocationKey(stop: Pick<MapStop, "location" | "buildingId">) {
-  return `${stop.buildingId ?? ""}|${normalizeCampusLocationKey(stop.location)}`;
-}
-
 function routeKey(stops: ResolvedMapStop[]) {
-  return stops.map((stop) => `${stop.lat.toFixed(6)},${stop.lng.toFixed(6)}`).join("|");
+  return routeKeyForStops(stops);
 }
 
 function sameStop(a: Pick<ResolvedMapStop, "lat" | "lng">, b: Pick<ResolvedMapStop, "lat" | "lng">) {
@@ -132,39 +128,51 @@ function fallbackRoute(stops: ResolvedMapStop[]): ClientRoute {
   };
 }
 
-function routeSummary(route: ClientRoute): MapRouteSummary {
-  const miles = route.distanceMeters / 1609.34;
-  if (route.source === "fallback") {
+function routeLegDisplay(
+  leg: ClientRoute | null,
+  from: ResolvedMapStop,
+  to: ResolvedMapStop,
+): MapRouteLegDisplay {
+  const base = {
+    from: `${from.courseCode} · ${from.shortName}`,
+    to: `${to.courseCode} · ${to.shortName}`,
+    fromMeta: `${formatTime(from.end)} from ${from.buildingName}`,
+    toMeta: `${formatTime(to.start)} at ${to.buildingName}`,
+  };
+
+  if (!leg) {
+    return { ...base, state: "unavailable", source: null, distanceText: null, durationText: null };
+  }
+
+  const miles = (leg.distanceMeters / 1609.34).toFixed(2);
+
+  if (leg.source === "fallback") {
+    // A straight-line estimate can honestly report a distance, but never a
+    // walking-time claim.
     return {
-      distanceText: `~${miles.toFixed(2)} mi`,
-      durationText: "route unavailable",
+      ...base,
+      state: "approximate",
+      source: "fallback",
+      distanceText: `~${miles} mi`,
+      durationText: null,
     };
   }
 
   return {
-    distanceText: `${miles.toFixed(2)} mi`,
-    durationText: `${Math.round(route.durationSeconds / 60)} min`,
+    ...base,
+    state: "route",
+    source: "ors",
+    distanceText: `${miles} mi`,
+    durationText: `${Math.round(leg.durationSeconds / 60)} min`,
   };
 }
 
-function routeDetails(route: ClientRoute | null, stops: ResolvedMapStop[]): MapRouteDetails {
-  if (!route || stops.length < 2) {
-    return emptyRouteDetails;
-  }
-
-  return {
-    source: route.source,
-    isApproximate: route.source === "fallback",
-    legs: stops.slice(1).map((stop, index) => {
-      const previous = stops[index];
-      return {
-        from: `${previous.courseCode} · ${previous.shortName}`,
-        to: `${stop.courseCode} · ${stop.shortName}`,
-        fromMeta: `${formatTime(previous.end)} from ${previous.buildingName}`,
-        toMeta: `${formatTime(stop.start)} at ${stop.buildingName}`,
-      };
-    }),
-  };
+function legClientRoute(
+  leg: ClientRoute | null,
+  from: ResolvedMapStop,
+  to: ResolvedMapStop,
+): ClientRoute {
+  return leg ?? fallbackRoute([from, to]);
 }
 
 function MapViewport({ stops }: { stops: ResolvedMapStop[] }) {
@@ -206,65 +214,43 @@ export function MapLeafletCanvas({
   onResolutionChange: (summary: MapResolutionSummary) => void;
 }) {
   const [resolvedSnapshot, setResolvedSnapshot] = useState<Record<string, MapResolvedLocation | null>>(
-    () => Object.fromEntries(resolutionCache),
+    () => Object.fromEntries(mapDataCaches.resolutions),
   );
-  const [route, setRoute] = useState<ClientRoute | null>(null);
+  const [routeLegs, setRouteLegs] = useState<Array<ClientRoute | null>>([]);
   const [resolvingCount, setResolvingCount] = useState(0);
 
   useEffect(() => {
-    const queue = stops.filter((stop) => !hasCoordinates(stop) && !resolutionCache.has(stopLocationKey(stop)));
+    queueMicrotask(() => setResolvedSnapshot(Object.fromEntries(mapDataCaches.resolutions)));
 
+    const queue = planResolveQueue(stops, mapDataCaches, Date.now());
     if (queue.length === 0) {
       queueMicrotask(() => setResolvingCount(0));
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     queueMicrotask(() => setResolvingCount(queue.length));
 
-    void fetch("/api/map/resolve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        locations: queue.map((stop) => ({
-          location: stop.location,
-          buildingId: stop.buildingId,
-        })),
-      }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Resolution unavailable");
+    resolveStopsWithCache(stops, mapDataCaches, { signal: controller.signal })
+      .then((snapshot) => {
+        if (controller.signal.aborted) {
+          return; // superseded by a newer resolve; it owns the caches now
         }
-
-        return (await response.json()) as { locations?: MapResolvedLocation[] };
-      })
-      .then((payload) => {
-        queue.forEach((stop, index) => {
-          const key = stopLocationKey(stop);
-          const resolved = payload.locations?.[index];
-          resolutionCache.set(
-            key,
-            typeof resolved?.lat === "number" &&
-              typeof resolved.lng === "number" &&
-              resolved.resolutionStatus !== "unresolved"
-              ? resolved
-              : null,
-          );
-        });
+        setResolvedSnapshot(snapshot);
+        setResolvingCount(0);
       })
       .catch(() => {
-        queue.forEach((stop) => resolutionCache.set(stopLocationKey(stop), null));
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setResolvedSnapshot(Object.fromEntries(resolutionCache));
-          setResolvingCount(0);
+        if (controller.signal.aborted) {
+          return; // aborted or superseded: the newer request owns the UI
         }
+        // Partial successes before the failure are still worth applying;
+        // the failure itself stays retryable (TTL'd, never cached as final).
+        setResolvedSnapshot(Object.fromEntries(mapDataCaches.resolutions));
+        setResolvingCount(0);
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [stops]);
 
@@ -314,66 +300,101 @@ export function MapLeafletCanvas({
 
   useEffect(() => {
     if (routeStops.length < 2) {
-      queueMicrotask(() => setRoute(null));
+      queueMicrotask(() => setRouteLegs([]));
       onSummary(emptyRouteSummary);
+      onRouteDetails(emptyRouteDetails);
       return;
     }
 
-    const cached = routeCache.get(currentRouteKey);
-    if (cached) {
-      queueMicrotask(() => setRoute(cached));
-      onSummary(routeSummary(cached));
-      return;
-    }
+    const controller = new AbortController();
+    queueMicrotask(() => setRouteLegs([]));
 
-    let cancelled = false;
-    const fallback = fallbackRoute(routeStops);
-    queueMicrotask(() => setRoute(null));
+    (async () => {
+      const legs: Array<ClientRoute | null> = [];
+      // Each consecutive pair is its own walking-route question, cached per
+      // pair. Same-building pairs are already collapsed out of routeStops.
+      for (let index = 0; index < routeStops.length - 1; index += 1) {
+        const from = routeStops[index];
+        const to = routeStops[index + 1];
+        const fetched = await fetchRouteWithCache([from, to], mapDataCaches, {
+          signal: controller.signal,
+        });
 
-    void fetch("/api/map/route", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        stops: routeStops.map((stop) => ({ lat: stop.lat, lng: stop.lng })),
-      }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Route unavailable");
+        if (controller.signal.aborted) {
+          return; // superseded by a newer route request
         }
 
-        return (await response.json()) as MapRouteResponse;
-      })
-      .then((payload) => {
-        const orsRoute = {
-          positions: payload.geometry.map((point) => [point.lat, point.lng] as LatLngTuple),
-          distanceMeters: payload.distanceMeters,
-          durationSeconds: payload.durationSeconds,
-          source: payload.source,
-        } satisfies ClientRoute;
-
-        routeCache.set(currentRouteKey, orsRoute);
-        if (!cancelled) {
-          setRoute(orsRoute);
-          onSummary(routeSummary(orsRoute));
-        }
-      })
-      .catch(() => {
-        routeCache.set(currentRouteKey, fallback);
-        if (!cancelled) {
-          setRoute(fallback);
-          onSummary(routeSummary(fallback));
-        }
-      });
+        legs.push(fetched);
+        setRouteLegs([...legs]);
+      }
+    })().catch(() => {
+      // Aborted or superseded: the newer request owns the UI. A failure is
+      // never cached as a fallback — the next attempt for the same pair
+      // retries the real routing service.
+    });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [currentRouteKey, onSummary, routeStops]);
+  }, [currentRouteKey, onSummary, onRouteDetails, routeStops]);
+
+  const legDisplays = useMemo(
+    () =>
+      // Stale legs from a previous day must never index past the current stop
+      // list: on an empty or shorter day the old legs would have routeLegDisplay
+      // read undefined stops and crash the page before the fetch effect clears them.
+      routeLegs
+        .slice(0, Math.max(0, routeStops.length - 1))
+        .map((leg, index) =>
+          routeLegDisplay(leg, routeStops[index], routeStops[index + 1]),
+        ),
+    [routeLegs, routeStops],
+  );
+
+  const route = useMemo<ClientRoute | null>(() => {
+    if (routeStops.length < 2 || routeLegs.length === 0) {
+      return null;
+    }
+
+    const anyApproximate = routeLegs.some((leg) => !leg || leg.source === "fallback");
+    return {
+      positions: routeLegs.flatMap((leg, index) =>
+        legClientRoute(leg, routeStops[index], routeStops[index + 1]).positions,
+      ),
+      distanceMeters: routeLegs.reduce(
+        (total, leg, index) =>
+          total +
+          (leg?.distanceMeters ??
+            fallbackRoute([routeStops[index], routeStops[index + 1]]).distanceMeters),
+        0,
+      ),
+      durationSeconds: routeLegs.reduce(
+        (total, leg) => total + (leg?.source === "ors" ? leg.durationSeconds : 0),
+        0,
+      ),
+      source: anyApproximate ? "fallback" : "ors",
+    };
+  }, [routeLegs, routeStops]);
 
   useEffect(() => {
-    onRouteDetails(routeDetails(route, routeStops));
-  }, [onRouteDetails, route, routeStops]);
+    if (routeStops.length < 2 || routeLegs.length === 0 || !route) {
+      return; // the fetch effect owns the empty state
+    }
+
+    const anyApproximate = route.source === "fallback";
+    const allReal = routeLegs.every((leg) => leg?.source === "ors");
+    onSummary({
+      // Straight-line legs make the total a "~" estimate, and a total walking
+      // time is only claimable when every leg has a real answer.
+      distanceText: `${anyApproximate ? "~" : ""}${(route.distanceMeters / 1609.34).toFixed(2)} mi`,
+      durationText: allReal ? `${Math.round(route.durationSeconds / 60)} min` : "route unavailable",
+    });
+    onRouteDetails({
+      source: route.source,
+      isApproximate: anyApproximate,
+      legs: legDisplays,
+    });
+  }, [legDisplays, onRouteDetails, onSummary, route, routeLegs]);
 
   return (
     <div className="relative h-full min-h-[620px] overflow-hidden rounded-[1.45rem]">
