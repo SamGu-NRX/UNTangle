@@ -397,7 +397,7 @@ const GAP_KEYS = ["gap", "optimalityGap", "optimalityGapRatio", "gapRatio"];
 const GAP_INSTANCE_KEYS = ["enumerableInstances", "gapInstances", "enumerableInstancesChecked", "gapSamples"];
 const COURSES_KEYS = ["courses", "courseCount", "numCourses", "nCourses"];
 const P95_KEYS = ["p95Ms", "p95ms", "solveTimeP95Ms", "p95Millis", "p95"];
-const SOLVE_TIME_KEYS = ["solveTimesMs", "solveTimes", "timesMs", "solveDurationsMs", "times"];
+const SOLVE_TIME_KEYS = ["solveTimesMs", "solveTimes", "timesMs", "solveDurationsMs", "times", "timings", "durationsMs", "latencyMs"];
 
 function firstNumber(payload: Record<string, unknown>, keys: string[]): number | null {
   for (const key of keys) {
@@ -415,6 +415,31 @@ function firstNumberArray(payload: Record<string, unknown>, keys: string[]): num
     }
   }
   return null;
+}
+
+/**
+ * Collect every finite number in the payload, descending into nested plain
+ * objects (leaf keys get dotted paths like "totals.courses"). Arrays and
+ * other non-numbers are not counts; they are named for the evidence note.
+ * Output shapes belong to the tool that printed them — the collector adapts,
+ * it does not prescribe.
+ */
+export function collectNumericCounts(
+  payload: Record<string, unknown>,
+): { counts: Record<string, number>; nonNumericFields: string[] } {
+  const counts: Record<string, number> = {};
+  const nonNumericFields: string[] = [];
+  const visit = (value: unknown, prefix: string): void => {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) visit(v, prefix === "" ? k : `${prefix}.${k}`);
+      return;
+    }
+    if (prefix === "") return;
+    if (typeof value === "number" && Number.isFinite(value)) counts[prefix] = value;
+    else nonNumericFields.push(prefix);
+  };
+  visit(payload, "");
+  return { counts, nonNumericFields };
 }
 
 /**

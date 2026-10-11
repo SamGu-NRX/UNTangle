@@ -15,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   artifactCommand,
+  collectNumericCounts,
   discoverEntrypointInDir,
   discoverPackageScript,
   extractActiveDataset,
@@ -261,6 +262,29 @@ describe("interpretBenchOutput", () => {
   test("a solve-time array containing non-numbers is not recognized as samples", () => {
     const m = interpretBenchOutput({ solveTimesMs: [10, "n/a", 30] });
     expect(m.solveTimesMs).toBeNull();
+  });
+  test("a timings-array alias is recognized as solve-time samples", () => {
+    const m = interpretBenchOutput({ timings: [10, 20, 30] });
+    expect(m.solveTimesMs).toEqual([10, 20, 30]);
+  });
+});
+
+describe("collectNumericCounts", () => {
+  test("collects top-level and nested numbers under dotted keys", () => {
+    const { counts, nonNumericFields } = collectNumericCounts({
+      courses: 2,
+      totals: { sections: 5, buildings: 1 },
+      certified: true,
+      detail: { failures: 0 },
+      tags: ["x"],
+    });
+    expect(counts).toEqual({ courses: 2, "totals.sections": 5, "totals.buildings": 1, "detail.failures": 0 });
+    expect(nonNumericFields.sort()).toEqual(["certified", "tags"]);
+  });
+  test("an empty payload yields nothing to record", () => {
+    const { counts, nonNumericFields } = collectNumericCounts({});
+    expect(counts).toEqual({});
+    expect(nonNumericFields).toEqual([]);
   });
 });
 

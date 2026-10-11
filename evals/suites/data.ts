@@ -34,6 +34,7 @@ import { defineSuite } from "../suite-kit";
 import type { CaseOutcome, SuiteContext } from "../suite-kit";
 import {
   artifactCommand,
+  collectNumericCounts,
   extractActiveDataset,
   isDirectory,
   isRegularFile,
@@ -87,12 +88,8 @@ async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Pr
 
   const run = await runCaptured({ cmd: command.cmd, args: command.args, cwd: command.cwd, timeoutMs: CONSISTENCY_TIMEOUT_MS });
   const payload = parseJsonObjectFromProcess(run.stdout);
-  const counts: Record<string, number> = {};
-  const nonNumeric: string[] = [];
-  for (const [key, value] of Object.entries(payload ?? {})) {
-    if (typeof value === "number" && Number.isFinite(value)) counts[key] = value;
-    else nonNumeric.push(key);
-  }
+  // Counts are whatever numbers the tool reports, wherever it nests them.
+  const { counts, nonNumericFields: nonNumeric } = collectNumericCounts(payload ?? {});
   const summary = countsSummary(counts);
   const bar = "certification counts recorded exactly as the tool reports; tool exits 0";
   const evidencePath = writeEvidence(ctx.runDir, "optdata-catalog-consistency-evidence.json", {
@@ -131,14 +128,20 @@ async function runCatalogCertification(ctx: SuiteContext, targetDir: string): Pr
       note: `catalog-consistency ran (${command.describe}) and exited 0 but reported no numeric counts its output could be read from (non-numeric fields: ${nonNumeric.slice(0, 8).join(", ") || "none"}); stdout recorded verbatim at ${evidencePath} — nothing was prescribed for it to report`.slice(0, 400),
     };
   }
-  const reportedFailures = FAILURE_COUNT_KEYS.filter((key) => key in counts && (counts[key] ?? 0) > 0);
+  // Failure signals count wherever the tool nests them: "failures" and
+  // "totals.failures" are both failure counts with a positive value.
+  const reportedFailures = FAILURE_COUNT_KEYS.flatMap((key) =>
+    Object.keys(counts)
+      .filter((k) => (k === key || k.endsWith(`.${key}`)) && (counts[k] ?? 0) > 0)
+      .map((k) => `${k}=${counts[k]}`),
+  );
   if (reportedFailures.length > 0) {
     return {
       status: "fail",
       measured: summary,
       bar,
       evidencePath,
-      note: `the tool reports inconsistencies: ${reportedFailures.map((key) => `${key}=${counts[key]}`).join(", ")}`,
+      note: `the tool reports inconsistencies: ${reportedFailures.join(", ")}`,
     };
   }
   return {
