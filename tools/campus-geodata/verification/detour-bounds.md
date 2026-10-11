@@ -181,8 +181,8 @@ check's crow-flying basis.
 | structural validation | PASS | 29×29, diagonals zero, zero off-diagonal zeros, all values finite |
 | speeds.ts constant sync | PASS | 1.4 / 0.6 m/s match the inlined constants |
 | `frontend` untouched | PASS | `git status` shows only `tools/campus-geodata/verification/` |
-| `bun x tsc --noEmit` (frontend) | see PR handoff | run before push; result recorded in the task report |
-| `bun test` (frontend) | see PR handoff | run before push; result recorded in the task report |
+| `bun x tsc --noEmit` (frontend) | PASS (exit 0) | after `bun install --frozen-lockfile` (988 packages, lockfiles unchanged); zero errors. A pre-install run floods with missing-module errors — environment, not code |
+| `bun test` (frontend) | PASS (exit 0) | 26 pass / 0 fail across 3 files, 265 expect() calls — matches the 26/26 recorded for `f44f23d` |
 
 Nothing was BLOCKED or NOT_RUN. Files changed on this branch, all under
 `tools/campus-geodata/verification/`: `detour-bounds.ts`, `detour-bounds-crosscheck.ts`,
