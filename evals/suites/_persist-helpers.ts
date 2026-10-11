@@ -47,6 +47,11 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Phase breadcrumb: one run.log line per case step, so a stalled case localizes itself. */
+export function phase(caseId: string, what: string): void {
+  console.error(`[persistence-faults] ${caseId}: ${what}`);
+}
+
 /** Writes the case's evidence JSON next to the runner's preflight logs. */
 export function writeEvidence(ctx: SuiteContext, caseId: string, payload: unknown): string {
   mkdirSync(ctx.runDir, { recursive: true });
@@ -59,7 +64,9 @@ export function writeEvidence(ctx: SuiteContext, caseId: string, payload: unknow
 export async function snap(page: Page, ctx: SuiteContext, caseId: string, label: string): Promise<string | null> {
   try {
     const file = path.join(ctx.runDir, `persistence-faults__${caseId}__${label}.png`);
-    await page.screenshot({ path: file });
+    // page.screenshot has NO default timeout; on a page whose main thread is
+    // starved it can stall forever, so it gets an explicit bound.
+    await page.screenshot({ path: file, timeout: 15_000 });
     return file;
   } catch (error) {
     console.error(`[persistence-faults] screenshot ${caseId}/${label} failed: ${(error as Error).message}`);
@@ -209,7 +216,7 @@ export async function markCourseDone(
   opts: { registered: boolean },
 ): Promise<{ rowCompleted: boolean; saveResponse: Response | null }> {
   const row = plannerRow(page, courseCode);
-  await row.scrollIntoViewIfNeeded();
+  await row.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
   const save = opts.registered
     ? page
         .waitForResponse(
@@ -237,7 +244,7 @@ export async function rowCompletedBecomes(
   const row = plannerRow(page, courseCode);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const value = await row.getAttribute("data-completed");
+    const value = await row.getAttribute("data-completed", { timeout: 2_000 }).catch(() => null);
     if ((value === "true") === want) {
       return true;
     }
@@ -272,8 +279,15 @@ export interface ContractProbes {
 export async function probeContractElements(page: Page): Promise<ContractProbes> {
   const saveStateRegion = page.getByRole("status", { name: "Save state" });
   const saveCount = await saveStateRegion.count();
-  const saveText = saveCount > 0 ? ((await saveStateRegion.first().textContent()) ?? "").trim() : null;
-  const bodyText = (await page.locator("body").innerText()).slice(0, 20_000);
+  const saveText =
+    saveCount > 0
+      ? ((await saveStateRegion.first().textContent({ timeout: 5_000 }).catch(() => null)) ?? "").trim()
+      : null;
+  const bodyText = await page
+    .locator("body")
+    .innerText({ timeout: 5_000 })
+    .catch(() => "")
+    .then((text) => text.slice(0, 20_000));
   const lines = bodyText
     .split("\n")
     .map((line) => line.trim())

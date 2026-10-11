@@ -36,6 +36,7 @@ import {
   gotoRegisteredCourses,
   markCourseDone,
   openSession,
+  phase,
   probeContractElements,
   registerPersonaThroughUi,
   rowCompletedBecomes,
@@ -84,12 +85,15 @@ async function safelyRun(
       ctx.preflightSteps.find((step) => step.step === "db-roundtrip")?.status ?? "missing",
     screenshots: {} as Record<string, string | null>,
   };
+  phase(caseId, "start");
   try {
     const outcome = await body(evidence);
+    phase(caseId, `done: ${outcome.status}`);
     evidence.finishedAt = new Date().toISOString();
     const evidencePath = writeEvidence(ctx, caseId, evidence);
     return { ...outcome, evidencePath };
   } catch (error) {
+    phase(caseId, "threw");
     evidence.caseError = error instanceof Error ? (error.stack ?? error.message) : String(error);
     evidence.finishedAt = new Date().toISOString();
     const evidencePath = writeEvidence(ctx, caseId, evidence);
@@ -305,6 +309,7 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
     await context.addInitScript(denyBrowserStorage);
     const page = await context.newPage();
     const pageErrors = collectPageErrors(page);
+    phase("denied-storage-degrades-honestly", "context ready; storage-denial init script installed");
 
     await continueAsGuest(page, ctx.frontendOrigin);
     await gotoGuestCourses(page, ctx.frontendOrigin);
@@ -312,15 +317,18 @@ async function runDeniedStorageDegradesHonestly(ctx: SuiteContext, evidence: Evi
 
     const edit = await markCourseDone(page, COURSE_PRIMARY, { registered: false });
     evidence.editInMemory = edit.rowCompleted;
+    phase("denied-storage-degrades-honestly", "memory edit attempted");
 
     const probes = await probeContractElements(page);
     evidence.contractProbes = probes;
     evidence.uncaughtPageErrors = pageErrors.messages.slice(0, 5);
     evidence.screenshots.deniedStorage = await snap(page, ctx, "denied-storage-degrades-honestly", "denied-storage");
+    phase("denied-storage-degrades-honestly", "contract probes + snapshot taken");
 
     await gotoGuestCourses(page, ctx.frontendOrigin);
     const survivedReload = await rowCompletedBecomes(page, COURSE_PRIMARY, true, 8_000);
     evidence.editsLostOnReload = !survivedReload;
+    phase("denied-storage-degrades-honestly", "reload check done");
 
     const appKeptWorking = edit.rowCompleted;
     if (probes.saveStateRegionCount === 0 || probes.exportScheduleButtonCount === 0) {
@@ -485,6 +493,7 @@ async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence)
     evidence.majorChosen = await chooseMajorIfPrompted(pageStale, { registered: true });
     const first = await markCourseDone(pageStale, COURSE_PRIMARY, { registered: true });
     evidence.staleTabBaseSave = first.saveResponse?.status() ?? null;
+    phase("cross-tab-conflict-visible", "stale tab base save done");
 
     // Newer tab: loads the freshest server state, then saves a newer version.
     const pageNewer = await context.newPage();
@@ -492,20 +501,24 @@ async function runCrossTabConflictVisible(ctx: SuiteContext, evidence: Evidence)
     evidence.newerTabSawStaleData = await rowCompletedBecomes(pageNewer, COURSE_PRIMARY, true, 8_000);
     const newer = await markCourseDone(pageNewer, COURSE_SECONDARY, { registered: true });
     evidence.newerTabSaveStatus = newer.saveResponse?.status() ?? null;
+    phase("cross-tab-conflict-visible", "newer tab edit saved");
 
     // Stale tab (its state predates the newer save) saves last.
     const stale = await markCourseDone(pageStale, COURSE_STALE, { registered: true });
     evidence.staleTabSaveStatus = stale.saveResponse?.status() ?? null;
+    phase("cross-tab-conflict-visible", "stale tab last save done");
 
     const probes = await probeContractElements(pageStale);
     evidence.contractProbesStaleTab = probes;
     evidence.screenshots.conflictMoment = await snap(pageStale, ctx, "cross-tab-conflict-visible", "stale-tab-after-save");
+    phase("cross-tab-conflict-visible", "probes + snapshot taken");
 
     // Whose data actually won on the server?
     await gotoRegisteredCourses(pageNewer, ctx.frontendOrigin);
     const staleEditWon = await rowCompletedBecomes(pageNewer, COURSE_STALE, true, 8_000);
     const newerEditSilentlyLost = !(await rowCompletedBecomes(pageNewer, COURSE_SECONDARY, true, 8_000));
     evidence.serverOutcome = { staleEditWon, newerEditSilentlyLost };
+    phase("cross-tab-conflict-visible", "server outcome read");
     evidence.pageErrors = pageErrors.messages.slice(0, 5);
 
     if (probes.conflictDialogCount === 0) {
