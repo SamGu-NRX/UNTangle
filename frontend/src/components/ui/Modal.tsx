@@ -23,6 +23,7 @@ export function Modal({
   origin,
   maxWidth = 560,
   closable = true,
+  role = "dialog",
 }: {
   open: boolean;
   onClose: () => void;
@@ -31,6 +32,8 @@ export function Modal({
   origin?: { x: number; y: number } | null;
   maxWidth?: number;
   closable?: boolean;
+  /** `alertdialog` for a decision the user must make before continuing. */
+  role?: "dialog" | "alertdialog";
 }) {
   const [exiting, setExiting] = useState(false);
   const titleId = useId();
@@ -151,7 +154,7 @@ export function Modal({
         ref={boxRef}
         className="modal-box"
         data-state={state}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={hasTitle ? titleId : undefined}
         tabIndex={-1}

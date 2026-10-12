@@ -6,7 +6,8 @@
 export function PlannerSampleNotice({ compact = false }: { compact?: boolean }) {
   return (
     <p
-      role="note"
+      role="status"
+      aria-label="Sample data notice"
       data-sample-notice
       style={{
         margin: 0,

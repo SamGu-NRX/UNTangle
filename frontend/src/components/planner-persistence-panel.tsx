@@ -107,7 +107,7 @@ export function PlannerPersistencePanel() {
 
       {tookNewerVersion ? (
         <p role="status" style={{ margin: 0, fontSize: "0.85rem", color: "var(--copy)" }}>
-          Loaded a newer version saved from another tab or device.
+          Loaded newer version from another tab or device.
           <button type="button" className="btn-ghost" style={{ marginLeft: 8 }} onClick={dismissNewerVersionNotice}>
             Dismiss
           </button>
@@ -130,6 +130,7 @@ export function PlannerPersistencePanel() {
         open={conflict !== null}
         onClose={() => {}}
         closable={false}
+        role="alertdialog"
         title={conflict ? "Unsaved changes conflict" : ""}
         maxWidth={560}
       >
