@@ -135,7 +135,13 @@ describe("real-suite planted defect: persistence-faults (full real stack, Postgr
         ],
         { cwd: EVALS_DIR, timeoutMs: 1_500_000 },
       );
-      const planted = await saboteur;
+      // If the runner finished before the saboteur saw its launch signal (an
+      // early infrastructure failure aborts the stack before frontend-start),
+      // stop waiting on the saboteur — the run is over and the plant cannot
+      // fire anymore. A settled saboteur (fired during the run) still wins
+      // the race; a pending one loses to the resolved false instead of
+      // blocking for its whole deadline.
+      const planted = await Promise.race([saboteur, Promise.resolve(false)]);
       console.warn(`[evidence] saboteur fired: ${planted}; runner exit code: ${r.code}; timed out: ${r.timedOut}`);
 
       expect(planted).toBe(true);
