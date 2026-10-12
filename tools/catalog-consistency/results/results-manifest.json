@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 1,
+  "files": {
+    "input-receipt.json": {
+      "sha256": "5235f6b827e51cf1d08aa794c71d1b3d9b72569f3f251fec1a13a95ddef781cc",
+      "bytes": 8668
+    },
+    "report.json": {
+      "sha256": "3edbb8b0cb1a6f72d880c265740b8d647095832a0682ac666ba7e53fd2881bf8",
+      "bytes": 14833
+    },
+    "unresolved-examples.json": {
+      "sha256": "7a1b012f65bed31505bdb195395f6825be028af163553aeddfbfdd00f70b3cc2",
+      "bytes": 4410
+    }
+  }
+}
