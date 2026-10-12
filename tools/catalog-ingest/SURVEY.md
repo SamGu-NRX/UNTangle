@@ -14,7 +14,7 @@
 
 ## (a) Evidence table
 
-Verdict key: **qualify** = permitted, no login, yields the data claimed; **does-not-qualify** = fails one or more of login-free / automation-permitted / data-completeness requirements. Quoted strings are verbatim from the cached responses.
+Verdict key: **qualify** = permitted, no login, yields the data claimed; **does-not-qualify** = fails one or more of login-free / automation-permitted / data-completeness requirements; **qualifies-on-paper/not-used** = meets the access criteria but unused by owner decision (myUNT guest class search). Quoted strings are verbatim from the cached responses.
 
 ### Family 1 — Registrar public class search / myUNT class search
 
@@ -86,16 +86,17 @@ No UNT web policy explicitly authorizes or forbids crawlers on public pages. The
 
 ## (b) Overall verdict
 
-**No.** No single permitted public source exists today that can yield a **real term's complete section list** without guest session cookies and JavaScript. Verified state:
+**No source is used and no ingest is performed — by decision, not solely by disqualification.** Judged against the task's three criteria (public, needs no login, does not forbid automated access):
 
-- The **complete** section list (with instructor, meeting days/times, building/room, modality, capacity/status, term dates — the *"details, meeting information and section notes"* tabs) exists **only inside the myUNT PeopleSoft Fluid class search**, which requires session cookies plus JS execution and exposes no sessionless data endpoint that this survey could find. Its User Agreement prohibits "unauthorized use" and warns of monitoring.
-- The only **no-login real-term section data** found is the registrar's two 8-week-II xlsx exports — **partial** (one session of one term, ≈427 sections, 8 fields, no instructor/meeting/room/capacity).
-- **catalog.unt.edu** deep pages are behind an AWS WAF JS challenge; no term/section data observed in accessible pages.
-- **data.unt.edu** offers section-level *enrollment analytics* (not schedules); its SAS host refused TLS connections; the **Digital Library** is ALTCHA-gated.
+- **myUNT guest class search — qualifies on paper; not used by decision.** It is public and needs no credentials: `my.unt.edu/robots.txt` does not exist (HTTP 404), so no crawl directive restricts it, and the only governing text is the login-page User Agreement's general unauthorized-use prohibition and monitoring notice — **no clause explicitly forbids automated access**. On paper it meets all three criteria. Reaching its data, however, means driving a JavaScript-rendered PeopleSoft Fluid UI with guest session cookies (every data-bearing component demands session cookies + JS; no sessionless data endpoint was found in ~10 probes). **Sam chose not to use it (2026-10-11, 18:10Z)**, selecting the `grades-unt` MCP route for course history instead. Verdict: **qualifies on paper, not used by decision.**
+- **Registrar published exports — partial, not a complete term (unchanged).** The only **no-login real-term section data** found: two Fall 2026 8-week-II xlsx exports, robots-permitted, ≈427 sections, 8 fields, no instructor/meeting/room/capacity — one session of one term. **Does-not-qualify** as a *complete* section-list source.
+- **catalog.unt.edu — WAF-gated (unchanged).** Deep pages sit behind an AWS WAF JS challenge (honored, never bypassed); robots disallows the search/data endpoints with a 120 s crawl-delay; no term/section data observed in accessible pages. **Does-not-qualify.**
+- **data.unt.edu — analytics, not schedules (unchanged).** Section-level *enrollment analytics*; its SAS host refused TLS connections; the **Digital Library** is ALTCHA-gated. **Does-not-qualify.**
 
+The **complete** section list (instructor, meeting days/times, building/room, modality, capacity/status, term dates — the *"details, meeting information and section notes"* tabs) exists **only inside the myUNT PeopleSoft Fluid class search** — a source that qualifies on paper but is unused by Sam's decision. In practice: course history comes from the `grades-unt` MCP route, and meeting times/rooms wait for the official registrar export (see Task decision).
 ## (c) Recommended source and ingestion sketch
 
-For a **complete** section list: no qualifying source — pursue **explicit permission or a data feed** from the Registrar / UNT IT (the registrar's own page points users to the myUNT class search for authoritative data, so a feed request is the natural ask; UNTangle should not drive the PeopleSoft UI without written authorization). Record that as the unresolved external-permission item.
+For a **complete** section list: Sam's decision (2026-10-11, 18:10Z) resolves the route — real course history comes from `github.com/dyl-joseph/grades-unt` through its MCP endpoint, and meeting times/rooms wait for an official registrar export (the one remaining external item). The myUNT guest class search, though it **qualifies on paper** (public, credential-free, no robots.txt, no explicit automation ban), is **not used by decision**: reaching its data would mean driving the JavaScript PeopleSoft UI with guest cookies, which Sam chose against.
 
 For a **partial** real-term supplement (what is ingestible today without permission):
 
@@ -170,6 +171,6 @@ For a **partial** real-term supplement (what is ingestible today without permiss
 
 ## Task decision (2026-10-11)
 
-Per the task's own condition ("if no source qualifies, the survey alone is the complete result"): **no ingest is performed in this change.** No candidate bundle is produced, `frontend/src/lib/generated/seed-data.json` and `courses/*.json` are untouched, and `activeDataset` continues to describe the shipped synthetic-sample bundle. The unresolved external item — an authorized data feed or explicit written permission from UNT Registrar/IT — is recorded in the PR Handoff for Sam. The tested candidate-bundle validator and comparison tooling in `tools/catalog-ingest/lib/` and `frontend/tests/data/` define the contract any future authorized source must meet.
+Per the task's own condition ("if no source qualifies, the survey alone is the complete result"): **no ingest is performed in this change.** No candidate bundle is produced, `frontend/src/lib/generated/seed-data.json` and `courses/*.json` are untouched, and `activeDataset` continues to describe the shipped synthetic-sample bundle. The remaining external item narrows to the official registrar export for meeting times and rooms (per Sam's 18:10Z decision below), recorded in the PR Handoff. The tested candidate-bundle validator and comparison tooling in `tools/catalog-ingest/lib/` and `frontend/tests/data/` define the contract any future authorized source must meet.
 
 **Sam's decision (2026-10-11, 18:10Z):** real course history comes from `github.com/dyl-joseph/grades-unt` through its MCP endpoint; times and rooms wait for an official registrar export. The myUNT public class search is therefore **not used** — not because the User Agreement bans automation (it states only a general unauthorized-use prohibition and monitoring notice), but because Sam chose another route. The remaining external item narrows to the official registrar export for meeting times and rooms.
