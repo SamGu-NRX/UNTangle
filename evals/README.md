@@ -10,8 +10,9 @@ which hashes its own `evals/CONTRACT.md` during preflight (decision 685a).
 Owner files (the harness core — suite workers must not edit these):
 `package.json`, `tsconfig.json`, `stack.ts`, `preflight.ts`, `rmp-block.ts`,
 `scorecard.ts`, `SCHEMA.md`, `bars.json`, `run.ts`, `suite-kit.ts`, and
-`selfcheck/`. Suites live in `suites/<name>.ts` and are added by suite
-workers.
+`selfcheck/`. Suites live in `suites/<name>.ts`, are registered in
+`run.ts`'s explicit `SUITE_REGISTRY` (the seven real suites), and are added
+by suite workers.
 
 ## Quickstart
 
@@ -56,6 +57,14 @@ healthy and the runner has produced a validated scorecard.
 
 Any step failure is an **infrastructure failure**: exit 3, every case
 `not-applicable`, and `infrastructure.error` naming the exact broken step.
+A **registered suite that fails to load** (missing file, module-level throw,
+wrong export shape) is a harness defect, not a skip: the runner also treats
+it as infrastructure (exit 3), with a `suite-load` step record naming every
+failing suite and the loadable suites' declared cases recorded
+`not-applicable`. The choice of exit 3 (over a distinct code) keeps the
+contract simple: exit 3 always means "the run produced no application
+evidence — the harness itself is broken", and the scorecard's
+`infrastructure.error` says exactly what it was.
 Failing cases are **application failures**: exit 1. Never the same file.
 
 ## Runtime notes that shape the design
@@ -90,6 +99,7 @@ Failing cases are **application failures**: exit 1. Never the same file.
 
 ```ts
 // evals/suites/my-suite.ts — the file name IS the suite name
+// AND the file must be registered in run.ts's SUITE_REGISTRY (decision 685b).
 import { defineSuite } from "../suite-kit";
 
 export default defineSuite({
@@ -109,7 +119,10 @@ export default defineSuite({
 });
 ```
 
-Rules: `describe()` returns the full case list up front (so an infra
+Rules: the file must be registered in `run.ts`'s `SUITE_REGISTRY` (helper
+modules keep an underscore prefix — `_optdata-lib`, `_persist-helpers`,
+`_persist-injections` — and are imported by suites, never registered);
+`describe()` returns the full case list up front (so an infra
 failure can still produce an honest all-`not-applicable` scorecard); `run()`
 executes ONE case and returns an outcome; throwing inside `run()` is
 recorded as a case failure, not a crash. Bars come from `bars.json`

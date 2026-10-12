@@ -118,6 +118,6 @@ Both are 64-char lowercase hex (validated).
 | 0 | preflight green, every case passed |
 | 1 | preflight green, ≥1 case failed |
 | 2 | usage error (bad or missing CLI arguments) |
-| 3 | infrastructure failure; scorecard still written (all cases not-applicable) |
+| 3 | infrastructure failure — a failed stack step, or a registered suite that failed to load (harness defect, `brokenStep: "suite-load"`); scorecard still written (all cases not-applicable) |
 
 The markdown summary is written next to the JSON (`<out>.json` → `<out>.md`).

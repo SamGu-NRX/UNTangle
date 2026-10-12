@@ -195,6 +195,18 @@ export function writeFakeSuites(harness: HarnessCopy): void {
   ] as const) {
     writeFileSync(path.join(harness.suitesDir, name), source);
   }
+  // Decision 685b: suites run because they are REGISTERED. The copy's real
+  // registry is patched (never the repo's), so every runner-level test
+  // exercises the same explicit-registry load path as production.
+  const runTs = readFileSync(harness.runTs, "utf8");
+  const patched = runTs.replace(
+    'const SUITE_REGISTRY: readonly string[] = [',
+    'const SUITE_REGISTRY: readonly string[] = [\n  "fakesuite",\n  "failsuite",\n  "throwsuite",\n  "crashysuite",',
+  );
+  if (patched === runTs) {
+    throw new Error("writeFakeSuites: could not patch the harness copy's SUITE_REGISTRY (run.ts shape changed?)");
+  }
+  writeFileSync(harness.runTs, patched);
 }
 
 export const STUB_STACK_TS = `/**
