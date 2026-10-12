@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import { PlannerSampleNotice } from "@/components/planner-sample-notice";
 import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
+import { describeLockChanges } from "@/lib/plan-library/diff";
 import {
   createSavedPlanStore,
   exportPlanJson,
@@ -206,6 +207,11 @@ export function PlansClient() {
   // needed, and the React Compiler cannot prove the deps stay unmutated.
   const restoreReferences = restorePlan ? resolveSectionReferences(restorePlan.state) : null;
   const restoreDrift = restorePlan ? assessRestoreDrift(restorePlan, planner.plannerState) : null;
+  // Lock differences, shown before the steps: restoring replaces the working
+  // schedule's locks with the plan's.
+  const restoreLockLines = restorePlan
+    ? describeLockChanges(comparePlan(restorePlan, planner.plannerState).lockChanges)
+    : [];
   const restoreSkipWarnings =
     restorePlan && restoreReferences ? describeSkippedReferences(restoreReferences) : [];
   // listQuarantined() is a cheap localStorage key scan; recomputed per render
@@ -347,6 +353,9 @@ export function PlansClient() {
                     <strong>{ref.courseCode}</strong> references {ref.sectionId}, which no longer resolves (
                     {ref.side === "savedPlan" ? "saved plan" : "working schedule"})
                   </DiffRow>
+                ))}
+                {describeLockChanges(compare.lockChanges).map((line) => (
+                  <DiffRow key={`lock-${line}`}>{line}</DiffRow>
                 ))}
                 {compare.optimizationChanged ? <DiffRow>The optimization preference differs</DiffRow> : null}
                 {compare.activeDayChanged ? <DiffRow>The preferred day differs</DiffRow> : null}
@@ -547,6 +556,16 @@ export function PlansClient() {
             <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--copy)" }}>
               Section ids, times and instructors below are sample data.
             </p>
+            {restoreLockLines.length > 0 ? (
+              <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.88rem", display: "grid", gap: "0.3rem" }}>
+                <strong>Section locks will change:</strong>
+                <ul style={{ margin: 0, paddingInlineStart: "1.1rem", display: "grid", gap: "0.2rem" }}>
+                  {restoreLockLines.map((line) => (
+                    <li key={`restore-lock-${line}`}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <ol style={{ margin: 0, paddingInlineStart: "1.2rem", display: "grid", gap: "0.35rem", fontSize: "0.9rem" }}>
               {describeRestoreSteps(restorePlan, restoreReferences).map((step, index) => (
                 <li key={`restore-step-${index}`}>{step}</li>

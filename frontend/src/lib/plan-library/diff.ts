@@ -42,8 +42,16 @@ export type UnknownPlanReference = {
   side: "savedPlan" | "workingState";
 };
 
+/** A course whose section lock differs: the locked section id on each side, or null. */
+export type PlanLockChange = {
+  courseCode: string;
+  savedPlan: string | null;
+  workingState: string | null;
+};
+
 export type PlanDiff = {
   statusChanges: PlanStatusChange[];
+  lockChanges: PlanLockChange[];
   sectionChanges: PlanSectionChange[];
   unknownReferences: UnknownPlanReference[];
   optimizationChanged: boolean;
@@ -58,8 +66,9 @@ export type PlanDiff = {
    * Field-level accounting. A field is one of: the declared status of a
    * course (over the union of courses declared or referenced on either side),
    * the selected section of a course (over the union of referenced courses),
-   * the optimization preference, the active day, the selected major, and the
-   * transcript record list. Counts are committed in the plan-library tests.
+   * the optimization preference, the active day, the selected major, the
+   * transcript record list, and the section lock of any course locked on
+   * either side (plans without locks add no lock fields, so older counts hold). Counts are committed in the plan-library tests.
    */
   comparedFieldCount: number;
   preservedFieldCount: number;
@@ -200,6 +209,21 @@ export function diffSavedPlanAgainstWorking(
   if (activeDayChanged) changedFieldCount += 1;
   if (majorChanged) changedFieldCount += 1;
 
+  const lockChanges: PlanLockChange[] = [];
+  const savedLocks = savedState.lockedSections ?? {};
+  const workingLocks = workingState.lockedSections ?? {};
+  [...new Set([...Object.keys(savedLocks), ...Object.keys(workingLocks)])]
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((code) => {
+      comparedFieldCount += 1;
+      const saved = savedLocks[code] ?? null;
+      const working = workingLocks[code] ?? null;
+      if (saved !== working) {
+        changedFieldCount += 1;
+        lockChanges.push({ courseCode: code, savedPlan: saved, workingState: working });
+      }
+    });
+
   comparedFieldCount += 1;
   const transcriptChanged =
     JSON.stringify(savedState.transcriptRecords) !== JSON.stringify(workingState.transcriptRecords);
@@ -207,6 +231,7 @@ export function diffSavedPlanAgainstWorking(
 
   return {
     statusChanges,
+    lockChanges,
     sectionChanges,
     unknownReferences,
     optimizationChanged,
@@ -221,6 +246,19 @@ export function diffSavedPlanAgainstWorking(
     preservedFieldCount: comparedFieldCount - changedFieldCount,
     changedFieldCount,
   };
+}
+
+/** One sentence per lock difference, shared by the compare panel and the restore preview. */
+export function describeLockChanges(changes: PlanLockChange[]): string[] {
+  return changes.map(({ courseCode, savedPlan, workingState }) => {
+    if (savedPlan && workingState) {
+      return `${courseCode} is locked to ${savedPlan} in the plan but to ${workingState} in the working schedule`;
+    }
+    if (savedPlan) {
+      return `${courseCode} is locked to ${savedPlan} in the plan but not locked in the working schedule`;
+    }
+    return `${courseCode} is locked to ${workingState} in the working schedule but not in the plan`;
+  });
 }
 
 /** Shared with the restore adapter so previews quote the same strings. */

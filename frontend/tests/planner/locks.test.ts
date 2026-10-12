@@ -149,9 +149,10 @@ describe("lock control in the planner", () => {
     await planner.run((p) => p.setOptimization("clusterMorning"));
   }
 
+  // The name is the button's text (visible "Lock" + visually hidden rest); no aria-label.
   const button = (container: HTMLElement, courseCode: string) =>
     [...container.querySelectorAll("button")].find((b) =>
-      b.getAttribute("aria-label")?.startsWith(`Lock ${courseCode} section `),
+      b.textContent?.startsWith(`Lock ${courseCode} section `),
     )!;
 
   test("the toggle is named Lock {COURSE} section {NNN} and exposes its state with aria-pressed", async () => {
@@ -159,7 +160,8 @@ describe("lock control in the planner", () => {
     await takeCourses(planner);
     const sectionId = planner.get().plannerState.selectedSections["MATH 1710"];
     const toggle = button(planner.container, "MATH 1710");
-    expect(toggle.getAttribute("aria-label")).toBe(`Lock MATH 1710 section ${sectionNumber(sectionId)}`);
+    expect(toggle.textContent).toBe(`Lock MATH 1710 section ${sectionNumber(sectionId)}`);
+    expect(toggle.hasAttribute("aria-label")).toBe(false);
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     toggle.click();
     await waitFor(() => button(planner.container, "MATH 1710").getAttribute("aria-pressed") === "true", "pressed");

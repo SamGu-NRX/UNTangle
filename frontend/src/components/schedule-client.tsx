@@ -32,6 +32,7 @@ const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am 
 const SCHEDULE_LAYOUT_CSS = `
 .schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
 .lock-toggle {
+  position: relative;
   display: inline-flex; align-items: center; gap: 4px;
   padding: 0.25rem 0.55rem; border-radius: 999px;
   border: 1px solid var(--line); background: var(--surface); color: var(--copy);
@@ -48,7 +49,8 @@ const SCHEDULE_LAYOUT_CSS = `
   .schedule-layout { grid-template-columns: minmax(0, 1fr); }
   /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
   .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
-  .cal-event__meta { display: none; }
+  /* Hidden visually, kept in the accessible name the contract specifies. */
+  .cal-event__meta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 `;
 
@@ -311,6 +313,10 @@ export function ScheduleClient() {
 
           {/* Calendar */}
           <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
+            {/* Sample label outside the events, so it never changes an event's name. */}
+            <p style={{ margin: 0, padding: "0.45rem 0.75rem", fontSize: "0.76rem", color: "var(--copy)", borderBottom: "1px solid var(--line)" }}>
+              Sample sections, times and instructors
+            </p>
             <div className="cal-grid">
               <div className="cal-head" />
               {weekDays.map((day) => (
@@ -353,14 +359,16 @@ export function ScheduleClient() {
                             height: layout.height,
                           }}
                           onClick={(e) => openPicker(event.courseCode, e)}
-                          // Contract name: "{COURSE} {START} – {END} {PROFESSOR}". The visible
-                          // "(sample)" tag and hidden meta lines on phones must not change it.
-                          aria-label={`${event.courseCode} ${formatTime(event.start)} – ${formatTime(event.end)} ${event.professor}`}
                         >
+                          {/* The text supplies the contract name "{COURSE} {START} – {END} {PROFESSOR}";
+                              nothing else visible goes inside, so the name contains all visible text. */}
                           <div className="cal-event__title">
                             {event.courseCode}
                             {plannerState.lockedSections?.[event.courseCode] === event.sectionId ? (
-                              <span style={{ marginLeft: 4, fontSize: 10 }} aria-hidden="true">· locked</span>
+                              <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style={{ marginLeft: 4 }}>
+                                <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
+                                <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                              </svg>
                             ) : null}
                           </div>
                           {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
@@ -368,7 +376,7 @@ export function ScheduleClient() {
                             {formatTime(event.start)} – {formatTime(event.end)}
                           </div>
                           <div className="cal-event__meta" style={{ opacity: 1 }}>
-                            {event.professor} (sample)
+                            {event.professor}
                           </div>
                         </button>
                       );

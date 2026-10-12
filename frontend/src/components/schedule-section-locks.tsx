@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import { sectionNumber } from "@/lib/planner";
 
@@ -18,10 +19,26 @@ function LockGlyph({ locked }: { locked: boolean }) {
   );
 }
 
+const VISUALLY_HIDDEN: CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  clipPath: "inset(50%)",
+  whiteSpace: "nowrap",
+};
+
 /**
  * Pin a scheduled section so optimizing never changes it. One toggle button
  * per section, named `Lock {COURSE} section {NNN}` with `aria-pressed` as the
  * state (evals/CONTRACT.md: unlock reuses the same button).
+ *
+ * The name comes from the button's own text, not an aria-label: the visible
+ * word "Lock" plus a visually hidden "{COURSE} section {NNN}". An aria-label
+ * with a visible "Locked" failed WCAG 2.5.3 (label in name; axe
+ * label-content-name-mismatch). The locked state is the pressed styling and
+ * the closed padlock.
  */
 export function SectionLockButton({ courseCode, sectionId }: { courseCode: string; sectionId: string }) {
   const { plannerState, setSectionLock } = usePlanner();
@@ -30,13 +47,12 @@ export function SectionLockButton({ courseCode, sectionId }: { courseCode: strin
     <button
       type="button"
       className="lock-toggle"
-      aria-label={`Lock ${courseCode} section ${sectionNumber(sectionId)}`}
       aria-pressed={locked}
       data-locked={locked ? "true" : "false"}
       onClick={() => setSectionLock(courseCode, !locked)}
     >
       <LockGlyph locked={locked} />
-      <span aria-hidden="true">{locked ? "Locked" : "Lock"}</span>
+      Lock<span style={VISUALLY_HIDDEN}> {courseCode} section {sectionNumber(sectionId)}</span>
     </button>
   );
 }
