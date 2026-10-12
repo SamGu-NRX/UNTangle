@@ -1,0 +1,12 @@
+ok parse
+ok versions
+ok manifest-bytes
+ok canonical-bytes
+ok input-binding
+ok cross-binding
+ok counts
+ok findings
+ok violations
+ok provenance
+ok examples-cap
+verdict: PASS
