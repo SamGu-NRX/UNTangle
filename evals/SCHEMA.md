@@ -100,11 +100,12 @@ Empty array when the run had nothing to disclose.
 
 ## `hashes` — object (required)
 
-- `contractMd` — sha256 hex of the target checkout's `evals/CONTRACT.md`.
-- `barsJson` — sha256 hex of the target checkout's `evals/bars.json` when the
-  target carries one, else of the harness's own `evals/bars.json` (the
-  harness's bars are the judging source; see `scorecard.ts` for which file
-  fed the hash).
+- `contractMd` — sha256 hex of the HARNESS checkout's own `evals/CONTRACT.md`.
+  The target is never required to carry `evals/` (decision 685a); the hash
+  binds every scorecard to the exact contract text it was judged against.
+- `barsJson` — sha256 hex of the harness checkout's own `evals/bars.json`
+  (the harness's bars are the judging source, wherever the target points;
+  see `scorecard.ts` for which file fed the hash).
 
 Both are 64-char lowercase hex (validated).
 

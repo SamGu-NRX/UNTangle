@@ -3,7 +3,9 @@
  *
  * Steps (each bounded by a timeout, named on failure, cleaned up by stop()):
  *   target-dir            target checkout exists and is a directory
- *   contract-present      target's evals/CONTRACT.md exists (a scorecard hashes it)
+ *   contract-hash         the HARNESS's own evals/CONTRACT.md is hashed and
+ *                         its sha256 recorded in the step detail; the target is
+ *                         never required to carry evals/ (decision 685a)
  *   submodule-backend     backend submodule fetched at its pinned SHA
  *   backend-install       backend deps (bun install --frozen-lockfile; the native
  *                         better-sqlite3 addon is built by its install script)
@@ -48,8 +50,12 @@ import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Client } from "pg";
-import { type StackStepRecord } from "./scorecard";
+import { sha256File, type StackStepRecord } from "./scorecard";
+
+/** The harness checkout's evals/ directory (this file's own location). */
+export const HARNESS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 export const EXPECTED_BACKEND_PIN = "0a49d4d863161c3b568f6aa6d3da4b4e68637a44";
 
@@ -430,12 +436,22 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     return ctx.targetDir;
   });
 
-  await step("contract-present", async () => {
-    const contractPath = path.join(ctx.targetDir, "evals", "CONTRACT.md");
+  // --- contract: the harness's own doc, hashed -------------------------------
+  await step("contract-hash", async () => {
+    // Decision 685a: nothing may require evals/ inside the TARGET checkout —
+    // baseline targets are application states that do not carry evals/ at
+    // all. The contract doc belongs to the HARNESS, so this step hashes the
+    // harness's own evals/CONTRACT.md (HARNESS_DIR, never the target dir) and
+    // records its sha256 in the step detail; a missing harness-side contract
+    // is a harness defect, not a target one.
+    const contractPath = path.join(HARNESS_DIR, "CONTRACT.md");
     if (!existsSync(contractPath)) {
-      throw new Error(`target checkout has no evals/CONTRACT.md (expected at ${contractPath})`);
+      throw new Error(
+        `harness checkout has no evals/CONTRACT.md (expected at ${contractPath}) — harness defect, not a target one`,
+      );
     }
-    return contractPath;
+    const hash = await sha256File(contractPath);
+    return `harness evals/CONTRACT.md sha256 ${hash} (${contractPath}); the target is not required to carry evals/`;
   });
 
   // --- (a) backend submodule at its pinned SHA -------------------------------

@@ -3,7 +3,9 @@
 A self-contained harness that boots the whole UNTangle stack, runs eval suites
 against it, and writes validated scorecards. It drives a target checkout from
 the outside and never depends on files inside the target at runtime beyond the
-checkout itself (its `evals/CONTRACT.md`, its drizzle migrations, its apps).
+checkout itself (its drizzle migrations, its apps). The target is never
+required to carry `evals/` — the contract document belongs to the harness,
+which hashes its own `evals/CONTRACT.md` during preflight (decision 685a).
 
 Owner files (the harness core — suite workers must not edit these):
 `package.json`, `tsconfig.json`, `stack.ts`, `preflight.ts`, `rmp-block.ts`,
@@ -34,7 +36,7 @@ healthy and the runner has produced a validated scorecard.
    `<out-dir>/preflight-logs/`, and is cleaned up by `stop()`:
    | step | what happens |
    | --- | --- |
-   | `target-dir` / `contract-present` | target checkout and its `evals/CONTRACT.md` exist |
+   | `target-dir` / `contract-hash` | target checkout exists and is a directory; the HARNESS's own `evals/CONTRACT.md` is hashed (sha256 recorded in the step detail) — the target is never required to carry `evals/` (decision 685a) |
    | `submodule-backend` | backend submodule at its pinned SHA (`0a49d4d…`) |
    | `backend-install` | `bun install` in the backend; native `better-sqlite3` binding present |
    | `backend-sqlite-build` | addon loads in Node (memory-db roundtrip) + backend `tsc` build |
