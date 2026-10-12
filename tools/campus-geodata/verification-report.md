@@ -95,7 +95,54 @@ Gate from the plan: route p95 ≤ 200 ms → **PASS** (p95 10.892 ms).
   on the round-1 branch — the formerly-skipped straight-line test now
   executes).
 
-## 5. Assumptions and limitations
+## 5. Detour bounds — enforced same-anchor floor + reverse symmetry (review round 2)
+
+Per the round-2 ruling (PR #15), `tools/campus-geodata/verification/detour-bounds.ts` now defines
+the crow-flying denominator as the **great-circle distance between the exact same two walkway
+anchors the network route connects** (the router's endpoint coordinates from `walking-times.json`
+`anchors[id].anchor` — the round-1 denominator used outline centroids / registry pins, a different
+pair of points, and is superseded), checks **every reverse entry of the full 29×29 matrix**
+(406 unordered pairs) for symmetry, and computes the reported distribution **in the same run from
+the enforced ratios** — one source of truth. Full method and per-pair evidence:
+`verification/detour-bounds.md` + `verification/detour-bounds-evidence.json`
+(sha256 `266082fc7f153d9249a1159caf86e9200eacb7ac0cd8b6365c15fae9114eb905`, byte-identical across
+two consecutive runs).
+
+**Enforced numbers (406 unordered pairs, same-anchor basis):** min **0.9993** (floor violation,
+below), p25 1.2163, **median 1.3029**, p75 1.4403, **p95 1.7746**, **max 2.8542**.
+**Pairs over 2.0: 9 of 406** — life→symr 2.8542, chem→th 2.8168, chil→musi 2.7516, essc→uu 2.5391,
+matt→uu 2.2560, cury→lang 2.1694, col→gate 2.1182, sage→symr 2.0106, chil→musa 2.0073.
+(The round-1 report of min 0.7298 / median 1.2945 / p95 1.9735 / max 3.3789 with 18 pairs over 2.0
+was centroid-based; the set changed as the ruling anticipated — 7 of 18 survive, 11 drop below 2.0,
+2 enter — and the new largest outlier is life→symr.)
+
+**Enforcement verdicts, reported alongside the bounds:**
+
+- **Same-anchor great-circle floor: FAIL — 1 violation, surfaced as a hard error (exit 3), never
+  clamped.** art→arta: stored network 71.0 m vs same-anchor crow 71.0491 m (ratio 0.999309,
+  deficit 0.0491 m). The independent-Dijkstra crosscheck re-traced it: the true shortest path is a
+  single footway way (osm/625370910) of 71.0491 m — **0.0000 m above the same-anchor crow, i.e. a
+  true ratio of exactly 1.0** — so the deficit is `toFixed(1)` storage quantization at matrix build
+  time, not geometry. The data-side fix (store meters at higher precision or a
+  quantization-aware tolerance) touches `frontend/src` and the matrix rebuild and is outside this
+  tools-only scope; flagged for the coordinator. It is the only violation (next-lowest ratio
+  1.0638).
+- **Reverse-entry symmetry: PASS.** Max asymmetry over the 406 reverse pairs: **0 m and 0 s**
+  (relative 0 against the 1e-6 tolerance).
+
+**Crosscheck:** `detour-bounds-crosscheck.ts` re-ran against the new code — 6/6 subjects print
+AGREE (independent Dijkstra = matrix meters, every same-anchor floor margin ≥ 0): the three largest
+flagged ratios **life→symr, chem→th, chil→musi** (the top-3 changed from round 1's matt→uu,
+chem→th, essc→uu), the floor violator art→arta, and the supplementary cury→lang, aud→cury. The
+three largest were re-verified against the raw OSM way snapshot (path edges mapped back to
+`raw/overpass-pedestrian-snapshot.json` ways; straight lines sampled against all 1,353 outline
+rings): life→symr routes the west-mall footway grid plus one steps way and its straight line
+pierces only its own two endpoint outlines (osm/256787051, osm/256760039); chem→th is the West
+Mulberry Street crossing chokepoint (zero steps, endpoint outlines only); chil→musi runs sidewalks
+plus two `tunnel=building_passage` ways and pierces only Chilton Hall (the Music Building is a
+pin-fallback anchor with no outline). No third building in any traced case.
+
+## 6. Assumptions and limitations
 
 - Speeds (1.4 m/s base, 0.6 m/s steps) are **model assumptions**, not UNT
   measurements; sources in `README.md`.

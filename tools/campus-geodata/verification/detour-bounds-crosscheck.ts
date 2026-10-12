@@ -3,11 +3,12 @@
  *
  * Run: bun tools/campus-geodata/verification/detour-bounds-crosscheck.ts
  *
- * Companion to detour-bounds.ts: for the largest detour-factor outliers (and
- * two cluster representatives), it
+ * Companion to detour-bounds.ts: it
  *   1. re-runs an independent Dijkstra over walkways.json between the two
  *      matrix anchor nodes and asserts the length equals the matrix's meters
- *      entry (the A* cross-check),
+ *      entry (the A* cross-check), plus prints the same-anchor margin —
+ *      dijkstra minus the anchor-to-anchor great-circle distance, which is
+ *      >= 0 up to float error by the geodesic triangle inequality;
  *   2. maps every path edge back to its OSM way in the raw Overpass snapshot
  *      (tools/campus-geodata/raw/overpass-pedestrian-snapshot.json) so the
  *      route's streets, crossings and steps can be read from source tags,
@@ -18,6 +19,12 @@
  *      seconds = base/1.4 + steps/0.6 and meters = base + steps, so
  *      steps = 0.75 * (1.4 * seconds - meters).
  *
+ * Subjects (review round 2): the three largest flagged ratios plus every
+ * same-anchor floor violator are read from the companion evidence JSON
+ * written by detour-bounds.ts — the single source of truth — so a basis
+ * change can never leave this script tracing stale pairs. Two supplementary
+ * short-crow cluster representatives are hardcoded by name below.
+ *
  * Registry pins are hardcoded below from frontend/src/lib/campus-locations.ts
  * (kept in step with that file by hand — this script is a one-off
  * investigation aid, not a build step). All other inputs are the committed
@@ -25,7 +32,6 @@
  *
  * Data © OpenStreetMap contributors, ODbL 1.0.
  */
-
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -145,28 +151,27 @@ function describeWay(osmWayId: number): string {
   return `osm/${osmWayId} ${t.name ?? "(unnamed)"} [highway=${t.highway ?? "?"}${extras}]`;
 }
 
-/** Registry pins, mirrored from frontend/src/lib/campus-locations.ts. */
-const PINS: Record<string, LL> = {
-  matt: [33.2098832, -97.1467183],
-  uu: [33.210906, -97.14735],
-  chem: [33.2140405, -97.1499791],
-  th: [33.2131906, -97.1495662],
-  essc: [33.2103345, -97.1479731],
-  cury: [33.2135195, -97.1466553],
-  lang: [33.2140585, -97.1466525],
-  aud: [33.2139537, -97.1472998],
-};
+/**
+ * Registry pins and names, parsed at run time from
+ * frontend/src/lib/campus-locations.ts — no hand-maintained copy that can go
+ * stale when the registry grows (the round-1 hardcoded 8-building list broke
+ * the moment the evidence-driven subjects reached other buildings).
+ */
+function parseRegistry(): { pins: Record<string, LL>; names: Record<string, string> } {
+  const source = readFileSync(join(ROOT, "frontend/src/lib/campus-locations.ts"), "utf8");
+  const entryRe = /id:\s*"([^"]+)",\s*\n\s*name:\s*"([^"]+)",[\s\S]*?lat:\s*(-?\d+(?:\.\d+)?),\s*lng:\s*(-?\d+(?:\.\d+)?),/g;
+  const pins: Record<string, LL> = {};
+  const names: Record<string, string> = {};
+  for (const match of source.matchAll(entryRe)) {
+    const [, id, name, lat, lng] = match;
+    pins[id] = [Number(lat), Number(lng)];
+    names[id] = name;
+  }
+  if (Object.keys(pins).length === 0) throw new Error("parsed zero registry entries from campus-locations.ts — parser out of step with the file");
+  return { pins, names };
+}
 
-const NAMES: Record<string, string> = {
-  matt: "Matthews Hall",
-  uu: "University Union",
-  chem: "Chemistry Building",
-  th: "Terrill Hall",
-  essc: "Eagle Student Services Center",
-  cury: "Curry Hall",
-  lang: "Language Building",
-  aud: "Auditorium Building",
-};
+const { pins: PINS, names: NAMES } = parseRegistry();
 
 const LINE_SAMPLES = 200;
 
@@ -182,16 +187,23 @@ function piercedOutlines(from: LL, to: LL): number[] {
   return [...hit].sort((a, b) => a - b);
 }
 
-function analyzePair(fromId: string, toId: string): void {
-  console.log(`\n===== ${fromId} (${NAMES[fromId]}) -> ${toId} (${NAMES[toId]}) =====`);
+function analyzePair(fromId: string, toId: string, tag: string): void {
+  if (!PINS[fromId] || !PINS[toId]) throw new Error(`no registry pin for ${fromId} / ${toId} — is it in campus-locations.ts?`);
+  console.log(`\n===== ${fromId} (${NAMES[fromId]}) -> ${toId} (${NAMES[toId]}) [${tag}] =====`);
   const a = nodeIndexByCoords(wt.anchors[fromId].anchor);
   const b = nodeIndexByCoords(wt.anchors[toId].anchor);
   const result = dijkstra(a, b);
   const matrixMeters = wt.meters[fromId][toId];
+  const anchorCrow = hav(wt.anchors[fromId].anchor, wt.anchors[toId].anchor);
   const agreement = Math.abs(result.dist - matrixMeters) <= 0.15;
+  const sameAnchorMargin = result.dist - anchorCrow;
   console.log(
-    `dijkstra ${result.dist.toFixed(1)} m vs matrix meters ${matrixMeters} m ` +
+    `dijkstra ${result.dist.toFixed(4)} m vs matrix meters ${matrixMeters} m ` +
       `(${agreement ? "AGREE" : "MISMATCH"}) over ${result.nodes.length} nodes / ${result.waysUsed.length} ways:`,
+  );
+  console.log(
+    `same-anchor floor margin: dijkstra minus anchor crow ${anchorCrow.toFixed(4)} m = ${sameAnchorMargin.toFixed(4)} m ` +
+      `(${sameAnchorMargin >= -1e-9 ? ">= 0 up to float error — geodesic triangle inequality holds" : "NEGATIVE — geometrically impossible, investigate"})`,
   );
   for (const w of result.waysUsed) console.log(`  - ${describeWay(walk.ways[w].i)}`);
   const pinPierced = piercedOutlines(PINS[fromId], PINS[toId]);
@@ -201,15 +213,44 @@ function analyzePair(fromId: string, toId: string): void {
   const stepsShare = 0.75 * (1.4 * wt.seconds[fromId][toId] - matrixMeters);
   console.log(
     `steps share implied by the matrix speed model: ${stepsShare.toFixed(1)} m of ${matrixMeters} m; ` +
-      `crow pins ${hav(PINS[fromId], PINS[toId]).toFixed(1)} m, crow anchors ${hav(wt.anchors[fromId].anchor, wt.anchors[toId].anchor).toFixed(1)} m`,
+      `crow pins ${hav(PINS[fromId], PINS[toId]).toFixed(1)} m, crow anchors ${anchorCrow.toFixed(1)} m`,
   );
   if (!agreement) process.exitCode = 1;
 }
 
-// The three largest detour factors (cross-checked in detour-bounds.md), then
-// two short-crow cluster representatives.
-analyzePair("matt", "uu");
-analyzePair("chem", "th");
-analyzePair("essc", "uu");
-analyzePair("cury", "lang");
-analyzePair("aud", "cury");
+// Primary subjects are read from the companion evidence JSON (single source
+// of truth): the three largest flagged ratios plus every same-anchor floor
+// violator. Then two supplementary short-crow cluster representatives.
+const evidence = JSON.parse(
+  readFileSync(join(HERE, "detour-bounds-evidence.json"), "utf8"),
+) as {
+  enforcement?: { sameAnchorFloor?: { violations?: { from: string; to: string }[] } };
+  summary?: { flaggedPairs?: { from: string; to: string; ratio: number }[] };
+};
+
+const flagged = evidence.summary?.flaggedPairs ?? [];
+if (flagged.length === 0) {
+  throw new Error(
+    "no flagged pairs in detour-bounds-evidence.json — regenerate the evidence first (bun tools/campus-geodata/verification/detour-bounds.ts)",
+  );
+}
+const topThree = [...flagged]
+  .sort((x, y) => y.ratio - x.ratio || (x.from + x.to).localeCompare(y.from + y.to))
+  .slice(0, 3)
+  .map((p) => ({ pair: [p.from, p.to] as [string, string], tag: "top-flagged" }));
+const violators = (evidence.enforcement?.sameAnchorFloor?.violations ?? []).map((v) => ({
+  pair: [v.from, v.to] as [string, string],
+  tag: "floor-violation",
+}));
+const supplementary = ([
+  ["cury", "lang"],
+  ["aud", "cury"],
+] as [string, string][]).map((p) => ({ pair: p, tag: "supplementary" }));
+
+const subjects = new Map<string, { pair: [string, string]; tag: string }>();
+for (const s of [...topThree, ...violators, ...supplementary]) {
+  const key = `${s.pair[0]}->${s.pair[1]}`;
+  if (!subjects.has(key)) subjects.set(key, s);
+}
+console.log(`cross-check subjects (evidence-driven + named supplements): ${[...subjects.keys()].join(", ")}`);
+for (const { pair, tag } of subjects.values()) analyzePair(pair[0], pair[1], tag);
