@@ -2,11 +2,13 @@
  * Unit tests for _optdata-lib's pure logic. The runner skips *.test.* files,
  * so this never registers as a suite. Run: bun test evals/suites/optdata-lib.test.ts
  *
- * These tests pin the DETECT-AND-ADAPT contracts: invocation derived from the
- * artifact's own code (package scripts, then entry files; no prescribed
- * args), verbatim output recording, best-effort recognition of measurements
- * and claims, and not-applicable (never shape-fail) when nothing
- * recognizable is exposed.
+ * These tests pin the decision-685c contracts: the prescribed REAL tool
+ * invocations (audit.mjs / verify.mjs / run-bench.ts, built once from the
+ * tools' own code at the PR heads), strict parsing of the tools' real output
+ * files (verify's verdict line, the bench's report shape), verdict-first
+ * summarization for the three optimizer cases, and the provenance-descriptor
+ * claim recognition. Not-applicable is reserved for absent target files;
+ * unparseable output is a fail.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -14,20 +16,23 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  artifactCommand,
+  benchCommand,
+  catalogAuditCommand,
+  catalogVerifyCommand,
   collectNumericCounts,
-  discoverEntrypointInDir,
-  discoverPackageScript,
   extractActiveDataset,
-  interpretBenchOutput,
+  parseBenchReport,
   parseJsonObject,
-  parseJsonObjectFromProcess,
-  percentileNearestRank,
+  parseVerifyVerdict,
+  readJsonObjectFile,
   recognizeDescriptorClaims,
   resolveBundledCatalogPath,
   resolveTargetDir,
+  roundNumber,
   sha256Hex,
+  summarizeBenchReport,
   verifyDescriptorAgainstBundle,
+  XL_INSTANCE_NAME,
 } from "./_optdata-lib";
 import type { SuiteContext } from "../suite-kit";
 
@@ -46,135 +51,101 @@ function contextWithTargetDir(detail: string | undefined): SuiteContext {
   };
 }
 
-describe("percentileNearestRank", () => {
-  test("nearest-rank p95 of 1..5 is the max", () => {
-    expect(percentileNearestRank([5, 1, 4, 2, 3], 95)).toBe(5);
-  });
-  test("p50 of 1..5 is the median", () => {
-    expect(percentileNearestRank([1, 2, 3, 4, 5], 50)).toBe(3);
-  });
-  test("duplicates and unsorted input", () => {
-    expect(percentileNearestRank([10, 1, 1], 50)).toBe(1);
-  });
-  test("single sample", () => {
-    expect(percentileNearestRank([7], 95)).toBe(7);
-  });
-  test("empty sample set is NaN, never a throw", () => {
-    expect(Number.isNaN(percentileNearestRank([], 95))).toBe(true);
-  });
-});
-
-describe("parseJsonObject / parseJsonObjectFromProcess", () => {
+describe("parseJsonObject", () => {
   test("objects parse; arrays and scalars are rejected", () => {
     expect(parseJsonObject('{"a":1}')).toEqual({ a: 1 });
     expect(parseJsonObject("[1,2]")).toBeUndefined();
     expect(parseJsonObject("42")).toBeUndefined();
     expect(parseJsonObject("nope")).toBeUndefined();
   });
-  test("process output tolerates leading log lines", () => {
-    expect(parseJsonObjectFromProcess('info: bench starting\n{"courses":8}\n')).toEqual({ courses: 8 });
-    expect(parseJsonObjectFromProcess('{"courses":8}')).toEqual({ courses: 8 });
-    expect(parseJsonObjectFromProcess("boom")).toBeUndefined();
-    expect(parseJsonObjectFromProcess("no braces { here")).toBeUndefined();
+});
+
+describe("parseVerifyVerdict (verify.mjs's own verdict line)", () => {
+  test("the last non-empty line decides", () => {
+    expect(parseVerifyVerdict("checking report.json\nok\nverdict: PASS\n")).toBe("PASS");
+    expect(parseVerifyVerdict("checking report.json\nbad evidence\nverdict: FAIL\n")).toBe("FAIL");
+  });
+  test("trailing whitespace and blank trailing lines are tolerated", () => {
+    expect(parseVerifyVerdict("verdict: PASS  \n\n")).toBe("PASS");
+    expect(parseVerifyVerdict("\nverdict: FAIL\n")).toBe("FAIL");
+  });
+  test("anything else is unparseable (strict)", () => {
+    expect(parseVerifyVerdict("")).toBeNull();
+    expect(parseVerifyVerdict("all good\n")).toBeNull();
+    expect(parseVerifyVerdict("verdict: pass\n")).toBeNull();
+    expect(parseVerifyVerdict("verdict: PASSFAIL\n")).toBeNull();
   });
 });
 
-describe("discoverPackageScript / artifactCommand", () => {
-  test("prefers run.ts with bun when no package script exists", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep-"));
+describe("readJsonObjectFile (strict target-file reads)", () => {
+  test("reads a JSON object from disk", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-read-"));
     try {
-      writeFileSync(path.join(dir, "run.ts"), "export {};\n");
-      writeFileSync(path.join(dir, "index.js"), "module.exports = {};\n");
-      const entry = discoverEntrypointInDir(dir);
-      expect(entry?.cmd).toBe("bun");
-      expect(entry?.entryPath).toBe(path.join(dir, "run.ts"));
+      const file = path.join(dir, "report.json");
+      writeFileSync(file, '{"counts":{"courses":8}}');
+      expect(readJsonObjectFile(file)).toEqual({ counts: { courses: 8 } });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-  test("falls through to main.js with node", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep2-"));
+  test("missing files and non-JSON content are undefined, not throws", () => {
+    expect(readJsonObjectFile("/tmp/optdata-no-such-file-9f7b.json")).toBeUndefined();
+    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-read2-"));
     try {
-      writeFileSync(path.join(dir, "main.js"), "module.exports = {};\n");
-      const entry = discoverEntrypointInDir(dir);
-      expect(entry?.cmd).toBe("node");
-      expect(entry?.entryPath).toBe(path.join(dir, "main.js"));
+      const file = path.join(dir, "broken.json");
+      writeFileSync(file, "not json");
+      expect(readJsonObjectFile(file)).toBeUndefined();
+      writeFileSync(file, "[1,2]");
+      expect(readJsonObjectFile(file)).toBeUndefined();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-  test("an artifact's own bench package script wins over entry files", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-pkg-"));
-    try {
-      writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { bench: "bun ./bench.ts" } }));
-      writeFileSync(path.join(dir, "run.ts"), "export {};\n");
-      const resolved = artifactCommand(dir);
-      expect(resolved.ok).toBe(true);
-      if (resolved.ok) {
-        expect(resolved.cmd).toBe("bun");
-        expect(resolved.args).toEqual(["run", "bench"]); // no prescribed flags
-        expect(resolved.cwd).toBe(dir);
-        expect(resolved.source).toBe("package.json scripts");
-      }
-      expect(discoverPackageScript(dir)).toBe("bench");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+});
+
+describe("roundNumber", () => {
+  test("one decimal, used for compact measured strings", () => {
+    expect(roundNumber(123.456)).toBe(123.5);
+    expect(roundNumber(500)).toBe(500);
   });
-  test("a single unambiguous script is used whatever its name", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-pkg2-"));
-    try {
-      writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { certify: "bun ./certify.ts" } }));
-      expect(discoverPackageScript(dir)).toBe("certify");
-      const resolved = artifactCommand(dir);
-      expect(resolved.ok).toBe(true);
-      if (resolved.ok) expect(resolved.args).toEqual(["run", "certify"]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+});
+
+describe("prescribed real-tool commands (decision 685c)", () => {
+  test("catalogAuditCommand runs node audit.mjs with --input/--out, cwd = target root", () => {
+    const command = catalogAuditCommand("/srv/target", "/tmp/audit-out");
+    expect(command.cmd).toBe("node");
+    expect(command.args).toEqual([
+      path.join("tools", "catalog-consistency", "audit.mjs"),
+      "--input",
+      path.join("frontend", "src", "lib", "generated", "seed-data.json"),
+      "--out",
+      "/tmp/audit-out",
+    ]);
+    expect(command.cwd).toBe("/srv/target");
+    expect(command.describe).toContain("audit.mjs");
   });
-  test("an ambiguous package.json falls through to entry-file discovery", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-pkg3-"));
-    try {
-      writeFileSync(
-        path.join(dir, "package.json"),
-        JSON.stringify({ scripts: { lint: "eslint .", test: "bun test" } }),
-      );
-      expect(discoverPackageScript(dir)).toBeUndefined();
-      writeFileSync(path.join(dir, "main.ts"), "export {};\n");
-      const resolved = artifactCommand(dir);
-      expect(resolved.ok).toBe(true);
-      if (resolved.ok) expect(resolved.source).toBe("entrypoint file discovery");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+  test("catalogVerifyCommand passes --results and --repo-root (its parser requires it)", () => {
+    const command = catalogVerifyCommand("/srv/target", "/tmp/audit-out");
+    expect(command.cmd).toBe("node");
+    expect(command.args).toEqual([
+      path.join("tools", "catalog-consistency", "verify.mjs"),
+      "--results",
+      "/tmp/audit-out",
+      "--repo-root",
+      "/srv/target",
+    ]);
+    expect(command.cwd).toBe("/srv/target");
   });
-  test("a directory with no derivable interface is reported, with what was looked for", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep3-"));
-    try {
-      expect(discoverEntrypointInDir(dir)).toBeUndefined();
-      const resolved = artifactCommand(dir);
-      expect(resolved.ok).toBe(false);
-      if (!resolved.ok) expect(resolved.reason).toContain("no runnable interface");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-  test("a bare .ts file runs with bun, no prescribed args, cwd = its own directory", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "optdata-ep4-"));
-    try {
-      const script = path.join(dir, "consistency.ts");
-      writeFileSync(script, "export {};\n");
-      const resolved = artifactCommand(script);
-      expect(resolved.ok).toBe(true);
-      if (resolved.ok) {
-        expect(resolved.cmd).toBe("bun");
-        expect(resolved.cwd).toBe(dir);
-        expect(resolved.args).toEqual([script]);
-      }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+  test("benchCommand runs the real run-bench.ts under bun in frontend/ with the bench's own flags", () => {
+    const command = benchCommand("/srv/target");
+    expect(command.cmd).toBe("bun");
+    expect(command.cwd).toBe(path.join("/srv/target", "frontend"));
+    expect(command.args[0]).toBe("run");
+    expect(command.args[1]).toBe(path.join("src", "lib", "optimizer", "bench", "run-bench.ts"));
+    expect(command.args).toContain("--variant=./src/lib/optimizer/brute-force");
+    expect(command.args).toContain("--suite=all");
+    expect(command.args).toContain("--k=3");
+    expect(command.args).toContain("--repeat=3");
   });
 });
 
@@ -210,62 +181,193 @@ describe("resolveTargetDir", () => {
   });
 });
 
-describe("interpretBenchOutput", () => {
-  test("recognizes a fully-instrumented bench report and records extras verbatim", () => {
-    const m = interpretBenchOutput({
-      courses: 8,
-      violations: 0,
-      violationSamples: 20,
-      gap: 0,
-      enumerableInstances: 20,
-      solveTimesMs: [10, 20, 30],
-      seed: 0,
-      label: "unt-fall-2026",
-    });
-    expect(m.violations).toBe(0);
-    expect(m.violationSamples).toBe(20);
-    expect(m.gap).toBe(0);
-    expect(m.gapInstances).toBe(20);
-    expect(m.courses).toBe(8);
-    expect(m.solveTimesMs).toEqual([10, 20, 30]);
-    expect(m.reportedP95Ms).toBeNull();
-    expect(m.numericFields).toEqual({ courses: 8, violations: 0, violationSamples: 20, gap: 0, enumerableInstances: 20, seed: 0 });
-    // solveTimesMs (an array) and label are recorded as non-numeric fields.
-    expect(m.nonNumericFields).toEqual(["solveTimesMs", "label"]);
+describe("parseBenchReport (the real run-bench.ts report file)", () => {
+  const realShapedReport = {
+    variant: "./src/lib/optimizer/brute-force",
+    suite: "all",
+    k: 3,
+    repeat: 3,
+    instances: [
+      {
+        name: "baseline-8",
+        suite: "baseline",
+        sizeClass: "8 courses",
+        enumerable: true,
+        statuses: 64,
+        violations: 0,
+        iisValid: true,
+        optimalityGap: 0,
+        topKAgreement: 3,
+        diversity: 0.9,
+        initMsP50: 1,
+        initMsP95: 2,
+        searchMsP50: 3,
+        searchMsP95: 4,
+        wallMsP50: 5,
+        wallMsP95: 6,
+      },
+    ],
+    sizeSummary: [],
+  };
+
+  test("the bench's own report shape parses", () => {
+    const parsed = parseBenchReport(JSON.stringify(realShapedReport));
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.instances).toHaveLength(1);
+      expect(parsed.report.variant).toBe("./src/lib/optimizer/brute-force");
+    }
   });
-  test("alternate field names are recognized, not required", () => {
-    const m = interpretBenchOutput({
-      hardConstraintViolations: 2,
-      instancesChecked: 50,
-      optimalityGap: 0.02,
-      gapSamples: 50,
-      courseCount: 6,
-      p95Ms: 640,
-    });
-    expect(m.violations).toBe(2);
-    expect(m.violationSamples).toBe(50);
-    expect(m.gap).toBe(0.02);
-    expect(m.gapInstances).toBe(50);
-    expect(m.courses).toBe(6);
-    expect(m.reportedP95Ms).toBe(640);
+  test("broken JSON names the problem instead of throwing", () => {
+    const parsed = parseBenchReport("not json");
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.reason).toContain("not valid JSON");
   });
-  test("an unrecognizable shape yields nulls while numbers stay recorded", () => {
-    const m = interpretBenchOutput({ mode: "fast", score: 99, tags: ["a"] });
-    expect(m.violations).toBeNull();
-    expect(m.gap).toBeNull();
-    expect(m.courses).toBeNull();
-    expect(m.reportedP95Ms).toBeNull();
-    expect(m.solveTimesMs).toBeNull();
-    expect(m.numericFields).toEqual({ score: 99 });
-    expect(m.nonNumericFields).toEqual(["mode", "tags"]);
+  test("a non-object root is rejected", () => {
+    const parsed = parseBenchReport("[1,2]");
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.reason).toContain("not a JSON object");
   });
-  test("a solve-time array containing non-numbers is not recognized as samples", () => {
-    const m = interpretBenchOutput({ solveTimesMs: [10, "n/a", 30] });
-    expect(m.solveTimesMs).toBeNull();
+  test("a foreign shape (no instances array) is rejected, naming the shape", () => {
+    const parsed = parseBenchReport(JSON.stringify({ courses: 8, violations: 0 }));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.reason).toContain("instances array");
   });
-  test("a timings-array alias is recognized as solve-time samples", () => {
-    const m = interpretBenchOutput({ timings: [10, 20, 30] });
-    expect(m.solveTimesMs).toEqual([10, 20, 30]);
+  test("a non-object instance entry is rejected", () => {
+    const parsed = parseBenchReport(JSON.stringify({ instances: [{ name: "x" }, 7] }));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.reason).toContain("non-object entry");
+  });
+});
+
+describe("summarizeBenchReport (verdict-first over instances[])", () => {
+  const base = {
+    suite: "baseline",
+    sizeClass: "8 courses",
+    enumerable: true,
+    statuses: 64,
+    iisValid: true,
+    topKAgreement: 3,
+    diversity: 0.9,
+    initMsP50: 1,
+    initMsP95: 2,
+    searchMsP50: 3,
+    searchMsP95: 4,
+    wallMsP50: 5,
+  };
+
+  test("a clean run: zero violations, zero gaps, the pinned 8-course family measured", () => {
+    const parsed = parseBenchReport(
+      JSON.stringify({
+        variant: "v",
+        suite: "all",
+        instances: [
+          { ...base, name: "baseline-8", violations: 0, optimalityGap: 0, wallMsP95: 123.456 },
+          { ...base, name: XL_INSTANCE_NAME, violations: 0, optimalityGap: 0, wallMsP95: 444.4 },
+          { ...base, name: "nonenum-10", enumerable: false, violations: 0, optimalityGap: null, skipped: "variant cannot enumerate >8 courses" },
+        ],
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const s = summarizeBenchReport(parsed.instances);
+    expect(s.violationsChecked).toBe(3);
+    expect(s.violationsMax).toBe(0);
+    expect(s.violationsBreaches).toEqual([]);
+    expect(s.gapChecked).toBe(2); // the non-enumerable instance is not judged on gap
+    expect(s.gapMax).toBe(0);
+    expect(s.gapBreaches).toEqual([]);
+    expect(s.gapUnjudged).toBe(0);
+    expect(s.skipped).toEqual([{ name: "nonenum-10", reason: "variant cannot enumerate >8 courses" }]);
+    expect(s.xlRecordPresent).toBe(true);
+    expect(s.xlSkipReason).toBeNull();
+    expect(s.xlWallMsP95).toBe(444.4);
+  });
+
+  test("a planted defect: a violations breach names the instance and max", () => {
+    const parsed = parseBenchReport(
+      JSON.stringify({
+        variant: "v",
+        suite: "all",
+        instances: [
+          { ...base, name: "baseline-8", violations: 0, optimalityGap: 0, wallMsP95: 10 },
+          { ...base, name: "defect-8", violations: 2, optimalityGap: 0, wallMsP95: 10 },
+        ],
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const s = summarizeBenchReport(parsed.instances);
+    expect(s.violationsMax).toBe(2);
+    expect(s.violationsBreaches).toEqual(["defect-8=2"]);
+  });
+
+  test("a planted defect: a nonzero gap is a breach", () => {
+    const parsed = parseBenchReport(
+      JSON.stringify({
+        variant: "v",
+        suite: "all",
+        instances: [{ ...base, name: "baseline-8", violations: 0, optimalityGap: 0.5, wallMsP95: 10 }],
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const s = summarizeBenchReport(parsed.instances);
+    expect(s.gapMax).toBe(0.5);
+    expect(s.gapBreaches).toEqual(["baseline-8=0.5"]);
+  });
+
+  test("a skipped or missing pinned 8-course family is visible as such, never invented", () => {
+    const parsed = parseBenchReport(
+      JSON.stringify({
+        variant: "v",
+        suite: "all",
+        instances: [
+          { ...base, name: "baseline-8", violations: 0, optimalityGap: 0, wallMsP95: 10 },
+          { ...base, name: XL_INSTANCE_NAME, enumerable: false, violations: null, optimalityGap: null, skipped: "variant refused to enumerate" },
+        ],
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const s = summarizeBenchReport(parsed.instances);
+    expect(s.xlRecordPresent).toBe(true);
+    expect(s.xlSkipReason).toBe("variant refused to enumerate");
+    expect(s.xlWallMsP95).toBeNull();
+  });
+
+  test("an infeasible enumerable instance (null gap) is counted as unjudged, not failed", () => {
+    const parsed = parseBenchReport(
+      JSON.stringify({
+        variant: "v",
+        suite: "all",
+        instances: [
+          { ...base, name: "infeasible-8", violations: 0, optimalityGap: null, wallMsP95: 10 },
+          { ...base, name: "ok-8", violations: 0, optimalityGap: 0, wallMsP95: 10 },
+        ],
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const s = summarizeBenchReport(parsed.instances);
+    expect(s.gapChecked).toBe(1);
+    expect(s.gapUnjudged).toBe(1);
+    expect(s.gapMax).toBe(0);
+  });
+
+  test("non-numeric defect counts are ignored (a tampered report cannot smuggle a string past the parse)", () => {
+    const parsed = parseBenchReport(
+      JSON.stringify({
+        variant: "v",
+        suite: "all",
+        instances: [{ ...base, name: "baseline-8", violations: "0", optimalityGap: "0", wallMsP95: "10" }],
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const s = summarizeBenchReport(parsed.instances);
+    expect(s.violationsChecked).toBe(0);
+    expect(s.gapChecked).toBe(0);
   });
 });
 
