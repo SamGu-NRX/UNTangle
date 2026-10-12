@@ -595,7 +595,11 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     const args = existsSync(localBin) ? ["migrate"] : ["drizzle-kit", "migrate"];
     const r = await runBounded(cmd, args, {
       cwd: frontendDir,
-      env: { ...process.env, DATABASE_URL: ctx.databaseUrl },
+      // PATH must include the bunx shim dir: on a fresh target checkout the
+      // local drizzle-kit bin does not exist yet (migrations-apply runs before
+      // frontend-install), and some hosts ship a dangling `bunx` symlink —
+      // the same host quirk the backend-build step guards against.
+      env: { ...process.env, DATABASE_URL: ctx.databaseUrl, PATH: pathWithShim },
       timeoutMs: 180_000,
       logPath: stepLog("migrations-apply"),
     });
