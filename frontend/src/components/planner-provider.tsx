@@ -631,6 +631,36 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [conflict, guestStore, hydrated, persistGuest, persistServer, plannerState, sessionResult.data]);
 
+  // An edit made in the last 350 ms before the page goes away (reload, tab
+  // close, full navigation) would never reach the debounced save. Flush it on
+  // pagehide: synchronously to the guest store, or as a keepalive request for
+  // a signed-in user. The keepalive save still names its base revision, so it
+  // cannot overwrite a newer save; its outcome is not observed.
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+    const flush = () => {
+      const state = stateRef.current;
+      if (conflictRef.current || workingStateFingerprint(state) === lastPersistedFingerprint.current) {
+        return;
+      }
+      if (!sessionResult.data?.user) {
+        persistGuest(state);
+        return;
+      }
+      guestStore.writeMirror(state);
+      if (sessionExpired.current || saveInFlight.current) {
+        return;
+      }
+      void savePlannerStateToServer(state, serverRevision.current, (input, init) =>
+        fetch(input, { ...init, keepalive: true }),
+      );
+    };
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, [guestStore, hydrated, persistGuest, sessionResult.data]);
+
   const retrySave = useCallback(() => {
     const state = stateRef.current;
     if (Boolean(sessionResult.data?.user)) {

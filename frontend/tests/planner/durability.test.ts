@@ -85,6 +85,34 @@ describe("rule 1: a save shown as Saved survives a reload", () => {
   });
 });
 
+describe("rule 1: an edit is not lost when the page goes away before its save", () => {
+  test("guest: pagehide writes the pending edit synchronously", async () => {
+    const first = await mount();
+    await first.run((p) => p.setOptimization("compact"));
+    // Before the 350 ms debounce: nothing stored yet.
+    expect(window.localStorage.getItem(PLANNER_STATE_STORE_KEY)).toBeNull();
+    window.dispatchEvent(new window.Event("pagehide"));
+    const stored = JSON.parse(window.localStorage.getItem(PLANNER_STATE_STORE_KEY) ?? "{}");
+    expect(stored.state?.optimization).toBe("compact");
+
+    const second = await remount(first);
+    expect(second.get().plannerState.optimization).toBe("compact");
+    expect(second.get().saveState.label).toBe("Saved");
+  });
+
+  test("registered: pagehide sends the pending edit with its base revision", async () => {
+    setSession(user);
+    server.writeElsewhere({ ...getInitialPlannerState(), optimization: "clusterMorning" });
+    const planner = await mount();
+    await waitFor(() => planner.get().saveState.label === "Saved", "loaded");
+    await planner.run((p) => p.setOptimization("compact"));
+    window.dispatchEvent(new window.Event("pagehide"));
+    await waitFor(() => server.posts.length === 1, "keepalive save");
+    expect(server.posts[0].baseRevision).toBe("1");
+    expect(server.row?.state.optimization).toBe("compact");
+  });
+});
+
 describe("rule 2: a failed save is never Saved and can be retried", () => {
   for (const failure of [500, "drop"] as const) {
     test(`server ${failure === "drop" ? "dropped connection" : "500"}`, async () => {
