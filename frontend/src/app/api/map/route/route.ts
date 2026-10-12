@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isInsideUntBounds } from "@/lib/campus-locations";
+import { routeBetweenPoints } from "@/lib/campus/graph";
 import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
 import type { MapRoutePoint, MapRouteResponse } from "@/lib/types";
 
@@ -106,6 +107,32 @@ function parseStops(input: RouteInput) {
   return { stops: collapsed };
 }
 
+/**
+ * Offline walkway routing (source: "campus-network"): each consecutive stop pair is
+ * routed over the committed OSM walkway graph (A*, steps-aware durations).
+ * No network calls, no API key. Returns null when any leg cannot be routed on
+ * the graph, letting the caller fall back to ORS, then straight-line.
+ */
+function walkwayRoute(stops: MapRoutePoint[]): MapRouteResponse | null {
+  const geometry: MapRoutePoint[] = [];
+  let distanceMeters = 0;
+  let durationSeconds = 0;
+
+  for (let index = 0; index < stops.length - 1; index += 1) {
+    const leg = routeBetweenPoints(stops[index], stops[index + 1]);
+    if (!leg) return null;
+    const points = index === 0 ? leg.geometry : leg.geometry.slice(1);
+    for (const point of points) {
+      geometry.push({ lat: point.lat, lng: point.lng });
+    }
+    distanceMeters += leg.distanceMeters;
+    durationSeconds += leg.durationSeconds;
+  }
+
+  if (geometry.length < 2) return null;
+  return { geometry, distanceMeters, durationSeconds, source: "campus-network" };
+}
+
 export async function POST(request: Request) {
   const limit = limiter.check(clientIpFromRequest(request));
   if (!limit.allowed) {
@@ -126,6 +153,15 @@ export async function POST(request: Request) {
   const parsed = parseStops(body);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  // Primary: the offline campus walkway graph. It is campus-tuned (steps and
+  // crossings included), needs no external service, and its data covers the
+  // same bounds parseStops enforces. ORS below is only a safety net for legs
+  // the graph refuses; the straight-line fallback stays the last resort.
+  const walkway = walkwayRoute(parsed.stops);
+  if (walkway) {
+    return NextResponse.json(walkway);
   }
 
   const apiKey = process.env.ORS_API_KEY;

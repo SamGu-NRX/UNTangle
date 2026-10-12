@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "attempts": [
+    {
+      "kind": "pedestrian",
+      "attempts": [
+        {
+          "attempt": 1,
+          "endpoint": "https://overpass-api.de/api/interpreter",
+          "startedAt": "2026-10-11T13:14:36.618Z",
+          "status": 504,
+          "ok": false,
+          "detail": "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"> <html x"
+        },
+        {
+          "attempt": 2,
+          "endpoint": "https://overpass.kumi.systems/api/interpreter",
+          "startedAt": "2026-10-11T13:15:04.423Z",
+          "status": 500,
+          "ok": false,
+          "detail": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"> <html><head> <title>500 Internal Server Error</title> </head><body> <"
+        },
+        {
+          "attempt": 3,
+          "endpoint": "https://overpass-api.de/api/interpreter",
+          "startedAt": "2026-10-11T13:15:34.964Z",
+          "status": 504,
+          "ok": false,
+          "detail": "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"> <html x"
+        },
+        {
+          "attempt": 4,
+          "endpoint": "https://overpass.kumi.systems/api/interpreter",
+          "startedAt": "2026-10-11T13:16:41.643Z",
+          "status": 500,
+          "ok": false,
+          "detail": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"> <html><head> <title>500 Internal Server Error</title> </head><body> <"
+        },
+        {
+          "attempt": 5,
+          "endpoint": "https://overpass-api.de/api/interpreter",
+          "startedAt": "2026-10-11T13:18:42.255Z",
+          "status": 200,
+          "ok": true,
+          "bytes": 1660850
+        }
+      ]
+    },
+    {
+      "kind": "buildings",
+      "attempts": [
+        {
+          "attempt": 1,
+          "endpoint": "https://overpass-api.de/api/interpreter",
+          "startedAt": "2026-10-11T13:18:48.921Z",
+          "status": 200,
+          "ok": true,
+          "bytes": 1150175
+        }
+      ]
+    }
+  ]
+}

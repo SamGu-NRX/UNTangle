@@ -1,0 +1,808 @@
+{
+  "generatedAt": "2026-10-11T21:30:51.837Z",
+  "commit": "f44f23d821966bbd39f581d0e63bbe1d851db910",
+  "bun": "1.3.14",
+  "note": "All numbers from real POST /api/map/route requests against a locally served production build (next start, port 3210, no ORS_API_KEY, no DATABASE_URL). 12-stop registry-building trip. Only HTTP 200s counted in latency stats.",
+  "trip": {
+    "stopCount": 12,
+    "buildingIds": [
+      "sage",
+      "col",
+      "life",
+      "blb",
+      "dath",
+      "wh",
+      "chem",
+      "uu",
+      "matt",
+      "gab",
+      "env",
+      "gate"
+    ],
+    "stops": [
+      {
+        "lat": 33.2121066,
+        "lng": -97.1467423
+      },
+      {
+        "lat": 33.2086577,
+        "lng": -97.1541414
+      },
+      {
+        "lat": 33.2121465,
+        "lng": -97.1490327
+      },
+      {
+        "lat": 33.2088704,
+        "lng": -97.1476988
+      },
+      {
+        "lat": 33.212103,
+        "lng": -97.1416788
+      },
+      {
+        "lat": 33.2098557,
+        "lng": -97.1456764
+      },
+      {
+        "lat": 33.2140405,
+        "lng": -97.1499791
+      },
+      {
+        "lat": 33.210906,
+        "lng": -97.14735
+      },
+      {
+        "lat": 33.2098832,
+        "lng": -97.1467183
+      },
+      {
+        "lat": 33.2131868,
+        "lng": -97.1481479
+      },
+      {
+        "lat": 33.2141641,
+        "lng": -97.1513851
+      },
+      {
+        "lat": 33.2077083,
+        "lng": -97.1542461
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "cold-1",
+      "measuredAt": "2026-10-11T21:27:29.012Z",
+      "url": "http://127.0.0.1:3210/api/map/route",
+      "requests": 1,
+      "gapMs": 0,
+      "trip": {
+        "stopCount": 12,
+        "buildingIds": [
+          "sage",
+          "col",
+          "life",
+          "blb",
+          "dath",
+          "wh",
+          "chem",
+          "uu",
+          "matt",
+          "gab",
+          "env",
+          "gate"
+        ],
+        "stops": [
+          {
+            "lat": 33.2121066,
+            "lng": -97.1467423
+          },
+          {
+            "lat": 33.2086577,
+            "lng": -97.1541414
+          },
+          {
+            "lat": 33.2121465,
+            "lng": -97.1490327
+          },
+          {
+            "lat": 33.2088704,
+            "lng": -97.1476988
+          },
+          {
+            "lat": 33.212103,
+            "lng": -97.1416788
+          },
+          {
+            "lat": 33.2098557,
+            "lng": -97.1456764
+          },
+          {
+            "lat": 33.2140405,
+            "lng": -97.1499791
+          },
+          {
+            "lat": 33.210906,
+            "lng": -97.14735
+          },
+          {
+            "lat": 33.2098832,
+            "lng": -97.1467183
+          },
+          {
+            "lat": 33.2131868,
+            "lng": -97.1481479
+          },
+          {
+            "lat": 33.2141641,
+            "lng": -97.1513851
+          },
+          {
+            "lat": 33.2077083,
+            "lng": -97.1542461
+          }
+        ]
+      },
+      "samples": [
+        {
+          "request": 1,
+          "status": 200,
+          "ms": 304.326,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        }
+      ],
+      "ok200": 1,
+      "non200": [],
+      "latencyMs": {
+        "n": 1,
+        "p50": 304.326,
+        "p95": 304.326,
+        "p99": 304.326,
+        "max": 304.326,
+        "min": 304.326
+      },
+      "sources": {
+        "walkway": 1
+      }
+    },
+    {
+      "label": "cold-2",
+      "measuredAt": "2026-10-11T21:30:28.723Z",
+      "url": "http://127.0.0.1:3210/api/map/route",
+      "requests": 1,
+      "gapMs": 0,
+      "trip": {
+        "stopCount": 12,
+        "buildingIds": [
+          "sage",
+          "col",
+          "life",
+          "blb",
+          "dath",
+          "wh",
+          "chem",
+          "uu",
+          "matt",
+          "gab",
+          "env",
+          "gate"
+        ],
+        "stops": [
+          {
+            "lat": 33.2121066,
+            "lng": -97.1467423
+          },
+          {
+            "lat": 33.2086577,
+            "lng": -97.1541414
+          },
+          {
+            "lat": 33.2121465,
+            "lng": -97.1490327
+          },
+          {
+            "lat": 33.2088704,
+            "lng": -97.1476988
+          },
+          {
+            "lat": 33.212103,
+            "lng": -97.1416788
+          },
+          {
+            "lat": 33.2098557,
+            "lng": -97.1456764
+          },
+          {
+            "lat": 33.2140405,
+            "lng": -97.1499791
+          },
+          {
+            "lat": 33.210906,
+            "lng": -97.14735
+          },
+          {
+            "lat": 33.2098832,
+            "lng": -97.1467183
+          },
+          {
+            "lat": 33.2131868,
+            "lng": -97.1481479
+          },
+          {
+            "lat": 33.2141641,
+            "lng": -97.1513851
+          },
+          {
+            "lat": 33.2077083,
+            "lng": -97.1542461
+          }
+        ]
+      },
+      "samples": [
+        {
+          "request": 1,
+          "status": 200,
+          "ms": 150.881,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        }
+      ],
+      "ok200": 1,
+      "non200": [],
+      "latencyMs": {
+        "n": 1,
+        "p50": 150.881,
+        "p95": 150.881,
+        "p99": 150.881,
+        "max": 150.881,
+        "min": 150.881
+      },
+      "sources": {
+        "walkway": 1
+      }
+    },
+    {
+      "label": "cold-3",
+      "measuredAt": "2026-10-11T21:30:39.377Z",
+      "url": "http://127.0.0.1:3210/api/map/route",
+      "requests": 1,
+      "gapMs": 0,
+      "trip": {
+        "stopCount": 12,
+        "buildingIds": [
+          "sage",
+          "col",
+          "life",
+          "blb",
+          "dath",
+          "wh",
+          "chem",
+          "uu",
+          "matt",
+          "gab",
+          "env",
+          "gate"
+        ],
+        "stops": [
+          {
+            "lat": 33.2121066,
+            "lng": -97.1467423
+          },
+          {
+            "lat": 33.2086577,
+            "lng": -97.1541414
+          },
+          {
+            "lat": 33.2121465,
+            "lng": -97.1490327
+          },
+          {
+            "lat": 33.2088704,
+            "lng": -97.1476988
+          },
+          {
+            "lat": 33.212103,
+            "lng": -97.1416788
+          },
+          {
+            "lat": 33.2098557,
+            "lng": -97.1456764
+          },
+          {
+            "lat": 33.2140405,
+            "lng": -97.1499791
+          },
+          {
+            "lat": 33.210906,
+            "lng": -97.14735
+          },
+          {
+            "lat": 33.2098832,
+            "lng": -97.1467183
+          },
+          {
+            "lat": 33.2131868,
+            "lng": -97.1481479
+          },
+          {
+            "lat": 33.2141641,
+            "lng": -97.1513851
+          },
+          {
+            "lat": 33.2077083,
+            "lng": -97.1542461
+          }
+        ]
+      },
+      "samples": [
+        {
+          "request": 1,
+          "status": 200,
+          "ms": 124.748,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        }
+      ],
+      "ok200": 1,
+      "non200": [],
+      "latencyMs": {
+        "n": 1,
+        "p50": 124.748,
+        "p95": 124.748,
+        "p99": 124.748,
+        "max": 124.748,
+        "min": 124.748
+      },
+      "sources": {
+        "walkway": 1
+      }
+    },
+    {
+      "label": "warm-run-1",
+      "measuredAt": "2026-10-11T21:28:32.424Z",
+      "url": "http://127.0.0.1:3210/api/map/route",
+      "requests": 12,
+      "gapMs": 5000,
+      "trip": {
+        "stopCount": 12,
+        "buildingIds": [
+          "sage",
+          "col",
+          "life",
+          "blb",
+          "dath",
+          "wh",
+          "chem",
+          "uu",
+          "matt",
+          "gab",
+          "env",
+          "gate"
+        ],
+        "stops": [
+          {
+            "lat": 33.2121066,
+            "lng": -97.1467423
+          },
+          {
+            "lat": 33.2086577,
+            "lng": -97.1541414
+          },
+          {
+            "lat": 33.2121465,
+            "lng": -97.1490327
+          },
+          {
+            "lat": 33.2088704,
+            "lng": -97.1476988
+          },
+          {
+            "lat": 33.212103,
+            "lng": -97.1416788
+          },
+          {
+            "lat": 33.2098557,
+            "lng": -97.1456764
+          },
+          {
+            "lat": 33.2140405,
+            "lng": -97.1499791
+          },
+          {
+            "lat": 33.210906,
+            "lng": -97.14735
+          },
+          {
+            "lat": 33.2098832,
+            "lng": -97.1467183
+          },
+          {
+            "lat": 33.2131868,
+            "lng": -97.1481479
+          },
+          {
+            "lat": 33.2141641,
+            "lng": -97.1513851
+          },
+          {
+            "lat": 33.2077083,
+            "lng": -97.1542461
+          }
+        ]
+      },
+      "samples": [
+        {
+          "request": 1,
+          "status": 200,
+          "ms": 112.37,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 2,
+          "status": 200,
+          "ms": 58.919,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 3,
+          "status": 200,
+          "ms": 123.88,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 4,
+          "status": 200,
+          "ms": 124.162,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 5,
+          "status": 200,
+          "ms": 65.539,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 6,
+          "status": 200,
+          "ms": 49.468,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 7,
+          "status": 200,
+          "ms": 39.494,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 8,
+          "status": 200,
+          "ms": 58.437,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 9,
+          "status": 200,
+          "ms": 55.534,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 10,
+          "status": 200,
+          "ms": 44.429,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 11,
+          "status": 200,
+          "ms": 37.652,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 12,
+          "status": 200,
+          "ms": 48.951,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        }
+      ],
+      "ok200": 12,
+      "non200": [],
+      "latencyMs": {
+        "n": 12,
+        "p50": 55.534,
+        "p95": 124.162,
+        "p99": 124.162,
+        "max": 124.162,
+        "min": 37.652
+      },
+      "sources": {
+        "walkway": 12
+      }
+    },
+    {
+      "label": "warm-run-2",
+      "measuredAt": "2026-10-11T21:29:52.233Z",
+      "url": "http://127.0.0.1:3210/api/map/route",
+      "requests": 12,
+      "gapMs": 5000,
+      "trip": {
+        "stopCount": 12,
+        "buildingIds": [
+          "sage",
+          "col",
+          "life",
+          "blb",
+          "dath",
+          "wh",
+          "chem",
+          "uu",
+          "matt",
+          "gab",
+          "env",
+          "gate"
+        ],
+        "stops": [
+          {
+            "lat": 33.2121066,
+            "lng": -97.1467423
+          },
+          {
+            "lat": 33.2086577,
+            "lng": -97.1541414
+          },
+          {
+            "lat": 33.2121465,
+            "lng": -97.1490327
+          },
+          {
+            "lat": 33.2088704,
+            "lng": -97.1476988
+          },
+          {
+            "lat": 33.212103,
+            "lng": -97.1416788
+          },
+          {
+            "lat": 33.2098557,
+            "lng": -97.1456764
+          },
+          {
+            "lat": 33.2140405,
+            "lng": -97.1499791
+          },
+          {
+            "lat": 33.210906,
+            "lng": -97.14735
+          },
+          {
+            "lat": 33.2098832,
+            "lng": -97.1467183
+          },
+          {
+            "lat": 33.2131868,
+            "lng": -97.1481479
+          },
+          {
+            "lat": 33.2141641,
+            "lng": -97.1513851
+          },
+          {
+            "lat": 33.2077083,
+            "lng": -97.1542461
+          }
+        ]
+      },
+      "samples": [
+        {
+          "request": 1,
+          "status": 200,
+          "ms": 29.598,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 2,
+          "status": 200,
+          "ms": 22.426,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 3,
+          "status": 200,
+          "ms": 20.67,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 4,
+          "status": 200,
+          "ms": 21.807,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 5,
+          "status": 200,
+          "ms": 17.785,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 6,
+          "status": 200,
+          "ms": 20.166,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 7,
+          "status": 200,
+          "ms": 23.402,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 8,
+          "status": 200,
+          "ms": 24.538,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 9,
+          "status": 200,
+          "ms": 39.471,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 10,
+          "status": 200,
+          "ms": 23.38,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 11,
+          "status": 200,
+          "ms": 18.757,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        },
+        {
+          "request": 12,
+          "status": 200,
+          "ms": 27.952,
+          "source": "walkway",
+          "distanceMeters": 8358.500000000002,
+          "durationSeconds": 6107,
+          "geometryPoints": 662
+        }
+      ],
+      "ok200": 12,
+      "non200": [],
+      "latencyMs": {
+        "n": 12,
+        "p50": 22.426,
+        "p95": 39.471,
+        "p99": 39.471,
+        "max": 39.471,
+        "min": 17.785
+      },
+      "sources": {
+        "walkway": 12
+      }
+    }
+  ],
+  "summary": {
+    "cold": {
+      "n": 3,
+      "measurementsMs": [
+        304.326,
+        150.881,
+        124.748
+      ],
+      "maxMs": 304.326
+    },
+    "warm": {
+      "runs": [
+        {
+          "label": "warm-run-1",
+          "n": 12,
+          "p50": 55.534,
+          "p95": 124.162,
+          "p99": 124.162,
+          "max": 124.162,
+          "min": 37.652
+        },
+        {
+          "label": "warm-run-2",
+          "n": 12,
+          "p50": 22.426,
+          "p95": 39.471,
+          "p99": 39.471,
+          "max": 39.471,
+          "min": 17.785
+        }
+      ],
+      "pooled": {
+        "n": 24,
+        "p50": 37.652,
+        "p95": 123.88,
+        "p99": 124.162,
+        "max": 124.162,
+        "min": 17.785
+      }
+    },
+    "non200": [],
+    "sources": {
+      "walkway": 27
+    }
+  }
+}

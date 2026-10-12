@@ -1,0 +1,197 @@
+{
+  "label": "warm-run-2",
+  "measuredAt": "2026-10-11T21:29:52.233Z",
+  "url": "http://127.0.0.1:3210/api/map/route",
+  "requests": 12,
+  "gapMs": 5000,
+  "trip": {
+    "stopCount": 12,
+    "buildingIds": [
+      "sage",
+      "col",
+      "life",
+      "blb",
+      "dath",
+      "wh",
+      "chem",
+      "uu",
+      "matt",
+      "gab",
+      "env",
+      "gate"
+    ],
+    "stops": [
+      {
+        "lat": 33.2121066,
+        "lng": -97.1467423
+      },
+      {
+        "lat": 33.2086577,
+        "lng": -97.1541414
+      },
+      {
+        "lat": 33.2121465,
+        "lng": -97.1490327
+      },
+      {
+        "lat": 33.2088704,
+        "lng": -97.1476988
+      },
+      {
+        "lat": 33.212103,
+        "lng": -97.1416788
+      },
+      {
+        "lat": 33.2098557,
+        "lng": -97.1456764
+      },
+      {
+        "lat": 33.2140405,
+        "lng": -97.1499791
+      },
+      {
+        "lat": 33.210906,
+        "lng": -97.14735
+      },
+      {
+        "lat": 33.2098832,
+        "lng": -97.1467183
+      },
+      {
+        "lat": 33.2131868,
+        "lng": -97.1481479
+      },
+      {
+        "lat": 33.2141641,
+        "lng": -97.1513851
+      },
+      {
+        "lat": 33.2077083,
+        "lng": -97.1542461
+      }
+    ]
+  },
+  "samples": [
+    {
+      "request": 1,
+      "status": 200,
+      "ms": 29.598,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 2,
+      "status": 200,
+      "ms": 22.426,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 3,
+      "status": 200,
+      "ms": 20.67,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 4,
+      "status": 200,
+      "ms": 21.807,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 5,
+      "status": 200,
+      "ms": 17.785,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 6,
+      "status": 200,
+      "ms": 20.166,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 7,
+      "status": 200,
+      "ms": 23.402,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 8,
+      "status": 200,
+      "ms": 24.538,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 9,
+      "status": 200,
+      "ms": 39.471,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 10,
+      "status": 200,
+      "ms": 23.38,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 11,
+      "status": 200,
+      "ms": 18.757,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    },
+    {
+      "request": 12,
+      "status": 200,
+      "ms": 27.952,
+      "source": "walkway",
+      "distanceMeters": 8358.500000000002,
+      "durationSeconds": 6107,
+      "geometryPoints": 662
+    }
+  ],
+  "ok200": 12,
+  "non200": [],
+  "latencyMs": {
+    "n": 12,
+    "p50": 22.426,
+    "p95": 39.471,
+    "p99": 39.471,
+    "max": 39.471,
+    "min": 17.785
+  },
+  "sources": {
+    "walkway": 12
+  }
+}
