@@ -4,8 +4,9 @@
  * These tests exercise the REAL runner (evals/run.ts, spawned as a bounded
  * subprocess) against throwaway fixtures built under a fresh mkdtemp dir:
  *
- *   - a fake TARGET checkout (just evals/CONTRACT.md, plus optional dataset
- *     files for the planted-failure test),
+ *   - a fake TARGET checkout (a bare directory — decision 685a: the target
+ *     carries nothing the runner requires — plus optional dataset files for
+ *     the planted-failure test),
  *   - where case accounting is under test, a full COPY of evals/ whose
  *     stack.ts is replaced by a healthy stub, so no Postgres, backend,
  *     frontend build, or browser is ever booted.
@@ -113,17 +114,15 @@ export function makeTempRoot(label: string): string {
 }
 
 /**
- * A minimal fake target checkout: the runner's only hard requirement is
- * evals/CONTRACT.md. Deliberately NOT a git repo, so the real preflight's
- * `submodule-backend` step fails fast (see runner-infra-exit3.test.ts).
+ * A minimal fake target checkout: a bare directory. Decision 685a — the
+ * runner requires NOTHING inside the target (the harness hashes its own
+ * evals/CONTRACT.md); suites discover what they need and report honest
+ * not-applicable when it is absent. Deliberately NOT a git repo, so the real
+ * preflight's `submodule-backend` step fails fast (see runner-infra-exit3.test.ts).
  */
-export function makeFakeTarget(root: string, name = "target", contract?: string): string {
+export function makeFakeTarget(root: string, name = "target"): string {
   const targetDir = path.join(root, name);
-  mkdirSync(path.join(targetDir, "evals"), { recursive: true });
-  writeFileSync(
-    path.join(targetDir, "evals", "CONTRACT.md"),
-    contract ?? "# fake target\n\nThrowaway fixture: the runner only requires this file to exist.\n",
-  );
+  mkdirSync(targetDir, { recursive: true });
   return targetDir;
 }
 
@@ -196,6 +195,18 @@ export function writeFakeSuites(harness: HarnessCopy): void {
   ] as const) {
     writeFileSync(path.join(harness.suitesDir, name), source);
   }
+  // Decision 685b: suites run because they are REGISTERED. The copy's real
+  // registry is patched (never the repo's), so every runner-level test
+  // exercises the same explicit-registry load path as production.
+  const runTs = readFileSync(harness.runTs, "utf8");
+  const patched = runTs.replace(
+    'const SUITE_REGISTRY: readonly string[] = [',
+    'const SUITE_REGISTRY: readonly string[] = [\n  "fakesuite",\n  "failsuite",\n  "throwsuite",\n  "crashysuite",',
+  );
+  if (patched === runTs) {
+    throw new Error("writeFakeSuites: could not patch the harness copy's SUITE_REGISTRY (run.ts shape changed?)");
+  }
+  writeFileSync(harness.runTs, patched);
 }
 
 export const STUB_STACK_TS = `/**

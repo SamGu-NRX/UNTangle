@@ -8,15 +8,20 @@
  *   0  preflight green and every case passed
  *   1  preflight green but at least one case failed
  *   2  usage error (bad or missing arguments)
- *   3  infrastructure failure — the scorecard is still written: every case is
- *      not-applicable and infrastructure.error names the exact broken step
+ *   3  infrastructure failure — the scorecard is still written: every declared
+ *      case is not-applicable and infrastructure.error names what broke (a
+ *      stack step, or a registered suite that failed to load — decision 685b)
  *
- * Suites are auto-discovered from evals/suites/<name>.ts (evals/suite-kit.ts
- * defines the authoring convention). Suite workers add suite files; they never
- * touch any other harness file.
+ * Suites come from the explicit registry below (SUITE_REGISTRY, decision
+ * 685b): the seven real suites, each resolving to evals/suites/<name>.ts in
+ * the HARNESS checkout. evals/suite-kit.ts defines the authoring convention;
+ * a suite runs because it is registered here — adding a suite means adding
+ * the file AND its registry entry. Helper modules (underscore-prefixed files
+ * like _optdata-lib/_persist-helpers/_persist-injections, ui-* helpers,
+ * *.test.ts) are imported by suites and are never registered or run.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -87,58 +92,55 @@ function parseRunArgs(argv: string[]): RunArgs {
   return { ...base, suite, taskId: get("--task-id") ?? "default" };
 }
 
-interface DiscoveredSuite {
+interface RegisteredSuite {
   name: string;
   path: string;
 }
 
-/** evals/suites/<name>.ts files; underscore-prefixed and *.test.* files are skipped. */
-function discoverSuites(): DiscoveredSuite[] {
-  const suitesDir = path.join(HARNESS_DIR, "suites");
-  const discovered = existsSync(suitesDir)
-    ? readdirSync(suitesDir)
-        .filter((file) => file.endsWith(".ts") && !file.startsWith("_") && !file.includes(".test."))
-        .map((file) => ({ name: file.replace(/\.ts$/, ""), path: path.join(suitesDir, file) }))
-    : [];
-  // The built-in preflight-only suite lives outside suites/ (suite-kit's
-  // convention) and runs first.
+/**
+ * The explicit suite registry (decision 685b). There is no directory scan: a
+ * suite runs because it is registered here, by name, resolving to
+ * evals/suites/<name>.ts in the HARNESS checkout. Adding a suite means adding
+ * the file AND its registry entry; helper modules (underscore-prefixed files
+ * like _optdata-lib/_persist-helpers/_persist-injections, ui-* helpers,
+ * *.test.ts) are imported by suites and are never registered. A registered
+ * suite that is missing or broken is a harness defect and surfaces loudly at
+ * load time (see main()) — it is never silently skipped.
+ */
+const SUITE_REGISTRY: readonly string[] = [
+  "journey",
+  "honesty",
+  "a11y-polish",
+  "routing",
+  "optimizer",
+  "data",
+  "persistence-faults",
+];
+
+/**
+ * The run order: the built-in preflight-only suite first (suite-kit's
+ * convention — it lives outside suites/ and stays special-cased), then the
+ * registry in declaration order for `--suite all`.
+ */
+function registeredSuites(): RegisteredSuite[] {
   const selfcheck = path.join(HARNESS_DIR, "selfcheck", "index.ts");
-  if (existsSync(selfcheck)) {
-    discovered.unshift({ name: "selfcheck", path: selfcheck });
-  }
-  return discovered;
+  const suites: RegisteredSuite[] = SUITE_REGISTRY.map((name) => ({
+    name,
+    path: path.join(HARNESS_DIR, "suites", `${name}.ts`),
+  }));
+  return existsSync(selfcheck) ? [{ name: "selfcheck", path: selfcheck }, ...suites] : suites;
 }
 
-async function resolveSuites(discovered: DiscoveredSuite[]): Promise<DiscoveredSuite[]> {
-  // A helper that names itself like a suite (optdata-lib.ts) must be skipped
-  // with a note, not crash --suite all: discovery accepts any non-underscore
-  // .ts file, so suite-ness is validated by loading the module.
-  const real: DiscoveredSuite[] = [];
-  for (const d of discovered) {
-    try {
-      const module = (await import(d.path)) as { default?: unknown; suite?: unknown };
-      if (isSuiteDefinition(module.default ?? module.suite)) {
-        real.push(d);
-      } else {
-        console.error(`[run] skipping ${d.name} (helper file, not a suite: no defineSuite export)`);
-      }
-    } catch (error) {
-      console.error(`[run] skipping ${d.name} (not loadable as a suite: ${(error as Error).message})`);
-    }
-  }
-  return real;
-}
-
-async function loadSuite(discovered: DiscoveredSuite): Promise<SuiteDefinition> {
-  const module = (await import(discovered.path)) as { default?: unknown; suite?: unknown };
+async function loadSuite(registered: RegisteredSuite): Promise<SuiteDefinition> {
+  const module = (await import(registered.path)) as { default?: unknown; suite?: unknown };
   const candidate = module.default ?? module.suite;
   if (!isSuiteDefinition(candidate)) {
     throw new Error(
-      `suite file ${discovered.path} must default-export (or export "suite") defineSuite({ name, describe, run })`,
+      `suite file ${registered.path} must default-export (or export "suite") defineSuite({ name, describe, run })`,
     );
   }
-  if (candidate.name !== discovered.name) {
-    throw new Error(`suite ${discovered.path} exports name "${candidate.name}" but the file name is "${discovered.name}"`);
+  if (candidate.name !== registered.name) {
+    throw new Error(`suite ${registered.path} exports name "${candidate.name}" but the registered name is "${registered.name}"`);
   }
   return candidate;
 }
@@ -194,8 +196,7 @@ async function runCase(
   }
 }
 
-async function runSuite(discovered: DiscoveredSuite, stack: RunningStack, bars: BarsFile): Promise<CaseRecord[]> {
-  const suite = await loadSuite(discovered);
+async function runSuite(suite: SuiteDefinition, stack: RunningStack, bars: BarsFile): Promise<CaseRecord[]> {
   const specs = await suite.describe();
   const ctx = suiteContext(stack);
   const suiteBar = bars.bars[suite.name]?.bar;
@@ -400,20 +401,82 @@ async function main(): Promise<number> {
   }
 
   const bars = loadBars();
-  const discovered = await resolveSuites(discoverSuites());
-  const chosen = args.suite === "all" ? discovered : discovered.filter((d) => d.name === args.suite);
+  const all = registeredSuites();
+  const chosen = args.suite === "all" ? all : all.filter((d) => d.name === args.suite);
   if (chosen.length === 0) {
-    console.error(
-      discovered.length === 0
-        ? `[run] no suite files found in ${path.join(HARNESS_DIR, "suites")} — nothing to run`
-        : `[run] suite "${args.suite}" not found. Available: ${discovered.map((d) => d.name).join(", ")}`,
-    );
+    console.error(`[run] suite "${args.suite}" not found. Available: ${all.map((d) => d.name).join(", ")}`);
     return 2;
   }
   console.error(`[run] suites: ${chosen.map((d) => d.name).join(", ")}`);
 
   const startedAt = new Date().toISOString();
   const hashes = await hashTargetFiles();
+
+  // Decision 685b: load every chosen suite BEFORE booting the stack. A
+  // registered suite that fails to load (missing file, broken module, wrong
+  // export shape) is a harness defect — never silently skipped. The run
+  // fails as infrastructure (exit 3) with an honest scorecard: a suite-load
+  // step record names every failing suite, and the loadable suites' declared
+  // cases are recorded not-applicable with the reason.
+  const loadStart = Date.now();
+  const loaded: Array<{ registered: RegisteredSuite; suite: SuiteDefinition }> = [];
+  const loadFailures: Array<{ name: string; message: string }> = [];
+  for (const d of chosen) {
+    try {
+      loaded.push({ registered: d, suite: await loadSuite(d) });
+    } catch (error) {
+      loadFailures.push({ name: d.name, message: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  if (loadFailures.length > 0) {
+    const loadMessage = loadFailures
+      .map((f) => `registered suite "${f.name}" failed to load: ${f.message}`)
+      .join("; ");
+    console.error(`[run] SUITE LOAD FAILURE (harness defect): ${loadMessage}`);
+    const cases: CaseRecord[] = [];
+    for (const entry of loaded) {
+      let ids: string[] = [];
+      try {
+        ids = (await entry.suite.describe()).map((s) => s.id);
+      } catch (describeError) {
+        console.error(
+          `[run] could not read the declared cases of ${entry.suite.name}: ${(describeError as Error).message}`,
+        );
+      }
+      for (const id of ids) {
+        cases.push({
+          suite: entry.suite.name,
+          id,
+          status: "not-applicable",
+          measured: null,
+          note: `not run: registered suite(s) ${loadFailures.map((f) => `"${f.name}"`).join(", ")} failed to load (harness defect) — the run aborted before any case could execute`,
+        });
+      }
+    }
+    const loadStep: StackStepRecord = {
+      step: "suite-load",
+      status: "fail",
+      durationMs: Date.now() - loadStart,
+      detail: loadMessage,
+    };
+    const scorecard = buildScorecard({
+      suiteSelector: args.suite,
+      cases,
+      target: { dir: args.targetDir, sha: args.targetSha, actualHead },
+      stackSteps: [loadStep],
+      infraError: `suite load failure: ${loadMessage}`,
+      brokenStep: "suite-load",
+      blockedRmpCount: 0,
+      backendStartMode: "never-started",
+      startedAt,
+      contractHash: hashes.contractHash,
+      barsHash: hashes.barsHash,
+      runtime: collectRuntime(),
+    });
+    await writeOutputs(scorecard, args.out);
+    console.error(`[run] infra scorecard (suite-load failure): ${args.out}`);
+    return 3;
+  }
 
   let stack: RunningStack | null = null;
   try {
@@ -426,16 +489,16 @@ async function main(): Promise<number> {
     // Infra scorecard: every declared case is not-applicable; the error block
     // names the broken step. Never marked as application failures.
     const cases: CaseRecord[] = [];
-    for (const d of chosen) {
+    for (const entry of loaded) {
       let ids: string[] = [];
       try {
-        ids = (await (await loadSuite(d)).describe()).map((s) => s.id);
+        ids = (await entry.suite.describe()).map((s) => s.id);
       } catch (loadError) {
-        console.error(`[run] could not load suite ${d.name} for the infra scorecard: ${(loadError as Error).message}`);
+        console.error(`[run] could not load suite ${entry.suite.name} for the infra scorecard: ${(loadError as Error).message}`);
       }
       for (const id of ids) {
         cases.push({
-          suite: d.name,
+          suite: entry.suite.name,
           id,
           status: "not-applicable",
           measured: null,
@@ -464,13 +527,13 @@ async function main(): Promise<number> {
 
   try {
     const cases: CaseRecord[] = [];
-    for (const d of chosen) {
+    for (const { suite } of loaded) {
       try {
-        cases.push(...(await runSuite(d, stack, bars)));
+        cases.push(...(await runSuite(suite, stack, bars)));
       } catch (error) {
-        console.error(`[run] suite ${d.name} crashed: ${(error as Error).message}`);
+        console.error(`[run] suite ${suite.name} crashed: ${(error as Error).message}`);
         cases.push({
-          suite: d.name,
+          suite: suite.name,
           id: "(suite crashed before any case result)",
           status: "fail",
           measured: null,

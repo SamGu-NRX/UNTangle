@@ -10,8 +10,11 @@
  *   - `describe()` returns the case list up front so the runner can still emit
  *     an honest all-`not-applicable` scorecard when infrastructure dies.
  *   - `run(caseId, ctx)` executes ONE case and returns a `CaseOutcome`.
- *   - `run.ts` auto-discovers `evals/suites/*.ts` on every invocation; a suite
- *     file's basename must equal its `name`.
+ *   - `run.ts` runs suites from the explicit registry (SUITE_REGISTRY in
+ *     evals/run.ts, decision 685b) — a suite exists when its file is present
+ *     AND it is registered; a suite file's basename must equal its `name`.
+ *     Helper modules (underscore-prefixed files) are imported by suites and
+ *     are never registered.
  */
 
 export type CaseStatus = "pass" | "fail" | "not-applicable";
