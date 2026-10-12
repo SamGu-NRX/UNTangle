@@ -216,6 +216,7 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
   // persistence.
   const merged: PlannerState = {
     ...defaultPlannerState,
+    lockedSections: {},
     courseStatuses: {
       ...defaultPlannerState.courseStatuses,
       ...userCourseStatuses,
@@ -242,11 +243,37 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
   const recommended = recommendSections(merged.optimization, activeCourseCodes, preservedSelections);
   const selectedMajor =
     merged.selectedMajor && validMajorIds.has(merged.selectedMajor) ? merged.selectedMajor : null;
+  // A lock survives only while it names the section actually selected for an
+  // active course; anything else (stale ids, dropped courses) is released.
+  const rawLocks = isPlainRecord(state.lockedSections) ? state.lockedSections : {};
+  const lockedSections = Object.fromEntries(
+    Object.entries(rawLocks).filter(
+      ([courseCode, sectionId]) => typeof sectionId === "string" && recommended[courseCode] === sectionId,
+    ),
+  );
   return {
     ...merged,
     selectedMajor,
     selectedSections: recommended,
+    lockedSections,
   };
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Locked sections that still match the selection: the fixed input to every optimize. */
+export function getLockedSelections(state: PlannerState): Record<string, string> {
+  const locks = state.lockedSections ?? {};
+  return Object.fromEntries(
+    Object.entries(locks).filter(([courseCode, sectionId]) => state.selectedSections[courseCode] === sectionId),
+  );
+}
+
+/** `{NNN}` in the UI contract: the last dash-separated token of a section id. */
+export function sectionNumber(sectionId: string): string {
+  return sectionId.split("-").pop() ?? sectionId;
 }
 
 export function buildScheduleEvents(state: PlannerState): ScheduleEvent[] {

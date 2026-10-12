@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { defaultPlannerState } from "@/lib/seed-data";
-import { diffSavedPlanAgainstWorking } from "@/lib/plan-library/diff";
+import { describeLockChanges, diffSavedPlanAgainstWorking } from "@/lib/plan-library/diff";
 import { buildSavedPlanSnapshot } from "@/lib/plan-library/snapshot";
 import type { PlannerState } from "@/lib/types";
 
@@ -163,5 +163,47 @@ describe("plan diff (saved plan vs working schedule)", () => {
       changed: true,
     });
     expect(transcriptDiff.changedFieldCount).toBe(1);
+  });
+});
+
+describe("plan diff: section locks", () => {
+  const base = stateWith({
+    courseStatuses: { "ANTH 1010": "inProgress", "MATH 1710": "inProgress" },
+    selectedSections: { "ANTH 1010": "anth-1010-001", "MATH 1710": "math-1710-001" },
+  });
+
+  it("a lock-only difference is reported, never as a complete match", () => {
+    const savedPlan = savedPlanFrom({ ...base, lockedSections: { "ANTH 1010": "anth-1010-001" } });
+    const diff = diffSavedPlanAgainstWorking(savedPlan, { ...base, lockedSections: {} });
+    expect(diff.statusChanges).toEqual([]);
+    expect(diff.sectionChanges).toEqual([]);
+    expect(diff.lockChanges).toEqual([{ courseCode: "ANTH 1010", savedPlan: "anth-1010-001", workingState: null }]);
+    expect(diff.changedFieldCount).toBe(1);
+    expect(diff.preservedFieldCount).toBe(diff.comparedFieldCount - 1);
+    expect(describeLockChanges(diff.lockChanges)).toEqual([
+      "ANTH 1010 is locked to anth-1010-001 in the plan but not locked in the working schedule",
+    ]);
+  });
+
+  it("reports a lock on a different section and a lock only in the working schedule", () => {
+    const savedPlan = savedPlanFrom({ ...base, lockedSections: { "ANTH 1010": "anth-1010-001" } });
+    const diff = diffSavedPlanAgainstWorking(savedPlan, {
+      ...base,
+      selectedSections: { "ANTH 1010": "anth-1010-002", "MATH 1710": "math-1710-001" },
+      lockedSections: { "ANTH 1010": "anth-1010-002", "MATH 1710": "math-1710-001" },
+    });
+    expect(describeLockChanges(diff.lockChanges)).toEqual([
+      "ANTH 1010 is locked to anth-1010-001 in the plan but to anth-1010-002 in the working schedule",
+      "MATH 1710 is locked to math-1710-001 in the working schedule but not in the plan",
+    ]);
+  });
+
+  it("identical locks are preserved fields; plans without locks add no lock fields", () => {
+    const locked = { ...base, lockedSections: { "ANTH 1010": "anth-1010-001" } };
+    const same = diffSavedPlanAgainstWorking(savedPlanFrom(locked), locked);
+    expect(same.lockChanges).toEqual([]);
+    expect(same.changedFieldCount).toBe(0);
+    const none = diffSavedPlanAgainstWorking(savedPlanFrom(base), base);
+    expect(none.comparedFieldCount).toBe(same.comparedFieldCount - 1);
   });
 });

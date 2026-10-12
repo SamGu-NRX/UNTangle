@@ -11,6 +11,7 @@ import { PlannerPersistencePanel } from "@/components/planner-persistence-panel"
 import { PlannerExportPanel } from "@/components/planner-export-panel";
 import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
 import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { ScheduleSectionLocks } from "@/components/schedule-section-locks";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
@@ -30,11 +31,26 @@ const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am 
 
 const SCHEDULE_LAYOUT_CSS = `
 .schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
+.lock-toggle {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0.25rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--copy);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; cursor: pointer;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
+}
+.lock-toggle[aria-pressed="true"] { background: var(--brand-900); border-color: var(--brand-700); color: #fff; }
+.lock-toggle:active { transform: scale(0.97); }
+.lock-toggle:focus-visible { outline: 2px solid var(--brand-700); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .lock-toggle[aria-pressed="false"]:hover { border-color: var(--brand-500); color: var(--ink); }
+}
 @media (max-width: 760px) {
   .schedule-layout { grid-template-columns: minmax(0, 1fr); }
   /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
   .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
-  .cal-event__meta { display: none; }
+  /* Hidden visually, kept in the accessible name the contract specifies. */
+  .cal-event__meta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 `;
 
@@ -75,7 +91,7 @@ function eventLayout(event: ScheduleEvent) {
 }
 
 export function ScheduleClient() {
-  const { plannerState, scheduleEvents, setOptimization, setSection } = usePlanner();
+  const { plannerState, scheduleEvents, setOptimization, setSection, optimizeSchedule } = usePlanner();
   const { toast } = useToast();
   const [pickerCourseCode, setPickerCourseCode] = useState<string | null>(null);
   const [pickerOrigin, setPickerOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -198,6 +214,7 @@ export function ScheduleClient() {
                       type="button"
                       className="opt-row"
                       data-active={plannerState.optimization === opt.key ? "true" : "false"}
+                      aria-pressed={plannerState.optimization === opt.key}
                       onClick={() => {
                         if (plannerState.optimization !== opt.key) {
                           setOptimization(opt.key);
@@ -217,6 +234,18 @@ export function ScheduleClient() {
                     </button>
                   ))}
                 </StaggerGroup>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginTop: 4 }}
+                  onClick={() => {
+                    optimizeSchedule();
+                    const label = optimizationOptions.find((opt) => opt.key === plannerState.optimization)?.label;
+                    toast(`Re-optimized: ${label ?? plannerState.optimization}`);
+                  }}
+                >
+                  Optimize schedule
+                </button>
               </div>
             </section>
 
@@ -241,6 +270,14 @@ export function ScheduleClient() {
                   </span>
                 ) : null}
               </div>
+              {selectedSections.length > 0 ? (
+                <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+                  <p style={{ fontSize: "0.76rem", color: "var(--copy)" }}>
+                    Locked sections stay put when you optimize.
+                  </p>
+                  <ScheduleSectionLocks />
+                </div>
+              ) : null}
             </section>
 
             <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
@@ -276,6 +313,10 @@ export function ScheduleClient() {
 
           {/* Calendar */}
           <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
+            {/* Sample label outside the events, so it never changes an event's name. */}
+            <p style={{ margin: 0, padding: "0.45rem 0.75rem", fontSize: "0.76rem", color: "var(--copy)", borderBottom: "1px solid var(--line)" }}>
+              Sample sections, times and instructors
+            </p>
             <div className="cal-grid">
               <div className="cal-head" />
               {weekDays.map((day) => (
@@ -319,13 +360,23 @@ export function ScheduleClient() {
                           }}
                           onClick={(e) => openPicker(event.courseCode, e)}
                         >
-                          <div className="cal-event__title">{event.courseCode}</div>
+                          {/* The text supplies the contract name "{COURSE} {START} – {END} {PROFESSOR}";
+                              nothing else visible goes inside, so the name contains all visible text. */}
+                          <div className="cal-event__title">
+                            {event.courseCode}
+                            {plannerState.lockedSections?.[event.courseCode] === event.sectionId ? (
+                              <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style={{ marginLeft: 4 }}>
+                                <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
+                                <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                              </svg>
+                            ) : null}
+                          </div>
                           {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
                           <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {formatTime(event.start)} – {formatTime(event.end)}
                           </div>
                           <div className="cal-event__meta" style={{ opacity: 1 }}>
-                            {event.professor} (sample)
+                            {event.professor}
                           </div>
                         </button>
                       );

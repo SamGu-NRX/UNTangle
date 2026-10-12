@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { usePlanner, useToast } from "@/components/planner-provider";
@@ -26,6 +26,7 @@ function download(content: string, fileName: string, type: string) {
 export function PlannerExportPanel() {
   const { scheduleEvents } = usePlanner();
   const { toast } = useToast();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -61,11 +62,11 @@ export function PlannerExportPanel() {
         Export
       </p>
       <div style={{ display: "grid", gap: 6 }}>
-        <Link href="/schedule/print" className="btn-secondary" style={{ textAlign: "center" }}>
-          Print week
-        </Link>
+        <button type="button" className="btn-secondary" onClick={() => router.push("/schedule/print")}>
+          Print schedule
+        </button>
         <button type="button" className="btn-secondary" onClick={() => setOpen(true)} disabled={empty}>
-          Download calendar (.ics)
+          Download .ics
         </button>
         {empty ? (
           <span style={{ fontSize: "0.78rem", color: "var(--copy)" }}>Add a class to export a calendar.</span>
@@ -110,7 +111,7 @@ export function PlannerExportPanel() {
           ) : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem" }}>
             <button type="submit" className="btn-primary">
-              Download .ics
+              Download calendar file
             </button>
             <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>
               Cancel

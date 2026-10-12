@@ -76,6 +76,9 @@ class RecorderPlanner {
   setSection(courseCode: string, sectionId: string) {
     this.record("setSection", [courseCode, sectionId]);
   }
+  setSectionLock(courseCode: string, locked: boolean) {
+    this.record("setSectionLock", [courseCode, locked]);
+  }
   actionNames(): string[] {
     return this.calls.map((call) => call.action);
   }
@@ -199,5 +202,35 @@ describe("restore adapter", () => {
 
     const differentOptimization = stateWith({ optimization: "clusterNight" });
     expect(workingStateFingerprint(state)).not.toBe(workingStateFingerprint(differentOptimization));
+  });
+});
+
+describe("restore adapter: section locks", () => {
+  it("re-locks preserved sections after selecting them, and drops a lock on a stale reference", () => {
+    const state = stateWith({
+      courseStatuses: { ...defaultPlannerState.courseStatuses, "ANTH 1010": "inProgress", "MATH 1710": "inProgress" },
+      selectedSections: { "ANTH 1010": "anth-1010-001", "MATH 1710": "math-1710-999" },
+      lockedSections: { "ANTH 1010": "anth-1010-001", "MATH 1710": "math-1710-999" },
+    });
+    const snapshot = { ...snapshotFrom(state, "Locks"), state };
+    const references = resolveSectionReferences(state);
+    const planner = new RecorderPlanner();
+    const outcome = dispatchRestore(planner as unknown as RestorePlannerApi, snapshot, references);
+
+    const names = planner.actionNames();
+    expect(names.lastIndexOf("setSectionLock")).toBeGreaterThan(names.lastIndexOf("setSection"));
+    const lockCalls = planner.calls.filter((call) => call.action === "setSectionLock");
+    expect(lockCalls.map((call) => call.args)).toEqual([["ANTH 1010", true]]);
+    expect(outcome.appliedLockCount).toBe(1);
+    expect(outcome.staleSkipped).toEqual([{ courseCode: "MATH 1710", sectionId: "math-1710-999" }]);
+  });
+
+  it("a plan saved before locks existed restores with no locks", () => {
+    const snapshot = snapshotFrom(validFixture.state, "Old plan");
+    expect("lockedSections" in validFixture.state).toBe(false);
+    const planner = new RecorderPlanner();
+    const outcome = dispatchRestore(planner as unknown as RestorePlannerApi, snapshot, resolveSavedPlanReferences(snapshot));
+    expect(outcome.appliedLockCount).toBe(0);
+    expect(planner.actionNames()).not.toContain("setSectionLock");
   });
 });

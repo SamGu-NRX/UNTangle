@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-12T03:59:01.345Z",
+  "startedAt": "2026-10-12T11:36:01.243Z",
   "base": "http://127.0.0.1:3100",
   "checks": [
     {
@@ -10,7 +10,7 @@
     {
       "name": "guest-desktop: courses marked Taking reach the schedule",
       "passed": true,
-      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | CSCE 10308"
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | CSCE 10308:00 AM – 8:50 AMBeilei Jian"
     },
     {
       "name": "guest-desktop: picked a different section by hand",
@@ -18,7 +18,17 @@
       "detail": null
     },
     {
-      "name": "guest-desktop: build/pick/optimize acknowledged as Saved",
+      "name": "guest-desktop: lock control has an accessible name and pressed state",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
+    },
+    {
+      "name": "guest-desktop: optimizing keeps the locked section",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
+    },
+    {
+      "name": "guest-desktop: build/pick/lock/optimize acknowledged as Saved",
       "passed": true,
       "detail": null
     },
@@ -26,6 +36,11 @@
       "name": "guest-desktop: rule 1 Saved survives reload",
       "passed": true,
       "detail": null
+    },
+    {
+      "name": "guest-desktop: lock survives reload",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
     },
     {
       "name": "guest-desktop: sample-data notice shown",
@@ -40,7 +55,7 @@
     {
       "name": "guest-desktop: print view lists every meeting",
       "passed": true,
-      "detail": "8 rows"
+      "detail": "9 rows"
     },
     {
       "name": "axe zero serious/critical: guest-desktop print view",
@@ -70,7 +85,7 @@
     {
       "name": "guest-desktop: .ics events match the plan",
       "passed": true,
-      "detail": "8 events"
+      "detail": "9 events"
     },
     {
       "name": "guest-desktop: .ics repeats weekly until the entered last day",
@@ -85,7 +100,7 @@
     {
       "name": "guest-mobile: courses marked Taking reach the schedule",
       "passed": true,
-      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | CSCE 10308"
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | CSCE 10308:00 AM – 8:50 AMBeilei Jian"
     },
     {
       "name": "guest-mobile: picked a different section by hand",
@@ -93,7 +108,17 @@
       "detail": null
     },
     {
-      "name": "guest-mobile: build/pick/optimize acknowledged as Saved",
+      "name": "guest-mobile: lock control has an accessible name and pressed state",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
+    },
+    {
+      "name": "guest-mobile: optimizing keeps the locked section",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
+    },
+    {
+      "name": "guest-mobile: build/pick/lock/optimize acknowledged as Saved",
       "passed": true,
       "detail": null
     },
@@ -101,6 +126,11 @@
       "name": "guest-mobile: rule 1 Saved survives reload",
       "passed": true,
       "detail": null
+    },
+    {
+      "name": "guest-mobile: lock survives reload",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
     },
     {
       "name": "guest-mobile: sample-data notice shown",
@@ -120,7 +150,7 @@
     {
       "name": "guest-mobile: print view lists every meeting",
       "passed": true,
-      "detail": "8 rows"
+      "detail": "9 rows"
     },
     {
       "name": "axe zero serious/critical: guest-mobile print view",
@@ -150,7 +180,7 @@
     {
       "name": "guest-mobile: .ics events match the plan",
       "passed": true,
-      "detail": "8 events"
+      "detail": "9 events"
     },
     {
       "name": "guest-mobile: .ics repeats weekly until the entered last day",
@@ -315,7 +345,7 @@
     {
       "name": "registered-desktop: courses marked Taking reach the schedule",
       "passed": true,
-      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | CSCE 10308"
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | CSCE 10308:00 AM – 8:50 AMBeilei Jian"
     },
     {
       "name": "registered-desktop: saved to Postgres",
@@ -328,6 +358,11 @@
       "detail": "3|compact"
     },
     {
+      "name": "registered-desktop: lock stored in Postgres",
+      "passed": true,
+      "detail": "anth-1010-001"
+    },
+    {
       "name": "axe zero serious/critical: registered-desktop schedule",
       "passed": true,
       "detail": null
@@ -338,9 +373,19 @@
       "detail": null
     },
     {
+      "name": "registered-desktop: lock survives reload",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
+    },
+    {
       "name": "registered-desktop: rule 1 Saved survives sign-out and sign-in",
       "passed": true,
       "detail": null
+    },
+    {
+      "name": "registered-desktop: lock survives sign-out and sign-in",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 001"
     },
     {
       "name": "registered-desktop: rule 2 500 is never Saved",
@@ -426,6 +471,126 @@
       "name": "axe zero serious/critical: registered-mobile schedule",
       "passed": true,
       "detail": null
+    },
+    {
+      "name": "registered-mobile: password sign-up created the account",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: no stored plan yet says Not saved yet",
+      "passed": true,
+      "detail": "Not saved yet"
+    },
+    {
+      "name": "registered-mobile: courses marked Taking reach the schedule",
+      "passed": true,
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | ANTH 101012:00 PM – 12:50 PMKelsey Lee | CSCE 10308:00 AM – 8:50 AMBeilei Jian"
+    },
+    {
+      "name": "registered-mobile: no horizontal overflow",
+      "passed": true,
+      "detail": "scrollWidth=390"
+    },
+    {
+      "name": "registered-mobile: lock control has an accessible name and pressed state",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 003"
+    },
+    {
+      "name": "registered-mobile: optimizing keeps the locked section",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 003"
+    },
+    {
+      "name": "registered-mobile: saved to Postgres",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: plan and lock stored in Postgres",
+      "passed": true,
+      "detail": "clusterNight|anth-1010-003"
+    },
+    {
+      "name": "axe zero serious/critical: registered-mobile schedule",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: Saved, plan and lock survive reload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "sign-signIn rate limit is shown to the user (429)",
+      "passed": true,
+      "detail": "UNTangle Sign in with your UNT email. Use a one-time link to create or open your planner account. UNT EMAIL @unt.edu and @my.unt.edu addresses are accepted. Too"
+    },
+    {
+      "name": "registered-mobile: Saved, plan and lock survive sign-out and sign-in",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: registered-mobile plans",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: schedule changed before restore",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: restore preview lists the lock",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: registered-mobile restore preview",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: restore brings back the locked section",
+      "passed": true,
+      "detail": "Lock ANTH 1010 section 003"
+    },
+    {
+      "name": "registered-mobile: restored plan saved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: restored lock stored in Postgres",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: print view lists every meeting",
+      "passed": true,
+      "detail": "9 rows"
+    },
+    {
+      "name": "axe zero serious/critical: registered-mobile print view",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: registered-mobile .ics dialog",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: .ics parses",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: .ics has one event per meeting",
+      "passed": true,
+      "detail": "9 events"
     }
   ],
   "axe": [
@@ -472,8 +637,31 @@
     {
       "label": "registered-mobile schedule",
       "violations": []
+    },
+    {
+      "label": "registered-mobile schedule",
+      "violations": []
+    },
+    {
+      "label": "registered-mobile plans",
+      "violations": []
+    },
+    {
+      "label": "registered-mobile restore preview",
+      "violations": []
+    },
+    {
+      "label": "registered-mobile print view",
+      "violations": []
+    },
+    {
+      "label": "registered-mobile .ics dialog",
+      "violations": []
     }
   ],
-  "notes": [],
-  "finishedAt": "2026-10-12T03:59:55.829Z"
+  "notes": [
+    "guest-desktop: lock toggles before optimize [{\"name\":\"Lock ANTH 1010 section 001\",\"pressed\":\"true\"},{\"name\":\"Lock CSCE 1030 section 005\",\"pressed\":\"false\"},{\"name\":\"Lock MATH 1710 section 010\",\"pressed\":\"false\"}] after [{\"name\":\"Lock ANTH 1010 section 001\",\"pressed\":\"true\"},{\"name\":\"Lock CSCE 1030 section 006\",\"pressed\":\"false\"},{\"name\":\"Lock MATH 1710 section 004\",\"pressed\":\"false\"}]",
+    "guest-mobile: lock toggles before optimize [{\"name\":\"Lock ANTH 1010 section 001\",\"pressed\":\"true\"},{\"name\":\"Lock CSCE 1030 section 005\",\"pressed\":\"false\"},{\"name\":\"Lock MATH 1710 section 010\",\"pressed\":\"false\"}] after [{\"name\":\"Lock ANTH 1010 section 001\",\"pressed\":\"true\"},{\"name\":\"Lock CSCE 1030 section 006\",\"pressed\":\"false\"},{\"name\":\"Lock MATH 1710 section 004\",\"pressed\":\"false\"}]"
+  ],
+  "finishedAt": "2026-10-12T11:37:23.213Z"
 }
