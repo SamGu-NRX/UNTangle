@@ -206,12 +206,25 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             lastPersistedFingerprint.current = workingStateFingerprint(stateRef.current);
           }
           if (!mutatedBeforeBootstrap.current) {
-            setSaveState({
-              status: "saved",
-              label: SAVE_LABELS.saved,
-              detail: null,
-              reason: null,
-            });
+            if (loaded.persistent) {
+              // The server confirmed a persisted row for this user's plan.
+              setSaveState({
+                status: "saved",
+                label: SAVE_LABELS.saved,
+                detail: null,
+                reason: null,
+              });
+            } else {
+              // Reachable server but non-persistent storage: the plan is NOT
+              // durably saved. Say so honestly instead of claiming Saved.
+              setSaveState({
+                status: "not-saved",
+                label: SAVE_LABELS["not-saved"],
+                detail:
+                  "Server storage is not persisting schedules right now; your plan stays in this browser until that changes.",
+                reason: "storage",
+              });
+            }
           }
         } else {
           setServerPersistent(false);
