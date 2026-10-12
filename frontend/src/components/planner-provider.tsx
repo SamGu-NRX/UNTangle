@@ -457,7 +457,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-      // Keep my edits: write on top of the newest stored revision.
+      // Keep my edits: rebase onto the newest stored revision first, so the
+      // write lands on top of it instead of being refused as another conflict.
+      baseRevision.current = current.theirsRevision;
       persistGuest(current.mine);
     },
     [conflict, persistGuest],
