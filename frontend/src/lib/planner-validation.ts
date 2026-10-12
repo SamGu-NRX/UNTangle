@@ -82,6 +82,15 @@ export function validatePlannerStatePayload(
     return { ok: false, reason: "transcriptRecords must be an array." };
   }
 
+  // Optional: plans saved before section locks existed have no field.
+  const lockedSections = body.lockedSections;
+  if (
+    lockedSections !== undefined &&
+    (!isRecord(lockedSections) || Object.values(lockedSections).some((sectionId) => typeof sectionId !== "string"))
+  ) {
+    return { ok: false, reason: "lockedSections must map course codes to section id strings when present." };
+  }
+
   if (body.updatedAt !== undefined && typeof body.updatedAt !== "string") {
     return { ok: false, reason: "updatedAt must be a string when present." };
   }

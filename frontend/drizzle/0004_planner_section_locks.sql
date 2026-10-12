@@ -1,0 +1,1 @@
+ALTER TABLE "planner_state" ADD COLUMN "locked_sections" jsonb DEFAULT '{}'::jsonb NOT NULL;

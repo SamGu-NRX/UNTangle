@@ -43,6 +43,7 @@ export type RestorePlannerApi = {
   applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
   setSection: (courseCode: string, sectionId: string) => void;
+  setSectionLock: (courseCode: string, locked: boolean) => void;
   plannerState: PlannerState;
 };
 
@@ -51,6 +52,8 @@ export type RestoreOutcome = {
   appliedStatusCount: number;
   /** Exact section selections dispatched (preserved references only). */
   appliedSectionCount: number;
+  /** Locks re-applied: preserved sections the plan had locked. */
+  appliedLockCount: number;
   mergedTranscriptRecordCount: number;
   staleSkipped: Array<{ courseCode: string; sectionId: string }>;
   inactiveSkipped: Array<{ courseCode: string; sectionId: string }>;
@@ -165,9 +168,20 @@ export function dispatchRestore(
     if (finding.status === "unknownCourse") unknownSkipped.push(skipped);
   });
 
+  // Locks go last, on the exact sections just restored. A lock on a stale
+  // reference is dropped along with the reference.
+  let appliedLockCount = 0;
+  references.findings.forEach((finding) => {
+    if (finding.status === "preserved" && planState.lockedSections?.[finding.courseCode] === finding.sectionId) {
+      planner.setSectionLock(finding.courseCode, true);
+      appliedLockCount += 1;
+    }
+  });
+
   return {
     appliedStatusCount,
     appliedSectionCount,
+    appliedLockCount,
     mergedTranscriptRecordCount: planState.transcriptRecords.length,
     staleSkipped,
     inactiveSkipped,
@@ -230,7 +244,12 @@ export function simulateRestoredState(
     };
   });
 
-  return normalizePlannerState(state);
+  const lockedSections = Object.fromEntries(
+    references.preserved
+      .filter((finding) => planState.lockedSections?.[finding.courseCode] === finding.sectionId)
+      .map((finding) => [finding.courseCode, finding.sectionId]),
+  );
+  return normalizePlannerState({ ...state, lockedSections });
 }
 
 /** Human-readable dispatch plan for the confirmation preview. */
@@ -284,6 +303,12 @@ export function describeRestoreSteps(
     steps.push(`Select the exact saved sections: ${selections}`);
   } else {
     steps.push("Select no exact sections (none of the saved selections survive in the current catalog)");
+  }
+  const locks = references.preserved.filter(
+    (finding) => snapshot.state.lockedSections?.[finding.courseCode] === finding.sectionId,
+  );
+  if (locks.length > 0) {
+    steps.push(`Lock ${locks.map((finding) => `${finding.courseCode} section ${finding.sectionId}`).join(", ")}`);
   }
   return steps;
 }
@@ -351,6 +376,7 @@ export function workingStateFingerprint(state: PlannerState): string {
       activeDay: state.activeDay,
       selectedMajor: state.selectedMajor,
       transcriptRecords: state.transcriptRecords,
+      lockedSections: state.lockedSections ?? {},
     }),
   );
 }

@@ -11,6 +11,7 @@ import { PlannerPersistencePanel } from "@/components/planner-persistence-panel"
 import { PlannerExportPanel } from "@/components/planner-export-panel";
 import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
 import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { ScheduleSectionLocks } from "@/components/schedule-section-locks";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
@@ -30,6 +31,19 @@ const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am 
 
 const SCHEDULE_LAYOUT_CSS = `
 .schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
+.lock-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0.25rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--copy);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; cursor: pointer;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
+}
+.lock-toggle[aria-pressed="true"] { background: var(--brand-900); border-color: var(--brand-700); color: #fff; }
+.lock-toggle:active { transform: scale(0.97); }
+.lock-toggle:focus-visible { outline: 2px solid var(--brand-700); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .lock-toggle[aria-pressed="false"]:hover { border-color: var(--brand-500); color: var(--ink); }
+}
 @media (max-width: 760px) {
   .schedule-layout { grid-template-columns: minmax(0, 1fr); }
   /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
@@ -75,7 +89,7 @@ function eventLayout(event: ScheduleEvent) {
 }
 
 export function ScheduleClient() {
-  const { plannerState, scheduleEvents, setOptimization, setSection } = usePlanner();
+  const { plannerState, scheduleEvents, setOptimization, setSection, optimizeSchedule } = usePlanner();
   const { toast } = useToast();
   const [pickerCourseCode, setPickerCourseCode] = useState<string | null>(null);
   const [pickerOrigin, setPickerOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -198,6 +212,7 @@ export function ScheduleClient() {
                       type="button"
                       className="opt-row"
                       data-active={plannerState.optimization === opt.key ? "true" : "false"}
+                      aria-pressed={plannerState.optimization === opt.key}
                       onClick={() => {
                         if (plannerState.optimization !== opt.key) {
                           setOptimization(opt.key);
@@ -217,6 +232,18 @@ export function ScheduleClient() {
                     </button>
                   ))}
                 </StaggerGroup>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginTop: 4 }}
+                  onClick={() => {
+                    optimizeSchedule();
+                    const label = optimizationOptions.find((opt) => opt.key === plannerState.optimization)?.label;
+                    toast(`Re-optimized: ${label ?? plannerState.optimization}`);
+                  }}
+                >
+                  Optimize schedule
+                </button>
               </div>
             </section>
 
@@ -241,6 +268,14 @@ export function ScheduleClient() {
                   </span>
                 ) : null}
               </div>
+              {selectedSections.length > 0 ? (
+                <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+                  <p style={{ fontSize: "0.76rem", color: "var(--copy)" }}>
+                    Locked sections stay put when you optimize.
+                  </p>
+                  <ScheduleSectionLocks />
+                </div>
+              ) : null}
             </section>
 
             <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
@@ -318,8 +353,16 @@ export function ScheduleClient() {
                             height: layout.height,
                           }}
                           onClick={(e) => openPicker(event.courseCode, e)}
+                          // Contract name: "{COURSE} {START} – {END} {PROFESSOR}". The visible
+                          // "(sample)" tag and hidden meta lines on phones must not change it.
+                          aria-label={`${event.courseCode} ${formatTime(event.start)} – ${formatTime(event.end)} ${event.professor}`}
                         >
-                          <div className="cal-event__title">{event.courseCode}</div>
+                          <div className="cal-event__title">
+                            {event.courseCode}
+                            {plannerState.lockedSections?.[event.courseCode] === event.sectionId ? (
+                              <span style={{ marginLeft: 4, fontSize: 10 }} aria-hidden="true">· locked</span>
+                            ) : null}
+                          </div>
                           {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
                           <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {formatTime(event.start)} – {formatTime(event.end)}

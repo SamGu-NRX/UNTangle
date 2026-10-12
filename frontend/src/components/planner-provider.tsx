@@ -15,6 +15,7 @@ import {
   buildScheduleEvents,
   getActiveCourseCodes,
   getInitialPlannerState,
+  getLockedSelections,
   isCourseLocked,
   mergeTranscriptRecords,
   normalizePlannerState,
@@ -110,6 +111,10 @@ type PlannerContextValue = {
   applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setOptimization: (optimization: OptimizationKey) => void;
   setSection: (courseCode: string, sectionId: string) => void;
+  /** Pin (or release) the section currently selected for a course. */
+  setSectionLock: (courseCode: string, locked: boolean) => void;
+  /** Re-run the optimizer for the current goal; locked sections stay fixed. */
+  optimizeSchedule: () => void;
   setActiveDay: (day: WeekDay) => void;
   setSelectedMajor: (id: MajorId | null) => void;
   resetPlanner: () => void;
@@ -887,9 +892,48 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         setPlannerState((current) => ({
           ...current,
           optimization,
-          selectedSections: recommendSections(optimization, getActiveCourseCodes(current)),
+          selectedSections: recommendSections(optimization, getActiveCourseCodes(current), getLockedSelections(normalizePlannerState(current))),
           updatedAt: new Date().toISOString(),
         }));
+      },
+      optimizeSchedule: () => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => ({
+          ...current,
+          selectedSections: recommendSections(
+            current.optimization,
+            getActiveCourseCodes(current),
+            getLockedSelections(normalizePlannerState(current)),
+          ),
+          updatedAt: new Date().toISOString(),
+        }));
+      },
+      setSectionLock: (courseCode, locked) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => {
+          const normalizedCurrent = normalizePlannerState(current);
+          const sectionId = normalizedCurrent.selectedSections[courseCode];
+          const lockedSections = { ...(normalizedCurrent.lockedSections ?? {}) };
+          if (locked) {
+            if (!sectionId) {
+              // The lock control only renders for scheduled sections.
+              return current;
+            }
+            lockedSections[courseCode] = sectionId;
+          } else {
+            delete lockedSections[courseCode];
+          }
+          return {
+            ...current,
+            selectedSections: normalizedCurrent.selectedSections,
+            lockedSections,
+            updatedAt: new Date().toISOString(),
+          };
+        });
       },
       setSection: (courseCode, sectionId) => {
         if (!hydrated) {
@@ -901,6 +945,12 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             ...current.selectedSections,
             [courseCode]: sectionId,
           },
+          // Picking a section by hand for a locked course moves the lock with
+          // it: the user's explicit choice is what stays pinned.
+          lockedSections:
+            current.lockedSections?.[courseCode] !== undefined
+              ? { ...current.lockedSections, [courseCode]: sectionId }
+              : current.lockedSections,
           updatedAt: new Date().toISOString(),
         }));
       },

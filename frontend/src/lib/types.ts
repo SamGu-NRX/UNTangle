@@ -193,6 +193,13 @@ export type PlannerState = {
   selectedMajor: MajorId | null;
   transcriptRecords: TranscriptCourseRecord[];
   updatedAt: string;
+  /**
+   * Sections the user pinned: course code -> section id. Optimizing passes
+   * these as fixed selections, so it never changes them. Optional so plans
+   * saved before locks existed still load; normalizePlannerState always sets
+   * it (missing becomes no locks).
+   */
+  lockedSections?: Record<string, string>;
 };
 
 export type PlannerApiPayload = PlannerState & {
