@@ -58,8 +58,11 @@ change here.
 
 ## Metric definitions
 
-- **violations** — max count of `runChecker(req, result)` violations across
-  repeats. 0 is the bar; anything else is a variant bug or a contract bug.
+- **violations** — MAX count of `runChecker(req, result)` violations over the
+  repeats that ran, with per-repeat values in `repeatViolations`. A single
+  invalid repeat flags the instance even when later repeats are clean —
+  nothing is silently replaced. `iisValid` is false if ANY repeat's IIS is
+  absent or invalid.
 - **optimality gap** — variant best cost − brute-force best cost, on
   enumerable instances where both return at least one schedule. On infeasible
   instances it is `-` (use top-k and IIS validity instead).
@@ -76,6 +79,24 @@ change here.
   candidate construction, search = solving. The runner also measures wall
   time around the whole call. p50/p95 use the nearest-rank method over the
   `--repeat` runs (per instance) or all repeats pooled (per size class).
+
+## Error classification
+
+Variants that cannot run a non-enumerable instance (exhaustive search)
+MUST refuse by throwing `NonEnumerableRefusal` (exported from
+`../brute-force`, carrying `productSize`). The runner classifies
+exceptions STRUCTURALLY via `instanceof` — never by matching messages:
+
+- `NonEnumerableRefusal` on a non-enumerable instance → skip, with the
+  reason (and product size) recorded in `skipReason`.
+- Anything else — including `NonEnumerableRefusal` on an ENUMERABLE
+  instance — is a variant ERROR: recorded per instance (`errorClass`,
+  `errorMessage`) and in the run-level `errorInstances`; the runner prints
+  the failures to stderr, still writes the JSON (errors must appear in
+  committed results, never vanish), and exits non-zero.
+
+Every repeat is checked; `repeatViolations` / `repeatIIsValid` keep the
+per-repeat evidence in the JSON.
 
 ## Enumerable bound
 

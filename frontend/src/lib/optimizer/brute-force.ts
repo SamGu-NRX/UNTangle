@@ -24,6 +24,24 @@ import { findIis } from "./iis-reference";
 const ENUMERABLE_PRODUCT_BOUND = 1_000_000;
 
 /**
+ * Typed refusal for instances whose candidate-product exceeds the
+ * enumeration bound (see ENUMERABLE_PRODUCT_BOUND). Consumers — the bench
+ * runner and any exhaustive variant — classify this error STRUCTURALLY via
+ * instanceof; matching on the message string is forbidden.
+ */
+export class NonEnumerableRefusal extends Error {
+  readonly productSize: number;
+
+  constructor(productSize: number) {
+    super(
+      `optimizer: candidate-product ${productSize} exceeds the ${ENUMERABLE_PRODUCT_BOUND} enumeration bound — instance is not brute-forceable`,
+    );
+    this.name = "NonEnumerableRefusal";
+    this.productSize = productSize;
+  }
+}
+
+/**
  * Build the per-course candidate lists for enumeration: pool sections of
  * requested courses, minus exclusions; a course with a valid locked pool
  * section collapses to just that section (the lock must be chosen).
@@ -101,10 +119,7 @@ function throwIfNotEnumerable(req: OptimizeRequest): { courseCode: string; secti
   for (const list of lists) {
     product *= list.sections.length;
     if (product > ENUMERABLE_PRODUCT_BOUND) {
-      throw new Error(
-        `brute force: the cartesian product of per-course candidate counts is ${product}, ` +
-          `above the enumerability bound ${ENUMERABLE_PRODUCT_BOUND}. Use a heuristic variant for this instance.`,
-      );
+      throw new NonEnumerableRefusal(product);
     }
   }
   return lists;
