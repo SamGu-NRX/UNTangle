@@ -1,0 +1,479 @@
+{
+  "startedAt": "2026-10-12T03:59:01.345Z",
+  "base": "http://127.0.0.1:3100",
+  "checks": [
+    {
+      "name": "guest-desktop: fresh planner says Not saved yet",
+      "passed": true,
+      "detail": "Not saved yet"
+    },
+    {
+      "name": "guest-desktop: courses marked Taking reach the schedule",
+      "passed": true,
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | CSCE 10308"
+    },
+    {
+      "name": "guest-desktop: picked a different section by hand",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: build/pick/optimize acknowledged as Saved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 1 Saved survives reload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: sample-data notice shown",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: guest-desktop schedule",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: print view lists every meeting",
+      "passed": true,
+      "detail": "8 rows"
+    },
+    {
+      "name": "axe zero serious/critical: guest-desktop print view",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: print media hides controls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: .ics refuses to guess term dates",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: guest-desktop .ics dialog",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: .ics parses (CRLF, folding, nesting)",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: .ics events match the plan",
+      "passed": true,
+      "detail": "8 events"
+    },
+    {
+      "name": "guest-desktop: .ics repeats weekly until the entered last day",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: fresh planner says Not saved yet",
+      "passed": true,
+      "detail": "Not saved yet"
+    },
+    {
+      "name": "guest-mobile: courses marked Taking reach the schedule",
+      "passed": true,
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | CSCE 10308"
+    },
+    {
+      "name": "guest-mobile: picked a different section by hand",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: build/pick/optimize acknowledged as Saved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: rule 1 Saved survives reload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: sample-data notice shown",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: no horizontal overflow",
+      "passed": true,
+      "detail": "scrollWidth=390"
+    },
+    {
+      "name": "axe zero serious/critical: guest-mobile schedule",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: print view lists every meeting",
+      "passed": true,
+      "detail": "8 rows"
+    },
+    {
+      "name": "axe zero serious/critical: guest-mobile print view",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: print media hides controls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: .ics refuses to guess term dates",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: guest-mobile .ics dialog",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: .ics parses (CRLF, folding, nesting)",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: .ics events match the plan",
+      "passed": true,
+      "detail": "8 events"
+    },
+    {
+      "name": "guest-mobile: .ics repeats weekly until the entered last day",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 3 storage denied shows a persistent Not saved",
+      "passed": true,
+      "detail": "Not saved…"
+    },
+    {
+      "name": "guest-desktop: rule 3 edits stay in memory",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 3 export offered",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 3 export downloads a file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 4 corrupt bytes quarantined intact",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 4 notice never claims recovery",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 4 not shown as Saved",
+      "passed": true,
+      "detail": "Not saved yet"
+    },
+    {
+      "name": "guest-desktop: rule 5 clean tab adopts newer data",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 5 clean tab says so",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 5 dirty tab sees both versions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 5 dialog shows this tab and the newer version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: dialog focus moves into the dialog",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: dialog focus stays trapped on Tab",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: Escape does not silently pick a side",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: guest-desktop conflict dialog",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: rule 5 tabs agree after choosing",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: stale-section warning appears before the restore steps",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: warning names the stale section",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: guest-desktop restore preview",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: restore reports the skipped reference",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: stale-section warning appears before the restore steps",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: warning names the stale section",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: guest-mobile restore preview",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-mobile: restore reports the skipped reference",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: keyboard reaches the .ics export",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: keyboard-opened dialog takes focus",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: reduced motion collapses the dialog animation",
+      "passed": true,
+      "detail": "1e-05s"
+    },
+    {
+      "name": "guest-desktop: keyboard-only .ics download",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "guest-desktop: focus returns to the opener after the dialog closes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: password sign-up created the account",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: no stored plan yet says Not saved yet",
+      "passed": true,
+      "detail": "Not saved yet"
+    },
+    {
+      "name": "registered-desktop: courses marked Taking reach the schedule",
+      "passed": true,
+      "detail": "ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | ANTH 101012:00 PM – 12:50 PMKelsey Lee (sample) | CSCE 10308"
+    },
+    {
+      "name": "registered-desktop: saved to Postgres",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: row exists with a revision",
+      "passed": true,
+      "detail": "3|compact"
+    },
+    {
+      "name": "axe zero serious/critical: registered-desktop schedule",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 1 Saved survives reload",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 1 Saved survives sign-out and sign-in",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 2 500 is never Saved",
+      "passed": true,
+      "detail": "Saving failed…"
+    },
+    {
+      "name": "registered-desktop: rule 2 500 retry saves",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 2 drop is never Saved",
+      "passed": true,
+      "detail": "Saving failed…"
+    },
+    {
+      "name": "registered-desktop: rule 2 drop retry saves",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: expired session shows Not saved: signed out",
+      "passed": true,
+      "detail": "Not saved: signed out"
+    },
+    {
+      "name": "registered-desktop: expired session wrote nothing",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: expired session keeps the edit in the local mirror",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: after signing in again the pending edit is saved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: the saved row has the edit",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 5 clean tab adopts the newer server revision",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 5 clean tab says so",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: rule 5 registered conflict shows both versions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: keeping my edits saves on top of the newer revision",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-desktop: server row has my edit",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: stored plan loads as Saved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "registered-mobile: no horizontal overflow",
+      "passed": true,
+      "detail": "scrollWidth=390"
+    },
+    {
+      "name": "axe zero serious/critical: registered-mobile schedule",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "axe": [
+    {
+      "label": "guest-desktop schedule",
+      "violations": []
+    },
+    {
+      "label": "guest-desktop print view",
+      "violations": []
+    },
+    {
+      "label": "guest-desktop .ics dialog",
+      "violations": []
+    },
+    {
+      "label": "guest-mobile schedule",
+      "violations": []
+    },
+    {
+      "label": "guest-mobile print view",
+      "violations": []
+    },
+    {
+      "label": "guest-mobile .ics dialog",
+      "violations": []
+    },
+    {
+      "label": "guest-desktop conflict dialog",
+      "violations": []
+    },
+    {
+      "label": "guest-desktop restore preview",
+      "violations": []
+    },
+    {
+      "label": "guest-mobile restore preview",
+      "violations": []
+    },
+    {
+      "label": "registered-desktop schedule",
+      "violations": []
+    },
+    {
+      "label": "registered-mobile schedule",
+      "violations": []
+    }
+  ],
+  "notes": [],
+  "finishedAt": "2026-10-12T03:59:55.829Z"
+}

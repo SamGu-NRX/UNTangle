@@ -7,6 +7,10 @@ import { ConflictBanner } from "@/components/ui/ConflictBanner";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { usePlanner, useToast } from "@/components/planner-provider";
+import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
+import { PlannerExportPanel } from "@/components/planner-export-panel";
+import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
+import { summarizeWeeklyWalking } from "@/lib/planner-walking";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
@@ -24,11 +28,21 @@ import type { OptimizationKey, ScheduleEvent } from "@/lib/types";
 
 const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am - 7pm)
 
+const SCHEDULE_LAYOUT_CSS = `
+.schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
+@media (max-width: 760px) {
+  .schedule-layout { grid-template-columns: minmax(0, 1fr); }
+  /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
+  .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
+  .cal-event__meta { display: none; }
+}
+`;
+
 const optimizationOptions: { key: OptimizationKey; label: string; copy: string }[] = [
   { key: "clusterMorning", label: "Cluster mornings", copy: "Bias toward earlier starts." },
   { key: "clusterNight", label: "Cluster nights", copy: "Push classes later in the day." },
   { key: "compact", label: "Compact days", copy: "Reduce idle time between classes." },
-  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce cross-campus movement." },
+  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce estimated walking between classes." },
   { key: "maximizeProfessor", label: "Strong professors", copy: "Favor higher-rated instructors." },
 ];
 
@@ -105,6 +119,8 @@ export function ScheduleClient() {
     return formatTime(scheduleEvents.map((e) => e.start).sort()[0]);
   }, [scheduleEvents]);
 
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents), [scheduleEvents]);
+
   const latestEnd = useMemo(() => {
     if (scheduleEvents.length === 0) return "—";
     return formatTime(scheduleEvents.map((e) => e.end).sort().reverse()[0]);
@@ -148,6 +164,8 @@ export function ScheduleClient() {
           </h1>
         </header>
 
+        <PlannerSampleNotice />
+
         {conflicts.length > 0 ? (
           <ConflictBanner>
             Time conflict detected: {conflicts.join(" · ")}. Click an event to swap sections.
@@ -161,7 +179,11 @@ export function ScheduleClient() {
           </ConflictBanner>
         ) : null}
 
-        <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 260px) minmax(0, 1fr)" }}>
+        <PlannerPersistencePanel />
+
+        {/* Two columns squeezed the calendar to ~70px at 390px wide; stack below 760px. */}
+        <style>{SCHEDULE_LAYOUT_CSS}</style>
+        <div className="schedule-layout">
           {/* Sidebar */}
           <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
             <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
@@ -238,11 +260,22 @@ export function ScheduleClient() {
                 <Metric label="Earliest" value={earliestStart} />
                 <Metric label="Latest" value={latestEnd} />
               </div>
+              <div style={{ marginTop: 10 }}>
+                <Metric label="Walking / week (estimated)" value={`${Math.round(walking.knownSeconds / 60)} min`} />
+                <p style={{ fontSize: "0.74rem", color: "var(--copy)", marginTop: 2 }}>
+                  {walking.estimated ? "Estimated from straight-line distance between buildings." : "Estimated."}
+                  {walking.unknownLegs > 0
+                    ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? "" : "s"} could not be estimated (unknown building) and ${walking.unknownLegs === 1 ? "is" : "are"} not included.`
+                    : ""}
+                </p>
+              </div>
             </section>
+
+            <PlannerExportPanel />
           </aside>
 
           {/* Calendar */}
-          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }}>
+          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
             <div className="cal-grid">
               <div className="cal-head" />
               {weekDays.map((day) => (
@@ -287,11 +320,12 @@ export function ScheduleClient() {
                           onClick={(e) => openPicker(event.courseCode, e)}
                         >
                           <div className="cal-event__title">{event.courseCode}</div>
-                          <div className="cal-event__meta">
+                          {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
+                          <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {formatTime(event.start)} – {formatTime(event.end)}
                           </div>
-                          <div className="cal-event__meta" style={{ opacity: 0.7 }}>
-                            {event.professor}
+                          <div className="cal-event__meta" style={{ opacity: 1 }}>
+                            {event.professor} (sample)
                           </div>
                         </button>
                       );
@@ -309,7 +343,10 @@ export function ScheduleClient() {
         origin={pickerOrigin}
         title={
           <div>
-            <p className="editorial-label">Swap section</p>
+            <p className="editorial-label">
+              Swap section
+              <SampleTag />
+            </p>
             <h2
               className="font-display"
               style={{

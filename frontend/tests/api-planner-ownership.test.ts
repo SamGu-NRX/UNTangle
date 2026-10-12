@@ -7,7 +7,7 @@ import { getInitialPlannerState } from "@/lib/planner";
 
 type SessionFn = () => Promise<{ user: { id: string } } | null>;
 type LoadFn = (userId: string) => Promise<unknown>;
-type SaveFn = (userId: string, state: unknown) => Promise<unknown>;
+type SaveFn = (userId: string, state: unknown, baseRevision: number) => Promise<unknown>;
 
 const getServerSession = mock<SessionFn>(async () => null);
 const loadPlannerState = mock<LoadFn>(async () => null);
@@ -22,7 +22,7 @@ let POST: (request: Request) => Promise<Response>;
 function postRequest(body: unknown) {
   return new Request("http://localhost:3000/api/planner", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "X-Planner-Base-Revision": "0" },
     body: JSON.stringify(body),
   });
 }
@@ -35,7 +35,7 @@ beforeEach(() => {
   getServerSession.mockClear();
   loadPlannerState.mockClear();
   savePlannerState.mockClear();
-  savePlannerState.mockImplementation(async (_userId, state) => state);
+  savePlannerState.mockImplementation(async (_userId, state) => ({ kind: "saved", state, revision: 1 }));
 });
 
 describe("GET /api/planner ownership", () => {

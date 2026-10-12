@@ -4,7 +4,7 @@ import { getInitialPlannerState } from "@/lib/planner";
 
 type SessionFn = () => Promise<{ user: { id: string } } | null>;
 type LoadFn = (userId: string) => Promise<unknown>;
-type SaveFn = (userId: string, state: unknown) => Promise<unknown>;
+type SaveFn = (userId: string, state: unknown, baseRevision: number) => Promise<unknown>;
 
 const getServerSession = mock<SessionFn>(async () => null);
 const loadPlannerState = mock<LoadFn>(async () => null);
@@ -12,6 +12,7 @@ const savePlannerState = mock<SaveFn>(async () => null);
 
 mock.module("@/lib/auth-server", () => ({ getServerSession }));
 mock.module("@/lib/persistence", () => ({ loadPlannerState, savePlannerState }));
+mock.module("@/lib/db", () => ({ db: {}, hasDatabaseUrl: true }));
 
 let GET: typeof import("@/app/api/planner/route").GET;
 let POST: typeof import("@/app/api/planner/route").POST;
@@ -19,7 +20,7 @@ let POST: typeof import("@/app/api/planner/route").POST;
 function postRequest(body: unknown) {
   return new Request("http://localhost:3000/api/planner", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "X-Planner-Base-Revision": "0" },
     body: JSON.stringify(body),
   });
 }
@@ -45,10 +46,20 @@ describe("GET /api/planner", () => {
   test("returns the persisted state for an authenticated user", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     const stored = getInitialPlannerState();
-    loadPlannerState.mockImplementation(async () => stored);
+    loadPlannerState.mockImplementation(async () => ({ state: stored, revision: 4 }));
     const response = await GET();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ state: stored });
+    // `persistent: true` tells the client this deployment stores rows, so the
+    // UI may acknowledge a save as durable. The revision is what the next
+    // save must name as its base.
+    expect(await response.json()).toEqual({ state: stored, revision: 4, persistent: true });
+  });
+
+  test("an account with no stored plan answers revision 0", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    loadPlannerState.mockImplementation(async () => null);
+    const response = await GET();
+    expect(await response.json()).toEqual({ state: null, revision: 0, persistent: true });
   });
 
   test("propagates persistence failures as 500", async () => {
@@ -116,7 +127,7 @@ describe("POST /api/planner", () => {
     let saved: unknown = null;
     savePlannerState.mockImplementation(async (_userId, state) => {
       saved = state;
-      return state;
+      return { kind: "saved", state, revision: 1 };
     });
 
     const payload = {
@@ -129,11 +140,64 @@ describe("POST /api/planner", () => {
     const savedState = saved as ReturnType<typeof getInitialPlannerState>;
     expect(savedState.courseStatuses[courses[0].code]).toBe("inProgress");
     expect(savedState.updatedAt).toEqual(base.updatedAt);
+    expect(await response.json()).toMatchObject({ revision: 1, persistent: true });
+  });
+
+  test("passes the client's base revision to persistence", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    savePlannerState.mockImplementation(async (_userId, state) => ({ kind: "saved", state, revision: 8 }));
+    const request = new Request("http://localhost/api/planner", {
+      method: "POST",
+      headers: { "X-Planner-Base-Revision": "7" },
+      body: JSON.stringify(getInitialPlannerState()),
+    });
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    expect(savePlannerState.mock.calls[0]?.[2]).toBe(7);
+  });
+
+  test("refuses a save without a base revision (428), so nothing can be overwritten blind", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    for (const header of [null, "", "-1", "abc", "1.5"]) {
+      const headers: Record<string, string> = {};
+      if (header !== null) headers["X-Planner-Base-Revision"] = header;
+      const response = await POST(
+        new Request("http://localhost/api/planner", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(getInitialPlannerState()),
+        }),
+      );
+      expect(response.status).toBe(428);
+    }
+    expect(savePlannerState).not.toHaveBeenCalled();
+  });
+
+  test("answers 409 with the newer stored version when the base revision is stale", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    const theirs = { ...getInitialPlannerState(), optimization: "compact" };
+    savePlannerState.mockImplementation(async () => ({ kind: "conflict", current: { state: theirs, revision: 3 } }));
+    const response = await POST(postRequest(getInitialPlannerState()));
+    expect(response.status).toBe(409);
+    const json = await response.json();
+    expect(json.revision).toBe(3);
+    expect(json.state.optimization).toBe("compact");
+  });
+
+  test("reports non-persistence when storage is unavailable", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    // persistence.ts returns null instead of writing when the deployment has
+    // no database URL; the route must surface that honestly (state: null,
+    // persistent: false), not as a fake `Saved`.
+    savePlannerState.mockImplementation(async () => null);
+    const response = await POST(postRequest(getInitialPlannerState()));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: null, persistent: false });
   });
 
   test("recovers semantically-invalid values instead of rejecting", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
-    savePlannerState.mockImplementation(async (_userId, state) => state);
+    savePlannerState.mockImplementation(async (_userId, state) => ({ kind: "saved", state, revision: 1 }));
     const payload = {
       ...getInitialPlannerState(),
       optimization: "warp-speed",

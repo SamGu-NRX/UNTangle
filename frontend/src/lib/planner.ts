@@ -18,8 +18,9 @@ import {
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
 import { compareAcademicTerms } from "@/lib/term-chronology";
+import { defaultWalkingTime } from "@/lib/planner-walking";
+import type { WalkingTimeFn } from "@/lib/planner-walking";
 import type {
-  CampusBuilding,
   Course,
   CourseSection,
   CourseStatus,
@@ -55,16 +56,6 @@ function getBuilding(buildingId: string | null | undefined) {
   return buildings.find((building) => building.id === buildingId);
 }
 
-function getMeetingBuilding(meeting: SectionMeeting) {
-  return resolveCampusLocation(meeting.location, meeting.buildingId);
-}
-
-function distanceMiles(a: CampusBuilding, b: CampusBuilding) {
-  const latDelta = (a.lat - b.lat) * 69;
-  const lngDelta = (a.lng - b.lng) * 57.3;
-  return Math.sqrt(latDelta * latDelta + lngDelta * lngDelta);
-}
-
 function meetingsOverlap(a: SectionMeeting, b: SectionMeeting) {
   if (a.day !== b.day) {
     return false;
@@ -96,13 +87,24 @@ export function getActiveCourseCodes(state: PlannerState) {
     .map((course) => course.code);
 }
 
-function scoreSchedule(option: OptimizationKey, candidateSections: CourseSection[]) {
+/**
+ * `unknownLegs` counts walks between back-to-back classes where a building has
+ * no walking estimate. It is ranked before `score` (fewer unknown legs wins),
+ * because an unknown walk could be any length and must not count as 0.
+ */
+type ScheduleScore = { unknownLegs: number; score: number };
+
+function scoreSchedule(
+  option: OptimizationKey,
+  candidateSections: CourseSection[],
+  walkingTime: WalkingTimeFn,
+): ScheduleScore {
   if (candidateSections.length === 0) {
-    return 0;
+    return { unknownLegs: 0, score: 0 };
   }
 
   if (option === "maximizeProfessor") {
-    return candidateSections.reduce((total, section) => total + section.rating * 10, 0);
+    return { unknownLegs: 0, score: candidateSections.reduce((total, section) => total + section.rating * 10, 0) };
   }
 
   const meetings = candidateSections.flatMap((section) => section.meetings);
@@ -117,30 +119,34 @@ function scoreSchedule(option: OptimizationKey, candidateSections: CourseSection
   });
 
   let gapMinutes = 0;
-  let travelMiles = 0;
+  let walkingSeconds = 0;
+  let unknownLegs = 0;
   byDay.forEach((dayMeetings) => {
     dayMeetings.sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
     for (let index = 1; index < dayMeetings.length; index += 1) {
       gapMinutes += Math.max(0, toMinutes(dayMeetings[index].start) - toMinutes(dayMeetings[index - 1].end));
-      const previousBuilding = getMeetingBuilding(dayMeetings[index - 1]);
-      const currentBuilding = getMeetingBuilding(dayMeetings[index]);
-      if (previousBuilding && currentBuilding) {
-        travelMiles += distanceMiles(previousBuilding, currentBuilding);
+      const leg = walkingTime(dayMeetings[index - 1].buildingId ?? "", dayMeetings[index].buildingId ?? "");
+      if (leg.source === "unknown") {
+        unknownLegs += 1;
+      } else {
+        walkingSeconds += leg.seconds;
       }
     }
   });
 
   switch (option) {
     case "clusterMorning":
-      return 10000 - starts.reduce((total, start) => total + start, 0);
+      return { unknownLegs: 0, score: 10000 - starts.reduce((total, start) => total + start, 0) };
     case "clusterNight":
-      return starts.reduce((total, start) => total + start, 0);
+      return { unknownLegs: 0, score: starts.reduce((total, start) => total + start, 0) };
     case "compact":
-      return 10000 - gapMinutes - (Math.max(...ends) - Math.min(...starts));
+      return { unknownLegs: 0, score: 10000 - gapMinutes - (Math.max(...ends) - Math.min(...starts)) };
     case "minimizeDistance":
-      return 10000 - Math.round(travelMiles * 1000) - gapMinutes;
+      // Seconds keep roughly the old weighting against gap minutes: a mile
+      // was 1000 points as miles x 1000 and is about 1150 seconds at 1.4 m/s.
+      return { unknownLegs, score: 10000 - walkingSeconds - gapMinutes };
     default:
-      return 0;
+      return { unknownLegs: 0, score: 0 };
   }
 }
 
@@ -148,6 +154,7 @@ export function recommendSections(
   option: OptimizationKey,
   courseCodes: string[] = courses.filter((course) => course.planned).map((course) => course.code),
   fixedSelections: Record<string, string> = {},
+  walkingTime: WalkingTimeFn = defaultWalkingTime,
 ) {
   const activeCodes = [...new Set(courseCodes)];
   const fixedSections = activeCodes
@@ -159,7 +166,7 @@ export function recommendSections(
     .map((courseCode) => getSectionsForCourse(courseCode))
     .filter((courseSections) => courseSections.length > 0);
   let bestSelection: CourseSection[] = [...fixedSections];
-  let bestScore = Number.NEGATIVE_INFINITY;
+  let best: ScheduleScore = { unknownLegs: Number.POSITIVE_INFINITY, score: Number.NEGATIVE_INFINITY };
 
   if (fixedSections.length === 0 && sectionOptions.length === 0) {
     return {};
@@ -167,9 +174,12 @@ export function recommendSections(
 
   function walk(index: number, current: CourseSection[]) {
     if (index === sectionOptions.length) {
-      const score = scoreSchedule(option, current);
-      if (score > bestScore) {
-        bestScore = score;
+      const candidate = scoreSchedule(option, current, walkingTime);
+      if (
+        candidate.unknownLegs < best.unknownLegs ||
+        (candidate.unknownLegs === best.unknownLegs && candidate.score > best.score)
+      ) {
+        best = candidate;
         bestSelection = [...current];
       }
       return;
