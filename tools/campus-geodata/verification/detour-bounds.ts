@@ -1,11 +1,61 @@
 /**
- * detour-bounds.ts — network vs crow-flying detour-factor bounds check.
+ * detour-bounds.ts — network vs same-anchor great-circle detour-factor check.
  *
  * Run: bun tools/campus-geodata/verification/detour-bounds.ts
  *
  * Answers: does every pair in the bundled walking-time matrix stay within a
- * plausible detour factor of the straight-line (great-circle) distance, or
- * could the matrix be smuggling absurd paths?
+ * plausible detour factor of the straight-line distance between the SAME two
+ * points the network route connects, or could the matrix be smuggling absurd
+ * paths?
+ *
+ * Anchor definition (review round 2): a matrix anchor is the walkway graph
+ * node that a building's registry pin resolved to at matrix build time
+ * (build-matrix.ts resolveAnchor: osm-entrance, outline-node or pin-fallback;
+ * the anchor coordinate is walkways.json's node coordinate). The router
+ * routes between exactly these nodes — build-matrix.ts calls
+ * routeBetweenNodes(anchorA.nodeIndex, anchorB.nodeIndex) — so for every
+ * unordered pair {a, b} the routed path's endpoint coordinates ARE
+ * anchors[a].anchor and anchors[b].anchor in walking-times.json. The enforced
+ * denominator is the great-circle (haversine, R = 6,371,000 m, mirroring
+ * frontend/src/lib/campus/geo.ts) distance between those two coordinates.
+ *
+ * Review round 1 used the centroid of each building's OSM outline (plus
+ * registry-pin fallbacks) as the crow basis — a DIFFERENT pair of points than
+ * the route endpoints, which allowed ratios below 1.0 (min 0.7298) that are
+ * geometrically impossible on a same-anchor basis. That basis was removed:
+ * this script now has a single crow basis, and every number it reports
+ * derives from it in the same run (no separately maintained constants).
+ *
+ * Enforcement (review round 2 ruling):
+ *   1. Same-anchor great-circle floor — ratio = networkMeters /
+ *      sameAnchorCrowMeters must satisfy ratio >= 1.0 for every unordered
+ *      pair: the routed path is a sum of haversine graph-edge lengths between
+ *      the two anchor nodes, and the geodesic triangle inequality makes any
+ *      ratio < 1 impossible up to float error. Any ratio < 1 - 1e-9 is a
+ *      HARD ERROR: every violation is listed and the run exits non-zero.
+ *      Violations are never clamped, skipped or hidden. (Known benign cause
+ *      to check first when one fires: the matrix stores meters at 1-decimal
+ *      precision, so a stored path can sit up to 0.05 m below its true
+ *      length; each violation's deficit is recorded so storage rounding can
+ *      be distinguished from a real defect.)
+ *   2. Reverse-entry symmetry — over the full matrix, every reverse entry
+ *      [b][a] is checked against [a][b] for all 406 unordered pairs; max
+ *      asymmetry is reported in meters and in seconds, and the run fails
+ *      beyond a 1e-6 relative tolerance. The symmetry result is reported
+ *      alongside the bounds.
+ *   3. Reported numbers = enforced numbers — the min/median/p95/max
+ *      distribution and the over-threshold list are computed, in this run,
+ *      from these same-anchor ratios.
+ *
+ * Output:
+ *   tools/campus-geodata/verification/detour-bounds-evidence.json
+ *   (deterministic — no timestamp — so two runs are byte-identical; written
+ *   even when enforcement fails, so violations are auditable)
+ * plus a human-readable summary on stdout.
+ *
+ * Exit codes: 0 analysis completed and enforcement passed; 2 structural
+ * invalidity or speed-constant drift (before analysis); 3 enforcement
+ * failure (floor violation or asymmetry beyond tolerance).
  *
  * Standalone by design: reads the committed JSON artifacts directly and
  * implements its own haversine. It imports no frontend modules, so it cannot
@@ -13,38 +63,6 @@
  * data JSON is frontend/src/lib/campus/speeds.ts, whose exported constants
  * must equal the speeds inlined below — a mismatch fails the run rather than
  * silently invalidating the seconds-derived metric.
- *
- * Metrics per unordered building pair {a, b}:
- *   networkMeters   meters[a][b] — the matrix's own routed path length
- *                   (the runtime A* network distance; no speed assumption).
- *   impliedMeters   seconds[a][b] × BASE_SPEED_MPS — the task's
- *                   seconds-times-speed conversion. Steps edges are timed at
- *                   STEPS_SPEED_MPS (0.6 m/s), so this overstates path length
- *                   on any route containing steps; reported separately for
- *                   exactly that reason.
- *   crowCentroidMeters  great-circle between the two buildings' registry
- *                   coordinates: the centroid of the OSM outline each
- *                   registry pin resolved into (buildings.json via the
- *                   anchors' outlineOsmId). Buildings without an outline
- *                   (pin-fallback anchors) use their walkway anchor
- *                   coordinate, which understates crow distance and so
- *                   inflates their ratio — conservative for a bounds check.
- *   crowAnchorMeters    great-circle between the walkway anchor nodes
- *                   themselves (sensitivity: how much the connector snapping
- *                   shortens the straight line).
- *   ratio           networkMeters / crowCentroidMeters — the detour factor.
- *
- * The plan (docs/plan/untangle-plan.md on fleet/untangle-plan) states no
- * detour-factor bound, so the flag threshold is DETOUR_FLAG_RATIO = 2.0, a
- * generous pedestrian-route-directness ceiling: typical campus walkway
- * detours sit near 1.2–1.5, so only genuinely implausible paths (a graph
- * mis-build forcing a chokepoint detour) should exceed 2.0. Flags are
- * findings, not failures: the script exits 0 when the analysis completes.
- *
- * Output:
- *   tools/campus-geodata/verification/detour-bounds-evidence.json
- *   (deterministic — no timestamp — so two runs are byte-identical)
- * and a human-readable summary on stdout.
  *
  * Data © OpenStreetMap contributors, ODbL 1.0.
  */
@@ -57,7 +75,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..");
 
 const WALKING_TIMES_PATH = join(REPO_ROOT, "frontend", "src", "lib", "campus", "data", "walking-times.json");
-const BUILDINGS_PATH = join(REPO_ROOT, "frontend", "src", "lib", "campus", "data", "buildings.json");
 const SPEEDS_PATH = join(REPO_ROOT, "frontend", "src", "lib", "campus", "speeds.ts");
 const OUTPUT_PATH = join(HERE, "detour-bounds-evidence.json");
 
@@ -67,6 +84,10 @@ const STEPS_SPEED_MPS = 0.6;
 /** Mirrors frontend/src/lib/campus/geo.ts: haversine on a 6,371,000 m sphere. */
 const EARTH_RADIUS_M = 6371000;
 const DETOUR_FLAG_RATIO = 2.0;
+/** Ratio-space float tolerance: only a ratio below 1 - FLOOR_TOLERANCE is a floor violation. */
+const FLOOR_TOLERANCE = 1e-9;
+/** Reverse-entry asymmetry fails beyond this relative tolerance. */
+const SYMMETRY_RELATIVE_TOLERANCE = 1e-6;
 
 type LatLng = [lat: number, lng: number];
 
@@ -86,15 +107,14 @@ type MatrixBundle = {
   meters: Record<string, Record<string, number>>;
 };
 
-type BuildingOutline = { osmId: number; centroid: LatLng };
-
-type CoordinateSource = "outline-centroid" | "anchor-fallback";
-
-type RegistryCoordinate = {
-  buildingId: string;
-  coordinate: LatLng;
-  source: CoordinateSource;
-  outlineOsmId: number | null;
+/** Exact per-pair metrics, before output rounding. */
+type PairMetric = {
+  from: string;
+  to: string;
+  networkMeters: number;
+  seconds: number;
+  crowMeters: number;
+  ratio: number;
 };
 
 type PairRow = {
@@ -103,11 +123,9 @@ type PairRow = {
   networkMeters: number;
   seconds: number;
   impliedMeters: number;
-  crowCentroidMeters: number;
-  crowAnchorMeters: number;
+  sameAnchorCrowMeters: number;
   ratio: number;
   ratioSeconds: number;
-  ratioAnchor: number;
   flagged: boolean;
 };
 
@@ -121,9 +139,14 @@ type Distribution = {
   max: number;
 };
 
-type Symmetry = {
+type ReverseSymmetry = {
+  checkedPairs: number;
   maxSecondsDelta: number;
   maxMetersDelta: number;
+  maxRelativeSeconds: number;
+  maxRelativeMeters: number;
+  worstSecondsPair: string | null;
+  worstMetersPair: string | null;
   orderedPairsOver1s: number;
 };
 
@@ -190,36 +213,6 @@ function speedsDriftError(): string | null {
   return null;
 }
 
-/**
- * Registry coordinate per matrix building: the centroid of the OSM outline
- * its registry pin resolved into (via the anchor's outlineOsmId), falling
- * back to the walkway anchor coordinate for buildings with no outline.
- */
-function resolveRegistryCoordinates(bundle: MatrixBundle, outlines: BuildingOutline[]): Map<string, RegistryCoordinate> {
-  const byOsmId = new Map<number, BuildingOutline>(outlines.map((o) => [o.osmId, o]));
-  const resolved = new Map<string, RegistryCoordinate>();
-  for (const id of sortedMatrixIds(bundle)) {
-    const anchor = bundle.anchors[id];
-    const outline = anchor.outlineOsmId === null ? undefined : byOsmId.get(anchor.outlineOsmId);
-    if (outline) {
-      resolved.set(id, {
-        buildingId: id,
-        coordinate: outline.centroid,
-        source: "outline-centroid",
-        outlineOsmId: outline.osmId,
-      });
-    } else {
-      resolved.set(id, {
-        buildingId: id,
-        coordinate: anchor.anchor,
-        source: "anchor-fallback",
-        outlineOsmId: null,
-      });
-    }
-  }
-  return resolved;
-}
-
 function sortedMatrixIds(bundle: MatrixBundle): string[] {
   return Object.keys(bundle.anchors).sort();
 }
@@ -249,52 +242,85 @@ function validateBundle(bundle: MatrixBundle): string | null {
   return null;
 }
 
-function checkSymmetry(bundle: MatrixBundle): Symmetry {
+/**
+ * Reverse-entry symmetry over the full matrix: for every unordered pair
+ * {a, b}, compare [a][b] against [b][a] in both matrices. Relative delta is
+ * |x - y| / max(|x|, |y|); off-diagonal entries are guaranteed finite and
+ * positive by validateBundle, so the denominator cannot be zero.
+ */
+function checkReverseSymmetry(bundle: MatrixBundle): ReverseSymmetry {
   const ids = sortedMatrixIds(bundle);
   let maxSecondsDelta = 0;
   let maxMetersDelta = 0;
+  let maxRelativeSeconds = 0;
+  let maxRelativeMeters = 0;
+  let worstSecondsPair: string | null = null;
+  let worstMetersPair: string | null = null;
   let orderedPairsOver1s = 0;
+  let checkedPairs = 0;
   for (const a of ids) {
     for (const b of ids) {
       if (a >= b) continue;
+      checkedPairs += 1;
       const ds = Math.abs(bundle.seconds[a][b] - bundle.seconds[b][a]);
       const dm = Math.abs(bundle.meters[a][b] - bundle.meters[b][a]);
-      maxSecondsDelta = Math.max(maxSecondsDelta, ds);
-      maxMetersDelta = Math.max(maxMetersDelta, dm);
+      maxRelativeSeconds = Math.max(maxRelativeSeconds, ds / Math.max(bundle.seconds[a][b], bundle.seconds[b][a]));
+      maxRelativeMeters = Math.max(maxRelativeMeters, dm / Math.max(bundle.meters[a][b], bundle.meters[b][a]));
+      if (ds > maxSecondsDelta) {
+        maxSecondsDelta = ds;
+        worstSecondsPair = `${a}/${b}`;
+      }
+      if (dm > maxMetersDelta) {
+        maxMetersDelta = dm;
+        worstMetersPair = `${a}/${b}`;
+      }
       if (ds > 1) orderedPairsOver1s += 2; // both orderings of the unordered pair
     }
   }
-  return { maxSecondsDelta: round(maxSecondsDelta, 2), maxMetersDelta: round(maxMetersDelta, 2), orderedPairsOver1s };
+  return {
+    checkedPairs,
+    maxSecondsDelta: round(maxSecondsDelta, 6),
+    maxMetersDelta: round(maxMetersDelta, 6),
+    maxRelativeSeconds,
+    maxRelativeMeters,
+    worstSecondsPair,
+    worstMetersPair,
+    orderedPairsOver1s,
+  };
 }
 
-function buildPairRows(bundle: MatrixBundle, registry: Map<string, RegistryCoordinate>): PairRow[] {
+/**
+ * Exact metrics for every unordered pair. The crow term is the same-anchor
+ * great-circle distance: the haversine between the two anchor coordinates the
+ * router itself connects (see the anchor definition in the header).
+ */
+function buildPairMetrics(bundle: MatrixBundle): PairMetric[] {
   const ids = sortedMatrixIds(bundle);
-  const rows: PairRow[] = [];
+  const metrics: PairMetric[] = [];
   for (let i = 0; i < ids.length; i += 1) {
     for (let j = i + 1; j < ids.length; j += 1) {
       const a = ids[i];
       const b = ids[j];
       const networkMeters = bundle.meters[a][b];
-      const seconds = bundle.seconds[a][b];
-      const crowCentroid = haversineMeters(registry.get(a)!.coordinate, registry.get(b)!.coordinate);
-      const crowAnchor = haversineMeters(bundle.anchors[a].anchor, bundle.anchors[b].anchor);
-      const ratio = networkMeters / crowCentroid;
-      rows.push({
-        from: a,
-        to: b,
-        networkMeters: round(networkMeters, 1),
-        seconds: round(seconds, 1),
-        impliedMeters: round(seconds * BASE_SPEED_MPS, 1),
-        crowCentroidMeters: round(crowCentroid, 1),
-        crowAnchorMeters: round(crowAnchor, 1),
-        ratio: round(ratio, 4),
-        ratioSeconds: round((seconds * BASE_SPEED_MPS) / crowCentroid, 4),
-        ratioAnchor: round(networkMeters / crowAnchor, 4),
-        flagged: ratio > DETOUR_FLAG_RATIO,
-      });
+      const crowMeters = haversineMeters(bundle.anchors[a].anchor, bundle.anchors[b].anchor);
+      metrics.push({ from: a, to: b, networkMeters, seconds: bundle.seconds[a][b], crowMeters, ratio: networkMeters / crowMeters });
     }
   }
-  return rows;
+  return metrics;
+}
+
+function toOutputRows(metrics: PairMetric[]): PairRow[] {
+  return metrics.map((m) => ({
+    from: m.from,
+    to: m.to,
+    networkMeters: round(m.networkMeters, 1),
+    seconds: round(m.seconds, 1),
+    impliedMeters: round(m.seconds * BASE_SPEED_MPS, 1),
+    sameAnchorCrowMeters: round(m.crowMeters, 1),
+    ratio: round(m.ratio, 4),
+    ratioSeconds: round((m.seconds * BASE_SPEED_MPS) / m.crowMeters, 4),
+    flagged: m.ratio > DETOUR_FLAG_RATIO,
+  }));
 }
 
 function connectorStats(bundle: MatrixBundle): { max: number; mean: number } {
@@ -314,7 +340,6 @@ function main(): number {
   }
 
   const bundle = readJson<MatrixBundle>(WALKING_TIMES_PATH);
-  const outlinesFile = readJson<{ buildings: BuildingOutline[] }>(BUILDINGS_PATH);
 
   const invalid = validateBundle(bundle);
   if (invalid) {
@@ -322,76 +347,123 @@ function main(): number {
     return 2;
   }
 
-  const registry = resolveRegistryCoordinates(bundle, outlinesFile.buildings);
-  const rows = buildPairRows(bundle, registry);
-  const ratios = rows.map((r) => r.ratio);
-  const ratioSecondsValues = rows.map((r) => r.ratioSeconds);
+  const metrics = buildPairMetrics(bundle);
+  const rows = toOutputRows(metrics);
+  const ratioDist = distribution(rows.map((r) => r.ratio));
+  const ratioSecondsDist = distribution(rows.map((r) => r.ratioSeconds));
   const flagged = rows.filter((r) => r.flagged);
   const stepsDriven = rows.filter((r) => !r.flagged && r.ratioSeconds > DETOUR_FLAG_RATIO);
-  const symmetry = checkSymmetry(bundle);
+  const symmetry = checkReverseSymmetry(bundle);
+
+  // Enforcement 1: same-anchor great-circle floor. A ratio below 1 is
+  // geometrically impossible between the routed endpoints; never clamped.
+  const minRatio = Math.min(...metrics.map((m) => m.ratio));
+  const floorViolations = metrics
+    .filter((m) => m.ratio < 1 - FLOOR_TOLERANCE)
+    .map((m) => ({
+      from: m.from,
+      to: m.to,
+      networkMeters: round(m.networkMeters, 1),
+      sameAnchorCrowMeters: round(m.crowMeters, 4),
+      ratio: round(m.ratio, 6),
+      deficitMeters: round(m.crowMeters - m.networkMeters, 4),
+    }));
+  const floorStatus = floorViolations.length === 0 ? "pass" : "fail";
+
+  // Enforcement 2: reverse-entry symmetry, fail beyond relative tolerance.
+  const symmetryStatus =
+    symmetry.maxRelativeSeconds > SYMMETRY_RELATIVE_TOLERANCE || symmetry.maxRelativeMeters > SYMMETRY_RELATIVE_TOLERANCE
+      ? "fail"
+      : "pass";
 
   const methodCounts: Record<string, number> = {};
   for (const id of sortedMatrixIds(bundle)) {
     methodCounts[bundle.anchors[id].method] = (methodCounts[bundle.anchors[id].method] ?? 0) + 1;
   }
-  const fallbackBuildings = sortedMatrixIds(bundle).filter((id) => registry.get(id)!.source === "anchor-fallback");
 
   const payload = {
     threshold: DETOUR_FLAG_RATIO,
+    enforcement: {
+      sameAnchorFloor: {
+        status: floorStatus,
+        ratioTolerance: FLOOR_TOLERANCE,
+        definition:
+          "ratio = meters[a][b] / haversine(anchors[a].anchor, anchors[b].anchor); the anchors are the exact walkway nodes routeBetweenNodes connects, so any ratio < 1 - tolerance is geometrically impossible and is a hard error (never clamped, skipped or hidden)",
+        minRatio: round(minRatio, 6),
+        violations: floorViolations,
+      },
+      reverseSymmetry: {
+        status: symmetryStatus,
+        relativeTolerance: SYMMETRY_RELATIVE_TOLERANCE,
+        ...symmetry,
+      },
+    },
     inputs: {
       walkingTimes: "frontend/src/lib/campus/data/walking-times.json",
-      buildingOutlines: "frontend/src/lib/campus/data/buildings.json",
       speeds: "frontend/src/lib/campus/speeds.ts (verified equal to the inlined constants)",
       matrixDim: `${sortedMatrixIds(bundle).length}x${sortedMatrixIds(bundle).length}`,
       generatedBy: bundle.meta.generatedBy,
     },
     method: {
-      networkMeters: "matrix meters — the runtime A* path length recorded at matrix build time",
+      networkMeters: "matrix meters — the runtime A* path length between the two anchor walkway nodes, recorded at matrix build time (stored at 1-decimal precision)",
+      sameAnchorCrowMeters:
+        "inline haversine (R=6371000 m) between anchors[a].anchor and anchors[b].anchor — the exact endpoint coordinates of the routed path (anchor definition in the script header)",
       impliedMeters: "matrix seconds x 1.4 m/s base speed (steps legs timed at 0.6 m/s inflate this)",
-      crowCentroidMeters:
-        "inline haversine (R=6371000 m) between outline centroids matched by the anchors' outlineOsmId; anchor coordinate for pin-fallback buildings",
-      ratio: "networkMeters / crowCentroidMeters",
-      pairSet: "unordered pairs (matrix verified symmetric); diagonal excluded",
+      ratio: "networkMeters / sameAnchorCrowMeters",
+      ratioSeconds: "impliedMeters / sameAnchorCrowMeters",
+      pairSet: "unordered pairs; diagonal excluded",
+      reviewRound1BasisRemoved:
+        "round 1 divided by outline-centroid / registry-pin crow (not the routed endpoints), which admitted ratios < 1; that basis no longer exists in this script",
     },
     summary: {
       orderedPairsOffDiagonal: sortedMatrixIds(bundle).length * (sortedMatrixIds(bundle).length - 1),
       unorderedPairs: rows.length,
-      ratio: distribution(ratios),
-      ratioSeconds: distribution(ratioSecondsValues),
+      ratio: ratioDist,
+      ratioSeconds: ratioSecondsDist,
       flaggedCount: flagged.length,
-      flaggedPairs: flagged.map((r) => ({ from: r.from, to: r.to, ratio: r.ratio, networkMeters: r.networkMeters, crowCentroidMeters: r.crowCentroidMeters })),
+      flaggedPairs: flagged.map((r) => ({ from: r.from, to: r.to, ratio: r.ratio, networkMeters: r.networkMeters, sameAnchorCrowMeters: r.sameAnchorCrowMeters })),
       stepsDrivenFlags: stepsDriven.map((r) => ({ from: r.from, to: r.to, ratioSeconds: r.ratioSeconds, ratio: r.ratio })),
       maxStepsInflationMeters: rows.reduce(
         (best, r) => (r.impliedMeters - r.networkMeters > best.delta ? { pair: `${r.from}->${r.to}`, delta: round(r.impliedMeters - r.networkMeters, 1) } : best),
         { pair: "", delta: 0 },
       ),
-      symmetry,
       anchors: {
         count: sortedMatrixIds(bundle).length,
         methodCounts,
         connectorMeters: connectorStats(bundle),
-        registryCoordinateFallbacks: fallbackBuildings,
       },
     },
-    registryCoordinates: sortedMatrixIds(bundle).map((id) => registry.get(id)),
     pairs: rows,
   };
 
   writeFileSync(OUTPUT_PATH, `${JSON.stringify(payload, null, 2)}\n`);
 
   console.log(`detour-bounds: ${sortedMatrixIds(bundle).length}x${sortedMatrixIds(bundle).length} matrix -> ${rows.length} unordered pairs`);
-  console.log(`ratio (network / crow) over unordered pairs: ${JSON.stringify(payload.summary.ratio)}`);
-  console.log(`ratio via seconds x 1.4 m/s: ${JSON.stringify(payload.summary.ratioSeconds)}`);
-  console.log(`symmetry: max |Δseconds| ${symmetry.maxSecondsDelta}, max |Δmeters| ${symmetry.maxMetersDelta}, ordered pairs over 1 s: ${symmetry.orderedPairsOver1s}`);
+  console.log(`crow basis: same-anchor great-circle — haversine between the exact anchor coordinates the router connects (see script header)`);
+  console.log(`ratio (network / same-anchor crow) over unordered pairs: ${JSON.stringify(ratioDist)}`);
+  console.log(`ratio via seconds x 1.4 m/s (same-anchor basis): ${JSON.stringify(ratioSecondsDist)}`);
+  console.log(
+    `enforcement — same-anchor floor (tolerance 1e-9): ${floorStatus.toUpperCase()}` +
+      (floorViolations.length === 0 ? ` (min ratio ${round(minRatio, 6)})` : ""),
+  );
+  console.log(
+    `enforcement — reverse-entry symmetry (relative tolerance 1e-6): ${symmetryStatus.toUpperCase()} — ` +
+      `max |Δmeters| ${symmetry.maxMetersDelta} m, max |Δseconds| ${symmetry.maxSecondsDelta} s over ${symmetry.checkedPairs} reverse pairs`,
+  );
+  for (const v of floorViolations) {
+    console.log(
+      `  FLOOR VIOLATION ${v.from}->${v.to}: ratio ${v.ratio} (network ${v.networkMeters} m vs same-anchor crow ${v.sameAnchorCrowMeters} m; deficit ${v.deficitMeters} m) — geometrically impossible; surfaced, not clamped`,
+    );
+  }
   console.log(`flagged pairs (ratio > ${DETOUR_FLAG_RATIO}): ${flagged.length}`);
   for (const pair of flagged) {
-    console.log(`  FLAG ${pair.from} -> ${pair.to}: ratio ${pair.ratio} (network ${pair.networkMeters} m vs crow ${pair.crowCentroidMeters} m)`);
+    console.log(`  FLAG ${pair.from} -> ${pair.to}: ratio ${pair.ratio} (network ${pair.networkMeters} m vs same-anchor crow ${pair.sameAnchorCrowMeters} m)`);
   }
   for (const pair of stepsDriven) {
     console.log(`  STEPS-DRIVEN ${pair.from} -> ${pair.to}: ratio ${pair.ratio} but ${pair.ratioSeconds} via seconds x 1.4 (steps legs timed at 0.6 m/s)`);
   }
   console.log(`evidence written to ${OUTPUT_PATH}`);
-  return 0;
+  return floorStatus === "fail" || symmetryStatus === "fail" ? 3 : 0;
 }
 
 process.exit(main());
