@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  BASE_REVISION_HEADER,
   type FetchLike,
   loadPlannerStateFromServer,
   savePlannerStateToServer,
@@ -28,13 +29,36 @@ const failingFetch = (error: string): FetchLike =>
 
 describe("savePlannerStateToServer (honest save classification)", () => {
   it("acknowledges durability only when the server confirmed a persisted row", async () => {
-    const outcome = await savePlannerStateToServer(state(), fetchLike({ state: state(), persistent: true }, 200));
+    const outcome = await savePlannerStateToServer(state(), 0, fetchLike({ state: state(), revision: 3, persistent: true }, 200));
     expect(outcome.kind).toBe("saved");
+    if (outcome.kind === "saved") {
+      expect(outcome.revision).toBe(3);
+    }
+  });
+
+  it("sends the base revision the save started from", async () => {
+    let sent = null as string | null;
+    await savePlannerStateToServer(state(), 7, async (_input, init) => {
+      sent = new Headers(init?.headers).get(BASE_REVISION_HEADER);
+      return new Response(JSON.stringify({ state: state(), revision: 8 }), { status: 200 });
+    });
+    expect(sent).toBe("7");
+  });
+
+  it("classifies a 409 as a conflict carrying the newer stored version", async () => {
+    const theirs = { ...state(), optimization: "compact" as const, updatedAt: "2026-10-11T09:00:00.000Z" };
+    const outcome = await savePlannerStateToServer(state(), 1, fetchLike({ error: "newer", state: theirs, revision: 2 }, 409));
+    expect(outcome.kind).toBe("conflict");
+    if (outcome.kind === "conflict") {
+      expect(outcome.revision).toBe(2);
+      expect(outcome.theirs?.optimization).toBe("compact");
+      expect(outcome.savedAt).toBe("2026-10-11T09:00:00.000Z");
+    }
   });
 
   it("reports Not saved — never Saved — when the deployment stores nothing", async () => {
     // persistence.ts answers 200 with state: null when there is no database.
-    const outcome = await savePlannerStateToServer(state(), fetchLike({ state: null, persistent: false }, 200));
+    const outcome = await savePlannerStateToServer(state(), 0, fetchLike({ state: null, persistent: false }, 200));
     expect(outcome.kind).toBe("not-saved");
     if (outcome.kind === "not-saved") {
       expect(outcome.message).toContain("storage is unavailable");
@@ -42,7 +66,7 @@ describe("savePlannerStateToServer (honest save classification)", () => {
   });
 
   it("classifies a 500 as a retryable server failure, not a save", async () => {
-    const outcome = await savePlannerStateToServer(state(), fetchLike({ error: "boom" }, 500));
+    const outcome = await savePlannerStateToServer(state(), 0, fetchLike({ error: "boom" }, 500));
     expect(outcome.kind).toBe("failed");
     if (outcome.kind === "failed") {
       expect(outcome.reason).toBe("server");
@@ -50,7 +74,7 @@ describe("savePlannerStateToServer (honest save classification)", () => {
   });
 
   it("classifies a 401 as an expired session, not a save", async () => {
-    const outcome = await savePlannerStateToServer(state(), fetchLike({ error: "Unauthorized" }, 401));
+    const outcome = await savePlannerStateToServer(state(), 0, fetchLike({ error: "Unauthorized" }, 401));
     expect(outcome.kind).toBe("failed");
     if (outcome.kind === "failed") {
       expect(outcome.reason).toBe("session");
@@ -58,7 +82,7 @@ describe("savePlannerStateToServer (honest save classification)", () => {
   });
 
   it("classifies a dropped connection as a network failure, not a save", async () => {
-    const outcome = await savePlannerStateToServer(state(), failingFetch("network down"));
+    const outcome = await savePlannerStateToServer(state(), 0, failingFetch("network down"));
     expect(outcome.kind).toBe("failed");
     if (outcome.kind === "failed") {
       expect(outcome.reason).toBe("network");
@@ -66,7 +90,7 @@ describe("savePlannerStateToServer (honest save classification)", () => {
   });
 
   it("classifies an unreadable 200 body as a server failure, not a save", async () => {
-    const outcome = await savePlannerStateToServer(state(), async () => new Response("{not json", { status: 200 }));
+    const outcome = await savePlannerStateToServer(state(), 0, async () => new Response("{not json", { status: 200 }));
     expect(outcome.kind).toBe("failed");
     if (outcome.kind === "failed") {
       expect(outcome.reason).toBe("server");
@@ -98,13 +122,14 @@ describe("loadPlannerStateFromServer", () => {
     }
   });
 
-  it("treats 401 as signed-out (no server state), not an error", async () => {
+  it("treats 401 as signed-out: nothing was read, so nothing may be saved over it", async () => {
     const outcome = await loadPlannerStateFromServer(fetchLike({ error: "Unauthorized" }, 401));
-    expect(outcome.kind).toBe("loaded");
-    if (outcome.kind === "loaded") {
-      expect(outcome.state).toBeNull();
-      expect(outcome.persistent).toBe(true);
-    }
+    expect(outcome.kind).toBe("signed-out");
+  });
+
+  it("reads the stored revision with the state", async () => {
+    const outcome = await loadPlannerStateFromServer(fetchLike({ state: state(), revision: 5, persistent: true }, 200));
+    expect(outcome.kind === "loaded" && outcome.revision).toBe(5);
   });
 
   it("surfaces a 500 as an unavailable load", async () => {

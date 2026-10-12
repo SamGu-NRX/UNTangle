@@ -12,6 +12,8 @@ import {
 import { createPortal } from "react-dom";
 
 const EXIT_DURATION = 160;
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   open,
@@ -83,11 +85,40 @@ export function Modal({
     }
   }, [mounted, origin]);
 
-  // Close on Escape and lock background scroll while the dialog is present.
+  // Move focus into the dialog when it opens: the first control, or the box.
+  useEffect(() => {
+    if (!open) return;
+    const box = boxRef.current;
+    if (!box || box.contains(document.activeElement)) return;
+    const first = box.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? box).focus();
+  }, [open]);
+
+  // Close on Escape, keep Tab inside the dialog, and lock background scroll
+  // while the dialog is present.
   useEffect(() => {
     if (!mounted) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && closable) onClose();
+      if (e.key === "Tab" && boxRef.current) {
+        const focusable = [...boxRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+        if (focusable.length === 0) {
+          e.preventDefault();
+          boxRef.current.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        const inside = boxRef.current.contains(active);
+        if (e.shiftKey && (active === first || !inside)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !inside)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -123,11 +154,12 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={hasTitle ? titleId : undefined}
+        tabIndex={-1}
         style={{ maxWidth }}
       >
         {shownTitle || closable ? (
           <div className="modal-head">
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0 }} id={typeof shownTitle === "string" ? undefined : titleId}>
               {typeof shownTitle === "string" ? (
                 <h2 id={titleId} className="font-display" style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--brand-900)" }}>
                   {shownTitle}

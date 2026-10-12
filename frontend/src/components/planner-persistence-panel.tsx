@@ -63,6 +63,10 @@ export function PlannerPersistencePanel() {
   } = usePlanner();
 
   const busy = saveState.status === "saving";
+  const canRetry = saveState.status === "failed" || saveState.status === "signed-out";
+  // Whenever edits are not stored anywhere durable, offer a file copy.
+  const offerExport =
+    saveState.status === "not-saved" || saveState.status === "failed" || saveState.status === "signed-out";
   const conflictSummary = useMemo(
     () => (conflict ? { mine: summarizeVersion(conflict.mine), theirs: conflict.theirs ? summarizeVersion(conflict.theirs) : null } : null),
     [conflict],
@@ -79,28 +83,31 @@ export function PlannerPersistencePanel() {
           borderRadius: "var(--r-sm)",
           padding: "0.6rem 0.75rem",
           fontSize: "0.86rem",
-          background: saveState.status === "not-saved" || saveState.status === "failed" ? "var(--surface-muted)" : "transparent",
+          background: offerExport ? "var(--surface-muted)" : "transparent",
         }}
       >
-        <strong>{saveState.label}</strong>
+        <strong data-save-label>{saveState.label}</strong>
         {saveState.detail ? <span style={{ color: "var(--copy)" }}> — {saveState.detail}</span> : null}
       </p>
 
-      {saveState.status === "failed" ? (
-        <button type="button" className="btn-secondary" onClick={retrySave} disabled={busy}>
-          Retry save
-        </button>
-      ) : null}
-
-      {saveState.status === "not-saved" ? (
-        <button type="button" className="btn-secondary" onClick={() => downloadSnapshotJson(plannerState)}>
-          Export schedule
-        </button>
+      {canRetry || offerExport ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {canRetry ? (
+            <button type="button" className="btn-secondary" onClick={retrySave} disabled={busy}>
+              Retry save
+            </button>
+          ) : null}
+          {offerExport ? (
+            <button type="button" className="btn-secondary" onClick={() => downloadSnapshotJson(plannerState)}>
+              Export schedule
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {tookNewerVersion ? (
         <p role="status" style={{ margin: 0, fontSize: "0.85rem", color: "var(--copy)" }}>
-          Loaded a newer version saved from another tab.
+          Loaded a newer version saved from another tab or device.
           <button type="button" className="btn-ghost" style={{ marginLeft: 8 }} onClick={dismissNewerVersionNotice}>
             Dismiss
           </button>
@@ -118,17 +125,19 @@ export function PlannerPersistencePanel() {
         </p>
       ))}
 
+      {/* Not closable: dismissing would silently pick a side. The user chooses. */}
       <Modal
         open={conflict !== null}
-        onClose={() => resolveConflict("keep-mine")}
+        onClose={() => {}}
+        closable={false}
         title={conflict ? "Unsaved changes conflict" : ""}
         maxWidth={560}
       >
         {conflict && conflictSummary ? (
           <div style={{ display: "grid", gap: "0.7rem" }}>
             <p style={{ margin: 0, fontSize: "0.9rem" }}>
-              This tab has unsaved edits, and another tab just saved a newer version of this schedule.
-              Choose which version to keep — nothing is overwritten until you decide.
+              This tab has unsaved edits, and another {conflict.source === "server" ? "tab or device" : "tab"} saved
+              a newer version of this schedule. Choose which version to keep. Nothing is overwritten until you decide.
             </p>
             <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.86rem", display: "grid", gap: 4 }}>
               <strong>This tab (unsaved)</strong>
@@ -136,7 +145,7 @@ export function PlannerPersistencePanel() {
             </div>
             <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.86rem", display: "grid", gap: 4 }}>
               <strong>
-                Other tab (saved {formatTimestamp(conflict.theirsSavedAt)}, version {conflict.theirsRevision})
+                Newer saved version ({formatTimestamp(conflict.theirsSavedAt)}, version {conflict.theirsRevision})
               </strong>
               <span style={{ color: "var(--copy)" }}>{conflictSummary.theirs ?? "empty"}</span>
             </div>

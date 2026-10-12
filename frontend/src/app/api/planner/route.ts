@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/auth-server";
 import { hasDatabaseUrl } from "@/lib/db";
 import { loadPlannerState, savePlannerState } from "@/lib/persistence";
 import { normalizePlannerState } from "@/lib/planner";
+import { BASE_REVISION_HEADER } from "@/lib/planner-save";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
 
 export const runtime = "nodejs";
@@ -14,16 +15,28 @@ export async function GET() {
   }
 
   try {
-    const state = await loadPlannerState(session.user.id);
+    const stored = await loadPlannerState(session.user.id);
     // `persistent: false` tells the client this deployment stores nothing
     // server-side, so a `Saved` acknowledgement must never be shown.
-    return NextResponse.json({ state, persistent: hasDatabaseUrl });
+    return NextResponse.json({
+      state: stored?.state ?? null,
+      revision: stored?.revision ?? 0,
+      persistent: hasDatabaseUrl,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load planner state" },
       { status: 500 },
     );
   }
+}
+
+/** A non-negative integer, or null when the header is missing or malformed. */
+function parseBaseRevision(value: string | null): number | null {
+  if (value === null || !/^\d{1,9}$/.test(value)) {
+    return null;
+  }
+  return Number(value);
 }
 
 export async function POST(request: Request) {
@@ -44,11 +57,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validation.reason }, { status: 400 });
   }
 
+  // Required, not defaulted: a save that does not say which revision it was
+  // based on could silently overwrite a newer save from another tab.
+  const baseRevision = parseBaseRevision(request.headers.get(BASE_REVISION_HEADER));
+  if (baseRevision === null) {
+    return NextResponse.json(
+      { error: `${BASE_REVISION_HEADER} must be the revision this save is based on (0 when none was loaded).` },
+      { status: 428 },
+    );
+  }
+
   try {
-    const state = await savePlannerState(session.user.id, normalizePlannerState(validation.state));
-    // `state: null` (no storage on this deployment) surfaces as `Not saved…`
-    // in the client, never as a false `Saved`.
-    return NextResponse.json({ state, persistent: state !== null });
+    const result = await savePlannerState(
+      session.user.id,
+      normalizePlannerState(validation.state),
+      baseRevision,
+    );
+    if (result === null) {
+      // No storage on this deployment: surfaces as `Not saved…` in the
+      // client, never as a false `Saved`.
+      return NextResponse.json({ state: null, persistent: false });
+    }
+    if (result.kind === "conflict") {
+      return NextResponse.json(
+        {
+          error: "A newer version of this schedule was saved from another tab or device.",
+          state: result.current?.state ?? null,
+          revision: result.current?.revision ?? 0,
+        },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ state: result.state, revision: result.revision, persistent: true });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save planner state" },

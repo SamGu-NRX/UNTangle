@@ -1,73 +1,102 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { ensureTestDom, setSession } from "./helpers/planner-test-dom";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+  FakePlannerServer,
+  flushSaves,
+  installDom,
+  mountPlanner,
+  removeDom,
+  setSession,
+  waitFor,
+} from "./planner/test-dom";
+import { getInitialPlannerState } from "@/lib/planner";
+import { onSessionExpired } from "@/lib/session-events";
 
-mock.module("@/lib/auth-client", () => ({
-  authClient: {
-    useSession: () => {
-      const holder = globalThis as { __UNT_TEST_SESSION__?: unknown };
-      return (
-        holder.__UNT_TEST_SESSION__ ?? { data: null, isPending: false, error: null }
-      );
-    },
-  },
-}));
+// Load honesty for registered users: `Saved` appears only when a stored plan
+// was actually read; every assertion reads the provider's live value.
 
-ensureTestDom();
+const user = { id: "u1", email: "student@my.unt.edu", name: "Test Student" };
+let server: FakePlannerServer;
+let previousFetch: typeof fetch;
+const mounted: Array<() => Promise<void>> = [];
 
-const { PlannerProvider, usePlanner } = await import("@/components/planner-provider");
-const React = (await import("react")).default;
-const { render } = await import("@testing-library/react");
+beforeAll(() => {
+  installDom();
+});
+afterAll(() => {
+  removeDom();
+});
+beforeEach(() => {
+  window.localStorage.clear();
+  server = new FakePlannerServer();
+  previousFetch = globalThis.fetch;
+  globalThis.fetch = server.fetch as typeof fetch;
+  setSession(user);
+});
+afterEach(async () => {
+  while (mounted.length) await mounted.pop()!();
+  globalThis.fetch = previousFetch;
+  setSession(null);
+});
 
-type Latest = {
-  saveState: { status: string; label: string; detail: string | null; reason: string | null };
-  afterHydration: () => Promise<void>;
-};
-
-function mountProvider(): Latest {
-  let latest: Latest | null = null;
-  function Probe() {
-    latest = usePlanner() as unknown as Latest;
-    return null;
-  }
-  render(React.createElement(PlannerProvider, null, React.createElement(Probe)));
-  if (!latest) {
-    throw new Error("probe did not render");
-  }
-  return latest;
+async function mount() {
+  const planner = await mountPlanner();
+  mounted.push(planner.unmount);
+  await planner.get().afterHydration();
+  await waitFor(() => planner.get().hydrated, "hydrated");
+  return planner;
 }
 
-describe("M6 fix 1: load honesty for non-persistent servers", () => {
-  beforeEach(() => {
-    window.localStorage.clear();
+describe("registered load honesty", () => {
+  test("a reachable but non-persistent load reports Not saved, never Saved", async () => {
+    server.persistent = false;
+    const planner = await mount();
+    expect(server.gets).toBe(1);
+    expect(planner.get().saveState.status).toBe("not-saved");
+    expect(planner.get().saveState.label).toBe("Not saved…");
+    expect(planner.get().saveState.reason).toBe("storage");
   });
 
-  test("a reachable but non-persistent load reports Not saved, never Saved", async () => {
-    setSession({ id: "u1", email: "student@my.unt.edu", name: "Test Student" });
-    const previous = globalThis.fetch;
-    let loadCalls = 0;
-    globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
-      const url = String(input instanceof Request ? input.url : input);
-      if (url.includes("/api/planner") && (init?.method ?? "GET") === "GET") {
-        loadCalls += 1;
-        return new Response(JSON.stringify({ state: null, persistent: false }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({}), { status: 200 });
-    }) as typeof fetch;
+  test("a stored plan that was read back shows Saved", async () => {
+    const stored = { ...getInitialPlannerState(), optimization: "compact" as const };
+    server.writeElsewhere(stored);
+    const planner = await mount();
+    expect(planner.get().plannerState.optimization).toBe("compact");
+    expect(planner.get().saveState.label).toBe("Saved");
+  });
 
+  test("persistent storage with no plan yet shows a neutral Not saved yet, and writes nothing until an edit", async () => {
+    const planner = await mount();
+    expect(planner.get().saveState.label).toBe("Not saved yet");
+    await flushSaves();
+    expect(server.posts).toHaveLength(0);
+    expect(planner.get().saveState.label).toBe("Not saved yet");
+
+    await planner.run((p) => p.setOptimization("compact"));
+    await waitFor(() => planner.get().saveState.label === "Saved", "first save acknowledged");
+    expect(server.posts).toHaveLength(1);
+    expect(server.posts[0].baseRevision).toBe("0");
+    expect(server.row?.state.optimization).toBe("compact");
+  });
+
+  test("a 401 at load shows Not saved: signed out, never Saved, and never POSTs a default", async () => {
+    server.sessionValid = false;
+    let expiredEvents = 0;
+    const stop = onSessionExpired(() => {
+      expiredEvents += 1;
+    });
     try {
-      const latest = mountProvider();
-      await latest.afterHydration();
-      expect(loadCalls).toBe(1);
-      expect(latest.saveState.status).toBe("not-saved");
-      expect(latest.saveState.label).toBe("Not saved…");
-      expect(latest.saveState.reason).toBe("storage");
-      expect(latest.saveState.label).not.toBe("Saved");
+      const planner = await mount();
+      expect(planner.get().saveState.label).toBe("Not saved: signed out");
+      expect(planner.get().saveState.status).toBe("signed-out");
+      expect(expiredEvents).toBe(1);
+
+      // Even an edit must not POST while signed out.
+      await planner.run((p) => p.setOptimization("compact"));
+      await flushSaves();
+      expect(server.posts).toHaveLength(0);
+      expect(planner.get().saveState.label).toBe("Not saved: signed out");
     } finally {
-      globalThis.fetch = previous;
-      setSession(null);
+      stop();
     }
   });
 });
