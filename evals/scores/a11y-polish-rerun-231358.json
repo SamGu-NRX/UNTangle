@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "suite": "a11y-polish",
+  "startedAt": "2026-10-11T23:20:21.561Z",
+  "finishedAt": "2026-10-11T23:32:44.117Z",
+  "target": {
+    "dir": "/home/user/work/clone-ui-suites",
+    "sha": "f817c2b41b8c6e6a4ef6d54f57d537f920c34dd5",
+    "actualHead": "f817c2b41b8c6e6a4ef6d54f57d537f920c34dd5"
+  },
+  "runtime": {
+    "bun": "1.3.14",
+    "node": "v20.20.2",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "playwright": "1.64.0",
+    "os": "Linux 6.1.158+ x64"
+  },
+  "stack": [
+    {
+      "step": "target-dir",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "/home/user/work/clone-ui-suites",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-target-dir.log"
+    },
+    {
+      "step": "contract-present",
+      "status": "pass",
+      "durationMs": 0,
+      "detail": "/home/user/work/clone-ui-suites/evals/CONTRACT.md",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-contract-present.log"
+    },
+    {
+      "step": "submodule-backend",
+      "status": "pass",
+      "durationMs": 19,
+      "detail": "already initialized at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-submodule-backend.log"
+    },
+    {
+      "step": "backend-install",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "cached install present (better-sqlite3 native binding + tsx)",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-backend-install.log"
+    },
+    {
+      "step": "backend-sqlite-build",
+      "status": "pass",
+      "durationMs": 3054,
+      "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-backend-sqlite-build.log"
+    },
+    {
+      "step": "postgres-init",
+      "status": "pass",
+      "durationMs": 1171,
+      "detail": "fresh cluster at /home/user/work/pgdata-default/run-1791760824644-182109",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-postgres-init.log"
+    },
+    {
+      "step": "postgres-start",
+      "status": "pass",
+      "durationMs": 209,
+      "detail": "postgres up on 127.0.0.1:54321, database untangle created",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-postgres-start.log"
+    },
+    {
+      "step": "migrations-apply",
+      "status": "pass",
+      "durationMs": 705,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54321/untangle",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-migrations-apply.log"
+    },
+    {
+      "step": "db-roundtrip",
+      "status": "pass",
+      "durationMs": 18,
+      "detail": "probe row roundtrip-bcf2b20734b35cd9 written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-db-roundtrip.log"
+    },
+    {
+      "step": "frontend-install",
+      "status": "pass",
+      "durationMs": 4,
+      "detail": "cached workspace install present (next + drizzle-kit)",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-frontend-install.log"
+    },
+    {
+      "step": "backend-start",
+      "status": "pass",
+      "durationMs": 1250,
+      "detail": "backend healthy on http://127.0.0.1:3951 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-backend-start.log"
+    },
+    {
+      "step": "frontend-build",
+      "status": "pass",
+      "durationMs": 45617,
+      "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-frontend-build.log"
+    },
+    {
+      "step": "frontend-start",
+      "status": "pass",
+      "durationMs": 1243,
+      "detail": "frontend serving http://localhost:3900 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-frontend-start.log"
+    },
+    {
+      "step": "playwright-launch",
+      "status": "pass",
+      "durationMs": 747,
+      "detail": "chromium (headless) launched and rendered http://localhost:3900/ (body 6029 chars)",
+      "logPath": "/home/user/work/untangle-ui-a11y-rerun-231358/preflight-logs/step-playwright-launch.log"
+    }
+  ],
+  "infrastructure": {
+    "ok": true,
+    "brokenStep": null
+  },
+  "cases": [
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-home",
+      "status": "fail",
+      "measured": "1 serious+critical violations: color-contrast(seriousx5)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":1,\"moderate\":1}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-courses",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: case a11y-polish/a11y/axe-courses timed out after 240000ms"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-detail",
+      "status": "pass",
+      "measured": "0 serious+critical; impact counts {\"moderate\":2}",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-instructor",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: focus: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a.detail-row').first()\u001b[22m\n"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-schedule",
+      "status": "fail",
+      "measured": "1 serious+critical violations: color-contrast(seriousx37)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":1}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-map",
+      "status": "pass",
+      "measured": "0 serious+critical; impact counts {}",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/axe-auth",
+      "status": "fail",
+      "measured": "2 serious+critical violations: aria-prohibited-attr(seriousx1), color-contrast(seriousx7)",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "axe impact counts {\"serious\":2}"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/keyboard-core-path",
+      "status": "fail",
+      "measured": null,
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "case threw: case a11y-polish/a11y/keyboard-core-path timed out after 240000ms"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/focus-indicator",
+      "status": "pass",
+      "measured": "outline none 3px; boxShadow rgba(0, 81, 43, 0.05) 0px 0px 0px 2.5px",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/reduced-motion",
+      "status": "pass",
+      "measured": "0 long-running animations under prefers-reduced-motion: reduce",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/no-horizontal-overflow-mobile",
+      "status": "fail",
+      "measured": "/courses: scrollWidth 613 > clientWidth 390",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored",
+      "note": "horizontal overflow at 390x844"
+    },
+    {
+      "suite": "a11y-polish",
+      "id": "a11y/image-icon-labeling",
+      "status": "pass",
+      "measured": "all images have alt; icons are labelled or hidden",
+      "bar": "0 serious/critical axe issues, keyboard-only journey completes, no clipping, reduced motion honored"
+    }
+  ],
+  "blockedRmpRequests": 0,
+  "stubs": [
+    {
+      "label": "backend-runtime-fallback",
+      "reason": "the pinned backend's better-sqlite3 native addon crashes Bun (NAPI panic), so the backend ran under its documented Node/tsx runtime with the same rmp-block preload injected via NODE_OPTIONS"
+    }
+  ],
+  "hashes": {
+    "contractMd": "86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a",
+    "barsJson": "c23e2119dec43debb2381a5aed70fabc3d0b173dc1e4a3923db3ffbc2aa0ae7a"
+  }
+}
