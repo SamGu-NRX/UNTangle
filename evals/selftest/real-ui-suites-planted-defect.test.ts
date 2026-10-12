@@ -1,152 +1,279 @@
 /**
- * Real-suite planted defects: journey, honesty, a11y-polish — SKIP-GUARDED.
+ * Real-suite planted defects: journey, honesty, a11y-polish (full real stack).
  *
- * These three suites are mid-final-pass on another thread
- * (branch obv/untangle-evals-f1-ui-suites @ 98a1a21); the lead's steer
- * (2026-10-11): write their defect tests against the case IDs those suites
- * declare, but do NOT run heavy Playwright verification passes until the
- * suites have landed and the host is free — earlier concurrent full-stack
- * runs collided. Each test below is therefore skipped with its plant design
- * recorded; enabling one is: remove `test.skip` and run the same recipe as
- * the persistence-faults planted-defect test (real stack on the
- * /home/user/work/untangle-selftest-target checkout).
+ * The lead's requirement: a harness that only fails on a fake suite proves
+ * nothing about the real ones. Each UI suite gets one defect planted at the
+ * boundary that suite actually observes, then the REAL suite runs on the REAL
+ * stack and the named case must FAIL with a nonzero runner exit:
  *
- * All three suites observe the rendered DOM of the real app (Playwright),
- * so the plant for each is a runtime patch of the TARGET checkout's
- * frontend — a throwaway copy, never this repo's tree — that introduces the
- * defect the suite should catch:
+ *   journey      — the landing's "Continue as guest" <Link> becomes a bare
+ *                  <div> (same text, no link role): every guest journey case
+ *                  fails at persona activation (journey.ts drives
+ *                  getByRole("link", { name: "Continue as guest" })).
+ *   honesty      — /schedule claims "100% accurate — guaranteed optimal —
+ *                  perfect schedule": no-fabricated-precision fails naming the
+ *                  matched phrase (honesty.ts reads /schedule body text).
+ *   a11y-polish  — /courses ships an informative image with empty alt text
+ *                  not marked decorative: image-icon-labeling fails ("img
+ *                  with empty alt not marked decorative").
  *
- *   journey        cases journey/<journey>-<persona>-<viewport>
- *                  (discover|instructor|build|save|plan|map|auth ×
- *                  guest|registered × desktop|mobile = 28 cases)
- *     plant: make "Continue as guest" inaccessible (remove the link's
- *     accessible name / switch to a bare div) → every case whose journey
- *     starts from the guest entry point fails with the suite's honest
- *     "contract element missing" note naming the element.
+ * The suites landed on the integration branch at 17dd066; case IDs are
+ * derived from the suites' own describe() where practical so the tests track
+ * the landed definitions instead of a hardcoded count.
  *
- *   honesty        cases honesty/rmp-labels-when-unavailable,
- *                  honesty/sample-data-notice, honesty/stale-rating-notice,
- *                  honesty/unverified-savings-disclaimer,
- *                  honesty/no-fabricated-precision
- *     plant: strip the sample-data notice from the UI while the dataset is
- *     still sample data → honesty/sample-data-notice fails.
+ * Heavy: each test boots the full real stack (Postgres, backend build,
+ * frontend build, a real browser) — ~10-25 min cold, less warm. Gate:
+ * SELFTEST_HEAVY=1, run ONE SUITE AT A TIME (never concurrently with other
+ * Playwright work on this shared 2-core host):
  *
- *   a11y-polish    cases a11y/keyboard-core-path, a11y/focus-indicator,
- *                  a11y/reduced-motion, a11y/no-horizontal-overflow-mobile,
- *                  a11y/image-icon-labeling
- *     plant: render an unlabeled icon-only control (alt=""/aria-hidden on a
- *     meaningful icon) → a11y/image-icon-labeling fails (axe "image-alt"
- *     style rule).
+ *   SELFTEST_HEAVY=1 bun test selftest/real-ui-suites-planted-defect.test.ts -t journey
+ *   SELFTEST_HEAVY=1 bun test selftest/real-ui-suites-planted-defect.test.ts -t honesty
+ *   SELFTEST_HEAVY=1 bun test selftest/real-ui-suites-planted-defect.test.ts -t a11y-polish
+ *
+ * Run evidence (scorecard JSON + runner stdout) lands in
+ * /home/user/work/ui-plant-runs/<ts>/ and is treated as the primary evidence
+ * for the report.
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { validateScorecard } from "../scorecard";
-import type { Scorecard } from "../scorecard";
-import {
-  makeFakeTarget,
-  makeHarnessCopy,
-  makeTempRoot,
-  readCard,
-  runRunner,
-  type HarnessCopy,
-} from "./helpers";
+import type { CaseRecord, Scorecard } from "../scorecard";
+import { EVALS_DIR, REPO_RUN_TS, spawnBounded, type SpawnResult } from "./helpers";
 
-let root: string;
-let harness: HarnessCopy;
+/** Persistent target checkout (a local clone of this repo) — shared with the persistence-faults test; serial runs only. */
+const TARGET_DIR = "/home/user/work/untangle-selftest-target";
+const RUNS_DIR = "/home/user/work/ui-plant-runs";
+const REPO_ROOT = "/home/user/work/clone-selftests";
 
-beforeAll(() => {
-  root = makeTempRoot("real-ui-suites");
-  harness = makeHarnessCopy(root, { stubStack: true });
+const LANDING_CLIENT = "frontend/src/components/landing-client.tsx";
+const SCHEDULE_PAGE = "frontend/src/app/schedule/page.tsx";
+const COURSES_PAGE = "frontend/src/app/courses/page.tsx";
+
+let targetSha = "";
+const runDirs: string[] = [];
+
+/** Heavy gate: full real-stack recipes run only under SELFTEST_HEAVY=1. */
+const HEAVY = process.env.SELFTEST_HEAVY === "1";
+
+/** Files planted during a test, with their original contents, for try/finally revert. */
+const plantedFiles: Array<{ relPath: string; original: string | null }> = [];
+
+beforeAll(async () => {
+  // Plain (non-heavy) runs skip every test below; do not clone the real
+  // target (or init its submodule) just to skip all of them.
+  if (!HEAVY) return;
+  if (!existsSync(path.join(TARGET_DIR, ".git"))) {
+    const clone = await spawnBounded("git", [
+      "clone", "--local", "--branch", "obv/untangle-evals-f1-selftests",
+      REPO_ROOT, TARGET_DIR,
+    ], { timeoutMs: 300_000 });
+    if (clone.code !== 0) throw new Error(`cloning the UI-plant target failed: ${clone.stderr.slice(-500)}`);
+  }
+  const sub = await spawnBounded("git", ["submodule", "update", "--init", "backend"], {
+    cwd: TARGET_DIR, timeoutMs: 600_000,
+  });
+  if (sub.code !== 0) throw new Error(`submodule init failed: ${sub.stderr.slice(-500)}`);
+  const sha = await spawnBounded("git", ["rev-parse", "HEAD"], { cwd: TARGET_DIR, timeoutMs: 15_000 });
+  if (sha.code !== 0) throw new Error(`rev-parse failed: ${sha.stderr.slice(-300)}`);
+  targetSha = sha.stdout.trim();
+  mkdirSync(RUNS_DIR, { recursive: true });
 });
 
 afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+  revertAll();
 });
 
-describe("real-suite planted defects: journey / honesty / a11y-polish (skip-guarded until those suites land)", () => {
-  test.skip(
-    "journey: an inaccessible guest entry point fails the guest cases with the contract element named in the note",
-    async () => {
-      // When enabled: patch the target copy's guest-entry control, run the
-      // real runner with --suite journey on the real stack, and assert:
-      //   - exit code 1, infrastructure.ok true;
-      //   - for every case journey/<j>-guest-<v>: status "fail" and a note
-      //     naming the missing "Continue as guest" element;
-      //   - registered-persona cases are untouched by the plant (either pass
-      //     or fail for their own reasons — assert only that the guest notes
-      //     name the planted element).
-      const target = makeFakeTarget(root, "target-journey-plant");
-      const out = path.join(root, "journey-plant", "card.json");
-      const r = await runRunner({
-        harness,
-        targetDir: target,
-        suite: "journey",
-        outPath: out,
-        taskId: "selftest-real-journey",
-        timeoutMs: 1_500_000,
-      });
-      const card = readCard(out) as Scorecard;
-      validateScorecard(card);
-      expect(r.code).toBe(1);
-      expect(card.cases.filter((c) => c.id.startsWith("journey/") && c.id.includes("-guest-")).length)
-        .toBe(14);
-    },
-    { timeout: 1_800_000 },
-  );
+/** Replace one exact occurrence of `find` in a target file; throws if the anchor is missing or ambiguous. */
+function plant(relPath: string, find: string, replace: string): void {
+  const abs = path.join(TARGET_DIR, relPath);
+  if (!existsSync(abs)) throw new Error(`plant anchor file missing: ${relPath}`);
+  const source = readFileSync(abs, "utf8");
+  const parts = source.split(find);
+  if (parts.length !== 2) {
+    throw new Error(`plant anchor in ${relPath} must match exactly once, found ${parts.length - 1}`);
+  }
+  if (!plantedFiles.some((p) => p.relPath === relPath)) {
+    plantedFiles.push({ relPath, original: source });
+  }
+  writeFileSync(abs, parts[0] + replace + parts[1]);
+}
 
-  test.skip(
-    "honesty: removing the sample-data notice fails honesty/sample-data-notice",
-    async () => {
-      // When enabled: patch the target copy's frontend so the sample-data
-      // notice is not rendered while the dataset is still sample data, run
-      // --suite honesty on the real stack, assert exit 1, infrastructure.ok
-      // true, and that honesty/sample-data-notice fails with a note naming
-      // the missing notice, while the other honesty cases keep their own
-      // verdicts.
-      const target = makeFakeTarget(root, "target-honesty-plant");
-      const out = path.join(root, "honesty-plant", "card.json");
-      const r = await runRunner({
-        harness,
-        targetDir: target,
-        suite: "honesty",
-        outPath: out,
-        taskId: "selftest-real-honesty",
-        timeoutMs: 1_500_000,
-      });
-      const card = readCard(out) as Scorecard;
-      validateScorecard(card);
-      expect(r.code).toBe(1);
-      const notice = card.cases.find((c) => c.id === "honesty/sample-data-notice");
-      expect(notice?.status).toBe("fail");
-    },
-    { timeout: 1_800_000 },
-  );
+/** Restore every planted file; deletes files the plants created. */
+function revertAll(): void {
+  for (const { relPath, original } of plantedFiles.reverse()) {
+    const abs = path.join(TARGET_DIR, relPath);
+    if (original === null) {
+      if (existsSync(abs)) unlinkSync(abs);
+    } else {
+      writeFileSync(abs, original);
+    }
+  }
+  plantedFiles.length = 0;
+}
 
-  test.skip(
-    "a11y-polish: an unlabeled icon-only control fails a11y/image-icon-labeling",
+async function runSuite(suite: string): Promise<SpawnResult> {
+  const taskId = `selftest-ui-plant-${suite}-${Date.now()}`;
+  const outDir = path.join(RUNS_DIR, String(Date.now()));
+  mkdirSync(outDir, { recursive: true });
+  runDirs.push(outDir);
+  return spawnBounded(
+    process.execPath,
+    [
+      REPO_RUN_TS,
+      "--target-dir", TARGET_DIR,
+      "--target-sha", targetSha,
+      "--suite", suite,
+      "--out", path.join(outDir, "card.json"),
+      "--task-id", taskId,
+    ],
+    { cwd: EVALS_DIR, timeoutMs: 1_500_000 },
+  );
+}
+
+function readCard(): Scorecard {
+  const dir = runDirs[runDirs.length - 1];
+  return JSON.parse(readFileSync(path.join(dir, "card.json"), "utf8")) as Scorecard;
+}
+
+function caseById(card: Scorecard, id: string): CaseRecord | undefined {
+  return card.cases.find((c) => c.id === id);
+}
+
+function noteOf(c: CaseRecord | undefined): string {
+  return c?.note ?? "";
+}
+
+describe("real-suite planted defect: journey (full real stack, broken guest entry)", () => {
+  test.skipIf(!HEAVY)(
+    "bare-div guest entry: exit 1, infrastructure.ok true, every guest journey case failing",
     async () => {
-      // When enabled: patch the target copy's frontend to ship an unlabeled
-      // icon-only control, run --suite a11y-polish on the real stack, assert
-      // exit 1, infrastructure.ok true, and that a11y/image-icon-labeling
-      // fails while the other a11y cases keep their own verdicts.
-      const target = makeFakeTarget(root, "target-a11y-plant");
-      const out = path.join(root, "a11y-plant", "card.json");
-      const r = await runRunner({
-        harness,
-        targetDir: target,
-        suite: "a11y-polish",
-        outPath: out,
-        taskId: "selftest-real-a11y",
-        timeoutMs: 1_500_000,
-      });
-      const card = readCard(out) as Scorecard;
-      validateScorecard(card);
+      plant(
+        LANDING_CLIENT,
+        `          <Link href="/courses" className="btn-primary">
+            Continue as guest
+          </Link>`,
+        `          {/* planted defect: the guest entry lost its link role */}
+          <div className="btn-primary">Continue as guest</div>`,
+      );
+      let r: SpawnResult;
+      try {
+        r = await runSuite("journey");
+      } finally {
+        revertAll();
+      }
+
+      expect(r.timedOut).toBe(false);
       expect(r.code).toBe(1);
-      const labeling = card.cases.find((c) => c.id === "a11y/image-icon-labeling");
+      validateScorecard(JSON.parse(readFileSync(path.join(runDirs[runDirs.length - 1], "card.json"), "utf8")));
+      const card = readCard();
+
+      // The defect is a CASE failure, not an infrastructure failure: every
+      // stack step passed and the run honestly blamed the cases.
+      expect(card.infrastructure.ok).toBe(true);
+      expect(card.stack.every((s) => s.status === "pass")).toBe(true);
+
+      // Case IDs derived from the landed suite definition: every guest case
+      // fails (they all start by activating the guest persona via the link
+      // the plant removed).
+      const { default: journeySuite } = await import("../suites/journey");
+      const specs = await journeySuite.describe();
+      const guestIds = specs
+        .map((c) => c.id)
+        .filter((id) => /^journey\/.+-(guest)-(desktop|mobile)$/.test(id));
+      expect(guestIds.length).toBeGreaterThan(0);
+
+      for (const id of guestIds) {
+        const c = caseById(card, id);
+        expect(c).toBeDefined();
+        expect(c?.status).toBe("fail");
+      }
+
+      // The failures name the boundary the plant broke (the persona
+      // activation locator is in the harness error the case recorded).
+      const withEvidence = guestIds.filter((id) => /Continue as guest/i.test(noteOf(caseById(card, id))));
+      expect(withEvidence.length).toBeGreaterThan(0);
+    },
+    1_600_000,
+  );
+});
+
+describe("real-suite planted defect: honesty (full real stack, fabricated precision on /schedule)", () => {
+  test.skipIf(!HEAVY)(
+    "precision overclaim: exit 1, infrastructure.ok true, no-fabricated-precision failing and naming the phrase",
+    async () => {
+      plant(
+        SCHEDULE_PAGE,
+        "  return <ScheduleClient />;",
+        `  return (
+    <div>
+      {/* planted defect: fabricated precise guarantees */}
+      <p>100% accurate — guaranteed optimal — perfect schedule.</p>
+      <ScheduleClient />
+    </div>
+  );`,
+      );
+      let r: SpawnResult;
+      try {
+        r = await runSuite("honesty");
+      } finally {
+        revertAll();
+      }
+
+      expect(r.timedOut).toBe(false);
+      expect(r.code).toBe(1);
+      validateScorecard(JSON.parse(readFileSync(path.join(runDirs[runDirs.length - 1], "card.json"), "utf8")));
+      const card = readCard();
+
+      expect(card.infrastructure.ok).toBe(true);
+      expect(card.stack.every((s) => s.status === "pass")).toBe(true);
+
+      const fabricated = caseById(card, "honesty/no-fabricated-precision");
+      expect(fabricated).toBeDefined();
+      expect(fabricated?.status).toBe("fail");
+      expect(noteOf(fabricated)).toContain("100% accurate");
+    },
+    1_600_000,
+  );
+});
+
+describe("real-suite planted defect: a11y-polish (full real stack, unlabeled informative image on /courses)", () => {
+  test.skipIf(!HEAVY)(
+    "empty-alt informative image: exit 1, infrastructure.ok true, image-icon-labeling failing",
+    async () => {
+      plant(
+        COURSES_PAGE,
+        "  return <CoursesClient />;",
+        `  return (
+    <div>
+      {/* planted defect: informative image shipped without alt text */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/icon.svg" alt="" />
+      <CoursesClient />
+    </div>
+  );`,
+      );
+      let r: SpawnResult;
+      try {
+        r = await runSuite("a11y-polish");
+      } finally {
+        revertAll();
+      }
+
+      expect(r.timedOut).toBe(false);
+      expect(r.code).toBe(1);
+      validateScorecard(JSON.parse(readFileSync(path.join(runDirs[runDirs.length - 1], "card.json"), "utf8")));
+      const card = readCard();
+
+      expect(card.infrastructure.ok).toBe(true);
+      expect(card.stack.every((s) => s.status === "pass")).toBe(true);
+
+      const labeling = caseById(card, "a11y/image-icon-labeling");
+      expect(labeling).toBeDefined();
       expect(labeling?.status).toBe("fail");
+      expect(noteOf(labeling)).toContain("empty alt");
     },
-    { timeout: 1_800_000 },
+    1_600_000,
   );
 });
