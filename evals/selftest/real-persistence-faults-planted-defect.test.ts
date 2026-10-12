@@ -76,9 +76,14 @@ afterAll(() => {
  */
 function sabotagePostgresOnce(runDir: string, taskId: string): Promise<boolean> {
   return (async () => {
-    const launchLog = path.join(runDir, "preflight-logs", "step-playwright-launch.log");
+    // The stack's playwright-launch step is an in-process chromium check and
+    // writes no step log, so the nearest on-disk signal for "the stack is up
+    // and the cases are about to run" is frontend-start's server log. Killing
+    // there is the same moment as the recipe's "the moment playwright-launch
+    // starts": every stack step has started succeeding, no case has run yet.
+    const launchSignal = path.join(runDir, "preflight-logs", "frontend.log");
     const deadline = Date.now() + 25 * 60_000;
-    while (!existsSync(launchLog)) {
+    while (!existsSync(launchSignal)) {
       if (Date.now() > deadline) return false;
       await new Promise((r) => setTimeout(r, 2_000));
     }
@@ -131,6 +136,7 @@ describe("real-suite planted defect: persistence-faults (full real stack, Postgr
         { cwd: EVALS_DIR, timeoutMs: 1_500_000 },
       );
       const planted = await saboteur;
+      console.warn(`[evidence] saboteur fired: ${planted}; runner exit code: ${r.code}; timed out: ${r.timedOut}`);
 
       expect(planted).toBe(true);
       expect(r.timedOut).toBe(false);
@@ -142,6 +148,7 @@ describe("real-suite planted defect: persistence-faults (full real stack, Postgr
       // the scorecard's top-level `stack` records; all passed before the kill.
       expect(card.infrastructure.ok).toBe(true);
       expect(card.stack.every((s) => s.status === "pass")).toBe(true);
+      console.warn(`[evidence] cases: ${card.cases.map((c) => `${c.id}=${c.status}`).join(", ")}`);
 
       const failedSaves = card.cases.find((c) => c.id === "failed-saves-never-saved");
       expect(failedSaves).toBeDefined();
