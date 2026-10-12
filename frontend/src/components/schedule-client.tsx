@@ -8,6 +8,9 @@ import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
+import { PlannerExportPanel } from "@/components/planner-export-panel";
+import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
+import { summarizeWeeklyWalking } from "@/lib/planner-walking";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
@@ -29,7 +32,7 @@ const optimizationOptions: { key: OptimizationKey; label: string; copy: string }
   { key: "clusterMorning", label: "Cluster mornings", copy: "Bias toward earlier starts." },
   { key: "clusterNight", label: "Cluster nights", copy: "Push classes later in the day." },
   { key: "compact", label: "Compact days", copy: "Reduce idle time between classes." },
-  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce cross-campus movement." },
+  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce estimated walking between classes." },
   { key: "maximizeProfessor", label: "Strong professors", copy: "Favor higher-rated instructors." },
 ];
 
@@ -106,6 +109,8 @@ export function ScheduleClient() {
     return formatTime(scheduleEvents.map((e) => e.start).sort()[0]);
   }, [scheduleEvents]);
 
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents), [scheduleEvents]);
+
   const latestEnd = useMemo(() => {
     if (scheduleEvents.length === 0) return "—";
     return formatTime(scheduleEvents.map((e) => e.end).sort().reverse()[0]);
@@ -148,6 +153,8 @@ export function ScheduleClient() {
             Shape the semester around one planning goal.
           </h1>
         </header>
+
+        <PlannerSampleNotice />
 
         {conflicts.length > 0 ? (
           <ConflictBanner>
@@ -241,11 +248,22 @@ export function ScheduleClient() {
                 <Metric label="Earliest" value={earliestStart} />
                 <Metric label="Latest" value={latestEnd} />
               </div>
+              <div style={{ marginTop: 10 }}>
+                <Metric label="Walking / week (estimated)" value={`${Math.round(walking.knownSeconds / 60)} min`} />
+                <p style={{ fontSize: "0.74rem", color: "var(--copy)", marginTop: 2 }}>
+                  {walking.estimated ? "Estimated from straight-line distance between buildings." : "Estimated."}
+                  {walking.unknownLegs > 0
+                    ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? "" : "s"} could not be estimated (unknown building) and ${walking.unknownLegs === 1 ? "is" : "are"} not included.`
+                    : ""}
+                </p>
+              </div>
             </section>
+
+            <PlannerExportPanel />
           </aside>
 
           {/* Calendar */}
-          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }}>
+          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
             <div className="cal-grid">
               <div className="cal-head" />
               {weekDays.map((day) => (
@@ -294,7 +312,7 @@ export function ScheduleClient() {
                             {formatTime(event.start)} – {formatTime(event.end)}
                           </div>
                           <div className="cal-event__meta" style={{ opacity: 0.7 }}>
-                            {event.professor}
+                            {event.professor} (sample)
                           </div>
                         </button>
                       );
@@ -312,7 +330,10 @@ export function ScheduleClient() {
         origin={pickerOrigin}
         title={
           <div>
-            <p className="editorial-label">Swap section</p>
+            <p className="editorial-label">
+              Swap section
+              <SampleTag />
+            </p>
             <h2
               className="font-display"
               style={{

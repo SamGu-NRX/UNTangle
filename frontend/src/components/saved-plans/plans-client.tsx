@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { NavShell } from "@/components/nav-shell";
 import { Modal } from "@/components/ui/Modal";
 import { usePlanner, useToast } from "@/components/planner-provider";
+import { PlannerSampleNotice } from "@/components/planner-sample-notice";
 import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
 import {
   createSavedPlanStore,
@@ -378,6 +379,8 @@ export function PlansClient() {
           </p>
         </header>
 
+        <PlannerSampleNotice />
+
         {!storeAvailable ? (
           <p role="alert" style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: "0.8rem 1rem", background: "var(--surface-muted)" }}>
             Saved plans are unavailable because browser storage is disabled. You can still export plans
@@ -541,6 +544,9 @@ export function PlansClient() {
                 </ul>
               </div>
             ) : null}
+            <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--copy)" }}>
+              Section ids, times and instructors below are sample data.
+            </p>
             <ol style={{ margin: 0, paddingInlineStart: "1.2rem", display: "grid", gap: "0.35rem", fontSize: "0.9rem" }}>
               {describeRestoreSteps(restorePlan, restoreReferences).map((step, index) => (
                 <li key={`restore-step-${index}`}>{step}</li>
