@@ -22,6 +22,20 @@
       "when": 1777543894634,
       "tag": "0002_transcript_import",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791773306585,
+      "tag": "0003_planner_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791782856693,
+      "tag": "0004_planner_section_locks",
+      "breakpoints": true
     }
   ]
 }

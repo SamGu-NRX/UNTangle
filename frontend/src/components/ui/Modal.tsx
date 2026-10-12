@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -11,6 +12,8 @@ import {
 import { createPortal } from "react-dom";
 
 const EXIT_DURATION = 160;
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   open,
@@ -20,6 +23,7 @@ export function Modal({
   origin,
   maxWidth = 560,
   closable = true,
+  role = "dialog",
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,10 +32,25 @@ export function Modal({
   origin?: { x: number; y: number } | null;
   maxWidth?: number;
   closable?: boolean;
+  /** `alertdialog` for a decision the user must make before continuing. */
+  role?: "dialog" | "alertdialog";
 }) {
   const [exiting, setExiting] = useState(false);
+  const titleId = useId();
   const triggerRef = useRef<HTMLElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  // Keep the last real title while the exit animation plays so the dialog
+  // stays programmatically named (and no empty heading renders) as it closes.
+  const [retainedTitle, setRetainedTitle] = useState<ReactNode>(undefined);
+  const [prevTitle, setPrevTitle] = useState(title);
+  if (prevTitle !== title) {
+    setPrevTitle(title);
+    if (title) {
+      setRetainedTitle(title);
+    }
+  }
+  const shownTitle = title || (exiting ? retainedTitle : undefined);
+  const hasTitle = Boolean(shownTitle);
   const mounted = open || exiting;
 
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,11 +88,40 @@ export function Modal({
     }
   }, [mounted, origin]);
 
-  // Close on Escape and lock background scroll while the dialog is present.
+  // Move focus into the dialog when it opens: the first control, or the box.
+  useEffect(() => {
+    if (!open) return;
+    const box = boxRef.current;
+    if (!box || box.contains(document.activeElement)) return;
+    const first = box.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? box).focus();
+  }, [open]);
+
+  // Close on Escape, keep Tab inside the dialog, and lock background scroll
+  // while the dialog is present.
   useEffect(() => {
     if (!mounted) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && closable) onClose();
+      if (e.key === "Tab" && boxRef.current) {
+        const focusable = [...boxRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+        if (focusable.length === 0) {
+          e.preventDefault();
+          boxRef.current.focus();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        const inside = boxRef.current.contains(active);
+        if (e.shiftKey && (active === first || !inside)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !inside)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -106,19 +154,21 @@ export function Modal({
         ref={boxRef}
         className="modal-box"
         data-state={state}
-        role="dialog"
+        role={role}
         aria-modal="true"
+        aria-labelledby={hasTitle ? titleId : undefined}
+        tabIndex={-1}
         style={{ maxWidth }}
       >
-        {title || closable ? (
+        {shownTitle || closable ? (
           <div className="modal-head">
-            <div style={{ minWidth: 0 }}>
-              {typeof title === "string" ? (
-                <h2 className="font-display" style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--brand-900)" }}>
-                  {title}
+            <div style={{ minWidth: 0 }} id={typeof shownTitle === "string" ? undefined : titleId}>
+              {typeof shownTitle === "string" ? (
+                <h2 id={titleId} className="font-display" style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--brand-900)" }}>
+                  {shownTitle}
                 </h2>
               ) : (
-                title
+                shownTitle
               )}
             </div>
             {closable ? (

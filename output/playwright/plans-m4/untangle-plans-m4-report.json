@@ -1,0 +1,93 @@
+{
+  "startedAt": "2026-10-11T01:10:41.858Z",
+  "base": "http://127.0.0.1:3100",
+  "screenshots": [
+    "plans-desktop-initial.png",
+    "plans-desktop-after-save.png",
+    "compare-open-desktop.png",
+    "restore-preview-desktop.png",
+    "restore-preview-drift-desktop.png",
+    "plans-desktop-after-restore.png",
+    "import-rejected-desktop.png",
+    "archived-desktop.png",
+    "renamed-desktop.png",
+    "plans-mobile-initial.png",
+    "plans-mobile-after-save.png",
+    "restore-preview-mobile.png",
+    "restore-preview-reduced-motion.png"
+  ],
+  "axe": [
+    {
+      "label": "desktop: compare open",
+      "violations": [],
+      "incomplete": [],
+      "passes": 39
+    },
+    {
+      "label": "desktop: restore preview open",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 3
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passes": 40
+    },
+    {
+      "label": "mobile: restore preview open",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 7
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passes": 40
+    },
+    {
+      "label": "mobile: plans list",
+      "violations": [],
+      "incomplete": [],
+      "passes": 39
+    },
+    {
+      "label": "desktop: plans list (fresh context)",
+      "violations": [],
+      "incomplete": [],
+      "passes": 37
+    }
+  ],
+  "checks": {
+    "keyboardTabReachesSaveButton": true,
+    "savedPlanListed": true,
+    "comparePanelVisible": true,
+    "compareShowsNoChanges": true,
+    "exportSchemaVersion": 1,
+    "exportName": "M4 evidence draft",
+    "exportFileName": "untangle-m4-evidence-draft-2026-10-11.json",
+    "previewListsSteps": true,
+    "previewNoDrift": true,
+    "previewShowsDrift": true,
+    "restoreAppliedPreference": true,
+    "importUnsupportedVersionRejected": true,
+    "doctoredPlanNotListed": true,
+    "duplicateListed": true,
+    "archivedBadge": true,
+    "reopened": true,
+    "renamed": true,
+    "mobileHorizontalOverflowPx": 0,
+    "reducedMotionPreviewOpens": true
+  },
+  "consoleErrors": [],
+  "notes": [],
+  "finishedAt": "2026-10-11T01:11:12.687Z"
+}

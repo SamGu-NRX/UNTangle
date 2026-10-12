@@ -1,0 +1,1 @@
+ALTER TABLE "planner_state" ADD COLUMN "revision" integer DEFAULT 1 NOT NULL;

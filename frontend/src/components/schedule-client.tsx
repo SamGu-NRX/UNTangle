@@ -7,6 +7,11 @@ import { ConflictBanner } from "@/components/ui/ConflictBanner";
 import { StatusMark } from "@/components/ui/StatusMark";
 import { StaggerGroup } from "@/components/ui/StaggerGroup";
 import { usePlanner, useToast } from "@/components/planner-provider";
+import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
+import { PlannerExportPanel } from "@/components/planner-export-panel";
+import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
+import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { ScheduleSectionLocks } from "@/components/schedule-section-locks";
 import { sections } from "@/lib/seed-data";
 import {
   formatTime,
@@ -24,11 +29,36 @@ import type { OptimizationKey, ScheduleEvent } from "@/lib/types";
 
 const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am - 7pm)
 
+const SCHEDULE_LAYOUT_CSS = `
+.schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
+.lock-toggle {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0.25rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--copy);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; cursor: pointer;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
+}
+.lock-toggle[aria-pressed="true"] { background: var(--brand-900); border-color: var(--brand-700); color: #fff; }
+.lock-toggle:active { transform: scale(0.97); }
+.lock-toggle:focus-visible { outline: 2px solid var(--brand-700); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .lock-toggle[aria-pressed="false"]:hover { border-color: var(--brand-500); color: var(--ink); }
+}
+@media (max-width: 760px) {
+  .schedule-layout { grid-template-columns: minmax(0, 1fr); }
+  /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
+  .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
+  /* Hidden visually, kept in the accessible name the contract specifies. */
+  .cal-event__meta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+`;
+
 const optimizationOptions: { key: OptimizationKey; label: string; copy: string }[] = [
   { key: "clusterMorning", label: "Cluster mornings", copy: "Bias toward earlier starts." },
   { key: "clusterNight", label: "Cluster nights", copy: "Push classes later in the day." },
   { key: "compact", label: "Compact days", copy: "Reduce idle time between classes." },
-  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce cross-campus movement." },
+  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce estimated walking between classes." },
   { key: "maximizeProfessor", label: "Strong professors", copy: "Favor higher-rated instructors." },
 ];
 
@@ -61,7 +91,7 @@ function eventLayout(event: ScheduleEvent) {
 }
 
 export function ScheduleClient() {
-  const { plannerState, scheduleEvents, setOptimization, setSection } = usePlanner();
+  const { plannerState, scheduleEvents, setOptimization, setSection, optimizeSchedule } = usePlanner();
   const { toast } = useToast();
   const [pickerCourseCode, setPickerCourseCode] = useState<string | null>(null);
   const [pickerOrigin, setPickerOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -104,6 +134,8 @@ export function ScheduleClient() {
     if (scheduleEvents.length === 0) return "—";
     return formatTime(scheduleEvents.map((e) => e.start).sort()[0]);
   }, [scheduleEvents]);
+
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents), [scheduleEvents]);
 
   const latestEnd = useMemo(() => {
     if (scheduleEvents.length === 0) return "—";
@@ -148,6 +180,8 @@ export function ScheduleClient() {
           </h1>
         </header>
 
+        <PlannerSampleNotice />
+
         {conflicts.length > 0 ? (
           <ConflictBanner>
             Time conflict detected: {conflicts.join(" · ")}. Click an event to swap sections.
@@ -161,7 +195,11 @@ export function ScheduleClient() {
           </ConflictBanner>
         ) : null}
 
-        <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 260px) minmax(0, 1fr)" }}>
+        <PlannerPersistencePanel />
+
+        {/* Two columns squeezed the calendar to ~70px at 390px wide; stack below 760px. */}
+        <style>{SCHEDULE_LAYOUT_CSS}</style>
+        <div className="schedule-layout">
           {/* Sidebar */}
           <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
             <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
@@ -176,6 +214,7 @@ export function ScheduleClient() {
                       type="button"
                       className="opt-row"
                       data-active={plannerState.optimization === opt.key ? "true" : "false"}
+                      aria-pressed={plannerState.optimization === opt.key}
                       onClick={() => {
                         if (plannerState.optimization !== opt.key) {
                           setOptimization(opt.key);
@@ -195,6 +234,18 @@ export function ScheduleClient() {
                     </button>
                   ))}
                 </StaggerGroup>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginTop: 4 }}
+                  onClick={() => {
+                    optimizeSchedule();
+                    const label = optimizationOptions.find((opt) => opt.key === plannerState.optimization)?.label;
+                    toast(`Re-optimized: ${label ?? plannerState.optimization}`);
+                  }}
+                >
+                  Optimize schedule
+                </button>
               </div>
             </section>
 
@@ -219,6 +270,14 @@ export function ScheduleClient() {
                   </span>
                 ) : null}
               </div>
+              {selectedSections.length > 0 ? (
+                <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+                  <p style={{ fontSize: "0.76rem", color: "var(--copy)" }}>
+                    Locked sections stay put when you optimize.
+                  </p>
+                  <ScheduleSectionLocks />
+                </div>
+              ) : null}
             </section>
 
             <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
@@ -238,11 +297,26 @@ export function ScheduleClient() {
                 <Metric label="Earliest" value={earliestStart} />
                 <Metric label="Latest" value={latestEnd} />
               </div>
+              <div style={{ marginTop: 10 }}>
+                <Metric label="Walking / week (estimated)" value={`${Math.round(walking.knownSeconds / 60)} min`} />
+                <p style={{ fontSize: "0.74rem", color: "var(--copy)", marginTop: 2 }}>
+                  {walking.estimated ? "Estimated from straight-line distance between buildings." : "Estimated."}
+                  {walking.unknownLegs > 0
+                    ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? "" : "s"} could not be estimated (unknown building) and ${walking.unknownLegs === 1 ? "is" : "are"} not included.`
+                    : ""}
+                </p>
+              </div>
             </section>
+
+            <PlannerExportPanel />
           </aside>
 
           {/* Calendar */}
-          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }}>
+          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
+            {/* Sample label outside the events, so it never changes an event's name. */}
+            <p style={{ margin: 0, padding: "0.45rem 0.75rem", fontSize: "0.76rem", color: "var(--copy)", borderBottom: "1px solid var(--line)" }}>
+              Sample sections, times and instructors
+            </p>
             <div className="cal-grid">
               <div className="cal-head" />
               {weekDays.map((day) => (
@@ -286,11 +360,22 @@ export function ScheduleClient() {
                           }}
                           onClick={(e) => openPicker(event.courseCode, e)}
                         >
-                          <div className="cal-event__title">{event.courseCode}</div>
-                          <div className="cal-event__meta">
+                          {/* The text supplies the contract name "{COURSE} {START} – {END} {PROFESSOR}";
+                              nothing else visible goes inside, so the name contains all visible text. */}
+                          <div className="cal-event__title">
+                            {event.courseCode}
+                            {plannerState.lockedSections?.[event.courseCode] === event.sectionId ? (
+                              <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style={{ marginLeft: 4 }}>
+                                <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
+                                <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                              </svg>
+                            ) : null}
+                          </div>
+                          {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
+                          <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {formatTime(event.start)} – {formatTime(event.end)}
                           </div>
-                          <div className="cal-event__meta" style={{ opacity: 0.7 }}>
+                          <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {event.professor}
                           </div>
                         </button>
@@ -309,7 +394,10 @@ export function ScheduleClient() {
         origin={pickerOrigin}
         title={
           <div>
-            <p className="editorial-label">Swap section</p>
+            <p className="editorial-label">
+              Swap section
+              <SampleTag />
+            </p>
             <h2
               className="font-display"
               style={{

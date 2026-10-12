@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -83,7 +83,14 @@ export const plannerStates = pgTable("planner_state", {
   selectedMajor: text("selected_major"),
   transcriptRecords: jsonb("transcript_records").default([]).notNull(),
   routeStops: jsonb("route_stops").notNull(),
+  // Course code -> pinned section id. Rows from before locks default to none.
+  lockedSections: jsonb("locked_sections").default({}).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Bumped on every write. A save names the revision it started from and is
+  // refused when the row moved on, so a stale tab cannot overwrite newer data.
+  // Default 1 so rows written before this column existed count as written
+  // once; 0 is reserved for "no row yet".
+  revision: integer("revision").default(1).notNull(),
 });
 
 export const schema = {
