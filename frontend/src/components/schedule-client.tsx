@@ -28,6 +28,16 @@ import type { OptimizationKey, ScheduleEvent } from "@/lib/types";
 
 const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am - 7pm)
 
+const SCHEDULE_LAYOUT_CSS = `
+.schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
+@media (max-width: 760px) {
+  .schedule-layout { grid-template-columns: minmax(0, 1fr); }
+  /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
+  .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
+  .cal-event__meta { display: none; }
+}
+`;
+
 const optimizationOptions: { key: OptimizationKey; label: string; copy: string }[] = [
   { key: "clusterMorning", label: "Cluster mornings", copy: "Bias toward earlier starts." },
   { key: "clusterNight", label: "Cluster nights", copy: "Push classes later in the day." },
@@ -171,7 +181,9 @@ export function ScheduleClient() {
 
         <PlannerPersistencePanel />
 
-        <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 260px) minmax(0, 1fr)" }}>
+        {/* Two columns squeezed the calendar to ~70px at 390px wide; stack below 760px. */}
+        <style>{SCHEDULE_LAYOUT_CSS}</style>
+        <div className="schedule-layout">
           {/* Sidebar */}
           <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
             <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
@@ -308,10 +320,11 @@ export function ScheduleClient() {
                           onClick={(e) => openPicker(event.courseCode, e)}
                         >
                           <div className="cal-event__title">{event.courseCode}</div>
-                          <div className="cal-event__meta">
+                          {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
+                          <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {formatTime(event.start)} – {formatTime(event.end)}
                           </div>
-                          <div className="cal-event__meta" style={{ opacity: 0.7 }}>
+                          <div className="cal-event__meta" style={{ opacity: 1 }}>
                             {event.professor} (sample)
                           </div>
                         </button>
