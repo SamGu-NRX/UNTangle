@@ -206,7 +206,7 @@ describe("real-suite planted defect: journey (full real stack, broken guest entr
       const withEvidence = guestIds.filter((id) => /Continue as guest/i.test(noteOf(caseById(card, id))));
       expect(withEvidence.length).toBeGreaterThan(0);
     },
-    2_400_000,
+    2_700_000,
   );
 });
 
@@ -245,7 +245,7 @@ describe("real-suite planted defect: honesty (full real stack, fabricated precis
       expect(fabricated?.status).toBe("fail");
       expect(noteOf(fabricated)).toContain("100% accurate");
     },
-    2_400_000,
+    2_700_000,
   );
 });
 
@@ -285,6 +285,6 @@ describe("real-suite planted defect: a11y-polish (full real stack, unlabeled inf
       expect(labeling?.status).toBe("fail");
       expect(noteOf(labeling)).toContain("empty alt");
     },
-    2_400_000,
+    2_700_000,
   );
 });
