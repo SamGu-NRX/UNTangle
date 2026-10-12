@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "suite": "persistence-faults",
+  "startedAt": "2026-10-12T02:41:17.147Z",
+  "finishedAt": "2026-10-12T02:52:05.074Z",
+  "target": {
+    "dir": "/home/user/work/untangle-selftest-target",
+    "sha": "7f12402d62386fa4c6200833f2b66511d201ca99",
+    "actualHead": "7f12402d62386fa4c6200833f2b66511d201ca99"
+  },
+  "runtime": {
+    "bun": "1.3.14",
+    "node": "v20.20.2",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+    "playwright": "1.64.0",
+    "os": "Linux 6.1.158+ x64"
+  },
+  "stack": [
+    {
+      "step": "target-dir",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "/home/user/work/untangle-selftest-target",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-target-dir.log"
+    },
+    {
+      "step": "contract-present",
+      "status": "pass",
+      "durationMs": 1,
+      "detail": "/home/user/work/untangle-selftest-target/evals/CONTRACT.md",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-contract-present.log"
+    },
+    {
+      "step": "submodule-backend",
+      "status": "pass",
+      "durationMs": 59,
+      "detail": "already initialized at pinned SHA 0a49d4d863161c3b568f6aa6d3da4b4e68637a44",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-submodule-backend.log"
+    },
+    {
+      "step": "backend-install",
+      "status": "pass",
+      "durationMs": 11,
+      "detail": "cached install present (better-sqlite3 native binding + tsx)",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-backend-install.log"
+    },
+    {
+      "step": "backend-sqlite-build",
+      "status": "pass",
+      "durationMs": 5022,
+      "detail": "native SQLite addon loads in node (memory-db roundtrip ok); backend tsc build emitted dist/",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-backend-sqlite-build.log"
+    },
+    {
+      "step": "postgres-init",
+      "status": "pass",
+      "durationMs": 1352,
+      "detail": "fresh cluster at /home/user/work/pgdata-selftest-persist-plant-1791772875794/run-1791772882259-56217",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-postgres-init.log"
+    },
+    {
+      "step": "postgres-start",
+      "status": "pass",
+      "durationMs": 320,
+      "detail": "postgres up on 127.0.0.1:54320, database untangle created",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-postgres-start.log"
+    },
+    {
+      "step": "frontend-install",
+      "status": "pass",
+      "durationMs": 1178,
+      "detail": "bun install --frozen-lockfile at workspace root",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-frontend-install.log"
+    },
+    {
+      "step": "migrations-apply",
+      "status": "pass",
+      "durationMs": 1299,
+      "detail": "drizzle migrations applied (frontend/node_modules/.bin/drizzle-kit) against postgres://postgres@127.0.0.1:54320/untangle",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-migrations-apply.log"
+    },
+    {
+      "step": "db-roundtrip",
+      "status": "pass",
+      "durationMs": 33,
+      "detail": "probe row roundtrip-eee942d8487a49da written and read back via DATABASE_URL (persistence gate satisfied)",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-db-roundtrip.log"
+    },
+    {
+      "step": "backend-start",
+      "status": "pass",
+      "durationMs": 2447,
+      "detail": "backend healthy on http://127.0.0.1:3950 under node/tsx (rmp-block preload via NODE_OPTIONS --require). bun --preload attempt failed: bun --preload backend: process exited early (code 1, signal none) — expected: the backend's better-sqlite3 addon crashes Bun at runtime (backend/README.md \"Bun Notes\")",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-backend-start.log"
+    },
+    {
+      "step": "frontend-build",
+      "status": "pass",
+      "durationMs": 86259,
+      "detail": "mode: production-build (next build); fonts: pinned via NEXT_FONT_GOOGLE_MOCKED_RESPONSES (vercel/next.js#99114 workaround)",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-frontend-build.log"
+    },
+    {
+      "step": "frontend-start",
+      "status": "pass",
+      "durationMs": 6461,
+      "detail": "frontend serving http://localhost:3900 (DATABASE_URL set, BETTER_AUTH_URL aligned to origin, fresh random BETTER_AUTH_SECRET)",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-frontend-start.log"
+    },
+    {
+      "step": "playwright-launch",
+      "status": "pass",
+      "durationMs": 2528,
+      "detail": "chromium (headless) launched and rendered http://localhost:3900/ (body 6029 chars)",
+      "logPath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/step-playwright-launch.log"
+    }
+  ],
+  "infrastructure": {
+    "ok": true,
+    "brokenStep": null
+  },
+  "cases": [
+    {
+      "suite": "persistence-faults",
+      "id": "acknowledged-saves-survive",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__acknowledged-saves-survive.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "failed-saves-never-saved",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__failed-saves-never-saved.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "denied-storage-degrades-honestly",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__denied-storage-degrades-honestly.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "corrupt-bytes-quarantined",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__corrupt-bytes-quarantined.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "cross-tab-conflict-visible",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__cross-tab-conflict-visible.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    },
+    {
+      "suite": "persistence-faults",
+      "id": "clean-tab-adopts-newer",
+      "status": "fail",
+      "measured": null,
+      "bar": "each durability rule holds in every injected case",
+      "evidencePath": "/home/user/work/persist-plant-runs/1791772875794/preflight-logs/persistence-faults__clean-tab-adopts-newer.json",
+      "note": "case could not complete (harness/journey error, not a measured durability verdict): browser launch/connect exceeded 90s (launchServer up)"
+    }
+  ],
+  "blockedRmpRequests": 0,
+  "stubs": [
+    {
+      "label": "backend-runtime-fallback",
+      "reason": "the pinned backend's better-sqlite3 native addon crashes Bun (NAPI panic), so the backend ran under its documented Node/tsx runtime with the same rmp-block preload injected via NODE_OPTIONS"
+    }
+  ],
+  "hashes": {
+    "contractMd": "86072811b2c376b5fcc0cf25035bbeb0fb050d5e7e4c7ebab7aa55f579b9ae0a",
+    "barsJson": "c23e2119dec43debb2381a5aed70fabc3d0b173dc1e4a3923db3ffbc2aa0ae7a"
+  }
+}

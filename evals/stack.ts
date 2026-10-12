@@ -12,11 +12,15 @@
  *   postgres-init         fresh cluster under /home/user/work/pgdata-<taskId>
  *                         (never inside the repo)
  *   postgres-start        server on a free 5432x port + createdb untangle
+ *   frontend-install      workspace root bun install (frontend deps). Runs
+ *                         BEFORE migrations-apply: on a fresh target checkout
+ *                         frontend/node_modules does not exist yet, and
+ *                         drizzle.config.ts imports drizzle-kit — without the
+ *                         workspace install, migrate cannot resolve it
  *   migrations-apply      frontend drizzle migrations via drizzle-kit migrate
  *   db-roundtrip          DATABASE_URL save-then-read-back (persistence gate:
  *                         frontend/src/lib/persistence.ts disables persistence
  *                         when DATABASE_URL is unset)
- *   frontend-install      workspace root bun install (frontend deps)
  *   backend-start         backend up on a free port; RateMyProfessors blocked via
  *                         the rmp-block preload. Primary attempt: bun --preload
  *                         (per harness spec). The backend's better-sqlite3 addon
@@ -588,6 +592,24 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     return `postgres up on 127.0.0.1:${port}, database untangle created`;
   });
 
+  // --- (c) frontend deps — must precede migrations-apply on fresh checkouts:
+  // drizzle.config.ts imports drizzle-kit, which resolves only once the
+  // workspace install has populated frontend/node_modules.
+  await step("frontend-install", async () => {
+    const nextBin = path.join(frontendDir, "node_modules", ".bin", "next");
+    const drizzleBin = path.join(frontendDir, "node_modules", ".bin", "drizzle-kit");
+    if (existsSync(nextBin) && existsSync(drizzleBin)) {
+      return "cached workspace install present (next + drizzle-kit)";
+    }
+    const r = await runBounded("bun", ["install", "--frozen-lockfile"], {
+      cwd: ctx.targetDir,
+      timeoutMs: 600_000,
+      logPath: stepLog("frontend-install"),
+    });
+    if (r.code !== 0) throw new Error(`workspace bun install failed (code ${r.code}): ${r.tail.slice(-600)}`);
+    return "bun install --frozen-lockfile at workspace root";
+  });
+
   // --- (d) drizzle migrations ---------------------------------------------------
   await step("migrations-apply", async () => {
     const localBin = path.join(frontendDir, "node_modules", ".bin", "drizzle-kit");
@@ -595,7 +617,11 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     const args = existsSync(localBin) ? ["migrate"] : ["drizzle-kit", "migrate"];
     const r = await runBounded(cmd, args, {
       cwd: frontendDir,
-      env: { ...process.env, DATABASE_URL: ctx.databaseUrl },
+      // PATH must include the bunx shim dir: on a fresh target checkout the
+      // local drizzle-kit bin does not exist yet (migrations-apply runs before
+      // frontend-install), and some hosts ship a dangling `bunx` symlink —
+      // the same host quirk the backend-build step guards against.
+      env: { ...process.env, DATABASE_URL: ctx.databaseUrl, PATH: pathWithShim },
       timeoutMs: 180_000,
       logPath: stepLog("migrations-apply"),
     });
@@ -629,21 +655,7 @@ export async function startStack(options: StartStackOptions): Promise<RunningSta
     }
   });
 
-  // --- (f) frontend install, build, start --------------------------------------
-  await step("frontend-install", async () => {
-    const nextBin = path.join(frontendDir, "node_modules", ".bin", "next");
-    const drizzleBin = path.join(frontendDir, "node_modules", ".bin", "drizzle-kit");
-    if (existsSync(nextBin) && existsSync(drizzleBin)) {
-      return "cached workspace install present (next + drizzle-kit)";
-    }
-    const r = await runBounded("bun", ["install", "--frozen-lockfile"], {
-      cwd: ctx.targetDir,
-      timeoutMs: 600_000,
-      logPath: stepLog("frontend-install"),
-    });
-    if (r.code !== 0) throw new Error(`workspace bun install failed (code ${r.code}): ${r.tail.slice(-600)}`);
-    return "bun install --frozen-lockfile at workspace root";
-  });
+  // --- (f) frontend build, start ------------------------------------------------
 
   const backendPort = await getFreePort(BACKEND_PORT_RANGE.start, BACKEND_PORT_RANGE.end, usedPorts);
   usedPorts.add(backendPort);
