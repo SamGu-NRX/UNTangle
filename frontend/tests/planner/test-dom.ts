@@ -147,6 +147,8 @@ export class FakePlannerServer {
   failNextPosts: Array<number | "drop"> = [];
   /** When set, the next POST waits for `release()` before it is processed. */
   private gate: Deferred | null = null;
+  /** When set, the next GET waits for `release()` before it is answered. */
+  private getGate: Deferred | null = null;
   gets = 0;
   /** POSTs that reached the server, including ones still held at a gate. */
   postsStarted = 0;
@@ -155,6 +157,12 @@ export class FakePlannerServer {
   holdNextPost(): () => void {
     const gate = deferred();
     this.gate = gate;
+    return gate.release;
+  }
+
+  holdNextGet(): () => void {
+    const gate = deferred();
+    this.getGate = gate;
     return gate.release;
   }
 
@@ -171,6 +179,11 @@ export class FakePlannerServer {
     const method = (init?.method ?? "GET").toUpperCase();
     if (method === "GET") {
       this.gets += 1;
+      const getGate = this.getGate;
+      this.getGate = null;
+      if (getGate) {
+        await getGate.promise;
+      }
       if (!this.sessionValid) {
         return json({ error: "Unauthorized" }, 401);
       }

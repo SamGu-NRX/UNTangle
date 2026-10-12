@@ -148,7 +148,10 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [guestStorageAvailable, setGuestStorageAvailable] = useState(true);
   const [serverPersistent, setServerPersistent] = useState(true);
 
-  const bootstrappedFor = useRef<"guest" | "registered" | null>(null);
+  const bootstrappedFor = useRef<string | null>(null);
+  // Incremented on every identity change; async results from an older
+  // generation belong to a previous user (or guest) and are dropped.
+  const sessionGeneration = useRef(0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveInFlight = useRef(false);
   /** Newest state waiting to save after the in-flight server request settles. */
@@ -223,10 +226,25 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       }
       saveInFlight.current = true;
       setSaveState(SAVING);
+      let generation = sessionGeneration.current;
       try {
         let current = state;
         for (;;) {
           const outcome = await savePlannerStateToServer(current, serverRevision.current);
+          if (generation !== sessionGeneration.current) {
+            // The signed-in identity changed while this request was in
+            // flight: its outcome describes the previous user's plan. Drop
+            // it, and send anything the new identity queued meanwhile.
+            const queued = pendingServerSave.current;
+            if (!queued) {
+              return;
+            }
+            pendingServerSave.current = null;
+            generation = sessionGeneration.current;
+            current = queued.state;
+            setSaveState(SAVING);
+            continue;
+          }
           if (outcome.kind === "saved") {
             serverRevision.current = outcome.revision;
             // A successful write proves the session is valid again.
@@ -301,7 +319,11 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
    * shown and the user chooses.
    */
   const reloadFromServer = useCallback(async () => {
+    const generation = sessionGeneration.current;
     const loaded = await loadPlannerStateFromServer();
+    if (generation !== sessionGeneration.current) {
+      return;
+    }
     if (loaded.kind === "signed-out") {
       serverLoadPending.current = true;
       enterSignedOut(loaded.message);
@@ -383,46 +405,65 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => onSessionRestored(handleSessionRestored), [handleSessionRestored]);
 
-  // Bootstrap is keyed on the registration state: it runs once per session
-  // phase (guest → registered → guest re-runs on in-app sign-in/out) so the
-  // planner always loads the right stored state for who is signed in.
+  // Bootstrap is keyed on who is signed in (the user id, or guest): it runs
+  // once per identity, including sign-out followed by sign-in as someone
+  // else. Each run gets a new generation; any response that arrives after a
+  // newer run started belongs to the previous identity and is dropped.
   useEffect(() => {
     if (sessionResult.isPending) {
       return;
     }
-    const registered = Boolean(sessionResult.data?.user);
-    const needed = registered ? "registered" : "guest";
+    const userId = sessionResult.data?.user?.id ?? null;
+    const registered = userId !== null;
+    const needed = registered ? `registered:${userId}` : "guest";
     if (bootstrappedFor.current === needed) {
       return;
     }
     bootstrappedFor.current = needed;
+    const generation = ++sessionGeneration.current;
+    const isCurrent = () => generation === sessionGeneration.current;
     mutatedBeforeBootstrap.current = false;
     lastPersistedFingerprint.current = null;
     sessionExpired.current = false;
     serverLoadPending.current = false;
     pendingServerSave.current = null;
+    serverRevision.current = 0;
+    conflictRef.current = null;
     hydratedRef.current = false;
+
+    /**
+     * Edits made before hydration finished meet a stored plan that differs:
+     * neither side may silently replace the other, so show both. Nothing is
+     * written until the user chooses (the save effect waits on a conflict).
+     */
+    const earlyEditsConflict = (
+      stored: PlannerState,
+      revision: number,
+      savedAt: string | null,
+      source: PlannerConflict["source"],
+    ) => {
+      lastPersistedFingerprint.current = workingStateFingerprint(stored);
+      raiseConflict({ mine: stateRef.current, theirs: stored, theirsRevision: revision, theirsSavedAt: savedAt, source });
+    };
 
     startTransition(async () => {
       setHydrated(false);
       setSavedFingerprint(null);
+      setConflict(null);
       if (registered) {
         const loaded = await loadPlannerStateFromServer();
+        if (!isCurrent()) {
+          return;
+        }
+        const mutated = mutatedBeforeBootstrap.current;
         if (loaded.kind === "loaded") {
           setServerPersistent(loaded.persistent);
-          serverRevision.current = loaded.revision;
-          const mutated = mutatedBeforeBootstrap.current;
-          if (loaded.state && !mutated) {
-            setPlannerState(loaded.state);
-          }
-          // Mutated before hydration: null forces the save effect to write
-          // those edits on top of the loaded revision.
-          lastPersistedFingerprint.current = mutated
-            ? null
-            : workingStateFingerprint(loaded.state ?? stateRef.current);
+          const storedDiffers =
+            loaded.state !== null && workingStateFingerprint(loaded.state) !== workingStateFingerprint(stateRef.current);
           if (!loaded.persistent) {
             // Reachable server but non-persistent storage: the plan is NOT
             // durably saved. Say so instead of claiming Saved.
+            lastPersistedFingerprint.current = mutated ? null : workingStateFingerprint(stateRef.current);
             setSaveState(
               saveStateOf(
                 "not-saved",
@@ -430,11 +471,21 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
                 "storage",
               ),
             );
-          } else if (loaded.state && !mutated) {
+          } else if (loaded.state && mutated && storedDiffers) {
+            // The base revision stays 0 until the user chooses, so no save
+            // can land on top of the stored plan unseen.
+            earlyEditsConflict(loaded.state, loaded.revision, loaded.state.updatedAt, "server");
+          } else if (loaded.state) {
+            serverRevision.current = loaded.revision;
+            if (!mutated) {
+              setPlannerState(loaded.state);
+            }
             // A stored plan was actually read: that is what Saved means.
             markSaved(workingStateFingerprint(loaded.state));
           } else {
-            // Persistent, but no plan stored yet (or unsaved early edits).
+            // Persistent, but no plan stored yet. Early edits (if any) are
+            // written by the save effect from base revision 0.
+            lastPersistedFingerprint.current = mutated ? null : workingStateFingerprint(stateRef.current);
             setSaveState(PENDING);
           }
         } else if (loaded.kind === "signed-out") {
@@ -443,20 +494,20 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           // to defaults; the server is re-read once the session is restored.
           serverLoadPending.current = true;
           const mirror = guestStore.read();
-          if (mirror.ok && mirror.state && !mutatedBeforeBootstrap.current) {
+          if (mirror.ok && mirror.state && !mutated) {
             setPlannerState(mirror.state);
           }
           lastPersistedFingerprint.current = workingStateFingerprint(
-            mirror.ok && mirror.state && !mutatedBeforeBootstrap.current ? mirror.state : stateRef.current,
+            mirror.ok && mirror.state && !mutated ? mirror.state : stateRef.current,
           );
           enterSignedOut(loaded.message);
         } else {
           setServerPersistent(false);
           // Server unreachable at load: fall back to this browser's mirror so
-          // a returning user does not start from defaults. Later saves still
-          // carry revision 0, so they cannot overwrite a stored row unseen.
+          // a returning user does not start from defaults. Later saves carry
+          // revision 0, so they cannot overwrite a stored row unseen.
           const mirror = guestStore.read();
-          if (mirror.ok && mirror.state && !mutatedBeforeBootstrap.current) {
+          if (mirror.ok && mirror.state && !mutated) {
             setPlannerState(mirror.state);
             lastPersistedFingerprint.current = workingStateFingerprint(mirror.state);
           }
@@ -465,20 +516,25 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       } else {
         const read = guestStore.read();
         if (read.ok) {
-          baseRevision.current = read.revision;
           setGuestStorageAvailable(true);
           setStoreNotices(read.notices);
           const mutated = mutatedBeforeBootstrap.current;
-          if (read.state && !mutated) {
-            setPlannerState(read.state);
-          }
-          lastPersistedFingerprint.current = mutated
-            ? null
-            : workingStateFingerprint(read.state ?? stateRef.current);
-          if (read.state && !mutated) {
+          const storedDiffers =
+            read.state !== null && workingStateFingerprint(read.state) !== workingStateFingerprint(stateRef.current);
+          if (read.state && mutated && storedDiffers) {
+            // The base revision is only adopted when the user chooses.
+            baseRevision.current = 0;
+            earlyEditsConflict(read.state, read.revision, read.savedAt, "browser");
+          } else if (read.state) {
+            baseRevision.current = read.revision;
+            if (!mutated) {
+              setPlannerState(read.state);
+            }
             // The loaded state survived a previous session: it is durable.
             markSaved(workingStateFingerprint(read.state));
           } else {
+            baseRevision.current = read.revision;
+            lastPersistedFingerprint.current = mutated ? null : workingStateFingerprint(stateRef.current);
             setSaveState(PENDING);
           }
         } else {
@@ -492,7 +548,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       hydrationWaiters.current.forEach((resolve) => resolve());
       hydrationWaiters.current = [];
     });
-  }, [enterSignedOut, guestStore, markSaved, sessionResult.data, sessionResult.isPending]);
+  }, [enterSignedOut, guestStore, markSaved, raiseConflict, sessionResult.data, sessionResult.isPending]);
 
   // Local bridge until #19 lands: a new session for the same signed-in user
   // (signing in again in this tab) counts as a restore. Idempotent, so #19's
@@ -657,7 +713,11 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       if (sessionExpired.current) {
         return;
       }
+      const generation = sessionGeneration.current;
       void loadPlannerStateFromServer().then((loaded) => {
+        if (generation !== sessionGeneration.current) {
+          return;
+        }
         if (loaded.kind !== "loaded" || !loaded.state || loaded.revision <= serverRevision.current) {
           return;
         }
