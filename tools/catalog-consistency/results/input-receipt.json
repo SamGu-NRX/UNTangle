@@ -2,7 +2,7 @@
   "receiptVersion": 2,
   "toolVersion": 2,
   "rulesVersion": 2,
-  "sourceCommit": "620b05ee3a4c9536081c4dcfc57aab3aae97e2de",
+  "sourceCommit": "67535c06ec65cfdd07ea17fce3e23530f576d538",
   "inputs": [
     {
       "role": "generated-catalog",
@@ -252,9 +252,9 @@
     {
       "role": "section-source",
       "path": "backend/data/compD.csv",
-      "sha256": null,
-      "bytes": 0,
-      "present": false
+      "sha256": "c81759456a874fd0995a9a28d7b55775728e45781c84531872e05fa5e7ce2383",
+      "bytes": 201156,
+      "present": true
     }
   ],
   "submodulePins": [
@@ -276,6 +276,6 @@
     "sectionMeetings": 5984,
     "prerequisiteEdges": 879,
     "corpusFiles": 29,
-    "compDRows": 0
+    "compDRows": 2704
   }
 }

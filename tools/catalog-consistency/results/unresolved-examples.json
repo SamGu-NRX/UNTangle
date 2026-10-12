@@ -153,7 +153,7 @@
     }
   },
   "provenanceSummary": {
-    "bound": false,
-    "assessment": "section source not available — backend/data/compD.csv absent; provenance not established"
+    "bound": true,
+    "assessment": "the committed sections and their meetings are fully derived from backend/data/compD.csv (bound in the receipt); compD.csv carries no term/semester/session/year column and its section-number lattice (every course carries section 001 and 002, with additional section numbers appearing in exact count pairs) is characteristic of generated rather than recorded offerings — treated as synthetic/generated, not a real-term export; no data repaired"
   }
 }
