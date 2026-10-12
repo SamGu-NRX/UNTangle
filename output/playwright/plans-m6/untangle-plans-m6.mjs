@@ -137,18 +137,101 @@ async function pickSection(page) {
   await page.waitForTimeout(300);
   return before !== (await eventSignature(page));
 }
-async function signUpOrIn(page, mode) {
+/* Section locks: one toggle per scheduled section, "Lock {COURSE} section {NNN}" + aria-pressed. */
+const lockButtons = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("button.lock-toggle")].map((b) => ({
+      name: b.textContent.replace(/\s+/g, " ").trim(),
+      pressed: b.getAttribute("aria-pressed"),
+    })),
+  );
+/** "true"/"false" for the named lock toggle, or null when no such toggle exists (its section changed). */
+async function lockPressed(page, name) {
+  const button = page.getByRole("button", { name, exact: true });
+  return (await button.count()) === 1 ? button.getAttribute("aria-pressed") : null;
+}
+async function tap(locator) {
+  await locator.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await locator.click();
+}
+/** Locks the first unlocked section; returns the toggle's accessible name. */
+async function lockFirst(page) {
+  const unlocked = (await lockButtons(page)).find((b) => b.pressed === "false");
+  if (!unlocked) throw new Error("no unlocked section to lock");
+  await tap(page.getByRole("button", { name: unlocked.name, exact: true }));
+  await page.waitForFunction(
+    (name) =>
+      [...document.querySelectorAll("button.lock-toggle")]
+        .find((b) => b.textContent.replace(/\s+/g, " ").trim() === name)
+        ?.getAttribute("aria-pressed") === "true",
+    unlocked.name,
+  );
+  return unlocked.name;
+}
+/** Switches goal and runs "Optimize schedule"; returns the lock toggles before and after. */
+async function optimizeWithLock(page, goal) {
+  const before = await lockButtons(page);
+  await optimize(page, goal);
+  await tap(page.getByRole("button", { name: "Optimize schedule", exact: true }));
+  await page.waitForTimeout(300);
+  return { before, after: await lockButtons(page) };
+}
+
+// better-auth limits sign-in/sign-up to 3 requests per 10 s per IP by default, and this journey signs in
+// repeatedly from one IP. A 429 is the server working as designed, not an app defect: check that the form
+// says so, wait out the window, and try once more.
+async function signUpOrIn(page, mode, email = EMAIL) {
+  try {
+    await signUpOrInOnce(page, mode, email);
+  } catch (error) {
+    if (!(error instanceof RateLimitedError)) throw error;
+    check(`sign-${mode} rate limit is shown to the user (429)`, error.shown, error.text.slice(0, 160));
+    await page.waitForTimeout(error.retryAfterMs);
+    await signUpOrInOnce(page, mode, email);
+  }
+}
+class RateLimitedError extends Error {
+  constructor(retryAfterMs, shown, text) {
+    super("rate limited");
+    this.retryAfterMs = retryAfterMs;
+    this.shown = shown;
+    this.text = text;
+  }
+}
+async function signUpOrInOnce(page, mode, email) {
   await page.goto(`${BASE}/auth`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Use password instead" }).click();
   if (mode === "signUp") {
     await page.getByRole("button", { name: "Sign up", exact: true }).click();
     await page.getByLabel("Name").fill("Acceptance Eight");
   }
-  await page.getByLabel("Email", { exact: true }).fill(EMAIL);
+  await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   // The mode tabs are also labeled "Log in"/"Sign up"; submit the form itself.
+  const response = page
+    .waitForResponse((r) => /\/api\/auth\/sign-(in|up)\//.test(r.url()), { timeout: 15000 })
+    .catch(() => null);
   await page.locator('form button[type="submit"]', { hasText: mode === "signUp" ? "Create account" : "Log in" }).click();
-  await page.waitForURL(/\/courses/, { timeout: 15000 });
+  const answered = await response;
+  if (answered && answered.status() === 429) {
+    const seconds = Number(answered.headers()["retry-after"]);
+    const shown = await page.evaluate(() => document.querySelector("main, body")?.innerText ?? "");
+    throw new RateLimitedError(
+      (Number.isFinite(seconds) && seconds > 0 ? seconds : 10) * 1000 + 1000,
+      /too many|try again/i.test(shown),
+      shown.replace(/\s+/g, " "),
+    );
+  }
+  try {
+    await page.waitForURL(/\/courses/, { timeout: 15000 });
+  } catch {
+    // Evidence for why the app did not navigate: the auth response and what the form shows.
+    await page.screenshot({ path: join(TMP, `sign-${mode}-failure.png`) });
+    const shown = await page.evaluate(() => document.querySelector("main, body")?.innerText.slice(0, 600) ?? "");
+    throw new Error(
+      `sign-${mode} for ${email} stayed at ${page.url()}; auth response ${answered ? `${answered.status()} ${(await answered.text().catch(() => "")).slice(0, 200)}` : "none"}; page: ${shown.replace(/\s+/g, " ")}`,
+    );
+  }
 }
 async function signOut(page) {
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -215,7 +298,16 @@ async function guestJourney(vp) {
   check(`${tag}: courses marked Taking reach the schedule`, built.includes("ANTH 1010") && built.includes("CSCE 1030"), built.slice(0, 160));
   await optimize(page, "Compact days");
   check(`${tag}: picked a different section by hand`, await pickSection(page));
-  check(`${tag}: build/pick/optimize acknowledged as Saved`, (await waitLabel(page, "Saved")) === "Saved");
+  const lockName = await lockFirst(page);
+  check(
+    `${tag}: lock control has an accessible name and pressed state`,
+    /^Lock [A-Z]{2,4} \d{4} section \d{3}$/.test(lockName) && (await lockPressed(page, lockName)) === "true",
+    lockName,
+  );
+  const { before, after } = await optimizeWithLock(page, "Cluster nights");
+  check(`${tag}: optimizing keeps the locked section`, (await lockPressed(page, lockName)) === "true", lockName);
+  note(`${tag}: lock toggles before optimize ${JSON.stringify(before)} after ${JSON.stringify(after)}`);
+  check(`${tag}: build/pick/lock/optimize acknowledged as Saved`, (await waitLabel(page, "Saved")) === "Saved");
   const signature = await eventSignature(page);
   const optimization = await activeOptimization(page);
   await shoot(page, `${tag}-02-saved.png`);
@@ -226,6 +318,7 @@ async function guestJourney(vp) {
     `${tag}: rule 1 Saved survives reload`,
     (await saveLabel(page)) === "Saved" && (await eventSignature(page)) === signature && (await activeOptimization(page)) === optimization,
   );
+  check(`${tag}: lock survives reload`, (await lockPressed(page, lockName)) === "true", lockName);
   check(`${tag}: sample-data notice shown`, await page.locator("[data-sample-notice]").isVisible());
   if (vp.name === "mobile") {
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -247,16 +340,16 @@ async function guestJourney(vp) {
 
   // .ics with user-entered dates
   await gotoSchedule(page);
-  await page.getByRole("button", { name: "Download calendar (.ics)" }).click();
+  await page.getByRole("button", { name: "Download .ics", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Download calendar" });
-  await dialog.getByRole("button", { name: "Download .ics" }).click();
+  await dialog.getByRole("button", { name: "Download calendar file" }).click();
   check(`${tag}: .ics refuses to guess term dates`, await dialog.getByRole("alert").isVisible());
   await shoot(page, `${tag}-05-ics-dates-required.png`);
   await axe(page, `${tag} .ics dialog`);
   await dialog.getByLabel("First day of classes").fill("2027-01-19");
   await dialog.getByLabel("Last day of classes").fill("2027-05-14");
   const downloadPromise = page.waitForEvent("download");
-  await dialog.getByRole("button", { name: "Download .ics" }).click();
+  await dialog.getByRole("button", { name: "Download calendar file" }).click();
   const icsPath = join(TMP, `${tag}.ics`);
   await (await downloadPromise).saveAs(icsPath);
   const ics = readIcs(readFileSync(icsPath, "utf8"));
@@ -325,9 +418,9 @@ async function guestDurability() {
     await gotoSchedule(b);
     await optimize(b, "Cluster nights");
     await waitLabel(b, "Saved");
-    await a.getByText("Loaded a newer version").waitFor({ timeout: 8000 }).catch(() => {});
+    await a.getByText("Loaded newer version from another tab").waitFor({ timeout: 8000 }).catch(() => {});
     check(`${tag}: rule 5 clean tab adopts newer data`, (await activeOptimization(a)) === "Cluster nights");
-    check(`${tag}: rule 5 clean tab says so`, await a.getByText("Loaded a newer version").isVisible());
+    check(`${tag}: rule 5 clean tab says so`, await a.getByText("Loaded newer version from another tab").isVisible());
     await shoot(a, `${tag}-08-clean-tab-adopted.png`);
 
     let conflictPage = null;
@@ -342,19 +435,19 @@ async function guestDurability() {
       await Promise.all([optimize(a, la), optimize(b, lb)]);
       for (let i = 0; i < 30 && !conflictPage; i += 1) {
         for (const p of [a, b]) {
-          if (await p.getByRole("dialog", { name: "Unsaved changes conflict" }).isVisible().catch(() => false)) conflictPage = p;
+          if (await p.getByRole("alertdialog", { name: "Unsaved changes conflict" }).isVisible().catch(() => false)) conflictPage = p;
         }
         await a.waitForTimeout(150);
       }
     }
     check(`${tag}: rule 5 dirty tab sees both versions`, Boolean(conflictPage));
     if (conflictPage) {
-      const dialog = conflictPage.getByRole("dialog", { name: "Unsaved changes conflict" });
+      const dialog = conflictPage.getByRole("alertdialog", { name: "Unsaved changes conflict" });
       const text = await dialog.innerText();
       check(`${tag}: rule 5 dialog shows this tab and the newer version`, text.includes("This tab (unsaved)") && text.includes("Newer saved version"));
-      check(`${tag}: dialog focus moves into the dialog`, await conflictPage.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))));
+      check(`${tag}: dialog focus moves into the dialog`, await conflictPage.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"], [role="alertdialog"]'))));
       for (let i = 0; i < 4; i += 1) await conflictPage.keyboard.press("Tab");
-      check(`${tag}: dialog focus stays trapped on Tab`, await conflictPage.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))));
+      check(`${tag}: dialog focus stays trapped on Tab`, await conflictPage.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"], [role="alertdialog"]'))));
       await conflictPage.keyboard.press("Escape");
       check(`${tag}: Escape does not silently pick a side`, await dialog.isVisible());
       await shoot(conflictPage, `${tag}-09-conflict.png`);
@@ -423,13 +516,13 @@ async function keyboardAndMotion() {
   let reached = false;
   for (let i = 0; i < 150 && !reached; i += 1) {
     await page.keyboard.press("Tab");
-    reached = await page.evaluate(() => document.activeElement?.textContent?.trim() === "Download calendar (.ics)");
+    reached = await page.evaluate(() => document.activeElement?.textContent?.trim() === "Download .ics");
   }
   check(`${tag}: keyboard reaches the .ics export`, reached);
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Download calendar" });
   await dialog.waitFor();
-  check(`${tag}: keyboard-opened dialog takes focus`, await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))));
+  check(`${tag}: keyboard-opened dialog takes focus`, await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"], [role="alertdialog"]'))));
   const duration = await page.evaluate(() => getComputedStyle(document.querySelector(".modal-box")).animationDuration);
   check(`${tag}: reduced motion collapses the dialog animation`, parseFloat(duration) <= 0.01, duration);
   await shoot(page, `${tag}-11-reduced-motion-dialog.png`);
@@ -445,7 +538,7 @@ async function keyboardAndMotion() {
   await page.waitForTimeout(400);
   check(
     `${tag}: focus returns to the opener after the dialog closes`,
-    await page.evaluate(() => document.activeElement?.textContent?.trim() === "Download calendar (.ics)"),
+    await page.evaluate(() => document.activeElement?.textContent?.trim() === "Download .ics"),
   );
   await ctx.close();
 }
@@ -471,15 +564,20 @@ async function registeredJourney() {
   check(`${tag}: courses marked Taking reach the schedule`, built.includes("ANTH 1010") && built.includes("CSCE 1030"), built.slice(0, 160));
   await optimize(page, "Compact days");
   await pickSection(page);
+  const lockName = await lockFirst(page);
   check(`${tag}: saved to Postgres`, (await waitLabel(page, "Saved")) === "Saved");
   const signature = await eventSignature(page);
   const row = sql(`select revision || '|' || optimization from planner_state where user_id = '${userId}'`);
   check(`${tag}: row exists with a revision`, /^\d+\|compact$/.test(row), row);
+  const [, lockCourse, lockNumber] = lockName.match(/^Lock (.+) section (\d+)$/);
+  const storedLock = sql(`select locked_sections->>'${lockCourse}' from planner_state where user_id = '${userId}'`);
+  check(`${tag}: lock stored in Postgres`, storedLock.endsWith(`-${lockNumber}`), storedLock);
   await shoot(page, `${tag}-02-saved.png`);
   await axe(page, `${tag} schedule`);
 
   await page.reload({ waitUntil: "networkidle" });
   check(`${tag}: rule 1 Saved survives reload`, (await waitLabel(page, "Saved")) === "Saved" && (await eventSignature(page)) === signature);
+  check(`${tag}: lock survives reload`, (await lockPressed(page, lockName)) === "true", lockName);
   await signOut(page);
   await signUpOrIn(page, "signIn");
   await gotoSchedule(page);
@@ -487,6 +585,7 @@ async function registeredJourney() {
     `${tag}: rule 1 Saved survives sign-out and sign-in`,
     (await waitLabel(page, "Saved")) === "Saved" && (await eventSignature(page)) === signature,
   );
+  check(`${tag}: lock survives sign-out and sign-in`, (await lockPressed(page, lockName)) === "true", lockName);
 
   // Rule 2: 500 and dropped connection
   for (const [failure, choice] of [["500", "Cluster nights"], ["drop", "Cluster mornings"]]) {
@@ -535,9 +634,9 @@ async function registeredJourney() {
   await waitLabel(tabB, "Saved");
   await optimize(tabB, "Minimize walking");
   await waitLabel(tabB, "Saved");
-  await page.getByText("Loaded a newer version").waitFor({ timeout: 8000 }).catch(() => {});
+  await page.getByText("Loaded newer version from another tab").waitFor({ timeout: 8000 }).catch(() => {});
   check(`${tag}: rule 5 clean tab adopts the newer server revision`, (await activeOptimization(page)) === "Minimize walking");
-  check(`${tag}: rule 5 clean tab says so`, await page.getByText("Loaded a newer version").isVisible());
+  check(`${tag}: rule 5 clean tab says so`, await page.getByText("Loaded newer version from another tab").isVisible());
   await page.route("**/api/planner", async (route) => {
     if (route.request().method() === "POST") await new Promise((resolve) => setTimeout(resolve, 2000));
     return route.continue();
@@ -545,7 +644,7 @@ async function registeredJourney() {
   await optimize(page, "Cluster nights");
   await page.waitForTimeout(500);
   await optimize(tabB, "Compact days");
-  const conflict = page.getByRole("dialog", { name: "Unsaved changes conflict" });
+  const conflict = page.getByRole("alertdialog", { name: "Unsaved changes conflict" });
   const sawConflict = await conflict.waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
   check(`${tag}: rule 5 registered conflict shows both versions`, sawConflict);
   await page.unroute("**/api/planner");
@@ -571,6 +670,127 @@ async function registeredJourney() {
   await mctx.close();
 }
 
+/**
+ * Full registered journey at 390x844 against Postgres, on a second synthetic
+ * account so it starts empty: build, lock, optimize, save, reload, sign out
+ * and back in, save to the library and restore, print, .ics, axe per surface.
+ */
+async function registeredMobileJourney() {
+  if (!DATABASE_URL) {
+    check("registered mobile journey ran", false, "no DATABASE_URL");
+    return;
+  }
+  const tag = "registered-mobile";
+  const email = "accept-8-mobile@my.unt.edu";
+  const vp = viewports[1];
+  const ctx = await browser.newContext({ viewport: vp, acceptDownloads: true });
+  const page = await ctx.newPage();
+  await signUpOrIn(page, "signUp", email);
+  const userId = sql(`select id from "user" where email = '${email}'`);
+  check(`${tag}: password sign-up created the account`, Boolean(userId));
+
+  await gotoSchedule(page);
+  check(`${tag}: no stored plan yet says Not saved yet`, (await saveLabel(page)) === "Not saved yet", await saveLabel(page));
+  await markTaking(page, ["ANTH 1010", "CSCE 1030"]);
+  await gotoSchedule(page);
+  const built = await eventSignature(page);
+  check(`${tag}: courses marked Taking reach the schedule`, built.includes("ANTH 1010") && built.includes("CSCE 1030"), built.slice(0, 160));
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  check(`${tag}: no horizontal overflow`, width <= vp.width + 2, `scrollWidth=${width}`);
+
+  const lockName = await lockFirst(page);
+  check(
+    `${tag}: lock control has an accessible name and pressed state`,
+    /^Lock [A-Z]{2,4} \d{4} section \d{3}$/.test(lockName) && (await lockPressed(page, lockName)) === "true",
+    lockName,
+  );
+  await optimizeWithLock(page, "Cluster nights");
+  check(`${tag}: optimizing keeps the locked section`, (await lockPressed(page, lockName)) === "true", lockName);
+  check(`${tag}: saved to Postgres`, (await waitLabel(page, "Saved")) === "Saved");
+  const [, lockCourse, lockNumber] = lockName.match(/^Lock (.+) section (\d+)$/);
+  const row = sql(
+    `select optimization || '|' || coalesce(locked_sections->>'${lockCourse}', '') from planner_state where user_id = '${userId}'`,
+  );
+  check(`${tag}: plan and lock stored in Postgres`, row.startsWith("clusterNight|") && row.endsWith(`-${lockNumber}`), row);
+  const signature = await eventSignature(page);
+  await page.getByRole("button", { name: lockName, exact: true }).evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await shoot(page, `${tag}-02-locked-saved.png`);
+  await axe(page, `${tag} schedule`);
+
+  await page.reload({ waitUntil: "networkidle" });
+  check(
+    `${tag}: Saved, plan and lock survive reload`,
+    (await waitLabel(page, "Saved")) === "Saved" &&
+      (await eventSignature(page)) === signature &&
+      (await lockPressed(page, lockName)) === "true",
+  );
+  await tap(page.getByRole("button", { name: "Sign out" }));
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 10000 });
+  await signUpOrIn(page, "signIn", email);
+  await gotoSchedule(page);
+  check(
+    `${tag}: Saved, plan and lock survive sign-out and sign-in`,
+    (await waitLabel(page, "Saved")) === "Saved" &&
+      (await eventSignature(page)) === signature &&
+      (await lockPressed(page, lockName)) === "true",
+  );
+
+  // Library: save this version, change the schedule, restore it.
+  await page.goto(`${BASE}/plans`, { waitUntil: "networkidle" });
+  await page.locator("#save-plan-name").fill("Mobile locked plan");
+  await tap(page.getByRole("button", { name: "Save current schedule" }));
+  const card = page.locator("li", { hasText: "Mobile locked plan" }).first();
+  await card.waitFor();
+  await axe(page, `${tag} plans`);
+  await gotoSchedule(page);
+  await tap(page.getByRole("button", { name: lockName, exact: true }));
+  await optimize(page, "Compact days");
+  await waitLabel(page, "Saved");
+  check(`${tag}: schedule changed before restore`, (await lockPressed(page, lockName)) !== "true");
+  await page.goto(`${BASE}/plans`, { waitUntil: "networkidle" });
+  await tap(page.locator("li", { hasText: "Mobile locked plan" }).first().getByRole("button", { name: "Preview restore" }));
+  const preview = page.getByRole("dialog");
+  await preview.getByRole("button", { name: "Restore this plan" }).waitFor();
+  check(`${tag}: restore preview lists the lock`, (await preview.innerText()).includes(`Lock ${lockCourse} section`));
+  await shoot(page, `${tag}-03-restore-preview.png`);
+  await axe(page, `${tag} restore preview`);
+  await tap(preview.getByRole("button", { name: "Restore this plan" }));
+  await page.waitForURL(/\/schedule/);
+  await page.waitForTimeout(600);
+  check(`${tag}: restore brings back the locked section`, (await lockPressed(page, lockName)) === "true", lockName);
+  check(`${tag}: restored plan saved`, (await waitLabel(page, "Saved")) === "Saved");
+  check(
+    `${tag}: restored lock stored in Postgres`,
+    sql(`select coalesce(locked_sections->>'${lockCourse}', '') from planner_state where user_id = '${userId}'`).endsWith(`-${lockNumber}`),
+  );
+  const restoredSignature = await eventSignature(page);
+
+  // Print
+  await page.goto(`${BASE}/schedule/print`, { waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.querySelectorAll("tbody tr").length > 0);
+  const printRows = await page.locator("tbody tr").count();
+  check(`${tag}: print view lists every meeting`, printRows === restoredSignature.split(" | ").length, `${printRows} rows`);
+  await shoot(page, `${tag}-04-print.png`);
+  await axe(page, `${tag} print view`);
+
+  // .ics
+  await gotoSchedule(page);
+  await tap(page.getByRole("button", { name: "Download .ics", exact: true }));
+  const dialog = page.getByRole("dialog", { name: "Download calendar" });
+  await dialog.getByLabel("First day of classes").fill("2027-01-19");
+  await dialog.getByLabel("Last day of classes").fill("2027-05-14");
+  await shoot(page, `${tag}-05-ics-dialog.png`);
+  await axe(page, `${tag} .ics dialog`);
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download calendar file" }).click();
+  const icsPath = join(TMP, `${tag}.ics`);
+  await (await downloadPromise).saveAs(icsPath);
+  const ics = readIcs(readFileSync(icsPath, "utf8"));
+  check(`${tag}: .ics parses`, ics.okEndings && ics.okLengths && ics.balanced && ics.first === "BEGIN:VCALENDAR");
+  check(`${tag}: .ics has one event per meeting`, ics.events.length === printRows, `${ics.events.length} events`);
+  await ctx.close();
+}
+
 const only = process.env.UNTANGLE_M6_ONLY?.split(",");
 const run = async (name, fn) => {
   if (only && !only.includes(name)) return;
@@ -589,6 +809,7 @@ await run("restore", async () => {
 });
 await run("keyboard", keyboardAndMotion);
 await run("registered", registeredJourney);
+await run("registered-mobile", registeredMobileJourney);
 await browser.close();
 
 report.finishedAt = new Date().toISOString();
