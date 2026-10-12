@@ -26,7 +26,7 @@
 import type { WeekDay } from "@/lib/types";
 import type { OptimizeRequest, OptimizeResult, OptimizedSchedule, OptimizerSection } from "../types";
 import { compareSchedules, computeBreakdown, computeDiversity, scheduleKey } from "../scorer";
-import { findIis } from "../iis-reference";
+import { findIisBounded, type BoundedVerdict } from "./iis";
 import { prepare, type Prepared } from "./prepare";
 
 /**
@@ -315,9 +315,9 @@ function dfs(state: SearchState, courseIndex: number): void {
  * (e.g. two locks on one course are infeasible, which the independent
  * checker's verifyIis also asserts).
  */
-function feasibleSub(req: OptimizeRequest): boolean {
+function feasibleSubBounded(req: OptimizeRequest, deadline: number): BoundedVerdict {
   const attempt = prepare(req);
-  if (!attempt.ok) return false;
+  if (!attempt.ok) return "infeasible";
   const prepared = attempt.prepared;
   const maxCredits = req.hardConstraints.maxCredits;
   const state: SearchState = {
@@ -336,7 +336,12 @@ function feasibleSub(req: OptimizeRequest): boolean {
     worst: null,
   };
 
+  let ranOut = false;
   const walk = (courseIndex: number): boolean => {
+    if (performance.now() > deadline) {
+      ranOut = true;
+      return false;
+    }
     if (courseIndex >= prepared.courses.length) return true;
     for (const section of prepared.courses[courseIndex].candidates) {
       if (!conflictFree(state, section)) continue;
@@ -344,22 +349,36 @@ function feasibleSub(req: OptimizeRequest): boolean {
       const inserted = addSection(state, section);
       if (inserted === null) continue;
       if (walk(courseIndex + 1)) return true;
+      if (ranOut) return false; // abandon: the sub-request verdict is unknown
       removeSection(state, section, inserted);
     }
     return false;
   };
-  return walk(0);
+  const feasible = walk(0);
+  if (ranOut) return "indeterminate";
+  return feasible ? "feasible" : "infeasible";
 }
 
-function infeasibleResult(req: OptimizeRequest, initMs: number, searchMs: number): OptimizeResult {
-  return {
-    status: "infeasible",
-    schedules: [],
-    diversity: 0,
-    initMs,
-    searchMs,
-    infeasibleSubset: findIis(req, feasibleSub),
-  };
+/**
+ * The bounded explanation path: run the deadline-aware deletion filter with
+ * this request's oracle. When the proof completes, report the irreducible
+ * subset; when the deadline stops it, report the honest bounded outcome —
+ * "timeout" with no subset — rather than an unproven "infeasible".
+ * Explanation time is billed into searchMs.
+ */
+function boundedInfeasibleResult(
+  req: OptimizeRequest,
+  initMs: number,
+  searchMsSoFar: number,
+  deadline: number,
+): OptimizeResult {
+  const tIis = performance.now();
+  const iis = findIisBounded(req, (sub) => feasibleSubBounded(sub, deadline), deadline);
+  const searchMs = searchMsSoFar + (performance.now() - tIis);
+  if (iis.proven && iis.subset) {
+    return { status: "infeasible", schedules: [], diversity: 0, initMs, searchMs, infeasibleSubset: iis.subset };
+  }
+  return { status: "timeout", schedules: [], diversity: 0, initMs, searchMs };
 }
 
 /**
@@ -371,19 +390,13 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
   const attempt = prepare(req);
   const initMs = performance.now() - t0;
 
+  const deadline = t0 + req.timeBudgetMs;
   if (!attempt.ok) {
-    // Proved infeasible before any search; the IIS deletion filter names
-    // the irreducible member set that blocks it.
-    const tSearch = performance.now();
-    const subset = findIis(req, feasibleSub);
-    return {
-      status: "infeasible",
-      schedules: [],
-      diversity: 0,
-      initMs,
-      searchMs: performance.now() - tSearch,
-      infeasibleSubset: subset,
-    };
+    // Proved infeasible before any search; the deadline-bounded IIS filter
+    // names the irreducible member set that blocks it — or, when the
+    // explanation cannot finish inside the request budget, reports the
+    // honest bounded outcome ("timeout", no subset).
+    return boundedInfeasibleResult(req, initMs, 0, deadline);
   }
 
   const state: SearchState = {
@@ -392,7 +405,7 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
     k: req.k,
     minTransfer: req.hardConstraints.minTransferMinutes,
     maxCredits: req.hardConstraints.maxCredits,
-    deadline: t0 + req.timeBudgetMs,
+    deadline,
     byDay: new Map(),
     chosen: [],
     chosenIds: new Set<string>(),
@@ -419,11 +432,9 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
   }
   if (!state.foundAny) {
     // Enumeration completed with no feasible schedule: infeasibility is
-    // proven, so produce the irreducible explanation.
-    const tIis = performance.now();
-    const result = infeasibleResult(req, initMs, searchMs);
-    result.searchMs += performance.now() - tIis;
-    return result;
+    // proven, so produce the irreducible explanation — bounded by the same
+    // deadline; an unproven explanation reports the honest timeout.
+    return boundedInfeasibleResult(req, initMs, searchMs, deadline);
   }
   return { status: "optimal", schedules, diversity, initMs, searchMs };
 }
