@@ -43,10 +43,10 @@ import { validateScorecard } from "../scorecard";
 import type { CaseRecord, Scorecard } from "../scorecard";
 import { EVALS_DIR, REPO_RUN_TS, spawnBounded, type SpawnResult } from "./helpers";
 
-/** Persistent target checkout (a local clone of this repo) — shared with the persistence-faults test; serial runs only. */
+/** Persistent target checkout (a local clone of this repo) — shared with the persistence-faults test; serial runs only. Round 2: cloned from this task's own clone at the r2-selftests branch (the app tree is identical across the r2 branches; the harness used is always THIS checkout's evals/). */
 const TARGET_DIR = "/home/user/work/untangle-selftest-target";
 const RUNS_DIR = "/home/user/work/ui-plant-runs";
-const REPO_ROOT = "/home/user/work/clone-selftests";
+const REPO_ROOT = "/home/user/work/untangle-r2-selftests";
 
 const LANDING_CLIENT = "frontend/src/components/landing-client.tsx";
 const SCHEDULE_PAGE = "frontend/src/app/schedule/page.tsx";
@@ -67,7 +67,7 @@ beforeAll(async () => {
   if (!HEAVY) return;
   if (!existsSync(path.join(TARGET_DIR, ".git"))) {
     const clone = await spawnBounded("git", [
-      "clone", "--local", "--branch", "obv/untangle-evals-f1-selftests",
+      "clone", "--local", "--branch", "obv/untangle-evals-r2-selftests",
       REPO_ROOT, TARGET_DIR,
     ], { timeoutMs: 300_000 });
     if (clone.code !== 0) throw new Error(`cloning the UI-plant target failed: ${clone.stderr.slice(-500)}`);

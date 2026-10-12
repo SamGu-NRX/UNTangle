@@ -44,8 +44,8 @@ const runDirs: string[] = [];
 beforeAll(async () => {
   if (!existsSync(path.join(TARGET_DIR, ".git"))) {
     const clone = await spawnBounded("git", [
-      "clone", "--local", "--branch", "obv/untangle-evals-f1-selftests",
-      "/home/user/work/clone-selftests", TARGET_DIR,
+      "clone", "--local", "--branch", "obv/untangle-evals-r2-selftests",
+      "/home/user/work/untangle-r2-selftests", TARGET_DIR,
     ], { timeoutMs: 300_000 });
     if (clone.code !== 0) throw new Error(`cloning the persistence target failed: ${clone.stderr.slice(-500)}`);
   }
