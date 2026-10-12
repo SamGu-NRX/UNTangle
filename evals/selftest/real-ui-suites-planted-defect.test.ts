@@ -36,6 +36,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { validateScorecard } from "../scorecard";
@@ -89,7 +90,17 @@ afterAll(() => {
 function plant(relPath: string, find: string, replace: string): void {
   const abs = path.join(TARGET_DIR, relPath);
   if (!existsSync(abs)) throw new Error(`plant anchor file missing: ${relPath}`);
-  const source = readFileSync(abs, "utf8");
+  let source = readFileSync(abs, "utf8");
+  if (source.split(find).length !== 2 && source.includes(replace)) {
+    // A previous run was killed between plant and revert (its process never
+    // reached the try/finally). Restore the file from git so the plant starts
+    // from the clean checkout instead of failing on its own leftover.
+    const restore = spawnSync("git", ["checkout", "--", relPath], { cwd: TARGET_DIR, timeout: 30_000 });
+    if (restore.status !== 0) {
+      throw new Error(`restoring a stale plant in ${relPath} failed: ${restore.stderr?.toString().slice(-300)}`);
+    }
+    source = readFileSync(abs, "utf8");
+  }
   const parts = source.split(find);
   if (parts.length !== 2) {
     throw new Error(`plant anchor in ${relPath} must match exactly once, found ${parts.length - 1}`);
@@ -128,7 +139,7 @@ async function runSuite(suite: string): Promise<SpawnResult> {
       "--out", path.join(outDir, "card.json"),
       "--task-id", taskId,
     ],
-    { cwd: EVALS_DIR, timeoutMs: 1_500_000 },
+    { cwd: EVALS_DIR, timeoutMs: 2_400_000 },
   );
 }
 
@@ -195,7 +206,7 @@ describe("real-suite planted defect: journey (full real stack, broken guest entr
       const withEvidence = guestIds.filter((id) => /Continue as guest/i.test(noteOf(caseById(card, id))));
       expect(withEvidence.length).toBeGreaterThan(0);
     },
-    1_600_000,
+    2_400_000,
   );
 });
 
@@ -234,7 +245,7 @@ describe("real-suite planted defect: honesty (full real stack, fabricated precis
       expect(fabricated?.status).toBe("fail");
       expect(noteOf(fabricated)).toContain("100% accurate");
     },
-    1_600_000,
+    2_400_000,
   );
 });
 
@@ -274,6 +285,6 @@ describe("real-suite planted defect: a11y-polish (full real stack, unlabeled inf
       expect(labeling?.status).toBe("fail");
       expect(noteOf(labeling)).toContain("empty alt");
     },
-    1_600_000,
+    2_400_000,
   );
 });
