@@ -136,6 +136,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const bootstrappedFor = useRef<"guest" | "registered" | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveInFlight = useRef(false);
+  /** Newest state waiting to save after the in-flight server request settles. */
+  const pendingServerSave = useRef<{ state: PlannerState } | null>(null);
   // Fingerprint of the last state whose persistence the write path confirmed.
   // `dirty` = the current state's fingerprint differs from this.
   const lastPersistedFingerprint = useRef<string | null>(null);
@@ -329,6 +331,13 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
 
   const persistServer = useCallback(
     async (state: PlannerState) => {
+      if (saveInFlight.current) {
+        // Serialize server saves: hold the newest state and send it when the
+        // in-flight request settles. A slower, older response can then never
+        // land on the server after (or overwrite) a newer save.
+        pendingServerSave.current = { state };
+        return;
+      }
       saveInFlight.current = true;
       setSaveState({
         status: "saving",
@@ -336,27 +345,49 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         detail: null,
         reason: null,
       });
-      const outcome = await savePlannerStateToServer(state);
-      saveInFlight.current = false;
-      if (outcome.kind === "saved") {
-        // Best-effort mirror in this browser: a fallback for the next visit
-        // if the server cannot be reached at load time.
-        guestStore.writeMirror(state);
-        markSaved(workingStateFingerprint(state));
-      } else if (outcome.kind === "not-saved") {
-        setSaveState({
-          status: "not-saved",
-          label: SAVE_LABELS["not-saved"],
-          detail: outcome.message,
-          reason: "storage",
-        });
-      } else {
-        setSaveState({
-          status: "failed",
-          label: SAVE_LABELS.failed,
-          detail: outcome.message,
-          reason: outcome.reason,
-        });
+      try {
+        let current = state;
+        for (;;) {
+          const outcome = await savePlannerStateToServer(current);
+          if (outcome.kind === "saved") {
+            // Best-effort mirror in this browser: a fallback for the next
+            // visit if the server cannot be reached at load time.
+            guestStore.writeMirror(current);
+            markSaved(workingStateFingerprint(current));
+          } else {
+            pendingServerSave.current = null;
+            if (outcome.kind === "not-saved") {
+              setSaveState({
+                status: "not-saved",
+                label: SAVE_LABELS["not-saved"],
+                detail: outcome.message,
+                reason: "storage",
+              });
+            } else {
+              setSaveState({
+                status: "failed",
+                label: SAVE_LABELS.failed,
+                detail: outcome.message,
+                reason: outcome.reason,
+              });
+            }
+            return;
+          }
+          const pending = pendingServerSave.current;
+          if (!pending) {
+            return;
+          }
+          pendingServerSave.current = null;
+          current = pending.state;
+          setSaveState({
+            status: "saving",
+            label: SAVE_LABELS.saving,
+            detail: null,
+            reason: null,
+          });
+        }
+      } finally {
+        saveInFlight.current = false;
       }
     },
     [guestStore, markSaved],
