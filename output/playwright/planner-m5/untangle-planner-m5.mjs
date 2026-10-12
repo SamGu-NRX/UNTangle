@@ -5,9 +5,11 @@
 import { chromium } from "playwright";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
-const BASE = "http://127.0.0.1:3100";
-const OUT = "/home/user/work/untangle-plan-library/output/playwright/planner-m5";
-const REPORT = "/home/user/work/e2e/untangle-planner-m5-report.json";
+// Paths default to the original sandbox layout; override them to run elsewhere.
+const BASE = process.env.UNTANGLE_BASE_URL ?? "http://127.0.0.1:3100";
+const OUT = process.env.UNTANGLE_M5_OUT ?? "/home/user/work/untangle-plan-library/output/playwright/planner-m5";
+const REPORT = process.env.UNTANGLE_M5_REPORT ?? "/home/user/work/e2e/untangle-planner-m5-report.json";
+const AXE_PATH = process.env.UNTANGLE_AXE_PATH ?? "/home/user/work/e2e/node_modules/axe-core/axe.min.js";
 mkdirSync(OUT, { recursive: true });
 
 const results = { startedAt: new Date().toISOString(), checks: [], notes: [], axe: [] };
@@ -20,13 +22,17 @@ const shoot = async (page, name) => {
   await page.screenshot({ path: `${OUT}/${name}`, animations: "disabled" });
   console.log(`shot: ${name}`);
 };
-const axeSource = readFileSync("/home/user/work/e2e/node_modules/axe-core/axe.min.js", "utf8");
+const axeSource = readFileSync(AXE_PATH, "utf8");
+// Any serious or critical violation fails the run; minor and moderate ones
+// are recorded in the report.
 const axeScan = async (page, label) => {
   await page.addScriptTag({ content: axeSource });
   const r = await page.evaluate(() => window.axe.run(document, { resultTypes: ["violations"] }));
-  const v = r.violations.map((x) => `${x.id} x${x.nodes.length}`);
+  const v = r.violations.map((x) => `${x.id} (${x.impact}) x${x.nodes.length}`);
+  const blocking = r.violations.filter((x) => x.impact === "serious" || x.impact === "critical");
   results.axe.push({ label, passes: r.passes.length, violations: v });
   console.log(`axe [${label}]: ${r.passes.length} passes, ${r.violations.length} violations${v.length ? ` :: ${v.join(", ")}` : ""}`);
+  check(`axeNoSeriousOrCritical: ${label}`, blocking.length === 0, blocking.map((x) => x.id).join(", ") || null);
 };
 
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
@@ -81,11 +87,16 @@ async function rawClickUntilActive(page, label) {
   throw new Error(`raw click on "${label}" never activated the row`);
 }
 
+// The save-state label must read exactly "Saved". Matching the word "saved"
+// anywhere on the page also matched "Not saved…" and "Not saved yet".
+const saveLabel = (page) =>
+  page.evaluate(
+    () => document.querySelector('[role="status"][aria-label="Save state"] strong')?.textContent?.trim() ?? null,
+  );
 async function waitForSavedStatus(page, timeoutMs = 10000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const t = await bodyText(page);
-    if (/\bsaved\b/i.test(t)) return true;
+    if ((await saveLabel(page)) === "Saved") return true;
     await page.waitForTimeout(250);
   }
   return false;
