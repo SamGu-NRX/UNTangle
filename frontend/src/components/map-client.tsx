@@ -12,7 +12,6 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from "react";
-import { NavShell } from "@/components/nav-shell";
 import { usePlanner } from "@/components/planner-provider";
 import { DaySummary, DaySwitcher, EmptyDay, Timeline } from "@/components/map/map-itinerary";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
@@ -62,7 +61,7 @@ function revealRow(container: HTMLElement | null, row: HTMLElement | undefined, 
   if (target !== null) container.scrollTo({ top: Math.max(0, target), behavior: smooth ? "smooth" : "auto" });
 }
 
-export function MapClient({campusId = activeCampus.id}: {campusId?: string}) {
+export function MapClient({ campusId = activeCampus.id }: { campusId?: string }) {
   const campus = campusById(campusId);
   const { plannerState, routeStops, setActiveDay, hydrated } = usePlanner();
   const activeDay = plannerState.activeDay;
@@ -110,36 +109,6 @@ export function MapClient({campusId = activeCampus.id}: {campusId?: string}) {
     observer.observe(root);
     setAreaHeight(root.clientHeight);
     return () => observer.disconnect();
-  }, []);
-
-  // The map fills the window under the app header, edge to edge. NavShell
-  // wraps pages in a padded, centered <main>, so the map measures the header
-  // and main's padding and steps out of them, and the page itself stops
-  // scrolling while the map is open. This goes away when the new app shell
-  // gives views a full-bleed body.
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    const main = root?.closest("main");
-    const header = main?.previousElementSibling as HTMLElement | null | undefined;
-    if (!root || !main) return;
-    const measure = () => {
-      const style = getComputedStyle(main);
-      root.style.setProperty("--mv-top", `${header?.offsetHeight ?? 0}px`);
-      root.style.setProperty("--mv-pad-top", style.paddingTop);
-      root.style.setProperty("--mv-pad-bottom", style.paddingBottom);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (header) observer.observe(header);
-    observer.observe(main);
-    const html = document.documentElement;
-    const previousOverflow = html.style.overflow;
-    html.style.overflow = "hidden";
-    window.scrollTo(0, 0);
-    return () => {
-      observer.disconnect();
-      html.style.overflow = previousOverflow;
-    };
   }, []);
 
   const select = useCallback(
@@ -204,49 +173,51 @@ export function MapClient({campusId = activeCampus.id}: {campusId?: string}) {
     </>
   );
 
+  // The root is the shell's full-bleed body (data-shell-body): the app shell
+  // sizes it to exactly the space between the top bar and the phone tabs and
+  // stops the page scrolling, so the map needs no header measurement.
   return (
-    <NavShell step={2}>
-      <div
-        ref={rootRef}
-        className="mv-root"
-        data-layout={isPhone ? "phone" : "desktop"}
-        style={{ "--mv-sheet-visible": `${isPhone ? sheetVisible : 0}px` } as CSSProperties}
-      >
-        <h1 className="mv-visually-hidden">Campus map</h1>
-        <MapCanvas
-          key={campus.id}
-          campus={campus}
-          itinerary={itinerary}
-          selection={selection}
-          onSelect={select}
-          insets={insets}
-          reducedMotion={reducedMotion}
-          // At full the sheet covers the map: no useful framing is possible.
-          frozen={isPhone && detent === "full"}
-        />
-        {isPhone ? (
-          areaHeight > 0 ? (
-            <MapSheet
-              detent={detent}
-              onDetentChange={setDetent}
-              onVisibleHeightChange={setSheetVisible}
-              reducedMotion={reducedMotion}
-              areaHeight={areaHeight}
-              header={header}
-              bodyRef={scrollRef}
-            >
-              {body}
-            </MapSheet>
-          ) : null
-        ) : (
-          <aside className="mv-panel" aria-label="Itinerary">
-            {header}
-            <div ref={scrollRef} className="mv-panel__body">
-              {body}
-            </div>
-          </aside>
-        )}
-      </div>
-    </NavShell>
+    <div
+      ref={rootRef}
+      className="mv-root"
+      data-shell-body="full-bleed"
+      data-layout={isPhone ? "phone" : "desktop"}
+      style={{ "--mv-sheet-visible": `${isPhone ? sheetVisible : 0}px` } as CSSProperties}
+    >
+      <h1 className="mv-visually-hidden">Campus map</h1>
+      <MapCanvas
+        key={campus.id}
+        campus={campus}
+        itinerary={itinerary}
+        selection={selection}
+        onSelect={select}
+        insets={insets}
+        reducedMotion={reducedMotion}
+        // At full the sheet covers the map: no useful framing is possible.
+        frozen={isPhone && detent === "full"}
+      />
+      {isPhone ? (
+        areaHeight > 0 ? (
+          <MapSheet
+            detent={detent}
+            onDetentChange={setDetent}
+            onVisibleHeightChange={setSheetVisible}
+            reducedMotion={reducedMotion}
+            areaHeight={areaHeight}
+            header={header}
+            bodyRef={scrollRef}
+          >
+            {body}
+          </MapSheet>
+        ) : null
+      ) : (
+        <aside className="mv-panel" aria-label="Itinerary">
+          {header}
+          <div ref={scrollRef} className="mv-panel__body">
+            {body}
+          </div>
+        </aside>
+      )}
+    </div>
   );
 }
