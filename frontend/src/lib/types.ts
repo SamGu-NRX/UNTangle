@@ -126,7 +126,7 @@ export type MapRouteResponse = {
   geometry: MapRoutePoint[];
   distanceMeters: number;
   durationSeconds: number;
-  source: "ors" | "fallback";
+  source: "ors" | "campus-network" | "fallback";
 };
 
 export type MapRouteSummary = {
@@ -142,7 +142,7 @@ export type MapRouteLegDisplay = {
 };
 
 export type MapRouteDetails = {
-  source: "ors" | "fallback" | null;
+  source: "ors" | "fallback" | "campus-network" | null;
   isApproximate: boolean;
   legs: MapRouteLegDisplay[];
 };

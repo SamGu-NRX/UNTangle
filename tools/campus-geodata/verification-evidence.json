@@ -1,0 +1,369 @@
+{
+  "generatedAt": "2026-10-11T15:04:21.020Z",
+  "commit": "6a01f2b",
+  "fixture": {
+    "total": 18,
+    "routed": 18,
+    "medianAbsErrorPct": 1.6,
+    "within20Pct": 16,
+    "exact": 7,
+    "rows": [
+      {
+        "id": "art-blb",
+        "fixtureMeters": 770.6,
+        "routedMeters": 770.6,
+        "errorPct": 0
+      },
+      {
+        "id": "art-gate",
+        "fixtureMeters": 1269.1,
+        "routedMeters": 1269.1,
+        "errorPct": 0
+      },
+      {
+        "id": "art-lang",
+        "fixtureMeters": 271.5,
+        "routedMeters": 271.5,
+        "errorPct": 0
+      },
+      {
+        "id": "arta-blb",
+        "fixtureMeters": 830,
+        "routedMeters": 830.1,
+        "errorPct": 0.01
+      },
+      {
+        "id": "aud-gab",
+        "fixtureMeters": 201.8,
+        "routedMeters": 226,
+        "errorPct": 11.99
+      },
+      {
+        "id": "aud-hick",
+        "fixtureMeters": 109.1,
+        "routedMeters": 158.7,
+        "errorPct": 45.46
+      },
+      {
+        "id": "aud-life",
+        "fixtureMeters": 323.6,
+        "routedMeters": 313.3,
+        "errorPct": -3.18
+      },
+      {
+        "id": "aud-sage",
+        "fixtureMeters": 391.2,
+        "routedMeters": 297.5,
+        "errorPct": -23.95
+      },
+      {
+        "id": "blb-env",
+        "fixtureMeters": 963.3,
+        "routedMeters": 1052.3,
+        "errorPct": 9.24
+      },
+      {
+        "id": "chem-gate",
+        "fixtureMeters": 1048.2,
+        "routedMeters": 1048.2,
+        "errorPct": 0
+      },
+      {
+        "id": "env-gate",
+        "fixtureMeters": 1033.9,
+        "routedMeters": 1122.9,
+        "errorPct": 8.61
+      },
+      {
+        "id": "gab-hick",
+        "fixtureMeters": 177.9,
+        "routedMeters": 177.9,
+        "errorPct": 0
+      },
+      {
+        "id": "gab-life",
+        "fixtureMeters": 187.7,
+        "routedMeters": 187.7,
+        "errorPct": 0
+      },
+      {
+        "id": "hick-life",
+        "fixtureMeters": 323.4,
+        "routedMeters": 323.4,
+        "errorPct": 0
+      },
+      {
+        "id": "life-musi",
+        "fixtureMeters": 370.5,
+        "routedMeters": 370.6,
+        "errorPct": 0.03
+      },
+      {
+        "id": "matt-sage",
+        "fixtureMeters": 331.1,
+        "routedMeters": 309.4,
+        "errorPct": -6.55
+      },
+      {
+        "id": "matt-wh",
+        "fixtureMeters": 216,
+        "routedMeters": 250.3,
+        "errorPct": 15.88
+      },
+      {
+        "id": "sage-wh",
+        "fixtureMeters": 379,
+        "routedMeters": 411.5,
+        "errorPct": 8.58
+      }
+    ]
+  },
+  "measuredRoutes": [
+    {
+      "from": "sage",
+      "to": "blb",
+      "distanceMeters": 622.6,
+      "networkMeters": 580.1,
+      "durationSeconds": 455,
+      "stepsMeters": 10.3,
+      "roadCrossings": 6,
+      "geometryPoints": 63,
+      "computeMs": 3.373
+    },
+    {
+      "from": "sage",
+      "to": "gab",
+      "distanceMeters": 393.5,
+      "networkMeters": 354.1,
+      "durationSeconds": 288,
+      "stepsMeters": 7,
+      "roadCrossings": 0,
+      "geometryPoints": 25,
+      "computeMs": 6.665
+    },
+    {
+      "from": "sage",
+      "to": "wh",
+      "distanceMeters": 343.2,
+      "networkMeters": 301.9,
+      "durationSeconds": 252,
+      "stepsMeters": 7,
+      "roadCrossings": 3,
+      "geometryPoints": 37,
+      "computeMs": 1.707
+    },
+    {
+      "from": "sage",
+      "to": "gate",
+      "distanceMeters": 1127,
+      "networkMeters": 1083.2,
+      "durationSeconds": 823,
+      "stepsMeters": 19.4,
+      "roadCrossings": 2,
+      "geometryPoints": 96,
+      "computeMs": 2.098
+    },
+    {
+      "from": "sage",
+      "to": "col",
+      "distanceMeters": 1171.8,
+      "networkMeters": 1094.9,
+      "durationSeconds": 877,
+      "stepsMeters": 42.2,
+      "roadCrossings": 2,
+      "geometryPoints": 96,
+      "computeMs": 2.149
+    },
+    {
+      "from": "chem",
+      "to": "art",
+      "distanceMeters": 560.9,
+      "networkMeters": 540.3,
+      "durationSeconds": 401,
+      "stepsMeters": 0,
+      "roadCrossings": 4,
+      "geometryPoints": 64,
+      "computeMs": 1.473
+    },
+    {
+      "from": "chem",
+      "to": "phys",
+      "distanceMeters": 477,
+      "networkMeters": 451.5,
+      "durationSeconds": 344,
+      "stepsMeters": 3,
+      "roadCrossings": 2,
+      "geometryPoints": 58,
+      "computeMs": 1.52
+    },
+    {
+      "from": "chem",
+      "to": "lang",
+      "distanceMeters": 403.2,
+      "networkMeters": 371.6,
+      "durationSeconds": 304,
+      "stepsMeters": 16.4,
+      "roadCrossings": 2,
+      "geometryPoints": 48,
+      "computeMs": 1.362
+    },
+    {
+      "from": "chem",
+      "to": "musi",
+      "distanceMeters": 676.5,
+      "networkMeters": 643.9,
+      "durationSeconds": 495,
+      "stepsMeters": 12.4,
+      "roadCrossings": 2,
+      "geometryPoints": 74,
+      "computeMs": 1.786
+    },
+    {
+      "from": "chem",
+      "to": "musa",
+      "distanceMeters": 703.9,
+      "networkMeters": 685,
+      "durationSeconds": 515,
+      "stepsMeters": 12.4,
+      "roadCrossings": 2,
+      "geometryPoints": 77,
+      "computeMs": 5.781
+    },
+    {
+      "from": "life",
+      "to": "blb",
+      "distanceMeters": 633.9,
+      "networkMeters": 583.3,
+      "durationSeconds": 484,
+      "stepsMeters": 32.4,
+      "roadCrossings": 2,
+      "geometryPoints": 63,
+      "computeMs": 1.176
+    },
+    {
+      "from": "life",
+      "to": "aud",
+      "distanceMeters": 312.9,
+      "networkMeters": 267.1,
+      "durationSeconds": 223,
+      "stepsMeters": 0,
+      "roadCrossings": 0,
+      "geometryPoints": 31,
+      "computeMs": 1.026
+    },
+    {
+      "from": "life",
+      "to": "hick",
+      "distanceMeters": 327.8,
+      "networkMeters": 294.5,
+      "durationSeconds": 253,
+      "stepsMeters": 20.1,
+      "roadCrossings": 1,
+      "geometryPoints": 41,
+      "computeMs": 0.987
+    },
+    {
+      "from": "life",
+      "to": "peb",
+      "distanceMeters": 648.5,
+      "networkMeters": 583.7,
+      "durationSeconds": 470,
+      "stepsMeters": 6.9,
+      "roadCrossings": 2,
+      "geometryPoints": 40,
+      "computeMs": 1.158
+    },
+    {
+      "from": "life",
+      "to": "pac",
+      "distanceMeters": 1085.6,
+      "networkMeters": 1031.1,
+      "durationSeconds": 794,
+      "stepsMeters": 19.2,
+      "roadCrossings": 5,
+      "geometryPoints": 101,
+      "computeMs": 5.492
+    },
+    {
+      "from": "matt",
+      "to": "dath",
+      "distanceMeters": 832.5,
+      "networkMeters": 801.3,
+      "durationSeconds": 595,
+      "stepsMeters": 0,
+      "roadCrossings": 9,
+      "geometryPoints": 55,
+      "computeMs": 1.295
+    },
+    {
+      "from": "matt",
+      "to": "symr",
+      "distanceMeters": 382,
+      "networkMeters": 370.3,
+      "durationSeconds": 273,
+      "stepsMeters": 0,
+      "roadCrossings": 2,
+      "geometryPoints": 38,
+      "computeMs": 0.994
+    },
+    {
+      "from": "gab",
+      "to": "life",
+      "distanceMeters": 202.3,
+      "networkMeters": 155,
+      "durationSeconds": 145,
+      "stepsMeters": 0,
+      "roadCrossings": 0,
+      "geometryPoints": 22,
+      "computeMs": 7.346
+    },
+    {
+      "from": "wh",
+      "to": "env",
+      "distanceMeters": 889.2,
+      "networkMeters": 836.2,
+      "durationSeconds": 635,
+      "stepsMeters": 0,
+      "roadCrossings": 5,
+      "geometryPoints": 69,
+      "computeMs": 5.67
+    },
+    {
+      "from": "uu",
+      "to": "gate",
+      "distanceMeters": 886,
+      "networkMeters": 823.4,
+      "durationSeconds": 652,
+      "stepsMeters": 20.4,
+      "roadCrossings": 2,
+      "geometryPoints": 77,
+      "computeMs": 3.671
+    }
+  ],
+  "latency": {
+    "routeComputationMs": {
+      "n": 120,
+      "p50": 0.948,
+      "p95": 10.892,
+      "p99": 21.006,
+      "max": 29.517
+    },
+    "matrixLookupUs": {
+      "n": 10000,
+      "p50": 0.078,
+      "p95": 0.112,
+      "p99": 0.253,
+      "max": 1388.227
+    },
+    "gate": {
+      "routeP95Ms": 10.892,
+      "gateMs": 200,
+      "pass": true
+    }
+  },
+  "matrix": {
+    "buildings": 29,
+    "maxLegMinutes": 20.579189258647304,
+    "asymmetries": 0
+  }
+}

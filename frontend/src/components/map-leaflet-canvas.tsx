@@ -29,7 +29,7 @@ type ClientRoute = {
   positions: LatLngTuple[];
   distanceMeters: number;
   durationSeconds: number;
-  source: "ors" | "fallback";
+  source: "ors" | "campus-network" | "fallback";
 };
 
 export const emptyRouteSummary: MapRouteSummary = { distanceText: "-", durationText: "-" };
