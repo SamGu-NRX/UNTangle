@@ -47,17 +47,16 @@ Notes:
 - `drizzle.config.ts` (outside `src/`) also reads `DATABASE_URL` and the `PG*` variables for `drizzle-kit`.
 - The root `scripts/dev.mjs` rewrites `BACKEND_URL` and `BETTER_AUTH_URL` in `frontend/.env` on every `bun dev` run (any other keys you add are preserved).
 
-## Privacy: transcript import and Puter
+## Privacy: transcript import
 
-The transcript import at `/courses/import` sends data to a third-party AI service. What actually happens, with code references:
+The transcript import (the "Import from myUNT" sheet at `/connect`, also opened from `/courses/import` and the plan menu) runs entirely in your browser. What happens, with code references:
 
-1. **Local extraction first.** `pdfjs-dist` extracts the PDF's embedded text entirely in your browser (`src/components/transcript-import-client.tsx`). If the embedded text is sparse (fewer than 600 characters or fewer than 4 course-code matches), the pages are rendered to JPEG images in the browser instead.
-2. **Text path redaction.** Before any text leaves the browser, `redactTranscriptText` (`src/lib/transcript-import.ts`) best-effort removes labeled identity fields with regexes: `Name:`, `Student ID:`, `UNT ID`/`EMPLID`/`Student Number`/`ID`, date of birth, `Student Address:`, email addresses, and SSN-like (3-2-4) or phone-like (3-3-4) digit runs.
-3. **Image path masking.** Rendered pages are masked positionally, not semantically (`redactRenderedTranscriptPage`): the top 20% of page 1 and the top 7.5% of later pages are painted white with a "student identity redacted" banner. Identity text anywhere else on a page is **not** removed.
-4. **What is sent to Puter.** The app loads the Puter browser SDK (`https://js.puter.com/v2/`) and sends either the redacted text (a redacted excerpt capped at 8,000 characters when candidate rows were found, otherwise 26,000, plus the candidate rows as JSON capped at 18,000) or the masked page images — which may be OCR'd through Puter (`puter.ai.img2txt`) and/or attached directly as image input, with OCR output re-redacted before the next attempt — to GPT-5.x model aliases, in order, with a 14-second timeout per attempt. When Puter file storage is available, masked images are first uploaded to Puter file storage and deleted again after analysis on a best-effort basis; when it is not, the images are passed directly as in-browser data URLs. Puter requires you to be signed in to its service for AI use.
-5. **Fallback.** If Puter is unavailable, you are signed out of it, or every model attempt fails, a local regex parser (`parseCourseImportText`) extracts course rows from readable PDF text with no network call. Scanned PDFs cannot fall back this way and fail instead.
-6. **Limits.** Neither step 2 nor step 3 is a complete anonymization guarantee. The redaction is label-anchored — for example, `Name:` is only redacted when it is followed by `Student ID:`, and `Student Address:` only up to `Print Date:` — so unexpected labels or formats pass through, and identity text outside the masked bands is never touched. The course, term, and grade rows themselves are always part of what is sent; the prompt even tells the model that identity fields "may be masked." Do not import a transcript you are not comfortable sending to Puter's AI providers.
-7. **What is kept.** The PDF and its raw text never leave your browser except as described above. Only the course rows you approve are applied to your planner; like the rest of your planner data, they sync to the server when you are signed in.
+1. **You download the PDF.** "Open myUNT" opens myUNT's unofficial transcript page in a separate window (`src/components/connect/myunt-trip.ts`). UNTangle never sees that page or your myUNT sign-in; you save the transcript as a PDF and choose it, or drop it on the page.
+2. **Local extraction.** `pdfjs-dist` reads the PDF's embedded text in the browser (`src/lib/connect/import.ts`). A scanned or photographed transcript has no text and is refused.
+3. **Redaction.** Before parsing, `redactTranscriptText` (`src/lib/transcript-import.ts`) best-effort removes labeled identity fields with regexes: `Name:`, `Student ID:`, `UNT ID`/`EMPLID`/`Student Number`/`ID`, date of birth, `Student Address:`, email addresses, and SSN-like (3-2-4) or phone-like (3-3-4) digit runs.
+4. **Parsing and review.** A local parser matches course rows to the catalog. No network call is made for any of this.
+5. **Limits.** Redaction is label-anchored: for example, `Name:` is only redacted when it is followed by `Student ID:`, and `Student Address:` only up to `Print Date:`. Since the text never leaves the browser and only approved course rows are kept, this limits what the parsed rows can carry, not what is sent.
+6. **What is kept.** The PDF and its text are discarded after parsing. Only the course rows you approve are applied to your planner; like the rest of your planner data, they sync to the server when you are signed in.
 
 Course/instructor grade data is unrelated to this flow: it is fetched from the backend API server-side.
 

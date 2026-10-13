@@ -80,10 +80,9 @@ boundaries are per-instance by design until then.
 
 ## 6. External services and private data
 
-**Rule.** Transcript text leaves the browser only through the Puter
-user-authorized path, redacted before send; the app treats third-party
-retention as **unknown** and designs as if transcript text may be retained.
-ORS is called server-side only (client-side ORS keys are barred by their
+**Rule.** Transcript text never leaves the browser: the PDF is read,
+redacted and parsed locally, and only the course rows the student approves
+are kept. ORS is called server-side only (client-side ORS keys are barred by their
 terms); attribution and quota facts are summarized in the research document.
 Self-uploaded transcripts are treated as outside FERPA's education-records
 scope, but minimization, no-retention-beyond-need, and no-sharing are

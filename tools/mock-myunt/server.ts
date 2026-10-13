@@ -1,6 +1,8 @@
-import { syntheticPdf, transcriptLines } from "./pdf";
+// A stand-in for myUNT's unofficial transcript page, for local journeys: the
+// page the "Open myUNT" window shows, and the synthetic PDF it links to.
+import { syntheticPdf } from "./pdf";
 const style =
-  "<style>body{font:16px/1.5 Georgia;margin:30px;color:#222}header{background:#00512b;color:white;padding:16px}table{border-collapse:collapse}td,th{padding:12px;border:1px solid #aaa;text-align:left}a,button{font:inherit}a{color:#00512b}</style>";
+  "<style>body{font:16px/1.5 Georgia;margin:30px;color:#222}header{background:#00512b;color:white;padding:16px}a{color:#00512b}</style>";
 function html(body: string) {
   return new Response(
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Mock myUNT</title>${style}<header>myUNT • Synthetic local fixture</header>${body}</html>`,
@@ -17,30 +19,9 @@ const server = Bun.serve({
       return new Response(syntheticPdf(), {
         headers: { "Content-Type": "application/pdf" },
       });
-    if (url.pathname === "/transcript-entry")
+    if (url.pathname === "/transcript")
       return html(
-        '<h1>View Unofficial Transcript</h1><p>Choose your report.</p><a href="/transcript-report">Submit and View Report</a>',
-      );
-    if (url.pathname === "/transcript-report") {
-      const report = url.searchParams.has("async")
-        ? `<a id="report-link" style="visibility:hidden">Pending PDF</a><button id="finish">Finish report</button><script>
-        document.getElementById('finish').addEventListener('click', () => {
-          const link = document.getElementById('report-link');
-          link.setAttribute('href', '/synthetic-transcript.pdf');
-          link.style.visibility = 'visible';
-          link.firstChild.textContent = 'View Report PDF ready';
-        });
-        </script>`
-        : url.searchParams.has("rendered")
-          ? `<pre id="transcript-report" data-transcript-report>${transcriptLines.join("\n")}</pre>`
-          : '<a href="/synthetic-transcript.pdf" target="_blank">View Report PDF</a>';
-      return html(
-        `<h1>View Unofficial Transcript</h1><p>Academic Records → View Unofficial Transcript → Submit → View Report</p>${report}`,
-      );
-    }
-    if (url.pathname === "/class-search")
-      return html(
-        '<h1>Class search results</h1><table><thead><tr><th>Course</th><th>Section</th><th>Days</th><th>Times</th><th>Room</th><th>Instructor</th><th>Status</th></tr></thead><tbody><tr><td><span>CSCE 1030</span><span hidden>CSCE 1030</span><span style="display:none">Duplicate</span></td><td>001</td><td>MWF</td><td>10:00 AM - 10:50 AM</td><td>Discovery Park B155</td><td>Example Instructor</td><td>Open</td></tr><tr hidden><td>CSCE 1040</td><td>002</td><td>TR</td><td>11:00 AM</td><td>B100</td><td>Hidden Instructor</td><td>Closed</td></tr></tbody></table>',
+        '<h1>View Unofficial Transcript</h1><p>Academic Records → View Unofficial Transcript → View as PDF</p><a href="/synthetic-transcript.pdf" download="unofficial-transcript.pdf">Download PDF</a>',
       );
     return new Response("Not found", { status: 404 });
   },

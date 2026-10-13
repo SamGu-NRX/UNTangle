@@ -5,7 +5,7 @@ UNTangle is a course-catalog and semester planner for University of North Texas 
 ## What it does
 
 - **Course catalog and progress tracking.** A bundled UNT catalog (656 courses in `frontend/src/lib/generated/seed-data.json`, built from `courses/*.json`) with search and department filters. Mark each course Done / Taking / Not taken; prerequisite-locked courses unlock as you complete requirements (`frontend/src/lib/planner.ts`). Pick a major (8 presets in `frontend/src/lib/seed-data.ts`) and track core-course progress.
-- **Transcript import.** Upload the unofficial myUNT transcript PDF (up to 12 MB) at `/courses/import`. It is read in your browser with pdf.js, identity fields are best-effort redacted (text) or band-masked (scanned pages), and the Puter browser AI SDK extracts the course rows. Nothing is applied until you review and approve it. Read the privacy note in [`frontend/README.md`](frontend/README.md) first — redaction and masking are not complete anonymization.
+- **Transcript import.** "Import courses from myUNT" opens myUNT's unofficial transcript page in a separate window; you download the PDF there and choose it (or drop it on the page) back in UNTangle. The PDF (up to 12 MB) is read in your browser with pdf.js, labeled identity fields are best-effort redacted, and a local parser finds the course rows. Nothing leaves the browser, and nothing is applied until you review and approve it. Details are in the privacy note in [`frontend/README.md`](frontend/README.md).
 - **Schedule optimization.** Five one-click modes — Cluster mornings, Cluster nights, Compact days, Minimize walking, Strong professors (`frontend/src/components/schedule-client.tsx`) — pick the best conflict-free combination of bundled section meeting times (`frontend/src/lib/planner.ts`). Individual sections can be pinned, and time conflicts are flagged on the week grid.
 - **Campus map with walking routes.** Class stops for a day are resolved against a bundled UNT building database (`frontend/src/lib/campus-locations.ts`; names/addresses from UNT Facilities, coordinates checked against OSM building footprints) and drawn on a Leaflet map with OpenStreetMap tiles. With an `ORS_API_KEY`, routes between stops use OpenRouteService foot-walking directions; without one, the map still draws straight-line segments between buildings, labeled "approximate." Print the itinerary or download it as a text brief (`frontend/src/components/map-client.tsx`).
 - **Course and instructor grade pages.** Grade distributions (A–F plus pass/fail, withdrawal, incomplete, and suppressed "Hidden" buckets), average GPA, enrollment, per-term sections, and RateMyProfessors rating/difficulty/tags, served by the backend API (`frontend/src/app/courses/[subject]/[number]/page.tsx`, `frontend/src/app/instructors/[id]/page.tsx`). Catalog data is bundled at build time and grade data comes from the backend — neither is fetched live from UNT.
@@ -32,7 +32,7 @@ Built by **Sam Gu** ([@SamGu-NRX](https://github.com/SamGu-NRX)), **Sangharsha D
 - [Bun 1.3.10](https://bun.sh) (pinned as `packageManager` in `package.json`) and Node.js
 - Git access to both repositories (the backend submodule points at a separate GitHub repo)
 - A PostgreSQL database for accounts and saved plans (frontend auth + planner state)
-- Optional keys for full functionality: `ORS_API_KEY`, `RESEND_API_KEY`, and a Puter account for transcript AI. [`frontend/README.md`](frontend/README.md) documents what degrades without each.
+- Optional keys for full functionality: `ORS_API_KEY` and `RESEND_API_KEY`. [`frontend/README.md`](frontend/README.md) documents what degrades without each.
 
 ### 1. Install and set up
 
@@ -80,4 +80,4 @@ Every variable the frontend reads — and which features degrade without each �
 
 ## Privacy
 
-Transcript import sends transcript text or rendered page images to Puter after best-effort in-browser redaction or fixed-band image masking. Neither is a complete anonymization guarantee — see the privacy note in [`frontend/README.md`](frontend/README.md) before importing a real transcript.
+Transcript import runs in the browser: the PDF is read, redacted and parsed locally, and nothing about it is sent anywhere. Only the course rows you approve are kept in your plan. See the privacy note in [`frontend/README.md`](frontend/README.md).
