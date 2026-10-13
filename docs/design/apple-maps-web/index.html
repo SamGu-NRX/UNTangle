@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#eeede9">
+  <meta name="color-scheme" content="light">
+  <title>Campus walk · UNTangle map study</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Syne:wght@700&display=swap" rel="stylesheet">
+  <link href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css" rel="stylesheet">
+  <style>
+    :root {
+      --land: #eeede9; --ink: #1a2e1a; --copy: #526052; --line: #d9dfd7;
+      --brand-700: #007a40; --brand-900: #00512b; --r-xl: 16px;
+      /* Existing UNTangle motion token; the camera uses the same cubic curve. */
+      --ease-out-strong: cubic-bezier(.19, 1, .22, 1); --d-hover: 120ms;
+      --credits-height: 38px;
+      font-family: "DM Sans", sans-serif; color: var(--ink); background: var(--land);
+      font-synthesis: none; -webkit-text-size-adjust: 100%;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+    body { overflow: hidden; }
+    button, select { font: inherit; color: inherit; }
+    button, select, a { touch-action: manipulation; }
+    button, select { min-height: 44px; }
+    button { border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; padding: .6rem .85rem; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    button:active { background: #e4e9e2; }
+    button:disabled { cursor: wait; opacity: .55; }
+    :focus-visible { outline-offset: 3px; }
+    @media (hover: hover) and (pointer: fine) { button:not(:disabled):hover { background: #edf1ea; } }
+    @media (prefers-reduced-motion: no-preference) {
+      body[data-input="pointer"] button { transition: transform var(--d-hover) var(--ease-out-strong); }
+      body[data-input="pointer"] button:not(:disabled):active { transform: scale(.97); }
+    }
+    .skip { position: fixed; left: -1000px; top: 1rem; z-index: 100; background: white; padding: 1rem; }
+    .skip:focus { left: 1rem; }
+    #app, #map { position: absolute; inset: 0; height: 100dvh; }
+    #map { background: var(--land); }
+    .panel {
+      position: absolute; z-index: 5; left: max(24px, env(safe-area-inset-left)); top: max(24px, env(safe-area-inset-top));
+      width: 344px; max-height: calc(100dvh - var(--credits-height) - 48px); overflow: auto;
+      overscroll-behavior: contain; border-radius: var(--r-xl); border: 1px solid #fff;
+      background: #f9fbf8; box-shadow: 0 12px 36px #26332620, 0 2px 5px #2633260c;
+    }
+    @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+      .panel { background: rgb(250 252 249 / 91%); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    }
+    .panel-header { padding: 1.3rem 1.3rem 1rem; }
+    .wordmark { margin: 0 0 1.3rem; font-family: "Syne", sans-serif; font-size: 1.2rem; font-weight: 700; letter-spacing: -.05em; }
+    .eyebrow { font-size: .75rem; letter-spacing: .09em; text-transform: uppercase; color: var(--copy); margin: 0 0 .35rem; font-weight: 600; }
+    h1 { margin: 0; font-size: 1.9rem; line-height: 1.1; font-weight: 600; letter-spacing: -.055em; }
+    h2 { font-size: .85rem; margin: 0 0 .65rem; font-weight: 700; }
+    .intro { font-size: .85rem; color: var(--copy); line-height: 1.5; margin: .6rem 0 0; }
+    .panel-body { padding: 0 .8rem 1rem; }
+    .section { padding: 1rem .5rem; border-top: 1px solid var(--line); }
+    ol { list-style: none; margin: 0; padding: 0; }
+    .stop-button { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: .75rem; text-align: left; width: 100%; border: 1px solid transparent; background: transparent; padding: .7rem .5rem; }
+    .stop-number { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: white; background: #46564b; font-size: .85rem; font-variant-numeric: tabular-nums; }
+    .stop-name { display: block; font-size: .9rem; font-weight: 600; }
+    .stop-code { display: block; color: var(--copy); font-size: .75rem; margin-top: .15rem; }
+    .selection-mark { visibility: hidden; font-size: .7rem; }
+    .stop-button[aria-pressed="true"] { background: #e7f0e7; border-color: #97b49b; }
+    .stop-button[aria-pressed="true"] .stop-number { background: var(--brand-700); }
+    .stop-button[aria-pressed="true"] .selection-mark { visibility: visible; }
+    .leg-button { display: grid; grid-template-columns: 28px 1fr; gap: .6rem; align-items: center; width: 100%; text-align: left; margin: .45rem 0; padding: .75rem; background: #fff9; }
+    .leg-button[aria-pressed="true"] { border: 2px solid var(--brand-700); padding: calc(.75rem - 1px); background: #e7f0e7; }
+    .leg-button strong { font-weight: 600; font-size: .9rem; }
+    .leg-button small { display: block; font-size: .73rem; line-height: 1.4; color: var(--copy); margin-top: .25rem; }
+    .line-sample { width: 24px; border-top: 4px solid var(--brand-700); }
+    .line-sample.dashed { border-top-style: dashed; }
+    .row { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .row button { flex: 1; font-size: .8rem; }
+    .small { font-size: .75rem; line-height: 1.5; color: var(--copy); }
+    #status { min-height: 2.5em; margin: .7rem .5rem 0; }
+    #error { margin: .7rem .5rem; border-left: 3px solid #985025; padding-left: .6rem; font-size: .8rem; line-height: 1.5; }
+    #error:empty { display: none; }
+    .sheet-control { display: none; }
+    .map-tools { position: absolute; z-index: 4; right: max(18px, env(safe-area-inset-right)); top: max(18px, env(safe-area-inset-top)); display: grid; gap: .6rem; }
+    .tool-group { display: grid; background: #fffffff0; border: 1px solid #d9dfd7; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 12px #26332614; }
+    .tool-group button { width: 48px; min-height: 48px; padding: 0; border: 0; border-radius: 0; background: transparent; font-weight: 600; }
+    .tool-group button + button { border-top: 1px solid var(--line); }
+    .tool-group .zoom { font-size: 1.5rem; font-weight: 400; }
+    .tool-group button[aria-pressed="true"] { background: #e7f0e7; color: var(--brand-900); }
+    .tool-group button:focus-visible { outline-offset: -4px; }
+    .credits { position: absolute; z-index: 10; bottom: 0; left: 0; right: 0; padding: 7px max(12px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: #fffffff0; color: #475248; font-size: 11px; line-height: 1.5; text-align: right; }
+    .credits a { color: inherit; }
+    .maplibregl-ctrl-bottom-left { bottom: calc(var(--credits-height) + 10px); left: 14px; }
+    .maplibregl-ctrl-scale { font-family: "DM Sans", sans-serif; background: #ffffffce; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    @media (max-width: 47.99rem) {
+      .panel { left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); width: auto; top: auto; bottom: calc(var(--credits-height) + 8px); max-height: calc(100dvh - var(--credits-height) - 84px); }
+      .panel[data-detent="peek"] { height: 188px; }
+      .panel[data-detent="half"] { height: max(320px, 50dvh); }
+      .panel[data-detent="full"] { height: calc(100dvh - var(--credits-height) - 84px); }
+      .panel-header { padding: 1rem 1.1rem .8rem; }
+      .wordmark { margin: 0; font-size: 1rem; }
+      .mobile-header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
+      .sheet-control { display: flex; align-items: center; gap: .4rem; font-size: .75rem; }
+      select { font-size: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: .35rem; max-width: 8rem; }
+      h1 { font-size: 1.6rem; }
+      .eyebrow { display: none; }
+      .intro { font-size: .78rem; }
+      .map-tools { display: flex; }
+      .tool-group { display: flex; }
+      .tool-group button + button { border-top: 0; border-left: 1px solid var(--line); }
+      .maplibregl-ctrl-bottom-left { display: none; }
+      .credits { text-align: center; }
+    }
+    @media (prefers-reduced-transparency: reduce) { .panel { background: #f9fbf8; backdrop-filter: none; -webkit-backdrop-filter: none; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+    @media (forced-colors: active) { button[aria-pressed="true"] { border: 2px solid Highlight; } .panel { border: 1px solid CanvasText; } }
+  </style>
+</head>
+<body data-input="keyboard">
+  <a class="skip" href="#itinerary">Skip to itinerary</a>
+  <main id="app">
+    <div id="map" role="region" aria-label="UNT Denton campus map" aria-describedby="map-help"></div>
+    <p id="map-help" class="sr-only">Use the itinerary buttons to select stops and legs. On the map, arrow keys pan instantly. Plus and minus change zoom. This is an illustrative route, not directions.</p>
+    <aside class="panel" id="itinerary" tabindex="-1" data-detent="half" aria-labelledby="title">
+      <header class="panel-header">
+        <div class="mobile-header">
+          <p class="wordmark">UNTangle</p>
+          <label class="sheet-control" for="detent">Panel <select id="detent"><option value="peek">Peek</option><option value="half" selected>Half</option><option value="full">Full</option></select></label>
+        </div>
+        <p class="eyebrow">UNT Denton · Map study</p>
+        <h1 id="title">A walk across campus</h1>
+        <p class="intro">GAB → LIFE → BLB<br>Illustrative geometry. Not for navigation.</p>
+      </header>
+      <div class="panel-body">
+        <section class="section" aria-labelledby="stops-heading">
+          <h2 id="stops-heading">Three stops</h2>
+          <ol>
+            <li><button class="stop-button" data-stop="gab" data-map-action disabled aria-pressed="false"><span class="stop-number">1</span><span><span class="stop-name">General Academic</span><span class="stop-code">GAB · General Academic Building</span></span><span class="selection-mark" aria-hidden="true">Selected</span></button></li>
+            <li><button class="stop-button" data-stop="life" data-map-action disabled aria-pressed="false"><span class="stop-number">2</span><span><span class="stop-name">Life Sciences</span><span class="stop-code">LIFE · Life Sciences Complex</span></span><span class="selection-mark" aria-hidden="true">Selected</span></button></li>
+            <li><button class="stop-button" data-stop="blb" data-map-action disabled aria-pressed="false"><span class="stop-number">3</span><span><span class="stop-name">Business Leadership</span><span class="stop-code">BLB · Business Leadership Building</span></span><span class="selection-mark" aria-hidden="true">Selected</span></button></li>
+          </ol>
+        </section>
+        <section class="section" aria-labelledby="legs-heading">
+          <h2 id="legs-heading">Focus a leg</h2>
+          <button class="leg-button" data-leg="gab-life" data-map-action disabled aria-pressed="false"><span class="line-sample" aria-hidden="true"></span><span><strong>GAB → LIFE</strong><small>Routed-style preview · sample geometry</small></span></button>
+          <button class="leg-button" data-leg="life-blb" data-map-action disabled aria-pressed="false"><span class="line-sample dashed" aria-hidden="true"></span><span><strong>LIFE → BLB</strong><small>Approximate-style preview · dashed line</small></span></button>
+          <p class="small">In the app, solid lines use mapped walkways. Dashed lines mean a walkway connection is missing.</p>
+        </section>
+        <section class="section" aria-label="Map options">
+          <div class="row"><button id="overview" data-map-action disabled>Campus view</button><button id="route-view" data-map-action disabled>Whole walk</button></div>
+          <div class="row" style="margin-top:.5rem"><button id="location" data-map-action disabled aria-pressed="false">Show location sample</button></div>
+          <p class="small">The blue dot is a sample, not your location. No location permission is requested.</p>
+        </section>
+        <p id="status" class="small" role="status">Loading campus map…</p>
+        <p id="error" role="alert"></p>
+        <button id="retry" hidden>Reload map</button>
+        <noscript><p>Enable JavaScript to explore the map. The stop list above remains available.</p></noscript>
+      </div>
+    </aside>
+    <nav class="map-tools" aria-label="Map controls">
+      <div class="tool-group"><button id="north" data-map-action disabled aria-label="Face north">N ↑</button><button id="tilt" data-map-action disabled aria-pressed="false" aria-label="Tilt map in 3D">3D</button></div>
+      <div class="tool-group"><button id="zoom-in" data-map-action disabled class="zoom" aria-label="Zoom in">+</button><button id="zoom-out" data-map-action disabled class="zoom" aria-label="Zoom out">−</button></div>
+    </nav>
+    <footer class="credits" id="credits"><a href="https://maplibre.org/">MapLibre</a> · <a href="https://openfreemap.org/">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">© OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></footer>
+  </main>
+  <!-- Embedded snapshots keep file:// opening independent of a local server. -->
+  <script id="base-style" type="application/json">{"version":8,"name":"UNTangle · campus light","metadata":{"untangle:direction":"Quiet campus atlas. White building massing, sparse labels, green only for the selected walk.","untangle:source-checked":"2026-10-13: live OpenFreeMap TileJSON and Liberty style","untangle:campus-labels":"Sample names and centroids from frontend/src/lib/campus-locations.ts. Replace with the full campus catalogue, not building tile properties.","untangle:extrusions":"Fade from zoom 15.5 to 16.5 to retain flat overview legibility. This is a design starting point, not a measured performance threshold.","untangle:selection-color":"#007a40; runtime overlays only"},"center":[-97.1477,33.2108],"zoom":15.5,"bearing":0,"pitch":0,"glyphs":"https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf","sprite":"https://tiles.openfreemap.org/sprites/ofm_f384/ofm","transition":{"duration":0,"delay":0},"light":{"anchor":"viewport","color":"#ffffff","intensity":0.28,"position":[1.5,215,40]},"sources":{"openmaptiles":{"type":"vector","url":"https://tiles.openfreemap.org/planet","attribution":"\u003ca href=\"https://openfreemap.org\">OpenFreeMap\u003c/a> \u003ca href=\"https://www.openmaptiles.org/\">© OpenMapTiles\u003c/a> Data from \u003ca href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap\u003c/a>"},"unt-campus-labels":{"type":"geojson","data":{"type":"FeatureCollection","features":[{"type":"Feature","id":"gab","properties":{"name":"General Academic Building","code":"GAB","priority":1},"geometry":{"type":"Point","coordinates":[-97.1481479,33.2131868]}},{"type":"Feature","id":"life","properties":{"name":"Life Sciences Complex","code":"LIFE","priority":2},"geometry":{"type":"Point","coordinates":[-97.1490327,33.2121465]}},{"type":"Feature","id":"blb","properties":{"name":"Business Leadership Building","code":"BLB","priority":3},"geometry":{"type":"Point","coordinates":[-97.1476988,33.2088704]}}]}}},"layers":[{"id":"land","type":"background","paint":{"background-color":"#eeede9"}},{"id":"campus-land","type":"fill","source":"openmaptiles","source-layer":"landuse","filter":["match",["get","class"],["school","college","university"],true,false],"paint":{"fill-color":"#e7e9e1"}},{"id":"grass","type":"fill","source":"openmaptiles","source-layer":"landcover","filter":["match",["get","class"],["grass","wood"],true,false],"paint":{"fill-color":["match",["get","class"],"wood","#d7e3cf","#dde8d5"],"fill-opacity":0.85}},{"id":"park","type":"fill","source":"openmaptiles","source-layer":"park","paint":{"fill-color":"#dbe7d2","fill-opacity":0.7}},{"id":"recreation","type":"fill","source":"openmaptiles","source-layer":"landuse","filter":["match",["get","class"],["pitch","recreation_ground","cemetery"],true,false],"paint":{"fill-color":"#d8e4ce","fill-opacity":0.8}},{"id":"parking","type":"fill","source":"openmaptiles","source-layer":"landuse","minzoom":14,"filter":["==",["get","class"],"parking"],"paint":{"fill-color":"#e2e1dd"}},{"id":"water","type":"fill","source":"openmaptiles","source-layer":"water","paint":{"fill-color":"#c4dfe9"}},{"id":"waterway","type":"line","source":"openmaptiles","source-layer":"waterway","minzoom":12,"paint":{"line-color":"#c4dfe9","line-width":["interpolate",["linear"],["zoom"],12,1,18,4]}},{"id":"road-casing","type":"line","source":"openmaptiles","source-layer":"transportation","filter":["match",["get","class"],["motorway","trunk","primary","secondary","tertiary","minor","service"],true,false],"layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"#d7d6d1","line-width":["interpolate",["exponential",1.5],["zoom"],12,2,16,["match",["get","class"],["motorway","trunk","primary"],14,["secondary","tertiary"],11,7],19,["match",["get","class"],["motorway","trunk","primary"],44,["secondary","tertiary"],34,22]]}},{"id":"road-surface","type":"line","source":"openmaptiles","source-layer":"transportation","filter":["match",["get","class"],["motorway","trunk","primary","secondary","tertiary","minor","service"],true,false],"layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"#ffffff","line-width":["interpolate",["exponential",1.5],["zoom"],12,1,16,["match",["get","class"],["motorway","trunk","primary"],12,["secondary","tertiary"],9,5],19,["match",["get","class"],["motorway","trunk","primary"],41,["secondary","tertiary"],31,19]]}},{"id":"walkway-casing","type":"line","source":"openmaptiles","source-layer":"transportation","minzoom":14,"filter":["match",["get","class"],["path","pedestrian","track"],true,false],"layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"#d8d9d1","line-width":["interpolate",["linear"],["zoom"],14,1.5,17,4,20,9]}},{"id":"walkway-surface","type":"line","source":"openmaptiles","source-layer":"transportation","minzoom":14,"filter":["match",["get","class"],["path","pedestrian","track"],true,false],"layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"#fafaf6","line-width":["interpolate",["linear"],["zoom"],14,0.7,17,2.6,20,7]}},{"id":"rail","type":"line","source":"openmaptiles","source-layer":"transportation","minzoom":13,"filter":["==",["get","class"],"rail"],"paint":{"line-color":"#c5c4be","line-width":1.5,"line-dasharray":[3,2]}},{"id":"building-footprint","type":"fill","source":"openmaptiles","source-layer":"building","minzoom":13,"paint":{"fill-color":"#e0dfda","fill-outline-color":"#cdcdc6"}},{"id":"building-3d","type":"fill-extrusion","source":"openmaptiles","source-layer":"building","minzoom":15.5,"filter":["!=",["get","hide_3d"],true],"paint":{"fill-extrusion-color":["interpolate",["linear"],["to-number",["get","render_height"],0],0,"#f7f6f2",45,"#e7e7e2"],"fill-extrusion-height":["max",0,["to-number",["get","render_height"],0]],"fill-extrusion-base":["min",["max",0,["to-number",["get","render_height"],0]],["max",0,["to-number",["get","render_min_height"],0]]],"fill-extrusion-opacity":["interpolate",["cubic-bezier",0.23,1,0.32,1],["zoom"],15.5,0,16.5,0.9],"fill-extrusion-vertical-gradient":true}},{"id":"campus-building-label","type":"symbol","source":"unt-campus-labels","minzoom":15.5,"layout":{"text-field":["step",["zoom"],["get","code"],16.6,["get","name"]],"text-font":["Noto Sans Regular"],"text-size":["interpolate",["linear"],["zoom"],15.5,12,18,14],"text-anchor":"bottom","text-offset":[0,-1.8],"text-max-width":11,"text-padding":5,"symbol-sort-key":["get","priority"],"text-allow-overlap":false},"paint":{"text-color":"#343b35","text-halo-color":"#ffffff","text-halo-width":1.7,"text-halo-blur":0.25}},{"id":"road-label","type":"symbol","source":"openmaptiles","source-layer":"transportation_name","minzoom":14,"filter":["match",["get","class"],["motorway","trunk","primary","secondary","tertiary","minor","service"],true,false],"layout":{"symbol-placement":"line","symbol-spacing":350,"text-field":["coalesce",["get","name:en"],["get","name_en"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":["interpolate",["linear"],["zoom"],14,10,18,12],"text-max-angle":25},"paint":{"text-color":"#676b64","text-halo-color":"#ffffff","text-halo-width":1.3}},{"id":"park-label","type":"symbol","source":"openmaptiles","source-layer":"park","minzoom":15,"layout":{"text-field":["coalesce",["get","name:en"],["get","name_en"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":11,"text-max-width":10,"text-padding":16},"paint":{"text-color":"#586653","text-halo-color":"#eef3e9","text-halo-width":1}},{"id":"poi-label","type":"symbol","source":"openmaptiles","source-layer":"poi","minzoom":17.5,"filter":["all",["==",["geometry-type"],"Point"],["\u003c=",["to-number",["get","rank"],99],6],["match",["get","class"],["library","hospital","bus","cafe"],true,false]],"layout":{"text-field":["coalesce",["get","name:en"],["get","name_en"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":11,"text-max-width":9,"text-padding":24,"symbol-sort-key":["to-number",["get","rank"],99]},"paint":{"text-color":"#666963","text-halo-color":"#ffffff","text-halo-width":1.4}},{"id":"place-label","type":"symbol","source":"openmaptiles","source-layer":"place","maxzoom":15,"filter":["match",["get","class"],["city","town","suburb","neighbourhood"],true,false],"layout":{"text-field":["coalesce",["get","name:en"],["get","name_en"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":["interpolate",["linear"],["zoom"],10,14,14,17],"text-padding":24},"paint":{"text-color":"#596158","text-halo-color":"#eeede9","text-halo-width":2}}]}</script>
+  <script id="overlay-layers" type="application/json">{"routes":[{"id":"unt-route-hover","type":"line","source":"unt-route-legs","layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"#46564b","line-width":17,"line-opacity":["case",["boolean",["feature-state","hover"],false],0.16,0],"line-opacity-transition":{"duration":0}}},{"id":"unt-route-casing","type":"line","source":"unt-route-legs","layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":"#ffffff","line-width":["interpolate",["linear"],["zoom"],14,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],8,6.5],17,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],11,9],20,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],13,10]],"line-opacity":0.98}},{"id":"unt-route-solid","type":"line","source":"unt-route-legs","filter":["==",["get","approximate"],false],"layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],"#00512b","#007a40"],"line-width":["interpolate",["linear"],["zoom"],14,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],5,3.5],17,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],7,5],20,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],9,6]],"line-color-transition":{"duration":0},"line-width-transition":{"duration":0}}},{"id":"unt-route-approximate","type":"line","source":"unt-route-legs","filter":["==",["get","approximate"],true],"layout":{"line-cap":"round","line-join":"round"},"paint":{"line-color":["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],"#00512b","#007a40"],"line-width":["interpolate",["linear"],["zoom"],14,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],5,3.5],17,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],7,5],20,["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],9,6]],"line-dasharray":[1.2,1.8],"line-color-transition":{"duration":0},"line-width-transition":{"duration":0}}},{"id":"unt-route-chevrons","type":"symbol","source":"unt-route-legs","minzoom":16,"filter":["==",["get","approximate"],false],"layout":{"symbol-placement":"line","symbol-spacing":76,"icon-image":"unt-route-chevron","icon-size":1,"icon-rotation-alignment":"map","icon-pitch-alignment":"map","icon-keep-upright":false,"icon-allow-overlap":true,"icon-ignore-placement":true},"paint":{"icon-opacity":["case",["any",["boolean",["feature-state","active"],false],["boolean",["feature-state","selected"],false]],1,0.8]}},{"id":"unt-route-hit","type":"line","source":"unt-route-legs","layout":{"line-cap":"round","line-join":"round"},"paint":{"line-width":24,"line-opacity":0}}],"points":[{"id":"unt-location-accuracy-fill","type":"fill","source":"unt-location-accuracy","paint":{"fill-color":["case",["get","stale"],"#7c8490","#2879da"],"fill-opacity":0.1}},{"id":"unt-location-accuracy-edge","type":"line","source":"unt-location-accuracy","paint":{"line-color":["case",["get","stale"],"#7c8490","#2879da"],"line-width":1,"line-opacity":0.35}},{"id":"unt-stop-halo","type":"circle","source":"unt-stops","paint":{"circle-radius":["case",["boolean",["feature-state","selected"],false],23,["boolean",["feature-state","hover"],false],22,18],"circle-color":["case",["boolean",["feature-state","selected"],false],"#007a40","#46564b"],"circle-opacity":["case",["boolean",["feature-state","selected"],false],0.17,["boolean",["feature-state","hover"],false],0.14,0],"circle-pitch-alignment":"viewport","circle-pitch-scale":"viewport"}},{"id":"unt-stop-disc","type":"circle","source":"unt-stops","paint":{"circle-radius":["case",["boolean",["feature-state","selected"],false],17,14],"circle-color":["case",["boolean",["feature-state","selected"],false],"#007a40","#46564b"],"circle-stroke-color":"#ffffff","circle-stroke-width":3,"circle-pitch-alignment":"viewport","circle-pitch-scale":"viewport"}},{"id":"unt-stop-number","type":"symbol","source":"unt-stops","layout":{"text-field":["to-string",["get","number"]],"text-font":["Noto Sans Regular"],"text-size":14,"text-allow-overlap":true,"text-ignore-placement":true,"text-pitch-alignment":"viewport","text-rotation-alignment":"viewport"},"paint":{"text-color":"#ffffff"}},{"id":"unt-stop-hit","type":"circle","source":"unt-stops","paint":{"circle-radius":22,"circle-opacity":0,"circle-pitch-alignment":"viewport","circle-pitch-scale":"viewport"}},{"id":"unt-location-ring","type":"circle","source":"unt-location","paint":{"circle-radius":13,"circle-color":"#ffffff","circle-opacity":0.8,"circle-pitch-alignment":"viewport","circle-pitch-scale":"viewport"}},{"id":"unt-location-dot","type":"circle","source":"unt-location","paint":{"circle-radius":7,"circle-color":["case",["get","stale"],"#7c8490","#176cd2"],"circle-stroke-width":2,"circle-stroke-color":"#ffffff","circle-pitch-alignment":"viewport","circle-pitch-scale":"viewport"}}]}</script>
+  <script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const status = $('status');
+    const panel = $('itinerary');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const phone = matchMedia('(max-width: 47.99rem)');
+    const hoverCapable = matchMedia('(hover: hover) and (pointer: fine)');
+    document.addEventListener('pointerdown', () => { document.body.dataset.input = 'pointer'; });
+    document.addEventListener('keydown', () => { document.body.dataset.input = 'keyboard'; });
+    $('retry').addEventListener('click', () => location.reload());
+    function fail(message) { $('error').textContent = message; $('retry').hidden = false; }
+    const CAMPUS = [[-97.1562, 33.2058], [-97.1410, 33.2165]];
+    const MAX_BOUNDS = [[-97.166, 33.197], [-97.133, 33.225]];
+    const source = { routes: 'unt-route-legs', stops: 'unt-stops', location: 'unt-location', accuracy: 'unt-location-accuracy' };
+    const empty = () => ({ type: 'FeatureCollection', features: [] });
+    const style = JSON.parse($('base-style').textContent);
+    const overlayLayers = JSON.parse($('overlay-layers').textContent);
+    const stopFeatures = style.sources['unt-campus-labels'].data.features.map((feature, i) => ({
+      ...feature, properties: { ...feature.properties, number: i + 1 },
+    }));
+    const stops = { type: 'FeatureCollection', features: stopFeatures };
+    const routes = { type: 'FeatureCollection', features: [
+      { type: 'Feature', id: 'gab-life', properties: { approximate: false }, geometry: { type: 'LineString', coordinates: [
+        [-97.1481479,33.2131868], [-97.14818,33.21287], [-97.14895,33.21287], [-97.14895,33.21232], [-97.1490327,33.2121465]
+      ] } },
+      { type: 'Feature', id: 'life-blb', properties: { approximate: true }, geometry: { type: 'LineString', coordinates: [
+        [-97.1490327,33.2121465], [-97.14895,33.2119], [-97.14832,33.2119], [-97.14832,33.20928], [-97.1476988,33.20928], [-97.1476988,33.2088704]
+      ] } },
+    ] };
+    let map;
+    let ready = false;
+    let focus = { kind: 'campus' };
+    let hoverTarget = null;
+    let epoch = 0;
+    let lastPitch = false;
+    let lastPadding = null;
+    let loadingTimer;
+
+    // Invert x(t) before evaluating y(t); a CSS curve is not a polynomial in time.
+    // Matches UNTangle's existing --ease-out-strong, not an invented spring.
+    function cameraEase(x) {
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 18; i++) {
+        const t = (lo + hi) / 2;
+        const bx = 3 * (1-t) * (1-t) * t * .19 + 3 * (1-t) * t * t * .22 + t*t*t;
+        if (bx < x) lo = t; else hi = t;
+      }
+      const t = (lo + hi) / 2;
+      return 1 - Math.pow(1-t, 3);
+    }
+    function padding() {
+      const rect = panel.getBoundingClientRect();
+      const canvas = $('map').getBoundingClientRect();
+      const credit = $('credits').getBoundingClientRect().height;
+      if (phone.matches) return { top: 84, right: 30, bottom: Math.ceil(canvas.bottom - rect.top + 20), left: 30 };
+      return { top: 44, right: 88, bottom: Math.ceil(credit + 32), left: Math.ceil(rect.right - canvas.left + 28) };
+    }
+    function boundsFor(coordinates) {
+      return coordinates.reduce((bounds, coordinate) => bounds.extend(coordinate), new maplibregl.LngLatBounds());
+    }
+    function currentCoordinates() {
+      if (focus.kind === 'stop') return [stopFeatures.find(f => f.id === focus.id).geometry.coordinates];
+      if (focus.kind === 'leg') return routes.features.find(f => f.id === focus.id).geometry.coordinates;
+      return routes.features.flatMap(f => f.geometry.coordinates);
+    }
+    function setState(target, patch) { if (ready && target) map.setFeatureState(target, patch); }
+    function announce(message) { status.textContent = message; }
+    function ensureMapSpace() {
+      if (phone.matches && panel.dataset.detent === 'full') {
+        panel.dataset.detent = 'half'; $('detent').value = 'half';
+      }
+    }
+    function cameraToCurrent({ instant = false } = {}) {
+      if (!ready || (phone.matches && panel.dataset.detent === 'full')) return;
+      const pad = padding();
+      const rect = $('map').getBoundingClientRect();
+      // A short viewport or enlarged text may leave no useful map area. Keep the list usable.
+      if (rect.height - pad.top - pad.bottom < 100 || rect.width - pad.left - pad.right < 120) {
+        announce('Expand the map area or use the itinerary to explore these stops.'); return;
+      }
+      lastPadding = JSON.stringify(pad);
+      const pitch = reduced.matches || focus.kind === 'campus' || focus.kind === 'route' ? 0 : 45;
+      const coordinates = currentCoordinates();
+      const bounds = focus.kind === 'campus' ? new maplibregl.LngLatBounds(CAMPUS) : boundsFor(coordinates);
+      const cap = focus.kind === 'campus' ? 15.6 : focus.kind === 'stop' ? 17.8 : 17.6;
+      const camera = map.cameraForBounds(bounds, { padding: pad, bearing: 0, maxZoom: cap });
+      if (!camera) { fail('This map area is too small to frame the walk. Choose a smaller panel size.'); return; }
+      // cameraForBounds computes the padded centre at pitch 0. Do not pass padding again.
+      const target = { center: camera.center, zoom: camera.zoom, bearing: 0, pitch };
+      // Provisional pitch clearance, not device-tested; the projected check below decides if it fits.
+      if (pitch && focus.kind !== 'stop') target.zoom = Math.max(13, target.zoom - .45);
+      const request = ++epoch;
+      map.stop();
+      map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      map.once('moveend', () => {
+        if (request !== epoch || !pitch) return;
+        const visible = coordinates.every(c => {
+          const p = map.project(c);
+          return p.x >= pad.left && p.x <= rect.width - pad.right && p.y >= pad.top && p.y <= rect.height - pad.bottom;
+        });
+        // Never hide a stop behind chrome to preserve a decorative tilt.
+        if (!visible) {
+          map.jumpTo({ center: camera.center, zoom: camera.zoom, bearing: 0, pitch: 0 });
+          announce('Showing a flat view to keep every stop clear of the panel.');
+        }
+      });
+      if (reduced.matches || instant || document.body.dataset.input === 'keyboard') map.jumpTo(target);
+      // Camera travel is the 500 ms exception: retain spatial context across campus, not a UI reveal.
+      else map.flyTo({ ...target, duration: 500, easing: cameraEase, essential: false });
+    }
+    function clearSelection() {
+      for (const f of stopFeatures) setState({ source: source.stops, id: f.id }, { selected: false });
+      for (const f of routes.features) setState({ source: source.routes, id: f.id }, { selected: false, active: false });
+      document.querySelectorAll('[data-stop], [data-leg]').forEach(button => button.setAttribute('aria-pressed', 'false'));
+    }
+    function select(kind, id, keyboard = false) {
+      if (!ready) return;
+      ensureMapSpace(); clearSelection(); focus = { kind, id };
+      if (kind === 'stop') {
+        const f = stopFeatures.find(f => f.id === id);
+        setState({ source: source.stops, id }, { selected: true });
+        document.querySelector(`[data-stop="${id}"]`).setAttribute('aria-pressed', 'true');
+        announce(`Stop ${f.properties.number}: ${f.properties.name}.`);
+      } else {
+        const leg = routes.features.find(f => f.id === id);
+        setState({ source: source.routes, id }, { selected: true, active: true });
+        document.querySelector(`[data-leg="${id}"]`).setAttribute('aria-pressed', 'true');
+        announce(`${id === 'gab-life' ? 'GAB to LIFE' : 'LIFE to BLB'} selected. ${leg.properties.approximate ? 'Dashed fallback-style sample.' : 'Solid routed-style sample.'} Not navigation directions.`);
+      }
+      cameraToCurrent({ instant: keyboard });
+    }
+    function addChevron() {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('A 2D canvas is required for route chevrons.');
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.lineCap = ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(12,9); ctx.lineTo(20,16); ctx.lineTo(12,23); ctx.stroke();
+      map.addImage('unt-route-chevron', ctx.getImageData(0,0,32,32), { pixelRatio: 2 });
+    }
+    function changeCamera(options, keyboard) {
+      ++epoch; map.stop();
+      const target = { ...options, pitch: reduced.matches ? 0 : options.pitch ?? map.getPitch() };
+      if (reduced.matches || keyboard) map.jumpTo(target);
+      else map.easeTo({ ...target, duration: 250, easing: cameraEase, essential: false });
+    }
+    function motionPreference() {
+      if (!map) return;
+      ++epoch; map.stop(); map.setMaxPitch(reduced.matches ? 0 : 50);
+      if (reduced.matches) {
+        map.jumpTo({ pitch: 0, bearing: 0 }); map.scrollZoom.disable(); map.doubleClickZoom.disable();
+        $('tilt').disabled = true; $('tilt').title = '3D tilt is off while reduced motion is enabled';
+      } else {
+        map.scrollZoom.enable(); map.doubleClickZoom.enable();
+        $('tilt').disabled = !ready; $('tilt').title = '';
+      }
+    }
+    function start() {
+      if (!window.maplibregl) { fail('MapLibre could not load. Check your connection and reload. The itinerary is still available.'); return; }
+      try {
+        map = new maplibregl.Map({
+          container: 'map', style, center: [-97.1477,33.2108], zoom: 15.3, pitch: 0,
+          minZoom: 13, maxZoom: 19, maxBounds: MAX_BOUNDS, maxPitch: reduced.matches ? 0 : 50,
+          renderWorldCopies: false, attributionControl: false, keyboard: false,
+          dragRotate: false, pitchWithRotate: false, touchPitch: false,
+          fadeDuration: 0,
+          // Unmeasured phone budget: cap DPR 3+ fill cost and unused tiles; confirm sharpness on devices.
+          pixelRatio: Math.min(window.devicePixelRatio || 1, 2), maxTileCacheSize: 48,
+          cancelPendingTileRequestsWhileZooming: true,
+        });
+      } catch (error) {
+        fail('The map could not start. WebGL may be unavailable. Try another browser; the itinerary remains readable.'); return;
+      }
+      map.touchZoomRotate.disableRotation();
+      map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
+      loadingTimer = setTimeout(() => { if (!ready) fail('The map is taking longer to load. Check your connection, then reload.'); }, 15000);
+      map.on('error', () => { fail('Some map data could not load. Check your connection and reload if the map stays incomplete.'); });
+      map.on('load', () => {
+        clearTimeout(loadingTimer);
+        try {
+          addChevron();
+          map.addSource(source.routes, { type: 'geojson', data: routes, lineMetrics: false });
+          map.addSource(source.stops, { type: 'geojson', data: stops });
+          map.addSource(source.location, { type: 'geojson', data: empty() });
+          map.addSource(source.accuracy, { type: 'geojson', data: empty() });
+          overlayLayers.routes.forEach(layer => map.addLayer(layer, 'campus-building-label'));
+          overlayLayers.points.forEach(layer => map.addLayer(layer));
+          ready = true;
+          document.querySelectorAll('[data-map-action]').forEach(button => { button.disabled = false; });
+          motionPreference(); cameraToCurrent({ instant: true });
+          if (!$('error').textContent) announce('Choose a stop or leg. The 3D view opens on focus.');
+        } catch (error) { fail(`Map overlays could not start: ${error.message}`); }
+      });
+      const pick = point => {
+        const features = map.queryRenderedFeatures(point, { layers: ['unt-stop-hit', 'unt-route-hit'] });
+        return features.find(f => f.source === source.stops) || features[0];
+      };
+      map.on('mousemove', event => {
+        if (!ready || !hoverCapable.matches) return;
+        const f = pick(event.point);
+        const next = f ? { source: f.source, id: f.id } : null;
+        if (next?.id === hoverTarget?.id && next?.source === hoverTarget?.source) return;
+        setState(hoverTarget, { hover: false }); hoverTarget = next; setState(next, { hover: true });
+        map.getCanvas().style.cursor = next ? 'pointer' : '';
+      });
+      map.getCanvas().addEventListener('mouseleave', () => {
+        setState(hoverTarget, { hover: false }); hoverTarget = null; map.getCanvas().style.cursor = '';
+      });
+      map.on('click', event => {
+        if (!ready) return;
+        const f = pick(event.point); if (f) select(f.source === source.stops ? 'stop' : 'leg', f.id);
+      });
+      map.on('movestart', event => { if (event.originalEvent) ++epoch; });
+      map.on('moveend', () => {
+        const tilted = map.getPitch() > 1;
+        if (tilted !== lastPitch) { $('tilt').setAttribute('aria-pressed', String(tilted)); lastPitch = tilted; }
+      });
+      map.getCanvas().setAttribute('aria-label', 'Campus map. Arrow keys pan; plus and minus zoom. Itinerary buttons provide stop selection.');
+      map.getCanvas().addEventListener('keydown', event => {
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)) {
+          event.preventDefault();
+          const center = map.project(map.getCenter());
+          const dx = event.key === 'ArrowLeft' ? -80 : event.key === 'ArrowRight' ? 80 : 0;
+          const dy = event.key === 'ArrowUp' ? -80 : event.key === 'ArrowDown' ? 80 : 0;
+          changeCamera({ center: map.unproject([center.x + dx, center.y + dy]) }, true);
+        } else if (['+','=','-'].includes(event.key)) {
+          event.preventDefault(); changeCamera({ zoom: Math.max(13, Math.min(19, map.getZoom() + (event.key === '-' ? -1 : 1))) }, true);
+        }
+      });
+      map.getCanvas().addEventListener('webglcontextlost', () => fail('The browser paused map rendering. Reload the map; the stop list is still available.'));
+    }
+    document.querySelectorAll('[data-stop]').forEach(button => button.addEventListener('click', event => select('stop', button.dataset.stop, event.detail === 0)));
+    document.querySelectorAll('[data-leg]').forEach(button => button.addEventListener('click', event => select('leg', button.dataset.leg, event.detail === 0)));
+    for (const [id, kind] of [['overview','campus'], ['route-view','route']]) {
+      $(id).addEventListener('click', event => { ensureMapSpace(); clearSelection(); focus = { kind }; cameraToCurrent({ instant: event.detail === 0 }); announce(kind === 'campus' ? 'Campus overview. North is up.' : 'Whole sample walk. Three stops, two legs.'); });
+    }
+    $('north').addEventListener('click', event => changeCamera({ bearing: 0 }, event.detail === 0));
+    $('tilt').addEventListener('click', event => changeCamera({ pitch: map.getPitch() > 1 ? 0 : 45 }, event.detail === 0));
+    $('zoom-in').addEventListener('click', event => changeCamera({ zoom: Math.min(19, map.getZoom() + 1) }, event.detail === 0));
+    $('zoom-out').addEventListener('click', event => changeCamera({ zoom: Math.max(13, map.getZoom() - 1) }, event.detail === 0));
+    $('detent').addEventListener('change', () => {
+      panel.dataset.detent = $('detent').value;
+      if (ready) { ++epoch; map.stop(); if ($('detent').value !== 'full') cameraToCurrent({ instant: true }); }
+    });
+    $('location').addEventListener('click', () => {
+      const show = $('location').getAttribute('aria-pressed') !== 'true';
+      $('location').setAttribute('aria-pressed', String(show)); $('location').textContent = show ? 'Hide location sample' : 'Show location sample';
+      const c = [-97.14820, 33.21297];
+      const properties = { stale: false };
+      map.getSource(source.location).setData(show ? { type: 'FeatureCollection', features: [{ type: 'Feature', id: 'me', properties, geometry: { type: 'Point', coordinates: c } }] } : empty());
+      // A 12 m sample uncertainty polygon, not a fixed-pixel accuracy claim.
+      const ring = Array.from({ length: 49 }, (_, i) => {
+        const angle = i / 48 * Math.PI * 2;
+        return [c[0] + Math.cos(angle) * 12 / (111320 * Math.cos(c[1] * Math.PI / 180)), c[1] + Math.sin(angle) * 12 / 111320];
+      });
+      ring[48] = ring[0];
+      map.getSource(source.accuracy).setData(show ? { type: 'FeatureCollection', features: [{ type: 'Feature', id: 'accuracy', properties, geometry: { type: 'Polygon', coordinates: [ring] } }] } : empty());
+      announce(show ? 'Sample blue dot shown near GAB with a 12 metre uncertainty circle. This is not your location.' : 'Sample location hidden.');
+    });
+    const updateLayout = () => {
+      document.documentElement.style.setProperty('--credits-height', `${$('credits').getBoundingClientRect().height}px`);
+      if (ready && (!phone.matches || panel.dataset.detent !== 'full') && lastPadding !== JSON.stringify(padding())) cameraToCurrent({ instant: true });
+    };
+    new ResizeObserver(updateLayout).observe($('credits'));
+    new ResizeObserver(updateLayout).observe(panel);
+    window.addEventListener('resize', () => { if (map) map.resize(); updateLayout(); });
+    reduced.addEventListener('change', motionPreference);
+    phone.addEventListener('change', updateLayout);
+    start();
+  </script>
+</body>
+</html>
