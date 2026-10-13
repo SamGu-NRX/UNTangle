@@ -202,6 +202,47 @@ export type PlannerState = {
   lockedSections?: Record<string, string>;
 };
 
+/** A time the student keeps free every week, such as a job. Minutes after midnight. */
+export type BlockedTime = {
+  id: string;
+  label: string;
+  day: WeekDay;
+  start: number;
+  end: number;
+};
+
+/**
+ * The student's hard limits for the schedule builder. Kept in this browser
+ * (see `planner-provider.tsx`), not in the saved plan: the plan stores the
+ * chosen sections, which is what has to survive a reload.
+ */
+export type ScheduleConstraints = {
+  earliestStart: number | null;
+  latestEnd: number | null;
+  daysOff: WeekDay[];
+  blocked: BlockedTime[];
+  maxCredits: number | null;
+  /** Spare minutes required after each walk between buildings; null turns the walking check off. */
+  walkingBufferMinutes: number | null;
+  /** Sections the student never wants. */
+  excludedSections: string[];
+};
+
+/** Preference weights, each 0..4. The five goals are presets of these. */
+export type PreferenceWeights = {
+  fewerDays: number;
+  compact: number;
+  mornings: number;
+  evenings: number;
+  walking: number;
+  rating: number;
+};
+
+export type SchedulePreferences = {
+  constraints: ScheduleConstraints;
+  weights: PreferenceWeights;
+};
+
 export type PlannerApiPayload = PlannerState & {
   routeStops: Record<WeekDay, MapStop[]>;
 };

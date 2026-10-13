@@ -74,32 +74,46 @@ describe("recommendSections walking term", () => {
   const eventsOf = (picked: Section[]) =>
     picked.flatMap((section) => section.meetings.map((m) => ({ day: m.day, start: m.start, buildingId: m.buildingId })));
 
-  test("ranks fewer unknown legs first, so an unknown leg is never a free walk", () => {
+  // v2 rule: an unknown leg is costed as a 10-minute walk (UNKNOWN_WALK_SECONDS
+  // in src/lib/optimizer/score.ts), never as 0. The old builder instead ranked
+  // fewer unknown legs ahead of everything else.
+  test("costs an unknown leg as a 10-minute walk, never a free one", () => {
     const byCourse = new Map<string, Section[]>();
     sections.forEach((section) => byCourse.set(section.courseCode, [...(byCourse.get(section.courseCode) ?? []), section]));
     const small = [...byCourse.entries()].filter(([, list]) => list.length >= 2 && list.length <= 12).map(([code]) => code);
+    const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+    const gapMinutes = (picked: Section[]) => {
+      let gap = 0;
+      for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri"]) {
+        const list = picked.flatMap((s) => s.meetings).filter((m) => m.day === day).sort((x, y) => minutes(x.start) - minutes(y.start));
+        for (let k = 1; k < list.length; k += 1) gap += Math.max(0, minutes(list[k].start) - minutes(list[k - 1].end));
+      }
+      return gap;
+    };
+    // The minimizeDistance preset: walking weight 4 per second, idle weight 1 at 60 per minute.
+    const presetCost = (picked: Section[], unknownSeconds: number) => {
+      const walk = summarizeWeeklyWalking(eventsOf(picked), lifeUnknown);
+      return 4 * (walk.knownSeconds + unknownSeconds * walk.unknownLegs) + 60 * gapMinutes(picked);
+    };
 
     let checked = 0;
     for (let i = 0; i + 1 < small.length && checked < 5; i += 1) {
       const [a, b] = [small[i], small[i + 1]];
-      const combos: Array<{ picked: Section[]; unknownLegs: number; knownSeconds: number }> = [];
+      const combos: Section[][] = [];
       for (const sa of byCourse.get(a)!) {
         for (const sb of byCourse.get(b)!) {
-          if (oracleConflictingPairs([sa, sb]).length > 0) continue;
-          const summary = summarizeWeeklyWalking(eventsOf([sa, sb]), lifeUnknown);
-          combos.push({ picked: [sa, sb], unknownLegs: summary.unknownLegs, knownSeconds: summary.knownSeconds });
+          if (oracleConflictingPairs([sa, sb]).length === 0) combos.push([sa, sb]);
         }
       }
-      const minUnknown = Math.min(...combos.map((c) => c.unknownLegs));
-      const fewestSecondsOverall = Math.min(...combos.map((c) => c.knownSeconds));
-      const fewestSecondsAtMin = Math.min(...combos.filter((c) => c.unknownLegs === minUnknown).map((c) => c.knownSeconds));
-      // Only informative when counting unknown legs as 0 seconds would change the answer.
-      if (!(fewestSecondsOverall < fewestSecondsAtMin)) continue;
+      const bestCharged = Math.min(...combos.map((c) => presetCost(c, 600)));
+      const freeWinners = combos.filter((c) => presetCost(c, 0) === Math.min(...combos.map((x) => presetCost(x, 0))));
+      // Only informative when every schedule that wins with free unknown legs loses once they are charged.
+      if (!freeWinners.every((c) => presetCost(c, 600) > bestCharged)) continue;
 
       const chosen = recommendSections("minimizeDistance", [a, b], {}, lifeUnknown);
       const picked = [a, b].map((code) => sections.find((s) => s.id === chosen[code])!);
       expect(oracleConflictingPairs(picked)).toEqual([]);
-      expect(summarizeWeeklyWalking(eventsOf(picked), lifeUnknown).unknownLegs).toBe(minUnknown);
+      expect(presetCost(picked, 600)).toBe(bestCharged);
       checked += 1;
     }
     expect(checked).toBeGreaterThan(0);

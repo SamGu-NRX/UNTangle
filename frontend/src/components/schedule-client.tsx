@@ -1,488 +1,398 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavShell } from "@/components/nav-shell";
 import { Modal } from "@/components/ui/Modal";
-import { ConflictBanner } from "@/components/ui/ConflictBanner";
-import { StatusMark } from "@/components/ui/StatusMark";
-import { StaggerGroup } from "@/components/ui/StaggerGroup";
-import { usePlanner, useToast } from "@/components/planner-provider";
+import { usePlanner, useToast, type OptimizeRun } from "@/components/planner-provider";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { PlannerExportPanel } from "@/components/planner-export-panel";
 import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
-import { summarizeWeeklyWalking } from "@/lib/planner-walking";
 import { ScheduleSectionLocks } from "@/components/schedule-section-locks";
-import { sections } from "@/lib/seed-data";
+import { AlternativesCompare } from "@/components/schedule/AlternativesCompare";
+import { ConstraintRail } from "@/components/schedule/ConstraintRail";
+import { WeekGrid } from "@/components/schedule/WeekGrid";
+import styles from "@/components/schedule/schedule.module.css";
+import { clock, eventsFor, findSection, movedCourses, patternOf } from "@/components/schedule/week-model";
+import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { goalForWeights } from "@/lib/optimizer/presets";
+import type { RankedSchedule, RelaxSuggestion } from "@/lib/optimizer/types";
 import {
-  formatTime,
   getActiveCourseCodes,
   getCourseByCode,
-  getDailySpan,
-  getSectionDuration,
   getSectionsForCourse,
   getUnscheduledActiveCourses,
   sectionConflicts,
+  sectionNumber,
   summarizeCredits,
 } from "@/lib/planner";
-import { weekDays } from "@/lib/types";
-import type { OptimizationKey, ScheduleEvent } from "@/lib/types";
+import { weekDays, type CourseSection } from "@/lib/types";
 
-const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am - 7pm)
-
-const SCHEDULE_LAYOUT_CSS = `
-.schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
-.lock-toggle {
-  position: relative;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 0.25rem 0.55rem; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--copy);
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; cursor: pointer;
-  transition: background-color 150ms var(--ease), color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
-}
-.lock-toggle[aria-pressed="true"] { background: var(--brand-900); border-color: var(--brand-700); color: #fff; }
-.lock-toggle:active { transform: scale(0.97); }
-.lock-toggle:focus-visible { outline: 2px solid var(--brand-700); outline-offset: 2px; }
-@media (hover: hover) and (pointer: fine) {
-  .lock-toggle[aria-pressed="false"]:hover { border-color: var(--brand-500); color: var(--ink); }
-}
-@media (max-width: 760px) {
-  .schedule-layout { grid-template-columns: minmax(0, 1fr); }
-  /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
-  .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
-  /* Hidden visually, kept in the accessible name the contract specifies. */
-  .cal-event__meta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-}
-`;
-
-const optimizationOptions: { key: OptimizationKey; label: string; copy: string }[] = [
-  { key: "clusterMorning", label: "Cluster mornings", copy: "Bias toward earlier starts." },
-  { key: "clusterNight", label: "Cluster nights", copy: "Push classes later in the day." },
-  { key: "compact", label: "Compact days", copy: "Reduce idle time between classes." },
-  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce estimated walking between classes." },
-  { key: "maximizeProfessor", label: "Strong professors", copy: "Favor higher-rated instructors." },
-];
-
-function paletteIndex(courseCode: string) {
-  let h = 0;
-  for (let i = 0; i < courseCode.length; i++) h = (h * 31 + courseCode.charCodeAt(i)) >>> 0;
-  return (h % 8) + 1;
-}
-
-function paletteVars(courseCode: string): CSSProperties {
-  const i = paletteIndex(courseCode);
-  return {
-    ["--ev-bg" as string]: `var(--course-${i}-bg)`,
-    ["--ev-border" as string]: `var(--course-${i}-border)`,
-    ["--ev-solid" as string]: `var(--course-${i}-solid)`,
-  } as CSSProperties;
-}
-
-function eventLayout(event: ScheduleEvent) {
-  const [sh, sm] = event.start.split(":").map(Number);
-  const [eh, em] = event.end.split(":").map(Number);
-  const startMinutes = sh * 60 + sm - 8 * 60;
-  const endMinutes = eh * 60 + em - 8 * 60;
-  // grid is 12 hours = 720 minutes, each row min-height 64px
-  // place absolutely within the day column wrapper (see render)
-  return {
-    top: (startMinutes / 60) * 64 + 4,
-    height: ((endMinutes - startMinutes) / 60) * 64 - 4,
-  };
+function overlapping(selected: CourseSection[]): Set<string> {
+  const ids = new Set<string>();
+  for (let i = 0; i < selected.length; i += 1) {
+    for (let j = i + 1; j < selected.length; j += 1) {
+      if (sectionConflicts(selected[i], [selected[j]])) {
+        ids.add(selected[i].id);
+        ids.add(selected[j].id);
+      }
+    }
+  }
+  return ids;
 }
 
 export function ScheduleClient() {
-  const { plannerState, scheduleEvents, setOptimization, setSection, optimizeSchedule } = usePlanner();
+  const {
+    plannerState,
+    scheduleEvents,
+    setSection,
+    setSectionLock,
+    schedulePreferences,
+    setSchedulePreferences,
+    runOptimizer,
+    applySchedule,
+  } = usePlanner();
   const { toast } = useToast();
-  const [pickerCourseCode, setPickerCourseCode] = useState<string | null>(null);
+
+  const [run, setRun] = useState<(OptimizeRun & { fingerprint: string }) | null>(null);
+  const [running, setRunning] = useState(false);
+  const [preview, setPreview] = useState<RankedSchedule | null>(null);
+  const [undo, setUndo] = useState<{ previous: Record<string, string>; letter: string } | null>(null);
+  const [rerun, setRerun] = useState(0);
+  const [pickerCourse, setPickerCourse] = useState<string | null>(null);
   const [pickerOrigin, setPickerOrigin] = useState<{ x: number; y: number } | null>(null);
 
-  const selectedSections = useMemo(
-    () =>
-      Object.values(plannerState.selectedSections)
-        .map((sectionId) => sections.find((s) => s.id === sectionId))
-        .filter((s): s is NonNullable<typeof s> => Boolean(s)),
-    [plannerState.selectedSections],
-  );
-
-  const conflicts = useMemo(() => {
-    const issues: string[] = [];
-    for (let i = 0; i < selectedSections.length; i++) {
-      for (let j = i + 1; j < selectedSections.length; j++) {
-        const overlap = selectedSections[i].meetings.some((a) =>
-          selectedSections[j].meetings.some(
-            (b) =>
-              a.day === b.day &&
-              ((a.start < b.end && b.start < a.end) || (b.start < a.end && a.start < b.end)),
-          ),
-        );
-        if (overlap) {
-          issues.push(`${selectedSections[i].courseCode} ↔ ${selectedSections[j].courseCode}`);
-        }
-      }
-    }
-    return issues;
-  }, [selectedSections]);
-
-  const longestDayHours = Math.round(
-    Math.max(
-      ...weekDays.map((day) => getDailySpan(scheduleEvents.filter((e) => e.day === day))),
-      0,
-    ) / 60,
-  );
-
-  const earliestStart = useMemo(() => {
-    if (scheduleEvents.length === 0) return "—";
-    return formatTime(scheduleEvents.map((e) => e.start).sort()[0]);
-  }, [scheduleEvents]);
-
-  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents), [scheduleEvents]);
-
-  const latestEnd = useMemo(() => {
-    if (scheduleEvents.length === 0) return "—";
-    return formatTime(scheduleEvents.map((e) => e.end).sort().reverse()[0]);
-  }, [scheduleEvents]);
-
-  function openPicker(courseCode: string, e: React.MouseEvent) {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPickerOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    setPickerCourseCode(courseCode);
-  }
-
-  const pickerSections = pickerCourseCode ? getSectionsForCourse(pickerCourseCode) : [];
-  const pickerCourse = pickerCourseCode ? getCourseByCode(pickerCourseCode) : undefined;
   const activeCourseCodes = useMemo(() => getActiveCourseCodes(plannerState), [plannerState]);
-  const unscheduledActiveCourses = useMemo(
-    () => getUnscheduledActiveCourses(plannerState),
-    [plannerState],
+  const selected = plannerState.selectedSections;
+  const selectedSections = useMemo(
+    () => Object.values(selected).map((id) => findSection(id)).filter((s): s is CourseSection => Boolean(s)),
+    [selected],
   );
+  const events = useMemo(() => eventsFor(selected), [selected]);
+  const conflicts = useMemo(() => overlapping(selectedSections), [selectedSections]);
+  const unscheduled = useMemo(() => getUnscheduledActiveCourses(plannerState), [plannerState]);
+  const locks = plannerState.lockedSections ?? {};
+
+  // What the last run was computed from; when it changes, Optimize is offered again.
+  const fingerprint = JSON.stringify([schedulePreferences, locks, activeCourseCodes]);
+  const dirty = run === null || run.fingerprint !== fingerprint;
+
+  const optimizeNow = useCallback(() => {
+    setRunning(true);
+    setPreview(null);
+    // Let the button show its running state before the (synchronous) search.
+    window.setTimeout(() => {
+      const next = runOptimizer();
+      setRun({ ...next, fingerprint });
+      setRunning(false);
+      // Bring the result into view; on a phone it renders below the rail.
+      requestAnimationFrame(() => {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        document.getElementById("alternatives-title")?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+      });
+    }, 16);
+  }, [fingerprint, runOptimizer]);
+
+  // A relaxation changes settings first; optimize again once they have rendered.
+  const firstRerun = useRef(true);
+  useEffect(() => {
+    if (firstRerun.current) {
+      firstRerun.current = false;
+      return;
+    }
+    optimizeNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs only when a relaxation asks for it
+  }, [rerun]);
+
+  const pickSchedule = (schedule: RankedSchedule, letter: string) => {
+    const moved = movedCourses(selected, schedule.byCourse);
+    setUndo({ previous: { ...selected }, letter });
+    applySchedule(schedule.byCourse, goalForWeights(schedulePreferences.weights));
+    setPreview(null);
+    toast(moved.length === 0 ? `Using option ${letter}` : `Using option ${letter} · ${moved.length} course${moved.length === 1 ? "" : "s"} moved`);
+  };
+
+  const relax = (suggestion: RelaxSuggestion) => {
+    const r = suggestion.relaxation;
+    switch (r.kind) {
+      case "unlock":
+        setSectionLock(r.courseCode, false);
+        break;
+      case "include":
+        setSchedulePreferences((p) => ({
+          ...p,
+          constraints: { ...p.constraints, excludedSections: p.constraints.excludedSections.filter((id) => id !== r.sectionId) },
+        }));
+        break;
+      default:
+        setSchedulePreferences((p) => {
+          const c = p.constraints;
+          switch (r.kind) {
+            case "earliestStart":
+              return { ...p, constraints: { ...c, earliestStart: r.to } };
+            case "latestEnd":
+              return { ...p, constraints: { ...c, latestEnd: r.to } };
+            case "dayOff":
+              return { ...p, constraints: { ...c, daysOff: c.daysOff.filter((day) => day !== r.day) } };
+            case "blocked":
+              return { ...p, constraints: { ...c, blocked: c.blocked.filter((b) => b.id !== r.blockedId) } };
+            case "maxCredits":
+              return { ...p, constraints: { ...c, maxCredits: r.to } };
+            case "walking":
+              return { ...p, constraints: { ...c, walkingBufferMinutes: r.to === null ? null : r.to.bufferMinutes } };
+          }
+        });
+    }
+    toast(suggestion.label);
+    setRerun((n) => n + 1);
+  };
+
+  const credits = summarizeCredits(plannerState);
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents), [scheduleEvents]);
+  const earliest = events.length ? Math.min(...events.map((e) => e.start)) : null;
+  const latest = events.length ? Math.max(...events.map((e) => e.end)) : null;
+  const longest = weekDays
+    .map((day) => {
+      const list = events.filter((e) => e.day === day);
+      return { day, span: list.length ? Math.max(...list.map((e) => e.end)) - Math.min(...list.map((e) => e.start)) : 0 };
+    })
+    .sort((a, b) => b.span - a.span)[0];
+  const daysOnCampus = new Set(events.map((e) => e.day)).size;
+
+  const ghosts = preview ? eventsFor(Object.fromEntries(movedCourses(selected, preview.byCourse).map((code) => [code, preview.byCourse[code]]))) : [];
+  const dimmed = preview ? movedCourses(selected, preview.byCourse) : [];
+
+  const pickerCourseInfo = pickerCourse ? getCourseByCode(pickerCourse) : undefined;
+  const pickerSections = pickerCourse ? getSectionsForCourse(pickerCourse) : [];
+  const excluded = new Set(schedulePreferences.constraints.excludedSections);
 
   return (
-    <NavShell
-      step={1}
-      back={{ href: "/courses", label: "Courses" }}
-      next={{ href: "/map", label: "Generate map" }}
-    >
-      <div style={{ display: "grid", gap: 18 }}>
-        <header>
-          <p className="editorial-label">Step 2 — Schedule</p>
-          <h1
-            className="font-display"
-            style={{
-              marginTop: 4,
-              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
-              fontWeight: 800,
-              color: "var(--brand-900)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
-            }}
-          >
-            Shape the semester around one planning goal.
-          </h1>
+    <NavShell step={1} back={{ href: "/courses", label: "Courses" }} next={{ href: "/map", label: "Generate map" }}>
+      <div className={styles.page}>
+        <header className={styles.viewhead}>
+          <h1 className={styles.viewheadTitle}>Week</h1>
+          <span className={styles.meta}>
+            {credits} credits · {activeCourseCodes.length} course{activeCourseCodes.length === 1 ? "" : "s"}
+          </span>
+          <span className={styles.tag} title="Sections, times, rooms and instructors are synthetic samples.">
+            Sample sections
+          </span>
         </header>
 
-        <PlannerSampleNotice />
-
-        {conflicts.length > 0 ? (
-          <ConflictBanner>
-            Time conflict detected: {conflicts.join(" · ")}. Click an event to swap sections.
-          </ConflictBanner>
-        ) : null}
-
-        {unscheduledActiveCourses.length > 0 ? (
-          <ConflictBanner>
-            No section data yet for {unscheduledActiveCourses.map((course) => course.code).join(", ")}.
-            Those courses are marked Taking, but they will not appear on the map until a section exists.
-          </ConflictBanner>
-        ) : null}
-
+        <PlannerSampleNotice compact />
         <PlannerPersistencePanel />
 
-        {/* Two columns squeezed the calendar to ~70px at 390px wide; stack below 760px. */}
-        <style>{SCHEDULE_LAYOUT_CSS}</style>
-        <div className="schedule-layout">
-          {/* Sidebar */}
-          <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
-            <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 10 }}>
-                Optimization
-              </p>
-              <div style={{ display: "grid", gap: 6 }}>
-                <StaggerGroup step={30}>
-                  {optimizationOptions.map((opt) => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      className="opt-row"
-                      data-active={plannerState.optimization === opt.key ? "true" : "false"}
-                      aria-pressed={plannerState.optimization === opt.key}
-                      onClick={() => {
-                        if (plannerState.optimization !== opt.key) {
-                          setOptimization(opt.key);
-                          toast(`Re-optimized: ${opt.label}`);
-                        }
-                      }}
-                    >
-                      <span className="opt-dot" />
-                      <span style={{ minWidth: 0 }}>
-                        <span className="opt-row__label" style={{ display: "block" }}>
-                          {opt.label}
-                        </span>
-                        <span className="opt-row__copy" style={{ display: "block" }}>
-                          {opt.copy}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </StaggerGroup>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ marginTop: 4 }}
-                  onClick={() => {
-                    optimizeSchedule();
-                    const label = optimizationOptions.find((opt) => opt.key === plannerState.optimization)?.label;
-                    toast(`Re-optimized: ${label ?? plannerState.optimization}`);
-                  }}
-                >
-                  Optimize schedule
-                </button>
-              </div>
-            </section>
+        <div className={styles.body}>
+          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+            <ConstraintRail
+              preferences={schedulePreferences}
+              onChange={setSchedulePreferences}
+              onOptimize={optimizeNow}
+              running={running}
+              dirty={dirty}
+            />
 
-            <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 8 }}>
-                Active courses
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {selectedSections.map((s) => (
-                  <span key={s.id} className="course-pill" style={paletteVars(s.courseCode)}>
-                    {s.courseCode}
-                  </span>
-                ))}
-                {unscheduledActiveCourses.map((course) => (
-                  <span key={course.code} className="course-pill" style={{ opacity: 0.64 }}>
-                    {course.code}
-                  </span>
-                ))}
-                {activeCourseCodes.length === 0 ? (
-                  <span style={{ fontSize: "0.82rem", color: "var(--copy)" }}>
-                    Mark courses as &ldquo;Taking&rdquo; on the previous step.
-                  </span>
-                ) : null}
-              </div>
-              {selectedSections.length > 0 ? (
-                <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
-                  <p style={{ fontSize: "0.76rem", color: "var(--copy)" }}>
-                    Locked sections stay put when you optimize.
+            <section className={styles.railSection} aria-labelledby="in-plan-title">
+              <h2 className={styles.railHeading} id="in-plan-title">
+                In this plan
+              </h2>
+              <div className={styles.inPlan}>
+                {selectedSections.length > 0 ? (
+                  <>
+                    <p className={styles.meta} style={{ margin: "0 0 6px" }}>
+                      Locked sections stay put when you optimize.
+                    </p>
+                    <ScheduleSectionLocks />
+                  </>
+                ) : (
+                  <p className={styles.meta} style={{ margin: 0 }}>
+                    Nothing planned yet. Mark courses as Taking on the Courses step.
                   </p>
-                  <ScheduleSectionLocks />
-                </div>
-              ) : null}
+                )}
+              </div>
             </section>
 
-            <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 10 }}>
-                Stats
+            <section className={styles.railSection} aria-labelledby="stats-title">
+              <h2 className={styles.railHeading} id="stats-title">
+                This week
+              </h2>
+              <div className={styles.stats}>
+                <div className={styles.stat}>
+                  <b>{credits}</b>
+                  <span>Credits</span>
+                </div>
+                <div className={styles.stat}>
+                  <b>{earliest === null ? "—" : clock(earliest)}</b>
+                  <span>Earliest</span>
+                </div>
+                <div className={styles.stat}>
+                  <b>{latest === null ? "—" : clock(latest)}</b>
+                  <span>Latest</span>
+                </div>
+                <div className={styles.stat}>
+                  <b>
+                    {Math.round(walking.knownSeconds / 60)}
+                    <small> min</small>
+                  </b>
+                  <span>Walking / wk</span>
+                </div>
+                <div className={styles.stat}>
+                  <b>{longest && longest.span > 0 ? longest.day : "—"}</b>
+                  <span>Longest day</span>
+                </div>
+                <div className={styles.stat}>
+                  <b>{daysOnCampus}</b>
+                  <span>Days on campus</span>
+                </div>
+              </div>
+              <p className={styles.meta} style={{ margin: 0 }}>
+                Walking is estimated from straight-line distance.
+                {walking.unknownLegs > 0 ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? "" : "s"} could not be estimated and ${walking.unknownLegs === 1 ? "is" : "are"} not counted.` : ""}
               </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
-                  fontSize: "0.85rem",
-                }}
-              >
-                <Metric label="Credits" value={String(summarizeCredits(plannerState))} />
-                <Metric label="Longest day" value={`${longestDayHours}h`} />
-                <Metric label="Earliest" value={earliestStart} />
-                <Metric label="Latest" value={latestEnd} />
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <Metric label="Walking / week (estimated)" value={`${Math.round(walking.knownSeconds / 60)} min`} />
-                <p style={{ fontSize: "0.74rem", color: "var(--copy)", marginTop: 2 }}>
-                  {walking.estimated ? "Estimated from straight-line distance between buildings." : "Estimated."}
-                  {walking.unknownLegs > 0
-                    ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? "" : "s"} could not be estimated (unknown building) and ${walking.unknownLegs === 1 ? "is" : "are"} not included.`
-                    : ""}
-                </p>
-              </div>
             </section>
 
             <PlannerExportPanel />
-          </aside>
+          </div>
 
-          {/* Calendar */}
-          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
-            {/* Sample label outside the events, so it never changes an event's name. */}
-            <p style={{ margin: 0, padding: "0.45rem 0.75rem", fontSize: "0.76rem", color: "var(--copy)", borderBottom: "1px solid var(--line)" }}>
-              Sample sections, times and instructors
-            </p>
-            <div className="cal-grid">
-              <div className="cal-head" />
-              {weekDays.map((day) => (
-                <div key={day} className="cal-head">
-                  {day}
-                </div>
-              ))}
+          <div className={styles.main}>
+            {conflicts.size > 0 ? (
+              <p className={styles.notice} role="alert">
+                Two of your sections overlap. Optimize week, or select a red class to swap its section.
+              </p>
+            ) : null}
+            {unscheduled.length > 0 ? (
+              <p className={styles.notice} role="status" style={{ background: "var(--surface-2, #eef2ee)" }}>
+                No section data yet for {unscheduled.map((course) => course.code).join(", ")}. It is left out of the week and the
+                optimizer.
+              </p>
+            ) : null}
+            {undo ? (
+              <p className={styles.meta} role="status" style={{ margin: 0 }}>
+                Using option {undo.letter}.{" "}
+                <button
+                  type="button"
+                  className={styles.linkButton}
+                  onClick={() => {
+                    applySchedule(undo.previous);
+                    setUndo(null);
+                    toast("Restored your previous schedule");
+                  }}
+                >
+                  Undo
+                </button>
+              </p>
+            ) : null}
 
-              {/* Time labels column + 5 day columns */}
-              <div style={{ gridColumn: "1 / 2" }}>
-                {TIME_GRID.map((hour) => (
-                  <div key={hour} className="cal-time" style={{ height: 64 }}>
-                    {((hour - 1) % 12) + 1}
-                    {hour < 12 ? " AM" : " PM"}
-                  </div>
-                ))}
-              </div>
+            {run && !running ? (
+              <AlternativesCompare
+                result={run.result}
+                current={selected}
+                courseOrder={activeCourseCodes}
+                onUse={pickSchedule}
+                onPreview={setPreview}
+                onRelax={relax}
+                onClose={() => {
+                  setRun(null);
+                  setPreview(null);
+                }}
+              />
+            ) : null}
 
-              {weekDays.map((day) => (
-                <div key={day} style={{ gridColumn: "auto", position: "relative" }}>
-                  {TIME_GRID.map((hour) => (
-                    <div
-                      key={hour}
-                      className="cal-cell"
-                      style={{ height: 64, position: "relative" }}
-                    />
-                  ))}
-                  {scheduleEvents
-                    .filter((e) => e.day === day)
-                    .map((event) => {
-                      const layout = eventLayout(event);
-                      return (
-                        <button
-                          key={event.sectionId + day + event.start}
-                          type="button"
-                          className="cal-event"
-                          style={{
-                            ...paletteVars(event.courseCode),
-                            top: layout.top,
-                            height: layout.height,
-                          }}
-                          onClick={(e) => openPicker(event.courseCode, e)}
-                        >
-                          {/* The text supplies the contract name "{COURSE} {START} – {END} {PROFESSOR}";
-                              nothing else visible goes inside, so the name contains all visible text. */}
-                          <div className="cal-event__title">
-                            {event.courseCode}
-                            {plannerState.lockedSections?.[event.courseCode] === event.sectionId ? (
-                              <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style={{ marginLeft: 4 }}>
-                                <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
-                                <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-                              </svg>
-                            ) : null}
-                          </div>
-                          {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
-                          <div className="cal-event__meta" style={{ opacity: 1 }}>
-                            {formatTime(event.start)} – {formatTime(event.end)}
-                          </div>
-                          <div className="cal-event__meta" style={{ opacity: 1 }}>
-                            {event.professor}
-                          </div>
-                        </button>
-                      );
-                    })}
-                </div>
-              ))}
-            </div>
-          </section>
+            <WeekGrid
+              events={events}
+              courseOrder={activeCourseCodes}
+              lockedSections={locks}
+              conflictSections={conflicts}
+              ghosts={ghosts}
+              dimmedCourses={dimmed}
+              onSelect={(code, origin) => {
+                setPickerOrigin(origin);
+                setPickerCourse(code);
+              }}
+            />
+          </div>
         </div>
       </div>
 
       <Modal
-        open={pickerCourseCode !== null}
-        onClose={() => setPickerCourseCode(null)}
+        open={pickerCourse !== null}
+        onClose={() => setPickerCourse(null)}
         origin={pickerOrigin}
         title={
           <div>
-            <p className="editorial-label">
+            <p className={styles.railHeading}>
               Swap section
               <SampleTag />
             </p>
-            <h2
-              className="font-display"
-              style={{
-                marginTop: 4,
-                fontSize: "1.3rem",
-                fontWeight: 800,
-                color: "var(--brand-900)",
-                letterSpacing: "-0.03em",
-              }}
-            >
-              {pickerCourse?.code}
+            <h2 style={{ margin: "4px 0 0", font: "700 20px/24px var(--font-display, Syne, sans-serif)", color: "var(--brand, #00512b)" }}>
+              {pickerCourseInfo?.code}
             </h2>
-            <p style={{ fontSize: "0.82rem", color: "var(--copy)", marginTop: 2 }}>
-              {pickerCourse?.title}
+            <p className={styles.meta} style={{ margin: "2px 0 0" }}>
+              {pickerCourseInfo?.title}
             </p>
           </div>
         }
       >
-        <div style={{ display: "grid", gap: 8 }}>
-          <StaggerGroup>
-            {pickerSections.map((section) => {
-              const others = selectedSections.filter((s) => s.courseCode !== section.courseCode);
-              const conflict = sectionConflicts(section, others);
-              const selected = plannerState.selectedSections[section.courseCode] === section.id;
-              return (
+        <div style={{ display: "grid", gap: 6 }}>
+          {pickerSections.map((section) => {
+            const others = selectedSections.filter((s) => s.courseCode !== section.courseCode);
+            const clash = sectionConflicts(section, others);
+            const current = selected[section.courseCode] === section.id;
+            const skipped = excluded.has(section.id);
+            return (
+              <div
+                key={section.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
+                  gap: 8,
+                  alignItems: "center",
+                  padding: "8px 10px",
+                  border: `1px solid ${current ? "var(--brand, #00512b)" : "var(--line, #dde8dd)"}`,
+                  background: current ? "var(--brand-soft, #e4f0e8)" : "var(--surface, #fff)",
+                  borderRadius: 10,
+                }}
+              >
                 <button
-                  key={section.id}
                   type="button"
-                  disabled={conflict}
+                  disabled={clash || current}
                   onClick={() => {
                     setSection(section.courseCode, section.id);
-                    setPickerCourseCode(null);
-                    toast(`✓ Section updated · ${section.courseCode}`);
+                    setPickerCourse(null);
+                    toast(`Section updated · ${section.courseCode}`);
                   }}
-                  style={{
-                    textAlign: "left",
-                    padding: "0.85rem 1rem",
-                    border: `1px solid ${selected ? "var(--brand-500)" : "var(--line)"}`,
-                    background: selected ? "var(--success-bg)" : conflict ? "var(--surface-muted)" : "var(--surface)",
-                    borderRadius: "var(--r-md)",
-                    cursor: conflict ? "not-allowed" : "pointer",
-                    opacity: conflict ? 0.55 : 1,
-                    transition:
-                      "border-color 150ms var(--ease), background-color 150ms var(--ease)",
-                  }}
+                  style={{ textAlign: "left", border: 0, background: "none", padding: 0, cursor: clash || current ? "default" : "pointer", font: "inherit", color: "inherit" }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontWeight: 700, color: "var(--ink)" }}>{section.professor}</p>
-                      <p style={{ fontSize: "0.78rem", color: "var(--copy)", marginTop: 2 }}>
-                        {section.meetings
-                          .map((m) => `${m.day} ${formatTime(m.start)}`)
-                          .join(" · ")}
-                      </p>
-                      <p style={{ fontSize: "0.78rem", color: "var(--copy)", marginTop: 2 }}>
-                        {Math.round(getSectionDuration(section) / 60)} hrs/week instruction
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                      <StatusMark label={`${section.rating.toFixed(1)} ★`} tone="review" />
-                      {conflict ? <StatusMark label="Conflict" tone="danger" /> : null}
-                    </div>
-                  </div>
+                  <span style={{ display: "block", fontWeight: 600 }}>
+                    §{sectionNumber(section.id)} · {patternOf(section)}
+                  </span>
+                  <span className={styles.meta} style={{ display: "block", color: clash ? "var(--danger, #b3261e)" : undefined }}>
+                    {section.professor} · ★ {section.rating.toFixed(1)}
+                    {current ? " · current section" : clash ? " · overlaps another class" : ""}
+                  </span>
                 </button>
-              );
-            })}
-          </StaggerGroup>
+                <button
+                  type="button"
+                  className={styles.chip}
+                  aria-pressed={skipped}
+                  onClick={() =>
+                    setSchedulePreferences((p) => ({
+                      ...p,
+                      constraints: {
+                        ...p.constraints,
+                        excludedSections: skipped
+                          ? p.constraints.excludedSections.filter((id) => id !== section.id)
+                          : [...p.constraints.excludedSections, section.id],
+                      },
+                    }))
+                  }
+                >
+                  Skip<span className={styles.srOnly}> section {sectionNumber(section.id)} when optimizing</span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       </Modal>
     </NavShell>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p style={{ fontSize: "0.7rem", color: "var(--copy)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        {label}
-      </p>
-      <p
-        className="font-display"
-        style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--brand-900)", letterSpacing: "-0.02em", marginTop: 2 }}
-      >
-        {value}
-      </p>
-    </div>
   );
 }

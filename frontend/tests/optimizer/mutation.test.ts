@@ -25,8 +25,8 @@ async function mutant(file: string, from: string, to: string): Promise<OptimizeF
   const occurrences = text.split(from).length - 1;
   if (occurrences !== 1) throw new Error(`mutation target in ${file} occurs ${occurrences} times: ${from}`);
   writeFileSync(path, text.replace(from, to));
-  const module = (await import(join(dir, "optimize.ts"))) as { optimize: OptimizeFn };
-  return module.optimize;
+  const mutated = (await import(join(dir, "optimize.ts"))) as { optimize: OptimizeFn };
+  return mutated.optimize;
 }
 
 const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);

@@ -1,0 +1,209 @@
+{
+  "base": "http://127.0.0.1:3117",
+  "startedAt": "2026-10-13T13:39:40.874Z",
+  "checks": [
+    {
+      "name": "desktop: no page headline",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: sample label shown",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: desktop week",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: earliest start set to 9:00 AM",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: work block added",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: three alternatives shown",
+      "ok": true,
+      "detail": "3"
+    },
+    {
+      "name": "desktop: breakdown in human units",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: desktop alternatives",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: picking option B changes the week",
+      "ok": true,
+      "detail": "14 events"
+    },
+    {
+      "name": "desktop: no Thursday classes after picking",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: lock pressed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: locked course never moves in the alternatives",
+      "ok": true,
+      "detail": "3 options"
+    },
+    {
+      "name": "desktop: infeasible explanation names the cause",
+      "ok": true,
+      "detail": "No section of ANTH 1010 fits with Mondays off.One change that makes it fit:Allow classes on Mondays"
+    },
+    {
+      "name": "axe zero serious/critical: desktop infeasible",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: a relax suggestion applies in one click and re-optimizes",
+      "ok": true,
+      "detail": "Allow classes on Mondays"
+    },
+    {
+      "name": "desktop: schedule persists across reload",
+      "ok": true,
+      "detail": "15 events"
+    },
+    {
+      "name": "desktop: lock persists across reload",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: no page headline",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: sample label shown",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: mobile week",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: earliest start set to 9:00 AM",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: work block added",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: three alternatives shown",
+      "ok": true,
+      "detail": "3"
+    },
+    {
+      "name": "mobile: breakdown in human units",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: mobile alternatives",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: picking option B changes the week",
+      "ok": true,
+      "detail": "14 events"
+    },
+    {
+      "name": "mobile: no Thursday classes after picking",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: lock pressed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: locked course never moves in the alternatives",
+      "ok": true,
+      "detail": "3 options"
+    },
+    {
+      "name": "mobile: infeasible explanation names the cause",
+      "ok": true,
+      "detail": "No section of ANTH 1010 fits with Mondays off.One change that makes it fit:Allow classes on Mondays"
+    },
+    {
+      "name": "axe zero serious/critical: mobile infeasible",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: a relax suggestion applies in one click and re-optimizes",
+      "ok": true,
+      "detail": "Allow classes on Mondays"
+    },
+    {
+      "name": "mobile: schedule persists across reload",
+      "ok": true,
+      "detail": "15 events"
+    },
+    {
+      "name": "mobile: lock persists across reload",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "axe": [
+    {
+      "label": "desktop week",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "desktop alternatives",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "desktop infeasible",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "mobile week",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "mobile alternatives",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "mobile infeasible",
+      "violations": [],
+      "blocking": []
+    }
+  ],
+  "finishedAt": "2026-10-13T13:39:59.883Z"
+}

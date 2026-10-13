@@ -12,16 +12,21 @@ import {
 } from "react";
 import { authClient } from "@/lib/auth-client";
 import {
+  buildOptimizeRequest,
   buildScheduleEvents,
+  defaultSchedulePreferences,
   getActiveCourseCodes,
   getInitialPlannerState,
   getLockedSelections,
   isCourseLocked,
   mergeTranscriptRecords,
   normalizePlannerState,
+  parseSchedulePreferences,
   recommendSections,
   serializePlannerPayload,
 } from "@/lib/planner";
+import { optimize } from "@/lib/optimizer/optimize";
+import type { OptimizeRequest, OptimizeResult } from "@/lib/optimizer/types";
 import { createPlannerStateStore } from "@/lib/planner-store";
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import {
@@ -36,9 +41,15 @@ import type {
   MajorId,
   OptimizationKey,
   PlannerState,
+  SchedulePreferences,
   TranscriptCourseRecord,
   WeekDay,
 } from "@/lib/types";
+
+/** Browser-local key for the schedule builder's constraints and weights. */
+const PREFERENCES_KEY = "untangle-schedule-preferences:v1";
+
+export type OptimizeRun = { request: OptimizeRequest; result: OptimizeResult };
 
 /**
  * Save lifecycle, honest by construction:
@@ -115,6 +126,17 @@ type PlannerContextValue = {
   setSectionLock: (courseCode: string, locked: boolean) => void;
   /** Re-run the optimizer for the current goal; locked sections stay fixed. */
   optimizeSchedule: () => void;
+  /** Constraints and weights for the schedule builder, kept in this browser. */
+  schedulePreferences: SchedulePreferences;
+  setSchedulePreferences: (update: (current: SchedulePreferences) => SchedulePreferences) => void;
+  /**
+   * Ranked alternatives for the current plan under the current preferences,
+   * without changing the plan. `courseCodes` defaults to the courses marked
+   * Taking; a course-suggestion step can pass its own list.
+   */
+  runOptimizer: (courseCodes?: string[]) => OptimizeRun;
+  /** Use a schedule: its sections replace the current picks for those courses. */
+  applySchedule: (byCourse: Record<string, string>, goal?: OptimizationKey | null) => void;
   setActiveDay: (day: WeekDay) => void;
   setSelectedMajor: (id: MajorId | null) => void;
   resetPlanner: () => void;
@@ -152,6 +174,32 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [storeNotices, setStoreNotices] = useState<Array<{ message: string; quarantinedTo?: string }>>([]);
   const [guestStorageAvailable, setGuestStorageAvailable] = useState(true);
   const [serverPersistent, setServerPersistent] = useState(true);
+  const [schedulePreferences, setSchedulePreferencesState] = useState<SchedulePreferences>(() =>
+    defaultSchedulePreferences(getInitialPlannerState().optimization),
+  );
+
+  // Read after mount so the server render and the first client render agree.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PREFERENCES_KEY);
+      const parsed = raw ? parseSchedulePreferences(JSON.parse(raw)) : null;
+      if (parsed) setSchedulePreferencesState(parsed);
+    } catch {
+      // Unreadable storage: keep the defaults.
+    }
+  }, []);
+
+  const setSchedulePreferences = useCallback((update: (current: SchedulePreferences) => SchedulePreferences) => {
+    setSchedulePreferencesState((current) => {
+      const next = update(current);
+      try {
+        window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
+      } catch {
+        // Storage denied: preferences last for this visit only.
+      }
+      return next;
+    });
+  }, []);
 
   const bootstrappedFor = useRef<string | null>(null);
   // Incremented on every identity change; async results from an older
@@ -910,6 +958,23 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date().toISOString(),
         }));
       },
+      schedulePreferences,
+      setSchedulePreferences,
+      runOptimizer: (courseCodes) => {
+        const request = buildOptimizeRequest(normalized, schedulePreferences, { courseCodes });
+        return { request, result: optimize(request) };
+      },
+      applySchedule: (byCourse, goal) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => ({
+          ...current,
+          selectedSections: { ...current.selectedSections, ...byCourse },
+          optimization: goal ?? current.optimization,
+          updatedAt: new Date().toISOString(),
+        }));
+      },
       setSectionLock: (courseCode, locked) => {
         if (!hydrated) {
           mutatedBeforeBootstrap.current = true;
@@ -1002,7 +1067,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     retrySave,
     saveState,
     savedFingerprint,
+    schedulePreferences,
     serverPersistent,
+    setSchedulePreferences,
     sessionResult.isPending,
     storeNotices,
     tookNewerVersion,
