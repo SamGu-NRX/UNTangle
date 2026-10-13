@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-13T14:29:39.350Z",
+  "startedAt": "2026-10-13T15:07:34.514Z",
   "base": "http://127.0.0.1:3123",
   "checks": [
     {
@@ -125,7 +125,7 @@
     {
       "name": "desktop: the panel is 520px",
       "passed": true,
-      "detail": "520.0000610351562px"
+      "detail": "520px"
     },
     {
       "name": "desktop: no scrim behind the desktop panel",
@@ -135,7 +135,7 @@
     {
       "name": "desktop: the list narrows beside the panel",
       "passed": true,
-      "detail": "784 <= 809.0531616210938"
+      "detail": "784 <= 809.9639892578125"
     },
     {
       "name": "desktop: the panel starts at or below the top bar",
@@ -545,7 +545,7 @@
     }
   ],
   "notes": [],
-  "finishedAt": "2026-10-13T14:29:57.719Z",
+  "finishedAt": "2026-10-13T15:07:53.082Z",
   "passed": 97,
   "failed": 0
 }
