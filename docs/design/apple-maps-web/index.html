@@ -85,6 +85,8 @@
     .tool-group .zoom { font-size: 1.5rem; font-weight: 400; }
     .tool-group button[aria-pressed="true"] { background: #e7f0e7; color: var(--brand-900); }
     .tool-group button:focus-visible { outline-offset: -4px; }
+    /* The map wrapper clips overflow, so an outset ring on the full-bleed canvas would be cut off at every edge. */
+    .maplibregl-canvas:focus-visible { outline: 3px solid var(--brand-700); outline-offset: -3px; }
     .credits { position: absolute; z-index: 10; bottom: 0; left: 0; right: 0; padding: 7px max(12px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); background: #fffffff0; color: #475248; font-size: 11px; line-height: 1.5; text-align: right; }
     .credits a { color: inherit; }
     .maplibregl-ctrl-bottom-left { bottom: calc(var(--credits-height) + 10px); left: 14px; }
@@ -177,6 +179,8 @@
     document.addEventListener('keydown', () => { document.body.dataset.input = 'keyboard'; });
     $('retry').addEventListener('click', () => location.reload());
     function fail(message) { $('error').textContent = message; $('retry').hidden = false; }
+    // The slow-load warning is transient: a load that finishes after it withdraws it.
+    const SLOW_LOAD = 'The map is taking longer to load. Check your connection, then reload.';
     const CAMPUS = [[-97.1562, 33.2058], [-97.1410, 33.2165]];
     const MAX_BOUNDS = [[-97.166, 33.197], [-97.133, 33.225]];
     const source = { routes: 'unt-route-legs', stops: 'unt-stops', location: 'unt-location', accuracy: 'unt-location-accuracy' };
@@ -220,7 +224,9 @@
       const rect = panel.getBoundingClientRect();
       const canvas = $('map').getBoundingClientRect();
       const credit = $('credits').getBoundingClientRect().height;
-      if (phone.matches) return { top: 84, right: 30, bottom: Math.ceil(canvas.bottom - rect.top + 20), left: 30 };
+      // The controls sit below the top safe area, so measure them rather than assume their height (84 px nominal).
+      const tools = document.querySelector('.map-tools').getBoundingClientRect();
+      if (phone.matches) return { top: Math.ceil(tools.bottom - canvas.top + 18), right: 30, bottom: Math.ceil(canvas.bottom - rect.top + 20), left: 30 };
       return { top: 44, right: 88, bottom: Math.ceil(credit + 32), left: Math.ceil(rect.right - canvas.left + 28) };
     }
     function boundsFor(coordinates) {
@@ -262,6 +268,12 @@
       map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
       map.once('moveend', () => {
         if (request !== epoch || !pitch) return;
+        // A gesture stops the flight and fires this moveend before its own movestart, so
+        // check that the camera reached the target; an interrupted flight is the user's now.
+        const at = map.getCenter();
+        const arrived = Math.abs(map.getZoom() - target.zoom) < 1e-3 && Math.abs(map.getPitch() - target.pitch) < .5
+          && Math.abs(at.lng - camera.center.lng) < 1e-6 && Math.abs(at.lat - camera.center.lat) < 1e-6;
+        if (!arrived) return;
         const visible = coordinates.every(c => {
           const p = map.project(c);
           return p.x >= pad.left && p.x <= rect.width - pad.right && p.y >= pad.top && p.y <= rect.height - pad.bottom;
@@ -276,9 +288,13 @@
       // Camera travel is the 500 ms exception: retain spatial context across campus, not a UI reveal.
       else map.flyTo({ ...target, duration: 500, easing: cameraEase, essential: false });
     }
+    // The current itinerary leg. Unlike a selection, it persists while a stop is chosen.
+    function setActiveLeg(id) {
+      for (const f of routes.features) setState({ source: source.routes, id: f.id }, { active: f.id === id });
+    }
     function clearSelection() {
       for (const f of stopFeatures) setState({ source: source.stops, id: f.id }, { selected: false });
-      for (const f of routes.features) setState({ source: source.routes, id: f.id }, { selected: false, active: false });
+      for (const f of routes.features) setState({ source: source.routes, id: f.id }, { selected: false });
       document.querySelectorAll('[data-stop], [data-leg]').forEach(button => button.setAttribute('aria-pressed', 'false'));
     }
     function select(kind, id, keyboard = false) {
@@ -291,7 +307,7 @@
         announce(`Stop ${f.properties.number}: ${f.properties.name}.`);
       } else {
         const leg = routes.features.find(f => f.id === id);
-        setState({ source: source.routes, id }, { selected: true, active: true });
+        setState({ source: source.routes, id }, { selected: true }); setActiveLeg(id);
         document.querySelector(`[data-leg="${id}"]`).setAttribute('aria-pressed', 'true');
         announce(`${id === 'gab-life' ? 'GAB to LIFE' : 'LIFE to BLB'} selected. ${leg.properties.approximate ? 'Dashed fallback-style sample.' : 'Solid routed-style sample.'} Not navigation directions.`);
       }
@@ -340,10 +356,11 @@
       }
       map.touchZoomRotate.disableRotation();
       map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
-      loadingTimer = setTimeout(() => { if (!ready) fail('The map is taking longer to load. Check your connection, then reload.'); }, 15000);
+      loadingTimer = setTimeout(() => { if (!ready) fail(SLOW_LOAD); }, 15000);
       map.on('error', () => { fail('Some map data could not load. Check your connection and reload if the map stays incomplete.'); });
       map.on('load', () => {
         clearTimeout(loadingTimer);
+        if ($('error').textContent === SLOW_LOAD) { $('error').textContent = ''; $('retry').hidden = true; }
         try {
           addChevron();
           map.addSource(source.routes, { type: 'geojson', data: routes, lineMetrics: false });
@@ -360,7 +377,15 @@
       });
       const pick = point => {
         const features = map.queryRenderedFeatures(point, { layers: ['unt-stop-hit', 'unt-route-hit'] });
-        return features.find(f => f.source === source.stops) || features[0];
+        // Stops win over legs. Where stop hit areas overlap, take the nearest projected centre
+        // (renderer order is arbitrary); the itinerary list still offers every stop.
+        const hits = features.filter(f => f.source === source.stops);
+        if (!hits.length) return features[0];
+        const distance = f => {
+          const c = map.project(stopFeatures.find(s => s.id === f.id).geometry.coordinates);
+          return Math.hypot(c.x - point.x, c.y - point.y);
+        };
+        return hits.reduce((best, f) => (distance(f) < distance(best) ? f : best));
       };
       map.on('mousemove', event => {
         if (!ready || !hoverCapable.matches) return;
@@ -399,7 +424,7 @@
     document.querySelectorAll('[data-stop]').forEach(button => button.addEventListener('click', event => select('stop', button.dataset.stop, event.detail === 0)));
     document.querySelectorAll('[data-leg]').forEach(button => button.addEventListener('click', event => select('leg', button.dataset.leg, event.detail === 0)));
     for (const [id, kind] of [['overview','campus'], ['route-view','route']]) {
-      $(id).addEventListener('click', event => { ensureMapSpace(); clearSelection(); focus = { kind }; cameraToCurrent({ instant: event.detail === 0 }); announce(kind === 'campus' ? 'Campus overview. North is up.' : 'Whole sample walk. Three stops, two legs.'); });
+      $(id).addEventListener('click', event => { ensureMapSpace(); clearSelection(); setActiveLeg(null); focus = { kind }; cameraToCurrent({ instant: event.detail === 0 }); announce(kind === 'campus' ? 'Campus overview. North is up.' : 'Whole sample walk. Three stops, two legs.'); });
     }
     $('north').addEventListener('click', event => changeCamera({ bearing: 0 }, event.detail === 0));
     $('tilt').addEventListener('click', event => changeCamera({ pitch: map.getPitch() > 1 ? 0 : 45 }, event.detail === 0));
