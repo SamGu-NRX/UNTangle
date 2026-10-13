@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { cx } from "./cx";
 
 export type SegmentedOption<V extends string> = { value: V; label: ReactNode; disabled?: boolean };
@@ -35,7 +35,8 @@ export function nextEnabledWrapping(disabled: boolean[], from: number, delta: 1 
  * arrows move and select (wrapping), Home/End jump. Segments share one
  * width, so the selected pill is a single element that moves with
  * transform alone (DESIGN.md §4): no measuring, nothing to settle after
- * hydration, and the labels themselves never animate.
+ * hydration, and the labels themselves never animate. Arrow keys move the
+ * pill instantly; keyboard actions never animate (DESIGN.md §1).
  */
 export function Segmented<V extends string>({
   label,
@@ -47,12 +48,14 @@ export function Segmented<V extends string>({
   className,
 }: SegmentedProps<V>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [fromKeyboard, setFromKeyboard] = useState(false);
   const index = options.findIndex((option) => option.value === value);
   const disabled = options.map((option) => Boolean(option.disabled));
 
-  const move = (to: number) => {
+  const move = (to: number, keyboard: boolean) => {
     const option = options[to];
     if (!option || option.disabled) return;
+    setFromKeyboard(keyboard);
     onValueChange(option.value);
     refs.current[to]?.focus();
   };
@@ -60,16 +63,16 @@ export function Segmented<V extends string>({
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, at: number) => {
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
-      move(nextEnabledWrapping(disabled, at, 1));
+      move(nextEnabledWrapping(disabled, at, 1), true);
     } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
-      move(nextEnabledWrapping(disabled, at, -1));
+      move(nextEnabledWrapping(disabled, at, -1), true);
     } else if (event.key === "Home") {
       event.preventDefault();
-      move(nextEnabledWrapping(disabled, -1, 1));
+      move(nextEnabledWrapping(disabled, -1, 1), true);
     } else if (event.key === "End") {
       event.preventDefault();
-      move(nextEnabledWrapping(disabled, options.length, -1));
+      move(nextEnabledWrapping(disabled, options.length, -1), true);
     }
   };
 
@@ -82,6 +85,7 @@ export function Segmented<V extends string>({
       aria-label={label}
       className={cx("ui-seg", size === "sm" && "ui-seg--sm", fullWidth && "ui-seg--full", className)}
       style={{ "--seg-count": options.length } as CSSProperties}
+      data-instant={fromKeyboard ? "" : undefined}
       data-ui=""
     >
       <SegmentPill index={index} />
@@ -97,7 +101,7 @@ export function Segmented<V extends string>({
           disabled={option.disabled}
           tabIndex={i === tabStop ? 0 : -1}
           className="ui-seg__item"
-          onClick={() => move(i)}
+          onClick={(event) => move(i, event.detail === 0)}
           onKeyDown={(event) => onKeyDown(event, i)}
         >
           {option.label}

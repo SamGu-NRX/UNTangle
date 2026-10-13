@@ -100,6 +100,7 @@ export function ControlsSpecimen() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [email, setEmail] = useState("sam@gmail.com");
+  const [reminder, setReminder] = useState("15");
 
   const paletteSections: SearchSection[] = [
     {
@@ -510,7 +511,20 @@ export function ControlsSpecimen() {
           </>
         }
       >
-        <DatePicker label="Term dates" mode="range" range={range} onRangeChange={setRange} presets={PRESETS} today={TODAY} />
+        <div className="spec-stack">
+          <Select
+            label="Reminder before class"
+            value={reminder}
+            onValueChange={setReminder}
+            options={[
+              { value: "none", label: "No reminder" },
+              { value: "10", label: "10 minutes" },
+              { value: "15", label: "15 minutes" },
+              { value: "30", label: "30 minutes" },
+            ]}
+          />
+          <DatePicker label="Term dates" mode="range" range={range} onRangeChange={setRange} presets={PRESETS} today={TODAY} />
+        </div>
       </Dialog>
 
       <BottomSheet

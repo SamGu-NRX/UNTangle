@@ -54,7 +54,7 @@ export function PlanChip() {
         action: { label: "Open", onClick: () => router.push("/plans") },
       });
     } else {
-      toast({ message: result.failure.message });
+      toast({ message: result.failure.message, tone: "error" });
     }
   };
 

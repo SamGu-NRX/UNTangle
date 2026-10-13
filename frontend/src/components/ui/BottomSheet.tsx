@@ -172,11 +172,20 @@ export function BottomSheet({
     apply(target, ENTER);
   });
 
-  // Settle on detent changes (handle, keyboard, controlled prop). A layout
-  // effect, so a resize never paints a frame at the old position.
+  // Settle on detent changes (handle, keyboard, controlled prop) and on a
+  // reopen that interrupts the exit. A layout effect, so a resize never
+  // paints a frame at the old position. Arrow keys on the handle move
+  // instantly: keyboard actions never animate (DESIGN.md §1).
+  const keyboardMove = useRef(false);
   useLayoutEffect(() => {
-    if (!mounted || state !== "open" || !entered.current || drag.current?.active) return;
-    apply(offsets[index] ?? 0, prefersReducedMotion() ? "none" : SETTLE);
+    const sheet = sheetRef.current;
+    if (!mounted || !sheet || state !== "open" || !entered.current || drag.current?.active) return;
+    const reduced = prefersReducedMotion();
+    const instant = reduced || keyboardMove.current;
+    keyboardMove.current = false;
+    apply(offsets[index] ?? 0, reduced ? "opacity 120ms ease" : instant ? "none" : SETTLE);
+    // A reduced-motion exit faded the sheet out; a reopen fades it back.
+    sheet.style.opacity = "1";
     // offsets derive from detents and viewportHeight, both listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, viewportHeight, mounted, state]);
@@ -193,6 +202,14 @@ export function BottomSheet({
     }
     // max is read at the moment of closing on purpose.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  useEffect(() => {
+    if (state === "closed") {
+      // Closing mid-drag (Escape, scrim) drops the gesture.
+      stopTracking.current?.();
+      drag.current = null;
+    }
   }, [state]);
 
   useEffect(() => {
@@ -233,6 +250,9 @@ export function BottomSheet({
     if (!d.active) return;
     suppressClick.current = true;
     if (d.element.hasPointerCapture(event.pointerId)) d.element.releasePointerCapture(event.pointerId);
+    // The release itself is a sample: a finger that stopped before lifting
+    // must read as slow, not as the speed of the move before the pause.
+    d.samples.push({ y: event.clientY, t: event.timeStamp });
     const target = releaseTarget({
       offset: d.offset,
       velocity: event.type === "pointercancel" ? 0 : releaseVelocity(d.samples),
@@ -285,11 +305,16 @@ export function BottomSheet({
   };
 
   const onHandleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "ArrowUp") {
+    if (event.key === "Enter" || event.key === " ") {
+      // The click that follows cycles the detent; from the keyboard, instantly.
+      keyboardMove.current = true;
+    } else if (event.key === "ArrowUp") {
       event.preventDefault();
+      keyboardMove.current = true;
       cycle(1);
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
+      keyboardMove.current = true;
       cycle(-1);
     }
   };
@@ -304,6 +329,7 @@ export function BottomSheet({
     <div
       ref={rootRef}
       className={cx("ui-sheet-layer", !modal && "ui-sheet-layer--passive")}
+      data-state={state}
       data-ui=""
       tabIndex={modal ? -1 : undefined}
     >

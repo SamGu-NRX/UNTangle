@@ -92,7 +92,8 @@ function groupEntries(entries: MenuEntry[]) {
 /**
  * Dropdown menu (APG menu button). Enter, Space or ↓ opens on the first
  * item, ↑ on the last; arrows move with wrap; Home/End; typing jumps to an
- * item; Escape closes and returns focus to the trigger; Tab closes.
+ * item; Escape closes and returns focus to the trigger; Tab closes and
+ * moves on to the stop after (or, with Shift, before) the trigger.
  */
 export function Menu({ label, items, trigger, align = "start", header, className }: MenuProps) {
   const [open, setOpen] = useState(false);
@@ -183,7 +184,8 @@ export function Menu({ label, items, trigger, align = "start", header, className
         close(true);
         return;
       case "Tab":
-        event.preventDefault();
+        // Put focus back on the trigger without cancelling the Tab, so the
+        // browser then moves on from the trigger in the direction pressed.
         close(true);
         return;
     }

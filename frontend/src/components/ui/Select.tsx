@@ -87,6 +87,10 @@ export function Select({
   disabled,
   id: idProp,
   ref,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
   ...rest
 }: SelectProps) {
   const options = optionsProp ?? optionsFromChildren(children);
@@ -133,7 +137,11 @@ export function Select({
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [open]);
 
-  const describedBy = help || error ? helpId : undefined;
+  // Names and descriptions belong on the control people operate, merged
+  // with the field's own label and help text.
+  const labelledBy = [label ? labelId : null, ariaLabelledBy].filter(Boolean).join(" ") || undefined;
+  const describedBy = [error || help ? helpId : null, ariaDescribedBy].filter(Boolean).join(" ") || undefined;
+  const invalid = error ? true : ariaInvalid;
 
   const handleNativeChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setUncontrolled(event.target.value);
@@ -279,11 +287,11 @@ export function Select({
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listboxId}
-          aria-labelledby={label ? labelId : undefined}
-          aria-label={label ? undefined : rest["aria-label"]}
+          aria-labelledby={labelledBy}
+          aria-label={labelledBy ? undefined : ariaLabel}
           aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
           aria-describedby={describedBy}
-          aria-invalid={error ? true : undefined}
+          aria-invalid={invalid}
           disabled={disabled}
           data-open={open ? "" : undefined}
           onClick={() => (open ? closeList() : openAt(selectedIndex >= 0 ? selectedIndex : firstEnabled(options)))}
@@ -335,8 +343,8 @@ export function Select({
               ref={listRef}
               id={listboxId}
               role="listbox"
-              aria-labelledby={label ? labelId : undefined}
-              aria-label={label ? undefined : rest["aria-label"]}
+              aria-labelledby={labelledBy}
+              aria-label={labelledBy ? undefined : ariaLabel}
               className="ui-pop ui-listbox"
               data-state={state}
               data-ui=""

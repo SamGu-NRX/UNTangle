@@ -469,11 +469,16 @@
 
 /* ───────── Popovers: Listbox, Menu, DatePicker ───────── */
 
+/*
+ * Stacking, low to high: shell bars 40, sheet 75, dialog 80, palette 85,
+ * popovers 90, tooltip 95, toasts 100. Popovers sit above every modal
+ * layer because they open from controls inside one (a Select in a dialog).
+ */
 .ui-pop {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 70;
+  z-index: 90;
   min-width: 200px;
   max-width: calc(100vw - 16px);
   max-height: min(320px, var(--ui-available-height, 320px));
@@ -1408,7 +1413,7 @@
   opacity: 1;
   transition: opacity var(--t-enter) var(--ease-out);
 }
-.ui-toast:has(.ui-toast__action) {
+.ui-toast:has(.ui-toast__close) {
   padding-right: 6px;
 }
 @starting-style {
@@ -1490,6 +1495,13 @@
 .ui-sheet-scrim[data-state="closed"] {
   opacity: 0;
   transition-duration: var(--t-exit);
+}
+/* A closing layer lets clicks through to the page during its exit. */
+.ui-dialog-layer[data-state="closed"],
+.ui-sheet-layer[data-state="closed"],
+.ui-dialog-scrim[data-state="closed"],
+.ui-sheet-scrim[data-state="closed"] {
+  pointer-events: none;
 }
 .ui-dialog {
   position: relative;
@@ -1834,6 +1846,9 @@
 
   .ui-seg__pill {
     transition: transform var(--t-hover) var(--ease-out);
+  }
+  .ui-seg[data-instant] .ui-seg__pill {
+    transition: none;
   }
   .ui-toggle__knob {
     transition: transform var(--t-hover) var(--ease-out);

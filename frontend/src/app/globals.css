@@ -206,9 +206,19 @@ a {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* Forced colours drop box-shadows, so every focus ring becomes a system
+   colour outline here; !important beats the `outline: none` that pairs with
+   the shadow rings. Rings drawn inside an item stay inside it. */
 @media (forced-colors: active) {
   :focus-visible {
-    outline: 2px solid CanvasText;
+    outline: 2px solid CanvasText !important;
+    outline-offset: 2px;
+  }
+  .ui-option:focus-visible,
+  .ui-day:focus-visible,
+  .shell-tab:focus-visible,
+  .home-option__link:focus-visible {
+    outline-offset: -2px;
   }
 }
 

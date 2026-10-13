@@ -8,9 +8,16 @@ export type ToastInput = {
   message: string;
   /** e.g. { label: "Undo", onClick }. A toast with an action stays until dismissed. */
   action?: { label: string; onClick: () => void };
+  /** An error stays until dismissed, so its explanation cannot be missed. */
+  tone?: "default" | "error";
   /** Milliseconds before a plain toast leaves. Default 4000. */
   duration?: number;
 };
+
+/** Toasts that carry an action or an error wait for the reader. */
+function isPersistent(record: ToastInput): boolean {
+  return Boolean(record.action) || record.tone === "error";
+}
 
 type ToastRecord = ToastInput & { id: number };
 
@@ -50,16 +57,23 @@ export function useIsClient() {
 }
 
 /**
- * Bottom-centre toast region: 44px, ink, white 13px, radius 10. Enters with
- * 8px of rise and a fade over 200ms, leaves in 150ms. The live region is
- * always mounted (and stays reachable while a dialog makes the page
- * inert), so each new message is announced.
+ * Bottom-centre toast: 44px, ink, white 13px, radius 10. Enters with 8px of
+ * rise and a fade over 200ms, leaves in 150ms.
+ *
+ * Two regions, both direct children of <body>. A visually hidden live
+ * region holds only the message text; it stays outside a modal's inert set
+ * so every new message is announced. The visible toast with its buttons is
+ * an ordinary region that goes inert with the page while a dialog is open,
+ * so focus cannot leave the dialog for a toast action.
  */
 export function Toaster() {
   const record = useSyncExternalStore(subscribe, () => current, () => null);
   const [shown, setShown] = useState<ToastRecord | null>(record);
   const [leaving, setLeaving] = useState(false);
-  const [paused, setPaused] = useState(false);
+  // Paused for a specific toast, so a replacement never inherits the pause
+  // of the toast that was hovered or focused before it.
+  const [pausedFor, setPausedFor] = useState<number | null>(null);
+  const paused = shown !== null && pausedFor === shown.id;
   const remaining = useRef(0);
 
   // Swap records: the old one plays its exit, then the new one enters.
@@ -80,12 +94,12 @@ export function Toaster() {
   }, [leaving]);
 
   useEffect(() => {
-    remaining.current = shown && !shown.action ? (shown.duration ?? 4000) : Infinity;
+    remaining.current = shown && !isPersistent(shown) ? (shown.duration ?? 4000) : Infinity;
   }, [shown]);
 
   // Count down only while visible, unhovered and unfocused.
   useEffect(() => {
-    if (!shown || leaving || shown.action) return;
+    if (!shown || leaving || isPersistent(shown)) return;
     const hidden = () => document.visibilityState === "hidden";
     let started = Date.now();
     let timer: number | null = null;
@@ -112,41 +126,51 @@ export function Toaster() {
   const isClient = useIsClient();
   if (!isClient) return null;
 
-  // A direct child of <body>, so a modal's inert set never swallows it.
-  return createPortal(
-    <div className="ui-toaster" role="status" aria-live="polite" data-ui-live="" data-ui="">
-      {shown ? (
-        <div
-          key={shown.id}
-          className="ui-toast"
-          data-state={leaving ? "closed" : "open"}
-          data-ui=""
-          onPointerEnter={() => setPaused(true)}
-          onPointerLeave={() => setPaused(false)}
-          onFocus={() => setPaused(true)}
-          onBlur={() => setPaused(false)}
-        >
-          <span className="ui-toast__message">{shown.message}</span>
-          {shown.action ? (
-            <>
-              <button
-                type="button"
-                className="ui-toast__action"
-                onClick={() => {
-                  shown.action?.onClick();
-                  dismissToast(shown.id);
-                }}
-              >
-                {shown.action.label}
-              </button>
-              <button type="button" className="ui-toast__close" aria-label="Dismiss" onClick={() => dismissToast(shown.id)}>
-                <Close size={14} />
-              </button>
-            </>
+  return (
+    <>
+      {createPortal(
+        <div className="sr-only-v2" role="status" aria-live="polite" data-ui-live="">
+          {record?.message ?? ""}
+        </div>,
+        document.body,
+      )}
+      {createPortal(
+        <div className="ui-toaster" data-ui="">
+          {shown ? (
+            <div
+              key={shown.id}
+              className="ui-toast"
+              data-state={leaving ? "closed" : "open"}
+              data-tone={shown.tone ?? "default"}
+              data-ui=""
+              onPointerEnter={() => setPausedFor(shown.id)}
+              onPointerLeave={() => setPausedFor(null)}
+              onFocus={() => setPausedFor(shown.id)}
+              onBlur={() => setPausedFor(null)}
+            >
+              <span className="ui-toast__message">{shown.message}</span>
+              {shown.action ? (
+                <button
+                  type="button"
+                  className="ui-toast__action"
+                  onClick={() => {
+                    shown.action?.onClick();
+                    dismissToast(shown.id);
+                  }}
+                >
+                  {shown.action.label}
+                </button>
+              ) : null}
+              {isPersistent(shown) ? (
+                <button type="button" className="ui-toast__close" aria-label="Dismiss" onClick={() => dismissToast(shown.id)}>
+                  <Close size={14} />
+                </button>
+              ) : null}
+            </div>
           ) : null}
-        </div>
-      ) : null}
-    </div>,
-    document.body,
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
