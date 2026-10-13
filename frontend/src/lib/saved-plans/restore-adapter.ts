@@ -94,9 +94,16 @@ function annotateCompletedRecord(record: TranscriptCourseRecord): TranscriptCour
   };
 }
 
-/** The saved plan's Courses-view facts, when it has any (plans from before them have none). */
+/**
+ * The saved plan's Courses-view facts, when it has any. A plan saved before
+ * coursePlan existed gets them the way loading it would: normalize migrates
+ * v1's explicit manual-done annotations into manual credit. Restore starts
+ * from a reset state that already has an empty coursePlan, so the migration
+ * would never run there on its own. Section references stay classified from
+ * the raw snapshot.
+ */
 function savedCoursePlan(state: PlannerState): CoursePlan | null {
-  const plan = state.coursePlan;
+  const plan = normalizePlannerState(state).coursePlan;
   if (!plan) return null;
   return plan.manualCredit.length > 0 || plan.autoPlanned.length > 0 || plan.lastAuto ? plan : null;
 }
@@ -161,11 +168,6 @@ export function dispatchRestore(
     }
   });
 
-  // Manual credit, Auto provenance and the last Auto run travel with the plan.
-  // Statuses come first so the facts land on the statuses they describe.
-  const coursePlan = savedCoursePlan(planState);
-  if (coursePlan) planner.setCoursePlan(coursePlan);
-
   let appliedSectionCount = 0;
   const staleSkipped: RestoreOutcome["staleSkipped"] = [];
   const inactiveSkipped: RestoreOutcome["inactiveSkipped"] = [];
@@ -191,6 +193,12 @@ export function dispatchRestore(
       appliedLockCount += 1;
     }
   });
+
+  // Manual credit, Auto provenance and the last Auto run travel with the plan.
+  // Last on purpose: setSection treats a section pick as a hand edit and
+  // would invalidate a restored Auto run if the run were already in place.
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) planner.setCoursePlan(coursePlan);
 
   return {
     appliedStatusCount,

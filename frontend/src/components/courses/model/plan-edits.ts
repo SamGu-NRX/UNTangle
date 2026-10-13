@@ -4,6 +4,7 @@
  * the planner's current state, so Auto ownership and Undo cannot drift
  * between what is shown and what is tested.
  */
+import { takeFromAutoRun } from "@/lib/planner";
 import type { AutoTransaction, CoursePlan, CourseStatus, MajorId } from "@/lib/types";
 import { undoBlocker, undoStatuses, type AutoOutcome } from "./auto";
 
@@ -22,12 +23,7 @@ export function manualEdit(
   alsoTouched: readonly string[] = [],
 ): PlanUpdate {
   return (current) => {
-    const next: CoursePlan = { ...current.coursePlan, ...plan(current.coursePlan) };
-    const run = next.lastAuto;
-    if (run && !run.invalidatedBy) {
-      const owned = [...Object.keys(statuses), ...alsoTouched].find((code) => run.changes.some((change) => change.code === code));
-      if (owned) next.lastAuto = { ...run, invalidatedBy: owned };
-    }
+    const next = takeFromAutoRun({ ...current.coursePlan, ...plan(current.coursePlan) }, [...Object.keys(statuses), ...alsoTouched]);
     return { courseStatuses: { ...current.courseStatuses, ...statuses }, coursePlan: next };
   };
 }

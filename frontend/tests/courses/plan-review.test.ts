@@ -172,6 +172,94 @@ describe("coursePlan through the real provider", () => {
     ]);
   });
 
+  async function autoPlannedMath(planner: Awaited<ReturnType<typeof guestPlanner>>) {
+    const { sampleTranscript } = await import("@/components/courses/model/sample-transcript");
+    const { computeAuto } = await import("@/components/courses/model/auto");
+    const { applyAuto } = await import("@/components/courses/model/plan-edits");
+    await planner.run((p) => p.applyTranscriptRecords(sampleTranscript));
+    await planner.run((p) => p.setSelectedMajor("cs"));
+    const before = planner.get().plannerState;
+    const outcome = computeAuto(await modelOf(before), before.courseStatuses, CS_CORE, 15);
+    expect(outcome.planned).toEqual(["MATH 1720"]);
+    await planner.run((p) =>
+      p.updateCoursePlan(applyAuto(outcome, { id: "auto-w", at: "2026-10-13T00:00:00.000Z", major: "cs", changes: outcome.changes, summary: "", needsCheck: [] })),
+    );
+  }
+
+  test("6: picking a section in Week for a course Auto planned takes it from the run", async () => {
+    const { undoBlocker } = await import("@/components/courses/model/auto");
+    const { undoAuto } = await import("@/components/courses/model/plan-edits");
+    const planner = await guestPlanner();
+    await autoPlannedMath(planner);
+    // schedule-client's section picker calls the provider's public setSection.
+    await planner.run((p) => p.setSection("MATH 1720", "math-1720-002"));
+    const state = planner.get().plannerState;
+    expect(state.coursePlan?.lastAuto?.invalidatedBy).toBe("MATH 1720");
+    expect(undoBlocker(state.coursePlan!.lastAuto!, state.courseStatuses, "cs")).toBe("You changed MATH 1720 after Auto-fill.");
+    await planner.run((p) => p.updateCoursePlan(undoAuto("cs")));
+    expect(planner.get().plannerState.courseStatuses["MATH 1720"]).toBe("inProgress");
+    expect(planner.get().plannerState.selectedSections["MATH 1720"]).toBe("math-1720-002");
+  });
+
+  test("6: restoring saved sections does not invalidate the restored Auto run", async () => {
+    const { undoBlocker } = await import("@/components/courses/model/auto");
+    const { buildSavedPlanSnapshot, resolveSectionReferences } = await import("@/lib/plan-library/snapshot");
+    const { dispatchRestore } = await import("@/lib/saved-plans/restore-adapter");
+    const planner = await guestPlanner();
+    await autoPlannedMath(planner);
+    const saved = planner.get().plannerState;
+    expect(saved.selectedSections["MATH 1720"]).toBeDefined();
+    const snapshot = buildSavedPlanSnapshot({ state: saved, name: "Auto", source: { kind: "workingState", detail: "test" } });
+    await planner.run((p) => p.resetPlanner());
+    const references = resolveSectionReferences(snapshot.state);
+    expect(references.preserved.map((finding) => finding.courseCode)).toContain("MATH 1720");
+    await planner.run((p) => dispatchRestore(p, snapshot, references));
+    const restored = planner.get().plannerState;
+    expect(restored.coursePlan?.lastAuto?.invalidatedBy).toBeUndefined();
+    expect(undoBlocker(restored.coursePlan!.lastAuto!, restored.courseStatuses, "cs")).toBeNull();
+  });
+
+  test("7: restoring a v1 snapshot migrates its manual-done annotation, in the restore and the preview", async () => {
+    const { sampleTranscript } = await import("@/components/courses/model/sample-transcript");
+    const { buildSavedPlanSnapshot, resolveSectionReferences } = await import("@/lib/plan-library/snapshot");
+    const { dispatchRestore, simulateRestoredState } = await import("@/lib/saved-plans/restore-adapter");
+    const planner = await guestPlanner();
+    await planner.run((p) => p.applyTranscriptRecords(sampleTranscript));
+    await planner.run((p) => p.setCourseStatus("ENGL 1320", "completed"));
+    const v1 = { ...planner.get().plannerState };
+    delete v1.coursePlan;
+    const snapshot = buildSavedPlanSnapshot({ state: v1, name: "v1", source: { kind: "workingState", detail: "test" } });
+    expect(snapshot.state.coursePlan).toBeUndefined();
+    await planner.run((p) => p.resetPlanner());
+    const references = resolveSectionReferences(snapshot.state);
+    await planner.run((p) => dispatchRestore(p, snapshot, references));
+    const restored = planner.get().plannerState;
+    expect(restored.coursePlan?.manualCredit).toEqual(["ENGL 1320"]);
+    expect((await modelOf(restored)).rows.get("ENGL 1320")).toMatchObject({ status: "done", override: true });
+    expect(simulateRestoredState(snapshot, references).coursePlan?.manualCredit).toEqual(["ENGL 1320"]);
+  });
+
+  test("8: v1 annotations on ignored and needs-review rows migrate too; completion alone never does", async () => {
+    const { normalizePlannerState, getInitialPlannerState } = await import("@/lib/planner");
+    const { sampleTranscript } = await import("@/components/courses/model/sample-transcript");
+    const note = "Manually marked done in course review.";
+    const row = sampleTranscript.find((record) => record.code === "ENGL 1320")!;
+    // A v1 plan has no coursePlan field at all.
+    const { coursePlan: _none, ...v1Base } = getInitialPlannerState();
+    void _none;
+    const state = (appliedStatus: "ignored" | "needsReview" | "inProgress", rationale: string) => ({
+      ...v1Base,
+      courseStatuses: { ...getInitialPlannerState().courseStatuses, "ENGL 1320": "completed" as const },
+      transcriptRecords: [{ ...row, appliedStatus, reviewRequired: appliedStatus === "needsReview", rationale }],
+    });
+    for (const applied of ["ignored", "needsReview", "inProgress"] as const) {
+      const migrated = normalizePlannerState(state(applied, `Imported. ${note}`));
+      expect(migrated.coursePlan?.manualCredit).toEqual(["ENGL 1320"]);
+      expect((await modelOf(migrated)).rows.get("ENGL 1320")).toMatchObject({ status: "done", override: true });
+      expect(normalizePlannerState(state(applied, "Imported.")).coursePlan?.manualCredit).toEqual([]);
+    }
+  });
+
   test("5: a section of a course being taken now is classified inactive, as restore treats it", async () => {
     const { sampleTranscript } = await import("@/components/courses/model/sample-transcript");
     const { buildSavedPlanSnapshot, resolveSectionReferences } = await import("@/lib/plan-library/snapshot");

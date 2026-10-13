@@ -21,6 +21,7 @@ import {
   normalizePlannerState,
   recommendSections,
   serializePlannerPayload,
+  takeFromAutoRun,
 } from "@/lib/planner";
 import { createPlannerStateStore } from "@/lib/planner-store";
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
@@ -985,6 +986,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             current.lockedSections?.[courseCode] !== undefined
               ? { ...current.lockedSections, [courseCode]: sectionId }
               : current.lockedSections,
+          // A section picked by hand is an edit to that course, so a pending
+          // Auto run that planned it can no longer be undone.
+          coursePlan: current.coursePlan ? takeFromAutoRun(current.coursePlan, [courseCode]) : current.coursePlan,
           updatedAt: new Date().toISOString(),
         }));
       },

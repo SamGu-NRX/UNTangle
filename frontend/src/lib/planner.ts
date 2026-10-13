@@ -22,6 +22,7 @@ import { compareAcademicTerms } from "@/lib/term-chronology";
 import { defaultWalkingTime } from "@/lib/planner-walking";
 import type { WalkingTimeFn } from "@/lib/planner-walking";
 import type {
+  CoursePlan,
   Course,
   CourseSection,
   CourseStatus,
@@ -285,8 +286,8 @@ const MANUALLY_DONE_NOTE = "Manually marked done in course review.";
 
 /**
  * Plans saved before coursePlan existed: a course marked done by hand while
- * its transcript row still says in progress carries v1's explicit
- * annotation. Only that annotation counts as the student's credit claim;
+ * its transcript rows were not completed (in progress, ignored or needing
+ * review) carries v1's explicit annotation. Only that annotation counts as the student's credit claim;
  * a bare "completed" next to an in-progress row is not guessed at.
  */
 function legacyManualCredit(state: PlannerState): string[] {
@@ -296,13 +297,28 @@ function legacyManualCredit(state: PlannerState): string[] {
         .filter(
           (record) =>
             !record.duplicateExcluded &&
-            record.appliedStatus === "inProgress" &&
+            // v1's Done toggle annotated every non-completed row of the course:
+            // in progress, ignored and needs-review alike.
+            record.appliedStatus !== "completed" &&
             record.rationale.includes(MANUALLY_DONE_NOTE) &&
             state.courseStatuses[record.code] === "completed",
         )
         .map((record) => record.code),
     ),
   ].sort();
+}
+
+/**
+ * A hand edit to `codes` (a status change, or a section picked in Week).
+ * When the pending Auto run changed one of them, the course is the
+ * student's now and Undo is refused: restoring the run's old values would
+ * overwrite their choice. Restore paths must not call this.
+ */
+export function takeFromAutoRun(coursePlan: CoursePlan, codes: readonly string[]): CoursePlan {
+  const run = coursePlan.lastAuto;
+  if (!run || run.invalidatedBy) return coursePlan;
+  const owned = codes.find((code) => run.changes.some((change) => change.code === code));
+  return owned ? { ...coursePlan, lastAuto: { ...run, invalidatedBy: owned } } : coursePlan;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
