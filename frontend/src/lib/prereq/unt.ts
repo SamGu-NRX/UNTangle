@@ -237,13 +237,6 @@ function isSingleCourse(node: Prerequisite): boolean {
   return node.kind === "course" || (node.kind === "minGrade" && isSingleCourse(node.requirement));
 }
 
-/** Both supplies a default for a demonstrated pair; an explicitly graded course keeps its own minimum. */
-function applyPairGrade(node: Prerequisite, grade: string): Prerequisite {
-  if (node.kind === "minGrade") return node;
-  if (node.kind === "and" || node.kind === "or") return { ...node, children: node.children.map(child => applyPairGrade(child, grade)) };
-  return applyGrade(node, grade);
-}
-
 function coursePair(source: string): Prerequisite | undefined {
   let text = source.trim();
   while (text.startsWith("(") && groupEnd(text) === text.length - 1) text = text.slice(1, -1).trim();
@@ -262,11 +255,11 @@ function bothGrade(body: string, grade: string, source: string): Prerequisite {
   const tail = groups[groups.length - 1];
   const pair = coursePair(tail);
   if (pair) {
-    const graded = applyPairGrade(pair, grade);
+    const graded = applyGrade(pair, grade);
     return groups.length === 1 ? { ...graded, source } : { kind: "and", source, children: [...groups.slice(0, -1).map(parseClause), graded] };
   }
   const entirePair = coursePair(body);
-  if (entirePair) return { ...applyPairGrade(entirePair, grade), source };
+  if (entirePair) return { ...applyGrade(entirePair, grade), source };
   // A final parenthesized pair is an explicit scope boundary, unlike a bare three-course chain.
   for (let index = 0; index < body.length; index++) {
     if (body[index] !== "(" || groupEnd(body.slice(index)) !== body.length - index - 1) continue;
@@ -274,7 +267,7 @@ function bothGrade(body: string, grade: string, source: string): Prerequisite {
     const prefix = body.slice(0, index).match(/^(.*?)(\s+and\s+|\s+or\s+|,\s*(?:and\s+)?|;\s*)$/i);
     if (!nested || !prefix?.[1].trim()) continue;
     if (!/\bor\b/i.test(prefix[2]) && splitTopLevel(prefix[1], /\s+or\s+(?!(?:better|higher)\b)/gi).length > 1) return unknown(source);
-    return { kind: /\bor\b/i.test(prefix[2]) ? "or" : "and", source, children: [parseClause(prefix[1]), applyPairGrade(nested, grade)] };
+    return { kind: /\bor\b/i.test(prefix[2]) ? "or" : "and", source, children: [parseClause(prefix[1]), applyGrade(nested, grade)] };
   }
   return unknown(source);
 }

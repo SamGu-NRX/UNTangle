@@ -25,8 +25,8 @@ function statedMinimums(text: string): Map<string, string> {
       else if (both) {
         const prefix = sentence.slice(0, match.index);
         const pair = ids(prefix.slice(prefix.lastIndexOf(";") + 1));
-        courses = pair.length === 2 ? pair.filter(id => !result.has(id)) : [];
-        if (ids(prefix).length === 0 && previous.length === 2) courses = previous.filter(id => !result.has(id));
+        courses = pair.length === 2 ? pair : [];
+        if (ids(prefix).length === 0 && previous.length === 2) courses = previous;
       }
       else if (shared) courses = ids(sentence.slice(0, match.index));
       else courses = ids(before.slice(before.lastIndexOf(";") + 1));
