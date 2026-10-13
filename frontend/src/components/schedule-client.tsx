@@ -32,11 +32,10 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Dialog } from "@/components/ui/Dialog";
 import { toast } from "@/components/ui/Toast";
-import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { goalForWeights } from "@/lib/optimizer/presets";
 import type { OptimizeResult, RankedSchedule, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
-import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { plannerTravelTime, SHUTTLE_SECONDS, summarizeWeeklyWalking } from "@/lib/planner-walking";
 import {
   buildOptimizeRequest,
   getPlanningTermCourseCodes,
@@ -281,7 +280,7 @@ export function ScheduleClient() {
   };
 
   const credits = summarizeCredits(plannerState);
-  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents, getWalkingSeconds), [scheduleEvents]);
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents, plannerTravelTime), [scheduleEvents]);
   const walkMinutes = Math.round(walking.knownSeconds / 60);
   const earliest = events.length ? Math.min(...events.map((e) => e.start)) : null;
   const latest = events.length ? Math.max(...events.map((e) => e.end)) : null;
@@ -350,6 +349,9 @@ export function ScheduleClient() {
       Walking follows campus walkways{walking.estimated ? "; some walks are straight-line estimates" : ""}.
       {walking.unknownLegs > 0
         ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? " has" : "s have"} no known time and ${walking.unknownLegs === 1 ? "is" : "are"} not counted.`
+        : ""}
+      {walking.shuttleLegs > 0
+        ? ` Shuttle · ${SHUTTLE_SECONDS / 60} min: ${walking.shuttleLegs} trip${walking.shuttleLegs === 1 ? "" : "s"} between main campus and Discovery Park, an estimate, not counted as walking.`
         : ""}
     </p>
   );

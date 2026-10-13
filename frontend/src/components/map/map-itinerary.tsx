@@ -157,6 +157,12 @@ export function DaySummary({
           </span>
         ) : null}
         {summary.unresolved > 0 ? <span className="mv-summary__muted"> · {summary.unresolved} not on map</span> : null}
+        {summary.shuttleLegs > 0 ? (
+          <span className="mv-summary__muted">
+            {" "}
+            · {summary.shuttleLegs} shuttle {summary.shuttleLegs === 1 ? "ride" : "rides"}
+          </span>
+        ) : null}
       </p>
       <span className="mv-summary__tags">
         {summary.estimatedLegs > 0 ? (
@@ -254,6 +260,12 @@ function legText(leg: ItineraryLeg): LegText {
       return { main: "No walking route", source: null, detail: "One end of this walk isn't on the map." };
     case "other-weeks":
       return { main: "No walk", source: null, detail: "These classes meet in different weeks of the term." };
+    case "shuttle":
+      return {
+        main: `Shuttle · ${Math.round(leg.route.seconds / 60)} min`,
+        source: null,
+        detail: `Discovery Park is a shuttle ride from main campus. ${Math.round(leg.route.seconds / 60)} minutes is an estimate. ${gap}.`,
+      };
     case "straight-line":
       return {
         main: `~${formatDistance(leg.route.meters)}`,

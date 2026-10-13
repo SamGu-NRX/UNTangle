@@ -33,8 +33,7 @@ import {
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
 import { compareAcademicTerms } from "@/lib/term-chronology";
-import { getWalkingSeconds } from "@/lib/campus/walking-times";
-import type { WalkingTimeFn } from "@/lib/planner-walking";
+import { plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import type { OptCourse, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
@@ -149,8 +148,8 @@ export function recommendSections(
   courseCodes: string[] = courses.filter((course) => course.planned).map((course) => course.code),
   fixedSelections: Record<string, string> = {},
   catalog: SectionCatalog = sampleCatalog,
-  // Campus walkway times, the same provider Optimize uses (straight line where no path is mapped).
-  walkingTime: WalkingTimeFn = getWalkingSeconds,
+  // Campus walkway times plus the Discovery Park shuttle, the same provider Optimize uses.
+  walkingTime: WalkingTimeFn = plannerTravelTime,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
 ) {
   const optimizerCourses = toOptimizerCourses(courseCodes, catalog, filter).filter(
@@ -240,7 +239,7 @@ export function resolveSectionPlan(
   state: PlannerState,
   catalog: SectionCatalog = sampleCatalog,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
-  walkingTime: WalkingTimeFn = getWalkingSeconds,
+  walkingTime: WalkingTimeFn = plannerTravelTime,
 ): SectionPlan {
   const placed = getPlanningTermCourseCodes(state).map((code): PlannedCourse => {
     const options = catalog(code);
@@ -406,8 +405,9 @@ export function buildOptimizeRequest(
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },
     weights: preferences.weights,
-    // Campus walkway times (map v2's matrix), straight-line only where the walkway graph has no route.
-    walkingTime: options.walkingTime ?? getWalkingSeconds,
+    // Campus walkway times (map v2's matrix), straight-line only where the walkway graph has no route,
+    // and the Discovery Park shuttle's fixed time (planner-walking.ts).
+    walkingTime: options.walkingTime ?? plannerTravelTime,
     k: options.k ?? 3,
     timeBudgetMs: options.timeBudgetMs ?? 300,
   };

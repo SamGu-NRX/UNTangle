@@ -279,7 +279,7 @@ export type ScheduleConstraints = {
   excludedSections: string[];
   /** Suggest only options whose every component with known seats has one open (closed and wait-listed ones stay pickable). */
   openSeatsOnly: boolean;
-  /** Suggest options at Frisco, Discovery Park and other sites off Denton's main campus too. */
+  /** Suggest options at Frisco and other UNT sites outside Denton too (Discovery Park counts as Denton). */
   otherSites: boolean;
 };
 

@@ -12,12 +12,15 @@
  *   "tight" when it leaves two minutes or less to spare (the design's rule:
  *   walk >= gap - 2). Both are flagged;
  * - two classes that never meet in the same week (first and second
- *   eight-week sessions) have no walk between them.
+ *   eight-week sessions) have no walk between them;
+ * - main campus to Discovery Park is a shuttle ride with a fixed estimate,
+ *   never routed on foot; it can be tight or late like a walk.
  */
 import { haversineMetersBetween } from "@/lib/campus/geo";
 import { stopIdentity } from "@/lib/campus/route-legs";
 import { walkingMinutes } from "@/lib/campus/speeds";
 import { rangeLabel, sharesWeeks } from "@/lib/planner-sections";
+import { isShuttleLeg, SHUTTLE_SECONDS } from "@/lib/planner-walking";
 import type { MapResolvedLocation, MapRouteLeg, MapRoutePoint, MapStop } from "@/lib/types";
 
 /** What building lookup said about a stop that arrived without coordinates. */
@@ -57,7 +60,9 @@ export type LegRoute =
   | { kind: "straight-line"; meters: number; geometry: MapRoutePoint[] }
   | { kind: "no-route" }
   /** The two classes never meet in the same week, so nobody walks between them. */
-  | { kind: "other-weeks" };
+  | { kind: "other-weeks" }
+  /** Main campus to or from Discovery Park: a shuttle ride (SHUTTLE_SECONDS), not a walk. */
+  | { kind: "shuttle"; seconds: number };
 
 export type ItineraryLeg = {
   key: string;
@@ -93,6 +98,8 @@ export type DaySummary = {
   unresolved: number;
   /** Totals over legs with a walkway route only; straight-line estimates are counted in estimatedLegs. */
   walkMinutes: number;
+  /** Shuttle rides between main campus and Discovery Park; not in walkMinutes. */
+  shuttleLegs: number;
   walkMeters: number;
   /** Walk longer than the break. */
   lateTransfers: number;
@@ -246,7 +253,8 @@ export function routeRuns(stops: ItineraryStop[]): Array<Array<{ key: string; po
   let current: Array<{ key: string; point: MapRoutePoint; buildingId?: string }> = [];
   let previous: ItineraryStop | null = null;
   for (const entry of stops) {
-    const apart = previous !== null && !sameWeeks(previous.stop, entry.stop);
+    // Nothing is routed between classes in different weeks, or across the shuttle.
+    const apart = previous !== null && (!sameWeeks(previous.stop, entry.stop) || isShuttleLeg(previous.stop.buildingId, entry.stop.buildingId));
     previous = entry;
     if (entry.placement.kind !== "mapped" || apart) {
       if (current.length > 1) runs.push(current);
@@ -269,6 +277,9 @@ function sameWeeks(a: MapStop, b: MapStop): boolean {
 function legRoute(from: ItineraryStop, to: ItineraryStop, answers: ReadonlyMap<string, PairAnswer>): LegRoute {
   if (!sameWeeks(from.stop, to.stop)) {
     return { kind: "other-weeks" };
+  }
+  if (isShuttleLeg(from.stop.buildingId, to.stop.buildingId)) {
+    return { kind: "shuttle", seconds: SHUTTLE_SECONDS };
   }
   if (from.placement.kind !== "mapped" || to.placement.kind !== "mapped") {
     return from.placement.kind === "resolving" || to.placement.kind === "resolving" ? { kind: "loading" } : { kind: "no-route" };
@@ -322,7 +333,11 @@ export function buildItinerary(
     const gapMinutes = toMinutes(to.stop.start) - toMinutes(from.stop.end);
     const route = legRoute(from, to, answers);
     const walkMinutes =
-      route.kind === "walk" ? walkMinutesFromSeconds(route.seconds) : route.kind === "same-building" ? 0 : null;
+      route.kind === "walk" || route.kind === "shuttle"
+        ? walkMinutesFromSeconds(route.seconds)
+        : route.kind === "same-building"
+          ? 0
+          : null;
     return {
       key: `${from.key}>${to.key}`,
       fromKey: from.key,
@@ -339,7 +354,8 @@ export function buildItinerary(
     classes: entries.length,
     mapped: entries.filter((entry) => entry.placement.kind === "mapped").length,
     unresolved: entries.filter((entry) => entry.placement.kind === "unresolved").length,
-    walkMinutes: legs.reduce((total, leg) => total + (leg.walkMinutes ?? 0), 0),
+    walkMinutes: legs.reduce((total, leg) => total + (leg.route.kind === "shuttle" ? 0 : (leg.walkMinutes ?? 0)), 0),
+    shuttleLegs: legs.filter((leg) => leg.route.kind === "shuttle").length,
     walkMeters: legs.reduce((total, leg) => total + (leg.route.kind === "walk" ? leg.route.meters : 0), 0),
     lateTransfers: legs.filter((leg) => leg.transfer === "late").length,
     tightTransfers: legs.filter((leg) => leg.transfer === "tight").length,

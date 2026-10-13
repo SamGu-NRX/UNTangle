@@ -130,6 +130,9 @@ export function optionsConflict(a: Pick<Section, "meetings">, b: Pick<Section, "
 /** Which options the optimizer may suggest; the student can still pick any option by hand. */
 export type CandidateFilter = { openSeatsOnly: boolean; otherSites: boolean };
 
+/** UNT's Discovery Park (NTDP), where most CSCE and engineering classes meet. It counts as Denton. */
+export const DISCOVERY_PARK_ID = "ntdp";
+
 /**
  * Sites of rooms the campus catalogue does not map. Frisco's codes are the
  * only unmapped codes in the planner's Spring 2027 courses (FRLD and FRISCO,
@@ -139,15 +142,17 @@ export type CandidateFilter = { openSeatsOnly: boolean; otherSites: boolean };
 const unmappedSites: Record<string, string> = { FRLD: "Frisco", FRISCO: "Frisco" };
 
 /**
- * Where an option meets when that is not Denton's main campus: "Frisco",
- * "Discovery Park", "another UNT site". Null for main-campus options;
- * online meetings and unassigned rooms do not move an option off campus.
- * Synthetic samples have no real site, so they are never off campus.
+ * Where an option meets when that is not UNT's Denton campus: "Frisco",
+ * "another UNT site". Null for Denton options, Discovery Park included;
+ * online meetings and unassigned rooms do not move an option elsewhere.
+ * vsb's schema v2 records have no campus or location field (only `room`),
+ * so the room is the only evidence: an unmapped room counts as another
+ * site. Synthetic samples have no real site, so they are never elsewhere.
  */
 export function otherSiteOf(section: Section): string | null {
   if (section.term === null) return null;
   for (const meeting of section.meetings) {
-    if (meeting.kind === "building" && meeting.offCampus) return meeting.buildingName;
+    if (meeting.kind === "building" && meeting.offCampus && meeting.buildingId !== DISCOVERY_PARK_ID) return meeting.buildingName;
     if (meeting.kind === "unknown") return unmappedSites[meeting.buildingCode ?? ""] ?? "another UNT site";
   }
   return null;

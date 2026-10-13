@@ -1,4 +1,5 @@
 import { isTimed, rangeLabel, sharesWeeks } from "@/lib/planner-sections";
+import { isShuttleLeg } from "@/lib/planner-walking";
 import type { Section } from "@/lib/sections";
 import type { DateRange } from "@/lib/sections/model";
 import { classDays, weekDays, type ClassDay } from "@/lib/types";
@@ -27,6 +28,8 @@ export type WeekEvent = {
   start: number;
   end: number;
   room: string;
+  /** Catalogue building, or null for an unmapped room. */
+  buildingId: string | null;
   professor: string;
   dates: DateRange;
 };
@@ -42,10 +45,23 @@ export function eventsFor(byCourse: Record<string, string>, find: FindOption): W
       start: meeting.startMinutes,
       end: meeting.endMinutes,
       room: meeting.room,
+      buildingId: meeting.buildingId,
       professor: meeting.instructor.display ?? section.instructor.display ?? "Instructor not listed",
       dates: meeting.dates,
     }));
   });
+}
+
+/** Back-to-back trips between main campus and Discovery Park (shuttle rides), counting only classes that meet in the same weeks. */
+export function shuttleTrips(events: readonly WeekEvent[]): number {
+  let trips = 0;
+  for (const day of classDays) {
+    const list = events.filter((event) => event.day === day).sort((a, b) => a.start - b.start);
+    for (let i = 1; i < list.length; i += 1) {
+      if (sharesWeeks(list[i - 1].dates, list[i].dates) && isShuttleLeg(list[i - 1].buildingId, list[i].buildingId)) trips += 1;
+    }
+  }
+  return trips;
 }
 
 /** Mon-Fri, plus a weekend day only when some class meets on it. */

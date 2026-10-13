@@ -35,9 +35,9 @@ import {
   toOptSection,
   untimedMeetings,
 } from "@/lib/planner-sections";
-import { placeStop } from "@/lib/map-itinerary";
+import { buildItinerary, placeStop, routeRuns } from "@/lib/map-itinerary";
 import { planLookups, createMapDataCache } from "@/lib/map-client-data";
-import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { isShuttleLeg, plannerTravelTime, SHUTTLE_SECONDS, summarizeWeeklyWalking } from "@/lib/planner-walking";
 import type { PlannerState } from "@/lib/types";
 import { courseAs, fixtureCatalog, fixtureInput, optionsOf, renumber, setDates } from "../sections/real-term";
 
@@ -239,6 +239,7 @@ describe("week lanes", () => {
       start,
       end,
       room: "",
+      buildingId: null,
       professor: "",
       dates: { start: from, end: to, raw: "" },
     });
@@ -272,25 +273,23 @@ describe("which options the optimizer suggests", () => {
     return fixtureCatalog(input);
   }
 
-  test("sections off Denton's main campus are not suggested by default, are counted, and come back on request", () => {
+  test("sections outside Denton are not suggested by default, are counted, and come back on request", () => {
     const catalog = sites();
     const [park, frisco] = optionsOf(catalog, "SPAN 2040");
-    expect([otherSiteOf(park), otherSiteOf(frisco), otherSiteOf(optionsOf(catalog, "MATH 1680")[0])]).toEqual(["Discovery Park", "Frisco", null]);
+    // Discovery Park counts as Denton: most CSCE and engineering classes meet there.
+    expect([otherSiteOf(park), otherSiteOf(frisco), otherSiteOf(optionsOf(catalog, "MATH 1680")[0])]).toEqual([null, "Frisco", null]);
     // Online and unassigned rooms do not move an option off campus.
     expect(otherSiteOf(optionsOf(catalog, "ACCT 5120")[0])).toBeNull();
     expect(otherSiteOf(optionsOf(catalog, "ART 5450")[0])).toBeNull();
 
-    expect(toOptimizerCourses(["SPAN 2040"], catalog)).toEqual([]);
+    expect(toOptimizerCourses(["SPAN 2040"], catalog)[0].sections.map((section) => section.id)).toEqual([park.id]);
     expect(toOptimizerCourses(["SPAN 2040"], catalog, filter({ otherSites: true }))[0].sections).toHaveLength(2);
 
-    const plan = resolveSectionPlan(plan_(["SPAN 2040", "MATH 1680"]), catalog);
-    expect(plan.courses.find((course) => course.code === "SPAN 2040")?.state).toBe("choose");
-    expect(hiddenOptions(plan, filter())).toEqual({ sites: new Map([["Discovery Park", 1], ["Frisco", 1]]), full: 0 });
-    // (Alone: the Discovery Park option shares MATH 1680's slot.)
-    const wide = resolveSectionPlan(plan_(["SPAN 2040"]), catalog, filter({ otherSites: true }));
-    expect(wide.courses.find((course) => course.code === "SPAN 2040")?.state).toBe("recommended");
+    const plan = resolveSectionPlan(plan_(["SPAN 2040"]), catalog);
+    expect(plan.courses[0]).toMatchObject({ state: "recommended", section: { id: park.id } });
+    expect(hiddenOptions(plan, filter())).toEqual({ sites: new Map([["Frisco", 1]]), full: 0 });
     // A pick made by hand at another site stays: Optimize leaves the course alone.
-    const picked = plan_(["SPAN 2040", "MATH 1680"], { "SPAN 2040": park.id });
+    const picked = plan_(["SPAN 2040", "MATH 1680"], { "SPAN 2040": frisco.id });
     expect(buildOptimizeRequest(picked, defaultSchedulePreferences("compact"), { catalog }).courses.map((c) => c.code)).toEqual(["MATH 1680"]);
   });
 
@@ -329,11 +328,69 @@ describe("weekend days on the map", () => {
 describe("date labels on the week", () => {
   test("only classes off the most common range show dates; with no most common range, all do", async () => {
     const { usualRange } = await import("@/components/schedule/week-model");
-    const at = (start: string, end: string) => ({ courseCode: "X", sectionId: "x", day: "Tue" as const, start: 0, end: 1, room: "", professor: "", dates: { start, end, raw: "" } });
+    const at = (start: string, end: string) => ({ courseCode: "X", sectionId: "x", day: "Tue" as const, start: 0, end: 1, room: "", buildingId: null, professor: "", dates: { start, end, raw: "" } });
     const full = at("2027-01-11", "2027-05-07");
     const first = at("2027-01-11", "2027-03-05");
     const second = at("2027-03-15", "2027-05-07");
     expect(usualRange([full, full, first])).toBe("Jan 11 – May 7");
     expect(usualRange([first, second])).toBeNull();
+  });
+});
+
+describe("the Discovery Park shuttle", () => {
+  test("main campus to Discovery Park is a 20-minute shuttle leg, not a walk", () => {
+    expect(SHUTTLE_SECONDS).toBe(1200);
+    expect([isShuttleLeg("gab", "ntdp"), isShuttleLeg("ntdp", "lang"), isShuttleLeg("ntdp", "ntdp"), isShuttleLeg("gab", "lang"), isShuttleLeg(null, "ntdp")]).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(plannerTravelTime("gab", "ntdp")).toEqual({ seconds: 1200, source: "straight-line" });
+    expect(plannerTravelTime("gab", "lang")).toEqual(getWalkingSeconds("gab", "lang"));
+  });
+
+  test("back to back across the shuttle is late on the map, not routed, and kept off walking totals", () => {
+    const stop = (buildingId: string, start: string, end: string) => ({
+      courseCode: `C ${start}`,
+      title: "",
+      location: buildingId,
+      buildingId,
+      buildingName: buildingId,
+      shortName: buildingId,
+      lat: 33.2,
+      lng: -97.1,
+      resolutionStatus: "local" as const,
+      geocodeQuery: "",
+      day: "Mon" as const,
+      start,
+      end,
+      dates: null,
+    });
+    const itinerary = buildItinerary([stop("gab", "09:00", "09:50"), stop("ntdp", "10:00", "10:50")], new Map(), new Map());
+    expect(itinerary.legs[0]).toMatchObject({ route: { kind: "shuttle", seconds: 1200 }, walkMinutes: 20, transfer: "late", leaveBy: "09:40" });
+    expect(itinerary.summary).toMatchObject({ walkMinutes: 0, shuttleLegs: 1, loading: false });
+    expect(routeRuns(itinerary.stops)).toEqual([]);
+  });
+
+  test("the optimizer treats a shuttle leg like a 20-minute walk: a 10-minute break does not fit", () => {
+    const input = fixtureInput();
+    // MATH 1680's lecture at Discovery Park, so Monday 8:00 (GAB) -> lecture would need the shuttle.
+    courseAs(input, "MATH 1680", "SPAN 2040", (row) => {
+      row.linked_sections[0].room = "NTDP F223";
+      row.meetings.filter((m) => m.class_number === "6862").forEach((m) => {
+        m.room = "NTDP F223";
+        m.days = "M";
+        m.start_time = "9:00AM";
+        m.end_time = "9:50AM";
+      });
+    });
+    const catalog = fixtureCatalog(input);
+    const request = buildOptimizeRequest(plan_(["SPAN 2040"]), defaultSchedulePreferences("compact"), { catalog });
+    // The option's own Monday GAB 8:00-8:50 recitation then NTDP 9:00: a 10-minute break for a 20-minute shuttle.
+    expect(optimize(request).status).toBe("infeasible");
+    const relaxed = { ...request, constraints: { ...request.constraints, walking: null } };
+    expect(optimize(relaxed).schedules[0].breakdown.walkSeconds).toBe(1200);
   });
 });
