@@ -76,6 +76,7 @@ export function CoursesView({
   );
   const major = getMajorById(plannerState.selectedMajor);
   const coreIds = useMemo(() => major?.coreCourseCodes ?? [], [major]);
+  const coreSet = useMemo(() => new Set(coreIds), [coreIds]);
   const groups = useMemo(() => buildGroups(model, coreIds, major?.department ?? null), [model, coreIds, major]);
   const resolvedCollapsed = useMemo(() => {
     const result: Record<string, boolean> = {};
@@ -207,7 +208,9 @@ export function CoursesView({
   const pickByHand = () => {
     clearSeedDemo();
     setStartedByHand(true);
-    window.requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-row-open]")?.focus());
+    // The list is grouped around the major's core, so ask for it first.
+    if (!major) window.requestAnimationFrame(openMajorPicker);
+    else window.requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-row-open]")?.focus());
   };
 
   const togglePlanFromPalette = (id: string) => {
@@ -439,6 +442,7 @@ export function CoursesView({
           courses={searchCourses}
           instructors={instructors}
           rows={model.rows}
+          preferred={coreSet}
           onOpenCourse={(id, instructor) => {
             setPaletteInstructor(instructor ? { id, name: instructor } : null);
             openCourse(id);

@@ -33,6 +33,8 @@ type PaletteProps = {
   courses: readonly SearchCourse[];
   instructors: readonly SearchInstructor[];
   rows: ReadonlyMap<string, CourseRowModel>;
+  /** Courses that rank first on ties (the major's core). */
+  preferred: ReadonlySet<string>;
   onOpenCourse: (id: string, instructor?: string) => void;
   /** Returns the sentence to announce. */
   onTogglePlan: (id: string) => string;
@@ -49,6 +51,7 @@ function PaletteBody({
   courses,
   instructors,
   rows,
+  preferred,
   onOpenCourse,
   onTogglePlan,
 }: PaletteProps) {
@@ -58,7 +61,7 @@ function PaletteBody({
   const [active, setActive] = useState(0);
   const [announcement, setAnnouncement] = useState("");
 
-  const results = useMemo(() => searchCatalog(query, courses, instructors), [query, courses, instructors]);
+  const results = useMemo(() => searchCatalog(query, courses, instructors, preferred), [query, courses, instructors, preferred]);
   const items: Item[] = useMemo(
     () => [
       ...results.courses.map((course) => ({ kind: "course" as const, id: course.id, title: course.title })),

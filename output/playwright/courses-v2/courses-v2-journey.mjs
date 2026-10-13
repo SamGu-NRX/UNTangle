@@ -77,10 +77,10 @@ fixture.data.total = fixture.data.grades.totalEnroll;
 const DANGER = "rgb(179, 38, 30)";
 
 async function rowStatus(page, id) {
-  return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[class*=rowStatus]").innerText();
+  return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[data-row-status]").innerText();
 }
 async function rowMeta(page, id) {
-  return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[class*=rowMeta]").innerText();
+  return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[data-row-meta]").innerText();
 }
 
 async function journey(browser, viewport) {
@@ -126,8 +126,8 @@ async function journey(browser, viewport) {
   // ---------- 2. sample transcript + Auto ----------
   await page.getByRole("button", { name: /Try a sample transcript/ }).click();
   await page.locator('[data-row-open="CSCE 1030"]').waitFor();
-  await page.getByRole("button", { name: "Auto-fill" }).filter({ visible: true }).click();
-  const note1 = page.locator("[class*=autonote]");
+  await page.getByRole("button", { name: "Auto-fill", exact: true }).filter({ visible: true }).click();
+  const note1 = page.locator("[data-autonote]");
   await note1.waitFor();
   const noteText = await note1.innerText();
   check(`${tag}: AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 1 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
@@ -179,14 +179,14 @@ async function journey(browser, viewport) {
     check(`${tag}: panel is 520px`, Math.round(width) === 520, `${width}px`);
     const scrims = await page.locator("[class*=scrim]").count();
     check(`${tag}: no scrim behind the desktop panel`, scrims === 0);
-    const listRight = await page.locator("[class*=list]").first().evaluate((el) => el.getBoundingClientRect().right);
+    const listRight = await page.locator("[data-course-list]").evaluate((el) => el.getBoundingClientRect().right);
     const panelLeft = await panel.evaluate((el) => el.getBoundingClientRect().left);
     check(`${tag}: the list narrows beside the panel`, listRight <= panelLeft, `${listRight} <= ${panelLeft}`);
   } else {
     const grip = page.getByRole("button", { name: /Shrink sheet|Expand sheet/ });
     check(`${tag}: sheet has a drag handle`, await grip.isVisible());
   }
-  const bars = await panel.locator("[class*=bar]").evaluateAll((els) =>
+  const bars = await panel.locator("[data-grade-bar]").evaluateAll((els) =>
     els.map((el) => ({ bg: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity })),
   );
   const greens = new Set(bars.map((b) => b.bg));
@@ -195,14 +195,14 @@ async function journey(browser, viewport) {
   check(`${tag}: Data source link`, (await source.getAttribute("href")) === "https://www.untgrades.app/" && (await source.getAttribute("target")) === "_blank");
 
   const instructor = panel.getByRole("combobox", { name: "Instructor" });
-  const studentsBefore = await panel.locator("[class*=fig]").nth(1).innerText();
+  const studentsBefore = await panel.locator("[data-fig]").nth(1).innerText();
   if (phone) await instructor.tap();
   else await instructor.click();
   await panel.getByRole("option", { name: /Haili Wang/ }).click();
   await page.waitForTimeout(40);
   const crossfading = await panel.locator("[data-motion=out]").count();
   await page.waitForTimeout(250);
-  const studentsAfter = await panel.locator("[class*=fig]").nth(1).innerText();
+  const studentsAfter = await panel.locator("[data-fig]").nth(1).innerText();
   check(`${tag}: switching instructor redraws the chart`, studentsBefore !== studentsAfter, `${studentsBefore.replace(/\s+/g, " ")} -> ${studentsAfter.replace(/\s+/g, " ")}`);
   check(`${tag}: the old bars crossfade out`, crossfading === 1, `${crossfading} outgoing layer`);
   const links = await panel.locator("a[data-linkout]:not([data-linkout=source])").evaluateAll((els) =>
@@ -267,7 +267,9 @@ async function journey(browser, viewport) {
     await shoot(page, `${tag}-04-palette`);
     await axe(page, `${tag}: search palette`);
     await page.keyboard.press("Meta+Enter");
-    await palette.getByText("Planned MATH 1720 for Spring 2027.").waitFor();
+    // The confirmation is a visually hidden live region, so wait on its text rather than its visibility.
+    await palette.locator('[role="status"]').filter({ hasText: "Planned MATH 1720 for Spring 2027." }).waitFor({ state: "attached" });
+    check(`${tag}: ⌘↵ plans the active result and announces it`, true);
     await page.keyboard.press("Escape");
     await palette.waitFor({ state: "detached" });
   } else {
@@ -327,6 +329,56 @@ try {
       check(`${viewport.name}: journey completed`, false, String(error?.stack ?? error).split("\n").slice(0, 4).join(" | "));
     }
   }
+  // Reduced motion: the panel fades but does not slide.
+  try {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: /Pick courses by hand/ }).click();
+    await page.getByRole("listbox", { name: "Major" }).filter({ visible: true }).waitFor();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Enter");
+    await page.locator('[data-row-open="CSCE 1010"]').click();
+    const transform = await page.locator("aside[aria-labelledby=course-panel-title]").evaluate((el) => getComputedStyle(el).transform);
+    check("reduced motion: the panel enters without moving", transform === "none", transform);
+    await context.close();
+  } catch (error) {
+    check("reduced motion pass completed", false, String(error).split("\n")[0]);
+  }
+
+  // Keyboard only: Tab from the top of the Courses view; every stop must show a focus indicator.
+  try {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: /Pick courses by hand/ }).click();
+    await page.getByRole("listbox", { name: "Major" }).filter({ visible: true }).waitFor();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Enter");
+    await page.locator("h1").first().evaluate((el) => {
+      el.setAttribute("tabindex", "-1");
+      el.focus();
+    });
+    const stops = [];
+    for (let i = 0; i < 14; i++) {
+      await page.keyboard.press("Tab");
+      stops.push(
+        await page.evaluate(() => {
+          const el = document.activeElement;
+          const style = getComputedStyle(el);
+          const after = getComputedStyle(el, "::after");
+          const ring = style.boxShadow !== "none" || (style.outlineStyle !== "none" && style.outlineWidth !== "0px") || after.boxShadow !== "none";
+          return { name: (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 40), ring };
+        }),
+      );
+    }
+    const ours = stops.filter((stop) => !/^(Sign in|Courses|Schedule|Map|Plans|UNTangle|01|02|03|04)/.test(stop.name));
+    check("keyboard: every Courses control shows a focus ring", ours.every((stop) => stop.ring), ours.map((stop) => `${stop.name}${stop.ring ? "" : " (no ring)"}`).join(" → "));
+    await context.close();
+  } catch (error) {
+    check("keyboard pass completed", false, String(error).split("\n")[0]);
+  }
+
   const unknown = await (await browser.newPage()).goto(`${BASE}/courses/ZZZZ/9999`);
   check("unknown course code is a 404", unknown.status() === 404, String(unknown.status()));
   const legacy = await browser.newPage();

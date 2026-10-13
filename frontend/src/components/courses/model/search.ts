@@ -35,16 +35,24 @@ function courseScore(course: SearchCourse, query: string, words: string[]): numb
   return 0;
 }
 
+/**
+ * @param preferred course ids that win ties, such as the student's major core:
+ *   "1720" should list MATH 1720 before BIOL 1720 for a Computer Science student.
+ */
 export function searchCatalog(
   query: string,
   courses: readonly SearchCourse[],
   instructors: readonly SearchInstructor[],
+  preferred: ReadonlySet<string> = new Set(),
   limits = { courses: 8, instructors: 4 },
 ): SearchResults {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return { courses: [], instructors: [] };
   const scored = courses
-    .map((course) => ({ course, score: courseScore(course, query, words) }))
+    .map((course) => {
+      const score = courseScore(course, query, words);
+      return { course, score: score > 0 && preferred.has(course.id) ? score + 5 : score };
+    })
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score || a.course.id.localeCompare(b.course.id))
     .slice(0, limits.courses)

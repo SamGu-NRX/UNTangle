@@ -174,6 +174,7 @@ describe("search", () => {
     expect(searchCatalog("1030", courses, []).courses.map((c) => c.id)).toEqual(["CSCE 1030", "MATH 1030"]);
     expect(searchCatalog("data str", courses, []).courses.map((c) => c.id)).toEqual(["CSCE 3110"]);
     expect(searchCatalog("  ", courses, []).courses).toEqual([]);
+    expect(searchCatalog("1030", courses, [], new Set(["MATH 1030"])).courses.map((c) => c.id)).toEqual(["MATH 1030", "CSCE 1030"]);
   });
 
   test("instructors are indexed by name with their courses", () => {
