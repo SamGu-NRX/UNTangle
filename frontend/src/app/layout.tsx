@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Syne, DM_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { AppShell } from "@/components/shell/AppShell";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import "@/components/ui/ui.css";
+import "@/components/shell/shell.css";
 
 // Syne carries identity only (wordmark 800, course codes and figures 700),
 // so only those two weights ship.
@@ -49,7 +51,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${syne.variable} ${dmSans.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );
