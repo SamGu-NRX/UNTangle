@@ -81,6 +81,7 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
           if (!next) onClose();
         }}
         title={shownTitle}
+        detents={["52%", "92%"]}
         closeOnBack
       >
         {children}

@@ -43,7 +43,11 @@ export type BottomSheetProps = {
   onOpenChange: (open: boolean) => void;
   /** Accessible name. */
   title: string;
-  /** Heights, smallest to largest is conventional. Default: half, then nearly full. */
+  /**
+   * Heights, smallest to largest is conventional. Default: one detent at 92%,
+   * which existing callers rely on. Detail sheets pass ["52%", "92%"] to open
+   * at half height first (MOTION.md §5).
+   */
   detents?: Detent[];
   /** Index into `detents` to open at. Default 0. */
   initialDetent?: number;
@@ -110,7 +114,7 @@ export function BottomSheet({
   open,
   onOpenChange,
   title,
-  detents = ["52%", "92%"],
+  detents = ["92%"],
   initialDetent = 0,
   detent,
   onDetentChange,
@@ -442,6 +446,14 @@ export function BottomSheet({
           data-at-top={bodyAtTop ? "" : undefined}
           onScroll={(event) => setBodyAtTop(event.currentTarget.scrollTop <= 0)}
           onPointerDown={(event) => onPointerDown(event, true)}
+          onFocus={(event) => {
+            // Below the top detent the body cannot scroll, so focus that lands
+            // out of sight (Tab, a screen reader) raises the sheet to show it.
+            if (!expanded && event.target.getBoundingClientRect().bottom > window.innerHeight) {
+              keyboardMove.current = true;
+              setIndex(topIndex);
+            }
+          }}
         >
           {children}
         </div>

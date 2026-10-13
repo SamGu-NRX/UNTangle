@@ -580,6 +580,7 @@ export function ControlsSpecimen() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         title="MATH 3680 details"
+        detents={["52%", "92%"]}
         closeOnBack
         header={
           <div className="spec-sheet-head">

@@ -87,6 +87,7 @@ export function PhoneSchedulePill() {
         open={open}
         onOpenChange={setOpen}
         title={`${PLANNING_TERM.name} schedules`}
+        detents={["52%", "92%"]}
         closeOnBack
         header={
           <div className="shell-sheet-head">
