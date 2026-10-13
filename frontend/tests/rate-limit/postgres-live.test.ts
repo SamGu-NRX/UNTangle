@@ -28,13 +28,15 @@ test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, 
     const windows = await pool.query("SELECT window_index, count, expires_at FROM api_rate_limit");
     expect(windows.rows).toEqual([{ window_index: 101, count: 1, expires_at: String(102 * 60_000) }]);
 
+    expect((await pool.query("SELECT id FROM auth_rate_limit")).rows).toEqual([{ id: "live" }]);
+
     // A 10-minute row outlives the minute rows around it, and is swept once its own window ends.
+    // (After the check above: these later windows correctly sweep the "live" row too.)
     expect(await postgresStore(db).hit("authEmail", "inbox", 10, 600_000)).toBe(1);
     expect(await postgresStore(db).hit("grades", "caller", 102, 60_000)).toBe(1);
     expect((await pool.query("SELECT route FROM api_rate_limit WHERE route = 'authEmail'")).rowCount).toBe(1);
     expect(await postgresStore(db).hit("grades", "caller", 110, 60_000)).toBe(1);
     expect((await pool.query("SELECT route FROM api_rate_limit WHERE route = 'authEmail'")).rowCount).toBe(0);
-    expect((await pool.query("SELECT id FROM auth_rate_limit")).rows).toEqual([{ id: "live" }]);
   } finally {
     await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     await pool.end();
