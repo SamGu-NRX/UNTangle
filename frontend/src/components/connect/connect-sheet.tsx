@@ -1,96 +1,68 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore, type DragEvent, type RefObject } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 import { authClient } from "@/lib/auth-client";
 import { ConnectReviewRow } from "./connect-review-row";
 import { ConnectPersistence } from "./connect-persistence";
 import { usePlanner } from "@/components/planner-provider";
-import { exchange, ConnectError, errorText } from "@/lib/connect/client";
 import { parseConnectTranscript } from "@/lib/connect/import";
 import { missingApprovedRecords } from "@/lib/connect/import-confirmation";
 import { selectApprovedTranscriptRecords, type TranscriptReconcileResult } from "@/lib/transcript-import";
 import type { TranscriptAppliedStatus, TranscriptCourseRecord } from "@/lib/types";
-import type { Payload } from "@/lib/connect/protocol";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Spinner } from "@/components/ui/icons";
-import { BrowserCard, DropZone, ExtensionRow, StepDots, UploadInput } from "./connect-parts";
+import { HiddenPdfInput, StepDots } from "./connect-parts";
+import { useMyUntTrip } from "./myunt-trip";
+import { clearTripFlag, setTripFlag } from "./trip-flag";
+import { filePicker, pickPdf, type PickerHost } from "./pick-pdf";
+import type { Incoming } from "./pdf-drop";
 import styles from "./connect.module.css";
+
 type State =
-  | { phase: "permission" }
-  | { phase: "waiting"; stage: "waiting" | "reading" }
+  | { phase: "start" }
   | { phase: "parsing" }
-  | { phase: "error"; message: string; install: boolean }
+  | { phase: "error"; message: string }
   | { phase: "review"; result: TranscriptReconcileResult }
   | { phase: "saved"; records: TranscriptCourseRecord[] };
+
 const MYUNT_LINK = "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL";
-
-/**
- * Remembers, for this tab only, that the student went to myUNT to download
- * the PDF by hand. On a phone the trip to Safari can reload this page; the
- * sheet then reopens on "choose the PDF" instead of starting over. It holds
- * a flag only: no consent, no transcript data.
- */
-const MANUAL_KEY = "untangle.connect.manual";
-/** `true` when the flag is set; `null` when no choice was stored, so the device decides. */
-function readManual(): true | null {
-  try {
-    return sessionStorage.getItem(MANUAL_KEY) === "1" ? true : null;
-  } catch {
-    return null;
-  }
-}
-function writeManual(on: boolean) {
-  try {
-    if (on) sessionStorage.setItem(MANUAL_KEY, "1");
-    else sessionStorage.removeItem(MANUAL_KEY);
-  } catch {
-    // Storage denied: the sheet still works, it just will not survive a reload.
-  }
-}
-
-const COARSE = "(pointer: coarse)";
-const subscribeCoarse = (onChange: () => void) => {
-  const list = window.matchMedia(COARSE);
-  list.addEventListener("change", onChange);
-  return () => list.removeEventListener("change", onChange);
-};
-/** Touch-first devices: phone browsers can't load the desktop extension. */
-function useCoarsePointer() {
-  return useSyncExternalStore(subscribeCoarse, () => window.matchMedia(COARSE).matches, () => false);
-}
 
 type SheetProps = {
   /** Focused when a phase begins, and by the host when the sheet opens. */
   headingRef: RefObject<HTMLHeadingElement | null>;
   onClose: () => void;
+  /** Reopen as back from myUNT (the page reloaded during the trip). */
+  restoreTrip: boolean;
+  /** A PDF (or a refusal) dropped anywhere on the page, for this sheet to take. */
+  incoming: Incoming | null;
+  onIncomingTaken: (id: number) => void;
 };
 
 export function ConnectSheet(props: SheetProps) {
   const session = authClient.useSession();
-  // Remounting cancels the old identity's work and drops its consent, review rows, and approvals together.
+  // Remounting cancels the old identity's work and drops its review rows and approvals together.
   const identity = session.data?.user.id ? `user:${session.data.user.id}` : "guest";
   return <IdentityConnectSheet key={identity} identityReady={!session.isPending} {...props} />;
 }
 
-function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps & { identityReady: boolean }) {
+function IdentityConnectSheet({
+  identityReady,
+  headingRef,
+  onClose,
+  restoreTrip,
+  incoming,
+  onIncomingTaken,
+}: SheetProps & { identityReady: boolean }) {
   const { applyTranscriptRecords, hydrated, plannerState, conflict } = usePlanner();
   const router = useRouter();
-  const coarse = useCoarsePointer();
-  const [state, setState] = useState<State>({ phase: "permission" });
-  const [consent, setConsent] = useState(false);
+  const [state, setState] = useState<State>({ phase: "start" });
   const [included, setIncluded] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, TranscriptAppliedStatus>>({});
-  const [dragging, setDragging] = useState(false);
-  // Presentation only: which permission-phase view shows. "manual" is the
-  // download-it-yourself path (phones, no extension).
-  // An explicit choice (this visit or stored) wins; with none, touch-first
-  // devices start on the manual path and others on the extension.
-  const [manual, setManual] = useState<boolean | null>(readManual);
+  const { trip, openFromLink, reset: resetTrip } = useMyUntTrip(() => (restoreTrip ? { stage: "back" } : { stage: "idle" }), setTripFlag);
   const active = useRef<AbortController | null>(null);
   const run = useRef(0);
   const heading = headingRef;
-  const connectButton = useRef<HTMLButtonElement>(null);
-  const restoreConnectFocus = useRef(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const pdfButton = useRef<HTMLButtonElement>(null);
   useEffect(
     () => () => {
       active.current?.abort();
@@ -100,68 +72,43 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
   );
   // Opening focus is the host's (Dialog/BottomSheet initialFocus), so the
   // modal layer records the opener first and can return focus to it on
-  // close. From then on each step change moves focus to the new heading.
-  const firstFocus = useRef(true);
+  // close. From then on each phase change moves focus to the new heading.
+  const firstPhase = useRef(true);
   useEffect(() => {
-    if (firstFocus.current) {
-      firstFocus.current = false;
+    if (firstPhase.current) {
+      firstPhase.current = false;
       return;
     }
-    if (state.phase === "permission" && restoreConnectFocus.current) {
-      restoreConnectFocus.current = false;
-      connectButton.current?.focus();
-    } else heading.current?.focus();
+    heading.current?.focus();
   }, [state.phase, heading]);
+  // Coming back from myUNT puts focus on "Use the downloaded PDF", without
+  // pressing it: the file picker needs the student's own click.
+  const firstStage = useRef(true);
+  useEffect(() => {
+    if (firstStage.current) {
+      firstStage.current = false;
+      return;
+    }
+    if (trip.stage === "back") pdfButton.current?.focus();
+  }, [trip.stage]);
+
   function cancel() {
     active.current?.abort();
     active.current = null;
     return ++run.current;
   }
-  async function parse(input: File | Payload, id: number, signal: AbortSignal) {
+  async function parse(file: File, id: number, signal: AbortSignal) {
     setState({ phase: "parsing" });
-    const result = await parseConnectTranscript(input, signal);
+    const result = await parseConnectTranscript(file, signal);
     if (run.current !== id) return;
     setIncluded(new Set());
     setOverrides({});
     setState({ phase: "review", result });
   }
-  async function connect() {
-    const id = cancel();
-    if (!consent || !identityReady) {
-      restoreConnectFocus.current = true;
-      setState({ phase: "permission" });
-      return;
-    }
-    const controller = new AbortController();
-    active.current = controller;
-    setState({ phase: "waiting", stage: "waiting" });
-    try {
-      await exchange("hello", () => {}, controller.signal);
-      const payload = await exchange(
-        "transcript",
-        (stage) => {
-          if (run.current === id) setState({ phase: "waiting", stage });
-        },
-        controller.signal,
-      );
-      if (run.current !== id || payload === "ready") return;
-      await parse(payload, id, controller.signal);
-    } catch (error) {
-      if (run.current !== id) return;
-      setState({
-        phase: "error",
-        message:
-          error instanceof ConnectError
-            ? errorText[error.reason]
-            : error instanceof Error
-              ? error.message
-              : "Import failed. Upload your PDF below.",
-        install: error instanceof ConnectError && error.reason === "NO_EXTENSION",
-      });
-    }
-  }
   async function upload(file: File | undefined) {
     if (!file || !identityReady) return;
+    // The file is here: the trip to myUNT is over.
+    clearTripFlag();
     const id = cancel();
     const controller = new AbortController();
     active.current = controller;
@@ -172,7 +119,6 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
         setState({
           phase: "error",
           message: error instanceof Error ? error.message : "This PDF couldn't be read. Try another file.",
-          install: false,
         });
     }
   }
@@ -190,38 +136,42 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
     applyTranscriptRecords(missingRecords);
     heading.current?.focus();
   }
-
-  // ---------- presentation ----------
-
-  function backToPermission() {
+  function startOver() {
     cancel();
-    restoreConnectFocus.current = true;
-    setState({ phase: "permission" });
+    setState({ phase: "start" });
   }
-  function goManual(on: boolean) {
-    writeManual(on);
-    setManual(on);
-  }
-  // A drop anywhere on the sheet counts, while a PDF is expected.
-  const acceptsDrop = state.phase === "permission" || state.phase === "waiting" || state.phase === "error";
-  const dropHandlers = acceptsDrop
-    ? {
-        onDragOver: (e: DragEvent) => {
-          e.preventDefault();
-          setDragging(true);
-        },
-        onDragLeave: () => setDragging(false),
-        onDrop: (e: DragEvent) => {
-          e.preventDefault();
-          setDragging(false);
-          void upload(e.dataTransfer.files[0]);
-        },
-      }
-    : {};
 
-  const reading = state.phase === "parsing" || (state.phase === "waiting" && state.stage === "reading");
-  const showManual =
-    (state.phase === "permission" && (manual ?? coarse)) || (state.phase === "error" && state.install);
+  /**
+   * Opens the picker in Downloads where the browser has one; elsewhere the
+   * hidden file input, clicked in this same gesture. A cancelled picker
+   * changes nothing.
+   */
+  function choosePdf() {
+    // TypeScript's DOM types lack the File System Access API; pick-pdf.ts types the one call.
+    const show = filePicker(window as unknown as PickerHost);
+    if (!show) {
+      fileInput.current?.click();
+      return;
+    }
+    void pickPdf(show).then((picked) => {
+      if (picked.kind === "file") void upload(picked.file);
+      else if (picked.kind === "fallback") fileInput.current?.click();
+    });
+  }
+
+  const takeIncoming = useEffectEvent((item: Incoming) => {
+    onIncomingTaken(item.id);
+    if (item.kind === "file") {
+      void upload(item.file);
+      return;
+    }
+    cancel();
+    setState({ phase: "error", message: item.message });
+  });
+  useEffect(() => {
+    if (incoming && identityReady) takeIncoming(incoming);
+  }, [incoming, identityReady]);
+
   const title =
     state.phase === "review"
       ? "Review your courses"
@@ -229,32 +179,47 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
         ? missingRecords.length
           ? "Review your import"
           : "Your courses are ready"
-        : reading
+        : state.phase === "parsing"
           ? "Reading your transcript"
-          : state.phase === "error" && !state.install
+          : state.phase === "error"
             ? "That file didn't import"
-            : "Connect myUNT";
-  const dots =
-    state.phase === "review" ? 2 : state.phase === "saved" ? 3 : reading ? 1 : 0;
-  const uploadInstead = (
-    <label className={styles.uploadLink}>
-      <UploadInput disabled={!identityReady} onFile={(file) => void upload(file)} />
-      Upload a PDF instead
-    </label>
+            : "Import from myUNT";
+  const dots = state.phase === "review" ? 2 : state.phase === "saved" ? 3 : state.phase === "start" ? 0 : 1;
+  const openMyUnt = (label: string, primary: boolean) => (
+    <a
+      className={`ui-btn ${primary ? "ui-btn--primary" : "ui-btn--ghost"}`}
+      href={MYUNT_LINK}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={openFromLink}
+      data-ui=""
+    >
+      {label} <span aria-hidden="true" className={styles.trail}>↗</span>
+      <span className="sr-only-v2"> (opens a new window)</span>
+    </a>
   );
+  const downloadedPdfButton = (primary: boolean) => (
+    <button
+      ref={pdfButton}
+      type="button"
+      className={`ui-btn ${primary ? "ui-btn--primary" : "ui-btn--ghost"}`}
+      disabled={!identityReady}
+      onClick={choosePdf}
+      data-ui=""
+    >
+      Use the downloaded PDF
+    </button>
+  );
+  const acceptsFile = state.phase === "start" || state.phase === "error";
 
   return (
-    <section className={styles.sheet} aria-labelledby="connect-title" data-phase={state.phase} {...dropHandlers}>
+    <section className={styles.sheet} aria-labelledby="connect-title" data-phase={state.phase}>
       <StepDots current={dots} />
-      {state.phase === "permission" && !showManual ? (
-        <span className={styles.seal} aria-hidden="true">
-          U
-        </span>
-      ) : state.phase === "saved" && !missingRecords.length ? (
+      {state.phase === "saved" && !missingRecords.length ? (
         <span className={styles.seal} data-tone="ok" aria-hidden="true">
           ✓
         </span>
-      ) : state.phase === "error" && !state.install ? (
+      ) : state.phase === "error" ? (
         <span className={styles.seal} data-tone="error" aria-hidden="true">
           !
         </span>
@@ -262,15 +227,19 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
       <h2 id="connect-title" ref={heading} tabIndex={-1} className={styles.title}>
         {title}
       </h2>
+      {acceptsFile ? <HiddenPdfInput ref={fileInput} onFile={(file) => void upload(file)} /> : null}
 
-      {state.phase === "permission" && !showManual && (
+      {state.phase === "start" && trip.stage === "idle" && (
         <>
-          <p className={styles.lead}>UNTangle will import your unofficial transcript. It reads only that page, in your browser.</p>
+          <p className={styles.lead}>
+            Open your unofficial transcript in myUNT and download it as a PDF. Then choose it here, or drop it anywhere
+            on this page.
+          </p>
           <ul className={styles.access}>
             <li>
               <AccessGlyph kind="reads" />
               <span>
-                <strong>Reads</strong> course codes, terms and grades
+                <strong>Reads</strong> course codes, terms and grades from the PDF
               </span>
             </li>
             <li>
@@ -286,113 +255,66 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
               </span>
             </li>
           </ul>
-          <p className={styles.quiet}>You sign in to myUNT yourself. Your password and Duo stay with UNT.</p>
-          <Checkbox
-            className={styles.consent}
-            disabled={!identityReady}
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            label="I allow UNTangle to read my unofficial transcript."
-          />
+          <p className={styles.quiet}>The PDF is read in this browser. It isn&apos;t uploaded.</p>
           <div className={styles.foot}>
-            <button
-              ref={connectButton}
-              type="button"
-              className="ui-btn ui-btn--primary"
-              disabled={!consent || !identityReady}
-              onClick={() => void connect()}
-              data-ui=""
-            >
-              Connect myUNT <span aria-hidden="true" className={styles.trail}>→</span>
-            </button>
+            {openMyUnt("Open myUNT", true)}
             <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} data-ui="">
               Not now
             </button>
           </div>
-          <div className={styles.fallback}>
-            {uploadInstead}
-            <span aria-hidden="true">·</span>
-            <button type="button" className={styles.linkButton} onClick={() => goManual(true)}>
-              No extension? Download the PDF yourself
-            </button>
-          </div>
+          <button type="button" className={styles.linkButton} disabled={!identityReady} onClick={choosePdf}>
+            Already downloaded it? Choose the PDF
+          </button>
         </>
       )}
 
-      {showManual && (
+      {state.phase === "start" && trip.stage === "away" && (
         <>
-          {state.phase === "error" ? (
-            <p className={styles.alert} role="alert">
-              {state.message}
-            </p>
-          ) : (
-            <p className={styles.lead}>
-              In myUNT: Academic Records › Unofficial Transcript › View as PDF. Then bring the PDF back here.
-            </p>
-          )}
-          <BrowserCard href={MYUNT_LINK} onOpen={() => goManual(true)} />
-          <DropZone dragging={dragging} disabled={!identityReady} onFile={(file) => void upload(file)} />
-          <p className={styles.quiet}>The PDF is read in this browser. It isn&apos;t uploaded or stored.</p>
-          <div className={styles.foot}>
-            {state.phase === "error" ? (
-              <button type="button" className="ui-btn ui-btn--ghost" onClick={() => void connect()} data-ui="">
-                Try Connect again
-              </button>
-            ) : coarse ? (
-              <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} data-ui="">
-                Not now
-              </button>
-            ) : (
-              <button type="button" className="ui-btn ui-btn--ghost" onClick={() => goManual(false)} data-ui="">
-                Back
-              </button>
-            )}
-          </div>
-          {coarse && state.phase === "permission" ? (
-            // A touch-first device can still run desktop Chrome with the
-            // extension (a touch-only tablet): leave it a way to Connect.
-            <button type="button" className={`${styles.linkButton} ${styles.linkQuiet}`} onClick={() => goManual(false)}>
-              Have the UNTangle extension? Connect instead
-            </button>
-          ) : null}
-          {!coarse && <InstallHelp open={state.phase === "error"} />}
-        </>
-      )}
-
-      {state.phase === "waiting" && state.stage === "waiting" && (
-        <>
-          <ExtensionRow />
-          <p role="status" className={styles.lead}>
-            Waiting for your approval…
+          <p className={styles.lead} role="status">
+            Download your transcript as a PDF, then come back.
           </p>
-          <BrowserCard href={MYUNT_LINK}>
-            <p>Academic Records › View Unofficial Transcript › Submit › View Report.</p>
-          </BrowserCard>
-          <p className={styles.detail}>
-            Then open the UNTangle extension, check the requesting origin and press Send to UNTangle. Leave this tab
-            open; Connect waits up to 90 seconds.
+          <p className={styles.quiet}>In myUNT: Academic Records › Unofficial Transcript › View as PDF.</p>
+          <div className={styles.foot}>
+            {downloadedPdfButton(false)}
+            {openMyUnt("Open myUNT again", false)}
+          </div>
+        </>
+      )}
+
+      {state.phase === "start" && trip.stage === "back" && (
+        <>
+          <p className={styles.lead} role="status">
+            Choose the transcript PDF you just downloaded.
           </p>
           <div className={styles.foot}>
-            <button type="button" className="ui-btn ui-btn--ghost" onClick={backToPermission} data-ui="">
-              Cancel connection
-            </button>
+            {downloadedPdfButton(true)}
+            {openMyUnt("Open myUNT again", false)}
           </div>
-          <div className={styles.fallback}>{uploadInstead}</div>
+          <button
+            type="button"
+            className={styles.linkButton}
+            onClick={() => {
+              clearTripFlag();
+              resetTrip();
+            }}
+          >
+            Start over
+          </button>
         </>
       )}
 
-      {reading && (
+      {state.phase === "parsing" && (
         <>
           <p role="status" className={styles.lead}>
-            {state.phase === "waiting" ? "Reading your report…" : "Reading courses in your browser…"}
+            Reading courses in your browser…
           </p>
           <ol className={styles.progress}>
-            <li data-state={state.phase === "parsing" ? "done" : "active"}>
-              <ProgressIcon state={state.phase === "parsing" ? "done" : "active"} />
+            <li data-state="done">
+              <ProgressIcon state="done" />
               Get the PDF
             </li>
-            <li data-state={state.phase === "parsing" ? "active" : "pending"}>
-              <ProgressIcon state={state.phase === "parsing" ? "active" : "pending"} />
+            <li data-state="active">
+              <ProgressIcon state="active" />
               Read it and remove labeled identity fields
             </li>
             <li data-state="pending">
@@ -402,27 +324,30 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
           </ol>
           <p className={styles.quiet}>This happens in your browser. The PDF is not uploaded.</p>
           <div className={styles.foot}>
-            <button type="button" className="ui-btn ui-btn--ghost" onClick={backToPermission} data-ui="">
-              {state.phase === "parsing" ? "Cancel import" : "Cancel connection"}
+            <button type="button" className="ui-btn ui-btn--ghost" onClick={startOver} data-ui="">
+              Cancel import
             </button>
           </div>
         </>
       )}
 
-      {state.phase === "error" && !state.install && (
+      {state.phase === "error" && (
         <>
           <p className={styles.alert} role="alert">
             {state.message}
           </p>
           <p className={styles.detail}>Your plan is unchanged.</p>
           <div className={styles.foot}>
-            <label className="ui-btn ui-btn--primary" data-ui="">
-              <UploadInput disabled={!identityReady} onFile={(file) => void upload(file)} />
+            <button
+              type="button"
+              className="ui-btn ui-btn--primary"
+              disabled={!identityReady}
+              onClick={choosePdf}
+              data-ui=""
+            >
               Choose another file
-            </label>
-            <button type="button" className="ui-btn ui-btn--ghost" onClick={() => void connect()} data-ui="">
-              Try Connect again
             </button>
+            {openMyUnt("Open myUNT again", false)}
           </div>
         </>
       )}
@@ -475,7 +400,7 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
             >
               Save {selected.length || "selected"} {selected.length === 1 ? "course" : "courses"}
             </button>
-            <button type="button" className="ui-btn ui-btn--ghost" onClick={backToPermission} data-ui="">
+            <button type="button" className="ui-btn ui-btn--ghost" onClick={startOver} data-ui="">
               Start over
             </button>
           </div>
@@ -491,15 +416,7 @@ function IdentityConnectSheet({ identityReady, headingRef, onClose }: SheetProps
             onReapply={reapply}
           />
           <div className={styles.foot}>
-            <button
-              type="button"
-              className="ui-btn ui-btn--primary"
-              onClick={() => {
-                writeManual(false);
-                router.push("/courses");
-              }}
-              data-ui=""
-            >
+            <button type="button" className="ui-btn ui-btn--primary" onClick={() => router.push("/courses")} data-ui="">
               Go to courses
             </button>
             <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose} data-ui="">
@@ -532,26 +449,4 @@ function AccessGlyph({ kind }: { kind: "reads" | "removes" | "keeps" }) {
 function ProgressIcon({ state }: { state: "done" | "active" | "pending" }) {
   if (state === "active") return <Spinner size={16} className={styles.progressSpin} />;
   return <span className={styles.progressIcon} data-state={state} aria-hidden="true" />;
-}
-
-/** How to load the development extension; collapsed unless Connect just failed to find it. */
-function InstallHelp({ open }: { open: boolean }) {
-  return (
-    <details className={styles.install} open={open}>
-      <summary>Use the desktop extension to skip this step</summary>
-      <ol>
-        <li>
-          Build the extension with <code>bun run build:dev</code> in <code>extension</code>.
-        </li>
-        <li>
-          Open <code>chrome://extensions</code> in desktop Chromium and turn on Developer mode.
-        </li>
-        <li>
-          Choose Load unpacked and select <code>extension/dist-dev</code>.
-        </li>
-        <li>Reload this page, then try Connect again.</li>
-      </ol>
-      <p>Phone browsers can&apos;t load this extension. Upload works on your phone.</p>
-    </details>
-  );
 }

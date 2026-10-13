@@ -6,7 +6,7 @@
  */
 export const OPEN_CONNECT_EVENT = "untangle:open-connect";
 
-/** The route the sheet lives at. The extension only answers on this path. */
+/** The route the sheet lives at: open while the URL is here, so a reload keeps it open. */
 export const CONNECT_PATH = "/connect";
 
 /**

@@ -12,15 +12,15 @@ import { hasStartedPlan } from "./home-entry";
 const OPTIONS = [
   {
     id: "connect",
-    title: "Connect to UNT",
-    meta: "Bring in your unofficial transcript from myUNT.",
+    title: "Import from myUNT",
+    meta: "Download your unofficial transcript and bring the PDF back here.",
     href: null,
     primary: true,
   },
   {
     id: "upload",
     title: "Upload a transcript PDF",
-    meta: "Already downloaded it? Drop it in.",
+    meta: "Already downloaded it? Choose it, or drop it anywhere on the page.",
     href: null,
     primary: false,
   },

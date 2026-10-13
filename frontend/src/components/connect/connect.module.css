@@ -118,7 +118,7 @@
   font-size: var(--text-md);
 }
 
-/* ---------- request: access list, consent ---------- */
+/* ---------- start: access list ---------- */
 
 .access {
   display: grid;
@@ -142,11 +142,8 @@
   flex: none;
   color: var(--brand);
 }
-.consent {
-  margin-top: 2px;
-}
 
-/* ---------- footer, fallback links ---------- */
+/* ---------- footer, links ---------- */
 
 .foot {
   display: flex;
@@ -159,15 +156,6 @@
 .foot:has(> :only-child) {
   justify-content: flex-start;
 }
-.fallback {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-.uploadLink,
 .linkButton {
   position: relative;
   padding: 0;
@@ -178,19 +166,24 @@
   cursor: pointer;
   text-underline-offset: 3px;
 }
-.uploadLink:hover,
-.linkButton:hover {
+.linkButton {
+  justify-self: start;
+  width: fit-content;
+}
+.linkButton:hover:not(:disabled) {
   text-decoration: underline;
 }
-.uploadLink:focus-within,
+.linkButton:disabled {
+  color: var(--ink-4);
+  cursor: default;
+}
 .linkButton:focus-visible {
   border-radius: 4px;
   outline: 2px solid transparent;
   box-shadow: var(--focus);
 }
 
-/* The file input stays in the accessibility tree and takes focus; its
-   label is what people see and click. */
+/* The fallback file input: clicked by "Use the downloaded PDF", never seen. */
 .fileInput {
   position: absolute;
   width: 1px;
@@ -202,168 +195,9 @@
   border: 0;
   white-space: nowrap;
 }
-label:has(> .fileInput:focus-visible) {
-  outline: 2px solid transparent;
-  box-shadow: var(--focus);
-}
 
-/* ---------- browser card ---------- */
+/* ---------- progress ---------- */
 
-.browser {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface);
-}
-.browserChrome {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 36px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
-}
-.browserDots {
-  display: inline-flex;
-  gap: 5px;
-}
-.browserDots i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--line-strong);
-}
-.browserUrl {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  font-size: 12px;
-  color: var(--ink-2);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.browserUrl b {
-  font-weight: 600;
-  color: var(--ink);
-}
-.browserBody {
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  padding: 18px 16px;
-  text-align: center;
-}
-.browserBody p {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--ink-2);
-}
-.untMark {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--brand);
-  color: #fff;
-  font: 800 13px/1 var(--font-display);
-  letter-spacing: 0.04em;
-}
-
-/* ---------- drop zone ---------- */
-
-.drop {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 96px;
-  padding: 16px;
-  border: 1.5px dashed var(--line-strong);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  color: var(--ink-2);
-  font-size: var(--text-md);
-  text-align: center;
-  cursor: pointer;
-  transition:
-    border-color var(--t-hover) ease,
-    background-color var(--t-hover) ease;
-}
-.drop[data-tall] {
-  min-height: 160px;
-}
-.drop[data-dragging] {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-}
-.drop u {
-  color: var(--brand);
-  font-weight: 600;
-  text-underline-offset: 3px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .drop:hover {
-    border-color: var(--ink-4);
-    background: var(--bg);
-  }
-}
-.dropCoarse {
-  display: none;
-}
-@media (pointer: coarse) {
-  .drop {
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    background: none;
-  }
-  .drop > svg,
-  .dropFine {
-    display: none;
-  }
-  .dropCoarse {
-    display: grid;
-    width: 100%;
-    gap: 6px;
-    justify-items: stretch;
-  }
-  .dropCoarse > :first-child {
-    width: 100%;
-    height: 48px;
-  }
-  .dropCoarse small {
-    font-size: var(--text-sm);
-    color: var(--ink-2);
-  }
-}
-
-/* ---------- extension row, progress ---------- */
-
-.extension {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  margin: 0;
-  padding: 0 12px;
-  border-radius: 8px;
-  background: var(--accent-soft);
-  font-size: var(--text-sm);
-  color: var(--ink);
-}
-.liveDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-}
 .progress {
   display: grid;
   margin: 0;
@@ -493,48 +327,55 @@ label:has(> .fileInput:focus-visible) {
   width: 180px;
 }
 
-/* ---------- done, install help ---------- */
-
-.done {
-  display: grid;
-  gap: 10px;
-}
-.install {
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--ink-2);
-}
-.install summary {
-  width: fit-content;
-  color: var(--brand);
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.install ol {
-  margin: 8px 0;
-  padding-left: 18px;
-}
-.install code {
-  padding: 0 4px;
-  border-radius: 4px;
-  background: var(--surface-2);
-  font-size: 12px;
-}
-.install p {
-  margin: 0;
-}
-
-/* The trailing arrow on "Connect myUNT" and "Open myUNT": flex trims the
-   space before it, so the gap is set here. */
+/* The trailing arrow on "Open myUNT": flex trims the space before it, so
+   the gap is set here. */
 .trail {
   margin-left: 4px;
 }
 
-/* A rare path (the extension on a touch-first device): present, not loud. */
-.linkQuiet {
-  justify-self: center;
+/* ---------- page-wide drop target ---------- */
+
+/* Covers the window while a file is dragged over it. Visual only: the drop
+   itself is handled on the window (pdf-drop.tsx), so this ignores the
+   pointer and sits above every layer, the Connect dialog included. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  pointer-events: none;
+}
+.dropCard {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: min(560px, 100%);
+  padding: 40px 24px;
+  border: 2px dashed var(--brand);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  color: var(--brand);
+  text-align: center;
+}
+.dropCard strong {
+  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
+  color: var(--ink);
+}
+.dropCard span {
+  font-size: var(--text-sm);
   color: var(--ink-2);
-  font-weight: 500;
-  font-size: 13px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dropOverlay {
+    animation: dropIn 120ms ease-out;
+  }
+}
+@keyframes dropIn {
+  from {
+    opacity: 0;
+  }
 }

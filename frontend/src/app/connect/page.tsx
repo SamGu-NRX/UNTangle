@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Connect myUNT" };
+export const metadata: Metadata = { title: "Import from myUNT" };
 
 /**
  * /connect draws no page of its own: the app shell's ConnectHost opens the
