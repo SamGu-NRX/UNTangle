@@ -9,7 +9,17 @@
  * estimate.
  */
 
-import type { OptConstraints, OptCourse, OptDay, OptimizeRequest, OptSection, OptWalkingTimeFn, OptWeights } from "@/lib/optimizer/types";
+import type {
+  OptConstraints,
+  OptCourse,
+  OptDateRange,
+  OptDay,
+  OptimizeRequest,
+  OptMeeting,
+  OptSection,
+  OptWalkingTimeFn,
+  OptWeights,
+} from "@/lib/optimizer/types";
 
 export type Rng = () => number;
 
@@ -101,7 +111,26 @@ export type InstanceShape = {
   /** Probability that each constraint kind is switched on. */
   constraintDensity: number;
   walking?: "metric" | "non-metric";
+  /**
+   * Spring 2027 date ranges and weekend meetings, as in real UNT sections:
+   * sections run the full term (with or without dates), the first eight
+   * weeks or the second, and some meet on Saturday (rarely Sunday). Off
+   * by default; the extra random draws happen only when it is on, so every
+   * other instance is unchanged.
+   */
+  terms?: boolean;
 };
+
+export const FULL_TERM = { start: "2027-01-11", end: "2027-05-07" } as const;
+export const FIRST_HALF = { start: "2027-01-11", end: "2027-03-05" } as const;
+export const SECOND_HALF = { start: "2027-03-15", end: "2027-05-07" } as const;
+
+function termDates(rng: Rng): OptDateRange | null {
+  const roll = rng();
+  if (roll < 0.25) return null;
+  if (roll < 0.4) return FULL_TERM;
+  return roll < 0.7 ? FIRST_HALF : SECOND_HALF;
+}
 
 export function generateInstance(seed: number, shape: InstanceShape): OptimizeRequest {
   const rng = mulberry32(seed);
@@ -119,12 +148,18 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
       const previous = sections[sections.length - 1];
       if (previous && chance(rng, 0.08)) {
         // A twin: same meetings and rooms, another instructor.
-        sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings: previous.meetings.map((m) => ({ ...m })) });
+        const meetings = previous.meetings.map((m) => ({ ...m }));
+        if (shape.terms && chance(rng, 0.6)) {
+          // Same slot and room in other weeks, such as SPAN 2040 then 2050.
+          const dates = termDates(rng);
+          for (const meeting of meetings) meeting.dates = dates;
+        }
+        sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings });
         continue;
       }
       const pattern = shape.style === "realistic" ? realisticPattern(rng) : irregularPattern(rng);
       const room = building();
-      const meetings = pattern.map((slot) => ({ ...slot, buildingId: room as string | null }));
+      const meetings: OptMeeting[] = pattern.map((slot) => ({ ...slot, buildingId: room as string | null }));
       if (chance(rng, 0.05)) {
         // A short recitation on another day: breaks shorter than a normal
         // class can then still hold one, which the search must not assume away.
@@ -141,6 +176,18 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
         meetings.push({ day: first.day, start: first.start + 20, end: first.end + 20, buildingId: room });
       }
       if (chance(rng, 0.03)) meetings[0].buildingId = null;
+      if (shape.terms) {
+        const weekend = rng();
+        if (weekend < 0.12) {
+          const start = 480 + 30 * int(rng, 0, 12);
+          meetings.push({ day: weekend < 0.03 ? "Sun" : "Sat", start, end: start + pick(rng, [50, 80, 110, 170]), buildingId: building() });
+        }
+        const dates = termDates(rng);
+        meetings.forEach((meeting, index) => {
+          // Now and then a meeting runs in other weeks than the rest of its section.
+          meeting.dates = index > 0 && chance(rng, 0.1) ? termDates(rng) : dates;
+        });
+      }
       sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings });
     }
     courses.push({ code, credits: pick(rng, [3, 3, 3, 4, 4, 1]), sections });
@@ -151,7 +198,7 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
   const constraints: OptConstraints = {
     earliestStart: on() ? pick(rng, [480, 510, 540, 570, 600]) : null,
     latestEnd: on() ? pick(rng, [900, 950, 1000, 1020, 1080]) : null,
-    daysOff: on() ? [pick(rng, ["Mon", "Tue", "Wed", "Thu", "Fri"] as const)] : [],
+    daysOff: on() ? [pick(rng, shape.terms ? (["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const) : (["Mon", "Tue", "Wed", "Thu", "Fri"] as const))] : [],
     blocked: on()
       ? Array.from({ length: int(rng, 1, 2) }, (_, i) => {
           // Aligned to class boundaries, so touching-but-not-overlapping cases occur.

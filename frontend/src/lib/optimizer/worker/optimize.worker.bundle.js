@@ -1,7 +1,7 @@
 // Generated from optimize.worker.ts by `bun tests/optimizer/build-worker.ts --write`. Do not edit.
 /* eslint-disable */
 // src/lib/optimizer/types.ts
-var OPT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+var OPT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 var MAX_WEIGHT = 4;
 
 class OptimizerInputError extends Error {
@@ -9,6 +9,92 @@ class OptimizerInputError extends Error {
     super(`optimizer: ${message}`);
     this.name = "OptimizerInputError";
   }
+}
+
+// src/lib/optimizer/weeks.ts
+var DAY_MS = 86400000;
+function dayNumber(iso) {
+  if (typeof iso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(iso))
+    return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  const ms = Date.UTC(year, month - 1, day);
+  const date = new Date(ms);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day)
+    return null;
+  return ms / DAY_MS;
+}
+var MAX_WEEK_SEGMENTS = 32;
+var rangeKey = (dates) => `${dates.start}/${dates.end}`;
+function weekSegments(allDates) {
+  const ranges = new Map;
+  let undated = false;
+  for (const dates of allDates) {
+    if (!dates) {
+      undated = true;
+      continue;
+    }
+    const key = rangeKey(dates);
+    if (!ranges.has(key))
+      ranges.set(key, [dayNumber(dates.start), dayNumber(dates.end)]);
+  }
+  if (ranges.size === 0)
+    return { count: 1, maskOf: () => 1 };
+  const keys = [...ranges.keys()];
+  const bounds = keys.map((key) => ranges.get(key));
+  const cuts = [...new Set(bounds.flatMap(([start, end]) => [start, end + 1]))].sort((a, b) => a - b);
+  const probes = [cuts[0] - 1, ...cuts];
+  const bitOfPattern = new Map;
+  const masks = new Array(keys.length).fill(0);
+  for (const day of probes) {
+    const active = [];
+    bounds.forEach(([start, end], index) => {
+      if (start <= day && day <= end)
+        active.push(index);
+    });
+    if (active.length === 0 && !undated)
+      continue;
+    const pattern = active.join(",");
+    let bit = bitOfPattern.get(pattern);
+    if (bit === undefined) {
+      bit = bitOfPattern.size;
+      bitOfPattern.set(pattern, bit);
+    }
+    if (bit < MAX_WEEK_SEGMENTS)
+      for (const index of active)
+        masks[index] |= 1 << bit;
+  }
+  const count = bitOfPattern.size;
+  if (count > MAX_WEEK_SEGMENTS) {
+    throw new OptimizerInputError(`meeting dates split the term into ${count} distinct stretches of weeks (${ranges.size} distinct date ranges); at most ${MAX_WEEK_SEGMENTS} are supported`);
+  }
+  const all = count === 32 ? -1 : (1 << count) - 1;
+  const maskByKey = new Map(keys.map((key, index) => [key, masks[index]]));
+  return {
+    count,
+    maskOf: (dates) => {
+      if (!dates)
+        return all;
+      const mask = maskByKey.get(rangeKey(dates));
+      if (mask === undefined)
+        throw new Error(`optimizer: no week segments for dates ${rangeKey(dates)}`);
+      return mask;
+    }
+  };
+}
+function someBackToBack(sorted, test) {
+  for (let i = 0;i + 1 < sorted.length; i += 1) {
+    const prev = sorted[i];
+    let between = 0;
+    for (let j = i + 1;j < sorted.length && sorted[j].day === prev.day; j += 1) {
+      const next = sorted[j];
+      if ((prev.weeks & next.weeks & ~between) !== 0 && test(prev, next))
+        return true;
+      between |= next.weeks;
+      if ((prev.weeks & ~between) === 0)
+        break;
+    }
+  }
+  return false;
 }
 
 // src/lib/optimizer/score.ts
@@ -61,11 +147,12 @@ function transferFits(prev, next, walk, bufferMinutes) {
   return (next.start - prev.end) * 60 >= needed;
 }
 function meetingsByDay(sections) {
+  const segments = weekSegments(sections.flatMap((section) => section.meetings.map((m) => m.dates)));
   const byDay = new Map;
   for (const section of sections) {
     for (const meeting of section.meetings) {
       const list = byDay.get(meeting.day) ?? [];
-      list.push({ ...meeting, sectionId: section.id });
+      list.push({ ...meeting, sectionId: section.id, weeks: segments.maskOf(meeting.dates) });
       byDay.set(meeting.day, list);
     }
   }
@@ -84,16 +171,17 @@ function scoreSchedule(input) {
     const list = byDay.get(day);
     if (!list)
       continue;
-    for (let i = 1;i < list.length; i += 1) {
-      gapMinutes += Math.max(0, list[i].start - list[i - 1].end);
-      if (sameBuilding(list[i - 1].buildingId, list[i].buildingId))
-        continue;
-      const walk = walkSeconds(walkingTime, list[i - 1].buildingId, list[i].buildingId);
+    someBackToBack(list, (prev, next) => {
+      gapMinutes += Math.max(0, next.start - prev.end);
+      if (sameBuilding(prev.buildingId, next.buildingId))
+        return false;
+      const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null)
         unknownWalks += 1;
       else
         knownWalk += walk;
-    }
+      return false;
+    });
   }
   const meetings = sections.flatMap((section) => section.meetings);
   const ratings = sections.map((section) => ratingTenths(section.rating)).filter((value) => value !== null);
@@ -145,9 +233,20 @@ function validateRequest(request) {
         if (!isInteger(meeting.start, 0, 24 * 60) || !isInteger(meeting.end, 0, 24 * 60) || meeting.end <= meeting.start) {
           throw new OptimizerInputError(`section ${section.id} has a meeting with invalid times ${meeting.start}-${meeting.end}`);
         }
+        const dates = meeting.dates;
+        if (dates === undefined || dates === null)
+          continue;
+        const start = dayNumber(dates.start);
+        const end = dayNumber(dates.end);
+        if (start === null || end === null) {
+          throw new OptimizerInputError(`section ${section.id} has a meeting with invalid dates ${JSON.stringify(dates)}; expected real YYYY-MM-DD dates`);
+        }
+        if (start > end)
+          throw new OptimizerInputError(`section ${section.id} has a meeting whose dates end before they start: ${dates.start} to ${dates.end}`);
       }
     }
   }
+  weekSegments(request.courses.flatMap((course) => course.sections.flatMap((section) => section.meetings.map((m) => m.dates))));
   for (const [courseCode, sectionId] of Object.entries(request.locks)) {
     if (!codes.has(courseCode))
       throw new OptimizerInputError(`lock on ${courseCode}, which is not a requested course`);
@@ -199,7 +298,7 @@ function validateRequest(request) {
     throw new OptimizerInputError(`k must be an integer 1..20, got ${k}`);
 }
 function overlaps(a, b) {
-  return a.day === b.day && a.start < b.end && b.start < a.end;
+  return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;
 }
 function passesTimeConstraints(section, constraints) {
   const off = new Set(constraints.daysOff);
@@ -217,11 +316,12 @@ function passesTimeConstraints(section, constraints) {
   }
   return true;
 }
+var datesKey = (m) => m.dates ? `${m.dates.start}/${m.dates.end}` : "";
 function timeSignatureOf(meetings) {
-  return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}`).sort().join(",");
+  return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}`).sort().join(",");
 }
 function fullSignatureOf(meetings) {
-  return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}@${m.buildingId ?? ""}`).sort().join(",");
+  return meetings.map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${m.buildingId ?? ""}`).sort().join(",");
 }
 function allowedSections(course, request) {
   const excluded = new Set(request.excluded);
@@ -269,6 +369,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     return index;
   };
   const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)));
+  const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings.map((m) => m.dates))));
   let globalMinDuration = Number.POSITIVE_INFINITY;
   for (const list of allowedByCourse) {
     for (const section of list) {
@@ -313,7 +414,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     const allowed = allowedByCourse[courseIndex];
     const kept = [];
     for (const section of allowed) {
-      const meetings = section.meetings.map((m) => ({ day: DAY_INDEX.get(m.day), start: m.start, end: m.end, building: intern(m.buildingId) })).sort((a, b) => a.day - b.day || a.start - b.start);
+      const meetings = section.meetings.map((m) => ({ day: DAY_INDEX.get(m.day), start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m.dates) })).sort((a, b) => a.day - b.day || a.start - b.start);
       let selfBroken = false;
       for (let i = 0;i < meetings.length && !selfBroken; i += 1) {
         for (let j = i + 1;j < meetings.length; j += 1) {
@@ -322,11 +423,8 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
             break;
           }
         }
-        const next = meetings[i + 1];
-        if (next && next.day === meetings[i].day && tightPair(meetings[i], next))
-          selfBroken = true;
       }
-      if (selfBroken)
+      if (selfBroken || someBackToBack(meetings, tightPair))
         continue;
       const signature = timeSignatureOf(section.meetings);
       let signatureId = signatureIds.get(signature);
@@ -464,6 +562,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     walk,
     buildingCount,
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
+    weekSegments: segments.count,
     weights,
     totalCredits: sortedCourses.reduce((sum, course) => sum + course.credits, 0),
     maxCredits: constraints.maxCredits,
@@ -482,18 +581,10 @@ function incompatible(a, b, tightPair) {
   if ((a.dayMask & b.dayMask) === 0)
     return false;
   const merged = [
-    ...a.meetings.map((meeting) => ({ meeting, from: 0 })),
-    ...b.meetings.map((meeting) => ({ meeting, from: 1 }))
-  ].sort((x, y) => x.meeting.day - y.meeting.day || x.meeting.start - y.meeting.start);
-  for (let i = 1;i < merged.length; i += 1) {
-    const prev = merged[i - 1];
-    const next = merged[i];
-    if (prev.meeting.day !== next.meeting.day || prev.from === next.from)
-      continue;
-    if (tightPair(prev.meeting, next.meeting))
-      return true;
-  }
-  return false;
+    ...a.meetings.map((meeting) => ({ ...meeting, from: 0 })),
+    ...b.meetings.map((meeting) => ({ ...meeting, from: 1 }))
+  ].sort((x, y) => x.day - y.day || x.start - y.start);
+  return someBackToBack(merged, (prev, next) => prev.from !== next.from && tightPair(prev, next));
 }
 function dropTwins(candidates, walkingMatters) {
   const best = new Map;
@@ -508,6 +599,8 @@ function dropTwins(candidates, walkingMatters) {
 }
 
 // src/lib/optimizer/search.ts
+var DAY_COUNT = OPT_DAYS.length;
+
 class BudgetExhausted {
 }
 
@@ -545,7 +638,11 @@ function search(prepared, budget, options) {
   for (const candidate of prepared.candidates)
     aliveStack[0][candidate.bit >>> 5] |= 1 << (candidate.bit & 31);
   const scratch = new Uint32Array(words);
-  const dayLists = [[], [], [], [], []];
+  const dayLists = Array.from({ length: DAY_COUNT }, () => []);
+  let anyCandidateDays = 0;
+  for (const candidate of prepared.candidates)
+    anyCandidateDays |= candidate.dayMask;
+  const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
   let assignedCount = 0;
@@ -564,43 +661,55 @@ function search(prepared, budget, options) {
   const floorStride = buildingCount + 1;
   const timeCount = times.length;
   const pairsMatter = weights.compact > 0 || weights.walking > 0 || bufferSeconds !== null;
+  const oneSegment = prepared.weekSegments === 1;
   function dayCost(day, remaining, remainingCount) {
     const list = dayLists[day];
     let gap = 0;
     let walkCost = 0;
-    for (let i = 1;i < list.length; i += 1) {
-      const prev = list[i - 1];
-      const next = list[i];
-      const window = next.start - prev.end;
-      const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
-      let filled = 0;
-      if (fill === null)
-        filled = remainingCount > 0 ? window : 0;
-      else
-        for (let r = 0;r < remainingCount && filled < window; r += 1)
-          filled += fill[remaining[r]][day][cell];
-      if (filled > 0) {
-        if (filled < window)
-          gap += window - filled;
-        if (!(prev.building >= 0 && prev.building === next.building)) {
-          walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
+    for (let i = 0;i + 1 < list.length; i += 1) {
+      const prev = list[i];
+      let between = 0;
+      for (let j = i + 1;j < list.length; j += 1) {
+        const next = list[j];
+        const backToBack = (prev.weeks & next.weeks & ~between) !== 0;
+        between |= next.weeks;
+        if (backToBack) {
+          const window = next.start - prev.end;
+          const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
+          let filled = 0;
+          if (fill === null)
+            filled = remainingCount > 0 ? window : 0;
+          else
+            for (let r = 0;r < remainingCount && filled < window; r += 1)
+              filled += fill[remaining[r]][day][cell];
+          if (filled > 0) {
+            if (oneSegment) {
+              if (filled < window)
+                gap += window - filled;
+              if (!(prev.building >= 0 && prev.building === next.building)) {
+                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
+              }
+            }
+          } else {
+            gap += window;
+            if (!(prev.building >= 0 && prev.building === next.building)) {
+              const seconds = walkOf(prev.building, next.building);
+              walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
+              if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds)
+                return -1;
+            }
+          }
         }
-        continue;
+        if ((prev.weeks & ~between) === 0)
+          break;
       }
-      gap += window;
-      if (prev.building >= 0 && prev.building === next.building)
-        continue;
-      const seconds = walkOf(prev.building, next.building);
-      walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
-      if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds)
-        return -1;
     }
     return weights.compact * COST_PER_GAP_MINUTE * gap + weights.walking * COST_PER_WALK_SECOND * walkCost;
   }
   const noRemaining = new Int32Array(0);
   function completeCost() {
     let total = 0;
-    for (let d = 0;d < 5; d += 1) {
+    for (let d = 0;d < dayEnd; d += 1) {
       const cost = dayCost(d, noRemaining, 0);
       if (cost < 0)
         return -1;
@@ -612,7 +721,7 @@ function search(prepared, budget, options) {
   const dayStack = [];
   for (let depth = 0;depth <= n; depth += 1) {
     remainingStack.push(new Int32Array(n));
-    dayStack.push(new Float64Array(5));
+    dayStack.push(new Float64Array(DAY_COUNT));
   }
   function insertMeetings(candidate) {
     for (const meeting of candidate.meetings) {
@@ -651,7 +760,7 @@ function search(prepared, budget, options) {
         return Number.POSITIVE_INFINITY;
     }
     const nodeDays = dayStack[depth];
-    for (let d = 0;d < 5; d += 1) {
+    for (let d = 0;d < dayEnd; d += 1) {
       if ((candidate.dayMask & 1 << d) === 0 && nodeDays[d] < 0)
         return Number.POSITIVE_INFINITY;
     }
@@ -674,9 +783,9 @@ function search(prepared, budget, options) {
       if (first < 0)
         return Number.POSITIVE_INFINITY;
       lowerSelf += candidateByBit[first].self;
-      if (dayPrice === 0 || mostNewDays === 5)
+      if (dayPrice === 0 || mostNewDays === dayEnd)
         continue;
-      let fewestNew = 6;
+      let fewestNew = DAY_COUNT + 1;
       for (const group of course.byDayMask) {
         const added = popcount(group.dayMask & ~nextDays);
         if (added >= fewestNew)
@@ -696,7 +805,7 @@ function search(prepared, budget, options) {
     let pairs = 0;
     if (pairsMatter) {
       insertMeetings(candidate);
-      for (let d = 0;d < 5; d += 1) {
+      for (let d = 0;d < dayEnd; d += 1) {
         if ((candidate.dayMask & 1 << d) === 0) {
           pairs += nodeDays[d];
           continue;
@@ -870,7 +979,7 @@ function search(prepared, budget, options) {
       self2 += candidateByBit[first].self;
       if (dayPrice === 0)
         continue;
-      let fewestNew = 6;
+      let fewestNew = DAY_COUNT + 1;
       for (const group of c.byDayMask) {
         const added = popcount(group.dayMask & ~daysUsed);
         if (added >= fewestNew)
@@ -893,13 +1002,13 @@ function search(prepared, budget, options) {
     }
     let pairs = 0;
     let outside = 0;
-    for (let d = 0;d < 5 && weights.compact > 0; d += 1) {
+    for (let d = 0;d < dayEnd && weights.compact > 0; d += 1) {
       const inside = dayCost(d, all, count);
       if (inside < 0)
         return -1;
       pairs += inside;
       const list = dayLists[d];
-      if (list.length === 0 || fill === null)
+      if (list.length === 0 || fill === null || !oneSegment)
         continue;
       const spanStart = list[0].start;
       const spanEnd = list[list.length - 1].end;
@@ -988,7 +1097,7 @@ function search(prepared, budget, options) {
       if (u !== course && assigned[u] === null)
         remaining[remainingCount++] = u;
     const nodeDays = dayStack[depth];
-    for (let d = 0;d < 5; d += 1)
+    for (let d = 0;d < dayEnd; d += 1)
       nodeDays[d] = pairsMatter ? dayCost(d, remaining, remainingCount) : 0;
     const floor = weights.compact > 0 || selfMatters ? nodeFloor(alive, course, remaining, remainingCount) : 0;
     if (floor < 0 || best !== null && floor > best.cost)
@@ -1201,9 +1310,25 @@ function formatClock(minutes) {
   const hour = hours % 12 === 0 ? 12 : hours % 12;
   return mins === 0 ? `${hour} ${suffix}` : `${hour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
-var DAY_LETTER = { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F" };
-var DAY_PLURAL = { Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays", Thu: "Thursdays", Fri: "Fridays" };
-var DAY_NAME = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
+var DAY_LETTER = { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F", Sat: "Sa", Sun: "Su" };
+var DAY_PLURAL = {
+  Mon: "Mondays",
+  Tue: "Tuesdays",
+  Wed: "Wednesdays",
+  Thu: "Thursdays",
+  Fri: "Fridays",
+  Sat: "Saturdays",
+  Sun: "Sundays"
+};
+var DAY_NAME = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday"
+};
 function describePattern(section) {
   const byStart = new Map;
   for (const meeting of section.meetings)

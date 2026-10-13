@@ -16,6 +16,27 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
 
 - Times are minutes after midnight, half-open `[start, end)`. A class ending at
   10:00 and one starting at 10:00 do not overlap.
+- Days run Monday to Sunday. Days on campus counts every distinct day with a
+  class, weekends included.
+- A meeting may carry `dates`, an inclusive range of ISO calendar dates such
+  as the first eight weeks (2027-01-11 to 2027-03-05). No dates means every
+  week of the term. Two meetings share a week when either has no dates or
+  their ranges intersect, and they conflict only when they share a week. So
+  SPAN 2040-051 (first eight weeks) and SPAN 2050-051 (second eight weeks) can
+  both sit in the same Tuesday slot.
+- Back-to-back pairs drive idle time, walking and the walking check. Cut the
+  calendar at every range's first day and the day after its last. Within one
+  stretch and one day, the classes running then, sorted by start, are a
+  sequence, and neighbors in it are back to back. A pair that is back to back
+  in several stretches counts once. A 9:00 class every week followed at 10:00
+  by a first-half class in one building and a second-half class in another
+  makes two pairs, and both walks are checked. `weeks.ts` has the rule.
+- Earliest start, latest end, days off and blocked times apply to every
+  meeting whatever its dates. Two sections that differ only in dates are
+  different times for the diversity rule.
+- A malformed date, an impossible one (2027-02-30), a range that ends before
+  it starts, or dates that split the term into more than 32 stretches throw
+  `OptimizerInputError`.
 - Constraints are all or nothing: earliest start, latest end, days off,
   blocked times, max credits, and the walking check. Locks and exclusions are
   hard too.
@@ -104,7 +125,7 @@ build of `optimize.worker.ts`. Next 16.1's Turbopack copies a
 of compiling it, so the bundle is built with Bun:
 `bun tests/optimizer/build-worker.ts --write`. `tests/optimizer/worker.test.ts`
 fails while the bundle is out of date. The bundle holds only the engine and the
-protocol (about 60 KB), not the catalog. `worker/client.ts` drops replies to anything but the newest job, and
+protocol (about 65 KB), not the catalog. `worker/client.ts` drops replies to anything but the newest job, and
 replaces the worker when a new job arrives while one is still searching,
 because a running search cannot be interrupted. A crash or a worker that
 cannot start becomes an `error` reply, which the page shows inline with "Try
@@ -128,8 +149,9 @@ of overwriting it. A failed write is shown as "not stored".
 ## Tests
 
 - `tests/optimizer/engine.test.ts`: agreement with a brute-force reference
-  (`reference.ts`) on 400 seeds, plus budgets and large instances
-  (`checks.ts`, `generator.ts`).
+  (`reference.ts`) on 400 seeds, and on 300 seeds with half-term dates and
+  weekend meetings with the walking check on and off, plus budgets and large
+  instances (`checks.ts`, `generator.ts`).
 - `tests/optimizer/regressions.test.ts`: pinned bugs from review.
 - `tests/optimizer/mutation.test.ts`: plants one bug at a time in a copy of
   this folder and asserts a check fails.

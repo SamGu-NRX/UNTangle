@@ -165,9 +165,25 @@ export function formatClock(minutes: number): string {
   return mins === 0 ? `${hour} ${suffix}` : `${hour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
 
-const DAY_LETTER: Record<OptDay, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F" };
-const DAY_PLURAL: Record<OptDay, string> = { Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays", Thu: "Thursdays", Fri: "Fridays" };
-const DAY_NAME: Record<OptDay, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
+const DAY_LETTER: Record<OptDay, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F", Sat: "Sa", Sun: "Su" };
+const DAY_PLURAL: Record<OptDay, string> = {
+  Mon: "Mondays",
+  Tue: "Tuesdays",
+  Wed: "Wednesdays",
+  Thu: "Thursdays",
+  Fri: "Fridays",
+  Sat: "Saturdays",
+  Sun: "Sundays",
+};
+const DAY_NAME: Record<OptDay, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
+};
 
 /** "MWF 10 AM" style: days sharing a start time are grouped. */
 export function describePattern(section: OptSection): string {

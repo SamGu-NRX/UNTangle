@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
-import { checkAgainstReference, checkBudgets, checkExplanations, checkLargeInstancesValid, smallInstance } from "./checks";
-import { referenceTopK } from "./reference";
+import {
+  checkAgainstReference,
+  checkBudgets,
+  checkExplanations,
+  checkLargeInstancesValid,
+  smallInstance,
+  termInstance,
+  withoutDates,
+} from "./checks";
+import { referenceCost, referenceTopK } from "./reference";
 
 const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
+const TERM_SEEDS = Array.from({ length: 300 }, (_, i) => 7001 + i);
 
 describe("optimizer against the brute-force reference", () => {
   test("matches status, ranked schedules, costs and breakdowns on 400 seeded instances", () => {
@@ -29,6 +38,53 @@ describe("optimizer against the brute-force reference", () => {
     const { failures, checked } = checkExplanations(optimize, [...SEEDS, ...Array.from({ length: 150 }, (_, i) => 401 + i)]);
     expect(failures).toEqual([]);
     expect(checked).toBeGreaterThan(20);
+  });
+});
+
+describe("optimizer against the reference with half-term dates and weekend meetings", () => {
+  for (const walking of [true, false]) {
+    test(`matches the reference on 300 dated instances, walking check ${walking ? "on" : "off"}`, () => {
+      expect(checkAgainstReference(optimize, TERM_SEEDS, (seed) => termInstance(seed, walking))).toEqual([]);
+    });
+  }
+
+  test("explanations stay minimal on dated instances", () => {
+    const { failures, checked } = checkExplanations(optimize, TERM_SEEDS, (seed) => termInstance(seed, true));
+    expect(failures).toEqual([]);
+    expect(checked).toBeGreaterThan(10);
+  });
+
+  // On these 300 seeds: 92 answers change when the dates are dropped, 24 best
+  // schedules use date-disjoint meetings at overlapping times, 72 have idle
+  // time or walking that only the dated back-to-back rule gives, and 34 meet
+  // on a weekend. The floors are about half, so a generator change that stops
+  // exercising dates fails here instead of passing silently.
+  test("the dated suite exercises what the dates change", () => {
+    let answerChanged = 0;
+    let disjointOverlapUsed = 0;
+    let pairsChanged = 0;
+    let weekendUsed = 0;
+    for (const seed of TERM_SEEDS) {
+      const request = termInstance(seed, true);
+      const undated = withoutDates(request);
+      const dated = referenceTopK(request).schedules;
+      const plain = referenceTopK(undated).schedules;
+      if (JSON.stringify(dated.map((s) => [s.byCourse, s.cost])) !== JSON.stringify(plain.map((s) => [s.byCourse, s.cost]))) answerChanged += 1;
+      const best = dated[0];
+      if (!best) continue;
+      const meetings = best.sections.flatMap((s) => s.meetings);
+      if (meetings.some((m) => m.day === "Sat" || m.day === "Sun")) weekendUsed += 1;
+      if (meetings.some((a, i) => meetings.some((b, j) => j > i && a.day === b.day && a.start < b.end && b.start < a.end))) disjointOverlapUsed += 1;
+      // The same sections scored as if every meeting ran every week.
+      const undatedBest = undated.courses.flatMap((c) => c.sections).filter((s) => best.key.includes(s.id));
+      const asPlain = referenceCost(undated, undatedBest).breakdown;
+      const b = best.breakdown;
+      if (b.gapMinutes !== asPlain.gapMinutes || b.walkSeconds !== asPlain.walkSeconds || b.unknownWalks !== asPlain.unknownWalks) pairsChanged += 1;
+    }
+    expect(answerChanged).toBeGreaterThan(45);
+    expect(disjointOverlapUsed).toBeGreaterThan(12);
+    expect(pairsChanged).toBeGreaterThan(35);
+    expect(weekendUsed).toBeGreaterThan(17);
   });
 });
 

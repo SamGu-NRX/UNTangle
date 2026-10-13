@@ -1,8 +1,73 @@
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
-import { OptimizerInputError, type OptimizeRequest } from "@/lib/optimizer/types";
+import { OptimizerInputError, type OptimizeRequest, type OptMeeting } from "@/lib/optimizer/types";
 import { checkRegressions, regressionCases } from "./checks";
+import { FIRST_HALF, SECOND_HALF } from "./generator";
 import { fromPlainRequest, toPlainRequest } from "@/lib/optimizer/worker/protocol";
+
+describe("meeting dates and weekend days", () => {
+  const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
+  const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
+  const request = (meetings: OptMeeting[][], overrides: Partial<OptimizeRequest> = {}): OptimizeRequest => ({
+    courses: [
+      {
+        code: "SPAN 2040",
+        credits: 3,
+        sections: meetings.map((m, i) => ({ id: `s${i}`, courseCode: "SPAN 2040", rating: 4, meetings: m })),
+      },
+    ],
+    locks: {},
+    excluded: [],
+    constraints: none,
+    weights: zero,
+    walkingTime: () => ({ seconds: 60, source: "campus-network" }),
+    ...overrides,
+  });
+  const slot = (dates: OptMeeting["dates"]): OptMeeting[] => [{ day: "Tue", start: 930, end: 1100, buildingId: "LANG", dates }];
+
+  test("two sections identical except their dates are not twins, and differ for the diversity rule", () => {
+    for (const walking of [null, { bufferMinutes: 0 }]) {
+      const result = optimize(request([slot(FIRST_HALF), slot(SECOND_HALF)], { constraints: { ...none, walking } }));
+      expect(result.stats.candidates["SPAN 2040"]).toBe(2);
+      expect(result.schedules.map((s) => s.byCourse["SPAN 2040"])).toEqual(["s0", "s1"]);
+    }
+    // Same dates: twins, so only the first is kept.
+    const twins = optimize(request([slot(FIRST_HALF), slot({ ...FIRST_HALF })]));
+    expect(twins.stats.candidates["SPAN 2040"]).toBe(1);
+  });
+
+  test("a Saturday day off rules out Saturday sections and is offered as a relaxation", () => {
+    const result = optimize(request([[{ day: "Sat", start: 540, end: 650, buildingId: null }]], { constraints: { ...none, daysOff: ["Sat"] } }));
+    expect(result.status).toBe("infeasible");
+    if (result.status !== "infeasible") return;
+    expect(result.explanation.suggestions.map((s) => s.label)).toContain("Allow classes on Saturdays");
+  });
+
+  test("malformed, impossible or reversed dates throw OptimizerInputError", () => {
+    for (const dates of [
+      { start: "2027-1-11", end: "2027-03-05" },
+      { start: "2027-02-30", end: "2027-03-05" },
+      { start: "2027-01-11", end: "March 5" },
+      { start: "2027-03-05", end: "2027-01-11" },
+      { start: 20270111, end: "2027-03-05" },
+    ]) {
+      expect(() => optimize(request([slot(dates as OptMeeting["dates"])]))).toThrow(OptimizerInputError);
+    }
+    // One-day ranges and null are fine.
+    expect(optimize(request([slot({ start: "2027-01-11", end: "2027-01-11" }), slot(null)])).status).toBe("optimal");
+  });
+
+  test("dates that need more than 32 week segments throw OptimizerInputError", () => {
+    // 40 disjoint ranges, one per section, plus an undated one: 41 segments
+    // (each range alone, and the weeks between them where only the undated one runs).
+    const ranges = Array.from({ length: 40 }, (_, i) => {
+      const day = (n: number) => new Date(Date.UTC(2027, 0, 11 + n)).toISOString().slice(0, 10);
+      return { start: day(i * 7), end: day(i * 7 + 2) };
+    });
+    expect(() => optimize(request([...ranges.map(slot), slot(null)]))).toThrow(/at most 32/);
+    expect(optimize(request(ranges.slice(0, 15).map(slot))).status).toBe("optimal");
+  });
+});
 
 describe("review regressions (PR #32)", () => {
   test("each fixed instance gives its known answer and agrees with the reference", () => {

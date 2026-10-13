@@ -16,6 +16,7 @@ import {
   type OptWeights,
   type ScheduleBreakdown,
 } from "./types";
+import { someBackToBack, weekSegments } from "./weeks";
 
 /**
  * Exchange rates between the terms, in "seconds of the student's time" per
@@ -117,14 +118,17 @@ export function transferFits(
   return (next.start - prev.end) * 60 >= needed;
 }
 
-type ChosenMeeting = OptMeeting & { sectionId: string };
+type ChosenMeeting = OptMeeting & { sectionId: string; weeks: number };
 
 function meetingsByDay(sections: readonly OptSection[]): Map<OptDay, ChosenMeeting[]> {
+  // The schedule's own dates cut the calendar finely enough: extra cuts from
+  // other sections would not change which of its pairs are back to back.
+  const segments = weekSegments(sections.flatMap((section) => section.meetings.map((m) => m.dates)));
   const byDay = new Map<OptDay, ChosenMeeting[]>();
   for (const section of sections) {
     for (const meeting of section.meetings) {
       const list = byDay.get(meeting.day) ?? [];
-      list.push({ ...meeting, sectionId: section.id });
+      list.push({ ...meeting, sectionId: section.id, weeks: segments.maskOf(meeting.dates) });
       byDay.set(meeting.day, list);
     }
   }
@@ -152,13 +156,14 @@ export function scoreSchedule(input: ScoreInput): { cost: number; breakdown: Sch
   for (const day of OPT_DAYS) {
     const list = byDay.get(day);
     if (!list) continue;
-    for (let i = 1; i < list.length; i += 1) {
-      gapMinutes += Math.max(0, list[i].start - list[i - 1].end);
-      if (sameBuilding(list[i - 1].buildingId, list[i].buildingId)) continue;
-      const walk = walkSeconds(walkingTime, list[i - 1].buildingId, list[i].buildingId);
+    someBackToBack(list, (prev, next) => {
+      gapMinutes += Math.max(0, next.start - prev.end);
+      if (sameBuilding(prev.buildingId, next.buildingId)) return false;
+      const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null) unknownWalks += 1;
       else knownWalk += walk;
-    }
+      return false;
+    });
   }
   const meetings = sections.flatMap((section) => section.meetings);
   const ratings = sections.map((section) => ratingTenths(section.rating)).filter((value): value is number => value !== null);

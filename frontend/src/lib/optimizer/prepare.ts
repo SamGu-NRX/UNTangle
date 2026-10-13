@@ -21,6 +21,7 @@ import {
   type OptWeights,
 } from "./types";
 import { neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
+import { dayNumber, someBackToBack, weekSegments } from "./weeks";
 
 export type PreparedMeeting = {
   day: number;
@@ -28,6 +29,8 @@ export type PreparedMeeting = {
   end: number;
   /** Interned building index; -1 when the meeting has no building. */
   building: number;
+  /** Bit s set when the meeting runs in week segment s (see weeks.ts); every bit when it has no dates. */
+  weeks: number;
 };
 
 export type Candidate = {
@@ -69,6 +72,8 @@ export type Prepared = {
   buildingCount: number;
   /** Seconds a back-to-back transfer needs on top of the walk; null when the walking check is off. */
   bufferSeconds: number | null;
+  /** Number of week segments the candidates' dates make; 1 when none has dates. */
+  weekSegments: number;
   weights: OptWeights;
   totalCredits: number;
   maxCredits: number | null;
@@ -126,9 +131,19 @@ export function validateRequest(request: OptimizeRequest): void {
         if (!isInteger(meeting.start, 0, 24 * 60) || !isInteger(meeting.end, 0, 24 * 60) || meeting.end <= meeting.start) {
           throw new OptimizerInputError(`section ${section.id} has a meeting with invalid times ${meeting.start}-${meeting.end}`);
         }
+        const dates = meeting.dates;
+        if (dates === undefined || dates === null) continue;
+        const start = dayNumber(dates.start);
+        const end = dayNumber(dates.end);
+        if (start === null || end === null) {
+          throw new OptimizerInputError(`section ${section.id} has a meeting with invalid dates ${JSON.stringify(dates)}; expected real YYYY-MM-DD dates`);
+        }
+        if (start > end) throw new OptimizerInputError(`section ${section.id} has a meeting whose dates end before they start: ${dates.start} to ${dates.end}`);
       }
     }
   }
+  // Throws when the dates make more segments than a mask holds.
+  weekSegments(request.courses.flatMap((course) => course.sections.flatMap((section) => section.meetings.map((m) => m.dates))));
   for (const [courseCode, sectionId] of Object.entries(request.locks)) {
     if (!codes.has(courseCode)) throw new OptimizerInputError(`lock on ${courseCode}, which is not a requested course`);
     if (sectionIds.get(sectionId) !== courseCode) {
@@ -173,8 +188,9 @@ export function validateRequest(request: OptimizeRequest): void {
   if (!isInteger(k, 1, 20)) throw new OptimizerInputError(`k must be an integer 1..20, got ${k}`);
 }
 
-function overlaps(a: { day: number; start: number; end: number }, b: { day: number; start: number; end: number }) {
-  return a.day === b.day && a.start < b.end && b.start < a.end;
+/** Same day, overlapping times, and a week both run in. Date-disjoint meetings never conflict. */
+function overlaps(a: PreparedMeeting, b: PreparedMeeting) {
+  return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;
 }
 
 /**
@@ -195,17 +211,23 @@ export function passesTimeConstraints(section: OptSection, constraints: OptConst
   return true;
 }
 
-/** Days, starts and ends of a section's meetings, ignoring buildings. */
+/** Absent and null dates both mean every week. */
+const datesKey = (m: OptMeeting) => (m.dates ? `${m.dates.start}/${m.dates.end}` : "");
+
+/**
+ * Days, starts, ends and dates of a section's meetings, ignoring buildings.
+ * A first-half and a second-half section in the same weekly slot differ.
+ */
 export function timeSignatureOf(meetings: readonly OptMeeting[]): string {
   return meetings
-    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}`)
+    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}`)
     .sort()
     .join(",");
 }
 
 function fullSignatureOf(meetings: readonly OptMeeting[]): string {
   return meetings
-    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}@${m.buildingId ?? ""}`)
+    .map((m) => `${DAY_INDEX.get(m.day)}:${m.start}-${m.end}~${datesKey(m)}@${m.buildingId ?? ""}`)
     .sort()
     .join(",");
 }
@@ -283,6 +305,9 @@ export function prepare(
   const allowedByCourse = sortedCourses.map((course) =>
     allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)),
   );
+  // Segments from the usable sections only: fewer ranges, fewer segments.
+  // Any set of cuts that includes a schedule's own gives it the same pairs.
+  const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings.map((m) => m.dates))));
   // Shortest meeting any chosen section could have: a break shorter than
   // this can never hold another class.
   let globalMinDuration = Number.POSITIVE_INFINITY;
@@ -313,7 +338,12 @@ export function prepare(
     const seconds = walk[from * buildingCount + to];
     return seconds < 0 ? null : seconds;
   };
-  /** A back-to-back pair that breaks the walking check and that no other class can sit between. */
+  /**
+   * A back-to-back pair that breaks the walking check and that no other class
+   * can sit between. With dates this still holds in the weeks they are back
+   * to back: a class placed between them in those weeks would have to fit
+   * inside the break, or it would overlap one of them in a shared week.
+   */
   const tightPair = (prev: PreparedMeeting, next: PreparedMeeting) =>
     bufferMinutes !== null &&
     !(prev.building >= 0 && prev.building === next.building) &&
@@ -334,23 +364,21 @@ export function prepare(
     const allowed = allowedByCourse[courseIndex];
     const kept: Candidate[] = [];
     for (const section of allowed) {
-      const meetings = section.meetings
-        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId) }))
+      const meetings: PreparedMeeting[] = section.meetings
+        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m.dates) }))
         .sort((a, b) => a.day - b.day || a.start - b.start);
+      // Two meetings of one section are checked like any other pair: they
+      // may not overlap, and the walk between them must fit.
       let selfBroken = false;
       for (let i = 0; i < meetings.length && !selfBroken; i += 1) {
         for (let j = i + 1; j < meetings.length; j += 1) {
-          // Two meetings of one section are checked like any other pair:
-          // they may not overlap, and the walk between them must fit.
           if (overlaps(meetings[i], meetings[j])) {
             selfBroken = true;
             break;
           }
         }
-        const next = meetings[i + 1];
-        if (next && next.day === meetings[i].day && tightPair(meetings[i], next)) selfBroken = true;
       }
-      if (selfBroken) continue;
+      if (selfBroken || someBackToBack(meetings, tightPair)) continue;
       const signature = timeSignatureOf(section.meetings);
       let signatureId = signatureIds.get(signature);
       if (signatureId === undefined) {
@@ -438,6 +466,9 @@ export function prepare(
       for (const candidate of course.candidates) {
         // One section can put several meetings inside one break: credit every
         // run of its consecutive meetings that day with their total length.
+        // Dates are ignored, so a run may add up meetings that never share a
+        // week. That only overstates what can fill a break, which keeps the
+        // search's bound low, never too high.
         const own = candidate.meetings.filter((meeting) => meeting.day === day);
         for (let first = 0; first < own.length; first += 1) {
           let total = 0;
@@ -495,6 +526,7 @@ export function prepare(
     walk,
     buildingCount,
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
+    weekSegments: segments.count,
     weights,
     totalCredits: sortedCourses.reduce((sum, course) => sum + course.credits, 0),
     maxCredits: constraints.maxCredits,
@@ -506,9 +538,9 @@ export function prepare(
 
 /**
  * Two sections can never be chosen together when any of their meetings
- * overlap, or when, merged into one day, a back-to-back pair across them
- * breaks the walking check with a break too short for any other class to
- * sit in between (so the pair stays back-to-back in every schedule).
+ * conflict, or when, merged, a back-to-back pair across them breaks the
+ * walking check with a break too short for any other class to sit in
+ * between (so the pair stays back-to-back in every schedule).
  */
 function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeeting, next: PreparedMeeting) => boolean): boolean {
   for (const ma of a.meetings) {
@@ -518,16 +550,10 @@ function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeet
   }
   if ((a.dayMask & b.dayMask) === 0) return false;
   const merged = [
-    ...a.meetings.map((meeting) => ({ meeting, from: 0 })),
-    ...b.meetings.map((meeting) => ({ meeting, from: 1 })),
-  ].sort((x, y) => x.meeting.day - y.meeting.day || x.meeting.start - y.meeting.start);
-  for (let i = 1; i < merged.length; i += 1) {
-    const prev = merged[i - 1];
-    const next = merged[i];
-    if (prev.meeting.day !== next.meeting.day || prev.from === next.from) continue;
-    if (tightPair(prev.meeting, next.meeting)) return true;
-  }
-  return false;
+    ...a.meetings.map((meeting) => ({ ...meeting, from: 0 })),
+    ...b.meetings.map((meeting) => ({ ...meeting, from: 1 })),
+  ].sort((x, y) => x.day - y.day || x.start - y.start);
+  return someBackToBack(merged, (prev, next) => prev.from !== next.from && tightPair(prev, next));
 }
 
 /**

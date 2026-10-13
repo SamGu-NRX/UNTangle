@@ -6,12 +6,83 @@
  *
  * It enumerates every combination of one section per course, so it is only
  * usable on small instances.
+ *
+ * Dates, from the contract: a meeting without dates runs every week. Two
+ * meetings share a week when either has no dates or their inclusive ranges
+ * intersect, and they conflict only then. Back to back: cut the calendar at
+ * every range's first day and the day after its last; in each piece and each
+ * day, the meetings running there sorted by start are a sequence whose
+ * neighbors are back to back. A pair back to back in several pieces counts
+ * once. This file builds those pieces explicitly instead of using bitmasks.
  */
 
-import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptSection, OptWeights } from "@/lib/optimizer/types";
+import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
 
-const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const UNKNOWN_WALK = 600;
+
+/** ISO dates compare correctly as strings. */
+function shareAWeek(a: OptMeeting, b: OptMeeting): boolean {
+  if (!a.dates || !b.dates) return true;
+  return a.dates.start <= b.dates.end && b.dates.start <= a.dates.end;
+}
+
+function nextDay(iso: string): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+}
+
+function previousDay(iso: string): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * One date inside every piece of the calendar cut at the request's date
+ * boundaries: each range's first day, the day after each range's last day,
+ * and the day before the earliest first day. A request without dates has
+ * one piece.
+ */
+const piecesCache = new WeakMap<OptimizeRequest, string[]>();
+function pieces(request: OptimizeRequest): string[] {
+  const cached = piecesCache.get(request);
+  if (cached) return cached;
+  const ranges = request.courses.flatMap((c) => c.sections.flatMap((s) => s.meetings.flatMap((m) => (m.dates ? [m.dates] : []))));
+  let out: string[];
+  if (ranges.length === 0) out = ["any"];
+  else {
+    const starts = ranges.map((r) => r.start).sort();
+    out = [...new Set([previousDay(starts[0]), ...starts, ...ranges.map((r) => nextDay(r.end))])].sort();
+  }
+  piecesCache.set(request, out);
+  return out;
+}
+
+function runsOn(meeting: OptMeeting, date: string): boolean {
+  return date === "any" || !meeting.dates || (meeting.dates.start <= date && date <= meeting.dates.end);
+}
+
+type Placed = OptMeeting & { owner: string };
+
+/** Distinct back-to-back pairs of a selection, each once. */
+function backToBackPairs(request: OptimizeRequest, chosen: OptSection[]): Array<[Placed, Placed]> {
+  const all: Placed[] = chosen.flatMap((section) => section.meetings.map((m) => ({ ...m, owner: section.id })));
+  const seen = new Set<string>();
+  const pairs: Array<[Placed, Placed]> = [];
+  for (const date of pieces(request)) {
+    for (const day of DAYS) {
+      const list = all
+        .map((m, index) => ({ m, index }))
+        .filter(({ m }) => m.day === day && runsOn(m, date))
+        .sort((a, b) => a.m.start - b.m.start || a.m.end - b.m.end);
+      for (let i = 1; i < list.length; i += 1) {
+        const key = `${list[i - 1].index}|${list[i].index}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push([list[i - 1].m, list[i].m]);
+      }
+    }
+  }
+  return pairs;
+}
 
 export type RefSchedule = {
   sections: OptSection[];
@@ -64,7 +135,7 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
     for (let j = i + 1; j < all.length; j += 1) {
       const a = all[i];
       const b = all[j];
-      if (a.day === b.day && a.start < b.end && b.start < a.end) problems.push(`overlap ${a.owner} ${b.owner}`);
+      if (a.day === b.day && a.start < b.end && b.start < a.end && shareAWeek(a, b)) problems.push(`overlap ${a.owner} ${b.owner}`);
     }
   }
   if (c.maxCredits !== null) {
@@ -72,15 +143,10 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
     if (credits > c.maxCredits) problems.push("too many credits");
   }
   if (c.walking !== null) {
-    for (const day of DAYS) {
-      const list = all.filter((m) => m.day === day).sort((a, b) => a.start - b.start);
-      for (let i = 1; i < list.length; i += 1) {
-        const prev = list[i - 1];
-        const next = list[i];
-        if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
-        const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
-        if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
-      }
+    for (const [prev, next] of backToBackPairs(request, chosen)) {
+      if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
+      const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
+      if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
     }
   }
   return problems;
@@ -97,17 +163,13 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
   let gap = 0;
   let walk = 0;
   let unknown = 0;
-  const days = new Set<string>();
-  for (const day of DAYS) {
-    const list = all.filter((m) => m.day === day).sort((a, b) => a.start - b.start);
-    if (list.length > 0) days.add(day);
-    for (let i = 1; i < list.length; i += 1) {
-      gap += Math.max(0, list[i].start - list[i - 1].end);
-      if (list[i - 1].buildingId !== null && list[i - 1].buildingId === list[i].buildingId) continue;
-      const seconds = walkBetween(request, list[i - 1].buildingId, list[i].buildingId);
-      if (seconds === null) unknown += 1;
-      else walk += seconds;
-    }
+  const days = new Set(all.map((m) => m.day));
+  for (const [prev, next] of backToBackPairs(request, chosen)) {
+    gap += Math.max(0, next.start - prev.end);
+    if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
+    const seconds = walkBetween(request, prev.buildingId, next.buildingId);
+    if (seconds === null) unknown += 1;
+    else walk += seconds;
   }
   let cost = w.fewerDays * 3600 * days.size + w.compact * 60 * gap + w.walking * (walk + 600 * unknown);
   for (const section of chosen) {
@@ -133,8 +195,9 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
   };
 }
 
+/** Meeting times including dates: a first-half and a second-half section at one slot differ. */
 function timePattern(section: OptSection): string {
-  return section.meetings.map((m) => `${m.day} ${m.start} ${m.end}`).sort().join(";");
+  return section.meetings.map((m) => `${m.day} ${m.start} ${m.end} ${m.dates ? `${m.dates.start}..${m.dates.end}` : "every week"}`).sort().join(";");
 }
 
 /** The contract's diversity threshold, recomputed from its definition. */

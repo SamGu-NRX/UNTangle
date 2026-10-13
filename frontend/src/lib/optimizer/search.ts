@@ -21,10 +21,27 @@
  * At a complete schedule nothing is unassigned, every pair is fixed, and the
  * bound is the exact cost. None of this assumes walking times obey the
  * triangle inequality; a path network need not.
+ *
+ * Meetings with dates (weeks.ts): when the candidates' dates make more than
+ * one week segment, two bound terms are off.
+ * - A break that some unassigned course could still enter counts nothing,
+ *   instead of the idle minutes no course can fill and the walk floor. One
+ *   class placed there can be back to back with chosen classes in several
+ *   segments, so per-break credits could count its pairs more than once.
+ * - `nodeFloor`'s idle stretch outside a day's span, which assumes the
+ *   later class follows the day's last class in the same weeks.
+ * What stays: a back-to-back pair that nothing can enter keeps its exact
+ * idle time and walk and gets the walking check, because it stays back to
+ * back in its segment in every completion and the final cost counts every
+ * distinct pair once. Day counts, own costs and conflicts ignore dates or
+ * use the masks directly, so they are unchanged.
  */
 
 import { COST_PER_DAY, COST_PER_GAP_MINUTE, COST_PER_WALK_SECOND, UNKNOWN_WALK_SECONDS } from "./score";
+import { OPT_DAYS } from "./types";
 import type { Candidate, Prepared, PreparedMeeting } from "./prepare";
+
+const DAY_COUNT = OPT_DAYS.length;
 
 export type Budget = {
   deadline: number;
@@ -93,7 +110,13 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   for (let depth = 0; depth <= n; depth += 1) aliveStack.push(new Uint32Array(words));
   for (const candidate of prepared.candidates) aliveStack[0][candidate.bit >>> 5] |= 1 << (candidate.bit & 31);
   const scratch = new Uint32Array(words);
-  const dayLists: PreparedMeeting[][] = [[], [], [], [], []];
+  const dayLists: PreparedMeeting[][] = Array.from({ length: DAY_COUNT }, () => []);
+  // Per-day loops stop after the last day any candidate meets on; later days'
+  // lists stay empty. Visiting an empty Saturday and Sunday on every node cost
+  // about 5% on the 8 x 40 bench, where no class meets then.
+  let anyCandidateDays = 0;
+  for (const candidate of prepared.candidates) anyCandidateDays |= candidate.dayMask;
+  const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
   let assignedCount = 0;
@@ -112,40 +135,55 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const floorStride = buildingCount + 1;
   const timeCount = times.length;
   const pairsMatter = weights.compact > 0 || weights.walking > 0 || bufferSeconds !== null;
+  const oneSegment = prepared.weekSegments === 1;
 
   /**
    * Lower bound on one day's idle-time and walking cost, given the courses
    * still to assign (`remaining`), or -1 when a pair breaks the walking check
-   * for certain. A break between consecutive chosen classes can only shrink
+   * for certain. A break between back-to-back chosen classes can only shrink
    * by what the remaining courses could put inside it: at most one class per
    * course, no longer than the longest of that course's classes that fits
    * (the `fill` table). A break nothing can enter keeps its idle minutes and
-   * its walk in every completion.
+   * its walk in every completion. With one week segment the back-to-back
+   * pairs are the consecutive ones; with several, a break something can
+   * enter counts nothing (see the file comment).
    */
   function dayCost(day: number, remaining: Int32Array, remainingCount: number): number {
     const list = dayLists[day];
     let gap = 0;
     let walkCost = 0;
-    for (let i = 1; i < list.length; i += 1) {
-      const prev = list[i - 1];
-      const next = list[i];
-      const window = next.start - prev.end;
-      const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
-      let filled = 0;
-      if (fill === null) filled = remainingCount > 0 ? window : 0;
-      else for (let r = 0; r < remainingCount && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
-      if (filled > 0) {
-        if (filled < window) gap += window - filled;
-        if (!(prev.building >= 0 && prev.building === next.building)) {
-          walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
+    for (let i = 0; i + 1 < list.length; i += 1) {
+      const prev = list[i];
+      let between = 0;
+      for (let j = i + 1; j < list.length; j += 1) {
+        const next = list[j];
+        const backToBack = (prev.weeks & next.weeks & ~between) !== 0;
+        between |= next.weeks;
+        if (backToBack) {
+          const window = next.start - prev.end;
+          const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
+          let filled = 0;
+          if (fill === null) filled = remainingCount > 0 ? window : 0;
+          else for (let r = 0; r < remainingCount && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
+          if (filled > 0) {
+            if (oneSegment) {
+              if (filled < window) gap += window - filled;
+              if (!(prev.building >= 0 && prev.building === next.building)) {
+                walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
+              }
+            }
+          } else {
+            gap += window;
+            if (!(prev.building >= 0 && prev.building === next.building)) {
+              const seconds = walkOf(prev.building, next.building);
+              walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
+              if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds) return -1;
+            }
+          }
         }
-        continue;
+        // Every week of prev now has a class after it, before anything later.
+        if ((prev.weeks & ~between) === 0) break;
       }
-      gap += window;
-      if (prev.building >= 0 && prev.building === next.building) continue;
-      const seconds = walkOf(prev.building, next.building);
-      walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
-      if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds) return -1;
     }
     return weights.compact * COST_PER_GAP_MINUTE * gap + weights.walking * COST_PER_WALK_SECOND * walkCost;
   }
@@ -154,7 +192,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   /** Exact idle-time and walking cost of a complete schedule, or -1 when it breaks the walking check. */
   function completeCost(): number {
     let total = 0;
-    for (let d = 0; d < 5; d += 1) {
+    for (let d = 0; d < dayEnd; d += 1) {
       const cost = dayCost(d, noRemaining, 0);
       if (cost < 0) return -1;
       total += cost;
@@ -168,7 +206,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const dayStack: Float64Array[] = [];
   for (let depth = 0; depth <= n; depth += 1) {
     remainingStack.push(new Int32Array(n));
-    dayStack.push(new Float64Array(5));
+    dayStack.push(new Float64Array(DAY_COUNT));
   }
 
   // Direct shifts instead of splice: these run for every evaluated child.
@@ -214,7 +252,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     }
     // Days this candidate does not touch keep the bound computed for the node.
     const nodeDays = dayStack[depth];
-    for (let d = 0; d < 5; d += 1) {
+    for (let d = 0; d < dayEnd; d += 1) {
       if ((candidate.dayMask & (1 << d)) === 0 && nodeDays[d] < 0) return Number.POSITIVE_INFINITY;
     }
     const conflict = conflicts[candidate.bit];
@@ -235,8 +273,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       }
       if (first < 0) return Number.POSITIVE_INFINITY;
       lowerSelf += candidateByBit[first].self;
-      if (dayPrice === 0 || mostNewDays === 5) continue;
-      let fewestNew = 6;
+      if (dayPrice === 0 || mostNewDays === dayEnd) continue;
+      let fewestNew = DAY_COUNT + 1;
       for (const group of course.byDayMask) {
         const added = popcount(group.dayMask & ~nextDays);
         if (added >= fewestNew) continue;
@@ -254,7 +292,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     let pairs = 0;
     if (pairsMatter) {
       insertMeetings(candidate);
-      for (let d = 0; d < 5; d += 1) {
+      for (let d = 0; d < dayEnd; d += 1) {
         if ((candidate.dayMask & (1 << d)) === 0) {
           pairs += nodeDays[d];
           continue;
@@ -413,7 +451,9 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
    * meet on a day and every section it has left meets after (or before) the
    * classes already there, the stretch between them is idle except for what
    * the other unassigned courses could fill. Only the largest such stretch on
-   * each side counts, because one stretch can cover another.
+   * each side counts, because one stretch can cover another. That stretch
+   * assumes the later class follows the day's last class in the same weeks,
+   * so it is off when there is more than one week segment.
    */
   function nodeFloor(alive: Uint32Array, course: number, remaining: Int32Array, remainingCount: number): number {
     const all = unassignedScratch;
@@ -433,7 +473,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       if (first < 0) return -1;
       self += candidateByBit[first].self;
       if (dayPrice === 0) continue;
-      let fewestNew = 6;
+      let fewestNew = DAY_COUNT + 1;
       for (const group of c.byDayMask) {
         const added = popcount(group.dayMask & ~daysUsed);
         if (added >= fewestNew) continue;
@@ -453,12 +493,12 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     }
     let pairs = 0;
     let outside = 0;
-    for (let d = 0; d < 5 && weights.compact > 0; d += 1) {
+    for (let d = 0; d < dayEnd && weights.compact > 0; d += 1) {
       const inside = dayCost(d, all, count);
       if (inside < 0) return -1;
       pairs += inside;
       const list = dayLists[d];
-      if (list.length === 0 || fill === null) continue;
+      if (list.length === 0 || fill === null || !oneSegment) continue;
       const spanStart = list[0].start;
       const spanEnd = list[list.length - 1].end;
       let right = 0;
@@ -531,7 +571,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     let remainingCount = 0;
     for (let u = 0; u < n; u += 1) if (u !== course && assigned[u] === null) remaining[remainingCount++] = u;
     const nodeDays = dayStack[depth];
-    for (let d = 0; d < 5; d += 1) nodeDays[d] = pairsMatter ? dayCost(d, remaining, remainingCount) : 0;
+    for (let d = 0; d < dayEnd; d += 1) nodeDays[d] = pairsMatter ? dayCost(d, remaining, remainingCount) : 0;
     const floor = weights.compact > 0 || selfMatters ? nodeFloor(alive, course, remaining, remainingCount) : 0;
     if (floor < 0 || (best !== null && floor > best.cost)) return;
 
