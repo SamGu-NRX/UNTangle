@@ -24,7 +24,9 @@ load — the check would need to move to first-request time.
 which requires an `@unt.edu` or `@my.unt.edu` address, enforced
 **server-side** in the better-auth `before` hook, matching the client-side
 check in `unt-auth.ts`. Password sign-up (`/sign-up/email`) is disabled; a
-password is an optional extra set from a signed-in session. Password sign-in
+password is an optional extra, set either from a session less than 10 minutes
+old (the owner is emailed when one is added) or through a password reset,
+which needs the inbox too. Password sign-in
 is deliberately not gated: any existing account keeps working.
 **Why.** Client-only checks are trivially bypassed; server enforcement makes
 the policy real. Gating sign-in too would lock out existing non-UNT accounts.

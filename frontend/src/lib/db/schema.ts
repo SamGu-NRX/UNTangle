@@ -79,8 +79,10 @@ export const verifications = pgTable(
  */
 export const magicLinkClaims = pgTable("magic_link_claim", {
   tokenHash: text("token_hash").primaryKey(),
-  expiresAt: timestamp("expires_at").notNull(),
-  claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+  // With time zone: node-postgres sends Dates in the server's local zone, so a
+  // plain timestamp compared with now() breaks when Node and Postgres differ.
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const plannerStates = pgTable("planner_state", {

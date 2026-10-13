@@ -1,7 +1,7 @@
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/lib/db";
 import { accounts, authRateLimits, sessions, users, verifications } from "@/lib/db/schema";
-import { assertEmailConfigured } from "@/lib/auth-email";
+import { assertEmailConfigured, isProductionServer } from "@/lib/auth-email";
 import { createAuth } from "@/lib/auth-config";
 import { createAuthEmailSender } from "@/lib/email";
 import { recipientBudget } from "@/lib/email-budget";
@@ -11,16 +11,15 @@ import { memoryStore, postgresStore } from "@/lib/rate-limit/store";
 
 // `next build` evaluates route modules with NODE_ENV=production but no server
 // secrets; only fail fast when actually serving production traffic.
-const isProductionServer =
-  process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
+const productionServer = isProductionServer(process.env);
 const configuredSecret = process.env.BETTER_AUTH_SECRET;
 
-if (isProductionServer && !configuredSecret) {
+if (productionServer && !configuredSecret) {
   throw new Error(
     "BETTER_AUTH_SECRET must be set when running UNTangle in production. Set it in the environment before starting the server.",
   );
 }
-if (isProductionServer) checkProductionEnv();
+if (productionServer) checkProductionEnv();
 // Sign-in links are the main way in, so a production server without an
 // email provider stops here instead of showing a button that sends nothing.
 assertEmailConfigured(process.env);
@@ -31,6 +30,14 @@ export const authSecret =
   configuredSecret ?? "untangle-development-secret-at-least-32-characters";
 
 const ipHeader = trustedIpHeader();
+
+/** Sends auth email within each recipient's budget; shared through Postgres in production, like the API limits (lib/rate-limit). */
+export const authEmail = createAuthEmailSender(
+  recipientBudget({
+    store: process.env.NODE_ENV === "production" ? postgresStore(db) : memoryStore(),
+    secret: authSecret,
+  }),
+);
 
 export const auth = createAuth({
   baseURL,
@@ -52,11 +59,5 @@ export const auth = createAuth({
     rateLimit: { storage: process.env.NODE_ENV === "production" ? "database" : "memory" },
   },
   claims: postgresClaims((statement, params) => db.$client.query(statement, params)),
-  // Shared through Postgres in production, like the API limits (lib/rate-limit).
-  sendEmail: createAuthEmailSender(
-    recipientBudget({
-      store: process.env.NODE_ENV === "production" ? postgresStore(db) : memoryStore(),
-      secret: authSecret,
-    }),
-  ),
+  sendEmail: authEmail,
 });

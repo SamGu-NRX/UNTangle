@@ -15,19 +15,26 @@
 
 import { EmailBudgetExceeded, type SendBudget } from "@/lib/email-budget";
 
-export type AuthEmailKind = "magic-link" | "password-reset";
+export type AuthEmailKind = "magic-link" | "password-reset" | "password-added";
 
 type Env = Record<string, string | undefined>;
 
 /** Resend's shared sender, for development with a key but no verified domain. */
 const DEV_FROM = "UNTangle <onboarding@resend.dev>";
 
-const copy: Record<AuthEmailKind, { subject: string; heading: string; body: string; action: string }> = {
+const copy: Record<AuthEmailKind, { subject: string; heading: string; body: string; action: string; footer?: string }> = {
   "magic-link": {
     subject: "Your UNTangle sign-in link",
     heading: "Sign in to UNTangle",
     body: "This link signs you in. It works once and expires in 5 minutes.",
     action: "Sign in",
+  },
+  "password-added": {
+    subject: "A password was added to your UNTangle account",
+    heading: "A password was added to your account",
+    body: "Someone signed in to your UNTangle account and set a password for it. If that was you, there is nothing to do. If not, reset the password now; sign-in links keep working either way.",
+    action: "Reset the password",
+    footer: "UNTangle sends this whenever a password is added to an account.",
   },
   "password-reset": {
     subject: "Reset your UNTangle password",
@@ -47,7 +54,7 @@ export type RenderedEmail = { subject: string; html: string; text: string };
 
 /** One template for every auth email: the wordmark, one button, the link as text, and the ignore line. */
 export function renderAuthEmail(kind: AuthEmailKind, url: string): RenderedEmail {
-  const { subject, heading, body, action } = copy[kind];
+  const { subject, heading, body, action, footer = IGNORE } = copy[kind];
   const href = escapeHtml(url);
   const html = `<!doctype html>
 <html lang="en"><body style="margin:0;background:#f3f5f1;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#1a2e1a;">
@@ -57,10 +64,10 @@ export function renderAuthEmail(kind: AuthEmailKind, url: string): RenderedEmail
     <p style="margin:0 0 20px;font-size:14px;line-height:20px;color:#4a5e4a;">${body}</p>
     <a href="${href}" style="display:inline-block;background:#00512b;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;border-radius:8px;">${action}</a>
     <p style="margin:20px 0 0;font-size:12.5px;line-height:18px;color:#4a5e4a;">Or paste this link into your browser:<br><a href="${href}" style="color:#00512b;word-break:break-all;">${href}</a></p>
-    <p style="margin:20px 0 0;font-size:12.5px;line-height:18px;color:#6b7f6b;">${IGNORE}</p>
+    <p style="margin:20px 0 0;font-size:12.5px;line-height:18px;color:#6b7f6b;">${footer}</p>
   </div>
 </body></html>`;
-  const text = `UNTangle\n\n${heading}\n\n${body}\n\n${action}: ${url}\n\n${IGNORE}\n`;
+  const text = `UNTangle\n\n${heading}\n\n${body}\n\n${action}: ${url}\n\n${footer}\n`;
   return { subject, html, text };
 }
 
@@ -124,7 +131,7 @@ export async function deliverAuthEmail(
 ): Promise<"resend" | "server-log"> {
   const email = renderAuthEmail(kind, url);
   const mode = emailDelivery(env);
-  if (!(await budget.take(to))) throw new EmailBudgetExceeded(to);
+  if (!(await budget.take(to, kind))) throw new EmailBudgetExceeded(to);
   if (mode === "server-log") {
     log(`[UNTangle email] Email isn't set up here (no RESEND_API_KEY). "${email.subject}" for ${to}: ${url}`);
     return mode;

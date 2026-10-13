@@ -25,7 +25,8 @@ function refusalText(result: Extract<SetPasswordResult, { ok: false }>): string 
     case "PASSWORD_ALREADY_SET":
       return "This account already has a password. To change it, sign out and use Forgot password.";
     case "SESSION_NOT_FRESH":
-      return "For your safety, sign in again with a link, then set the password.";
+    case "SESSION_TOO_OLD":
+      return "For your safety, sign in again with a link, then set the password within 10 minutes.";
     case "PASSWORD_TOO_SHORT":
       return "Use at least 8 characters.";
     default:

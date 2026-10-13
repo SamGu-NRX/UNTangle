@@ -1,6 +1,7 @@
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuth } from "@/lib/auth-config";
 import { memoryClaims } from "@/lib/magic-link-claims";
+import { VERIFY_PATH } from "@/lib/magic-link-url";
 
 // The real auth flows on an in-memory database, for tests that drive the
 // better-auth handler with Requests the way a browser (or an attacker)
@@ -37,16 +38,17 @@ function withReadLatency(adapter: ReturnType<typeof memoryAdapter>): ReturnType<
 export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"]) {
   const store: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
   const mail: { kind: string; to: string; url: string }[] = [];
+  const record = async (kind: string, to: string, url: string) => {
+    mail.push({ kind, to, url });
+  };
   const auth = createAuth({
     database: withReadLatency(memoryAdapter(store)),
     baseURL: BASE,
     secret: "test-secret-at-least-32-characters-long",
     claims: memoryClaims(),
-    sendEmail:
-      sendEmail ??
-      (async (kind, to, url) => {
-        mail.push({ kind, to, url });
-      }),
+    sendEmail: sendEmail ?? record,
+    // NODE_ENV=test makes better-auth skip its origin and CSRF checks; these tests run with them on.
+    options: { advanced: { disableOriginCheck: false } },
   });
   const post = (path: string, body: unknown, cookie?: string) =>
     auth.handler(
@@ -60,7 +62,9 @@ export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"])
     auth.handler(new Request(url, { headers: cookie ? { cookie, origin: BASE } : { origin: BASE } }));
   const session = async (cookie: string) => (await (await get(`${BASE}/api/auth/get-session`, cookie)).json()) as { user?: { email: string } } | null;
   const lastLink = (kind: string) => [...mail].reverse().find((m) => m.kind === kind)?.url ?? "";
-  return { auth, store, mail, post, get, session, lastLink };
+  /** The URL the emailed sign-in link's landing page (/auth/link) submits to when the button is pressed. */
+  const lastVerifyLink = () => verifyFromLanding(lastLink("magic-link"));
+  return { auth, store, mail, post, get, session, lastLink, lastVerifyLink, send: record };
 }
 
 /** The session cookie a response set, as a Cookie header ("" if none). */
@@ -79,4 +83,11 @@ export async function signed(auth: ReturnType<typeof createAuth>, cookie: string
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(ctx.secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = Buffer.from(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(token))).toString("base64");
   return `${name}=${encodeURIComponent(`${token}.${signature}`)}`;
+}
+
+/** What /auth/link's form submits: the same parameters, at better-auth's verify path. */
+export function verifyFromLanding(landing: string): string {
+  const url = new URL(landing);
+  url.pathname = VERIFY_PATH;
+  return url.toString();
 }

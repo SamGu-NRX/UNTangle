@@ -4,6 +4,7 @@ import { magicLink } from "better-auth/plugins";
 import type { AuthEmailKind } from "@/lib/auth-email";
 import { EmailBudgetExceeded } from "@/lib/email-budget";
 import { hashMagicLinkToken, type MagicLinkClaims } from "@/lib/magic-link-claims";
+import { landingUrlFor } from "@/lib/magic-link-url";
 import { untEmailGate } from "@/lib/unt-auth";
 
 export type AuthDeps = {
@@ -24,7 +25,9 @@ export type AuthDeps = {
  * - Accounts are created only by a sign-in link to a UNT address. Password
  *   sign-up is off on the server (disableSignUp), so nobody can create a
  *   password account for an address they don't read. A password is an
- *   optional extra, set from a signed-in session (lib/account-password.ts).
+ *   optional extra: set from a recent signed-in session
+ *   (lib/account-password.ts), or through /reset-password, which needs the
+ *   inbox too.
  * - A password account whose address was never verified can't sign in
  *   (requireEmailVerification). Only accounts from before this rule can be
  *   in that state.
@@ -35,6 +38,19 @@ export type AuthDeps = {
  * - A link works once even when two requests use it at the same moment
  *   (an atomic claim, MagicLinkClaims).
  */
+/** Where a refused sign-in link may send the browser: the given URL if it decodes and is this app's, else the sign-in page. */
+export function trustedTarget(raw: string | undefined, isTrusted: (url: string) => boolean): string {
+  const fallback = "/auth?link=failed";
+  if (!raw) return fallback;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    return fallback;
+  }
+  return isTrusted(decoded) ? decoded : fallback;
+}
+
 export function createAuth({ database, baseURL, secret, claims, sendEmail, options }: AuthDeps) {
   /** Sends an auth email. Over budget: a sign-in link request fails with 429; a reset send is dropped (logged), since that endpoint answers the same whether or not an account exists. */
   async function send(kind: AuthEmailKind, to: string, url: string) {
@@ -63,6 +79,8 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
       disableSignUp: true,
       autoSignIn: false,
       requireEmailVerification: true,
+      // A reset is done from the inbox, so it ends every other session.
+      revokeSessionsOnPasswordReset: true,
       minPasswordLength: 8,
       sendResetPassword: async ({ user, url }) => {
         await send("password-reset", user.email, url);
@@ -74,7 +92,8 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
       magicLink({
         storeToken: "hashed",
         sendMagicLink: async ({ email, url }) => {
-          await send("magic-link", email, url);
+          // The student gets the app's landing page, not the verify URL (magic-link-url.ts).
+          await send("magic-link", email, landingUrlFor(url));
         },
       }),
     ],
@@ -94,9 +113,14 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
         if (!record || record.expiresAt < new Date()) return;
 
         if (!(await claims.claim(tokenHash, record.expiresAt))) {
+          // This hook runs before the endpoint's own check of errorCallbackURL,
+          // so the target is validated here: a used link must not become an
+          // open redirect to any site in errorCallbackURL.
           const query = ctx.query as { callbackURL?: string; errorCallbackURL?: string };
           const target = new URL(
-            decodeURIComponent(query.errorCallbackURL ?? query.callbackURL ?? "/"),
+            trustedTarget(query.errorCallbackURL ?? query.callbackURL, (url) =>
+              ctx.context.isTrustedOrigin(url, { allowRelativePaths: true }),
+            ),
             ctx.context.baseURL,
           );
           target.searchParams.set("error", "ATTEMPTS_EXCEEDED");

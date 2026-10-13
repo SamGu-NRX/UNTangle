@@ -5,7 +5,7 @@ import { recipientBudget } from "@/lib/email-budget";
 import { memoryStore } from "@/lib/rate-limit/store";
 import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
 import { budgets } from "@/lib/rate-limit/config";
-import { setPasswordHandler } from "@/lib/account-password";
+import { SET_PASSWORD_MAX_SESSION_AGE_MS, setPasswordHandler } from "@/lib/account-password";
 
 // Attacks on the real auth flows (fixtures.ts: better-auth on an in-memory
 // database). Each test reproduces an attack the fix has to stop.
@@ -13,7 +13,7 @@ import { setPasswordHandler } from "@/lib/account-password";
 /** Asks for a sign-in link to `email` and opens it; returns the session cookie it set. */
 async function signInByLink(t: ReturnType<typeof setup>, email: string): Promise<string> {
   expect((await t.post("/sign-in/magic-link", { email, callbackURL: "/courses" })).status).toBe(200);
-  const verify = await t.get(t.lastLink("magic-link"));
+  const verify = await t.get(t.lastVerifyLink());
   expect(verify.status).toBe(302);
   return cookieFrom(verify);
 }
@@ -43,9 +43,11 @@ describe("accounts come only from sign-in links", () => {
   test("signed in, the owner sets a password; password sign-in then works", async () => {
     const t = setup();
     const cookie = await signInByLink(t, VICTIM);
-    const setPassword = setPasswordHandler(t.auth);
+    const setPassword = setPasswordHandler(t.auth, { sendEmail: t.send });
     const set = await setPassword(passwordRequest("owner-password-123", cookie));
     expect(set.status).toBe(200);
+    // The owner is told a password was added.
+    expect(t.mail.filter((m) => m.kind === "password-added").map((m) => m.to)).toEqual([VICTIM]);
     const signIn = await t.post("/sign-in/email", { email: VICTIM, password: "owner-password-123" });
     expect(signIn.status).toBe(200);
     expect(cookieFrom(signIn)).not.toBe("");
@@ -56,7 +58,7 @@ describe("accounts come only from sign-in links", () => {
   test("setting a password needs a session from this site", async () => {
     const t = setup();
     const cookie = await signInByLink(t, VICTIM);
-    const setPassword = setPasswordHandler(t.auth);
+    const setPassword = setPasswordHandler(t.auth, { sendEmail: t.send });
     expect((await setPassword(passwordRequest("attacker-password", ""))).status).toBe(401);
     expect((await setPassword(passwordRequest("attacker-password", cookie, "https://evil.example"))).status).toBe(403);
     expect((t.store.account as { providerId: string }[]).some((a) => a.providerId === "credential")).toBe(false);
@@ -70,15 +72,90 @@ describe("accounts come only from sign-in links", () => {
     const victim = await signInByLink(t, VICTIM);
     expect((await t.session(victim))?.user?.email).toBe(VICTIM);
     expect((await t.post("/sign-in/email", { email: VICTIM, password: "attacker-password" })).status).toBe(401);
-    expect((await setPasswordHandler(t.auth)(passwordRequest("attacker-password", ""))).status).toBe(401);
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest("attacker-password", ""))).status).toBe(401);
   });
 
   test("an owner with a password keeps it when they also use a sign-in link", async () => {
     const t = setup();
     const first = await signInByLink(t, VICTIM);
-    expect((await setPasswordHandler(t.auth)(passwordRequest("owner-password-123", first))).status).toBe(200);
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest("owner-password-123", first))).status).toBe(200);
     await signInByLink(t, VICTIM);
     expect((await t.post("/sign-in/email", { email: VICTIM, password: "owner-password-123" })).status).toBe(200);
+  });
+});
+
+describe("a password is added only right after signing in", () => {
+  test("a session older than 10 minutes is refused, with a reason; a fresh one works", async () => {
+    const t = setup();
+    const cookie = await signInByLink(t, VICTIM);
+    let clock = Date.now() + SET_PASSWORD_MAX_SESSION_AGE_MS + 60_000;
+    const later = setPasswordHandler(t.auth, { sendEmail: t.send, now: () => clock });
+    const stale = await later(passwordRequest("owner-password-123", cookie));
+    expect(stale.status).toBe(403);
+    expect(await stale.json()).toMatchObject({ code: "SESSION_TOO_OLD" });
+    expect(t.mail.some((m) => m.kind === "password-added")).toBe(false);
+    clock = Date.now();
+    expect((await later(passwordRequest("owner-password-123", cookie))).status).toBe(200);
+  });
+
+  test("the body must be JSON by media type, not by a substring", async () => {
+    const t = setup();
+    const cookie = await signInByLink(t, VICTIM);
+    const request = new Request(`${BASE}/api/account/set-password`, {
+      method: "POST",
+      headers: { "content-type": "text/plain; note=application/json", origin: BASE, cookie },
+      body: JSON.stringify({ newPassword: "owner-password-123" }),
+    });
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(request)).status).toBe(415);
+  });
+});
+
+describe("a password reset ends other sessions", () => {
+  test("after a reset from the inbox, a session from before it no longer works", async () => {
+    const t = setup();
+    const before = await signInByLink(t, VICTIM);
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest("owner-password-123", before))).status).toBe(200);
+    expect((await t.post("/request-password-reset", { email: VICTIM, redirectTo: "/forgot-password" })).status).toBe(200);
+    const token = new URL(t.lastLink("password-reset")).pathname.split("/").pop()!;
+    expect((await t.post("/reset-password", { newPassword: "new-password-456", token })).status).toBe(200);
+    expect(await t.session(before)).toBeNull();
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "new-password-456" })).status).toBe(200);
+  });
+});
+
+describe("a refused sign-in link never sends the browser off-site", () => {
+  async function usedLink(t: ReturnType<typeof setup>) {
+    await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
+    const link = t.lastVerifyLink();
+    expect(cookieFrom(await t.get(link))).not.toBe("");
+    return new URL(link);
+  }
+
+  test("errorCallbackURL to another site, on a used token, lands on the sign-in page instead", async () => {
+    const t = setup();
+    const link = await usedLink(t);
+    link.searchParams.set("errorCallbackURL", "https://evil.example/phish");
+    const response = await t.get(link.toString());
+    const location = new URL(response.headers.get("location") ?? "", BASE);
+    expect(location.origin).toBe(BASE);
+    expect(location.pathname).toBe("/auth");
+    expect(location.searchParams.get("link")).toBe("failed");
+  });
+
+  test("a malformed escape in errorCallbackURL is not a server error", async () => {
+    const t = setup();
+    const link = await usedLink(t);
+    link.searchParams.set("errorCallbackURL", "%E0%A4%A");
+    const response = await t.get(link.toString());
+    expect(response.status).toBe(302);
+    expect(new URL(response.headers.get("location") ?? "", BASE).pathname).toBe("/auth");
+  });
+
+  test("better-auth's own origin check is on in these tests: a sign-in link with an off-site callback is refused", async () => {
+    const t = setup();
+    const response = await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "https://evil.example/" });
+    expect(response.status).toBe(403);
+    expect(t.mail).toHaveLength(0);
   });
 });
 
@@ -118,9 +195,9 @@ function passwordRequest(newPassword: string, cookie: string, origin = BASE) {
 
 describe("sign-in links work once", () => {
   test("two requests using the same link at the same moment: one session, one refusal", async () => {
-    const { post, get, lastLink, store } = setup();
+    const { post, get, lastVerifyLink, store } = setup();
     await post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses", errorCallbackURL: "/auth?link=failed" });
-    const link = lastLink("magic-link");
+    const link = lastVerifyLink();
     const responses = await Promise.all([get(link), get(link), get(link)]);
     const withSession = responses.filter((r) => cookieFrom(r) !== "");
     expect(withSession).toHaveLength(1);
@@ -130,9 +207,9 @@ describe("sign-in links work once", () => {
   });
 
   test("a link used once is refused afterwards", async () => {
-    const { post, get, lastLink } = setup();
+    const { post, get, lastVerifyLink } = setup();
     await post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses", errorCallbackURL: "/auth?link=failed" });
-    const link = lastLink("magic-link");
+    const link = lastVerifyLink();
     expect(cookieFrom(await get(link))).not.toBe("");
     const again = await get(link);
     expect(cookieFrom(again)).toBe("");

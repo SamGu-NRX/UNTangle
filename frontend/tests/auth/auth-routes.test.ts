@@ -37,13 +37,14 @@ describe("POST /api/auth/sign-up/email (disabled, and UNT-gated in case it retur
 });
 
 describe("POST /api/auth/sign-in/magic-link", () => {
-  test("a UNT address gets one sign-in link, pointing at the verify endpoint with the callback", async () => {
+  test("a UNT address gets one sign-in link, pointing at the landing page with the token and callback", async () => {
     const t = setup();
     expect((await askForLink(t, "Eagle@My.UNT.edu")).status).toBe(200);
     expect(t.mail).toHaveLength(1);
     expect(t.mail[0].kind).toBe("magic-link");
+    // The email points at the landing page, which only verifies when its button is pressed.
     const url = new URL(t.mail[0].url);
-    expect(url.origin + url.pathname).toBe(`${BASE}/api/auth/magic-link/verify`);
+    expect(url.origin + url.pathname).toBe(`${BASE}/auth/link`);
     expect(url.searchParams.get("token")).toBeTruthy();
     expect(url.searchParams.get("callbackURL")).toBe("/courses");
   });

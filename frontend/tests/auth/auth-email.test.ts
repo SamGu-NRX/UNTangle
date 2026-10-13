@@ -34,6 +34,9 @@ describe("auth email template", () => {
   test("each kind has its subject", () => {
     expect(renderAuthEmail("magic-link", URL_).subject).toBe("Your UNTangle sign-in link");
     expect(renderAuthEmail("password-reset", URL_).subject).toBe("Reset your UNTangle password");
+    expect(renderAuthEmail("password-added", URL_).subject).toBe("A password was added to your UNTangle account");
+    // A notice, not a request: its footer doesn't say nothing has changed.
+    expect(renderAuthEmail("password-added", URL_).text).not.toContain("nothing changes");
   });
 
   test("one button, the link as plain text, and the didn't-request line, in HTML and text", () => {
@@ -169,13 +172,21 @@ describe("the per-inbox send budget (lib/rate-limit's store, class authEmail: 3 
     expect(lines).toHaveLength(5);
   });
 
+  test("each email kind has its own budget: three resets don't use up the sign-in links", async () => {
+    const { lines, deps: d } = deps();
+    for (let i = 0; i < 4; i++) await deliverAuthEmail("password-reset", "eagle@my.unt.edu", URL_, d).catch(() => {});
+    expect(lines).toHaveLength(3);
+    await deliverAuthEmail("magic-link", "eagle@my.unt.edu", URL_, d);
+    expect(lines).toHaveLength(4);
+  });
+
   test("the store only ever sees an HMAC of the address", async () => {
     const seen: string[] = [];
     const budget = recipientBudget({
       store: { hit: async (_route, caller) => (seen.push(caller), 1) },
       secret: "test-secret",
     });
-    await budget.take("eagle@my.unt.edu");
+    await budget.take("eagle@my.unt.edu", "magic-link");
     expect(seen[0]).not.toContain("eagle");
     expect(seen[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });

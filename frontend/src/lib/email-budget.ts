@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { budgetWindowMs, budgets } from "@/lib/rate-limit/config";
+import { budgetWindowMs, recipientBudgets } from "@/lib/rate-limit/config";
 import type { RateLimitStore } from "@/lib/rate-limit/store";
 
 /**
@@ -8,13 +8,14 @@ import type { RateLimitStore } from "@/lib/rate-limit/store";
  * increments (12 parallel requests sent 12 emails), and the auth route's IP
  * budget (lib/rate-limit, "auth") can't tell recipients apart.
  *
- * Counts live in lib/rate-limit's store, as the "authEmail" class: one
- * atomic hit per send, shared through Postgres across instances in
- * production, over the budget's own 10-minute window (budgets.authEmail).
+ * Counts live in lib/rate-limit's store under "authEmail": one atomic hit
+ * per send, shared through Postgres across instances in production, over
+ * the budget's own 10-minute window (recipientBudgets.authEmail). Each email
+ * kind has its own count, so password resets can't use up the sign-in links.
  */
 export interface SendBudget {
-  /** Counts one send to `recipient`; false when its budget for this window is used up. */
-  take(recipient: string): Promise<boolean>;
+  /** Counts one `kind` email to `recipient`; false when that budget for this window is used up. */
+  take(recipient: string, kind: string): Promise<boolean>;
 }
 
 /**
@@ -42,18 +43,19 @@ export function recipientBudget({
 }): SendBudget {
   const key = createHmac("sha256", secret).update("untangle rate limit").digest();
   return {
-    async take(recipient) {
-      const caller = createHmac("sha256", key).update(`email:${budgetKey(recipient)}`).digest("base64url");
-      const windowMs = budgetWindowMs(budgets.authEmail);
+    async take(recipient, kind) {
+      const caller = createHmac("sha256", key).update(`email:${kind}:${budgetKey(recipient)}`).digest("base64url");
+      const { perRecipient } = recipientBudgets.authEmail;
+      const windowMs = budgetWindowMs(recipientBudgets.authEmail);
       const count = await store.hit("authEmail", caller, Math.floor(now() / windowMs), windowMs);
-      return count <= budgets.authEmail.ip;
+      return count <= perRecipient;
     },
   };
 }
 
 export class EmailBudgetExceeded extends Error {
   constructor(readonly recipient: string) {
-    super("Too many sign-in emails to this address. Try again in 10 minutes.");
+    super("Too many emails of this kind to this address. Try again in 10 minutes.");
     this.name = "EmailBudgetExceeded";
   }
 }

@@ -8,11 +8,11 @@ trustRealIp();
 
 test("the memory store counts per route class and caller, and starts over each window", async () => {
   const store = memoryStore();
-  expect(await store.hit("grades", "a", 7)).toBe(1);
-  expect(await store.hit("grades", "a", 7)).toBe(2);
-  expect(await store.hit("grades", "b", 7)).toBe(1);
-  expect(await store.hit("mapRoute", "a", 7)).toBe(1);
-  expect(await store.hit("grades", "a", 8)).toBe(1);
+  expect(await store.hit("grades", "a", 7, 60_000)).toBe(1);
+  expect(await store.hit("grades", "a", 7, 60_000)).toBe(2);
+  expect(await store.hit("grades", "b", 7, 60_000)).toBe(1);
+  expect(await store.hit("mapRoute", "a", 7, 60_000)).toBe(1);
+  expect(await store.hit("grades", "a", 8, 60_000)).toBe(1);
 });
 
 test("a caller over budget waits until the window ends", async () => {
@@ -28,17 +28,17 @@ test("a caller over budget waits until the window ends", async () => {
   expect((await call()).status).toBe(200);
 });
 
-test("a budget with a 10-minute window counts across minutes and waits for the window's own end", async () => {
+test("a budget with a 10-minute window (setPassword) counts across minutes and waits for the window's own end", async () => {
   const tenMinutes = 600_000;
   let now = 5 * tenMinutes + 45_200;
   const store = memoryStore();
   const limited = createRateLimitWrapper({ store, session: async () => null, secret: "test", now: () => now })(
-    "authEmail", () => new Response("ok"));
+    "setPassword", () => new Response("ok"));
   const call = () => limited(new Request("http://localhost/", { headers: { "x-real-ip": "203.0.113.1" } }));
-  expect(budgets.authEmail.windowSeconds).toBe(600);
-  for (let i = 0; i < budgets.authEmail.ip; i++) {
+  expect(budgets.setPassword.windowSeconds).toBe(600);
+  for (let i = 0; i < budgets.setPassword.ip; i++) {
     expect((await call()).status).toBe(200);
-    now += 60_000; // a minute later is still the same window
+    now += 30_000; // half a minute apart: well past one minute, still in the 10-minute window
   }
   const denied = await call();
   expect(denied.status).toBe(429);
