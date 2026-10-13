@@ -32,7 +32,7 @@ Built by **Sam Gu** ([@SamGu-NRX](https://github.com/SamGu-NRX)), **Sangharsha D
 - [Bun 1.3.10](https://bun.sh) (pinned as `packageManager` in `package.json`) and Node.js
 - Git access to both repositories (the backend submodule points at a separate GitHub repo)
 - A PostgreSQL database for accounts and saved plans (frontend auth + planner state)
-- Optional keys for full functionality: `ORS_API_KEY` and `RESEND_API_KEY`. [`frontend/README.md`](frontend/README.md) documents what degrades without each.
+- Keys: `ORS_API_KEY` (optional), and `RESEND_API_KEY` plus `RESEND_FROM_EMAIL` for sign-in email (required in production; in development the sign-in link goes to the server log). [`frontend/README.md`](frontend/README.md) documents what each does.
 
 ### 1. Install and set up
 

@@ -34,6 +34,11 @@
   font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
   color: var(--ink);
 }
+.auth__title:focus,
+.auth__title:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 .auth__lede {
   margin: -8px 0 0;
   font-size: var(--text-sm);
@@ -43,6 +48,15 @@
 .auth__form {
   display: grid;
   gap: 12px;
+}
+.auth__note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
 }
 .auth__submit,
 .auth__guest {
