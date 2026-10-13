@@ -12,6 +12,19 @@
  * - `receipts` holds each transaction's outcome in the state that carries
  *   its effect. The provider resolves a transaction only when a committed
  *   state holds its receipt, so a render React discards acknowledges nothing.
+ * - `applied` counts the actions this state includes. Every action is
+ *   numbered when it is dispatched (1, 2, 3, ...). React renders by
+ *   priority: an ordinary update can commit while an earlier transition
+ *   update is still waiting, and React later re-applies the later updates on
+ *   top of the earlier one (rebasing). A transaction applied in such a
+ *   render would be checked against a plan missing that earlier update, and
+ *   its receipt would claim a result the final plan does not have. So a
+ *   transaction numbered n acts only on a state that includes all n - 1
+ *   earlier actions; otherwise it leaves the state unchanged and records no
+ *   receipt, and runs for real when React rebases it onto the state that
+ *   includes them. A count is enough because React applies a hook's queued
+ *   updates in dispatch order and never applies a later one without the
+ *   earlier ones it skipped, except in a render it will redo.
  *
  * Pure: React may run a reducer twice (StrictMode) or again on a new base.
  */
@@ -30,6 +43,7 @@ export type PlannerBox = {
   epoch: number;
   runEdits: number;
   receipts: ReadonlyArray<{ id: number; outcome: TransactionOutcome<unknown> }>;
+  applied: number;
 };
 
 /** A transaction as a reducer action. A class, so the reducer can tell it from a plan value. */
@@ -46,8 +60,10 @@ export class TransactionRequest {
 
 /** Anything setState accepts, or a transaction. */
 export type PlannerAction = PlannerState | ((current: PlannerState) => PlannerState) | TransactionRequest;
+/** An action with the number it was given at dispatch. */
+export type NumberedAction = { seq: number; action: PlannerAction };
 
-export const plannerBox = (plan: PlannerState): PlannerBox => ({ plan, epoch: 0, runEdits: 0, receipts: [] });
+export const plannerBox = (plan: PlannerState): PlannerBox => ({ plan, epoch: 0, runEdits: 0, receipts: [], applied: 0 });
 
 /** True when `after` changed a status or section of a course the pending Auto-fill run planned. */
 export function touchesAutoRun(before: PlannerState, after: PlannerState): boolean {
@@ -60,8 +76,11 @@ export function touchesAutoRun(before: PlannerState, after: PlannerState): boole
 }
 
 /** `identity` is the identity of the render running the reducer, so a transaction sees a sign-in the moment React does. */
-export function reducePlannerBox(box: PlannerBox, action: PlannerAction, identity: string): PlannerBox {
+export function reducePlannerBox(state: PlannerBox, { seq, action }: NumberedAction, identity: string): PlannerBox {
   if (action instanceof TransactionRequest) {
+    // An earlier action is missing from this state: wait for the rebase that includes it.
+    if (state.applied !== seq - 1) return state;
+    const box = { ...state, applied: seq };
     const receipts = box.receipts.filter((receipt) => !action.settled.has(receipt.id));
     const refusal = action.stamp.identity !== identity ? "identity_changed" : action.stamp.epoch !== box.epoch ? "plan_replaced" : null;
     if (refusal) return { ...box, receipts: [...receipts, { id: action.id, outcome: { status: refusal } }] };
@@ -70,6 +89,7 @@ export function reducePlannerBox(box: PlannerBox, action: PlannerAction, identit
     const runEdits = box.runEdits + (touchesAutoRun(box.plan, plan) ? 1 : 0);
     return { ...box, plan, runEdits, receipts: [...receipts, { id: action.id, outcome: { status: "committed", result, runEdits } }] };
   }
+  const box = { ...state, applied: seq };
   const plan = typeof action === "function" ? action(box.plan) : action;
   if (plan === box.plan) return box;
   return {

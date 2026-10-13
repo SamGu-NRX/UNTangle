@@ -1,11 +1,11 @@
 {
-  "startedAt": "2026-10-13T21:05:31.318Z",
+  "startedAt": "2026-10-13T21:31:10.410Z",
   "base": "http://127.0.0.1:3217",
   "checks": [
     {
       "name": "without WebMCP no loaded script contains the tools",
       "passed": true,
-      "detail": "20 scripts"
+      "detail": "21 scripts"
     },
     {
       "name": "eleven tools registered after the plan loaded",
@@ -409,7 +409,7 @@
       }
     }
   ],
-  "finishedAt": "2026-10-13T21:05:36.512Z",
+  "finishedAt": "2026-10-13T21:31:15.727Z",
   "passed": 16,
   "total": 16
 }

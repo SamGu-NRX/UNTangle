@@ -61,7 +61,8 @@ export function fixturePort(start: PlannerState = fixturePlan(), selected: Recor
   let identity = "guest";
   let lastId = 0;
   const writes: string[] = [];
-  const dispatch = (action: PlannerAction) => (box = reducePlannerBox(box, action, identity));
+  let lastSeq = 0;
+  const dispatch = (action: PlannerAction) => (box = reducePlannerBox(box, { seq: ++lastSeq, action }, identity));
   const port: PlannerPort = {
     plan: () => normalizePlannerState(box.plan),
     preferences: () => preferences,

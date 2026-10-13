@@ -127,6 +127,29 @@ describe("transact", () => {
     await waitFor(() => page.shownDay() === "Tue", "Tuesday committed");
   });
 
+  test("a transaction behind a suspended transition waits for it, then acts on the plan that includes it", async () => {
+    const page = await mountStrict();
+    page.startTransition(() => page.get().setActiveDay("Tue"));
+    // Dispatched after the transition, at ordinary priority: it renders first, without the transition's update.
+    const pending = page.get().transact((plan) => ({ next: { ...plan, selectedMajor: "math" }, result: `saw ${plan.activeDay}` }), page.get().planStamp);
+    await sleep(30);
+    expect(await state(pending)).toBe("open");
+    expect(page.get().plannerState.selectedMajor).not.toBe("math");
+    page.release();
+    expect(await pending).toMatchObject({ status: "committed", result: "saw Tue" });
+    await waitFor(() => page.shownDay() === "Tue" && page.get().plannerState.selectedMajor === "math", "both committed");
+  });
+
+  test("a transaction waiting behind a suspended transition is cancelled when the provider unmounts", async () => {
+    const page = await mountStrict();
+    page.startTransition(() => page.get().setActiveDay("Tue"));
+    const pending = page.get().transact((plan) => ({ next: plan, result: "applied" }), page.get().planStamp);
+    await sleep(30);
+    expect(await state(pending)).toBe("open");
+    page.unmount();
+    expect(await state(pending)).toEqual({ status: "cancelled" });
+  });
+
   test("a call made under one account and processed after a switch to another is refused", async () => {
     setSession({ id: "a", email: "a@my.unt.edu", name: "A" });
     const page = await mountStrict();

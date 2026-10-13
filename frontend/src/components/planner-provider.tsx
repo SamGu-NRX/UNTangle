@@ -39,6 +39,8 @@ import {
   plannerBox,
   reducePlannerBox,
   TransactionRequest,
+  type NumberedAction,
+  type PlannerAction,
   type PlanStamp,
   type PlanTransaction,
   type TransactionOutcome,
@@ -235,11 +237,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   // The plan lives in a reducer (lib/planner-transaction.ts) so transactions are checked and acknowledged in
   // state. Its dispatch takes everything setState did, so every existing setPlannerState call is unchanged.
   const transactionIdentity = sessionResult.data?.user?.id ? `user:${sessionResult.data.user.id}` : "guest";
-  const [planBox, setPlannerState] = useReducer(
-    (box: ReturnType<typeof plannerBox>, action: Parameters<typeof reducePlannerBox>[1]) => reducePlannerBox(box, action, transactionIdentity),
+  const [planBox, dispatchPlan] = useReducer(
+    (box: ReturnType<typeof plannerBox>, numbered: NumberedAction) => reducePlannerBox(box, numbered, transactionIdentity),
     undefined,
     () => plannerBox(getInitialPlannerState()),
   );
+  // Numbers every action at dispatch, so a transaction can tell whether the state it gets includes all earlier ones.
+  const lastActionSeq = useRef(0);
+  const setPlannerState = useCallback((action: PlannerAction) => dispatchPlan({ seq: ++lastActionSeq.current, action }), []);
   const plannerState = planBox.plan;
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<PlannerSaveState>(PENDING);
@@ -569,7 +574,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     bumpPlanEpoch();
     setTookNewerVersion(true);
     markSaved(storedFingerprint);
-  }, [bumpPlanEpoch, enterSignedOut, markSaved, persistServer, raiseConflict]);
+  }, [bumpPlanEpoch, enterSignedOut, markSaved, persistServer, raiseConflict, setPlannerState]);
 
   const handleSessionRestored = useCallback(() => {
     if (!sessionExpired.current) {
@@ -742,7 +747,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       hydrationWaiters.current.forEach((resolve) => resolve());
       hydrationWaiters.current = [];
     });
-  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionResult.data, sessionResult.isPending]);
+  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionResult.data, sessionResult.isPending, setPlannerState]);
 
   // Local bridge until #19 lands: a new session for the same signed-in user
   // (signing in again in this tab) counts as a restore. Idempotent, so #19's
@@ -909,7 +914,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       setTookNewerVersion(true);
       markSaved(incomingFingerprint);
     },
-    [bumpPlanEpoch, markSaved, raiseConflict],
+    [bumpPlanEpoch, markSaved, raiseConflict, setPlannerState],
   );
 
   useEffect(() => {
@@ -995,7 +1000,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         void persistServer(mine);
       }
     },
-    [bumpPlanEpoch, guestStore, markSaved, persistGuest, persistServer],
+    [bumpPlanEpoch, guestStore, markSaved, persistGuest, persistServer, setPlannerState],
   );
 
   const value = useMemo<PlannerContextValue>(() => {
@@ -1269,6 +1274,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     afterHydration,
     planBox.epoch,
     transactionIdentity,
+    setPlannerState,
     conflict,
     guestStorageAvailable,
     hydrated,
