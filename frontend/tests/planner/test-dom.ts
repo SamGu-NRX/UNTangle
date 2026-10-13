@@ -16,6 +16,7 @@
 import { mock } from "bun:test";
 import { Window } from "happy-dom";
 import { useSyncExternalStore } from "react";
+import type { SectionStore } from "@/lib/section-store";
 import type { PlannerState } from "@/lib/types";
 
 type TestUser = { id: string; email: string; name: string };
@@ -253,8 +254,9 @@ export type PlannerValue = ReturnType<PlannerModule["usePlanner"]>;
  * promises and timers, so tests poll the live value with `waitFor` instead.
  * `extra` renders additional UI (e.g. the persistence panel) inside the provider.
  */
-export async function mountPlanner(extra?: () => React.ReactNode) {
+export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore) {
   const mod = await import("@/components/planner-provider");
+  const sectionStore = store ?? (await import("@/lib/section-store")).sampleSectionStore;
   const React = await import("react");
   const { createRoot } = await import("react-dom/client");
 
@@ -270,7 +272,8 @@ export async function mountPlanner(extra?: () => React.ReactNode) {
   root.render(
     React.createElement(
       mod.PlannerProvider,
-      null,
+      // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
+      { sectionStore },
       React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
     ),
   );

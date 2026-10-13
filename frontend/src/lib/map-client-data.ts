@@ -74,7 +74,8 @@ export function lookupSnapshot(cache: MapDataCache): Map<string, StopLookup> {
 export function planLookups(stops: MapStop[], cache: MapDataCache, now: number): MapStop[] {
   const seen = new Set<string>();
   return stops.filter((stop) => {
-    if (typeof stop.lat === "number" && typeof stop.lng === "number") return false;
+    // An unmapped room is never looked up by its text (MapStop.unmappedRoom).
+    if (stop.unmappedRoom || (typeof stop.lat === "number" && typeof stop.lng === "number")) return false;
     const key = lookupKey(stop.location, stop.buildingId);
     if (seen.has(key) || cache.lookups.has(key)) return false;
     seen.add(key);

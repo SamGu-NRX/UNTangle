@@ -185,6 +185,18 @@ export function ConstraintRail({
           })}
         </ChipGroup>
 
+        <span className={styles.subLabel} aria-hidden="true">
+          Sections to suggest
+        </span>
+        <ChipGroup label="Sections to suggest">
+          <Chip size="sm" selected={constraints.openSeatsOnly} disabled={disabled} onSelectedChange={(openSeatsOnly) => setConstraints({ openSeatsOnly })}>
+            Open seats only
+          </Chip>
+          <Chip size="sm" selected={constraints.otherSites} disabled={disabled} onSelectedChange={(otherSites) => setConstraints({ otherSites })}>
+            Include other UNT sites
+          </Chip>
+        </ChipGroup>
+
         <fieldset className={styles.blockSet} disabled={disabled}>
           <legend className={styles.subLabel}>Keep a time free</legend>
           {constraints.blocked.length > 0 ? (
@@ -192,7 +204,7 @@ export function ConstraintRail({
               {constraints.blocked.map((block) => (
                 <li key={block.id} className={styles.blockRow}>
                   <span>
-                    <b>{block.label}</b> · {block.day} {clock(block.start, true)}–{clock(block.end, true)}
+                    <b>{block.label}</b>, {block.day} {clock(block.start, true)}–{clock(block.end, true)}
                   </span>
                   <Button
                     variant="link"

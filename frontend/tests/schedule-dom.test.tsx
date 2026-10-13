@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { click, installDom, mount, removeDom } from "./ui/dom";
 import type { RunState } from "@/components/schedule/run-state";
+import { sampleOption } from "@/lib/planner-sections";
 import type { OptimizeResult } from "@/lib/optimizer/types";
 import type { SchedulePreferences } from "@/lib/types";
 
@@ -18,6 +19,7 @@ afterAll(() => {
 });
 
 const FIVE = ["ANTH 1010", "BIOL 1710", "ENGL 1310", "MATH 1710", "PSYC 1630"];
+const findSample = (_: string, id: string) => sampleOption(id);
 
 async function realResult(): Promise<OptimizeResult> {
   const { buildOptimizeRequest, defaultSchedulePreferences, getInitialPlannerState } = await import("@/lib/planner");
@@ -48,6 +50,8 @@ async function renderAlternatives(state: RunState, stale: boolean) {
       state={state}
       stale={stale}
       current={{}}
+      find={findSample}
+      tag={null}
       courseOrder={FIVE}
       onUse={(_, letter) => used.push(letter)}
       onPreview={() => {}}

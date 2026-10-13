@@ -173,7 +173,8 @@ test("UNT rebuilds offline from pinned raw bytes and retains every route's tenth
   try {
     buildCampus(join(kit, "campuses/unt-denton.json"), temporary, raw);
     const emitted = readFileSync(join(temporary, "walking-times.json"));
-    expect(sha(emitted)).toBe("76e57546e166aa68b6a7d27d7932b67dea8ce9b063e7cb22d28b39e5573ad08b");
+    // Rebuilt 2026-10-13 after MGYM, WSC2, PACX and SPHS joined the registry.
+    expect(sha(emitted)).toBe("02fa5bc125c0609a3b7228832fc83eb90cfdbca735f8680b99b8fb6ae9942908");
     expect(emitted).toEqual(readFileSync(join(import.meta.dir, "../../src/lib/campus/data/walking-times.json")));
   } finally {
     rmSync(temporary, { recursive: true, force: true });

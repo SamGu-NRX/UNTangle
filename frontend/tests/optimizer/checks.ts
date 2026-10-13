@@ -4,8 +4,8 @@
  * so a mutation test can assert that a planted bug makes a check fail.
  */
 
-import type { OptimizeRequest, OptimizeResult } from "@/lib/optimizer/types";
-import { generateInstance, syntheticWalkingTime, type InstanceShape } from "./generator";
+import type { OptDateRange, OptDay, OptimizeRequest, OptimizeResult, OptMeeting } from "@/lib/optimizer/types";
+import { FIRST_HALF, FULL_TERM, generateInstance, SECOND_HALF, syntheticWalkingTime, type InstanceShape } from "./generator";
 import {
   combinationCount,
   referenceRelax,
@@ -30,6 +30,40 @@ export function smallInstance(seed: number): OptimizeRequest {
   return generateInstance(seed, SMALL_SHAPES[seed % SMALL_SHAPES.length]);
 }
 
+/** Small instances with Spring 2027 half-term dates and weekend meetings (see `terms` in generator.ts). */
+export const TERM_SHAPES: InstanceShape[] = [
+  { courses: 3, sectionsPerCourse: [3, 7], style: "irregular", constraintDensity: 0.4, terms: true },
+  { courses: 4, sectionsPerCourse: [2, 5], style: "irregular", constraintDensity: 0.5, walking: "non-metric", terms: true },
+  { courses: 5, sectionsPerCourse: [2, 5], style: "realistic", constraintDensity: 0.4, terms: true },
+  { courses: 4, sectionsPerCourse: [3, 6], style: "realistic", constraintDensity: 0.3, walking: "non-metric", terms: true },
+];
+
+/**
+ * A dated instance with the walking check forced on (the generated buffer,
+ * else 0) or off. Off also zeroes the walking weight, so buildings matter
+ * to nothing and the time-only twin rule is the one in play.
+ */
+export function termInstance(seed: number, walking: boolean): OptimizeRequest {
+  const request = generateInstance(seed, TERM_SHAPES[seed % TERM_SHAPES.length]);
+  return walking
+    ? { ...request, constraints: { ...request.constraints, walking: request.constraints.walking ?? { bufferMinutes: 0 } } }
+    : { ...request, constraints: { ...request.constraints, walking: null }, weights: { ...request.weights, walking: 0 } };
+}
+
+/** The same request with every meeting's dates removed. */
+export function withoutDates(request: OptimizeRequest): OptimizeRequest {
+  return {
+    ...request,
+    courses: request.courses.map((course) => ({
+      ...course,
+      sections: course.sections.map((section) => ({
+        ...section,
+        meetings: section.meetings.map((m) => ({ day: m.day, start: m.start, end: m.end, buildingId: m.buildingId })),
+      })),
+    })),
+  };
+}
+
 function sectionsOf(request: OptimizeRequest, byCourse: Record<string, string>) {
   const all = request.courses.flatMap((course) => course.sections);
   return Object.values(byCourse).map((id) => all.find((section) => section.id === id)!);
@@ -40,10 +74,14 @@ function sectionsOf(request: OptimizeRequest, byCourse: Record<string, string>) 
  * same costs and breakdowns as the reference, zero hard-constraint
  * violations, and the same diversity threshold.
  */
-export function checkAgainstReference(optimize: OptimizeFn, seeds: number[]): string[] {
+export function checkAgainstReference(
+  optimize: OptimizeFn,
+  seeds: number[],
+  instance: (seed: number) => OptimizeRequest = smallInstance,
+): string[] {
   const failures: string[] = [];
   for (const seed of seeds) {
-    const request = smallInstance(seed);
+    const request = instance(seed);
     if (combinationCount(request) > 20_000) continue;
     const reference = referenceTopK(request);
     const result = optimize(request);
@@ -86,14 +124,17 @@ export function checkAgainstReference(optimize: OptimizeFn, seeds: number[]): st
  * its own, dropping any one member makes it feasible (checked by the
  * reference), and the result says it is minimal.
  */
-export function checkExplanations(optimize: OptimizeFn, seeds: number[]): { failures: string[]; checked: number } {
-  const failures: string[] = [];
-  let checked = 0;
+export function checkExplanations(
+  optimize: OptimizeFn,
+  seeds: number[],
   // Seeds above 400 use a dense profile, where several independent conflicts are common.
-  const instance = (seed: number) =>
+  instance: (seed: number) => OptimizeRequest = (seed) =>
     seed > 400
       ? generateInstance(seed, { courses: 4, sectionsPerCourse: [2, 4], style: "irregular", constraintDensity: 0.95, walking: "non-metric" })
-      : smallInstance(seed);
+      : smallInstance(seed),
+): { failures: string[]; checked: number } {
+  const failures: string[] = [];
+  let checked = 0;
   for (const seed of seeds) {
     const request = instance(seed);
     if (combinationCount(request) > 20_000) continue;
@@ -195,11 +236,13 @@ export function checkBudgets(optimize: OptimizeFn): string[] {
 const X = "b-arts";
 const meet = (day: "Mon" | "Tue", start: number, end: number, buildingId: string | null = X) => ({ day, start, end, buildingId });
 
-/** Review regressions (PR #32, Astra), each a fixed instance with a known answer. */
-export function regressionCases(): Array<{ name: string; request: OptimizeRequest; verify: (result: OptimizeResult) => string | null }> {
+type RegressionCase = { name: string; request: OptimizeRequest; verify: (result: OptimizeResult) => string | null };
+
+/** Review regressions (PR #32, Astra) and the meeting-dates cases, each a fixed instance with a known answer. */
+export function regressionCases(): RegressionCase[] {
   const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
   const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
-  const base = { locks: {}, excluded: [], walkingTime: syntheticWalkingTime, timeBudgetMs: 60_000, explainBudgetMs: 60_000 };
+  const base = { term: FULL_TERM, locks: {}, excluded: [], walkingTime: syntheticWalkingTime, timeBudgetMs: 60_000, explainBudgetMs: 60_000 };
   // One section can fill a break with two meetings; crediting only its
   // longest meeting overestimated the bound and proved a worse schedule.
   const fillCourses = [
@@ -223,6 +266,128 @@ export function regressionCases(): Array<{ name: string; request: OptimizeReques
       { id: "q1", courseCode: "Q", rating: null, meetings: [meet("Mon", 601, 651, "b-sci")] },
     ] },
   ];
+  const at = (day: OptDay, start: number, end: number, buildingId: string, dates?: OptDateRange) => ({ day, start, end, buildingId, dates });
+  const one = (code: string, id: string, meetings: OptMeeting[]) => ({ id, courseCode: code, rating: null, meetings });
+  // X -> Y 5 minutes, X -> Z and Y -> Z 15 minutes, LANG <-> GAB 15 minutes.
+  const campus: OptimizeRequest["walkingTime"] = (from, to) => {
+    if (from === to) return { seconds: 0, source: "campus-network" };
+    return { seconds: [from, to].sort().join("") === "XY" ? 300 : 900, source: "campus-network" };
+  };
+  const walkingOn = { ...none, walking: { bufferMinutes: 0 } };
+  const spanish = [
+    // SPAN 2040-051 and 2050-051: TR 3:30-6:20 PM, first and second eight weeks.
+    { code: "SPAN 2040", credits: 3, sections: [one("SPAN 2040", "span2040-051", [at("Tue", 930, 1100, "LANG", FIRST_HALF), at("Thu", 930, 1100, "LANG", FIRST_HALF)])] },
+    { code: "SPAN 2050", credits: 3, sections: [one("SPAN 2050", "span2050-051", [at("Tue", 930, 1100, "GAB", SECOND_HALF), at("Thu", 930, 1100, "GAB", SECOND_HALF)])] },
+  ];
+  const fullAndFirstHalf = (full: OptDateRange | undefined) => [
+    { code: "A", credits: 3, sections: [one("A", "a0", [at("Tue", 930, 1100, "X", full)])] },
+    { code: "B", credits: 3, sections: [one("B", "b0", [at("Tue", 960, 1010, "X", FIRST_HALF)])] },
+  ];
+  // A full-term class in X ends 9:50; at 10:00 a first-half class in Y (5 min away)
+  // and a second-half class in Z (15 min away) both follow it.
+  const fork = (secondHalfLater: boolean) => [
+    { code: "A", credits: 3, sections: [one("A", "a0", [at("Mon", 540, 590, "X")])] },
+    { code: "B", credits: 3, sections: [one("B", "b0", [at("Mon", 600, 650, "Y", FIRST_HALF)])] },
+    {
+      code: "C",
+      credits: 3,
+      sections: [
+        one("C", "c0", [at("Mon", 600, 650, "Z", SECOND_HALF)]),
+        ...(secondHalfLater ? [one("C", "c1", [at("Mon", 660, 710, "Z", SECOND_HALF)])] : []),
+      ],
+    },
+  ];
+  const weekend = [
+    { code: "A", credits: 3, sections: [one("A", "a0", [at("Mon", 540, 590, "X"), at("Sat", 540, 650, "X")])] },
+    {
+      code: "B",
+      credits: 3,
+      sections: [one("B", "b0", [at("Sat", 600, 700, "X")]), one("B", "b1", [at("Sat", 660, 710, "X")]), one("B", "b2", [at("Sun", 540, 590, "X")])],
+    },
+  ];
+  const picked = (r: OptimizeResult) => `${r.status} ${JSON.stringify(r.schedules.map((s) => [s.byCourse, s.cost, s.breakdown]))}`;
+  // Meeting dates and weekend days (UNT Spring 2027 sections).
+  const bridge = [
+    { code: "A", credits: 3, sections: [one("A", "a", [at("Mon", 540, 600, "X")])] },
+    { code: "B", credits: 3, sections: [one("B", "b-mon", [at("Mon", 610, 660, "Y", FULL_TERM)]), one("B", "b-tue", [at("Tue", 610, 660, "Y", FULL_TERM)])] },
+    { code: "C", credits: 3, sections: [one("C", "c", [at("Mon", 670, 720, "Z")])] },
+  ];
+  const sundayTouch = [
+    { code: "A", credits: 3, sections: [one("A", "a", [at("Mon", 540, 590, "X", { start: "2027-01-11", end: "2027-01-17" })])] },
+    { code: "B", credits: 3, sections: [one("B", "b", [at("Mon", 540, 590, "Y", { start: "2027-01-17", end: "2027-01-24" })])] },
+  ];
+  const dated: RegressionCase[] = [
+    {
+      name: "full-term Monday bridge leaves 20 idle minutes, not an outside-term pair",
+      request: { ...base, courses: bridge, constraints: none, weights: { ...zero, compact: 1 }, k: 1 },
+      verify: (r) => r.status === "optimal" && r.schedules[0].byCourse.B === "b-mon" && r.schedules[0].cost === 1200 && r.schedules[0].breakdown.gapMinutes === 20 ? null : picked(r),
+    },
+    {
+      name: "an outside-term A-to-C walk cannot make the Monday bridge infeasible",
+      request: { ...base, courses: bridge, locks: { B: "b-mon" }, constraints: walkingOn, weights: zero, k: 1,
+        walkingTime: (from, to) => ({ seconds: from === "X" && to === "Z" ? 5000 : 300, source: "campus-network" }) },
+      verify: (r) => r.status === "optimal" && r.schedules[0].breakdown.gapMinutes === 20 ? null : picked(r),
+    },
+    {
+      name: "Monday ranges sharing only Sunday have no conflicting occurrence",
+      request: { ...base, courses: sundayTouch, constraints: none, weights: zero, k: 1 },
+      verify: (r) => r.status === "optimal" ? null : picked(r),
+    },
+    {
+      name: "Monday ranges sharing only Sunday have no back-to-back walk or gap",
+      request: { ...base, courses: sundayTouch.map((c, i) => ({ ...c, sections: c.sections.map((s) => ({ ...s, meetings: s.meetings.map((m) => ({ ...m, start: m.start + 60 * i, end: m.end + 60 * i })) })) })), constraints: walkingOn, weights: { ...zero, compact: 1, walking: 1 }, walkingTime: campus, k: 1 },
+      verify: (r) => r.status === "optimal" && r.schedules[0].cost === 0 && r.schedules[0].breakdown.gapMinutes === 0 && r.schedules[0].breakdown.walkSeconds === 0 ? null : picked(r),
+    },
+    {
+      name: "SPAN 2040 and 2050 share a slot in different halves: both fit, never back to back",
+      request: { ...base, walkingTime: campus, courses: spanish, constraints: walkingOn, weights: { ...zero, walking: 1, compact: 1 }, k: 3 },
+      verify: (r) =>
+        r.status === "optimal" &&
+        r.schedules.length === 1 &&
+        r.schedules[0].byCourse["SPAN 2040"] === "span2040-051" &&
+        r.schedules[0].byCourse["SPAN 2050"] === "span2050-051" &&
+        r.schedules[0].cost === 0 &&
+        r.schedules[0].breakdown.daysOnCampus === 2
+          ? null
+          : picked(r),
+    },
+    {
+      name: "an undated class and a first-half class in the same slot conflict",
+      request: { ...base, courses: fullAndFirstHalf(undefined), constraints: none, weights: zero, k: 1 },
+      verify: (r) => (r.status === "infeasible" ? null : picked(r)),
+    },
+    {
+      name: "a full-term dated class and a first-half class in the same slot conflict",
+      request: { ...base, courses: fullAndFirstHalf(FULL_TERM), constraints: none, weights: zero, k: 1 },
+      verify: (r) => (r.status === "infeasible" ? null : picked(r)),
+    },
+    {
+      name: "a class followed by different classes in each half: both walks are checked",
+      request: { ...base, walkingTime: campus, courses: fork(false), constraints: walkingOn, weights: zero, k: 1 },
+      verify: (r) => (r.status === "infeasible" ? null : picked(r)),
+    },
+    {
+      name: "a class followed by different classes in each half: the later second-half class fits, both pairs count",
+      request: { ...base, walkingTime: campus, courses: fork(true), constraints: walkingOn, weights: { ...zero, walking: 1, compact: 1 }, k: 1 },
+      // Pairs: a0 -> b0 (10 idle minutes, 300 s) and a0 -> c1 (70 minutes, 900 s). b0 -> c1 never share a week.
+      verify: (r) =>
+        r.status === "optimal" &&
+        r.schedules[0].byCourse.C === "c1" &&
+        r.schedules[0].breakdown.gapMinutes === 80 &&
+        r.schedules[0].breakdown.walkSeconds === 1200 &&
+        r.schedules[0].cost === 80 * 60 + 1200
+          ? null
+          : picked(r),
+    },
+    {
+      name: "Saturday classes conflict with each other, and Saturday and Sunday count as days on campus",
+      request: { ...base, courses: weekend, constraints: none, weights: { ...zero, fewerDays: 1 }, k: 3 },
+      verify: (r) => {
+        const days = r.schedules.map((s) => [s.byCourse.B, s.breakdown.daysOnCampus]);
+        return r.status === "optimal" && JSON.stringify(days) === JSON.stringify([["b1", 2], ["b2", 3]]) ? null : picked(r);
+      },
+    },
+  ];
   return [
     {
       name: "fill bound, k=1",
@@ -242,6 +407,7 @@ export function regressionCases(): Array<{ name: string; request: OptimizeReques
       request: { ...base, walkingTime: fractional, courses: walkCourses, constraints: { ...none, walking: { bufferMinutes: 0 } }, weights: { ...zero, walking: 1 }, k: 3 },
       verify: (r) => (r.status === "optimal" && r.schedules.length === 1 && r.schedules[0].byCourse.Q === "q1" && r.schedules[0].breakdown.walkSeconds === 601 ? null : `got ${r.status} ${JSON.stringify(r.schedules.map((s) => [s.byCourse, s.breakdown.walkSeconds]))}`),
     },
+    ...dated,
   ];
 }
 

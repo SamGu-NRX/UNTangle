@@ -241,6 +241,36 @@
 .noticeQuiet {
   background: var(--surface-2);
 }
+.statusList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+.notice .statusList {
+  margin-top: 4px;
+}
+ul.notice.statusList {
+  margin-top: 0;
+}
+@media (pointer: coarse) {
+  .statusList button,
+  .noSetTime button {
+    min-height: 44px;
+  }
+}
+/* Meetings with no day or time: listed under the week, never drawn on it. */
+.noSetTime {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 18px;
+}
 
 /* ---------- alternatives ---------- */
 .alternatives {
@@ -467,11 +497,17 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  overflow: hidden;
+  /* Weekend columns can make the week wider than a phone: it scrolls sideways inside its frame. */
+  overflow: auto hidden;
+}
+.dayHead,
+.grid {
+  min-width: calc(48px + var(--days, 5) * var(--lanes, 1) * 64px);
 }
 .dayHead {
   display: grid;
-  grid-template-columns: 48px repeat(5, minmax(0, 1fr));
+  /* --days: 5, or 6-7 when a class meets on a weekend (WeekGrid). */
+  grid-template-columns: 48px repeat(var(--days, 5), minmax(0, 1fr));
   height: 32px;
   border-bottom: 1px solid var(--line);
 }
@@ -487,7 +523,7 @@
 .grid {
   position: relative;
   display: grid;
-  grid-template-columns: 48px repeat(5, minmax(0, 1fr));
+  grid-template-columns: 48px repeat(var(--days, 5), minmax(0, 1fr));
 }
 .halfLine {
   position: absolute;
@@ -582,7 +618,7 @@
 /* Mini grid inside an alternative card */
 .mini {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--days, 5), minmax(0, 1fr));
   gap: 2px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -617,6 +653,7 @@
 .eventStart {
   display: none;
 }
+
 @media (max-width: 760px) {
   .eventStart {
     display: block;
@@ -634,7 +671,8 @@
   }
   .dayHead,
   .grid {
-    grid-template-columns: 32px repeat(5, minmax(0, 1fr));
+    grid-template-columns: 32px repeat(var(--days, 5), minmax(0, 1fr));
+    min-width: calc(32px + var(--days, 5) * var(--lanes, 1) * 56px);
   }
   .halfLine {
     left: 32px;
@@ -654,6 +692,7 @@
     font-size: 9.5px;
     line-height: 12px;
   }
+
   .eventMeta {
     font-size: 9px;
     line-height: 11px;

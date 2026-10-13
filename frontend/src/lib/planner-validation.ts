@@ -1,5 +1,5 @@
 import { majors } from "@/lib/seed-data";
-import { weekDays } from "@/lib/types";
+import { classDays } from "@/lib/types";
 import type {
   AutoTransaction,
   CoursePlan,
@@ -9,7 +9,7 @@ import type {
   PlannerState,
   TranscriptAppliedStatus,
   TranscriptSourceKind,
-  WeekDay,
+  ClassDay,
 } from "@/lib/types";
 
 const validOptimizationKeys = new Set<OptimizationKey>([
@@ -20,7 +20,7 @@ const validOptimizationKeys = new Set<OptimizationKey>([
   "maximizeProfessor",
 ]);
 
-const validWeekDays = new Set<WeekDay>(weekDays);
+const validClassDays = new Set<ClassDay>(classDays);
 
 const validCourseStatuses = new Set<CourseStatus>(["completed", "inProgress", "notTaken"]);
 
@@ -193,8 +193,9 @@ export function isValidOptimization(value: unknown): value is OptimizationKey {
   return validOptimizationKeys.has(value as OptimizationKey);
 }
 
-export function isValidWeekDay(value: unknown): value is WeekDay {
-  return validWeekDays.has(value as WeekDay);
+/** Any day a class can meet: the map's day may be a weekend when the plan meets then. */
+export function isValidClassDay(value: unknown): value is ClassDay {
+  return validClassDays.has(value as ClassDay);
 }
 
 export function isValidMajorId(value: unknown): value is MajorId {

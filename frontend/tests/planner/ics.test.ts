@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildPlanIcs, checkTermDates, foldLine } from "@/lib/planner-ics";
-import { buildScheduleEvents, getInitialPlannerState, recommendSections } from "@/lib/planner";
+import { buildScheduleEvents, getInitialPlannerState, recommendSections, resolveSectionPlan } from "@/lib/planner";
 import type { PlannerState, ScheduleEvent } from "@/lib/types";
 
 /**
@@ -72,7 +72,7 @@ const term = { start: "2027-01-19", end: "2027-05-14" }; // typed by the user, n
 
 describe(".ics export", () => {
   const state = planWithCourses(["MATH 1710", "ANTH 1010", "CSCE 1030"]);
-  const events = buildScheduleEvents(state);
+  const events = buildScheduleEvents(resolveSectionPlan(state));
   const now = new Date("2026-10-11T15:04:05.000Z");
   const result = buildPlanIcs(events, term, now);
   const calendar = parseIcs(result.ics);
@@ -206,7 +206,7 @@ function assertIcsMatchesMeetings(calendar: Component, meetings: ScheduleEvent[]
 
 describe(".ics depth: weekday, times, duration and term bounds per meeting", () => {
   const now = new Date("2026-10-11T15:04:05.000Z");
-  const base = buildScheduleEvents(planWithCourses(["MATH 1710"]))[0];
+  const base = buildScheduleEvents(resolveSectionPlan(planWithCourses(["MATH 1710"])))[0];
   // One section meeting on two weekdays, and one in a late-afternoon slot.
   const twoDays: ScheduleEvent[] = [
     { ...base, courseCode: "TEST 1000", title: "Two-day course", sectionId: "test-1000-001", day: "Tue", start: "09:30", end: "10:50", location: "Life Sciences" },
@@ -237,7 +237,7 @@ describe(".ics depth: weekday, times, duration and term bounds per meeting", () 
   });
 
   test("the real plan's meetings, for a term that starts mid-week", () => {
-    const meetings = buildScheduleEvents(planWithCourses(["MATH 1710", "ANTH 1010", "CSCE 1030"]));
+    const meetings = buildScheduleEvents(resolveSectionPlan(planWithCourses(["MATH 1710", "ANTH 1010", "CSCE 1030"])));
     const midWeek = { start: "2027-01-21", end: "2027-05-12" }; // Thursday to Wednesday
     assertIcsMatchesMeetings(parseIcs(buildPlanIcs(meetings, midWeek, now).ics), meetings, midWeek);
   });
@@ -256,7 +256,9 @@ describe("term dates are entered, never inferred", () => {
     expect(checkTermDates({ start: "2027-05-14", end: "2027-01-19" })).toMatchObject({ ok: false, field: "end" });
     expect(checkTermDates({ start: "2027-01-01", end: "2028-06-01" })).toMatchObject({ ok: false, field: "end" });
   });
-  test("refuses to build without valid dates", () => {
-    expect(() => buildPlanIcs([], { start: "", end: "" })).toThrow(/valid term dates/);
+  test("refuses to build sample meetings without valid dates", () => {
+    const sample = buildScheduleEvents(resolveSectionPlan(planWithCourses(["MATH 1710"])));
+    expect(() => buildPlanIcs(sample, { start: "", end: "" })).toThrow(/valid term dates/);
+    expect(() => buildPlanIcs(sample, null)).toThrow(/valid term dates/);
   });
 });
