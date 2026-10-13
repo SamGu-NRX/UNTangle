@@ -33,7 +33,7 @@ import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import { summarizeWeeklyWalking } from "@/lib/planner-walking";
 import {
   buildOptimizeRequest,
-  getActiveCourseCodes,
+  getPlanningTermCourseCodes,
   getCourseByCode,
   getSectionsForCourse,
   getUnscheduledActiveCourses,
@@ -92,7 +92,7 @@ export function ScheduleClient() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pickerCourse, setPickerCourse] = useState<string | null>(null);
 
-  const activeCourseCodes = useMemo(() => getActiveCourseCodes(plannerState), [plannerState]);
+  const activeCourseCodes = useMemo(() => getPlanningTermCourseCodes(plannerState), [plannerState]);
   const selected = plannerState.selectedSections;
   const selectedSections = useMemo(
     () => Object.values(selected).map((id) => findSection(id)).filter((s): s is CourseSection => Boolean(s)),

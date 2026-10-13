@@ -14,7 +14,7 @@ import { authClient } from "@/lib/auth-client";
 import {
   buildScheduleEvents,
   defaultSchedulePreferences,
-  getActiveCourseCodes,
+  getPlanningTermCourseCodes,
   getInitialPlannerState,
   getLockedSelections,
   isCourseLocked,
@@ -22,6 +22,7 @@ import {
   normalizePlannerState,
   recommendSections,
   serializePlannerPayload,
+  takeFromAutoRun,
 } from "@/lib/planner";
 import {
   initialPreferences,
@@ -42,6 +43,7 @@ import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import { notifySessionExpired, onSessionRestored } from "@/lib/session-events";
 import { courses } from "@/lib/seed-data";
 import type {
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -135,6 +137,18 @@ type PlannerContextValue = {
   lockedCourses: Set<string>;
   isLocked: (courseCode: string) => boolean;
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
+  /**
+   * One atomic Courses-view edit: statuses and `coursePlan` change together,
+   * so Auto-fill, its Undo and manual credit never save half-applied.
+   */
+  updateCoursePlan: (
+    update: (current: { courseStatuses: Record<string, CourseStatus>; coursePlan: CoursePlan }) => {
+      courseStatuses?: Record<string, CourseStatus>;
+      coursePlan?: CoursePlan;
+    },
+  ) => void;
+  /** Replaces the plan's Courses-view facts wholesale (restoring a saved plan). */
+  setCoursePlan: (coursePlan: CoursePlan) => void;
   applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setOptimization: (optimization: OptimizationKey) => void;
   setSection: (courseCode: string, sectionId: string) => void;
@@ -975,6 +989,27 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date().toISOString(),
         }));
       },
+      updateCoursePlan: (update) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => {
+          const coursePlan = current.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
+          const next = update({ courseStatuses: current.courseStatuses, coursePlan });
+          return {
+            ...current,
+            courseStatuses: next.courseStatuses ?? current.courseStatuses,
+            coursePlan: next.coursePlan ?? coursePlan,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+      },
+      setCoursePlan: (coursePlan) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => ({ ...current, coursePlan, updatedAt: new Date().toISOString() }));
+      },
       applyTranscriptRecords: (records) => {
         if (!hydrated) {
           mutatedBeforeBootstrap.current = true;
@@ -1011,7 +1046,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         setPlannerState((current) => ({
           ...current,
           optimization,
-          selectedSections: recommendSections(optimization, getActiveCourseCodes(current), getLockedSelections(normalizePlannerState(current))),
+          selectedSections: recommendSections(optimization, getPlanningTermCourseCodes(current), getLockedSelections(normalizePlannerState(current))),
           updatedAt: new Date().toISOString(),
         }));
         // A goal set from outside the Week rail (a plan restore) brings its weights along.
@@ -1025,7 +1060,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           ...current,
           selectedSections: recommendSections(
             current.optimization,
-            getActiveCourseCodes(current),
+            getPlanningTermCourseCodes(current),
             getLockedSelections(normalizePlannerState(current)),
           ),
           updatedAt: new Date().toISOString(),
@@ -1046,10 +1081,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           if (Object.entries(locked).some(([code, id]) => code in byCourse && byCourse[code] !== id)) {
             return current;
           }
+          // Like a hand pick, using an option edits those courses' sections, so a
+          // pending Auto run that planned them can no longer be undone.
+          const changed = Object.keys(byCourse).filter((code) => current.selectedSections[code] !== byCourse[code]);
           return {
             ...current,
             selectedSections: { ...current.selectedSections, ...byCourse },
             optimization: goal ?? current.optimization,
+            coursePlan: current.coursePlan && changed.length > 0 ? takeFromAutoRun(current.coursePlan, changed) : current.coursePlan,
             updatedAt: new Date().toISOString(),
           };
         });
@@ -1106,6 +1145,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             current.lockedSections?.[courseCode] !== undefined
               ? { ...current.lockedSections, [courseCode]: sectionId }
               : current.lockedSections,
+          // A section picked by hand is an edit to that course, so a pending
+          // Auto run that planned it can no longer be undone.
+          coursePlan: current.coursePlan ? takeFromAutoRun(current.coursePlan, [courseCode]) : current.coursePlan,
           updatedAt: new Date().toISOString(),
         }));
       },

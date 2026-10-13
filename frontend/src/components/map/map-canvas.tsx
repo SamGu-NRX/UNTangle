@@ -3,7 +3,7 @@
 import { LngLatBounds, Map as MapLibreMap, Marker, getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { activeCampus } from "@/lib/campus/config";
+import { activeCampus, type CampusConfig } from "@/lib/campus/config";
 import { stopNumbersLabel, type Itinerary, type ItineraryStop } from "@/lib/map-itinerary";
 import type { MapRoutePoint } from "@/lib/types";
 import { OSM_CONTRIBUTORS_ATTRIBUTION, campusMapStyle } from "@/components/map/campus-style";
@@ -20,6 +20,7 @@ import type { MapSelection } from "@/components/map/selection";
 export type CameraInsets = { top: number; right: number; bottom: number; left: number };
 
 type Props = {
+  campus?: CampusConfig;
   itinerary: Itinerary;
   selection: MapSelection;
   onSelect: (selection: MapSelection) => void;
@@ -48,12 +49,6 @@ const FLAT_BELOW_ZOOM = 16;
 
 /** How far past the routing bounds people may pan, in degrees (about 1.1 km). */
 const PAN_MARGIN = 0.01;
-const { bounds } = activeCampus;
-const maxBounds = new LngLatBounds(
-  [bounds.west - PAN_MARGIN, bounds.south - PAN_MARGIN],
-  [bounds.east + PAN_MARGIN, bounds.north + PAN_MARGIN],
-);
-const campusBounds = new LngLatBounds([bounds.west, bounds.south], [bounds.east, bounds.north]);
 
 /**
  * UNTangle's strong ease-out, cubic-bezier(0.19, 1, 0.22, 1), as a function
@@ -139,7 +134,13 @@ const MIN_FRAME_HEIGHT = 100;
 const KEY_PAN_PX = 100;
 const KEY_ZOOM = 1;
 
-export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotion, frozen }: Props) {
+export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelect, insets, reducedMotion, frozen }: Props) {
+  const { bounds } = campus;
+  const maxBounds = new LngLatBounds(
+    [bounds.west - PAN_MARGIN, bounds.south - PAN_MARGIN],
+    [bounds.east + PAN_MARGIN, bounds.north + PAN_MARGIN],
+  );
+  const campusBounds = new LngLatBounds([bounds.west, bounds.south], [bounds.east, bounds.north]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new globalThis.Map<string, { marker: Marker; element: HTMLButtonElement }>());
@@ -159,8 +160,8 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
     configureWorker();
     const started = startMap(() => new MapLibreMap({
       container,
-      style: campusMapStyle(activeCampus),
-      center: [activeCampus.center.lng, activeCampus.center.lat],
+      style: campusMapStyle(campus),
+      center: [campus.center.lng, campus.center.lat],
       zoom: 15.4,
       minZoom: 13,
       maxZoom: 19,

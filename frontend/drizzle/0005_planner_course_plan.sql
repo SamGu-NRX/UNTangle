@@ -1,0 +1,1 @@
+ALTER TABLE "planner_state" ADD COLUMN "course_plan" jsonb;

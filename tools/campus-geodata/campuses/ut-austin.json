@@ -1,0 +1,69 @@
+{
+  "id": "ut-austin",
+  "bbox": {
+    "south": 30.281,
+    "west": -97.744,
+    "north": 30.291,
+    "east": -97.729
+  },
+  "queries": {
+    "pedestrian": "[out:json][timeout:180];(way[\"highway\"](30.281,-97.744,30.291,-97.729););out geom qt;",
+    "buildings": "[out:json][timeout:180];(way[\"building\"](30.281,-97.744,30.291,-97.729);node[\"entrance\"](30.281,-97.744,30.291,-97.729);node[\"highway\"=\"entrance\"](30.281,-97.744,30.291,-97.729););out geom qt;"
+  },
+  "catalogue": {
+    "kind": "osm-names",
+    "sources": [
+      "https://www.openstreetmap.org/copyright"
+    ],
+    "includeOsmIds": [
+      25795473,
+      27397894,
+      31962360,
+      31962470,
+      38607779,
+      38607784,
+      38607983,
+      38607984,
+      38607989,
+      38607992,
+      38625300,
+      38625301,
+      42561353,
+      52480996,
+      79457840,
+      79457842,
+      79457845,
+      126017772,
+      126017775,
+      126017778,
+      126017780,
+      126020360,
+      126148593,
+      126149671,
+      126149677,
+      126149680,
+      126569521,
+      150732420,
+      150732421,
+      150732422,
+      172047490,
+      516282867
+    ]
+  },
+  "geocode": {
+    "suffix": "University of Texas at Austin TX",
+    "names": [
+      "ut austin",
+      "university of texas at austin"
+    ]
+  },
+  "nameCleanupWords": [
+    "university of texas at austin",
+    "ut austin",
+    "austin",
+    "tx",
+    "texas"
+  ],
+  "nodeMarginDegrees": 0,
+  "osmQuery": "[out:json][timeout:180];(way[\"highway\"](30.281,-97.744,30.291,-97.729);way[\"building\"](30.281,-97.744,30.291,-97.729);node[\"entrance\"](30.281,-97.744,30.291,-97.729);node[\"highway\"=\"entrance\"](30.281,-97.744,30.291,-97.729););out geom qt;"
+}

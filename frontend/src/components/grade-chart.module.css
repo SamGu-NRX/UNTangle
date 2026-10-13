@@ -1,0 +1,96 @@
+/* Colors come from the Courses view's --c-* tokens (courses.module.css .tokens), with the v2 values as fallback. */
+.chart {
+  position: relative;
+  height: 160px;
+  margin-top: 14px;
+  padding: 18px 4px 22px;
+  border-bottom: 1px solid var(--c-line, #dde8dd);
+}
+.grid {
+  position: absolute;
+  inset: 18px 0 22px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--c-line, #dde8dd), var(--c-line, #dde8dd)) 0 33.3% / 100% 1px no-repeat,
+    linear-gradient(var(--c-line, #dde8dd), var(--c-line, #dde8dd)) 0 66.6% / 100% 1px no-repeat;
+  opacity: 0.8;
+}
+.layer {
+  position: absolute;
+  inset: 18px 4px 22px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: end;
+  gap: 14px;
+}
+.layer[data-motion="in"] {
+  animation: fade-in 120ms ease both;
+}
+.layer[data-motion="out"] {
+  animation: fade-out 120ms ease both;
+  pointer-events: none;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: var(--c-brand, #00512b);
+}
+/* Every bar's share is printed, so reading the chart never depends on hover. */
+.value {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 500 11px/14px var(--c-body, sans-serif);
+  color: var(--c-ink-2, #586e58);
+}
+.label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -20px;
+  text-align: center;
+  font: 500 11px/16px var(--c-body, sans-serif);
+  color: var(--c-ink-2, #586e58);
+}
+.tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--c-ink, #1a2e1a);
+  color: #ffffff;
+  font: 500 12px/1 var(--c-body, sans-serif);
+  white-space: nowrap;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .layer[data-motion] {
+    animation-duration: 120ms;
+  }
+}
+.note {
+  margin: 8px 0 0;
+  font: 400 12px/16px var(--c-body, sans-serif);
+  color: var(--c-ink-2, #586e58);
+}

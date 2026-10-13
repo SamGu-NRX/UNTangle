@@ -1,0 +1,936 @@
+/*
+ * Courses view. Every color, curve and shadow reads the v2 token names from
+ * docs/design/untangle-v2/DESIGN.md §3 with that document's value as the
+ * fallback, so this works before the foundation tokens land in globals.css
+ * and follows them after. Components use the local --c-* names only.
+ */
+.tokens {
+  --c-bg: var(--bg, #f4f6f4);
+  --c-surface: var(--surface, #ffffff);
+  --c-surface-2: var(--surface-2, #eef2ee);
+  --c-surface-3: var(--surface-3, #e6ece6);
+  --c-line: var(--line, #dde8dd);
+  --c-line-strong: var(--line-strong, #c3d2c3);
+  --c-ink: var(--ink, #1a2e1a);
+  --c-ink-2: var(--ink-2, #586e58);
+  --c-ink-3: var(--ink-3, #6b826b);
+  --c-ink-4: var(--ink-4, #93a593);
+  --c-brand: var(--brand, #00512b);
+  --c-brand-hover: var(--brand-hover, #007a40);
+  --c-brand-soft: var(--brand-soft, #e4f0e8);
+  --c-accent: var(--accent, #00a855);
+  --c-danger: var(--danger, #b3261e);
+  --c-danger-soft: var(--danger-soft, #fbeae8);
+  --c-overlay: var(--overlay, rgba(26, 46, 26, 0.32));
+  --c-shadow-1: var(--shadow-1, 0 1px 2px rgba(26, 46, 26, 0.06));
+  --c-shadow-2: var(--shadow-2, 0 4px 12px rgba(26, 46, 26, 0.08), 0 1px 2px rgba(26, 46, 26, 0.06));
+  --c-shadow-3: var(--shadow-3, 0 16px 40px rgba(26, 46, 26, 0.14), 0 2px 6px rgba(26, 46, 26, 0.08));
+  --c-ease-out: var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  --c-ease-sheet: var(--ease-sheet, cubic-bezier(0.32, 0.72, 0, 1));
+  --c-focus: var(--focus, 0 0 0 2px #ffffff, 0 0 0 4px #00a855);
+  --c-display: var(--font-display, "Syne", sans-serif);
+  --c-body: var(--font-body), system-ui, sans-serif;
+
+  font-family: var(--c-body);
+  color: var(--c-ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- primitives ---------- */
+
+.link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-brand);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    text-decoration: underline;
+  }
+}
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--c-focus);
+}
+
+.ext {
+  font-size: 11px;
+  color: var(--c-ink-3);
+  margin-left: 1px;
+}
+
+.meta {
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--c-ink-2);
+}
+
+.code {
+  font: 700 13px/1 var(--c-display);
+  letter-spacing: 0.01em;
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- status glyph ---------- */
+
+.glyph {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.glyph[data-status="done"] {
+  background: var(--c-ink-3);
+}
+.glyph[data-status="done"]::after,
+.glyph[data-status="covered"]::after {
+  content: "";
+  position: absolute;
+  left: 5.5px;
+  top: 2.5px;
+  width: 3.5px;
+  height: 7.5px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.glyph[data-status="covered"] {
+  border: 1.5px solid var(--c-ink-3);
+}
+.glyph[data-status="covered"]::after {
+  left: 4px;
+  top: 1px;
+  border-color: var(--c-ink-3);
+}
+.glyph[data-status="taking"] {
+  border: 1.5px solid var(--c-accent);
+  background: linear-gradient(90deg, var(--c-accent) 50%, transparent 50%);
+}
+.glyph[data-status="planned"] {
+  background: var(--c-brand);
+}
+.glyph[data-status="available"] {
+  border: 1.5px solid var(--c-ink-4);
+}
+.glyph[data-status="locked"] {
+  border: 1.5px dotted var(--c-ink-4);
+}
+.glyph[data-status="check"] {
+  border: 1.5px dotted var(--c-ink-4);
+}
+.glyph[data-status="check"]::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--c-ink-4);
+}
+
+/* ---------- view header ---------- */
+
+.root {
+  position: relative;
+}
+
+.viewhead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--c-line);
+}
+.headMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.progress {
+  width: 120px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--c-surface-3);
+  overflow: hidden;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--c-brand);
+  transform-origin: left center;
+}
+
+.phoneHead {
+  display: none;
+}
+
+/* The major picker is the view title: ui/Select's trigger without the field chrome, sized to its text. */
+.majorPicker {
+  flex: none;
+}
+.majorPicker :global(.ui-select__trigger) {
+  width: auto;
+  height: 36px;
+  min-width: 0;
+  padding: 0 8px 0 10px;
+  margin-left: -10px;
+  border-color: transparent;
+  background: transparent;
+  font: 600 15px/22px var(--c-body);
+  color: var(--c-ink);
+}
+.majorPicker :global(.ui-select__value--placeholder) {
+  color: var(--c-brand);
+}
+.majorPicker :global(.ui-select__trigger[aria-expanded="true"]) {
+  border-color: var(--c-line-strong);
+  background: var(--c-surface);
+}
+@media (hover: hover) and (pointer: fine) {
+  .majorPicker :global(.ui-select__trigger:hover) {
+    background: var(--c-surface-2);
+  }
+}
+.instructorPicker {
+  width: min(200px, 48%);
+}
+.loading {
+  display: grid;
+  place-items: center;
+  padding: 64px;
+  color: var(--c-ink-3);
+}
+.loading .spinner {
+  width: 20px;
+  height: 20px;
+}
+.unknownCourse {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* ---------- auto control + note ---------- */
+
+.spark {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.autonote {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  margin-top: 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 8px;
+  background: var(--c-brand-soft);
+  font-size: 13px;
+  line-height: 18px;
+}
+.autonote .spark {
+  color: var(--c-brand);
+}
+.autonoteText {
+  min-width: 0;
+}
+
+/* ---------- body: list + panel ---------- */
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.root[data-panel="open"] .body {
+  grid-template-columns: minmax(0, 1fr) var(--panel-w, 520px);
+  column-gap: 24px;
+}
+.list {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 12px 0 48px;
+}
+.root[data-panel="open"] .list {
+  margin: 0;
+}
+/* Beside the panel the list is ~800px; give the title the room and let long meta ellipsize. */
+.root[data-panel="open"] .row {
+  grid-template-columns: 16px 92px minmax(0, 1fr) 36px 168px 72px;
+}
+
+.group {
+  margin-top: 12px;
+}
+.groupHeadRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.groupHeading {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--c-ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+.groupHead:focus-visible {
+  outline: none;
+  box-shadow: var(--c-focus);
+}
+.chev {
+  flex: none;
+  color: var(--c-ink-3);
+  transition: transform 160ms var(--c-ease-out);
+}
+.groupHead[aria-expanded="false"] .chev {
+  transform: rotate(-90deg);
+}
+.gname {
+  font: 600 11px/16px var(--c-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-2);
+}
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+  background: var(--c-surface);
+  overflow: hidden;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  /* Fixed credit and meta tracks keep those columns aligned from row to row. */
+  grid-template-columns: 16px 92px minmax(0, 1fr) 36px 220px 72px;
+  align-items: center;
+  column-gap: 14px;
+  height: 44px;
+  padding: 0 12px 0 14px;
+  border-top: 1px solid var(--c-line);
+  transition: background-color 160ms ease;
+}
+.row:first-child {
+  border-top: 0;
+}
+.row[data-selected="true"] {
+  background: var(--c-brand-soft);
+  box-shadow: inset 2px 0 0 var(--c-brand);
+}
+.rowOpen {
+  grid-column: 1 / 5;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.rowOpen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.rowOpen:focus-visible {
+  outline: none;
+}
+.rowOpen:focus-visible::after {
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 2px var(--c-accent);
+}
+.rowTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row[data-status="locked"] .rowTitle,
+.row[data-status="covered"] .rowTitle {
+  color: var(--c-ink-2);
+}
+.rowCredits {
+  font-size: 12.5px;
+  color: var(--c-ink-2);
+  white-space: nowrap;
+}
+.rowMeta {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--c-ink-2);
+  text-align: right;
+  pointer-events: none;
+}
+.rowMeta a {
+  pointer-events: auto;
+}
+.rowStatus {
+  position: relative;
+  z-index: 1;
+  justify-self: end;
+  font-size: 12.5px;
+  color: var(--c-ink-2);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.overrideMark {
+  pointer-events: auto;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.overrideMark:focus-visible {
+  outline: none;
+  box-shadow: var(--c-focus);
+}
+.rowAction {
+  position: absolute;
+  z-index: 2;
+  right: 92px;
+  top: 6px;
+  opacity: 0;
+  pointer-events: none;
+}
+.row:focus-within .rowAction {
+  opacity: 1;
+  pointer-events: auto;
+}
+.row:focus-within .rowMeta[data-hideable="true"] {
+  visibility: hidden;
+}
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--c-surface-2);
+  }
+  .row[data-selected="true"]:hover {
+    background: var(--c-brand-soft);
+  }
+  .row:hover .rowAction {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .row:hover .rowMeta[data-hideable="true"] {
+    visibility: hidden;
+  }
+}
+
+.emptyList {
+  padding: 32px 12px;
+  color: var(--c-ink-2);
+  text-align: center;
+}
+
+/* ---------- empty state ---------- */
+
+.empty {
+  width: min(480px, 100%);
+  margin: 72px auto 0;
+  padding: 20px;
+  border: 1px solid var(--c-line);
+  border-radius: 14px;
+  background: var(--c-surface);
+}
+.emptyTitle {
+  margin: 0 0 12px;
+  font: 600 15px/22px var(--c-body);
+}
+.emptyOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 120ms var(--c-ease-out),
+    background-color 160ms ease;
+}
+.emptyOption:active {
+  transform: scale(0.97);
+}
+.emptyOption:focus-visible {
+  outline: none;
+  box-shadow: var(--c-focus);
+}
+.emptyOption[data-primary="true"] {
+  border-color: transparent;
+  background: var(--c-brand-soft);
+}
+.emptyOption strong,
+.emptyOption .meta {
+  display: block;
+}
+.emptyOption strong {
+  font-weight: 600;
+}
+@media (hover: hover) and (pointer: fine) {
+  .emptyOption:hover {
+    background: var(--c-surface-2);
+  }
+  .emptyOption[data-primary="true"]:hover {
+    background: #d9eadf;
+  }
+}
+
+/* ---------- detail panel ---------- */
+
+/* The shell publishes its top bar height as --shell-top-h; the panel sticks just under it. */
+.panelCol {
+  position: sticky;
+  top: var(--shell-top-h, 57px);
+  align-self: start;
+}
+.panel {
+  height: calc(100dvh - var(--shell-top-h, 57px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-left: 1px solid var(--c-line);
+  background: var(--c-surface);
+  transition:
+    opacity 200ms var(--c-ease-out),
+    transform 200ms var(--c-ease-out);
+}
+/* Enter: from 16px right and transparent. Exit (ui/use-presence "closed"): back out, faster. */
+@starting-style {
+  .panel {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+.panel[data-state="closed"] {
+  opacity: 0;
+  transform: translateX(16px);
+  transition-duration: 150ms;
+}
+
+.pHead {
+  position: relative;
+  padding: 20px 56px 0 24px;
+}
+.codeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bigcode {
+  font: 700 20px/24px var(--c-display);
+  color: var(--c-brand);
+}
+.pStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--c-ink-2);
+}
+.pTitle {
+  margin: 6px 0 0;
+  font: 600 18px/24px var(--c-body);
+  color: var(--c-ink);
+}
+.pMeta {
+  margin: 4px 0 0;
+}
+.pNote {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--c-surface-2);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--c-ink-2);
+}
+.pNote q {
+  color: var(--c-ink);
+}
+.pClose {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+}
+.pActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 24px 0;
+}
+.pSec {
+  padding: 24px 24px 0;
+}
+.pSec:last-child {
+  padding-bottom: 32px;
+}
+.secHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+.h3 {
+  margin: 0;
+  white-space: nowrap;
+  font: 600 15px/22px var(--c-body);
+}
+.desc {
+  margin: 0;
+  color: var(--c-ink-2);
+}
+.desc[data-clamped="true"] {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.figs {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  margin-top: 12px;
+}
+.fig b {
+  display: block;
+  font: 700 20px/24px var(--c-display);
+  color: var(--c-ink);
+}
+.fig span {
+  font: 600 11px/16px var(--c-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-ink-2);
+}
+.credit a {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.credit {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stateLine {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: 10px;
+  color: var(--c-ink);
+}
+.stateLine p {
+  margin: 0;
+}
+.shimmer {
+  position: relative;
+  height: 12px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--c-surface-2);
+}
+/* The sheen moves with transform so the loop stays off the paint path. */
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--c-surface-3), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.2s linear infinite;
+}
+.shimmer + .shimmer {
+  width: 60%;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.secRows {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.secRow {
+  display: grid;
+  grid-template-columns: 16px 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--c-line);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.secRow:first-child {
+  border-top: 0;
+}
+.secRow[data-checked="true"] {
+  background: var(--c-brand-soft);
+}
+.secRow[data-disabled="true"] {
+  cursor: default;
+}
+.secLines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 18px;
+}
+.secLines small {
+  font-size: 12.5px;
+  color: var(--c-ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.secLines small[data-conflict="true"] {
+  color: var(--c-danger);
+}
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .emptyOption,
+  .chev {
+    transition: background-color 160ms ease;
+  }
+  .emptyOption:active {
+    transform: none;
+  }
+  /* Fades stay at 120ms; nothing moves. Matches the closed selector's specificity. */
+  .panel,
+  .panel[data-state="closed"] {
+    transition: opacity 120ms ease;
+    transform: none;
+  }
+  @starting-style {
+    .panel {
+      transform: none;
+    }
+  }
+  .spinner {
+    animation-duration: 1.6s;
+  }
+  .shimmer::after {
+    animation: none;
+  }
+}
+
+/* ---------- phone ---------- */
+
+@media (max-width: 720px) {
+  .viewhead {
+    display: none;
+  }
+  .phoneHead {
+    display: block;
+    padding: 0 0 4px;
+  }
+  .phoneSearch {
+    width: 100%;
+  }
+  /* No keyboard shortcut to show on a phone. */
+  .phoneSearch :global(.ui-search__kbd) {
+    display: none;
+  }
+  .phoneBar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .majorPicker :global(.ui-select__trigger) {
+    font-size: 14px;
+  }
+  .panelCol {
+    display: none;
+  }
+  .root[data-panel="open"] .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Phone: spark and sentence on the first line, links on the second, dismiss in the corner. */
+  .autonote {
+    position: relative;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding-right: 48px;
+    font-size: 12.5px;
+  }
+  .autonoteText {
+    flex: 1 1 calc(100% - 32px);
+  }
+  .autonote :global(.ui-tag) {
+    display: none;
+  }
+  .noteDismiss {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+  .row {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    grid-template-rows: 20px 18px;
+    height: auto;
+    min-height: 52px;
+    padding: 8px 14px;
+    column-gap: 12px;
+  }
+  .rowOpen {
+    grid-column: 1 / 3;
+    grid-row: 1 / 3;
+    grid-template-columns: 16px minmax(0, 1fr);
+    grid-template-rows: 20px 18px;
+    column-gap: 12px;
+  }
+  .rowOpen > .glyph {
+    grid-row: 1 / 3;
+  }
+  .rowOpen > .code {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .rowOpen > .rowTitle {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 12.5px;
+    color: var(--c-ink-2);
+  }
+  .rowOpen > .rowCredits {
+    display: none;
+  }
+  .rowMeta {
+    grid-column: 3;
+    grid-row: 2;
+    max-width: 140px;
+  }
+  .rowStatus {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .rowAction {
+    display: none;
+  }
+  .pHead {
+    padding: 4px 52px 0 4px;
+  }
+  .pClose {
+    right: 0;
+    top: 0;
+  }
+  .pActions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 14px 4px 2px;
+  }
+  .pSec {
+    padding: 20px 4px 0;
+  }
+  .figs {
+    gap: 20px;
+  }
+  .secHead > .meta {
+    display: none;
+  }
+}
+
+.retry {
+  margin-top: 10px;
+}
+.moreSections {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12.5px;
+}

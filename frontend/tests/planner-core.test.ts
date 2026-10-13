@@ -71,11 +71,15 @@ describe("normalizePlannerState", () => {
 
   it("merges courseStatuses defaults under the incoming state", () => {
     const merged = normalizePlannerState(
-      stateWith({ courseStatuses: { "MATH 1710": "notTaken" } }),
+      stateWith({ courseStatuses: { "MATH 1710": "inProgress" } }),
     );
-    expect(merged.courseStatuses["MATH 1710"]).toBe("notTaken"); // override wins
-    expect(merged.courseStatuses["CSCE 1030"]).toBe("completed"); // default survives
-    expect(merged.courseStatuses["CSCE 1040"]).toBe("completed"); // default survives
+    expect(merged.courseStatuses["MATH 1710"]).toBe("inProgress"); // override wins
+    expect(merged.courseStatuses["CSCE 1030"]).toBe("notTaken"); // default survives
+    expect(merged.courseStatuses["CSCE 1040"]).toBe("notTaken"); // default survives
+  });
+
+  it("starts a fresh guest with nothing done or planned", () => {
+    expect(Object.values(getInitialPlannerState().courseStatuses).every((status) => status === "notTaken")).toBe(true);
   });
 
   it("preserves valid selections for active (inProgress) courses with real section ids", () => {

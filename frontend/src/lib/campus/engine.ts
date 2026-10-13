@@ -1,31 +1,54 @@
-/**
- * Server-side walking engine per campus: the walkway router and the
- * building anchors (the walkway node each registry building joins the
- * network at). Keyed by CampusConfig.id; a new campus adds one entry here
- * once its geodata build has written its files.
- */
-import { routeBetweenPoints } from "@/lib/campus/graph";
 import type { LatLng } from "@/lib/campus/geo";
-import { buildingAnchor } from "@/lib/campus/walking-times";
 import type { CampusRouteGeometry } from "@/lib/campus/graph";
 
 export type CampusEngine = {
   routeBetweenPoints: (a: LatLng, b: LatLng) => CampusRouteGeometry | null;
-  /** Where a building joins the walkway graph, or null if it is not in the matrix. */
   anchorFor: (buildingId: string) => LatLng | null;
 };
 
-const engines: Record<string, CampusEngine> = {
-  "unt-denton": {
-    routeBetweenPoints,
-    anchorFor: (buildingId) => buildingAnchor(buildingId)?.anchor ?? null,
-  },
-};
-
-export function campusEngine(campusId: string): CampusEngine {
-  const engine = Object.hasOwn(engines, campusId) ? engines[campusId] : undefined;
-  if (!engine) {
-    throw new Error(`No walking engine for campus "${campusId}". Build its geodata and register it in lib/campus/engine.ts.`);
-  }
-  return engine;
+/** Cache the first selection, including concurrent callers during loading. */
+export function createCampusEngineRegistry(loaders: Record<string, () => Promise<CampusEngine>>) {
+  const engines = new Map<string, Promise<CampusEngine>>();
+  return (campusId: string): Promise<CampusEngine> => {
+    if (!Object.hasOwn(loaders, campusId)) {
+      throw new Error(
+        `No walking engine for campus "${campusId}". Build its geodata and register it in lib/campus/engine.ts.`,
+      );
+    }
+    let engine = engines.get(campusId);
+    if (!engine) {
+      engine = loaders[campusId]();
+      engines.set(campusId, engine);
+    }
+    return engine;
+  };
 }
+
+export const campusEngine = createCampusEngineRegistry({
+  "ut-austin": async () => {
+    const [{ default: dataset }, { default: matrix }, { createDatasetGraph }] = await Promise.all([
+      import("./data/ut-austin/campus-map.json"),
+      import("./data/ut-austin/walking-times.json"),
+      import("./graph"),
+    ]);
+    const graph = createDatasetGraph(dataset);
+    const anchors = new Map(Object.entries(matrix.anchors));
+    return {
+      routeBetweenPoints: graph.routeBetweenPoints,
+      anchorFor: (id) => {
+        const a = anchors.get(id.toLowerCase());
+        return a ? { lat: a.anchor[0], lng: a.anchor[1] } : null;
+      },
+    };
+  },
+  "unt-denton": async () => {
+    const [{ routeBetweenPoints }, { buildingAnchor }] = await Promise.all([
+      import("./graph"),
+      import("./walking-times"),
+    ]);
+    return {
+      routeBetweenPoints,
+      anchorFor: (buildingId) => buildingAnchor(buildingId)?.anchor ?? null,
+    };
+  },
+});

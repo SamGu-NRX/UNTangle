@@ -98,9 +98,14 @@ for (const vp of [
     await major.getByRole("button", { name: "Confirm" }).click();
     await major.waitFor({ state: "detached" });
   }
+  // Plan each course from its detail panel (Courses UI #33: status is inferred, plans are added per course).
   for (const code of ["ANTH 1010", "ENGL 1310", "PSYC 1630", "BIOL 1710"]) {
-    await page.locator("main").getByLabel("Search courses").fill(code);
-    await page.locator("article.course-row", { hasText: code }).first().getByRole("button", { name: "Taking", exact: true }).click();
+    const [subject, number] = code.split(" ");
+    await page.goto(`${base}/courses/${subject.toLowerCase()}/${number}`, { waitUntil: "networkidle" });
+    const add = page.getByRole("button", { name: /^Add to / }).first();
+    await add.waitFor({ timeout: 10000 });
+    await add.click();
+    await page.getByRole("button", { name: /Remove from plan/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
   }
   await page.goto(`${base}/schedule`, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
