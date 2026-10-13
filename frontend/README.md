@@ -27,7 +27,9 @@ grep -rhoE "process\.env\.[A-Z0-9_]+" frontend/src | sort -u
 | `NEXT_PUBLIC_BACKEND_URL` | `src/lib/backend-api.ts` | none | Same degradation as `BACKEND_URL`; as a `NEXT_PUBLIC_*` value it is also inlined into client bundles |
 | `BETTER_AUTH_URL` | `src/lib/auth.ts` | `http://localhost:3000` | Used as the auth base URL and trusted origin; a wrong value breaks sign-in and reset flows when the app is not served on that origin (root `bun dev` writes this for you) |
 | `BETTER_AUTH_SECRET` | `src/lib/auth.ts` | a public development string | Without a real value, sessions are signed with a known secret — fine locally, not deployable |
-| `DATABASE_URL` | `src/lib/db/index.ts`, `drizzle.config.ts` | none | The pg Pool falls back to the discrete `PG*` variables for auth; but saved-plan sync (`/api/planner`, `src/lib/persistence.ts`) is disabled — planner state stays in `sessionStorage` per tab |
+| `DATABASE_URL` | `src/lib/db/index.ts`, `drizzle.config.ts` | none | The pg Pool falls back to the discrete `PG*` variables for auth; but saved-plan sync (`/api/planner`, `src/lib/persistence.ts`) is disabled — planner state stays in `sessionStorage` per tab. Required in production, where API rate-limit counters live in Postgres |
+| `RATE_LIMIT_TRUSTED_PROXY` | `src/lib/rate-limit/config.ts` | `vercel` when `VERCEL=1`, otherwise `none` | Which proxy header holds the caller's IP. Production refuses to start with `none`; see [`src/lib/rate-limit/README.md`](src/lib/rate-limit/README.md) |
+| `VERCEL` | `src/lib/rate-limit/config.ts` | — | Set by Vercel; `1` makes the rate limiter trust `x-vercel-forwarded-for` |
 | `PGHOST` | `src/lib/db/index.ts`, `drizzle.config.ts` | `127.0.0.1` | Part of the fallback Postgres configuration used when `DATABASE_URL` is unset |
 | `PGPORT` | `src/lib/db/index.ts`, `drizzle.config.ts` | `5432` | Same |
 | `PGDATABASE` | `src/lib/db/index.ts`, `drizzle.config.ts` | `untangle` | Same |

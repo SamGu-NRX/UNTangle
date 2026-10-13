@@ -1,3 +1,4 @@
+import { withRateLimit } from "@/lib/rate-limit/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { hasDatabaseUrl } from "@/lib/db";
@@ -8,8 +9,8 @@ import { validatePlannerStatePayload } from "@/lib/planner-validation";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  const session = await getServerSession();
+async function getPlanner(request: Request) {
+  const session = await getServerSession(request);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -39,8 +40,8 @@ function parseBaseRevision(value: string | null): number | null {
   return Number(value);
 }
 
-export async function POST(request: Request) {
-  const session = await getServerSession();
+async function savePlanner(request: Request) {
+  const session = await getServerSession(request);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -96,3 +97,6 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const GET = withRateLimit("plannerRead", getPlanner);
+export const POST = withRateLimit("plannerSave", savePlanner);

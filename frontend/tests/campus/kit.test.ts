@@ -15,6 +15,9 @@ import utData from "@/lib/campus/data/ut-austin/campus-map.json";
 import utMatrix from "@/lib/campus/data/ut-austin/walking-times.json";
 import { campusEngine, createCampusEngineRegistry, type CampusEngine } from "@/lib/campus/engine";
 import { pedestrianDirections } from "../../../tools/campus-geodata/pedestrian-directions.mjs";
+import { pinClockMidWindow, trustRealIp } from "../rate-limit/route-fixtures";
+
+trustRealIp();
 
 const sha = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 
@@ -305,7 +308,7 @@ test("selected APIs route UT without keyed services and reject unknown campuses"
   const resolved = await resolvePOST(
     new Request("http://localhost/api/map/resolve?campus=ut-austin", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.217" },
+      headers: { "content-type": "application/json", "x-real-ip": "198.51.100.217" },
       body: JSON.stringify({
         locations: selected.map((b) => ({ location: b.name })),
       }),
@@ -319,7 +322,7 @@ test("selected APIs route UT without keyed services and reject unknown campuses"
   const response = await routePOST(
     new Request("http://localhost/api/map/route?campus=ut-austin", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.217" },
+      headers: { "content-type": "application/json", "x-real-ip": "198.51.100.217" },
       body: JSON.stringify({
         stops: selected.map((b) => ({
           lat: b.lat,
@@ -340,15 +343,15 @@ test("selected APIs route UT without keyed services and reject unknown campuses"
   expect(bad.status).toBe(400);
 });
 
-test("route rate limits share a campus's aliases while keeping other campuses independent", async () => {
+test("one caller's route budget covers every campus", async () => {
+  pinClockMidWindow();
   const request = (query: string) => new Request(`http://localhost/api/map/route${query}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-real-ip": "192.0.2.36" },
     body: JSON.stringify({ stops: [] }),
   });
   for (let i = 0; i < 60; i++) expect((await routePOST(request(""))).status).toBe(400);
-  expect((await routePOST(request("?campus=unt-denton"))).status).toBe(429);
-  expect((await routePOST(request("?campus=ut-austin"))).status).toBe(400);
+  expect((await routePOST(request("?campus=ut-austin"))).status).toBe(429);
 });
 
 function directedFixture(lengths: { from: number; to: number; length: number }[]) {

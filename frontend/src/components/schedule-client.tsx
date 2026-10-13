@@ -1,488 +1,501 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
-import { NavShell } from "@/components/nav-shell";
-import { Modal } from "@/components/ui/Modal";
-import { ConflictBanner } from "@/components/ui/ConflictBanner";
-import { StatusMark } from "@/components/ui/StatusMark";
-import { StaggerGroup } from "@/components/ui/StaggerGroup";
-import { usePlanner, useToast } from "@/components/planner-provider";
-import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePlanner } from "@/components/planner-provider";
 import { PlannerExportPanel } from "@/components/planner-export-panel";
-import { PlannerSampleNotice, SampleTag } from "@/components/planner-sample-notice";
-import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { ScheduleSectionLocks } from "@/components/schedule-section-locks";
-import { sections } from "@/lib/seed-data";
+import { AlternativesCompare } from "@/components/schedule/AlternativesCompare";
+import { ConstraintRail } from "@/components/schedule/ConstraintRail";
+import { SampleNote } from "@/components/schedule/SampleNote";
+import { WeekGrid } from "@/components/schedule/WeekGrid";
 import {
-  formatTime,
-  getActiveCourseCodes,
+  canApply,
+  isStale,
+  locksKey,
+  optimizerInputKey,
+  undoAvailable,
+  type UndoSnapshot,
+} from "@/components/schedule/run-state";
+import styles from "@/components/schedule/schedule.module.css";
+import { useMediaQuery, useOptimizerRuns } from "@/components/schedule/use-optimizer";
+import { clock, eventsFor, findSection, movedCourses, patternOf } from "@/components/schedule/week-model";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Button } from "@/components/ui/Button";
+import { Chip } from "@/components/ui/Chip";
+import { Dialog } from "@/components/ui/Dialog";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
+import { toast } from "@/components/ui/Toast";
+import { getWalkingSeconds } from "@/lib/campus/walking-times";
+import { goalForWeights } from "@/lib/optimizer/presets";
+import type { OptimizeResult, RankedSchedule, RelaxSuggestion } from "@/lib/optimizer/types";
+import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
+import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import {
+  buildOptimizeRequest,
+  getPlanningTermCourseCodes,
   getCourseByCode,
-  getDailySpan,
-  getSectionDuration,
   getSectionsForCourse,
   getUnscheduledActiveCourses,
   sectionConflicts,
+  sectionNumber,
   summarizeCredits,
 } from "@/lib/planner";
-import { weekDays } from "@/lib/types";
-import type { OptimizationKey, ScheduleEvent } from "@/lib/types";
+import { weekDays, type CourseSection } from "@/lib/types";
 
-const TIME_GRID = Array.from({ length: 12 }, (_, i) => i + 8); // 8 → 19 (8am - 7pm)
+/** The shell's phone breakpoint (shell.css). */
+const PHONE = "(max-width: 719px)";
+const SAMPLE_SOURCE = "Sections, times, rooms and instructors are synthetic samples, not UNT's class schedule.";
 
-const SCHEDULE_LAYOUT_CSS = `
-.schedule-layout { display: grid; gap: 18px; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); }
-.lock-toggle {
-  position: relative;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 0.25rem 0.55rem; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--copy);
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; cursor: pointer;
-  transition: background-color 150ms var(--ease), color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
-}
-.lock-toggle[aria-pressed="true"] { background: var(--brand-900); border-color: var(--brand-700); color: #fff; }
-.lock-toggle:active { transform: scale(0.97); }
-.lock-toggle:focus-visible { outline: 2px solid var(--brand-700); outline-offset: 2px; }
-@media (hover: hover) and (pointer: fine) {
-  .lock-toggle[aria-pressed="false"]:hover { border-color: var(--brand-500); color: var(--ink); }
-}
-@media (max-width: 760px) {
-  .schedule-layout { grid-template-columns: minmax(0, 1fr); }
-  /* Day columns are ~55px wide here: keep the course code, drop the meta lines that overflowed. */
-  .cal-event { overflow: hidden; padding: 0.3rem 0.35rem; }
-  /* Hidden visually, kept in the accessible name the contract specifies. */
-  .cal-event__meta { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-}
-`;
-
-const optimizationOptions: { key: OptimizationKey; label: string; copy: string }[] = [
-  { key: "clusterMorning", label: "Cluster mornings", copy: "Bias toward earlier starts." },
-  { key: "clusterNight", label: "Cluster nights", copy: "Push classes later in the day." },
-  { key: "compact", label: "Compact days", copy: "Reduce idle time between classes." },
-  { key: "minimizeDistance", label: "Minimize walking", copy: "Reduce estimated walking between classes." },
-  { key: "maximizeProfessor", label: "Strong professors", copy: "Favor higher-rated instructors." },
-];
-
-function paletteIndex(courseCode: string) {
-  let h = 0;
-  for (let i = 0; i < courseCode.length; i++) h = (h * 31 + courseCode.charCodeAt(i)) >>> 0;
-  return (h % 8) + 1;
-}
-
-function paletteVars(courseCode: string): CSSProperties {
-  const i = paletteIndex(courseCode);
-  return {
-    ["--ev-bg" as string]: `var(--course-${i}-bg)`,
-    ["--ev-border" as string]: `var(--course-${i}-border)`,
-    ["--ev-solid" as string]: `var(--course-${i}-solid)`,
-  } as CSSProperties;
-}
-
-function eventLayout(event: ScheduleEvent) {
-  const [sh, sm] = event.start.split(":").map(Number);
-  const [eh, em] = event.end.split(":").map(Number);
-  const startMinutes = sh * 60 + sm - 8 * 60;
-  const endMinutes = eh * 60 + em - 8 * 60;
-  // grid is 12 hours = 720 minutes, each row min-height 64px
-  // place absolutely within the day column wrapper (see render)
-  return {
-    top: (startMinutes / 60) * 64 + 4,
-    height: ((endMinutes - startMinutes) / 60) * 64 - 4,
-  };
+function overlapping(selected: CourseSection[]): Set<string> {
+  const ids = new Set<string>();
+  for (let i = 0; i < selected.length; i += 1) {
+    for (let j = i + 1; j < selected.length; j += 1) {
+      if (sectionConflicts(selected[i], [selected[j]])) {
+        ids.add(selected[i].id);
+        ids.add(selected[j].id);
+      }
+    }
+  }
+  return ids;
 }
 
 export function ScheduleClient() {
-  const { plannerState, scheduleEvents, setOptimization, setSection, optimizeSchedule } = usePlanner();
-  const { toast } = useToast();
-  const [pickerCourseCode, setPickerCourseCode] = useState<string | null>(null);
-  const [pickerOrigin, setPickerOrigin] = useState<{ x: number; y: number } | null>(null);
+  const {
+    plannerState,
+    scheduleEvents,
+    setSection,
+    setSectionLock,
+    schedulePreferences,
+    setSchedulePreferences,
+    preferencesReady,
+    preferencesStorage,
+    applySchedule,
+    restoreSchedule,
+    planEpoch,
+    saveState,
+    tookNewerVersion,
+    storeNotices,
+  } = usePlanner();
+  const saveCalm =
+    (saveState.status === "saved" || saveState.status === "saving" || saveState.status === "pending") &&
+    !tookNewerVersion &&
+    storeNotices.length === 0;
+  const phone = useMediaQuery(PHONE);
+  const { state: run, run: startRun, close: closeRun } = useOptimizerRuns();
 
+  // A preview belongs to the result it came from, so a replaced or stale result never paints ghosts.
+  const [preview, setPreview] = useState<{ schedule: RankedSchedule; result: OptimizeResult; instant: boolean } | null>(null);
+  const [undo, setUndo] = useState<UndoSnapshot | null>(null);
+  const [pickProblem, setPickProblem] = useState<string | null>(null);
+  const [rerun, setRerun] = useState(0);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [pickerCourse, setPickerCourse] = useState<string | null>(null);
+
+  const activeCourseCodes = useMemo(() => getPlanningTermCourseCodes(plannerState), [plannerState]);
+  const selected = plannerState.selectedSections;
   const selectedSections = useMemo(
-    () =>
-      Object.values(plannerState.selectedSections)
-        .map((sectionId) => sections.find((s) => s.id === sectionId))
-        .filter((s): s is NonNullable<typeof s> => Boolean(s)),
-    [plannerState.selectedSections],
+    () => Object.values(selected).map((id) => findSection(id)).filter((s): s is CourseSection => Boolean(s)),
+    [selected],
+  );
+  const events = useMemo(() => eventsFor(selected), [selected]);
+  const conflicts = useMemo(() => overlapping(selectedSections), [selectedSections]);
+  const unscheduled = useMemo(() => getUnscheduledActiveCourses(plannerState), [plannerState]);
+  const locks = useMemo(() => plannerState.lockedSections ?? {}, [plannerState.lockedSections]);
+
+  // What a run depends on. A shown result computed from other inputs is stale.
+  const inputKey = optimizerInputKey(schedulePreferences, locks, activeCourseCodes);
+  const currentLocks = locksKey(locks);
+  const stale = isStale(run, inputKey);
+  const dirty = run.result === null || run.resultKey !== inputKey;
+  const running = run.status === "running";
+  const undoOk = undoAvailable(undo, planEpoch, currentLocks);
+
+  // Keyboard actions never animate (DESIGN.md §1): a run started from the keyboard shows its result instantly.
+  const [instantResult, setInstantResult] = useState(false);
+  const optimizeNow = useCallback(
+    (fromKeyboard = false) => {
+      setPreview(null);
+      setPickProblem(null);
+      setInstantResult(fromKeyboard);
+      // The worker gets plain data: the request with its walking provider turned into a table.
+      startRun(toPlainRequest(buildOptimizeRequest(plannerState, schedulePreferences)), inputKey);
+    },
+    [inputKey, plannerState, schedulePreferences, startRun],
   );
 
-  const conflicts = useMemo(() => {
-    const issues: string[] = [];
-    for (let i = 0; i < selectedSections.length; i++) {
-      for (let j = i + 1; j < selectedSections.length; j++) {
-        const overlap = selectedSections[i].meetings.some((a) =>
-          selectedSections[j].meetings.some(
-            (b) =>
-              a.day === b.day &&
-              ((a.start < b.end && b.start < a.end) || (b.start < a.end && a.start < b.end)),
-          ),
-        );
-        if (overlap) {
-          issues.push(`${selectedSections[i].courseCode} ↔ ${selectedSections[j].courseCode}`);
-        }
-      }
+  // Bring the first answer of each run into view; on a phone it renders below the header.
+  const scrolledFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (run.result === null || run.id === null || scrolledFor.current === run.id) return;
+    scrolledFor.current = run.id;
+    requestAnimationFrame(() => {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document
+        .getElementById("alternatives-title")
+        ?.scrollIntoView({ block: "nearest", behavior: reduce || instantResult ? "auto" : "smooth" });
+    });
+  }, [instantResult, run.id, run.result]);
+
+  // A relaxation changes settings first; optimize again once they have rendered.
+  const firstRerun = useRef(true);
+  useEffect(() => {
+    if (firstRerun.current) {
+      firstRerun.current = false;
+      return;
     }
-    return issues;
-  }, [selectedSections]);
+    optimizeNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs only when a relaxation asks for it
+  }, [rerun]);
 
-  const longestDayHours = Math.round(
-    Math.max(
-      ...weekDays.map((day) => getDailySpan(scheduleEvents.filter((e) => e.day === day))),
-      0,
-    ) / 60,
+  const pickSchedule = (schedule: RankedSchedule, letter: string) => {
+    // Checked again here: the button may have drawn before the settings changed.
+    const check = canApply(run, inputKey, schedule, locks);
+    if (!check.ok) {
+      setPickProblem(check.reason);
+      return;
+    }
+    const moved = movedCourses(selected, schedule.byCourse);
+    setUndo({ sections: { ...selected }, goal: plannerState.optimization, letter, epoch: planEpoch, locks: currentLocks });
+    applySchedule(schedule.byCourse, goalForWeights(schedulePreferences.weights));
+    setPreview(null);
+    setPickProblem(null);
+    toast(moved.length === 0 ? `Using option ${letter}` : `Using option ${letter} · ${moved.length} course${moved.length === 1 ? "" : "s"} moved`);
+  };
+
+  const undoPick = () => {
+    if (!undoAvailable(undo, planEpoch, currentLocks)) return;
+    restoreSchedule(undo);
+    setUndo(null);
+    toast("Restored your previous schedule");
+  };
+
+  const relax = (suggestion: RelaxSuggestion) => {
+    if (stale) return;
+    const r = suggestion.relaxation;
+    switch (r.kind) {
+      case "unlock":
+        setSectionLock(r.courseCode, false);
+        break;
+      case "include":
+        setSchedulePreferences((p) => ({
+          ...p,
+          constraints: { ...p.constraints, excludedSections: p.constraints.excludedSections.filter((id) => id !== r.sectionId) },
+        }));
+        break;
+      default:
+        setSchedulePreferences((p) => {
+          const c = p.constraints;
+          switch (r.kind) {
+            case "earliestStart":
+              return { ...p, constraints: { ...c, earliestStart: r.to } };
+            case "latestEnd":
+              return { ...p, constraints: { ...c, latestEnd: r.to } };
+            case "dayOff":
+              return { ...p, constraints: { ...c, daysOff: c.daysOff.filter((day) => day !== r.day) } };
+            case "blocked":
+              return { ...p, constraints: { ...c, blocked: c.blocked.filter((b) => b.id !== r.blockedId) } };
+            case "maxCredits":
+              return { ...p, constraints: { ...c, maxCredits: r.to } };
+            case "walking":
+              return { ...p, constraints: { ...c, walkingBufferMinutes: r.to === null ? null : r.to.bufferMinutes } };
+          }
+        });
+    }
+    toast(suggestion.label);
+    setRerun((n) => n + 1);
+  };
+
+  const credits = summarizeCredits(plannerState);
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents, getWalkingSeconds), [scheduleEvents]);
+  const walkMinutes = Math.round(walking.knownSeconds / 60);
+  const earliest = events.length ? Math.min(...events.map((e) => e.start)) : null;
+  const latest = events.length ? Math.max(...events.map((e) => e.end)) : null;
+  const longest = weekDays
+    .map((day) => {
+      const list = events.filter((e) => e.day === day);
+      return { day, span: list.length ? Math.max(...list.map((e) => e.end)) - Math.min(...list.map((e) => e.start)) : 0 };
+    })
+    .sort((a, b) => b.span - a.span)[0];
+  const daysOnCampus = new Set(events.map((e) => e.day)).size;
+
+  const shownPreview = preview && preview.result === run.result && !stale ? preview.schedule : null;
+  const movedInPreview = shownPreview ? movedCourses(selected, shownPreview.byCourse) : [];
+  const ghosts = shownPreview ? eventsFor(Object.fromEntries(movedInPreview.map((code) => [code, shownPreview.byCourse[code]]))) : [];
+  // The grid's hours cover the plan and every shown option, so previewing one never moves the others.
+  const rangeEvents = useMemo(
+    () => (run.result && !stale ? [...events, ...run.result.schedules.flatMap((schedule) => eventsFor(schedule.byCourse))] : events),
+    [events, run.result, stale],
   );
 
-  const earliestStart = useMemo(() => {
-    if (scheduleEvents.length === 0) return "—";
-    return formatTime(scheduleEvents.map((e) => e.start).sort()[0]);
-  }, [scheduleEvents]);
+  const pickerCourseInfo = pickerCourse ? getCourseByCode(pickerCourse) : undefined;
+  const pickerSections = pickerCourse ? getSectionsForCourse(pickerCourse) : [];
+  const excluded = new Set(schedulePreferences.constraints.excludedSections);
 
-  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents), [scheduleEvents]);
-
-  const latestEnd = useMemo(() => {
-    if (scheduleEvents.length === 0) return "—";
-    return formatTime(scheduleEvents.map((e) => e.end).sort().reverse()[0]);
-  }, [scheduleEvents]);
-
-  function openPicker(courseCode: string, e: React.MouseEvent) {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPickerOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    setPickerCourseCode(courseCode);
-  }
-
-  const pickerSections = pickerCourseCode ? getSectionsForCourse(pickerCourseCode) : [];
-  const pickerCourse = pickerCourseCode ? getCourseByCode(pickerCourseCode) : undefined;
-  const activeCourseCodes = useMemo(() => getActiveCourseCodes(plannerState), [plannerState]);
-  const unscheduledActiveCourses = useMemo(
-    () => getUnscheduledActiveCourses(plannerState),
-    [plannerState],
+  const rail = (
+    <ConstraintRail
+      preferences={schedulePreferences}
+      onChange={setSchedulePreferences}
+      onOptimize={(fromKeyboard) => {
+        setSheetOpen(false);
+        optimizeNow(fromKeyboard);
+      }}
+      running={running}
+      dirty={dirty}
+      disabled={!preferencesReady}
+      storage={preferencesStorage}
+    />
   );
 
-  return (
-    <NavShell
-      step={1}
-      back={{ href: "/courses", label: "Courses" }}
-      next={{ href: "/map", label: "Generate map" }}
-    >
-      <div style={{ display: "grid", gap: 18 }}>
-        <header>
-          <p className="editorial-label">Step 2 — Schedule</p>
-          <h1
-            className="font-display"
-            style={{
-              marginTop: 4,
-              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
-              fontWeight: 800,
-              color: "var(--brand-900)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.05,
-            }}
-          >
-            Shape the semester around one planning goal.
-          </h1>
-        </header>
+  const inPlan = (
+    <section className={styles.railSection} aria-labelledby="in-plan-title">
+      <h2 className={styles.railHeading} id="in-plan-title">
+        In this plan
+      </h2>
+      <div className={styles.inPlan}>
+        {selectedSections.length > 0 ? (
+          <>
+            <p className={styles.meta}>Locked sections stay put when you optimize.</p>
+            <ScheduleSectionLocks />
+          </>
+        ) : (
+          <p className={styles.meta}>Nothing planned yet. Mark courses as Taking in Courses.</p>
+        )}
+      </div>
+    </section>
+  );
 
-        <PlannerSampleNotice />
+  const walkingNote = (
+    <p className={styles.meta}>
+      Walking follows campus walkways{walking.estimated ? "; some walks are straight-line estimates" : ""}.
+      {walking.unknownLegs > 0
+        ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? " has" : "s have"} no known time and ${walking.unknownLegs === 1 ? "is" : "are"} not counted.`
+        : ""}
+    </p>
+  );
 
-        {conflicts.length > 0 ? (
-          <ConflictBanner>
-            Time conflict detected: {conflicts.join(" · ")}. Click an event to swap sections.
-          </ConflictBanner>
-        ) : null}
-
-        {unscheduledActiveCourses.length > 0 ? (
-          <ConflictBanner>
-            No section data yet for {unscheduledActiveCourses.map((course) => course.code).join(", ")}.
-            Those courses are marked Taking, but they will not appear on the map until a section exists.
-          </ConflictBanner>
-        ) : null}
-
-        <PlannerPersistencePanel />
-
-        {/* Two columns squeezed the calendar to ~70px at 390px wide; stack below 760px. */}
-        <style>{SCHEDULE_LAYOUT_CSS}</style>
-        <div className="schedule-layout">
-          {/* Sidebar */}
-          <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
-            <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 10 }}>
-                Optimization
-              </p>
-              <div style={{ display: "grid", gap: 6 }}>
-                <StaggerGroup step={30}>
-                  {optimizationOptions.map((opt) => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      className="opt-row"
-                      data-active={plannerState.optimization === opt.key ? "true" : "false"}
-                      aria-pressed={plannerState.optimization === opt.key}
-                      onClick={() => {
-                        if (plannerState.optimization !== opt.key) {
-                          setOptimization(opt.key);
-                          toast(`Re-optimized: ${opt.label}`);
-                        }
-                      }}
-                    >
-                      <span className="opt-dot" />
-                      <span style={{ minWidth: 0 }}>
-                        <span className="opt-row__label" style={{ display: "block" }}>
-                          {opt.label}
-                        </span>
-                        <span className="opt-row__copy" style={{ display: "block" }}>
-                          {opt.copy}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </StaggerGroup>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ marginTop: 4 }}
-                  onClick={() => {
-                    optimizeSchedule();
-                    const label = optimizationOptions.find((opt) => opt.key === plannerState.optimization)?.label;
-                    toast(`Re-optimized: ${label ?? plannerState.optimization}`);
-                  }}
-                >
-                  Optimize schedule
-                </button>
-              </div>
-            </section>
-
-            <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 8 }}>
-                Active courses
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {selectedSections.map((s) => (
-                  <span key={s.id} className="course-pill" style={paletteVars(s.courseCode)}>
-                    {s.courseCode}
-                  </span>
-                ))}
-                {unscheduledActiveCourses.map((course) => (
-                  <span key={course.code} className="course-pill" style={{ opacity: 0.64 }}>
-                    {course.code}
-                  </span>
-                ))}
-                {activeCourseCodes.length === 0 ? (
-                  <span style={{ fontSize: "0.82rem", color: "var(--copy)" }}>
-                    Mark courses as &ldquo;Taking&rdquo; on the previous step.
-                  </span>
-                ) : null}
-              </div>
-              {selectedSections.length > 0 ? (
-                <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
-                  <p style={{ fontSize: "0.76rem", color: "var(--copy)" }}>
-                    Locked sections stay put when you optimize.
-                  </p>
-                  <ScheduleSectionLocks />
-                </div>
-              ) : null}
-            </section>
-
-            <section className="surface-card" style={{ padding: "0.95rem 1rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 10 }}>
-                Stats
-              </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
-                  fontSize: "0.85rem",
-                }}
-              >
-                <Metric label="Credits" value={String(summarizeCredits(plannerState))} />
-                <Metric label="Longest day" value={`${longestDayHours}h`} />
-                <Metric label="Earliest" value={earliestStart} />
-                <Metric label="Latest" value={latestEnd} />
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <Metric label="Walking / week (estimated)" value={`${Math.round(walking.knownSeconds / 60)} min`} />
-                <p style={{ fontSize: "0.74rem", color: "var(--copy)", marginTop: 2 }}>
-                  {walking.estimated ? "Estimated from straight-line distance between buildings." : "Estimated."}
-                  {walking.unknownLegs > 0
-                    ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? "" : "s"} could not be estimated (unknown building) and ${walking.unknownLegs === 1 ? "is" : "are"} not included.`
-                    : ""}
-                </p>
-              </div>
-            </section>
-
-            <PlannerExportPanel />
-          </aside>
-
-          {/* Calendar */}
-          <section className="surface-card" style={{ padding: 0, overflow: "hidden" }} aria-label="Week calendar (sample sections)">
-            {/* Sample label outside the events, so it never changes an event's name. */}
-            <p style={{ margin: 0, padding: "0.45rem 0.75rem", fontSize: "0.76rem", color: "var(--copy)", borderBottom: "1px solid var(--line)" }}>
-              Sample sections, times and instructors
-            </p>
-            <div className="cal-grid">
-              <div className="cal-head" />
-              {weekDays.map((day) => (
-                <div key={day} className="cal-head">
-                  {day}
-                </div>
-              ))}
-
-              {/* Time labels column + 5 day columns */}
-              <div style={{ gridColumn: "1 / 2" }}>
-                {TIME_GRID.map((hour) => (
-                  <div key={hour} className="cal-time" style={{ height: 64 }}>
-                    {((hour - 1) % 12) + 1}
-                    {hour < 12 ? " AM" : " PM"}
-                  </div>
-                ))}
-              </div>
-
-              {weekDays.map((day) => (
-                <div key={day} style={{ gridColumn: "auto", position: "relative" }}>
-                  {TIME_GRID.map((hour) => (
-                    <div
-                      key={hour}
-                      className="cal-cell"
-                      style={{ height: 64, position: "relative" }}
-                    />
-                  ))}
-                  {scheduleEvents
-                    .filter((e) => e.day === day)
-                    .map((event) => {
-                      const layout = eventLayout(event);
-                      return (
-                        <button
-                          key={event.sectionId + day + event.start}
-                          type="button"
-                          className="cal-event"
-                          style={{
-                            ...paletteVars(event.courseCode),
-                            top: layout.top,
-                            height: layout.height,
-                          }}
-                          onClick={(e) => openPicker(event.courseCode, e)}
-                        >
-                          {/* The text supplies the contract name "{COURSE} {START} – {END} {PROFESSOR}";
-                              nothing else visible goes inside, so the name contains all visible text. */}
-                          <div className="cal-event__title">
-                            {event.courseCode}
-                            {plannerState.lockedSections?.[event.courseCode] === event.sectionId ? (
-                              <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden="true" focusable="false" style={{ marginLeft: 4 }}>
-                                <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
-                                <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-                              </svg>
-                            ) : null}
-                          </div>
-                          {/* Full opacity: the dimmed meta text failed WCAG AA contrast (axe, M5 and M6 runs). */}
-                          <div className="cal-event__meta" style={{ opacity: 1 }}>
-                            {formatTime(event.start)} – {formatTime(event.end)}
-                          </div>
-                          <div className="cal-event__meta" style={{ opacity: 1 }}>
-                            {event.professor}
-                          </div>
-                        </button>
-                      );
-                    })}
-                </div>
-              ))}
-            </div>
-          </section>
+  const stats = (
+    <section className={styles.railSection} aria-labelledby="stats-title">
+      <h2 className={styles.railHeading} id="stats-title">
+        This week
+      </h2>
+      <div className={styles.stats}>
+        <div className={styles.stat}>
+          <b>{credits}</b>
+          <span>Credits</span>
+        </div>
+        <div className={styles.stat}>
+          <b>{earliest === null ? "—" : clock(earliest)}</b>
+          <span>Earliest</span>
+        </div>
+        <div className={styles.stat}>
+          <b>{latest === null ? "—" : clock(latest)}</b>
+          <span>Latest</span>
+        </div>
+        <div className={styles.stat}>
+          <b>
+            {walkMinutes}
+            <small> min</small>
+          </b>
+          <span>Walking / wk</span>
+        </div>
+        <div className={styles.stat}>
+          <b>{longest && longest.span > 0 ? longest.day : "—"}</b>
+          <span>Longest day</span>
+        </div>
+        <div className={styles.stat}>
+          <b>{daysOnCampus}</b>
+          <span>Days on campus</span>
         </div>
       </div>
+      {walkingNote}
+    </section>
+  );
 
-      <Modal
-        open={pickerCourseCode !== null}
-        onClose={() => setPickerCourseCode(null)}
-        origin={pickerOrigin}
-        title={
-          <div>
-            <p className="editorial-label">
-              Swap section
-              <SampleTag />
-            </p>
-            <h2
-              className="font-display"
-              style={{
-                marginTop: 4,
-                fontSize: "1.3rem",
-                fontWeight: 800,
-                color: "var(--brand-900)",
-                letterSpacing: "-0.03em",
+  const sectionList = (
+    <div className={styles.sectionList}>
+      {pickerSections.map((section) => {
+        const others = selectedSections.filter((s) => s.courseCode !== section.courseCode);
+        const clash = sectionConflicts(section, others);
+        const current = selected[section.courseCode] === section.id;
+        const skipped = excluded.has(section.id);
+        return (
+          <div key={section.id} className={styles.sectionRow} data-current={current ? "true" : "false"}>
+            <button
+              type="button"
+              className={styles.sectionPick}
+              disabled={clash || current}
+              onClick={() => {
+                setSection(section.courseCode, section.id);
+                setPickerCourse(null);
+                toast(`Section updated · ${section.courseCode}`);
               }}
             >
-              {pickerCourse?.code}
-            </h2>
-            <p style={{ fontSize: "0.82rem", color: "var(--copy)", marginTop: 2 }}>
-              {pickerCourse?.title}
-            </p>
+              <span className={styles.sectionPickLine}>
+                §{sectionNumber(section.id)} · {patternOf(section)}
+              </span>
+              <span className={styles.meta} data-clash={clash ? "true" : "false"}>
+                {section.professor} · ★ {section.rating.toFixed(1)}
+                {current ? " · current section" : clash ? " · overlaps another class" : ""}
+              </span>
+            </button>
+            <Chip
+              size="sm"
+              selected={skipped}
+              onSelectedChange={(skip) =>
+                setSchedulePreferences((p) => ({
+                  ...p,
+                  constraints: {
+                    ...p.constraints,
+                    excludedSections: skip
+                      ? [...p.constraints.excludedSections.filter((id) => id !== section.id), section.id]
+                      : p.constraints.excludedSections.filter((id) => id !== section.id),
+                  },
+                }))
+              }
+            >
+              Skip<span className={styles.srOnly}> section {sectionNumber(section.id)} when optimizing</span>
+            </Chip>
           </div>
-        }
-      >
-        <div style={{ display: "grid", gap: 8 }}>
-          <StaggerGroup>
-            {pickerSections.map((section) => {
-              const others = selectedSections.filter((s) => s.courseCode !== section.courseCode);
-              const conflict = sectionConflicts(section, others);
-              const selected = plannerState.selectedSections[section.courseCode] === section.id;
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  disabled={conflict}
-                  onClick={() => {
-                    setSection(section.courseCode, section.id);
-                    setPickerCourseCode(null);
-                    toast(`✓ Section updated · ${section.courseCode}`);
-                  }}
-                  style={{
-                    textAlign: "left",
-                    padding: "0.85rem 1rem",
-                    border: `1px solid ${selected ? "var(--brand-500)" : "var(--line)"}`,
-                    background: selected ? "var(--success-bg)" : conflict ? "var(--surface-muted)" : "var(--surface)",
-                    borderRadius: "var(--r-md)",
-                    cursor: conflict ? "not-allowed" : "pointer",
-                    opacity: conflict ? 0.55 : 1,
-                    transition:
-                      "border-color 150ms var(--ease), background-color 150ms var(--ease)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontWeight: 700, color: "var(--ink)" }}>{section.professor}</p>
-                      <p style={{ fontSize: "0.78rem", color: "var(--copy)", marginTop: 2 }}>
-                        {section.meetings
-                          .map((m) => `${m.day} ${formatTime(m.start)}`)
-                          .join(" · ")}
-                      </p>
-                      <p style={{ fontSize: "0.78rem", color: "var(--copy)", marginTop: 2 }}>
-                        {Math.round(getSectionDuration(section) / 60)} hrs/week instruction
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                      <StatusMark label={`${section.rating.toFixed(1)} ★`} tone="review" />
-                      {conflict ? <StatusMark label="Conflict" tone="danger" /> : null}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </StaggerGroup>
-        </div>
-      </Modal>
-    </NavShell>
+        );
+      })}
+    </div>
   );
-}
 
-function Metric({ label, value }: { label: string; value: string }) {
+  const pickerTitle = pickerCourseInfo ? `Swap section · ${pickerCourseInfo.code}` : "Swap section";
+
   return (
-    <div>
-      <p style={{ fontSize: "0.7rem", color: "var(--copy)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        {label}
-      </p>
-      <p
-        className="font-display"
-        style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--brand-900)", letterSpacing: "-0.02em", marginTop: 2 }}
-      >
-        {value}
-      </p>
+    <div className={`shell-content ${styles.page}`}>
+      <header className={styles.viewhead}>
+        <h1 className={styles.viewheadTitle}>Week</h1>
+        <span className={styles.meta}>
+          {phone ? `${credits} cr` : `${credits} credits · ${activeCourseCodes.length} course${activeCourseCodes.length === 1 ? "" : "s"}`}
+        </span>
+        <ProvenanceTag source={SAMPLE_SOURCE}>{phone ? "Sample" : "Sample sections"}</ProvenanceTag>
+        <span className={styles.spacer} />
+        {phone ? (
+          <Button size="sm" onClick={() => setSheetOpen(true)} loading={running} loadingLabel="Optimizing…" aria-haspopup="dialog">
+            Optimize
+          </Button>
+        ) : null}
+      </header>
+
+      <SampleNote />
+      {/* The PlanChip shows a calm save state; the panel's own bar appears only when something needs attention.
+          It stays mounted for its status region and the conflict dialog (which renders in a portal). */}
+      <div className={saveCalm ? styles.srOnly : undefined}>
+        <PlannerPersistencePanel />
+      </div>
+
+      {phone ? (
+        <p className={styles.statsStrip}>
+          <span>{earliest === null || latest === null ? "No classes yet" : `${clock(earliest)}–${clock(latest)}`}</span>
+          <span>{walkMinutes} min walking</span>
+          {longest && longest.span > 0 ? <span>longest {longest.day}</span> : null}
+        </p>
+      ) : null}
+
+      <div className={styles.body}>
+        {phone ? null : (
+          <aside className={styles.side} aria-label="Constraints and this plan">
+            {rail}
+            {inPlan}
+            {stats}
+            <PlannerExportPanel />
+          </aside>
+        )}
+
+        <div className={styles.main}>
+          {conflicts.size > 0 ? (
+            <p className={styles.notice} role="alert">
+              Two of your sections overlap. Optimize week, or select a red class to swap its section.
+            </p>
+          ) : null}
+          {unscheduled.length > 0 ? (
+            <p className={`${styles.notice} ${styles.noticeQuiet}`} role="status">
+              No section data yet for {unscheduled.map((course) => course.code).join(", ")}. It is left out of the week and the optimizer.
+            </p>
+          ) : null}
+          {pickProblem ? (
+            <p className={styles.notice} role="alert">
+              {pickProblem}
+            </p>
+          ) : null}
+          {undoOk ? (
+            <p className={styles.meta} role="status">
+              Using option {undo.letter}.{" "}
+              <Button variant="link" size="sm" onClick={undoPick}>
+                Undo
+              </Button>
+            </p>
+          ) : null}
+
+          <AlternativesCompare
+            state={run}
+            stale={stale}
+            current={selected}
+            courseOrder={activeCourseCodes}
+            onUse={pickSchedule}
+            instant={instantResult}
+            onPreview={(schedule, fromKeyboard) =>
+              setPreview(schedule && run.result ? { schedule, result: run.result, instant: fromKeyboard } : null)
+            }
+            onRelax={relax}
+            onRetry={optimizeNow}
+            onClose={() => {
+              closeRun();
+              setPreview(null);
+            }}
+          />
+
+          <WeekGrid
+            events={events}
+            courseOrder={activeCourseCodes}
+            lockedSections={locks}
+            conflictSections={conflicts}
+            rangeEvents={rangeEvents}
+            ghosts={ghosts}
+            ghostsInstant={Boolean(preview?.instant)}
+            dimmedCourses={movedInPreview}
+            onSelect={setPickerCourse}
+          />
+        </div>
+
+        {phone ? (
+          <div className={styles.side}>
+            {inPlan}
+            {walkingNote}
+            <PlannerExportPanel />
+          </div>
+        ) : null}
+      </div>
+
+      {phone ? (
+        <BottomSheet open={sheetOpen} onOpenChange={setSheetOpen} title="Constraints">
+          <div className={styles.sheetBody}>{rail}</div>
+        </BottomSheet>
+      ) : null}
+
+      {phone ? (
+        <BottomSheet open={pickerCourse !== null} onOpenChange={(open) => (open ? null : setPickerCourse(null))} title={pickerTitle}>
+          <div className={styles.sheetBody}>
+            <p className={styles.sheetTitle}>
+              <span className={styles.bigCode}>{pickerCourseInfo?.code}</span> {pickerCourseInfo?.title}
+            </p>
+            {sectionList}
+          </div>
+        </BottomSheet>
+      ) : (
+        <Dialog
+          open={pickerCourse !== null}
+          onOpenChange={(open) => (open ? null : setPickerCourse(null))}
+          title={pickerTitle}
+          description={pickerCourseInfo?.title}
+          width={560}
+        >
+          {sectionList}
+        </Dialog>
+      )}
     </div>
   );
 }

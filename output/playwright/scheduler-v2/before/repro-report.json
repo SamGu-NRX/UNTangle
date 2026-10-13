@@ -1,0 +1,460 @@
+{
+  "steps": [
+    {
+      "step": "fresh schedule",
+      "events": [
+        {
+          "day": "Mon",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits3Longest day1hEarliest9:30 AMLatest10:50 AMWalking / week (estimated)0 minEstimated."
+    },
+    {
+      "step": "after marking 4 courses Taking (plus default MATH 1710)",
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 101012:00 PM – 12:50 PMKelsey Lee"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 17108:00 AM – 8:50 AMJoy Ogbechi"
+        },
+        {
+          "day": "Mon",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Tue",
+          "text": "ENGL 131011:30 AM – 12:50 PMStaci Gentry"
+        },
+        {
+          "day": "Tue",
+          "text": "PSYC 16308:30 AM – 9:50 AMCasey R. Guillot"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 101012:00 PM – 12:50 PMKelsey Lee"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 17108:00 AM – 8:50 AMJoy Ogbechi"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Thu",
+          "text": "ENGL 131011:30 AM – 12:50 PMStaci Gentry"
+        },
+        {
+          "day": "Thu",
+          "text": "PSYC 16308:30 AM – 9:50 AMCasey R. Guillot"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 101012:00 PM – 12:50 PMKelsey Lee"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 17108:00 AM – 8:50 AMJoy Ogbechi"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day5hEarliest8:00 AMLatest12:50 PMWalking / week (estimated)36 minEstimated from straight-line distance between buildings."
+    },
+    {
+      "step": "goal Cluster mornings",
+      "ms": 445,
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 101012:00 PM – 12:50 PMKelsey Lee"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 17108:00 AM – 8:50 AMJoy Ogbechi"
+        },
+        {
+          "day": "Mon",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Tue",
+          "text": "ENGL 131011:30 AM – 12:50 PMStaci Gentry"
+        },
+        {
+          "day": "Tue",
+          "text": "PSYC 16308:30 AM – 9:50 AMCasey R. Guillot"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 101012:00 PM – 12:50 PMKelsey Lee"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 17108:00 AM – 8:50 AMJoy Ogbechi"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Thu",
+          "text": "ENGL 131011:30 AM – 12:50 PMStaci Gentry"
+        },
+        {
+          "day": "Thu",
+          "text": "PSYC 16308:30 AM – 9:50 AMCasey R. Guillot"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 101012:00 PM – 12:50 PMKelsey Lee"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 17108:00 AM – 8:50 AMJoy Ogbechi"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day5hEarliest8:00 AMLatest12:50 PMWalking / week (estimated)36 minEstimated from straight-line distance between buildings."
+    },
+    {
+      "step": "goal Cluster nights",
+      "ms": 6837,
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 171012:00 PM – 12:50 PMAnn Price"
+        },
+        {
+          "day": "Mon",
+          "text": "ENGL 13103:00 PM – 3:50 PMChristine Van Pay"
+        },
+        {
+          "day": "Mon",
+          "text": "MATH 17101:00 PM – 1:50 PMDouglas P. Brozovic"
+        },
+        {
+          "day": "Mon",
+          "text": "PSYC 16302:00 PM – 2:50 PMCaitlyn N. Hord"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 171012:00 PM – 12:50 PMAnn Price"
+        },
+        {
+          "day": "Wed",
+          "text": "ENGL 13103:00 PM – 3:50 PMChristine Van Pay"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17101:00 PM – 1:50 PMDouglas P. Brozovic"
+        },
+        {
+          "day": "Wed",
+          "text": "PSYC 16302:00 PM – 2:50 PMCaitlyn N. Hord"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 171012:00 PM – 12:50 PMAnn Price"
+        },
+        {
+          "day": "Fri",
+          "text": "ENGL 13103:00 PM – 3:50 PMChristine Van Pay"
+        },
+        {
+          "day": "Fri",
+          "text": "MATH 17101:00 PM – 1:50 PMDouglas P. Brozovic"
+        },
+        {
+          "day": "Fri",
+          "text": "PSYC 16302:00 PM – 2:50 PMCaitlyn N. Hord"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day5hEarliest12:00 PMLatest4:50 PMWalking / week (estimated)68 minEstimated from straight-line distance between buildings."
+    },
+    {
+      "step": "goal Compact days",
+      "ms": 6667,
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 17102:00 PM – 2:50 PMJoy Ogbechi"
+        },
+        {
+          "day": "Mon",
+          "text": "MATH 17103:00 PM – 3:50 PMHyung Mook Kang"
+        },
+        {
+          "day": "Mon",
+          "text": "PSYC 16301:00 PM – 1:50 PMCalvin M. Sims"
+        },
+        {
+          "day": "Tue",
+          "text": "ENGL 13102:30 PM – 3:50 PMBen R. Abercrombie"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 17102:00 PM – 2:50 PMJoy Ogbechi"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17103:00 PM – 3:50 PMHyung Mook Kang"
+        },
+        {
+          "day": "Wed",
+          "text": "PSYC 16301:00 PM – 1:50 PMCalvin M. Sims"
+        },
+        {
+          "day": "Thu",
+          "text": "ENGL 13102:30 PM – 3:50 PMBen R. Abercrombie"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 17102:00 PM – 2:50 PMJoy Ogbechi"
+        },
+        {
+          "day": "Fri",
+          "text": "MATH 17103:00 PM – 3:50 PMHyung Mook Kang"
+        },
+        {
+          "day": "Fri",
+          "text": "PSYC 16301:00 PM – 1:50 PMCalvin M. Sims"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day4hEarliest1:00 PMLatest4:50 PMWalking / week (estimated)37 minEstimated from straight-line distance between buildings."
+    },
+    {
+      "step": "goal Minimize walking",
+      "ms": 6632,
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Mon",
+          "text": "ENGL 13103:00 PM – 3:50 PMJohn Muellner"
+        },
+        {
+          "day": "Mon",
+          "text": "PSYC 16301:00 PM – 1:50 PMCalvin M. Sims"
+        },
+        {
+          "day": "Tue",
+          "text": "MATH 171010:30 AM – 11:50 AMHyung Mook Kang"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Wed",
+          "text": "ENGL 13103:00 PM – 3:50 PMJohn Muellner"
+        },
+        {
+          "day": "Wed",
+          "text": "PSYC 16301:00 PM – 1:50 PMCalvin M. Sims"
+        },
+        {
+          "day": "Thu",
+          "text": "MATH 171010:30 AM – 11:50 AMHyung Mook Kang"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 10104:00 PM – 4:50 PMJamie K. Johnson"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Fri",
+          "text": "ENGL 13103:00 PM – 3:50 PMJohn Muellner"
+        },
+        {
+          "day": "Fri",
+          "text": "PSYC 16301:00 PM – 1:50 PMCalvin M. Sims"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day5hEarliest10:30 AMLatest4:50 PMWalking / week (estimated)0 minEstimated."
+    },
+    {
+      "step": "goal Strong professors",
+      "ms": 2452,
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 10101:00 PM – 1:50 PMNatalie Morrissey"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Mon",
+          "text": "ENGL 13108:00 AM – 8:50 AMKathleen Long"
+        },
+        {
+          "day": "Mon",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Mon",
+          "text": "PSYC 163011:00 AM – 11:50 AMJane Whittington"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 10101:00 PM – 1:50 PMNatalie Morrissey"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Wed",
+          "text": "ENGL 13108:00 AM – 8:50 AMKathleen Long"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Wed",
+          "text": "PSYC 163011:00 AM – 11:50 AMJane Whittington"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 10101:00 PM – 1:50 PMNatalie Morrissey"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Fri",
+          "text": "ENGL 13108:00 AM – 8:50 AMKathleen Long"
+        },
+        {
+          "day": "Fri",
+          "text": "PSYC 163011:00 AM – 11:50 AMJane Whittington"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day6hEarliest8:00 AMLatest1:50 PMWalking / week (estimated)42 minEstimated from straight-line distance between buildings."
+    },
+    {
+      "step": "Optimize schedule",
+      "ms": 2205,
+      "changed": false,
+      "events": [
+        {
+          "day": "Mon",
+          "text": "ANTH 10101:00 PM – 1:50 PMNatalie Morrissey"
+        },
+        {
+          "day": "Mon",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Mon",
+          "text": "ENGL 13108:00 AM – 8:50 AMKathleen Long"
+        },
+        {
+          "day": "Mon",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Mon",
+          "text": "PSYC 163011:00 AM – 11:50 AMJane Whittington"
+        },
+        {
+          "day": "Wed",
+          "text": "ANTH 10101:00 PM – 1:50 PMNatalie Morrissey"
+        },
+        {
+          "day": "Wed",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Wed",
+          "text": "ENGL 13108:00 AM – 8:50 AMKathleen Long"
+        },
+        {
+          "day": "Wed",
+          "text": "MATH 17109:30 AM – 10:50 AMShuang Liu"
+        },
+        {
+          "day": "Wed",
+          "text": "PSYC 163011:00 AM – 11:50 AMJane Whittington"
+        },
+        {
+          "day": "Fri",
+          "text": "ANTH 10101:00 PM – 1:50 PMNatalie Morrissey"
+        },
+        {
+          "day": "Fri",
+          "text": "BIOL 171012:00 PM – 12:50 PMVladimir Shulaev"
+        },
+        {
+          "day": "Fri",
+          "text": "ENGL 13108:00 AM – 8:50 AMKathleen Long"
+        },
+        {
+          "day": "Fri",
+          "text": "PSYC 163011:00 AM – 11:50 AMJane Whittington"
+        }
+      ],
+      "banners": [],
+      "stats": "StatsCredits15Longest day6hEarliest8:00 AMLatest1:50 PMWalking / week (estimated)42 minEstimated from straight-line distance between buildings."
+    },
+    {
+      "step": "summary",
+      "distinctSchedulesAcrossGoals": 5,
+      "goals": 5
+    }
+  ]
+}

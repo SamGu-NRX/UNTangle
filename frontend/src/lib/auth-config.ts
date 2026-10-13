@@ -12,6 +12,8 @@ export type AuthDeps = {
   secret: string;
   claims: MagicLinkClaims;
   sendEmail: (kind: AuthEmailKind, to: string, url: string) => Promise<unknown>;
+  /** Deployment settings that don't change who may sign in (IP header, limiter storage). */
+  options?: Pick<BetterAuthOptions, "advanced" | "rateLimit">;
 };
 
 /**
@@ -33,7 +35,7 @@ export type AuthDeps = {
  * - A link works once even when two requests use it at the same moment
  *   (an atomic claim, MagicLinkClaims).
  */
-export function createAuth({ database, baseURL, secret, claims, sendEmail }: AuthDeps) {
+export function createAuth({ database, baseURL, secret, claims, sendEmail, options }: AuthDeps) {
   /** Sends an auth email. Over budget: a sign-in link request fails with 429; a reset send is dropped (logged), since that endpoint answers the same whether or not an account exists. */
   async function send(kind: AuthEmailKind, to: string, url: string) {
     try {
@@ -50,6 +52,7 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail }: Aut
   }
 
   return betterAuth({
+    ...options,
     appName: "UNTangle",
     baseURL,
     secret,

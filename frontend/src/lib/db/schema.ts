@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -107,6 +107,22 @@ export const plannerStates = pgTable("planner_state", {
   revision: integer("revision").default(1).notNull(),
 });
 
+// One fixed-window counter per route class and caller. The window leads the key so cleanup deletes a range.
+export const apiRateLimits = pgTable("api_rate_limit", {
+  windowIndex: integer("window_index").notNull(),
+  route: text("route").notNull(),
+  caller: text("caller").notNull(),
+  count: integer("count").notNull(),
+}, (table) => [primaryKey({ columns: [table.windowIndex, table.route, table.caller] })]);
+
+// better-auth's own limiter counts here when its storage is "database".
+export const authRateLimits = pgTable("auth_rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -114,4 +130,6 @@ export const schema = {
   verifications,
   magicLinkClaims,
   plannerStates,
+  apiRateLimits,
+  authRateLimits,
 };

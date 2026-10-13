@@ -1,5 +1,5 @@
 {
-  "id": "b7a26aca-ee02-44f2-8b7b-f06eb38fd6ea",
+  "id": "0313b9f2-cc95-4b2f-980b-60a35b6d0a34",
   "prevId": "dace3e4a-30d4-45f0-a909-6b2a6541c130",
   "version": "7",
   "dialect": "postgresql",
@@ -126,34 +126,93 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.magic_link_claim": {
-      "name": "magic_link_claim",
+    "public.api_rate_limit": {
+      "name": "api_rate_limit",
       "schema": "",
       "columns": {
-        "token_hash": {
-          "name": "token_hash",
+        "window_index": {
+          "name": "window_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "caller": {
+          "name": "caller",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "api_rate_limit_window_index_route_caller_pk": {
+          "name": "api_rate_limit_window_index_route_caller_pk",
+          "columns": [
+            "window_index",
+            "route",
+            "caller"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.auth_rate_limit": {
+      "name": "auth_rate_limit",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
           "type": "text",
           "primaryKey": true,
           "notNull": true
         },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp",
+        "key": {
+          "name": "key",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "claimed_at": {
-          "name": "claimed_at",
-          "type": "timestamp",
+        "count": {
+          "name": "count",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
+        },
+        "last_request": {
+          "name": "last_request",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "auth_rate_limit_key_unique": {
+          "name": "auth_rate_limit_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
