@@ -289,7 +289,8 @@ const OPTIONS = [
 ];
 let optIndex = 0;
 
-/* preferences: the summary names only what differs from these defaults */
+/* preferences: the summary names only what differs from these defaults, which are starting
+   values with no data behind them (untangle-v3.md, Placeholders) */
 const DEFAULT_PREFS = { start: 0, off: [], lunch: false, walks: true, fewer: false, profs: false, max: 0, busy: [] };
 let prefs = { ...DEFAULT_PREFS, start: 9, busy: [{ name: "Work", days: [1, 3], s: 15, e: 17 }] };
 function prefSummary() {

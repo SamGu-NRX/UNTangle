@@ -10,7 +10,7 @@ Sam, after looking at the app and the first v3 mockups: the panels carry too muc
    *Removed:* Week's stats line (credits, courses, days, first to last class, walking minutes, tight walks, conflicts); Day's summary line (classes, miles, walking minutes).
 2. **The top bar is the only navigation:** Courses, Week, Day, search, the schedule switcher and the account. A desktop page has one main region and at most one contextual panel. The panel opens when something is selected, closes with Esc, and is empty when nothing is selected. From 1200px wide the main region sits centered and the panel pushes it aside; narrower, the panel slides over the right edge; on a phone it is a sheet. Day's itinerary is Day's main region, laid over the map, and a selected stop expands in place instead of opening a second panel.
    *Removed:* the Courses rail (major, progress bar, section index, provenance); Week's Find column and its registration and preferences column; Week's row of schedule tabs (the switcher in the top bar now lists the term's schedules, New schedule, and Clear); Day's "See the week" link.
-3. **Settings sit behind one control per lens, summarized in one line.** Week's constraints are a Preferences button whose summary names only the choices that differ from the defaults, in plain words ("Nothing before 9 AM, work Tue and Thu 3:00–5:00"). It opens the panel (a sheet on phone). Defaults: any start time, no days off, short walks on, no lunch break, no credit limit, no busy times. These defaults are a guess with no data behind them; check what students actually set. Locks are set from the event: select it, then "Keep this section".
+3. **Settings sit behind one control per lens, summarized in one line.** Week's constraints are a Preferences button whose summary names only the choices that differ from the defaults, in plain words ("Nothing before 9 AM, work Tue and Thu 3:00–5:00"). It opens the panel (a sheet on phone). Defaults: any start time, no days off, short walks on, no lunch break, no credit limit, no busy times. These are starting values with no data behind them; check what students actually set. Locks are set from the event: select it, then "Keep this section".
    *Removed:* the always-open Preferences block; the lock buttons in the registration list.
 4. **A row is a name plus one fact,** the one the student acts on in that lens. Courses: the status reason ("Needs CSCE 2110", "Needs instructor consent") or, for Done, the grade. Week: the time. Day: the time and the building. Section numbers, instructors, rooms, class numbers and distances belong to the detail panel.
    *Removed:* section and meeting time from Courses tray rows; building plates and rooms from Week events; course titles and rooms from Day stops (shown when a stop is selected); class numbers from section rows (they are in Export); the repeated "Taking now" on every Taking row; the term on Done rows.
@@ -93,11 +93,18 @@ Both systems share the same four curves, so use the Opus [MOTION](untangle-v3-op
 | Share links | The schedule is encoded in the URL; nothing is stored or revocable. |
 | Extension | None, anywhere. |
 | AI agents | WebMCP tools (slice 10) expose the same actions; writes need the student's confirmation. |
+| Preference defaults | Any start time, no days off, short walks on, no credit limit, no busy times. These are starting values with no data behind them (see the list below). |
+| Schedule tabs | None. The top-bar switcher is the only switcher; the Schedules compare view covers side-by-side. |
+| vsb host | No Find column (search is reached from the top bar), no Help or "Sign in to sync", and on phone the term picker sits in the switcher sheet. The Week slice still checks the DESIGN.md §3.5 vsb parity list item by item. |
+| Day | A previous/next stepper replaces the five-day control. Online classes with no set time show only in Week. The labeled capture of the live map stands until the map pass lands. |
+| Panel push (1200px and wider) | Opening the panel moves the page left by `transform` only, never by reflowing, using `--t-enter`/`--t-exit` with `--ease-out`. Opening from the keyboard is instant. Under reduced motion the page doesn't move and only the panel fades. The selected item stays visible after the shift. |
+| Readings of rules 2, 3 and 5 | Day's itinerary is Day's main region, and a selected stop expands in place. A section is kept from the selected event's panel. The alternative strip also carries Details and a close button. |
 
 ## Placeholders with no data behind them
 
 Label these in code as starting values and revisit with real use:
 
+- the Week preference defaults (any start time, no days off, short walks on, no credit limit);
 - the 2-minute leave-by buffer;
 - class numbers ordered fewest open seats first;
 - what the TAMS toggle filters, which needs vsb's definition from Dylan;

@@ -200,8 +200,10 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 
 /* One main region plus one contextual panel (simplification rule 2). From 1200px the main region
    sits centered while nothing is selected; opening the panel slides the page left by half the
-   panel's width as the panel comes in, so the two never overlap. Below 1200px the panel slides
-   over the right edge. Phones use sheets instead. */
+   panel's width as the panel comes in, so the two never overlap and the selected row stays on
+   screen. The page moves by transform only. Under reduced motion the page keeps the open
+   position all the time, so it never moves and only the panel fades. Below 1200px the panel
+   slides over the right edge. Phones use sheets instead. */
 body { overflow-x: clip; }
 .pair { display: grid; grid-template-columns: minmax(0, var(--main-max, 720px)) var(--panel-w, 440px); gap: 32px; justify-content: center; align-items: start; padding: 0 24px; }
 @media (min-width: 1200px) {
@@ -209,7 +211,7 @@ body { overflow-x: clip; }
   body.panel-open .pair { transform: none; transition-duration: var(--t-enter); }
   body.panel-instant .pair { transition: none; }
 }
-@media (min-width: 1200px) and (prefers-reduced-motion: reduce) { .pair { transition: none; } }
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) { .pair, body.panel-open .pair { transform: none; transition: none; } }
 .cpanel { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100dvh - var(--topbar-h) - 32px); display: flex; flex-direction: column; background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden;
   opacity: 0; transform: translateX(24px); visibility: hidden;
   transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
