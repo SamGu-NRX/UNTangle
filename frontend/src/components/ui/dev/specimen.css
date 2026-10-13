@@ -1,0 +1,146 @@
+/*
+ * /dev/controls only. The `dev-hover` and `dev-focus` classes pin the hover
+ * and keyboard-focus looks so one screenshot shows every state; they copy
+ * the real :hover and :focus-visible rules in ui.css.
+ */
+
+.spec-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
+}
+.spec-page__head {
+  margin-bottom: 24px;
+}
+.spec-page__head h1 {
+  margin: 0;
+  font: 600 18px/24px var(--font-body);
+}
+.spec-page__head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.spec-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.spec-card h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 12px;
+  font: 600 13px/18px var(--font-body);
+}
+.spec-card h2 small {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.spec-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.spec-row > .spec-lab {
+  flex: none;
+  width: 64px;
+  font: 500 11px/16px var(--font-body);
+  color: var(--ink-2);
+}
+.spec-stack {
+  display: grid;
+  gap: 14px;
+}
+.spec-field {
+  width: 220px;
+}
+.spec-note {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.spec-calendar {
+  display: inline-block;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.spec-fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.spec-fieldset legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font: 600 12.5px/18px var(--font-body);
+}
+.spec-sheet-body p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink-2);
+}
+@media (max-width: 1100px) {
+  .spec-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 719px) {
+  .spec-page {
+    padding: 20px 16px 64px;
+  }
+  .spec-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .spec-field {
+    width: 100%;
+  }
+}
+
+/* Pinned states */
+.dev-hover.ui-btn--primary {
+  background: var(--brand-hover);
+}
+.dev-hover.ui-btn--ghost,
+.dev-hover.ui-btn--quiet,
+.dev-hover.ui-chip {
+  background: var(--surface-2);
+}
+.dev-hover .ui-field,
+.dev-hover.ui-field {
+  border-color: var(--ink-4);
+}
+.dev-focus.ui-btn,
+.dev-focus.ui-chip,
+.dev-focus .ui-field,
+.dev-focus.ui-field {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+.dev-focus .ui-field,
+.dev-focus.ui-field {
+  border-color: var(--brand);
+}
+.dev-focus .ui-toggle__track {
+  box-shadow: var(--focus);
+}

@@ -1,28 +1,13 @@
 "use client";
 
 import type { InputHTMLAttributes } from "react";
+import { SearchField } from "./SearchField";
 
-export function SearchBar({
-  className = "",
-  ...rest
-}: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div className={`field ${className}`} style={{ position: "relative" }}>
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          left: 12,
-          top: "50%",
-          transform: "translateY(-50%)",
-          color: "var(--faint)",
-          pointerEvents: "none",
-          fontSize: 14,
-        }}
-      >
-        ⌕
-      </span>
-      <input className="field-input" style={{ paddingLeft: 32 }} {...rest} />
-    </div>
-  );
+/**
+ * @deprecated Use `SearchField`. Kept so the v1 courses filter compiles
+ * unchanged; it renders the v2 field. The accessible name comes from
+ * `aria-label`, else the placeholder.
+ */
+export function SearchBar({ className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, "size">) {
+  return <SearchField className={className} label={rest["aria-label"] ?? rest.placeholder ?? "Search"} {...rest} />;
 }
