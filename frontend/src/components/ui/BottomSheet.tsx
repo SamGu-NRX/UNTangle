@@ -468,9 +468,11 @@ export function BottomSheet({
       ) : null}
       <div
         ref={sheetRef}
-        role={modal ? "dialog" : "region"}
-        aria-modal={modal || undefined}
-        aria-label={title}
+        // On its way out the sheet is no longer a dialog: it is inert and hidden from assistive tech.
+        role={!open ? undefined : modal ? "dialog" : "region"}
+        aria-modal={(modal && open) || undefined}
+        aria-label={open ? title : undefined}
+        aria-hidden={!open || undefined}
         className={cx("ui-sheet", className)}
         data-expanded={expanded ? "" : undefined}
         data-glass={glass ? "" : undefined}
