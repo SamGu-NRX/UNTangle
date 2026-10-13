@@ -1,72 +1,54 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import type { ChartDataPoint } from "@/lib/grades";
+import { useState } from "react";
+import type { GradeData } from "@/lib/grades";
+import styles from "./grade-chart.module.css";
 
-function GradeTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: ChartDataPoint }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const item = payload[0].payload;
+/** A B C D F W; one brand ramp, darkest for the best grade (DESIGN.md §4 Grade distribution). */
+export const chartGrades = [
+  { grade: "A", key: "gradeA", opacity: 1 },
+  { grade: "B", key: "gradeB", opacity: 0.8 },
+  { grade: "C", key: "gradeC", opacity: 0.6 },
+  { grade: "D", key: "gradeD", opacity: 0.45 },
+  { grade: "F", key: "gradeF", opacity: 0.35 },
+  { grade: "W", key: "gradeW", opacity: 0.25 },
+] as const satisfies ReadonlyArray<{ grade: string; key: keyof GradeData; opacity: number }>;
 
-  return (
-    <div className="grade-tooltip">
-      <strong>{item.grade}</strong>
-      <span>{item.count.toLocaleString()} students</span>
-      <span>{item.percentage.toFixed(1)}%</span>
-    </div>
-  );
+export function gradeBars(grades: GradeData) {
+  const total = chartGrades.reduce((sum, entry) => sum + grades[entry.key], 0);
+  const max = Math.max(1, ...chartGrades.map((entry) => grades[entry.key]));
+  return chartGrades.map((entry) => {
+    const count = grades[entry.key];
+    return {
+      ...entry,
+      count,
+      percent: total === 0 ? 0 : Math.round((count / total) * 100),
+      height: (count / max) * 100,
+    };
+  });
 }
 
-export function GradeChartCanvas({
-  chartData,
-  height,
-}: {
-  chartData: ChartDataPoint[];
-  height: number;
-}) {
+/** One dataset's bars. Hover shows count and share; the parent supplies the text table for screen readers. */
+export function GradeChartCanvas({ grades, motion }: { grades: GradeData; motion?: "in" | "out" }) {
+  const [hover, setHover] = useState<string | null>(null);
   return (
-    <div className="grade-chart" style={{ width: "100%", height }}>
-      <ResponsiveContainer
-        width="100%"
-        height="100%"
-        minWidth={0}
-        minHeight={height}
-        initialDimension={{ width: 640, height }}
-      >
-        <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-          <XAxis
-            dataKey="grade"
-            tick={{ fill: "var(--copy)", fontSize: 12, fontWeight: 700 }}
-            tickLine={false}
-            axisLine={{ stroke: "var(--line)" }}
-          />
-          <YAxis
-            tick={{ fill: "var(--copy)", fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-          />
-          <Tooltip cursor={{ fill: "rgba(0, 81, 43, 0.04)" }} content={<GradeTooltip />} />
-          <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-            {chartData.map((entry) => (
-              <Cell key={entry.grade} fill={entry.color} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div className={styles.layer} data-motion={motion} aria-hidden="true">
+      {gradeBars(grades).map((bar) => (
+        <div
+          key={bar.grade}
+          className={styles.col}
+          onPointerEnter={() => setHover(bar.grade)}
+          onPointerLeave={() => setHover((current) => (current === bar.grade ? null : current))}
+        >
+          <div className={styles.bar} style={{ height: `${bar.height}%`, opacity: bar.opacity }} />
+          <span className={styles.label}>{bar.grade}</span>
+          {hover === bar.grade && motion !== "out" ? (
+            <span className={styles.tip}>
+              {bar.grade} · {bar.count.toLocaleString()} · {bar.percent}%
+            </span>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }
