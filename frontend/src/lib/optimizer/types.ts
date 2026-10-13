@@ -43,9 +43,9 @@ export type OptMeeting = {
   /** null when the catalog has no building: every walk to or from it is unknown. */
   buildingId: string | null;
   /**
-   * The weeks the meeting runs; absent or null means every week of the term.
-   * Two meetings conflict only when their ranges intersect (or either has
-   * none), and they are back to back only in weeks both run (see weeks.ts).
+   * Inclusive activity range; absent or null uses the request's term.
+   * Meetings share activity only on actual occurrences of their weekday
+   * inside both ranges. Dated ranges are not clipped to the term (see weeks.ts).
    * Time-of-day limits, days off and blocked times apply whatever the dates.
    */
   dates?: OptDateRange | null;
@@ -123,6 +123,15 @@ export const MAX_WEIGHT = 4;
 export type OptimizeRequest = {
   /** The courses to schedule: exactly one section of each is chosen. */
   courses: OptCourse[];
+  /** Inclusive first/last day for undated meetings. Required if any meeting has dates. */
+  term?: OptDateRange;
+  /**
+   * Credits of courses the student takes that are not in `courses` (the
+   * caller decided their sections already, such as an online section with
+   * no set time). They count toward `maxCredits` and the reported credits.
+   * Default 0.
+   */
+  fixedCredits?: number;
   /** Course code -> section id that must be chosen. */
   locks: Record<string, string>;
   /** Section ids that must not be chosen. */

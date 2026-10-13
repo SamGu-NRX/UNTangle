@@ -7,13 +7,10 @@
  * It enumerates every combination of one section per course, so it is only
  * usable on small instances.
  *
- * Dates, from the contract: a meeting without dates runs every week. Two
- * meetings share a week when either has no dates or their inclusive ranges
- * intersect, and they conflict only then. Back to back: cut the calendar at
- * every range's first day and the day after its last; in each piece and each
- * day, the meetings running there sorted by start are a sequence whose
- * neighbors are back to back. A pair back to back in several pieces counts
- * once. This file builds those pieces explicitly instead of using bitmasks.
+ * Dates, from the contract: undated meetings run inside the explicit term;
+ * dated meetings run inside their own range, without clipping. This reference
+ * enumerates calendar dates and their weekdays, not the engine's event sweep
+ * or bitmasks. Dates with identical active meetings need only one pair check.
  */
 
 import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
@@ -21,43 +18,43 @@ import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, Opt
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const UNKNOWN_WALK = 600;
 
-/** ISO dates compare correctly as strings. */
-function shareAWeek(a: OptMeeting, b: OptMeeting): boolean {
-  if (!a.dates || !b.dates) return true;
-  return a.dates.start <= b.dates.end && b.dates.start <= a.dates.end;
+function runsOn(request: OptimizeRequest, meeting: OptMeeting, date: string): boolean {
+  const range = meeting.dates ?? request.term;
+  return !range || (range.start <= date && date <= range.end);
 }
 
-function nextDay(iso: string): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-}
-
-function previousDay(iso: string): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-}
-
-/**
- * One date inside every piece of the calendar cut at the request's date
- * boundaries: each range's first day, the day after each range's last day,
- * and the day before the earliest first day. A request without dates has
- * one piece.
- */
-const piecesCache = new WeakMap<OptimizeRequest, string[]>();
-function pieces(request: OptimizeRequest): string[] {
-  const cached = piecesCache.get(request);
+type Occurrence = { day: OptDay; date: string };
+const occurrencesCache = new WeakMap<OptimizeRequest, Occurrence[]>();
+function occurrences(request: OptimizeRequest): Occurrence[] {
+  const cached = occurrencesCache.get(request);
   if (cached) return cached;
-  const ranges = request.courses.flatMap((c) => c.sections.flatMap((s) => s.meetings.flatMap((m) => (m.dates ? [m.dates] : []))));
-  let out: string[];
-  if (ranges.length === 0) out = ["any"];
-  else {
-    const starts = ranges.map((r) => r.start).sort();
-    out = [...new Set([previousDay(starts[0]), ...starts, ...ranges.map((r) => nextDay(r.end))])].sort();
+  const meetings = request.courses.flatMap((c) => c.sections.flatMap((s) => s.meetings));
+  if (meetings.some((m) => m.dates) && !request.term) throw new Error("reference: dated meetings require term");
+  if (!request.term) return DAYS.map((day) => ({ day, date: "any" }));
+  const ranges = [request.term, ...meetings.flatMap((m) => m.dates ? [m.dates] : [])];
+  const start = ranges.map((r) => r.start).sort()[0];
+  const end = ranges.map((r) => r.end).sort().at(-1)!;
+  const out: Occurrence[] = [];
+  const seen = new Set<string>();
+  const cursor = new Date(`${start}T00:00:00Z`);
+  for (;;) {
+    const date = cursor.toISOString().slice(0, 10);
+    if (date > end) break;
+    const day = DAYS[(cursor.getUTCDay() + 6) % 7];
+    const active = meetings.flatMap((m, i) => m.day === day && runsOn(request, m, date) ? [i] : []);
+    const key = `${day}:${active.join(",")}`;
+    if (active.length > 0 && !seen.has(key)) {
+      seen.add(key);
+      out.push({ day, date });
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
-  piecesCache.set(request, out);
+  occurrencesCache.set(request, out);
   return out;
 }
 
-function runsOn(meeting: OptMeeting, date: string): boolean {
-  return date === "any" || !meeting.dates || (meeting.dates.start <= date && date <= meeting.dates.end);
+function shareAWeek(request: OptimizeRequest, a: OptMeeting, b: OptMeeting): boolean {
+  return occurrences(request).some(({ day, date }) => day === a.day && runsOn(request, a, date) && runsOn(request, b, date));
 }
 
 type Placed = OptMeeting & { owner: string };
@@ -67,18 +64,16 @@ function backToBackPairs(request: OptimizeRequest, chosen: OptSection[]): Array<
   const all: Placed[] = chosen.flatMap((section) => section.meetings.map((m) => ({ ...m, owner: section.id })));
   const seen = new Set<string>();
   const pairs: Array<[Placed, Placed]> = [];
-  for (const date of pieces(request)) {
-    for (const day of DAYS) {
-      const list = all
-        .map((m, index) => ({ m, index }))
-        .filter(({ m }) => m.day === day && runsOn(m, date))
-        .sort((a, b) => a.m.start - b.m.start || a.m.end - b.m.end);
-      for (let i = 1; i < list.length; i += 1) {
-        const key = `${list[i - 1].index}|${list[i].index}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        pairs.push([list[i - 1].m, list[i].m]);
-      }
+  for (const { day, date } of occurrences(request)) {
+    const list = all
+      .map((m, index) => ({ m, index }))
+      .filter(({ m }) => m.day === day && runsOn(request, m, date))
+      .sort((a, b) => a.m.start - b.m.start || a.m.end - b.m.end);
+    for (let i = 1; i < list.length; i += 1) {
+      const key = `${list[i - 1].index}|${list[i].index}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push([list[i - 1].m, list[i].m]);
     }
   }
   return pairs;
@@ -135,11 +130,12 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
     for (let j = i + 1; j < all.length; j += 1) {
       const a = all[i];
       const b = all[j];
-      if (a.day === b.day && a.start < b.end && b.start < a.end && shareAWeek(a, b)) problems.push(`overlap ${a.owner} ${b.owner}`);
+      if (a.day === b.day && a.start < b.end && b.start < a.end && shareAWeek(request, a, b)) problems.push(`overlap ${a.owner} ${b.owner}`);
     }
   }
   if (c.maxCredits !== null) {
-    const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, 0);
+    // Courses outside the request still count toward the limit (fixedCredits).
+    const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, request.fixedCredits ?? 0);
     if (credits > c.maxCredits) problems.push("too many credits");
   }
   if (c.walking !== null) {
@@ -190,7 +186,7 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
       unknownWalks: unknown,
       earliestStart: all.length ? Math.min(...all.map((m) => m.start)) : null,
       latestEnd: all.length ? Math.max(...all.map((m) => m.end)) : null,
-      credits: chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, 0),
+      credits: chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, request.fixedCredits ?? 0),
     },
   };
 }

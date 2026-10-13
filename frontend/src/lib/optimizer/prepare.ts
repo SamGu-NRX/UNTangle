@@ -15,6 +15,7 @@ import {
   OptimizerInputError,
   type OptConstraints,
   type OptCourse,
+  type OptDateRange,
   type OptimizeRequest,
   type OptMeeting,
   type OptSection,
@@ -29,7 +30,7 @@ export type PreparedMeeting = {
   end: number;
   /** Interned building index; -1 when the meeting has no building. */
   building: number;
-  /** Bit s set when the meeting runs in week segment s (see weeks.ts); every bit when it has no dates. */
+  /** Bit s set when the meeting has a weekday occurrence in activity segment s; undated uses the term. */
   weeks: number;
 };
 
@@ -109,8 +110,20 @@ function isInteger(value: unknown, min: number, max: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
 }
 
+function validateDates(dates: OptDateRange, label: string): void {
+  const start = dayNumber(dates?.start);
+  const end = dayNumber(dates?.end);
+  if (start === null || end === null) {
+    throw new OptimizerInputError(`${label} has invalid dates ${JSON.stringify(dates)}; expected real YYYY-MM-DD dates`);
+  }
+  if (start > end) throw new OptimizerInputError(`${label} dates end before they start: ${dates.start} to ${dates.end}`);
+}
+
 /** Loud checks of the request shape. A failure is a bug in the caller, not a student input. */
-export function validateRequest(request: OptimizeRequest): void {
+export function validateRequest(request: OptimizeRequest, checkDeadline: () => void = () => {}): void {
+  if (request.term !== undefined) validateDates(request.term, "term");
+  const meetings: OptMeeting[] = [];
+  let steps = 0;
   const codes = new Set<string>();
   const sectionIds = new Map<string, string>();
   for (const course of request.courses) {
@@ -127,23 +140,21 @@ export function validateRequest(request: OptimizeRequest): void {
       }
       if (section.meetings.length === 0) throw new OptimizerInputError(`section ${section.id} has no meetings`);
       for (const meeting of section.meetings) {
+        if ((steps++ & 127) === 0) checkDeadline();
+        meetings.push(meeting);
         if (!DAY_INDEX.has(meeting.day)) throw new OptimizerInputError(`section ${section.id} meets on unknown day ${meeting.day}`);
         if (!isInteger(meeting.start, 0, 24 * 60) || !isInteger(meeting.end, 0, 24 * 60) || meeting.end <= meeting.start) {
           throw new OptimizerInputError(`section ${section.id} has a meeting with invalid times ${meeting.start}-${meeting.end}`);
         }
         const dates = meeting.dates;
         if (dates === undefined || dates === null) continue;
-        const start = dayNumber(dates.start);
-        const end = dayNumber(dates.end);
-        if (start === null || end === null) {
-          throw new OptimizerInputError(`section ${section.id} has a meeting with invalid dates ${JSON.stringify(dates)}; expected real YYYY-MM-DD dates`);
-        }
-        if (start > end) throw new OptimizerInputError(`section ${section.id} has a meeting whose dates end before they start: ${dates.start} to ${dates.end}`);
+        validateDates(dates, `section ${section.id} meeting`);
+        if (request.term === undefined) throw new OptimizerInputError("term is required when any meeting has dates");
       }
     }
   }
   // Throws when the dates make more segments than a mask holds.
-  weekSegments(request.courses.flatMap((course) => course.sections.flatMap((section) => section.meetings.map((m) => m.dates))));
+  weekSegments(meetings, request.term, checkDeadline);
   for (const [courseCode, sectionId] of Object.entries(request.locks)) {
     if (!codes.has(courseCode)) throw new OptimizerInputError(`lock on ${courseCode}, which is not a requested course`);
     if (sectionIds.get(sectionId) !== courseCode) {
@@ -177,6 +188,10 @@ export function validateRequest(request: OptimizeRequest): void {
     if (!DAY_INDEX.has(block.day) || !isInteger(block.start, 0, 24 * 60) || !isInteger(block.end, 0, 24 * 60) || block.end <= block.start) {
       throw new OptimizerInputError(`blocked time ${block.id} is invalid`);
     }
+  }
+  const fixedCredits = request.fixedCredits ?? 0;
+  if (!(Number.isFinite(fixedCredits) && fixedCredits >= 0)) {
+    throw new OptimizerInputError(`fixedCredits must be a non-negative number, got ${request.fixedCredits}`);
   }
   if (constraints.maxCredits !== null && !(Number.isFinite(constraints.maxCredits) && constraints.maxCredits >= 0)) {
     throw new OptimizerInputError(`maxCredits must be a non-negative number, got ${constraints.maxCredits}`);
@@ -279,12 +294,12 @@ export function prepare(
   deadline: number = Number.POSITIVE_INFINITY,
   now: () => number = () => performance.now(),
 ): Prepared {
-  validateRequest(request);
-  const { constraints, weights } = request;
-  const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
   const checkDeadline = () => {
     if (deadline !== Number.POSITIVE_INFINITY && now() > deadline) throw new PrepareBudgetExhausted();
   };
+  validateRequest(request, checkDeadline);
+  const { constraints, weights } = request;
+  const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
   // Buildings matter only to walking. With walking unweighted and unchecked,
   // every meeting is treated as "no building" and no walking time is fetched.
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;
@@ -307,7 +322,7 @@ export function prepare(
   );
   // Segments from the usable sections only: fewer ranges, fewer segments.
   // Any set of cuts that includes a schedule's own gives it the same pairs.
-  const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings.map((m) => m.dates))));
+  const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings)), request.term, checkDeadline);
   // Shortest meeting any chosen section could have: a break shorter than
   // this can never hold another class.
   let globalMinDuration = Number.POSITIVE_INFINITY;
@@ -365,7 +380,7 @@ export function prepare(
     const kept: Candidate[] = [];
     for (const section of allowed) {
       const meetings: PreparedMeeting[] = section.meetings
-        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m.dates) }))
+        .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m) }))
         .sort((a, b) => a.day - b.day || a.start - b.start);
       // Two meetings of one section are checked like any other pair: they
       // may not overlap, and the walk between them must fit.
@@ -528,7 +543,7 @@ export function prepare(
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
     weekSegments: segments.count,
     weights,
-    totalCredits: sortedCourses.reduce((sum, course) => sum + course.credits, 0),
+    totalCredits: sortedCourses.reduce((sum, course) => sum + course.credits, request.fixedCredits ?? 0),
     maxCredits: constraints.maxCredits,
     minDifferentCourses: minDifferentCourses(request),
     creditsByCourse,

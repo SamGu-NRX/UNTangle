@@ -45,6 +45,27 @@ const explanations = (fn: OptimizeFn) => checkExplanations(fn, [...SEEDS, ...Arr
 
 const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; check: (fn: OptimizeFn) => string[] }> = [
   {
+    name: "segment bounds are summed and double-count pairs across dates",
+    file: "search.ts",
+    from: "bound = Math.max(bound, cost);",
+    to: "bound += cost;",
+    check: datedAgreement,
+  },
+  {
+    name: "undated meetings are active in bits outside the term",
+    file: "weeks.ts",
+    from: "return masks[OPT_DAYS.indexOf(meeting.day)][range.id];",
+    to: "return meeting.dates ? masks[OPT_DAYS.indexOf(meeting.day)][range.id] : -1;",
+    check: checkRegressions,
+  },
+  {
+    name: "activity starts on the range boundary instead of the first weekday occurrence",
+    file: "weeks.ts",
+    from: "const first = range.start + ((weekday - ((range.start + 3) % 7) + 7) % 7);",
+    to: "const first = range.start;",
+    check: checkRegressions,
+  },
+  {
     name: "classes that only touch count as overlapping",
     file: "prepare.ts",
     from: "return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;",

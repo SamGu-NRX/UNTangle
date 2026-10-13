@@ -253,8 +253,11 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
   const sub = restrictTo(request, members);
 
   if (members.some((member) => member.kind === "maxCredits")) {
-    const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, 0);
-    return `${joinList(codes)} add up to ${credits} credits, over your ${request.constraints.maxCredits}-credit limit.`;
+    const fixed = request.fixedCredits ?? 0;
+    const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, fixed);
+    const parts = [...codes, ...(fixed > 0 ? [`your other ${fixed} credits`] : [])];
+    const subject = codes.length > 0 ? joinList(parts) : "Your other courses";
+    return `${subject} add up to ${credits} credits, over your ${request.constraints.maxCredits}-credit limit.`;
   }
 
   const conditions = conditionPhrases(request, members);
@@ -383,7 +386,7 @@ function relaxationsFor(
         break;
       }
       case "maxCredits": {
-        const total = request.courses.reduce((sum, course) => sum + course.credits, 0);
+        const total = request.courses.reduce((sum, course) => sum + course.credits, request.fixedCredits ?? 0);
         out.push({ relaxation: { kind: "maxCredits", to: total }, label: `Raise the credit limit to ${total}` });
         break;
       }

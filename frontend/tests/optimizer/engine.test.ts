@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { optimize } from "@/lib/optimizer/optimize";
 import {
   checkAgainstReference,
@@ -15,6 +16,12 @@ const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
 const TERM_SEEDS = Array.from({ length: 300 }, (_, i) => 7001 + i);
 
 describe("optimizer against the brute-force reference", () => {
+  test("the 400 undated inputs remain byte-identical when dated fixtures gain a term", () => {
+    const bytes = JSON.stringify(SEEDS.map(smallInstance));
+    expect(createHash("sha256").update(bytes).digest("hex"))
+      .toBe("836f07c11fe480a751b69dfc2e2d7df4053a82f4d0a7fa2eb6b8b4ceef15c71c");
+  });
+
   test("matches status, ranked schedules, costs and breakdowns on 400 seeded instances", () => {
     expect(checkAgainstReference(optimize, SEEDS)).toEqual([]);
   });
@@ -47,6 +54,25 @@ describe("optimizer against the reference with half-term dates and weekend meeti
       expect(checkAgainstReference(optimize, TERM_SEEDS, (seed) => termInstance(seed, walking))).toEqual([]);
     });
   }
+
+  test("short ranges and empty weekday occurrences agree with enumerated calendar dates", () => {
+    const ranges = [
+      { start: "2027-01-11", end: "2027-01-17" },
+      { start: "2027-01-17", end: "2027-01-24" },
+      { start: "2027-01-12", end: "2027-01-12" },
+      { start: "2027-05-08", end: "2027-05-14" },
+    ];
+    const seeds = Array.from({ length: 100 }, (_, i) => 8001 + i);
+    for (const walking of [true, false]) {
+      expect(checkAgainstReference(optimize, seeds, (seed) => {
+        const request = termInstance(seed, walking);
+        let index = seed;
+        return { ...request, courses: request.courses.map((c) => ({ ...c, sections: c.sections.map((s) => ({
+          ...s, meetings: s.meetings.map((m) => ({ ...m, dates: m.dates ? ranges[index++ % ranges.length] : null })),
+        })) })) };
+      })).toEqual([]);
+    }
+  });
 
   test("explanations stay minimal on dated instances", () => {
     const { failures, checked } = checkExplanations(optimize, TERM_SEEDS, (seed) => termInstance(seed, true));

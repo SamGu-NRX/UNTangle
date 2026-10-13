@@ -25,59 +25,87 @@ function dayNumber(iso) {
 }
 var MAX_WEEK_SEGMENTS = 32;
 var rangeKey = (dates) => `${dates.start}/${dates.end}`;
-function weekSegments(allDates) {
+function weekSegments(meetings, term, checkDeadline = () => {}) {
   const ranges = new Map;
-  let undated = false;
-  for (const dates of allDates) {
-    if (!dates) {
-      undated = true;
+  let steps = 0;
+  for (const meeting of meetings) {
+    if ((steps++ & 127) === 0)
+      checkDeadline();
+    const dates = meeting.dates ?? term;
+    if (!dates)
       continue;
-    }
+    if (meeting.dates && !term)
+      throw new OptimizerInputError("term is required when any meeting has dates");
     const key = rangeKey(dates);
-    if (!ranges.has(key))
-      ranges.set(key, [dayNumber(dates.start), dayNumber(dates.end)]);
+    let range = ranges.get(key);
+    if (!range) {
+      range = { id: ranges.size, start: dayNumber(dates.start), end: dayNumber(dates.end), days: 0 };
+      ranges.set(key, range);
+    }
+    range.days |= 1 << OPT_DAYS.indexOf(meeting.day);
   }
   if (ranges.size === 0)
     return { count: 1, maskOf: () => 1 };
-  const keys = [...ranges.keys()];
-  const bounds = keys.map((key) => ranges.get(key));
-  const cuts = [...new Set(bounds.flatMap(([start, end]) => [start, end + 1]))].sort((a, b) => a - b);
-  const probes = [cuts[0] - 1, ...cuts];
   const bitOfPattern = new Map;
-  const masks = new Array(keys.length).fill(0);
-  for (const day of probes) {
-    const active = [];
-    bounds.forEach(([start, end], index) => {
-      if (start <= day && day <= end)
-        active.push(index);
-    });
-    if (active.length === 0 && !undated)
-      continue;
-    const pattern = active.join(",");
-    let bit = bitOfPattern.get(pattern);
-    if (bit === undefined) {
-      bit = bitOfPattern.size;
-      bitOfPattern.set(pattern, bit);
+  const masks = OPT_DAYS.map(() => new Int32Array(ranges.size));
+  for (let weekday = 0;weekday < OPT_DAYS.length; weekday += 1) {
+    const events = [];
+    for (const range of ranges.values()) {
+      if ((steps++ & 127) === 0)
+        checkDeadline();
+      if ((range.days & 1 << weekday) === 0)
+        continue;
+      const first = range.start + (weekday - (range.start + 3) % 7 + 7) % 7;
+      const last = range.end - ((range.end + 3) % 7 - weekday + 14) % 7;
+      if (first > last)
+        continue;
+      events.push({ date: first, id: range.id, add: true }, { date: last + 7, id: range.id, add: false });
     }
-    if (bit < MAX_WEEK_SEGMENTS)
-      for (const index of active)
-        masks[index] |= 1 << bit;
+    events.sort((a, b) => {
+      if ((steps++ & 1023) === 0)
+        checkDeadline();
+      return a.date - b.date;
+    });
+    const active = new Set;
+    for (let i = 0;i < events.length; ) {
+      checkDeadline();
+      const date = events[i].date;
+      do {
+        const event = events[i++];
+        if (event.add)
+          active.add(event.id);
+        else
+          active.delete(event.id);
+        if ((steps++ & 127) === 0)
+          checkDeadline();
+      } while (i < events.length && events[i].date === date);
+      if (active.size === 0)
+        continue;
+      const ids = [...active].sort((a, b) => a - b);
+      const pattern = ids.join(",");
+      let bit = bitOfPattern.get(pattern);
+      if (bit === undefined) {
+        bit = bitOfPattern.size;
+        if (bit === MAX_WEEK_SEGMENTS) {
+          throw new OptimizerInputError(`meeting dates split the term into ${bit + 1} distinct stretches of weeks (${ranges.size} distinct date ranges); at most ${MAX_WEEK_SEGMENTS} are supported`);
+        }
+        bitOfPattern.set(pattern, bit);
+      }
+      for (const id of ids) {
+        if ((steps++ & 127) === 0)
+          checkDeadline();
+        masks[weekday][id] |= 1 << bit;
+      }
+    }
   }
-  const count = bitOfPattern.size;
-  if (count > MAX_WEEK_SEGMENTS) {
-    throw new OptimizerInputError(`meeting dates split the term into ${count} distinct stretches of weeks (${ranges.size} distinct date ranges); at most ${MAX_WEEK_SEGMENTS} are supported`);
-  }
-  const all = count === 32 ? -1 : (1 << count) - 1;
-  const maskByKey = new Map(keys.map((key, index) => [key, masks[index]]));
   return {
-    count,
-    maskOf: (dates) => {
-      if (!dates)
-        return all;
-      const mask = maskByKey.get(rangeKey(dates));
-      if (mask === undefined)
-        throw new Error(`optimizer: no week segments for dates ${rangeKey(dates)}`);
-      return mask;
+    count: Math.max(1, bitOfPattern.size),
+    maskOf: (meeting) => {
+      const dates = meeting.dates ?? term;
+      const range = dates && ranges.get(rangeKey(dates));
+      if (!range)
+        throw new Error("optimizer: no week segments for meeting range");
+      return masks[OPT_DAYS.indexOf(meeting.day)][range.id];
     }
   };
 }
@@ -146,13 +174,13 @@ function transferFits(prev, next, walk, bufferMinutes) {
   const needed = (walk ?? UNKNOWN_WALK_SECONDS) + bufferMinutes * 60;
   return (next.start - prev.end) * 60 >= needed;
 }
-function meetingsByDay(sections) {
-  const segments = weekSegments(sections.flatMap((section) => section.meetings.map((m) => m.dates)));
+function meetingsByDay(sections, term) {
+  const segments = weekSegments(sections.flatMap((section) => section.meetings), term);
   const byDay = new Map;
   for (const section of sections) {
     for (const meeting of section.meetings) {
       const list = byDay.get(meeting.day) ?? [];
-      list.push({ ...meeting, sectionId: section.id, weeks: segments.maskOf(meeting.dates) });
+      list.push({ ...meeting, sectionId: section.id, weeks: segments.maskOf(meeting) });
       byDay.set(meeting.day, list);
     }
   }
@@ -163,7 +191,7 @@ function meetingsByDay(sections) {
 }
 function scoreSchedule(input) {
   const { sections, weights, walkingTime } = input;
-  const byDay = meetingsByDay(sections);
+  const byDay = meetingsByDay(sections, input.term);
   let gapMinutes = 0;
   let knownWalk = 0;
   let unknownWalks = 0;
@@ -185,7 +213,7 @@ function scoreSchedule(input) {
   }
   const meetings = sections.flatMap((section) => section.meetings);
   const ratings = sections.map((section) => ratingTenths(section.rating)).filter((value) => value !== null);
-  const credits = sections.reduce((sum, section) => sum + (input.creditsByCourse[section.courseCode] ?? 0), 0);
+  const credits = sections.reduce((sum, section) => sum + (input.creditsByCourse[section.courseCode] ?? 0), input.fixedCredits ?? 0);
   const breakdown = {
     daysOnCampus: byDay.size,
     gapMinutes,
@@ -208,7 +236,20 @@ var DAY_INDEX = new Map(OPT_DAYS.map((day, index) => [day, index]));
 function isInteger(value, min, max) {
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
 }
-function validateRequest(request) {
+function validateDates(dates, label) {
+  const start = dayNumber(dates?.start);
+  const end = dayNumber(dates?.end);
+  if (start === null || end === null) {
+    throw new OptimizerInputError(`${label} has invalid dates ${JSON.stringify(dates)}; expected real YYYY-MM-DD dates`);
+  }
+  if (start > end)
+    throw new OptimizerInputError(`${label} dates end before they start: ${dates.start} to ${dates.end}`);
+}
+function validateRequest(request, checkDeadline = () => {}) {
+  if (request.term !== undefined)
+    validateDates(request.term, "term");
+  const meetings = [];
+  let steps = 0;
   const codes = new Set;
   const sectionIds = new Map;
   for (const course of request.courses) {
@@ -228,6 +269,9 @@ function validateRequest(request) {
       if (section.meetings.length === 0)
         throw new OptimizerInputError(`section ${section.id} has no meetings`);
       for (const meeting of section.meetings) {
+        if ((steps++ & 127) === 0)
+          checkDeadline();
+        meetings.push(meeting);
         if (!DAY_INDEX.has(meeting.day))
           throw new OptimizerInputError(`section ${section.id} meets on unknown day ${meeting.day}`);
         if (!isInteger(meeting.start, 0, 24 * 60) || !isInteger(meeting.end, 0, 24 * 60) || meeting.end <= meeting.start) {
@@ -236,17 +280,13 @@ function validateRequest(request) {
         const dates = meeting.dates;
         if (dates === undefined || dates === null)
           continue;
-        const start = dayNumber(dates.start);
-        const end = dayNumber(dates.end);
-        if (start === null || end === null) {
-          throw new OptimizerInputError(`section ${section.id} has a meeting with invalid dates ${JSON.stringify(dates)}; expected real YYYY-MM-DD dates`);
-        }
-        if (start > end)
-          throw new OptimizerInputError(`section ${section.id} has a meeting whose dates end before they start: ${dates.start} to ${dates.end}`);
+        validateDates(dates, `section ${section.id} meeting`);
+        if (request.term === undefined)
+          throw new OptimizerInputError("term is required when any meeting has dates");
       }
     }
   }
-  weekSegments(request.courses.flatMap((course) => course.sections.flatMap((section) => section.meetings.map((m) => m.dates))));
+  weekSegments(meetings, request.term, checkDeadline);
   for (const [courseCode, sectionId] of Object.entries(request.locks)) {
     if (!codes.has(courseCode))
       throw new OptimizerInputError(`lock on ${courseCode}, which is not a requested course`);
@@ -286,6 +326,10 @@ function validateRequest(request) {
     if (!DAY_INDEX.has(block.day) || !isInteger(block.start, 0, 24 * 60) || !isInteger(block.end, 0, 24 * 60) || block.end <= block.start) {
       throw new OptimizerInputError(`blocked time ${block.id} is invalid`);
     }
+  }
+  const fixedCredits = request.fixedCredits ?? 0;
+  if (!(Number.isFinite(fixedCredits) && fixedCredits >= 0)) {
+    throw new OptimizerInputError(`fixedCredits must be a non-negative number, got ${request.fixedCredits}`);
   }
   if (constraints.maxCredits !== null && !(Number.isFinite(constraints.maxCredits) && constraints.maxCredits >= 0)) {
     throw new OptimizerInputError(`maxCredits must be a non-negative number, got ${constraints.maxCredits}`);
@@ -349,13 +393,13 @@ class PrepareBudgetExhausted extends Error {
   }
 }
 function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => performance.now()) {
-  validateRequest(request);
-  const { constraints, weights } = request;
-  const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
   const checkDeadline = () => {
     if (deadline !== Number.POSITIVE_INFINITY && now() > deadline)
       throw new PrepareBudgetExhausted;
   };
+  validateRequest(request, checkDeadline);
+  const { constraints, weights } = request;
+  const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;
   const buildingIndex = new Map;
   const intern = (id) => {
@@ -369,7 +413,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     return index;
   };
   const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)));
-  const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings.map((m) => m.dates))));
+  const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings)), request.term, checkDeadline);
   let globalMinDuration = Number.POSITIVE_INFINITY;
   for (const list of allowedByCourse) {
     for (const section of list) {
@@ -414,7 +458,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     const allowed = allowedByCourse[courseIndex];
     const kept = [];
     for (const section of allowed) {
-      const meetings = section.meetings.map((m) => ({ day: DAY_INDEX.get(m.day), start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m.dates) })).sort((a, b) => a.day - b.day || a.start - b.start);
+      const meetings = section.meetings.map((m) => ({ day: DAY_INDEX.get(m.day), start: m.start, end: m.end, building: intern(m.buildingId), weeks: segments.maskOf(m) })).sort((a, b) => a.day - b.day || a.start - b.start);
       let selfBroken = false;
       for (let i = 0;i < meetings.length && !selfBroken; i += 1) {
         for (let j = i + 1;j < meetings.length; j += 1) {
@@ -564,7 +608,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
     weekSegments: segments.count,
     weights,
-    totalCredits: sortedCourses.reduce((sum, course) => sum + course.credits, 0),
+    totalCredits: sortedCourses.reduce((sum, course) => sum + course.credits, request.fixedCredits ?? 0),
     maxCredits: constraints.maxCredits,
     minDifferentCourses: minDifferentCourses(request),
     creditsByCourse,
@@ -661,8 +705,8 @@ function search(prepared, budget, options) {
   const floorStride = buildingCount + 1;
   const timeCount = times.length;
   const pairsMatter = weights.compact > 0 || weights.walking > 0 || bufferSeconds !== null;
-  const oneSegment = prepared.weekSegments === 1;
-  function dayCost(day, remaining, remainingCount) {
+  const oneSegment = prepared.weekSegments === 1 && prepared.candidates.every((c) => c.meetings.every((m) => m.weeks !== 0));
+  function weeklyOrFixedDayCost(day, remaining, remainingCount) {
     const list = dayLists[day];
     let gap = 0;
     let walkCost = 0;
@@ -706,6 +750,67 @@ function search(prepared, budget, options) {
     }
     return weights.compact * COST_PER_GAP_MINUTE * gap + weights.walking * COST_PER_WALK_SECOND * walkCost;
   }
+  const dayWeeks = new Int32Array(DAY_COUNT);
+  const mixedDays = new Uint8Array(DAY_COUNT);
+  if (!oneSegment) {
+    const firstMasks = new Array(DAY_COUNT);
+    for (const c of prepared.candidates)
+      for (const m of c.meetings) {
+        if (firstMasks[m.day] === undefined)
+          firstMasks[m.day] = m.weeks;
+        else if (firstMasks[m.day] !== m.weeks)
+          mixedDays[m.day] = 1;
+        dayWeeks[m.day] |= m.weeks;
+      }
+  }
+  function segmentDayCost(day, mask, remaining, count) {
+    let prev;
+    let cost = 0;
+    for (const next of dayLists[day]) {
+      if ((next.weeks & mask) === 0)
+        continue;
+      if (prev) {
+        const window = next.start - prev.end;
+        const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
+        let filled = fill === null && count > 0 ? window : 0;
+        if (fill !== null)
+          for (let r = 0;r < count && filled < window; r += 1)
+            filled += fill[remaining[r]][day][cell];
+        cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
+        if (!(prev.building >= 0 && prev.building === next.building)) {
+          let walking;
+          if (filled === 0) {
+            walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
+            if (bufferSeconds !== null && window * 60 < walking + bufferSeconds)
+              return -1;
+          } else {
+            walking = walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
+          }
+          cost += weights.walking * COST_PER_WALK_SECOND * walking;
+        }
+      }
+      prev = next;
+    }
+    return cost;
+  }
+  function calendarDayCost(day, remaining, count) {
+    if (dayLists[day].length < 2)
+      return 0;
+    if (!mixedDays[day])
+      return segmentDayCost(day, dayWeeks[day], remaining, count);
+    const fixed = weeklyOrFixedDayCost(day, remaining, count);
+    if (fixed < 0 || count === 0)
+      return fixed;
+    let bound = fixed;
+    for (let bits = dayWeeks[day];bits !== 0; bits &= bits - 1) {
+      const cost = segmentDayCost(day, bits & -bits, remaining, count);
+      if (cost < 0)
+        return -1;
+      bound = Math.max(bound, cost);
+    }
+    return bound;
+  }
+  const dayCost = oneSegment ? weeklyOrFixedDayCost : calendarDayCost;
   const noRemaining = new Int32Array(0);
   function completeCost() {
     let total = 0;
@@ -957,6 +1062,96 @@ function search(prepared, budget, options) {
     }
     return true;
   }
+  function segmentOutside(day, mask, all, count, alive) {
+    if (fill === null)
+      return 0;
+    let spanStart = -1;
+    let spanEnd = -1;
+    for (const m of dayLists[day]) {
+      if ((m.weeks & mask) === 0)
+        continue;
+      if (spanStart < 0)
+        spanStart = m.start;
+      spanEnd = m.end;
+    }
+    if (spanStart < 0)
+      return 0;
+    let right = 0;
+    let left = 0;
+    for (let r = 0;r < count; r += 1) {
+      const u = all[r];
+      if (!forcedOn(u, day, alive))
+        continue;
+      const c = courses[u];
+      let minRight = Number.POSITIVE_INFINITY;
+      let minLeft = Number.POSITIVE_INFINITY;
+      for (let w = c.wordLo;w < c.wordHi && (minRight > 0 || minLeft > 0); w += 1) {
+        let value = alive[w];
+        while (value !== 0 && (minRight > 0 || minLeft > 0)) {
+          const low = value & -value;
+          value ^= low;
+          const candidate = candidateByBit[w * 32 + 31 - Math.clz32(low)];
+          let extRight = Number.POSITIVE_INFINITY;
+          let extLeft = Number.POSITIVE_INFINITY;
+          let meets = false;
+          for (const m of candidate.meetings) {
+            if (m.day !== day || (m.weeks & mask) === 0)
+              continue;
+            meets = true;
+            let stretchRight = 0;
+            let stretchLeft = 0;
+            if (m.start >= spanEnd) {
+              const cell = timeIndex[spanEnd] * timeCount + timeIndex[m.start];
+              let filled = 0;
+              for (let q = 0;q < count; q += 1)
+                if (all[q] !== u)
+                  filled += fill[all[q]][day][cell];
+              stretchRight = Math.max(0, m.start - spanEnd - filled);
+            } else if (m.end <= spanStart) {
+              const cell = timeIndex[m.end] * timeCount + timeIndex[spanStart];
+              let filled = 0;
+              for (let q = 0;q < count; q += 1)
+                if (all[q] !== u)
+                  filled += fill[all[q]][day][cell];
+              stretchLeft = Math.max(0, spanStart - m.end - filled);
+            }
+            extRight = Math.min(extRight, stretchRight);
+            extLeft = Math.min(extLeft, stretchLeft);
+          }
+          if (!meets) {
+            minRight = 0;
+            minLeft = 0;
+            break;
+          }
+          minRight = Math.min(minRight, extRight);
+          minLeft = Math.min(minLeft, extLeft);
+        }
+      }
+      if (minRight !== Number.POSITIVE_INFINITY)
+        right = Math.max(right, minRight);
+      if (minLeft !== Number.POSITIVE_INFINITY)
+        left = Math.max(left, minLeft);
+    }
+    return right + left;
+  }
+  function calendarNodeDayCost(day, all, count, alive) {
+    let bound = mixedDays[day] ? weeklyOrFixedDayCost(day, all, count) : 0;
+    if (bound < 0)
+      return -1;
+    let bits = dayWeeks[day];
+    while (bits !== 0) {
+      const mask = mixedDays[day] ? bits & -bits : bits;
+      const inside = segmentDayCost(day, mask, all, count);
+      if (inside < 0)
+        return -1;
+      const outside = segmentOutside(day, mask, all, count, alive);
+      bound = Math.max(bound, inside + weights.compact * COST_PER_GAP_MINUTE * outside);
+      if (!mixedDays[day])
+        break;
+      bits &= bits - 1;
+    }
+    return bound;
+  }
   function nodeFloor(alive, course, remaining, remainingCount) {
     const all = unassignedScratch;
     all[0] = course;
@@ -1003,6 +1198,13 @@ function search(prepared, budget, options) {
     let pairs = 0;
     let outside = 0;
     for (let d = 0;d < dayEnd && weights.compact > 0; d += 1) {
+      if (!oneSegment) {
+        const dated = calendarNodeDayCost(d, all, count, alive);
+        if (dated < 0)
+          return -1;
+        pairs += dated;
+        continue;
+      }
       const inside = dayCost(d, all, count);
       if (inside < 0)
         return -1;
@@ -1388,8 +1590,11 @@ function explainSentence(request, members) {
   const sectionById = new Map(request.courses.flatMap((course) => course.sections).map((section) => [section.id, section]));
   const sub = restrictTo(request, members);
   if (members.some((member) => member.kind === "maxCredits")) {
-    const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, 0);
-    return `${joinList(codes)} add up to ${credits} credits, over your ${request.constraints.maxCredits}-credit limit.`;
+    const fixed = request.fixedCredits ?? 0;
+    const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, fixed);
+    const parts = [...codes, ...fixed > 0 ? [`your other ${fixed} credits`] : []];
+    const subject = codes.length > 0 ? joinList(parts) : "Your other courses";
+    return `${subject} add up to ${credits} credits, over your ${request.constraints.maxCredits}-credit limit.`;
   }
   const conditions = conditionPhrases(request, members);
   const where = conditions.length > 0 ? ` ${conditions.join(" ")}` : "";
@@ -1509,7 +1714,7 @@ function relaxationsFor(request, members, check) {
         break;
       }
       case "maxCredits": {
-        const total = request.courses.reduce((sum, course) => sum + course.credits, 0);
+        const total = request.courses.reduce((sum, course) => sum + course.credits, request.fixedCredits ?? 0);
         out.push({ relaxation: { kind: "maxCredits", to: total }, label: `Raise the credit limit to ${total}` });
         break;
       }
@@ -1633,7 +1838,9 @@ function toRanked(request, prepared, leaf, proven) {
   const sections = leaf.picks.map((pick) => pick.section);
   const { cost, breakdown } = scoreSchedule({
     sections,
+    term: request.term,
     creditsByCourse: prepared.creditsByCourse,
+    fixedCredits: request.fixedCredits,
     neutralRatingByCourse: prepared.neutralRatingByCourse,
     weights: request.weights,
     walkingTime: request.walkingTime

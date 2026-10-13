@@ -242,7 +242,7 @@ type RegressionCase = { name: string; request: OptimizeRequest; verify: (result:
 export function regressionCases(): RegressionCase[] {
   const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
   const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
-  const base = { locks: {}, excluded: [], walkingTime: syntheticWalkingTime, timeBudgetMs: 60_000, explainBudgetMs: 60_000 };
+  const base = { term: FULL_TERM, locks: {}, excluded: [], walkingTime: syntheticWalkingTime, timeBudgetMs: 60_000, explainBudgetMs: 60_000 };
   // One section can fill a break with two meetings; crediting only its
   // longest meeting overestimated the bound and proved a worse schedule.
   const fillCourses = [
@@ -307,7 +307,37 @@ export function regressionCases(): RegressionCase[] {
   ];
   const picked = (r: OptimizeResult) => `${r.status} ${JSON.stringify(r.schedules.map((s) => [s.byCourse, s.cost, s.breakdown]))}`;
   // Meeting dates and weekend days (UNT Spring 2027 sections).
+  const bridge = [
+    { code: "A", credits: 3, sections: [one("A", "a", [at("Mon", 540, 600, "X")])] },
+    { code: "B", credits: 3, sections: [one("B", "b-mon", [at("Mon", 610, 660, "Y", FULL_TERM)]), one("B", "b-tue", [at("Tue", 610, 660, "Y", FULL_TERM)])] },
+    { code: "C", credits: 3, sections: [one("C", "c", [at("Mon", 670, 720, "Z")])] },
+  ];
+  const sundayTouch = [
+    { code: "A", credits: 3, sections: [one("A", "a", [at("Mon", 540, 590, "X", { start: "2027-01-11", end: "2027-01-17" })])] },
+    { code: "B", credits: 3, sections: [one("B", "b", [at("Mon", 540, 590, "Y", { start: "2027-01-17", end: "2027-01-24" })])] },
+  ];
   const dated: RegressionCase[] = [
+    {
+      name: "full-term Monday bridge leaves 20 idle minutes, not an outside-term pair",
+      request: { ...base, courses: bridge, constraints: none, weights: { ...zero, compact: 1 }, k: 1 },
+      verify: (r) => r.status === "optimal" && r.schedules[0].byCourse.B === "b-mon" && r.schedules[0].cost === 1200 && r.schedules[0].breakdown.gapMinutes === 20 ? null : picked(r),
+    },
+    {
+      name: "an outside-term A-to-C walk cannot make the Monday bridge infeasible",
+      request: { ...base, courses: bridge, locks: { B: "b-mon" }, constraints: walkingOn, weights: zero, k: 1,
+        walkingTime: (from, to) => ({ seconds: from === "X" && to === "Z" ? 5000 : 300, source: "campus-network" }) },
+      verify: (r) => r.status === "optimal" && r.schedules[0].breakdown.gapMinutes === 20 ? null : picked(r),
+    },
+    {
+      name: "Monday ranges sharing only Sunday have no conflicting occurrence",
+      request: { ...base, courses: sundayTouch, constraints: none, weights: zero, k: 1 },
+      verify: (r) => r.status === "optimal" ? null : picked(r),
+    },
+    {
+      name: "Monday ranges sharing only Sunday have no back-to-back walk or gap",
+      request: { ...base, courses: sundayTouch.map((c, i) => ({ ...c, sections: c.sections.map((s) => ({ ...s, meetings: s.meetings.map((m) => ({ ...m, start: m.start + 60 * i, end: m.end + 60 * i })) })) })), constraints: walkingOn, weights: { ...zero, compact: 1, walking: 1 }, walkingTime: campus, k: 1 },
+      verify: (r) => r.status === "optimal" && r.schedules[0].cost === 0 && r.schedules[0].breakdown.gapMinutes === 0 && r.schedules[0].breakdown.walkSeconds === 0 ? null : picked(r),
+    },
     {
       name: "SPAN 2040 and 2050 share a slot in different halves: both fit, never back to back",
       request: { ...base, walkingTime: campus, courses: spanish, constraints: walkingOn, weights: { ...zero, walking: 1, compact: 1 }, k: 3 },

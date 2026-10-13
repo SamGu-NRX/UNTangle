@@ -12,8 +12,8 @@
  * Prints one line per instance and p50/p95/max of both, plus statuses.
  * Wall times on the machine that runs it; a busy machine reads slower.
  * `--terms` gives sections half-term dates and some weekend meetings
- * (`terms` in generator.ts). Such requests have several week segments, where
- * the search drops two bound terms (see search.ts), so they can run slower.
+ * (`terms` in generator.ts). On mixed-activity days, the search uses the
+ * maximum bound across segments rather than their sum (see search.ts).
  */
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS } from "@/lib/optimizer/presets";

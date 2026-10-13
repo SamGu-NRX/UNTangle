@@ -233,6 +233,7 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
         };
 
   return {
+    ...(shape.terms ? { term: FULL_TERM } : {}),
     courses,
     locks,
     excluded,

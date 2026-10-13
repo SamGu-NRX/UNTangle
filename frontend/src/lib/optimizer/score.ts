@@ -9,6 +9,7 @@
 import {
   OptimizerInputError,
   OPT_DAYS,
+  type OptDateRange,
   type OptDay,
   type OptMeeting,
   type OptSection,
@@ -120,15 +121,15 @@ export function transferFits(
 
 type ChosenMeeting = OptMeeting & { sectionId: string; weeks: number };
 
-function meetingsByDay(sections: readonly OptSection[]): Map<OptDay, ChosenMeeting[]> {
+function meetingsByDay(sections: readonly OptSection[], term?: OptDateRange): Map<OptDay, ChosenMeeting[]> {
   // The schedule's own dates cut the calendar finely enough: extra cuts from
   // other sections would not change which of its pairs are back to back.
-  const segments = weekSegments(sections.flatMap((section) => section.meetings.map((m) => m.dates)));
+  const segments = weekSegments(sections.flatMap((section) => section.meetings), term);
   const byDay = new Map<OptDay, ChosenMeeting[]>();
   for (const section of sections) {
     for (const meeting of section.meetings) {
       const list = byDay.get(meeting.day) ?? [];
-      list.push({ ...meeting, sectionId: section.id, weeks: segments.maskOf(meeting.dates) });
+      list.push({ ...meeting, sectionId: section.id, weeks: segments.maskOf(meeting) });
       byDay.set(meeting.day, list);
     }
   }
@@ -140,7 +141,10 @@ function meetingsByDay(sections: readonly OptSection[]): Map<OptDay, ChosenMeeti
 
 export type ScoreInput = {
   sections: readonly OptSection[];
+  term?: OptDateRange;
   creditsByCourse: Readonly<Record<string, number>>;
+  /** Credits of courses outside the schedule (OptimizeRequest.fixedCredits). */
+  fixedCredits?: number;
   neutralRatingByCourse: Readonly<Record<string, number>>;
   weights: OptWeights;
   walkingTime: OptWalkingTimeFn;
@@ -149,7 +153,7 @@ export type ScoreInput = {
 /** Breakdown and cost of a complete schedule. */
 export function scoreSchedule(input: ScoreInput): { cost: number; breakdown: ScheduleBreakdown } {
   const { sections, weights, walkingTime } = input;
-  const byDay = meetingsByDay(sections);
+  const byDay = meetingsByDay(sections, input.term);
   let gapMinutes = 0;
   let knownWalk = 0;
   let unknownWalks = 0;
@@ -167,7 +171,7 @@ export function scoreSchedule(input: ScoreInput): { cost: number; breakdown: Sch
   }
   const meetings = sections.flatMap((section) => section.meetings);
   const ratings = sections.map((section) => ratingTenths(section.rating)).filter((value): value is number => value !== null);
-  const credits = sections.reduce((sum, section) => sum + (input.creditsByCourse[section.courseCode] ?? 0), 0);
+  const credits = sections.reduce((sum, section) => sum + (input.creditsByCourse[section.courseCode] ?? 0), input.fixedCredits ?? 0);
   const breakdown: ScheduleBreakdown = {
     daysOnCampus: byDay.size,
     gapMinutes,
