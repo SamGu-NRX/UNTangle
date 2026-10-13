@@ -1,0 +1,436 @@
+{
+  "startedAt": "2026-10-13T22:26:39.110Z",
+  "base": "http://127.0.0.1:3217",
+  "checks": [
+    {
+      "name": "without WebMCP no loaded script contains the tools",
+      "passed": true,
+      "detail": "21 scripts"
+    },
+    {
+      "name": "eleven tools registered after the plan loaded",
+      "passed": true,
+      "detail": "add_section, apply_alternative, build_schedule, check_eligibility, export_class_numbers, get_course, get_day, get_schedule, remove_course, search_courses, set_busy_times"
+    },
+    {
+      "name": "get_schedule reads the seeded plan",
+      "passed": true,
+      "detail": "{\"CSCE 1040\":\"004\",\"ENGL 1310\":\"026\",\"PSYC 1630\":\"005\"}"
+    },
+    {
+      "name": "build_schedule returns an alternative that moves sections",
+      "passed": true,
+      "detail": "opt-1-A"
+    },
+    {
+      "name": "apply_alternative asks the student first",
+      "passed": true,
+      "detail": "Your assistant wants to change your plan\n\nUse schedule option A? It moves PSYC 1630 to section 001.\n\nYou can undo it afterwards.\n\nCancel\nUse option A"
+    },
+    {
+      "name": "the dialog moves by transition: opacity and scale",
+      "passed": true,
+      "detail": "{\"transition\":\"opacity, transform\",\"animation\":\"none\"}"
+    },
+    {
+      "name": "axe zero serious/critical: desktop confirmation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "cancel answers declined",
+      "passed": true,
+      "detail": "{\"ok\":false,\"reason\":\"declined\"}"
+    },
+    {
+      "name": "cancel leaves the plan as it was",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "confirm applies the alternative",
+      "passed": true,
+      "detail": "{\"ok\":true,\"changed\":1}"
+    },
+    {
+      "name": "the plan now holds the alternative's sections",
+      "passed": true,
+      "detail": "1 moved"
+    },
+    {
+      "name": "the toast moves by transition, not keyframes: opacity and rise",
+      "passed": true,
+      "detail": "{\"transition\":\"opacity, transform\",\"animation\":\"none\"}"
+    },
+    {
+      "name": "Undo restores the previous sections",
+      "passed": true,
+      "detail": "[[\"CSCE 1040\",\"004\",\"recommended\"],[\"ENGL 1310\",\"026\",\"recommended\"],[\"PSYC 1630\",\"005\",\"recommended\"]]"
+    },
+    {
+      "name": "each tool registered exactly once",
+      "passed": true,
+      "detail": "11 log lines"
+    },
+    {
+      "name": "no page errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "with reduced motion the dialog only fades",
+      "passed": true,
+      "detail": "{\"transition\":\"opacity\",\"animation\":\"none\"}"
+    },
+    {
+      "name": "axe zero serious/critical: phone confirmation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Escape declines on a phone",
+      "passed": true,
+      "detail": "{\"ok\":false,\"reason\":\"declined\"}"
+    },
+    {
+      "name": "no page errors (phone)",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "axe": [
+    {
+      "label": "desktop confirmation",
+      "violations": []
+    },
+    {
+      "label": "phone confirmation",
+      "violations": []
+    }
+  ],
+  "calls": [
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "state": "recommended",
+            "section": "004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at Chemistry Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "state": "recommended",
+            "section": "026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at General Academic Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "state": "recommended",
+            "section": "005",
+            "meetings": "Tue/Thu 08:30-09:50 at Hickory Hall",
+            "provenance": "sample",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "walking": {
+          "minutesPerWeek": 8,
+          "unknownWalks": 0,
+          "shuttleRides": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "build_schedule",
+      "input": {
+        "goal": "compact"
+      },
+      "result": {
+        "ok": true,
+        "status": "optimal",
+        "alternatives": [
+          {
+            "id": "opt-1-A",
+            "changes": 1,
+            "sections": {
+              "CSCE 1040": "004",
+              "ENGL 1310": "026",
+              "PSYC 1630": "001"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 60,
+            "walkMinutes": 27,
+            "unknownWalks": 0,
+            "earliest": "08:00",
+            "latest": "10:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-B",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "006",
+              "ENGL 1310": "005",
+              "PSYC 1630": "006"
+            },
+            "daysOnCampus": 5,
+            "gapMinutes": 20,
+            "walkMinutes": 7,
+            "unknownWalks": 0,
+            "earliest": "08:30",
+            "latest": "12:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-C",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "006",
+              "ENGL 1310": "053",
+              "PSYC 1630": "001"
+            },
+            "daysOnCampus": 5,
+            "gapMinutes": 20,
+            "walkMinutes": 12,
+            "unknownWalks": 0,
+            "earliest": "08:30",
+            "latest": "12:50",
+            "credits": 9,
+            "proven": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "apply_alternative",
+      "input": {
+        "id": "opt-1-A"
+      },
+      "result": {
+        "ok": false,
+        "reason": "declined"
+      }
+    },
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "state": "recommended",
+            "section": "004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at Chemistry Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "state": "recommended",
+            "section": "026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at General Academic Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "state": "recommended",
+            "section": "005",
+            "meetings": "Tue/Thu 08:30-09:50 at Hickory Hall",
+            "provenance": "sample",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "walking": {
+          "minutesPerWeek": 8,
+          "unknownWalks": 0,
+          "shuttleRides": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "apply_alternative",
+      "input": {
+        "id": "opt-1-A"
+      },
+      "result": {
+        "ok": true,
+        "changed": 1
+      }
+    },
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "state": "chosen",
+            "section": "004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at Chemistry Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "state": "chosen",
+            "section": "026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at General Academic Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "state": "chosen",
+            "section": "001",
+            "meetings": "Mon/Wed/Fri 10:00-10:50 at Wooten Hall",
+            "provenance": "sample",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "walking": {
+          "minutesPerWeek": 27,
+          "unknownWalks": 0,
+          "shuttleRides": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "state": "recommended",
+            "section": "004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at Chemistry Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "state": "recommended",
+            "section": "026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at General Academic Building",
+            "provenance": "sample",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "state": "recommended",
+            "section": "005",
+            "meetings": "Tue/Thu 08:30-09:50 at Hickory Hall",
+            "provenance": "sample",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "walking": {
+          "minutesPerWeek": 8,
+          "unknownWalks": 0,
+          "shuttleRides": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "build_schedule",
+      "input": {
+        "goal": "compact"
+      },
+      "result": {
+        "ok": true,
+        "status": "optimal",
+        "alternatives": [
+          {
+            "id": "opt-1-A",
+            "changes": 1,
+            "sections": {
+              "CSCE 1040": "004",
+              "ENGL 1310": "026",
+              "PSYC 1630": "001"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 60,
+            "walkMinutes": 27,
+            "unknownWalks": 0,
+            "earliest": "08:00",
+            "latest": "10:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-B",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "006",
+              "ENGL 1310": "005",
+              "PSYC 1630": "006"
+            },
+            "daysOnCampus": 5,
+            "gapMinutes": 20,
+            "walkMinutes": 7,
+            "unknownWalks": 0,
+            "earliest": "08:30",
+            "latest": "12:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-C",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "006",
+              "ENGL 1310": "053",
+              "PSYC 1630": "001"
+            },
+            "daysOnCampus": 5,
+            "gapMinutes": 20,
+            "walkMinutes": 12,
+            "unknownWalks": 0,
+            "earliest": "08:30",
+            "latest": "12:50",
+            "credits": 9,
+            "proven": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "remove_course",
+      "input": {
+        "code": "PSYC 1630"
+      },
+      "result": {
+        "ok": false,
+        "reason": "declined"
+      }
+    }
+  ],
+  "finishedAt": "2026-10-13T22:26:44.396Z",
+  "passed": 19,
+  "total": 19
+}
