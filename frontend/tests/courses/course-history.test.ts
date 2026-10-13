@@ -1,17 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  gpaFromGrades,
-  httpGradeHistorySource,
-  toCourseGradeView,
-  type CourseHistory,
-  type HistoryResult,
-  type HistorySection,
-} from "@/lib/course-history";
-import { historyFromBackendDetail } from "@/lib/course-history-backend";
-import type { CourseGradeDetail, GradeInstructor } from "@/lib/backend-api";
+import { gpaFromGrades, httpGradeHistorySource, toCourseGradeView } from "@/lib/course-history";
+import { gradeBars } from "@/components/grade-chart-canvas";
+import type { CourseHistory, HistoryResult, HistorySection } from "@/lib/grades-history/types";
 import type { GradeData } from "@/lib/grades";
 
-const grades = (a: number, b: number, c: number, d = 0, f = 0, w = 0): GradeData => ({
+const gradesOf = (a: number, b: number, c: number, d = 0, f = 0, w = 0): GradeData => ({
   gradeA: a, gradeB: b, gradeC: c, gradeD: d, gradeF: f, gradeP: 0, gradeNP: 0, gradeW: w, gradeWF: 0,
   gradeI: 0, gradePR: 0, gradeNPR: 0, gradeZ: 0, gradeSuppressed: 0, totalEnroll: a + b + c + d + f + w,
 });
@@ -26,14 +19,14 @@ const section = (number: string, first: string, last: string, data: GradeData): 
 const history: CourseHistory = {
   course: { subject: "CSCE", number: "1030", title: "Computer Science I" },
   terms: [
-    { term: "Fall", year: "2024", counts: {}, total: 0, grades: grades(0, 0, 0), sections: [section("001", "Beilei", "Jiang", grades(10, 5, 5))] },
-    { term: "Spring", year: "2024", counts: {}, total: 0, grades: grades(0, 0, 0), sections: [section("002", "Beilei", "Jiang", grades(10, 0, 0)), section("003", "Haili", "Wang", grades(2, 2, 2, 2, 2))] },
+    { term: "Fall", year: "2024", counts: {}, total: 0, grades: gradesOf(0, 0, 0), sections: [section("001", "Beilei", "Jiang", gradesOf(10, 5, 5))] },
+    { term: "Spring", year: "2024", counts: {}, total: 0, grades: gradesOf(0, 0, 0), sections: [section("002", "Beilei", "Jiang", gradesOf(10, 0, 0)), section("003", "Haili", "Wang", gradesOf(2, 2, 2, 2, 2))] },
   ],
   sectionCount: 3,
   gpa: 3.2,
   counts: {},
   total: 40,
-  grades: grades(22, 7, 7, 2, 2),
+  grades: gradesOf(22, 7, 7, 2, 2),
 };
 
 describe("toCourseGradeView", () => {
@@ -57,39 +50,24 @@ describe("toCourseGradeView", () => {
   });
 
   test("GPA uses letter grades only", () => {
-    expect(gpaFromGrades(grades(1, 1, 0, 0, 0, 5))).toBe(3.5);
-    expect(gpaFromGrades(grades(0, 0, 0, 0, 0, 3))).toBeNull();
+    expect(gpaFromGrades(gradesOf(1, 1, 0, 0, 0, 5))).toBe(3.5);
+    expect(gpaFromGrades(gradesOf(0, 0, 0, 0, 0, 3))).toBeNull();
   });
 });
 
-describe("backend route mapping", () => {
-  const instructor = (id: number, name: string): GradeInstructor => ({
-    id, name, firstName: name.split(" ")[0], lastName: name.split(" ")[1], rmpDepartment: null, rmpDifficulty: null,
-    rmpNumRatings: null, rmpProfileUrl: null, rmpRating: null, rmpSource: null, rmpTags: [], rmpUpdatedAt: null, rmpWouldTakeAgain: null,
+describe("grade bars", () => {
+  test("shares are of every enrolled student, and grades outside A to W are counted", () => {
+    const grades = { ...gradesOf(50, 30, 10, 0, 0, 10), gradeP: 100, totalEnroll: 200 };
+    const { bars, total, otherCount } = gradeBars(grades);
+    expect(total).toBe(200);
+    expect(otherCount).toBe(100);
+    expect(bars.map((bar) => [bar.grade, bar.percent])).toEqual([["A", 25], ["B", 15], ["C", 5], ["D", 0], ["F", 0], ["W", 5]]);
   });
 
-  test("a backend that did not answer is unavailable, not empty", () => {
-    expect(historyFromBackendDetail(null)).toMatchObject({ status: "unavailable", error: { reason: "upstream" } });
-  });
-
-  test("sections group into terms in the adapter's shape", () => {
-    const detail: CourseGradeDetail = {
-      aggregate: { gpa: 3, grades: grades(3, 1, 0) },
-      course: { credits: 3, description: null, id: 1, number: "1030", subject: "CSCE", title: "Computer Science I" },
-      instructors: [],
-      sections: [
-        { course: { id: 1, number: "1030", subject: "CSCE", title: "" }, gpa: 3, grades: grades(2, 1, 0), id: 1, instructor: instructor(7, "Beilei Jiang"), otherGrades: {}, sectionNumber: "001", term: "Fall 2023", title: "" },
-        { course: { id: 1, number: "1030", subject: "CSCE", title: "" }, gpa: 4, grades: grades(1, 0, 0), id: 2, instructor: instructor(8, "Haili Wang"), otherGrades: {}, sectionNumber: "002", term: "Fall 2023", title: "" },
-      ],
-      terms: ["Fall 2023"],
-    };
-    const result = historyFromBackendDetail(detail);
-    if (result.status !== "ok") throw new Error(result.status);
-    expect(result.data.terms).toHaveLength(1);
-    expect(result.data.terms[0]).toMatchObject({ term: "Fall", year: "2023", total: 4 });
-    const view = toCourseGradeView(result);
-    expect(view.status === "ok" && view.instructors.map((slice) => slice.instructor.id)).toEqual(["7", "8"]);
-    expect(view.sourceUrl).toBeNull();
+  test("with only drawn grades the shares add up to 100", () => {
+    const { bars, otherCount } = gradeBars(gradesOf(1, 1, 1, 1, 0, 0));
+    expect(otherCount).toBe(0);
+    expect(bars.reduce((sum, bar) => sum + bar.percent, 0)).toBe(100);
   });
 });
 

@@ -85,7 +85,8 @@ function input(value: string, label: string, min: number, max: number) {
 export function courseInput(subject: string, number: string) {
   const prefix = input(subject, "subject", 1, 12).toUpperCase();
   const normalizedNumber = input(number, "number", 1, 12).toUpperCase();
-  if (!/^[A-Z]+$/.test(prefix) || !/^[0-9A-Z]+$/.test(normalizedNumber)) throw new GradesError("invalid-request", "subject must contain letters; number must contain letters or digits");
+  // Course numbers are digits with an optional letter suffix (1030, 1030L); "abcd" must not reach upstream.
+  if (!/^[A-Z]+$/.test(prefix) || !/^[0-9]{3,5}[A-Z]?$/.test(normalizedNumber)) throw new GradesError("invalid-request", "subject must contain letters; number must be digits with an optional letter suffix");
   return { prefix, number: normalizedNumber };
 }
 export function instructorInput(firstName: string, lastName: string) {

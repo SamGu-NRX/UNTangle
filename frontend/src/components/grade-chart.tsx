@@ -32,8 +32,9 @@ export function GradeChart({ grades, dataKey, label }: { grades: GradeData; data
     return () => window.clearTimeout(timer);
   }, [outgoing]);
 
-  const bars = gradeBars(grades);
+  const { bars, total, otherCount } = gradeBars(grades);
   return (
+    <>
     <div className={styles.chart}>
       <div className={styles.grid} />
       {outgoing ? <GradeChartCanvas key={outgoing.key} grades={outgoing.grades} motion="out" /> : null}
@@ -52,5 +53,12 @@ export function GradeChart({ grades, dataKey, label }: { grades: GradeData; data
         </tbody>
       </table>
     </div>
+    {otherCount > 0 ? (
+      <p className={styles.note}>
+        Shares are of all {total.toLocaleString()} students; {otherCount.toLocaleString()} with P, NP, I or other grades
+        are not drawn.
+      </p>
+    ) : null}
+    </>
   );
 }

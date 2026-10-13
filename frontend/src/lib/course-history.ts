@@ -1,40 +1,11 @@
 /**
- * Grade history for the course detail panel.
- *
- * The wire shape is `HistoryResult<CourseHistory>`, copied from
- * `lib/grades-history/types.ts` on untangle/grades-v1 (PR #30, the untgrades.app
- * adapter). Until that branch merges, `app/courses/[subject]/[number]/history`
- * serves the same shape from today's backend (`lib/backend-api.ts`), so moving
- * to the adapter is a URL change in `gradeHistorySources`, not a new mapper.
- * At integration, replace the copied types below with an import.
+ * Grade history for the course detail panel, from the untgrades.app adapter
+ * (lib/grades-history, served at /api/grades/*). This module turns its
+ * `HistoryResult<CourseHistory>` into what the panel draws: one slice for
+ * everyone and one per instructor.
  */
 import type { GradeData } from "@/lib/grades";
-
-// ---- copied from untangle/grades-v1 lib/grades-history/types.ts ----
-export type GradeCounts = Record<string, number>;
-export type CourseIdentity = { subject: string; number: string; title: string };
-export type InstructorIdentity = { id: string; firstName: string; lastName: string; name: string };
-export type GradeTotals = { counts: GradeCounts; total: number; grades: GradeData };
-export type HistorySection = GradeTotals & { sectionNumber: string; instructor: InstructorIdentity };
-export type HistoryTerm = GradeTotals & { year: string; term: string; sections: HistorySection[] };
-export type CourseHistory = GradeTotals & {
-  course: CourseIdentity;
-  terms: HistoryTerm[];
-  sectionCount: number;
-  gpa: number | null;
-};
-export type UnavailableReason = "throttled" | "upstream" | "malformed" | "storage" | "invalid-request";
-/** `source` is widened from the literal "untgrades.app" so the backend route can name itself. */
-export type HistoryResult<T> =
-  | { status: "ok"; source: string; data: T }
-  | { status: "no-history"; source: string; data: null }
-  | {
-      status: "unavailable";
-      source: string;
-      data: null;
-      error: { reason: UnavailableReason; message: string; retryAfterSeconds?: number };
-    };
-// ---- end copy ----
+import type { CourseHistory, HistoryResult, InstructorIdentity } from "@/lib/grades-history/types";
 
 /** What the panel draws: one slice for everyone, one per instructor. */
 export type GradeSlice = {
@@ -157,8 +128,5 @@ export function httpGradeHistorySource(
 const segment = encodeURIComponent;
 
 export const gradeHistorySources = {
-  /** Today: the route in app/courses/[subject]/[number]/history over lib/backend-api. */
-  backend: httpGradeHistorySource((s, n) => `/courses/${segment(s)}/${segment(n)}/history`, "UNTangle backend"),
-  /** PR #30's adapter routes; switch to this at integration. */
   untgrades: httpGradeHistorySource((s, n) => `/api/grades/courses/${segment(s)}/${segment(n)}`, "untgrades.app"),
 };

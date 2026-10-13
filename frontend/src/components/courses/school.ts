@@ -116,7 +116,7 @@ export function untProfile(): SchoolProfile {
     autoCreditBudget: 15,
     sections: (id) => sectionsByCourse.get(id) ?? [],
     linkOuts: untLinkOuts,
-    gradeHistory: gradeHistorySources.backend,
+    gradeHistory: gradeHistorySources.untgrades,
     splitId: (id) => {
       const [subject, number] = id.split(" ");
       return [subject, number];

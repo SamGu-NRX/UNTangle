@@ -14,18 +14,28 @@ export const chartGrades = [
   { grade: "W", key: "gradeW", opacity: 0.25 },
 ] as const satisfies ReadonlyArray<{ grade: string; key: keyof GradeData; opacity: number }>;
 
+/**
+ * Shares are of every enrolled student (`totalEnroll`), so a course with many
+ * P, NP or I grades does not inflate its A share. `otherCount` is the
+ * students in grades the chart does not draw.
+ */
 export function gradeBars(grades: GradeData) {
-  const total = chartGrades.reduce((sum, entry) => sum + grades[entry.key], 0);
+  const drawn = chartGrades.reduce((sum, entry) => sum + grades[entry.key], 0);
+  const total = Math.max(grades.totalEnroll, drawn);
   const max = Math.max(1, ...chartGrades.map((entry) => grades[entry.key]));
-  return chartGrades.map((entry) => {
-    const count = grades[entry.key];
-    return {
-      ...entry,
-      count,
-      percent: total === 0 ? 0 : Math.round((count / total) * 100),
-      height: (count / max) * 100,
-    };
-  });
+  return {
+    total,
+    otherCount: total - drawn,
+    bars: chartGrades.map((entry) => {
+      const count = grades[entry.key];
+      return {
+        ...entry,
+        count,
+        percent: total === 0 ? 0 : Math.round((count / total) * 100),
+        height: (count / max) * 100,
+      };
+    }),
+  };
 }
 
 /** One dataset's bars. Hover shows count and share; the parent supplies the text table for screen readers. */
@@ -33,7 +43,7 @@ export function GradeChartCanvas({ grades, motion }: { grades: GradeData; motion
   const [hover, setHover] = useState<string | null>(null);
   return (
     <div className={styles.layer} data-motion={motion} aria-hidden="true">
-      {gradeBars(grades).map((bar) => (
+      {gradeBars(grades).bars.map((bar) => (
         <div
           key={bar.grade}
           className={styles.col}
