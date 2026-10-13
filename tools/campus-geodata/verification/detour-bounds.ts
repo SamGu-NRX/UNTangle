@@ -54,7 +54,9 @@
  * plus a human-readable summary on stdout.
  *
  * Exit codes: 0 analysis completed and enforcement passed; 2 structural
- * invalidity or speed-constant drift (before analysis); 3 enforcement
+ * invalidity (including any anchor whose latitude or longitude is not a
+ * finite in-range number, and any pair whose crow distance or ratio comes out
+ * non-finite) or speed-constant drift (before analysis); 3 enforcement
  * failure (floor violation or asymmetry beyond tolerance).
  *
  * Standalone by design: reads the committed JSON artifacts directly and
@@ -74,9 +76,12 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..");
 
-const WALKING_TIMES_PATH = join(REPO_ROOT, "frontend", "src", "lib", "campus", "data", "walking-times.json");
+// The two path overrides exist for mutation checks (feed a corrupted matrix,
+// write the evidence somewhere disposable); normal runs use the defaults.
+const WALKING_TIMES_PATH =
+  process.env.DETOUR_BOUNDS_INPUT ?? join(REPO_ROOT, "frontend", "src", "lib", "campus", "data", "walking-times.json");
 const SPEEDS_PATH = join(REPO_ROOT, "frontend", "src", "lib", "campus", "speeds.ts");
-const OUTPUT_PATH = join(HERE, "detour-bounds-evidence.json");
+const OUTPUT_PATH = process.env.DETOUR_BOUNDS_OUTPUT ?? join(HERE, "detour-bounds-evidence.json");
 
 /** Mirrors frontend/src/lib/campus/speeds.ts (verified against it at run time). */
 const BASE_SPEED_MPS = 1.4;
@@ -234,12 +239,39 @@ function validateBundle(bundle: MatrixBundle): string | null {
       if (a === b && (s !== 0 || m !== 0)) return `diagonal [${a}][${a}] must be zero`;
       if (a !== b && (s === 0 || m === 0)) return `off-diagonal [${a}][${b}] is zero — unroutable pairs must not be silently zero`;
     }
-    const anchor = bundle.anchors[a];
-    if (anchor.outlineOsmId !== null && anchor.outlineOsmId !== undefined && typeof anchor.anchor[0] !== "number") {
-      return `anchor ${a} has a non-numeric coordinate`;
-    }
+    const coordinateError = anchorCoordinateError(a, bundle.anchors[a]);
+    if (coordinateError) return coordinateError;
   }
   return null;
+}
+
+/**
+ * Every anchor, whatever its method, must carry a finite in-range [lat, lng].
+ * A bad coordinate would make every crow distance through it NaN, and NaN
+ * fails every comparison, so its pairs would silently drop out of the floor
+ * check instead of failing it.
+ */
+function anchorCoordinateError(id: string, record: AnchorRecord | undefined): string | null {
+  const coordinate: unknown = record?.anchor;
+  if (!Array.isArray(coordinate) || coordinate.length !== 2) return `anchor ${id} is not a [lat, lng] pair`;
+  const [lat, lng] = coordinate as unknown[];
+  if (typeof lat !== "number" || !Number.isFinite(lat) || lat < -90 || lat > 90) {
+    return `anchor ${id} latitude ${String(lat)} is not a finite number in [-90, 90]`;
+  }
+  if (typeof lng !== "number" || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+    return `anchor ${id} longitude ${String(lng)} is not a finite number in [-180, 180]`;
+  }
+  return null;
+}
+
+/** A pair whose crow distance or ratio is not a finite positive number cannot be judged; it fails the run. */
+function nonFiniteMetricError(metrics: PairMetric[]): string | null {
+  const bad = metrics.find(
+    (m) => !Number.isFinite(m.crowMeters) || m.crowMeters <= 0 || !Number.isFinite(m.ratio),
+  );
+  return bad
+    ? `pair ${bad.from}/${bad.to} has crow ${bad.crowMeters} m and ratio ${bad.ratio}; both must be finite and positive`
+    : null;
 }
 
 /**
@@ -348,6 +380,11 @@ function main(): number {
   }
 
   const metrics = buildPairMetrics(bundle);
+  const nonFinite = nonFiniteMetricError(metrics);
+  if (nonFinite) {
+    console.error(`FAIL: ${nonFinite}`);
+    return 2;
+  }
   const rows = toOutputRows(metrics);
   const ratioDist = distribution(rows.map((r) => r.ratio));
   const ratioSecondsDist = distribution(rows.map((r) => r.ratioSeconds));

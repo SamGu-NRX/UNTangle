@@ -3,14 +3,16 @@
  *
  * Run: bun tools/campus-geodata/bench-routing.ts
  *
- * Produces:
- *   tools/campus-geodata/verification-evidence.json  (machine-readable)
- *   tools/campus-geodata/verification-report.md      (human report)
+ * Produces tools/campus-geodata/verification-evidence.json only. It used to
+ * regenerate verification-report.md too, which overwrote the hand-written
+ * accuracy, detour and latency sections and printed a test count it never
+ * ran; the report is now edited by hand from the evidence files, and test
+ * results come from an actual `bun test` run.
  *
  * Measures, on the committed artifacts only (no network):
  *   1. The 18 eval-fixture entrance pairs re-routed on the graph (agreement).
- *   2. 20 building-to-building routes between registry pins, stop-point to
- *      stop-point, exactly what POST /api/map/route does per leg.
+ *   2. Engine output (not field measurements) for 20 building-to-building
+ *      routes between registry pins, as POST /api/map/route computes a leg.
  *   3. Latency: p50/p95/p99/max over 120 route computations and 10,000
  *      matrix lookups (the plan's gate: route p95 <= 200 ms).
  */
@@ -149,68 +151,9 @@ const evidence = {
 };
 writeFileSync(join(HERE, "verification-evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
 
-const maxLegMinutes = evidence.matrix.maxLegMinutes;
-
-const report = `# Campus routing verification report
-
-Generated ${evidence.generatedAt} at commit \`${commitSha}\`, entirely from the
-committed artifacts (no network, no API keys). Reproduce with:
-
-\`\`\`bash
-bun tools/campus-geodata/spot-check-fixture.ts /home/user/work/untangle-evals/evals/fixtures/campus-routes.json
-bun tools/campus-geodata/bench-routing.ts
-cd frontend && bun test
-\`\`\`
-
-## 1. Fixture agreement (18 eval-fixture entrance pairs)
-
-- **${fixtureSummary.routed}/${fixtureSummary.total} pairs routed** on the committed walkway graph.
-- Median absolute distance error **${fixtureSummary.medianAbsErrorPct}%**; ${fixtureSummary.exact} pairs exact; ${fixtureSummary.within20Pct}/${fixtureSummary.routed} within 20%.
-- Residual differences come from connector snapping (the fixture pins entrances
-  directly; the runtime snaps to the largest walkway component), not from graph
-  divergence. Per-pair rows: \`verification-evidence.json\`.
-
-## 2. Measured building-to-building routes (20 pairs)
-
-All ${measuredRoutes.length} stop-point routes (registry pin to registry pin, exactly
-what \`POST /api/map/route\` computes per leg) routed successfully — well above the
-15-route gate. Distances range ${Math.min(...measuredRoutes.map((r) => r.networkMeters)).toFixed(0)}–${Math.max(...measuredRoutes.map((r) => r.networkMeters)).toFixed(0)} m network
-distance; steps and road crossings are counted per route in the evidence file.
-
-| from | to | network m | seconds | steps m | crossings |
-|---|---|---|---|---|---|
-${measuredRoutes.map((r) => `| ${r.from} | ${r.to} | ${r.networkMeters} | ${r.durationSeconds} | ${r.stepsMeters} | ${r.roadCrossings} |`).join("\n")}
-
-## 3. Latency
-
-| measurement | n | p50 | p95 | p99 | max |
-|---|---|---|---|---|---|
-| route computation (ms) | ${routeLatency.n} | ${routeLatency.p50} | ${routeLatency.p95} | ${routeLatency.p99} | ${routeLatency.max} |
-| matrix lookup (µs) | ${matrixLatency.n} | ${matrixLatency.p50} | ${matrixLatency.p95} | ${matrixLatency.p99} | ${matrixLatency.max} |
-
-Gate from the plan: route p95 ≤ 200 ms → **${gate.pass ? "PASS" : "FAIL"}** (p95 ${gate.routeP95Ms} ms).
-
-## 4. Coverage
-
-- Registry: ${campusBuildings.length} buildings (${routable.length} routable on-campus, ${campusBuildings.length - routable.length} off-campus excluded).
-- All 15 distinct \`backend/data/compD.csv\` codes resolve (tests).
-- Walking-time matrix: ${routable.length}×${routable.length}, zero asymmetries, max leg ${maxLegMinutes.toFixed(1)} min.
-- Test suite: 26/26 pass (\`frontend/tests\`).
-
-## 5. Assumptions and limitations
-
-- Speeds (1.4 m/s base, 0.6 m/s steps) are **model assumptions**, not UNT
-  measurements; sources in \`README.md\`.
-- Buildings mapped as OSM multipolygon relations (Art Building, Art Annex)
-  anchor via pin fallback (connectors ≤ 30 m), not OSM entrance nodes.
-- Off-campus registry entries (AFROTC, Discovery Park, MGV P) resolve as
-  buildings but are excluded from walkway routing by design.
-`;
-
-writeFileSync(join(HERE, "verification-report.md"), report);
 
 console.log(`fixture: ${fixtureSummary.routed}/${fixtureSummary.total} routed, median |err| ${fixtureSummary.medianAbsErrorPct}%`);
 console.log(`measured routes: ${measuredRoutes.length}/20`);
 console.log(`route latency p95: ${routeLatency.p95} ms (gate 200) — ${gate.pass ? "PASS" : "FAIL"}`);
 console.log(`matrix lookup p95: ${matrixLatency.p95} µs`);
-console.log("wrote verification-evidence.json + verification-report.md");
+console.log("wrote verification-evidence.json (verification-report.md is edited by hand from the evidence files)");

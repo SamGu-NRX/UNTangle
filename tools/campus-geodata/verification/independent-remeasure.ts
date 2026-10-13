@@ -80,11 +80,13 @@ const WALK_SPEED_MPS = 1.4; // speeds.ts WALKING_SPEED_MPS
 const STEPS_SPEED_MPS = 0.6; // speeds.ts STEPS_SPEED_MPS
 const SNAP_MAX_METERS = 250; // speeds.ts SNAP_MAX_METERS
 
-// Plan bar (docs/plan/untangle-plan.md, "Evals that decide best", routing
-// suite): distance error on hand-measured routes — median ≤10%, max ≤20%.
-// Applied here to recorded-vs-remeasured deltas for both seconds and meters.
-const BAR_MEDIAN_ABS_PCT = 10;
-const BAR_MAX_ABS_PCT = 20;
+// This is a reproduction check, not an accuracy check: it rebuilds the same
+// model from the same raw data, so an honest pipeline reproduces every number
+// up to the runtime's output rounding (seconds to the whole second, meters to
+// 0.1 m). Anything larger is a defect. Accuracy against hand-measured routes
+// is judged only by spot-check-fixture.ts on the independent eval fixture.
+const REPRODUCE_SECONDS_TOLERANCE = 1;
+const REPRODUCE_METERS_TOLERANCE = 0.1 + 1e-9;
 
 // The 20 pairs, in report §2 order (bench-routing.ts MEASURED_PAIRS).
 const MEASURED_PAIRS: Array<[string, string]> = [
@@ -531,11 +533,13 @@ function main() {
       deltaSeconds,
       deltaSecondsPct,
       deltaMetersPct,
-      secondsWithinBar: Math.abs(deltaSecondsPct) <= BAR_MAX_ABS_PCT,
+      reproduced:
+        Math.abs(mine.durationSeconds - recorded.durationSeconds) <= REPRODUCE_SECONDS_TOLERANCE &&
+        Math.abs(mine.networkMeters - recorded.networkMeters) <= REPRODUCE_METERS_TOLERANCE,
     };
   });
 
-  // 5. Bar check (plan routing bar: median abs ≤10%, max abs ≤20%).
+  // 5. Reproduction gate: every pair, seconds AND meters, within rounding.
   const absSecondPcts = rows.map((r) => Math.abs(r.deltaSecondsPct));
   const absMeterPcts = rows.map((r) => Math.abs(r.deltaMetersPct));
   const secondsSummary = {
@@ -551,9 +555,11 @@ function main() {
     medianAbsDeltaPct: Number(median(absMeterPcts).toFixed(2)),
     maxAbsDeltaPct: Number(Math.max(...absMeterPcts).toFixed(2)),
   };
-  const barPass = secondsSummary.medianAbsDeltaPct <= BAR_MEDIAN_ABS_PCT && secondsSummary.maxAbsDeltaPct <= BAR_MAX_ABS_PCT;
-
-  const overBar = rows.filter((r) => !r.secondsWithinBar);
+  const mismatched = rows.filter((r) => !r.reproduced);
+  // A reconstruction that no longer matches the committed graph, or could not
+  // be compared at all, means the rows above were not produced by the
+  // committed pipeline, so the check cannot pass.
+  const reproduced = mismatched.length === 0 && matchesCommitted === true;
 
   const results = {
     generatedAt: new Date().toISOString(),
@@ -577,13 +583,19 @@ function main() {
       largestComponentShare: Number(graph.largestComponentShare.toFixed(4)),
       matchesCommittedWalkwaysJson: matchesCommitted,
     },
-    errorBar: {
-      source: "docs/plan/untangle-plan.md, routing suite: median error ≤10% and max ≤20%",
-      appliedTo: "recorded vs independently re-measured seconds (and network meters), per §2 pair",
-      medianMaxPct: BAR_MEDIAN_ABS_PCT,
-      maxMaxPct: BAR_MAX_ABS_PCT,
+    reproductionGate: {
+      kind: "reproduction of the same model from the same raw snapshot; this is not plan accuracy",
+      accuracyIsJudgedBy: "tools/campus-geodata/spot-check-fixture.ts against the independent eval fixture",
+      secondsTolerance: REPRODUCE_SECONDS_TOLERANCE,
+      metersTolerance: 0.1,
+      alsoRequires: "reconstruction matches the committed walkways.json",
     },
-    comparison: { bySeconds: secondsSummary, byNetworkMeters: metersSummary, barPass, overBarPairs: overBar.map((r) => `${r.from}->${r.to}`) },
+    comparison: {
+      bySeconds: secondsSummary,
+      byNetworkMeters: metersSummary,
+      reproduced,
+      mismatchedPairs: mismatched.map((r) => `${r.from}->${r.to}`),
+    },
     rows,
     warnings,
   };
@@ -613,10 +625,19 @@ function main() {
   console.log("");
   console.log(`seconds: exact ${secondsSummary.exact}/${secondsSummary.n}, median |Δ| ${secondsSummary.medianAbsDeltaPct}%, max |Δ| ${secondsSummary.maxAbsDeltaPct}%`);
   console.log(`network meters: exact ${metersSummary.exact}/${secondsSummary.n}, median |Δ| ${metersSummary.medianAbsDeltaPct}%, max |Δ| ${metersSummary.maxAbsDeltaPct}%`);
-  console.log(`plan bar (median ≤${BAR_MEDIAN_ABS_PCT}%, max ≤${BAR_MAX_ABS_PCT}%): ${barPass ? "PASS" : "FAIL"}`);
-  if (overBar.length > 0) console.log(`over bar: ${overBar.map((r) => `${r.from}->${r.to} (${r.deltaSecondsPct}%)`).join(", ")}`);
+  console.log(
+    `reproduction (|Δs| ≤ ${REPRODUCE_SECONDS_TOLERANCE} s and |Δm| ≤ 0.1 m on every pair, graph matches committed): ${reproduced ? "PASS" : "FAIL"}`,
+  );
+  if (mismatched.length > 0) {
+    console.log(
+      `not reproduced: ${mismatched.map((r) => `${r.from}->${r.to} (Δs ${r.deltaSeconds}, Δm ${r.deltaMetersPct}%)`).join(", ")}`,
+    );
+  }
+  if (matchesCommitted !== true) console.log("reconstruction does not match the committed walkways.json");
+  console.log("accuracy is not judged here; see spot-check-fixture.ts");
   console.log(`digest: ${digest}`);
   console.log(`wrote ${OUT_JSON}`);
+  return reproduced ? 0 : 1;
 }
 
-main();
+process.exit(main());

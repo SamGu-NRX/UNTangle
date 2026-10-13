@@ -98,13 +98,23 @@ steps meters, and road crossings — 20/20 at Δ = 0.0 s and Δ = 0.0 m.
 | wh | env | 635 | 635 | 0.0 | 0.00% | 836.2 | 836.2 | 0.00% | 0 | 5 |
 | uu | gate | 652 | 652 | 0.0 | 0.00% | 823.4 | 823.4 | 0.00% | 20.4 | 2 |
 
-**Plan bar** (`docs/plan/untangle-plan.md`, routing suite: median error ≤10%,
-max ≤20%): median |Δ| **0.00%**, max |Δ| **0.00%** — **PASS**, no pair over the
-bar, no outliers to explain.
+**Reproduction:** median |Δ| **0.00%**, max |Δ| **0.00%** on seconds and on
+network meters; all 20 pairs reproduce exactly. The script gates this: every
+pair must agree within the runtime's output rounding (1 s, 0.1 m) on seconds
+*and* meters, and the rebuilt graph must match the committed `walkways.json`;
+otherwise it exits 1.
 
-**Reproducibility:** the script ran twice; both runs exited 0, printed identical
-tables, and wrote identical timestamp-free digests
-(`digest: 652f791af7977acd` in `remeasure-results.json`).
+This is not the plan's accuracy bar. It rebuilds the same model from the same
+raw data, so it shows the recorded numbers are faithful products of that model,
+not that the model matches real walks. Accuracy is gated only on the independent
+eval fixture (`spot-check-fixture.ts`, reported in `verification-report.md` §1),
+and that gate currently **fails**: maximum error 45.5%, with aud→hick (+45.5%)
+and aud→sage (−24.0%) over the 20% bar.
+
+**Reproducibility:** before the gate rewrite the script ran twice with identical
+tables and timestamp-free digests (`652f791af7977acd`). The rewrite renamed fields
+in `remeasure-results.json`; its first run under the new gate exited 0 with digest
+`3d3ea76d22ecf3f2`.
 
 ## Verdict
 
@@ -126,7 +136,7 @@ README; neither affects the agreement measured here.
 ## Reproduce
 
 ```bash
-bun tools/campus-geodata/verification/independent-remeasure.ts   # exit 0 ×2
+bun tools/campus-geodata/verification/independent-remeasure.ts   # exit 0 when every pair reproduces
 cd frontend && bun x tsc --noEmit                                # exit 0, no errors
 ```
 

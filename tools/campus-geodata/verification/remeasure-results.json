@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T21:26:58.819Z",
+  "generatedAt": "2026-10-13T12:15:03.881Z",
   "script": "tools/campus-geodata/verification/independent-remeasure.ts",
   "standalone": true,
   "importsFromFrontend": false,
@@ -20,11 +20,12 @@
     "largestComponentShare": 0.9953,
     "matchesCommittedWalkwaysJson": true
   },
-  "errorBar": {
-    "source": "docs/plan/untangle-plan.md, routing suite: median error ≤10% and max ≤20%",
-    "appliedTo": "recorded vs independently re-measured seconds (and network meters), per §2 pair",
-    "medianMaxPct": 10,
-    "maxMaxPct": 20
+  "reproductionGate": {
+    "kind": "reproduction of the same model from the same raw snapshot; this is not plan accuracy",
+    "accuracyIsJudgedBy": "tools/campus-geodata/spot-check-fixture.ts against the independent eval fixture",
+    "secondsTolerance": 1,
+    "metersTolerance": 0.1,
+    "alsoRequires": "reconstruction matches the committed walkways.json"
   },
   "comparison": {
     "bySeconds": {
@@ -40,8 +41,8 @@
       "medianAbsDeltaPct": 0,
       "maxAbsDeltaPct": 0
     },
-    "barPass": true,
-    "overBarPairs": []
+    "reproduced": true,
+    "mismatchedPairs": []
   },
   "rows": [
     {
@@ -71,7 +72,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "sage",
@@ -100,7 +101,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "sage",
@@ -129,7 +130,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "sage",
@@ -158,7 +159,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "sage",
@@ -187,7 +188,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "chem",
@@ -216,7 +217,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "chem",
@@ -245,7 +246,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "chem",
@@ -274,7 +275,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "chem",
@@ -303,7 +304,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "chem",
@@ -332,7 +333,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "life",
@@ -361,7 +362,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "life",
@@ -390,7 +391,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "life",
@@ -419,7 +420,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "life",
@@ -448,7 +449,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "life",
@@ -477,7 +478,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "matt",
@@ -506,7 +507,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "matt",
@@ -535,7 +536,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "gab",
@@ -564,7 +565,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "wh",
@@ -593,7 +594,7 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     },
     {
       "from": "uu",
@@ -622,9 +623,9 @@
       "deltaSeconds": 0,
       "deltaSecondsPct": 0,
       "deltaMetersPct": 0,
-      "secondsWithinBar": true
+      "reproduced": true
     }
   ],
   "warnings": [],
-  "digest": "652f791af7977acd"
+  "digest": "3d3ea76d22ecf3f2"
 }
