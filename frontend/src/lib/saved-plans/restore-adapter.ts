@@ -377,6 +377,7 @@ export function workingStateFingerprint(state: PlannerState): string {
       selectedMajor: state.selectedMajor,
       transcriptRecords: state.transcriptRecords,
       lockedSections: state.lockedSections ?? {},
+      coursePlan: state.coursePlan ?? null,
     }),
   );
 }

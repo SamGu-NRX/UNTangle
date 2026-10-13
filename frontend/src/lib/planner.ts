@@ -15,6 +15,7 @@ import {
   isValidCourseStatus,
   isValidOptimization,
   isValidWeekDay,
+  sanitizeCoursePlan,
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
 import { compareAcademicTerms } from "@/lib/term-chronology";
@@ -76,15 +77,31 @@ export function getSectionsForCourse(courseCode: string) {
   return sections.filter((section) => section.courseCode === courseCode);
 }
 
-export function getActiveCourseCodes(state: PlannerState) {
+/**
+ * Courses in the plan for the planning term: `inProgress` with no current
+ * transcript row. `inProgress` with an in-progress transcript row is a
+ * course the student is taking this term; it is not scheduled, mapped or
+ * counted in the plan's credits.
+ */
+export function getPlanningTermCourseCodes(state: PlannerState) {
   const courseStatuses = {
     ...defaultPlannerState.courseStatuses,
     ...(state.courseStatuses ?? {}),
   };
+  const takingNow = new Set(
+    (state.transcriptRecords ?? [])
+      .filter((record) => !record.duplicateExcluded && record.appliedStatus === "inProgress")
+      .map((record) => record.code),
+  );
 
   return courses
-    .filter((course) => courseStatuses[course.code] === "inProgress")
+    .filter((course) => courseStatuses[course.code] === "inProgress" && !takingNow.has(course.code))
     .map((course) => course.code);
+}
+
+/** @deprecated Same as getPlanningTermCourseCodes; kept so existing callers compile. */
+export function getActiveCourseCodes(state: PlannerState) {
+  return getPlanningTermCourseCodes(state);
 }
 
 /**
@@ -232,7 +249,7 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
     updatedAt:
       typeof state.updatedAt === "string" ? state.updatedAt : defaultPlannerState.updatedAt,
   };
-  const activeCourseCodes = getActiveCourseCodes(merged);
+  const activeCourseCodes = getPlanningTermCourseCodes(merged);
   const activeCourseCodeSet = new Set(activeCourseCodes);
   const preservedSelections = Object.fromEntries(
     Object.entries(merged.selectedSections).filter(([courseCode, sectionId]) =>
@@ -256,6 +273,7 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
     selectedMajor,
     selectedSections: recommended,
     lockedSections,
+    coursePlan: sanitizeCoursePlan(state.coursePlan, (code) => catalogCourseCodes.has(code)),
   };
 }
 
@@ -278,7 +296,7 @@ export function sectionNumber(sectionId: string): string {
 
 export function buildScheduleEvents(state: PlannerState): ScheduleEvent[] {
   const normalized = normalizePlannerState(state);
-  const activeCourseCodes = getActiveCourseCodes(normalized);
+  const activeCourseCodes = getPlanningTermCourseCodes(normalized);
 
   return activeCourseCodes.flatMap((courseCode) => {
     const selectedSectionId = normalized.selectedSections[courseCode];
@@ -396,7 +414,7 @@ export function formatTime(value: string) {
 }
 
 export function summarizeCredits(state: PlannerState) {
-  return getActiveCourseCodes(state).reduce((total, courseCode) => {
+  return getPlanningTermCourseCodes(state).reduce((total, courseCode) => {
     const course = getCourseByCode(courseCode);
     return total + (course?.creditHours ?? 0);
   }, 0);
@@ -405,7 +423,7 @@ export function summarizeCredits(state: PlannerState) {
 export function getUnscheduledActiveCourses(state: PlannerState): Course[] {
   const normalized = normalizePlannerState(state);
 
-  return getActiveCourseCodes(normalized)
+  return getPlanningTermCourseCodes(normalized)
     .filter((courseCode) => {
       const selectedSectionId = normalized.selectedSections[courseCode];
       return !sections.some((section) => section.courseCode === courseCode && section.id === selectedSectionId);

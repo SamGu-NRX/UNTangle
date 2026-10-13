@@ -125,7 +125,10 @@ export const plannedCourseCodes = courses
   .map((course) => course.code);
 
 export const defaultPlannerState: PlannerState = {
-  courseStatuses: data.courseStatuses as PlannerState["courseStatuses"],
+  // A fresh guest starts with nothing done or planned: every catalog course
+  // is notTaken. The bundle's courseStatuses also marked two courses done and
+  // one in progress, which was v1 demo data.
+  courseStatuses: Object.fromEntries(courses.map((course) => [course.code, "notTaken" as const])),
   selectedSections: {},
   optimization: "clusterMorning",
   activeDay: "Mon",

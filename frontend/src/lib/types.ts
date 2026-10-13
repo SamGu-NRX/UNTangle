@@ -184,6 +184,31 @@ export type TranscriptImportSummary = {
   extractionMode: "text" | "rendered-pages" | "local";
 };
 
+/** One Auto-fill run, kept with the plan so Undo survives a reload. */
+export type AutoTransaction = {
+  id: string;
+  at: string;
+  /** The major Auto planned for; Undo is refused after the major changes. */
+  major: MajorId | null;
+  /** Every status Auto changed, with the value it replaced. */
+  changes: Array<{ code: string; from: CourseStatus; to: CourseStatus }>;
+  /** `autoPlanned` before the run, restored by Undo. */
+  autoPlannedBefore: string[];
+  /** The AutoNote sentence. */
+  summary: string;
+  /** Core courses Auto left for an advisor check. */
+  needsCheck: string[];
+};
+
+/** Courses-view facts that belong to the plan, not to the browser. */
+export type CoursePlan = {
+  /** "I have credit for this": credit the student asserts, whatever the transcript shows. */
+  manualCredit: string[];
+  /** Courses Auto-fill put in the plan, as opposed to ones planned by hand. */
+  autoPlanned: string[];
+  lastAuto: AutoTransaction | null;
+};
+
 export type PlannerState = {
   courseStatuses: Record<string, CourseStatus>;
   selectedSections: Record<string, string>;
@@ -199,6 +224,8 @@ export type PlannerState = {
    * it (missing becomes no locks).
    */
   lockedSections?: Record<string, string>;
+  /** Optional so plans saved before it existed still load; normalize always sets it. */
+  coursePlan?: CoursePlan;
 };
 
 export type PlannerApiPayload = PlannerState & {

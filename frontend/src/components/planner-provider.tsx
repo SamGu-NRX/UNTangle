@@ -32,6 +32,7 @@ import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import { notifySessionExpired, onSessionRestored } from "@/lib/session-events";
 import { courses } from "@/lib/seed-data";
 import type {
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -108,6 +109,16 @@ type PlannerContextValue = {
   lockedCourses: Set<string>;
   isLocked: (courseCode: string) => boolean;
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
+  /**
+   * One atomic Courses-view edit: statuses and `coursePlan` change together,
+   * so Auto-fill, its Undo and manual credit never save half-applied.
+   */
+  updateCoursePlan: (
+    update: (current: { courseStatuses: Record<string, CourseStatus>; coursePlan: CoursePlan }) => {
+      courseStatuses?: Record<string, CourseStatus>;
+      coursePlan?: CoursePlan;
+    },
+  ) => void;
   applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setOptimization: (optimization: OptimizationKey) => void;
   setSection: (courseCode: string, sectionId: string) => void;
@@ -855,6 +866,21 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
               : current.transcriptRecords,
           updatedAt: new Date().toISOString(),
         }));
+      },
+      updateCoursePlan: (update) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => {
+          const coursePlan = current.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
+          const next = update({ courseStatuses: current.courseStatuses, coursePlan });
+          return {
+            ...current,
+            courseStatuses: next.courseStatuses ?? current.courseStatuses,
+            coursePlan: next.coursePlan ?? coursePlan,
+            updatedAt: new Date().toISOString(),
+          };
+        });
       },
       applyTranscriptRecords: (records) => {
         if (!hydrated) {

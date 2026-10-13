@@ -143,6 +143,7 @@ describe("lock control in the planner", () => {
 
   async function takeCourses(planner: Awaited<ReturnType<typeof mountWithLocks>>) {
     await planner.run((p) => {
+      p.setCourseStatus("MATH 1710", "inProgress");
       p.setCourseStatus("ANTH 1010", "inProgress");
       p.setCourseStatus("CSCE 1030", "inProgress");
     });

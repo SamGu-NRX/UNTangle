@@ -1,6 +1,8 @@
 import { majors } from "@/lib/seed-data";
 import { weekDays } from "@/lib/types";
 import type {
+  AutoTransaction,
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -91,6 +93,11 @@ export function validatePlannerStatePayload(
     return { ok: false, reason: "lockedSections must map course codes to section id strings when present." };
   }
 
+  // Optional: plans saved before the Courses v2 view have no field.
+  if (body.coursePlan !== undefined && body.coursePlan !== null && !isRecord(body.coursePlan)) {
+    return { ok: false, reason: "coursePlan must be an object when present." };
+  }
+
   if (body.updatedAt !== undefined && typeof body.updatedAt !== "string") {
     return { ok: false, reason: "updatedAt must be a string when present." };
   }
@@ -123,6 +130,52 @@ function isWellFormedTranscriptRecord(record: unknown): record is PlannerState["
     typeof record.sourceKind === "string" &&
     validSourceKinds.has(record.sourceKind as TranscriptSourceKind)
   );
+}
+
+const emptyCoursePlan = (): CoursePlan => ({ manualCredit: [], autoPlanned: [], lastAuto: null });
+
+/**
+ * Keeps only well-formed Courses-view plan facts for known course codes.
+ * Anything malformed is dropped rather than trusted: the worst case is a
+ * lost Undo or provenance mark, never a status the student did not choose.
+ */
+export function sanitizeCoursePlan(value: unknown, isCourse: (code: string) => boolean): CoursePlan {
+  if (!isRecord(value)) return emptyCoursePlan();
+  const codes = (list: unknown) =>
+    Array.isArray(list) ? [...new Set(list.filter((code): code is string => typeof code === "string" && isCourse(code)))] : [];
+  const raw = value.lastAuto;
+  let lastAuto: AutoTransaction | null = null;
+  if (
+    isRecord(raw) &&
+    typeof raw.id === "string" &&
+    typeof raw.at === "string" &&
+    typeof raw.summary === "string" &&
+    (raw.major === null || isValidMajorId(raw.major)) &&
+    Array.isArray(raw.changes) &&
+    raw.changes.every(
+      (change) =>
+        isRecord(change) &&
+        typeof change.code === "string" &&
+        isCourse(change.code) &&
+        isValidCourseStatus(change.from) &&
+        isValidCourseStatus(change.to),
+    )
+  ) {
+    lastAuto = {
+      id: raw.id,
+      at: raw.at,
+      major: raw.major as MajorId | null,
+      changes: (raw.changes as Array<Record<string, unknown>>).map((change) => ({
+        code: change.code as string,
+        from: change.from as CourseStatus,
+        to: change.to as CourseStatus,
+      })),
+      autoPlannedBefore: codes(raw.autoPlannedBefore),
+      summary: raw.summary,
+      needsCheck: codes(raw.needsCheck),
+    };
+  }
+  return { manualCredit: codes(value.manualCredit), autoPlanned: codes(value.autoPlanned), lastAuto };
 }
 
 export function sanitizeTranscriptRecords(
