@@ -1,5 +1,6 @@
 "use client";
 
+import { activeCampus, campusById } from "@/lib/campus/config";
 import dynamic from "next/dynamic";
 import {
   useCallback,
@@ -60,10 +61,11 @@ function revealRow(container: HTMLElement | null, row: HTMLElement | undefined, 
   if (target !== null) container.scrollTo({ top: Math.max(0, target), behavior: smooth ? "smooth" : "auto" });
 }
 
-export function MapClient() {
+export function MapClient({ campusId = activeCampus.id }: { campusId?: string }) {
+  const campus = campusById(campusId);
   const { plannerState, routeStops, setActiveDay, hydrated } = usePlanner();
   const activeDay = plannerState.activeDay;
-  const stops = useMemo(() => routeStops[activeDay] ?? [], [activeDay, routeStops]);
+  const stops = useMemo(() => campus.id === activeCampus.id ? routeStops[activeDay] ?? [] : [], [activeDay, routeStops, campus.id]);
   const itinerary = useItinerary(stops);
 
   const isPhone = useMediaQuery("(max-width: 720px)");
@@ -78,8 +80,8 @@ export function MapClient() {
   const rows = useRef(new Map<string, HTMLElement>());
 
   const counts = useMemo(
-    () => Object.fromEntries(weekDays.map((day) => [day, (routeStops[day] ?? []).length])) as Record<WeekDay, number>,
-    [routeStops],
+    () => Object.fromEntries(weekDays.map((day) => [day, (campus.id === activeCampus.id ? routeStops[day] ?? [] : []).length])) as Record<WeekDay, number>,
+    [routeStops, campus.id],
   );
   const firstDayWithClasses = weekDays.find((day) => counts[day] > 0);
 
@@ -184,6 +186,8 @@ export function MapClient() {
     >
       <h1 className="mv-visually-hidden">Campus map</h1>
       <MapCanvas
+        key={campus.id}
+        campus={campus}
         itinerary={itinerary}
         selection={selection}
         onSelect={select}

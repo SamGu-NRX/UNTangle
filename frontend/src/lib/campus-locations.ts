@@ -402,10 +402,19 @@ function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
 
-export function normalizeLocationLabel(value: string) {
+export const untNameCleanupWords = ["university of north texas", "unt", "denton", "tx", "texas"];
+
+export function normalizeLocationLabel(value: string, cleanupWords: readonly string[] = untNameCleanupWords) {
+  const escaped = cleanupWords.map(word => word
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   return value
     .toLowerCase()
-    .replace(/\b(university of north texas|unt|denton|tx|texas)\b/g, " ")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(escaped.length ? new RegExp(`\\b(${escaped.join("|")})\\b`, "g") : /$^/, " ")
     .replace(/\b(bldg|bld)\b/g, "building")
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, " ")
@@ -427,17 +436,17 @@ function stripRoomSuffix(value: string) {
   return tokens.join(" ");
 }
 
-function codeKeys(value: string) {
+function codeKeys(value: string, cleanupWords: readonly string[] = untNameCleanupWords) {
   const raw = value.toUpperCase();
   const parenthetical = [...raw.matchAll(/\(([A-Z0-9]{2,6})\)/g)].map((match) => match[1]);
   const leading = raw.match(/^\s*([A-Z]{2,6})\b/)?.[1];
-  return unique([...parenthetical, leading ?? ""]).map(normalizeLocationLabel);
+  return unique([...parenthetical, leading ?? ""]).map(value => normalizeLocationLabel(value, cleanupWords));
 }
 
-function aliasLocationKeys(value: string) {
+function aliasLocationKeys(value: string, cleanupWords: readonly string[] = untNameCleanupWords) {
   const withoutParenthetical = value.replace(/\([^)]*\)/g, " ");
-  const normalized = normalizeLocationLabel(value);
-  const normalizedWithoutParenthetical = normalizeLocationLabel(withoutParenthetical);
+  const normalized = normalizeLocationLabel(value, cleanupWords);
+  const normalizedWithoutParenthetical = normalizeLocationLabel(withoutParenthetical, cleanupWords);
 
   return unique([
     normalized,
@@ -447,8 +456,8 @@ function aliasLocationKeys(value: string) {
   ]);
 }
 
-function baseLocationKeys(value: string) {
-  return unique([...aliasLocationKeys(value), ...codeKeys(value)]);
+function baseLocationKeys(value: string, cleanupWords: readonly string[] = untNameCleanupWords) {
+  return unique([...aliasLocationKeys(value, cleanupWords), ...codeKeys(value, cleanupWords)]);
 }
 
 export function normalizeCampusLocationKey(value: string) {
@@ -509,7 +518,7 @@ export type CampusResolver = {
   resolveLocation: (location: string, buildingId?: string | null) => CampusBuilding | null;
 };
 
-export function createCampusResolver(buildings: readonly CampusBuilding[], bounds: Bounds): CampusResolver {
+export function createCampusResolver(buildings: readonly CampusBuilding[], bounds: Bounds, cleanupWords: readonly string[] = []): CampusResolver {
   const aliasMap = new Map(
     buildings.flatMap((building) =>
       unique([
@@ -519,13 +528,13 @@ export function createCampusResolver(buildings: readonly CampusBuilding[], bound
         building.name,
         building.buildingNumber ?? "",
         ...(building.aliases ?? []),
-      ]).flatMap((alias) => aliasLocationKeys(alias).map((key) => [key, building] as const)),
+      ]).flatMap((alias) => aliasLocationKeys(alias, cleanupWords).map((key) => [key, building] as const)),
     ),
   );
 
   const resolveBuilding = (location: string, buildingId?: string | null) => {
     const idMatch = buildingId
-      ? baseLocationKeys(buildingId)
+      ? baseLocationKeys(buildingId, cleanupWords)
           .map((key) => aliasMap.get(key))
           .find(Boolean)
       : undefined;
@@ -533,7 +542,7 @@ export function createCampusResolver(buildings: readonly CampusBuilding[], bound
       return idMatch;
     }
     return (
-      baseLocationKeys(location)
+      baseLocationKeys(location, cleanupWords)
         .map((key) => aliasMap.get(key))
         .find(Boolean) ?? null
     );
@@ -551,7 +560,7 @@ export function createCampusResolver(buildings: readonly CampusBuilding[], bound
 }
 
 /** UNT Denton's resolver, for code that is UNT-specific (the planner, the walking matrix). */
-const untResolver = createCampusResolver(campusBuildings, untCampusBounds);
+const untResolver = createCampusResolver(campusBuildings, untCampusBounds, untNameCleanupWords);
 
 export function resolveCampusBuilding(location: string, buildingId?: string | null) {
   return untResolver.resolveBuilding(location, buildingId);
