@@ -1,0 +1,259 @@
+/**
+ * Brute-force reference for the optimizer, written from the contract in
+ * src/lib/optimizer/types.ts and the numbers in score.ts's doc comment, and
+ * sharing no code with the engine: every constant below is written out
+ * again on purpose, so a changed constant in the engine is a disagreement.
+ *
+ * It enumerates every combination of one section per course, so it is only
+ * usable on small instances.
+ */
+
+import type { ExplainMember, OptCourse, OptDay, OptimizeRequest, OptSection, OptWeights } from "@/lib/optimizer/types";
+
+const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const UNKNOWN_WALK = 600;
+
+export type RefSchedule = {
+  sections: OptSection[];
+  byCourse: Record<string, string>;
+  cost: number;
+  key: string[];
+  breakdown: {
+    daysOnCampus: number;
+    gapMinutes: number;
+    walkSeconds: number;
+    unknownWalks: number;
+    earliestStart: number | null;
+    latestEnd: number | null;
+    credits: number;
+  };
+};
+
+function walkBetween(request: OptimizeRequest, a: string | null, b: string | null): number | null {
+  if (a !== null && b !== null && a === b) return 0;
+  if (a === null || b === null) return null;
+  const leg = request.walkingTime(a, b);
+  return leg.source === "unknown" ? null : leg.seconds;
+}
+
+/** Every hard-constraint violation of a complete selection, as readable strings. */
+export function violations(request: OptimizeRequest, chosen: OptSection[]): string[] {
+  const problems: string[] = [];
+  const c = request.constraints;
+  const codes = request.courses.map((course) => course.code);
+  const chosenCodes = chosen.map((section) => section.courseCode);
+  if ([...chosenCodes].sort().join() !== [...codes].sort().join()) problems.push("not exactly one section per course");
+  for (const section of chosen) {
+    const course = request.courses.find((entry) => entry.code === section.courseCode);
+    if (!course || !course.sections.some((entry) => entry.id === section.id)) problems.push(`${section.id} not offered`);
+    if (request.excluded.includes(section.id)) problems.push(`${section.id} excluded`);
+    const lock = request.locks[section.courseCode];
+    if (lock !== undefined && lock !== section.id) problems.push(`${section.courseCode} lock broken`);
+    for (const m of section.meetings) {
+      if (c.earliestStart !== null && m.start < c.earliestStart) problems.push(`${section.id} starts too early`);
+      if (c.latestEnd !== null && m.end > c.latestEnd) problems.push(`${section.id} ends too late`);
+      if (c.daysOff.includes(m.day)) problems.push(`${section.id} on a day off`);
+      for (const b of c.blocked) {
+        if (b.day === m.day && m.start < b.end && b.start < m.end) problems.push(`${section.id} hits ${b.id}`);
+      }
+    }
+  }
+  const all = chosen.flatMap((section) => section.meetings.map((m) => ({ ...m, owner: section.id })));
+  for (let i = 0; i < all.length; i += 1) {
+    for (let j = i + 1; j < all.length; j += 1) {
+      const a = all[i];
+      const b = all[j];
+      if (a.day === b.day && a.start < b.end && b.start < a.end) problems.push(`overlap ${a.owner} ${b.owner}`);
+    }
+  }
+  if (c.maxCredits !== null) {
+    const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, 0);
+    if (credits > c.maxCredits) problems.push("too many credits");
+  }
+  if (c.walking !== null) {
+    for (const day of DAYS) {
+      const list = all.filter((m) => m.day === day).sort((a, b) => a.start - b.start);
+      for (let i = 1; i < list.length; i += 1) {
+        const prev = list[i - 1];
+        const next = list[i];
+        if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
+        const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
+        if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
+      }
+    }
+  }
+  return problems;
+}
+
+function neutralTenths(course: OptCourse): number {
+  const present = course.sections.filter((s) => s.rating !== null).map((s) => Math.max(0, Math.min(50, Math.round(s.rating! * 10))));
+  return present.length === 0 ? 30 : Math.round(present.reduce((a, b) => a + b, 0) / present.length);
+}
+
+export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): Pick<RefSchedule, "cost" | "breakdown"> {
+  const w: OptWeights = request.weights;
+  const all = chosen.flatMap((section) => section.meetings);
+  let gap = 0;
+  let walk = 0;
+  let unknown = 0;
+  const days = new Set<string>();
+  for (const day of DAYS) {
+    const list = all.filter((m) => m.day === day).sort((a, b) => a.start - b.start);
+    if (list.length > 0) days.add(day);
+    for (let i = 1; i < list.length; i += 1) {
+      gap += Math.max(0, list[i].start - list[i - 1].end);
+      if (list[i - 1].buildingId !== null && list[i - 1].buildingId === list[i].buildingId) continue;
+      const seconds = walkBetween(request, list[i - 1].buildingId, list[i].buildingId);
+      if (seconds === null) unknown += 1;
+      else walk += seconds;
+    }
+  }
+  let cost = w.fewerDays * 3600 * days.size + w.compact * 60 * gap + w.walking * (walk + 600 * unknown);
+  for (const section of chosen) {
+    const n = section.meetings.length;
+    const meanStart = Math.round(section.meetings.reduce((a, m) => a + m.start, 0) / n);
+    const meanEnd = Math.round(section.meetings.reduce((a, m) => a + m.end, 0) / n);
+    cost += 20 * (w.mornings * Math.max(0, meanStart - 420) + w.evenings * Math.max(0, 1320 - meanEnd));
+    const course = request.courses.find((entry) => entry.code === section.courseCode)!;
+    const tenths = section.rating === null ? neutralTenths(course) : Math.max(0, Math.min(50, Math.round(section.rating * 10)));
+    cost += w.rating * (50 - tenths) * 180;
+  }
+  return {
+    cost,
+    breakdown: {
+      daysOnCampus: days.size,
+      gapMinutes: gap,
+      walkSeconds: walk,
+      unknownWalks: unknown,
+      earliestStart: all.length ? Math.min(...all.map((m) => m.start)) : null,
+      latestEnd: all.length ? Math.max(...all.map((m) => m.end)) : null,
+      credits: chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, 0),
+    },
+  };
+}
+
+function timePattern(section: OptSection): string {
+  return section.meetings.map((m) => `${m.day} ${m.start} ${m.end}`).sort().join(";");
+}
+
+/** The contract's diversity threshold, recomputed from its definition. */
+export function referenceMinDifferent(request: OptimizeRequest): number {
+  const c = request.constraints;
+  let variable = 0;
+  for (const course of request.courses) {
+    const lock = request.locks[course.code];
+    const patterns = new Set(
+      course.sections
+        .filter((s) => !request.excluded.includes(s.id) && (lock === undefined || s.id === lock))
+        .filter((s) =>
+          s.meetings.every(
+            (m) =>
+              (c.earliestStart === null || m.start >= c.earliestStart) &&
+              (c.latestEnd === null || m.end <= c.latestEnd) &&
+              !c.daysOff.includes(m.day) &&
+              c.blocked.every((b) => !(b.day === m.day && m.start < b.end && b.start < m.end)),
+          ),
+        )
+        .map(timePattern),
+    );
+    if (patterns.size >= 2) variable += 1;
+  }
+  return Math.max(1, Math.min(2, variable));
+}
+
+function compareKey(a: string[], b: string[]): number {
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  return 0;
+}
+
+/** Every valid schedule, best first. */
+export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
+  const courses = [...request.courses].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+  const out: RefSchedule[] = [];
+  const current: OptSection[] = [];
+  const walk = (index: number) => {
+    if (index === courses.length) {
+      if (violations(request, current).length > 0) return;
+      const { cost, breakdown } = referenceCost(request, current);
+      out.push({
+        sections: [...current],
+        byCourse: Object.fromEntries(current.map((s) => [s.courseCode, s.id])),
+        cost,
+        key: current.map((s) => s.id),
+        breakdown,
+      });
+      return;
+    }
+    for (const section of courses[index].sections) {
+      current.push(section);
+      walk(index + 1);
+      current.pop();
+    }
+  };
+  walk(0);
+  return out.sort((a, b) => a.cost - b.cost || compareKey(a.key, b.key));
+}
+
+/** Top k under the contract: best first, each next the best that differs enough from all picked. */
+export function referenceTopK(request: OptimizeRequest): { schedules: RefSchedule[]; minDifferent: number } {
+  const valid = enumerateValid(request);
+  const minDifferent = referenceMinDifferent(request);
+  const picked: RefSchedule[] = [];
+  const differing = (a: RefSchedule, b: RefSchedule) =>
+    a.sections.filter((s, i) => timePattern(s) !== timePattern(b.sections[i])).length;
+  for (const schedule of valid) {
+    if (picked.length === (request.k ?? 3)) break;
+    if (picked.every((other) => differing(schedule, other) >= minDifferent)) picked.push(schedule);
+  }
+  return { schedules: picked, minDifferent };
+}
+
+export function referenceFeasible(request: OptimizeRequest): boolean {
+  const courses = [...request.courses];
+  const current: OptSection[] = [];
+  const walk = (index: number): boolean => {
+    if (index === courses.length) return violations(request, current).length === 0;
+    for (const section of courses[index].sections) {
+      current.push(section);
+      if (walk(index + 1)) return true;
+      current.pop();
+    }
+    return false;
+  };
+  return walk(0);
+}
+
+/** Number of combinations the reference would enumerate. */
+export function combinationCount(request: OptimizeRequest): number {
+  return request.courses.reduce((product, course) => product * course.sections.length, 1);
+}
+
+/**
+ * The request with only the named members, per the contract: courses not
+ * named are dropped (with their locks and exclusions), constraints not named
+ * are off.
+ */
+export function referenceRestrict(request: OptimizeRequest, members: ExplainMember[]): OptimizeRequest {
+  const named = (predicate: (m: ExplainMember) => boolean) => members.some(predicate);
+  const courses = request.courses.filter((course) => named((m) => m.kind === "course" && m.courseCode === course.code));
+  const ids = new Set(courses.flatMap((course) => course.sections.map((s) => s.id)));
+  const c = request.constraints;
+  return {
+    ...request,
+    courses,
+    locks: Object.fromEntries(
+      Object.entries(request.locks).filter(
+        ([code]) => courses.some((course) => course.code === code) && named((m) => m.kind === "lock" && m.courseCode === code),
+      ),
+    ),
+    excluded: request.excluded.filter((id) => ids.has(id) && named((m) => m.kind === "excluded" && m.sectionId === id)),
+    constraints: {
+      earliestStart: named((m) => m.kind === "earliestStart") ? c.earliestStart : null,
+      latestEnd: named((m) => m.kind === "latestEnd") ? c.latestEnd : null,
+      daysOff: c.daysOff.filter((day) => named((m) => m.kind === "dayOff" && m.day === day)),
+      blocked: c.blocked.filter((b) => named((m) => m.kind === "blocked" && m.blockedId === b.id)),
+      maxCredits: named((m) => m.kind === "maxCredits") ? c.maxCredits : null,
+      walking: named((m) => m.kind === "walking") ? c.walking : null,
+    },
+  };
+}
