@@ -303,19 +303,19 @@
     "courseId": "BIOL4801",
     "source": "Completion of foundation requirements for a declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 must be completed. If these requirements are not met, department consent is required. Meets with BIOL 5800. Genetics course is recommended. May not be repeated at the graduate level as BIOL 5800.",
     "coverage": "partial",
-    "expected": "and(and(unknown,and(grade:C(BIOL 2041),grade:C(BIOL 2042),grade:C(CHEM 2380))),unknown,consent,unknown,unknown)"
+    "expected": "and(or(and(and(unknown,and(grade:C(BIOL 2041),grade:C(BIOL 2042),grade:C(CHEM 2380))),unknown),consent),unknown,unknown)"
   },
   {
     "courseId": "CHEM4900",
     "source": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each.",
     "coverage": "full",
-    "expected": "and(and(CHEM 3220,consent))"
+    "expected": "and(and(or(CHEM 3220,unknown),consent))"
   },
   {
     "courseId": "JAPN3042",
     "source": "JAPN 2050 or equivalent.",
     "coverage": "full",
-    "expected": "and(JAPN 2050)"
+    "expected": "and(or(JAPN 2050,unknown))"
   },
   {
     "courseId": "ANTH4011",
@@ -345,12 +345,72 @@
     "courseId": "SOCI3280",
     "source": "SOCI 3220 or equivalent Required of all sociology majors.",
     "coverage": "partial",
-    "expected": "and(and(SOCI 3220,unknown))"
+    "expected": "and(and(or(SOCI 3220,unknown),unknown))"
   },
   {
     "courseId": "BIOL4480",
     "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5840.",
     "coverage": "partial",
-    "expected": "and(and(unknown,and(or(and(grade:C(BIOL 3451),grade:C(BIOL 3452)),grade:C(BIOL 3350)),or(grade:C(CHEM 2380),grade:C(CHEM 3601)))),unknown,consent)"
+    "expected": "and(or(and(and(unknown,and(or(and(grade:C(BIOL 3451),grade:C(BIOL 3452)),grade:C(BIOL 3350)),or(grade:C(CHEM 2380),grade:C(CHEM 3601)))),unknown),consent))"
+  },
+  {
+    "courseId": "SPAN3001",
+    "source": "SPAN 2050 or its equivalent.",
+    "coverage": "full",
+    "expected": "and(or(SPAN 2050,unknown))"
+  },
+  {
+    "courseId": "ECON4030",
+    "source": "ECON 1100 and ECON 1110 ; ECON 4630 with a grade of C or better. ECON 4630 can be replaced with MATH 3680 or DSCI 3710 with a grade of C or better. May not be repeated at the graduate level as ECON 5080.",
+    "coverage": "full",
+    "expected": "and(and(and(ECON 1100,ECON 1110),or(grade:C(ECON 4630),or(grade:C(MATH 3680),grade:C(DSCI 3710)))))"
+  },
+  {
+    "courseId": "MEEN3210",
+    "source": "MEEN 3120 ; MEEN 3110 ; MEEN 3250 all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3120),grade:C(MEEN 3110),grade:C(MEEN 3250)))"
+  },
+  {
+    "courseId": "MEEN3230",
+    "source": "MATH 3410 ; MATH 2700 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),grade:C(MATH 2700),or(grade:C(MEEN 2302),grade:C(ENGR 2302))))"
+  },
+  {
+    "courseId": "MEEN3240",
+    "source": "MATH 3410 ; MEEN 2210 ; MEEN 2110 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),grade:C(MEEN 2210),grade:C(MEEN 2110)))"
+  },
+  {
+    "courseId": "MEEN4110",
+    "source": "MEEN 3110 ; MEEN 3210 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3110),grade:C(MEEN 3210)))"
+  },
+  {
+    "courseId": "MEEN4140",
+    "source": "MATH 3410 ; MEEN 2332 or ENGR 2332 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),or(grade:C(MEEN 2332),grade:C(ENGR 2332)),or(grade:C(MEEN 2302),grade:C(ENGR 2302))))"
+  },
+  {
+    "courseId": "MEEN4150",
+    "source": "EENG 2610 ; MEEN 3130 ; MEEN 3210 ; MEEN 3230 ; MEEN 3242 , all with a grade of C or better. Corequisite(s): MEEN 3100 .",
+    "coverage": "full",
+    "expected": "and(and(grade:C(EENG 2610),grade:C(MEEN 3130),grade:C(MEEN 3210),grade:C(MEEN 3230),grade:C(MEEN 3242)),coreq(MEEN 3100))"
+  },
+  {
+    "courseId": "MEEN4315",
+    "source": "MEEN 3110 ; MEEN 3120 ; MEEN 3210 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3110),grade:C(MEEN 3120),grade:C(MEEN 3210)))"
+  },
+  {
+    "courseId": "TECM4920",
+    "source": "TECM 2700 ; consent of department. May be repeated for credit.",
+    "coverage": "full",
+    "expected": "and(and(TECM 2700,consent))"
   }
 ]

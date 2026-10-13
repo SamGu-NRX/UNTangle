@@ -57,7 +57,7 @@ test("equivalence notes do not prevent the named course from satisfying the requ
   const parsed = parseUntPrerequisite(text);
   expect(parsed.annotations).toEqual(["Equivalent credit needs advisor confirmation: JAPN 2050 or equivalent"]);
   expect(assess(text, { transcript: [credit("JAPN 2050")] }).status).toBe("eligible");
-  expect(assess(text, { transcript: [credit("OTHER 2050")] }).status).toBe("locked");
+  expect(assess(text, { transcript: [credit("OTHER 2050")] }).status).toBe("unknown");
   expect(assess("CHEM 3220 or equivalent, and consent of directing professor", { transcript: [credit("CHEM 3220")] }).status).toBe("unknown");
 });
 
