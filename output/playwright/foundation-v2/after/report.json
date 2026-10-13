@@ -129,13 +129,13 @@
     "size": "desktop",
     "name": "/courses: 56px bar with the view switcher and search",
     "pass": true,
-    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\\n⌘K\",\"contentTop\":81,\"current\":\"Courses\",\"overflow\":0,\"wideInView\":[]}"
+    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\\nSearch courses\\n⌘K\",\"contentTop\":81,\"current\":\"Courses\",\"overflow\":0,\"wideInView\":[]}"
   },
   {
     "size": "desktop",
     "name": "/courses: search trigger shows ⌘K",
     "pass": true,
-    "detail": "Search courses\n⌘K"
+    "detail": "Search courses\nSearch courses\n⌘K"
   },
   {
     "size": "desktop",
@@ -170,7 +170,7 @@
     "size": "desktop",
     "name": "/schedule: 56px bar with the view switcher and search",
     "pass": true,
-    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"\",\"contentTop\":81,\"current\":\"Week\",\"overflow\":0,\"wideInView\":[]}"
+    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\",\"contentTop\":81,\"current\":\"Week\",\"overflow\":0,\"wideInView\":[]}"
   },
   {
     "size": "desktop",
@@ -205,7 +205,7 @@
     "size": "desktop",
     "name": "/map: 56px bar with the view switcher and search",
     "pass": true,
-    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"\",\"contentTop\":81,\"current\":\"Map\",\"overflow\":0,\"wideInView\":[\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\"]}"
+    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\",\"contentTop\":81,\"current\":\"Map\",\"overflow\":0,\"wideInView\":[\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\"]}"
   },
   {
     "size": "desktop",
@@ -244,6 +244,12 @@
     "size": "desktop",
     "name": "/map: full-page axe (view content belongs to its owner)",
     "info": []
+  },
+  {
+    "size": "desktop",
+    "name": "/plans: a copy saved from the plan chip appears in the library at once",
+    "pass": true,
+    "detail": "Plan 2026-10-13 08:50 listed 1x"
   },
   {
     "size": "desktop",
@@ -417,7 +423,7 @@
     "size": "phone",
     "name": "/courses: 48px bar, bottom tabs, no switcher in the bar",
     "pass": true,
-    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search courses⌘K\",\"contentTop\":65,\"current\":\"Courses\",\"overflow\":0,\"wideInView\":[\"header. \\\"Step 1 — Previous coursesMark the course\\\"\",\"div.surface-card \\\"Pick your major to see your core courses\\\"\",\"div.courses-tools \\\"All departmentsAll departmentsANTHBIOLBM\\\"\"]}"
+    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search coursesSearch courses⌘K\",\"contentTop\":65,\"current\":\"Courses\",\"overflow\":0,\"wideInView\":[\"header. \\\"Step 1 — Previous coursesMark the course\\\"\",\"div.surface-card \\\"Pick your major to see your core courses\\\"\",\"div.courses-tools \\\"All departmentsAll departmentsANTHBIOLBM\\\"\"]}"
   },
   {
     "size": "phone",
@@ -461,7 +467,7 @@
     "size": "phone",
     "name": "/schedule: 48px bar, bottom tabs, no switcher in the bar",
     "pass": true,
-    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"\",\"contentTop\":65,\"current\":\"Week\",\"overflow\":0,\"wideInView\":[]}"
+    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search courses\",\"contentTop\":65,\"current\":\"Week\",\"overflow\":0,\"wideInView\":[]}"
   },
   {
     "size": "phone",
@@ -496,7 +502,7 @@
     "size": "phone",
     "name": "/map: 48px bar, bottom tabs, no switcher in the bar",
     "pass": true,
-    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"\",\"contentTop\":65,\"current\":\"Map\",\"overflow\":0,\"wideInView\":[\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\"]}"
+    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search courses\",\"contentTop\":65,\"current\":\"Map\",\"overflow\":0,\"wideInView\":[\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\",\"img.leaflet-tile \\\"\\\"\"]}"
   },
   {
     "size": "phone",
@@ -541,5 +547,17 @@
     "name": "full-bleed body spans exactly from the bar to the tabs, page does not scroll",
     "pass": true,
     "detail": "{\"top\":49,\"bottom\":788,\"barBottom\":49,\"tabsTop\":788,\"scroll\":0}"
+  },
+  {
+    "size": "tablet",
+    "name": "search folds to an icon at 900px and keeps its name",
+    "pass": true,
+    "detail": "text shown=false, named=1"
+  },
+  {
+    "size": "tablet",
+    "name": "axe: nothing serious or critical in the shell at 900px",
+    "pass": true,
+    "detail": "[]"
   }
 ]

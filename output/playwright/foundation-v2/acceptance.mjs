@@ -380,6 +380,20 @@ async function shell(page, size, phone) {
     results.push({ size, name: `${route}: full-page axe (view content belongs to its owner)`, info: serious(whole) });
   }
 
+  if (!phone) {
+    // A copy saved from the top bar shows up in the open plan library.
+    await page.goto(`${base}/plans`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(500);
+    await page.locator(".shell-planchip").click();
+    await page.getByRole("menuitem", { name: "Save a copy" }).click();
+    const message = await page.locator(".ui-toast__message").innerText();
+    const name = message.match(/“(.+)”/)?.[1] ?? "";
+    await page.waitForTimeout(400);
+    const listed = name ? await page.locator("main#main").getByText(name, { exact: true }).count() : 0;
+    check(size, "/plans: a copy saved from the plan chip appears in the library at once", listed > 0, `${name} listed ${listed}x`);
+    await page.screenshot({ path: join(out, `${size}-plans-saved-copy.png`) });
+  }
+
   // Full-bleed body: fills exactly the space between the bars; the page does not scroll.
   await page.goto(`${base}/about`, { waitUntil: "networkidle" });
   const fb = await page.evaluate(async () => {
@@ -417,6 +431,17 @@ try {
     }
     await ctx.close();
   }
+  // Tablet: the shell folds search to its icon; it keeps its accessible name.
+  const tablet = await browser.newContext({ viewport: { width: 900, height: 1000 }, deviceScaleFactor: 2 });
+  const tpage = await tablet.newPage();
+  await tpage.goto(`${base}/courses`, { waitUntil: "networkidle" });
+  const textShown = await tpage.locator(".shell-search .ui-search-trigger__visible").isVisible();
+  const named = await tpage.locator(".shell-topbar").getByRole("button", { name: "Search courses" }).count();
+  check("tablet", "search folds to an icon at 900px and keeps its name", !textShown && named === 1, `text shown=${textShown}, named=${named}`);
+  const tabletAxe = await axe(tpage, [[".shell-topbar"]]);
+  check("tablet", "axe: nothing serious or critical in the shell at 900px", serious(tabletAxe).length === 0, JSON.stringify(serious(tabletAxe)));
+  await tpage.screenshot({ path: join(out, "tablet-shell-courses.png") });
+  await tablet.close();
 } finally {
   await browser.close();
 }
