@@ -51,3 +51,5 @@ Thumbs.db
 .idea/
 .vscode/
 .playwright-cli/
+# Server-side grade-history responses
+.grades-history-cache/

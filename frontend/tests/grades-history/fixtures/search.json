@@ -1,0 +1,27 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"courses\":[],\"instructors\":[{\"firstName\":\"Binod\",\"lastName\":\"Shrestha\",\"path\":\"/instructor/Shrestha%2CBinod\"},{\"firstName\":\"Pradhumna Lal\",\"lastName\":\"Shrestha\",\"path\":\"/instructor/Shrestha%2CPradhumna%20Lal\"}]}"
+      }
+    ],
+    "structuredContent": {
+      "courses": [],
+      "instructors": [
+        {
+          "firstName": "Binod",
+          "lastName": "Shrestha",
+          "path": "/instructor/Shrestha%2CBinod"
+        },
+        {
+          "firstName": "Pradhumna Lal",
+          "lastName": "Shrestha",
+          "path": "/instructor/Shrestha%2CPradhumna%20Lal"
+        }
+      ]
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 4
+}

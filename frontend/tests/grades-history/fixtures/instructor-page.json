@@ -1,0 +1,33 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"firstName\":\"Pradhumna Lal\",\"lastName\":\"Shrestha\",\"totalCourses\":5,\"offset\":0,\"nextOffset\":2,\"courses\":[{\"prefix\":\"CSCE\",\"number\":\"1030\",\"title\":\"COMPUTER SCIENCE I\",\"path\":\"/course/CSCE/1030\"},{\"prefix\":\"CSCE\",\"number\":\"4915\",\"title\":\"CMPE DESIGN II\",\"path\":\"/course/CSCE/4915\"}]}"
+      }
+    ],
+    "structuredContent": {
+      "firstName": "Pradhumna Lal",
+      "lastName": "Shrestha",
+      "totalCourses": 5,
+      "offset": 0,
+      "nextOffset": 2,
+      "courses": [
+        {
+          "prefix": "CSCE",
+          "number": "1030",
+          "title": "COMPUTER SCIENCE I",
+          "path": "/course/CSCE/1030"
+        },
+        {
+          "prefix": "CSCE",
+          "number": "4915",
+          "title": "CMPE DESIGN II",
+          "path": "/course/CSCE/4915"
+        }
+      ]
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 5
+}

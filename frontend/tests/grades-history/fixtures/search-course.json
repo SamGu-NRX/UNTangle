@@ -1,0 +1,23 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"courses\":[{\"prefix\":\"CSCE\",\"number\":\"1030\",\"title\":\"COMPUTER SCIENCE I\",\"path\":\"/course/CSCE/1030\"}],\"instructors\":[]}"
+      }
+    ],
+    "structuredContent": {
+      "courses": [
+        {
+          "prefix": "CSCE",
+          "number": "1030",
+          "title": "COMPUTER SCIENCE I",
+          "path": "/course/CSCE/1030"
+        }
+      ],
+      "instructors": []
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 6
+}
