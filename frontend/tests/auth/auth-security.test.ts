@@ -131,24 +131,39 @@ describe("a refused sign-in link never sends the browser off-site", () => {
     return new URL(link);
   }
 
-  test("errorCallbackURL to another site, on a used token, lands on the sign-in page instead", async () => {
+  test("errorCallbackURL to another site, on a used token, is refused without a redirect", async () => {
     const t = setup();
     const link = await usedLink(t);
     link.searchParams.set("errorCallbackURL", "https://evil.example/phish");
     const response = await t.get(link.toString());
-    const location = new URL(response.headers.get("location") ?? "", BASE);
-    expect(location.origin).toBe(BASE);
-    expect(location.pathname).toBe("/auth");
-    expect(location.searchParams.get("link")).toBe("failed");
+    expect(response.status).toBe(403);
+    expect(response.headers.get("location")).toBeNull();
   });
 
-  test("a malformed escape in errorCallbackURL is not a server error", async () => {
+  test("a malformed escape in errorCallbackURL is refused, not a server error", async () => {
     const t = setup();
     const link = await usedLink(t);
     link.searchParams.set("errorCallbackURL", "%E0%A4%A");
     const response = await t.get(link.toString());
-    expect(response.status).toBe(302);
-    expect(new URL(response.headers.get("location") ?? "", BASE).pathname).toBe("/auth");
+    expect(response.status).toBe(403);
+  });
+
+  test("a bad callback on a fresh link is refused before the link is claimed or any cleanup runs", async () => {
+    const t = setup();
+    // A never-verified account with a password (only possible from before sign-up was disabled).
+    const ctx = await t.auth.$context;
+    const user = await ctx.internalAdapter.createUser({ email: VICTIM, name: "Old", emailVerified: false });
+    await ctx.internalAdapter.linkAccount({ userId: user.id, providerId: "credential", accountId: user.id, password: await ctx.password.hash("old-password-1") });
+    await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
+    const good = new URL(t.lastVerifyLink());
+    for (const [name, value] of [["callbackURL", "https://evil.example/"], ["newUserCallbackURL", "https://evil.example/"], ["errorCallbackURL", "%E0%A4%A"]]) {
+      const bad = new URL(good);
+      bad.searchParams.set(name, value);
+      expect((await t.get(bad.toString())).status).toBe(403);
+    }
+    // Nothing was claimed or cleaned up: the password is still there, and the link still works.
+    expect((t.store.account as { providerId: string }[]).filter((a) => a.providerId === "credential")).toHaveLength(1);
+    expect(cookieFrom(await t.get(good.toString()))).not.toBe("");
   });
 
   test("better-auth's own origin check is on in these tests: a sign-in link with an off-site callback is refused", async () => {
@@ -156,6 +171,55 @@ describe("a refused sign-in link never sends the browser off-site", () => {
     const response = await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "https://evil.example/" });
     expect(response.status).toBe(403);
     expect(t.mail).toHaveLength(0);
+  });
+});
+
+describe("sign-in links can't be used across sites", () => {
+  const verifyWith = (t: ReturnType<typeof setup>, url: string, site?: string) =>
+    t.auth.handler(new Request(url, { headers: site ? { "sec-fetch-site": site } : {} }));
+
+  test("a cross-site verify (another site signing this browser in) is refused, and the token stays unused", async () => {
+    const t = setup();
+    await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
+    const link = t.lastVerifyLink();
+    const crossSite = await verifyWith(t, link, "cross-site");
+    expect(crossSite.status).toBe(403);
+    expect(cookieFrom(crossSite)).toBe("");
+    expect(cookieFrom(await verifyWith(t, link, "same-origin"))).not.toBe("");
+  });
+
+  test("a verify without Sec-Fetch-Site (older browsers, other clients) is allowed", async () => {
+    const t = setup();
+    await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
+    expect(cookieFrom(await verifyWith(t, t.lastVerifyLink()))).not.toBe("");
+  });
+});
+
+describe("better-auth's origin check guards its own endpoints", () => {
+  async function signedIn() {
+    const t = setup();
+    return { t, cookie: await signInByLink(t, VICTIM) };
+  }
+  const signOut = (t: ReturnType<typeof setup>, cookie: string, origin?: string) =>
+    t.auth.handler(
+      new Request(`${BASE}/api/auth/sign-out`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie, ...(origin ? { origin } : {}) },
+        body: "{}",
+      }),
+    );
+
+  test("a cookie-bearing POST from a foreign Origin is refused", async () => {
+    const { t, cookie } = await signedIn();
+    expect((await signOut(t, cookie, "https://evil.example")).status).toBe(403);
+    expect((await t.session(cookie))?.user?.email).toBe(VICTIM);
+  });
+
+  test("a cookie-bearing POST with no Origin is refused", async () => {
+    const { t, cookie } = await signedIn();
+    expect((await signOut(t, cookie)).status).toBe(403);
+    expect((await t.session(cookie))?.user?.email).toBe(VICTIM);
+    expect((await signOut(t, cookie, BASE)).status).toBe(200);
   });
 });
 

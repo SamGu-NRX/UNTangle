@@ -38,17 +38,20 @@ export type AuthDeps = {
  * - A link works once even when two requests use it at the same moment
  *   (an atomic claim, MagicLinkClaims).
  */
-/** Where a refused sign-in link may send the browser: the given URL if it decodes and is this app's, else the sign-in page. */
-export function trustedTarget(raw: string | undefined, isTrusted: (url: string) => boolean): string {
-  const fallback = "/auth?link=failed";
-  if (!raw) return fallback;
+/** A callback parameter decoded, if it decodes and points at this app; otherwise null. */
+function trustedCallback(raw: string, isTrusted: (url: string) => boolean): string | null {
   let decoded: string;
   try {
     decoded = decodeURIComponent(raw);
   } catch {
-    return fallback;
+    return null;
   }
-  return isTrusted(decoded) ? decoded : fallback;
+  return isTrusted(decoded) ? decoded : null;
+}
+
+/** Where a refused sign-in link may send the browser: the given URL if it decodes and is this app's, else the sign-in page. */
+export function trustedTarget(raw: string | undefined, isTrusted: (url: string) => boolean): string {
+  return (raw && trustedCallback(raw, isTrusted)) || "/auth?link=failed";
 }
 
 export function createAuth({ database, baseURL, secret, claims, sendEmail, options }: AuthDeps) {
@@ -105,8 +108,23 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
         if (refusal) throw new APIError("BAD_REQUEST", { message: refusal });
 
         if (ctx.path !== "/magic-link/verify") return;
+        // The only way in is the landing page's own form (same-origin). A
+        // cross-site request would be another site signing this browser in
+        // to an account of its choosing. A missing header (older browsers,
+        // non-browser clients) is allowed.
+        if (ctx.headers?.get("sec-fetch-site") === "cross-site")
+          throw new APIError("FORBIDDEN", { message: "Open the sign-in link from your email." });
         const token = (ctx.query as { token?: unknown } | undefined)?.token;
         if (typeof token !== "string") return;
+        // Every callback is checked before the token is claimed, so a bad one
+        // can't burn a fresh token or run the account cleanup below on a
+        // request that fails anyway.
+        const isTrusted = (url: string) => ctx.context.isTrustedOrigin(url, { allowRelativePaths: true });
+        const callbacks = ctx.query as { callbackURL?: string; newUserCallbackURL?: string; errorCallbackURL?: string };
+        for (const raw of [callbacks.callbackURL, callbacks.newUserCallbackURL, callbacks.errorCallbackURL]) {
+          if (raw !== undefined && !trustedCallback(raw, isTrusted))
+            throw new APIError("FORBIDDEN", { message: "This sign-in link has an invalid callback URL." });
+        }
         const tokenHash = hashMagicLinkToken(token);
         const record = await ctx.context.internalAdapter.findVerificationValue(tokenHash);
         // Unknown or expired: better-auth's own verify redirects with the reason.
@@ -116,11 +134,8 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
           // This hook runs before the endpoint's own check of errorCallbackURL,
           // so the target is validated here: a used link must not become an
           // open redirect to any site in errorCallbackURL.
-          const query = ctx.query as { callbackURL?: string; errorCallbackURL?: string };
           const target = new URL(
-            trustedTarget(query.errorCallbackURL ?? query.callbackURL, (url) =>
-              ctx.context.isTrustedOrigin(url, { allowRelativePaths: true }),
-            ),
+            trustedTarget(callbacks.errorCallbackURL ?? callbacks.callbackURL, isTrusted),
             ctx.context.baseURL,
           );
           target.searchParams.set("error", "ATTEMPTS_EXCEEDED");
