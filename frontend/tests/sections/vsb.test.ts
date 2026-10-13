@@ -155,3 +155,15 @@ describe("room mapping", () => {
     expect(resolveRoom("UNT Internet Course").kind).toBe("online");
   });
 });
+
+test("inconsistent course status and embedded identity fail only that course", () => {
+  for (const edit of [
+    (input: Input) => { input.courses["MATH 1680"].status = "no_classes"; },
+    (input: Input) => { input.courses["MATH 1680"].sections = []; },
+    (input: Input) => { input.courses["MATH 1680"].course_code = "ACCT 5120"; },
+  ]) {
+    const term = parse(edit);
+    expect(term.courses.get("MATH 1680")).toMatchObject({ code: "schema_error" });
+    expect(term.courses.get("ACCT 5120")).toHaveLength(1);
+  }
+});
