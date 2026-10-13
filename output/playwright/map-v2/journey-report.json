@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-13T12:30:27.625Z",
+  "startedAt": "2026-10-13T13:25:25.119Z",
   "base": "http://127.0.0.1:3217",
   "checks": [
     {
@@ -28,9 +28,9 @@
       "detail": "13 min · 0.6 mivia campus walkwaysLeave by 12:47 PM · 10 min breakThe walk is 3 min longer than the break."
     },
     {
-      "name": "desktop: summary counts the tight transfer",
+      "name": "desktop: summary counts the late transfer as late, not tight",
       "passed": true,
-      "detail": null
+      "detail": "4 classes · 0.8 mi · 17 min walking · 1 late transfer · 1 not on map"
     },
     {
       "name": "desktop: off-campus stop listed as not on map, with its reason",
@@ -65,7 +65,7 @@
     {
       "name": "desktop: drag pans the map",
       "passed": true,
-      "detail": "33.210937,-97.152057 -> 33.211489,-97.150739"
+      "detail": "33.210937,-97.152057 -> 33.211488,-97.150741"
     },
     {
       "name": "desktop: selecting a row selects its pin",
@@ -176,6 +176,21 @@
       "name": "reduced motion: choosing a stop jumps there flat",
       "passed": true,
       "detail": "zoom 17.8, pitch 0"
+    },
+    {
+      "name": "no WebGL: the page says the map is unavailable",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no WebGL: the itinerary still lists classes and walking minutes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no WebGL: no uncaught page errors",
+      "passed": true,
+      "detail": null
     }
   ],
   "axe": [
@@ -188,6 +203,6 @@
       "violations": []
     }
   ],
-  "finishedAt": "2026-10-13T12:31:12.029Z",
-  "summary": "35/35 checks passed"
+  "finishedAt": "2026-10-13T13:26:10.207Z",
+  "summary": "38/38 checks passed"
 }
