@@ -1,14 +1,19 @@
 {
   "base": "http://127.0.0.1:3117",
-  "startedAt": "2026-10-13T13:45:19.377Z",
+  "startedAt": "2026-10-13T16:18:45.078Z",
   "checks": [
+    {
+      "name": "desktop: inside the app shell",
+      "ok": true,
+      "detail": null
+    },
     {
       "name": "desktop: no page headline",
       "ok": true,
       "detail": null
     },
     {
-      "name": "desktop: sample label shown",
+      "name": "desktop: sample provenance tag shown",
       "ok": true,
       "detail": null
     },
@@ -28,6 +33,21 @@
       "detail": null
     },
     {
+      "name": "desktop: Block time needs both times",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: max credits set to 15",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: no main-thread task of 50 ms or more during Optimize (first run)",
+      "ok": true,
+      "detail": "0 long tasks, max 0 ms"
+    },
+    {
       "name": "desktop: three alternatives shown",
       "ok": true,
       "detail": "3"
@@ -38,6 +58,21 @@
       "detail": null
     },
     {
+      "name": "desktop: result says how far it is proven",
+      "ok": true,
+      "detail": "Ranked by your preferences; each is the best of its kind."
+    },
+    {
+      "name": "desktop: option A lists each class's days and times for screen readers",
+      "ok": true,
+      "detail": "5 of 5 courses; ANTH 1010 section 003: Mon Wed Fri 12:00 PM to 12:50 PM"
+    },
+    {
+      "name": "desktop: the page never scrolls sideways with alternatives shown",
+      "ok": true,
+      "detail": "1440 px wide in a 1440 px viewport"
+    },
+    {
       "name": "axe zero serious/critical: desktop alternatives",
       "ok": true,
       "detail": null
@@ -45,10 +80,15 @@
     {
       "name": "desktop: picking option B changes the week",
       "ok": true,
-      "detail": "14 events"
+      "detail": "15 events"
     },
     {
       "name": "desktop: no Thursday classes after picking",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: Undo offered after the pick",
       "ok": true,
       "detail": null
     },
@@ -58,19 +98,44 @@
       "detail": null
     },
     {
+      "name": "desktop: Undo withdrawn once a lock changes",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: no main-thread task of 50 ms or more during Optimize (locked re-run)",
+      "ok": true,
+      "detail": "0 long tasks, max 0 ms"
+    },
+    {
       "name": "desktop: locked course never moves in the alternatives",
       "ok": true,
       "detail": "3 options"
     },
     {
+      "name": "desktop: options found before a lock change cannot be used",
+      "ok": true,
+      "detail": "2 use buttons"
+    },
+    {
+      "name": "desktop: undoing the lock change makes the options usable again",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: no main-thread task of 50 ms or more during Optimize (infeasible)",
+      "ok": true,
+      "detail": "0 long tasks, max 0 ms"
+    },
+    {
       "name": "desktop: infeasible explanation names the cause",
       "ok": true,
-      "detail": "No section of ANTH 1010 fits with Mondays off.One change that makes it fit:Allow classes on Mondays"
+      "detail": "No section of BIOL 1710 fits with Mondays off."
     },
     {
       "name": "axe zero serious/critical: desktop infeasible",
       "ok": true,
-      "detail": null
+      "detail": "region(moderate) x1"
     },
     {
       "name": "desktop: a relax suggestion applies in one click and re-optimizes",
@@ -88,12 +153,22 @@
       "detail": null
     },
     {
+      "name": "desktop: constraints persist across reload",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: inside the app shell",
+      "ok": true,
+      "detail": null
+    },
+    {
       "name": "mobile: no page headline",
       "ok": true,
       "detail": null
     },
     {
-      "name": "mobile: sample label shown",
+      "name": "mobile: sample provenance tag shown",
       "ok": true,
       "detail": null
     },
@@ -113,6 +188,21 @@
       "detail": null
     },
     {
+      "name": "mobile: Block time needs both times",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: max credits set to 15",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: no main-thread task of 50 ms or more during Optimize (first run)",
+      "ok": true,
+      "detail": "0 long tasks, max 0 ms"
+    },
+    {
       "name": "mobile: three alternatives shown",
       "ok": true,
       "detail": "3"
@@ -123,6 +213,21 @@
       "detail": null
     },
     {
+      "name": "mobile: result says how far it is proven",
+      "ok": true,
+      "detail": "Ranked by your preferences; each is the best of its kind."
+    },
+    {
+      "name": "mobile: option A lists each class's days and times for screen readers",
+      "ok": true,
+      "detail": "5 of 5 courses; ANTH 1010 section 003: Mon Wed Fri 12:00 PM to 12:50 PM"
+    },
+    {
+      "name": "mobile: the page never scrolls sideways with alternatives shown",
+      "ok": true,
+      "detail": "390 px wide in a 390 px viewport"
+    },
+    {
       "name": "axe zero serious/critical: mobile alternatives",
       "ok": true,
       "detail": null
@@ -130,10 +235,15 @@
     {
       "name": "mobile: picking option B changes the week",
       "ok": true,
-      "detail": "14 events"
+      "detail": "15 events"
     },
     {
       "name": "mobile: no Thursday classes after picking",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: Undo offered after the pick",
       "ok": true,
       "detail": null
     },
@@ -143,19 +253,44 @@
       "detail": null
     },
     {
+      "name": "mobile: Undo withdrawn once a lock changes",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: no main-thread task of 50 ms or more during Optimize (locked re-run)",
+      "ok": true,
+      "detail": "0 long tasks, max 0 ms"
+    },
+    {
       "name": "mobile: locked course never moves in the alternatives",
       "ok": true,
       "detail": "3 options"
     },
     {
+      "name": "mobile: options found before a lock change cannot be used",
+      "ok": true,
+      "detail": "2 use buttons"
+    },
+    {
+      "name": "mobile: undoing the lock change makes the options usable again",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: no main-thread task of 50 ms or more during Optimize (infeasible)",
+      "ok": true,
+      "detail": "0 long tasks, max 0 ms"
+    },
+    {
       "name": "mobile: infeasible explanation names the cause",
       "ok": true,
-      "detail": "No section of ANTH 1010 fits with Mondays off.One change that makes it fit:Allow classes on Mondays"
+      "detail": "No section of BIOL 1710 fits with Mondays off."
     },
     {
       "name": "axe zero serious/critical: mobile infeasible",
       "ok": true,
-      "detail": null
+      "detail": "region(moderate) x1"
     },
     {
       "name": "mobile: a relax suggestion applies in one click and re-optimizes",
@@ -169,6 +304,11 @@
     },
     {
       "name": "mobile: lock persists across reload",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile: constraints persist across reload",
       "ok": true,
       "detail": null
     }
@@ -186,7 +326,9 @@
     },
     {
       "label": "desktop infeasible",
-      "violations": [],
+      "violations": [
+        "region(moderate) x1"
+      ],
       "blocking": []
     },
     {
@@ -201,9 +343,50 @@
     },
     {
       "label": "mobile infeasible",
-      "violations": [],
+      "violations": [
+        "region(moderate) x1"
+      ],
       "blocking": []
     }
   ],
-  "finishedAt": "2026-10-13T13:45:38.789Z"
+  "longtasks": [
+    {
+      "viewport": "desktop",
+      "label": "first run",
+      "count": 0,
+      "maxMs": 0
+    },
+    {
+      "viewport": "desktop",
+      "label": "locked re-run",
+      "count": 0,
+      "maxMs": 0
+    },
+    {
+      "viewport": "desktop",
+      "label": "infeasible",
+      "count": 0,
+      "maxMs": 0
+    },
+    {
+      "viewport": "mobile",
+      "label": "first run",
+      "count": 0,
+      "maxMs": 0
+    },
+    {
+      "viewport": "mobile",
+      "label": "locked re-run",
+      "count": 0,
+      "maxMs": 0
+    },
+    {
+      "viewport": "mobile",
+      "label": "infeasible",
+      "count": 0,
+      "maxMs": 0
+    }
+  ],
+  "finishedAt": "2026-10-13T16:19:05.164Z",
+  "maxLongtaskMs": 0
 }
