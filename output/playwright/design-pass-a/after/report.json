@@ -13,33 +13,93 @@
   },
   {
     "size": "desktop",
-    "name": "connect: request lists Reads / Removes / Keeps",
+    "name": "connect: the start lists Reads / Removes / Keeps",
     "pass": true,
     "detail": ""
   },
   {
     "size": "desktop",
-    "name": "connect: 'Upload a PDF instead' is visible in request",
+    "name": "connect: no extension anywhere in the flow",
     "pass": true,
     "detail": ""
   },
   {
     "size": "desktop",
-    "name": "axe: Connect request has no serious or critical findings",
+    "name": "connect: one primary action, Open myUNT",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect start has no serious or critical findings",
     "pass": true,
     "detail": "[]"
   },
   {
     "size": "desktop",
-    "name": "connect: handoff shows the myUNT browser card",
+    "name": "connect: Open myUNT opens the transcript page in a separate window",
+    "pass": true,
+    "detail": "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the myUNT window can't reach back to UNTangle",
     "pass": true,
     "detail": ""
   },
   {
     "size": "desktop",
-    "name": "axe: Connect handoff has no serious or critical findings",
+    "name": "connect: while away the sheet waits calmly",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the trip is remembered for a reload",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect waiting for myUNT has no serious or critical findings",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing myUNT makes 'Use the downloaded PDF' the primary action",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: it takes focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: it is not pressed for the student (the picker needs a gesture)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect back from myUNT has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the picker opens in Downloads for one PDF",
+    "pass": true,
+    "detail": "{\"startIn\":\"downloads\",\"types\":[{\"description\":\"Transcript PDF\",\"accept\":{\"application/pdf\":[\".pdf\"]}}],\"excludeAcceptAllOption\":true,\"multiple\":false}"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: choosing the file ends the trip",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "desktop",
@@ -61,6 +121,12 @@
   },
   {
     "size": "desktop",
+    "name": "connect: crossing the phone breakpoint after approving a row keeps the review and the approval",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
     "name": "axe: Connect done has no serious or critical findings",
     "pass": true,
     "detail": "[]"
@@ -68,6 +134,48 @@
   {
     "size": "desktop",
     "name": "connect: 'Go to courses' closes the sheet on Courses",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: a text drag shows no drop target",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: dragging a file over the app shows the full-window target",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: leaving the window hides it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: a PDF dropped with the sheet closed opens it and imports, through a breakpoint crossing mid-read",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "desktop",
+    "name": "drop: two files are refused with a reason",
+    "pass": true,
+    "detail": "That was 2 files. Drop one PDF: the unofficial transcript you downloaded."
+  },
+  {
+    "size": "desktop",
+    "name": "drop: a non-PDF is refused by name",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing leaves no trip flag behind",
     "pass": true,
     "detail": ""
   },
@@ -181,45 +289,33 @@
   },
   {
     "size": "phone",
-    "name": "connect: the plan menu opens the sheet over Courses at /connect",
-    "pass": true,
-    "detail": "http://127.0.0.1:3330/connect"
-  },
-  {
-    "size": "phone",
-    "name": "connect: on touch the request leads with myUNT and the PDF",
-    "pass": true,
-    "detail": ""
-  },
-  {
-    "size": "phone",
-    "name": "connect: handoff shows the myUNT browser card",
-    "pass": true,
-    "detail": ""
-  },
-  {
-    "size": "phone",
-    "name": "axe: Connect handoff has no serious or critical findings",
+    "name": "axe: Connect start has no serious or critical findings",
     "pass": true,
     "detail": "[]"
   },
   {
     "size": "phone",
-    "name": "connect: after a reload the sheet reopens on 'Choose the PDF'",
+    "name": "connect: after a reload the sheet reopens on 'Use the downloaded PDF'",
     "pass": true,
     "detail": ""
   },
   {
     "size": "phone",
-    "name": "connect: progress and review never say 'AI'",
+    "name": "connect: the restored trip consumed its flag",
     "pass": true,
     "detail": ""
   },
   {
     "size": "phone",
-    "name": "connect: every row that needs a decision is tinted and carries a ui Select",
+    "name": "axe: Connect back from myUNT has no serious or critical findings",
     "pass": true,
-    "detail": "1 flagged rows, 1 Selects"
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "connect: without the picker, the native file chooser opens for one PDF",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "phone",
@@ -232,12 +328,6 @@
     "name": "axe: Connect done has no serious or critical findings",
     "pass": true,
     "detail": "[]"
-  },
-  {
-    "size": "phone",
-    "name": "connect: 'Go to courses' closes the sheet on Courses",
-    "pass": true,
-    "detail": ""
   },
   {
     "size": "phone",
@@ -310,5 +400,23 @@
     "name": "axe: Password reset with an error has no serious or critical findings",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "blocked: with popups blocked, myUNT opens in a new tab",
+    "pass": true,
+    "detail": "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL"
+  },
+  {
+    "size": "desktop",
+    "name": "blocked: the sheet still waits for the return",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "blocked: coming back to the tab leads with 'Use the downloaded PDF'",
+    "pass": true,
+    "detail": ""
   }
 ]

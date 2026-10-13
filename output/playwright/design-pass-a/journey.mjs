@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Design pass A journey (HANDOFF steps 8 and 9) at 1440x900 (fine pointer)
 // and 390x844 (touch), against `next start` and the mock myUNT server
-// (tools/mock-myunt, port 4317) for the synthetic transcript PDF.
-//   Connect: plan menu -> request -> upload fallback (manual handoff) ->
-//            review -> save -> done -> Courses; the phone sheet survives a
-//            reload at /connect.
+// (tools/mock-myunt, port 4317), which stands in for myUNT's transcript page
+// and serves the synthetic transcript PDF.
+//   Connect: plan menu -> Open myUNT (popup) -> close -> "Use the downloaded
+//            PDF" (stubbed picker) -> review -> save; the page-wide drop;
+//            popups blocked; Back/Forward and focus; phones end at the
+//            native file chooser and survive a reload at /connect.
 //   Plans:   save a plan, change the working plan (mark a course done on
 //            Courses), compare (diff rows), restore.
 //   Auth:    sign-in and reset error states, each under its field.
@@ -53,7 +55,29 @@ async function plansSave(page, size) {
   check(size, "plans: the view header replaces the headline", (await page.getByRole("heading", { level: 1, name: "Plan library" }).count()) === 1);
 }
 
-async function connect(page, size, phone) {
+const SHEET = "Import from myUNT";
+const TRIP_KEY = "untangle.connect.trip";
+const pdfBase64 = pdf.toString("base64");
+
+/** Stand-in myUNT: the transcript page that "Open myUNT" shows, served by the mock. */
+async function routeMyUnt(ctx) {
+  const body = await (await fetch(`${mock}/transcript`)).text();
+  await ctx.route("https://my.unt.edu/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body }));
+}
+
+/** A File System Access picker that hands back the transcript and records its options. */
+async function stubPicker(ctx) {
+  await ctx.addInitScript((b64) => {
+    window.__pickerCalls = [];
+    window.showOpenFilePicker = async (options) => {
+      window.__pickerCalls.push(options);
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      return [{ getFile: async () => new File([bytes], "unofficial-transcript.pdf", { type: "application/pdf" }) }];
+    };
+  }, pdfBase64);
+}
+
+async function toCourses(page) {
   await page.goto(`${base}/courses`, { waitUntil: "networkidle" });
   // The Courses view may open its major dialog first; answer it so the bar is reachable.
   const major = page.locator('[role="dialog"]', { hasText: "What are you studying?" });
@@ -62,48 +86,202 @@ async function connect(page, size, phone) {
     await major.getByRole("button", { name: "Confirm" }).evaluate((el) => el.click());
     await major.waitFor({ state: "detached" });
   }
+}
+
+async function openFromPlanMenu(page) {
   await page.locator(".shell-planchip").click();
   await page.getByRole("menuitem", { name: "Import courses from myUNT" }).click();
-  const sheet = page.getByRole("region", { name: "Connect myUNT" });
+  const sheet = page.getByRole("region", { name: SHEET });
   await sheet.waitFor();
   await page.waitForTimeout(350);
+  return sheet;
+}
+
+/** Drags made in the page: `files` is a list of [name, type] (the PDF bytes for .pdf), or null for a text drag. */
+async function drag(page, phase, files) {
+  return page.evaluate(
+    ({ phase, files, b64 }) => {
+      if (phase === "start") {
+        const dt = new DataTransfer();
+        if (files) {
+          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          for (const [name, type] of files) dt.items.add(new File([type === "application/pdf" ? bytes : "x"], name, { type }));
+        } else dt.setData("text/plain", "CSCE 1030");
+        window.__dt = dt;
+      }
+      const target = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 3) ?? document.body;
+      const types = phase === "start" ? ["dragenter", "dragover"] : [phase];
+      for (const type of types) target.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: window.__dt }));
+    },
+    { phase, files, b64: pdfBase64 },
+  );
+}
+const overlay = (page) => page.locator('[data-testid="pdf-drop-overlay"]');
+const flagSet = (page) => page.evaluate((key) => sessionStorage.getItem(key) === "1", TRIP_KEY);
+
+// Desktop: popup window -> close -> "Use the downloaded PDF" (stubbed picker)
+// -> review with a flagged row -> breakpoint crossed after approving -> save.
+async function connectPopup(page, size) {
+  await toCourses(page);
+  const sheet = await openFromPlanMenu(page);
   check(size, "connect: the plan menu opens the sheet over Courses at /connect", page.url().endsWith("/connect"), page.url());
-  await shot(page, size, "connect-request");
-  if (!phone) {
-    const access = await sheet.innerText();
-    check(size, "connect: request lists Reads / Removes / Keeps", /Reads/.test(access) && /Removes/.test(access) && /Keeps/.test(access));
-    check(size, "connect: 'Upload a PDF instead' is visible in request", await sheet.getByText("Upload a PDF instead").isVisible());
-    await axe(page, size, "Connect request");
-    await sheet.getByRole("button", { name: "No extension? Download the PDF yourself" }).click();
-  } else {
-    check(size, "connect: on touch the request leads with myUNT and the PDF", await sheet.getByRole("link", { name: /Open myUNT/ }).isVisible());
-  }
-  check(size, "connect: handoff shows the myUNT browser card", await sheet.getByText("my.unt.edu", { exact: false }).first().isVisible());
-  await shot(page, size, "connect-handoff");
-  await axe(page, size, "Connect handoff");
+  const text = await sheet.innerText();
+  check(size, "connect: the start lists Reads / Removes / Keeps", /Reads/.test(text) && /Removes/.test(text) && /Keeps/.test(text));
+  check(size, "connect: no extension anywhere in the flow", !/extension/i.test(text));
+  const open = sheet.getByRole("link", { name: /Open myUNT/ });
+  check(size, "connect: one primary action, Open myUNT", (await sheet.locator(".ui-btn--primary").count()) === 1 && /ui-btn--primary/.test(await open.getAttribute("class")));
+  await shot(page, size, "connect-start");
+  await axe(page, size, "Connect start");
 
-  if (phone) {
-    // The trip to Safari: opening myUNT, then this tab reloading.
-    const [popup] = await Promise.all([page.waitForEvent("popup").catch(() => null), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
-    await popup?.close();
-    await page.reload({ waitUntil: "networkidle" });
-    await page.getByRole("region", { name: "Connect myUNT" }).waitFor();
-    check(size, "connect: after a reload the sheet reopens on 'Choose the PDF'", await page.getByText("Choose the PDF").isVisible());
-  }
+  const [popup] = await Promise.all([page.waitForEvent("popup"), open.click()]);
+  // The window opens blank, is cut off from this page, then navigates.
+  await popup.waitForURL(/^https:\/\/my\.unt\.edu\//);
+  check(size, "connect: Open myUNT opens the transcript page in a separate window", popup.url().startsWith("https://my.unt.edu/"), popup.url());
+  check(size, "connect: the myUNT window can't reach back to UNTangle", (await popup.evaluate(() => window.opener)) === null);
+  check(size, "connect: while away the sheet waits calmly", await sheet.getByText("Download your transcript as a PDF, then come back.").isVisible());
+  check(size, "connect: the trip is remembered for a reload", await flagSet(page));
+  await shot(page, size, "connect-away");
+  await axe(page, size, "Connect waiting for myUNT");
 
-  await page.getByLabel("Upload transcript PDF", { exact: true }).setInputFiles(file);
+  await popup.close();
+  await sheet.getByText("Choose the transcript PDF you just downloaded.").waitFor();
+  await page.waitForTimeout(100);
+  const use = sheet.getByRole("button", { name: "Use the downloaded PDF" });
+  check(size, "connect: closing myUNT makes 'Use the downloaded PDF' the primary action", /ui-btn--primary/.test(await use.getAttribute("class")));
+  check(size, "connect: it takes focus", await use.evaluate((el) => el === document.activeElement));
+  check(size, "connect: it is not pressed for the student (the picker needs a gesture)", (await page.evaluate(() => window.__pickerCalls.length)) === 0);
+  await shot(page, size, "connect-back");
+  await axe(page, size, "Connect back from myUNT");
+
+  await use.click();
   await page.getByRole("heading", { name: "Review your courses" }).waitFor();
+  const options = await page.evaluate(() => window.__pickerCalls[0]);
+  check(size, "connect: the picker opens in Downloads for one PDF", options?.startIn === "downloads" && JSON.stringify(options.types[0].accept) === JSON.stringify({ "application/pdf": [".pdf"] }), JSON.stringify(options));
+  check(size, "connect: choosing the file ends the trip", !(await flagSet(page)));
   await page.waitForTimeout(200);
-  const text = await page.getByRole("region", { name: "Review your courses" }).innerText();
-  check(size, "connect: progress and review never say 'AI'", !/\bAI\b/.test(text));
+  const review = page.getByRole("region", { name: "Review your courses" });
+  check(size, "connect: progress and review never say 'AI'", !/\bAI\b/.test(await review.innerText()));
   const flaggedRows = await page.locator("li[data-flagged]").count();
   const flaggedSelects = await page.locator('li[data-flagged] [role="combobox"]').count();
-  check(
-    size,
-    "connect: every row that needs a decision is tinted and carries a ui Select",
-    flaggedRows > 0 && flaggedSelects === flaggedRows && (await page.locator("select:visible").count()) === 0,
-    `${flaggedRows} flagged rows, ${flaggedSelects} Selects`,
-  );
+  check(size, "connect: every row that needs a decision is tinted and carries a ui Select", flaggedRows > 0 && flaggedSelects === flaggedRows && (await page.locator("select:visible").count()) === 0, `${flaggedRows} flagged rows, ${flaggedSelects} Selects`);
+  await shot(page, size, "connect-review");
+  await axe(page, size, "Connect review");
+
+  // Crossing 719px (rotation, zoom) must not remount the sheet and drop approvals.
+  const include = page.getByRole("checkbox", { name: "Include CSCE 1030", exact: true });
+  await include.check();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+  const kept = (await review.count()) === 1 && (await include.isChecked());
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(400);
+  check(size, "connect: crossing the phone breakpoint after approving a row keeps the review and the approval", kept && (await include.isChecked()));
+
+  await page.getByRole("button", { name: "Save 1 course" }).click();
+  await page.getByText("1 course added to your plan.", { exact: true }).waitFor();
+  await shot(page, size, "connect-done");
+  await axe(page, size, "Connect done");
+  await page.getByRole("button", { name: "Go to courses" }).click();
+  await page.waitForURL(/\/courses$/);
+  await page.waitForTimeout(400);
+  check(size, "connect: 'Go to courses' closes the sheet on Courses", (await page.getByRole("region", { name: /Import from myUNT|Your courses/ }).count()) === 0);
+}
+
+// Desktop: the page-wide drop target, from Courses with the sheet closed.
+async function connectDrop(page, size) {
+  await toCourses(page);
+  await drag(page, "start", null);
+  await page.waitForTimeout(150);
+  check(size, "drop: a text drag shows no drop target", (await overlay(page).count()) === 0);
+  await drag(page, "drop", null);
+
+  await drag(page, "start", [["unofficial-transcript.pdf", "application/pdf"]]);
+  await overlay(page).waitFor();
+  check(size, "drop: dragging a file over the app shows the full-window target", await overlay(page).isVisible());
+  await page.waitForTimeout(250); // past the 120ms fade-in
+  await shot(page, size, "drop-overlay");
+  await drag(page, "dragleave", null);
+  await page.waitForTimeout(100);
+  check(size, "drop: leaving the window hides it", (await overlay(page).count()) === 0);
+
+  // Drop, then cross the breakpoint while the PDF is still being read.
+  await drag(page, "start", [["unofficial-transcript.pdf", "application/pdf"]]);
+  await drag(page, "drop", null);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("heading", { name: "Review your courses" }).waitFor({ timeout: 15000 });
+  check(size, "drop: a PDF dropped with the sheet closed opens it and imports, through a breakpoint crossing mid-read", page.url().endsWith("/connect"), page.url());
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(300);
+
+  await drag(page, "start", [["a.pdf", "application/pdf"], ["b.pdf", "application/pdf"]]);
+  await drag(page, "drop", null);
+  // Scoped to the dialog: Next's route announcer is an alert too.
+  const alert = page.getByRole("dialog").getByRole("alert");
+  await alert.waitFor();
+  check(size, "drop: two files are refused with a reason", /2 files/.test(await alert.innerText()), await alert.innerText());
+  await shot(page, size, "drop-two-files");
+  await drag(page, "start", [["photo.png", "image/png"]]);
+  await drag(page, "drop", null);
+  await page.getByText("“photo.png” isn't a PDF", { exact: false }).waitFor();
+  check(size, "drop: a non-PDF is refused by name", true);
+  await page.keyboard.press("Escape");
+  await page.getByRole("region", { name: /Import from myUNT|That file/ }).waitFor({ state: "detached" });
+  check(size, "connect: closing leaves no trip flag behind", !(await flagSet(page)));
+}
+
+// Desktop with popups blocked: myUNT opens in a tab through the link, and
+// the same come-back handling applies (simulated: headless tabs keep focus).
+async function connectBlocked(browser, size) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  await routeMyUnt(ctx);
+  await ctx.addInitScript(() => {
+    window.open = () => null;
+  });
+  const page = await ctx.newPage();
+  try {
+    await toCourses(page);
+    const sheet = await openFromPlanMenu(page);
+    const [tab] = await Promise.all([ctx.waitForEvent("page"), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
+    await tab.waitForURL(/^https:\/\/my\.unt\.edu\//);
+    check(size, "blocked: with popups blocked, myUNT opens in a new tab", tab.url().startsWith("https://my.unt.edu/"), tab.url());
+    check(size, "blocked: the sheet still waits for the return", await sheet.getByText("Download your transcript as a PDF, then come back.").isVisible());
+    await page.bringToFront();
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("blur"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await sheet.getByText("Choose the transcript PDF you just downloaded.").waitFor();
+    check(size, "blocked: coming back to the tab leads with 'Use the downloaded PDF'", /ui-btn--primary/.test(await sheet.getByRole("button", { name: "Use the downloaded PDF" }).getAttribute("class")));
+    await shot(page, size, "blocked-back");
+  } catch (error) {
+    check(size, "blocked-popup journey ran to the end", false, String(error).split("\n")[0]);
+  }
+  await ctx.close();
+}
+
+// Phone: no File System Access picker, so the button opens the native file
+// chooser; the trip survives a reload at /connect.
+async function connectPhone(page, size) {
+  await toCourses(page);
+  const sheet = await openFromPlanMenu(page);
+  await shot(page, size, "connect-start");
+  await axe(page, size, "Connect start");
+  const [popup] = await Promise.all([page.waitForEvent("popup"), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
+  await popup.close();
+  await sheet.getByText("Choose the transcript PDF you just downloaded.").waitFor();
+  // The trip to Safari can reload this tab.
+  await page.reload({ waitUntil: "networkidle" });
+  const again = page.getByRole("region", { name: SHEET });
+  await again.waitFor();
+  check(size, "connect: after a reload the sheet reopens on 'Use the downloaded PDF'", await again.getByRole("button", { name: "Use the downloaded PDF" }).isVisible());
+  check(size, "connect: the restored trip consumed its flag", !(await flagSet(page)));
+  await shot(page, size, "connect-back");
+  await axe(page, size, "Connect back from myUNT");
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), again.getByRole("button", { name: "Use the downloaded PDF" }).click()]);
+  check(size, "connect: without the picker, the native file chooser opens for one PDF", !chooser.isMultiple());
+  await chooser.setFiles(file);
+  await page.getByRole("heading", { name: "Review your courses" }).waitFor();
+  await page.waitForTimeout(200);
   await shot(page, size, "connect-review");
   await axe(page, size, "Connect review");
   await page.locator('li[data-flagged] [role="combobox"]').first().click();
@@ -118,10 +296,11 @@ async function connect(page, size, phone) {
   await axe(page, size, "Connect done");
   await page.getByRole("button", { name: "Go to courses" }).click();
   await page.waitForURL(/\/courses$/);
+}
+
+/** The import adds transcript records, not statuses: mark one course done so Plans has a course-level diff. */
+async function markACourseDone(page) {
   await page.waitForTimeout(400);
-  check(size, "connect: 'Go to courses' closes the sheet on Courses", (await page.getByRole("region", { name: /Connect myUNT|Your courses/ }).count()) === 0);
-  // The import adds transcript records, not course statuses; mark one course
-  // done so the plan comparison has a course-level row to show.
   // A DOM click: on phones the Courses row hides this switch behind its layout.
   await page.locator('[aria-label^="Mark "][aria-label$=" as done"]:not([disabled])').first().evaluate((el) => el.click());
 }
@@ -134,7 +313,7 @@ async function connectHistory(page, size) {
   const chip = page.locator(".shell-planchip");
   await chip.click();
   await page.getByRole("menuitem", { name: "Import courses from myUNT" }).click();
-  const sheet = page.getByRole("region", { name: "Connect myUNT" });
+  const sheet = page.getByRole("region", { name: SHEET });
   await sheet.waitFor();
   await page.goBack();
   await sheet.waitFor({ state: "detached" });
@@ -223,11 +402,24 @@ try {
     { size: "phone", width: 390, height: 844, phone: true },
   ]) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.phone, hasTouch: vp.phone, deviceScaleFactor: 2 });
+    await routeMyUnt(ctx);
+    if (vp.phone) {
+      await ctx.addInitScript(() => {
+        // Phone browsers have no File System Access picker.
+        window.showOpenFilePicker = undefined;
+      });
+    } else await stubPicker(ctx);
     const page = await ctx.newPage();
     try {
       await plansSave(page, vp.size);
-      await connect(page, vp.size, vp.phone);
-      if (!vp.phone) await connectHistory(page, vp.size);
+      if (vp.phone) await connectPhone(page, vp.size);
+      else {
+        await connectPopup(page, vp.size);
+        await connectDrop(page, vp.size);
+        await connectHistory(page, vp.size);
+      }
+      await toCourses(page);
+      await markACourseDone(page);
       await plansCompareRestore(page, vp.size);
       await auth(page, vp.size);
     } catch (error) {
@@ -236,6 +428,7 @@ try {
     }
     await ctx.close();
   }
+  await connectBlocked(browser, "desktop");
 } finally {
   await browser.close();
 }
