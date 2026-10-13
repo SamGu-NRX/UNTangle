@@ -213,7 +213,7 @@
     "size": "desktop",
     "name": "plans: diff rows set course codes in Syne",
     "pass": true,
-    "detail": "ANTH 1010 in syne"
+    "detail": "CSCE 1030 in syne"
   },
   {
     "size": "desktop",
@@ -235,9 +235,21 @@
   },
   {
     "size": "desktop",
-    "name": "auth: no magic-link copy remains",
+    "name": "auth: sign-in leads with the email field and 'Email me a sign-in link'",
     "pass": true,
     "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a configured server shows no server-log note",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Sign in by link has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
   },
   {
     "size": "desktop",
@@ -253,21 +265,33 @@
   },
   {
     "size": "desktop",
+    "name": "auth: a failed link request shows its reason under Email",
+    "pass": true,
+    "detail": "The sign-in link couldn't be sent. Try again in a minute."
+  },
+  {
+    "size": "desktop",
     "name": "auth: a short password errors under Password",
     "pass": true,
     "detail": ""
   },
   {
     "size": "desktop",
-    "name": "auth: a server sign-in error shows as help text under a field",
+    "name": "auth: a server password error shows as help text under a field",
     "pass": true,
     "detail": "Invalid origin"
   },
   {
     "size": "desktop",
-    "name": "axe: Sign in with errors has no serious or critical findings",
+    "name": "axe: Password sign-in with errors has no serious or critical findings",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "auth: returning from a dead link says so under Email",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "desktop",
@@ -333,7 +357,7 @@
     "size": "phone",
     "name": "plans: diff rows set course codes in Syne",
     "pass": true,
-    "detail": "ANTH 1010 in syne"
+    "detail": "CSCE 1030 in syne"
   },
   {
     "size": "phone",
@@ -355,9 +379,21 @@
   },
   {
     "size": "phone",
-    "name": "auth: no magic-link copy remains",
+    "name": "auth: sign-in leads with the email field and 'Email me a sign-in link'",
     "pass": true,
     "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a configured server shows no server-log note",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Sign in by link has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
   },
   {
     "size": "phone",
@@ -373,21 +409,33 @@
   },
   {
     "size": "phone",
+    "name": "auth: a failed link request shows its reason under Email",
+    "pass": true,
+    "detail": "The sign-in link couldn't be sent. Try again in a minute."
+  },
+  {
+    "size": "phone",
     "name": "auth: a short password errors under Password",
     "pass": true,
     "detail": ""
   },
   {
     "size": "phone",
-    "name": "auth: a server sign-in error shows as help text under a field",
+    "name": "auth: a server password error shows as help text under a field",
     "pass": true,
     "detail": "Invalid origin"
   },
   {
     "size": "phone",
-    "name": "axe: Sign in with errors has no serious or critical findings",
+    "name": "axe: Password sign-in with errors has no serious or critical findings",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "auth: returning from a dead link says so under Email",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "phone",

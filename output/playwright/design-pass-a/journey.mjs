@@ -7,9 +7,10 @@
 //            PDF" (stubbed picker) -> review -> save; the page-wide drop;
 //            popups blocked; Back/Forward and focus; phones end at the
 //            native file chooser and survive a reload at /connect.
-//   Plans:   save a plan, change the working plan (mark a course done on
+//   Plans:   save a plan, change the working plan (mark a course as credit on
 //            Courses), compare (diff rows), restore.
-//   Auth:    sign-in and reset error states, each under its field.
+//   Auth:    sign-in by emailed link and by password, errors under each
+//            field; reset.
 // axe (WCAG 2.0-2.2 A/AA) on every state. Writes screenshots and report.json.
 //   node journey.mjs <baseUrl> <mockUrl> <outDir>
 import { chromium } from "playwright";
@@ -298,11 +299,12 @@ async function connectPhone(page, size) {
   await page.waitForURL(/\/courses$/);
 }
 
-/** The import adds transcript records, not statuses: mark one course done so Plans has a course-level diff. */
+/** The import adds transcript records, not statuses: mark a course as credit so Plans has a course-level diff. */
 async function markACourseDone(page) {
+  await page.goto(`${base}/courses/math/1650`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Status options for MATH 1650" }).first().click();
+  await page.getByRole("menuitem", { name: "I have credit for this" }).click();
   await page.waitForTimeout(400);
-  // A DOM click: on phones the Courses row hides this switch behind its layout.
-  await page.locator('[aria-label^="Mark "][aria-label$=" as done"]:not([disabled])').first().evaluate((el) => el.click());
 }
 
 // Opening over a view and the history it leaves: Back closes, Forward
@@ -367,16 +369,28 @@ async function plansCompareRestore(page, size) {
 
 async function auth(page, size) {
   await page.goto(`${base}/auth`, { waitUntil: "networkidle" });
-  check(size, "auth: no magic-link copy remains", !/sign-in link|magic/i.test(await page.locator("body").innerText()));
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const send = page.getByRole("button", { name: "Email me a sign-in link" });
+  check(size, "auth: sign-in leads with the email field and 'Email me a sign-in link'", (await send.isVisible()) && (await page.getByLabel("Password", { exact: true }).count()) === 0);
+  check(size, "auth: a configured server shows no server-log note", !/server log/i.test(await page.locator("body").innerText()));
+  await shot(page, size, "auth-link");
+  await axe(page, size, "Sign in by link");
+  await send.click();
   const email = page.getByRole("textbox", { name: "UNT email" });
   check(size, "auth: a missing UNT email errors under Email and takes focus", (await email.getAttribute("aria-invalid")) === "true" && (await email.evaluate((el) => el === document.activeElement)));
   await email.fill("sam@gmail.com");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await send.click();
   const emailHelp = await page.locator(`#${await email.getAttribute("aria-describedby")}`).innerText();
   check(size, "auth: a non-UNT email names the accepted domains", /unt\.edu/.test(emailHelp), emailHelp);
   await shot(page, size, "auth-email-error");
+  // The test server has no database, so the link request fails on the server: its reason goes under Email.
   await email.fill("eagle@my.unt.edu");
+  await send.click();
+  await page.waitForFunction(() => document.querySelector('[aria-invalid="true"]'), null, { timeout: 15000 });
+  const linkHelp = await email.evaluate((el) => document.getElementById(el.getAttribute("aria-describedby"))?.textContent ?? "");
+  check(size, "auth: a failed link request shows its reason under Email", linkHelp.length > 0, linkHelp);
+  await shot(page, size, "auth-link-error");
+
+  await page.getByRole("button", { name: "Use a password instead" }).click();
   const password = page.getByLabel("Password", { exact: true });
   await password.fill("short");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -385,9 +399,11 @@ async function auth(page, size) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[aria-invalid="true"]'), null, { timeout: 15000 });
   const serverHelp = await page.locator('[aria-invalid="true"]').first().evaluate((el) => document.getElementById(el.getAttribute("aria-describedby"))?.textContent ?? "");
-  check(size, "auth: a server sign-in error shows as help text under a field", serverHelp.length > 0, serverHelp);
+  check(size, "auth: a server password error shows as help text under a field", serverHelp.length > 0, serverHelp);
   await shot(page, size, "auth-server-error");
-  await axe(page, size, "Sign in with errors");
+  await axe(page, size, "Password sign-in with errors");
+  await page.goto(`${base}/auth?link=failed&error=EXPIRED_TOKEN`, { waitUntil: "networkidle" });
+  check(size, "auth: returning from a dead link says so under Email", /expired or was already used/.test(await page.locator("body").innerText()));
   await page.goto(`${base}/forgot-password`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Send reset link" }).click();
   check(size, "reset: an empty email errors under the field", (await page.getByRole("textbox", { name: "Email" }).getAttribute("aria-invalid")) === "true");
@@ -418,7 +434,6 @@ try {
         await connectDrop(page, vp.size);
         await connectHistory(page, vp.size);
       }
-      await toCourses(page);
       await markACourseDone(page);
       await plansCompareRestore(page, vp.size);
       await auth(page, vp.size);
