@@ -35,7 +35,8 @@ const dmSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "UNTangle", template: "%s · UNTangle" },
+  // Page titles stand alone ("Day", "CSCE 2110"); the tab's icon carries the app.
+  title: { default: "UNTangle", template: "%s" },
   description: "Plan a UNT semester: the courses you need, a week that fits, and the walk between classes.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "UNTangle", statusBarStyle: "default" },

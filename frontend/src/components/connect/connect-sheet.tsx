@@ -355,9 +355,9 @@ function IdentityConnectSheet({
       {state.phase === "review" && (
         <>
           <p className={styles.summary}>
-            {state.result.records.length} courses found
+            {state.result.records.length} courses found.
             {state.result.records.some((r) => r.reviewRequired)
-              ? ` · ${state.result.records.filter((r) => r.reviewRequired).length} need your decision`
+              ? ` ${state.result.records.filter((r) => r.reviewRequired).length} need your decision.`
               : ""}
           </p>
           <p className={styles.detail}>Check each grade and term, then choose which to add. Nothing is saved until you choose Save.</p>

@@ -33,8 +33,8 @@ export function PlanComparison({ id, diff }: { id: string; diff: PlanDiff }) {
   return (
     <div id={id} className="plans-diff">
       <p className="plans-diff__summary">
-        {diff.preservedFieldCount} of {diff.comparedFieldCount} fields match the working schedule
-        {diff.changedFieldCount > 0 ? ` · ${diff.changedFieldCount} differ` : ""}
+        {diff.preservedFieldCount} of {diff.comparedFieldCount} fields match the working schedule.
+        {diff.changedFieldCount > 0 ? ` ${diff.changedFieldCount} differ.` : ""}
       </p>
       {diff.changedFieldCount === 0 && diff.unknownReferences.length === 0 ? (
         <p className="plans-muted">Everything this plan declares matches the working schedule.</p>

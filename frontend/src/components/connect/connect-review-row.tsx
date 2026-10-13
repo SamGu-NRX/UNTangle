@@ -70,7 +70,7 @@ export function ConnectReviewRow({ record, status, included, onInclude, onStatus
             <span className={styles.reviewTitle}>{record.title}</span>
           </span>
           <small>
-            {record.term} · Grade {record.grade || "unknown"} · {record.credits ?? "?"} credits
+            Taken {record.term}, grade {record.grade || "unknown"}, {record.credits ?? "?"} credits
           </small>
         </span>
       </label>
