@@ -326,15 +326,15 @@
   },
   "outputs": {
     "campus-map.json": {
-      "sha256": "c69f6f8f6980db38f145606a5cee1d54e1fd076b4e621760ae3c864a52f135e0",
-      "bytes": 4847010
+      "sha256": "4923521c9242035aa14a300334f66a813b3ee7d814c58ebd7d7d02608625c9fa",
+      "bytes": 4852813
     },
     "catalogue.json": {
       "sha256": "a87ecb44ff6fda05edda0ce0c3d08edae830e86bf1e8ded7251ed425a776db75",
       "bytes": 4830
     },
     "walking-times.json": {
-      "sha256": "3ba83f63c70ac697d5d731f553fee3f53cfee7cea76a12afdb0fcd86fcb56ef6",
+      "sha256": "3a0fb04e3b2a153c5723e0f2495c0cdba319d21f0a1550de30dfcdd7d0d7d381",
       "bytes": 68385
     }
   }

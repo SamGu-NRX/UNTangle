@@ -9,11 +9,16 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pedestrianDirections } from "./pedestrian-directions.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rawDir = process.argv[4] ?? join(here, "raw");
 const repoRoot = join(here, "..", "..");
 const definition = JSON.parse(readFileSync(process.argv[2] ?? join(here, "campuses/unt-denton.json"), "utf8"));
+if (definition.pedestrianDirectionPolicy !== undefined &&
+    (definition.id !== "unt-denton" || definition.pedestrianDirectionPolicy !== "legacy-unt-reciprocal")) {
+  throw new Error("legacy-unt-reciprocal is permitted only for unt-denton");
+}
 const outDir = process.argv[3] ?? join(repoRoot, "frontend", "src", "lib", "campus", "data");
 const receiptPath = join(outDir, "receipt.json");
 
@@ -203,7 +208,12 @@ function main() {
   // fabricated across the gap.
   const NODE_BOX = { south: definition.bbox.south - (definition.nodeMarginDegrees ?? 0.002), west: definition.bbox.west - (definition.nodeMarginDegrees ?? 0.002), north: definition.bbox.north + (definition.nodeMarginDegrees ?? 0.002), east: definition.bbox.east + (definition.nodeMarginDegrees ?? 0.002) };
   for (const way of rawWays) {
-    if (!isFootUsable(way.tags ?? {})) continue;
+    const tags = way.tags ?? {};
+    if (!KEEP_HIGHWAY.has(tags.highway)) continue;
+    // UNT's pinned reciprocal extract hash is part of its matrix metadata.
+    const directions = definition.pedestrianDirectionPolicy === "legacy-unt-reciprocal"
+      ? undefined : pedestrianDirections(tags, way.id);
+    if (directions ? !directions.forward && !directions.backward : !isFootUsable(tags)) continue;
     const coords = way.geometry.map((point) => [point.lat, point.lon ?? point.lng]);
     if (coords.length < 2) continue;
     const cls = wayClass(way.tags ?? {});
@@ -233,7 +243,7 @@ function main() {
       lastIdx = idx;
     }
     if (n.length >= 2) fragments.push(n);
-    for (const frag of fragments) usableWays.push({ osmId: way.id, c: cls.c, s: cls.s, n: frag });
+    for (const frag of fragments) usableWays.push({ osmId: way.id, c: cls.c, s: cls.s, n: frag, directions });
   }
   usableWays.sort((a, b) => a.osmId - b.osmId);
 
@@ -316,6 +326,7 @@ function main() {
       c: CLASS_LIST.indexOf(way.c),
       s: way.s === "crossing" ? 1 : way.s === "sidewalk" ? 2 : 0,
       n: way.n,
+      ...(way.directions ? { directions: way.directions } : {}),
     })),
   };
 

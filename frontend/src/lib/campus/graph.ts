@@ -11,7 +11,6 @@
  *
  * Data © OpenStreetMap contributors, ODbL 1.0 — see tools/campus-geodata/README.md.
  */
-import datasetJson from "./data/campus-map.json";
 import { checkDataset } from "./contract/check";
 import type { Dataset } from "./contract/model";
 import { haversineMeters, type LatLng } from "./geo";
@@ -53,7 +52,7 @@ export type WalkwaysFile = {
     wayFilter: string;
   };
   nodes: [number, number][];
-  ways: { i: number; c: number; n: number[] }[];
+  ways: { i: number; c: number; n: number[]; directions?: { forward: boolean; backward: boolean; tags: Record<string, string> } }[];
 };
 
 type Edge = {
@@ -428,7 +427,13 @@ export function createDatasetGraph(input: unknown): WalkwayGraph {
   });
 }
 
-const untDentonGraph = createDatasetGraph(datasetJson);
+let untDentonGraph: WalkwayGraph | undefined;
+function untGraph(): WalkwayGraph {
+  return untDentonGraph ??= createDatasetGraph(require("./data/campus-map.json"));
+}
 
-export const { nearestWalkwayNode, astarPath, routeBetweenNodes, routeBetweenPoints, walkwayGraphStats } =
-  untDentonGraph;
+export const nearestWalkwayNode = (...args: Parameters<WalkwayGraph["nearestWalkwayNode"]>) => untGraph().nearestWalkwayNode(...args);
+export const astarPath = (...args: Parameters<WalkwayGraph["astarPath"]>) => untGraph().astarPath(...args);
+export const routeBetweenNodes = (...args: Parameters<WalkwayGraph["routeBetweenNodes"]>) => untGraph().routeBetweenNodes(...args);
+export const routeBetweenPoints = (...args: Parameters<WalkwayGraph["routeBetweenPoints"]>) => untGraph().routeBetweenPoints(...args);
+export const walkwayGraphStats = () => untGraph().walkwayGraphStats();

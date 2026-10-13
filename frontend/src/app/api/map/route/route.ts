@@ -147,7 +147,10 @@ function orsRouter(apiKey: string, campus: CampusConfig) {
  * distance and no walking time.
  */
 export async function POST(request: Request) {
-  const limit = limiter.check(clientIpFromRequest(request));
+  let campus: CampusConfig;
+  try { campus = campusById(new URL(request.url).searchParams.get("campus")); }
+  catch (error) { return NextResponse.json({error: error instanceof Error ? error.message : "Invalid campus"},{status:400}); }
+  const limit = limiter.check(`${campus.id}|${clientIpFromRequest(request)}`);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many requests" },
@@ -167,15 +170,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "stops must be an array" }, { status: 400 });
   }
 
-  let campus: CampusConfig;
-  try { campus = campusById(new URL(request.url).searchParams.get("campus")); }
-  catch (error) { return NextResponse.json({error: error instanceof Error ? error.message : "Invalid campus"},{status:400}); }
   const parsed = parseStops(body, campus);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
   const apiKey = campus.allowExternalServices === false ? undefined : process.env.ORS_API_KEY;
-  const legs = await buildRouteLegs(parsed.stops, campusEngine(campus.id), apiKey ? orsRouter(apiKey, campus) : undefined);
+  const legs = await buildRouteLegs(parsed.stops, await campusEngine(campus.id), apiKey ? orsRouter(apiKey, campus) : undefined);
   return NextResponse.json(summarizeRoute(legs));
 }

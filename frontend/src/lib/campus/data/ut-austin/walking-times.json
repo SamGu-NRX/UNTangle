@@ -13,7 +13,7 @@
       "note": "model assumptions, not UNT measurements"
     },
     "generatedBy": "tools/campus-geodata/build-matrix.ts",
-    "receiptSha256": "cae9894efeeb95696c01fc3eac7c44bb57d81ecbb92a9ba28aed4ccbafb5ac86"
+    "receiptSha256": "acf3889e8d66507236d833d6645865512ba9f1ffa41f122e63a6b500ba600ed8"
   },
   "anchors": {
     "osm-25795473": {

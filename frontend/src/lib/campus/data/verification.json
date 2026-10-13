@@ -1,6 +1,6 @@
 {
   "campus": "unt-denton",
-  "definitionSha256": "714d11e8d63eba92ff7a3dbb726e5af38546d3185899f4cc3e6d37b4b99aae05",
+  "definitionSha256": "87b07f50e0906c1eb2c499fd09ba7b91afdbcea27f1d708c2204df8fdfa49d1f",
   "raw": {
     "pedestrian": {
       "path": "raw/overpass-pedestrian-snapshot.json",
@@ -298,8 +298,8 @@
   },
   "outputs": {
     "campus-map.json": {
-      "sha256": "dfa21c3769dc6519e14f13dc4f187cd1d193fc6852e4ca3d84e4449456a24afb",
-      "bytes": 8760772
+      "sha256": "74aaf24c04f0932c3a9c82a20da2d9b14a0d660f362e17797411e97de4cfa0a7",
+      "bytes": 8760817
     },
     "catalogue.json": {
       "sha256": "385708d1b7b4538c8089959653026c1777116eb913e23754113501d81c6ac463",

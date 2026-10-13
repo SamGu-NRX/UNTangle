@@ -31,6 +31,7 @@ export type CampusDefinition = {
     includeOsmIds?: number[];
   };
   nodeMarginDegrees?: number;
+  pedestrianDirectionPolicy?: "legacy-unt-reciprocal";
   geocode: { suffix: string; names: string[] };
   nameCleanupWords: string[];
 };
@@ -52,6 +53,8 @@ export function readDefinition(path: string): CampusDefinition {
     d.bbox.east > 180 ||
     typeof d.osmQuery !== "string" ||
     !d.osmQuery.length ||
+    (d.pedestrianDirectionPolicy !== undefined &&
+      (d.id !== "unt-denton" || d.pedestrianDirectionPolicy !== "legacy-unt-reciprocal")) ||
     (d.nodeMarginDegrees !== undefined &&
       (!Number.isFinite(d.nodeMarginDegrees) ||
         d.nodeMarginDegrees < 0)) ||
@@ -196,6 +199,7 @@ export function buildCampus(
           rawPedestrian.osm3s?.timestamp_osm ??
           null,
       },
+      d.pedestrianDirectionPolicy,
     );
     const graph = createWalkwayGraph({ ...dataset, walking: legacy.meta });
     const catalogue: CampusBuilding[] =

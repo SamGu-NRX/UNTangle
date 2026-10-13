@@ -20,16 +20,14 @@ export function toDataset(
   outlines: BuildingOutlines,
   rawHash: string,
   provenance: { retrievedAt: string | null; osmBaseAt: string | null },
+  directionPolicy?: "legacy-unt-reciprocal",
 ): Dataset {
   const nodeIds = walkways.nodes.map(
     ([lat, lng]) => `n:${hash(`${lng},${lat}`).slice(0, 12)}`,
   );
   const nodeFeatures = new Map<number, string>();
   const features: MapFeature[] = [];
-  const best = new Map<
-    string,
-    { a: number; b: number; wayId: number; edge: GraphEdge }
-  >();
+  const best = new Map<string, GraphEdge>();
   const properties = (kind: string, name: string | null) => ({
     kind,
     name,
@@ -43,7 +41,11 @@ export function toDataset(
     features.push({
       type: "Feature",
       id: featureId,
-      properties: { ...properties(cls, null), crossing: cls === "crossing" },
+      properties: {
+        ...properties(cls, null), crossing: cls === "crossing",
+        ...(way.directions && Object.keys(way.directions.tags).length
+          ? { osm_direction_tags: way.directions.tags } : {}),
+      },
       geometry: {
         type: "LineString",
         coordinates: way.n.map((n) => [
@@ -58,21 +60,23 @@ export function toDataset(
       const a = way.n[i],
         b = way.n[i + 1];
       if (a === b) continue;
-      const key = `${Math.min(a, b)}:${Math.max(a, b)}`;
       const length = haversineMeters(
         ...walkways.nodes[a],
         ...walkways.nodes[b],
       );
-      if (best.has(key) && best.get(key)!.edge.length_m <= length) continue;
-      best.set(key, {
-        a,
-        b,
-        wayId: way.i,
-        edge: {
-          id: `e:${hash(`${way.i}:${nodeIds[a]}:${nodeIds[b]}`).slice(0, 12)}`,
+      const directions = way.directions ?? { forward: true, backward: true };
+      const endpoints = [
+        ...(directions.forward ? [[a, b]] : []),
+        ...(directions.backward ? [[b, a]] : []),
+      ];
+      for (const [from, to] of endpoints) {
+        const key = `${from}:${to}`;
+        if (best.has(key) && best.get(key)!.length_m <= length) continue;
+        best.set(key, {
+          id: `e:${hash(`${way.i}:${nodeIds[from]}:${nodeIds[to]}`).slice(0, 12)}`,
           feature_id: featureId,
-          from: nodeIds[a],
-          to: nodeIds[b],
+          from: nodeIds[from],
+          to: nodeIds[to],
           kind: cls === "steps" ? "stairs" : "path",
           length_m: length,
           width_m: null,
@@ -83,8 +87,8 @@ export function toDataset(
           access: "unknown",
           evidence: "source",
           observed_at: provenance.osmBaseAt,
-        },
-      });
+        });
+      }
     }
   }
   for (const b of outlines.buildings)
@@ -123,7 +127,10 @@ export function toDataset(
         license: "ODbL 1.0; © OpenStreetMap contributors",
         retrieved_at: provenance.retrievedAt,
         notes:
-          "Offline Overpass snapshot. Coordinates WGS84. Physical attributes not imported or surveyed; null means unknown. Reciprocal pedestrian travel preserves the legacy UNT walking topology.",
+          "Offline Overpass snapshot. Coordinates WGS84. Physical attributes not imported or surveyed; null means unknown. " +
+          (directionPolicy === "legacy-unt-reciprocal"
+            ? "UNT-only legacy-unt-reciprocal exception ignores pedestrian direction tags to preserve the pinned historical matrix."
+            : "Explicit pedestrian direction tags determine directed edges; plain vehicle oneway tags do not restrict walking."),
       },
     ],
     features: { type: "FeatureCollection", features },
@@ -135,16 +142,7 @@ export function toDataset(
         building_id: null,
         level_id: "outdoor",
       })),
-      edges: [...best.values()].flatMap(({ edge, wayId }) => [
-        edge,
-        {
-          ...edge,
-          id: `e:${hash(`${wayId}:${edge.to}:${edge.from}`).slice(0, 12)}`,
-          from: edge.to,
-          to: edge.from,
-          slope: edge.slope === null ? null : -edge.slope,
-        },
-      ]),
+      edges: [...best.values()],
     },
   };
   const checked = checkDataset(dataset);

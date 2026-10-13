@@ -405,9 +405,15 @@ function unique(values: string[]) {
 export const untNameCleanupWords = ["university of north texas", "unt", "denton", "tx", "texas"];
 
 export function normalizeLocationLabel(value: string, cleanupWords: readonly string[] = untNameCleanupWords) {
-  const escaped = cleanupWords.map(word => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const escaped = cleanupWords.map(word => word
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   return value
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
     .replace(escaped.length ? new RegExp(`\\b(${escaped.join("|")})\\b`, "g") : /$^/, " ")
     .replace(/\b(bldg|bld)\b/g, "building")
     .replace(/&/g, " and ")

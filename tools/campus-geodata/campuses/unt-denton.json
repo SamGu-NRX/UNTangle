@@ -1,5 +1,6 @@
 {
   "id": "unt-denton",
+  "pedestrianDirectionPolicy": "legacy-unt-reciprocal",
   "bbox": {
     "south": 33.2025,
     "west": -97.1585,
