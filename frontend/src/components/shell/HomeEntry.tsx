@@ -7,7 +7,7 @@ import { usePlanner } from "@/components/planner-provider";
 import { openConnect } from "@/components/connect/open-connect";
 import { ChevronRight } from "@/components/ui/icons";
 import { PHONE_QUERY } from "@/components/ui/use-media-query";
-import { buildScheduleEvents, getInitialPlannerState } from "@/lib/planner";
+import { getInitialPlannerState } from "@/lib/planner";
 import { PLANNING_TERM } from "@/lib/terms";
 import { hasStartedPlan, landing, readClock } from "./home-entry";
 import { readLastLens } from "./lens-memory";
@@ -44,22 +44,28 @@ const OPTIONS = [
  * sees the welcome flash before the redirect.
  */
 export function HomeEntry() {
-  const { hydrated, plannerState } = usePlanner();
+  const { hydrated, plannerState, scheduleEvents, sectionPlan } = usePlanner();
   const router = useRouter();
   const started = hydrated && hasStartedPlan(plannerState, getInitialPlannerState());
 
+  const sectionsLoading = sectionPlan.courses.some((course) => course.state === "loading");
+
   useEffect(() => {
     if (!started) return;
+    const phone = window.matchMedia(PHONE_QUERY).matches;
     const target = landing({
       started,
-      phone: window.matchMedia(PHONE_QUERY).matches,
+      phone,
       lastLens: readLastLens(),
       clock: readClock(new Date()),
       term: PLANNING_TERM,
-      meetings: buildScheduleEvents(plannerState),
+      meetings: scheduleEvents,
     });
-    if (target !== "import") router.replace(LENS_HREF[target]);
-  }, [started, plannerState, router]);
+    // Sections arrive after the plan. Until they have, a phone could still
+    // turn out to have a class ahead today, so only Day is certain.
+    if (target === "import" || (phone && sectionsLoading && target !== "day")) return;
+    router.replace(LENS_HREF[target]);
+  }, [started, scheduleEvents, sectionsLoading, router]);
 
   if (!hydrated || started) {
     return <div className="home" aria-busy="true" />;

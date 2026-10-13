@@ -12,22 +12,6 @@ const TEXT = new Set([".ts", ".tsx", ".js", ".mjs", ".css", ".json", ".md", ".ht
 /** The character itself, its HTML entities, and its escapes in JS and CSS source. */
 const MID_DOT = /·|&middot;|&#183;|&#x0*b7;|\\u00b7|\\u\{b7\}|\\b7\b|\\0000b7/i;
 
-/**
- * Files that open PRs rewrite; their own workers sweep them. Each entry goes
- * once its PR lands clean, and this test fails on an entry that no longer
- * holds a mid dot, so the list cannot go stale.
- */
-const PENDING = new Map([
-  ["components/courses/CoursesView.tsx", "#42"],
-  ["components/courses/DetailPanel.tsx", "#42"],
-  ["components/map/map-itinerary.tsx", "#42"],
-  ["components/saved-plans/plans-client.tsx", "#42"],
-  ["components/schedule-client.tsx", "#42"],
-  ["components/schedule-print-view.tsx", "#42"],
-  ["components/schedule/ConstraintRail.tsx", "#42"],
-  ["lib/plan-library/diff.ts", "#42"],
-]);
-
 function textFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
@@ -45,17 +29,8 @@ function linesWithMidDots(file: string): string[] {
 describe("mid dots", () => {
   const files = textFiles(SRC);
 
-  test("no file in frontend/src has one, apart from the pending list", () => {
-    const found = files.filter((file) => !PENDING.has(path.relative(SRC, file))).flatMap(linesWithMidDots);
-    expect(found).toEqual([]);
-  });
-
-  test("every pending file still has one; delete its entry once swept", () => {
-    const swept = [...PENDING.keys()].filter((relative) => {
-      const file = path.join(SRC, relative);
-      return !files.includes(file) || linesWithMidDots(file).length === 0;
-    });
-    expect(swept).toEqual([]);
+  test("no file in frontend/src has one", () => {
+    expect(files.flatMap(linesWithMidDots)).toEqual([]);
   });
 
   test("the pattern catches every spelling of the character", () => {

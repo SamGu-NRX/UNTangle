@@ -67,8 +67,10 @@ describe("landing", () => {
     expect(landing({ ...base, clock: { ...base.clock, minutes: 14 * 60 + 20 } })).toBe("week");
   });
 
-  test("on a weekend, the last lens used", () => {
-    expect(landing({ ...base, clock: { date: "2027-02-06", weekday: null, minutes: 9 * 60 } })).toBe("week");
+  test("on a weekend with no class that day, the last lens used; with one ahead, Day", () => {
+    const saturday = { date: "2027-02-06", weekday: "Sat", minutes: 9 * 60 } as const;
+    expect(landing({ ...base, clock: saturday })).toBe("week");
+    expect(landing({ ...base, clock: saturday, meetings: [...meetings, { day: "Sat", end: "12:00" }] })).toBe("day");
   });
 
   test("outside the term, or with nothing scheduled today, the last lens used", () => {
@@ -97,7 +99,7 @@ describe("landing", () => {
 
   test("readClock reads the local date, weekday and minutes", () => {
     expect(readClock(new Date(2027, 1, 3, 8, 37))).toEqual({ date: "2027-02-03", weekday: "Wed", minutes: 517 });
-    expect(readClock(new Date(2027, 1, 7, 0, 5))).toEqual({ date: "2027-02-07", weekday: null, minutes: 5 });
+    expect(readClock(new Date(2027, 1, 7, 0, 5))).toEqual({ date: "2027-02-07", weekday: "Sun", minutes: 5 });
   });
 });
 
