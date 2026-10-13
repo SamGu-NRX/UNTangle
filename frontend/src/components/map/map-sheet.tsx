@@ -60,21 +60,12 @@ export function MapSheet({
     return () => observer.disconnect();
   }, []);
 
-  // The home indicator's inset, read from CSS: env() has no JavaScript API.
-  const [safeBottom, setSafeBottom] = useState(0);
-  useLayoutEffect(() => {
-    const probe = document.createElement("div");
-    probe.style.cssText = "position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)";
-    document.body.appendChild(probe);
-    setSafeBottom(parseFloat(getComputedStyle(probe).paddingBottom) || 0);
-    probe.remove();
-  }, []);
-
   const full = Math.round(areaHeight * 0.92);
   // Peek shows the handle, the day switcher and the summary (the header,
-  // whatever it measures) above the home indicator.
-  const peek = Math.min(headerHeight + safeBottom, Math.round(full * 0.45));
-  const half = Math.max(peek + 80, Math.round(areaHeight * 0.5) + safeBottom);
+  // whatever it measures). The map's area ends at the phone tab bar, which
+  // already clears the home indicator, so no inset is added here.
+  const peek = Math.min(headerHeight, Math.round(full * 0.45));
+  const half = Math.max(peek + 80, Math.round(areaHeight * 0.5));
   const heights: Record<SheetDetent, number> = { peek, half, full };
 
   const visibleRef = useRef(heights[detent]);
