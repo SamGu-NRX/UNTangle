@@ -88,6 +88,7 @@ export async function signed(auth: ReturnType<typeof createAuth>, cookie: string
 /** What /auth/link's form submits: the same parameters, at better-auth's verify path. */
 export function verifyFromLanding(landing: string): string {
   const url = new URL(landing);
-  url.pathname = VERIFY_PATH;
-  return url.toString();
+  const verify = new URL(VERIFY_PATH, url.origin);
+  verify.search = url.hash.replace(/^#/, "");
+  return verify.toString();
 }

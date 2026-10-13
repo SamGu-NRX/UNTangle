@@ -45,8 +45,11 @@ describe("POST /api/auth/sign-in/magic-link", () => {
     // The email points at the landing page, which only verifies when its button is pressed.
     const url = new URL(t.mail[0].url);
     expect(url.origin + url.pathname).toBe(`${BASE}/auth/link`);
-    expect(url.searchParams.get("token")).toBeTruthy();
-    expect(url.searchParams.get("callbackURL")).toBe("/courses");
+    // In the fragment, which browsers never send to the server: an unused token stays out of request logs.
+    expect(url.search).toBe("");
+    const fragment = new URLSearchParams(url.hash.slice(1));
+    expect(fragment.get("token")).toBeTruthy();
+    expect(fragment.get("callbackURL")).toBe("/courses");
   });
 
   test("a non-UNT address is refused before any link is made, so no account can be created for it", async () => {

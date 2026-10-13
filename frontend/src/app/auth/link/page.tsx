@@ -1,43 +1,22 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AuthShell } from "@/components/auth-shell";
-import { VERIFY_PATH, verifyParams } from "@/lib/magic-link-url";
+import { SignInLinkForm } from "@/components/sign-in-link-form";
 
-export const metadata: Metadata = { title: "Sign in to UNTangle", robots: { index: false } };
+// no-referrer: nothing on this page should pass its URL on.
+export const metadata: Metadata = { title: "Sign in to UNTangle", robots: { index: false }, referrer: "no-referrer" };
 
 /**
  * Where an emailed sign-in link lands. Mail scanners (Microsoft Safe Links
  * on UNT accounts) may open the link before the student does, so this page
  * never signs in or redirects on load: it shows one button, and only that
  * submit reaches better-auth's verify endpoint and uses the one-time token.
+ * The token is in the URL fragment, so it never reaches the server's logs.
  */
-export default async function SignInLinkPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const params = verifyParams(await searchParams);
-  const complete = params.some(([name]) => name === "token");
+export default function SignInLinkPage() {
   return (
     <AuthShell>
       <h1 className="auth__title">Sign in to UNTangle</h1>
-      {complete ? (
-        <>
-          <p className="auth__lede">Continue to finish signing in. The link works once.</p>
-          <form className="auth__form" method="get" action={VERIFY_PATH}>
-            {params.map(([name, value]) => (
-              <input key={name} type="hidden" name={name} value={value} />
-            ))}
-            <button type="submit" className="ui-btn ui-btn--primary auth__submit" data-ui="">
-              Sign in
-            </button>
-          </form>
-        </>
-      ) : (
-        <p className="auth__lede">
-          This sign-in link is incomplete. <Link href="/auth">Email yourself a new one.</Link>
-        </p>
-      )}
+      <SignInLinkForm />
     </AuthShell>
   );
 }
