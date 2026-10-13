@@ -86,15 +86,13 @@ export function sameBuilding(a: string | null, b: string | null): boolean {
   return a !== null && b !== null && a === b;
 }
 
-/** Walking seconds between two classes, or null when unknown. Same building is 0. */
 /**
- * Walking seconds between two classes, or null when unknown. Same building
- * is 0. Providers may return fractional seconds (the campus network does);
+ * Walking seconds between two classes, including the provider's same-ID result.
+ * Providers may return fractional seconds (the campus network does);
  * this is the one place they are normalized, to whole seconds by rounding,
  * so the walking check, the cost and the breakdown always agree.
  */
 export function walkSeconds(walkingTime: OptWalkingTimeFn, from: string | null, to: string | null): number | null {
-  if (sameBuilding(from, to)) return 0;
   if (from === null || to === null) return null;
   const leg = walkingTime(from, to);
   if (leg.source === "unknown" || leg.seconds === null) return null;
@@ -162,7 +160,6 @@ export function scoreSchedule(input: ScoreInput): { cost: number; breakdown: Sch
     if (!list) continue;
     someBackToBack(list, (prev, next) => {
       gapMinutes += Math.max(0, next.start - prev.end);
-      if (sameBuilding(prev.buildingId, next.buildingId)) return false;
       const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null) unknownWalks += 1;
       else knownWalk += walk;

@@ -154,12 +154,7 @@ function selfCost(section, weights, neutralTenths) {
   const tenths = ratingTenths(section.rating) ?? neutralTenths;
   return lean * COST_PER_LEAN_MINUTE + weights.rating * (50 - tenths) * COST_PER_RATING_TENTH;
 }
-function sameBuilding(a, b) {
-  return a !== null && b !== null && a === b;
-}
 function walkSeconds(walkingTime, from, to) {
-  if (sameBuilding(from, to))
-    return 0;
   if (from === null || to === null)
     return null;
   const leg = walkingTime(from, to);
@@ -201,8 +196,6 @@ function scoreSchedule(input) {
       continue;
     someBackToBack(list, (prev, next) => {
       gapMinutes += Math.max(0, next.start - prev.end);
-      if (sameBuilding(prev.buildingId, next.buildingId))
-        return false;
       const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
       if (walk === null)
         unknownWalks += 1;
@@ -429,22 +422,18 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
   for (let a = 0;a < buildingCount; a += 1) {
     checkDeadline();
     for (let b = 0;b < buildingCount; b += 1) {
-      if (a === b)
-        continue;
       const seconds = walkSeconds(request.walkingTime, buildingIds[a], buildingIds[b]);
       walk[a * buildingCount + b] = seconds === null ? -1 : seconds;
     }
   }
   const bufferMinutes = constraints.walking?.bufferMinutes ?? null;
   const walkOf = (from, to) => {
-    if (from >= 0 && from === to)
-      return 0;
     if (from < 0 || to < 0)
       return null;
     const seconds = walk[from * buildingCount + to];
     return seconds < 0 ? null : seconds;
   };
-  const tightPair = (prev, next) => bufferMinutes !== null && !(prev.building >= 0 && prev.building === next.building) && next.start - prev.end < globalMinDuration && !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
+  const tightPair = (prev, next) => bufferMinutes !== null && !(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0) && next.start - prev.end < globalMinDuration && !transferFits(prev, next, walkOf(prev.building, next.building), bufferMinutes);
   const neutralRatingByCourse = {};
   const creditsByCourse = {};
   const courses = [];
@@ -694,8 +683,6 @@ function search(prepared, budget, options) {
   const same = new Int32Array(previous.length);
   const minDifferent = options.minDifferent;
   const walkOf = (from, to) => {
-    if (from >= 0 && from === to)
-      return 0;
     if (from < 0 || to < 0)
       return null;
     const seconds = walk[from * buildingCount + to];
@@ -730,13 +717,13 @@ function search(prepared, budget, options) {
             if (oneSegment) {
               if (filled < window)
                 gap += window - filled;
-              if (!(prev.building >= 0 && prev.building === next.building)) {
+              if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
                 walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
               }
             }
           } else {
             gap += window;
-            if (!(prev.building >= 0 && prev.building === next.building)) {
+            if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
               const seconds = walkOf(prev.building, next.building);
               walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
               if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds)
@@ -777,7 +764,7 @@ function search(prepared, budget, options) {
           for (let r = 0;r < count && filled < window; r += 1)
             filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!(prev.building >= 0 && prev.building === next.building)) {
+        if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
           let walking;
           if (filled === 0) {
             walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;
