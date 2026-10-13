@@ -85,6 +85,9 @@ export const plannerStates = pgTable("planner_state", {
   routeStops: jsonb("route_stops").notNull(),
   // Course code -> pinned section id. Rows from before locks default to none.
   lockedSections: jsonb("locked_sections").default({}).notNull(),
+  // Courses-view facts kept with the plan (manual credit, Auto provenance and
+  // the last Auto run). Null on rows from before it existed; normalize fills it.
+  coursePlan: jsonb("course_plan"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   // Bumped on every write. A save names the revision it started from and is
   // refused when the row moved on, so a stale tab cannot overwrite newer data.

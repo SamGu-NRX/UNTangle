@@ -268,7 +268,7 @@ describe("route status mapping", () => {
   test("invalid inputs return HTTP 400 without upstream calls", async () => {
     const { service, fake } = await setup();
     const handlers = createGradesHandlers(service);
-    for (const reply of [await handlers.instructor("42"), await handlers.course("../", "1030"), await handlers.search(new Request("http://local/api/grades/search?q=x")), await handlers.instructorByName(new Request("http://local/api/grades/instructors"))]) {
+    for (const reply of [await handlers.instructor("42"), await handlers.course("../", "1030"), await handlers.course("CSCE", "abcd"), await handlers.course("CSCE", "10a0"), await handlers.search(new Request("http://local/api/grades/search?q=x")), await handlers.instructorByName(new Request("http://local/api/grades/instructors"))]) {
       expect(reply.status).toBe(400);
       expect(await reply.json()).toMatchObject({ status: "unavailable", source: "untgrades.app", error: { reason: "invalid-request" } });
     }

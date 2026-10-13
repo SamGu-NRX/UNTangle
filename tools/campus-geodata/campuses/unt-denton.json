@@ -1,0 +1,36 @@
+{
+  "id": "unt-denton",
+  "pedestrianDirectionPolicy": "legacy-unt-reciprocal",
+  "bbox": {
+    "south": 33.2025,
+    "west": -97.1585,
+    "north": 33.2175,
+    "east": -97.1345
+  },
+  "queries": {
+    "pedestrian": "[out:json][timeout:180];(way[\"highway\"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;",
+    "buildings": "[out:json][timeout:180];(way[\"building\"](33.2025,-97.1585,33.2175,-97.1345);node[\"entrance\"](33.2025,-97.1585,33.2175,-97.1345);node[\"highway\"=\"entrance\"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;"
+  },
+  "catalogue": {
+    "kind": "unt-registry",
+    "sources": [
+      "https://facilities.unt.edu/resources/building-information.html",
+      "UNT GIS Building_Cartographic_Shape (services.arcgis.com, public)"
+    ]
+  },
+  "geocode": {
+    "suffix": "University of North Texas Denton TX",
+    "names": [
+      "unt",
+      "university of north texas"
+    ]
+  },
+  "nameCleanupWords": [
+    "university of north texas",
+    "unt",
+    "denton",
+    "tx",
+    "texas"
+  ],
+  "osmQuery": "[out:json][timeout:180];(way[\"highway\"](33.2025,-97.1585,33.2175,-97.1345);way[\"building\"](33.2025,-97.1585,33.2175,-97.1345);node[\"entrance\"](33.2025,-97.1585,33.2175,-97.1345);node[\"highway\"=\"entrance\"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;"
+}

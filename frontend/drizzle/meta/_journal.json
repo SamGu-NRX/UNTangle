@@ -36,6 +36,13 @@
       "when": 1791782856693,
       "tag": "0004_planner_section_locks",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791900000000,
+      "tag": "0005_planner_course_plan",
+      "breakpoints": true
     }
   ]
 }

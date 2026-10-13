@@ -1,0 +1,632 @@
+{
+  "schema_version": "0.2",
+  "dataset_id": "synthetic-demo-campus",
+  "revision": "syn-2026.10.11-1",
+  "demo": true,
+  "sources": [
+    {
+      "id": "synthetic-demo",
+      "url": "urn:demo:synthetic",
+      "license": null,
+      "retrieved_at": null,
+      "notes": "Hand-authored demo topology. Does not assert that these facilities exist at any real location; coordinates are invented. Widths, slopes and lengths are invented plausible values, not measurements."
+    }
+  ],
+  "features": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "demo-curb-ramp",
+        "properties": {
+          "kind": "ramp",
+          "name": "Curb ramp (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -97.736,
+              30.2861
+            ],
+            [
+              -97.7358,
+              30.28612
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-corridor-l2",
+        "properties": {
+          "kind": "corridor",
+          "name": "Demo Hall corridor, floor 2 (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -97.7354,
+              30.28634
+            ],
+            [
+              -97.7352,
+              30.28636
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-elevator-l1-l2",
+        "properties": {
+          "kind": "elevator",
+          "name": "Demo Hall elevator 1-2 (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -97.73536,
+            30.28631
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-entrance-north",
+        "properties": {
+          "kind": "entrance",
+          "name": "Demo Hall north entrance (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -97.7353,
+            30.2862
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-hall-building",
+        "properties": {
+          "kind": "building",
+          "name": "Demo Hall (invented building)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -97.7355,
+                30.2861
+              ],
+              [
+                -97.7351,
+                30.2861
+              ],
+              [
+                -97.7351,
+                30.2865
+              ],
+              [
+                -97.7355,
+                30.2865
+              ],
+              [
+                -97.7355,
+                30.2861
+              ]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-lobby-l1",
+        "properties": {
+          "kind": "indoor-space",
+          "name": "Demo Hall lobby, ground floor (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -97.7353,
+            30.2863
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-path-east",
+        "properties": {
+          "kind": "path",
+          "name": "East Sidewalk (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -97.7358,
+              30.28612
+            ],
+            [
+              -97.7353,
+              30.2862
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-path-west",
+        "properties": {
+          "kind": "path",
+          "name": "West Sidewalk (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -97.7365,
+              30.286
+            ],
+            [
+              -97.736,
+              30.2861
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-room-204",
+        "properties": {
+          "kind": "indoor-space",
+          "name": "Demo Hall room 204 (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -97.7352,
+            30.28641
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "demo-stairs-l1-l2",
+        "properties": {
+          "kind": "stairs",
+          "name": "Demo Hall stairs 1-2 (demo)",
+          "source_ids": [
+            "synthetic-demo"
+          ],
+          "observed_at": null,
+          "evidence": "synthetic"
+        },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -97.7353,
+              30.2863
+            ],
+            [
+              -97.7354,
+              30.28634
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "n/cor2-a",
+        "feature_id": "demo-corridor-l2",
+        "position": [
+          -97.7354,
+          30.28634
+        ],
+        "building_id": "demo-hall",
+        "level_id": "2"
+      },
+      {
+        "id": "n/cor2-b",
+        "feature_id": "demo-corridor-l2",
+        "position": [
+          -97.7352,
+          30.28636
+        ],
+        "building_id": "demo-hall",
+        "level_id": "2"
+      },
+      {
+        "id": "n/elev-1",
+        "feature_id": "demo-elevator-l1-l2",
+        "position": [
+          -97.73536,
+          30.28631
+        ],
+        "building_id": "demo-hall",
+        "level_id": "1"
+      },
+      {
+        "id": "n/elev-2",
+        "feature_id": "demo-elevator-l1-l2",
+        "position": [
+          -97.73536,
+          30.28631
+        ],
+        "building_id": "demo-hall",
+        "level_id": "2"
+      },
+      {
+        "id": "n/lobby",
+        "feature_id": "demo-lobby-l1",
+        "position": [
+          -97.7353,
+          30.2863
+        ],
+        "building_id": "demo-hall",
+        "level_id": "1"
+      },
+      {
+        "id": "n/pe-a",
+        "feature_id": "demo-path-east",
+        "position": [
+          -97.7358,
+          30.28612
+        ],
+        "building_id": null,
+        "level_id": "outdoor"
+      },
+      {
+        "id": "n/pe-b",
+        "feature_id": "demo-path-east",
+        "position": [
+          -97.7353,
+          30.2862
+        ],
+        "building_id": null,
+        "level_id": "outdoor"
+      },
+      {
+        "id": "n/pw-a",
+        "feature_id": "demo-path-west",
+        "position": [
+          -97.7365,
+          30.286
+        ],
+        "building_id": null,
+        "level_id": "outdoor"
+      },
+      {
+        "id": "n/pw-b",
+        "feature_id": "demo-path-west",
+        "position": [
+          -97.736,
+          30.2861
+        ],
+        "building_id": null,
+        "level_id": "outdoor"
+      },
+      {
+        "id": "n/room-204",
+        "feature_id": "demo-room-204",
+        "position": [
+          -97.7352,
+          30.28641
+        ],
+        "building_id": "demo-hall",
+        "level_id": "2"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e/cor-fwd",
+        "feature_id": "demo-corridor-l2",
+        "from": "n/cor2-a",
+        "to": "n/cor2-b",
+        "kind": "path",
+        "length_m": 19.1,
+        "width_m": null,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/cor-rev",
+        "feature_id": "demo-corridor-l2",
+        "from": "n/cor2-b",
+        "to": "n/cor2-a",
+        "kind": "path",
+        "length_m": 19.1,
+        "width_m": null,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/door-north-fwd",
+        "feature_id": "demo-entrance-north",
+        "from": "n/pe-b",
+        "to": "n/lobby",
+        "kind": "door",
+        "length_m": 11.1,
+        "width_m": 1.24,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/door-north-rev",
+        "feature_id": "demo-entrance-north",
+        "from": "n/lobby",
+        "to": "n/pe-b",
+        "kind": "door",
+        "length_m": 11.1,
+        "width_m": 1.24,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/elev-down",
+        "feature_id": "demo-elevator-l1-l2",
+        "from": "n/elev-2",
+        "to": "n/elev-1",
+        "kind": "elevator",
+        "length_m": 4,
+        "width_m": 1.1,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/elev-up",
+        "feature_id": "demo-elevator-l1-l2",
+        "from": "n/elev-1",
+        "to": "n/elev-2",
+        "kind": "elevator",
+        "length_m": 4,
+        "width_m": 1.1,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/pe-fwd",
+        "feature_id": "demo-path-east",
+        "from": "n/pe-a",
+        "to": "n/pe-b",
+        "kind": "path",
+        "length_m": 44.6,
+        "width_m": null,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/pe-rev",
+        "feature_id": "demo-path-east",
+        "from": "n/pe-b",
+        "to": "n/pe-a",
+        "kind": "path",
+        "length_m": 44.6,
+        "width_m": null,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/pw-fwd",
+        "feature_id": "demo-path-west",
+        "from": "n/pw-a",
+        "to": "n/pw-b",
+        "kind": "path",
+        "length_m": 44.9,
+        "width_m": null,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/pw-rev",
+        "feature_id": "demo-path-west",
+        "from": "n/pw-b",
+        "to": "n/pw-a",
+        "kind": "path",
+        "length_m": 44.9,
+        "width_m": null,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/ramp-fwd",
+        "feature_id": "demo-curb-ramp",
+        "from": "n/pw-b",
+        "to": "n/pe-a",
+        "kind": "ramp",
+        "length_m": 20.1,
+        "width_m": 0.92,
+        "slope": 0.058,
+        "cross_slope": 0,
+        "step_height_m": null,
+        "surface": "concrete",
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/ramp-rev",
+        "feature_id": "demo-curb-ramp",
+        "from": "n/pe-a",
+        "to": "n/pw-b",
+        "kind": "ramp",
+        "length_m": 20.1,
+        "width_m": 0.92,
+        "slope": -0.058,
+        "cross_slope": 0,
+        "step_height_m": null,
+        "surface": "concrete",
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/room-door-fwd",
+        "feature_id": "demo-room-204",
+        "from": "n/cor2-b",
+        "to": "n/room-204",
+        "kind": "door",
+        "length_m": 5.6,
+        "width_m": 0.95,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "unknown",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/room-door-rev",
+        "feature_id": "demo-room-204",
+        "from": "n/room-204",
+        "to": "n/cor2-b",
+        "kind": "door",
+        "length_m": 5.6,
+        "width_m": 0.95,
+        "slope": null,
+        "cross_slope": null,
+        "step_height_m": null,
+        "surface": null,
+        "access": "unknown",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/stairs-down",
+        "feature_id": "demo-stairs-l1-l2",
+        "from": "n/cor2-a",
+        "to": "n/lobby",
+        "kind": "stairs",
+        "length_m": 5.2,
+        "width_m": 1.4,
+        "slope": -0.32,
+        "cross_slope": null,
+        "step_height_m": 0.16,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      },
+      {
+        "id": "e/stairs-up",
+        "feature_id": "demo-stairs-l1-l2",
+        "from": "n/lobby",
+        "to": "n/cor2-a",
+        "kind": "stairs",
+        "length_m": 5.2,
+        "width_m": 1.4,
+        "slope": 0.32,
+        "cross_slope": null,
+        "step_height_m": 0.16,
+        "surface": null,
+        "access": "allowed",
+        "evidence": "synthetic",
+        "observed_at": null
+      }
+    ]
+  }
+}

@@ -9,7 +9,7 @@ import { courses } from "@/lib/seed-data";
 import { BottomTabs } from "./BottomTabs";
 import { courseHref, searchCourses } from "./course-search";
 import { shellModeFor, viewForPath } from "./routes";
-import { ShellContext, type ShellApi } from "./shell-context";
+import { ShellContext, type ShellApi, type ShellSearchProvider } from "./shell-context";
 import { TopBar } from "./TopBar";
 
 /**
@@ -28,6 +28,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [lastPath, setLastPath] = useState(pathname);
+  // The routed view's own search (Courses), when it registers one.
+  const [provider, setSearchProvider] = useState<ShellSearchProvider | null>(null);
 
   if (lastPath !== pathname) {
     // A navigation closes the palette.
@@ -36,7 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
-  const api = useMemo<ShellApi>(() => ({ openSearch }), [openSearch]);
+  const api = useMemo<ShellApi>(() => ({ openSearch, setSearchProvider }), [openSearch]);
 
   // ⌘K / Ctrl+K toggles the palette from anywhere in the app.
   useEffect(() => {
@@ -52,6 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mode]);
 
   const results = useMemo(() => searchCourses(courses, query), [query]);
+  const sections = provider ? provider.search(query) : [{ id: "courses", label: "Courses", items: results }];
 
   if (mode === "bare") {
     return (
@@ -79,8 +82,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         onOpenChange={setSearchOpen}
         query={query}
         onQueryChange={setQuery}
-        sections={[{ id: "courses", label: "Courses", items: results }]}
-        onSelect={(item) => {
+        sections={sections}
+        placeholder={provider?.placeholder}
+        emptyQueryHint={provider?.emptyQueryHint}
+        planShortcut={provider?.planShortcut}
+        onSelect={(item, opts) => {
+          if (provider) {
+            if (provider.onSelect(item, opts) === true) return;
+            setSearchOpen(false);
+            setQuery("");
+            return;
+          }
           setSearchOpen(false);
           setQuery("");
           if (item.code) router.push(courseHref(item.code));

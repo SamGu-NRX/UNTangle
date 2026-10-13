@@ -1,33 +1,30 @@
 #!/usr/bin/env node
 /**
- * Builds the committed campus routing artifacts from the raw Overpass
- * snapshot in raw/:
- *
- *   frontend/src/lib/campus/data/walkways.json   — walkway graph (nodes + ways)
- *   frontend/src/lib/campus/data/buildings.json  — building outlines, names, refs, entrances
- *   receipt.json                                 — provenance: queries, timestamps, sha256 of
- *                                                  raw inputs and every output
- *
- * Deterministic: the same raw snapshot always produces byte-identical outputs.
- *
- * Usage: node tools/campus-geodata/build.mjs
- *
- * Data (c) OpenStreetMap contributors, ODbL 1.0. See README.md in this directory.
+ * Internal OSM geometry extraction for kit.ts. Preserves UNT's historic node
+ * order and coordinate rounding so its routing matrix remains byte-identical.
+ * Run the public kit command documented in README.md for committed artifacts.
+ * Data © OpenStreetMap contributors, ODbL 1.0.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pedestrianDirections } from "./pedestrian-directions.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const rawDir = join(here, "raw");
+const rawDir = process.argv[4] ?? join(here, "raw");
 const repoRoot = join(here, "..", "..");
-const outDir = join(repoRoot, "frontend", "src", "lib", "campus", "data");
-const receiptPath = join(here, "receipt.json");
+const definition = JSON.parse(readFileSync(process.argv[2] ?? join(here, "campuses/unt-denton.json"), "utf8"));
+if (definition.pedestrianDirectionPolicy !== undefined &&
+    (definition.id !== "unt-denton" || definition.pedestrianDirectionPolicy !== "legacy-unt-reciprocal")) {
+  throw new Error("legacy-unt-reciprocal is permitted only for unt-denton");
+}
+const outDir = process.argv[3] ?? join(repoRoot, "frontend", "src", "lib", "campus", "data");
+const receiptPath = join(outDir, "receipt.json");
 
 const RAW = {
-  pedestrian: join(rawDir, "overpass-pedestrian-snapshot.json"),
-  buildings: join(rawDir, "overpass-buildings-snapshot.json"),
+  pedestrian: join(rawDir, definition.id === "unt-denton" ? "overpass-pedestrian-snapshot.json" : `${definition.id}-pedestrian.json`),
+  buildings: join(rawDir, definition.id === "unt-denton" ? "overpass-buildings-snapshot.json" : `${definition.id}-buildings.json`),
 };
 
 const ATTRIBUTION = "© OpenStreetMap contributors (data: ODbL 1.0)";
@@ -209,9 +206,14 @@ function main() {
   // Overpass returns whole ways that merely intersect the bbox, and their far
   // nodes can sit well outside it. Ways split at dropped nodes so no edge is
   // fabricated across the gap.
-  const NODE_BOX = { south: 33.2005, west: -97.1605, north: 33.2195, east: -97.1325 };
+  const NODE_BOX = { south: definition.bbox.south - (definition.nodeMarginDegrees ?? 0.002), west: definition.bbox.west - (definition.nodeMarginDegrees ?? 0.002), north: definition.bbox.north + (definition.nodeMarginDegrees ?? 0.002), east: definition.bbox.east + (definition.nodeMarginDegrees ?? 0.002) };
   for (const way of rawWays) {
-    if (!isFootUsable(way.tags ?? {})) continue;
+    const tags = way.tags ?? {};
+    if (!KEEP_HIGHWAY.has(tags.highway)) continue;
+    // UNT's pinned reciprocal extract hash is part of its matrix metadata.
+    const directions = definition.pedestrianDirectionPolicy === "legacy-unt-reciprocal"
+      ? undefined : pedestrianDirections(tags, way.id);
+    if (directions ? !directions.forward && !directions.backward : !isFootUsable(tags)) continue;
     const coords = way.geometry.map((point) => [point.lat, point.lon ?? point.lng]);
     if (coords.length < 2) continue;
     const cls = wayClass(way.tags ?? {});
@@ -241,7 +243,7 @@ function main() {
       lastIdx = idx;
     }
     if (n.length >= 2) fragments.push(n);
-    for (const frag of fragments) usableWays.push({ osmId: way.id, c: cls.c, s: cls.s, n: frag });
+    for (const frag of fragments) usableWays.push({ osmId: way.id, c: cls.c, s: cls.s, n: frag, directions });
   }
   usableWays.sort((a, b) => a.osmId - b.osmId);
 
@@ -294,15 +296,12 @@ function main() {
       throw new Error(`non-finite node coordinate produced by extraction: ${lat},${lng}`);
     }
     if (
-      lat < 33.15 || lat > 33.25 || lng < -97.21 || lng > -97.08
+      lat < NODE_BOX.south || lat > NODE_BOX.north || lng < NODE_BOX.west || lng > NODE_BOX.east
     ) {
-      // Coarse sanity window (~5 km): the real guard against garbage
-      // coordinates is the finite test above; anything this far out is a
-      // broken extraction, not legitimate way overshoot.
       throw new Error(`node coordinate far outside the campus area: ${lat},${lng}`);
     }
   }
-  if (!(largestShare > 0.9)) {
+  if (nodes.length === 0 || (definition.id === "unt-denton" && !(largestShare > 0.9))) {
     throw new Error(`walkway graph is too fragmented: largest component covers ${(largestShare * 100).toFixed(2)}% of nodes`);
   }
 
@@ -311,7 +310,7 @@ function main() {
       attribution: ATTRIBUTION,
       source: SOURCE_URLS.pedestrian,
       license: "Open Database License (ODbL) v1.0 — https://opendatacommons.org/licenses/odbl/1-0/",
-      bbox: { south: 33.2025, west: -97.1585, north: 33.2175, east: -97.1345 },
+      bbox: definition.bbox,
       fetchedAt: raw.pedestrian.osm3s?.timestamp_osm ?? null,
       nodeCount: nodes.length,
       wayCount: usableWays.length,
@@ -327,6 +326,7 @@ function main() {
       c: CLASS_LIST.indexOf(way.c),
       s: way.s === "crossing" ? 1 : way.s === "sidewalk" ? 2 : 0,
       n: way.n,
+      ...(way.directions ? { directions: way.directions } : {}),
     })),
   };
 
@@ -418,7 +418,7 @@ function main() {
     buildings: join(outDir, "buildings.json"),
   };
   const receipt = {
-    generatedAt: new Date().toISOString(),
+    generatedAt: raw.pedestrian.osm3s?.timestamp_osm ?? null,
     generator: "tools/campus-geodata/build.mjs",
     commands: {
       fetch: "node tools/campus-geodata/fetch-osm.mjs [--refresh]",
@@ -427,12 +427,7 @@ function main() {
     attribution: ATTRIBUTION,
     license: "OpenStreetMap data is available under the Open Database License (ODbL) v1.0; this summary does not alter that terms set. Keep the attribution '© OpenStreetMap contributors' with any use of the data.",
     sourceUrls: SOURCE_URLS,
-    queries: {
-      pedestrian:
-        '[out:json][timeout:180];(way["highway"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;',
-      buildings:
-        '[out:json][timeout:180];(way["building"](33.2025,-97.1585,33.2175,-97.1345);node["entrance"](33.2025,-97.1585,33.2175,-97.1345);node["highway"="entrance"](33.2025,-97.1585,33.2175,-97.1345););out geom qt;',
-    },
+    queries: definition.queries,
     raw: Object.fromEntries(
       Object.entries(RAW).map(([kind, path]) => [
         kind,

@@ -65,6 +65,15 @@ export type InferenceResult = {
   /** Strongly connected components. Evidence may still resolve a reported cycle. */
   cycles: readonly (readonly CourseId[])[];
   catalog: readonly CatalogCourse[];
+  /**
+   * Courses satisfied only through closure: covered course id -> the passed
+   * course whose mandatory requirements prove it (the first such course the
+   * closure walk expands, in id order). A covered course gains no credit and
+   * keeps its own status; other rules treat it as met. Built by the same walk
+   * that supplies closure facts, so escape routes and whole-rule barriers
+   * apply to it unchanged.
+   */
+  coverage: ReadonlyMap<CourseId, CourseId>;
 };
 
 export type Major = { coreCourseCodes: readonly CourseId[] };

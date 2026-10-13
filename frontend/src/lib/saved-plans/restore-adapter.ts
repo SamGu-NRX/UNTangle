@@ -10,6 +10,7 @@ import { stableHash } from "@/lib/plan-library/snapshot";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import type {
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -44,6 +45,7 @@ export type RestorePlannerApi = {
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
   setSection: (courseCode: string, sectionId: string) => void;
   setSectionLock: (courseCode: string, locked: boolean) => void;
+  setCoursePlan: (coursePlan: CoursePlan) => void;
   plannerState: PlannerState;
 };
 
@@ -90,6 +92,20 @@ function annotateCompletedRecord(record: TranscriptCourseRecord): TranscriptCour
     reviewRequired: false,
     rationale: record.rationale.includes(marker) ? record.rationale : `${record.rationale} ${marker}`,
   };
+}
+
+/**
+ * The saved plan's Courses-view facts, when it has any. A plan saved before
+ * coursePlan existed gets them the way loading it would: normalize migrates
+ * v1's explicit manual-done annotations into manual credit. Restore starts
+ * from a reset state that already has an empty coursePlan, so the migration
+ * would never run there on its own. Section references stay classified from
+ * the raw snapshot.
+ */
+function savedCoursePlan(state: PlannerState): CoursePlan | null {
+  const plan = normalizePlannerState(state).coursePlan;
+  if (!plan) return null;
+  return plan.manualCredit.length > 0 || plan.autoPlanned.length > 0 || plan.lastAuto ? plan : null;
 }
 
 function statusOf(statuses: Record<string, CourseStatus>, courseCode: string): CourseStatus {
@@ -178,6 +194,12 @@ export function dispatchRestore(
     }
   });
 
+  // Manual credit, Auto provenance and the last Auto run travel with the plan.
+  // Last on purpose: setSection treats a section pick as a hand edit and
+  // would invalidate a restored Auto run if the run were already in place.
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) planner.setCoursePlan(coursePlan);
+
   return {
     appliedStatusCount,
     appliedSectionCount,
@@ -237,6 +259,9 @@ export function simulateRestoredState(
     }
   });
 
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) state = { ...state, coursePlan };
+
   references.preserved.forEach((finding) => {
     state = {
       ...state,
@@ -291,6 +316,16 @@ export function describeRestoreSteps(
       ? `Declare course statuses: ${statusDiffs.join(", ")}`
       : "Declare no course-status changes (they already match)",
   );
+
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) {
+    const facts = [
+      coursePlan.manualCredit.length > 0 ? `credit you claimed for ${coursePlan.manualCredit.join(", ")}` : null,
+      coursePlan.autoPlanned.length > 0 ? `${coursePlan.autoPlanned.length} course(s) planned by Auto-fill` : null,
+      coursePlan.lastAuto ? "the last Auto-fill run" : null,
+    ].filter(Boolean);
+    steps.push(`Restore ${facts.join(", ")}`);
+  }
 
   if (references.preserved.length > 0) {
     const selections = references.preserved
@@ -377,6 +412,7 @@ export function workingStateFingerprint(state: PlannerState): string {
       selectedMajor: state.selectedMajor,
       transcriptRecords: state.transcriptRecords,
       lockedSections: state.lockedSections ?? {},
+      coursePlan: state.coursePlan ?? null,
     }),
   );
 }

@@ -1,0 +1,341 @@
+{
+  "campus": "ut-austin",
+  "definitionSha256": "e1d39d12e784b8ffebf7890fedb6dfce84b4232d0b0bae2a339509c3a5454d46",
+  "raw": {
+    "pedestrian": {
+      "path": "raw/ut-austin-pedestrian.json",
+      "sha256": "2d0171b7adc75333e190afcaf973eb6e5ec74afb043606a73da793b403cf9a48",
+      "bytes": 1537691
+    },
+    "buildings": {
+      "path": "raw/ut-austin-buildings.json",
+      "sha256": "2d0171b7adc75333e190afcaf973eb6e5ec74afb043606a73da793b403cf9a48",
+      "bytes": 1537691
+    }
+  },
+  "queries": "[out:json][timeout:180];(way[\"highway\"](30.281,-97.744,30.291,-97.729);way[\"building\"](30.281,-97.744,30.291,-97.729);node[\"entrance\"](30.281,-97.744,30.291,-97.729);node[\"highway\"=\"entrance\"](30.281,-97.744,30.291,-97.729););out geom qt;",
+  "source": {
+    "endpoint": "https://overpass.kumi.systems/api/interpreter",
+    "query": "[out:json][timeout:180];(way[\"highway\"](30.281,-97.744,30.291,-97.729);way[\"building\"](30.281,-97.744,30.291,-97.729);node[\"entrance\"](30.281,-97.744,30.291,-97.729);node[\"highway\"=\"entrance\"](30.281,-97.744,30.291,-97.729););out geom qt;",
+    "sha256": "2d0171b7adc75333e190afcaf973eb6e5ec74afb043606a73da793b403cf9a48"
+  },
+  "osmBaseAt": "2026-05-06T03:25:00Z",
+  "stats": {
+    "nodes": 4632,
+    "edges": 10990,
+    "buildings": 32,
+    "named": 204,
+    "widthKnown": 0,
+    "slopeKnown": 0,
+    "largestComponentShare": 0.9810017271157168
+  },
+  "matrix": {
+    "buildings": 32,
+    "anchors": {
+      "osm-25795473": {
+        "anchor": [
+          30.2830087,
+          -97.7380533
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 25795473,
+        "connectorMeters": 34.1
+      },
+      "osm-27397894": {
+        "anchor": [
+          30.2857591,
+          -97.7394161
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 27397894,
+        "connectorMeters": 29.9
+      },
+      "osm-31962360": {
+        "anchor": [
+          30.2839876,
+          -97.7381105
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 31962360,
+        "connectorMeters": 34.6
+      },
+      "osm-31962470": {
+        "anchor": [
+          30.2840096,
+          -97.7368337
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 31962470,
+        "connectorMeters": 43.6
+      },
+      "osm-38607779": {
+        "anchor": [
+          30.287453,
+          -97.7395758
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 38607779,
+        "connectorMeters": 31.6
+      },
+      "osm-38607784": {
+        "anchor": [
+          30.2866901,
+          -97.7403949
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 38607784,
+        "connectorMeters": 42.7
+      },
+      "osm-38607983": {
+        "anchor": [
+          30.285987,
+          -97.7384103
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 38607983,
+        "connectorMeters": 11.2
+      },
+      "osm-38607984": {
+        "anchor": [
+          30.2851141,
+          -97.7377075
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 38607984,
+        "connectorMeters": 10
+      },
+      "osm-38607989": {
+        "anchor": [
+          30.2869071,
+          -97.7389857
+        ],
+        "method": "pin-fallback",
+        "outlineOsmId": null,
+        "connectorMeters": 29.7
+      },
+      "osm-38607992": {
+        "anchor": [
+          30.2862684,
+          -97.7386372
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 38607992,
+        "connectorMeters": 8.2
+      },
+      "osm-38625300": {
+        "anchor": [
+          30.2888897,
+          -97.736284
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 38625300,
+        "connectorMeters": 3.1
+      },
+      "osm-38625301": {
+        "anchor": [
+          30.2888158,
+          -97.7356389
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 38625301,
+        "connectorMeters": 22.8
+      },
+      "osm-42561353": {
+        "anchor": [
+          30.2853144,
+          -97.7383983
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 42561353,
+        "connectorMeters": 21.6
+      },
+      "osm-52480996": {
+        "anchor": [
+          30.2881665,
+          -97.7385886
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 52480996,
+        "connectorMeters": 1.3
+      },
+      "osm-79457840": {
+        "anchor": [
+          30.2859121,
+          -97.7366528
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 79457840,
+        "connectorMeters": 15.9
+      },
+      "osm-79457842": {
+        "anchor": [
+          30.2853784,
+          -97.7363721
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 79457842,
+        "connectorMeters": 38.6
+      },
+      "osm-79457845": {
+        "anchor": [
+          30.2899888,
+          -97.7361592
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 79457845,
+        "connectorMeters": 27.3
+      },
+      "osm-126017772": {
+        "anchor": [
+          30.2888723,
+          -97.7386281
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126017772,
+        "connectorMeters": 17.6
+      },
+      "osm-126017775": {
+        "anchor": [
+          30.2880238,
+          -97.7380902
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126017775,
+        "connectorMeters": 21.3
+      },
+      "osm-126017778": {
+        "anchor": [
+          30.2884467,
+          -97.7369947
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126017778,
+        "connectorMeters": 26.3
+      },
+      "osm-126017780": {
+        "anchor": [
+          30.2874497,
+          -97.7380904
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126017780,
+        "connectorMeters": 23.8
+      },
+      "osm-126020360": {
+        "anchor": [
+          30.2898318,
+          -97.7355931
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126020360,
+        "connectorMeters": 18.3
+      },
+      "osm-126148593": {
+        "anchor": [
+          30.2852684,
+          -97.7401062
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126148593,
+        "connectorMeters": 26.7
+      },
+      "osm-126149671": {
+        "anchor": [
+          30.2869001,
+          -97.7368594
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 126149671,
+        "connectorMeters": 28.4
+      },
+      "osm-126149677": {
+        "anchor": [
+          30.2860865,
+          -97.735788
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126149677,
+        "connectorMeters": 28.9
+      },
+      "osm-126149680": {
+        "anchor": [
+          30.284731,
+          -97.7362993
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 126149680,
+        "connectorMeters": 17
+      },
+      "osm-126569521": {
+        "anchor": [
+          30.286247,
+          -97.7364723
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 126569521,
+        "connectorMeters": 4
+      },
+      "osm-150732420": {
+        "anchor": [
+          30.2846028,
+          -97.7401143
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 150732420,
+        "connectorMeters": 18.2
+      },
+      "osm-150732421": {
+        "anchor": [
+          30.2844404,
+          -97.7386873
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 150732421,
+        "connectorMeters": 25.4
+      },
+      "osm-150732422": {
+        "anchor": [
+          30.2848797,
+          -97.7398544
+        ],
+        "method": "osm-entrance",
+        "outlineOsmId": 150732422,
+        "connectorMeters": 24.3
+      },
+      "osm-172047490": {
+        "anchor": [
+          30.2828676,
+          -97.7390924
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 172047490,
+        "connectorMeters": 38.2
+      },
+      "osm-516282867": {
+        "anchor": [
+          30.2883351,
+          -97.7348742
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 516282867,
+        "connectorMeters": 43.5
+      }
+    },
+    "maxMinutes": 12.872791195605318,
+    "asymmetries": 0
+  },
+  "outputs": {
+    "campus-map.json": {
+      "sha256": "4923521c9242035aa14a300334f66a813b3ee7d814c58ebd7d7d02608625c9fa",
+      "bytes": 4852813
+    },
+    "catalogue.json": {
+      "sha256": "a87ecb44ff6fda05edda0ce0c3d08edae830e86bf1e8ded7251ed425a776db75",
+      "bytes": 4830
+    },
+    "walking-times.json": {
+      "sha256": "3a0fb04e3b2a153c5723e0f2495c0cdba319d21f0a1550de30dfcdd7d0d7d381",
+      "bytes": 68385
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { describeLockChanges, type PlanDiff } from "@/lib/plan-library/diff";
+import { describeCourseFactChanges, describeLockChanges, type PlanDiff } from "@/lib/plan-library/diff";
 import { statusLabel } from "@/components/saved-plans/plans-view-model";
 
 // The comparison a plan card opens: one row per field that differs between
@@ -49,6 +49,9 @@ export function PlanComparison({ id, diff }: { id: string; diff: PlanDiff }) {
           ))}
           {describeLockChanges(diff.lockChanges).map((line) => (
             <DiffRow key={`lock-${line}`}>{line}</DiffRow>
+          ))}
+          {describeCourseFactChanges(diff.courseFactChanges).map((line) => (
+            <DiffRow key={`fact-${line}`}>{line}</DiffRow>
           ))}
           {diff.optimizationChanged ? <DiffRow>The optimization preference differs</DiffRow> : null}
           {diff.activeDayChanged ? <DiffRow>The preferred day differs</DiffRow> : null}
