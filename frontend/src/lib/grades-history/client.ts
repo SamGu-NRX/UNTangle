@@ -56,29 +56,34 @@ export function retryAfterMs(value: string | null, now: number): number | null {
     const ms = Number(header) * 1_000;
     return Number.isSafeInteger(ms) ? ms : null;
   }
-  // Date.parse accepts strings such as "-1". Only HTTP-date wire formats may reach it.
-  const imf = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), (0[1-9]|[12]\d|3[01]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} ([01]\d|2[0-3]):[0-5]\d:[0-5]\d GMT$/;
-  const obsolete = /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday), (0[1-9]|[12]\d|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2}) ([01]\d|2[0-3]):[0-5]\d:[0-5]\d GMT$/;
-  const asctime = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ( [1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):[0-5]\d:[0-5]\d \d{4}$/;
-  if (!imf.test(header) && !obsolete.test(header) && !asctime.test(header)) return null;
-  const parsed = Date.parse(header);
-  if (!Number.isFinite(parsed)) return null;
-  const date = new Date(parsed);
-  const old = obsolete.exec(header);
-  if (old) {
-    let year = Math.floor(new Date(now).getUTCFullYear() / 100) * 100 + Number(old[4]);
-    if (year > new Date(now).getUTCFullYear() + 50) year -= 100;
-    date.setUTCFullYear(year);
+  const imf = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), (0[1-9]|[12]\d|3[01]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d) GMT$/;
+  const obsolete = /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday), (0[1-9]|[12]\d|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2}) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d) GMT$/;
+  const asctime = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ( [1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d) (\d{4})$/;
+  const standard = imf.exec(header) ?? obsolete.exec(header);
+  const ascii = standard ? null : asctime.exec(header);
+  const fields = standard
+    ? { weekday: standard[1], day: standard[2], month: standard[3], year: standard[4], hour: standard[5], minute: standard[6], second: standard[7] }
+    : ascii ? { weekday: ascii[1], day: ascii[3], month: ascii[2], year: ascii[7], hour: ascii[4], minute: ascii[5], second: ascii[6] } : null;
+  if (!fields) return null;
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(fields.month);
+  const day = Number(fields.day);
+  const hour = Number(fields.hour);
+  const minute = Number(fields.minute);
+  const second = Number(fields.second);
+  let year = Number(fields.year);
+  if (fields.year.length === 2) {
+    const currentYear = new Date(now).getUTCFullYear();
+    year += Math.floor(currentYear / 100) * 100;
+    if (year > currentYear + 50) year -= 100;
   }
-  const utc = date.toUTCString();
-  let canonical = utc;
-  if (old) {
-    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    canonical = `${weekdays[date.getUTCDay()]}, ${utc.slice(5, 7)}-${utc.slice(8, 11)}-${String(date.getUTCFullYear()).slice(-2)} ${utc.slice(17)}`;
-  } else if (asctime.test(header)) {
-    canonical = `${utc.slice(0, 3)} ${utc.slice(8, 11)} ${String(date.getUTCDate()).padStart(2, " ")} ${utc.slice(17, 25)} ${utc.slice(12, 16)}`;
-  }
-  return header === canonical ? Math.max(0, date.getTime() - now) : null;
+  // HTTP dates are UTC even when asctime omits GMT; local-time parsing changes the cooldown.
+  // setUTCFullYear also preserves years 0000-0099 instead of Date.UTC's 1900 offset.
+  const date = new Date(0);
+  date.setUTCFullYear(year, month, day);
+  date.setUTCHours(hour, minute, second, 0);
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day || date.getUTCHours() !== hour || date.getUTCMinutes() !== minute || date.getUTCSeconds() !== second || weekdays[date.getUTCDay()] !== fields.weekday.slice(0, 3)) return null;
+  return Math.max(0, date.getTime() - now);
 }
 
 async function readSseResult(response: Response, id: number): Promise<Record<string, unknown>> {

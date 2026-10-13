@@ -77,6 +77,21 @@ describe("PR 30 review regressions", () => {
     for (const date of ["Tue, 13 Oct 2026 12:10:00 GMT", "Tuesday, 13-Oct-26 12:10:00 GMT", "Tue Oct 13 12:10:00 2026"]) expect(retryAfterMs(date, now)).toBe(60_000);
   });
 
+  test.each(["Tue, 13 Oct 2026 12:10:00 GMT", "Tuesday, 13-Oct-26 12:10:00 GMT", "Tue Oct 13 12:10:00 2026"])("3: HTTP-date %s is UTC and honors a ten-minute cooldown", async (header) => {
+    const now = Date.UTC(2026, 9, 13, 12, 0, 0);
+    expect(retryAfterMs(header, now)).toBe(600_000);
+    const { client, cache, clock, fake } = await setup({ replies: [{ status: 429, retryAfter: header }] }, 0);
+    clock.advance(now);
+    const service = new GradesHistoryService(client, cache);
+    expect(await service.searchGrades("Shrestha")).toMatchObject({ status: "unavailable", error: { retryAfterSeconds: 600 } });
+    clock.advance(60_000);
+    expect(await service.searchGrades("Shrestha")).toMatchObject({ status: "unavailable", error: { reason: "throttled", retryAfterSeconds: 540 } });
+    expect(fake.requests).toHaveLength(1);
+    clock.advance(540_000);
+    expect(await service.searchGrades("Shrestha")).toMatchObject({ status: "ok", data: { instructors: [{ name: "Binod Shrestha" }, { name: "Pradhumna Lal Shrestha" }] } });
+    expect(fake.requests).toHaveLength(2);
+  });
+
   test("4: all pages share one expiry and a refresh reads a complete new generation", async () => {
     let changed = false;
     const { service, fake, clock, directory } = await setup({ pageSize: 2, transform: (result, request) => {
