@@ -24,6 +24,16 @@ node tools/campus-geodata/build.mjs              # rebuild artifacts + receipt f
 bun tools/campus-geodata/build-matrix.ts         # rebuild the walking-time matrix
 ```
 
+## Adding a campus
+
+The app reads everything campus-specific through one `CampusConfig`
+(`frontend/src/lib/campus/config.ts`): id, name, bounds, center, building
+registry and walking-speed model. A second campus is that config plus a run of
+this pipeline with the campus's bounding box (`BBOX` in `fetch-osm.mjs`, the
+same box in `build.mjs`), writing its own `walkways.json` and
+`walking-times.json`, and one entry in `frontend/src/lib/campus/engine.ts`
+that points the route API at them. UNT Denton is the only campus built.
+
 ## Way filter
 
 A highway way is pedestrian-usable iff its `highway` tag is one of `footway`,
@@ -44,11 +54,13 @@ The route API and `WalkingTime` (`frontend/src/lib/campus/walking-times.ts`)
 are **separate contracts by design**. Do not unify them:
 
 1. **`POST /api/map/route`** (`frontend/src/app/api/map/route/route.ts`) —
-   when the campus graph cannot serve a route, it returns `source: "fallback"`:
-   a straight line with `durationSeconds: 0`. The UI shows it as an
-   **approximate distance only** — never a walking route or a walking time. A
-   computed duration here would invite exactly the false walking time the
-   honesty suite forbids.
+   returns one leg per consecutive pair of stops. A stop that names its
+   building (`buildingId`) starts or ends at that building's matrix anchor, so
+   the leg's seconds equal the matrix's. A leg the campus graph cannot serve
+   is `source: "fallback"`: a straight line with `durationSeconds: null`. The
+   UI shows it as an **approximate distance only** — never a walking route or
+   a walking time. The leg type makes a fallback leg with a time
+   unrepresentable.
 
 2. **`getWalkingSeconds`** — serves the optimizer, which needs a number:
    - a registry building the graph cannot connect returns a straight-line

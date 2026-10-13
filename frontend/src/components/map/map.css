@@ -1,0 +1,897 @@
+/*
+ * /map styles, all in one file so a restyle touches one place.
+ * Values follow docs/design/untangle-v2/DESIGN.md (MapView, MapPanel,
+ * StopCard, RouteLeg, MapPin, MapSheet) and map.html.
+ */
+
+.mv-root {
+  /* DESIGN.md token names, so these follow the shared tokens once they land
+     in globals.css; the fallbacks are DESIGN.md's values. */
+  --mv-brand: var(--brand, #00512b);
+  --mv-brand-hover: var(--brand-hover, #007a40);
+  --mv-brand-soft: var(--brand-soft, #e4f0e8);
+  --mv-accent: var(--accent, #00a855);
+  --mv-ink: var(--ink, #1a2e1a);
+  --mv-ink-2: var(--ink-2, #586e58);
+  --mv-ink-3: var(--ink-3, #6b826b);
+  --mv-surface: var(--surface, #ffffff);
+  --mv-surface-2: var(--surface-2, #eef2ee);
+  --mv-surface-3: var(--surface-3, #e6ece6);
+  --mv-line: var(--line, #dde8dd);
+  --mv-line-strong: var(--line-strong, #c3d2c3);
+  --mv-danger: var(--danger, #b3261e);
+  --mv-danger-soft: var(--danger-soft, #fbeae8);
+  --mv-shadow-1: var(--shadow-1, 0 1px 2px rgba(26, 46, 26, 0.06));
+  --mv-shadow-2: var(--shadow-2, 0 4px 12px rgba(26, 46, 26, 0.08), 0 1px 2px rgba(26, 46, 26, 0.06));
+  --mv-shadow-3: var(--shadow-3, 0 16px 40px rgba(26, 46, 26, 0.14), 0 2px 6px rgba(26, 46, 26, 0.08));
+  /* DESIGN.md's curves; the current globals.css --ease-out is a different curve. */
+  --mv-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --mv-ease-sheet: var(--ease-sheet, cubic-bezier(0.32, 0.72, 0, 1));
+  --mv-glass: rgba(255, 255, 255, 0.78);
+  --mv-glass-blur: blur(24px) saturate(1.4);
+  --mv-panel-w: var(--map-panel-w, 368px);
+  --mv-inset: 16px;
+  --mv-display: var(--font-display, "Syne", sans-serif);
+
+  /* Full-bleed under the header: map-client.tsx measures the header height and
+     <main>'s padding into these variables and the root steps out of both. */
+  position: relative;
+  width: 100vw;
+  height: calc(100dvh - var(--mv-top, 0px));
+  margin: calc(-1 * var(--mv-pad-top, 0px)) calc(50% - 50vw) calc(-1 * var(--mv-pad-bottom, 0px));
+  overflow: hidden;
+  color: var(--mv-ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mv-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- map ---------- */
+
+.mv-canvas,
+.mv-canvas__map {
+  position: absolute;
+  inset: 0;
+}
+
+.mv-canvas--loading {
+  background: #eeede9;
+}
+
+.mv-canvas__map canvas:focus-visible {
+  outline: 2px solid var(--mv-accent);
+  outline-offset: -4px;
+}
+
+.mv-root .maplibregl-ctrl-attrib {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.mv-root .maplibregl-ctrl-attrib a {
+  color: var(--mv-ink-2);
+}
+
+/* On phones the sheet covers the bottom of the map; credits move to the top. */
+.mv-root[data-layout="phone"] .maplibregl-ctrl-bottom-right {
+  top: 0;
+  bottom: auto;
+}
+
+.mv-tiles-note {
+  position: absolute;
+  top: var(--mv-inset);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--mv-surface);
+  box-shadow: var(--mv-shadow-2);
+  font-size: 12.5px;
+  color: var(--mv-ink-2);
+}
+
+/* ---------- glass material ---------- */
+
+.mv-panel,
+.mv-controls__stack,
+.mv-control,
+.mv-sheet {
+  background: var(--mv-glass);
+  -webkit-backdrop-filter: var(--mv-glass-blur);
+  backdrop-filter: var(--mv-glass-blur);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mv-panel,
+  .mv-controls__stack,
+  .mv-control,
+  .mv-sheet {
+    background: var(--mv-surface);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .mv-panel,
+  .mv-controls__stack,
+  .mv-control,
+  .mv-sheet {
+    background: var(--mv-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ---------- controls ---------- */
+
+.mv-controls {
+  position: absolute;
+  right: var(--mv-inset);
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  z-index: 3;
+}
+
+.mv-controls__stack {
+  display: grid;
+  border-radius: 10px;
+  box-shadow: var(--mv-shadow-2);
+  overflow: hidden;
+}
+
+.mv-controls__stack .mv-control {
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.mv-controls__stack .mv-control + .mv-control {
+  border-top: 1px solid var(--mv-line);
+}
+
+.mv-control {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: var(--mv-shadow-2);
+  color: var(--mv-ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms var(--mv-ease-out);
+}
+
+.mv-control svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mv-control .mv-compass-n {
+  fill: var(--mv-danger);
+  stroke: none;
+}
+
+.mv-control .mv-compass-s {
+  fill: var(--mv-ink-3);
+  stroke: none;
+}
+
+.mv-control:active {
+  transform: scale(0.94);
+}
+
+.mv-control:focus-visible,
+.mv-button:focus-visible,
+.mv-link:focus-visible,
+.mv-stop:focus-visible,
+.mv-leg__card:focus-visible,
+.mv-days__day:focus-visible,
+.mv-sheet__handle:focus-visible,
+.mv-pin:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--mv-surface), 0 0 0 4px var(--mv-accent);
+}
+
+/* ---------- pins ---------- */
+
+.mv-pin {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mv-pin__disc {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 2.5px solid var(--mv-surface);
+  background: var(--mv-brand);
+  box-shadow: var(--mv-shadow-2);
+  color: #fff;
+  font: 700 12px/1 var(--mv-display);
+  transform-origin: 50% 100%;
+  transition: transform 160ms var(--mv-ease-out), background-color 160ms ease;
+}
+
+.mv-pin__tail {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--mv-brand);
+  box-shadow: 0 0 0 2px var(--mv-surface), var(--mv-shadow-1);
+}
+
+/* Selected grows from 28 to 34 px, from its tail, so it stays on its building. */
+.mv-pin[data-selected="true"] .mv-pin__disc {
+  background: var(--mv-accent);
+  transform: scale(1.214);
+}
+
+.mv-pin[data-selected="true"] .mv-pin__tail {
+  background: var(--mv-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mv-pin:hover .mv-pin__disc {
+    transform: scale(1.1);
+  }
+  .mv-pin[data-selected="true"]:hover .mv-pin__disc {
+    transform: scale(1.214);
+  }
+}
+
+/* ---------- desktop panel ---------- */
+
+.mv-panel {
+  position: absolute;
+  top: var(--mv-inset);
+  left: var(--mv-inset);
+  bottom: var(--mv-inset);
+  width: var(--mv-panel-w);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  box-shadow: var(--mv-shadow-2), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  z-index: 2;
+  animation: mv-panel-enter 200ms var(--mv-ease-out) both;
+}
+
+@keyframes mv-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+.mv-panel__header {
+  display: grid;
+  gap: 12px;
+  padding: 14px 14px 12px;
+}
+
+.mv-panel .mv-panel__header {
+  border-bottom: 1px solid rgba(26, 46, 26, 0.06);
+}
+
+.mv-panel__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px 14px;
+}
+
+.mv-panel__footer {
+  display: flex;
+  gap: 8px;
+  padding-top: 14px;
+}
+
+/* ---------- day switcher ---------- */
+
+.mv-days {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--mv-surface-3);
+  user-select: none;
+}
+
+.mv-days__pill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: 6px;
+  background: var(--mv-surface);
+  box-shadow: var(--mv-shadow-1);
+  transition: transform 160ms var(--mv-ease-out), width 160ms var(--mv-ease-out);
+}
+
+.mv-days__day {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 5px 0 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--mv-ink-2);
+  font: 600 13px/1 inherit;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mv-days__day[data-active="true"] {
+  color: var(--mv-ink);
+}
+
+.mv-days__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.mv-days__dot[data-has-classes="true"] {
+  background: var(--mv-brand-hover);
+}
+
+/* ---------- summary ---------- */
+
+.mv-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+/* The switcher already names the day; the heading is for screen readers and print. */
+.mv-summary__day {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mv-summary__line {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--mv-ink);
+}
+
+.mv-summary__line strong {
+  font-weight: 600;
+}
+
+.mv-summary__muted {
+  color: var(--mv-ink-2);
+}
+
+.mv-summary__warn {
+  color: var(--mv-danger);
+  font-weight: 600;
+}
+
+.mv-summary__tags {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.mv-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px dotted var(--mv-line-strong);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--mv-ink-2);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.mv-tag--small {
+  height: 18px;
+  margin-left: auto;
+}
+
+/* ---------- timeline ---------- */
+
+.mv-timeline {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mv-timeline__item {
+  position: relative;
+  display: grid;
+}
+
+/* The rail runs from one badge to the next, behind the cards; dashed for a straight-line estimate. */
+.mv-leg[data-route="straight-line"]::before {
+  background: repeating-linear-gradient(to bottom, var(--mv-line-strong) 0 5px, transparent 5px 9px);
+}
+
+.mv-leg::before {
+  content: "";
+  position: absolute;
+  left: 24.5px;
+  top: -16px;
+  bottom: -16px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--mv-line-strong);
+}
+
+.mv-stop {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  min-height: 60px;
+  width: 100%;
+  padding: 10px 12px 10px 11px;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  background: var(--mv-surface);
+  box-shadow: var(--mv-shadow-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms var(--mv-ease-out), background-color 160ms ease;
+}
+
+.mv-stop:active {
+  transform: scale(0.985);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mv-stop:hover {
+    background: var(--mv-surface-2);
+  }
+  .mv-leg__card:not(.mv-leg__card--static):hover {
+    background: var(--mv-surface-2);
+  }
+}
+
+.mv-stop[data-selected="true"] {
+  border-color: var(--mv-brand);
+  background: var(--mv-brand-soft);
+}
+
+.mv-stop__badge {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: var(--mv-brand);
+  color: #fff;
+  font: 700 12px/1 var(--mv-display);
+}
+
+.mv-stop[data-placement="unresolved"] .mv-stop__badge,
+.mv-stop[data-placement="resolving"] .mv-stop__badge {
+  background: var(--mv-surface);
+  color: var(--mv-ink-2);
+  box-shadow: inset 0 0 0 1.5px var(--mv-line-strong);
+}
+
+.mv-stop[data-placement="unresolved"] .mv-stop__badge {
+  box-shadow: inset 0 0 0 1.5px var(--mv-ink-3);
+  outline: 1.5px dashed transparent;
+}
+
+.mv-stop__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mv-stop__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mv-stop__code {
+  flex: none;
+  font: 700 13px/18px var(--mv-display);
+}
+
+.mv-stop__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mv-stop__meta {
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--mv-ink-2);
+}
+
+.mv-stop__building {
+  align-self: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--mv-surface-2);
+  color: var(--mv-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.mv-stop[data-selected="true"] .mv-stop__building {
+  background: var(--mv-surface);
+}
+
+.mv-stop__problem {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--mv-ink-2);
+}
+
+.mv-stop__flag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--mv-danger-soft);
+  color: var(--mv-danger);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.mv-leg {
+  position: relative;
+  padding: 6px 0 6px 38px;
+}
+
+.mv-leg__card {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 28px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms var(--mv-ease-out), background-color 160ms ease;
+}
+
+.mv-leg__card--static {
+  cursor: default;
+}
+
+.mv-leg__card:not(.mv-leg__card--static):active {
+  transform: scale(0.985);
+}
+
+.mv-leg__card[data-selected="true"] {
+  border-color: var(--mv-brand);
+  background: var(--mv-brand-soft);
+}
+
+.mv-leg__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--mv-ink-2);
+}
+
+.mv-leg__glyph {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mv-leg__glyph circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.mv-leg__main {
+  color: var(--mv-ink);
+  font-weight: 500;
+}
+
+.mv-leg__source {
+  color: var(--mv-ink-2);
+}
+
+.mv-leg__detail {
+  padding-left: 22px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--mv-ink-2);
+}
+
+.mv-leg__detail strong {
+  color: var(--mv-ink);
+  font-weight: 600;
+}
+
+.mv-leg__warn {
+  padding-left: 22px;
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--mv-ink);
+}
+
+.mv-leg[data-transfer="tight"] .mv-leg__glyph,
+.mv-leg[data-transfer="late"] .mv-leg__glyph {
+  color: var(--mv-danger);
+}
+
+.mv-leg[data-transfer="late"] .mv-leg__warn {
+  color: var(--mv-danger);
+}
+
+.mv-leg[data-route="loading"] .mv-leg__main,
+.mv-leg[data-route="no-route"] .mv-leg__main {
+  color: var(--mv-ink-2);
+  font-weight: 400;
+}
+
+/* ---------- empty, buttons ---------- */
+
+.mv-empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px 4px;
+  font-size: 14px;
+  color: var(--mv-ink-2);
+}
+
+.mv-empty p {
+  margin: 0;
+}
+
+.mv-link {
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--mv-brand);
+  font: 600 13px/18px inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mv-link:hover {
+    text-decoration: underline;
+  }
+  .mv-button:hover {
+    background: var(--mv-surface-2);
+  }
+}
+
+.mv-button {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--mv-line-strong);
+  border-radius: 10px;
+  background: var(--mv-surface);
+  color: var(--mv-ink);
+  font: 600 13px/1 inherit;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 120ms var(--mv-ease-out), background-color 160ms ease;
+}
+
+.mv-button:active {
+  transform: scale(0.97);
+}
+
+/* ---------- phone sheet ---------- */
+
+.mv-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px 14px 0 0;
+  box-shadow: var(--mv-shadow-3);
+  transform: translate3d(0, 100%, 0);
+  transition: transform 240ms var(--mv-ease-sheet);
+  will-change: transform;
+  overscroll-behavior: contain;
+}
+
+.mv-sheet[data-detent="full"] {
+  background: var(--mv-surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.mv-sheet__header {
+  flex: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.mv-sheet .mv-panel__header {
+  padding-top: 2px;
+}
+
+.mv-sheet__handle {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: grab;
+}
+
+.mv-sheet__handle span {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--mv-line-strong);
+}
+
+.mv-sheet__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 12px calc(16px + env(safe-area-inset-bottom));
+  touch-action: none;
+}
+
+.mv-sheet__body[data-scrollable="true"] {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-sheet,
+  .mv-days__pill,
+  .mv-pin__disc {
+    transition: none;
+  }
+  .mv-panel {
+    animation-name: mv-panel-fade;
+  }
+}
+
+@keyframes mv-panel-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- print: the itinerary only ---------- */
+
+@media print {
+  body:has(.mv-root) header {
+    display: none;
+  }
+  html:has(.mv-root) {
+    overflow: visible !important;
+  }
+  .mv-root {
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+  }
+  .mv-canvas,
+  .mv-controls,
+  .mv-sheet__handle,
+  .mv-panel__footer,
+  .mv-days {
+    display: none !important;
+  }
+  .mv-panel,
+  .mv-sheet {
+    position: static;
+    width: auto;
+    height: auto !important;
+    transform: none !important;
+    background: #fff;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
+  }
+  .mv-panel__body,
+  .mv-sheet__body {
+    overflow: visible;
+    height: auto;
+  }
+  .mv-stop,
+  .mv-leg {
+    break-inside: avoid;
+  }
+  .mv-summary {
+    flex-wrap: wrap;
+  }
+  .mv-summary__day {
+    position: static;
+    width: 100%;
+    height: auto;
+    clip-path: none;
+    font-size: 18px;
+    line-height: 24px;
+  }
+}

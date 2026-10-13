@@ -1,274 +1,223 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { NavShell } from "@/components/nav-shell";
-import { StatusMark } from "@/components/ui/StatusMark";
-import { StaggerGroup } from "@/components/ui/StaggerGroup";
-import { Toggle } from "@/components/ui/Toggle";
 import { usePlanner } from "@/components/planner-provider";
-import { formatTime } from "@/lib/planner";
-import { weekDays } from "@/lib/types";
-import type { MapResolutionSummary, MapRouteDetails, MapRouteSummary, WeekDay } from "@/lib/types";
+import { DaySummary, DaySwitcher, EmptyDay, Timeline } from "@/components/map/map-itinerary";
+import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
+import type { CameraInsets } from "@/components/map/map-canvas";
+import type { MapSelection } from "@/components/map/selection";
+import { useItinerary } from "@/components/map/use-itinerary";
+import { weekDays, type WeekDay } from "@/lib/types";
+import "@/components/map/map.css";
 
-const emptyRouteSummary: MapRouteSummary = { distanceText: "-", durationText: "-" };
-const emptyResolutionSummary: MapResolutionSummary = {
-  resolvedCount: 0,
-  unresolvedCount: 0,
-  resolving: false,
-};
-const emptyRouteDetails: MapRouteDetails = {
-  source: null,
-  isApproximate: false,
-  legs: [],
-};
+const MapCanvas = dynamic(() => import("@/components/map/map-canvas").then((module) => module.MapCanvas), {
+  ssr: false,
+  loading: () => <div className="mv-canvas mv-canvas--loading" aria-hidden="true" />,
+});
 
-const MapCanvas = dynamic(
-  () => import("@/components/map-leaflet-canvas").then((module) => module.MapLeafletCanvas),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="unt-map-loading">
-        <span className="spinner" aria-hidden="true" />
-        <span>Loading campus map...</span>
-      </div>
-    ),
-  },
-);
+function useMediaQuery(query: string): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
+/** Desktop panel geometry, mirrored in map.css (--mv-panel-w, --mv-inset). */
+const PANEL_WIDTH = 368;
+const INSET = 16;
+const CONTROLS_WIDTH = 36;
+
+/** Bring a row into view inside its own scroll container, without scrolling the page. */
+function revealRow(container: HTMLElement | null, row: HTMLElement | undefined, align: "nearest" | "start", smooth: boolean) {
+  if (!container || !row) return;
+  const top = row.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+  const bottom = top + row.offsetHeight;
+  let target: number | null = null;
+  if (align === "start") target = top - 8;
+  else if (top < container.scrollTop) target = top - 8;
+  else if (bottom > container.scrollTop + container.clientHeight) target = bottom - container.clientHeight + 8;
+  if (target !== null) container.scrollTo({ top: Math.max(0, target), behavior: smooth ? "smooth" : "auto" });
+}
 
 export function MapClient() {
-  const { plannerState, routeStops, setActiveDay } = usePlanner();
-  const [routeSummary, setRouteSummary] = useState<MapRouteSummary>(emptyRouteSummary);
-  const [routeDetails, setRouteDetails] = useState<MapRouteDetails>(emptyRouteDetails);
-  const [resolutionSummary, setResolutionSummary] = useState<MapResolutionSummary>(emptyResolutionSummary);
-  const [showLabels, setShowLabels] = useState(true);
-  const stops = useMemo(
-    () => routeStops[plannerState.activeDay] ?? [],
-    [plannerState.activeDay, routeStops],
-  );
-  const summaryDisplay = resolutionSummary.resolvedCount < 2 ? emptyRouteSummary : routeSummary;
-  const firstPopulatedDay = useMemo(
-    () => weekDays.find((day) => (routeStops[day] ?? []).length > 0),
+  const { plannerState, routeStops, setActiveDay, hydrated } = usePlanner();
+  const activeDay = plannerState.activeDay;
+  const stops = useMemo(() => routeStops[activeDay] ?? [], [activeDay, routeStops]);
+  const itinerary = useItinerary(stops);
+
+  const isPhone = useMediaQuery("(max-width: 720px)");
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+  const [selection, setSelection] = useState<MapSelection>(null);
+  const [detent, setDetent] = useState<SheetDetent>("half");
+  const [sheetVisible, setSheetVisible] = useState(0);
+  const [areaHeight, setAreaHeight] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rows = useRef(new Map<string, HTMLElement>());
+
+  const counts = useMemo(
+    () => Object.fromEntries(weekDays.map((day) => [day, (routeStops[day] ?? []).length])) as Record<WeekDay, number>,
     [routeStops],
   );
-  const manualDaySelection = useRef(false);
+  const firstDayWithClasses = weekDays.find((day) => counts[day] > 0);
 
-  const tabRefs = useRef<Record<WeekDay, HTMLButtonElement | null>>({} as Record<WeekDay, HTMLButtonElement | null>);
-  const [indicator, setIndicator] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+  // Open on a day that has classes, unless the student picked one.
+  const pickedDay = useRef(false);
+  useEffect(() => {
+    if (hydrated && !pickedDay.current && counts[activeDay] === 0 && firstDayWithClasses) {
+      setActiveDay(firstDayWithClasses);
+    }
+  }, [activeDay, counts, firstDayWithClasses, hydrated, setActiveDay]);
+
+  const changeDay = useCallback(
+    (day: WeekDay) => {
+      pickedDay.current = true;
+      setSelection(null);
+      setActiveDay(day);
+    },
+    [setActiveDay],
+  );
 
   useLayoutEffect(() => {
-    const el = tabRefs.current[plannerState.activeDay];
-    if (el) {
-      setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
-    }
-  }, [plannerState.activeDay]);
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new ResizeObserver(() => setAreaHeight(root.clientHeight));
+    observer.observe(root);
+    setAreaHeight(root.clientHeight);
+    return () => observer.disconnect();
+  }, []);
+
+  // The map fills the window under the app header, edge to edge. NavShell
+  // wraps pages in a padded, centered <main>, so the map measures the header
+  // and main's padding and steps out of them, and the page itself stops
+  // scrolling while the map is open. This goes away when the new app shell
+  // gives views a full-bleed body.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const main = root?.closest("main");
+    const header = main?.previousElementSibling as HTMLElement | null | undefined;
+    if (!root || !main) return;
+    const measure = () => {
+      const style = getComputedStyle(main);
+      root.style.setProperty("--mv-top", `${header?.offsetHeight ?? 0}px`);
+      root.style.setProperty("--mv-pad-top", style.paddingTop);
+      root.style.setProperty("--mv-pad-bottom", style.paddingBottom);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (header) observer.observe(header);
+    observer.observe(main);
+    const html = document.documentElement;
+    const previousOverflow = html.style.overflow;
+    html.style.overflow = "hidden";
+    window.scrollTo(0, 0);
+    return () => {
+      observer.disconnect();
+      html.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const select = useCallback(
+    (next: MapSelection) => {
+      setSelection(next);
+      // At peek the chosen row is hidden; at full the map is. Half shows both.
+      if (next && isPhone && detent !== "half") setDetent("half");
+    },
+    [detent, isPhone],
+  );
+
+  // The matching row comes into view whichever side the selection came from.
+  useEffect(() => {
+    if (!selection) return;
+    revealRow(scrollRef.current, rows.current.get(selection.key), isPhone ? "start" : "nearest", !reducedMotion);
+  }, [isPhone, reducedMotion, selection]);
 
   useEffect(() => {
-    if (
-      !manualDaySelection.current &&
-      stops.length === 0 &&
-      firstPopulatedDay &&
-      firstPopulatedDay !== plannerState.activeDay
-    ) {
-      setActiveDay(firstPopulatedDay);
-    }
-  }, [firstPopulatedDay, plannerState.activeDay, setActiveDay, stops.length]);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelection(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      setRouteSummary(emptyRouteSummary);
-      setRouteDetails(emptyRouteDetails);
-    });
-  }, [plannerState.activeDay, stops]);
+  const registerRow = useCallback((key: string, element: HTMLElement | null) => {
+    if (element) rows.current.set(key, element);
+    else rows.current.delete(key);
+  }, []);
 
-  const itinerarySummary = useMemo(
-    () =>
-      stops.map(
-        (stop, index) =>
-          `${index + 1}. ${stop.courseCode} | ${stop.location} | ${formatTime(stop.start)}-${formatTime(stop.end)}`,
-      ),
-    [stops],
+  const insets: CameraInsets = isPhone
+    ? { top: 12, right: 12, bottom: sheetVisible, left: 12 }
+    : { top: INSET, right: INSET * 2 + CONTROLS_WIDTH, bottom: INSET, left: PANEL_WIDTH + INSET * 2 };
+
+  const header = (
+    <div className="mv-panel__header">
+      <DaySwitcher activeDay={activeDay} counts={counts} onChange={changeDay} />
+      <DaySummary day={activeDay} itinerary={itinerary} />
+    </div>
+  );
+
+  const body = !hydrated ? (
+    <div className="mv-empty" aria-busy="true">
+      <p>Loading your plan…</p>
+    </div>
+  ) : itinerary.stops.length === 0 ? (
+    <EmptyDay day={activeDay} firstDayWithClasses={firstDayWithClasses} onPickDay={changeDay} />
+  ) : (
+    <>
+      <Timeline itinerary={itinerary} selection={selection} onSelect={select} registerRow={registerRow} />
+      <div className="mv-panel__footer">
+        <button type="button" className="mv-button" onClick={() => window.print()}>
+          Print itinerary
+        </button>
+      </div>
+    </>
   );
 
   return (
     <NavShell step={2}>
-      <div style={{ display: "grid", gap: 18 }}>
-        <header>
-          <p className="editorial-label">Step 3 - Map</p>
-          <h1
-            className="font-display"
-            style={{
-              marginTop: 4,
-              fontSize: "clamp(1.8rem, 3.5vw, 2.6rem)",
-              fontWeight: 800,
-              color: "var(--brand-900)",
-              lineHeight: 1.05,
-            }}
-          >
-            Finish with a route you can actually use.
-          </h1>
-        </header>
-
-        <div
-          style={{
-            display: "grid",
-            gap: 18,
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
-            alignItems: "start",
-          }}
-        >
-          <aside style={{ display: "grid", gap: 14, alignContent: "start" }}>
-            <section className="surface-card" style={{ padding: "0.85rem 0.95rem" }}>
-              <p className="editorial-label" style={{ marginBottom: 8 }}>
-                Day
-              </p>
-              <div className="day-tabs" role="tablist">
-                <span
-                  className="day-tab__indicator"
-                  style={{ transform: `translateX(${indicator.left - 4}px)`, width: indicator.width }}
-                />
-                {weekDays.map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    role="tab"
-                    aria-selected={plannerState.activeDay === day}
-                    ref={(el) => {
-                      tabRefs.current[day] = el;
-                    }}
-                    className="day-tab"
-                    data-active={plannerState.activeDay === day ? "true" : "false"}
-                    onClick={() => {
-                      manualDaySelection.current = true;
-                      setActiveDay(day);
-                    }}
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="surface-card" style={{ padding: "0.85rem 0.95rem" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                <StatusMark label={`${stops.length} stops`} tone="neutral" />
-                <StatusMark label={`${resolutionSummary.resolvedCount} mapped`} tone="completed" />
-                <StatusMark label={summaryDisplay.distanceText} tone="review" />
-                <StatusMark label={summaryDisplay.durationText} tone="completed" />
-                {routeDetails.source ? (
-                  <StatusMark
-                    label={routeDetails.isApproximate ? "approximate" : "walking route"}
-                    tone={routeDetails.isApproximate ? "review" : "completed"}
-                  />
-                ) : null}
-                {resolutionSummary.unresolvedCount > 0 ? (
-                  <StatusMark
-                    label={
-                      resolutionSummary.resolving
-                        ? `${resolutionSummary.unresolvedCount} resolving`
-                        : `${resolutionSummary.unresolvedCount} unresolved`
-                    }
-                    tone="danger"
-                  />
-                ) : null}
-              </div>
-
-              {stops.length === 0 ? (
-                <div
-                  style={{
-                    padding: "0.95rem",
-                    border: "1px dashed var(--line-strong)",
-                    borderRadius: "var(--r-md)",
-                    fontSize: "0.85rem",
-                    color: "var(--copy)",
-                  }}
-                >
-                  No classes scheduled on {plannerState.activeDay}.
-                </div>
-              ) : (
-                <div style={{ display: "grid", gap: 8 }}>
-                  <StaggerGroup>
-                    {stops.map((stop, index) => (
-                      <article key={`${stop.courseCode}-${stop.start}-${stop.location}`} className="stop-item">
-                        <span className="stop-num">{index + 1}</span>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <p className="stop-name">{stop.courseCode}</p>
-                          <p className="stop-meta">
-                            {stop.location} | {formatTime(stop.start)}-{formatTime(stop.end)}
-                          </p>
-                        </div>
-                        <StatusMark
-                          label={stop.resolutionStatus === "local" ? stop.shortName : "lookup"}
-                          tone={stop.resolutionStatus === "local" ? "neutral" : "review"}
-                        />
-                      </article>
-                    ))}
-                  </StaggerGroup>
-                  {routeDetails.legs.length > 0 ? (
-                    <div className="route-leg-list" aria-label="Route legs">
-                      {routeDetails.legs.map((leg, index) => (
-                        <div key={`${leg.from}-${leg.to}-${index}`} className="route-leg">
-                          <span className="route-leg__dot">{index + 1}</span>
-                          <div style={{ minWidth: 0 }}>
-                            <p className="route-leg__title">
-                              {leg.from} to {leg.to}
-                            </p>
-                            <p className="route-leg__meta">
-                              {leg.fromMeta} | {leg.toMeta}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </section>
-
-            <section className="surface-card" style={{ padding: "0.85rem 0.95rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: "0.85rem", color: "var(--ink)", fontWeight: 600 }}>
-                  Show stop labels
-                </span>
-                <Toggle on={showLabels} onChange={setShowLabels} ariaLabel="Toggle stop labels on map" />
-              </div>
-            </section>
-
-            <section className="surface-card" style={{ padding: "0.85rem 0.95rem", display: "grid", gap: 8 }}>
-              <button className="btn-primary" type="button" onClick={() => window.print()}>
-                Print itinerary
-              </button>
-              <button
-                className="btn-secondary"
-                type="button"
-                onClick={() => {
-                  const blob = new Blob([itinerarySummary.join("\n")], {
-                    type: "text/plain;charset=utf-8",
-                  });
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = `untangle-${plannerState.activeDay.toLowerCase()}-route.txt`;
-                  link.click();
-                  URL.revokeObjectURL(url);
-                }}
-              >
-                Download brief
-              </button>
-            </section>
+      <div ref={rootRef} className="mv-root" data-layout={isPhone ? "phone" : "desktop"}>
+        <h1 className="mv-visually-hidden">Campus map</h1>
+        <MapCanvas
+          itinerary={itinerary}
+          selection={selection}
+          onSelect={select}
+          insets={insets}
+          reducedMotion={reducedMotion}
+        />
+        {isPhone ? (
+          areaHeight > 0 ? (
+            <MapSheet
+              detent={detent}
+              onDetentChange={setDetent}
+              onVisibleHeightChange={setSheetVisible}
+              reducedMotion={reducedMotion}
+              areaHeight={areaHeight}
+              header={header}
+              bodyRef={scrollRef}
+            >
+              {body}
+            </MapSheet>
+          ) : null
+        ) : (
+          <aside className="mv-panel" aria-label="Itinerary">
+            {header}
+            <div ref={scrollRef} className="mv-panel__body">
+              {body}
+            </div>
           </aside>
-
-          <section className="surface-card" style={{ padding: 6, overflow: "hidden" }}>
-            <MapCanvas
-              stops={stops}
-              activeDay={plannerState.activeDay}
-              showLabels={showLabels}
-              onSummary={setRouteSummary}
-              onRouteDetails={setRouteDetails}
-              onResolutionChange={setResolutionSummary}
-            />
-          </section>
-        </div>
+        )}
       </div>
     </NavShell>
   );

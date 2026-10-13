@@ -122,42 +122,36 @@ export type MapRoutePoint = {
   lng: number;
 };
 
-export type MapRouteResponse = {
+/**
+ * Where a leg's path came from:
+ * - `campus-network`: A* over the committed OpenStreetMap walkway graph;
+ * - `ors`: OpenRouteService foot-walking, only when a deployment sets a key;
+ * - `fallback`: a straight line between the two stops. It carries a distance
+ *   but never a walking time, because nobody walks a straight line.
+ */
+export type MapRouteSource = "ors" | "campus-network" | "fallback";
+
+type MapRouteLegBase = {
+  /** Indexes into the request's `stops` of the leg's start and end. */
+  fromIndex: number;
+  toIndex: number;
   geometry: MapRoutePoint[];
   distanceMeters: number;
-  durationSeconds: number;
-  source: "ors" | "campus-network" | "fallback";
 };
 
-export type MapRouteSummary = {
-  distanceText: string;
-  durationText: string;
-};
+export type MapRouteLeg =
+  | (MapRouteLegBase & { source: "campus-network" | "ors"; durationSeconds: number })
+  | (MapRouteLegBase & { source: "fallback"; durationSeconds: null });
 
-export type MapRouteLegDisplay = {
-  from: string;
-  to: string;
-  fromMeta: string;
-  toMeta: string;
-};
-
-export type MapRouteDetails = {
-  source: "ors" | "fallback" | "campus-network" | null;
-  isApproximate: boolean;
-  legs: MapRouteLegDisplay[];
-};
-
-export type MapResolutionSummary = {
-  resolvedCount: number;
-  unresolvedCount: number;
-  resolving: boolean;
-};
-
-export type RouteLeg = {
-  from: string;
-  to: string;
-  minutes: number;
-  distanceMiles: number;
+export type MapRouteResponse = {
+  legs: MapRouteLeg[];
+  /** All legs joined end to end, for callers that draw one line. */
+  geometry: MapRoutePoint[];
+  distanceMeters: number;
+  /** Null when any leg is a straight-line fallback, since its time is unknown. */
+  durationSeconds: number | null;
+  /** The least certain source among the legs: fallback, then ors, then campus-network. */
+  source: MapRouteSource;
 };
 
 export type TranscriptCourseRecord = {

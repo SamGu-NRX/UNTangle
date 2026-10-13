@@ -6,6 +6,10 @@
  * A* with an admissible straight-line heuristic. Snapping restricts to the
  * largest connected component so a snapped route endpoint is always routable.
  *
+ * createWalkwayGraph builds a router over any campus's walkways file; the
+ * named exports below are bound to the UNT Denton snapshot, the one campus
+ * built so far (see lib/campus/config.ts).
+ *
  * Data © OpenStreetMap contributors, ODbL 1.0 — see tools/campus-geodata/README.md.
  */
 import walkwaysJson from "./data/walkways.json";
@@ -33,7 +37,7 @@ export type WalkwayClass =
   | "track"
   | "road";
 
-type WalkwaysFile = {
+export type WalkwaysFile = {
   meta: {
     attribution: string;
     source: string;
@@ -78,104 +82,13 @@ export type CampusRouteGeometry = {
   snapEnd: LatLng;
 };
 
-const data = walkwaysJson as unknown as WalkwaysFile;
-
-let adjacency: Edge[][] | null = null;
-let largestComponentNodes: number[] | null = null;
-let componentShare = 0;
-
-function buildGraph() {
-  if (adjacency && largestComponentNodes) return;
-
-  const nodeCount = data.nodes.length;
-  const adj: Edge[][] = new Array(nodeCount);
-  for (let i = 0; i < nodeCount; i += 1) adj[i] = [];
-
-  // Deduplicate undirected edges: when two mapped ways share a node pair,
-  // keep the shortest one (with its class flags).
-  const bestEdge = new Map<number, UndirectedEdge>();
-  for (const way of data.ways) {
-    const isSteps = data.meta.classes[way.c] === "steps";
-    const isCrossing = data.meta.classes[way.c] === "crossing";
-    for (let i = 0; i < way.n.length - 1; i += 1) {
-      const a = way.n[i];
-      const b = way.n[i + 1];
-      if (a === b) continue;
-      const [aLat, aLng] = data.nodes[a];
-      const [bLat, bLng] = data.nodes[b];
-      const meters = haversineMeters(aLat, aLng, bLat, bLng);
-      const lo = Math.min(a, b);
-      const hi = Math.max(a, b);
-      const key = lo * nodeCount + hi;
-      const existing = bestEdge.get(key);
-      if (!existing || meters < existing.meters) {
-        bestEdge.set(key, { from: a, to: b, meters, steps: isSteps, crossing: isCrossing });
-      }
-    }
-  }
-  for (const edge of bestEdge.values()) {
-    adj[edge.from].push({ to: edge.to, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
-    adj[edge.to].push({ to: edge.from, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
-  }
-
-  // Union-find over edges to find the largest connected component.
-  const parent = new Int32Array(nodeCount);
-  for (let i = 0; i < nodeCount; i += 1) parent[i] = i;
-  const find = (x: number): number => {
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]];
-      x = parent[x];
-    }
-    return x;
-  };
-  for (const edge of bestEdge.values()) {
-    const ra = find(edge.from);
-    const rb = find(edge.to);
-    if (ra !== rb) parent[ra] = rb;
-  }
-  const size = new Map<number, number>();
-  for (let i = 0; i < nodeCount; i += 1) {
-    const root = find(i);
-    size.set(root, (size.get(root) ?? 0) + 1);
-  }
-  let largestRoot = 0;
-  let largestSize = 0;
-  for (const [root, count] of size) {
-    if (count > largestSize) {
-      largestSize = count;
-      largestRoot = root;
-    }
-  }
-  const nodes: number[] = [];
-  for (let i = 0; i < nodeCount; i += 1) {
-    if (find(i) === largestRoot) nodes.push(i);
-  }
-
-  adjacency = adj;
-  largestComponentNodes = nodes;
-  componentShare = nodeCount === 0 ? 0 : largestSize / nodeCount;
-}
-
-/**
- * Nearest walkway node to a point, searching only the largest connected
- * component, or null when nothing is within `maxMeters` (default 250 m —
- * the same cap as evals/fixtures/METHOD.md).
- */
-export function nearestWalkwayNode(point: LatLng, maxMeters: number = SNAP_MAX_METERS): number | null {
-  buildGraph();
-  let bestIndex: number | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const index of largestComponentNodes!) {
-    const [lat, lng] = data.nodes[index];
-    const d = haversineMeters(point.lat, point.lng, lat, lng);
-    if (d < bestDistance) {
-      bestDistance = d;
-      bestIndex = index;
-    }
-  }
-  if (bestIndex === null || bestDistance > maxMeters) return null;
-  return bestIndex;
-}
+export type GraphRoute = {
+  nodePath: number[];
+  networkMeters: number;
+  durationSeconds: number;
+  stepsMeters: number;
+  roadCrossings: number;
+};
 
 /** Minimal binary min-heap for A*. */
 class MinHeap {
@@ -218,140 +131,241 @@ class MinHeap {
   }
 }
 
-/**
- * A* from node to node over the walkway graph with an admissible haversine
- * heuristic. Returns the node path (inclusive) or null when no path exists.
- */
-export function astarPath(start: number, goal: number): number[] | null {
-  buildGraph();
-  const nodeCount = data.nodes.length;
-  const [goalLat, goalLng] = data.nodes[goal];
-  const gScore = new Float64Array(nodeCount).fill(Number.POSITIVE_INFINITY);
-  const cameFrom = new Int32Array(nodeCount).fill(-1);
-  const closed = new Uint8Array(nodeCount);
-  const heap = new MinHeap();
-  const h = (index: number): number => {
-    const [lat, lng] = data.nodes[index];
-    return haversineMeters(lat, lng, goalLat, goalLng);
-  };
-  gScore[start] = 0;
-  heap.push(start, h(start));
-  while (heap.size > 0) {
-    const current = heap.pop()!;
-    if (current.index === goal) break;
-    if (closed[current.index]) continue;
-    closed[current.index] = 1;
-    for (const edge of adjacency![current.index]) {
-      if (closed[edge.to]) continue;
-      const tentative = gScore[current.index] + edge.meters;
-      if (tentative < gScore[edge.to]) {
-        gScore[edge.to] = tentative;
-        cameFrom[edge.to] = current.index;
-        heap.push(edge.to, tentative + h(edge.to));
+/** A router over one campus's walkways file. The graph is built on first use. */
+export function createWalkwayGraph(data: WalkwaysFile) {
+  let adjacency: Edge[][] | null = null;
+  let largestComponentNodes: number[] | null = null;
+  let componentShare = 0;
+
+  function buildGraph() {
+    if (adjacency && largestComponentNodes) return;
+
+    const nodeCount = data.nodes.length;
+    const adj: Edge[][] = new Array(nodeCount);
+    for (let i = 0; i < nodeCount; i += 1) adj[i] = [];
+
+    // Deduplicate undirected edges: when two mapped ways share a node pair,
+    // keep the shortest one (with its class flags).
+    const bestEdge = new Map<number, UndirectedEdge>();
+    for (const way of data.ways) {
+      const isSteps = data.meta.classes[way.c] === "steps";
+      const isCrossing = data.meta.classes[way.c] === "crossing";
+      for (let i = 0; i < way.n.length - 1; i += 1) {
+        const a = way.n[i];
+        const b = way.n[i + 1];
+        if (a === b) continue;
+        const [aLat, aLng] = data.nodes[a];
+        const [bLat, bLng] = data.nodes[b];
+        const meters = haversineMeters(aLat, aLng, bLat, bLng);
+        const lo = Math.min(a, b);
+        const hi = Math.max(a, b);
+        const key = lo * nodeCount + hi;
+        const existing = bestEdge.get(key);
+        if (!existing || meters < existing.meters) {
+          bestEdge.set(key, { from: a, to: b, meters, steps: isSteps, crossing: isCrossing });
+        }
       }
     }
+    for (const edge of bestEdge.values()) {
+      adj[edge.from].push({ to: edge.to, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
+      adj[edge.to].push({ to: edge.from, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
+    }
+
+    // Union-find over edges to find the largest connected component.
+    const parent = new Int32Array(nodeCount);
+    for (let i = 0; i < nodeCount; i += 1) parent[i] = i;
+    const find = (x: number): number => {
+      while (parent[x] !== x) {
+        parent[x] = parent[parent[x]];
+        x = parent[x];
+      }
+      return x;
+    };
+    for (const edge of bestEdge.values()) {
+      const ra = find(edge.from);
+      const rb = find(edge.to);
+      if (ra !== rb) parent[ra] = rb;
+    }
+    const size = new Map<number, number>();
+    for (let i = 0; i < nodeCount; i += 1) {
+      const root = find(i);
+      size.set(root, (size.get(root) ?? 0) + 1);
+    }
+    let largestRoot = 0;
+    let largestSize = 0;
+    for (const [root, count] of size) {
+      if (count > largestSize) {
+        largestSize = count;
+        largestRoot = root;
+      }
+    }
+    const nodes: number[] = [];
+    for (let i = 0; i < nodeCount; i += 1) {
+      if (find(i) === largestRoot) nodes.push(i);
+    }
+
+    adjacency = adj;
+    largestComponentNodes = nodes;
+    componentShare = nodeCount === 0 ? 0 : largestSize / nodeCount;
   }
-  if (gScore[goal] === Number.POSITIVE_INFINITY) return null;
-  const path: number[] = [];
-  for (let at = goal; at !== -1; at = cameFrom[at]) {
-    path.push(at);
-    if (at === start) break;
+
+  /**
+   * Nearest walkway node to a point, searching only the largest connected
+   * component, or null when nothing is within `maxMeters` (default 250 m —
+   * the same cap as evals/fixtures/METHOD.md).
+   */
+  function nearestWalkwayNode(point: LatLng, maxMeters: number = SNAP_MAX_METERS): number | null {
+    buildGraph();
+    let bestIndex: number | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const index of largestComponentNodes!) {
+      const [lat, lng] = data.nodes[index];
+      const d = haversineMeters(point.lat, point.lng, lat, lng);
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestIndex = index;
+      }
+    }
+    if (bestIndex === null || bestDistance > maxMeters) return null;
+    return bestIndex;
   }
-  path.reverse();
-  return path[0] === start ? path : null;
+
+  /**
+   * A* from node to node over the walkway graph with an admissible haversine
+   * heuristic. Returns the node path (inclusive) or null when no path exists.
+   */
+  function astarPath(start: number, goal: number): number[] | null {
+    buildGraph();
+    const nodeCount = data.nodes.length;
+    const [goalLat, goalLng] = data.nodes[goal];
+    const gScore = new Float64Array(nodeCount).fill(Number.POSITIVE_INFINITY);
+    const cameFrom = new Int32Array(nodeCount).fill(-1);
+    const closed = new Uint8Array(nodeCount);
+    const heap = new MinHeap();
+    const h = (index: number): number => {
+      const [lat, lng] = data.nodes[index];
+      return haversineMeters(lat, lng, goalLat, goalLng);
+    };
+    gScore[start] = 0;
+    heap.push(start, h(start));
+    while (heap.size > 0) {
+      const current = heap.pop()!;
+      if (current.index === goal) break;
+      if (closed[current.index]) continue;
+      closed[current.index] = 1;
+      for (const edge of adjacency![current.index]) {
+        if (closed[edge.to]) continue;
+        const tentative = gScore[current.index] + edge.meters;
+        if (tentative < gScore[edge.to]) {
+          gScore[edge.to] = tentative;
+          cameFrom[edge.to] = current.index;
+          heap.push(edge.to, tentative + h(edge.to));
+        }
+      }
+    }
+    if (gScore[goal] === Number.POSITIVE_INFINITY) return null;
+    const path: number[] = [];
+    for (let at = goal; at !== -1; at = cameFrom[at]) {
+      path.push(at);
+      if (at === start) break;
+    }
+    path.reverse();
+    return path[0] === start ? path : null;
+  }
+
+  /** Shortest walkway path between two graph nodes, with distance and time. */
+  function routeBetweenNodes(start: number, goal: number): GraphRoute | null {
+    const path = astarPath(start, goal);
+    if (!path) return null;
+    let meters = 0;
+    let seconds = 0;
+    let stepsMeters = 0;
+    let crossings = 0;
+    for (let i = 0; i < path.length - 1; i += 1) {
+      const a = path[i];
+      const b = path[i + 1];
+      const edge = adjacency![a].find((candidate) => candidate.to === b);
+      if (!edge) return null;
+      meters += edge.meters;
+      seconds += edge.meters / (edge.steps ? STEPS_SPEED_MPS : WALKING_SPEED_MPS);
+      if (edge.steps) stepsMeters += edge.meters;
+      if (edge.crossing) crossings += 1;
+    }
+    return {
+      nodePath: path,
+      networkMeters: meters,
+      durationSeconds: seconds,
+      stepsMeters,
+      roadCrossings: crossings,
+    };
+  }
+
+  /**
+   * Full route between two arbitrary in-bounds points: each point snaps to the
+   * nearest walkway node (250 m cap), and the straight connector on both ends
+   * is included in the distance and the time.
+   */
+  function routeBetweenPoints(a: LatLng, b: LatLng): CampusRouteGeometry | null {
+    buildGraph();
+    const startNode = nearestWalkwayNode(a);
+    const endNode = nearestWalkwayNode(b);
+    if (startNode === null || endNode === null) return null;
+    const route = routeBetweenNodes(startNode, endNode);
+    if (!route) return null;
+
+    const [startLat, startLng] = data.nodes[startNode];
+    const [endLat, endLng] = data.nodes[endNode];
+    const snapStart: LatLng = { lat: startLat, lng: startLng };
+    const snapEnd: LatLng = { lat: endLat, lng: endLng };
+    const connectorStart = haversineMeters(a.lat, a.lng, startLat, startLng);
+    const connectorEnd = haversineMeters(b.lat, b.lng, endLat, endLng);
+    const connectorMeters = connectorStart + connectorEnd;
+    const connectorSeconds = (connectorStart + connectorEnd) / WALKING_SPEED_MPS;
+
+    const geometry: LatLng[] = [a, snapStart];
+    for (let i = 1; i < route.nodePath.length - 1; i += 1) {
+      const [lat, lng] = data.nodes[route.nodePath[i]];
+      geometry.push({ lat, lng });
+    }
+    geometry.push(snapEnd, b);
+
+    return {
+      geometry,
+      distanceMeters: Math.round((route.networkMeters + connectorMeters) * 10) / 10,
+      durationSeconds: Math.round(route.durationSeconds + connectorSeconds),
+      networkDistanceMeters: Math.round(route.networkMeters * 10) / 10,
+      connectorDistanceMeters: Math.round(connectorMeters * 10) / 10,
+      stepsMeters: Math.round(route.stepsMeters * 10) / 10,
+      roadCrossings: route.roadCrossings,
+      snapStart,
+      snapEnd,
+    };
+  }
+
+  /** Connectivity statistics for verification (largest component share). */
+  function walkwayGraphStats(): {
+    nodeCount: number;
+    edgeCount: number;
+    largestComponentShare: number;
+    attribution: string;
+    fetchedAt: string | null;
+  } {
+    buildGraph();
+    return {
+      nodeCount: data.nodes.length,
+      edgeCount: data.meta.edgeCount,
+      largestComponentShare: componentShare,
+      attribution: data.meta.attribution,
+      fetchedAt: data.meta.fetchedAt,
+    };
+  }
+
+  return { nearestWalkwayNode, astarPath, routeBetweenNodes, routeBetweenPoints, walkwayGraphStats };
 }
 
-export type GraphRoute = {
-  nodePath: number[];
-  networkMeters: number;
-  durationSeconds: number;
-  stepsMeters: number;
-  roadCrossings: number;
-};
+export type WalkwayGraph = ReturnType<typeof createWalkwayGraph>;
 
-/** Shortest walkway path between two graph nodes, with distance and time. */
-export function routeBetweenNodes(start: number, goal: number): GraphRoute | null {
-  const path = astarPath(start, goal);
-  if (!path) return null;
-  let meters = 0;
-  let seconds = 0;
-  let stepsMeters = 0;
-  let crossings = 0;
-  for (let i = 0; i < path.length - 1; i += 1) {
-    const a = path[i];
-    const b = path[i + 1];
-    const edge = adjacency![a].find((candidate) => candidate.to === b);
-    if (!edge) return null;
-    meters += edge.meters;
-    seconds += edge.meters / (edge.steps ? STEPS_SPEED_MPS : WALKING_SPEED_MPS);
-    if (edge.steps) stepsMeters += edge.meters;
-    if (edge.crossing) crossings += 1;
-  }
-  return {
-    nodePath: path,
-    networkMeters: meters,
-    durationSeconds: seconds,
-    stepsMeters,
-    roadCrossings: crossings,
-  };
-}
+const untDentonGraph = createWalkwayGraph(walkwaysJson as unknown as WalkwaysFile);
 
-/**
- * Full route between two arbitrary in-bounds points: each point snaps to the
- * nearest walkway node (250 m cap), and the straight connector on both ends
- * is included in the distance and the time.
- */
-export function routeBetweenPoints(a: LatLng, b: LatLng): CampusRouteGeometry | null {
-  buildGraph();
-  const startNode = nearestWalkwayNode(a);
-  const endNode = nearestWalkwayNode(b);
-  if (startNode === null || endNode === null) return null;
-  const route = routeBetweenNodes(startNode, endNode);
-  if (!route) return null;
-
-  const [startLat, startLng] = data.nodes[startNode];
-  const [endLat, endLng] = data.nodes[endNode];
-  const snapStart: LatLng = { lat: startLat, lng: startLng };
-  const snapEnd: LatLng = { lat: endLat, lng: endLng };
-  const connectorStart = haversineMeters(a.lat, a.lng, startLat, startLng);
-  const connectorEnd = haversineMeters(b.lat, b.lng, endLat, endLng);
-  const connectorMeters = connectorStart + connectorEnd;
-  const connectorSeconds = (connectorStart + connectorEnd) / WALKING_SPEED_MPS;
-
-  const geometry: LatLng[] = [a, snapStart];
-  for (let i = 1; i < route.nodePath.length - 1; i += 1) {
-    const [lat, lng] = data.nodes[route.nodePath[i]];
-    geometry.push({ lat, lng });
-  }
-  geometry.push(snapEnd, b);
-
-  return {
-    geometry,
-    distanceMeters: Math.round((route.networkMeters + connectorMeters) * 10) / 10,
-    durationSeconds: Math.round(route.durationSeconds + connectorSeconds),
-    networkDistanceMeters: Math.round(route.networkMeters * 10) / 10,
-    connectorDistanceMeters: Math.round(connectorMeters * 10) / 10,
-    stepsMeters: Math.round(route.stepsMeters * 10) / 10,
-    roadCrossings: route.roadCrossings,
-    snapStart,
-    snapEnd,
-  };
-}
-
-/** Connectivity statistics for verification (largest component share). */
-export function walkwayGraphStats(): {
-  nodeCount: number;
-  edgeCount: number;
-  largestComponentShare: number;
-  attribution: string;
-  fetchedAt: string | null;
-} {
-  buildGraph();
-  return {
-    nodeCount: data.nodes.length,
-    edgeCount: data.meta.edgeCount,
-    largestComponentShare: componentShare,
-    attribution: data.meta.attribution,
-    fetchedAt: data.meta.fetchedAt,
-  };
-}
+export const { nearestWalkwayNode, astarPath, routeBetweenNodes, routeBetweenPoints, walkwayGraphStats } =
+  untDentonGraph;

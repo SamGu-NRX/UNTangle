@@ -194,6 +194,36 @@ describe("map route API walkway tier", () => {
     }
   });
 
+  test("stops that name their buildings route anchor to anchor and match the matrix exactly", async () => {
+    const response = await routePOST(
+      postJson(
+        "http://localhost/api/map/route",
+        {
+          stops: [
+            { lat: 33.2121066, lng: -97.1467423, buildingId: "sage" },
+            { lat: 33.2088704, lng: -97.1476988, buildingId: "blb" },
+            { lat: 33.2088704, lng: -97.1476988, buildingId: "blb" },
+            { lat: 33.2131868, lng: -97.1481479, buildingId: "gab" },
+          ],
+        },
+        "198.51.100.11",
+      ),
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      legs: Array<{ fromIndex: number; toIndex: number; source: string; durationSeconds: number; distanceMeters: number }>;
+    };
+    // The repeated BLB stop is one stop; leg ends are reported in request indexes.
+    expect(payload.legs.map((leg) => [leg.fromIndex, leg.toIndex])).toEqual([
+      [0, 1],
+      [2, 3],
+    ]);
+    expect(payload.legs.map((leg) => leg.source)).toEqual(["campus-network", "campus-network"]);
+    expect(payload.legs[0].durationSeconds).toBe(Math.round(walkingSecondsBetween("sage", "blb")!));
+    expect(payload.legs[1].durationSeconds).toBe(Math.round(walkingSecondsBetween("blb", "gab")!));
+    expect(payload.legs[0].distanceMeters).toBeCloseTo(walkingDistanceBetween("sage", "blb")!, 0);
+  });
+
   test("out-of-bounds stops are still rejected", async () => {
     const response = await routePOST(
       postJson("http://localhost/api/map/route", {
