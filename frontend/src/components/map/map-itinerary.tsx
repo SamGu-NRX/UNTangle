@@ -126,23 +126,18 @@ export function DaySummary({
   source: { text: string; title: string } | null;
 }) {
   const { summary } = itinerary;
-  const parts: string[] = [];
-  if (summary.classes === 0) {
-    parts.push("No classes");
-  } else {
-    parts.push(`${summary.classes} ${summary.classes === 1 ? "class" : "classes"}`);
-    if (summary.walkMinutes > 0) {
-      parts.push(formatDistance(summary.walkMeters), `${formatWalkMinutes(summary.walkMinutes)} walking`);
-    }
-  }
+  // One fact: how much walking the day holds, or how many classes when there is none.
+  const fact =
+    summary.classes === 0
+      ? "No classes"
+      : summary.walkMinutes > 0
+        ? `${formatWalkMinutes(summary.walkMinutes)} walking`
+        : `${summary.classes} ${summary.classes === 1 ? "class" : "classes"}`;
   return (
     <div className="mv-summary">
       <h2 className="mv-summary__day">{dayNames[day]}</h2>
       <p className="mv-summary__line" aria-live="polite">
-        <strong>{parts[0]}</strong>
-        {parts.slice(1).map((part) => (
-          <span key={part}>, {part}</span>
-        ))}
+        <strong>{fact}</strong>
         {summary.loading && summary.classes > 0 ? <span className="mv-summary__muted">, finding routes</span> : null}
         {summary.lateTransfers > 0 ? (
           <span className="mv-summary__warn">
@@ -274,7 +269,7 @@ function legText(leg: ItineraryLeg): LegText {
       };
     case "walk":
       return {
-        main: `${formatWalkMinutes(leg.walkMinutes ?? 0)} walk, ${formatDistance(leg.route.meters)}`,
+        main: `${formatWalkMinutes(leg.walkMinutes ?? 0)} walk`,
         source: sourceLabel[leg.route.source],
         detail: null,
       };

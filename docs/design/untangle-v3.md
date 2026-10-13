@@ -99,7 +99,7 @@ Both systems share the same four curves, so use the Opus [MOTION](untangle-v3-op
 | Day | A previous/next stepper replaces the five-day control. Online classes with no set time show only in Week. The labeled capture of the live map stands until the map pass lands. |
 | Panel push (1200px and wider) | Opening the panel moves the page left by `transform` only, never by reflowing, using `--t-enter`/`--t-exit` with `--ease-out`. Opening from the keyboard is instant. Under reduced motion the page doesn't move and only the panel fades. The selected item stays visible after the shift. |
 | Readings of rules 2, 3 and 5 | Day's itinerary is Day's main region, and a selected stop expands in place. A section is kept from the selected event's panel. The alternative strip also carries Details and a close button. |
-| Mid dots | None, anywhere (Sam), as the simplification rules say. `frontend/tests/no-mid-dots.test.ts` fails on one anywhere in `frontend/src`. |
+| Mid dots | Rows carry one fact, and a separator glyph is a sign a screen is doing too much (Sam). Where facts were joined, keep the one the student needs at that spot and move the rest to the detail panel or drop it; a comma list of facts is the same clutter. A phrase stays joined only when it reads as one idea ("Leave Kerr Hall by 8:49"). `frontend/tests/no-mid-dots.test.ts` fails on a mid dot anywhere in `frontend/src`, as a tripwire. |
 
 ## Placeholders with no data behind them
 

@@ -39,9 +39,9 @@ const GLYPHS: Array<[CourseStatus, string]> = [
 ];
 
 const PICKS = [
-  { code: "CSCE 2110", title: "Foundations of Data Structures", meta: "Section 001, MWF 9:00" },
-  { code: "MATH 2700", title: "Linear Algebra and Vector Geometry", meta: "Section 003, MWF 10:00" },
-  { code: "PHYS 2220", title: "Electricity and Magnetism", meta: "Section 002, MW 11:00" },
+  { code: "CSCE 2110", title: "Foundations of Data Structures", meta: "MWF 9:00" },
+  { code: "MATH 2700", title: "Linear Algebra and Vector Geometry", meta: "MWF 10:00" },
+  { code: "PHYS 2220", title: "Electricity and Magnetism", meta: "MW 11:00" },
 ] as const;
 
 function Card({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -631,7 +631,7 @@ export function ControlsSpecimen() {
       >
         <div className="spec-sheet-body">
           <p className="spec-numeral">8:49</p>
-          <p>CSCE 2110 at 9:00, a 9 min walk to GAB 535</p>
+          <p>CSCE 2110 at 9:00</p>
         </div>
       </BottomSheet>
     </main>
