@@ -7,6 +7,7 @@ import { ChevronDown } from "@/components/ui/icons";
 import { Menu, type MenuEntry } from "@/components/ui/Menu";
 import { toast } from "@/components/ui/Toast";
 import { createSavedPlanStore } from "@/lib/saved-plans/store";
+import { openConnect } from "@/components/connect/open-connect";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { chipStatusLabel, chipTone, planName } from "./plan-status";
 
@@ -29,10 +30,13 @@ export function planMenuEntries(input: {
   recent: Array<Pick<SavedPlanSnapshot, "planId" | "name" | "snapshotTakenAt">>;
   onCopy: () => void;
   onRetry: () => void;
+  /** Opens the Connect sheet: courses already taken, from myUNT. */
+  onConnect: () => void;
 }): MenuEntry[] {
-  const { planLoaded, saveFailed, isRegistered, recent, onCopy, onRetry } = input;
+  const { planLoaded, saveFailed, isRegistered, recent, onCopy, onRetry, onConnect } = input;
   return [
     ...(saveFailed ? [{ id: "retry", label: "Try saving again", onSelect: onRetry } satisfies MenuEntry] : []),
+    { id: "connect", label: "Import courses from myUNT", onSelect: onConnect },
     {
       id: "copy",
       label: "Save a copy",
@@ -123,6 +127,7 @@ export function PlanChip() {
     recent,
     onCopy: saveCopy,
     onRetry: retrySave,
+    onConnect: openConnect,
   });
 
   return (

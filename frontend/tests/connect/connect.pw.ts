@@ -3,6 +3,7 @@ import {
   test,
   expect,
   chromium,
+  type Locator,
   type Page,
   type BrowserContext,
 } from "../../../extension/node_modules/@playwright/test/index.js";
@@ -39,6 +40,17 @@ async function context(extension: boolean) {
 }
 async function shot(page: Page, name: string) {
   await mkdir(evidence, { recursive: true });
+  // The sheet is a dialog with an enter transition; let it settle so the
+  // evidence shows the state rather than a frame of the fade. Endless ones
+  // (spinners) are skipped, or this would never resolve.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   await page.screenshot({
     path: resolve(evidence, `${name}.png`),
     fullPage: true,
@@ -116,6 +128,10 @@ async function upload(page: Page) {
   await expect(
     page.getByRole("heading", { name: "Review your courses" }),
   ).toBeVisible();
+}
+async function chooseStatus(page: Page, row: Locator, option: string) {
+  await row.getByRole("combobox", { name: "Status for CSCE 1030" }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
 }
 async function saveOne(page: Page) {
   await page
@@ -773,17 +789,15 @@ test("the extracted review row clears approval when its detected status changes"
     await checkbox.check();
     const row = page.locator("li").filter({ has: checkbox });
     await row.getByText("Change detected status", { exact: true }).click();
-    await row
-      .getByRole("combobox", { name: "Status for CSCE 1030" })
-      .selectOption("ignored");
+    // The status control is the custom ui Select (a combobox with a listbox),
+    // so it is chosen by clicking its option rather than selectOption().
+    await chooseStatus(page, row, "Ignore");
     await expect(checkbox).not.toBeChecked();
     await expect(checkbox).toBeDisabled();
     await expect(
       page.getByRole("button", { name: "Save selected courses" }),
     ).toBeDisabled();
-    await row
-      .getByRole("combobox", { name: "Status for CSCE 1030" })
-      .selectOption("completed");
+    await chooseStatus(page, row, "Completed");
     await expect(checkbox).not.toBeChecked();
     await checkbox.check();
     await expect(

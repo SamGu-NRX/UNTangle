@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { usePlanner } from "@/components/planner-provider";
+import { openConnect } from "@/components/connect/open-connect";
 import { ChevronRight } from "@/components/ui/icons";
 import { getInitialPlannerState } from "@/lib/planner";
 import { hasStartedPlan } from "./home-entry";
@@ -13,14 +14,14 @@ const OPTIONS = [
     id: "connect",
     title: "Connect to UNT",
     meta: "Bring in your unofficial transcript from myUNT.",
-    href: "/courses/import",
+    href: null,
     primary: true,
   },
   {
     id: "upload",
     title: "Upload a transcript PDF",
     meta: "Already downloaded it? Drop it in.",
-    href: "/courses/import",
+    href: null,
     primary: false,
   },
   {
@@ -60,11 +61,20 @@ export function HomeEntry() {
         <ul className="home-options">
           {OPTIONS.map((option) => (
             <li key={option.id} className={option.primary ? "home-option home-option--primary" : "home-option"}>
-              <Link href={option.href} className="home-option__link">
-                <span className="home-option__title">{option.title}</span>
-                <span className="home-option__meta">{option.meta}</span>
-                <ChevronRight className="home-option__chevron" />
-              </Link>
+              {option.href ? (
+                <Link href={option.href} className="home-option__link">
+                  <span className="home-option__title">{option.title}</span>
+                  <span className="home-option__meta">{option.meta}</span>
+                  <ChevronRight className="home-option__chevron" />
+                </Link>
+              ) : (
+                // Both transcript paths open the Connect sheet over this page.
+                <button type="button" className="home-option__link" onClick={openConnect}>
+                  <span className="home-option__title">{option.title}</span>
+                  <span className="home-option__meta">{option.meta}</span>
+                  <ChevronRight className="home-option__chevron" />
+                </button>
+              )}
             </li>
           ))}
         </ul>

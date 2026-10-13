@@ -77,7 +77,8 @@ export async function parseConnectTranscript(
   });
   if (!result.records.length)
     throw new Error(
-      "No readable course rows were found. Save a text PDF from myUNT, or use the transcript importer for scanned PDFs.",
+      // Only text PDFs are read; there is no scanned-PDF importer to send people to.
+      "No readable course rows were found. In myUNT, use View as PDF and upload that file; a scan or photo of the transcript can't be read.",
     );
   return result;
 }
