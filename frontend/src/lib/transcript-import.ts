@@ -42,7 +42,6 @@ const completedGrades = new Set(["A", "B", "C", "CR"]);
 const reviewCompletedGrades = new Set(["D", "P"]);
 const inProgressGrades = new Set(["EN", "IP"]);
 const ignoredGrades = new Set(["F", "NP", "I", "W", "Z"]);
-const localParserRationale = "Parsed from transcript table text without AI.";
 const validSourceKinds = new Set<TranscriptSourceKind>([
   "unt",
   "transfer",
@@ -261,96 +260,6 @@ export function reconcileTranscriptCourses({
   };
 }
 
-export function extractTranscriptJson(value: unknown): TranscriptAnalysisPayload {
-  const directPayload = payloadFromUnknown(value);
-  if (directPayload) return directPayload;
-
-  const raw = stringifyAiResponse(value);
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
-  const candidate = fenced ?? raw.match(/\{[\s\S]*\}/)?.[0] ?? raw.match(/\[[\s\S]*\]/)?.[0] ?? raw;
-  const parsed = JSON.parse(candidate) as unknown;
-  const payload = payloadFromUnknown(parsed);
-
-  if (!payload) {
-    throw new Error("AI response did not include a records array.");
-  }
-
-  return payload;
-}
-
-export function stringifyAiResponse(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value && typeof value === "object") {
-    const maybeMessage = value as {
-      choices?: Array<{ message?: { content?: unknown }; text?: unknown }>;
-      message?: { content?: unknown };
-      text?: unknown;
-      content?: unknown;
-      output_text?: unknown;
-      response?: unknown;
-      result?: unknown;
-    };
-
-    if (typeof maybeMessage.text === "string") return maybeMessage.text;
-    if (typeof maybeMessage.output_text === "string") return maybeMessage.output_text;
-    if (typeof maybeMessage.content === "string") return maybeMessage.content;
-    if (typeof maybeMessage.message?.content === "string") return maybeMessage.message.content;
-    if (Array.isArray(maybeMessage.choices) && maybeMessage.choices.length > 0) {
-      return stringifyAiResponse(maybeMessage.choices[0]?.message?.content ?? maybeMessage.choices[0]?.text);
-    }
-    if (Array.isArray(maybeMessage.message?.content)) {
-      return stringifyContentParts(maybeMessage.message.content);
-    }
-    if (Array.isArray(maybeMessage.content)) return stringifyContentParts(maybeMessage.content);
-    if (maybeMessage.response) return stringifyAiResponse(maybeMessage.response);
-    if (maybeMessage.result) return stringifyAiResponse(maybeMessage.result);
-  }
-
-  return String(value ?? "");
-}
-
-export function buildTranscriptPrompt(transcriptText: string) {
-  const redactedText = redactTranscriptText(transcriptText);
-  const localPayload = buildLocalFallbackPayload(redactedText);
-  const candidateRows =
-    localPayload.records.length > 0 ? JSON.stringify(compactCandidateRows(localPayload.records)).slice(0, 18000) : "";
-  const transcriptExcerpt = redactedText.slice(0, candidateRows ? 8000 : 26000);
-
-  return `You are reading an unofficial UNT undergraduate transcript. Extract every course row and return only valid JSON.
-
-Rules:
-- Return an object: {"records":[...]}.
-- Each record must include: code, title, term, grade, credits, sourceKind, confidence, rationale, duplicateExcluded.
-- sourceKind must be one of: unt, transfer, exam, current, unknown.
-- code must be a UNT-style subject plus four digits, for example "CSCE 1030".
-- Treat transfer credit and exam credit as separate source kinds when the transcript says transfer, AP, exam, or non-traditional credit.
-- Mark duplicateExcluded true only when the transcript indicates repeated, duplicate, excluded, or not counted credit.
-- Use grade EN or IP for current enrolled or in-progress rows.
-- If browser-extracted candidate rows are provided, correct them instead of inventing unrelated courses.
-- Keep rationale under 10 words and describe only unusual rows such as transfer, duplicate, current, failed, or unclear grade.
-- Return JSON only. Do not include markdown.
-
-Browser-extracted candidate rows:
-${candidateRows || "None"}
-
-Transcript text:
-${transcriptExcerpt}`;
-}
-
-export function buildTranscriptImagePrompt() {
-  return `Read these rendered pages of an unofficial UNT undergraduate transcript. Student identity fields may be masked. Ignore redaction marks. Extract every course row and return only valid JSON.
-
-Rules:
-- Return an object: {"records":[...]}.
-- Each record must include: code, title, term, grade, credits, sourceKind, confidence, rationale, duplicateExcluded.
-- sourceKind must be one of: unt, transfer, exam, current, unknown.
-- code must be a UNT-style subject plus four digits, for example "CSCE 1030".
-- Include transfer credit and exam credit rows.
-- Use grade EN or IP for current enrolled or in-progress rows.
-- Keep rationale under 10 words and describe only unusual rows such as transfer, duplicate, current, failed, or unclear grade.
-- Return JSON only. Do not include markdown.`;
-}
-
 export function buildLocalFallbackPayload(transcriptText: string): TranscriptAnalysisPayload {
   const parsedRows = parseUntTranscriptRows(transcriptText);
   if (parsedRows.length > 0) {
@@ -372,7 +281,7 @@ export function buildLocalFallbackPayload(transcriptText: string): TranscriptAna
       credits: null,
       sourceKind: "unknown",
       confidence: 0.35,
-      rationale: "Detected locally after AI analysis was unavailable.",
+      rationale: "Found the course code, but not its grade or term. Check both before adding it.",
       duplicateExcluded: false,
     });
   }
@@ -403,7 +312,7 @@ function parseUntTranscriptRows(transcriptText: string): RawTranscriptCourse[] {
       credits: Number(earned),
       sourceKind: sourceKindBefore(transcriptText, match.index ?? 0, grade),
       confidence: 0.92,
-      rationale: localParserRationale,
+      rationale: "",
       duplicateExcluded: isZeroCreditDuplicate || /duplicate|exclude|repeat/i.test(fullMatch),
     });
   }
@@ -411,80 +320,9 @@ function parseUntTranscriptRows(transcriptText: string): RawTranscriptCourse[] {
   return records;
 }
 
-function compactCandidateRows(records: RawTranscriptCourse[]) {
-  return records.map((record) => ({
-    code: record.code,
-    title: record.title,
-    term: record.term,
-    grade: record.grade,
-    credits: record.credits,
-    sourceKind: record.sourceKind,
-    duplicateExcluded: record.duplicateExcluded,
-  }));
-}
-
-function objectFromUnknown(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function rawTranscriptCourseFromUnknown(value: unknown): RawTranscriptCourse | null {
-  const candidate = objectFromUnknown(value);
-  if (!candidate) return null;
-
-  return {
-    code: candidate.code,
-    title: candidate.title,
-    term: candidate.term,
-    grade: candidate.grade,
-    credits: candidate.credits,
-    sourceKind: candidate.sourceKind,
-    confidence: candidate.confidence,
-    rationale: candidate.rationale,
-    duplicateExcluded: candidate.duplicateExcluded,
-  };
-}
-
-function recordsFromUnknown(value: unknown): RawTranscriptCourse[] | null {
-  if (!Array.isArray(value)) return null;
-  return value
-    .map(rawTranscriptCourseFromUnknown)
-    .filter((record): record is RawTranscriptCourse => Boolean(record));
-}
-
-function payloadFromUnknown(value: unknown): TranscriptAnalysisPayload | null {
-  const records = recordsFromUnknown(value);
-  if (records) return { records };
-
-  const candidate = objectFromUnknown(value);
-  if (!candidate) return null;
-
-  const candidateRecords = recordsFromUnknown(candidate.records) ?? recordsFromUnknown(candidate.courses);
-  if (candidateRecords) return { records: candidateRecords };
-  return payloadFromUnknown(candidate.data) ?? payloadFromUnknown(candidate.output);
-}
-
-function stringifyContentParts(parts: unknown[]) {
-  return parts
-    .map((part) => {
-      if (typeof part === "string") return part;
-      if (part && typeof part === "object") {
-        const candidate = part as { text?: unknown; content?: unknown; value?: unknown };
-        if (typeof candidate.text === "string") return candidate.text;
-        if (typeof candidate.content === "string") return candidate.content;
-        if (typeof candidate.value === "string") return candidate.value;
-        return stringifyAiResponse(candidate.text ?? candidate.content ?? candidate.value);
-      }
-      return "";
-    })
-    .join("");
-}
-
+/** A row's own note (e.g. a code found without its grade) wins; otherwise the classification's. */
 function normalizeRationale(rawRationale: unknown, classifiedRationale: string) {
-  const raw = text(rawRationale);
-  if (!raw || raw === localParserRationale || /^parsed from transcript table/i.test(raw)) {
-    return classifiedRationale;
-  }
-  return raw;
+  return text(rawRationale) || classifiedRationale;
 }
 
 function findTermBefore(transcriptText: string, index: number) {
@@ -524,21 +362,6 @@ export function redactTranscriptText(transcriptText: string) {
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
     .replace(/\b\d{3}[-.\s]\d{2}[-.\s]\d{4}\b/g, "[redacted id]")
     .replace(/\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g, "[redacted phone]");
-}
-
-export function redactRenderedTranscriptPage(
-  canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D,
-  pageNumber: number,
-) {
-  const height = Math.round(canvas.height * (pageNumber === 1 ? 0.2 : 0.075));
-  context.save();
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, height);
-  context.fillStyle = "#6b826b";
-  context.font = `${Math.max(14, Math.round(canvas.width * 0.014))}px sans-serif`;
-  context.fillText("student identity redacted", Math.round(canvas.width * 0.04), Math.round(height * 0.55));
-  context.restore();
 }
 
 export function effectiveTranscriptRecord(

@@ -220,7 +220,7 @@ async function journey(browser, viewport) {
     const bar = await page.locator(".shell-topbar").evaluate((el) => el.getBoundingClientRect().bottom);
     check(`${tag}: the panel starts at or below the top bar`, top >= bar - 1, `${top} >= ${bar}`);
   } else {
-    check(`${tag}: the sheet has a drag handle`, await page.getByRole("button", { name: "Resize CSCE 1030 details" }).isVisible());
+    check(`${tag}: the sheet has a drag handle`, await page.getByRole("dialog", { name: "CSCE 1030 details" }).getByRole("button", { name: "Resize sheet" }).isVisible());
   }
   const bars = await panel.locator("[data-grade-bar]").evaluateAll((els) => els.map((el) => ({ bg: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity })));
   const greens = new Set(bars.map((b) => b.bg));
@@ -271,7 +271,7 @@ async function journey(browser, viewport) {
   } else {
     // Drag down to the half detent; then Tab into the content opens the sheet fully again.
     const sheet = page.getByRole("dialog", { name: "CSCE 1030 details" });
-    const grip = page.getByRole("button", { name: "Resize CSCE 1030 details" });
+    const grip = page.getByRole("dialog", { name: "CSCE 1030 details" }).getByRole("button", { name: "Resize sheet" });
     const box = await grip.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + 4);
     await page.mouse.down();

@@ -27,13 +27,16 @@ function setInputValue(input: HTMLInputElement, value: string) {
 describe("modal layer stack", () => {
   async function mountTwoDialogs() {
     const { Dialog } = await import("@/components/ui/Dialog");
-    const { useState } = await import("react");
+    const { useEffect, useState } = await import("react");
     const controls: { setA?: (open: boolean) => void; setB?: (open: boolean) => void } = {};
     function Harness() {
       const [a, setA] = useState(false);
       const [b, setB] = useState(false);
-      controls.setA = setA;
-      controls.setB = setB;
+      // Handed out after render, where the React compiler allows writing outside the component.
+      useEffect(() => {
+        controls.setA = setA;
+        controls.setB = setB;
+      }, []);
       return (
         <>
           <button type="button">Page button</button>

@@ -1,0 +1,62 @@
+/** The default window, and better-auth's own limiter window (its rows are swept on this basis). */
+export const windowMs = 60_000;
+/** `windowSeconds` defaults to 60. */
+export type Budget = { user?: number; ip: number; windowSeconds?: number };
+
+/** The window length for one budget, in milliseconds. */
+export function budgetWindowMs(budget: { windowSeconds?: number }): number {
+  return (budget.windowSeconds ?? 60) * 1000;
+}
+
+/**
+ * Requests per window (60 s unless `windowSeconds` says otherwise) for each route class.
+ * Signed-in callers count against `user`, anonymous callers against `ip`; a class without
+ * `user` counts everyone by IP. These are unmeasured
+ * starting values: no production traffic has been looked at to choose them.
+ */
+export const budgets = {
+  auth: { ip: 30 },
+  grades: { user: 60, ip: 180 },
+  mapRoute: { user: 60, ip: 60 },
+  mapResolve: { user: 60, ip: 60 },
+  plannerRead: { user: 120, ip: 360 },
+  plannerSave: { user: 60, ip: 180 },
+  sections: { user: 60, ip: 180 },
+  // Setting a password is rare: a few tries per signed-in user per 10 minutes.
+  setPassword: { user: 5, ip: 10, windowSeconds: 600 },
+} satisfies Record<string, Budget>;
+export type RouteClass = keyof typeof budgets;
+
+/**
+ * Budgets counted per email recipient, not per caller, so they are kept out of `budgets`:
+ * withRateLimit can't apply one by IP. lib/email-budget.ts counts these through the store
+ * directly. `perRecipient` is per inbox and per email kind, per window; an unmeasured
+ * starting value.
+ */
+export const recipientBudgets = {
+  authEmail: { perRecipient: 3, windowSeconds: 600 },
+} as const;
+
+const proxyHeaders: Record<string, string | null> = {
+  vercel: "x-vercel-forwarded-for",
+  cloudflare: "cf-connecting-ip",
+  "reverse-proxy": "x-real-ip",
+  none: null,
+};
+
+/** The one header our proxy sets to the caller's address. Any other header could be forged. */
+export function trustedIpHeader(env: Partial<NodeJS.ProcessEnv> = process.env): string | null {
+  const proxy = env.RATE_LIMIT_TRUSTED_PROXY ?? (env.VERCEL === "1" ? "vercel" : "none");
+  if (!Object.hasOwn(proxyHeaders, proxy)) {
+    throw new Error(`RATE_LIMIT_TRUSTED_PROXY must be one of ${Object.keys(proxyHeaders).join(", ")}; got "${proxy}".`);
+  }
+  return proxyHeaders[proxy];
+}
+
+/** Without a trusted header every caller shares one IP bucket; without Postgres each instance counts alone. */
+export function checkProductionEnv(env: Partial<NodeJS.ProcessEnv> = process.env) {
+  if (!trustedIpHeader(env)) {
+    throw new Error("Production needs RATE_LIMIT_TRUSTED_PROXY set to vercel, cloudflare or reverse-proxy (VERCEL=1 implies vercel).");
+  }
+  if (!env.DATABASE_URL) throw new Error("Production needs DATABASE_URL: rate-limit counters are shared through Postgres.");
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "api_rate_limit" ADD COLUMN "expires_at" bigint DEFAULT 0 NOT NULL;

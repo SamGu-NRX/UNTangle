@@ -1,7 +1,6 @@
-import type {
-  TranscriptAppliedStatus,
-  TranscriptCourseRecord,
-} from "@/lib/types";
+import { Select } from "@/components/ui/Select";
+import { StatusGlyph, type CourseStatusGlyph } from "@/components/ui/StatusGlyph";
+import type { TranscriptAppliedStatus, TranscriptCourseRecord } from "@/lib/types";
 import styles from "./connect.module.css";
 
 type Props = {
@@ -12,64 +11,79 @@ type Props = {
   onStatus: (status: TranscriptAppliedStatus) => void;
 };
 
-export function ConnectReviewRow({
-  record,
-  status,
-  included,
-  onInclude,
-  onStatus,
-}: Props) {
+const STATUS_OPTIONS = [
+  { value: "completed", label: "Completed" },
+  { value: "inProgress", label: "In progress" },
+  { value: "needsReview", label: "Needs review" },
+  { value: "ignored", label: "Ignore" },
+];
+
+const GLYPH: Record<TranscriptAppliedStatus, CourseStatusGlyph> = {
+  completed: "done",
+  inProgress: "taking",
+  needsReview: "locked",
+  ignored: "available",
+};
+
+function isStatus(value: string): value is TranscriptAppliedStatus {
+  return value === "completed" || value === "inProgress" || value === "needsReview" || value === "ignored";
+}
+
+/**
+ * One transcript course: include checkbox, status glyph, code (Syne 13),
+ * title, term and grade. A row the import could not settle on its own is
+ * tinted and shows its status Select inline, with the reason; other rows
+ * keep the Select behind "Change detected status".
+ */
+export function ConnectReviewRow({ record, status, included, onInclude, onStatus }: Props) {
   const eligible = status === "completed" || status === "inProgress";
+  const statusSelect = (
+    <div className={styles.decision}>
+      <span aria-hidden="true">Apply as</span>
+      <Select
+        label={`Status for ${record.code}`}
+        hideLabel
+        size="sm"
+        options={STATUS_OPTIONS}
+      value={status}
+        onValueChange={(next) => {
+          if (isStatus(next)) onStatus(next);
+        }}
+      />
+    </div>
+  );
   return (
-    <li>
-      <label className={styles.row}>
+    <li className={styles.reviewRow} data-flagged={record.reviewRequired || undefined}>
+      <label className={styles.reviewMain}>
         <input
           type="checkbox"
+          className="ui-check__box"
           aria-label={`Include ${record.code}`}
           checked={included}
           disabled={!eligible}
           onChange={(event) => onInclude(event.target.checked)}
         />
-        <span>
-          <strong>{record.code}</strong>
-          <span>{record.title}</span>
+        <StatusGlyph status={GLYPH[status]} />
+        <span className={styles.reviewText}>
+          <span className={styles.reviewLine}>
+            <strong className="ui-code">{record.code}</strong>
+            <span className={styles.reviewTitle}>{record.title}</span>
+          </span>
           <small>
-            {record.term} · Grade {record.grade || "unknown"} ·{" "}
-            {record.credits ?? "?"} credits
+            {record.term} · Grade {record.grade || "unknown"} · {record.credits ?? "?"} credits
           </small>
         </span>
       </label>
-      <details className={styles.exception}>
-        <summary>
-          {record.reviewRequired
-            ? "Review this course"
-            : "Change detected status"}
-        </summary>
-        <label className={styles.decision}>
-          Apply as
-          <select
-            aria-label={`Status for ${record.code}`}
-            value={status}
-            onChange={(event) => {
-              const next = event.target.value;
-              if (
-                next === "completed" ||
-                next === "inProgress" ||
-                next === "needsReview" ||
-                next === "ignored"
-              )
-                onStatus(next);
-            }}
-          >
-            <option value="completed">Completed</option>
-            <option value="inProgress">In progress</option>
-            <option value="needsReview">Needs review</option>
-            <option value="ignored">Ignore</option>
-          </select>
-        </label>
-      </details>
-      {record.reviewRequired && (
-        <p className={styles.note}>{record.rationale}</p>
+      {record.reviewRequired ? (
+        <div className={styles.reviewDecision}>
+          <p className={styles.note}>{record.rationale}</p>
+          {statusSelect}
+        </div>
+      ) : (
+        <details className={styles.exception}>
+          <summary>Change detected status</summary>
+          {statusSelect}
+        </details>
       )}
     </li>
   );

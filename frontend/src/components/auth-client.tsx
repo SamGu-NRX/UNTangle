@@ -1,299 +1,294 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/Button";
-import { Field } from "@/components/ui/Field";
+import { TextField } from "@/components/ui/TextField";
 import { authClient } from "@/lib/auth-client";
 import { isUntEmail, untEmailRequirementMessage } from "@/lib/unt-auth";
+import { useFieldError } from "@/components/use-field-error";
 
-type AuthMessage = {
-  tone: "error" | "success";
-  text: string;
+type Result = { error: { message?: string; code?: string } | null };
+
+/** The two server calls the sign-in page makes; a seam for tests. */
+export type AuthApi = {
+  sendLink(email: string): Promise<Result>;
+  signIn(email: string, password: string): Promise<Result>;
 };
 
-export function AuthClient() {
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
-  const [magicEmail, setMagicEmail] = useState("");
+const AFTER_SIGN_IN = "/courses";
+
+const liveApi: AuthApi = {
+  sendLink: (email) =>
+    authClient.signIn.magicLink({
+      email,
+      callbackURL: AFTER_SIGN_IN,
+      newUserCallbackURL: AFTER_SIGN_IN,
+      // better-auth appends &error=… (e.g. EXPIRED_TOKEN) when a link fails.
+      errorCallbackURL: "/auth?link=failed",
+    }),
+  signIn: (email, password) => authClient.signIn.email({ email, password }),
+};
+
+/** How long "Resend link" waits after a send. The server allows 5 requests a minute. */
+export const RESEND_COOLDOWN_S = 30;
+
+type View = "link" | "sent" | "password";
+type FieldError = { field: "email" | "password"; text: string };
+
+/**
+ * Where a server error belongs: an email-specific message under Email,
+ * everything else (wrong password, unknown account) under Password, the
+ * field a person retries.
+ */
+function placeServerError(message: string, view: View): FieldError {
+  if (view !== "password") return { field: "email", text: message };
+  return { field: /email/i.test(message) && !/password/i.test(message) ? "email" : "password", text: message };
+}
+
+export function AuthClient({ emailInServerLog, linkFailed }: { emailInServerLog: boolean; linkFailed: boolean }) {
+  const router = useRouter();
+  return (
+    <AuthPanel
+      api={liveApi}
+      onContinue={() => router.push(AFTER_SIGN_IN)}
+      emailInServerLog={emailInServerLog}
+      linkFailed={linkFailed}
+    />
+  );
+}
+
+/**
+ * Sign-in leads with a link emailed to the student's UNT address; that is
+ * also how an account is created. A password is the secondary path, for
+ * accounts that set one while signed in (account menu, "Set a password").
+ * Errors appear as help text under the field they concern, never as a red box.
+ */
+export function AuthPanel({
+  api,
+  onContinue,
+  emailInServerLog,
+  linkFailed,
+}: {
+  api: AuthApi;
+  /** Leaves for the plan: after signing in, or as a guest. */
+  onContinue: () => void;
+  /** Development without an email provider: the link is in the server log, and the page says so. */
+  emailInServerLog: boolean;
+  /** Came back from a sign-in link that had expired or was already used. */
+  linkFailed: boolean;
+}) {
+  const [view, setView] = useState<View>("link");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [message, setMessage] = useState<AuthMessage | null>(null);
+  const [error, setError] = useState<FieldError | null>(
+    linkFailed ? { field: "email", text: "That sign-in link expired or was already used. Send a new one." } : null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isMagicSubmitting, setIsMagicSubmitting] = useState(false);
-  const [localOpen, setLocalOpen] = useState(false);
-  const router = useRouter();
+  const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(0);
+  const emailRef = useRef<HTMLInputElement | null>(null);
+  const passwordRef = useRef<HTMLInputElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const fieldError = useFieldError();
 
-  async function handleMagicLink(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!isUntEmail(magicEmail)) {
-      setMessage({ tone: "error", text: untEmailRequirementMessage() });
+  // A new view moves focus to its heading (after the first render), so the change is announced.
+  const firstView = useRef(true);
+  useEffect(() => {
+    if (firstView.current) {
+      firstView.current = false;
       return;
     }
+    headingRef.current?.focus();
+  }, [view]);
 
-    setIsMagicSubmitting(true);
-    setMessage(null);
+  // Ticks only while "Resend link" is cooling down.
+  const cooling = view === "sent" && now < resendAt;
+  useEffect(() => {
+    if (!cooling) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooling]);
+  const secondsLeft = Math.max(0, Math.ceil((resendAt - now) / 1000));
 
-    try {
-      const response = await fetch("/api/auth/sign-in/magic-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: magicEmail,
-          name: magicEmail.split("@")[0],
-          callbackURL: "/courses",
-          newUserCallbackURL: "/courses",
-          errorCallbackURL: "/auth",
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        setMessage({ tone: "error", text: payload?.message ?? "Unable to send a sign-in link." });
-        return;
-      }
-
-      setMessage({ tone: "success", text: "Check your UNT inbox for a sign-in link." });
-    } catch {
-      setMessage({ tone: "error", text: "Unable to send a sign-in link." });
-    } finally {
-      setIsMagicSubmitting(false);
-    }
+  function fail(next: FieldError) {
+    setError(next);
+    fieldError.report((next.field === "email" ? emailRef : passwordRef).current, next.text);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function checkEmail(): boolean {
+    if (isUntEmail(email)) return true;
+    fail({ field: "email", text: untEmailRequirementMessage() });
+    return false;
+  }
 
-    if (!isUntEmail(email)) {
-      setMessage({ tone: "error", text: untEmailRequirementMessage() });
-      return;
-    }
-
+  async function sendLink() {
     setIsSubmitting(true);
-    setMessage(null);
-
-    const response =
-      mode === "signIn"
-        ? await authClient.signIn.email({ email, password })
-        : await authClient.signUp.email({ email, password, name: name || email });
-
+    setError(null);
+    const response = await api.sendLink(email.trim());
     setIsSubmitting(false);
-
     if (response.error) {
-      setMessage({ tone: "error", text: response.error.message ?? "Authentication failed." });
+      if (view === "sent") setView("link");
+      fail({ field: "email", text: response.error.message ?? "The sign-in link couldn't be sent. Try again in a minute." });
       return;
     }
-
-    router.push("/courses");
+    const sentAt = Date.now();
+    setNow(sentAt);
+    setResendAt(sentAt + RESEND_COOLDOWN_S * 1000);
+    setView("sent");
   }
+
+  async function handleLink(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (checkEmail()) await sendLink();
+  }
+
+  async function handlePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!checkEmail()) return;
+    if (password.length < 8) {
+      fail({ field: "password", text: "Use at least 8 characters." });
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    const response = await api.signIn(email, password);
+    setIsSubmitting(false);
+    if (response.error?.code === "EMAIL_NOT_VERIFIED") {
+      fail({ field: "email", text: "This account isn't verified. Email yourself a sign-in link instead." });
+      return;
+    }
+    if (response.error) {
+      fail(placeServerError(response.error.message ?? "Sign-in failed. Check your email and password.", "password"));
+      return;
+    }
+    onContinue();
+  }
+
+  function goTo(next: View) {
+    setError(null);
+    setView(next);
+  }
+
+  const serverLogNote = emailInServerLog ? (
+    <p className="auth__note">Email isn&apos;t set up here; the link is in the server log.</p>
+  ) : null;
+  const emailField = (
+    <TextField
+      ref={emailRef}
+      label="UNT email"
+      type="email"
+      inputMode="email"
+      value={email}
+      onChange={(e) => {
+        setEmail(e.target.value);
+        if (error?.field === "email") setError(null);
+      }}
+      placeholder="eagleid@my.unt.edu"
+      autoComplete="email"
+      error={error?.field === "email" ? error.text : null}
+    />
+  );
 
   return (
-    <AuthShell step={0}>
-      <div style={{ marginBottom: 18 }}>
-        <h1
-          className="font-display"
-          style={{
-            fontSize: "1.7rem",
-            fontWeight: 800,
-            color: "var(--brand-900)",
-            letterSpacing: "-0.03em",
-            lineHeight: 1.05,
-          }}
-        >
-          Sign in with your UNT email.
-        </h1>
-        <p style={{ marginTop: 6, fontSize: "0.85rem", color: "var(--copy)" }}>
-          Use a one-time link to create or open your planner account.
-        </p>
-      </div>
-
-      <form onSubmit={handleMagicLink} style={{ display: "grid", gap: 12 }}>
-        <Field
-          label="UNT email"
-          type="email"
-          value={magicEmail}
-          onChange={(e) => setMagicEmail(e.target.value)}
-          placeholder="eagleid@unt.edu"
-          autoComplete="email"
-          required
-          helper="@unt.edu and @my.unt.edu addresses are accepted."
-        />
-
-        {message ? (
-          <p
-            style={{
-              fontSize: "0.82rem",
-              color: message.tone === "error" ? "var(--danger)" : "var(--success-ink)",
-              padding: "0.55rem 0.7rem",
-              border: `1px solid ${
-                message.tone === "error" ? "var(--danger-border)" : "var(--success-border)"
-              }`,
-              borderRadius: "var(--r-sm)",
-              background: message.tone === "error" ? "var(--danger-bg)" : "var(--success-bg)",
-            }}
-          >
-            {message.text}
+    <AuthShell>
+      {view === "link" && (
+        <>
+          <h1 className="auth__title" ref={headingRef} tabIndex={-1}>
+            Sign in
+          </h1>
+          <p className="auth__lede">
+            Use your @unt.edu or @my.unt.edu email. We&apos;ll email you a sign-in link. No password needed.
           </p>
-        ) : null}
+          <form className="auth__form" onSubmit={handleLink} noValidate>
+            {emailField}
+            <Button type="submit" className="auth__submit" loading={isSubmitting} loadingLabel="Sending…">
+              Email me a sign-in link
+            </Button>
+          </form>
+          {serverLogNote}
+          <Button variant="quiet" className="auth__guest" onClick={() => goTo("password")}>
+            Use a password instead
+          </Button>
+        </>
+      )}
 
-        <Button type="submit" disabled={isMagicSubmitting} style={{ width: "100%", marginTop: 4 }}>
-          {isMagicSubmitting ? (
-            <>
-              <span className="spinner" />
-              <span>Sending…</span>
-            </>
-          ) : (
-            "Send UNT sign-in link"
-          )}
-        </Button>
-      </form>
-
-      <div
-        style={{
-          margin: "16px 0 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          color: "var(--faint)",
-          fontSize: "0.7rem",
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-        }}
-      >
-        <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
-        <span>or</span>
-        <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
-      </div>
-
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => router.push("/courses")}
-        style={{ width: "100%" }}
-      >
-        Continue as guest
-      </Button>
-
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => setLocalOpen((current) => !current)}
-        style={{ width: "100%", marginTop: 8 }}
-      >
-        {localOpen ? "Hide password sign-in" : "Use password instead"}
-      </Button>
-
-      {localOpen ? (
-        <div
-          className="animate-content-enter"
-          style={{
-            marginTop: 16,
-            padding: "0.9rem",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-md)",
-            background: "var(--surface-muted)",
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 4,
-              padding: 4,
-              border: "1px solid var(--line)",
-              borderRadius: "var(--r-md)",
-              background: "var(--surface)",
-              marginBottom: 12,
-            }}
+      {view === "sent" && (
+        <>
+          <h1 className="auth__title" ref={headingRef} tabIndex={-1}>
+            Check your UNT email
+          </h1>
+          <p className="auth__lede" role="status">
+            We sent a sign-in link to <strong>{email.trim()}</strong>. It works once and expires in 5 minutes.
+          </p>
+          {serverLogNote}
+          <Button
+            variant="ghost"
+            className="auth__submit"
+            loading={isSubmitting}
+            loadingLabel="Sending…"
+            disabled={cooling}
+            onClick={() => void sendLink()}
           >
-            {(["signIn", "signUp"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setMode(value)}
-                style={{
-                  padding: "0.5rem",
-                  borderRadius: "var(--r-sm)",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: mode === value ? "#fff" : "var(--copy)",
-                  background: mode === value ? "var(--brand-900)" : "transparent",
-                  transition: "background-color var(--d-hover) var(--ease), color var(--d-hover) var(--ease)",
-                }}
-              >
-                {value === "signIn" ? "Log in" : "Sign up"}
-              </button>
-            ))}
-          </div>
+            {cooling ? `Resend link in ${secondsLeft}s` : "Resend link"}
+          </Button>
+          <Button variant="quiet" className="auth__guest" onClick={() => goTo("link")}>
+            Use a different email
+          </Button>
+          <Button variant="quiet" className="auth__guest" onClick={() => goTo("password")}>
+            Use a password instead
+          </Button>
+        </>
+      )}
 
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-            {mode === "signUp" ? (
-              <Field
-                label="Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-                autoComplete="name"
-              />
-            ) : null}
-            <Field
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="eagleid@unt.edu"
-              autoComplete="email"
-              required
-            />
-            <Field
+      {view === "password" && (
+        <>
+          <h1 className="auth__title" ref={headingRef} tabIndex={-1}>
+            Sign in with a password
+          </h1>
+          <p className="auth__lede">
+            For accounts that have set a password. New here, or never set one? Email yourself a sign-in link.
+          </p>
+          <form className="auth__form" onSubmit={handlePassword} noValidate>
+            {emailField}
+            <TextField
+              ref={passwordRef}
               label="Password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-              required
-              minLength={8}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error?.field === "password") setError(null);
+              }}
+              autoComplete="current-password"
+              error={error?.field === "password" ? error.text : null}
             />
-
-            <Button type="submit" disabled={isSubmitting} style={{ width: "100%", marginTop: 4 }}>
-              {isSubmitting ? (
-                <>
-                  <span className="spinner" />
-                  <span>Working…</span>
-                </>
-              ) : mode === "signIn" ? (
-                "Log in"
-              ) : (
-                "Create account"
-              )}
+            <Button type="submit" className="auth__submit" loading={isSubmitting} loadingLabel="Signing in…">
+              Sign in
             </Button>
           </form>
-        </div>
-      ) : null}
+          <Button variant="quiet" className="auth__guest" onClick={() => goTo("link")}>
+            Email me a link instead
+          </Button>
+        </>
+      )}
 
-      <div
-        style={{
-          marginTop: 16,
-          paddingTop: 14,
-          borderTop: "1px solid var(--line)",
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: "0.78rem",
-        }}
-      >
-        <Link href="/forgot-password" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-          Forgot password?
-        </Link>
-        <Link href="/" style={{ color: "var(--copy)" }}>
+      <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
+        {fieldError.announcement}
+      </p>
+
+      <Button variant="quiet" className="auth__guest" onClick={onContinue}>
+        Continue as guest
+      </Button>
+
+      <p className="auth__foot">
+        <Link href="/forgot-password">Forgot password?</Link>
+        <Link href="/" className="auth__foot-quiet">
           Back home
         </Link>
-      </div>
+      </p>
     </AuthShell>
   );
 }

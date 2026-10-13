@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
+import "./planner-persistence.css";
 import { usePlanner } from "@/components/planner-provider";
 import { buildSavedPlanSnapshot } from "@/lib/plan-library/snapshot";
 import { defaultPlanName, exportPlanJson } from "@/lib/saved-plans/store";
@@ -73,94 +75,82 @@ export function PlannerPersistencePanel() {
   );
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <p
-        role="status"
-        aria-label="Save state"
-        style={{
-          margin: 0,
-          border: "1px solid var(--line)",
-          borderRadius: "var(--r-sm)",
-          padding: "0.6rem 0.75rem",
-          fontSize: "0.86rem",
-          background: offerExport ? "var(--surface-muted)" : "transparent",
-        }}
-      >
-        <strong data-save-label>{saveState.label}</strong>
-        {saveState.detail ? <span style={{ color: "var(--copy)" }}> — {saveState.detail}</span> : null}
+    <div className="persistence">
+      <p role="status" aria-label="Save state" className="persistence__state" data-attention={offerExport || undefined}>
+        <span className="persistence__dot" data-tone={saveState.status} aria-hidden="true" />
+        <span>
+          <strong data-save-label>{saveState.label}</strong>
+          {saveState.detail ? <span className="persistence__detail"> — {saveState.detail}</span> : null}
+        </span>
       </p>
 
       {canRetry || offerExport ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className="persistence__actions">
           {canRetry ? (
-            <button type="button" className="btn-secondary" onClick={retrySave} disabled={busy}>
+            <Button variant="ghost" size="sm" onClick={retrySave} disabled={busy}>
               Retry save
-            </button>
+            </Button>
           ) : null}
           {offerExport ? (
-            <button type="button" className="btn-secondary" onClick={() => downloadSnapshotJson(plannerState)}>
+            <Button variant="ghost" size="sm" onClick={() => downloadSnapshotJson(plannerState)}>
               Export schedule
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : null}
 
       {tookNewerVersion ? (
-        <p role="status" style={{ margin: 0, fontSize: "0.85rem", color: "var(--copy)" }}>
+        <p role="status" className="persistence__note">
           Loaded newer version from another tab or device.
-          <button type="button" className="btn-ghost" style={{ marginLeft: 8 }} onClick={dismissNewerVersionNotice}>
+          <Button variant="link" size="sm" onClick={dismissNewerVersionNotice}>
             Dismiss
-          </button>
+          </Button>
         </p>
       ) : null}
 
       {storeNotices.map((notice, index) => (
-        <p
-          key={`store-notice-${index}`}
-          role="status"
-          style={{ margin: 0, fontSize: "0.82rem", color: "var(--copy)" }}
-        >
+        <p key={`store-notice-${index}`} role="status" className="persistence__note">
           {notice.message}
           {notice.quarantinedTo ? ` (kept at ${notice.quarantinedTo})` : ""}
         </p>
       ))}
 
-      {/* Not closable: dismissing would silently pick a side. The user chooses. */}
-      <Modal
+      {/* Not dismissible: closing would silently pick a side. The user chooses. */}
+      <Dialog
         open={conflict !== null}
-        onClose={() => {}}
-        closable={false}
+        onOpenChange={() => {}}
+        dismissible={false}
         role="alertdialog"
         title={conflict ? "Unsaved changes conflict" : ""}
-        maxWidth={560}
+        width={560}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => resolveConflict("take-theirs")}>
+              Use the newer version
+            </Button>
+            <Button onClick={() => resolveConflict("keep-mine")}>Keep my edits</Button>
+          </>
+        }
       >
         {conflict && conflictSummary ? (
-          <div style={{ display: "grid", gap: "0.7rem" }}>
-            <p style={{ margin: 0, fontSize: "0.9rem" }}>
-              This tab has unsaved edits, and another {conflict.source === "server" ? "tab or device" : "tab"} saved
-              a newer version of this schedule. Choose which version to keep. Nothing is overwritten until you decide.
+          <div className="persistence__conflict">
+            <p>
+              This tab has unsaved edits, and another {conflict.source === "server" ? "tab or device" : "tab"} saved a
+              newer version of this schedule. Choose which version to keep. Nothing is overwritten until you decide.
             </p>
-            <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.86rem", display: "grid", gap: 4 }}>
+            <div className="persistence__version">
               <strong>This tab (unsaved)</strong>
-              <span style={{ color: "var(--copy)" }}>{conflictSummary.mine}</span>
+              <span>{conflictSummary.mine}</span>
             </div>
-            <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: "0.6rem 0.75rem", fontSize: "0.86rem", display: "grid", gap: 4 }}>
+            <div className="persistence__version">
               <strong>
                 Newer saved version ({formatTimestamp(conflict.theirsSavedAt)}, version {conflict.theirsRevision})
               </strong>
-              <span style={{ color: "var(--copy)" }}>{conflictSummary.theirs ?? "empty"}</span>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem" }}>
-              <button type="button" className="btn-primary" onClick={() => resolveConflict("keep-mine")}>
-                Keep my edits
-              </button>
-              <button type="button" className="btn-ghost" onClick={() => resolveConflict("take-theirs")}>
-                Use the newer version
-              </button>
+              <span>{conflictSummary.theirs ?? "empty"}</span>
             </div>
           </div>
         ) : null}
-      </Modal>
+      </Dialog>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { useEffect, useEffectEvent, type RefObject } from "react";
 
 export const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -137,13 +137,13 @@ function removeLayer(id: symbol) {
 export function useModalLayer(
   open: boolean,
   rootRef: RefObject<HTMLElement | null>,
-  opts: { onEscape?: () => void; initialFocus?: RefObject<HTMLElement | null> } = {},
+  { onEscape, initialFocus }: { onEscape?: () => void; initialFocus?: RefObject<HTMLElement | null> } = {},
 ) {
-  const onEscapeRef = useRef(opts.onEscape);
-  const initialFocusRef = opts.initialFocus;
-  useLayoutEffect(() => {
-    onEscapeRef.current = opts.onEscape;
-  });
+  // Read the latest callback and focus target when an effect needs them,
+  // not during render, and without re-running the layer when they change.
+  const escape = useEffectEvent(() => onEscape?.());
+  const canEscape = onEscape !== undefined;
+  const focusTarget = useEffectEvent(() => initialFocus?.current ?? null);
 
   useEffect(() => {
     if (!open) return;
@@ -153,7 +153,7 @@ export function useModalLayer(
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     pushLayer({ id, root, opener });
 
-    const target = initialFocusRef?.current ?? root.querySelector<HTMLElement>(FOCUSABLE) ?? root;
+    const target = focusTarget() ?? root.querySelector<HTMLElement>(FOCUSABLE) ?? root;
     target.focus({ preventScroll: true });
 
     const onKey = (event: KeyboardEvent) => {
@@ -176,9 +176,9 @@ export function useModalLayer(
         }
         return;
       }
-      if (event.key !== "Escape" || !onEscapeRef.current) return;
+      if (event.key !== "Escape" || !canEscape) return;
       event.preventDefault();
-      onEscapeRef.current();
+      escape();
     };
     document.addEventListener("keydown", onKey);
 
@@ -186,5 +186,5 @@ export function useModalLayer(
       document.removeEventListener("keydown", onKey);
       removeLayer(id);
     };
-  }, [open, rootRef, initialFocusRef]);
+  }, [open, rootRef, canEscape]);
 }

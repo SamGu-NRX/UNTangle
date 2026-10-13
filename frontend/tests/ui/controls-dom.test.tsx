@@ -199,3 +199,28 @@ describe("Menu", () => {
     await view.unmount();
   });
 });
+
+describe("Button", () => {
+  test("a button that never loads carries its label once; one that can load keeps a hidden loading label", async () => {
+    const { Button } = await import("@/components/ui/Button");
+    const view = await mount(
+      <div>
+        <Button>Export schedule</Button>
+        <Button loading={false} loadingLabel="Saving…">
+          Save
+        </Button>
+        <Button loading loadingLabel="Saving…">
+          Save
+        </Button>
+      </div>,
+    );
+    const [plain, idle, busy] = Array.from(view.container.querySelectorAll("button"));
+    expect(plain.textContent).toBe("Export schedule");
+    expect(plain.querySelector(".ui-btn__label--loading")).toBeNull();
+    expect(idle.querySelector(".ui-btn__label--loading")?.getAttribute("aria-hidden")).toBe("true");
+    expect(idle.hasAttribute("aria-busy")).toBe(false);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(busy.querySelector(".ui-btn__label:not(.ui-btn__label--loading)")?.getAttribute("aria-hidden")).toBe("true");
+    await view.unmount();
+  });
+});

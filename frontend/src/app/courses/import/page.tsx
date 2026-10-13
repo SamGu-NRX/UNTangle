@@ -1,5 +1,5 @@
-import { TranscriptImportClient } from "@/components/transcript-import-client";
+import { ImportOverCourses } from "@/components/connect/import-over-courses";
 
 export default function TranscriptImportPage() {
-  return <TranscriptImportClient />;
+  return <ImportOverCourses />;
 }

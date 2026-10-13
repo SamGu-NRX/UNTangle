@@ -1,171 +1,140 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/Button";
-import { Field } from "@/components/ui/Field";
+import { TextField } from "@/components/ui/TextField";
 import { authClient } from "@/lib/auth-client";
+import { useFieldError } from "@/components/use-field-error";
 
-export function ForgotPasswordClient({
-  token,
-  error,
-}: {
-  token: string | null;
-  error: string | null;
-}) {
+/**
+ * Request a reset link, or (with a token from that link) set a new
+ * password. Failures show as help text under the field; the outcome of a
+ * request is announced as a status line.
+ */
+export function ForgotPasswordClient({ token, error }: { token: string | null; error: string | null }) {
   const router = useRouter();
+  const mode = token ? "reset" : "request";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  // An invalid or expired link lands here with ?error=...: say so under the field.
+  const [fieldError, setFieldError] = useState<string | null>(
+    error ? "That reset link is invalid or has expired. Enter your email for a fresh one." : null,
+  );
+  const [status, setStatus] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const announcer = useFieldError();
 
-  const mode = useMemo(() => (token ? "reset" : "request"), [token]);
+  function fail(text: string) {
+    setFieldError(text);
+    announcer.report(inputRef.current, text);
+  }
 
   async function handleRequestReset(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!email.trim()) {
+      fail("Enter the email you signed up with.");
+      return;
+    }
     setIsPending(true);
-    setMessage(null);
-
+    setFieldError(null);
+    setStatus(null);
     const response = await fetch("/api/auth/request-password-reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        redirectTo: `${window.location.origin}/forgot-password`,
-      }),
+      body: JSON.stringify({ email, redirectTo: `${window.location.origin}/forgot-password` }),
     });
-
     setIsPending(false);
-    setMessage(
-      response.ok
-        ? "If the account exists, a reset link has been sent."
-        : "Unable to start the reset flow right now.",
-    );
+    if (response.ok) {
+      setStatus("If an account uses that email, a reset link is on its way.");
+    } else {
+      fail("The reset link couldn't be sent right now. Try again in a minute.");
+    }
   }
 
   async function handleResetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) return;
-
-    setIsPending(true);
-    setMessage(null);
-    const response = await authClient.resetPassword({ newPassword: password, token });
-    setIsPending(false);
-
-    if (response.error) {
-      setMessage(response.error.message ?? "Reset failed.");
+    if (password.length < 8) {
+      fail("Use at least 8 characters.");
       return;
     }
-
-    setMessage("Password updated. Redirecting…");
+    setIsPending(true);
+    setFieldError(null);
+    const response = await authClient.resetPassword({ newPassword: password, token });
+    setIsPending(false);
+    if (response.error) {
+      fail(response.error.message ?? "The password couldn't be updated.");
+      return;
+    }
+    setStatus("Password updated. Taking you to your plan…");
     setTimeout(() => router.push("/courses"), 1200);
   }
 
   return (
-    <AuthShell step={0}>
-      <div style={{ marginBottom: 18 }}>
-        <h1
-          className="font-display"
-          style={{
-            fontSize: "1.55rem",
-            fontWeight: 800,
-            color: "var(--brand-900)",
-            letterSpacing: "-0.03em",
-            lineHeight: 1.05,
-          }}
-        >
-          {mode === "reset" ? "Set a new password." : "Reset your password."}
-        </h1>
-        <p style={{ marginTop: 6, fontSize: "0.85rem", color: "var(--copy)" }}>
-          {mode === "reset"
-            ? "Choose a new password and continue back to the planner."
-            : "We'll send a reset link to your inbox."}
-        </p>
-      </div>
-
-      {error ? (
-        <p
-          style={{
-            fontSize: "0.82rem",
-            color: "var(--danger)",
-            padding: "0.55rem 0.7rem",
-            border: "1px solid var(--danger-border)",
-            borderRadius: "var(--r-sm)",
-            background: "var(--danger-bg)",
-            marginBottom: 14,
-          }}
-        >
-          The reset token is invalid or expired. Request a fresh link below.
-        </p>
-      ) : null}
+    <AuthShell>
+      <h1 className="auth__title">{mode === "reset" ? "Set a new password" : "Reset your password"}</h1>
+      <p className="auth__lede">
+        {mode === "reset" ? "Choose a new password, then carry on planning." : "We'll email you a link to set a new one."}
+      </p>
 
       {mode === "request" ? (
-        <form onSubmit={handleRequestReset} style={{ display: "grid", gap: 12 }}>
-          <Field
+        <form className="auth__form" onSubmit={handleRequestReset} noValidate>
+          <TextField
+            ref={inputRef}
             label="Email"
             type="email"
+            inputMode="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="eagleid@unt.edu"
-            required
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setFieldError(null);
+            }}
+            placeholder="eagleid@my.unt.edu"
+            autoComplete="email"
+            error={fieldError}
           />
-          <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <span className="spinner" />
-                <span>Sending…</span>
-              </>
-            ) : (
-              "Send reset link"
-            )}
+          <Button type="submit" className="auth__submit" loading={isPending} loadingLabel="Sending…">
+            Send reset link
           </Button>
         </form>
       ) : (
-        <form onSubmit={handleResetPassword} style={{ display: "grid", gap: 12 }}>
-          <Field
+        <form className="auth__form" onSubmit={handleResetPassword} noValidate>
+          <TextField
+            ref={inputRef}
             label="New password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            required
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setFieldError(null);
+            }}
+            autoComplete="new-password"
+            help="At least 8 characters."
+            error={fieldError}
           />
-          <Button type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <span className="spinner" />
-                <span>Updating…</span>
-              </>
-            ) : (
-              "Update password"
-            )}
+          <Button type="submit" className="auth__submit" loading={isPending} loadingLabel="Updating…">
+            Update password
           </Button>
         </form>
       )}
 
-      {message ? (
-        <p style={{ marginTop: 12, fontSize: "0.85rem", color: "var(--copy)" }}>{message}</p>
-      ) : null}
+      <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
+        {announcer.announcement}
+      </p>
+      <p className="auth__status" role="status">
+        {status}
+      </p>
 
-      <div
-        style={{
-          marginTop: 16,
-          paddingTop: 14,
-          borderTop: "1px solid var(--line)",
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: "0.78rem",
-        }}
-      >
-        <Link href="/auth" style={{ color: "var(--brand-700)", fontWeight: 600 }}>
-          Back to sign in
-        </Link>
-        <Link href="/" style={{ color: "var(--copy)" }}>
+      <p className="auth__foot">
+        <Link href="/auth">Back to sign in</Link>
+        <Link href="/" className="auth__foot-quiet">
           Home
         </Link>
-      </div>
+      </p>
     </AuthShell>
   );
 }

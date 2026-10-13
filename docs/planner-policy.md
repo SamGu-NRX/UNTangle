@@ -20,10 +20,14 @@ load — the check would need to move to first-request time.
 
 ## 2. UNT email domain enforcement
 
-**Rule.** Account creation (`/sign-up/email`) requires an `@unt.edu` or
-`@my.unt.edu` address, enforced **server-side** in the better-auth `before`
-hook, matching the client-side check in `unt-auth.ts`. Sign-in is deliberately
-not gated: any existing account keeps working.
+**Rule.** Accounts are created only by a sign-in link (`/sign-in/magic-link`),
+which requires an `@unt.edu` or `@my.unt.edu` address, enforced
+**server-side** in the better-auth `before` hook, matching the client-side
+check in `unt-auth.ts`. Password sign-up (`/sign-up/email`) is disabled; a
+password is an optional extra, set either from a session less than 10 minutes
+old (the owner is emailed when one is added) or through a password reset,
+which needs the inbox too. Password sign-in
+is deliberately not gated: any existing account keeps working.
 **Why.** Client-only checks are trivially bypassed; server enforcement makes
 the policy real. Gating sign-in too would lock out existing non-UNT accounts.
 **Reverses if** UNTangle ever needs alumni or external collaborator accounts —
@@ -80,10 +84,9 @@ boundaries are per-instance by design until then.
 
 ## 6. External services and private data
 
-**Rule.** Transcript text leaves the browser only through the Puter
-user-authorized path, redacted before send; the app treats third-party
-retention as **unknown** and designs as if transcript text may be retained.
-ORS is called server-side only (client-side ORS keys are barred by their
+**Rule.** Transcript text never leaves the browser: the PDF is read,
+redacted and parsed locally, and only the course rows the student approves
+are kept. ORS is called server-side only (client-side ORS keys are barred by their
 terms); attribution and quota facts are summarized in the research document.
 Self-uploaded transcripts are treated as outside FERPA's education-records
 scope, but minimization, no-retention-beyond-need, and no-sharing are

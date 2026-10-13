@@ -43,6 +43,34 @@
       "when": 1791900000000,
       "tag": "0005_planner_course_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791910000000,
+      "tag": "0006_abuse_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791920543504,
+      "tag": "0007_magic_link_claim",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791921533481,
+      "tag": "0008_rate_limit_window_expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791925029109,
+      "tag": "0009_revoke_unverified_sessions",
+      "breakpoints": true
     }
   ]
 }

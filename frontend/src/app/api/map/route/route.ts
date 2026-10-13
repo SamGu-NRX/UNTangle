@@ -1,10 +1,11 @@
+import { withRateLimit } from "@/lib/rate-limit/server";
 import { NextResponse } from "next/server";
 import { campusById, type CampusConfig } from "@/lib/campus/config";
 import { campusEngine } from "@/lib/campus/engine";
 import type { LatLng } from "@/lib/campus/geo";
 import { buildRouteLegs, summarizeRoute, type ExternalLeg, type RouteStopInput } from "@/lib/campus/route-legs";
 import { isInsideBounds } from "@/lib/campus-locations";
-import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
+import { TtlLruCache } from "@/lib/map-cache";
 
 export const runtime = "nodejs";
 
@@ -12,18 +13,12 @@ const maxStops = 12;
 const maxBuildingIdLength = 32;
 
 const failureTtlMs = 5 * 60 * 1000;
-const rateLimitWindowMs = 60 * 1000;
-const rateLimitMaxRequests = 60;
 
 /** OpenRouteService legs only; campus-network legs are computed locally and cheap to redo. */
 const orsLegCache = new TtlLruCache<ExternalLeg | null>({
   maxEntries: 200,
   ttlMs: 6 * 60 * 60 * 1000,
   failureTtlMs,
-});
-const limiter = new SlidingWindowRateLimiter({
-  windowMs: rateLimitWindowMs,
-  maxRequests: rateLimitMaxRequests,
 });
 
 type RouteInput = {
@@ -146,17 +141,10 @@ function orsRouter(apiKey: string, campus: CampusConfig) {
  * ORS_API_KEY is set, and otherwise is a straight-line fallback with a
  * distance and no walking time.
  */
-export async function POST(request: Request) {
+async function route(request: Request) {
   let campus: CampusConfig;
   try { campus = campusById(new URL(request.url).searchParams.get("campus")); }
   catch (error) { return NextResponse.json({error: error instanceof Error ? error.message : "Invalid campus"},{status:400}); }
-  const limit = limiter.check(`${campus.id}|${clientIpFromRequest(request)}`);
-  if (!limit.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-    );
-  }
 
   let body: RouteInput;
 
@@ -179,3 +167,5 @@ export async function POST(request: Request) {
   const legs = await buildRouteLegs(parsed.stops, await campusEngine(campus.id), apiKey ? orsRouter(apiKey, campus) : undefined);
   return NextResponse.json(summarizeRoute(legs));
 }
+
+export const POST = withRateLimit("mapRoute", route);
