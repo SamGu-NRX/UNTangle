@@ -306,6 +306,42 @@
     "detail": "[]"
   },
   {
+    "size": "desktop",
+    "name": "link page: loading it doesn't redirect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/auth/link?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: loading it doesn't touch the token",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: one button, 'Sign in'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Sign-in link page has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: the button sends the token to the verify endpoint",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/api/auth/magic-link/verify?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: without a token it says the link is incomplete",
+    "pass": true,
+    "detail": ""
+  },
+  {
     "size": "phone",
     "name": "plans: the view header replaces the headline",
     "pass": true,
@@ -448,6 +484,42 @@
     "name": "axe: Password reset with an error has no serious or critical findings",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: loading it doesn't redirect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/auth/link?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "phone",
+    "name": "link page: loading it doesn't touch the token",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: one button, 'Sign in'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Sign-in link page has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: the button sends the token to the verify endpoint",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/api/auth/magic-link/verify?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "phone",
+    "name": "link page: without a token it says the link is incomplete",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "desktop",

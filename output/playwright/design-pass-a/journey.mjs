@@ -10,7 +10,8 @@
 //   Plans:   save a plan, change the working plan (mark a course as credit on
 //            Courses), compare (diff rows), restore.
 //   Auth:    sign-in by emailed link and by password, errors under each
-//            field; reset.
+//            field; reset; the emailed link's landing page (no token use
+//            until its button is pressed).
 // axe (WCAG 2.0-2.2 A/AA) on every state. Writes screenshots and report.json.
 //   node journey.mjs <baseUrl> <mockUrl> <outDir>
 import { chromium } from "playwright";
@@ -369,6 +370,34 @@ async function plansCompareRestore(page, size) {
   check(size, "plans: restoring goes to the Week view", page.url().endsWith("/schedule"));
 }
 
+// The emailed link's landing page: mail scanners may open it, so loading it must not use the
+// one-time token. Nothing reaches the verify endpoint until the button is pressed.
+async function signInLinkPage(page, size) {
+  const verifyRequests = [];
+  const onRequest = (request) => {
+    if (new URL(request.url()).pathname === "/api/auth/magic-link/verify") verifyRequests.push(request.url());
+  };
+  page.on("request", onRequest);
+  try {
+    const landing = `${base}/auth/link?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed`;
+    await page.goto(landing, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1000);
+    check(size, "link page: loading it doesn't redirect", page.url() === landing, page.url());
+    check(size, "link page: loading it doesn't touch the token", verifyRequests.length === 0, JSON.stringify(verifyRequests));
+    check(size, "link page: one button, 'Sign in'", (await page.getByRole("button").count()) === 1 && (await page.getByRole("button", { name: "Sign in" }).isVisible()));
+    await shot(page, size, "auth-link-page");
+    await axe(page, size, "Sign-in link page");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/auth/link"), { timeout: 15000 });
+    const sent = verifyRequests.length ? new URL(verifyRequests[0]) : null;
+    check(size, "link page: the button sends the token to the verify endpoint", sent?.searchParams.get("token") === "journey-token-not-real", verifyRequests[0] ?? "none");
+    await page.goto(`${base}/auth/link`, { waitUntil: "networkidle" });
+    check(size, "link page: without a token it says the link is incomplete", /incomplete/.test(await page.locator("body").innerText()));
+  } finally {
+    page.off("request", onRequest);
+  }
+}
+
 async function auth(page, size) {
   await page.goto(`${base}/auth`, { waitUntil: "networkidle" });
   const send = page.getByRole("button", { name: "Email me a sign-in link" });
@@ -439,6 +468,7 @@ try {
       await markACourseDone(page);
       await plansCompareRestore(page, vp.size);
       await auth(page, vp.size);
+      await signInLinkPage(page, vp.size);
     } catch (error) {
       check(vp.size, "journey ran to the end", false, String(error).split("\n")[0]);
       await page.screenshot({ path: join(out, `${vp.size}-failure.png`) }).catch(() => {});
