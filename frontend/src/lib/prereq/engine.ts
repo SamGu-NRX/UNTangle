@@ -4,6 +4,11 @@ import type { CatalogCourse, CourseAssessment, Evidence, InferenceResult, Prereq
 function compareIds(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
 
 export function detectCycles(catalog: readonly CatalogCourse[]): string[][] {
+  const ids = new Set<string>();
+  for (const course of catalog) {
+    if (ids.has(course.id)) throw new Error(`Duplicate catalog course ID: ${course.id}`);
+    ids.add(course.id);
+  }
   const graph = new Map(catalog.map(course => [course.id, courseReferences(course.prerequisite).sort(compareIds)]));
   const indices = new Map<string, number>();
   const low = new Map<string, number>();
@@ -178,13 +183,13 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     if (credit) {
       if (minimum === undefined) return { kind: "course", outcome: "satisfied", courseId: id, message: `${id} has completed credit.`, children: [credit.reason] };
       const checks = credit.grades.map(grade => adapter.meetsMinimumGrade(grade, minimum));
-      const outcome = checks.includes(true) ? "satisfied" : checks.length === 0 || checks.includes(undefined) ? "unknown" : "unmet";
+      const outcome = checks.includes(true) ? "satisfied" : checks.length === 0 || checks.includes(undefined) || (concurrent && (taking.has(id) || planned.has(id))) ? "unknown" : "unmet";
       return { kind: "grade", outcome, courseId: id, message: `${id} requires ${minimum} or better; recorded grades: ${credit.grades.join(", ") || "none"}.`, children: [credit.reason] };
     }
     const grades = recordedGrades.get(id);
     if (minimum !== undefined && grades) {
       const checks = grades.map(grade => adapter.meetsMinimumGrade(grade, minimum));
-      return { kind: "grade", outcome: uncertain.has(id) || checks.includes(undefined) ? "unknown" : "unmet", courseId: id,
+      return { kind: "grade", outcome: uncertain.has(id) || checks.includes(undefined) || (concurrent && (taking.has(id) || planned.has(id))) ? "unknown" : "unmet", courseId: id,
         message: `${id} requires ${minimum} or better; recorded grades: ${grades.join(", ")}.` };
     }
     if (concurrent && (taking.has(id) || planned.has(id)) && minimum === undefined) {
@@ -260,7 +265,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
       continue;
     }
     let reason = evaluate(course.prerequisite);
-    if (requiresAdvisor(course.prerequisite)) reason = { kind: "advisor", outcome: "unknown", source: course.prerequisite.source, message: "Check with advisor: catalog includes consent or unparsed requirements.", children: [reason] };
+    if (reason.outcome !== "satisfied" && requiresAdvisor(course.prerequisite)) reason = { kind: "advisor", outcome: "unknown", source: course.prerequisite.source, message: "Check with advisor: catalog includes consent or unparsed requirements.", children: [reason] };
     if (reason.outcome !== "satisfied" && cycleIds.has(course.id)) {
       reason = { kind: "cycle", outcome: "unknown", message: "Prerequisite cycle needs review.", courseId: course.id, children: [reason] };
     }

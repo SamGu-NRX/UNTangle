@@ -122,13 +122,13 @@ test("review-required course evidence blocks closure and its transitive expansio
   expect(status(result, "e")).toBe("unknown");
 });
 
-test("consent and unknown clauses always carry advisor review", () => {
+test("consent and unknown clauses require review only without a satisfied alternative", () => {
   for (const requirement of [ { kind: "unknown", source: "placement", detail: "unparsed" }, { kind: "consent", source: "consent of department", authority: "department" } ] satisfies Prerequisite[]) {
     const catalog = [row("a"), row("b", or(course("a"), requirement)), row("c", requirement), row("d", requirement)];
     const result = assess(catalog, { transcript: [pass("a"), pass("c")] });
-    expect(status(result, "b")).toBe("unknown");
+    expect(status(result, "b")).toBe("eligible");
     expect(status(result, "d")).toBe("unknown");
-    expect(result.statuses.get("b")?.reason.message).toContain("Check with advisor");
+    expect(result.statuses.get("d")?.reason.message).toContain("Check with advisor");
   }
 });
 

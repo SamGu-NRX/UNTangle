@@ -52,6 +52,7 @@ export function requiresAdvisor(node: Prerequisite): boolean {
 /** Whether the complete expression can be witnessed, without selecting an escape branch. */
 export function canSupplyClosure(node: Prerequisite): boolean {
   if (node.escape || node.kind === "consent" || node.kind === "unknown") return false;
+  if (node.kind === "or" && node.children.length === 0) return false;
   if (node.kind === "and" || node.kind === "or") return node.children.every(canSupplyClosure);
   if (node.kind === "corequisite" || node.kind === "minGrade") return canSupplyClosure(node.requirement);
   return true;
