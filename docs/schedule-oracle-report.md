@@ -53,7 +53,7 @@ no catalog sections for their core course lists and contribute no cases.
 - **Assessment:** a modeling difference, not obviously a defect. The planner's
   one-section-per-course domain is the intended domain (only one section of a
   course is ever selected in the app), and under that domain the two engines
-  agree everywhere — including all 8,140 real catalog section pairs and all
+  agree everywhere — including all 8,140 synthetic section pairs attached to real catalog course text and all
   512 random-selection cases. Recorded only; planner left as-is.
 
 Conflict detection had **zero** disagreements in all 8,151 conflict cases,
