@@ -13,12 +13,18 @@ export type FakeOptions = {
   pageSize?: number;
   instructorCourseOnly?: boolean;
   replies?: FakeReply[];
-  transform?: (result: Record<string, unknown>, request: { method: string; name: string; offset: number }) => Record<string, unknown>;
+  notificationsBeforeResult?: boolean;
+  keepSseOpen?: boolean;
+  sseChunkBytes?: number;
+  transform?: (result: Record<string, unknown>, request: { method: string; name: string; offset: number; args: Record<string, unknown> }) => Record<string, unknown>;
 };
 
 export function startFakeMcp(options: FakeOptions = {}) {
   const requests: Array<{ method: string; name: string; args: Record<string, unknown> }> = [];
   const replies = [...(options.replies ?? [])];
+  let cancelledStreams = 0;
+  let resolveCancellation: () => void = () => {};
+  const cancelled = new Promise<void>((resolve) => { resolveCancellation = resolve; });
   const server = Bun.serve({
     hostname: "127.0.0.1", port: 0,
     async fetch(request) {
@@ -59,13 +65,27 @@ export function startFakeMcp(options: FakeOptions = {}) {
       } else if (name === "search_grades") {
         result = args.query === "Shrestha" ? searchFixture.result : args.query === "CSCE 1030" ? searchCourseFixture.result : { content: [{ type: "text", text: '{"courses":[],"instructors":[]}' }] };
       } else return Response.json({ jsonrpc: "2.0", id: rpc.id, error: { code: -32601, message: "Unknown tool" } });
-      result = options.transform?.(result, { method, name, offset }) ?? result;
+      result = options.transform?.(result, { method, name, offset, args }) ?? result;
       const envelope = { jsonrpc: "2.0", id: rpc.id, result };
       const sse = injected?.sse ?? true;
-      return sse ? new Response(`event: message\ndata: ${JSON.stringify(envelope)}\n\n`, { headers: { "Content-Type": "text/event-stream" } }) : Response.json(envelope);
+      if (!sse) return Response.json(envelope);
+      const prelude = options.notificationsBeforeResult ? [
+        { jsonrpc: "2.0", method: "notifications/progress", params: { progress: 1 } },
+        { jsonrpc: "2.0", id: Number(rpc.id) + 100, result: {} },
+      ] : [];
+      const bytes = new TextEncoder().encode([...prelude, envelope].map((message) => `event: message\r\ndata: ${JSON.stringify(message)}\r\n\r\n`).join(""));
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const size = options.sseChunkBytes ?? bytes.length;
+          for (let i = 0; i < bytes.length; i += size) controller.enqueue(bytes.slice(i, i + size));
+          if (!options.keepSseOpen) controller.close();
+        },
+        cancel() { cancelledStreams++; resolveCancellation(); },
+      });
+      return new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
     },
   });
-  return { endpoint: new URL("/api/mcp", server.url).href, requests, stop: () => server.stop(true) };
+  return { endpoint: new URL("/api/mcp", server.url).href, requests, cancelled, get cancelledStreams() { return cancelledStreams; }, stop: () => server.stop(true) };
 }
 
 // A local replay can be run without contacting untgrades.app.

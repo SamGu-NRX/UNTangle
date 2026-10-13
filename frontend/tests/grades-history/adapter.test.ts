@@ -39,9 +39,9 @@ describe("grades boundary parsing", () => {
   test("captured data retains pagination, multiword names, and totals", () => {
     const page = parseCoursePage(parseToolResult(coursePageFixture.result));
     expect(page).toMatchObject({ totalSections: 11, offset: 0, nextOffset: 2, total: 861, counts: { A: 249, W: 97 } });
-    expect(page.sections[0]).toMatchObject({ instructor: { id: "Shrestha,Pradhumna Lal", name: "Pradhumna Lal Shrestha" }, year: "2026", counts: { A: 20, W: 10 } });
+    expect(page.sections[0]).toMatchObject({ instructor: { id: '["Pradhumna Lal","Shrestha"]', name: "Pradhumna Lal Shrestha" }, year: "2026", counts: { A: 20, W: 10 } });
     expect(parseInstructorPage(parseToolResult(instructorPageFixture.result))).toMatchObject({ totalCourses: 5, nextOffset: 2 });
-    expect(parseSearch(parseToolResult(searchFixture.result)).instructors[1].id).toBe("Shrestha,Pradhumna Lal");
+    expect(parseSearch(parseToolResult(searchFixture.result)).instructors[1].id).toBe('["Pradhumna Lal","Shrestha"]');
   });
   test("text-only tool results and JSON-RPC errors have explicit handling", () => {
     expect(parseSearch(parseToolResult({ content: [{ type: "text", text: '{"courses":[],"instructors":[]}' }] }))).toEqual({ courses: [], instructors: [] });
@@ -63,7 +63,7 @@ describe("grades boundary parsing", () => {
   });
   test("unknown grade labels survive while GradeData maps known labels", () => {
     const source = { A: 4, B: 2, C: 1, D: 0, F: 1, W: 1, WF: 2, Hidden: 3, "*": 5 };
-    const page = parseCoursePage({ ...courseFixture.result.structuredContent, aggregateGrades: source, totalGrades: 19 });
+    const page = parseCoursePage({ ...courseFixture.result.structuredContent, aggregateGrades: source, totalGrades: 19, gpa: 3 });
     expect(page.counts["*"]).toBe(5);
     expect(sumCounts([{ ...page.counts, toString: 2 }, { ...page.counts, toString: 3 }])).toMatchObject({ A: 8, "*": 10, toString: 5 });
     const grades = toGradeData(page.counts);
@@ -89,7 +89,7 @@ describe("disk cache", () => {
   });
   test("a corrupt cache fails specifically without contacting upstream", async () => {
     const { service, cache, directory, fake } = await setup();
-    await cache.set("v1:course:CSCE:1030:0", {});
+    await cache.set("v2:course:CSCE:1030", {});
     const [filename] = await readdir(directory);
     await writeFile(path.join(directory, filename), "broken");
     expect(await service.getCourseHistory("CSCE", "1030")).toMatchObject({ status: "unavailable", error: { reason: "storage", message: "Grade history cache contains invalid JSON" } });
@@ -120,7 +120,7 @@ describe("MCP replay and history service", () => {
     const history = await service.getInstructorHistory("Pradhumna Lal", "Shrestha");
     expect(history).toMatchObject({ status: "ok", data: { total: 394, counts: { A: 86, B: 58, C: 63, D: 43, F: 89, W: 55 }, courses: [{ sectionCount: 4, total: 394 }] } });
     if (history.status !== "ok") throw new Error("Expected instructor history");
-    expect(history.data.courses[0].terms.flatMap((t) => t.sections).map((s) => s.instructor.id)).toEqual(Array(4).fill("Shrestha,Pradhumna Lal"));
+    expect(history.data.courses[0].terms.flatMap((t) => t.sections).map((s) => s.instructor.id)).toEqual(Array(4).fill('["Pradhumna Lal","Shrestha"]'));
   });
   test("search and confirmed missing history have distinct results", async () => {
     const { service } = await setup();
@@ -249,7 +249,7 @@ describe("route status mapping", () => {
     const missing = await handlers.course("ZZZZ", "9999");
     expect(missing.status).toBe(200);
     expect(await missing.json()).toEqual({ status: "no-history", source: "untgrades.app", data: null });
-    expect(await (await handlers.instructor("Shrestha,Pradhumna Lal")).json()).toMatchObject({ status: "ok", data: { total: 394 } });
+    expect(await (await handlers.instructor('["Pradhumna Lal","Shrestha"]')).json()).toMatchObject({ status: "ok", data: { total: 394 } });
     expect(await (await handlers.instructorByName(new Request("http://local/api/grades/instructors?firstName=Pradhumna%20Lal&lastName=Shrestha"))).json()).toMatchObject({ status: "ok", data: { total: 394 } });
   });
   test.each([429, 503])("upstream HTTP %d becomes unavailable HTTP 200", async (status) => {

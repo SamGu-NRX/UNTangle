@@ -1,6 +1,6 @@
 import type { GradesHistoryService } from "./service";
 import { failure } from "./service";
-import { GradesError } from "./errors";
+import { decodeInstructorId } from "./parse";
 import type { HistoryResult } from "./types";
 
 function response<T>(result: HistoryResult<T>) {
@@ -12,9 +12,10 @@ export function createGradesHandlers(service: GradesHistoryService) {
   return {
     course: async (subject: string, number: string) => response(await service.getCourseHistory(subject, number)),
     instructor: async (id: string) => {
-      const parts = id.split(",");
-      if (parts.length !== 2) return response(failure(new GradesError("invalid-request", "Instructor id must be LastName,FirstName as returned by search")));
-      return response(await service.getInstructorHistory(parts[1], parts[0]));
+      try {
+        const { firstName, lastName } = decodeInstructorId(id);
+        return response(await service.getInstructorHistory(firstName, lastName));
+      } catch (error) { return response(failure(error)); }
     },
     instructorByName: async (request: Request) => {
       const params = new URL(request.url).searchParams;

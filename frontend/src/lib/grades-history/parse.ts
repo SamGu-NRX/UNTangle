@@ -1,3 +1,4 @@
+import { gradeGpa } from "./normalize";
 import { object } from "./client";
 import { malformed, GradesError } from "./errors";
 import type { GradeCounts, CourseIdentity, GradeSearch, InstructorIdentity } from "./types";
@@ -29,11 +30,15 @@ export function instructor(value: unknown, path: string): InstructorIdentity {
   const record = object(value, path);
   const firstName = text(record.firstName, `${path}.firstName`);
   const lastName = text(record.lastName, `${path}.lastName`);
-  return { id: `${lastName},${firstName}`, firstName, lastName, name: `${firstName} ${lastName}` };
+  return { id: JSON.stringify([firstName, lastName]), firstName, lastName, name: `${firstName} ${lastName}` };
 }
 export function course(value: unknown, path: string): CourseIdentity {
   const record = object(value, path);
-  return { subject: text(record.prefix, `${path}.prefix`), number: text(record.number, `${path}.number`), title: text(record.title, `${path}.title`) };
+  const subject = text(record.prefix, `${path}.prefix`);
+  const number = text(record.number, `${path}.number`);
+  if (!/^[A-Z]{1,12}$/.test(subject)) malformed(`${path}.prefix`, "1-12 uppercase letters");
+  if (!/^[0-9A-Z]{1,12}$/.test(number)) malformed(`${path}.number`, "1-12 uppercase letters or digits");
+  return { subject, number, title: text(record.title, `${path}.title`) };
 }
 export type SourceSection = { sectionNumber: string; instructor: InstructorIdentity; year: string; term: string; counts: GradeCounts };
 export type CoursePage = { course: CourseIdentity; totalSections: number; offset: number; nextOffset: number | null; total: number; counts: GradeCounts; gpa: number | null; sections: SourceSection[] };
@@ -58,6 +63,7 @@ export function parseCoursePage(value: unknown): CoursePage {
   const total = integer(record.totalGrades, "course.totalGrades");
   if (Object.values(aggregate).reduce((sum, n) => sum + n, 0) !== total) malformed("course.totalGrades", "the sum of aggregateGrades");
   if (record.gpa !== null && (typeof record.gpa !== "number" || !Number.isFinite(record.gpa) || record.gpa < 0 || record.gpa > 4)) malformed("course.gpa", "null or a number from 0 to 4");
+  if (record.gpa !== gradeGpa(aggregate)) malformed("course.gpa", "the A-F weighted mean rounded to two decimal places");
   return { course: course(record, "course"), totalSections, ...pagination(record, sections.length, totalSections, "course"), total, counts: aggregate, gpa: record.gpa, sections };
 }
 export function parseInstructorPage(value: unknown): InstructorPage {
@@ -86,3 +92,10 @@ export function instructorInput(firstName: string, lastName: string) {
   return { firstName: input(firstName, "firstName", 1, 100), lastName: input(lastName, "lastName", 1, 100) };
 }
 export function searchInput(query: string) { return input(query, "query", 2, 100); }
+
+export function decodeInstructorId(id: string) {
+  let value: unknown;
+  try { value = JSON.parse(id); } catch { throw new GradesError("invalid-request", "Instructor id must be the JSON name pair returned by search"); }
+  if (!Array.isArray(value) || value.length !== 2 || typeof value[0] !== "string" || typeof value[1] !== "string") throw new GradesError("invalid-request", "Instructor id must contain exactly two name strings");
+  return instructorInput(value[0], value[1]);
+}

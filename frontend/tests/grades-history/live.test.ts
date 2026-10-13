@@ -12,6 +12,6 @@ test.skipIf(process.env.GRADES_LIVE !== "1")("live untgrades.app contract smoke,
   expect(course.sections).toHaveLength(2);
   expect(course.total).toBeGreaterThanOrEqual(course.sections.reduce((sum, section) => sum + Object.values(section.counts).reduce((a, b) => a + b, 0), 0));
   const instructor = parseInstructorPage(await client.call("get_instructor_courses", { firstName: "Pradhumna Lal", lastName: "Shrestha", limit: 2 }));
-  expect(instructor.instructor.id).toBe("Shrestha,Pradhumna Lal");
+  expect(instructor.instructor.id).toBe('["Pradhumna Lal","Shrestha"]');
   expect(instructor.courses.some((course) => course.subject === "CSCE")).toBe(true);
 }, 30_000);

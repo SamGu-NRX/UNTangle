@@ -39,6 +39,7 @@ export function parseToolResult(result: Record<string, unknown>, tool?: keyof To
     return block.text;
   });
   if (result.isError) {
+    if ("structuredContent" in result) malformed("tool error result", "error content without structured success data");
     // This exact source response was captured in missing.json. Other tool errors are failures.
     if (tool === "get_course_grades" && texts.length === 1 && texts[0] === "Course not found") throw new NoHistoryError("Course not found");
     throw new GradesError("upstream", `untgrades.app tool error: ${texts.join("; ")}`);
@@ -50,12 +51,70 @@ export function parseToolResult(result: Record<string, unknown>, tool?: keyof To
 
 export function retryAfterMs(value: string | null, now: number): number | null {
   if (!value) return null;
-  if (/^\d+(\.\d+)?$/.test(value.trim())) {
-    const ms = Math.ceil(Number(value) * 1_000);
+  const header = value.trim();
+  if (/^\d+$/.test(header)) {
+    const ms = Number(header) * 1_000;
     return Number.isSafeInteger(ms) ? ms : null;
   }
-  const date = Date.parse(value);
-  return Number.isFinite(date) ? Math.max(0, date - now) : null;
+  // Date.parse accepts strings such as "-1". Only HTTP-date wire formats may reach it.
+  const imf = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), (0[1-9]|[12]\d|3[01]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} ([01]\d|2[0-3]):[0-5]\d:[0-5]\d GMT$/;
+  const obsolete = /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday), (0[1-9]|[12]\d|3[01])-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2}) ([01]\d|2[0-3]):[0-5]\d:[0-5]\d GMT$/;
+  const asctime = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ( [1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):[0-5]\d:[0-5]\d \d{4}$/;
+  if (!imf.test(header) && !obsolete.test(header) && !asctime.test(header)) return null;
+  const parsed = Date.parse(header);
+  if (!Number.isFinite(parsed)) return null;
+  const date = new Date(parsed);
+  const old = obsolete.exec(header);
+  if (old) {
+    let year = Math.floor(new Date(now).getUTCFullYear() / 100) * 100 + Number(old[4]);
+    if (year > new Date(now).getUTCFullYear() + 50) year -= 100;
+    date.setUTCFullYear(year);
+  }
+  const utc = date.toUTCString();
+  let canonical = utc;
+  if (old) {
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    canonical = `${weekdays[date.getUTCDay()]}, ${utc.slice(5, 7)}-${utc.slice(8, 11)}-${String(date.getUTCFullYear()).slice(-2)} ${utc.slice(17)}`;
+  } else if (asctime.test(header)) {
+    canonical = `${utc.slice(0, 3)} ${utc.slice(8, 11)} ${String(date.getUTCDate()).padStart(2, " ")} ${utc.slice(17, 25)} ${utc.slice(12, 16)}`;
+  }
+  return header === canonical ? Math.max(0, date.getTime() - now) : null;
+}
+
+async function readSseResult(response: Response, id: number): Promise<Record<string, unknown>> {
+  if (!response.body) malformed("SSE response", "a readable body");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let data: string[] = [];
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      buffer += chunk.done ? decoder.decode() : decoder.decode(chunk.value, { stream: true });
+      for (;;) {
+        const end = buffer.search(/[\r\n]/);
+        if (end < 0 || (!chunk.done && buffer[end] === "\r" && end === buffer.length - 1)) break;
+        const line = buffer.slice(0, end);
+        buffer = buffer.slice(end + (buffer[end] === "\r" && buffer[end + 1] === "\n" ? 2 : 1));
+        if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
+        if (line !== "" || data.length === 0) continue;
+        const body = data.join("\n");
+        data = [];
+        let value: unknown;
+        try { value = JSON.parse(body); } catch { malformed("SSE JSON-RPC event", "valid JSON"); }
+        const rpc = object(value, "SSE JSON-RPC event");
+        if (rpc.jsonrpc !== "2.0") malformed("SSE JSON-RPC version", "2.0");
+        if (!("id" in rpc)) {
+          if (typeof rpc.method !== "string" || "result" in rpc || "error" in rpc) malformed("SSE notification", "a JSON-RPC method without a result/error");
+          continue;
+        }
+        if (rpc.id === id) return parseRpc(body, id);
+      }
+      if (chunk.done) malformed("SSE response", `a completed JSON-RPC event with matching id ${id}`);
+    }
+  } finally {
+    try { await reader.cancel(); } finally { reader.releaseLock(); }
+  }
 }
 
 export class GradesMcpClient {
@@ -67,14 +126,14 @@ export class GradesMcpClient {
     await limiter.acquire();
     const id = ++this.id;
     let response: Response;
-    let body: string;
+    const controller = new AbortController();
     try {
       response = await (this.options.fetch ?? fetch)(this.options.endpoint ?? MCP_ENDPOINT, {
         method: "POST", redirect: "error", cache: "no-store",
         headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
         body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
         // A stalled upstream request must eventually become unavailable.
-        signal: AbortSignal.timeout(this.options.timeoutMs ?? 15_000),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(this.options.timeoutMs ?? 15_000)]),
       });
       if (response.status === 429 || response.status === 503) {
         // Missing/invalid Retry-After uses a conservative minute cooldown, not an immediate retry.
@@ -83,17 +142,15 @@ export class GradesMcpClient {
         throw new GradesError(response.status === 429 ? "throttled" : "upstream", `untgrades.app HTTP ${response.status}`, Math.ceil(wait / 1_000));
       }
       if (!response.ok) throw new GradesError("upstream", `untgrades.app HTTP ${response.status}`);
-      body = await response.text();
+      if (response.headers.get("Content-Type")?.includes("text/event-stream")) return await readSseResult(response, id);
+      return parseRpc(await response.text(), id);
     } catch (error) {
       if (error instanceof GradesError) throw error;
       throw new GradesError("upstream", `untgrades.app transport failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      // Also close the HTTP request after reader cancellation, including runtimes that keep its socket open.
+      controller.abort();
     }
-    if (response.headers.get("Content-Type")?.includes("text/event-stream")) {
-      const events = body.replace(/\r\n/g, "\n").split("\n\n").map((event) => event.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n")).filter(Boolean);
-      if (events.length !== 1) malformed("SSE response", "one JSON-RPC data event");
-      body = events[0];
-    }
-    return parseRpc(body, id);
   }
 
   async call<K extends keyof ToolArguments>(name: K, args: ToolArguments[K]): Promise<unknown> {
