@@ -187,15 +187,17 @@
     const empty = () => ({ type: 'FeatureCollection', features: [] });
     const style = JSON.parse($('base-style').textContent);
     const overlayLayers = JSON.parse($('overlay-layers').textContent);
+    // MapLibre keeps only numeric feature ids, so string ids ('gab') reach queryRenderedFeatures and
+    // feature-state as 0. Each feature carries its id as `key` too, and the sources promote it.
     const stopFeatures = style.sources['unt-campus-labels'].data.features.map((feature, i) => ({
-      ...feature, properties: { ...feature.properties, number: i + 1 },
+      ...feature, properties: { ...feature.properties, number: i + 1, key: feature.id },
     }));
     const stops = { type: 'FeatureCollection', features: stopFeatures };
     const routes = { type: 'FeatureCollection', features: [
-      { type: 'Feature', id: 'gab-life', properties: { approximate: false }, geometry: { type: 'LineString', coordinates: [
+      { type: 'Feature', id: 'gab-life', properties: { approximate: false, key: 'gab-life' }, geometry: { type: 'LineString', coordinates: [
         [-97.1481479,33.2131868], [-97.14818,33.21287], [-97.14895,33.21287], [-97.14895,33.21232], [-97.1490327,33.2121465]
       ] } },
-      { type: 'Feature', id: 'life-blb', properties: { approximate: true }, geometry: { type: 'LineString', coordinates: [
+      { type: 'Feature', id: 'life-blb', properties: { approximate: true, key: 'life-blb' }, geometry: { type: 'LineString', coordinates: [
         [-97.1490327,33.2121465], [-97.14895,33.2119], [-97.14832,33.2119], [-97.14832,33.20928], [-97.1476988,33.20928], [-97.1476988,33.2088704]
       ] } },
     ] };
@@ -363,8 +365,8 @@
         if ($('error').textContent === SLOW_LOAD) { $('error').textContent = ''; $('retry').hidden = true; }
         try {
           addChevron();
-          map.addSource(source.routes, { type: 'geojson', data: routes, lineMetrics: false });
-          map.addSource(source.stops, { type: 'geojson', data: stops });
+          map.addSource(source.routes, { type: 'geojson', data: routes, lineMetrics: false, promoteId: 'key' });
+          map.addSource(source.stops, { type: 'geojson', data: stops, promoteId: 'key' });
           map.addSource(source.location, { type: 'geojson', data: empty() });
           map.addSource(source.accuracy, { type: 'geojson', data: empty() });
           overlayLayers.routes.forEach(layer => map.addLayer(layer, 'campus-building-label'));

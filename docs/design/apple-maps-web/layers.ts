@@ -175,7 +175,11 @@ export function addChevron(map: MapLibreMap): void {
   map.addImage(CHEVRON_IMAGE, ctx.getImageData(0, 0, 32, 32), { pixelRatio: 2 });
 }
 
-/** Call once per style load. Use GeoJSONSource.setData for later route/location updates. */
+function withKeys<T extends FeatureCollection>(collection: T): T {
+  return { ...collection, features: collection.features.map((feature) => ({ ...feature, properties: { ...feature.properties, key: feature.id } })) };
+}
+
+/** Call once per style load. Use GeoJSONSource.setData for later route/location updates (pass them through the same keys). */
 export function addCampusOverlays(map: MapLibreMap, data: OverlayData): void {
   if (!map.getLayer(BASE_LABEL_ANCHOR)) {
     throw new Error(`UNTangle overlays require basemap layer '${BASE_LABEL_ANCHOR}'.`);
@@ -198,8 +202,11 @@ export function addCampusOverlays(map: MapLibreMap, data: OverlayData): void {
     }
   }
   addChevron(map);
-  map.addSource(SOURCES.routes, { type: "geojson", data: data.routes, lineMetrics: false });
-  map.addSource(SOURCES.stops, { type: "geojson", data: data.stops });
+  // MapLibre keeps only numeric feature ids: a string id such as "gab" reaches
+  // queryRenderedFeatures and feature-state as 0. Copy each id into a `key`
+  // property and promote it, so string and numeric ids both address their feature.
+  map.addSource(SOURCES.routes, { type: "geojson", data: withKeys(data.routes), lineMetrics: false, promoteId: "key" });
+  map.addSource(SOURCES.stops, { type: "geojson", data: withKeys(data.stops), promoteId: "key" });
   map.addSource(SOURCES.location, { type: "geojson", data: data.location });
   map.addSource(SOURCES.accuracy, { type: "geojson", data: data.accuracy });
   for (const layer of routeLayers()) map.addLayer(layer, BASE_LABEL_ANCHOR);
