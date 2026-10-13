@@ -1,0 +1,201 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { inferStatuses, untAdapter, type CatalogCourse, type Prerequisite } from "@/lib/prereq";
+import { renderPrerequisiteTable } from "@/lib/course-catalog/build";
+import { coveredByCompletion } from "@/components/courses/model/closure";
+import { computeAuto, describeAuto, undoChanges } from "@/components/courses/model/auto";
+import { buildCourseModel, buildGroups, type PlanSnapshot } from "@/components/courses/model/course-model";
+import {
+  onlyCheckable,
+  ruleFromPrerequisite,
+  ruleTokens,
+  splitUnparsed,
+  tokensToString,
+  unmetFromReason,
+} from "@/components/courses/model/rules";
+import { sampleTranscript } from "@/components/courses/model/sample-transcript";
+import { instructorIndex, searchCatalog } from "@/components/courses/model/search";
+import { untLinkOuts, untProfile } from "@/components/courses/school";
+import type { CourseStatus } from "@/lib/types";
+
+const course = (courseId: string): Prerequisite => ({ kind: "course", courseId, source: courseId });
+const and = (...children: Prerequisite[]): Prerequisite => ({ kind: "and", children, source: "all" });
+const or = (...children: Prerequisite[]): Prerequisite => ({ kind: "or", children, source: "either" });
+const grade = (requirement: Prerequisite, minimum = "C"): Prerequisite => ({ kind: "minGrade", requirement, grade: minimum, source: "grade" });
+const row = (id: string, prerequisite: Prerequisite = and()): CatalogCourse => ({ id, credits: 3, prerequisite });
+const text = (node: Prerequisite) => tokensToString(ruleTokens(ruleFromPrerequisite(node)));
+
+describe("rule text", () => {
+  test("reads AND, OR and shared grade minimums as a sentence", () => {
+    const rule = and(grade(course("CSCE 1030")), or(grade(course("MATH 1100")), grade(course("MATH 1650")), grade(course("MATH 1710"))));
+    expect(text(rule)).toBe("CSCE 1030 (C or better) and (MATH 1100, MATH 1650 or MATH 1710) with C or better");
+  });
+
+  test("an empty requirement has no text", () => {
+    expect(ruleFromPrerequisite(and())).toBeNull();
+    expect(text(and())).toBe("");
+  });
+
+  test("co-requisites say they can be taken the same term", () => {
+    expect(text({ kind: "corequisite", requirement: course("MATH 1710"), source: "c" })).toBe("MATH 1710 (same term is fine)");
+  });
+
+  test("unparsed clauses split out of the readable rule", () => {
+    const node = ruleFromPrerequisite(and(course("CSCE 1040"), { kind: "unknown", detail: "x", source: "Can be taken concurrently with CSCE 2110 ." }));
+    const { readable, unparsed } = splitUnparsed(node);
+    expect(tokensToString(ruleTokens(readable))).toBe("CSCE 1040");
+    expect(unparsed).toEqual(["Can be taken concurrently with CSCE 2110."]);
+  });
+
+  test("unmet keeps only blocking branches of an AND and every alternative of an OR", () => {
+    const catalog = [row("a"), row("b"), row("c"), row("d"), row("x", and(course("a"), or(course("b"), course("c")), course("d")))];
+    const result = inferStatuses(catalog, { transcript: [{ courseId: "a", grade: "A" }] }, untAdapter);
+    const unmet = unmetFromReason(result.statuses.get("x")!.reason);
+    expect(tokensToString(ruleTokens(unmet))).toBe("(b or c) and d");
+  });
+
+  test("the row summary never drops an alternative from an OR", () => {
+    expect(onlyCheckable({ kind: "any", items: [{ kind: "course", id: "a" }, { kind: "unparsed", text: "or placement" }] })).toBeNull();
+    expect(onlyCheckable({ kind: "all", items: [{ kind: "course", id: "a" }, { kind: "unparsed", text: "advisor" }] })).toEqual({ kind: "course", id: "a" });
+  });
+});
+
+describe("closure coverage", () => {
+  const catalog = [row("a"), row("b", grade(course("a"))), row("c", and(course("b"), course("e"))), row("e"), row("f", or(course("a"), course("e"))), row("g", course("f"))];
+
+  test("a passed course covers its mandatory prerequisites transitively", () => {
+    const covered = coveredByCompletion(catalog, new Set(["c"]), new Set());
+    expect(Object.fromEntries(covered)).toEqual({ b: "c", a: "c", e: "c" });
+  });
+
+  test("an OR names no single course, so it covers nothing", () => {
+    expect(coveredByCompletion(catalog, new Set(["g"]), new Set()).has("a")).toBe(false);
+    expect(coveredByCompletion(catalog, new Set(["g"]), new Set()).get("f")).toBe("g");
+  });
+
+  test("contrary evidence stops coverage at that course", () => {
+    const covered = coveredByCompletion(catalog, new Set(["c"]), new Set(["b"]));
+    expect(covered.has("b")).toBe(false);
+    expect(covered.has("a")).toBe(false);
+    expect(covered.get("e")).toBe("c");
+  });
+
+  test("courses with credit are never reported as covered", () => {
+    expect(coveredByCompletion(catalog, new Set(["c", "b"]), new Set()).has("b")).toBe(false);
+  });
+});
+
+function sampleStatuses(): Record<string, CourseStatus> {
+  const statuses: Record<string, CourseStatus> = {};
+  for (const record of sampleTranscript) statuses[record.code] = record.appliedStatus === "completed" ? "completed" : "inProgress";
+  return statuses;
+}
+
+const plan = (statuses: Record<string, CourseStatus>, autoPlanned: string[] = []): PlanSnapshot => ({
+  statuses,
+  transcript: sampleTranscript,
+  autoPlanned: new Set(autoPlanned),
+});
+
+describe("course model on the UNT catalog with the sample transcript", () => {
+  const profile = untProfile();
+  const csCore = ["CSCE 1030", "CSCE 1040", "CSCE 2100", "MATH 1710", "MATH 1720"];
+
+  test("each inferred state appears where the evidence puts it", () => {
+    const model = buildCourseModel(profile, plan(sampleStatuses()));
+    const get = (id: string) => model.rows.get(id)!;
+    expect(get("CSCE 1040")).toMatchObject({ status: "done", override: false, meta: { kind: "grade", term: "Spring 2026", grade: "A" } });
+    expect(get("CSCE 1030")).toMatchObject({ status: "covered", coveredBy: "CSCE 1040", meta: { kind: "via", id: "CSCE 1040" } });
+    expect(get("ENGL 1320")).toMatchObject({ status: "taking", meta: { kind: "text", text: "This term" } });
+    expect(get("MATH 1720").status).toBe("available");
+    expect(get("CSCE 2100").status).toBe("check");
+    expect(model.hasTranscript).toBe(true);
+  });
+
+  test("done without a transcript row is the student's override", () => {
+    const model = buildCourseModel(profile, plan({ ...sampleStatuses(), "CSCE 1010": "completed" }));
+    expect(model.rows.get("CSCE 1010")).toMatchObject({ status: "done", override: true, meta: { kind: "text", text: "You marked this" } });
+  });
+
+  test("planning a course the engine has not cleared is marked as an override", () => {
+    const model = buildCourseModel(profile, plan({ ...sampleStatuses(), "MATH 2700": "inProgress", "MATH 1720": "inProgress" }, ["MATH 1720"]));
+    expect(model.rows.get("MATH 2700")).toMatchObject({ status: "planned", override: true });
+    expect(model.rows.get("MATH 1720")).toMatchObject({ status: "planned", override: false, auto: true, meta: { kind: "text", text: "Spring 2027 · auto" } });
+  });
+
+  test("locked rows name the blocking course", () => {
+    const model = buildCourseModel(profile, plan(sampleStatuses()));
+    const locked = model.rows.get("MATH 2700")!;
+    expect(locked.status).toBe("locked");
+    expect(locked.meta.kind).toBe("needs");
+  });
+
+  test("Auto plans eligible core courses, leaves unclear ones to the student, and undoes exactly", () => {
+    const statuses = sampleStatuses();
+    const model = buildCourseModel(profile, plan(statuses));
+    const outcome = computeAuto(model, statuses, csCore, 15);
+    expect(outcome.planned).toEqual(["MATH 1720"]);
+    expect(outcome.needsCheck).toEqual(["CSCE 2100"]);
+    expect(outcome.filled).toEqual({ done: 3, taking: 1, covered: 1 });
+    // The test plan omits untouched courses; a missing status undoes to notTaken.
+    expect(outcome.changes).toEqual([{ id: "MATH 1720", from: undefined, to: "inProgress" }]);
+    expect(undoChanges(outcome.changes)).toEqual([{ id: "MATH 1720", from: "inProgress", to: "notTaken" }]);
+    expect(describeAuto(outcome, true, "Spring 2027")).toBe("Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027.");
+  });
+
+  test("Auto removes a planned course the transcript now covers, and respects the credit budget", () => {
+    const statuses = { ...sampleStatuses(), "CSCE 1030": "inProgress" as const };
+    const model = buildCourseModel(profile, plan(statuses));
+    const outcome = computeAuto(model, statuses, csCore, 2);
+    expect(outcome.unplanned).toEqual(["CSCE 1030"]);
+    expect(outcome.planned).toEqual([]);
+    expect(outcome.changes).toContainEqual({ id: "CSCE 1030", from: "inProgress", to: "notTaken" });
+  });
+
+  test("groups put the core first, then the major's department", () => {
+    const model = buildCourseModel(profile, plan(sampleStatuses()));
+    const groups = buildGroups(model, csCore, "CSCE");
+    expect(groups[0]).toMatchObject({ key: "core", ids: csCore, finished: 3 });
+    expect(groups[1].key).toBe("dept:CSCE");
+    expect(groups[1].ids).not.toContain("CSCE 1030");
+  });
+});
+
+describe("search", () => {
+  const courses = [
+    { id: "CSCE 1030", title: "Computer Science I" },
+    { id: "CSCE 3110", title: "Data Structures and Algorithms" },
+    { id: "MATH 1030", title: "Mathematics for Elementary Teachers" },
+  ];
+
+  test("a code beats a title word and a bare number matches the number", () => {
+    expect(searchCatalog("csce1030", courses, []).courses.map((c) => c.id)).toEqual(["CSCE 1030"]);
+    expect(searchCatalog("1030", courses, []).courses.map((c) => c.id)).toEqual(["CSCE 1030", "MATH 1030"]);
+    expect(searchCatalog("data str", courses, []).courses.map((c) => c.id)).toEqual(["CSCE 3110"]);
+    expect(searchCatalog("  ", courses, []).courses).toEqual([]);
+  });
+
+  test("instructors are indexed by name with their courses", () => {
+    const index = instructorIndex([
+      { id: "1", courseCode: "CSCE 1030", title: "", professor: "Beilei Jiang", rating: 4, meetings: [] },
+      { id: "2", courseCode: "CSCE 2610", title: "", professor: "Beilei Jiang", rating: 4, meetings: [] },
+      { id: "3", courseCode: "CSCE 2610", title: "", professor: "Staff", rating: 0, meetings: [] },
+    ]);
+    expect(index).toEqual([{ name: "Beilei Jiang", courseIds: ["CSCE 1030", "CSCE 2610"] }]);
+    expect(searchCatalog("jiang", courses, index).instructors).toHaveLength(1);
+  });
+});
+
+test("link-outs use UNT's RateMyProfessors school and the Faculty Information System search", () => {
+  expect(untLinkOuts({ name: "Beilei Jiang" }, "CSCE 1030").map((link) => [link.key, link.href])).toEqual([
+    ["rmp", "https://www.ratemyprofessors.com/search/professors/1252?q=Beilei%20Jiang"],
+    ["syllabi", "https://facultyinfo.unt.edu/faculty-search?name=Beilei%20Jiang"],
+    ["spot", "https://facultyinfo.unt.edu/faculty-search?name=Beilei%20Jiang&course=CSCE%201030"],
+  ]);
+});
+
+test("the bundled prerequisite table matches courses/*.json", () => {
+  const bundled = readFileSync(resolve(import.meta.dir, "../../src/lib/course-catalog/prerequisites.json"), "utf8");
+  expect(bundled).toBe(renderPrerequisiteTable());
+});
