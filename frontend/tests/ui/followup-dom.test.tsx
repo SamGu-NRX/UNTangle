@@ -99,3 +99,48 @@ describe("Select validation after the value changes", () => {
     await view.unmount();
   });
 });
+
+describe("Select: an explicit empty option is still a missing value", () => {
+  // Native `required`: a select whose value is "" fails, even when an option
+  // such as "Choose term" carries that empty value.
+  async function expectMissingThenValid(field: (value: string) => React.ReactElement) {
+    const view = await mount(field(""));
+    const combo = () => view.container.querySelector<HTMLElement>('[role="combobox"]')!;
+    const native = view.container.querySelector("select")!;
+    expect(combo().textContent).toContain("Choose term");
+    let valid = true;
+    await act(() => {
+      valid = native.reportValidity();
+    });
+    expect(valid).toBe(false);
+    expect(combo().getAttribute("aria-invalid")).toBe("true");
+    expect(view.container.textContent).toContain("Choose an option.");
+    expect(document.activeElement).toBe(combo());
+
+    await view.rerender(field("a"));
+    expect(combo().getAttribute("aria-invalid")).toBeNull();
+    expect(view.container.textContent).not.toContain("Choose an option.");
+    await view.unmount();
+  }
+
+  test("through the options prop", async () => {
+    const { Select } = await import("@/components/ui/Select");
+    const options = [
+      { value: "", label: "Choose term" },
+      { value: "a", label: "Spring 2027" },
+    ];
+    await expectMissingThenValid((value) => (
+      <Select label="Term" options={options} value={value} onChange={() => {}} required />
+    ));
+  });
+
+  test("through legacy <option> children", async () => {
+    const { Select } = await import("@/components/ui/Select");
+    await expectMissingThenValid((value) => (
+      <Select label="Term" value={value} onChange={() => {}} required>
+        <option value="">Choose term</option>
+        <option value="a">Spring 2027</option>
+      </Select>
+    ));
+  });
+});
