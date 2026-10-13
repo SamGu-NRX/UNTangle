@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v3 · First visit and import</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#f3f5f1;--surface:#fff;--surface-2:#edf1ec;--surface-3:#e3e9e2;--line:#dbe4da;--line-strong:#c2d0c2;
+--frost:rgba(255,255,255,.8);--overlay:rgba(26,46,26,.32);
+--ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6f836d;--ink-4:#9aab99;
+--brand:#00512b;--brand-hover:#00703a;--brand-soft:#e3efe6;--accent:#00a855;--accent-soft:#e2f6ea;
+--warn:#7a5a0f;--warn-soft:#f7f0db;--danger:#b3261e;--danger-soft:#fbeae8;
+--font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;
+--shadow-1:0 1px 2px rgba(26,46,26,.06);--shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);--shadow-3:0 16px 40px rgba(26,46,26,.14),0 2px 6px rgba(26,46,26,.08);
+--focus:0 0 0 2px var(--surface),0 0 0 4px var(--accent);
+--ease-out:cubic-bezier(.23,1,.32,1);--ease-in-out:cubic-bezier(.77,0,.175,1);
+--t-press:120ms;--t-hover:160ms;--t-enter:200ms;--t-exit:150ms;
+}
+html,body{height:100%}
+body{font:14px/20px var(--font-body);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;touch-action:manipulation}
+a{color:var(--brand);text-decoration:none}
+.code{font-family:var(--font-display);font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:10px;font-weight:600;font-size:14px;white-space:nowrap;transition:transform var(--t-press) var(--ease-out),background-color var(--t-hover) ease,border-color var(--t-hover) ease,color var(--t-hover) ease}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible{outline:0;box-shadow:var(--focus)}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-ghost{background:var(--surface);border:1px solid var(--line-strong)}
+.btn-lg{height:44px;padding:0 20px;font-size:15px}
+@media(hover:hover) and (pointer:fine){.btn-primary:hover{background:var(--brand-hover)}.btn-ghost:hover{background:var(--surface-2)}}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;border:1px dotted var(--line-strong);font-size:11px;color:var(--ink-2);white-space:nowrap}
+
+/* shell */
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:24px}
+.wordmark{font:800 22px/1 var(--font-display);color:var(--brand);letter-spacing:-.01em}
+.seg{display:inline-flex;position:relative;background:var(--surface-3);border-radius:8px;padding:2px;height:32px}
+.seg button{position:relative;z-index:1;min-width:84px;padding:0 14px;font-size:13px;font-weight:600;color:var(--ink-2);border-radius:6px}
+.seg button[aria-selected=true]{color:var(--ink)}
+.seg .pill{position:absolute;top:2px;left:2px;width:84px;height:28px;background:var(--surface);border-radius:6px;box-shadow:var(--shadow-1)}
+.plan-chip{margin-left:auto;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);font-size:13px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink-4)}
+.caret{width:8px;height:8px;border-right:1.5px solid var(--ink-3);border-bottom:1.5px solid var(--ink-3);transform:rotate(45deg) translateY(-2px)}
+.tabbar{display:none}
+
+/* import page */
+main{min-height:calc(100dvh - 56px);display:flex;justify-content:center;padding:96px 24px 120px}
+.import{width:100%;max-width:440px}
+.import h1{font-size:18px;line-height:24px;font-weight:600}
+.import .lede{color:var(--ink-2);margin-top:6px}
+.actions{margin-top:24px;display:flex;flex-direction:column;gap:12px}
+.alt{margin-top:20px;font-size:13px;color:var(--ink-2);display:flex;gap:16px}
+.alt a{font-weight:600}
+
+/* status row: evolves across waiting / returned */
+.status{display:none;align-items:center;gap:12px;min-height:40px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);margin-top:20px}
+.status .ico{width:16px;height:16px;flex:none;border-radius:50%}
+.spin{border:2px solid var(--line-strong);border-top-color:var(--brand);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status .ico.ok{background:var(--brand)}
+.status .ico.ok::after{content:"";display:block;width:7px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translate(3.5px,3px) rotate(-45deg)}
+
+/* panels that swap by state: opacity + 2px blur crossfade, no height animation */
+[data-panel]{display:none}
+.import[data-state=idle] [data-panel=idle],
+.import[data-state=waiting] [data-panel=hand],
+.import[data-state=returned] [data-panel=hand],
+.import[data-state=reading] [data-panel=reading],
+.import[data-state=review] [data-panel=review],
+.import[data-state=error] [data-panel=error]{display:block;animation:swap var(--t-hover) ease both}
+@keyframes swap{from{opacity:0;filter:blur(2px)}to{opacity:1;filter:blur(0)}}
+.import[data-state=waiting] .status,.import[data-state=returned] .status{display:flex}
+.import[data-state=returned] .status{border-color:var(--brand-soft);background:var(--brand-soft)}
+.import[data-state=waiting] #use{background:var(--surface);color:var(--ink);border:1px solid var(--line-strong)}
+.import[data-state=returned] #use{background:var(--brand);color:#fff;border:0}
+
+/* reading steps */
+.steps{list-style:none;margin-top:20px;display:flex;flex-direction:column}
+.steps li{display:flex;align-items:center;gap:12px;height:36px;color:var(--ink-4)}
+.steps li .ico{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ink-4);flex:none}
+.steps li[data-s=active]{color:var(--ink)} .steps li[data-s=active] .ico{border:2px solid var(--line-strong);border-top-color:var(--brand);animation:spin .8s linear infinite}
+.steps li[data-s=done]{color:var(--ink-2)} .steps li[data-s=done] .ico{border:0;background:var(--brand)}
+.steps li[data-s=done] .ico::after{content:"";display:block;width:7px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translate(4px,3.5px) rotate(-45deg)}
+.quiet{font-size:12.5px;line-height:18px;color:var(--ink-2);margin-top:12px}
+
+/* review */
+.found{display:flex;align-items:baseline;gap:8px}
+.found .fig{font:700 24px/1 var(--font-display);color:var(--brand)}
+.summary{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+.list{margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--surface);max-height:320px;overflow:auto;overscroll-behavior:contain}
+.row{display:grid;grid-template-columns:16px 76px 1fr auto;align-items:center;gap:12px;height:40px;padding:0 12px;border-top:1px solid var(--line);font-size:14px}
+.row:first-child{border-top:0}
+.row .c{font-family:var(--font-display);font-weight:700;font-size:13px}
+.row .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .m{font-size:12.5px;color:var(--ink-2)}
+.row.bad{background:var(--danger-soft);grid-template-columns:16px 76px 1fr auto auto;height:48px}
+.row.bad .t{color:var(--danger)}
+.row .mini{height:28px;padding:0 10px;font-size:12.5px;border-radius:8px}
+.mark{width:16px;height:16px;border-radius:50%;display:inline-grid;place-items:center}
+.mark-done{background:var(--ink-3)} .mark-done::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+.mark-taking{border:1.5px solid var(--accent)} .mark-taking::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.mark-check{border:1.5px solid var(--warn);color:var(--warn);font:700 10px/1 var(--font-body)} .mark-check::after{content:"?"}
+.foot{display:flex;justify-content:flex-end;gap:12px;margin-top:16px}
+
+/* error */
+.err h1{color:var(--ink)}
+.err .ico{width:40px;height:40px;border-radius:50%;background:var(--danger-soft);display:grid;place-items:center;margin-bottom:16px;color:var(--danger);font-weight:700}
+
+/* drop overlay: opacity only, the frame does not move */
+.drop{position:fixed;inset:0;background:var(--overlay);opacity:0;pointer-events:none;transition:opacity 120ms ease;z-index:50;display:grid;place-items:center}
+.drop.on{opacity:1}
+.drop .frame{position:absolute;inset:24px;border:2px dashed rgba(255,255,255,.9);border-radius:20px}
+.drop p{position:relative;color:#fff;font-size:18px;font-weight:600}
+
+/* done: the Courses list with the AutoNote */
+.done-wrap{width:100%;max-width:880px;display:none}
+.import[data-state=done]{display:none}
+body[data-done] .done-wrap{display:block}
+.viewhead{display:flex;align-items:center;justify-content:space-between;height:48px}
+.viewhead .ctx{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600}
+.viewhead .ctx small{font-size:12.5px;font-weight:400;color:var(--ink-2)}
+.note{display:flex;align-items:center;gap:12px;height:40px;padding:0 14px;border-radius:10px;background:var(--brand-soft);margin:8px 0 16px;animation:swap var(--t-enter) ease both}
+.note a{font-weight:600}
+.group{height:36px;display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.crow{display:grid;grid-template-columns:16px 84px 1fr auto 72px;gap:12px;align-items:center;height:44px;padding:0 12px;border-top:1px solid var(--line);background:var(--surface)}
+.crow:first-of-type{border-top:0;border-radius:10px 10px 0 0}.crow:last-of-type{border-radius:0 0 10px 10px}
+.crow .m,.crow .w{font-size:12.5px;color:var(--ink-2);text-align:right}
+
+/* dev strip: not part of the UI */
+.dev{position:fixed;left:16px;bottom:16px;display:flex;gap:6px;align-items:center;background:#1a2e1a;color:#fff;padding:6px 8px;border-radius:999px;font-size:11px;z-index:60;box-shadow:var(--shadow-3)}
+.dev b{opacity:.6;margin:0 4px;font-weight:600}
+.dev button{color:#fff;background:rgba(255,255,255,.12);border-radius:999px;padding:4px 8px;font-size:11px}
+
+@media (max-width:719px){
+  .topbar{height:48px;padding:0 16px;gap:12px}.wordmark{font-size:18px}.seg{display:none}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line);z-index:40}
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--ink-2);user-select:none}
+  .tabbar button[aria-current]{color:var(--brand)}
+  .tabbar svg{width:22px;height:22px}
+  main{padding:48px 20px 120px;min-height:calc(100dvh - 48px)}
+  .btn-lg{width:100%}
+  .row{grid-template-columns:16px 68px 1fr auto;gap:8px}
+  .row.bad{grid-template-columns:16px 1fr;grid-template-rows:auto auto;height:auto;padding:8px 12px;row-gap:6px}
+  .row.bad .c,.row.bad .m{display:none}.row.bad .mini{grid-column:2}
+  .crow{grid-template-columns:16px 1fr auto;height:52px}.crow .m{display:none}
+  .dev{left:8px;bottom:calc(72px + env(safe-area-inset-bottom));right:8px;flex-wrap:wrap}
+}
+@media (prefers-reduced-motion:reduce){
+  [data-panel]{animation:none}.note{animation:none}.btn:active{transform:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <span class="wordmark">UNTangle</span>
+  <nav class="seg" aria-label="Lens">
+    <span class="pill" aria-hidden="true"></span>
+    <button aria-selected="true">Courses</button><button aria-selected="false">Week</button><button aria-selected="false">Day</button>
+  </nav>
+  <button class="plan-chip"><span class="dot"></span>Guest · not saved<span class="caret"></span></button>
+</header>
+
+<main>
+  <!-- the import page is the empty Courses lens -->
+  <section class="import" id="imp" data-state="idle" aria-live="polite">
+
+    <div data-panel="idle">
+      <h1>Bring in your transcript</h1>
+      <p class="lede">UNTangle reads the PDF on this device. Nothing is uploaded.</p>
+      <div class="actions">
+        <button class="btn btn-primary btn-lg" id="open">Open myUNT</button>
+      </div>
+      <p class="alt"><a href="#">Pick courses by hand</a><a href="#" id="have">I already have the PDF</a></p>
+    </div>
+
+    <div data-panel="hand">
+      <h1>Bring in your transcript</h1>
+      <p class="lede">Download the unofficial transcript in myUNT, then bring it back here.</p>
+      <div class="status" role="status">
+        <span class="ico spin" id="sico"></span>
+        <span id="stext">myUNT is open in another window.</span>
+      </div>
+      <div class="actions">
+        <button class="btn btn-lg" id="use">Use the downloaded PDF</button>
+      </div>
+      <p class="alt"><a href="#" id="reopen">Open myUNT again</a><a href="#" id="cancel1">Cancel</a></p>
+    </div>
+
+    <div data-panel="reading">
+      <h1>Reading your transcript</h1>
+      <ol class="steps" id="steps">
+        <li data-s="active"><span class="ico"></span>Reading the PDF</li>
+        <li data-s="todo"><span class="ico"></span>Removing your name and ID</li>
+        <li data-s="todo"><span class="ico"></span>Matching courses to your degree plan</li>
+      </ol>
+      <p class="quiet">This happens in your browser.</p>
+      <div class="foot" style="justify-content:flex-start"><button class="btn btn-ghost" id="cancel2">Cancel</button></div>
+    </div>
+
+    <div data-panel="review">
+      <h1 class="found"><span class="fig num">14</span><span>courses found</span></h1>
+      <p class="summary">11 done · 2 taking · 1 didn't match</p>
+      <div class="list" role="list">
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">CSCE 1030</span><span class="t">Computer Science I</span><span class="m num">Fall 2024 · A</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">CSCE 1040</span><span class="t">Computer Science II</span><span class="m num">Spring 2025 · A−</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">MATH 1710</span><span class="t">Calculus I</span><span class="m num">Fall 2024 · B+</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">MATH 1720</span><span class="t">Calculus II</span><span class="m num">Spring 2025 · B</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">ENGL 1310</span><span class="t">College Writing I</span><span class="m num">Fall 2024 · A</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">PHYS 1710</span><span class="t">Mechanics</span><span class="m num">Spring 2025 · B−</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">HIST 2610</span><span class="t">United States History to 1865</span><span class="m num">Fall 2025 · A</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">PSCI 2305</span><span class="t">U.S. Political Behavior and Policy</span><span class="m num">Fall 2025 · B</span></div>
+        <div class="row" role="listitem"><span class="mark mark-taking"></span><span class="c">CSCE 2100</span><span class="t">Foundations of Computing</span><span class="m num">Spring 2026</span></div>
+        <div class="row" role="listitem"><span class="mark mark-taking"></span><span class="c">CSCE 2110</span><span class="t">Foundations of Data Structures</span><span class="m num">Spring 2026</span></div>
+        <div class="row bad" role="listitem"><span class="mark mark-check"></span><span class="c">ELEC 2000</span><span class="t">ELEC 2000 · didn't match a UNT course</span><button class="btn btn-ghost mini">Pick course</button><button class="btn btn-ghost mini">Skip</button></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">ANTH 1010</span><span class="t">Introduction to Anthropology</span><span class="m num">Fall 2025 · A</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">COMM 1010</span><span class="t">Introduction to Communication</span><span class="m num">Spring 2025 · A</span></div>
+        <div class="row" role="listitem"><span class="mark mark-done"></span><span class="c">BIOL 1710</span><span class="t">Biology for Science Majors I</span><span class="m num">Fall 2025 · B+</span></div>
+      </div>
+      <div class="foot"><button class="btn btn-ghost" id="cancel3">Cancel</button><button class="btn btn-primary" id="add">Add 14 courses</button></div>
+    </div>
+
+    <div data-panel="error" class="err">
+      <div class="ico">!</div>
+      <h1>That file isn't a transcript</h1>
+      <p class="lede">Download the unofficial transcript from myUNT, not the degree audit.</p>
+      <div class="actions"><button class="btn btn-primary btn-lg" id="again">Choose another file</button></div>
+      <p class="alt"><a href="#" id="reopen2">Open myUNT again</a></p>
+    </div>
+  </section>
+
+  <!-- done: the Courses lens with the AutoNote, no separate screen -->
+  <section class="done-wrap">
+    <div class="viewhead"><div class="ctx">Computer Science, BS <small>42 of 120 credits</small></div><button class="btn btn-primary">✦ Auto</button></div>
+    <div class="note">Added 14 courses from your transcript. <a href="#">Undo</a><span class="tag" style="margin-left:auto">From your transcript</span></div>
+    <div class="group">Core <span style="letter-spacing:0;text-transform:none;font-size:12.5px">6 of 10 done</span></div>
+    <div class="crow"><span class="mark mark-done"></span><span class="code">CSCE 1030</span><span>Computer Science I</span><span class="m num">Fall 2024 · A</span><span class="w">Done</span></div>
+    <div class="crow"><span class="mark mark-done"></span><span class="code">CSCE 1040</span><span>Computer Science II</span><span class="m num">Spring 2025 · A−</span><span class="w">Done</span></div>
+    <div class="crow"><span class="mark mark-taking"></span><span class="code">CSCE 2100</span><span>Foundations of Computing</span><span class="m">This term</span><span class="w">Taking</span></div>
+    <div class="crow"><span class="mark mark-taking"></span><span class="code">CSCE 2110</span><span>Foundations of Data Structures</span><span class="m">This term</span><span class="w">Taking</span></div>
+    <div class="crow"><span class="mark" style="border:1.5px solid var(--ink-4)"></span><span class="code">CSCE 3110</span><span>Data Structures and Algorithms</span><span class="m"></span><span class="w"></span></div>
+    <div class="crow"><span class="mark" style="border:1.5px dotted var(--ink-4)"></span><span class="code" style="color:var(--ink-2)">CSCE 4110</span><span style="color:var(--ink-2)">Algorithms</span><span class="m">Needs <a href="#">CSCE 3110</a></span><span class="w">Locked</span></div>
+  </section>
+</main>
+
+<nav class="tabbar" aria-label="Lenses">
+  <button aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Courses</button>
+  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 5v15M15 5v15"/></svg>Week</button>
+  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Day</button>
+</nav>
+
+<div class="drop" id="drop" aria-hidden="true"><div class="frame"></div><p>Drop the transcript PDF</p></div>
+<input type="file" accept="application/pdf" id="file" hidden>
+
+<div class="dev" aria-label="Mockup states">
+  <b>states</b>
+  <button data-go="idle">idle</button><button data-go="waiting">waiting</button><button data-go="returned">returned</button>
+  <button data-go="drop">drop</button><button data-go="reading">reading</button><button data-go="review">review</button>
+  <button data-go="error">error</button><button data-go="done">done</button>
+</div>
+
+<script>
+const imp=document.getElementById('imp'),drop=document.getElementById('drop');
+const $=id=>document.getElementById(id);
+let popup=null,poll=null,readTimer=null;
+function set(s){
+  clearTimeout(readTimer);
+  document.body.removeAttribute('data-done');
+  if(s==='done'){document.body.setAttribute('data-done','');imp.dataset.state='done';return}
+  if(s==='drop'){imp.dataset.state='idle';drop.classList.add('on');setTimeout(()=>drop.classList.remove('on'),1600);return}
+  imp.dataset.state=s;
+  if(s==='waiting'){$('sico').className='ico spin';$('stext').textContent='myUNT is open in another window.'}
+  if(s==='returned'){$('sico').className='ico ok';$('stext').textContent='Downloaded it?';requestAnimationFrame(()=>$('use').focus({preventScroll:true}))}
+  if(s==='reading'){runSteps()}
+}
+function runSteps(){
+  const li=[...document.querySelectorAll('#steps li')];
+  li.forEach((l,i)=>l.dataset.s=i?'todo':'active');
+  let i=0;
+  const tick=()=>{li[i].dataset.s='done';i++;if(i<li.length){li[i].dataset.s='active';readTimer=setTimeout(tick,650)}else{readTimer=setTimeout(()=>set('review'),250)}};
+  readTimer=setTimeout(tick,650);
+}
+/* 1. one button opens myUNT in a popup window */
+$('open').onclick=()=>{
+  try{popup=window.open('about:blank','myunt','popup,width=1100,height=800');}catch(e){popup=null}
+  set('waiting');
+  clearInterval(poll);
+  poll=setInterval(()=>{if(popup&&popup.closed){clearInterval(poll);set('returned')}},500);
+};
+/* 3. page refocus also counts as "returned" */
+window.addEventListener('focus',()=>{if(imp.dataset.state==='waiting')set('returned')});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&imp.dataset.state==='waiting')set('returned')});
+/* the picker opens in Downloads where the browser allows it */
+async function pick(){
+  if(window.showOpenFilePicker){
+    try{await window.showOpenFilePicker({startIn:'downloads',types:[{description:'PDF',accept:{'application/pdf':['.pdf']}}]});set('reading');return}
+    catch(e){if(e&&e.name==='AbortError')return}
+  }
+  $('file').click();
+}
+$('use').onclick=pick;$('have').onclick=e=>{e.preventDefault();pick()};$('again').onclick=pick;
+$('file').onchange=()=>{if($('file').files.length)set('reading')};
+['reopen','reopen2'].forEach(id=>$(id).onclick=e=>{e.preventDefault();$('open').click()});
+['cancel1','cancel2','cancel3'].forEach(id=>$(id).onclick=e=>{e.preventDefault();set('idle')});
+$('add').onclick=()=>set('done');
+/* 4. dropping anywhere on the page */
+let depth=0;
+window.addEventListener('dragenter',e=>{if([...e.dataTransfer.types].includes('Files')){depth++;drop.classList.add('on')}});
+window.addEventListener('dragleave',()=>{depth=Math.max(0,depth-1);if(!depth)drop.classList.remove('on')});
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('drop',e=>{e.preventDefault();depth=0;drop.classList.remove('on');const f=e.dataTransfer.files[0];if(!f)return;if(f.type!=='application/pdf'){set('error');return}set('reading')});
+document.querySelectorAll('.dev [data-go]').forEach(b=>b.onclick=()=>set(b.dataset.go));
+</script>
+</body>
+</html>
