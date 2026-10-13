@@ -1,0 +1,631 @@
+{
+  "generatedAt": "2026-10-13T13:39:18.248Z",
+  "script": "tools/campus-geodata/verification/independent-remeasure.ts",
+  "standalone": true,
+  "importsFromFrontend": false,
+  "policy": {
+    "rawSource": "tools/campus-geodata/raw/overpass-pedestrian-snapshot.json",
+    "wayFilter": "highway in {footway, steps, path, pedestrian, corridor, living_street, service, residential, unclassified, tertiary, secondary, primary, tertiary_link, secondary_link, primary_link, track, road}, foot != no, not (access in {no, private} unless foot in {yes, designated, permissive}) — per tools/campus-geodata/README.md and build.mjs",
+    "nodeClipping": "keep nodes in NODE_BOX {33.2005, -97.1605, 33.2195, -97.1325}; fragment ways at dropped nodes",
+    "nodeDedup": "8-dp key, 7-dp stored coordinates",
+    "edgeDedup": "shortest way per node pair keeps its class flags (crossing/sidewalk take precedence over the highway tag)",
+    "snapping": "nearest node in largest connected component, 250 m cap",
+    "routing": "A* minimizing haversine meters (R = 6,371,000 m); duration computed along the path per edge: meters / (0.6 steps | 1.4 base) m/s; connectors added at base speed",
+    "rounding": "as routeBetweenPoints: seconds and meters to 0.1 (toFixed(1)); recorded seconds are whole seconds from 6a01f2b"
+  },
+  "reconstruction": {
+    "nodes": 8129,
+    "edges": 9816,
+    "usableWayFragments": 2598,
+    "largestComponentShare": 0.9953,
+    "matchesCommittedWalkwaysJson": true
+  },
+  "reproductionGate": {
+    "kind": "reproduction of the same model from the same raw snapshot; this is not plan accuracy",
+    "accuracyIsJudgedBy": "tools/campus-geodata/spot-check-fixture.ts against the independent eval fixture",
+    "secondsTolerance": 0.55,
+    "metersTolerance": 0.1,
+    "alsoRequires": "reconstruction matches the committed walkways.json: node array, way fragments (OSM id, class, node sequence) and router edges (endpoints, steps/crossing flags)"
+  },
+  "comparison": {
+    "bySeconds": {
+      "n": 20,
+      "exact": 1,
+      "within10Pct": 20,
+      "within20Pct": 20,
+      "medianAbsDeltaPct": 0.08,
+      "maxAbsDeltaPct": 0.34
+    },
+    "byNetworkMeters": {
+      "exact": 20,
+      "medianAbsDeltaPct": 0,
+      "maxAbsDeltaPct": 0
+    },
+    "reproduced": true,
+    "mismatchedPairs": []
+  },
+  "rows": [
+    {
+      "from": "sage",
+      "to": "blb",
+      "recorded": {
+        "networkMeters": 580.1,
+        "durationSeconds": 455,
+        "stepsMeters": 10.3,
+        "roadCrossings": 6
+      },
+      "remeasured": {
+        "networkMeters": 580.1,
+        "durationSeconds": 454.5,
+        "stepsMeters": 10.3,
+        "roadCrossings": 6,
+        "connectorMeters": 42.5,
+        "snapFrom": {
+          "index": 5817,
+          "meters": 15.4
+        },
+        "snapTo": {
+          "index": 3469,
+          "meters": 27.1
+        }
+      },
+      "deltaSeconds": -0.5,
+      "deltaSecondsPct": -0.11,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "sage",
+      "to": "gab",
+      "recorded": {
+        "networkMeters": 354.1,
+        "durationSeconds": 288,
+        "stepsMeters": 7,
+        "roadCrossings": 0
+      },
+      "remeasured": {
+        "networkMeters": 354.1,
+        "durationSeconds": 287.7,
+        "stepsMeters": 7,
+        "roadCrossings": 0,
+        "connectorMeters": 39.4,
+        "snapFrom": {
+          "index": 5817,
+          "meters": 15.4
+        },
+        "snapTo": {
+          "index": 5860,
+          "meters": 23.9
+        }
+      },
+      "deltaSeconds": -0.3,
+      "deltaSecondsPct": -0.1,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "sage",
+      "to": "wh",
+      "recorded": {
+        "networkMeters": 301.9,
+        "durationSeconds": 252,
+        "stepsMeters": 7,
+        "roadCrossings": 3
+      },
+      "remeasured": {
+        "networkMeters": 301.9,
+        "durationSeconds": 251.8,
+        "stepsMeters": 7,
+        "roadCrossings": 3,
+        "connectorMeters": 41.3,
+        "snapFrom": {
+          "index": 5817,
+          "meters": 15.4
+        },
+        "snapTo": {
+          "index": 3718,
+          "meters": 25.8
+        }
+      },
+      "deltaSeconds": -0.2,
+      "deltaSecondsPct": -0.08,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "sage",
+      "to": "gate",
+      "recorded": {
+        "networkMeters": 1083.2,
+        "durationSeconds": 823,
+        "stepsMeters": 19.4,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 1083.2,
+        "durationSeconds": 823.5,
+        "stepsMeters": 19.4,
+        "roadCrossings": 2,
+        "connectorMeters": 43.8,
+        "snapFrom": {
+          "index": 5817,
+          "meters": 15.4
+        },
+        "snapTo": {
+          "index": 1134,
+          "meters": 28.3
+        }
+      },
+      "deltaSeconds": 0.5,
+      "deltaSecondsPct": 0.06,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "sage",
+      "to": "col",
+      "recorded": {
+        "networkMeters": 1094.9,
+        "durationSeconds": 877,
+        "stepsMeters": 42.2,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 1094.9,
+        "durationSeconds": 877.2,
+        "stepsMeters": 42.2,
+        "roadCrossings": 2,
+        "connectorMeters": 76.9,
+        "snapFrom": {
+          "index": 5817,
+          "meters": 15.4
+        },
+        "snapTo": {
+          "index": 1480,
+          "meters": 61.4
+        }
+      },
+      "deltaSeconds": 0.2,
+      "deltaSecondsPct": 0.02,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "chem",
+      "to": "art",
+      "recorded": {
+        "networkMeters": 540.3,
+        "durationSeconds": 401,
+        "stepsMeters": 0,
+        "roadCrossings": 4
+      },
+      "remeasured": {
+        "networkMeters": 540.3,
+        "durationSeconds": 400.6,
+        "stepsMeters": 0,
+        "roadCrossings": 4,
+        "connectorMeters": 20.6,
+        "snapFrom": {
+          "index": 6607,
+          "meters": 13.4
+        },
+        "snapTo": {
+          "index": 6210,
+          "meters": 7.1
+        }
+      },
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.1,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "chem",
+      "to": "phys",
+      "recorded": {
+        "networkMeters": 451.5,
+        "durationSeconds": 344,
+        "stepsMeters": 3,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 451.5,
+        "durationSeconds": 343.5,
+        "stepsMeters": 3,
+        "roadCrossings": 2,
+        "connectorMeters": 25.5,
+        "snapFrom": {
+          "index": 6607,
+          "meters": 13.4
+        },
+        "snapTo": {
+          "index": 5925,
+          "meters": 12
+        }
+      },
+      "deltaSeconds": -0.5,
+      "deltaSecondsPct": -0.15,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "chem",
+      "to": "lang",
+      "recorded": {
+        "networkMeters": 371.6,
+        "durationSeconds": 304,
+        "stepsMeters": 16.4,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 371.6,
+        "durationSeconds": 303.6,
+        "stepsMeters": 16.4,
+        "roadCrossings": 2,
+        "connectorMeters": 31.6,
+        "snapFrom": {
+          "index": 6607,
+          "meters": 13.4
+        },
+        "snapTo": {
+          "index": 5943,
+          "meters": 18.2
+        }
+      },
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.13,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "chem",
+      "to": "musi",
+      "recorded": {
+        "networkMeters": 643.9,
+        "durationSeconds": 495,
+        "stepsMeters": 12.4,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 643.9,
+        "durationSeconds": 495,
+        "stepsMeters": 12.4,
+        "roadCrossings": 2,
+        "connectorMeters": 32.6,
+        "snapFrom": {
+          "index": 6607,
+          "meters": 13.4
+        },
+        "snapTo": {
+          "index": 6675,
+          "meters": 19.1
+        }
+      },
+      "deltaSeconds": 0,
+      "deltaSecondsPct": 0,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "chem",
+      "to": "musa",
+      "recorded": {
+        "networkMeters": 685,
+        "durationSeconds": 515,
+        "stepsMeters": 12.4,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 685,
+        "durationSeconds": 514.6,
+        "stepsMeters": 12.4,
+        "roadCrossings": 2,
+        "connectorMeters": 18.9,
+        "snapFrom": {
+          "index": 6607,
+          "meters": 13.4
+        },
+        "snapTo": {
+          "index": 4885,
+          "meters": 5.5
+        }
+      },
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.08,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "life",
+      "to": "blb",
+      "recorded": {
+        "networkMeters": 583.3,
+        "durationSeconds": 484,
+        "stepsMeters": 32.4,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 583.3,
+        "durationSeconds": 483.6,
+        "stepsMeters": 32.4,
+        "roadCrossings": 2,
+        "connectorMeters": 50.5,
+        "snapFrom": {
+          "index": 5824,
+          "meters": 23.4
+        },
+        "snapTo": {
+          "index": 3469,
+          "meters": 27.1
+        }
+      },
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.08,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "life",
+      "to": "aud",
+      "recorded": {
+        "networkMeters": 267.1,
+        "durationSeconds": 223,
+        "stepsMeters": 0,
+        "roadCrossings": 0
+      },
+      "remeasured": {
+        "networkMeters": 267.1,
+        "durationSeconds": 223.5,
+        "stepsMeters": 0,
+        "roadCrossings": 0,
+        "connectorMeters": 45.8,
+        "snapFrom": {
+          "index": 5824,
+          "meters": 23.4
+        },
+        "snapTo": {
+          "index": 5947,
+          "meters": 22.4
+        }
+      },
+      "deltaSeconds": 0.5,
+      "deltaSecondsPct": 0.22,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "life",
+      "to": "hick",
+      "recorded": {
+        "networkMeters": 294.5,
+        "durationSeconds": 253,
+        "stepsMeters": 20.1,
+        "roadCrossings": 1
+      },
+      "remeasured": {
+        "networkMeters": 294.5,
+        "durationSeconds": 253.2,
+        "stepsMeters": 20.1,
+        "roadCrossings": 1,
+        "connectorMeters": 33.3,
+        "snapFrom": {
+          "index": 5824,
+          "meters": 23.4
+        },
+        "snapTo": {
+          "index": 6752,
+          "meters": 9.9
+        }
+      },
+      "deltaSeconds": 0.2,
+      "deltaSecondsPct": 0.08,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "life",
+      "to": "peb",
+      "recorded": {
+        "networkMeters": 583.7,
+        "durationSeconds": 470,
+        "stepsMeters": 6.9,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 583.7,
+        "durationSeconds": 469.8,
+        "stepsMeters": 6.9,
+        "roadCrossings": 2,
+        "connectorMeters": 64.8,
+        "snapFrom": {
+          "index": 5824,
+          "meters": 23.4
+        },
+        "snapTo": {
+          "index": 2748,
+          "meters": 41.4
+        }
+      },
+      "deltaSeconds": -0.2,
+      "deltaSecondsPct": -0.04,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "life",
+      "to": "pac",
+      "recorded": {
+        "networkMeters": 1031.1,
+        "durationSeconds": 794,
+        "stepsMeters": 19.2,
+        "roadCrossings": 5
+      },
+      "remeasured": {
+        "networkMeters": 1031.1,
+        "durationSeconds": 793.7,
+        "stepsMeters": 19.2,
+        "roadCrossings": 5,
+        "connectorMeters": 54.5,
+        "snapFrom": {
+          "index": 5824,
+          "meters": 23.4
+        },
+        "snapTo": {
+          "index": 1117,
+          "meters": 31
+        }
+      },
+      "deltaSeconds": -0.3,
+      "deltaSecondsPct": -0.04,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "matt",
+      "to": "dath",
+      "recorded": {
+        "networkMeters": 801.3,
+        "durationSeconds": 595,
+        "stepsMeters": 0,
+        "roadCrossings": 9
+      },
+      "remeasured": {
+        "networkMeters": 801.3,
+        "durationSeconds": 594.6,
+        "stepsMeters": 0,
+        "roadCrossings": 9,
+        "connectorMeters": 31.2,
+        "snapFrom": {
+          "index": 4962,
+          "meters": 4.7
+        },
+        "snapTo": {
+          "index": 6884,
+          "meters": 26.6
+        }
+      },
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.07,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "matt",
+      "to": "symr",
+      "recorded": {
+        "networkMeters": 370.3,
+        "durationSeconds": 273,
+        "stepsMeters": 0,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 370.3,
+        "durationSeconds": 272.9,
+        "stepsMeters": 0,
+        "roadCrossings": 2,
+        "connectorMeters": 11.7,
+        "snapFrom": {
+          "index": 4962,
+          "meters": 4.7
+        },
+        "snapTo": {
+          "index": 5879,
+          "meters": 7.1
+        }
+      },
+      "deltaSeconds": -0.1,
+      "deltaSecondsPct": -0.04,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "gab",
+      "to": "life",
+      "recorded": {
+        "networkMeters": 155,
+        "durationSeconds": 145,
+        "stepsMeters": 0,
+        "roadCrossings": 0
+      },
+      "remeasured": {
+        "networkMeters": 155,
+        "durationSeconds": 144.5,
+        "stepsMeters": 0,
+        "roadCrossings": 0,
+        "connectorMeters": 47.3,
+        "snapFrom": {
+          "index": 5860,
+          "meters": 23.9
+        },
+        "snapTo": {
+          "index": 5824,
+          "meters": 23.4
+        }
+      },
+      "deltaSeconds": -0.5,
+      "deltaSecondsPct": -0.34,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "wh",
+      "to": "env",
+      "recorded": {
+        "networkMeters": 836.2,
+        "durationSeconds": 635,
+        "stepsMeters": 0,
+        "roadCrossings": 5
+      },
+      "remeasured": {
+        "networkMeters": 836.2,
+        "durationSeconds": 635.2,
+        "stepsMeters": 0,
+        "roadCrossings": 5,
+        "connectorMeters": 53.1,
+        "snapFrom": {
+          "index": 3718,
+          "meters": 25.8
+        },
+        "snapTo": {
+          "index": 2914,
+          "meters": 27.2
+        }
+      },
+      "deltaSeconds": 0.2,
+      "deltaSecondsPct": 0.03,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    },
+    {
+      "from": "uu",
+      "to": "gate",
+      "recorded": {
+        "networkMeters": 823.4,
+        "durationSeconds": 652,
+        "stepsMeters": 20.4,
+        "roadCrossings": 2
+      },
+      "remeasured": {
+        "networkMeters": 823.4,
+        "durationSeconds": 652.3,
+        "stepsMeters": 20.4,
+        "roadCrossings": 2,
+        "connectorMeters": 62.6,
+        "snapFrom": {
+          "index": 5921,
+          "meters": 34.3
+        },
+        "snapTo": {
+          "index": 1134,
+          "meters": 28.3
+        }
+      },
+      "deltaSeconds": 0.3,
+      "deltaSecondsPct": 0.05,
+      "deltaMetersPct": 0,
+      "reproduced": true
+    }
+  ],
+  "warnings": [],
+  "digest": "f849974e28e922d3"
+}
