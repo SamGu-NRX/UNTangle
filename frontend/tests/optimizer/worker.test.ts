@@ -248,6 +248,34 @@ describe("OptimizerClient", () => {
     ]);
   });
 
+  // https://github.com/SamGu-NRX/UNTangle/pull/32#discussion_r4263013488
+  test("cancel stops a job that is still refining and starts a fresh worker next time", () => {
+    const { ports, create } = fakeFactory();
+    const seen: OptimizeReply[] = [];
+    const client = new OptimizerClient(create, (r) => seen.push(r));
+    const first = client.run(plain);
+    ports[0].reply(reply(first, false));
+    client.cancel();
+    expect(ports[0].terminated).toBe(true);
+    // The cancelled search's late answer never arrives on screen.
+    ports[0].reply(reply(first, true));
+    expect(seen.map((r) => r.phase)).toEqual(["first"]);
+    const second = client.run(plain);
+    expect(ports).toHaveLength(2);
+    expect(ports[1].posted.map((j) => j.id)).toEqual([second]);
+  });
+
+  test("cancel keeps a worker whose job has settled", () => {
+    const { ports, create } = fakeFactory();
+    const client = new OptimizerClient(create, () => {});
+    const id = client.run(plain);
+    ports[0].reply(reply(id, true));
+    client.cancel();
+    expect(ports[0].terminated).toBe(false);
+    client.run(plain);
+    expect(ports).toHaveLength(1);
+  });
+
   test("a crashed worker reports an error for the newest job and is replaced next time", () => {
     const { ports, create } = fakeFactory();
     const seen: OptimizeReply[] = [];
