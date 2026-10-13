@@ -16,10 +16,12 @@ import {
   isCandidate,
   otherSiteOf,
   optionLabel,
+  planningTerm,
   sampleCatalog,
   sampleOption,
   scheduleEventsOf,
   sectionRef,
+  termDates,
   toOptSection,
   type CandidateFilter,
   type SectionCatalog,
@@ -99,7 +101,10 @@ export function getActiveCourseCodes(state: PlannerState) {
   return getPlanningTermCourseCodes(state);
 }
 
-/** Main campus only, closed sections allowed: what the optimizer suggests until the student widens it. */
+/** The planning term's first and last day: the optimizer's boundary for meetings without dates. */
+const planningTermDates = termDates[planningTerm.id];
+
+/** Denton only (Discovery Park included), closed sections allowed: what the optimizer suggests until the student widens it. */
 export const DEFAULT_CANDIDATE_FILTER: CandidateFilter = { openSeatsOnly: false, otherSites: false };
 
 /**
@@ -165,6 +170,7 @@ export function recommendSections(
     courses: optimizerCourses,
     locks,
     excluded: [],
+    term: planningTermDates,
     constraints: NO_CONSTRAINTS,
     weights: GOAL_WEIGHTS[option],
     walkingTime,
@@ -354,11 +360,44 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
   };
 }
 
+export type HeldOutCourse = { code: string; reason: "pick-not-suggestible" | "lock-unavailable" };
+
+/**
+ * Planned courses Optimize leaves exactly as they are, and why:
+ * - `pick-not-suggestible`: the pick is a loaded option the optimizer may
+ *   not offer (no set time, or at another site); it could only replace it;
+ * - `lock-unavailable`: the course is locked to a section that is no loaded
+ *   option (an old sample, or one that no longer exists). Searching without
+ *   the lock would move a locked course, so the course is held out and the
+ *   page asks the student to unlock it.
+ */
+export function heldOutCourses(
+  state: PlannerState,
+  catalog: SectionCatalog,
+  filter: CandidateFilter,
+  courseCodes: readonly string[] = getPlanningTermCourseCodes(state),
+): HeldOutCourse[] {
+  const locked = getLockedSelections(state);
+  const offered = new Map(toOptimizerCourses(courseCodes, catalog, filter).map((course) => [course.code, course]));
+  return courseCodes.flatMap((code): HeldOutCourse[] => {
+    const pick = state.selectedSections[code];
+    if (!pick || offered.get(code)?.sections.some((section) => section.id === pick)) return [];
+    const loaded = catalog(code);
+    if (loaded.status === "ready" && loaded.result.sections.some((section) => section.id === pick)) {
+      return [{ code, reason: "pick-not-suggestible" }];
+    }
+    return locked[code] === pick ? [{ code, reason: "lock-unavailable" }] : [];
+  });
+}
+
 /**
  * The optimizer request for a plan. `courseCodes` defaults to the courses
  * marked Taking; a course-suggestion step can pass its own list instead.
- * Locks come from the plan; excluded sections that no longer exist in the
- * catalog are dropped rather than rejected.
+ * Courses `heldOutCourses` names are left out, and so are courses with no
+ * option it may suggest; their credits still count toward the credit limit
+ * (`fixedCredits`), except a course not offered this term. Locks come from
+ * the plan; excluded sections that no longer exist in the catalog are
+ * dropped rather than rejected.
  */
 export function buildOptimizeRequest(
   state: PlannerState,
@@ -372,21 +411,17 @@ export function buildOptimizeRequest(
   } = {},
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
-  // A picked option the optimizer cannot offer (no set time, or at another
-  // site) stays as picked: the optimizer could only replace it, and a lock
-  // on it would not hold.
-  const untimedPick = (course: OptCourse) => {
-    const pick = state.selectedSections[course.code];
-    const loaded = catalog(course.code);
-    return (
-      loaded.status === "ready" &&
-      loaded.result.sections.some((section) => section.id === pick) &&
-      !course.sections.some((section) => section.id === pick)
-    );
-  };
-  const optimizerCourses = toOptimizerCourses(options.courseCodes ?? getPlanningTermCourseCodes(state), catalog, preferences.constraints).filter(
-    (course) => !untimedPick(course),
-  );
+  const codes = options.courseCodes ?? getPlanningTermCourseCodes(state);
+  const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes).map((course) => course.code));
+  const optimizerCourses = toOptimizerCourses(codes, catalog, preferences.constraints).filter((course) => !held.has(course.code));
+  const searched = new Set(optimizerCourses.map((course) => course.code));
+  const fixedCredits = codes
+    .filter((code) => !searched.has(code))
+    .filter((code) => {
+      const loaded = catalog(code);
+      return !(loaded.status === "ready" && loaded.result.availability === "no_classes");
+    })
+    .reduce((sum, code) => sum + (getCourseByCode(code)?.creditHours ?? 0), 0);
   const offered = new Set(optimizerCourses.flatMap((course) => course.sections.map((section) => section.id)));
   const locked = getLockedSelections(state);
   const c = preferences.constraints;
@@ -405,6 +440,8 @@ export function buildOptimizeRequest(
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },
     weights: preferences.weights,
+    term: planningTermDates,
+    fixedCredits,
     // Campus walkway times (map v2's matrix), straight-line only where the walkway graph has no route,
     // and the Discovery Park shuttle's fixed time (planner-walking.ts).
     walkingTime: options.walkingTime ?? plannerTravelTime,

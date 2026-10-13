@@ -171,8 +171,10 @@ async function desktop(browser) {
     unresolvedText,
   );
   check(
-    "desktop: legs touching the off-campus stop say there is no route",
-    (await page.locator('.mv-leg[data-route="no-route"]').count()) === 1,
+    // Discovery Park counts as Denton since the real-sections PR: main campus to it is a 20-minute shuttle, not a walk.
+    "desktop: the leg to Discovery Park is a shuttle ride, not a walking route",
+    (await page.locator('.mv-leg[data-route="shuttle"]').count()) === 1 &&
+      /Shuttle · 20 min/.test((await page.locator('.mv-leg[data-route="shuttle"]').textContent()) ?? ""),
   );
   const attribution = (await page.locator(".maplibregl-ctrl-attrib").textContent()) ?? "";
   check(

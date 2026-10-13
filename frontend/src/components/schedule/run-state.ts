@@ -7,8 +7,8 @@
  * on screen for reference, but nothing in it can be applied.
  */
 import type { OptimizeReply } from "@/lib/optimizer/worker/protocol";
-import type { OptimizeResult, RankedSchedule } from "@/lib/optimizer/types";
-import type { OptimizationKey, SchedulePreferences } from "@/lib/types";
+import type { OptimizeRequest, OptimizeResult, RankedSchedule } from "@/lib/optimizer/types";
+import type { OptimizationKey } from "@/lib/types";
 
 export type RunState = {
   /** Newest job; replies to any other id are ignored. null after Close. */
@@ -46,19 +46,26 @@ export function runReducer(state: RunState, action: RunAction): RunState {
   }
 }
 
+const byKey = <T>(entries: Array<[string, T]>) => entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
 /**
- * Everything a run depends on. Lock order does not matter. `sectionsKey`
- * names the options the courses had loaded, so a course that loads after a
- * run makes its result stale.
+ * What a run depends on: the request the optimizer receives, without its
+ * walking function and budgets. Keyed on the request rather than the
+ * settings, so anything that changes the search (a pick that moves a course
+ * in or out of it, options that load, a lock, a preference) makes a shown
+ * result stale. Lock order does not matter.
  */
-export function optimizerInputKey(
-  preferences: SchedulePreferences,
-  locks: Record<string, string>,
-  courseCodes: readonly string[],
-  sectionsKey = "",
-): string {
-  const sortedLocks = Object.entries(locks).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return JSON.stringify([preferences, sortedLocks, [...courseCodes], sectionsKey]);
+export function requestKey(request: OptimizeRequest): string {
+  return JSON.stringify([
+    request.courses.map((course) => [course.code, course.credits, course.sections.map((section) => section.id)]),
+    byKey(Object.entries(request.locks)),
+    [...request.excluded].sort(),
+    request.constraints,
+    request.weights,
+    request.k ?? 3,
+    request.term ?? null,
+    request.fixedCredits ?? 0,
+  ]);
 }
 
 export function locksKey(locks: Record<string, string>): string {

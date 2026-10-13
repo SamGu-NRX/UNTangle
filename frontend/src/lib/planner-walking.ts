@@ -1,6 +1,6 @@
 import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { resolveCampusBuilding } from "@/lib/campus-locations";
-import { DISCOVERY_PARK_ID, sharesWeeks } from "@/lib/planner-sections";
+import { DISCOVERY_PARK_ID, meetTogether } from "@/lib/planner-sections";
 import { buildings } from "@/lib/seed-data";
 import type { CampusBuilding, ScheduleEvent } from "@/lib/types";
 
@@ -120,8 +120,7 @@ export function summarizeWeeklyWalking(
   byDay.forEach((dayEvents) => {
     const ordered = [...dayEvents].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
     for (let index = 1; index < ordered.length; index += 1) {
-      const noDates = { start: null, end: null };
-      if (!sharesWeeks(ordered[index - 1].dates ?? noDates, ordered[index].dates ?? noDates)) continue;
+      if (!meetTogether(ordered[index].day, ordered[index - 1].dates, ordered[index].dates)) continue;
       if (isShuttleLeg(ordered[index - 1].buildingId, ordered[index].buildingId)) {
         summary.shuttleLegs += 1;
         continue;

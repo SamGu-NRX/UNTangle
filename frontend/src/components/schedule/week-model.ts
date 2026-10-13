@@ -1,4 +1,4 @@
-import { isTimed, rangeLabel, sharesWeeks } from "@/lib/planner-sections";
+import { isTimed, meetTogether, rangeLabel } from "@/lib/planner-sections";
 import { isShuttleLeg } from "@/lib/planner-walking";
 import type { Section } from "@/lib/sections";
 import type { DateRange } from "@/lib/sections/model";
@@ -58,7 +58,7 @@ export function shuttleTrips(events: readonly WeekEvent[]): number {
   for (const day of classDays) {
     const list = events.filter((event) => event.day === day).sort((a, b) => a.start - b.start);
     for (let i = 1; i < list.length; i += 1) {
-      if (sharesWeeks(list[i - 1].dates, list[i].dates) && isShuttleLeg(list[i - 1].buildingId, list[i].buildingId)) trips += 1;
+      if (meetTogether(day, list[i - 1].dates, list[i].dates) && isShuttleLeg(list[i - 1].buildingId, list[i].buildingId)) trips += 1;
     }
   }
   return trips;
@@ -71,7 +71,7 @@ export function daysShown(events: readonly WeekEvent[]): ClassDay[] {
 
 /** Two events at overlapping times that never meet in the same week (first and second eight-week sessions). */
 function sideBySide(a: WeekEvent, b: WeekEvent): boolean {
-  return a.day === b.day && a.start < b.end && b.start < a.end && !sharesWeeks(a.dates, b.dates);
+  return a.day === b.day && a.start < b.end && b.start < a.end && !meetTogether(a.day, a.dates, b.dates);
 }
 
 /**

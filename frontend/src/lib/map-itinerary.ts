@@ -19,7 +19,7 @@
 import { haversineMetersBetween } from "@/lib/campus/geo";
 import { stopIdentity } from "@/lib/campus/route-legs";
 import { walkingMinutes } from "@/lib/campus/speeds";
-import { rangeLabel, sharesWeeks } from "@/lib/planner-sections";
+import { meetTogether, rangeLabel } from "@/lib/planner-sections";
 import { isShuttleLeg, SHUTTLE_SECONDS } from "@/lib/planner-walking";
 import type { MapResolvedLocation, MapRouteLeg, MapRoutePoint, MapStop } from "@/lib/types";
 
@@ -271,7 +271,7 @@ export function routeRuns(stops: ItineraryStop[]): Array<Array<{ key: string; po
 }
 
 function sameWeeks(a: MapStop, b: MapStop): boolean {
-  return sharesWeeks(a.dates ?? { start: null, end: null }, b.dates ?? { start: null, end: null });
+  return meetTogether(a.day, a.dates, b.dates);
 }
 
 function legRoute(from: ItineraryStop, to: ItineraryStop, answers: ReadonlyMap<string, PairAnswer>): LegRoute {

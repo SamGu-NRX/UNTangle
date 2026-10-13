@@ -7,6 +7,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { getWalkingSeconds } from "@/lib/campus/walking-times";
+import { canApply, IDLE, requestKey, runReducer } from "@/components/schedule/run-state";
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import { buildPlanIcs, needsTermDates } from "@/lib/planner-ics";
@@ -16,6 +17,7 @@ import {
   buildStopsForDay,
   defaultSchedulePreferences,
   getInitialPlannerState,
+  heldOutCourses,
   hiddenOptions,
   myUntClassNumbers,
   normalizePlannerState,
@@ -27,11 +29,13 @@ import {
 import {
   hasOpenSeats,
   isCandidate,
+  meetTogether,
   meetingsConflict,
   otherSiteOf,
   optionsConflict,
   scheduleEventsOf,
   sectionRef,
+  termDates,
   toOptSection,
   untimedMeetings,
 } from "@/lib/planner-sections";
@@ -96,6 +100,7 @@ describe("the optimizer adapter", () => {
       constraints: { ...NO_CONSTRAINTS, walking: { bufferMinutes: 0 } },
       weights: GOAL_WEIGHTS.compact,
       walkingTime: () => ({ seconds: null, source: "unknown" }),
+      term: termDates["spring-2027"],
       k: 1,
     });
     expect(result.status).toBe("optimal");
@@ -258,9 +263,9 @@ describe("week lanes", () => {
   });
 });
 
-describe("which options the optimizer suggests", () => {
-  const filter = (over: Partial<{ openSeatsOnly: boolean; otherSites: boolean }> = {}) => ({ openSeatsOnly: false, otherSites: false, ...over });
+const filter = (over: Partial<{ openSeatsOnly: boolean; otherSites: boolean }> = {}) => ({ openSeatsOnly: false, otherSites: false, ...over });
 
+describe("which options the optimizer suggests", () => {
   /** MATH 1680 on main campus, plus SPAN 2040 with one Frisco option (DBAS 6003's row) and one at Discovery Park. */
   function sites() {
     const input = fixtureInput();
@@ -392,5 +397,57 @@ describe("the Discovery Park shuttle", () => {
     expect(optimize(request).status).toBe("infeasible");
     const relaxed = { ...request, constraints: { ...request.constraints, walking: null } };
     expect(optimize(relaxed).schedules[0].breakdown.walkSeconds).toBe(1200);
+  });
+});
+
+describe("review findings on the planner side (Astra, 01eff64)", () => {
+  test("two Monday classes whose ranges share only a Sunday never meet", () => {
+    const first = { start: "2027-01-11", end: "2027-01-17", raw: "" };
+    const second = { start: "2027-01-17", end: "2027-01-24", raw: "" };
+    expect(meetTogether("Mon", first, second)).toBe(false);
+    expect(meetTogether("Sun", first, second)).toBe(true);
+    // A meeting without dates runs the planning term (Jan 11 - May 7).
+    expect(meetTogether("Mon", null, first)).toBe(true);
+    expect(meetTogether("Mon", null, { start: "2027-05-08", end: "2027-05-14" })).toBe(false);
+    const [math] = optionsOf(fixtureCatalog(), "MATH 1680");
+    const monday = math.meetings.find((m) => m.day === "Mon")!;
+    expect(meetingsConflict({ ...monday, dates: first }, { ...monday, dates: second })).toBe(false);
+  });
+
+  test("a result goes stale when a pick moves its course into the search", () => {
+    // SPAN 2040 offers an async online option (ACCT 5120's) and a timed one (MATH 1680's).
+    const input = fixtureInput();
+    courseAs(input, "MATH 1680", "SPAN 2040");
+    (input.courses as Record<string, { sections: unknown[] }>)["SPAN 2040"].sections.push(structuredClone(input.courses["ACCT 5120"].sections[0]));
+    const catalog = fixtureCatalog(input);
+    const [timed, async] = optionsOf(catalog, "SPAN 2040");
+    const prefs = defaultSchedulePreferences("compact");
+    const withAsync = buildOptimizeRequest(plan_(["SPAN 2040", "MATH 1710"], { "SPAN 2040": async.id }), prefs, { catalog });
+    const withTimed = buildOptimizeRequest(plan_(["SPAN 2040", "MATH 1710"], { "SPAN 2040": timed.id }), prefs, { catalog });
+    expect(withAsync.courses.map((course) => course.code)).toEqual(["MATH 1710"]);
+    expect(withTimed.courses.map((course) => course.code)).toEqual(["MATH 1710", "SPAN 2040"]);
+    // The online course left out of the search still counts toward the credit limit.
+    expect([withAsync.fixedCredits, withTimed.fixedCredits]).toEqual([3, 0]);
+    const shown = runReducer(runReducer(IDLE, { type: "start", id: 1, inputKey: requestKey(withAsync) }), {
+      type: "reply",
+      reply: { id: 1, phase: "first", result: optimize(withAsync), settled: true },
+    });
+    expect(canApply(shown, requestKey(withAsync), shown.result!.schedules[0], {})).toEqual({ ok: true });
+    expect(canApply(shown, requestKey(withTimed), shown.result!.schedules[0], {}).ok).toBe(false);
+  });
+
+  test("a lock on an old sample section is held out of the search and named, not dropped", () => {
+    const locked = { "MATH 1680": "math-1680-002" };
+    const state = plan_(["MATH 1680", "MATH 1710"], locked);
+    const withLock = { ...state, lockedSections: locked };
+    const catalog = fixtureCatalog();
+    expect(heldOutCourses(withLock, catalog, filter())).toEqual([{ code: "MATH 1680", reason: "lock-unavailable" }]);
+    const request = buildOptimizeRequest(withLock, defaultSchedulePreferences("compact"), { catalog });
+    expect(request.courses.map((course) => course.code)).toEqual(["MATH 1710"]);
+    // Every option keeps the locked course where it is, so applying one is never refused for moving it.
+    const result = optimize(request);
+    expect(result.schedules.every((schedule) => canApply({ ...IDLE, id: 1, inputKey: "k", resultKey: "k", status: "done", result }, "k", schedule, locked).ok)).toBe(true);
+    // Unlocked, the old sample is replaced by a real option like any other pick.
+    expect(heldOutCourses(state, catalog, filter())).toEqual([]);
   });
 });

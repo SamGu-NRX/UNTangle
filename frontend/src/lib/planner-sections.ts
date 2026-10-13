@@ -18,6 +18,18 @@ import type { ScheduleEvent } from "@/lib/types";
  */
 export const planningTerm = { id: "spring-2027", label: "Spring 2027" } as const;
 
+/**
+ * First and last day of classes, per term: the dates of a meeting without
+ * its own, and the optimizer's term boundary. vsb's file names the term but
+ * carries no term dates, so this is a table. Spring 2027 is the range of
+ * every "Regular Academic Session" option in vsb's file (8,047 options, all
+ * 01/11/2027 - 05/07/2027, checked 2026-10-13). The v3 design handoff's
+ * "Jan 19 – May 7" is a mockup value and does not match it.
+ */
+export const termDates: Record<string, { start: string; end: string }> = {
+  "spring-2027": { start: "2027-01-11", end: "2027-05-07" },
+};
+
 /** One course's options as the planner knows them right now. */
 export type CourseOptions = { status: "loading" } | { status: "ready"; result: CourseSections };
 
@@ -104,11 +116,25 @@ export function rangeLabel(dates: Pick<DateRange, "start" | "end"> | null | unde
   return `${shortDate.format(new Date(`${dates.start}T00:00:00Z`))} – ${shortDate.format(new Date(`${dates.end}T00:00:00Z`))}`;
 }
 
-/** True when two date ranges can meet in the same week; a meeting without dates runs all term. */
-export function sharesWeeks(a: Pick<DateRange, "start" | "end">, b: Pick<DateRange, "start" | "end">): boolean {
-  const x = knownRange(a);
-  const y = knownRange(b);
-  return !x || !y || (x.start <= y.end && y.start <= x.end);
+const weekdayIndex: Record<Day, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const DAY_MS = 86_400_000;
+
+type MaybeRange = Pick<DateRange, "start" | "end"> | null | undefined;
+
+/**
+ * True when two meetings on `day` meet on a common date: some date with that
+ * weekday lies in both of their ranges. A meeting without dates runs the
+ * whole planning term. Overlapping ranges are not enough: Jan 11-17 and
+ * Jan 17-24 share only a Sunday, so two Monday classes in them never meet.
+ */
+export function meetTogether(day: Day, a: MaybeRange, b: MaybeRange): boolean {
+  const term = termDates[planningTerm.id];
+  const x = (a && knownRange(a)) ?? term;
+  const y = (b && knownRange(b)) ?? term;
+  const start = Date.parse(`${x.start > y.start ? x.start : y.start}T00:00:00Z`);
+  const end = Date.parse(`${x.end < y.end ? x.end : y.end}T00:00:00Z`);
+  const offset = (weekdayIndex[day] - new Date(start).getUTCDay() + 7) % 7;
+  return start + offset * DAY_MS <= end;
 }
 
 /** Same day, overlapping times, overlapping dates. TBA and async meetings never conflict. */
@@ -119,7 +145,7 @@ export function meetingsConflict(a: Meeting, b: Meeting): boolean {
     a.day === b.day &&
     a.startMinutes < b.endMinutes &&
     b.startMinutes < a.endMinutes &&
-    sharesWeeks(a.dates, b.dates)
+    meetTogether(a.day, a.dates, b.dates)
   );
 }
 
@@ -142,18 +168,33 @@ export const DISCOVERY_PARK_ID = "ntdp";
 const unmappedSites: Record<string, string> = { FRLD: "Frisco", FRISCO: "Frisco" };
 
 /**
+ * Unmapped room codes known to be in Denton, so their sections stay in the
+ * default suggestions with an unknown walk. Neither has an outline in the
+ * campus kit's OSM snapshot (the others found in vsb's file, MGYM, WSC2,
+ * PACX and SPHS, were added to the campus registry instead). The evidence
+ * is vsb's own records, checked 2026-10-13: MGV P124 holds Military Science
+ * (MILS) labs at Denton class times, and MHA 176 and 179 hold Counseling
+ * (COUN) classes, all in the Regular Academic Session with no Frisco or
+ * other site prefix. MGV is Mean Green Village; the registry's MGVP is a
+ * different code (lib/sections/INTEGRATION.md).
+ */
+const knownDentonCodes = new Set(["MGV", "MHA"]);
+
+/**
  * Where an option meets when that is not UNT's Denton campus: "Frisco",
  * "another UNT site". Null for Denton options, Discovery Park included;
  * online meetings and unassigned rooms do not move an option elsewhere.
  * vsb's schema v2 records have no campus or location field (only `room`),
- * so the room is the only evidence: an unmapped room counts as another
- * site. Synthetic samples have no real site, so they are never elsewhere.
+ * so the room is the only evidence: an unmapped room counts as another site
+ * unless its code is a known Denton code. Synthetic samples have no real site, so they are never elsewhere.
  */
 export function otherSiteOf(section: Section): string | null {
   if (section.term === null) return null;
   for (const meeting of section.meetings) {
     if (meeting.kind === "building" && meeting.offCampus && meeting.buildingId !== DISCOVERY_PARK_ID) return meeting.buildingName;
-    if (meeting.kind === "unknown") return unmappedSites[meeting.buildingCode ?? ""] ?? "another UNT site";
+    if (meeting.kind === "unknown" && !knownDentonCodes.has(meeting.buildingCode ?? "")) {
+      return unmappedSites[meeting.buildingCode ?? ""] ?? "another UNT site";
+    }
   }
   return null;
 }

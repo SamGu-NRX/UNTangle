@@ -22,14 +22,14 @@
   "stats": {
     "nodes": 8129,
     "edges": 19632,
-    "buildings": 32,
+    "buildings": 36,
     "named": 181,
     "widthKnown": 0,
     "slopeKnown": 0,
     "largestComponentShare": 0.9953253782753106
   },
   "matrix": {
-    "buildings": 29,
+    "buildings": 33,
     "anchors": {
       "art": {
         "anchor": [
@@ -291,9 +291,45 @@
         "method": "osm-entrance",
         "outlineOsmId": 256877953,
         "connectorMeters": 25.8
+      },
+      "mgym": {
+        "anchor": [
+          33.2097983,
+          -97.1537895
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 141910348,
+        "connectorMeters": 22.9
+      },
+      "wsc2": {
+        "anchor": [
+          33.2108058,
+          -97.1437685
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 518920094,
+        "connectorMeters": 22.5
+      },
+      "pacx": {
+        "anchor": [
+          33.206491,
+          -97.1556392
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 293803909,
+        "connectorMeters": 13.4
+      },
+      "sphs": {
+        "anchor": [
+          33.2124972,
+          -97.1421322
+        ],
+        "method": "outline-node",
+        "outlineOsmId": 293804600,
+        "connectorMeters": 25.6
       }
     },
-    "maxMinutes": 20.579189258647304,
+    "maxMinutes": 21.61513755335363,
     "asymmetries": 0
   },
   "outputs": {
@@ -302,12 +338,12 @@
       "bytes": 8760817
     },
     "catalogue.json": {
-      "sha256": "385708d1b7b4538c8089959653026c1777116eb913e23754113501d81c6ac463",
-      "bytes": 7979
+      "sha256": "ec098851465226bd72330f67d8f2587e987f13607699eeb636aebfe37efee8b8",
+      "bytes": 8659
     },
     "walking-times.json": {
-      "sha256": "76e57546e166aa68b6a7d27d7932b67dea8ce9b063e7cb22d28b39e5573ad08b",
-      "bytes": 41323
+      "sha256": "02fa5bc125c0609a3b7228832fc83eb90cfdbca735f8680b99b8fb6ae9942908",
+      "bytes": 52502
     }
   }
 }

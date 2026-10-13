@@ -14,7 +14,7 @@ import {
   canApply,
   isStale,
   locksKey,
-  optimizerInputKey,
+  requestKey,
   undoAvailable,
   type UndoSnapshot,
 } from "@/components/schedule/run-state";
@@ -39,6 +39,7 @@ import { plannerTravelTime, SHUTTLE_SECONDS, summarizeWeeklyWalking } from "@/li
 import {
   buildOptimizeRequest,
   getPlanningTermCourseCodes,
+  heldOutCourses,
   getCourseByCode,
   hiddenOptions,
   summarizeCredits,
@@ -158,6 +159,11 @@ export function ScheduleClient() {
     course.section ? untimedMeetings(course.section).map((meeting) => ({ course: course.code, section: course.section!, meeting })) : [],
   );
   const showsSample = selectedSections.some((section) => section.term === null);
+  const lockUnavailable = new Set(
+    heldOutCourses(plannerState, sectionCatalog, schedulePreferences.constraints)
+      .filter((course) => course.reason === "lock-unavailable")
+      .map((course) => course.code),
+  );
   const filter = schedulePreferences.constraints;
   const hidden = hiddenOptions(sectionPlan, filter);
   const hiddenNote = [
@@ -168,16 +174,14 @@ export function ScheduleClient() {
     sectionPlan.courses.flatMap((course) => (course.result ? [course.result] : [])),
     showsSample,
   );
-  // The options a run is built from: a course loading or loaded since makes a shown result stale.
-  const sectionsKey = activeCourseCodes
-    .map((code) => {
-      const loaded = sectionCatalog(code);
-      return loaded.status === "ready" ? loaded.result.sections.map((section) => section.id).join(",") : "loading";
-    })
-    .join("|");
-
-  // What a run depends on. A shown result computed from other inputs is stale.
-  const inputKey = optimizerInputKey(schedulePreferences, locks, activeCourseCodes, sectionsKey);
+  // The request Optimize would send now; a shown result computed from another request is stale.
+  const request = useMemo(
+    () => buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog }),
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plannerState, schedulePreferences, sectionCatalog, catalogVersion],
+  );
+  const inputKey = requestKey(request);
   const currentLocks = locksKey(locks);
   const stale = isStale(run, inputKey);
   const dirty = run.result === null || run.resultKey !== inputKey;
@@ -192,9 +196,9 @@ export function ScheduleClient() {
       setPickProblem(null);
       setInstantResult(fromKeyboard);
       // The worker gets plain data: the request with its walking provider turned into a table.
-      startRun(toPlainRequest(buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog })), inputKey);
+      startRun(toPlainRequest(request), inputKey);
     },
-    [inputKey, plannerState, schedulePreferences, sectionCatalog, startRun],
+    [inputKey, request, startRun],
   );
 
   // Bring the first answer of each run into view; on a phone it renders below the header.
@@ -543,11 +547,17 @@ export function ScheduleClient() {
               <ul className={styles.statusList}>
                 {review.map((course) => (
                   <li key={course.code}>
-                    {reviewNote(course)}{" "}
+                    {reviewNote(course)}
+                    {lockUnavailable.has(course.code) ? " It is locked, so Optimize leaves the course as it is." : ""}{" "}
                     <Button variant="link" size="sm" onClick={() => setPickerCourse(course.code)}>
                       {course.state === "sample-pick" ? "Pick real section" : "Pick a section"}
                       <span className={styles.srOnly}> for {course.code}</span>
                     </Button>
+                    {lockUnavailable.has(course.code) ? (
+                      <Button variant="link" size="sm" onClick={() => setSectionLock(course.code, false)}>
+                        Unlock<span className={styles.srOnly}> {course.code}</span>
+                      </Button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

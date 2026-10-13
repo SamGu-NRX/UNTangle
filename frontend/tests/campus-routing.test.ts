@@ -93,15 +93,15 @@ describe("campus registry", () => {
 
   test("all on-campus registry buildings are in bounds and off-campus ones are not", () => {
     const inBoundsCount = campusBuildings.filter((b) => !b.isOffCampus).length;
-    expect(inBoundsCount).toBe(29);
+    expect(inBoundsCount).toBe(33);
     expect(campusBuildings.filter((b) => b.isOffCampus)).toHaveLength(3);
   });
 });
 
 describe("walking-time matrix", () => {
-  test("covers exactly the 29 routable registry buildings", () => {
+  test("covers exactly the 33 routable registry buildings", () => {
     const ids = matrixBuildingIds();
-    expect(ids).toHaveLength(29);
+    expect(ids).toHaveLength(33);
     expect(ids).not.toContain("ntdp");
     expect(ids).not.toContain("ath1");
     expect(ids).not.toContain("mgvp");
