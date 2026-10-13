@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, type RefObject } from "react";
+import { registerPopover } from "./modal-layer";
 
 export type Side = "bottom" | "top";
 export type Align = "start" | "end" | "center";
@@ -109,9 +110,13 @@ export function useAnchoredPosition(
     // box's height, and a box flipped above the anchor must use that height.
     update();
     update();
+    // Belong to the anchor's modal layer, so the layer stack keeps this
+    // popover live while that layer is on top (and inert when it is not).
+    const unregister = registerPopover(floating, anchor);
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
     return () => {
+      unregister();
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);

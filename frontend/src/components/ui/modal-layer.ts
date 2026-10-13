@@ -18,6 +18,13 @@ const layers: Layer[] = [];
 const managedInert = new Set<Element>();
 /** html's own overflow, saved while any layer holds the scroll lock. */
 let savedOverflow: string | null = null;
+/**
+ * Portalled popovers (listbox, menu, date picker, tooltip) and the layer
+ * root they belong to, or null for one opened from the page. A popover
+ * lives beside its layer's root in <body>, so without this it would count
+ * as background and go inert under its own dialog.
+ */
+const popoverOwners = new Map<Element, HTMLElement | null>();
 
 /** Brings inert state and the scroll lock in line with the current stack. */
 function syncStack() {
@@ -31,12 +38,13 @@ function syncStack() {
     savedOverflow = null;
   }
 
-  // Everything except the top layer's root (and the text-only live region)
-  // is inert, lower layers included.
+  // Everything except the top layer's root, the popovers it owns and the
+  // text-only live region is inert, lower layers included.
   const wanted = new Set<Element>();
   if (top) {
     for (const el of Array.from(document.body.children)) {
       if (el === top.root || el.hasAttribute("data-ui-live")) continue;
+      if (popoverOwners.has(el) && popoverOwners.get(el) === top.root) continue;
       if (el.hasAttribute("inert") && !managedInert.has(el)) continue;
       wanted.add(el);
     }
@@ -53,6 +61,25 @@ function syncStack() {
       managedInert.add(el);
     }
   }
+}
+
+/**
+ * Records a portalled popover as belonging to the modal layer that contains
+ * its anchor (or to the page), so the stack keeps it live exactly while its
+ * owner is on top. Returns the unregister function. Called by
+ * useAnchoredPosition, which every popover uses.
+ */
+export function registerPopover(popover: HTMLElement, anchor: HTMLElement): () => void {
+  const owner = [...layers].reverse().find((layer) => layer.root.contains(anchor))?.root ?? null;
+  popoverOwners.set(popover, owner);
+  syncStack();
+  return () => {
+    popoverOwners.delete(popover);
+    if (popover.hasAttribute("inert") && managedInert.has(popover)) {
+      popover.removeAttribute("inert");
+      managedInert.delete(popover);
+    }
+  };
 }
 
 function usable(el: HTMLElement | null): el is HTMLElement {

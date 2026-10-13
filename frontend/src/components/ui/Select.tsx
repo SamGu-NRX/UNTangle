@@ -115,6 +115,11 @@ export function Select({
   const selectedIndex = options.findIndex((option) => option.value === current);
   const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
   const [validationFailed, setValidationFailed] = useState(false);
+  // The built-in "Choose an option." belongs to a failed check of the value
+  // that failed. Once a new value, new options or `required` turning off
+  // make the field valid, it clears; a caller's `error` is never touched.
+  const missing = Boolean(required) && !selected;
+  if (validationFailed && !missing) setValidationFailed(false);
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -148,7 +153,7 @@ export function Select({
   // Names and descriptions belong on the control people operate, merged
   // with the field's own label and help text.
   const labelledBy = [label ? labelId : null, ariaLabelledBy].filter(Boolean).join(" ") || undefined;
-  const shownError = error ?? (validationFailed ? "Choose an option." : null);
+  const shownError = error ?? (validationFailed && missing ? "Choose an option." : null);
   const describedBy = [shownError || help ? helpId : null, ariaDescribedBy].filter(Boolean).join(" ") || undefined;
   const invalid = shownError ? true : ariaInvalid;
 
