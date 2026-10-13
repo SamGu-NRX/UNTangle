@@ -1,0 +1,3 @@
+These are small MCP responses captured from https://www.untgrades.app/api/mcp on 2026-10-13 for adapter contract tests. They contain one course's 11 section rows, one instructor's five course identities, two search responses, missing-history responses, and the tools/list schema. No source repository code or bulk dataset was copied.
+
+`course-page.json` and `instructor-page.json` are live first pages with limit 2. Their corresponding full responses use limit 50. The fake server repaginates these captured rows and injects protocol failures locally. Instructor aggregation tests narrow the course list to the one captured course; that change is labeled in the test.

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v2 · Controls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f4;--surface:#fff;--surface-2:#eef2ee;--surface-3:#e6ece6;
+  --line:#dde8dd;--line-strong:#c3d2c3;
+  --ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6b826b;--ink-4:#93a593;
+  --brand:#00512b;--brand-hover:#007a40;--brand-soft:#e4f0e8;
+  --accent:#00a855;--accent-soft:#e3f6eb;--danger:#b3261e;--danger-soft:#fbeae8;
+  --font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;
+  --shadow-1:0 1px 2px rgba(26,46,26,.06);
+  --shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --focus:0 0 0 2px #fff,0 0 0 4px var(--accent);
+}
+html,body{background:#e3e7e3;font-family:var(--font-body);color:var(--ink);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.stage{display:flex;gap:40px;padding:40px;align-items:flex-start;min-width:max-content}
+.col{display:flex;flex-direction:column;gap:8px}
+.cap{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.sheet{width:1180px;background:var(--bg);border:1px solid #cfd7cf;border-radius:12px;padding:32px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px 32px}
+.spec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.spec h3{font:600 13px/18px var(--font-body);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.spec h3 small{font-weight:400;color:var(--ink-2)}
+.rowx{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+.lab{font:500 11px/16px var(--font-body);color:var(--ink-2);width:64px;flex:none}
+.phone{width:390px;height:844px;border-radius:44px;border:6px solid #1a2e1a;background:var(--bg);overflow:hidden;position:relative;padding:40px 16px}
+.notch{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:30px;background:#1a2e1a;border-radius:0 0 18px 18px}
+
+/* controls */
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:10px;border:1px solid transparent;font:600 13px/1 var(--font-body);color:var(--ink);background:transparent;cursor:pointer;white-space:nowrap;transition:transform 120ms var(--ease-out),background-color 160ms ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary.hover{background:var(--brand-hover)}
+.btn.ghost{background:var(--surface);border-color:var(--line-strong)}
+.btn.ghost.hover{background:var(--surface-2)}
+.btn.quiet.hover{background:var(--surface-2)}
+.btn.danger{background:var(--surface);border-color:var(--line-strong);color:var(--danger)}
+.btn.sm{height:32px;padding:0 12px}
+.btn.icon{width:36px;padding:0;justify-content:center}
+.btn.focus{box-shadow:var(--focus)}
+.btn.dis{background:var(--surface-2);color:var(--ink-4);border-color:transparent;cursor:not-allowed}
+.btn.split{padding-right:0}
+.btn.split .caret{display:inline-flex;align-items:center;justify-content:center;height:100%;width:28px;margin-left:8px;border-left:1px solid rgba(255,255,255,.25);font-size:10px}
+.btn.loading .spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.field{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font-size:14px;color:var(--ink);min-width:200px}
+.field.hover{border-color:var(--ink-4)}
+.field.focus{border-color:var(--brand);box-shadow:var(--focus)}
+.field.dis{background:var(--surface-2);color:var(--ink-4)}
+.field.err{border-color:var(--danger)}
+.field .ph{color:var(--ink-3)}
+.field .v{flex:1}
+.field svg{color:var(--ink-3);flex:none}
+.field .caret{margin-left:auto}
+.flabel{font:600 12.5px/18px var(--font-body);display:block;margin-bottom:4px}
+.fhelp{font-size:12.5px;line-height:18px;color:var(--ink-2);margin-top:4px}
+.fhelp.err{color:var(--danger)}
+kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);font:500 11px/1 var(--font-body);color:var(--ink-2)}
+
+.pop{display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-2);padding:4px;min-width:200px;transform-origin:top left}
+.opt{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:6px;font-size:13px}
+.opt.hover{background:var(--surface-2)}
+.opt.sel{font-weight:600}
+.opt .r{margin-left:auto;font-size:12px;color:var(--ink-2)}
+.opt .chk{margin-left:auto;color:var(--brand)}
+.opt.dis{color:var(--ink-4)}
+.opt.danger{color:var(--danger)}
+.sep{height:1px;background:var(--line);margin:4px 0}
+
+.seg{display:inline-flex;height:32px;padding:2px;border-radius:8px;background:var(--surface-3)}
+.seg a{display:inline-flex;align-items:center;justify-content:center;min-width:56px;padding:0 12px;border-radius:6px;font:600 13px/1 var(--font-body);color:var(--ink-2);user-select:none}
+.seg a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.seg a.dis{color:var(--ink-4)}
+.seg.sm{height:28px}.seg.sm a{font-size:12.5px;min-width:48px}
+.seg.full{display:flex;width:100%}.seg.full a{flex:1;min-width:0}
+
+.tog{display:inline-flex;align-items:center;gap:12px}
+.tog .tr{width:36px;height:20px;border-radius:999px;background:var(--line-strong);position:relative;flex:none;transition:background-color 160ms ease}
+.tog .tr::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:var(--shadow-1);transition:transform 160ms var(--ease-out)}
+.tog.on .tr{background:var(--brand)}
+.tog.on .tr::after{transform:translateX(16px)}
+.tog.dis{opacity:.5}
+.tog.focus .tr{box-shadow:var(--focus)}
+.tog .tx b{display:block;font-weight:500}
+.tog .tx small{font-size:12.5px;color:var(--ink-2)}
+
+.cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--line-strong);display:inline-block;vertical-align:-3px;position:relative;margin-right:8px}
+.cb.on{background:var(--brand);border-color:var(--brand)}
+.cb.on::after{content:"";position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.cb.ind{background:var(--brand);border-color:var(--brand)}
+.cb.ind::after{content:"";position:absolute;left:3px;top:6px;width:8px;height:2px;background:#fff}
+.rd{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-strong);display:inline-block;vertical-align:-3px;position:relative;margin-right:8px}
+.rd.on{border-color:var(--brand)}
+.rd.on::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--brand)}
+.cb.focus,.rd.focus{box-shadow:var(--focus)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface);font:500 13px/1 var(--font-body);color:var(--ink);user-select:none}
+.chip.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand);font-weight:600}
+.chip.on::before{content:"";width:5px;height:9px;border:solid var(--brand);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px);margin-right:1px}
+.chip.hover{background:var(--surface-2)}
+.chip .n{color:var(--ink-2);font-weight:400}
+.tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:6px;border:1px dotted var(--line-strong);font:500 11px/1 var(--font-body);color:var(--ink-2)}
+
+.slider{width:100%}
+.slider .lbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
+.slider .lbl b{color:var(--ink);font-weight:600}
+.track{position:relative;height:4px;border-radius:999px;background:var(--line-strong);margin:14px 9px 4px}
+.track .fill{position:absolute;left:0;top:0;bottom:0;background:var(--brand);border-radius:999px}
+.track .thumb{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff;border:1.5px solid var(--brand);box-shadow:var(--shadow-1);transform:translate(-50%,-50%)}
+.track .thumb.active{transform:translate(-50%,-50%) scale(1.15)}
+.track .thumb.focus{box-shadow:var(--focus)}
+.track .bub{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:var(--ink);color:#fff;font:700 12px/1 var(--font-display);padding:5px 7px;border-radius:6px;white-space:nowrap}
+.track .bub::after{content:"";position:absolute;left:50%;bottom:-3px;width:6px;height:6px;background:var(--ink);transform:translateX(-50%) rotate(45deg)}
+.track .ends{position:absolute;left:0;right:0;top:12px;display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2)}
+
+.cal{display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-2);padding:12px;width:272px}
+.cal .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.cal .mh{display:flex;align-items:center;justify-content:space-between;height:28px;font:600 14px/1 var(--font-body);margin-bottom:6px}
+.cal .mh .btn{width:28px;height:28px;padding:0;justify-content:center;border-radius:6px}
+.cal .wd,.cal .days{display:grid;grid-template-columns:repeat(7,32px);gap:2px}
+.cal .wd span{font:600 10px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:center}
+.cal .days span{height:32px;display:grid;place-items:center;border-radius:6px;font-size:13px}
+.cal .days span.o{color:var(--ink-4)}
+.cal .days span.today{box-shadow:inset 0 0 0 1px var(--brand)}
+.cal .days span.sel{background:var(--brand);color:#fff;font-weight:600}
+.cal .days span.in{background:var(--brand-soft);border-radius:0}
+.cal .days span.in.first{border-radius:6px 0 0 6px}.cal .days span.in.last{border-radius:0 6px 6px 0}
+
+.tip{display:inline-block;background:var(--ink);color:#fff;font:500 12px/1 var(--font-body);padding:6px 8px;border-radius:6px;position:relative}
+.tip::after{content:"";position:absolute;left:50%;bottom:-3px;width:6px;height:6px;background:var(--ink);transform:translateX(-50%) rotate(45deg)}
+.prog{height:4px;border-radius:999px;background:var(--surface-3);overflow:hidden;width:100%}
+.prog i{display:block;height:100%;width:40%;background:var(--brand);border-radius:999px}
+.prog.ind i{width:30%;animation:slide 1.2s linear infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(333%)}}
+.toast{display:inline-flex;align-items:center;gap:14px;height:44px;padding:0 16px;border-radius:10px;background:var(--ink);color:#fff;font:500 13px/1 var(--font-body);box-shadow:0 16px 40px rgba(26,46,26,.14)}
+.toast a{color:#9fdcb8;font-weight:600}
+
+/* phone variants */
+.pf{margin-top:14px}
+.pf .field{width:100%;height:44px;font-size:16px}
+.pf .btn{height:44px;font-size:14px;width:100%;justify-content:center}
+.pf select{appearance:none;-webkit-appearance:none;width:100%;height:44px;padding:0 36px 0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236b826b' stroke-width='1.6'%3E%3Cpath d='M4 6l4 4 4-4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center;font:400 16px var(--font-body);color:var(--ink)}
+.pf input[type=date]{appearance:none;-webkit-appearance:none;width:100%;height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font:400 16px var(--font-body);color:var(--ink)}
+.pf .seg{height:36px}.pf .seg a{font-size:14px}
+.pf .chip{height:32px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="stage">
+<div class="col">
+  <div class="cap">Controls · desktop specimens with states. Every control: 36px, 1px line-strong border, radius 8 (fields) / 10 (buttons), focus = 2px white + 4px accent ring.</div>
+  <div class="sheet">
+
+    <div class="spec">
+      <h3>Button <small>primary · ghost · quiet · destructive · split · loading · disabled</small></h3>
+      <div class="rowx"><span class="lab">default</span><button class="btn primary">Optimize week</button><button class="btn ghost">Print</button><button class="btn quiet">Cancel</button><button class="btn danger">Remove</button></div>
+      <div class="rowx"><span class="lab">hover</span><button class="btn primary hover">Optimize week</button><button class="btn ghost hover">Print</button><button class="btn quiet hover">Cancel</button></div>
+      <div class="rowx"><span class="lab">focus</span><button class="btn primary focus">Optimize week</button><button class="btn ghost focus">Print</button></div>
+      <div class="rowx"><span class="lab">other</span><button class="btn primary split">✦ Auto-fill<span class="caret">▾</span></button><button class="btn primary loading"><span class="spin"></span>Filling…</button><button class="btn primary dis">Locked</button><button class="btn ghost icon">⋯</button></div>
+    </div>
+
+    <div class="spec">
+      <h3>Select <small>closed states, then the Listbox</small></h3>
+      <div class="rowx"><span class="lab">default</span><div class="field"><span class="v">All instructors</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      <div class="rowx"><span class="lab">hover</span><div class="field hover"><span class="v">All instructors</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      <div class="rowx"><span class="lab">open</span><div class="field focus"><span class="v">R. Okafor</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      <div class="rowx" style="margin-left:74px"><div class="pop">
+        <div class="opt">All instructors<span class="r">14 sections</span></div>
+        <div class="opt sel">R. Okafor<span class="chk"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 8.5 6.5 11.5 12.5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <div class="opt hover">M. Delgado<span class="r">3 sections</span></div>
+        <div class="opt">S. Whitfield<span class="r">2 sections</span></div>
+        <div class="opt dis">A. Lindqvist<span class="r">no grades yet</span></div>
+      </div></div>
+      <div class="rowx"><span class="lab">disabled</span><div class="field dis"><span class="v">All instructors</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    </div>
+
+    <div class="spec">
+      <h3>Dropdown menu <small>PlanChip, Auto-fill caret, ⋯ overflow</small></h3>
+      <div class="rowx"><div class="pop" style="min-width:240px">
+        <div class="opt"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h8l2 2v8H3z"/><path d="M5 3v4h5V3"/></svg>Save a copy<span class="r"><kbd>⌘S</kbd></span></div>
+        <div class="opt hover"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>Rename<span class="r"><kbd>R</kbd></span></div>
+        <div class="sep"></div>
+        <div class="opt" style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);height:24px">Saved plans</div>
+        <div class="opt sel">Spring 2027 · v3<span class="r">open</span></div>
+        <div class="opt">Spring 2027 · v2<span class="r">Compare</span></div>
+        <div class="opt">No Fridays try<span class="r">Compare</span></div>
+        <div class="sep"></div>
+        <div class="opt">Open library<span class="r">›</span></div>
+        <div class="opt danger">Archive this plan</div>
+      </div></div>
+    </div>
+
+    <div class="spec">
+      <h3>Segmented control <small>32 default · 28 small · full width · disabled segment</small></h3>
+      <div class="rowx"><nav class="seg"><a class="on">Courses</a><a>Week</a><a>Map</a></nav><nav class="seg sm"><a>Earlier</a><a class="on">Any</a><a>Later</a></nav></div>
+      <div class="rowx"><nav class="seg full"><a class="on">Mon</a><a>Tue</a><a>Wed</a><a>Thu</a><a class="dis">Fri</a></nav></div>
+      <div class="fhelp">The selected pill is one element and moves with transform (160ms ease-out). Labels never animate.</div>
+    </div>
+
+    <div class="spec">
+      <h3>Toggle <small>only for true on/off settings</small></h3>
+      <div class="rowx"><label class="tog on"><span class="tr"></span><span class="tx"><b>Include labs in walking time</b><small>Adds lab buildings to the route</small></span></label></div>
+      <div class="rowx"><label class="tog"><span class="tr"></span><span class="tx"><b>Show instructor ratings</b></span></label></div>
+      <div class="rowx"><label class="tog on focus"><span class="tr"></span><span class="tx"><b>Focused</b></span></label><label class="tog dis"><span class="tr"></span><span class="tx"><b>Disabled</b></span></label></div>
+    </div>
+
+    <div class="spec">
+      <h3>Checkbox and radio</h3>
+      <div class="rowx"><span><span class="cb"></span>Off</span><span><span class="cb on"></span>On</span><span><span class="cb ind"></span>Some</span><span><span class="cb focus"></span>Focus</span></div>
+      <div class="rowx"><span><span class="rd"></span>§001</span><span><span class="rd on"></span>§003</span><span><span class="rd focus"></span>Focus</span></div>
+      <h3 style="margin-top:16px">Chip <small>toggle, with count</small></h3>
+      <div class="rowx"><span class="chip">No Fridays</span><span class="chip on">No 8 AMs</span><span class="chip hover">Compact days</span><span class="chip on">Short walks <span class="n">· 10 min</span></span></div>
+      <div class="rowx"><span class="lab">tags</span><span class="tag">From transcript</span><span class="tag">Sample</span><span class="tag">Approx.</span><span class="tag">UNT records 2019–2024</span></div>
+    </div>
+
+    <div class="spec">
+      <h3>Slider <small>single and range; bubble appears while dragging</small></h3>
+      <div class="slider"><div class="lbl"><span>Max walk between classes</span><b>10 min</b></div>
+        <div class="track"><div class="fill" style="width:40%"></div><div class="thumb active" style="left:40%"><div class="bub">10</div></div><div class="ends"><span>2</span><span>20 min</span></div></div></div>
+      <div class="slider" style="margin-top:28px"><div class="lbl"><span>Class window</span><b>9 AM – 3 PM</b></div>
+        <div class="track"><div class="fill" style="left:15%;width:50%"></div><div class="thumb" style="left:15%"></div><div class="thumb focus" style="left:65%"></div><div class="ends"><span>7 AM</span><span>9 PM</span></div></div></div>
+    </div>
+
+    <div class="spec">
+      <h3>Search and text fields</h3>
+      <div class="rowx"><div class="field" style="background:var(--surface-2);border-color:transparent"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg><span class="ph v">Search courses</span><kbd>⌘K</kbd></div></div>
+      <div class="rowx"><div class="field focus"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg><span class="v">data str</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg></div></div>
+      <div style="margin-top:14px"><label class="flabel">Plan name</label><div class="field"><span class="v">Spring 2027 · v3</span></div><div class="fhelp">Shown in the top bar.</div></div>
+      <div style="margin-top:12px"><label class="flabel">UNT email</label><div class="field err"><span class="v">sam@gmail.com</span></div><div class="fhelp err">Use your @unt.edu or @my.unt.edu address.</div></div>
+    </div>
+
+    <div class="spec">
+      <h3>Date input <small>with term presets; range for the .ics dialog</small></h3>
+      <div class="rowx"><div><label class="flabel">First day of classes</label><div class="field focus"><span class="v">Jan 20, 2027</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></svg></div></div></div>
+      <div class="rowx"><div class="cal">
+        <div class="presets"><span class="chip on" style="height:26px;font-size:12px">Spring 2027 · Jan 20–May 7</span><span class="chip" style="height:26px;font-size:12px">Summer 2027</span><span class="chip" style="height:26px;font-size:12px">Fall 2027</span></div>
+        <div class="mh"><button class="btn quiet">‹</button><span>January 2027</span><button class="btn quiet">›</button></div>
+        <div class="wd"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+        <div class="days">
+          <span class="o">27</span><span class="o">28</span><span class="o">29</span><span class="o">30</span><span class="o">31</span><span>1</span><span>2</span>
+          <span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
+          <span>10</span><span>11</span><span>12</span><span class="today">13</span><span>14</span><span>15</span><span>16</span>
+          <span>17</span><span>18</span><span>19</span><span class="sel">20</span><span class="in first">21</span><span class="in">22</span><span class="in last">23</span>
+          <span class="in first">24</span><span class="in">25</span><span class="in">26</span><span class="in">27</span><span class="in">28</span><span class="in">29</span><span class="in last">30</span>
+          <span class="in first">31</span><span class="in o">1</span><span class="in o">2</span><span class="in o">3</span><span class="in o">4</span><span class="in o">5</span><span class="in o last">6</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="spec">
+      <h3>Tooltip, kbd, progress, toast</h3>
+      <div class="rowx"><span class="tip">A · 146 students · 35%</span><span class="tip">You set this. Click to reset.</span></div>
+      <div class="rowx"><kbd>⌘K</kbd><kbd>esc</kbd><kbd>↵</kbd><kbd>⌘↵</kbd></div>
+      <div class="rowx" style="display:block"><div class="prog"><i></i></div><div class="fhelp">Determinate</div><div class="prog ind" style="margin-top:8px"><i></i></div><div class="fhelp">Indeterminate · 1.2s linear</div></div>
+      <div class="rowx"><div class="toast">Optimized · 2 sections moved <a>Undo</a></div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="col">
+  <div class="cap">Phone · 390 · same controls at touch size: 44px, 16px text (no zoom on focus), native select and date behind the same skin</div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="pf"><label class="flabel">Search</label><div class="field" style="border-color:var(--line-strong)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg><span class="ph v">Search courses</span></div></div>
+    <div class="pf"><label class="flabel">Instructor <span style="font-weight:400;color:var(--ink-2)">(native picker)</span></label><select><option>All instructors</option><option>R. Okafor</option></select></div>
+    <div class="pf"><label class="flabel">First day of classes <span style="font-weight:400;color:var(--ink-2)">(native date)</span></label><input type="date" value="2027-01-20"></div>
+    <div class="pf"><div class="rowx" style="margin-top:0"><span class="chip on" style="font-size:13px">Spring 2027 · Jan 20–May 7</span><span class="chip" style="font-size:13px">Summer 2027</span></div></div>
+    <div class="pf"><nav class="seg full"><a class="on">Mon</a><a>Tue</a><a>Wed</a><a>Thu</a><a>Fri</a></nav></div>
+    <div class="pf"><div class="rowx" style="margin-top:0"><span class="chip">No Fridays</span><span class="chip on">No 8 AMs</span><span class="chip">Compact days</span><span class="chip on">Short walks</span></div></div>
+    <div class="pf"><label class="tog on" style="width:100%"><span class="tr"></span><span class="tx"><b>Include labs in walking time</b><small>Adds lab buildings to the route</small></span></label></div>
+    <div class="pf"><div class="slider"><div class="lbl"><span>Max walk between classes</span><b>10 min</b></div><div class="track"><div class="fill" style="width:40%"></div><div class="thumb" style="left:40%;width:24px;height:24px"></div></div></div></div>
+    <div class="pf" style="margin-top:28px"><button class="btn primary">Optimize week</button></div>
+    <div class="pf" style="margin-top:8px"><button class="btn ghost">Cancel</button></div>
+  </div>
+</div>
+</div>
+</body>
+</html>

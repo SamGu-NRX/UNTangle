@@ -1,0 +1,76 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"prefix\":\"CSCE\",\"number\":\"1030\",\"title\":\"COMPUTER SCIENCE I\",\"path\":\"/course/CSCE/1030\",\"totalSections\":11,\"offset\":0,\"nextOffset\":2,\"totalGrades\":861,\"aggregateGrades\":{\"A\":249,\"B\":171,\"C\":126,\"D\":66,\"F\":152,\"P\":0,\"NP\":0,\"W\":97,\"I\":0},\"gpa\":2.39,\"sections\":[{\"sectionNumber\":\"1\",\"instructor\":{\"firstName\":\"Pradhumna Lal\",\"lastName\":\"Shrestha\"},\"year\":\"2026\",\"term\":\"Spring\",\"grades\":{\"A\":20,\"B\":22,\"C\":15,\"D\":12,\"F\":26,\"P\":0,\"NP\":0,\"W\":10,\"I\":0}},{\"sectionNumber\":\"2\",\"instructor\":{\"firstName\":\"Pradhumna Lal\",\"lastName\":\"Shrestha\"},\"year\":\"2026\",\"term\":\"Spring\",\"grades\":{\"A\":12,\"B\":10,\"C\":13,\"D\":12,\"F\":25,\"P\":0,\"NP\":0,\"W\":20,\"I\":0}}]}"
+      }
+    ],
+    "structuredContent": {
+      "prefix": "CSCE",
+      "number": "1030",
+      "title": "COMPUTER SCIENCE I",
+      "path": "/course/CSCE/1030",
+      "totalSections": 11,
+      "offset": 0,
+      "nextOffset": 2,
+      "totalGrades": 861,
+      "aggregateGrades": {
+        "A": 249,
+        "B": 171,
+        "C": 126,
+        "D": 66,
+        "F": 152,
+        "P": 0,
+        "NP": 0,
+        "W": 97,
+        "I": 0
+      },
+      "gpa": 2.39,
+      "sections": [
+        {
+          "sectionNumber": "1",
+          "instructor": {
+            "firstName": "Pradhumna Lal",
+            "lastName": "Shrestha"
+          },
+          "year": "2026",
+          "term": "Spring",
+          "grades": {
+            "A": 20,
+            "B": 22,
+            "C": 15,
+            "D": 12,
+            "F": 26,
+            "P": 0,
+            "NP": 0,
+            "W": 10,
+            "I": 0
+          }
+        },
+        {
+          "sectionNumber": "2",
+          "instructor": {
+            "firstName": "Pradhumna Lal",
+            "lastName": "Shrestha"
+          },
+          "year": "2026",
+          "term": "Spring",
+          "grades": {
+            "A": 12,
+            "B": 10,
+            "C": 13,
+            "D": 12,
+            "F": 25,
+            "P": 0,
+            "NP": 0,
+            "W": 20,
+            "I": 0
+          }
+        }
+      ]
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 3
+}

@@ -1,5 +1,5 @@
-import { LandingClient } from "@/components/landing-client";
+import { HomeEntry } from "@/components/shell/HomeEntry";
 
 export default function HomePage() {
-  return <LandingClient />;
+  return <HomeEntry />;
 }

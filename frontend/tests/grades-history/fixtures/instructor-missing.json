@@ -1,0 +1,20 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"firstName\":\"UNTangleNoHistory\",\"lastName\":\"UNTangleNoHistory\",\"totalCourses\":0,\"offset\":0,\"nextOffset\":null,\"courses\":[]}"
+      }
+    ],
+    "structuredContent": {
+      "firstName": "UNTangleNoHistory",
+      "lastName": "UNTangleNoHistory",
+      "totalCourses": 0,
+      "offset": 0,
+      "nextOffset": null,
+      "courses": []
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 10
+}

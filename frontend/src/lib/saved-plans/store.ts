@@ -24,6 +24,8 @@ import type { PlannerState } from "@/lib/types";
  */
 
 export const SAVED_PLANS_STORE_KEY = "untangle.saved-plans.v1";
+/** Fired on window after every successful library write in this tab. */
+export const SAVED_PLANS_CHANGED_EVENT = "untangle:saved-plans-changed";
 export const SAVED_PLANS_STORE_SCHEMA_VERSION = 1;
 const QUARANTINE_PREFIX = "untangle.saved-plans.corrupt-";
 const MAX_FRESHNESS_ATTEMPTS = 3;
@@ -264,6 +266,9 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
     }
     try {
       resolvedStorage.setItem(SAVED_PLANS_STORE_KEY, JSON.stringify(doc));
+      // `storage` events only reach other tabs; views in this tab (the plan
+      // library while the top bar's "Save a copy" writes) hear this one.
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(SAVED_PLANS_CHANGED_EVENT));
       return null;
     } catch {
       return {
@@ -497,6 +502,24 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
       }
       return { ok: true, snapshot: imported, references: validation.references };
     },
+  };
+}
+
+/**
+ * Calls `listener` whenever the saved-plan library changes: after a write in
+ * this tab, or a write to the same key from another tab. Returns the
+ * unsubscribe function.
+ */
+export function subscribeSavedPlans(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === SAVED_PLANS_STORE_KEY) listener();
+  };
+  window.addEventListener(SAVED_PLANS_CHANGED_EVENT, listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(SAVED_PLANS_CHANGED_EVENT, listener);
+    window.removeEventListener("storage", onStorage);
   };
 }
 
