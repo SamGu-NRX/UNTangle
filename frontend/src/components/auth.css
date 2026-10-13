@@ -1,0 +1,107 @@
+/* Sign-in and password reset: one centred card (DESIGN.md §9 auth re-skin). */
+
+.auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+.auth__card {
+  display: grid;
+  gap: 14px;
+  width: min(400px, 100%);
+  padding: 28px 24px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.auth__wordmark {
+  justify-self: start;
+  border-radius: 6px;
+  font: 800 var(--wordmark) / 1 var(--font-display);
+  letter-spacing: -0.01em;
+  color: var(--brand);
+}
+.auth__wordmark:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+.auth__title {
+  margin: 6px 0 0;
+  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
+  color: var(--ink);
+}
+.auth__title:focus,
+.auth__title:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.auth__lede {
+  margin: -8px 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.auth__form {
+  display: grid;
+  gap: 12px;
+}
+.auth__note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.auth__submit,
+.auth__guest {
+  width: 100%;
+}
+.auth__status {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+/* Kept in the tree while empty so the live region announces its first
+   message; the negative margin cancels the card's gap meanwhile. */
+.auth__status:empty {
+  margin-top: -14px;
+}
+.auth__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.auth__foot a {
+  border-radius: 4px;
+  color: var(--brand);
+  font-weight: 600;
+}
+.auth__foot a.auth__foot-quiet {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.auth__foot a:hover {
+  text-decoration: underline;
+}
+@media (max-width: 719px) {
+  .auth {
+    align-items: flex-start;
+  }
+  .auth__card {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 12px 4px;
+  }
+}

@@ -23,6 +23,11 @@ const ADJACENT_WINDOW = 300;
 let lastClosedAt = 0;
 let openCount = 0;
 
+/** Whether another tooltip is open or closed a moment ago (read on hover/focus, never in render). */
+function nextToAnother(): boolean {
+  return openCount > 0 || Date.now() - lastClosedAt < ADJACENT_WINDOW;
+}
+
 type TriggerProps = {
   ref?: Ref<HTMLElement>;
   "aria-describedby"?: string;
@@ -67,7 +72,7 @@ export function Tooltip({ content, children, side = "top", openOnTap }: TooltipP
 
   const show = (immediate: boolean) => {
     clearTimer();
-    const adjacent = openCount > 0 || Date.now() - lastClosedAt < ADJACENT_WINDOW;
+    const adjacent = nextToAnother();
     if (immediate || adjacent) {
       setInstant(adjacent);
       setOpen(true);
@@ -102,6 +107,10 @@ export function Tooltip({ content, children, side = "top", openOnTap }: TooltipP
   const childProps = children.props;
   const describedBy = [childProps["aria-describedby"], descriptionId].filter(Boolean).join(" ");
 
+  // react-hooks/refs flags any closure over a ref passed to a function, since
+  // the function might call it during render. cloneElement only stores these
+  // props: mergeRefs attaches at commit and the handlers run on events.
+  /* eslint-disable react-hooks/refs */
   const trigger = cloneElement(children, {
     ref: mergeRefs(childProps.ref, triggerRef),
     "aria-describedby": describedBy,
@@ -129,6 +138,7 @@ export function Tooltip({ content, children, side = "top", openOnTap }: TooltipP
       }
     },
   });
+  /* eslint-enable react-hooks/refs */
 
   return (
     <>

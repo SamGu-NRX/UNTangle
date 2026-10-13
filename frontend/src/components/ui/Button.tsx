@@ -15,7 +15,12 @@ export type ButtonSize = "md" | "sm";
 export type ButtonProps = ComponentPropsWithRef<"button"> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Shows a spinner and `loadingLabel` in the label's place; the width holds. */
+  /**
+   * Shows a spinner and `loadingLabel` in the label's place; the width holds.
+   * Pass it (even as `false`) only on buttons that can load: the hidden
+   * loading label is rendered only then, so a plain button's text appears
+   * once in the DOM (textContent, find-in-page, copy).
+   */
   loading?: boolean;
   /** The verb shown while loading, e.g. "Filling…". Defaults to the label. */
   loadingLabel?: ReactNode;
@@ -35,7 +40,7 @@ const variantClass: Record<ButtonVariant, string> = {
 export function Button({
   variant = "primary",
   size = "md",
-  loading = false,
+  loading: loadingProp,
   loadingLabel,
   icon,
   className,
@@ -44,6 +49,8 @@ export function Button({
   type = "button",
   ...rest
 }: ButtonProps) {
+  const loading = loadingProp === true;
+  const canLoad = loadingProp !== undefined || loadingLabel !== undefined;
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     // aria-disabled rather than `disabled` while loading, so a focused
     // button keeps focus through the run instead of dropping it to <body>.
@@ -69,10 +76,12 @@ export function Button({
           {icon ? <span className="ui-btn__icon">{icon}</span> : null}
           {children}
         </span>
-        <span className="ui-btn__label ui-btn__label--loading" aria-hidden={!loading || undefined}>
-          <Spinner />
-          {loadingLabel ?? children}
-        </span>
+        {canLoad ? (
+          <span className="ui-btn__label ui-btn__label--loading" aria-hidden={!loading || undefined}>
+            <Spinner />
+            {loadingLabel ?? children}
+          </span>
+        ) : null}
       </span>
     </button>
   );

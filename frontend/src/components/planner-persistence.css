@@ -1,0 +1,78 @@
+/* The plan's save state, its recovery actions and the conflict dialog. */
+
+.persistence {
+  display: grid;
+  gap: 8px;
+}
+.persistence__state {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+}
+.persistence__state[data-attention] {
+  background: var(--danger-soft);
+  border-color: transparent;
+}
+.persistence__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  transform: translateY(-1px);
+}
+.persistence__dot[data-tone="saved"] {
+  background: var(--accent);
+}
+.persistence__dot[data-tone="not-saved"],
+.persistence__dot[data-tone="failed"],
+.persistence__dot[data-tone="signed-out"] {
+  background: var(--danger);
+}
+.persistence__state strong {
+  font-weight: 600;
+}
+.persistence__detail {
+  color: var(--ink-2);
+}
+.persistence__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.persistence__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.persistence__conflict {
+  display: grid;
+  gap: 10px;
+}
+.persistence__conflict p {
+  margin: 0;
+}
+.persistence__version {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: var(--text-md);
+}
+.persistence__version span {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}

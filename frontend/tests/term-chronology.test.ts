@@ -29,7 +29,8 @@ describe("term parsing via local transcript parser", () => {
     expect(payload.records[0].code).toBe("CSCE 1030");
     expect(payload.records[0].term).toBe("Fall 2025");
     expect(payload.records[0].sourceKind).toBe("unt");
-    expect(payload.records[0].rationale).toBe("Parsed from transcript table text without AI.");
+    // A parsed table row carries no note of its own; review shows its classification instead.
+    expect(payload.records[0].rationale).toBe("");
   });
 
   test("still parses year-first term headers", () => {

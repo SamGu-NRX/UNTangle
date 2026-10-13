@@ -272,13 +272,17 @@ describe("saved-plan store", () => {
   });
 
   it("falls back to a generated default name when saving unnamed", () => {
-    expect(defaultPlanName(new Date("2026-10-10T12:34:00.000Z"))).toBe("Plan 2026-10-10 12:34");
+    // The name uses the student's local time, so the expectation is built from the same Date's local fields.
+    const at = new Date("2026-10-10T12:34:00.000Z");
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const expected = `Plan ${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
+    expect(defaultPlanName(at)).toBe(expected);
 
     const store = createSavedPlanStore(new MemoryStorage() as unknown as Storage);
     const saved = store.savePlan({ state: stateWith({}), now: new Date("2026-10-10T12:34:00.000Z") });
     expect(saved.ok).toBe(true);
     if (!saved.ok) return;
-    expect(saved.value.name).toBe("Plan 2026-10-10 12:34");
+    expect(saved.value.name).toBe(expected);
   });
 
   it("exports a plan as pretty JSON that validates back through the contract", () => {

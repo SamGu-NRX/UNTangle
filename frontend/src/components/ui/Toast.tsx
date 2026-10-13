@@ -129,7 +129,9 @@ export function Toaster() {
   return (
     <>
       {createPortal(
-        <div className="sr-only-v2" role="status" aria-live="polite" data-ui-live="">
+        // aria-live without role="status": the page's own status regions
+        // (save state, Connect's progress) stay the only "status" landmarks.
+        <div className="sr-only-v2" aria-live="polite" aria-atomic="true" data-ui-live="">
           {record?.message ?? ""}
         </div>,
         document.body,

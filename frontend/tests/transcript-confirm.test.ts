@@ -1,17 +1,16 @@
 /**
  * Confirmation-behavior tests for the transcript import apply flow.
  *
- * The import review step requires per-row user approval (the `included` Set,
- * one checkbox per detected row) before any row is applied to the planner.
- * These tests exercise the real gate (`selectApprovedTranscriptRecords`,
- * shared by the component's `saveDetectedCourses` and its review summary) and
- * then verify what the planner's `applyTranscriptRecords` persists via
- * `mergeTranscriptRecords` + sessionStorage — the same happy-dom pattern as
+ * The Connect sheet's review step requires per-row approval (the `included`
+ * Set, one checkbox per detected row) before any row is applied to the
+ * planner. These tests exercise the real gate (`selectApprovedTranscriptRecords`,
+ * which the sheet's Save button and its count both use) and then verify what
+ * the planner's `applyTranscriptRecords` persists via
+ * `mergeTranscriptRecords` + sessionStorage, the same happy-dom pattern as
  * planner-core.test.ts.
  *
- * Logic-level by design: rendering TranscriptImportClient would mount the
- * component's unconditional next/script tag for https://js.puter.com/v2/,
- * which these offline tests must never load. All records are fabricated.
+ * Logic-level by design: the sheet itself is covered by the design-pass-a
+ * journey. All records are fabricated.
  */
 import { describe, expect, it } from "bun:test";
 import { Window } from "happy-dom";

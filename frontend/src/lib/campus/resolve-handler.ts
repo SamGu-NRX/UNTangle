@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import { campusResolver, type CampusConfig } from "@/lib/campus/config";
 import { geocodeQuery, isInsideBounds } from "@/lib/campus-locations";
-import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
+import { TtlLruCache } from "@/lib/map-cache";
 import type { MapResolvedLocation } from "@/lib/types";
 
 const maxLocations = 20;
 
 const failureTtlMs = 5 * 60 * 1000;
-const rateLimitWindowMs = 60 * 1000;
-const rateLimitMaxRequests = 60;
 
 type ResolveInput = {
   locations?: Array<{
@@ -39,10 +37,6 @@ export function createResolveHandler(campus: CampusConfig) {
     maxEntries: 500,
     ttlMs: 24 * 60 * 60 * 1000,
     failureTtlMs,
-  });
-  const limiter = new SlidingWindowRateLimiter({
-    windowMs: rateLimitWindowMs,
-    maxRequests: rateLimitMaxRequests,
   });
 
   function unresolved(
@@ -165,14 +159,6 @@ export function createResolveHandler(campus: CampusConfig) {
   }
 
   async function POST(request: Request) {
-    const limit = limiter.check(clientIpFromRequest(request));
-    if (!limit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests" },
-        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-      );
-    }
-
     let body: ResolveInput;
 
     try {

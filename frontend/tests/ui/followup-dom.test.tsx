@@ -23,13 +23,16 @@ describe("popovers inside the top modal layer", () => {
   test("closing a lower dialog keeps the open listbox in the upper dialog live", async () => {
     const { Dialog } = await import("@/components/ui/Dialog");
     const { Select } = await import("@/components/ui/Select");
-    const { useState } = await import("react");
+    const { useEffect, useState } = await import("react");
     const controls: { setA?: (open: boolean) => void; setB?: (open: boolean) => void } = {};
     function Harness() {
       const [a, setA] = useState(false);
       const [b, setB] = useState(false);
-      controls.setA = setA;
-      controls.setB = setB;
+      // Handed out after render, where the React compiler allows writing outside the component.
+      useEffect(() => {
+        controls.setA = setA;
+        controls.setB = setB;
+      }, []);
       return (
         <>
           <Dialog open={a} onOpenChange={setA} title="Dialog A">
