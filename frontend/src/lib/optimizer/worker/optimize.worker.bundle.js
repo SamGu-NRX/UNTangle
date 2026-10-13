@@ -1540,6 +1540,23 @@ function describePattern(section) {
     return `${ordered.map((day) => DAY_LETTER[day]).join("")} ${formatClock(start)}`;
   }).join(", ");
 }
+var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function rangeOf(request, section) {
+  const ranges = section.meetings.map((meeting) => meeting.dates ?? request.term ?? null);
+  const known = ranges.filter((range) => range !== null);
+  if (known.length !== ranges.length)
+    return null;
+  return {
+    start: known.reduce((min, range) => range.start < min ? range.start : min, known[0].start),
+    end: known.reduce((max, range) => range.end > max ? range.end : max, known[0].end)
+  };
+}
+function datesLabel(request, range) {
+  if (request.term && range.start === request.term.start && range.end === request.term.end)
+    return "full term";
+  const day = (iso) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
+  return range.start === range.end ? day(range.start) : `${day(range.start)}–${day(range.end)}`;
+}
 function joinList(items) {
   if (items.length <= 1)
     return items.join("");
@@ -1589,6 +1606,16 @@ function explainSentence(request, members) {
   const locked = new Map(members.filter((member) => member.kind === "lock").map((member) => [member.courseCode, member.sectionId]));
   const sectionById = new Map(request.courses.flatMap((course) => course.sections).map((section) => [section.id, section]));
   const sub = restrictTo(request, members);
+  const rangeKeys = new Set(sub.courses.flatMap((course) => course.sections.map((section) => JSON.stringify(rangeOf(request, section)))));
+  const dated = rangeKeys.size > 1;
+  const datesOf = (section) => {
+    const range = rangeOf(request, section);
+    return range ? datesLabel(request, range) : null;
+  };
+  const pattern = (section) => {
+    const dates = dated ? datesOf(section) : null;
+    return dates ? `${describePattern(section)}, ${dates}` : describePattern(section);
+  };
   if (members.some((member) => member.kind === "maxCredits")) {
     const fixed = request.fixedCredits ?? 0;
     const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, fixed);
@@ -1609,13 +1636,13 @@ function explainSentence(request, members) {
   const describe = (code) => {
     const lockedId = locked.get(code);
     if (lockedId)
-      return `your locked ${code} section (${describePattern(sectionById.get(lockedId))})`;
+      return `your locked ${code} section (${pattern(sectionById.get(lockedId))})`;
     return code;
   };
   if (codes.length === 1) {
     const code = codes[0];
     if (locked.has(code))
-      return `Your locked ${code} section (${describePattern(sectionById.get(locked.get(code)))}) doesn't fit${where}.`;
+      return `Your locked ${code} section (${pattern(sectionById.get(locked.get(code)))}) doesn't fit${where}.`;
     if (conditions.length === 0)
       return `No section of ${code} works: each one's own meetings clash.`;
     return `No section of ${code} fits${where}.`;
@@ -1625,18 +1652,22 @@ function explainSentence(request, members) {
     const onlyA = onlySection(a);
     const onlyB = onlySection(b);
     if (conditions.length === 0) {
-      if (onlyA && onlyB)
-        return `${describe(a)} and ${describe(b)} overlap (${describePattern(onlyA)} and ${describePattern(onlyB)}).`.replace(/^./, (s) => s.toUpperCase());
+      if (onlyA && onlyB) {
+        const datesA = dated ? datesOf(onlyA) : null;
+        const datesB = dated ? datesOf(onlyB) : null;
+        const both = datesA && datesB ? `: ${describePattern(onlyA)} (${datesA}) and ${describePattern(onlyB)} (${datesB})` : ` (${describePattern(onlyA)} and ${describePattern(onlyB)})`;
+        return `${describe(a)} and ${describe(b)} overlap${both}.`.replace(/^./, (s) => s.toUpperCase());
+      }
       if (onlyB)
-        return `Every section of ${a} overlaps ${locked.has(b) ? describe(b) : `${b}'s only section (${describePattern(onlyB)})`}.`;
+        return `Every section of ${a} overlaps ${locked.has(b) ? describe(b) : `${b}'s only section (${pattern(onlyB)})`}.`;
       if (onlyA)
-        return `Every section of ${b} overlaps ${locked.has(a) ? describe(a) : `${a}'s only section (${describePattern(onlyA)})`}.`;
+        return `Every section of ${b} overlaps ${locked.has(a) ? describe(a) : `${a}'s only section (${pattern(onlyA)})`}.`;
       return `Every section of ${a} overlaps every section of ${b}.`;
     }
     if (onlyB && !onlyA)
-      return `No section of ${a} fits alongside ${locked.has(b) ? describe(b) : `${b} (${describePattern(onlyB)})`}${where}.`;
+      return `No section of ${a} fits alongside ${locked.has(b) ? describe(b) : `${b} (${pattern(onlyB)})`}${where}.`;
     if (onlyA && !onlyB)
-      return `No section of ${b} fits alongside ${locked.has(a) ? describe(a) : `${a} (${describePattern(onlyA)})`}${where}.`;
+      return `No section of ${b} fits alongside ${locked.has(a) ? describe(a) : `${a} (${pattern(onlyA)})`}${where}.`;
     return `No pair of ${a} and ${b} sections fits together${where}.`;
   }
   const names = codes.map(describe);

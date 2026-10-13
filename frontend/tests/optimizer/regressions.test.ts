@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
 import { OptimizerInputError, type OptimizeRequest, type OptMeeting } from "@/lib/optimizer/types";
-import { checkRegressions, regressionCases } from "./checks";
+import { createHash } from "node:crypto";
+import { checkRegressions, regressionCases, smallInstance } from "./checks";
 import { FIRST_HALF, FULL_TERM, SECOND_HALF } from "./generator";
 import { fromPlainRequest, toPlainRequest } from "@/lib/optimizer/worker/protocol";
 import { referenceTopK } from "./reference";
@@ -324,5 +325,58 @@ describe("credits of courses outside the request (Astra blocker 2)", () => {
   test("a negative or non-finite fixedCredits is a caller bug", () => {
     expect(() => optimize(fiveTimed(-1, 15))).toThrow(OptimizerInputError);
     expect(() => optimize(fiveTimed(Number.NaN, 15))).toThrow(OptimizerInputError);
+  });
+});
+
+describe("explanations name dates when the sessions differ", () => {
+  const TERM = { start: "2027-01-11", end: "2027-05-07" };
+  const overlap = (a: OptMeeting["dates"], b: OptMeeting["dates"]) => {
+    const course = (code: string, dates: OptMeeting["dates"]) => ({
+      code,
+      credits: 3,
+      sections: [{ id: code, courseCode: code, rating: null, meetings: (["Tue", "Thu"] as const).map((day) => ({ day, start: 930, end: 1100, buildingId: null, dates })) }],
+    });
+    const result = optimize({
+      courses: [course("SPAN 2040", a), course("SPAN 2050", b)],
+      term: TERM,
+      locks: {},
+      excluded: [],
+      constraints: { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null },
+      weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+      walkingTime: () => ({ seconds: null, source: "unknown" }),
+    });
+    if (result.status !== "infeasible") throw new Error(`expected infeasible, got ${result.status}`);
+    return result.explanation.sentence;
+  };
+
+  test("both full term: no dates", () => {
+    expect(overlap(null, TERM)).toBe("SPAN 2040 and SPAN 2050 overlap (TTh 3:30 PM and TTh 3:30 PM).");
+  });
+
+  test("one partial: its range and full term", () => {
+    expect(overlap({ start: "2027-01-11", end: "2027-03-05" }, null)).toBe(
+      "SPAN 2040 and SPAN 2050 overlap: TTh 3:30 PM (Jan 11–Mar 5) and TTh 3:30 PM (full term).",
+    );
+  });
+
+  test("both partial with different ranges: each range", () => {
+    expect(overlap({ start: "2027-01-11", end: "2027-03-05" }, { start: "2027-02-01", end: "2027-04-30" })).toBe(
+      "SPAN 2040 and SPAN 2050 overlap: TTh 3:30 PM (Jan 11–Mar 5) and TTh 3:30 PM (Feb 1–Apr 30).",
+    );
+  });
+
+  test("a single-day session: one date", () => {
+    expect(overlap({ start: "2027-01-12", end: "2027-01-12" }, TERM)).toBe(
+      "SPAN 2040 and SPAN 2050 overlap: TTh 3:30 PM (Jan 12) and TTh 3:30 PM (full term).",
+    );
+  });
+
+  test("the 400 undated seeds' explanations are unchanged", () => {
+    const sentences = Array.from({ length: 400 }, (_, i) => i + 1).map((seed) => {
+      const result = optimize(smallInstance(seed));
+      return result.status === "infeasible" ? result.explanation.sentence : "";
+    });
+    // Recorded from the engine before explanations named dates (4691089).
+    expect(createHash("sha256").update(JSON.stringify(sentences)).digest("hex")).toBe("9f704e6ae9b4da83fa60c644c7969f645ca70b4ced25f3ab4299dc1cb66af533");
   });
 });
