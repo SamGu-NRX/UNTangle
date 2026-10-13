@@ -1,0 +1,3293 @@
+{
+  "corpusSha256": "7b1f6cfd71b19c44e5fab4b12dc1d7457a329933c9c76a9645ae0dde7bd20af7",
+  "total": 656,
+  "counts": {
+    "full": 430,
+    "partial": 168,
+    "unknown": 58
+  },
+  "empty": 202,
+  "unknownWithCourseCodes": 38,
+  "courses": [
+    {
+      "courseId": "ANTH 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 1150",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 2300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 2400",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 2700",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3101",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3110",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3140",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3700",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 3710",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4011",
+      "coverage": "partial",
+      "source": "ANTH major status, ANTH 2300 , and have completed at least 60 hours."
+    },
+    {
+      "courseId": "ANTH 4021",
+      "coverage": "full",
+      "source": "ANTH 2300 . Recommended: Recommended that student have upper level standing."
+    },
+    {
+      "courseId": "ANTH 4220",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4400",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4520",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4720",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4765",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4910",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ANTH 4920",
+      "coverage": "partial",
+      "source": "Must have taken ANTH 2300 ; UNT or Overall GPA of at least 3.00; junior or senior standing (60+ earned hours); must have taken at least 15 hours of ANTH course work; must be an ANTH major. Consent of department. Students must submit and have their ANTH 4920 application approved by department in the semester prior to enrollment. Students must meet all of the above prerequisites to enroll; exceptions will be considered on a case-by-case basis."
+    },
+    {
+      "courseId": "BIOL 1112",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 1132",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 1500",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 1710",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 1720",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 1722",
+      "coverage": "unknown",
+      "source": "High school pre-AP/AP biology and chemistry are highly recommended. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "BIOL 1750",
+      "coverage": "full",
+      "source": "Concurrent enrollment in BIOL 1710 and consent of department. Core Category: Component Area Option A (when combined with BIOL 1755 )"
+    },
+    {
+      "courseId": "BIOL 1760",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 2041",
+      "coverage": "partial",
+      "source": "C or higher in the following: BIOL 1710 , either BIOL 1750 or BIOL 1760 (may be taken concurrently), and CHEM 1420 (may be taken concurrently). Corequisite(s): Concurrent enrollment in BIOL 2042 is recommended but not required."
+    },
+    {
+      "courseId": "BIOL 2140",
+      "coverage": "full",
+      "source": "C or higher in: BIOL 1710 , BIOL 1720 , and BIOL 1750 or BIOL 1760 or BIOL 1761 ."
+    },
+    {
+      "courseId": "BIOL 2251",
+      "coverage": "full",
+      "source": "C or higher in: BIOL 1710 , BIOL 1720 , and BIOL 1750 or BIOL 1760 or BIOL 1761 ."
+    },
+    {
+      "courseId": "BIOL 2301",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 2302",
+      "coverage": "partial",
+      "source": "BIOL 2301 / BIOL 2311 . Corequisite(s): BIOL 2312 . For kinesiology, dance majors, allied health, and biology students. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "BIOL 2700",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 2996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; freshman or sophomore class status; consent of Honors College dean. May only be taken once for Honors College credit."
+    },
+    {
+      "courseId": "BIOL 3080",
+      "coverage": "partial",
+      "source": "Completion of the Foundation requirements for your declared Biological Sciences major and C or higher in either BIOL 3800 or BIOL 4505 , or Department consent. If major is outside of Biological Sciences, follow the Foundation requirements for the Biology BA."
+    },
+    {
+      "courseId": "BIOL 3160",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for your declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA."
+    },
+    {
+      "courseId": "BIOL 3170",
+      "coverage": "partial",
+      "source": "Completion of the Foundation requirements for your declared Biological Sciences major or Department consent. If major is outside of Biological Sciences, follow the Foundation requirements for the Biology BA."
+    },
+    {
+      "courseId": "BIOL 3331",
+      "coverage": "full",
+      "source": "Consent of Forensic Science Program."
+    },
+    {
+      "courseId": "BIOL 3381",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 must be completed. If these requirements are not met, department consent is required."
+    },
+    {
+      "courseId": "BIOL 3451",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA."
+    },
+    {
+      "courseId": "BIOL 3510",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. Concurrent enrollment in CHEM 2380 strongly encouraged."
+    },
+    {
+      "courseId": "BIOL 3800",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for your declared biological sciences major and C or higher in PHYS 1410 / PHYS 1430 or PHYS 1510 / PHYS 1530 or PHYS 1710 / PHYS 1730 . If major is outside of biological sciences, foundation requirements for the biology BA must be completed and PHYS 1410 / PHYS 1430 or PHYS 1510 / PHYS 1530 or PHYS 1710 / PHYS 1730 must be completed with a C or higher. If these requirements are not met, department consent is required."
+    },
+    {
+      "courseId": "BIOL 3900",
+      "coverage": "full",
+      "source": "Consent of instructor. May not be repeated."
+    },
+    {
+      "courseId": "BIOL 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "BIOL 4005",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. May be repeated for credit as topics vary. Same topic may not be repeated at the graduate level as BIOL 5005."
+    },
+    {
+      "courseId": "BIOL 4051",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2140 / BIOL 2141 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2140 / BIOL 2141 must be completed. If these requirements are not met, department consent is required. Corequisite(s): BIOL 4052 . May not be repeated at the graduate level as BIOL 5051."
+    },
+    {
+      "courseId": "BIOL 4054",
+      "coverage": "full",
+      "source": "Upper level academic standing and consent of department."
+    },
+    {
+      "courseId": "BIOL 4055",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. Corequisite(s): BIOL 4056 . Meets with BIOL 5055. May not be repeated at the graduate level as BIOL 5055."
+    },
+    {
+      "courseId": "BIOL 4091",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for the declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. May not be repeated at the graduate level as BIOL 5091."
+    },
+    {
+      "courseId": "BIOL 4201",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and CHEM 2380 (may be taken concurrently). If major is outside of biological sciences, must complete foundation requirements for the biology BA and CHEM 2380 (may be taken concurrently). If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5201."
+    },
+    {
+      "courseId": "BIOL 4220",
+      "coverage": "partial",
+      "source": "Completion of the foundation requirements for your declared biological sciences major or department consent. If major is outside of biological sciences, follow the foundation requirements for the biology BA. Open to all majors. May not be repeated at the graduate level as BIOL 5220."
+    },
+    {
+      "courseId": "BIOL 4260",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 3451 / BIOL 3452 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 3451 / BIOL 3452 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5260."
+    },
+    {
+      "courseId": "BIOL 4300",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for your declared biological sciences major. If major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required."
+    },
+    {
+      "courseId": "BIOL 4330",
+      "coverage": "partial",
+      "source": "Completion of Foundation requirements for the declared biological sciences major. If major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5330."
+    },
+    {
+      "courseId": "BIOL 4370",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major. If major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required."
+    },
+    {
+      "courseId": "BIOL 4380",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5380."
+    },
+    {
+      "courseId": "BIOL 4440",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 or BIOL 2140 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 or BIOL 2140 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5440."
+    },
+    {
+      "courseId": "BIOL 4480",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5840."
+    },
+    {
+      "courseId": "BIOL 4503",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5503."
+    },
+    {
+      "courseId": "BIOL 4505",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5505."
+    },
+    {
+      "courseId": "BIOL 4570",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in BIOL 3451 / BIOL 3452 or BIOL 3510 / BIOL 3520 or BIOC 4540 . If major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 3451 / BIOL 3452 or BIOL 3510 / BIOL 3520 or BIOC 4540 must be completed. If these requirements are not met, department consent is required."
+    },
+    {
+      "courseId": "BIOL 4580",
+      "coverage": "full",
+      "source": "BIOL 4570 (may be taken concurrently) or BIOL 3770 (may be taken concurrently), or consent of department."
+    },
+    {
+      "courseId": "BIOL 4590",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 4752",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. BIOL 4751 recommended. May not be repeated at the graduate level as BIOL 5752."
+    },
+    {
+      "courseId": "BIOL 4800",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for the declared biological sciences major. If the major is outside of biological sciences, foundation requirements for the biology BA must be completed. If these requirements are not met, department consent is required. Maximum of 2 hours may be used toward advanced biology electives in the BS Biology degree, but not the BA degree with a major in biology. May be repeated for credit."
+    },
+    {
+      "courseId": "BIOL 4801",
+      "coverage": "partial",
+      "source": "Completion of foundation requirements for a declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 must be completed. If these requirements are not met, department consent is required. Meets with BIOL 5800. Genetics course is recommended. May not be repeated at the graduate level as BIOL 5800."
+    },
+    {
+      "courseId": "BIOL 4815",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BIOL 4900",
+      "coverage": "partial",
+      "source": "Approval of supervisory faculty member, proposal filed in department advising office prior to registration and junior or senior standing. Three hours may be applied to advanced biology electives for the BS degree, but not the BA degree in biology. May be repeated for credit."
+    },
+    {
+      "courseId": "BIOL 4910",
+      "coverage": "partial",
+      "source": "Approval of supervisory faculty member, proposal filed in department advising office prior to registration and junior or senior standing. Three hours may be applied to advanced biology electives for the BS degree, but not the BA degree in biology. May be repeated for credit."
+    },
+    {
+      "courseId": "BIOL 4951",
+      "coverage": "partial",
+      "source": "Completion of at least 6 hours in honors courses; completion of at least 12 hours in the major department in which the thesis is prepared; approval of the department chair and the dean of the school or college in which the thesis is prepared; approval of the dean of the Honors College. May be substituted for HNRS 4000 . Course may be taken only once for Honors College credit."
+    },
+    {
+      "courseId": "BMEN 1400",
+      "coverage": "full",
+      "source": "MATH 1650 with a grade of C or better."
+    },
+    {
+      "courseId": "BMEN 2210",
+      "coverage": "full",
+      "source": "MATH 1720 ."
+    },
+    {
+      "courseId": "BMEN 2320",
+      "coverage": "full",
+      "source": "BMEN 1300 ; BMEN 2210 ; BMEN 1400 or concurrent enrollment."
+    },
+    {
+      "courseId": "BMEN 2900",
+      "coverage": "full",
+      "source": "Consent of instructor. May be repeated for credit as topics vary for a maximum of 6 hours."
+    },
+    {
+      "courseId": "BMEN 3312",
+      "coverage": "full",
+      "source": "BMEN 2320 , BMEN 3310 , PHYS 1710 ."
+    },
+    {
+      "courseId": "BMEN 3321",
+      "coverage": "full",
+      "source": "BMEN 3310 , CHEM 1410 , PHYS 1710 ."
+    },
+    {
+      "courseId": "BMEN 4100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BMEN 4222",
+      "coverage": "full",
+      "source": "BMEN 4212 ."
+    },
+    {
+      "courseId": "BMEN 4314",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BMEN 4319",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BMEN 4320",
+      "coverage": "full",
+      "source": "BMEN 3311 , BMEN 3321 ."
+    },
+    {
+      "courseId": "BMEN 4326",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "BMEN 4900",
+      "coverage": "full",
+      "source": "Consent of instructor. May be repeated for credit as topics vary for a maximum of 6 hours, but a maximum of 3 credit hours apply to major from BMEN 4900 or BMEN 4910 ."
+    },
+    {
+      "courseId": "BMEN 4920",
+      "coverage": "partial",
+      "source": "Junior or senior standing; good academic standing in biomedical engineering. Consent of department required"
+    },
+    {
+      "courseId": "CHEM 1360",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CHEM 1410",
+      "coverage": "partial",
+      "source": "C or better in MATH 1100 or equivalent. Corequisite(s): CHEM 1430 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "CHEM 1420",
+      "coverage": "partial",
+      "source": "C or better in CHEM 1410 , CHEM 1412 or CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "CHEM 1422",
+      "coverage": "partial",
+      "source": "C or better in CHEM 1412 or CHEM 1413 (or CHEM 1410 with grade B or better and permission of the department), MATH 1100 or equivalent, admission to Honors College. Corequisite(s): CHEM 1440 . Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "CHEM 1423",
+      "coverage": "partial",
+      "source": "C or better in CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "CHEM 2370",
+      "coverage": "partial",
+      "source": "“C” or better in CHEM 1415 , CHEM 1420 , CHEM 1422 , or CHEM 1423 . Corequisite(s): CHEM 3210 . *This hour is a problem-solving session."
+    },
+    {
+      "courseId": "CHEM 2380",
+      "coverage": "partial",
+      "source": "CHEM 2370 with a grade of C or better. Corequisite(s): CHEM 3220 . *This hour is a problem-solving session."
+    },
+    {
+      "courseId": "CHEM 2900",
+      "coverage": "partial",
+      "source": "CHEM 1430 (should be taken concurrently) and consent of instructor. For elective credit only; may not be substituted for required chemistry courses. May be repeated for credit."
+    },
+    {
+      "courseId": "CHEM 3451",
+      "coverage": "full",
+      "source": "C or better in CHEM 1420 . Corequisite(s): CHEM 3452 ."
+    },
+    {
+      "courseId": "CHEM 3510",
+      "coverage": "partial",
+      "source": "C or better in CHEM 1420 , CHEM 1422 or CHEM 1423 ; and C or better in MATH 1720 or C or better in MATH 1820 and co-enrolled in MATH 1830 ; and C or better in PHYS 1410 , PHYS 1510 , or PHYS 1710 . Corequisite(s): CHEM 3230 with the exception of declared biochemistry majors. *This hour is a problem-solving session."
+    },
+    {
+      "courseId": "CHEM 3520",
+      "coverage": "partial",
+      "source": "C or better in CHEM 3510 ; and C or better in MATH 1720 or MATH 1830 ; and C or better in PHYS 1520 or PHYS 2220 . Corequisite(s): CHEM 3240 with the exception of declared biochemistry majors. *This hour is a problem-solving session."
+    },
+    {
+      "courseId": "CHEM 3530",
+      "coverage": "partial",
+      "source": "C or better in one of the following: CHEM 1420 , CHEM 1422 or CHEM 1423 . For chemistry (BA) and life science majors, and preprofessional students."
+    },
+    {
+      "courseId": "CHEM 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "CHEM 4351",
+      "coverage": "full",
+      "source": "C or better in each of the following: CHEM 2380 , CHEM 3451 and CHEM 3452 ."
+    },
+    {
+      "courseId": "CHEM 4360",
+      "coverage": "full",
+      "source": "C or better in CHEM 3330 ."
+    },
+    {
+      "courseId": "CHEM 4530",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CHEM 4631",
+      "coverage": "full",
+      "source": "C or better in CHEM 3451 and CHEM 3452 . Corequisite(s): CHEM 4632 ."
+    },
+    {
+      "courseId": "CHEM 4900",
+      "coverage": "full",
+      "source": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each."
+    },
+    {
+      "courseId": "CHEM 4910",
+      "coverage": "full",
+      "source": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each."
+    },
+    {
+      "courseId": "CHEM 4930",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated for credit as topics vary."
+    },
+    {
+      "courseId": "CNET 1160",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CNET 2180",
+      "coverage": "full",
+      "source": "CNET 1160 ."
+    },
+    {
+      "courseId": "CNET 2200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CNET 2300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CNET 3160",
+      "coverage": "full",
+      "source": "CNET 2180 ."
+    },
+    {
+      "courseId": "CNET 3190",
+      "coverage": "full",
+      "source": "CNET 2180 ."
+    },
+    {
+      "courseId": "CNET 3410",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CNET 3440",
+      "coverage": "full",
+      "source": "CNET 3430 ."
+    },
+    {
+      "courseId": "CNET 3445",
+      "coverage": "full",
+      "source": "CNET 3435 . Recommended:"
+    },
+    {
+      "courseId": "CNET 3460",
+      "coverage": "full",
+      "source": "CNET 2180 , ENGR 2332 ."
+    },
+    {
+      "courseId": "CNET 3465",
+      "coverage": "full",
+      "source": "CNET 2180 and ENGR 2304 ."
+    },
+    {
+      "courseId": "CNET 4170",
+      "coverage": "full",
+      "source": "CNET 3160 ."
+    },
+    {
+      "courseId": "CNET 4180",
+      "coverage": "full",
+      "source": "CNET 4170 ."
+    },
+    {
+      "courseId": "CNET 4190",
+      "coverage": "full",
+      "source": "CNET 2180 . Recommended:"
+    },
+    {
+      "courseId": "CNET 4230",
+      "coverage": "full",
+      "source": "CNET 2180 . Recommended:"
+    },
+    {
+      "courseId": "CNET 4620",
+      "coverage": "full",
+      "source": "CNET 3430 ."
+    },
+    {
+      "courseId": "CNET 4630",
+      "coverage": "full",
+      "source": "CNET 2180 ."
+    },
+    {
+      "courseId": "CNET 4790",
+      "coverage": "full",
+      "source": "CNET 4780 ."
+    },
+    {
+      "courseId": "CNET 4795",
+      "coverage": "full",
+      "source": "CNET 4785 . Recommended:"
+    },
+    {
+      "courseId": "CNET 4900",
+      "coverage": "partial",
+      "source": "Consent of instructor and program coordinator. May be repeated for credit."
+    },
+    {
+      "courseId": "CNET 4910",
+      "coverage": "partial",
+      "source": "Consent of instructor and program coordinator. May be repeated for credit."
+    },
+    {
+      "courseId": "CNET 4920",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated for credit up to a maximum of 3 semester credit hours."
+    },
+    {
+      "courseId": "COMM 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "COMM 2020",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "COMM 2040",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "COMM 2060",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "COMM 2140",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "COMM 3010",
+      "coverage": "unknown",
+      "source": "Completion of 30 hours college course work with a cumulative grade point average of 2.50 or higher, including the English Composition and Rhetoric portion of the University Core Curriculum, COMM 1010 , COMM 2020 , COMM 2060 and COMM 2140 all with grade of C or better. Communication majors only."
+    },
+    {
+      "courseId": "COMM 3120",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 ."
+    },
+    {
+      "courseId": "COMM 3220",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 ."
+    },
+    {
+      "courseId": "COMM 3260",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling."
+    },
+    {
+      "courseId": "COMM 3320",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 or PSCI 4821 or PSCI 4822X or PSCI 4825X or PADM 4000 or PADM 3100 or PADM 4060 or MGMT 3720 or MGMT 3721 ."
+    },
+    {
+      "courseId": "COMM 3325",
+      "coverage": "unknown",
+      "source": "Non-Majors: COMM 2020 . Majors: COMM 3010 ."
+    },
+    {
+      "courseId": "COMM 3420",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling."
+    },
+    {
+      "courseId": "COMM 3720",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 or PSYC 3100 ."
+    },
+    {
+      "courseId": "COMM 3820",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling."
+    },
+    {
+      "courseId": "COMM 3840",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 ."
+    },
+    {
+      "courseId": "COMM 3865",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2060 or THEA 1050 ."
+    },
+    {
+      "courseId": "COMM 3880",
+      "coverage": "partial",
+      "source": "Participation on UNT Debate Team and consent of instructor. May be repeated for credit for a maximum of 9 hours; however, no more than 3 hours total credit for COMM 3880 may be applied to the communication studies major or minor requirements."
+    },
+    {
+      "courseId": "COMM 4120",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 ."
+    },
+    {
+      "courseId": "COMM 4220",
+      "coverage": "unknown",
+      "source": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling. Minors and other majors must complete COMM 2020 ."
+    },
+    {
+      "courseId": "COMM 4320",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling."
+    },
+    {
+      "courseId": "COMM 4340",
+      "coverage": "unknown",
+      "source": "Communication Studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 ."
+    },
+    {
+      "courseId": "COMM 4360",
+      "coverage": "unknown",
+      "source": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2060 or THEA 1050 ."
+    },
+    {
+      "courseId": "COMM 4520",
+      "coverage": "unknown",
+      "source": "Communication studies majors must complete COMM 3010 prior to enrolling; minors and other majors must complete COMM 2020 or PSYC 2600 ."
+    },
+    {
+      "courseId": "COMM 4540",
+      "coverage": "unknown",
+      "source": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 or WGST 2100 ."
+    },
+    {
+      "courseId": "COMM 4800",
+      "coverage": "partial",
+      "source": "Communication studies major; junior or senior classification; minimum GPA of 3.0 on courses taken at UNT; completion of department core plus at least 6 upper-level hours in communication studies at UNT; student must meet employer’s requirements and have consent of department internship supervisor. May be repeated, but a maximum of 3 semesters credit hours of internship credit may be applied to the major in communication studies."
+    },
+    {
+      "courseId": "COMM 4829",
+      "coverage": "unknown",
+      "source": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2020 . May be repeated for credit as topics vary."
+    },
+    {
+      "courseId": "COMM 4849",
+      "coverage": "unknown",
+      "source": "Communication studies majors must complete COMM 3010 with a grade of C or better prior to enrolling; minors and other majors must complete COMM 2140 . May be repeated for credit as topics vary."
+    },
+    {
+      "courseId": "COMM 4900",
+      "coverage": "unknown",
+      "source": "Problem must be approved by department chair. May be repeated for credit."
+    },
+    {
+      "courseId": "CSCE 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CSCE 1030",
+      "coverage": "unknown",
+      "source": "CSCE 1010 (for CSE majors only) with a grade of C or better and MATH 1100 , or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors only)."
+    },
+    {
+      "courseId": "CSCE 1035",
+      "coverage": "partial",
+      "source": "CSCE 1010 with a grade of C or better, and MATH 1100 or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors)."
+    },
+    {
+      "courseId": "CSCE 1040",
+      "coverage": "full",
+      "source": "CSCE 1030 with a grade of C or better; and MATH 1100 or MATH 1650 or MATH 1710 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 1045",
+      "coverage": "full",
+      "source": "CSCE 1035 with a grade of C or better. MATH 1100 or MATH 1650 or MATH 1710 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 2100",
+      "coverage": "partial",
+      "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): MATH 1710 . Can be taken concurrently with CSCE 2110 ."
+    },
+    {
+      "courseId": "CSCE 2110",
+      "coverage": "partial",
+      "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): This course can be taken concurrently with CSCE 2100 ."
+    },
+    {
+      "courseId": "CSCE 2210",
+      "coverage": "full",
+      "source": "CSCE 1010 or consent of instructor."
+    },
+    {
+      "courseId": "CSCE 2610",
+      "coverage": "partial",
+      "source": "CSCE 2100 with a grade of C or better. Corequisite(s): CSCI majors: EENG 2710 . CMPE majors: EENG 2710 taken concurrently with EENG 2711 ."
+    },
+    {
+      "courseId": "CSCE 2900",
+      "coverage": "unknown",
+      "source": "Students must get instructor consent by email, as well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Students must upload the instructor consent and all other consent/approval documentation in the form. For elective credit only. May be repeated for credit for a maximum of 6 hours."
+    },
+    {
+      "courseId": "CSCE 3020",
+      "coverage": "full",
+      "source": "CSCE 3010 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3055",
+      "coverage": "full",
+      "source": "CSCE 2100 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3201",
+      "coverage": "partial",
+      "source": "MATH 1650 with a grade of C or better or consent instructor. This course is for non-computer science and engineering majors. Experience with Python is helpful as it is used extensively in the course, but significant prior programming experience with any language will be sufficient."
+    },
+    {
+      "courseId": "CSCE 3214",
+      "coverage": "partial",
+      "source": "MATH 1650 with a grade of C or better, or instructor consent. This course is for non-computer science and engineering majors. Experience with Python is helpful as it is used extensively in the course, but significant prior programming experience with any language will be sufficient."
+    },
+    {
+      "courseId": "CSCE 3220",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 , Each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3420",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 both with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3444",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3530",
+      "coverage": "full",
+      "source": "CSCE 3600 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3550",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CSCE 3560",
+      "coverage": "full",
+      "source": "CSCE 3600 and CSCE 3550 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3600",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 , with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3605",
+      "coverage": "full",
+      "source": "CSCE 3600 with a C or better."
+    },
+    {
+      "courseId": "CSCE 3610",
+      "coverage": "full",
+      "source": "CSCE 2610 or CSCE 4127 , and CSCE 3730 , with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3612",
+      "coverage": "full",
+      "source": "CSCE 2610 or CSCE 4127 ; ENGR 2720 / ENGR 2730 or EENG 2710 / EENG 2711 , with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. As well as Departmental Consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload documentation of consent in the form. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "CSCE 4010",
+      "coverage": "partial",
+      "source": "CSCE 3600 with a C or better. For non-CSE majors, departmental consent can be obtained by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor’s consent in the form."
+    },
+    {
+      "courseId": "CSCE 4050",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4110",
+      "coverage": "full",
+      "source": "CSCE 2110 with a C or better."
+    },
+    {
+      "courseId": "CSCE 4160",
+      "coverage": "full",
+      "source": "CSCE 3600 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4201",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4205",
+      "coverage": "partial",
+      "source": "CSCE 2110 with a grade of C or better. Non-CSE majors must have Instructor consent by email. As well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor’s consent in the form."
+    },
+    {
+      "courseId": "CSCE 4220",
+      "coverage": "full",
+      "source": "CSCE 4210 , CSCE 4255 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4240",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4250",
+      "coverage": "full",
+      "source": "CSCE 4210 with a grade of C or better. Corequisite(s): CSCE 4220 . May be repeated for credit as topics vary for a maximum of 6 hours."
+    },
+    {
+      "courseId": "CSCE 4290",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4300",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or higher, or consent of instructor."
+    },
+    {
+      "courseId": "CSCE 4350",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4355",
+      "coverage": "full",
+      "source": "CSCE 4350 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4380",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4430",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4460",
+      "coverage": "full",
+      "source": "CSCE 2110 a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4535",
+      "coverage": "full",
+      "source": "CSCE 3530 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4555",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better OR consent of instructor."
+    },
+    {
+      "courseId": "CSCE 4560",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4565",
+      "coverage": "full",
+      "source": "CSCE 3550 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4600",
+      "coverage": "full",
+      "source": "CSCE 3600 with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4610",
+      "coverage": "partial",
+      "source": "CSCE 2610 or CSCE 4127 , and CSCE 3600 ; or CSCE 3610 . Each course must be completed with a C or better."
+    },
+    {
+      "courseId": "CSCE 4650",
+      "coverage": "full",
+      "source": "CSCE 2100 , CSCE 2110 and CSCE 3600 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4815",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "CSCE 4901",
+      "coverage": "full",
+      "source": "CSCE 3444 and TECM 2700 , each with a grade of C or better. Senior standing."
+    },
+    {
+      "courseId": "CSCE 4902",
+      "coverage": "partial",
+      "source": "CSCE 4901 with a grade of C or better. CSCE 4902 must be completed in the long term/semester immediately following the completion of CSCE 4901 ."
+    },
+    {
+      "courseId": "CSCE 4905",
+      "coverage": "full",
+      "source": "CSCE 3055 and CSCE 3615 (or CSCE 3444 ), each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4915",
+      "coverage": "partial",
+      "source": "CSCE 4910 with a grade of C or better. CSCE 4915 must be completed in the long term/semester immediately following the completion of CSCE 4910 ."
+    },
+    {
+      "courseId": "CSCE 4920",
+      "coverage": "partial",
+      "source": "Junior or senior standing in computer science, computer engineering or information technology, consent of instructor, and departmental consent. May be repeated for credit, maximum 6 credit hours. Pass/No Pass only."
+    },
+    {
+      "courseId": "CSCE 4925",
+      "coverage": "partial",
+      "source": "CSCE 4905 with a grade of C or better. CSCE 4925 must be completed in the long term/semester immediately following the completion of CSCE 4905 ."
+    },
+    {
+      "courseId": "CSCE 4927",
+      "coverage": "partial",
+      "source": "CSCE 4907 with a grade of C or better. CSCE 4927 must be completed in the long term/semester immediately following the completion of CSCE 4907 ."
+    },
+    {
+      "courseId": "CSCE 4930",
+      "coverage": "partial",
+      "source": "Junior or senior standing in computer science, computer engineering or information technology, and consent of instructor. Required instructor consent via email and departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor’s consent in the form. May be repeated for credit, a maximum of 6 credit hours."
+    },
+    {
+      "courseId": "CSCE 4999",
+      "coverage": "partial",
+      "source": "Senior standing. Students must submit their own topics for thesis, with designated advisor approval, before they are allowed to register for the course. Instructor consent by email and departmental consent required."
+    },
+    {
+      "courseId": "ECON 1100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ECON 1110",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ECON 3050",
+      "coverage": "full",
+      "source": "ECON 1100 , ECON 1110 ."
+    },
+    {
+      "courseId": "ECON 3200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ECON 3300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ECON 3550",
+      "coverage": "full",
+      "source": "ECON 1100 with a grade of C or better; MATH 1190 or MATH 1710 , with a grade of C or better."
+    },
+    {
+      "courseId": "ECON 3560",
+      "coverage": "full",
+      "source": "ECON 1100 and ECON 1110 with a grade of C or better."
+    },
+    {
+      "courseId": "ECON 4020",
+      "coverage": "full",
+      "source": "ECON 1100 , ECON 1110 ."
+    },
+    {
+      "courseId": "ECON 4030",
+      "coverage": "full",
+      "source": "ECON 1100 and ECON 1110 ; ECON 4630 with a grade of C or better. ECON 4630 can be replaced with MATH 3680 or DSCI 3710 with a grade of C or better. May not be repeated at the graduate level as ECON 5080."
+    },
+    {
+      "courseId": "ECON 4140",
+      "coverage": "full",
+      "source": "ECON 3550 and MATH 1190 . May not be repeated at the graduate level as ECON 5140."
+    },
+    {
+      "courseId": "ECON 4290",
+      "coverage": "full",
+      "source": "ECON 3550 ."
+    },
+    {
+      "courseId": "ECON 4420",
+      "coverage": "partial",
+      "source": "ECON 1100 and ECON 1110 . May not be repeated at the graduate level as ECON 5420. Usually offered in spring."
+    },
+    {
+      "courseId": "ECON 4440",
+      "coverage": "full",
+      "source": "ECON 1100 or consent of department. May not be repeated at the graduate level as ECON 5440."
+    },
+    {
+      "courseId": "ECON 4510",
+      "coverage": "unknown",
+      "source": "ECON 1100 - ECON 1110 . May not be repeated at the graduate level as ECON 5090."
+    },
+    {
+      "courseId": "ECON 4550",
+      "coverage": "full",
+      "source": "ECON 1100 ."
+    },
+    {
+      "courseId": "ECON 4630",
+      "coverage": "full",
+      "source": "ECON 1100 ; MATH 1100 or MATH 1180 . May not be repeated at the graduate level as ECON 5630."
+    },
+    {
+      "courseId": "ECON 4650",
+      "coverage": "full",
+      "source": "ECON 3550 . May not be repeated at the graduate level as ECON 5750."
+    },
+    {
+      "courseId": "ECON 4850",
+      "coverage": "full",
+      "source": "ECON 1100 and ECON 1110 , or consent of department. May not be repeated at the graduate level as ECON 5850."
+    },
+    {
+      "courseId": "ECON 4870",
+      "coverage": "partial",
+      "source": "ECON 4630 or MATH 3680 or DSCI 3710 ; MATH 1190 or MATH 1710 . Usually offered fall and spring semesters. May not be repeated at the graduate level as ECON 5640."
+    },
+    {
+      "courseId": "ECON 4875",
+      "coverage": "full",
+      "source": "ECON 4870 ."
+    },
+    {
+      "courseId": "EENG 1910",
+      "coverage": "partial",
+      "source": "Electrical Engineering major or Pre-Electrical Engineering major or consent of department. Pre-Electrical Engineering majors and Electrical Engineering majors must attain a C or better in this course."
+    },
+    {
+      "courseId": "EENG 2610",
+      "coverage": "partial",
+      "source": "MATH 1720 with a C or better. Corequisite(s): PHYS 2220 / PHYS 2240 ( MATH 3410 and EENG 2611 for electrical engineering students) with a C or better in each course."
+    },
+    {
+      "courseId": "EENG 2620",
+      "coverage": "partial",
+      "source": "EENG 2610 (and EENG 2611 for electrical engineering students). Both must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 2710",
+      "coverage": "unknown",
+      "source": "Engineering or engineering technology majors. Corequisite(s): EENG 2711 for electrical engineering majors (which must be completed with a C or better). Must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 2900",
+      "coverage": "partial",
+      "source": "Consent of instructor and must be completed with a C or better. May be repeated for credit. For elective credit only."
+    },
+    {
+      "courseId": "EENG 2905",
+      "coverage": "partial",
+      "source": "CSCE 1030 and CSCE 1015. Must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 2920",
+      "coverage": "partial",
+      "source": "EENG 1910 , EENG 2610 (and EENG 2611 for electrical engineering students), and EENG 2710 (and EENG 2711 for electrical engineering students), each of which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 3410",
+      "coverage": "partial",
+      "source": "EENG 2610 (and EENG 2611 for electrical engineering students) and MATH 2730 which must be completed with a C or better. Corequisite(s): EENG 3411 for electrical engineering students which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 3510",
+      "coverage": "partial",
+      "source": "EENG 2610 (and EENG 2611 for electrical engineering students) which must be completed with a C or better. Corequisite(s): EENG 3511 for electrical engineering students which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 3520",
+      "coverage": "partial",
+      "source": "EENG 3510 (and EENG 3511 for electrical engineering students) which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 3710",
+      "coverage": "partial",
+      "source": "CSCE 1030 and CSCE 1015, EENG 2710 (and EENG 2711 for electrical engineering students), all of which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 3810",
+      "coverage": "partial",
+      "source": "EENG 2620 (and EENG 2621 for electrical engineering students), EENG 3510 (and EENG 3511 for electrical engineering students), and MATH 3180 , all of which must be completed with a C or better. Corequisite(s): EENG 3811 ."
+    },
+    {
+      "courseId": "EENG 3910",
+      "coverage": "partial",
+      "source": "EENG 2905 , EENG 2620 (and EENG 2621 for electrical engineering students), and EENG 2920 , all of which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 3920",
+      "coverage": "partial",
+      "source": "EENG 2920 completed with a C or better. Corequisite(s): EENG 3520 and EENG 3810 / EENG 3811 (each course must be completed with a grade of C or better)."
+    },
+    {
+      "courseId": "EENG 4010",
+      "coverage": "partial",
+      "source": "Consent of the instructor. Must be completed with a C or better. May be repeated for credit as topics vary for a maximum of 12 hours."
+    },
+    {
+      "courseId": "EENG 4110",
+      "coverage": "partial",
+      "source": "EENG 3410 and EENG 3411 , both completed with a C or better. Meets with EENG 5110."
+    },
+    {
+      "courseId": "EENG 4310",
+      "coverage": "partial",
+      "source": "EENG 2620 (and EENG 2621 for electrical engineering students) which must be completed with a C or better. Must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 4320",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "EENG 4450",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "EENG 4510",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "EENG 4720",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "EENG 4760",
+      "coverage": "partial",
+      "source": "EENG 2710 (and EENG 2711 for electrical engineering students) which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 4810",
+      "coverage": "partial",
+      "source": "EENG 3810 (and EENG 3811 for electrical engineering students) which must be completed with a C or better. Must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "EENG 4910",
+      "coverage": "full",
+      "source": "EENG 3810 and EENG 3811 , EENG 3910 , EENG 3920 , all of which must be completed with a C or better."
+    },
+    {
+      "courseId": "EENG 4920",
+      "coverage": "unknown",
+      "source": "Junior- or senior-level standing in electrical engineering. May be repeated for credit for a maximum of 6 hours."
+    },
+    {
+      "courseId": "EENG 4990",
+      "coverage": "full",
+      "source": "EENG 4910 with a grade of C or better."
+    },
+    {
+      "courseId": "ENGL 1310",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 1311",
+      "coverage": "unknown",
+      "source": "Acceptance to Honors College. May be substituted for ENGL 1310 . Core Category: Communication (English Composition and Rhetoric)"
+    },
+    {
+      "courseId": "ENGL 1320",
+      "coverage": "unknown",
+      "source": "ENGL 1310 , ENGL 1311 or equivalent. Core Category: Communication (English Composition and Rhetoric)"
+    },
+    {
+      "courseId": "ENGL 1321",
+      "coverage": "unknown",
+      "source": "Acceptance to Honors College. May be substituted for ENGL 1320 . Core Category: Communication (English Composition and Rhetoric)"
+    },
+    {
+      "courseId": "ENGL 1325",
+      "coverage": "partial",
+      "source": "ENGL 1315 or equivalent. May be substituted for ENGL 1320 . Core Category: Communication (English Composition and Rhetoric)"
+    },
+    {
+      "courseId": "ENGL 2100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 2321",
+      "coverage": "unknown",
+      "source": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture"
+    },
+    {
+      "courseId": "ENGL 2326",
+      "coverage": "unknown",
+      "source": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture"
+    },
+    {
+      "courseId": "ENGL 2331",
+      "coverage": "unknown",
+      "source": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture"
+    },
+    {
+      "courseId": "ENGL 2341",
+      "coverage": "unknown",
+      "source": "3 hours of freshman-level English or equivalent. Core Category: Language, Philosophy and Culture"
+    },
+    {
+      "courseId": "ENGL 2351",
+      "coverage": "unknown",
+      "source": "Completion of one course in the core foundation area of communication. Core Category: Language, Philosophy and Culture"
+    },
+    {
+      "courseId": "ENGL 3000",
+      "coverage": "unknown",
+      "source": "6 hours of first-year writing."
+    },
+    {
+      "courseId": "ENGL 3110",
+      "coverage": "partial",
+      "source": "ENGL 1320 or equivalent. Fulfills the requirements for the English concentration in Language Arts, including readiness standards in writing required by the State of Texas."
+    },
+    {
+      "courseId": "ENGL 3140",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3150",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3160",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3225",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3430",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3440",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3450",
+      "coverage": "unknown",
+      "source": "ENGL 1310 , ENGL 1311 , or equivalent. Core Category: Language, Philosophy and Culture"
+    },
+    {
+      "courseId": "ENGL 3500",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3830",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3840",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3920",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3924",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "ENGL 4100",
+      "coverage": "full",
+      "source": "ENGL 3140 ."
+    },
+    {
+      "courseId": "ENGL 4110",
+      "coverage": "full",
+      "source": "ENGL 3150 ."
+    },
+    {
+      "courseId": "ENGL 4120",
+      "coverage": "full",
+      "source": "ENGL 3160 ."
+    },
+    {
+      "courseId": "ENGL 4140",
+      "coverage": "full",
+      "source": "ENGL 3500 ."
+    },
+    {
+      "courseId": "ENGL 4145",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4195",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4250",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4260",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4430",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4431",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4440",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4450",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4610",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4630",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4660",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4665",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4680",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGL 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGR 1030",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGR 1304",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGR 2301",
+      "coverage": "partial",
+      "source": "PHYS 1710 and PHYS 1730 , all with a grade of C"
+    },
+    {
+      "courseId": "ENGR 2302",
+      "coverage": "full",
+      "source": "ENGR 2301 and MATH 1720 all with a grade of C or better."
+    },
+    {
+      "courseId": "ENGR 2304",
+      "coverage": "partial",
+      "source": "MATH 1190 (or MATH 1710 ) with a grade of C or better and PHYS 1410 ( PHYS 1710 ) with a grade of C or better."
+    },
+    {
+      "courseId": "ENGR 2332",
+      "coverage": "full",
+      "source": "ENGR 2301 ."
+    },
+    {
+      "courseId": "ENGR 3000",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ENGR 3450",
+      "coverage": "full",
+      "source": "ENGR 2332 and PHYS 1710 . CHEM 1410 / PHYS 1430 or CHEM 1415 / CHEM 1435 all with a grade of C or better."
+    },
+    {
+      "courseId": "FREN 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "FREN 1020",
+      "coverage": "full",
+      "source": "FREN 1010 or equivalent."
+    },
+    {
+      "courseId": "FREN 2040",
+      "coverage": "full",
+      "source": "FREN 1020 or equivalent."
+    },
+    {
+      "courseId": "FREN 2050",
+      "coverage": "full",
+      "source": "FREN 2040 or equivalent."
+    },
+    {
+      "courseId": "FREN 3120",
+      "coverage": "full",
+      "source": "FREN 2050 or equivalent."
+    },
+    {
+      "courseId": "FREN 4050",
+      "coverage": "partial",
+      "source": "3 hours of advanced French or consent of department."
+    },
+    {
+      "courseId": "FREN 4900",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated for credit."
+    },
+    {
+      "courseId": "GEOG 1000",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 1200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 1710",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 2110",
+      "coverage": "unknown",
+      "source": "Geography major status."
+    },
+    {
+      "courseId": "GEOG 2170",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 2180",
+      "coverage": "full",
+      "source": "GEOG 1710 or consent of instructor."
+    },
+    {
+      "courseId": "GEOG 3010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3050",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3120",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3420",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3500",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 3800",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 4185",
+      "coverage": "partial",
+      "source": "MATH 1680 , or consent of department. Meets with GEOG 5185."
+    },
+    {
+      "courseId": "GEOG 4210",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 4260",
+      "coverage": "full",
+      "source": "GEOG 1710 or GEOL 1610 or by consent of department."
+    },
+    {
+      "courseId": "GEOG 4350",
+      "coverage": "full",
+      "source": "GEOG 1710 , GEOG 2180 , or consent of department."
+    },
+    {
+      "courseId": "GEOG 4420",
+      "coverage": "full",
+      "source": "Junior or Senior standing."
+    },
+    {
+      "courseId": "GEOG 4530",
+      "coverage": "full",
+      "source": "GEOG 3500 or equivalent."
+    },
+    {
+      "courseId": "GEOG 4550",
+      "coverage": "partial",
+      "source": "GEOG 3500 (with a grade of C or better) or consent of department. *These hours are combined lab and lecture."
+    },
+    {
+      "courseId": "GEOG 4560",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 4590",
+      "coverage": "full",
+      "source": "GEOG 4560 or consent of department."
+    },
+    {
+      "courseId": "GEOG 4800",
+      "coverage": "partial",
+      "source": "GEOG 2110 and MATH 1680 , plus 9 advanced hours in geography, and junior or senior standing."
+    },
+    {
+      "courseId": "GEOG 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GEOG 4920",
+      "coverage": "partial",
+      "source": "Geography majors only. A minimum of 12 hours completed in the major, a 3.0 GPA in the major and consent of the department. May apply toward any Earth Science, Human Geography or Techniques group requirement at discretion of the department. May be repeated for credit."
+    },
+    {
+      "courseId": "GERM 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "GERM 1020",
+      "coverage": "full",
+      "source": "GERM 1010 or equivalent."
+    },
+    {
+      "courseId": "GERM 2040",
+      "coverage": "full",
+      "source": "GERM 1020 or equivalent."
+    },
+    {
+      "courseId": "GERM 2050",
+      "coverage": "full",
+      "source": "GERM 2040 or equivalent."
+    },
+    {
+      "courseId": "GERM 3070",
+      "coverage": "full",
+      "source": "GERM 2050 or equivalent."
+    },
+    {
+      "courseId": "GERM 4312",
+      "coverage": "partial",
+      "source": "3 hours of advanced German or consent of instructor."
+    },
+    {
+      "courseId": "GERM 4900",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated for credit."
+    },
+    {
+      "courseId": "HIST 3000",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "HIST 4060",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "HIST 4246",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "HIST 4261",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "HIST 4263",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "HIST 4276",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "HIST 4885",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "INST 2100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "INST 4850",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "INST 4852",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "INST 4853",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "INST 4855",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "INST 4858",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "ITAL 1020",
+      "coverage": "full",
+      "source": "ITAL 1010 or equivalent."
+    },
+    {
+      "courseId": "ITAL 2050",
+      "coverage": "full",
+      "source": "ITAL 2040 or equivalent."
+    },
+    {
+      "courseId": "JAPN 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JAPN 1020",
+      "coverage": "full",
+      "source": "JAPN 1010 or equivalent."
+    },
+    {
+      "courseId": "JAPN 2040",
+      "coverage": "full",
+      "source": "JAPN 1020 or equivalent."
+    },
+    {
+      "courseId": "JAPN 2050",
+      "coverage": "full",
+      "source": "JAPN 2040 or equivalent."
+    },
+    {
+      "courseId": "JAPN 3020",
+      "coverage": "full",
+      "source": "JAPN 2050 or equivalent."
+    },
+    {
+      "courseId": "JAPN 3030",
+      "coverage": "full",
+      "source": "JAPN 3020 or equivalent."
+    },
+    {
+      "courseId": "JAPN 3042",
+      "coverage": "full",
+      "source": "JAPN 2050 or equivalent."
+    },
+    {
+      "courseId": "JAPN 3066",
+      "coverage": "full",
+      "source": "JAPN 2050 or the equivalent."
+    },
+    {
+      "courseId": "JAPN 3068",
+      "coverage": "full",
+      "source": "JAPN 2050 or equivalent."
+    },
+    {
+      "courseId": "JAPN 4030",
+      "coverage": "partial",
+      "source": "9 hours of advanced Japanese or consent of department."
+    },
+    {
+      "courseId": "JAPN 4080",
+      "coverage": "partial",
+      "source": "9 hours of advanced Japanese or consent of department."
+    },
+    {
+      "courseId": "JAPN 4900",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated for credit."
+    },
+    {
+      "courseId": "JOUR 1210",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JOUR 2300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JOUR 2310",
+      "coverage": "partial",
+      "source": "Journalism major or minor status; ENGL 1310 and ENGL 1320 ; consent of school."
+    },
+    {
+      "courseId": "JOUR 2400",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JOUR 3200",
+      "coverage": "unknown",
+      "source": "Journalism major status: MATH 1680 , JOUR 1210 , JOUR 2310 . Journalism minor status: JOUR 2300 and MATH 1680 . Or consent of Mayborn school."
+    },
+    {
+      "courseId": "JOUR 3220",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated for credit as topics vary for a maximum of 3 hours."
+    },
+    {
+      "courseId": "JOUR 3300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JOUR 3310",
+      "coverage": "partial",
+      "source": "Journalism major status and successfully completed JOUR 1210 , JOUR 2310 , either JOUR 3321 and JOUR 3322 or JOUR 3323 only; consent of school. JOUR minor status and successfully completed JOUR 2310 , either JOUR 3321 and JOUR 3322 or JOUR 3323 only; or consent of Mayborn school."
+    },
+    {
+      "courseId": "JOUR 3315",
+      "coverage": "unknown",
+      "source": "Journalism majors: JOUR 1210 , JOUR 2310 and JOUR 3300 ."
+    },
+    {
+      "courseId": "JOUR 3321",
+      "coverage": "unknown",
+      "source": "Journalism major status: JOUR 1210 and JOUR 2310 . Journalism minor status: JOUR 2310 ; or consent of school."
+    },
+    {
+      "courseId": "JOUR 3322",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 and JOUR 2310 . Journalism minor status: JOUR 2310 ; consent of school."
+    },
+    {
+      "courseId": "JOUR 3323",
+      "coverage": "full",
+      "source": "JOUR 2310 and JOUR 3300 ; or consent of school."
+    },
+    {
+      "courseId": "JOUR 3340",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Journalism minor status: JOUR 2310 , JOUR 3300 , ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only; consent of school."
+    },
+    {
+      "courseId": "JOUR 3343",
+      "coverage": "partial",
+      "source": "Journalism major or minor status: JOUR 1210 , JOUR 2310 , JOUR 3300 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 3401",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JOUR 3410",
+      "coverage": "full",
+      "source": "Completion of at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 3420",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , ADVG 1100 , JOUR 3322 and JOUR 2400 ; consent of school."
+    },
+    {
+      "courseId": "JOUR 3430",
+      "coverage": "full",
+      "source": "Students must have at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 3700",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 and JOUR 3300 . Journalism minor status: JOUR 2310 and JOUR 3300 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 4210",
+      "coverage": "full",
+      "source": "Consent of school. May be repeated for credit as topics vary."
+    },
+    {
+      "courseId": "JOUR 4215",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "JOUR 4240",
+      "coverage": "full",
+      "source": "Completion of at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 4250",
+      "coverage": "full",
+      "source": "Completion of at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 4270",
+      "coverage": "full",
+      "source": "Completion of at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 4280",
+      "coverage": "full",
+      "source": "Completion of at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 4321",
+      "coverage": "unknown",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Journalism minor status: JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only."
+    },
+    {
+      "courseId": "JOUR 4323",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3315 , JOUR 3323 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 4350",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Journalism minor status: JOUR 2310 , JOUR 3300 , and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 4353",
+      "coverage": "unknown",
+      "source": "JOUR majors and minors that have successfully taken JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3343 and JOUR 3315 ."
+    },
+    {
+      "courseId": "JOUR 4355",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , either ADVG 1100 or JOUR 3300 and either JOUR 3321 or JOUR 3322 or JOUR 3323 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 4410",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3321 and JOUR 3322 or JOUR 3323 . JOUR minor status: JOUR 2310 , JOUR 3300 , JOUR 3321 and JOUR 3322 or JOUR 3323 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 4460",
+      "coverage": "unknown",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3200 , ADVG 1100 , JOUR 3322 , JOUR 2400 and JOUR 3420 ."
+    },
+    {
+      "courseId": "JOUR 4480",
+      "coverage": "unknown",
+      "source": "Journalism majors: JOUR 1210 , JOUR 2310 , JOUR 3322 , and JOUR 3420 ."
+    },
+    {
+      "courseId": "JOUR 4620",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , and ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 or ADVG 1100 . Journalism minor status: JOUR 2310 , JOUR 3300 , and ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 or ADVG 1100 . Consent of school."
+    },
+    {
+      "courseId": "JOUR 4730",
+      "coverage": "partial",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3700 and either ( JOUR 3321 and JOUR 3322 )or JOUR 3323 only. JOUR minor status: JOUR 2310 , JOUR 3300 , JOUR 3700 and either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 only. Consent of school."
+    },
+    {
+      "courseId": "JOUR 4800",
+      "coverage": "unknown",
+      "source": "Internships are intended for Journalism Majors to take in their final year in the program. Students must complete specific prerequisites for their chosen professional concentration in Journalism before they can be granted permission to enroll. Students wanting to request course credit for a professional internship must complete the Departmental Request and Site Approval Form before they can be enrolled. See Journalism.unt.edu for more details, information and the request form. May be repeated for credit; however, no more than 3 hours of total credit for JOUR 4800 and JOUR 4805 or JOUR 4810 may be applied to the journalism degree requirements."
+    },
+    {
+      "courseId": "JOUR 4810",
+      "coverage": "partial",
+      "source": "Journalism major status: Passing score on GSP (grammar, spelling & punctuation) exam and successfully completed JOUR 1210 , JOUR 2310 , JOUR 3300 , JOUR 3322 and either JOUR 3321 or JOUR 3323 . Consent of school. May be repeated for credit; however, no more than 3 hours total credit for JOUR 4800 or JOUR 4810 may be applied to the journalism degree requirements."
+    },
+    {
+      "courseId": "JOUR 4820",
+      "coverage": "full",
+      "source": "Completion of at least 45 hours of credit."
+    },
+    {
+      "courseId": "JOUR 4900",
+      "coverage": "full",
+      "source": "Consent of school. May be repeated for credit as topics vary for a maximum of 3 hours."
+    },
+    {
+      "courseId": "JOUR 4999",
+      "coverage": "unknown",
+      "source": "Journalism major status: JOUR 1210 , JOUR 2310 , JOUR 3300 ; either ( JOUR 3321 and JOUR 3322 ) or JOUR 3323 ; and one of the following: JOUR 3310 , JOUR 4321 , JOUR 3700 or JOUR 4323 . Should be taken during final 30 hours of study."
+    },
+    {
+      "courseId": "MATH 1100",
+      "coverage": "partial",
+      "source": "Two years of high school algebra and one year of geometry, and consent of department. A grade of C or better in MATH 1100 is required when MATH 1100 is a prerequisite for other mathematics courses."
+    },
+    {
+      "courseId": "MATH 1180",
+      "coverage": "partial",
+      "source": "Two years of high school algebra and one year of geometry, and consent of department. Students who feel they acquired solid algebra skills in high school are strongly encouraged to take the mathematics placement exam to see if they may begin in MATH 1190 instead. A grade C or better in MATH 1180 is required when MATH 1180 is a prerequisite for other mathematics courses. Core Category: Mathematics"
+    },
+    {
+      "courseId": "MATH 1190",
+      "coverage": "partial",
+      "source": "Two years of high school algebra and consent of department; or MATH 1100 or MATH 1180 with a grade of C or better. Core Category: Mathematics"
+    },
+    {
+      "courseId": "MATH 1580",
+      "coverage": "partial",
+      "source": "Two years of high school algebra and one year of high school geometry and consent of department. Students may not receive credit for both MATH 1580 and MATH 1581X . Core Category: Mathematics"
+    },
+    {
+      "courseId": "MATH 1650",
+      "coverage": "partial",
+      "source": "MATH 1100 with a grade of C or better. MATH 1650 covers approximately the same material as MATH 1600 and MATH 1610 together. Students who already have credit for both MATH 1600 and MATH 1610 may not receive credit for MATH 1650. Core Category: Mathematics"
+    },
+    {
+      "courseId": "MATH 1680",
+      "coverage": "unknown",
+      "source": "TSI complete. Core Category: Mathematics"
+    },
+    {
+      "courseId": "MATH 1710",
+      "coverage": "full",
+      "source": "A grade of C or higher in MATH 1650 ; or a grade of C or higher in both MATH 1600 and MATH 1610 . Core Category: Mathematics"
+    },
+    {
+      "courseId": "MATH 1720",
+      "coverage": "full",
+      "source": "A grade of C or higher in MATH 1710 . Core Category: Component Area Option A"
+    },
+    {
+      "courseId": "MATH 1780",
+      "coverage": "full",
+      "source": "MATH 1710 or MATH 1810 ."
+    },
+    {
+      "courseId": "MATH 2000",
+      "coverage": "partial",
+      "source": "MATH 1710 or MATH 1810 (may be taken concurrently by math majors)."
+    },
+    {
+      "courseId": "MATH 2100",
+      "coverage": "partial",
+      "source": "MATH 1710 , MATH 1720 (may be taken concurrently) or MATH 1810 , MATH 1820 , MATH 1830 (may be taken concurrently), TNTX 1100 (may be taken concurrently), or consent of the Teach North Texas advisor."
+    },
+    {
+      "courseId": "MATH 2700",
+      "coverage": "full",
+      "source": "A grade of C or higher in MATH 1720 ."
+    },
+    {
+      "courseId": "MATH 2730",
+      "coverage": "full",
+      "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 ."
+    },
+    {
+      "courseId": "MATH 3000",
+      "coverage": "partial",
+      "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . Grade of A, B, or C in MATH 2000 . Students who are neither mathematics nor interdisciplinary studies majors must contact a mathematics advisor at < MathAdvising@unt.edu > prior to registering for Math 3000.”"
+    },
+    {
+      "courseId": "MATH 3180",
+      "coverage": "full",
+      "source": "MATH 2700 and MATH 2730 ."
+    },
+    {
+      "courseId": "MATH 3350",
+      "coverage": "partial",
+      "source": "MATH 2700 . Computer programming ability."
+    },
+    {
+      "courseId": "MATH 3410",
+      "coverage": "partial",
+      "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . MATH 2700 recommended (may be taken concurrently)."
+    },
+    {
+      "courseId": "MATH 3420",
+      "coverage": "full",
+      "source": "MATH 2730 , MATH 3410 ."
+    },
+    {
+      "courseId": "MATH 3510",
+      "coverage": "full",
+      "source": "MATH 3000 ; MATH 2700 (may be taken concurrently)."
+    },
+    {
+      "courseId": "MATH 3680",
+      "coverage": "partial",
+      "source": "MATH 1710 . MATH 1720 (may be taken concurrently) or MATH 1810 , MATH 1820 , MATH 1830 (may be taken concurrently)."
+    },
+    {
+      "courseId": "MATH 3740",
+      "coverage": "full",
+      "source": "MATH 2700 , MATH 2730 ."
+    },
+    {
+      "courseId": "MATH 3860",
+      "coverage": "full",
+      "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . MATH 3680 (may be taken concurrently) and FINA 3770 (may be taken concurrently)."
+    },
+    {
+      "courseId": "MATH 4060",
+      "coverage": "partial",
+      "source": "MATH 3000 . Prior or concurrent enrollment in MATH 3510 or MATH 3610 is strongly recommended."
+    },
+    {
+      "courseId": "MATH 4450",
+      "coverage": "full",
+      "source": "MATH 2700 ."
+    },
+    {
+      "courseId": "MATH 4500",
+      "coverage": "full",
+      "source": "MATH 3610 ."
+    },
+    {
+      "courseId": "MATH 4610",
+      "coverage": "full",
+      "source": "MATH 2730 and either MATH 3680 or consent of department."
+    },
+    {
+      "courseId": "MATH 4650",
+      "coverage": "partial",
+      "source": "MATH 4610 . MATH 3680 or at least a 4 on the AP Statistics test."
+    },
+    {
+      "courseId": "MATH 4815",
+      "coverage": "full",
+      "source": "Consent of department. CSCE 4815 ."
+    },
+    {
+      "courseId": "MATH 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "MATH 4951",
+      "coverage": "partial",
+      "source": "Completion of at least 6 hours in honors courses; completion of at least 12 hours in the major department in which the thesis is prepared; approval of the department chair and the dean of the school or college in which the thesis is prepared; approval of the dean of the Honors College. May be substituted for HNRS 4000 . Course may be taken only once for Honors College credit."
+    },
+    {
+      "courseId": "MEEN 1000",
+      "coverage": "partial",
+      "source": "MATH 1650 (with grade of C or better) or MATH 1710 with a grade of C or better. Required for the BS degree in mechanical and energy engineering at UNT."
+    },
+    {
+      "courseId": "MEEN 2110",
+      "coverage": "full",
+      "source": "MATH 2700 with a grade of C or better; MEEN 1000 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 2210",
+      "coverage": "full",
+      "source": "MATH 1720 with a grade of C or better; PHYS 1710 with a grade of C or better; MEEN 1000 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 2240",
+      "coverage": "full",
+      "source": "MEEN 1000 with a grade of C or better. Corequisite(s): MATH 2700 ."
+    },
+    {
+      "courseId": "MEEN 2900",
+      "coverage": "partial",
+      "source": "Consent of instructor. Each course may be repeated for 6 credit hours. For elective credit only; may not be substituted for required MEEN courses."
+    },
+    {
+      "courseId": "MEEN 3100",
+      "coverage": "full",
+      "source": "MEEN 2332 or ENGR 2332 with a grade of C or better; ENGR 3450 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 3110",
+      "coverage": "full",
+      "source": "MEEN 2210 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 3120",
+      "coverage": "unknown",
+      "source": "MATH 2730 , MATH 3410 , MEEN 2210 and MEEN 2332 or ENGR 2332 all with a C or better."
+    },
+    {
+      "courseId": "MEEN 3130",
+      "coverage": "full",
+      "source": "ENGR 1304 with a grade of C or better; MEEN 2332 or ENGR 2332 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 3210",
+      "coverage": "full",
+      "source": "MEEN 3120 ; MEEN 3110 ; MEEN 3250 all with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 3230",
+      "coverage": "full",
+      "source": "MATH 3410 ; MATH 2700 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 3240",
+      "coverage": "full",
+      "source": "MATH 3410 ; MEEN 2210 ; MEEN 2110 , all with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 3250",
+      "coverage": "full",
+      "source": "MATH 3410 with a grade of C or better; MEEN 2240 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 4110",
+      "coverage": "full",
+      "source": "MEEN 3110 ; MEEN 3210 , all with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 4140",
+      "coverage": "full",
+      "source": "MATH 3410 ; MEEN 2332 or ENGR 2332 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 4150",
+      "coverage": "full",
+      "source": "EENG 2610 ; MEEN 3130 ; MEEN 3210 ; MEEN 3230 ; MEEN 3242 , all with a grade of C or better. Corequisite(s): MEEN 3100 ."
+    },
+    {
+      "courseId": "MEEN 4151",
+      "coverage": "full",
+      "source": "MEEN 2301 or ENGR 2301 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 4180",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "MEEN 4250",
+      "coverage": "partial",
+      "source": "MEEN 4150 and MEEN 3100 with a grade of C or better. Required for the BS degree in mechanical and energy engineering at UNT."
+    },
+    {
+      "courseId": "MEEN 4315",
+      "coverage": "full",
+      "source": "MEEN 3110 ; MEEN 3120 ; MEEN 3210 , all with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 4332",
+      "coverage": "full",
+      "source": "MEEN 3110 with a grade of C or better."
+    },
+    {
+      "courseId": "MEEN 4730",
+      "coverage": "full",
+      "source": "MEEN 2332 or ENGR 2332 . May be repeated for credit."
+    },
+    {
+      "courseId": "MEEN 4810",
+      "coverage": "full",
+      "source": "Consent of instructor. May be repeated for credit as topics vary."
+    },
+    {
+      "courseId": "MEEN 4920",
+      "coverage": "unknown",
+      "source": "Sophomore level equivalent. May be repeated for credit up to a maximum of 3 semester credit hours."
+    },
+    {
+      "courseId": "MTSE 2000",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "MTSE 2900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "MTSE 3000",
+      "coverage": "full",
+      "source": "CHEM 1410 / CHEM 1430 or CHEM 1415 / CHEM 1435 ."
+    },
+    {
+      "courseId": "MTSE 3001",
+      "coverage": "full",
+      "source": "MTSE 3000 (may be taken concurrently)."
+    },
+    {
+      "courseId": "MTSE 3050",
+      "coverage": "full",
+      "source": "ENGR 3000 ."
+    },
+    {
+      "courseId": "MTSE 3060",
+      "coverage": "full",
+      "source": "MTSE 3010 , MTSE 3030 , MTSE 3040 ."
+    },
+    {
+      "courseId": "MTSE 3070",
+      "coverage": "full",
+      "source": "ENGR 3450 and MTSE 3000 ."
+    },
+    {
+      "courseId": "MTSE 3080",
+      "coverage": "full",
+      "source": "MTSE 3040 ."
+    },
+    {
+      "courseId": "MTSE 3110",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "MTSE 4040",
+      "coverage": "full",
+      "source": "MTSE 3010 , MTSE 3030 , MATH 3410 ."
+    },
+    {
+      "courseId": "MTSE 4050",
+      "coverage": "full",
+      "source": "MTSE 3000 ."
+    },
+    {
+      "courseId": "MTSE 4070",
+      "coverage": "full",
+      "source": "MTSE 3000 , MATH 3410 ."
+    },
+    {
+      "courseId": "MTSE 4100",
+      "coverage": "full",
+      "source": "MTSE 4090 ."
+    },
+    {
+      "courseId": "MTSE 4120",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "MTSE 4900",
+      "coverage": "partial",
+      "source": "MATH 1710 , CHEM 1410 / CHEM 1430 . May be repeated as topics vary. Maximum of 8 credits allowed."
+    },
+    {
+      "courseId": "MTSE 4910",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 1050",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 1400",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 1900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 2050",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 2070",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 2600",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3120",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3310",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3330",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3450",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3510",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3600",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3660",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3680",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "PHIL 4054",
+      "coverage": "full",
+      "source": "Upper level academic standing and consent of department."
+    },
+    {
+      "courseId": "PHIL 4150",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHIL 4970",
+      "coverage": "partial",
+      "source": "Senior standing and philosophy or religious studies major status; or consent of department. Required course for philosophy majors only."
+    },
+    {
+      "courseId": "PHYS 1052",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHYS 1062",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHYS 1270",
+      "coverage": "partial",
+      "source": "MATH 1100 or above. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 1410",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHYS 1420",
+      "coverage": "partial",
+      "source": "PHYS 1410 or consent of department. Corequisite(s): PHYS 1440 . Non-calculus based physics sequence suitable for life sciences majors and preprofessional students. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 1510",
+      "coverage": "partial",
+      "source": "MATH 1710 or MATH 1810 (may be taken concurrently). Corequisite(s): PHYS 1530 . Calculus-based physics sequence suitable for physics majors, bio-chemistry, math majors, chemistry majors, future science teachers, and for pre-medicine and other health-related preprofessional students. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 1520",
+      "coverage": "partial",
+      "source": "PHYS 1510 completed with a grade of C or better. MATH 1710 completed with a grade of C or better, or MATH 1820 (may be taken concurrently). Corequisite(s): PHYS 1540 . Calculus-based physics sequence suitable for physics majors, biochemistry, chemistry majors, math majors, future science teachers, and for pre-medicine and other health-related preprofessional students. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 1710",
+      "coverage": "partial",
+      "source": "MATH 1710 with a grade of C or better or MATH 1820 (may be taken concurrently). Corequisite(s): PHYS 1730 . Calculus-based, suitable for engineering, and computer science. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 2220",
+      "coverage": "partial",
+      "source": "PHYS 1420 or PHYS 1710 each with a grade of C or better; or PHYS 1510 . MATH 1720 or MATH 1830 (either may be taken concurrently). Corequisite(s): PHYS 2240 . Calculus-based, suitable for engineering, computer science majors. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 2900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PHYS 3010",
+      "coverage": "partial",
+      "source": "PHYS 2220 or PHYS 1520 . MATH 1720 or MATH 1830 (either may be taken concurrently). Corequisite(s): It is recommended that the course be taken concurrently with PHYS 3030 . Calculus-based, suitable for physics, engineering, mathematics, computer science and chemistry majors."
+    },
+    {
+      "courseId": "PHYS 3420",
+      "coverage": "partial",
+      "source": "PHYS 1420 / PHYS 1440 , PHYS 1520 / PHYS 1540 , or PHYS 2220 / PHYS 2240 . MATH 1710 with a C or higher or MATH 1820 (may be taken concurrently)."
+    },
+    {
+      "courseId": "PHYS 3510",
+      "coverage": "full",
+      "source": "PHYS 1520 or PHYS 2220 ."
+    },
+    {
+      "courseId": "PHYS 4110",
+      "coverage": "full",
+      "source": "PHYS 3010 , PHYS 3030 ."
+    },
+    {
+      "courseId": "PHYS 4150",
+      "coverage": "full",
+      "source": "PHYS 3010 , PHYS 3030 . May be repeated for credit up to 9 hours."
+    },
+    {
+      "courseId": "PHYS 4310",
+      "coverage": "full",
+      "source": "PHYS 3010 / PHYS 3030 and MATH 3410 ."
+    },
+    {
+      "courseId": "PHYS 4500",
+      "coverage": "full",
+      "source": "PHYS 3010 / PHYS 3030 ."
+    },
+    {
+      "courseId": "PHYS 4520",
+      "coverage": "full",
+      "source": "PHYS 3010 ."
+    },
+    {
+      "courseId": "PHYS 4610",
+      "coverage": "full",
+      "source": "Consent of department. May be repeated up to twice, for a total of 9 hours of credit."
+    },
+    {
+      "courseId": "PHYS 4900",
+      "coverage": "unknown",
+      "source": "Must have the consent of the faculty member prior to enrollment. May be repeated for credit."
+    },
+    {
+      "courseId": "PHYS 4950",
+      "coverage": "full",
+      "source": "Consent of supervising faculty member."
+    },
+    {
+      "courseId": "PHYS 4955",
+      "coverage": "full",
+      "source": "PHYS 4950 and consent of supervising faculty member."
+    },
+    {
+      "courseId": "PSCI 2305",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 2306",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 2315",
+      "coverage": "partial",
+      "source": "PSCI 2306 or PSCI 2316 . Acceptance to Honors College. Core Category: Government/Political Science"
+    },
+    {
+      "courseId": "PSCI 2316",
+      "coverage": "unknown",
+      "source": "Acceptance to Honors College. Satisfies the requirement of a course emphasizing U.S. and Texas constitutions. Core Category: Government/Political Science"
+    },
+    {
+      "courseId": "PSCI 3100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3101",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3102",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3110",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3130",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3200",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3210",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3300",
+      "coverage": "full",
+      "source": "PSCI 2306 / PSCI 2316 or PSCI 2305 / PSCI 2315 , or consent of department."
+    },
+    {
+      "courseId": "PSCI 3310",
+      "coverage": "unknown",
+      "source": "3 hours of political science."
+    },
+    {
+      "courseId": "PSCI 3500",
+      "coverage": "full",
+      "source": "PSCI 2306 , PSCI 2305 ."
+    },
+    {
+      "courseId": "PSCI 3600",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3704",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "PSCI 4100",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4230",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4330",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4410",
+      "coverage": "full",
+      "source": "PSCI 2305 , PSCI 2306 ."
+    },
+    {
+      "courseId": "PSCI 4661",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4810",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4820",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4821",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSCI 4952",
+      "coverage": "partial",
+      "source": "Senior standing; completion of: PSCI 2306 and PSCI 2305 or their equivalents; PSCI 3300 ; and at least four advanced courses from three fields of PSCI."
+    },
+    {
+      "courseId": "PSCI 4953",
+      "coverage": "partial",
+      "source": "Senior standing; completion of PSCI 2306 and PSCI 2305 or their equivalents; PSCI 3300 ; at least four advanced courses from three fields of PSCI; completion of departmental application process; and consent of department."
+    },
+    {
+      "courseId": "PSCI 4954",
+      "coverage": "partial",
+      "source": "Senior standing with an overall and major GPA of 3.0 or better; completion of PSCI 2306 and PSCI 2305 or their equivalents, PSCI 3300 , and at least four advanced courses from three fields of PSCI."
+    },
+    {
+      "courseId": "PSYC 1630",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSYC 1650",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSYC 2317",
+      "coverage": "full",
+      "source": "MATH 1680 or MATH 1681X Corequisite(s): PSYC 3317 ."
+    },
+    {
+      "courseId": "PSYC 2480",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSYC 2580",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSYC 2900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "PSYC 3000",
+      "coverage": "full",
+      "source": "PSYC 1630 or PSYC 1650 ."
+    },
+    {
+      "courseId": "PSYC 3100",
+      "coverage": "full",
+      "source": "C or better in either PSYC 1630 or PSYC 1650 ."
+    },
+    {
+      "courseId": "PSYC 3300",
+      "coverage": "full",
+      "source": "PSYC 1630 and PSYC 1650 ."
+    },
+    {
+      "courseId": "PSYC 3490",
+      "coverage": "full",
+      "source": "C or better in PSYC 1630 and Sophomore Standing."
+    },
+    {
+      "courseId": "PSYC 3520",
+      "coverage": "full",
+      "source": "C or better in PSYC 1630 and Sophomore Standing."
+    },
+    {
+      "courseId": "PSYC 3530",
+      "coverage": "full",
+      "source": "C or better in PSYC 1630 and upper-level standing."
+    },
+    {
+      "courseId": "PSYC 3620",
+      "coverage": "full",
+      "source": "C or Better in PSYC 1630 ."
+    },
+    {
+      "courseId": "PSYC 3640",
+      "coverage": "full",
+      "source": "C or better in PSYC 1630 or PSYC 2600 or PSYC 2480 , and Sophomore Standing."
+    },
+    {
+      "courseId": "PSYC 3650",
+      "coverage": "full",
+      "source": "PSYC 1630 , PSYC 2317 , PSYC 3317 , and TECM 2700 or ENGL 1320 ."
+    },
+    {
+      "courseId": "PSYC 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "PSYC 4020",
+      "coverage": "partial",
+      "source": "C or better in PSYC 1630 and one of the following: PSYC 2580 , PSYC 3100 , or PSYC 3620 and Junior Standing."
+    },
+    {
+      "courseId": "PSYC 4030",
+      "coverage": "full",
+      "source": "C or better in one of the following: PSYC 3100 or PSYC 3620 and Junior Standing."
+    },
+    {
+      "courseId": "PSYC 4470",
+      "coverage": "partial",
+      "source": "C or better in PSYC 1630 and one of the following: PSYC 2580 , PSYC 3490 , or PSYC 3620 and Junior Standing."
+    },
+    {
+      "courseId": "PSYC 4510",
+      "coverage": "unknown",
+      "source": "Junior Standing May be repeated for credit."
+    },
+    {
+      "courseId": "PSYC 4520",
+      "coverage": "full",
+      "source": "C or better in PSYC 3650 ."
+    },
+    {
+      "courseId": "PSYC 4600",
+      "coverage": "full",
+      "source": "Grade of C or better in PSYC 3650 ."
+    },
+    {
+      "courseId": "PSYC 4610",
+      "coverage": "full",
+      "source": "C or better in PSYC 3650 and Junior standing."
+    },
+    {
+      "courseId": "PSYC 4640",
+      "coverage": "full",
+      "source": "C or better in both PSYC 1650 and PSYC 3650 and Junior Standing, or Consent of Department."
+    },
+    {
+      "courseId": "PSYC 4690",
+      "coverage": "full",
+      "source": "PSYC 3650 or consent of department."
+    },
+    {
+      "courseId": "PSYC 4820",
+      "coverage": "full",
+      "source": "C or better in PSYC 1650 and PSYC 3650 , or consent of department."
+    },
+    {
+      "courseId": "PSYC 4830",
+      "coverage": "full",
+      "source": "C or better in PSYC 3650 ."
+    },
+    {
+      "courseId": "PSYC 4850",
+      "coverage": "partial",
+      "source": "Psychology major status, PSYC 3650 and consent of department. May be repeated for credit for a maximum of 6 hours."
+    },
+    {
+      "courseId": "PSYC 4950",
+      "coverage": "partial",
+      "source": "PSYC 2317 , PSYC 3650 , PSYC 3630 . For psychology majors with a minimum of 18 hours in psychology and a minimum grade point average of 3.5 in psychology and 3.0 overall."
+    },
+    {
+      "courseId": "PSYC 4951",
+      "coverage": "partial",
+      "source": "Completion of at least 6 hours in honors courses; completion of at least 12 hours in the major department in which the thesis is prepared; approval of the department chair and the dean of the school or college in which the thesis is prepared; approval of the dean of the Honors College. May be substituted for HNRS 4000 . Course may be taken only once for Honors College credit."
+    },
+    {
+      "courseId": "SOCI 1510",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 1520",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 2050",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3000",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3110",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3120",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3200",
+      "coverage": "partial",
+      "source": "SOCI 1510 or equivalent. Required of all sociology majors."
+    },
+    {
+      "courseId": "SOCI 3220",
+      "coverage": "partial",
+      "source": "SOCI 1510 and advanced (junior or senior) standing. Required of all BS with a major in sociology majors. A grade of C or better in this course is required for graduation."
+    },
+    {
+      "courseId": "SOCI 3240",
+      "coverage": "partial",
+      "source": "SOCI 1510 and advanced (junior or senior) standing. Required of all BS with a major in sociology majors. A grade of C or better in this course is required for graduation."
+    },
+    {
+      "courseId": "SOCI 3280",
+      "coverage": "partial",
+      "source": "SOCI 3220 or equivalent Required of all sociology majors."
+    },
+    {
+      "courseId": "SOCI 3300",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3330",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3540",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3700",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 3996",
+      "coverage": "partial",
+      "source": "Admission to the Honors College; at least junior class status; consent of Honors College dean. May be taken twice for Honors College credit."
+    },
+    {
+      "courseId": "SOCI 4170",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4240",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4250",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4260",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4600",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4750",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SOCI 4950",
+      "coverage": "unknown",
+      "source": "Junior/Senior status and at least 9 credit hours in Sociology. Pass/no pass only."
+    },
+    {
+      "courseId": "SPAN 1010",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SPAN 1020",
+      "coverage": "full",
+      "source": "SPAN 1010 or equivalent."
+    },
+    {
+      "courseId": "SPAN 1030",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SPAN 2040",
+      "coverage": "unknown",
+      "source": "SPAN 1020 , SPAN 1030 or equivalent."
+    },
+    {
+      "courseId": "SPAN 2050",
+      "coverage": "full",
+      "source": "SPAN 2040 or equivalent."
+    },
+    {
+      "courseId": "SPAN 3001",
+      "coverage": "full",
+      "source": "SPAN 2050 or its equivalent."
+    },
+    {
+      "courseId": "SPAN 3002",
+      "coverage": "full",
+      "source": "SPAN 2050 or equivalent."
+    },
+    {
+      "courseId": "SPAN 3003",
+      "coverage": "full",
+      "source": "SPAN 2050 or equivalent."
+    },
+    {
+      "courseId": "SPAN 3004",
+      "coverage": "full",
+      "source": "SPAN 2050 or equivalent."
+    },
+    {
+      "courseId": "SPAN 3050",
+      "coverage": "full",
+      "source": "SPAN 2050 or equivalent."
+    },
+    {
+      "courseId": "SPAN 3080",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "SPAN 3120",
+      "coverage": "partial",
+      "source": "3 hours of advanced (3000- or 4000-level) Spanish or consent of department."
+    },
+    {
+      "courseId": "SPAN 3180",
+      "coverage": "partial",
+      "source": "3 hours of advanced (3000- or 4000- level) Spanish or consent of department."
+    },
+    {
+      "courseId": "SPAN 3510",
+      "coverage": "full",
+      "source": "SPAN 2050 or equivalent."
+    },
+    {
+      "courseId": "SPAN 3520",
+      "coverage": "full",
+      "source": "SPAN 2050 ."
+    },
+    {
+      "courseId": "SPAN 3560",
+      "coverage": "full",
+      "source": "SPAN 2050 or equivalent."
+    },
+    {
+      "courseId": "SPAN 4040",
+      "coverage": "partial",
+      "source": "3 hours of advanced (3000- or 4000- level) Spanish or consent of department."
+    },
+    {
+      "courseId": "SPAN 4242",
+      "coverage": "unknown",
+      "source": "6 hours of upper level Spanish."
+    },
+    {
+      "courseId": "SPAN 4320",
+      "coverage": "full",
+      "source": "SPAN 3110 ."
+    },
+    {
+      "courseId": "TECM 1500",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "TECM 1600",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "TECM 1700",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "TECM 2700",
+      "coverage": "partial",
+      "source": "ENGL 1310 or TECM 1700 . May be substituted for ENGL 1320 in some programs; students should consult advisors in their majors. Core Category: Communication (English Composition and Rhetoric)"
+    },
+    {
+      "courseId": "TECM 3010",
+      "coverage": "full",
+      "source": "TECM 2700 (may be taken concurrently)."
+    },
+    {
+      "courseId": "TECM 3100",
+      "coverage": "partial",
+      "source": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate."
+    },
+    {
+      "courseId": "TECM 3500",
+      "coverage": "full",
+      "source": "TECM 2700 ."
+    },
+    {
+      "courseId": "TECM 3550",
+      "coverage": "full",
+      "source": "TECM 2700 ."
+    },
+    {
+      "courseId": "TECM 4010",
+      "coverage": "partial",
+      "source": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate."
+    },
+    {
+      "courseId": "TECM 4100",
+      "coverage": "partial",
+      "source": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate."
+    },
+    {
+      "courseId": "TECM 4180",
+      "coverage": "full",
+      "source": "TECM 2700 ."
+    },
+    {
+      "courseId": "TECM 4190",
+      "coverage": "full",
+      "source": "TECM 2700 ."
+    },
+    {
+      "courseId": "TECM 4200",
+      "coverage": "full",
+      "source": "TECM 2700 ."
+    },
+    {
+      "courseId": "TECM 4250",
+      "coverage": "partial",
+      "source": "TECM 2700 . Programs outside of the Dept. of Technical Communication that allow (but not require) TECM 4250 as part of major requirements:"
+    },
+    {
+      "courseId": "TECM 4500",
+      "coverage": "partial",
+      "source": "Majors in the Department of Technical Communication: TECM 2700 and TECM 3010 , or consent of department. Minor or certificate in Department of Technical Communication: TECM 2700 and declaration of minor or certificate."
+    },
+    {
+      "courseId": "TECM 4700",
+      "coverage": "full",
+      "source": "TECM 2700 ."
+    },
+    {
+      "courseId": "TECM 4900",
+      "coverage": "full",
+      "source": ""
+    },
+    {
+      "courseId": "TECM 4920",
+      "coverage": "full",
+      "source": "TECM 2700 ; consent of department. May be repeated for credit."
+    },
+    {
+      "courseId": "TECM 4950",
+      "coverage": "unknown",
+      "source": "Professional and Technical Communication major status with 90 or more semester credit hours only."
+    }
+  ]
+}

@@ -1,0 +1,416 @@
+[
+  {
+    "courseId": "CSCE1040",
+    "source": "CSCE 1030 with a grade of C or better; and MATH 1100 or MATH 1650 or MATH 1710 with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CSCE 1030),or(grade:C(MATH 1100),grade:C(MATH 1650),grade:C(MATH 1710))))"
+  },
+  {
+    "courseId": "CSCE1045",
+    "source": "CSCE 1035 with a grade of C or better. MATH 1100 or MATH 1650 or MATH 1710 with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(grade:C(CSCE 1035),or(grade:C(MATH 1100),grade:C(MATH 1650),grade:C(MATH 1710)))"
+  },
+  {
+    "courseId": "CSCE4650",
+    "source": "CSCE 2100 , CSCE 2110 and CSCE 3600 , each with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CSCE 2100),grade:C(CSCE 2110),grade:C(CSCE 3600)))"
+  },
+  {
+    "courseId": "CSCE3600",
+    "source": "CSCE 2100 and CSCE 2110 , with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CSCE 2100),grade:C(CSCE 2110)))"
+  },
+  {
+    "courseId": "CSCE3610",
+    "source": "CSCE 2610 or CSCE 4127 , and CSCE 3730 , with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(or(grade:C(CSCE 2610),grade:C(CSCE 4127)),grade:C(CSCE 3730)))"
+  },
+  {
+    "courseId": "CSCE4905",
+    "source": "CSCE 3055 and CSCE 3615 (or CSCE 3444 ), each with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CSCE 3055),or(grade:C(CSCE 3615),grade:C(CSCE 3444))))"
+  },
+  {
+    "courseId": "CSCE4250",
+    "source": "CSCE 4210 with a grade of C or better. Corequisite(s): CSCE 4220 . May be repeated for credit as topics vary for a maximum of 6 hours.",
+    "coverage": "full",
+    "expected": "and(grade:C(CSCE 4210),coreq(CSCE 4220))"
+  },
+  {
+    "courseId": "CSCE4555",
+    "source": "CSCE 2110 with a grade of C or better OR consent of instructor.",
+    "coverage": "full",
+    "expected": "and(or(grade:C(CSCE 2110),consent))"
+  },
+  {
+    "courseId": "CSCE2210",
+    "source": "CSCE 1010 or consent of instructor.",
+    "coverage": "full",
+    "expected": "and(or(CSCE 1010,consent))"
+  },
+  {
+    "courseId": "CSCE4901",
+    "source": "CSCE 3444 and TECM 2700 , each with a grade of C or better. Senior standing.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CSCE 3444),grade:C(TECM 2700)),standing:senior)"
+  },
+  {
+    "courseId": "CSCE4915",
+    "source": "CSCE 4910 with a grade of C or better. CSCE 4915 must be completed in the long term/semester immediately following the completion of CSCE 4910 .",
+    "coverage": "partial",
+    "expected": "and(grade:C(CSCE 4910),unknown)"
+  },
+  {
+    "courseId": "CSCE1030",
+    "source": "CSCE 1010 (for CSE majors only) with a grade of C or better and MATH 1100 , or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors only).",
+    "coverage": "unknown",
+    "expected": "and(unknown,coreq(unknown))"
+  },
+  {
+    "courseId": "CSCE1035",
+    "source": "CSCE 1010 with a grade of C or better, and MATH 1100 or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors).",
+    "coverage": "partial",
+    "expected": "and(and(grade:C(CSCE 1010),or(grade:C(MATH 1100),grade:C(MATH 1650),grade:C(MATH 1710))),coreq(unknown))"
+  },
+  {
+    "courseId": "CSCE2610",
+    "source": "CSCE 2100 with a grade of C or better. Corequisite(s): CSCI majors: EENG 2710 . CMPE majors: EENG 2710 taken concurrently with EENG 2711 .",
+    "coverage": "partial",
+    "expected": "and(grade:C(CSCE 2100),coreq(unknown),unknown)"
+  },
+  {
+    "courseId": "CSCE2100",
+    "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): MATH 1710 . Can be taken concurrently with CSCE 2110 .",
+    "coverage": "partial",
+    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),coreq(MATH 1710),unknown)"
+  },
+  {
+    "courseId": "CSCE2110",
+    "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): This course can be taken concurrently with CSCE 2100 .",
+    "coverage": "partial",
+    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),coreq(unknown))"
+  },
+  {
+    "courseId": "CSCE2900",
+    "source": "Students must get instructor consent by email, as well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Students must upload the instructor consent and all other consent/approval documentation in the form. For elective credit only. May be repeated for credit for a maximum of 6 hours.",
+    "coverage": "unknown",
+    "expected": "and(and(unknown,unknown),and(unknown,unknown),unknown)"
+  },
+  {
+    "courseId": "MATH1710",
+    "source": "A grade of C or higher in MATH 1650 ; or a grade of C or higher in both MATH 1600 and MATH 1610 . Core Category: Mathematics",
+    "coverage": "full",
+    "expected": "and(or(grade:C(MATH 1650),and(grade:C(MATH 1600),grade:C(MATH 1610))))"
+  },
+  {
+    "courseId": "MATH1720",
+    "source": "A grade of C or higher in MATH 1710 . Core Category: Component Area Option A",
+    "coverage": "full",
+    "expected": "and(grade:C(MATH 1710))"
+  },
+  {
+    "courseId": "MATH2730",
+    "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 .",
+    "coverage": "full",
+    "expected": "and(or(grade:C(MATH 1720),grade:C(MATH 1830)))"
+  },
+  {
+    "courseId": "MATH3860",
+    "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . MATH 3680 (may be taken concurrently) and FINA 3770 (may be taken concurrently).",
+    "coverage": "full",
+    "expected": "and(or(grade:C(MATH 1720),grade:C(MATH 1830)),and(coreq(MATH 3680),coreq(FINA 3770)))"
+  },
+  {
+    "courseId": "MATH3510",
+    "source": "MATH 3000 ; MATH 2700 (may be taken concurrently).",
+    "coverage": "full",
+    "expected": "and(and(MATH 3000,coreq(MATH 2700)))"
+  },
+  {
+    "courseId": "MATH2000",
+    "source": "MATH 1710 or MATH 1810 (may be taken concurrently by math majors).",
+    "coverage": "partial",
+    "expected": "and(or(MATH 1710,unknown))"
+  },
+  {
+    "courseId": "MATH3350",
+    "source": "MATH 2700 . Computer programming ability.",
+    "coverage": "partial",
+    "expected": "and(MATH 2700,unknown)"
+  },
+  {
+    "courseId": "MATH1680",
+    "source": "TSI complete. Core Category: Mathematics",
+    "coverage": "unknown",
+    "expected": "and(unknown)"
+  },
+  {
+    "courseId": "MATH4815",
+    "source": "Consent of department. CSCE 4815 .",
+    "coverage": "full",
+    "expected": "and(consent,CSCE 4815)"
+  },
+  {
+    "courseId": "BMEN2320",
+    "source": "BMEN 1300 ; BMEN 2210 ; BMEN 1400 or concurrent enrollment.",
+    "coverage": "full",
+    "expected": "and(and(BMEN 1300,BMEN 2210,coreq(BMEN 1400)))"
+  },
+  {
+    "courseId": "BMEN4920",
+    "source": "Junior or senior standing; good academic standing in biomedical engineering. Consent of department required",
+    "coverage": "partial",
+    "expected": "and(and(standing:junior,unknown),consent)"
+  },
+  {
+    "courseId": "BMEN4900",
+    "source": "Consent of instructor. May be repeated for credit as topics vary for a maximum of 6 hours, but a maximum of 3 credit hours apply to major from BMEN 4900 or BMEN 4910 .",
+    "coverage": "full",
+    "expected": "and(consent)"
+  },
+  {
+    "courseId": "BMEN3312",
+    "source": "BMEN 2320 , BMEN 3310 , PHYS 1710 .",
+    "coverage": "full",
+    "expected": "and(and(BMEN 2320,BMEN 3310,PHYS 1710))"
+  },
+  {
+    "courseId": "CHEM4631",
+    "source": "C or better in CHEM 3451 and CHEM 3452 . Corequisite(s): CHEM 4632 .",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CHEM 3451),grade:C(CHEM 3452)),coreq(CHEM 4632))"
+  },
+  {
+    "courseId": "CHEM4351",
+    "source": "C or better in each of the following: CHEM 2380 , CHEM 3451 and CHEM 3452 .",
+    "coverage": "full",
+    "expected": "and(and(grade:C(CHEM 2380),grade:C(CHEM 3451),grade:C(CHEM 3452)))"
+  },
+  {
+    "courseId": "CHEM3451",
+    "source": "C or better in CHEM 1420 . Corequisite(s): CHEM 3452 .",
+    "coverage": "full",
+    "expected": "and(grade:C(CHEM 1420),coreq(CHEM 3452))"
+  },
+  {
+    "courseId": "CHEM1423",
+    "source": "C or better in CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences",
+    "coverage": "partial",
+    "expected": "and(or(grade:C(CHEM 1413),consent),coreq(CHEM 1440),unknown)"
+  },
+  {
+    "courseId": "CHEM3530",
+    "source": "C or better in one of the following: CHEM 1420 , CHEM 1422 or CHEM 1423 . For chemistry (BA) and life science majors, and preprofessional students.",
+    "coverage": "partial",
+    "expected": "and(or(grade:C(CHEM 1420),grade:C(CHEM 1422),grade:C(CHEM 1423)),and(and(unknown,unknown),unknown))"
+  },
+  {
+    "courseId": "CHEM1422",
+    "source": "C or better in CHEM 1412 or CHEM 1413 (or CHEM 1410 with grade B or better and permission of the department), MATH 1100 or equivalent, admission to Honors College. Corequisite(s): CHEM 1440 . Core Category: Life and Physical Sciences",
+    "coverage": "partial",
+    "expected": "and(unknown,coreq(CHEM 1440))"
+  },
+  {
+    "courseId": "PSYC4820",
+    "source": "C or better in PSYC 1650 and PSYC 3650 , or consent of department.",
+    "coverage": "full",
+    "expected": "and(or(and(grade:C(PSYC 1650),grade:C(PSYC 3650)),consent))"
+  },
+  {
+    "courseId": "PSYC3100",
+    "source": "C or better in either PSYC 1630 or PSYC 1650 .",
+    "coverage": "full",
+    "expected": "and(or(grade:C(PSYC 1630),grade:C(PSYC 1650)))"
+  },
+  {
+    "courseId": "PSYC3640",
+    "source": "C or better in PSYC 1630 or PSYC 2600 or PSYC 2480 , and Sophomore Standing.",
+    "coverage": "full",
+    "expected": "and(and(or(grade:C(PSYC 1630),grade:C(PSYC 2600),grade:C(PSYC 2480)),standing:sophomore))"
+  },
+  {
+    "courseId": "PSYC3520",
+    "source": "C or better in PSYC 1630 and Sophomore Standing.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(PSYC 1630),standing:sophomore))"
+  },
+  {
+    "courseId": "PSYC2317",
+    "source": "MATH 1680 or MATH 1681X Corequisite(s): PSYC 3317 .",
+    "coverage": "full",
+    "expected": "and(or(MATH 1680,MATH 1681X),coreq(PSYC 3317))"
+  },
+  {
+    "courseId": "PSYC3650",
+    "source": "PSYC 1630 , PSYC 2317 , PSYC 3317 , and TECM 2700 or ENGL 1320 .",
+    "coverage": "full",
+    "expected": "and(and(and(PSYC 1630,PSYC 2317,PSYC 3317),or(TECM 2700,ENGL 1320)))"
+  },
+  {
+    "courseId": "PSYC3530",
+    "source": "C or better in PSYC 1630 and upper-level standing.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(PSYC 1630),standing:upper-level))"
+  },
+  {
+    "courseId": "PHYS4500",
+    "source": "PHYS 3010 / PHYS 3030 .",
+    "coverage": "full",
+    "expected": "and(and(PHYS 3010,PHYS 3030))"
+  },
+  {
+    "courseId": "PHYS4310",
+    "source": "PHYS 3010 / PHYS 3030 and MATH 3410 .",
+    "coverage": "full",
+    "expected": "and(and(PHYS 3010,PHYS 3030,MATH 3410))"
+  },
+  {
+    "courseId": "PHYS4955",
+    "source": "PHYS 4950 and consent of supervising faculty member.",
+    "coverage": "full",
+    "expected": "and(and(PHYS 4950,consent))"
+  },
+  {
+    "courseId": "PHYS4950",
+    "source": "Consent of supervising faculty member.",
+    "coverage": "full",
+    "expected": "and(consent)"
+  },
+  {
+    "courseId": "PHYS1270",
+    "source": "MATH 1100 or above. Core Category: Life and Physical Sciences",
+    "coverage": "partial",
+    "expected": "and(or(MATH 1100,unknown))"
+  },
+  {
+    "courseId": "PSYC4030",
+    "source": "C or better in one of the following: PSYC 3100 or PSYC 3620 and Junior Standing.",
+    "coverage": "full",
+    "expected": "and(and(or(grade:C(PSYC 3100),grade:C(PSYC 3620)),standing:junior))"
+  },
+  {
+    "courseId": "BIOL2140",
+    "source": "C or higher in: BIOL 1710 , BIOL 1720 , and BIOL 1750 or BIOL 1760 or BIOL 1761 .",
+    "coverage": "full",
+    "expected": "and(and(and(grade:C(BIOL 1710),grade:C(BIOL 1720)),or(grade:C(BIOL 1750),grade:C(BIOL 1760),grade:C(BIOL 1761))))"
+  },
+  {
+    "courseId": "BIOL4801",
+    "source": "Completion of foundation requirements for a declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 must be completed. If these requirements are not met, department consent is required. Meets with BIOL 5800. Genetics course is recommended. May not be repeated at the graduate level as BIOL 5800.",
+    "coverage": "partial",
+    "expected": "and(or(and(and(unknown,and(grade:C(BIOL 2041),grade:C(BIOL 2042),grade:C(CHEM 2380))),unknown),consent),unknown,unknown)"
+  },
+  {
+    "courseId": "CHEM4900",
+    "source": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each.",
+    "coverage": "full",
+    "expected": "and(and(or(CHEM 3220,unknown),consent))"
+  },
+  {
+    "courseId": "JAPN3042",
+    "source": "JAPN 2050 or equivalent.",
+    "coverage": "full",
+    "expected": "and(or(JAPN 2050,unknown))"
+  },
+  {
+    "courseId": "ANTH4011",
+    "source": "ANTH major status, ANTH 2300 , and have completed at least 60 hours.",
+    "coverage": "partial",
+    "expected": "and(and(and(unknown,ANTH 2300),standing:credits:60))"
+  },
+  {
+    "courseId": "JOUR4240",
+    "source": "Completion of at least 45 hours of credit.",
+    "coverage": "full",
+    "expected": "and(standing:credits:45)"
+  },
+  {
+    "courseId": "JOUR3430",
+    "source": "Students must have at least 45 hours of credit.",
+    "coverage": "full",
+    "expected": "and(standing:credits:45)"
+  },
+  {
+    "courseId": "EENG3520",
+    "source": "EENG 3510 (and EENG 3511 for electrical engineering students) which must be completed with a C or better.",
+    "coverage": "partial",
+    "expected": "and(and(grade:C(EENG 3510),unknown))"
+  },
+  {
+    "courseId": "SOCI3280",
+    "source": "SOCI 3220 or equivalent Required of all sociology majors.",
+    "coverage": "partial",
+    "expected": "and(and(or(SOCI 3220,unknown),unknown))"
+  },
+  {
+    "courseId": "BIOL4480",
+    "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5840.",
+    "coverage": "partial",
+    "expected": "and(or(and(and(unknown,and(or(and(grade:C(BIOL 3451),grade:C(BIOL 3452)),grade:C(BIOL 3350)),or(grade:C(CHEM 2380),grade:C(CHEM 3601)))),unknown),consent))"
+  },
+  {
+    "courseId": "SPAN3001",
+    "source": "SPAN 2050 or its equivalent.",
+    "coverage": "full",
+    "expected": "and(or(SPAN 2050,unknown))"
+  },
+  {
+    "courseId": "ECON4030",
+    "source": "ECON 1100 and ECON 1110 ; ECON 4630 with a grade of C or better. ECON 4630 can be replaced with MATH 3680 or DSCI 3710 with a grade of C or better. May not be repeated at the graduate level as ECON 5080.",
+    "coverage": "full",
+    "expected": "and(and(and(ECON 1100,ECON 1110),or(grade:C(ECON 4630),or(grade:C(MATH 3680),grade:C(DSCI 3710)))))"
+  },
+  {
+    "courseId": "MEEN3210",
+    "source": "MEEN 3120 ; MEEN 3110 ; MEEN 3250 all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3120),grade:C(MEEN 3110),grade:C(MEEN 3250)))"
+  },
+  {
+    "courseId": "MEEN3230",
+    "source": "MATH 3410 ; MATH 2700 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),grade:C(MATH 2700),or(grade:C(MEEN 2302),grade:C(ENGR 2302))))"
+  },
+  {
+    "courseId": "MEEN3240",
+    "source": "MATH 3410 ; MEEN 2210 ; MEEN 2110 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),grade:C(MEEN 2210),grade:C(MEEN 2110)))"
+  },
+  {
+    "courseId": "MEEN4110",
+    "source": "MEEN 3110 ; MEEN 3210 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3110),grade:C(MEEN 3210)))"
+  },
+  {
+    "courseId": "MEEN4140",
+    "source": "MATH 3410 ; MEEN 2332 or ENGR 2332 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),or(grade:C(MEEN 2332),grade:C(ENGR 2332)),or(grade:C(MEEN 2302),grade:C(ENGR 2302))))"
+  },
+  {
+    "courseId": "MEEN4150",
+    "source": "EENG 2610 ; MEEN 3130 ; MEEN 3210 ; MEEN 3230 ; MEEN 3242 , all with a grade of C or better. Corequisite(s): MEEN 3100 .",
+    "coverage": "full",
+    "expected": "and(and(grade:C(EENG 2610),grade:C(MEEN 3130),grade:C(MEEN 3210),grade:C(MEEN 3230),grade:C(MEEN 3242)),coreq(MEEN 3100))"
+  },
+  {
+    "courseId": "MEEN4315",
+    "source": "MEEN 3110 ; MEEN 3120 ; MEEN 3210 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3110),grade:C(MEEN 3120),grade:C(MEEN 3210)))"
+  },
+  {
+    "courseId": "TECM4920",
+    "source": "TECM 2700 ; consent of department. May be repeated for credit.",
+    "coverage": "full",
+    "expected": "and(and(TECM 2700,consent))"
+  }
+]
