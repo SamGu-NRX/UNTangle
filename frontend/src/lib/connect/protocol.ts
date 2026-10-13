@@ -29,14 +29,19 @@ export function validPayload(v: unknown): v is Payload {
 }
 export function parseMessage(v: unknown): Message | null {
   if (!record(v) || v.channel !== CHANNEL || v.version !== VERSION || typeof v.nonce !== "string" || !/^[a-f0-9-]{36}$/i.test(v.nonce)) return null;
+  const envelope: Envelope = { channel: CHANNEL, version: VERSION, nonce: v.nonce };
   if (v.from === "app") {
-    if (v.type === "hello" || v.type === "cancel" || (v.type === "request" && (v.resource === "transcript" || v.resource === "sections"))) return v as Request;
+    if (v.type === "hello" || v.type === "cancel") return { ...envelope, from: "app", type: v.type };
+    if (v.type === "request" && (v.resource === "transcript" || v.resource === "sections")) return { ...envelope, from: "app", type: "request", resource: v.resource };
   }
   if (v.from === "extension") {
-    if (v.type === "capabilities" && Array.isArray(v.resources) && v.resources.every(r => r === "transcript" || r === "sections")) return v as Response;
-    if (v.type === "progress" && (v.stage === "waiting" || v.stage === "reading")) return v as Response;
-    if (v.type === "error" && reasons.includes(v.reason as Reason)) return v as Response;
-    if (v.type === "result" && validPayload(v.payload)) return v as Response;
+    if (v.type === "capabilities" && Array.isArray(v.resources) && v.resources.every(r => r === "transcript" || r === "sections")) return { ...envelope, from: "extension", type: "capabilities", resources: v.resources };
+    if (v.type === "progress" && (v.stage === "waiting" || v.stage === "reading")) return { ...envelope, from: "extension", type: "progress", stage: v.stage };
+    if (v.type === "error") {
+      const reason = reasons.find(reason => reason === v.reason);
+      if (reason) return { ...envelope, from: "extension", type: "error", reason };
+    }
+    if (v.type === "result" && validPayload(v.payload)) return { ...envelope, from: "extension", type: "result", payload: v.payload };
   }
   return null;
 }
@@ -50,5 +55,5 @@ export function request(nonce: string, body: { type: "hello" } | { type: "cancel
 }
 type ResponseBody<T = Response> = T extends Response ? Omit<T, keyof Envelope | "from"> : never;
 export function response(nonce: string, body: ResponseBody): Response {
-  return { channel: CHANNEL, version: VERSION, from: "extension", nonce, ...body } as Response;
+  return { channel: CHANNEL, version: VERSION, from: "extension", nonce, ...body };
 }

@@ -9,26 +9,26 @@ afterEach(() => { globalThis.fetch = nativeFetch; globalThis.getComputedStyle = 
 function doc(body: string) {
   const window = new Window({ url: "http://localhost:4317/transcript-report" });
   window.document.body.innerHTML = `<h1>Unofficial Transcript</h1>${body}`;
-  globalThis.getComputedStyle = window.getComputedStyle.bind(window) as typeof getComputedStyle;
-  globalThis.HTMLElement = window.HTMLElement as typeof HTMLElement;
-  for (const el of window.document.querySelectorAll("*")) el.getClientRects = () => [{ width: 20, height: 20 }] as unknown as DOMRectList;
+  globalThis.getComputedStyle = window.getComputedStyle.bind(window) as unknown as typeof getComputedStyle;
+  globalThis.HTMLElement = window.HTMLElement as unknown as typeof HTMLElement;
+  for (const el of window.document.querySelectorAll("*")) el.getClientRects = () => [{ width: 20, height: 20 }] as unknown as ReturnType<typeof el.getClientRects>;
   return window.document as unknown as Document;
 }
 test("fetches only the page's own PDF with its same-origin session", async () => {
   let options: RequestInit | undefined;
-  globalThis.fetch = (async (url, opts) => { expect(String(url)).toBe("http://localhost:4317/synthetic-transcript.pdf"); options = opts; return new Response(syntheticPdf()); }) as typeof fetch;
+  globalThis.fetch = (async (url: RequestInfo | URL, opts?: RequestInit) => { expect(String(url)).toBe("http://localhost:4317/synthetic-transcript.pdf"); options = opts; return new Response(syntheticPdf().buffer as ArrayBuffer); }) as unknown as typeof fetch;
   const result = await readReport(doc('<a href="/synthetic-transcript.pdf">View Report</a>'), "http://localhost:4317/transcript-report", true, new AbortController().signal);
   expect(result.kind).toBe("pdf"); expect(options?.credentials).toBe("same-origin"); expect(options?.redirect).toBe("error");
 });
 test("rejects HTML login responses and oversize downloads", async () => {
   const report = doc('<a href="/synthetic-transcript.pdf">View Report</a>');
-  globalThis.fetch = (async () => new Response("<html>Sign in</html>")) as typeof fetch;
+  globalThis.fetch = (async () => new Response("<html>Sign in</html>")) as unknown as typeof fetch;
   await expect(readReport(report, "http://localhost:4317/transcript-report", true, new AbortController().signal)).rejects.toMatchObject({ reason: "INVALID_PDF" });
-  globalThis.fetch = (async () => new Response("x", { headers: { "content-length": String(13 * 1024 * 1024) } })) as typeof fetch;
+  globalThis.fetch = (async () => new Response("x", { headers: { "content-length": String(13 * 1024 * 1024) } })) as unknown as typeof fetch;
   await expect(readReport(report, "http://localhost:4317/transcript-report", true, new AbortController().signal)).rejects.toMatchObject({ reason: "TOO_LARGE" });
 });
 test("does not fetch cross-origin links or guess an unsupported report", async () => {
-  globalThis.fetch = (async () => { throw new Error("Must not fetch"); }) as typeof fetch;
+  globalThis.fetch = (async () => { throw new Error("Must not fetch"); }) as unknown as typeof fetch;
   await expect(readReport(doc('<a href="https://evil.example/report.pdf">View Report</a>'), "http://localhost:4317/transcript-report", true, new AbortController().signal)).rejects.toBeInstanceOf(ReportError);
 });
 test("extracts the explicit rendered report without the page's other text", async () => {

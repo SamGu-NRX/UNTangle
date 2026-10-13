@@ -6,7 +6,7 @@ export const SEARCH_PATHS = ["/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_CLSR
 export function pageKind(raw: string, dev: boolean): "transcript" | "sections" | null {
   try {
     const url = new URL(raw);
-    if (dev && url.origin === MOCK_ORIGIN) return url.pathname === "/transcript-report" ? "transcript" : url.pathname === "/class-search" ? "sections" : null;
+    if (dev && url.origin === MOCK_ORIGIN) return ["/transcript-entry", "/transcript-report"].includes(url.pathname) ? "transcript" : url.pathname === "/class-search" ? "sections" : null;
     if (url.origin !== MYUNT_ORIGIN) return null;
     if (REPORT_PATHS.some(p => url.pathname.startsWith(p))) return "transcript";
     if (SEARCH_PATHS.some(p => url.pathname.startsWith(p))) return "sections";

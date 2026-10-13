@@ -1,11 +1,13 @@
 import { pageKind } from "./config";
 import { response } from "../../frontend/src/lib/connect/protocol";
-import { extractSections, readReport, ReportError } from "./read-report";
+import { extractSections, readReport, reportReady, ReportError } from "./read-report";
 const kind = pageKind(location.href, __DEV__);
 if (kind && window === window.top) {
   let active: { nonce: string; controller: AbortController } | undefined;
   chrome.runtime.onMessage.addListener((raw: unknown, sender, reply) => {
-    if (sender.id !== chrome.runtime.id || !raw || typeof raw !== "object" || !("type" in raw) || !("nonce" in raw) || typeof raw.nonce !== "string") return;
+    if (sender.id !== chrome.runtime.id || !raw || typeof raw !== "object" || !("type" in raw)) return;
+    if (raw.type === "probe") { reply({ ready: kind === "sections" ? extractSections(document).length > 0 : reportReady(document, location.href, __DEV__) }); return; }
+    if (!("nonce" in raw) || typeof raw.nonce !== "string") return;
     if (raw.type === "cancel") { if (active?.nonce === raw.nonce) active.controller.abort(); return; }
     if (raw.type !== "read" || !("resource" in raw) || raw.resource !== kind) return;
     const nonce = raw.nonce;
@@ -25,5 +27,12 @@ if (kind && window === window.top) {
     });
     document.body.append(button);
   }
-  void chrome.runtime.sendMessage({ type: "page-ready" });
+  let reported = false;
+  const announce = () => {
+    const ready = kind === "sections" ? extractSections(document).length > 0 : reportReady(document, location.href, __DEV__);
+    if (ready && !reported) { reported = true; void chrome.runtime.sendMessage({ type: "page-ready" }); }
+    if (!ready) reported = false;
+  };
+  new MutationObserver(announce).observe(document.body, { childList: true, subtree: true });
+  announce();
 }

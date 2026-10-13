@@ -2,7 +2,7 @@ import { APP_ORIGINS, MOCK_ORIGIN, MYUNT_ORIGIN, REPORT_PATHS, SEARCH_PATHS } fr
 const dev = Bun.argv.includes("--dev");
 const outdir = dev ? "dist-dev" : "dist";
 const portalMatches = [...REPORT_PATHS, ...SEARCH_PATHS].map(path => `${MYUNT_ORIGIN}${path}*`);
-if (dev) portalMatches.push(`${MOCK_ORIGIN}/transcript-report*`, `${MOCK_ORIGIN}/class-search*`);
+if (dev) portalMatches.push(`${MOCK_ORIGIN}/transcript-entry*`, `${MOCK_ORIGIN}/transcript-report*`, `${MOCK_ORIGIN}/class-search*`);
 const result = await Bun.build({ entrypoints: ["src/background.ts", "src/bridge.ts", "src/portal.ts", "src/popup.ts"], outdir, target: "browser", format: "iife", define: { __DEV__: String(dev) } });
 if (!result.success) throw new Error(result.logs.join("\n"));
 await Bun.write(`${outdir}/manifest.json`, JSON.stringify({
@@ -10,6 +10,6 @@ await Bun.write(`${outdir}/manifest.json`, JSON.stringify({
   // Chrome ignores paths in host_permissions. Content matches and runtime URL guards enforce the narrower page scope.
   host_permissions: [`${MYUNT_ORIGIN}/*`, ...APP_ORIGINS.map(o => `${o}/*`), ...(dev ? [`${MOCK_ORIGIN}/*`] : [])],
   background: { service_worker: "background.js" }, action: { default_popup: "popup.html" },
-  content_scripts: [{ matches: APP_ORIGINS.map(o => `${o}/connect*`), js: ["bridge.js"], run_at: "document_start" }, { matches: portalMatches, js: ["portal.js"], run_at: "document_idle" }],
+  content_scripts: [{ matches: APP_ORIGINS.map(o => `${o}/*`), js: ["bridge.js"], run_at: "document_start" }, { matches: portalMatches, js: ["portal.js"], run_at: "document_idle" }],
 }, null, 2));
 await Bun.write(`${outdir}/popup.html`, Bun.file("src/popup.html"));

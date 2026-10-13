@@ -1,5 +1,5 @@
 import { APP_ORIGINS, pageKind } from "./config";
-import { parseMessage, response, REQUEST_TIMEOUT_MS, validPayload, type Request, type Response } from "../../frontend/src/lib/connect/protocol";
+import { parseMessage, response, REQUEST_TIMEOUT_MS, validPayload, type Response } from "../../frontend/src/lib/connect/protocol";
 type Pending = { port: chrome.runtime.Port; nonce: string; resource: "transcript" | "sections"; timer: ReturnType<typeof setTimeout>; reportTab?: number };
 let pending: Pending | undefined;
 function finish(message?: Response) {
@@ -14,8 +14,14 @@ async function readOpenPage() {
   const current = pending;
   if (!current || current.reportTab !== undefined) return;
   const tabs = await chrome.tabs.query({});
-  if (pending !== current) return;
-  const matches = tabs.filter(t => t.id !== undefined && t.url && pageKind(t.url, __DEV__) === current.resource);
+  if (pending !== current || current.reportTab !== undefined) return;
+  const candidates = tabs.filter(t => t.id !== undefined && t.url && pageKind(t.url, __DEV__) === current.resource);
+  const ready = await Promise.all(candidates.map(async tab => {
+    try { const probe = await chrome.tabs.sendMessage(tab.id!, { type: "probe" }); return probe?.ready === true ? tab : null; }
+    catch { return null; }
+  }));
+  if (pending !== current || current.reportTab !== undefined) return;
+  const matches = ready.filter(tab => tab !== null);
   if (matches.length > 1) { finish(response(current.nonce, { type: "error", reason: "AMBIGUOUS_REPORT" })); return; }
   const tab = matches[0];
   if (!tab?.id) return;

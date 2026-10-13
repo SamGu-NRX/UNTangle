@@ -2,7 +2,7 @@
 
 For the developer loading the extension and Sam verifying the real portal.
 
-Connect reads a transcript report the student has opened, then sends it to `/connect` for browser parsing and course review. It never opens portal pages, reads credentials or cookies, or stores the PDF. The browser supplies its existing session when fetching a same-origin report URL. Saving uses the existing planner's browser state; it does not assert a server save.
+Connect reads a transcript report the student has opened, then sends it to `/connect` for browser parsing and course review. It never opens portal pages, reads credentials or cookies, or stores the PDF. The browser supplies its existing session when fetching a same-origin report URL. Saving uses the existing planner provider and shows its actual browser/account save status.
 
 ## Build and load
 
@@ -19,7 +19,7 @@ In desktop Chromium, open `chrome://extensions`, enable Developer mode, choose L
 
 ## Protocol and permissions
 
-The page uses `window.postMessage` to its exact origin. An isolated content script passes typed version-1 messages over a runtime port to the extension worker. This avoids a hard-coded extension ID in UNTangle and keeps Chrome APIs outside the page. Both page and content script check source and origin. The worker additionally checks the extension sender, top-level frame, exact app origin, and `/connect` path. Nonces bind hello, request, progress, result, error, and cancellation to the requesting port. One import can be active at a time; extra tabs get `BUSY`. Disconnect and cancellation clear the pending request, and report replies arriving afterward are discarded. Request expiry is 90 seconds, a v1 recovery budget rather than a measured portal latency.
+The page uses `window.postMessage` to its exact origin. An isolated content script passes typed version-1 messages over a runtime port to the extension worker. This avoids a hard-coded extension ID in UNTangle and keeps Chrome APIs outside the page. Both page and content script check source and origin. The worker additionally checks the extension sender, top-level frame, exact app origin, and `/connect` path. Nonces bind hello, request, progress, result, error, and cancellation to the requesting port. One import can be active at a time; extra tabs get `BUSY`. Disconnect and cancellation clear the pending request, and report replies arriving afterward are discarded. A fresh-nonce hello every 15 seconds keeps the MV3 worker active during the wait. The bridge disconnects when a client-side route leaves `/connect`. Request expiry is 90 seconds, a v1 recovery budget rather than a measured portal latency.
 
 PDFs travel as base64 because Chrome runtime messaging uses JSON serialization. Payloads are bounded to the existing 12 MiB importer limit. Results may also carry readable transcript text or visible class-search rows. The frontend redacts text with the existing identity-redaction function before calling the existing local parser and reconciliation functions. Connect sends nothing to AI services. Scanned PDFs link to the existing importer.
 
@@ -27,10 +27,10 @@ Chrome ignores the path portion of `host_permissions`. Therefore the manifest gr
 
 ## Mock and proof
 
-The server binds to localhost:4317 and serves fabricated reports only. It includes a PDF report, readable HTML report, and visible/hidden class-search rows. It never proxies the real portal. The proof runner starts its own mock and Next.js server, launches persistent Chromium with `--load-extension`, and closes the browser and servers when done. It blocks browser requests to real myUNT.
+The server binds to localhost:4317 and serves fabricated reports only. It includes a transcript entry form, PDF report, readable HTML report, and visible/hidden class-search rows. It never proxies the real portal. The proof runner starts its own mock and Next.js server, launches persistent Chromium with `--load-extension`, waits across MV3's 30-second idle threshold, and closes the browser and servers when done. It blocks browser requests to real myUNT.
 
 ```sh
-extension/scripts/heavy.sh bun test --cwd frontend tests/connect/*.test.ts
+extension/scripts/heavy.sh extension/scripts/verify.sh
 cd extension
 ./scripts/heavy.sh bun run check
 ./scripts/heavy.sh bun run build:dev

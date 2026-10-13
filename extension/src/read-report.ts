@@ -19,19 +19,27 @@ export function extractSections(doc: Document): SectionRow[] {
       if (tr === headers || !visible(tr)) continue;
       const cells = [...tr.querySelectorAll("td")];
       if (cells.length < labels.length) continue;
-      const row = Object.fromEntries(keys.map((key, i) => [key, cells[indexes[i]].textContent?.trim().slice(0, 500) ?? ""])) as SectionRow;
+      const cell = (i: number) => cells[indexes[i]].textContent?.trim().slice(0, 500) ?? "";
+      const row: SectionRow = { course: cell(0), section: cell(1), days: cell(2), times: cell(3), room: cell(4), instructor: cell(5), status: cell(6) };
       if (/^[A-Z]{2,5}\s*\d{4}$/.test(row.course) && row.section) rows.push(row);
     }
   }
   return rows.slice(0, 1000);
 }
-export async function readReport(doc: Document, pageUrl: string, dev: boolean, signal: AbortSignal): Promise<Payload> {
-  if (!/unofficial\s+transcript/i.test(doc.body.innerText)) throw new ReportError("UNSUPPORTED_REPORT");
+function reportPdfUrls(doc: Document, pageUrl: string, dev: boolean): string[] {
   const candidates = [...doc.querySelectorAll("a[href],iframe[src],embed[src],object[data]")].filter(visible).map(el => {
     const raw = el.getAttribute("href") ?? el.getAttribute("src") ?? el.getAttribute("data") ?? "";
     return { url: new URL(raw, pageUrl).href, pdf: /\.pdf(?:$|[?#])/i.test(raw) || el.getAttribute("type") === "application/pdf" || /view report|download|save pdf/i.test(el.textContent ?? "") };
   }).filter(c => c.pdf && allowedPdfUrl(c.url, pageUrl, dev));
-  const urls = [...new Set(candidates.map(c => c.url))];
+  return [...new Set(candidates.map(c => c.url))];
+}
+export function reportReady(doc: Document, pageUrl: string, dev: boolean): boolean {
+  if (!/unofficial\s+transcript/i.test(doc.body.innerText)) return false;
+  return reportPdfUrls(doc, pageUrl, dev).length > 0 || [...doc.querySelectorAll("[data-transcript-report], #transcript-report")].some(el => visible(el) && /[A-Z]{2,5}\s+\d{4}/.test(el.textContent ?? ""));
+}
+export async function readReport(doc: Document, pageUrl: string, dev: boolean, signal: AbortSignal): Promise<Payload> {
+  if (!/unofficial\s+transcript/i.test(doc.body.innerText)) throw new ReportError("UNSUPPORTED_REPORT");
+  const urls = reportPdfUrls(doc, pageUrl, dev);
   if (urls.length > 1) throw new ReportError("UNSUPPORTED_REPORT");
   if (urls[0]) {
     let result: Response;
