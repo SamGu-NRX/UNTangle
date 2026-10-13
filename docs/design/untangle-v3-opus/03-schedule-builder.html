@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f6f3">
-<title>UNTangle v3 · Schedule builder (Week)</title>
+<title>UNTangle v3: Week</title>
 <style>
 /* UNTangle v3 (Opus direction): shared tokens and components for the mockups.
    The token block is the one DESIGN.md specifies; keep the two in step. */
@@ -137,9 +137,11 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .topbar .search { justify-self: start; display: flex; align-items: center; gap: 10px; width: min(360px, 100%); height: 36px; padding: 0 10px 0 12px; border-radius: 10px; background: var(--paper-2); color: var(--ink-3); font-size: 14px; }
 .topbar .search span { flex: 1; text-align: left; color: var(--ink-2); }
 .kbd { font: 600 11px/18px var(--font-ui); padding: 0 5px; border-radius: 4px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
-.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
+.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 650; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
 .sched-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.sched-pill .meta { font-weight: 500; }
+/* term and schedule name are told apart by weight and color, never by a separator glyph */
+.sched-pill .when { font-weight: 500; color: var(--ink-2); }
+.sched-pill .i { width: 16px; height: 16px; color: var(--ink-3); margin-right: -4px; }
 .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font: 700 12px/1 var(--font-mark); }
 
 /* phone header + tab bar */
@@ -204,6 +206,45 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 [data-c="5"] { --c: var(--c5); --ct: var(--c5t); } [data-c="6"] { --c: var(--c6); --ct: var(--c6t); }
 .cdot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
 
+/* One main region plus one contextual panel (simplification rule 2). From 1200px the main region
+   sits centered while nothing is selected; opening the panel slides the page left by half the
+   panel's width as the panel comes in, so the two never overlap. Below 1200px the panel slides
+   over the right edge. Phones use sheets instead. */
+body { overflow-x: clip; }
+.pair { display: grid; grid-template-columns: minmax(0, var(--main-max, 720px)) var(--panel-w, 440px); gap: 32px; justify-content: center; align-items: start; padding: 0 24px; }
+@media (min-width: 1200px) {
+  .pair { transform: translateX(calc((var(--panel-w, 440px) + 32px) / 2)); transition: transform var(--t-exit) var(--ease-out); }
+  body.panel-open .pair { transform: none; transition-duration: var(--t-enter); }
+  body.panel-instant .pair { transition: none; }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) { .pair { transition: none; } }
+.cpanel { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100dvh - var(--topbar-h) - 32px); display: flex; flex-direction: column; background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden;
+  opacity: 0; transform: translateX(24px); visibility: hidden;
+  transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
+.cpanel.on { opacity: 1; transform: none; visibility: visible; transition: opacity var(--t-enter) var(--ease-out), transform var(--t-enter) var(--ease-out), visibility 0s; }
+.cpanel.instant, .cpanel.instant.on { transition: none; }
+.cpanel .pscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.phd { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 16px 12px 12px 20px; background: var(--paper); }
+.phd h2 { font-size: 18px; line-height: 24px; font-weight: 620; letter-spacing: -.005em; }
+.phd .close { margin-left: auto; }
+@media (max-width: 1199px) {
+  .pair { grid-template-columns: minmax(0, var(--main-max, 720px)); }
+  .cpanel { position: fixed; z-index: 25; top: var(--topbar-h); right: 0; bottom: 0; width: min(var(--panel-w, 440px), 100vw); max-height: none; border-radius: 0; box-shadow: var(--shadow-3); }
+}
+@media (max-width: 759px) { .pair { display: block; padding: 0; } .cpanel { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cpanel { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; }
+  .cpanel.on { transform: none; transition: opacity 120ms ease, visibility 0s; }
+}
+
+/* collapsible group header: a plain row, weight and spacing instead of a box */
+.ghdr { display: flex; align-items: center; gap: 8px; width: 100%; height: 44px; padding: 0 8px 0 4px; border-radius: 10px; text-align: left; transition: background-color var(--t-hover) ease; }
+.ghdr h3 { font-size: 15px; font-weight: 650; }
+.ghdr .count { font-size: 13px; color: var(--ink-2); }
+.ghdr .chev { margin-left: auto; color: var(--ink-3); }
+.ghdr[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+@media (hover: hover) and (pointer: fine) { .ghdr:hover { background: rgba(26,46,26,.04); } }
+
 /* mockup-only furniture */
 .mock-note { position: fixed; left: 12px; bottom: 12px; z-index: 5; font-size: 11px; color: var(--ink-3); pointer-events: none; }
 @media (max-width: 759px) { .mock-note { display: none; } }
@@ -221,49 +262,105 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 }
 </style>
 <style>
-  body { --hh: 64px; --gut: 52px; }
+  body { --hh: 64px; --gut: 52px; --main-max: 960px; --panel-w: 400px; }
+  .pair { padding-top: 20px; padding-bottom: 32px; }
+
   /* standalone host header */
-  .vbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; height: var(--topbar-h); padding: 0 20px 0 24px; background: rgba(255,255,255,.92); backdrop-filter: saturate(1.6) blur(16px); -webkit-backdrop-filter: saturate(1.6) blur(16px); box-shadow: 0 1px 0 var(--line); }
+  .vbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 20px; height: var(--topbar-h); padding: 0 20px 0 24px; background: rgba(255,255,255,.92); backdrop-filter: saturate(1.6) blur(16px); -webkit-backdrop-filter: saturate(1.6) blur(16px); box-shadow: 0 1px 0 var(--line); }
   .brand { display: inline-flex; align-items: center; gap: 8px; font: 800 19px/1 var(--font-mark); color: var(--ink); letter-spacing: -.01em; white-space: nowrap; }
   .brand .plate b { font-size: 12px; padding: 4px 6px 3px; }
+  .vbar .search { display: flex; align-items: center; gap: 10px; width: min(320px, 100%); height: 36px; padding: 0 10px 0 12px; border-radius: 10px; background: var(--paper-2); color: var(--ink-3); font-size: 14px; }
+  .vbar .search span { flex: 1; text-align: left; color: var(--ink-2); }
+  .vbar .right { margin-left: auto; display: flex; gap: 12px; align-items: center; }
   .fresh { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
-  .vbar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
-  .tools { display: flex; align-items: center; gap: 8px; padding: 12px 20px 0 24px; }
-  .tabs { display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: none; min-width: 0; }
-  .stab { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; transition: background-color var(--t-hover) ease, color var(--t-hover) ease; }
-  .stab[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
-  .stab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-  @media (hover: hover) and (pointer: fine) { .stab:hover:not([aria-pressed="true"]) { background: var(--paper-2); } }
-  .tools .right { margin-left: auto; display: flex; gap: 6px; align-items: center; flex: none; }
-  .stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 8px 20px 10px 26px; font-size: 13px; color: var(--ink-2); }
-  .stats b { color: var(--ink); font-weight: 600; }
-  .stats .warn { color: var(--attention); font-weight: 600; }
+  /* week header: one preferences control on the left, actions on the right */
+  .whead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .prefbtn { display: inline-flex; align-items: center; gap: 8px; min-width: 0; height: 40px; padding: 0 12px 0 10px; margin-left: -10px; border-radius: 10px; text-align: left; transition: background-color var(--t-hover) ease; }
+  .prefbtn b { font-weight: 650; white-space: nowrap; }
+  .prefbtn .sum { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .prefbtn .i { color: var(--ink-2); }
+  .prefbtn[aria-expanded="true"] { background: var(--brand-soft); }
+  @media (hover: hover) and (pointer: fine) { .prefbtn:hover:not([aria-expanded="true"]) { background: rgba(26,46,26,.05); } }
+  .whead .right { margin-left: auto; display: flex; gap: 6px; align-items: center; flex: none; }
 
-  .builder { display: grid; grid-template-columns: 312px minmax(0, 1fr) 312px; gap: 16px; padding: 0 20px 24px 24px; align-items: start; }
-  .card { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1); }
-  .side { position: sticky; top: calc(var(--topbar-h) + 8px); max-height: calc(100dvh - var(--topbar-h) - 24px); overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
-  .side-h { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; }
-  .side-h h2 { font-size: 15px; font-weight: 640; }
-  .side-h .meta { margin-left: auto; }
-  .find { padding: 0 12px 12px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+  /* the answer to "is this the best week?": one line, or one alternative at a time */
+  .verdict { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; margin-bottom: 8px; font-size: 14px; color: var(--ink-2); }
+  .verdict .sg { flex: none; }
+  .verdict.warn { color: var(--attention); }
+  .verdict.bad { color: var(--danger); }
+  .verdict .btn { margin-left: auto; }
+  .alt { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 8px 6px 16px; margin-bottom: 8px; border-radius: var(--r-md); background: var(--brand-soft); }
+  .alt .n { font-size: 13px; font-weight: 600; color: var(--brand); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .alt .n i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; opacity: .4; }
+  .alt .sen { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+  .alt .acts { display: flex; gap: 6px; align-items: center; flex: none; }
+
+  /* grid: one surface, no card around it */
+  .gridcard { background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden; position: relative; }
+  .ghead { display: grid; grid-template-columns: var(--gut) repeat(5, 1fr); height: 36px; align-items: center; }
+  .ghead span { font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); text-align: center; }
+  .gbody { position: relative; display: grid; grid-template-columns: var(--gut) repeat(5, 1fr); border-top: 1px solid var(--line); }
+  .gutter { position: relative; }
+  .gutter span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+  .gday { position: relative; border-left: 1px solid var(--line); background-image: linear-gradient(var(--line) 1px, transparent 1px); background-size: 100% var(--hh); }
+  .ev { position: absolute; left: 4px; right: 4px; border-radius: 8px; padding: 6px 8px; background: var(--ct); box-shadow: inset 3px 0 0 var(--c); overflow: hidden; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; z-index: 2; touch-action: manipulation; }
+  @media (hover: hover) and (pointer: fine) { .ev { touch-action: none; } }
+  .ev .code { font-size: 12px; color: var(--ink); }
+  .ev .tm { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .ev[aria-pressed="true"] { box-shadow: inset 3px 0 0 var(--c), 0 0 0 2px var(--c), var(--shadow-2); z-index: 4; }
+  .ev.conflict { box-shadow: inset 3px 0 0 var(--danger), 0 0 0 1.5px var(--danger); background: var(--danger-soft); }
+  .ev.half { right: auto; width: calc(50% - 6px); } .ev.half2 { left: calc(50% + 2px); }
+  .ev .lk { position: absolute; top: 6px; right: 6px; width: 13px; height: 13px; color: var(--ink-2); }
+  .ev.dragging { z-index: 6; box-shadow: inset 3px 0 0 var(--c), var(--shadow-3); cursor: grabbing; }
+  .opt { position: absolute; left: 4px; right: 4px; border-radius: 8px; border: 1.5px dashed var(--c); background: rgba(255,255,255,.55); z-index: 3; display: grid; place-items: center; font: 700 11px/1 var(--font-mark); color: var(--c); cursor: pointer; transition: background-color var(--t-hover) ease; }
+  .opt.near { background: var(--ct); }
+  .opt.bad { border-color: var(--danger); color: var(--danger); }
+  .ghost { position: absolute; left: 4px; right: 4px; border-radius: 8px; border: 1.5px dashed var(--brand-2); background: rgba(0,122,64,.07); z-index: 5; padding: 6px 8px; font: 700 11px/1.2 var(--font-mark); color: var(--brand-2); opacity: 0; animation: fadeIn 120ms var(--ease-out) forwards; pointer-events: none; }
+  .ghost.bad { left: 50%; border-color: var(--danger); color: var(--danger); background: rgba(251,234,232,.94); }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .busy { position: absolute; left: 0; right: 0; z-index: 1; background: repeating-linear-gradient(135deg, rgba(79,101,79,.1) 0 6px, transparent 6px 12px); font-size: 11px; color: var(--ink-2); padding: 4px 8px; font-weight: 600; }
+  /* the drawn walk: a 2px line between consecutive classes, minutes on it */
+  .wline { position: absolute; left: 50%; width: 2px; margin-left: -1px; background: var(--brand-2); z-index: 3; pointer-events: none; }
+  .wline.tight { background: var(--attention); } .wline.late { background: var(--danger); }
+  .walk { position: absolute; left: 50%; transform: translate(-50%, -50%); z-index: 4; display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 7px 0 5px; border-radius: 999px; background: var(--paper); box-shadow: 0 0 0 1.5px var(--brand-2); font-size: 11px; font-weight: 650; color: var(--brand); white-space: nowrap; pointer-events: none; }
+  .walk .i { width: 12px; height: 12px; }
+  .walk.tight { color: var(--attention); box-shadow: 0 0 0 1.5px var(--attention); background: var(--attention-soft); }
+  .walk.late { color: var(--danger); box-shadow: 0 0 0 1.5px var(--danger); background: var(--danger-soft); }
+  .gfoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 48px; padding: 8px 12px 8px 16px; border-top: 1px solid var(--line); }
+  .gfoot .pill { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--ct); box-shadow: inset 3px 0 0 var(--c); font-size: 13px; color: var(--ink-2); }
+  .gfoot .pill .code { font-size: 12px; color: var(--ink); }
+  .gfoot .tag { margin-left: auto; }
+  .empty { position: absolute; inset: 36px 0 0 var(--gut); z-index: 6; display: grid; place-items: center; padding: 24px; pointer-events: none; }
+  .empty > div { pointer-events: auto; display: grid; gap: 12px; justify-items: center; text-align: center; max-width: 360px; padding: 24px; border-radius: var(--r-lg); background: rgba(255,255,255,.92); }
+  .empty h2 { font-size: 20px; font-weight: 650; letter-spacing: -.012em; }
+  .empty .ex { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+  /* panel contents */
+  .psec { padding: 4px 20px 18px; display: grid; gap: 10px; }
+  .psec + .psec { border-top: 1px solid var(--line); padding-top: 16px; }
+  .psec .label { margin-bottom: -2px; }
+  .psec .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .psub { font-size: 13px; color: var(--ink-2); margin: -6px 0 6px; }
+  .busyrow { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-radius: 10px; background: var(--paper-2); font-size: 14px; }
+  .busyrow .x { margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--ink-3); }
+  .lockrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 14px; font-weight: 600; }
+  .lockrow .switch { margin-left: auto; }
+  .find { padding: 0 16px 10px; display: grid; gap: 10px; }
   .fchips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .fchips .chip { height: 30px; font-size: 12.5px; padding: 0 10px; }
-  .filters { display: none; gap: 10px; padding-top: 2px; }
+  .filters { display: none; gap: 10px; }
   .filters.on { display: grid; }
-  .filters .label { margin-bottom: 4px; }
-  .results { padding: 6px 0; }
-  .rhint { padding: 18px 16px; font-size: 14px; color: var(--ink-2); display: grid; gap: 10px; }
+  .results { padding: 0 0 12px; }
+  .rhint { padding: 12px 20px; font-size: 14px; color: var(--ink-2); display: grid; gap: 10px; }
   .rhint .ex { display: flex; gap: 6px; flex-wrap: wrap; }
-  .rgroup { padding: 8px 16px 4px; display: flex; align-items: center; gap: 8px; }
-  .rcourse { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; width: 100%; padding: 9px 14px 9px 16px; text-align: left; transition: background-color var(--t-hover) ease; }
+  .rgroup { padding: 8px 20px 4px; }
+  .rcourse { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; width: 100%; padding: 10px 16px 10px 20px; text-align: left; transition: background-color var(--t-hover) ease; }
   .rcourse .code { font-size: 13px; } .rcourse .t { font-size: 13px; color: var(--ink-2); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rcourse .n { font-size: 12px; color: var(--ink-2); text-align: right; }
+  .rcourse .n { font-size: 12px; color: var(--attention); }
   .rcourse[aria-expanded="true"] { background: var(--paper-2); }
   @media (hover: hover) and (pointer: fine) { .rcourse:hover { background: var(--paper-2); } }
-  .rsecs { background: var(--paper-2); padding: 0 10px 8px; }
+  .rsecs { background: var(--paper-2); padding: 0 12px 8px; }
   .rsec { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 8px 6px; border-radius: 10px; }
-  .rsec + .rsec { margin-top: 2px; }
   @media (hover: hover) and (pointer: fine) { .rsec:hover { background: var(--paper); } }
   .rsec .add { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--brand); color: #fff; transition: transform var(--t-press) var(--ease-out); }
   @media (prefers-reduced-motion: no-preference) { .rsec .add:active { transform: scale(.94); } }
@@ -271,105 +368,64 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
   .rsec .add.on { background: var(--brand-soft); color: var(--brand); }
   .rsec .add[disabled] { background: var(--paper-3); color: var(--ink-4); }
   .rsec .l1 { font-size: 13px; font-weight: 600; } .rsec .l1 .code { font-size: 11.5px; color: var(--ink-2); margin-right: 6px; }
-  .rsec .l2 { font-size: 12px; color: var(--ink-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .rsec .l2 .plate b { font-size: 9px; }
-  .rsec .bad { font-size: 12px; color: var(--danger); }
+  .rsec .l2 { font-size: 12.5px; color: var(--ink-2); }
+  .rsec .bad { font-size: 12.5px; color: var(--danger); }
+  .cmp { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .cmp th { text-align: right; font-size: 12px; font-weight: 650; color: var(--ink-2); padding: 0 0 6px; }
+  .cmp th:first-child, .cmp td:first-child { text-align: left; }
+  .cmp td { padding: 8px 0; border-top: 1px solid var(--line); text-align: right; }
+  .cmp td.better { color: var(--brand); font-weight: 650; } .cmp td.worse { color: var(--attention); font-weight: 650; }
+  .chg { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .chg .from { color: var(--ink-2); text-decoration: line-through; text-decoration-color: var(--ink-4); }
+  .pacts { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 20px 20px; }
 
-  /* grid */
-  .gridcard { overflow: hidden; }
-  .gbar { display: none; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--line); background: var(--brand-soft); }
-  .gbar.on { display: flex; }
-  .gbar .meta { color: var(--brand); }
-  .gbar .seg { background: rgba(0,81,43,.1); }
-  .gbar .right { margin-left: auto; display: flex; gap: 6px; }
-  .gbar .dl { display: grid; gap: 1px; min-width: 0; }
-  .gbar .delta { font-size: 13px; color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .gbar .right .btn { white-space: nowrap; }
-  .gbar .live { font-size: 12px; color: var(--brand); display: inline-flex; align-items: center; gap: 6px; }
-  .gbar .live i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-  .ghead { display: grid; grid-template-columns: var(--gut) repeat(var(--nd, 5), 1fr); height: 36px; align-items: center; border-bottom: 1px solid var(--line); }
-  .ghead span { font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); text-align: center; }
-  .gbody { position: relative; display: grid; grid-template-columns: var(--gut) repeat(var(--nd, 5), 1fr); }
-  .gutter { position: relative; }
-  .gutter span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 11px; color: var(--ink-2); }
-  .gday { position: relative; border-left: 1px solid var(--line); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(rgba(221,230,220,.6) 1px, transparent 1px); background-size: 100% var(--hh), 100% calc(var(--hh) / 2); cursor: copy; }
-  .ev { position: absolute; left: 4px; right: 4px; border-radius: 8px; padding: 5px 7px; background: var(--ct); box-shadow: inset 3px 0 0 var(--c); overflow: hidden; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 1px; z-index: 2; transition: opacity var(--t-swap) ease; touch-action: manipulation; }
-  @media (hover: hover) and (pointer: fine) { .ev { touch-action: none; } }
-  .ev .code { font-size: 12px; color: var(--ink); }
-  .ev .tm { font-size: 11px; color: var(--ink-2); white-space: nowrap; }
-  .ev .plate { font-size: 11px; } .ev .plate b { font-size: 9px; padding: 2px 4px 1px; }
-  .ev[aria-pressed="true"] { box-shadow: inset 3px 0 0 var(--c), 0 0 0 2px var(--c), var(--shadow-2); z-index: 4; }
-  .ev.conflict { box-shadow: inset 3px 0 0 var(--danger), 0 0 0 1.5px var(--danger); background: var(--danger-soft); }
-  .ev.half { right: auto; width: calc(50% - 6px); } .ev.half2 { left: calc(50% + 2px); }
-  .ev .lk { position: absolute; top: 5px; right: 5px; width: 12px; height: 12px; color: var(--ink-2); }
-  .ev.dragging { z-index: 6; box-shadow: inset 3px 0 0 var(--c), var(--shadow-3); cursor: grabbing; }
-  .opt { position: absolute; left: 4px; right: 4px; border-radius: 8px; border: 1.5px dashed var(--c); background: rgba(255,255,255,.55); z-index: 3; display: grid; place-items: center; font: 700 11px/1 var(--font-mark); color: var(--c); cursor: pointer; transition: background-color var(--t-hover) ease; }
-  .opt.near { background: var(--ct); }
-  .opt.bad { border-color: var(--danger); color: var(--danger); }
-  .ghost { position: absolute; left: 4px; right: 4px; border-radius: 8px; border: 1.5px dashed var(--brand-2); background: rgba(0,122,64,.07); z-index: 5; padding: 5px 7px; font: 700 11px/1.2 var(--font-mark); color: var(--brand-2); opacity: 0; animation: fadeIn 120ms var(--ease-out) forwards; pointer-events: none; }
-  .ghost.bad { left: 50%; border-color: var(--danger); color: var(--danger); background: rgba(251,234,232,.94); }
-  @keyframes fadeIn { to { opacity: 1; } }
-  .busy { position: absolute; left: 0; right: 0; z-index: 1; background: repeating-linear-gradient(135deg, rgba(79,101,79,.12) 0 6px, transparent 6px 12px); border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); font-size: 11px; color: var(--ink-2); padding: 4px 8px; font-weight: 600; }
-  .walk { position: absolute; left: 50%; transform: translate(-50%, -50%); z-index: 4; display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 7px 0 5px; border-radius: 999px; background: var(--paper); box-shadow: 0 0 0 1px var(--line-2), var(--shadow-1); font-size: 11px; font-weight: 600; color: var(--ink-2); white-space: nowrap; pointer-events: none; }
-  .walk .i { width: 12px; height: 12px; }
-  .walk.tight { color: var(--attention); box-shadow: 0 0 0 1px var(--attention); background: var(--attention-soft); }
-  .nst { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--line); }
-  .nst .label { margin-right: 4px; }
-  .nst .pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--ct); box-shadow: inset 3px 0 0 var(--c); font-size: 13px; }
-  .nst .pill .code { font-size: 12px; }
-
-  /* registration list + preferences */
-  .reg li { display: grid; grid-template-columns: 12px 1fr auto; gap: 10px; align-items: center; padding: 9px 12px 9px 16px; border-top: 1px solid var(--line); }
-  .reg li:first-child { border-top: 0; }
-  .reg .code { font-size: 13px; } .reg .meta { font-size: 12px; }
-  .reg .acts { display: flex; gap: 2px; }
-  .reg .acts button { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
-  .reg .acts button[aria-pressed="true"] { color: var(--brand); background: var(--brand-soft); }
-  @media (hover: hover) and (pointer: fine) { .reg .acts button:hover { background: var(--paper-2); } }
-  .regfoot { padding: 10px 12px 12px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
-  .pref { padding: 12px 16px 16px; display: grid; gap: 12px; border-top: 1px solid var(--line); }
-  .pref .label { margin-bottom: -4px; }
-  .pref .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .busyrow { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 6px 0 10px; border-radius: 8px; background: var(--paper-2); font-size: 13px; }
-  .busyrow .x { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; color: var(--ink-3); }
+  /* switcher popover (from the schedule pill) */
+  .pop { position: fixed; z-index: 64; width: 280px; padding: 6px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-3); transform-origin: top right; opacity: 0; transform: scale(.97); visibility: hidden; transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
+  .pop.on { opacity: 1; transform: none; visibility: visible; transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), visibility 0s; }
+  .pop.instant { transition: none; }
+  .pop .lab { padding: 8px 10px 4px; }
+  .pop button, .pop a { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 10px; border-radius: 8px; font-size: 14px; color: var(--ink); text-align: left; }
+  .pop .ck { margin-left: auto; color: var(--brand); }
+  .pop hr { border: 0; height: 1px; background: var(--line); margin: 6px 4px; }
+  @media (hover: hover) and (pointer: fine) { .pop button:hover, .pop a:hover { background: var(--paper-2); } }
+  @media (prefers-reduced-motion: reduce) { .pop, .pop.on { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; } .pop.on { transition: opacity 120ms ease, visibility 0s; } }
 
   /* export */
   .xsec { padding: 14px 0; border-top: 1px solid var(--line); display: grid; gap: 10px; }
   .xsec:first-of-type { border-top: 0; padding-top: 4px; }
-  .xsec h3 { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 640; }
+  .xsec h3 { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 650; }
   .xsec h3 .i { color: var(--brand-2); }
   .nums { font: 500 13px/1.9 var(--font-ui); background: var(--paper-2); border-radius: 10px; padding: 8px 12px; }
-  .nums div { display: flex; gap: 12px; } .nums b { font-weight: 650; width: 52px; font-variant-numeric: tabular-nums; } .nums span { color: var(--ink-2); }
+  .nums div { display: flex; gap: 12px; } .nums b { font-weight: 650; width: 52px; } .nums span { color: var(--ink-2); } .nums em { margin-left: auto; font-style: normal; color: var(--attention); }
   .tline { display: flex; align-items: center; gap: 12px; font-size: 14px; }
   .tline .switch { margin-left: auto; }
 
-  /* phone */
   .pbar { display: none; }
-  @media (max-width: 1199px) { .builder { grid-template-columns: 296px minmax(0, 1fr); } .regside { grid-column: 1 / -1; position: static; max-height: none; } }
+  @media (pointer: coarse) { .prefbtn { min-height: 44px; } .rcourse { min-height: 48px; } }
+  .sheet .sheet-body { padding: 0 0 24px; }
+  @media (max-width: 1023px) { .fresh { display: none; } }
   @media (max-width: 759px) {
     body { --hh: 52px; --gut: 30px; }
+    .pair { padding: 4px 8px calc(var(--tabbar-h) + 84px + var(--safe-b)); }
+    body.host-vsb .pair { padding-bottom: calc(96px + var(--safe-b)); }
     .vbar { padding: var(--safe-t) 12px 0 16px; height: calc(52px + var(--safe-t)); gap: 8px; }
     .brand { font-size: 16px; } .brand .plate b { font-size: 10px; }
-    .tools { padding: 6px 12px 0; }
-    .tools .right .lbl { display: none; }
-    .stats { padding: 6px 14px 8px; font-size: 12.5px; gap: 2px 10px; }
-    .builder { display: block; padding: 0 8px calc(var(--tabbar-h) + 84px + var(--safe-b)); }
-    .findside, .regside { display: none; }
+    .whead { margin: 0 4px 4px; } .prefbtn { margin-left: -6px; flex: 1; } .prefbtn b { display: none; }
+    .whead .right .lbl { display: none; }
+    .verdict { font-size: 13.5px; min-height: 40px; padding: 0 6px; }
+    .alt { flex-wrap: wrap; padding: 10px 10px 10px 14px; gap: 6px 10px; } .alt .sen { flex-basis: calc(100% - 60px); order: 2; } .alt .acts { order: 3; width: 100%; } .alt .acts .btn { flex: 1; } .alt .acts .btn-icon { flex: none; }
     .gridcard { border-radius: 14px; }
     .ghead { height: 30px; } .ghead span { font-size: 11px; }
     .gutter span { right: 4px; font-size: 10px; }
-    .ev { left: 2px; right: 2px; padding: 4px 4px; border-radius: 6px; }
+    .ev { left: 2px; right: 2px; padding: 4px; border-radius: 6px; }
     .ev .code { font-size: 10.5px; line-height: 12px; white-space: normal; }
-    .ev .tm { display: none; } .ev .plate b { font-size: 8px; }
+    .ev .tm { display: none; }
     .walk { height: 16px; font-size: 10px; padding: 0 5px 0 3px; } .walk .i { width: 10px; height: 10px; } .walk .w { display: none; }
+    .gfoot .tag { display: none; }
     .pbar { position: fixed; left: 8px; right: 8px; bottom: calc(var(--tabbar-h) + 8px + var(--safe-b)); z-index: 35; display: flex; gap: 8px; padding: 8px; border-radius: 16px; }
     body.host-vsb .pbar { bottom: calc(10px + var(--safe-b)); }
-    body.host-vsb .builder { padding-bottom: calc(96px + var(--safe-b)); }
     .pbar .btn { flex: 1; height: 44px; padding: 0 10px; }
-    .gbar { flex-wrap: wrap; padding: 10px; } .gbar .right { width: 100%; } .gbar .right .btn { flex: 1; }
-    .mlist-toggle { display: inline-grid; }
   }
-  .sheet .sheet-body { padding: 4px 16px 24px; }
 </style>
 </head>
 <body>
@@ -377,75 +433,46 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 <header class="topbar only-desk host-untangle-only">
   <span class="wordmark">UNTangle</span>
   <nav class="seg" id="views" aria-label="Views"><button type="button" data-href="02-courses.html?state=after&quiet=1">Courses</button><button type="button" aria-pressed="true">Week</button><button type="button" data-href="04-day-map.html">Day</button></nav>
-  <button class="search" type="button" data-i="search"><span>Search courses or class numbers</span><kbd class="kbd">⌘K</kbd></button>
-  <a class="sched-pill" href="05-schedules-library.html"><span class="dot"></span>Spring 2027 <span class="meta">· Main</span></a>
+  <button class="search" type="button" data-act="find" data-i="search"><span>Search courses or class numbers</span><kbd class="kbd">⌘K</kbd></button>
+  <button class="sched-pill" type="button" data-act="switch" aria-haspopup="true" aria-expanded="false" aria-label="Schedule: Spring 2027, Main. Switch schedule"><span class="dot"></span><span class="when">Spring 2027</span>Main<svg class="i" aria-hidden="true"><use href="#i-chevD"/></svg></button>
   <a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a>
 </header>
-<header class="pheader only-phone host-untangle-only"><span class="wordmark">UNTangle</span><a class="sched-pill" href="05-schedules-library.html">Spring 27 <span class="meta">· Main</span></a><a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a></header>
+<header class="pheader only-phone host-untangle-only"><span class="wordmark">UNTangle</span><button class="sched-pill" type="button" data-act="switch" aria-label="Schedule: Spring 2027, Main. Switch schedule"><span class="when">Spring 27</span>Main</button><a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a></header>
 <!-- host: standalone UNT Schedule Builder (vsb.untgrades.app v2) -->
 <header class="vbar host-vsb-only">
   <span class="brand"><span class="plate"><b>UNT</b></span>Schedule Builder</span>
-  <div class="seg sm only-desk" id="term"><button type="button">Fall 2026</button><button type="button" aria-pressed="true">Spring 2027</button><button type="button">Summer 2027</button></div>
-  <span class="fresh only-desk">3,048 courses · Updated Oct 4, 2:02 PM</span>
-  <div class="right"><button class="btn btn-ink btn-sm only-phone" data-i="calendar" data-is="sm">Spring 27</button><button class="btn btn-ink btn-icon btn-sm only-desk" aria-label="Help" style="font-weight:700">?</button><a class="btn btn-secondary btn-sm only-desk" href="06-sign-in.html">Sign in to sync</a></div>
+  <div class="seg sm only-desk" id="term" aria-label="Term"><button type="button">Fall 2026</button><button type="button" aria-pressed="true">Spring 2027</button><button type="button">Summer 2027</button></div>
+  <button class="search only-desk" type="button" data-act="find" data-i="search"><span>Search 3,048 courses</span><kbd class="kbd">⌘K</kbd></button>
+  <div class="right"><span class="fresh only-desk">Updated Oct 4 at 2:02 PM</span><button class="sched-pill" type="button" data-act="switch" aria-haspopup="true" aria-expanded="false" aria-label="Schedule: Main, saved on this device. Switch schedule">Main<svg class="i" aria-hidden="true"><use href="#i-chevD"/></svg></button></div>
 </header>
 
-<div class="tools">
-  <div class="tabs" role="group" aria-label="Saved schedules" id="tabs"></div>
-  <div class="right">
-    <button class="btn btn-ink btn-icon btn-sm" id="undoBtn" aria-label="Undo" title="Undo" data-i="undo"></button>
-    <button class="btn btn-ink btn-sm only-desk" id="clearBtn">Clear</button>
-    <button class="btn btn-secondary btn-sm" data-act="export" aria-label="Export" data-i="share" data-is="sm"><span class="lbl" aria-hidden="true">Export</span></button>
-    <button class="btn btn-primary btn-sm only-desk" data-act="build" id="buildBtn" data-i="trayin" data-is="sm"><span class="buildlbl">Auto</span></button>
-  </div>
-</div>
-<p class="stats" id="stats"></p>
-
-<div class="builder">
-  <aside class="card side findside" aria-label="Find courses">
-    <div class="side-h"><h2>Find courses</h2><span class="meta" id="countHint"></span></div>
-    <div class="find">
-      <label class="searchfield" data-i="search"><input id="q" placeholder="Code, title, instructor or class #" aria-label="Search courses"></label>
-      <div class="fchips"><button class="chip" aria-pressed="true" data-v="open">Open seats</button><button class="chip" aria-pressed="false" data-v="tams">TAMS rules</button><button class="chip" aria-pressed="false" data-v="filters" id="fbtn">Filters</button></div>
-      <div class="filters" id="filters">
-        <div><div class="label">Days</div><div class="fchips"><button class="chip" aria-pressed="true">Mon</button><button class="chip" aria-pressed="true">Tue</button><button class="chip" aria-pressed="true">Wed</button><button class="chip" aria-pressed="true">Thu</button><button class="chip" aria-pressed="false">Fri</button><button class="chip" aria-pressed="false">Sat</button></div></div>
-        <div><div class="label">Format</div><div class="fchips"><button class="chip" aria-pressed="true">In person</button><button class="chip" aria-pressed="true">Online</button><button class="chip" aria-pressed="false">Hybrid</button></div></div>
-        <div><div class="label">Level</div><div class="seg sm" style="width:100%"><button type="button" aria-pressed="true">Any</button><button type="button">1000</button><button type="button">2000</button><button type="button">3000+</button></div></div>
+<div class="pair">
+  <main id="main" aria-label="Week">
+    <div class="whead">
+      <button class="prefbtn" type="button" data-act="prefs" aria-expanded="false" id="prefBtn"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg><b>Preferences</b><span class="sum" id="prefSum"></span></button>
+      <div class="right">
+        <button class="btn btn-ink btn-icon btn-sm" id="undoBtn" aria-label="Undo" title="Undo" data-i="undo"></button>
+        <button class="btn btn-secondary btn-sm" data-act="export" aria-label="Export" data-i="share" data-is="sm"><span class="lbl" aria-hidden="true">Export</span></button>
+        <button class="btn btn-primary btn-sm only-desk" data-act="build" id="buildBtn" data-i="trayin" data-is="sm"><span class="buildlbl">Auto</span></button>
       </div>
     </div>
-    <div class="results" id="results"></div>
-  </aside>
-
-  <section class="card gridcard" aria-label="Week">
-    <div class="gbar" id="gbar"></div>
-    <div class="ghead" id="ghead"></div>
-    <div class="gbody" id="gbody"></div>
-    <div class="nst" id="nst"></div>
-  </section>
-
-  <aside class="card side regside" aria-label="Registration list and preferences">
-    <div class="side-h"><h2>Registration list</h2><span class="meta" id="regCred"></span></div>
-    <ul class="reg" id="reg"></ul>
-    <div class="regfoot"><button class="btn btn-secondary btn-sm" data-act="copynums" data-i="copy" data-is="sm">Copy class numbers for myUNT</button></div>
-    <div class="pref" id="prefs">
-      <h2 style="font-size:15px;font-weight:640">Preferences</h2>
-      <div class="label">Start after</div>
-      <div class="seg sm" id="startAfter" style="width:100%"><button type="button" aria-pressed="true" data-v="0">Any</button><button type="button" data-v="9">9 AM</button><button type="button" data-v="10">10 AM</button><button type="button" data-v="11">11 AM</button></div>
-      <div class="label">Prefer</div>
-      <div class="chips" id="prefChips"><button class="chip" aria-pressed="false" data-v="nofri">No Fridays</button><button class="chip" aria-pressed="true" data-v="lunch">Lunch break</button><button class="chip" aria-pressed="true" data-v="walks">Short walks</button><button class="chip" aria-pressed="false" data-v="compact">Fewer days</button><button class="chip" aria-pressed="false" data-v="profs">Top-rated profs</button></div>
-      <div class="label">Busy times</div>
-      <div class="busyrow">Work · Tue, Thu 3:00–5:00<button class="x" aria-label="Remove busy time" data-i="close" data-is="sm"></button></div>
-      <p class="help">Drag across empty time on the grid to add one.</p>
-    </div>
-  </aside>
+    <div id="answer"></div>
+    <section class="gridcard" aria-label="Spring 2027 week">
+      <div class="ghead" id="ghead"></div>
+      <div class="gbody" id="gbody"></div>
+      <div class="gfoot" id="gfoot"></div>
+      <div class="empty" id="empty" hidden></div>
+    </section>
+  </main>
+  <aside class="cpanel" id="panel" aria-label="Week detail"><div class="pscroll" id="pbody"></div></aside>
 </div>
 
 <div class="pbar glass-panel only-phone" id="pbar">
-  <button class="btn btn-secondary" data-act="add" data-i="search">Add</button>
-  <button class="btn btn-secondary" data-act="prefs" data-i="sliders">Prefer</button>
+  <button class="btn btn-secondary" data-act="find" data-i="search">Add</button>
   <button class="btn btn-primary" data-act="build" data-i="trayin"><span class="buildlbl">Auto</span></button>
 </div>
 
+<div class="pop" id="pop" role="group" aria-label="Schedules"></div>
 <div class="scrim" id="scrim"></div>
 <section class="sheet only-phone" id="sheet" aria-hidden="true"><div class="grabber"></div><div class="sheet-body" id="sbody"></div></section>
 <div class="scrim" id="xscrim"></div>
@@ -582,6 +609,36 @@ function modalClose(el) {
   m.prev && document.contains(m.prev) && m.prev.focus({ preventScroll: true });
 }
 
+/* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
+   24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
+   reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
+   too often to animate. */
+class Panel {
+  constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
+  get isOpen() { return this.el.classList.contains("on"); }
+  instantFrame(instant) {
+    if (!instant) return;
+    this.el.classList.add("instant"); document.body.classList.add("panel-instant");
+    requestAnimationFrame(() => requestAnimationFrame(() => { this.el.classList.remove("instant"); document.body.classList.remove("panel-instant"); }));
+  }
+  open({ instant = false, trigger = document.activeElement, focus = false } = {}) {
+    if (!this.isOpen) this.trigger = trigger;
+    this.instantFrame(instant);
+    document.body.classList.add("panel-open");
+    this.el.classList.add("on"); this.el.inert = false; this.el.setAttribute("aria-hidden", "false");
+    if (focus) requestAnimationFrame(() => this.el.querySelector("h2[tabindex], input, button")?.focus({ preventScroll: true }));
+  }
+  close(instant = false) {
+    if (!this.isOpen) return;
+    const hadFocus = this.el.contains(document.activeElement);
+    this.instantFrame(instant);
+    document.body.classList.remove("panel-open");
+    this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
+    if (hadFocus && this.trigger && document.contains(this.trigger)) this.trigger.focus({ preventScroll: true });
+    this.onClose && this.onClose();
+  }
+}
+
 /* Bottom sheet with detents, pointer capture, projected release, velocity handoff. */
 class Sheet {
   constructor(el, { detents, modal = false, scrim = null, dismissible = false, onDetent, bottomInset = () => 0 }) {
@@ -695,13 +752,15 @@ hydrateIcons();
 const HOST = Q.get("host") === "vsb" ? "vsb" : "untangle";
 document.body.classList.add("host-" + HOST);
 $$(HOST === "vsb" ? ".host-untangle-only" : ".host-vsb-only").forEach((el) => el.remove());
-$$(".buildlbl").forEach((el) => (el.textContent = HOST === "vsb" ? (PHONE.matches ? "Build" : "Build my schedule") : "Auto"));
+const BUILD = HOST === "vsb" ? (PHONE.matches ? "Build" : "Build my schedule") : "Auto";
+$$(".buildlbl").forEach((el) => (el.textContent = BUILD));
 document.title = HOST === "vsb" ? "UNT Schedule Builder (v2 mockup)" : document.title;
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const fmt = (h) => { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return `${hh > 12 ? hh - 12 : hh}:${String(mm).padStart(2, "0")}`; };
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"], DAYNAME = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const fmt = (h) => { const m = Math.round(h * 60), hh = Math.floor(m / 60), mm = m % 60; return `${hh > 12 ? hh - 12 : hh}:${String(mm).padStart(2, "0")}`; };
 const range = (s) => `${fmt(s.s)}–${fmt(s.e)}`;
 const dayStr = (d) => d.map((i) => "MTWRF"[i]).join("");
+const andList = (a) => (a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]);
 /* every section the mockup knows; color is per course, clustered by department */
 const SECTIONS = {
   "CSCE 2110": { t: "Foundations of Data Structures", cr: 3, c: 3, secs: [
@@ -715,7 +774,7 @@ const SECTIONS = {
   "PHYS 2220": { t: "Electricity and Magnetism", cr: 3, c: 4, secs: [
     { n: "002", days: [0, 2], s: 11, e: 11.83, b: ["PHYS", "104"], who: "D. Brandt", cls: "24107", open: 7 },
     { n: "001", days: [0, 2], s: 13, e: 13.83, b: ["PHYS", "104"], who: "D. Brandt", cls: "24106", open: 11 },
-    { n: "003", days: [1, 3], s: 14, e: 15.33, b: ["SAGE", "116"], who: "K. Iyer", cls: "24108", open: 0 }] },
+    { n: "003", days: [1, 3], s: 14, e: 14.83, b: ["SAGE", "116"], who: "K. Iyer", cls: "24108", open: 4 }] },
   "CSCE 2610": { t: "Assembly Language and Computer Organization", cr: 3, c: 6, secs: [
     { n: "002", days: [1, 3], s: 12.5, e: 13.83, b: ["ESSC", "255"], who: "R. Shah", cls: "21907", open: 5 },
     { n: "001", days: [0, 2], s: 12, e: 13.33, b: ["GAB", "310"], who: "P. Liu", cls: "21906", open: 18 }] },
@@ -726,28 +785,48 @@ const SECTIONS = {
     { n: "003", days: [0, 2], s: 14, e: 15.33, b: ["LANG", "114"], who: "J. Kim", cls: "23420", open: 0 },
     { n: "900", days: [], online: true, who: "M. Lee", cls: "23421", open: 22 }] },
   "BIOL 1710": { t: "Biology for Science Majors I", cr: 3, c: 2, secs: [{ n: "001", days: [1, 3], s: 8, e: 9.33, b: ["LIFE", "A104"], who: "E. Moss", cls: "20110", open: 40 }, { n: "002", days: [0, 2, 4], s: 13, e: 13.83, b: ["LIFE", "B140"], who: "E. Moss", cls: "20111", open: 12 }] },
-  "ECON 1100": { t: "Principles of Microeconomics", cr: 3, c: 2, secs: [{ n: "001", days: [1, 3], s: 11, e: 12.33, b: ["BLB", "055"], who: "C. Hale", cls: "22004", open: 60 }] },
+  "ECON 1100": { t: "Principles of Microeconomics", cr: 3, c: 2, secs: [{ n: "001", days: [1, 3], s: 11, e: 12.33, b: ["BLB", "055"], who: "C. Hale", cls: "22004", open: 0 }] },
   "PSYC 1630": { t: "General Psychology", cr: 3, c: 2, secs: [{ n: "002", days: [0, 2, 4], s: 12, e: 12.83, b: ["TERL", "103"], who: "N. Ford", cls: "25520", open: 33 }] },
 };
 const WALK = { "GAB|CURY": 4, "CURY|PHYS": 8, "GAB|PHYS": 7, "PHYS|ESSC": 6, "GAB|ESSC": 7, "CURY|ESSC": 6, "NTDP|ESSC": 15, "NTDP|CURY": 15, "CURY|LANG": 5, "GAB|LANG": 4 };
 const walkMin = (a, b) => (a === b ? 1 : WALK[`${a}|${b}`] || WALK[`${b}|${a}`] || 6);
+const BUFFER = 2;
 
-const SCHEDULES = { Main: { "CSCE 2110": "001", "MATH 2700": "003", "PHYS 2220": "002", "CSCE 2610": "002", "TECM 2700": "900" }, "Fridays off": { "CSCE 2110": "002", "MATH 2700": "001", "PHYS 2220": "002", "CSCE 2610": "002", "TECM 2700": "900" } };
+const SCHEDULES = { Main: { "CSCE 2110": "001", "MATH 2700": "003", "PHYS 2220": "002", "CSCE 2610": "002", "TECM 2700": "900" }, "Fridays off": { "CSCE 2110": "002", "MATH 2700": "001", "PHYS 2220": "002", "CSCE 2610": "002", "TECM 2700": "900" }, "Short walks": { "CSCE 2110": "001", "MATH 2700": "003", "PHYS 2220": "001", "CSCE 2610": "002", "TECM 2700": "900" } };
 let active = "Main";
 let sched = { ...SCHEDULES[active] };
 const locked = new Set(["CSCE 2610"]);
 let history = [];
-let preview = null; // {label, map}
-let selected = null; // course code with options shown
-let ghost = null; // {code, sec}
+let preview = null;   // { map } while an alternative is on the grid
+let selected = null;  // course whose other sections show on the grid
+let ghost = null;     // { code, n } while pointing at a search result
+let mode = null;      // what the contextual panel shows: find | course | prefs | alt
 const secOf = (code, n) => SECTIONS[code].secs.find((s) => s.n === n);
 
+/* each alternative is described by how it differs from the current week, in one sentence */
 const OPTIONS = [
-  { k: "A", map: { ...SCHEDULES.Main, "PHYS 2220": "001" }, delta: "No tight walks · lunch kept" },
-  { k: "B", map: { ...SCHEDULES.Main, "CSCE 2110": "002", "MATH 2700": "001" }, delta: "Fridays free · ends 4:50 Mon, Wed" },
-  { k: "C", map: { ...SCHEDULES.Main, "CSCE 2110": "002", "MATH 2700": "004", "PHYS 2220": "003" }, delta: "Tue and Thu only · back to back" },
+  { map: { ...SCHEDULES.Main, "PHYS 2220": "001" }, sen: "Removes the tight walk by moving PHYS 2220 to 1:00." },
+  { map: { ...SCHEDULES.Main, "CSCE 2110": "002", "MATH 2700": "001" }, sen: "Frees Friday, but Monday and Wednesday end at 4:50." },
+  { map: { ...SCHEDULES.Main, "CSCE 2110": "002", "MATH 2700": "004", "PHYS 2220": "003" }, sen: "Tuesday and Thursday only, but the walk to MATH 2700 is longer than the break." },
 ];
 let optIndex = 0;
+
+/* preferences: the summary names only what differs from these defaults */
+const DEFAULT_PREFS = { start: 0, off: [], lunch: false, walks: true, fewer: false, profs: false, max: 0, busy: [] };
+let prefs = { ...DEFAULT_PREFS, start: 9, busy: [{ name: "Work", days: [1, 3], s: 15, e: 17 }] };
+function prefSummary() {
+  const p = prefs, out = [];
+  if (p.off.length) out.push(andList(p.off.map((d) => DAYNAME[d] + "s")) + " off");
+  if (p.start) out.push(`nothing before ${p.start} AM`);
+  if (p.max) out.push(`${p.max} credits max`);
+  if (p.lunch) out.push("a lunch break");
+  if (!p.walks) out.push("long walks are fine");
+  if (p.fewer) out.push("fewer days on campus");
+  if (p.profs) out.push("top-rated professors");
+  p.busy.forEach((b) => out.push(`${b.name.toLowerCase()} ${andList(b.days.map((d) => DAYS[d]))} ${fmt(b.s)}–${fmt(b.e)}`));
+  const s = out.join(", ");
+  return s ? s[0].toUpperCase() + s.slice(1) : "";
+}
 
 function meetings(map) {
   const out = [];
@@ -756,20 +835,24 @@ function meetings(map) {
 }
 function conflicts(list) {
   const bad = new Set();
-  for (const a of list) for (const b of list) if (a !== b && a.d === b.d && a.code !== b.code && a.s < b.e && b.s < a.e) { bad.add(a); }
+  for (const a of list) for (const b of list) if (a !== b && a.d === b.d && a.code !== b.code && a.s < b.e && b.s < a.e) bad.add(a);
   return bad;
 }
+/* walks between consecutive classes with a break of 30 minutes or less */
+function walks(map) {
+  const m = meetings(map), out = [];
+  for (let d = 0; d < 5; d++) { const ms = m.filter((x) => x.d === d).sort((a, b) => a.s - b.s); for (let i = 1; i < ms.length; i++) { const gap = Math.round((ms[i].s - ms[i - 1].e) * 60); if (gap > 30 || gap < 0) continue; const w = walkMin(ms[i - 1].b[0], ms[i].b[0]); out.push({ d, to: ms[i].code, from: ms[i - 1], next: ms[i], w, gap, kind: w > gap ? "late" : w + BUFFER >= gap ? "tight" : "" }); } }
+  return out;
+}
 function stats(map) {
-  const m = meetings(map); const days = new Set(m.map((x) => x.d)); const cr = Object.keys(map).reduce((a, c) => a + SECTIONS[c].cr, 0);
-  let walk = 0, tight = 0;
-  for (let d = 0; d < 5; d++) { const ms = m.filter((x) => x.d === d).sort((a, b) => a.s - b.s); for (let i = 1; i < ms.length; i++) { const w = walkMin(ms[i - 1].b[0], ms[i].b[0]); const gap = (ms[i].s - ms[i - 1].e) * 60; if (gap <= 30) { walk += w; if (w + 2 >= gap) tight++; } } }
-  const first = Math.min(...m.map((x) => x.s)), last = Math.max(...m.map((x) => x.e));
-  return { cr, n: Object.keys(map).length, days: days.size, first, last, walk, tight, conf: conflicts(m).size };
+  const m = meetings(map); const days = new Set(m.map((x) => x.d)); const ws = walks(map);
+  return { days: days.size, first: Math.min(...m.map((x) => x.s)), last: Math.max(...m.map((x) => x.e)), walk: ws.reduce((a, w) => a + w.w, 0), tight: ws.filter((w) => w.kind).length, conf: conflicts(m).size };
 }
 
-/* rendering */
+/* ---------- rendering ---------- */
 const H0 = 8; let H1 = 17;
-function hh() { return parseFloat(getComputedStyle(document.body).getPropertyValue("--hh")); }
+const hh = () => parseFloat(getComputedStyle(document.body).getPropertyValue("--hh"));
+let instant = false;
 function renderGrid() {
   const map = preview ? preview.map : sched;
   const list = meetings(map);
@@ -781,39 +864,29 @@ function renderGrid() {
   const prev = new Map($$(".ev", body).map((e) => [e.dataset.key, e.getBoundingClientRect()]));
   body.style.height = rows * H + "px";
   const hourLabel = (h) => `${h > 12 ? h - 12 : h}${PHONE.matches ? "" : h < 12 ? " AM" : " PM"}`;
-  body.innerHTML = `<div class="gutter">${Array.from({ length: rows - 1 }, (_, i) => `<span style="top:${(i + 1) * H}px">${hourLabel(H0 + i + 1)}</span>`).join("")}</div>` +
+  body.innerHTML = `<div class="gutter" aria-hidden="true">${Array.from({ length: rows - 1 }, (_, i) => `<span style="top:${(i + 1) * H}px">${hourLabel(H0 + i + 1)}</span>`).join("")}</div>` +
     DAYS.map((_, d) => `<div class="gday" data-day="${d}"></div>`).join("");
   const cols = $$(".gday", body);
-  // busy time
-  [1, 3].forEach((d) => cols[d].insertAdjacentHTML("beforeend", `<div class="busy" style="top:${(15 - H0) * H}px;height:${2 * H}px">Work</div>`));
-  // events
+  prefs.busy.forEach((b) => b.days.forEach((d) => cols[d].insertAdjacentHTML("beforeend", `<div class="busy" style="top:${(b.s - H0) * H}px;height:${(b.e - b.s) * H}px">${b.name}</div>`)));
   list.forEach((m) => {
     const sameSlot = list.filter((o) => o.d === m.d && o.s < m.e && m.s < o.e && o !== m);
     const half = sameSlot.length ? (list.indexOf(m) > list.indexOf(sameSlot[0]) ? "half half2" : "half") : "";
     const tall = (m.e - m.s) * H;
-    cols[m.d].insertAdjacentHTML("beforeend", `<button class="ev ${bad.has(m) ? "conflict" : ""} ${half}" data-c="${m.c}" data-key="${m.code}-${m.k}" data-code="${m.code}" aria-pressed="${selected === m.code}" style="top:${(m.s - H0) * H + 1}px;height:${tall - 2}px" aria-label="${m.code} section ${m.n}, ${DAYS[m.d]} ${range(m)}${bad.has(m) ? ", conflicts" : ""}">
-      <span class="code">${m.code}</span>${tall > 40 ? `<span class="tm">${range(m)}</span>` : ""}${tall > (PHONE.matches ? 48 : 56) ? `<span class="plate"><b>${m.b[0]}</b>${PHONE.matches ? "" : m.b[1]}</span>` : ""}${locked.has(m.code) && !PHONE.matches ? icon("lock", "lk") : ""}</button>`);
+    cols[m.d].insertAdjacentHTML("beforeend", `<button class="ev ${bad.has(m) ? "conflict" : ""} ${half}" data-c="${m.c}" data-key="${m.code}-${m.k}" data-code="${m.code}" aria-pressed="${selected === m.code}" style="top:${(m.s - H0) * H + 1}px;height:${tall - 2}px" aria-label="${m.code}, ${DAYNAME[m.d]} ${range(m)}${locked.has(m.code) ? ", section kept" : ""}${bad.has(m) ? ", overlaps another class" : ""}">
+      <span class="code">${m.code}</span>${tall > 40 ? `<span class="tm">${range(m)}</span>` : ""}${locked.has(m.code) && !PHONE.matches ? icon("lock", "lk") : ""}</button>`);
   });
-  // walks between consecutive classes
-  for (let d = 0; d < 5; d++) {
-    const ms = list.filter((x) => x.d === d).sort((a, b) => a.s - b.s);
-    for (let i = 1; i < ms.length; i++) {
-      const gap = (ms[i].s - ms[i - 1].e) * 60; if (gap > 30 || gap < 0) continue;
-      const w = walkMin(ms[i - 1].b[0], ms[i].b[0]); const tight = w + 2 >= gap;
-      cols[d].insertAdjacentHTML("beforeend", `<span class="walk ${tight ? "tight" : ""}" style="top:${((ms[i - 1].e + ms[i].s) / 2 - H0) * H}px" title="${w} min walk, ${gap} min break">${icon("walk")}${w}<span class="w">&nbsp;min</span></span>`);
-    }
-  }
-  // click-to-choose options for the selected course
+  walks(map).forEach((w) => {
+    const top = (w.from.e - H0) * H, h = (w.next.s - w.from.e) * H;
+    cols[w.d].insertAdjacentHTML("beforeend", `<span class="wline ${w.kind}" style="top:${top}px;height:${h}px"></span><span class="walk ${w.kind}" style="top:${top + h / 2}px" role="img" aria-label="${w.w} minute walk to ${w.to}, ${w.gap} minute break${w.kind ? ", " + w.kind : ""}">${icon("walk")}${w.w}<span class="w">&nbsp;min</span></span>`);
+  });
   if (selected && !preview) {
     const cur = map[selected];
     SECTIONS[selected].secs.filter((s) => s.n !== cur && !s.online).forEach((s) => s.days.forEach((d) => {
       const clash = list.some((o) => o.code !== selected && o.d === d && o.s < s.e && s.s < o.e);
-      cols[d].insertAdjacentHTML("beforeend", `<button class="opt ${clash ? "bad" : ""}" data-c="${SECTIONS[selected].c}" data-pick="${selected}|${s.n}" style="top:${(s.s - H0) * H + 1}px;height:${(s.e - s.s) * H - 2}px" aria-label="Use section ${s.n}, ${dayStr(s.days)} ${range(s)}">§${s.n}</button>`);
+      cols[d].insertAdjacentHTML("beforeend", `<button class="opt ${clash ? "bad" : ""}" data-c="${SECTIONS[selected].c}" data-pick="${selected}|${s.n}" style="top:${(s.s - H0) * H + 1}px;height:${(s.e - s.s) * H - 2}px" aria-label="Move ${selected} to ${dayStr(s.days)} ${range(s)}${clash ? ", overlaps another class" : ""}">§${s.n}</button>`);
     }));
   }
-  // ghost preview from search
-  if (ghost) { const s = secOf(ghost.code, ghost.n); if (s && !s.online) s.days.forEach((d) => { const clash = list.some((o) => o.d === d && o.s < s.e && s.s < o.e); cols[d].insertAdjacentHTML("beforeend", `<div class="ghost ${clash ? "bad" : ""}" style="top:${(s.s - H0) * H + 1}px;height:${(s.e - s.s) * H - 2}px">${ghost.code}<br>§${s.n}</div>`); }); }
-  // FLIP from previous positions; new occurrences fade in
+  if (ghost) { const s = secOf(ghost.code, ghost.n); if (s && !s.online) s.days.forEach((d) => { const clash = list.some((o) => o.d === d && o.s < s.e && s.s < o.e); cols[d].insertAdjacentHTML("beforeend", `<div class="ghost ${clash ? "bad" : ""}" style="top:${(s.s - H0) * H + 1}px;height:${(s.e - s.s) * H - 2}px">${ghost.code}</div>`); }); }
   $$(".ev", body).forEach((e) => {
     const f = prev.get(e.dataset.key); const l = e.getBoundingClientRect();
     if (!f) { if (prev.size) e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" }); return; }
@@ -821,101 +894,221 @@ function renderGrid() {
     const dx = f.left - l.left, dy = f.top - l.top;
     if (Math.abs(dx) + Math.abs(dy) > 1) e.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 300, easing: EASE.inOut });
   });
-  // no set time strip
   const online = Object.entries(map).filter(([c, n]) => secOf(c, n)?.online);
-  $("#nst").innerHTML = online.length ? `<span class="label">No set time</span>${online.map(([c, n]) => `<span class="pill" data-c="${SECTIONS[c].c}"><span class="code">${c}</span>§${n} · Online · ${SECTIONS[c].cr} cr</span>`).join("")}` : "";
-  $("#nst").style.display = online.length ? "" : "none";
-  renderStats(map);
+  $("#gfoot").innerHTML = `${online.length ? `<span class="label">No set time</span>${online.map(([c]) => `<span class="pill" data-c="${SECTIONS[c].c}"><span class="code">${c}</span>Online</span>`).join("")}` : ""}<span class="tag">Sample sections</span>`;
+  const empty = !Object.keys(map).length;
+  $("#empty").hidden = !empty;
+  if (empty) { $("#empty").innerHTML = `<div><h2>Add your first course</h2><p class="meta">Search by code, title, instructor or class number.</p><button class="btn btn-primary" data-act="find" data-i="search">Search courses</button><div class="ex"><button class="chip" data-q="CSCE 2110">CSCE 2110</button><button class="chip" data-q="Patel">Patel</button><button class="chip" data-q="23419">23419</button></div></div>`; hydrateIcons($("#empty")); }
 }
-function renderStats(map) {
-  const s = stats(map);
-  $("#stats").innerHTML = `<span><b>${s.cr}</b> credits</span><span>${s.n} courses</span><span>${s.days} days on campus</span><span>${fmt(s.first)}–${fmt(s.last)}</span><span>${s.walk} min walking a week</span>${s.tight ? `<span class="warn">${s.tight} tight walk${s.tight > 1 ? "s" : ""}</span>` : ""}${s.conf ? `<span class="warn" style="color:var(--danger)">${s.conf / 2 > 1 ? s.conf / 2 + " conflicts" : "1 conflict"}</span>` : ""}<span class="tag">Sample sections</span>`;
+
+/* the answer line: a problem the student can fix, a calm verdict, or one alternative */
+function renderAnswer() {
+  const a = $("#answer");
+  if (preview) {
+    a.innerHTML = `<div class="alt" role="region" aria-label="Other weeks Auto found"><span class="n" id="altN">${optIndex + 1} of ${OPTIONS.length}${searching ? '<i aria-hidden="true"></i>' : ""}</span><p class="sen" id="altSen" aria-live="polite">${OPTIONS[optIndex].sen}</p>
+      <div class="acts"><button class="btn btn-quiet btn-sm" data-act="altdetail">Details</button><button class="btn btn-secondary btn-sm" data-act="next">Next</button><button class="btn btn-primary btn-sm" data-act="useopt">Use this</button><button class="btn btn-ink btn-icon btn-sm" data-act="cancelprev" aria-label="Keep my week" data-i="close"></button></div></div>`;
+    hydrateIcons(a); return;
+  }
+  if (!Object.keys(sched).length) { a.innerHTML = ""; return; }
+  const m = meetings(sched), bad = [...conflicts(m)];
+  if (bad.length) {
+    const x = bad[0], y = m.find((o) => o !== x && o.d === x.d && o.code !== x.code && o.s < x.e && x.s < o.e);
+    const days = [...new Set(bad.filter((b) => b.code === x.code).map((b) => DAYNAME[b.d]))];
+    a.innerHTML = `<div class="verdict bad">${icon("alert")}<span>${x.code} overlaps ${y.code} on ${andList(days)}.</span><button class="btn btn-secondary btn-sm" data-act="build">Show a fix</button></div>`; return;
+  }
+  const ws = walks(sched).filter((w) => w.kind);
+  if (ws.length) {
+    const w = ws[0], days = ws.filter((x) => x.to === w.to).map((x) => DAYNAME[x.d]);
+    a.innerHTML = `<div class="verdict warn">${sg("check", "Needs attention")}<span>The walk to ${w.to} on ${andList(days)} is ${w.kind === "late" ? "longer than the break" : "tight"}.</span><button class="btn btn-secondary btn-sm" data-act="build">Show a fix</button></div>`; return;
+  }
+  a.innerHTML = `<div class="verdict">${sg("planned", "Fits")}<span>This week fits your preferences.</span></div>`;
 }
-function renderTabs() {
-  $("#tabs").innerHTML = Object.keys(SCHEDULES).map((n) => `<button class="stab" aria-pressed="${n === active}" data-tab="${n}">${n === active ? '<span class="dot"></span>' : ""}${n}</button>`).join("") + `<button class="stab" data-act="newsched" data-i="plus" data-is="sm">New</button>`;
-  hydrateIcons($("#tabs"));
+function renderPrefBtn() {
+  const s = prefSummary();
+  $("#prefSum").textContent = s;
+  $("#prefBtn").setAttribute("aria-label", "Preferences" + (s ? ": " + s : ", all defaults"));
+  $("#prefBtn").setAttribute("aria-expanded", mode === "prefs");
 }
-function renderReg() {
-  const map = preview ? preview.map : sched; const m = meetings(map); const bad = conflicts(m);
-  $("#reg").innerHTML = Object.entries(map).map(([c, n]) => { const s = secOf(c, n); const isBad = m.some((x) => x.code === c && bad.has(x)); return `<li data-c="${SECTIONS[c].c}"><span class="cdot"></span><div><div><span class="code">${c}</span> <span class="meta">§${n}</span></div><div class="meta">${s.online ? "Online · no set time" : `${dayStr(s.days)} ${range(s)}`} · #${s.cls}</div>${isBad ? '<div class="meta" style="color:var(--danger)">Conflicts with another class</div>' : s.open === 0 ? '<div class="meta" style="color:var(--attention)">Full · waitlist</div>' : ""}</div><div class="acts"><button aria-pressed="${locked.has(c)}" data-lock="${c}" aria-label="${locked.has(c) ? "Unlock" : "Lock"} ${c}" title="Locked sections stay put when you build">${icon(locked.has(c) ? "lock" : "unlock", "sm")}</button><button data-remove="${c}" aria-label="Remove ${c}">${icon("close", "sm")}</button></div></li>`; }).join("");
-  $("#regCred").textContent = stats(map).cr + " credits";
-}
+
+/* ---------- the contextual panel (desktop) and its phone sheet ---------- */
+function panelHead(title, sub) { return `<div class="phd"><div style="min-width:0"><h2 tabindex="-1">${title}</h2>${sub ? `<p class="meta">${sub}</p>` : ""}</div><button class="btn btn-ink btn-icon btn-sm close" data-act="pclose" aria-label="Close" data-i="close"></button></div>`; }
 const CATALOG_DEFAULT = ["MATH 3680", "BIOL 1710", "ECON 1100", "PSYC 1630"];
-let expanded = Q.get("state") === "search" ? "MATH 3680" : null;
-function renderResults() {
-  const q = $("#q").value.trim().toLowerCase();
+let expanded = null, query = "";
+function findHTML() {
+  return `${panelHead("Find courses")}<div class="find"><label class="searchfield" data-i="search"><input id="q" placeholder="Code, title, instructor or class number" aria-label="Search courses" value="${query}"></label>
+    <div class="fchips"><button class="chip" aria-pressed="true" data-v="open">Open seats</button><button class="chip" aria-pressed="false" data-v="filters">Filters</button></div>
+    <div class="filters" id="filters"><div><div class="label">Days</div><div class="fchips">${DAYS.map((d, i) => `<button class="chip" aria-pressed="${i < 4}">${d}</button>`).join("")}</div></div><div><div class="label">Format</div><div class="fchips"><button class="chip" aria-pressed="true">In person</button><button class="chip" aria-pressed="true">Online</button><button class="chip" aria-pressed="false">Hybrid</button></div></div><div class="tline">TAMS rules<button class="switch" role="switch" aria-checked="false" aria-label="TAMS rules"></button></div></div></div>
+    <div class="results" id="results">${resultsHTML()}</div>`;
+}
+function resultsHTML() {
+  const q = query.trim().toLowerCase();
   const list = q ? Object.keys(SECTIONS).filter((c) => (c + " " + SECTIONS[c].t + " " + SECTIONS[c].secs.map((s) => s.who + " " + s.cls).join(" ")).toLowerCase().includes(q)) : HOST === "untangle" ? CATALOG_DEFAULT : [];
-  $("#countHint").textContent = q ? `${list.length} found` : "";
-  if (!list.length) { $("#results").innerHTML = q ? `<div class="rhint">No course matches “${q}”. Try a department code like CSCE.</div>` : `<div class="rhint"><span>Search ${HOST === "vsb" ? "3,048" : "all"} courses with sections this term.</span><div class="ex"><button class="chip" data-q="CSCE 2110">CSCE 2110</button><button class="chip" data-q="Patel">Patel</button><button class="chip" data-q="23419">23419</button></div></div>`; return; }
+  if (!list.length) return q ? `<div class="rhint">No course matches “${query}”. Try a department code like CSCE.</div>` : `<div class="rhint"><span>Try a code, a title, an instructor or a class number.</span><div class="ex"><button class="chip" data-q="CSCE 2110">CSCE 2110</button><button class="chip" data-q="Patel">Patel</button><button class="chip" data-q="23419">23419</button></div></div>`;
   const m = meetings(sched);
-  $("#results").innerHTML = (q ? "" : `<div class="rgroup"><span class="label">You can take</span><span class="tag" style="margin-left:auto">From transcript</span></div>`) + list.map((c) => {
-    const S = SECTIONS[c]; const inSched = sched[c]; const open = S.secs.filter((s) => s.open > 0).length;
-    return `<button class="rcourse" aria-expanded="${expanded === c}" data-exp="${c}">${HOST === "untangle" ? sg(inSched ? "planned" : "available") : `<span class="cdot" data-c="${S.c}"></span>`}<span><span class="code">${c}</span><span class="t">${S.t}</span></span><span class="n">${S.cr} cr<br>${open}/${S.secs.length} open</span></button>` +
-      (expanded === c ? `<div class="rsecs">${S.secs.map((s) => { const clash = !s.online && m.find((o) => o.code !== c && s.days.includes(o.d) && o.s < s.e && s.s < o.e); const on = sched[c] === s.n;
-        return `<div class="rsec" data-ghost="${c}|${s.n}"><button class="add ${on ? "on" : clash ? "warn" : ""}" ${s.open === 0 && !on ? "disabled" : ""} data-addsec="${c}|${s.n}" aria-label="${on ? "In schedule" : s.open === 0 ? "Full" : "Add section " + s.n}">${icon(on ? "check" : s.open === 0 ? "lock" : "plus")}</button><div><div class="l1"><span class="code">§${s.n}</span>${s.online ? "Online · no set time" : `${dayStr(s.days)} ${range(s)}`}</div><div class="l2"><span>${s.who}</span>${s.b ? `<span class="plate"><b>${s.b[0]}</b>${s.b[1]}</span>` : ""}<span>${s.open ? s.open + " open" : "Full"}</span><span>#${s.cls}</span></div>${clash ? `<div class="bad">Overlaps ${clash.code} on ${DAYS[clash.d]}</div>` : ""}</div></div>`; }).join("")}</div>` : "");
+  return (q ? "" : `<div class="rgroup label">You can take</div>`) + list.map((c) => {
+    const S = SECTIONS[c]; const full = S.secs.every((s) => s.open === 0);
+    return `<button class="rcourse" aria-expanded="${expanded === c}" data-exp="${c}">${HOST === "untangle" ? sg(sched[c] ? "planned" : "available", sched[c] ? "Planned" : "Can take") : `<span class="cdot" data-c="${S.c}"></span>`}<span><span class="code">${c}</span><span class="t">${S.t}</span></span>${full ? '<span class="n">Full</span>' : "<span></span>"}</button>` +
+      (expanded === c ? `<div class="rsecs">${secRows(c, m, "addsec")}</div>` : "");
   }).join("");
 }
-function renderGbar() {
-  const g = $("#gbar");
-  if (!preview) { g.classList.remove("on"); return; }
-  const o = OPTIONS[optIndex];
-  g.classList.add("on");
-  g.innerHTML = `<div class="seg sm" id="optSeg" aria-label="Three weeks that fit">${OPTIONS.map((x, i) => `<button type="button" aria-pressed="${i === optIndex}" data-v="${i}">${PHONE.matches ? "" : "Option "}${x.k}</button>`).join("")}</div><div class="dl"><span class="delta" id="delta">${o.delta}</span><span class="live" id="live"><i></i>Best so far</span></div><div class="right"><button class="btn btn-ink btn-sm" data-act="cancelprev">Cancel</button><button class="btn btn-secondary btn-sm" data-act="saveopt">Save as schedule</button><button class="btn btn-primary btn-sm" data-act="useopt">Use this</button></div>`;
-  initSeg($("#optSeg"), (i) => { optIndex = +i; preview = { map: OPTIONS[optIndex].map }; $("#delta").textContent = OPTIONS[optIndex].delta; renderGrid(); renderReg(); });
+/* section rows: conflicts first, so a clash is visible before the tap */
+function secRows(c, m, verb) {
+  const S = SECTIONS[c];
+  const rows = S.secs.map((s) => { const clash = !s.online && m.find((o) => o.code !== c && s.days.includes(o.d) && o.s < s.e && s.s < o.e); return { s, clash, on: sched[c] === s.n }; });
+  rows.sort((a, b) => (b.on - a.on) || (!!b.clash - !!a.clash));
+  return rows.map(({ s, clash, on }) => `<div class="rsec" data-ghost="${c}|${s.n}"><button class="add ${on ? "on" : clash ? "warn" : ""}" ${s.open === 0 && !on ? "disabled" : ""} data-${verb}="${c}|${s.n}" aria-label="${on ? "In your week" : s.open === 0 ? "Full" : (verb === "pick" ? "Move to section " : "Add section ") + s.n + (clash ? ", overlaps " + clash.code : "")}">${icon(on ? "check" : s.open === 0 ? "lock" : "plus")}</button><div><div class="l1"><span class="code">§${s.n}</span>${s.online ? "Online, no set time" : `${dayStr(s.days)} ${range(s)}`}</div><div class="l2">${s.who}${s.b ? `, ${s.b[0]} ${s.b[1]}` : ""}, ${s.open ? s.open + " open" : "full"}</div>${clash ? `<div class="bad">Overlaps ${clash.code} on ${andList(s.days.filter((d) => m.some((o) => o.code === clash.code && o.d === d && o.s < s.e && s.s < o.e)).map((d) => DAYS[d]))}</div>` : ""}</div></div>`).join("");
 }
-function renderAll() { renderTabs(); renderGrid(); renderReg(); renderResults(); renderGbar(); }
+function courseHTML(code) {
+  const S = SECTIONS[code];
+  return `${panelHead(code, S.t)}<div class="psec"><div class="lockrow"><span>Keep this section<span class="meta" style="display:block;font-weight:400">Auto won't move it.</span></span><button class="switch" role="switch" aria-checked="${locked.has(code)}" aria-label="Keep this section" data-lock="${code}"></button></div></div>
+    <div class="psec"><div class="label">Sections</div><div class="rsecs" style="background:none;padding:0;margin:0 -6px">${secRows(code, meetings(sched), "pick")}</div></div>
+    <div class="pacts"><button class="btn btn-secondary btn-sm" style="color:var(--danger)" data-remove="${code}">Remove from Spring 2027</button></div>`;
+}
+function prefsHTML() {
+  const p = prefs;
+  return `${panelHead("Preferences", "Auto follows these. Most weeks need none.")}
+    <div class="psec"><div class="label">Start after</div><div class="seg sm" id="startAfter" style="width:100%">${[[0, "Any time"], [9, "9 AM"], [10, "10 AM"], [11, "11 AM"]].map(([v, l]) => `<button type="button" aria-pressed="${p.start === v}" data-v="${v}">${l}</button>`).join("")}</div></div>
+    <div class="psec"><div class="label">Days off</div><div class="chips" data-pref="off">${DAYS.map((d, i) => `<button class="chip" aria-pressed="${p.off.includes(i)}" data-v="${i}">${d}</button>`).join("")}</div></div>
+    <div class="psec"><div class="label">Prefer</div><div class="chips" data-pref="flags"><button class="chip" aria-pressed="${p.walks}" data-v="walks">Short walks</button><button class="chip" aria-pressed="${p.lunch}" data-v="lunch">Lunch break</button><button class="chip" aria-pressed="${p.fewer}" data-v="fewer">Fewer days</button><button class="chip" aria-pressed="${p.profs}" data-v="profs">Top-rated profs</button></div></div>
+    <div class="psec"><div class="label">Most credits</div><div class="seg sm" id="maxCr" style="width:100%">${[[0, "No limit"], [12, "12"], [15, "15"], [18, "18"]].map(([v, l]) => `<button type="button" aria-pressed="${p.max === v}" data-v="${v}">${l}</button>`).join("")}</div></div>
+    <div class="psec"><div class="label">Busy times</div>${p.busy.map((b, i) => `<div class="busyrow">${b.name}, ${andList(b.days.map((d) => DAYS[d]))} ${fmt(b.s)}–${fmt(b.e)}<button class="x" aria-label="Remove ${b.name}" data-unbusy="${i}">${icon("close", "sm")}</button></div>`).join("")}<p class="help">Drag across empty time on the grid to add one.</p></div>
+    <div class="pacts"><button class="btn btn-quiet btn-sm" style="margin-left:-10px" data-act="resetprefs">Back to defaults</button></div>`;
+}
+function altHTML() {
+  const a = stats(sched), b = stats(OPTIONS[optIndex].map), o = OPTIONS[optIndex];
+  const rows = [["Days on campus", a.days, b.days, b.days - a.days], ["First class", fmt(a.first), fmt(b.first), a.first - b.first], ["Last class ends", fmt(a.last), fmt(b.last), b.last - a.last], ["Walking a week", a.walk + " min", b.walk + " min", b.walk - a.walk], ["Tight or late walks", a.tight, b.tight, b.tight - a.tight]];
+  const changes = Object.keys(o.map).filter((c) => o.map[c] !== sched[c]);
+  const sec = (c, n) => { const s = secOf(c, n); return s.online ? "Online" : `${dayStr(s.days)} ${fmt(s.s)}`; };
+  return `${panelHead(`Option ${optIndex + 1} next to your week`)}
+    <div class="psec"><table class="cmp"><thead><tr><th></th><th>Now</th><th>Option ${optIndex + 1}</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="${r[3] < 0 ? "better" : r[3] > 0 ? "worse" : ""}">${r[2]}</td></tr>`).join("")}</tbody></table></div>
+    <div class="psec"><div class="label">Sections that change</div>${changes.map((c) => `<div class="chg" data-c="${SECTIONS[c].c}"><span class="cdot"></span><b class="code" style="font-size:13px">${c}</b><span class="from">${sec(c, sched[c])}</span>${icon("chevR", "sm")}<span>${sec(c, o.map[c])}</span></div>`).join("")}</div>
+    <div class="pacts"><button class="btn btn-primary btn-sm" data-act="useopt">Use this</button><button class="btn btn-secondary btn-sm" data-act="saveopt">Save as a new schedule</button></div>`;
+}
+const panel = new Panel($("#panel"), { onClose: () => { mode = null; selected = null; ghost = null; renderGrid(); renderPrefBtn(); } });
+const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.5, () => innerHeight * 0.92], scrim: null, dismissible: true, onDetent: (i) => { if (i < 0) { mode = null; selected = null; renderGrid(); } } });
+function showPanel(m, { code, instant: inst = false, detent = 0, focus = false } = {}) {
+  mode = m;
+  const html = m === "find" ? findHTML() : m === "course" ? courseHTML(code) : m === "prefs" ? prefsHTML() : altHTML();
+  const host = PHONE.matches ? $("#sbody") : $("#pbody");
+  host.innerHTML = html; hydrateIcons(host); wirePanel(host);
+  if (PHONE.matches) { sheet.open(detent); } else panel.open({ instant: inst, focus });
+  if (m === "find" && !PHONE.matches) requestAnimationFrame(() => $("#q", host)?.focus({ preventScroll: true }));
+  renderPrefBtn();
+}
+function closePanel(inst) { if (PHONE.matches) { if (sheet.index >= 0) sheet.close(); mode = null; selected = null; renderGrid(); return; } panel.close(inst); }
+function wirePanel(root) {
+  initChips(root, (v, on, c) => {
+    if (v === "filters") $("#filters", root).classList.toggle("on", on);
+    const g = c.closest("[data-pref]")?.dataset.pref;
+    if (g === "off") { const i = +v; prefs.off = on ? [...prefs.off, i].sort() : prefs.off.filter((x) => x !== i); }
+    if (g === "flags") prefs[v] = on;
+    if (g) prefsChanged();
+  });
+  $$(".seg", root).forEach((s) => initSeg(s, (v) => { if (s.id === "startAfter") prefs.start = +v; if (s.id === "maxCr") prefs.max = +v; prefsChanged(); }));
+  $$(".switch", root).forEach((s) => s.addEventListener("click", () => { const on = s.getAttribute("aria-checked") !== "true"; s.setAttribute("aria-checked", on); const c = s.dataset.lock; if (c) { on ? locked.add(c) : locked.delete(c); renderGrid(); toast(on ? `Auto will keep ${c} where it is` : `Auto may move ${c}`); } }));
+  const q = $("#q", root);
+  if (q) q.addEventListener("input", () => { query = q.value; expanded = null; $("#results", root).innerHTML = resultsHTML(); hydrateIcons($("#results", root)); });
+}
+function prefsChanged() {
+  renderPrefBtn();
+  if (preview) { searching = true; $("#altN") && ($("#altN").innerHTML = `${optIndex + 1} of ${OPTIONS.length}<i aria-hidden="true"></i>`); setTimeout(() => { searching = false; const n = $("#altN"); if (n) n.textContent = `${optIndex + 1} of ${OPTIONS.length}`; }, 600); }
+  renderGrid();
+}
 
-/* mutations with undo */
-function commit(next, msg) { history.push({ ...sched }); sched = next; SCHEDULES[active] = sched; renderAll(); if (msg) toast(msg, "Undo", undo); }
-let instant = false;
+function renderAll() { renderGrid(); renderAnswer(); renderPrefBtn(); if (mode && mode !== "prefs") { const host = PHONE.matches ? $("#sbody") : $("#pbody"); const y = host.scrollTop; showPanel(mode, { code: selected, instant: true }); host.scrollTop = y; } }
+
+/* ---------- changes, with undo ---------- */
+function commit(next, msg) { history.push({ ...sched }); sched = next; SCHEDULES[active] = sched; renderAll(); if (msg) toast(msg, "Undo", () => undo(false)); }
 function undo(fromKeyboard) { if (!history.length) return; sched = history.pop(); SCHEDULES[active] = sched; instant = fromKeyboard === true; renderAll(); instant = false; }
 $("#undoBtn").onclick = (e) => undo(e.detail === 0);
-$("#clearBtn")?.addEventListener("click", () => commit({}, "Cleared Main"));
 
+/* Auto: the best week so far previews within 300ms; the worker keeps looking without moving the grid */
+let searching = false;
 function build() {
-  const btns = $$('[data-act="build"]'); btns.forEach((b) => { b.dataset.w = b.offsetWidth; b.style.width = b.offsetWidth + "px"; b.innerHTML = '<span class="spin"></span>'; });
-  setTimeout(() => { // best-so-far arrives inside 300 ms; the worker keeps improving in place
-    btns.forEach((b) => { b.innerHTML = icon("trayin", "sm") + `<span class="buildlbl">${HOST === "vsb" ? (PHONE.matches ? "Build" : "Build my schedule") : "Auto"}</span>`; b.style.width = ""; });
-    optIndex = 0; preview = { map: OPTIONS[0].map }; selected = null; renderAll();
-    setTimeout(() => { const l = $("#live"); if (l) { l.innerHTML = "<i></i>Best found · checked 1,240 weeks"; l.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 200 }); } }, 1200);
+  const btns = $$('[data-act="build"]').filter((b) => b.closest(".whead, .pbar")); btns.forEach((b) => { b.style.width = b.offsetWidth + "px"; b.innerHTML = `<span class="spin"></span><span class="sr">Looking for weeks</span>`; });
+  setTimeout(() => {
+    btns.forEach((b) => { b.innerHTML = icon("trayin", "sm") + `<span class="buildlbl">${BUILD}</span>`; b.style.width = ""; });
+    optIndex = 0; preview = { map: OPTIONS[0].map }; selected = null; searching = true;
+    if (mode === "course") closePanel(true);
+    renderAll();
+    setTimeout(() => { searching = false; const n = $("#altN"); if (n) n.textContent = `${optIndex + 1} of ${OPTIONS.length}`; }, 1200);
   }, 280);
+}
+/* Next: the sentence crossfades sideways through a 2px blur (110ms out, 160ms in) while events
+   move to their new slots (300ms). From the keyboard both change at once. A fast second press
+   cancels the first and starts from the new text. */
+function showOption(i, fromKeyboard) {
+  optIndex = i; preview = { map: OPTIONS[i].map };
+  const sen = $("#altSen"), n = $("#altN");
+  const apply = () => { sen.textContent = OPTIONS[i].sen; n.firstChild.textContent = `${i + 1} of ${OPTIONS.length}`; };
+  sen.getAnimations().forEach((a) => a.cancel());
+  if (fromKeyboard) apply();
+  else if (reduced()) { apply(); sen.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120 }); }
+  else {
+    const out = sen.animate([{ opacity: 1, transform: "none", filter: "blur(0)" }, { opacity: 0, transform: "translateX(-4px)", filter: "blur(2px)" }], { duration: 110, easing: EASE.out, fill: "forwards" });
+    out.onfinish = () => { apply(); out.cancel(); sen.animate([{ opacity: 0, transform: "translateX(8px)", filter: "blur(2px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }], { duration: 160, easing: EASE.out }); };
+  }
+  instant = !!fromKeyboard; renderGrid(); instant = false;
+  if (mode === "alt") showPanel("alt", { instant: true });
+}
+
+/* ---------- schedule switcher (from the pill) ---------- */
+let popTrigger = null;
+function openSwitch(trigger, fromKeyboard) {
+  if (PHONE.matches) { $("#sbody").innerHTML = `${panelHead("Spring 2027 schedules")}<div class="pop on" style="position:static;width:auto;box-shadow:none;padding:0 10px">${switchItems()}</div>`; hydrateIcons($("#sbody")); wirePanel($("#sbody")); sheet.open(0); return; }
+  const p = $("#pop"), r = trigger.getBoundingClientRect();
+  p.innerHTML = switchItems(); hydrateIcons(p);
+  p.style.top = r.bottom + 8 + "px"; p.style.right = innerWidth - r.right + "px";
+  if (fromKeyboard) { p.classList.add("instant"); requestAnimationFrame(() => requestAnimationFrame(() => p.classList.remove("instant"))); }
+  p.classList.add("on"); popTrigger = trigger; trigger.setAttribute("aria-expanded", "true");
+  requestAnimationFrame(() => p.querySelector("button")?.focus({ preventScroll: true }));
+}
+function closeSwitch(fromKeyboard) { const p = $("#pop"); if (!p.classList.contains("on")) return; if (fromKeyboard) { p.classList.add("instant"); requestAnimationFrame(() => requestAnimationFrame(() => p.classList.remove("instant"))); } p.classList.remove("on"); popTrigger?.setAttribute("aria-expanded", "false"); if (p.contains(document.activeElement)) popTrigger?.focus(); }
+function switchItems() {
+  const term = HOST === "vsb" && PHONE.matches ? `<div class="seg sm" id="pterm" style="width:100%;margin:4px 0 8px" aria-label="Term"><button type="button">Fall 26</button><button type="button" aria-pressed="true">Spring 27</button><button type="button">Summer 27</button></div>` : "";
+  return `${term}<div class="label lab">Spring 2027</div>${Object.keys(SCHEDULES).map((n) => `<button aria-current="${n === active}" data-tab="${n}">${n}${n === active ? `<span class="ck">${icon("check", "sm")}</span>` : ""}</button>`).join("")}<hr><button data-act="newsched">${icon("plus", "sm")}New schedule</button>${HOST === "untangle" ? `<a href="05-schedules-library.html">${icon("compare", "sm")}All schedules and compare</a>` : ""}<button data-act="clear" style="color:var(--danger)">Clear ${active}</button>`;
 }
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-tab],[data-act],[data-exp],[data-addsec],[data-lock],[data-remove],[data-pick],.ev,[data-q],[data-href]");
-  if (!t) { if (selected && !e.target.closest(".gday .opt")) { selected = null; renderGrid(); } return; }
+  if (!e.target.closest("#pop, [data-act='switch']")) closeSwitch();
+  const t = e.target.closest("[data-tab],[data-act],[data-exp],[data-addsec],[data-remove],[data-pick],[data-unbusy],.ev,[data-q],[data-href]");
+  if (!t) { if (selected && mode === "course" && e.target.closest(".gday")) closePanel(); return; }
+  const kb = e.detail === 0;
   if (t.dataset.href) location.href = t.dataset.href;
-  if (t.dataset.tab) { active = t.dataset.tab; sched = { ...SCHEDULES[active] }; preview = null; selected = null; history = []; renderAll(); return; }
-  if (t.dataset.q) { $("#q").value = t.dataset.q; expanded = Object.keys(SECTIONS).find((c) => c === t.dataset.q) || null; renderResults(); return; }
-  if (t.dataset.exp) { expanded = expanded === t.dataset.exp ? null : t.dataset.exp; renderResults(); return; }
-  if (t.dataset.addsec) { const [c, n] = t.dataset.addsec.split("|"); if (sched[c] === n) return; const s = secOf(c, n); const clash = t.classList.contains("warn"); ghost = null; commit({ ...sched, [c]: n }, `${sched[c] ? "Switched" : "Added"} ${c} §${n}${clash ? " · it overlaps" : ""}`); return; }
-  if (t.dataset.lock) { const c = t.dataset.lock; locked.has(c) ? locked.delete(c) : locked.add(c); renderReg(); renderGrid(); return; }
-  if (t.dataset.remove) { const c = t.dataset.remove; const next = { ...sched }; delete next[c]; commit(next, `Removed ${c}`); return; }
-  if (t.dataset.pick) { const [c, n] = t.dataset.pick.split("|"); selected = null; commit({ ...sched, [c]: n }, `Moved ${c} to §${n}`); return; }
-  if (t.classList.contains("ev")) { if (preview) return; const c = t.dataset.code; if (PHONE.matches) return openSections(c); selected = selected === c ? null : c; renderGrid(); return; }
+  if (t.dataset.tab) { closeSwitch(); active = t.dataset.tab; sched = { ...SCHEDULES[active] }; preview = null; selected = null; history = []; if (mode === "course" || mode === "alt") closePanel(true); renderAll(); toast(`Showing ${active}`); return; }
+  if (t.dataset.q) { query = t.dataset.q; expanded = Object.keys(SECTIONS).find((c) => c === t.dataset.q) || null; showPanel("find", { detent: 1 }); return; }
+  if (t.dataset.exp) { expanded = expanded === t.dataset.exp ? null : t.dataset.exp; const r = t.closest(".pscroll, .sheet-body"); $("#results", r).innerHTML = resultsHTML(); hydrateIcons($("#results", r)); $(`[data-exp="${t.dataset.exp}"]`, r)?.focus(); return; }
+  if (t.dataset.addsec) { const [c, n] = t.dataset.addsec.split("|"); if (sched[c] === n) return; const clash = t.classList.contains("warn"); ghost = null; commit({ ...sched, [c]: n }, `${sched[c] ? "Moved" : "Added"} ${c} §${n}${clash ? ". It overlaps another class." : ""}`); return; }
+  if (t.dataset.remove) { const c = t.dataset.remove; const next = { ...sched }; delete next[c]; closePanel(kb); commit(next, `Removed ${c}`); return; }
+  if (t.dataset.pick) { const [c, n] = t.dataset.pick.split("|"); if (sched[c] === n) return; commit({ ...sched, [c]: n }, `Moved ${c} to §${n}`); return; }
+  if (t.dataset.unbusy) { prefs.busy.splice(+t.dataset.unbusy, 1); showPanel("prefs", { instant: true }); prefsChanged(); return; }
+  if (t.classList.contains("ev")) { if (preview) return; const c = t.dataset.code; if (selected === c && mode === "course") { closePanel(kb); return; } selected = c; renderGrid(); showPanel("course", { code: c, instant: kb, focus: kb }); return; }
   const a = t.dataset.act;
   if (a === "build") build();
-  else if (a === "cancelprev") { preview = null; renderAll(); }
-  else if (a === "useopt") { const map = preview.map; preview = null; commit({ ...map }, `Using option ${OPTIONS[optIndex].k}`); }
-  else if (a === "saveopt") { const name = ["Short walks", "Fridays free", "Tue Thu only"][optIndex]; SCHEDULES[name] = { ...preview.map }; active = name; sched = SCHEDULES[name]; preview = null; renderAll(); toast(`Saved as “${name}”`); }
-  else if (a === "newsched") { const name = "Schedule " + (Object.keys(SCHEDULES).length + 1); SCHEDULES[name] = { ...sched }; active = name; renderAll(); toast(`Copied Main into “${name}”`); }
+  else if (a === "find") { if (mode === "find" && !PHONE.matches) { $("#q")?.focus(); return; } showPanel("find", { instant: kb, detent: 1 }); }
+  else if (a === "prefs") { if (mode === "prefs") closePanel(kb); else showPanel("prefs", { instant: kb, focus: kb }); }
+  else if (a === "pclose") closePanel(kb);
+  else if (a === "next") showOption((optIndex + 1) % OPTIONS.length, kb);
+  else if (a === "altdetail") showPanel("alt", { instant: kb, focus: kb });
+  else if (a === "cancelprev") { preview = null; if (mode === "alt") closePanel(true); renderAll(); }
+  else if (a === "useopt") { const map = preview ? preview.map : OPTIONS[optIndex].map; const k = optIndex + 1; preview = null; if (mode === "alt") closePanel(true); commit({ ...map }, `Using option ${k}`); }
+  else if (a === "saveopt") { const name = ["Short walks", "Fridays free", "Tue and Thu"][optIndex]; SCHEDULES[name] = { ...preview.map }; active = name; sched = SCHEDULES[name]; preview = null; closePanel(true); renderAll(); toast(`Saved as “${name}”`); }
+  else if (a === "newsched") { closeSwitch(); const name = "Schedule " + (Object.keys(SCHEDULES).length + 1); SCHEDULES[name] = { ...sched }; active = name; renderAll(); toast(`Copied into “${name}”`); }
+  else if (a === "clear") { closeSwitch(); commit({}, `Cleared ${active}`); }
+  else if (a === "switch") { $("#pop").classList.contains("on") ? closeSwitch(kb) : openSwitch(t, kb); }
+  else if (a === "resetprefs") { prefs = { ...DEFAULT_PREFS, busy: [] }; showPanel("prefs", { instant: true }); prefsChanged(); }
   else if (a === "export") openExport();
-  else if (a === "copynums") { toast("Copied 5 class numbers"); }
-  else if (a === "add") openSearch();
-  else if (a === "prefs") openPrefs();
+  else if (a === "copynums") toast("Copied 5 class numbers");
 });
-/* ghost preview while pointing at a search result */
-$("#results").addEventListener("pointerover", (e) => { const r = e.target.closest("[data-ghost]"); if (!r || !FINE.matches) return; const [code, n] = r.dataset.ghost.split("|"); if (ghost && ghost.code === code && ghost.n === n) return; ghost = { code, n }; renderGrid(); });
-$("#results").addEventListener("pointerleave", () => { if (ghost) { ghost = null; renderGrid(); } });
-$("#q").addEventListener("input", () => { expanded = null; renderResults(); });
+/* the popover closes when focus leaves it, so Tab never strands it open */
+$("#pop").addEventListener("focusout", (e) => { if (!e.relatedTarget || (!$("#pop").contains(e.relatedTarget) && e.relatedTarget !== popTrigger)) closeSwitch(true); });
+/* ghost preview while pointing at a section in search results */
+document.addEventListener("pointerover", (e) => { const r = e.target.closest(".results [data-ghost]"); if (!r || !FINE.matches) return; const [code, n] = r.dataset.ghost.split("|"); if (ghost && ghost.code === code && ghost.n === n) return; ghost = { code, n }; renderGrid(); });
+document.addEventListener("pointerout", (e) => { if (ghost && e.target.closest(".results") && !e.relatedTarget?.closest?.(".results")) { ghost = null; renderGrid(); } });
 
 /* drag an event: it follows the pointer, then snaps to the nearest section of that course */
 let drag = null;
-$("#gbody").addEventListener("pointerdown", (e) => {
-  const ev = e.target.closest(".ev"); if (!ev || preview || !FINE.matches) return;
-  const code = ev.dataset.code;
-  drag = { ev, code, x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
-});
+$("#gbody").addEventListener("pointerdown", (e) => { const ev = e.target.closest(".ev"); if (!ev || preview || !FINE.matches) return; drag = { ev, code: ev.dataset.code, x: e.clientX, y: e.clientY, moved: false, id: e.pointerId }; });
 addEventListener("pointermove", (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -929,64 +1122,48 @@ addEventListener("pointermove", (e) => {
 addEventListener("pointerup", (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const d = drag; drag = null; if (!d.moved) return;
-  if (d.near) { const [c, n] = d.near.dataset.pick.split("|"); d.ev.style.transform = ""; selected = null; commit({ ...sched, [c]: n }, `Moved ${c} to §${n}`); }
+  if (d.near) { const [c, n] = d.near.dataset.pick.split("|"); d.ev.style.transform = ""; commit({ ...sched, [c]: n }, `Moved ${c} to §${n}`); }
   else { const from = d.ev.style.transform; d.ev.style.transform = ""; if (!reduced()) d.ev.animate([{ transform: from }, { transform: "none" }], { duration: 260, easing: EASE.out }); d.ev.classList.remove("dragging"); }
 });
-/* drag across empty time to add a busy block (shown as a hint in this mockup) */
 $("#gbody").addEventListener("dblclick", (e) => { if (e.target.classList.contains("gday")) toast("Drag across empty time to block it"); });
 
-/* phone sheets: sections of a tapped class, search, preferences */
-const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.5, () => innerHeight * 0.92], scrim: null, dismissible: true });
-function openSections(code) {
-  selected = code; renderGrid();
-  const S = SECTIONS[code]; const cur = sched[code]; const m = meetings(sched);
-  $("#sbody").innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span class="code" style="font-size:20px;color:var(--brand)">${code}</span><span class="meta">${S.cr} cr</span><button class="btn btn-ink btn-icon btn-sm" style="margin-left:auto" data-sclose aria-label="Close">${icon("close")}</button></div><p class="meta" style="margin-bottom:10px">${S.t}. Tap a section to move this class; the grid above updates.</p>
-    <div class="rsecs" style="background:none;padding:0">${S.secs.map((s) => { const clash = !s.online && m.find((o) => o.code !== code && s.days.includes(o.d) && o.s < s.e && s.s < o.e); const on = cur === s.n;
-      return `<div class="rsec" style="border-top:1px solid var(--line);border-radius:0"><button class="add ${on ? "on" : clash ? "warn" : ""}" ${s.open === 0 && !on ? "disabled" : ""} data-pick="${code}|${s.n}" aria-label="${on ? "Current section" : "Use section " + s.n}">${icon(on ? "check" : "plus")}</button><div><div class="l1"><span class="code">§${s.n}</span>${s.online ? "Online" : `${dayStr(s.days)} ${range(s)}`}</div><div class="l2"><span>${s.who}</span>${s.b ? `<span class="plate"><b>${s.b[0]}</b>${s.b[1]}</span>` : ""}<span>${s.open ? s.open + " open" : "Full"}</span><span>#${s.cls}</span></div>${clash ? `<div class="bad">Overlaps ${clash.code}</div>` : ""}</div></div>`; }).join("")}</div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-secondary" style="flex:1" data-lock="${code}">${locked.has(code) ? "Unlock" : "Lock"} section</button><button class="btn btn-secondary" style="flex:1;color:var(--danger)" data-remove="${code}">Remove</button></div>`;
-  $("[data-sclose]", $("#sbody")).onclick = () => { sheet.close(); selected = null; renderGrid(); };
-  sheet.open(0);
-}
-function openSearch() {
-  $("#sbody").innerHTML = `<label class="searchfield" data-i="search" style="margin:4px 0 10px"><input id="q2" aria-label="Search courses" placeholder="Code, title, instructor or class #"></label><div class="fchips" style="margin-bottom:8px"><button class="chip" aria-pressed="true">Open seats</button><button class="chip" aria-pressed="false">TAMS rules</button><button class="chip" aria-pressed="false">Filters</button></div><div id="results2"></div>`;
-  hydrateIcons($("#sbody")); initChips($("#sbody"));
-  $("#results2").innerHTML = $("#results").innerHTML; sheet.open(1);
-}
-function openPrefs() { $("#sbody").innerHTML = ""; const p = $("#prefs").cloneNode(true); p.id = ""; p.style.borderTop = "0"; p.style.padding = "4px 0"; $("#sbody").append(p); p.querySelectorAll(".seg").forEach((s) => { s.querySelector(".pill")?.remove(); initSeg(s); }); sheet.open(0); }
-
-/* export: one set of outputs in both hosts */
+/* ---------- export: one set of outputs in both hosts ---------- */
 function openExport() {
   const list = Object.entries(sched).map(([c, n]) => ({ c, n, s: secOf(c, n) })).sort((a, b) => a.s.open - b.s.open);
-  const html = `<div style="display:flex;align-items:center;margin-bottom:6px"><h2 class="title" id="xtitle">Export Main</h2><button class="btn btn-ink btn-icon btn-sm" style="margin-left:auto" data-xclose aria-label="Close">${icon("close")}</button></div>
-    <section class="xsec"><h3>${icon("hash")}Class numbers for myUNT</h3><div class="nums">${list.map((x) => `<div><b>${x.s.cls}</b><span>${x.c} §${x.n}${x.s.open < 6 ? " · few seats" : ""}</span></div>`).join("")}</div><p class="help">Add them to your myUNT cart top to bottom. The section with the fewest open seats comes first.</p><button class="btn btn-primary" data-act="copynums" data-i="copy">Copy all 5</button></section>
-    <section class="xsec"><h3>${icon("calendar")}Calendar file</h3><div class="fchips"><button class="chip" aria-pressed="true">Spring 2027 · Jan 19 – May 7</button></div><p class="help">Weekly repeats through May 7, skipping spring break (Mar 15–19). Online classes are left out.</p>${HOST === "untangle" ? `<div class="tline">Leave-by alerts<button class="switch" role="switch" aria-checked="true" aria-label="Leave-by alerts"></button></div>` : ""}<button class="btn btn-secondary" data-i="download">Download .ics</button></section>
+  const html = `<div style="display:flex;align-items:center;margin-bottom:6px"><h2 class="title" id="xtitle">Export ${active}</h2><button class="btn btn-ink btn-icon btn-sm" style="margin-left:auto" data-xclose aria-label="Close">${icon("close")}</button></div>
+    <section class="xsec"><h3>${icon("hash")}Class numbers for myUNT</h3><div class="nums">${list.map((x) => `<div><b>${x.s.cls}</b><span>${x.c} §${x.n}</span>${x.s.open < 6 ? "<em>Few seats</em>" : ""}</div>`).join("")}</div><p class="help">Add them to your myUNT cart from the top. The fewest open seats come first.</p><button class="btn btn-primary" data-act="copynums" data-i="copy">Copy all ${list.length}</button></section>
+    <section class="xsec"><h3>${icon("calendar")}Calendar file</h3><p class="help">Spring 2027, Jan 19 to May 7. Weekly repeats skip spring break (Mar 15–19). Online classes are left out.</p>${HOST === "untangle" ? `<div class="tline">Leave-by alerts<button class="switch" role="switch" aria-checked="true" aria-label="Leave-by alerts"></button></div>` : ""}<button class="btn btn-secondary" data-i="download">Download .ics</button></section>
     <section class="xsec"><h3>${icon("image")}Picture of the week</h3><button class="btn btn-secondary" data-i="download">Download .png</button></section>
     <section class="xsec"><h3>${icon("share")}Share and back up</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" data-i="copy" data-is="sm">Copy share link</button><button class="btn btn-secondary btn-sm">Print</button><button class="btn btn-secondary btn-sm">Save file</button><button class="btn btn-ink btn-sm">Open a file</button></div></section>`;
-  if (PHONE.matches) { $("#sbody").innerHTML = html; hydrateIcons($("#sbody")); initChips($("#sbody")); $("[data-xclose]", $("#sbody")).onclick = () => sheet.close(); sheet.open(1); return; }
-  $("#xdialog").innerHTML = html; hydrateIcons($("#xdialog")); initChips($("#xdialog"));
+  if (PHONE.matches) { $("#sbody").innerHTML = `<div style="padding:0 16px">${html}</div>`; hydrateIcons($("#sbody")); $("[data-xclose]", $("#sbody")).onclick = () => sheet.close(); sheet.open(1); return; }
+  $("#xdialog").innerHTML = html; hydrateIcons($("#xdialog"));
   $$(".switch", $("#xdialog")).forEach((s) => (s.onclick = () => s.setAttribute("aria-checked", s.getAttribute("aria-checked") !== "true")));
   $("#xwrap").style.display = ""; $("#xscrim").classList.add("on"); requestAnimationFrame(() => $("#xdialog").classList.add("on")); modalOpen($("#xwrap"), $("[data-xclose]", $("#xdialog")));
   $("[data-xclose]", $("#xdialog")).onclick = closeExport;
 }
 function closeExport() { $("#xdialog").classList.remove("on"); $("#xscrim").classList.remove("on"); modalClose($("#xwrap")); setTimeout(() => ($("#xwrap").style.display = "none"), 150); }
 $("#xscrim").onclick = closeExport;
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("#xwrap").style.display !== "none") closeExport(); else if (selected) { selected = null; renderGrid(); } } if ((e.metaKey || e.ctrlKey) && e.key === "z") { e.preventDefault(); undo(true); } });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { if ($("#xwrap").style.display !== "none") closeExport(); else if ($("#pop").classList.contains("on")) closeSwitch(true); else if (mode) closePanel(true); else if (preview) { preview = null; renderAll(); } }
+  if ((e.metaKey || e.ctrlKey) && e.key === "z") { e.preventDefault(); undo(true); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); showPanel("find", { instant: true, detent: 1 }); }
+});
 
-initChips(document.querySelector(".findside"), (v, on) => { if (v === "filters") $("#filters").classList.toggle("on", on); });
-initChips($("#prefChips"), () => { if (preview) { $("#live").innerHTML = "<i></i>Updating"; setTimeout(() => { $("#live").innerHTML = "<i></i>Best so far"; }, 280); } });
-$$(".seg").forEach((s) => s.id !== "optSeg" && initSeg(s, (v, b) => { if (b?.dataset.href) location.href = b.dataset.href; }));
+$$(".seg").forEach((s) => (s.id === "views" || s.id === "term") && initSeg(s, (v, b) => { if (b?.dataset.href) location.href = b.dataset.href; }));
 addEventListener("resize", () => renderGrid());
 
 /* states */
 const st = Q.get("state");
-if (st === "choose") selected = "PHYS 2220";
 if (st === "conflict") sched = { ...sched, "MATH 3680": "001" };
+if (st === "empty") sched = {};
 renderAll();
-if (st === "search") { if (PHONE.matches) openSearch(); else { ghost = { code: "MATH 3680", n: "001" }; renderGrid(); } }
+if (st === "choose") { selected = "PHYS 2220"; renderGrid(); showPanel("course", { code: "PHYS 2220", instant: true }); }
+if (st === "search") { query = "MATH 3680"; expanded = "MATH 3680"; showPanel("find", { instant: true, detent: 1 }); if (!PHONE.matches) { ghost = { code: "MATH 3680", n: "002" }; renderGrid(); } }
 if (st === "options") { preview = { map: OPTIONS[1].map }; optIndex = 1; renderAll(); }
+if (st === "optdetail") { preview = { map: OPTIONS[0].map }; optIndex = 0; renderAll(); showPanel("alt", { instant: true }); }
+if (st === "prefs") showPanel("prefs", { instant: true });
+if (st === "switch") openSwitch($('[data-act="switch"]'), true);
 if (st === "export") openExport();
-if (st === "choose" && PHONE.matches) openSections("PHYS 2220");
-if (st === "empty") { sched = {}; renderAll(); }
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # UNTangle v3 (Opus direction): design
 
-Readers: the lead choosing between this direction and the parallel Fable one, and the engineers who build the winner. This file replaces `../untangle-v2/DESIGN.md` where they disagree. Motion lives in `MOTION.md`, build order in `HANDOFF.md`. Every screen named here has a mockup in this folder; open `index.html` for the list, and `screens/` for the 1440x900 and 390x844 captures.
+Readers: the lead choosing between this direction and the parallel Fable one, and the engineers who build the winner. The simplification rules in [`../untangle-v3.md`](../untangle-v3.md#simplification-rules) override this file where they disagree, notably the rail in §4.2, the side columns, stats line, tabs and options bar in §4.3, the itinerary rows in §4.4 and the cards in §4.5. The mockups follow the rules. This file replaces `../untangle-v2/DESIGN.md` where they disagree. Motion lives in `MOTION.md`, build order in `HANDOFF.md`. Every screen named here has a mockup in this folder; open `index.html` for the list, and `screens/` for the 1440x900 and 390x844 captures.
 
 ## 1. Direction
 
@@ -44,7 +44,7 @@ UNTangle
 └── Sign in                           a sheet over wherever you are
 ```
 
-The **schedule pill** (`Spring 2027 · Main`) in the header is the only switcher. It shows which named schedule every tab is showing. On desktop it opens the library; on phone it opens a sheet of that term's schedules with a link to the library. Tabs never change which schedule is active.
+The **schedule pill** (`Spring 2027 Main`, the term in a lighter weight) in the header is the only switcher. It shows which named schedule every tab is showing. On desktop it opens the library; on phone it opens a sheet of that term's schedules with a link to the library. Tabs never change which schedule is active.
 
 ### 3.2 Landing rule (hypothesis)
 
@@ -54,7 +54,7 @@ On open, the app goes to **Day** when the schedule marked "in session" has a cla
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│ UNTangle  [Courses|Week|Day]  ⌕ Search courses or class numbers ⌘K   (●Spring 2027 · Main)  SG │ 56
+│ UNTangle  [Courses|Week|Day]  ⌕ Search courses or class numbers ⌘K   (●Spring 2027 Main)    SG │ 56
 ├────────────────────────────────────────────────────────────────────────────┤
 │ Courses:  rail 264 │ list ≤ 800              │ detail panel 460 (pushes)    │
 │ Week:     find 312 │ grid (fluid)            │ registration + prefs 312     │
@@ -66,7 +66,7 @@ On open, the app goes to **Day** when the schedule marked "in session" has a cla
 
 ```
 ┌──────────────────────────────┐
-│ UNTangle   (Spring 27 · Main) SG│ 52 + safe-top, frosted
+│ UNTangle   (Spring 27 Main)   SG│ 52 + safe-top, frosted
 │ content (own scroll per tab) │
 │                              │
 │ [Add] [Prefer] [Auto]        │ Week only: glass action bar, thumb zone
@@ -90,7 +90,7 @@ Week in UNTangle and the standalone **UNT Schedule Builder** (vsb.untgrades.app 
 
 | | UNTangle host | Standalone host |
 | --- | --- | --- |
-| Header | UNTangle top bar with tabs and the schedule pill | `[UNT] Schedule Builder`, term segmented control, freshness line "3,048 courses · Updated Oct 4, 2:02 PM", Help, "Sign in to sync" |
+| Header | UNTangle top bar with tabs and the schedule pill | `[UNT] Schedule Builder`, term segmented control, freshness line "Updated Oct 4 at 2:02 PM", the schedule switcher, and search ("Search 3,048 courses") in the bar |
 | Search default | "You can take", from transcript statuses, with status glyphs | Empty, with three example queries; course colors instead of glyphs |
 | Primary action | **Auto** | **Build my schedule** |
 | Accounts | Signed in or guest | No account needed; saved on the device; share link |
@@ -108,14 +108,14 @@ One column on the left, max 520px. On desktop the right side shows the thesis: f
 
 | State | Shows | Primary action |
 | --- | --- | --- |
-| `first` | Campus switch (UNT · UT Austin), "Start with your transcript", one line on privacy | **Open myUNT** (opens a 480x760 popup near the right edge; UT Austin: "Open UT Direct") |
-| `waiting` | "myUNT is open in another window", three steps on the path line (sign in, open the unofficial transcript, download the PDF) | Show the myUNT window · I have the PDF |
+| `first` | Campus switch (UNT or UT Austin), "Start with your transcript", one line on privacy | **Open myUNT** (opens a 480x760 popup near the right edge; UT Austin: "Open UT Direct") |
+| `waiting` | "myUNT is open in another window", three steps on the path line (sign in, open the unofficial transcript, download the PDF) | Show the myUNT window, or I have the PDF |
 | `returned` | Triggered when `popup.closed` (polled every 500ms) or the window regains focus; on phone, by `visibilitychange` | **Use the downloaded PDF**, autofocused (`showOpenFilePicker({ startIn: "downloads", types: [pdf] })`, else `<input type=file accept=application/pdf>`) |
-| drop overlay | Any file dragged over the page: dashed inset frame, "Drop your transcript · Read on this device" | Drop |
+| drop overlay | Any file dragged over the page: dashed inset frame, "Drop your transcript" with "Read on this device" below it | Drop |
 | drop overlay, not a PDF | Same frame in grey: "Only PDF transcripts work" | (none) |
 | `reading` | Three steps on the path line: reading the PDF, finding your courses, checking prerequisites; "On this device. Nothing is uploaded." | (none). Shown only if parsing takes ≥ 400ms. |
-| `review` | "14 courses found", counts with glyphs, To check first (the unmatched row has Find course · Skip), then terms, then "Your name and student ID were removed" | **Looks right** → Courses, before Auto |
-| `wrongfile` | "That PDF is a degree audit" plus the exact myUNT path to the right document | Choose another file · Open myUNT again |
+| `review` | "14 courses found", counts with glyphs, To check first (the unmatched row has Find course and Skip), then terms, then "Your name and student ID were removed" | **Looks right** → Courses, before Auto |
+| `wrongfile` | "That PDF is a degree audit" plus the exact myUNT path to the right document | Choose another file, or Open myUNT again |
 | `notext` | "This PDF has no readable text" (a scan or photo) | Open myUNT again |
 | `blocked` | "Your browser blocked the window" | Open myUNT in a new tab (an `<a target=_blank>`, which counts as a user gesture) |
 
@@ -123,14 +123,14 @@ No extension, no upload, no banner. The flow never shows more than one primary b
 
 ### 4.2 Courses, Auto and course detail (`02-courses.html`)
 
-- **Term tray** first: "Spring 2027 · Main schedule · 0 credits", three dashed placeholder rows, one sentence, and **Auto**. After Auto, the tray lists the courses with their department color, picked section and a Remove button, a result line "Planned 5 courses · Undo", and a footer "Mon–Fri · 9:00–1:50 · 1 online · Open in Week".
-- **Groups**: To check (attention glyph; meta says why, such as "Needs instructor consent"), You can take (subheads by requirement; each row has a 32px `+` that adds to the tray), Taking now, Later (collapsed; meta "Needs CSCE 2110", where the code links to that course), Done (collapsed; "Fall 2025 · A", "Covered by CSCE 1040").
-- **Desktop rail**: major (opens the major search dialog), credit progress (done, taking and a striped planned segment), a section index with counts, and provenance "From transcript · Oct 13".
+- **Term tray** first: "Spring 2027" with "0 credits" below it, three dashed placeholder rows, one sentence, and **Auto**. After Auto, the tray lists the courses with their department color and a Remove button, a result line "Planned 5 courses" with Undo, and an "Open in Week" link.
+- **Groups**: To check (attention glyph; meta says why, such as "Needs instructor consent"), You can take (subheads by requirement; each row has a 32px `+` that adds to the tray), Taking now, Later (collapsed; meta "Needs CSCE 2110", where the code links to that course), Done (collapsed; "Grade A", "Covered by CSCE 1040").
+- **Desktop rail**: major (opens the major search dialog), credit progress (done, taking and a striped planned segment), a section index with counts, and provenance "From transcript, Oct 13". (Removed by rule 8; these move to the page header and the degree dialog.)
 - **Course detail** (a 460px side panel that pushes the list; a sheet on phone), modelled on UTRP's popup (`HeadingAndActions.tsx`, `GradeDistribution.tsx`, `Description.tsx`), in this order:
   1. Code (Syne 22, brand), credits tag, title, status line.
   2. **Add to Spring 2027** ("Week picks the best section, or choose one below"), then link-outs RateMyProf ↗, Syllabi and CV ↗, SPOT evaluations ↗. They follow the selected instructor and are disabled under "All instructors" with a reason, as UTRP disables them without an instructor.
   3. **Path**: the prerequisite chain as a horizontal path line (done prerequisites solid with a check and their grade, this course in accent, up to two unlocks dashed). Below it, the catalog rule checked against the student's record: "Catalog rule: MATH 1710 and MATH 1720, C or better. **You meet it** with MATH 1710 (B), MATH 1720 (B)." This is UTRP's bolded prerequisite line, made personal.
-  4. **Sections**: a mini week of the active schedule, then section rows. Each row has a one-tap `+`, the time, instructor ★, building plate, class number and seats. Pointing at or tapping a row paints it on the mini week before you add it, in red where it overlaps. A conflicting row shows "Overlaps MATH 2700 on Mon, Wed, Fri" and a red-outlined `+`; a full section shows a lock and "Full · 4 on waitlist".
+  4. **Sections**: a mini week of the active schedule, then section rows. Each row has a one-tap `+`, the time, instructor ★, building plate and seats. Pointing at or tapping a row paints it on the mini week before you add it, in red where it overlaps. A conflicting row shows "Overlaps MATH 2700 on Mon, Wed and Fri" and a red-outlined `+`; a full section shows a lock and "Full, 4 waiting".
   5. **Grades**: instructor chips (no select), figures (average GPA, students, sections), horizontal bars on one green ramp, provenance "UNT grade records 2019–2025" and "Data source ↗". An instructor with no records falls back to all instructors and says so, as UTRP does.
   6. About: the description clamped to three lines, with More.
 - **Major picker**: a dialog (a sheet on phone) with a search field, a catalog-year segmented control and a list. It is not a dropdown.
@@ -145,23 +145,23 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 - **Grid**: Mon to Fri (Saturday appears only when something meets then), 8 a.m. to at least 5 p.m., 64px hours on desktop and 52px on phone. Events use the department tint with a 3px left bar, the code in Syne, the time, a building plate and a lock when locked. **Walk chips** sit between consecutive classes with a gap of 30 minutes or less ("4 min", or "8 min" in attention when the walk plus a 2-minute buffer is at least the break). Busy times are hatched. A **No set time** strip below the grid holds online and async sections.
 - **Choosing a section on the grid**: select an event and the course's other sections appear as dotted outlines (`§002`), red where they clash. Click one, or drag the event and drop it near one, to switch.
 - **Registration list** (right): color, code, section, days and time, class number, conflict or waitlist note, lock, remove, and "Copy class numbers for myUNT".
-- **Preferences**: Start after (Any · 9 · 10 · 11 AM), chips (No Fridays, Lunch break, Short walks, Fewer days, Top-rated profs), busy times (add by dragging on the grid).
-- **Auto / Build**: shows the best result within 300ms and previews option A on the grid. A bar offers A · B · C, a one-line difference ("Fridays free · ends 4:50 Mon, Wed"), a live status ("Best so far" → "Best found · checked 1,240 weeks"), Cancel, **Save as schedule** and **Use this**. Changing a preference while the bar is open updates the options in place.
+- **Preferences**: Start after (Any time, 9, 10 or 11 AM), chips (No Fridays, Lunch break, Short walks, Fewer days, Top-rated profs), busy times (add by dragging on the grid).
+- **Auto / Build**: shows the best result within 300ms and previews option A on the grid. A strip shows one option at a time ("1 of 3") with one sentence on how it differs from the current week ("Frees Friday, but Monday and Wednesday end at 4:50"), **Details** (the figures, and Save as a new schedule, in the panel), **Next**, **Use this** and a close button (rule 5). Changing a preference while the bar is open updates the options in place.
 - **Export** (dialog on desktop, sheet on phone; the same set in both hosts):
   1. **Class numbers for myUNT**, ordered fewest open seats first, with "Copy all 5". This stands in for a registration handoff.
-  2. **Calendar file (.ics)**: a term chip ("Spring 2027 · Jan 19 – May 7"), weekly RRULE with UNTIL, EXDATE for spring break (Mar 15–19), online classes left out, and optional leave-by alerts in the UNTangle host.
+  2. **Calendar file (.ics)**: the term in words ("Spring 2027, Jan 19 to May 7"), weekly RRULE with UNTIL, EXDATE for spring break (Mar 15–19), online classes left out, and optional leave-by alerts in the UNTangle host.
   3. **Picture of the week** (.png).
   4. **Share and back up**: copy share link, print, save file, open a file.
 
 ### 4.4 Day (`04-day-map.html`)
 
 - **Hero** states:
-  - Before the first class: "Leave Kerr Hall by **8:49** · in 12 min".
+  - Before the first class: "Leave Kerr Hall by **8:49**", with "in 12 min" beside it.
   - Within a minute of leaving: "**Leave now**".
   - Between classes: "Leave GAB by 9:54".
-  - Tight: "Leave CURY by **10:50** · Right as class ends", in attention.
-  - After the last class: "Done for today · Tomorrow: CSCE 2610 at 12:30 · ESSC 255".
-  - Another day selected: "Wednesday · leave Kerr Hall by 8:49".
+  - Tight: "Leave CURY by **10:50**", with "Right as class ends" in attention.
+  - After the last class: "Done for today", then "Tomorrow, CSCE 2610 starts at 12:30 in ESSC 255."
+  - Another day selected: "On Wednesday, leave Kerr Hall by 8:49".
   - A day with no classes: "No classes Friday".
 - **Leave-by** = class start − walk minutes − 2-minute buffer. If that falls at or before the previous class end, the leg is tight. The first leg starts from a **starting point** the student sets once (Kerr Hall here). Location is never requested by default.
 - **Itinerary** on the path line: Start → walk leg (minutes, miles, leave-by, break) → numbered stop (code, time, plate, title) → … Past legs and stops turn grey; the next leg is darker and bolder. Online classes appear in a small "Not on the map" row.
@@ -169,9 +169,9 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 
 ### 4.5 Schedules library and compare (`05-schedules-library.html`)
 
-- Schedules grouped by term. Each card has a mini week, name, active dot, credits, days, first to last class, when it was edited, and ⋯ (rename, duplicate, export, delete). The in-session term carries "In session · Day uses this".
+- Schedules grouped by term. Each card has a mini week, name, active dot, credits, days, first to last class, when it was edited, and ⋯ (rename, duplicate, export, delete). The in-session term carries "Day uses this term".
 - **Detail**: Open in Week, Export, stats in Syne, a week grid, and **History** on the path line (Now, Used option A from Auto, Before Auto saved automatically, Started from your transcript). Selecting a version overlays it as dashed outlines on the grid; Restore is one tap and undoable. Auto's plan-scoped transaction makes the "Before Auto" snapshot free.
-- **Compare**: Compare turns on A and B badges on the cards. The comparison has an A · Both · B segmented control (Both shows A solid and B dashed where they differ, and the events that change move between views), a table of changes (days, earliest, last class, walking, tight walks; better in brand, worse in attention), "Sections that change" with old and new, "Same in both", and **Make B active**.
+- **Compare**: Compare turns on A and B badges on the cards. The comparison has a segmented control with the two names and Both (Both shows A solid and B dashed where they differ, and the events that change move between views), a table of changes (days, earliest, last class, walking, tight walks; better in brand, worse in attention), "Sections that change" with old and new, "Same in both", and **Make B active**.
 - Phone: the list pushes to detail (slides in from the right) and compare pushes once two are picked.
 
 ### 4.6 Sign in (`06-sign-in.html`)
@@ -256,14 +256,14 @@ Paste into `frontend/src/app/globals.css` (this replaces the v2 block; the motio
 States are listed where an engineer needs them. Names are React component names.
 
 ### 8.1 Shell
-- **TopBar**: wordmark · ViewTabs (segmented: Courses, Week, Day) · SearchTrigger (⌘K, "Search courses or class numbers", which also matches 5-digit class numbers as UTRP's Quick Add does) · SchedulePill · Account.
-- **PhoneHeader**: wordmark, SchedulePill (`Spring 27 · Main`), Account. Hidden on Day.
+- **TopBar**: wordmark, ViewTabs (segmented: Courses, Week, Day), SearchTrigger (⌘K, "Search courses or class numbers", which also matches 5-digit class numbers as UTRP's Quick Add does), SchedulePill, Account.
+- **PhoneHeader**: wordmark, SchedulePill (`Spring 27 Main`), Account. Hidden on Day.
 - **TabBar**: three tabs (Courses `courses`, Week `week`, Day `day` icons) at 56px + safe area, frosted. Active is brand with a 2.1px stroke; inactive is ink-2 (inactive labels are 11px, so ink-3 would fail AA).
-- **SchedulePill**: states `active` (accent dot), `saving`, `error` (danger dot, "Not saved · Retry" in the sheet), `guest` ("Saved on this device").
+- **SchedulePill**: states `active` (accent dot), `saving`, `error` (danger dot, "Not saved" with Retry in the sheet), `guest` ("Saved on this device").
 
 ### 8.2 Controls (`components/ui/**`)
 - **Button**: primary, secondary, quiet, ink, icon; sizes sm 32, md 40, lg 52; `:active` scale .97; loading holds the width and swaps the label for a spinner with an sr-only verb.
-- **Segmented**: equal segments, one pill moved by transform. Used for view tabs, campus, term, start time, day of week, A · Both · B and A · B · C.
+- **Segmented**: equal segments, one pill moved by transform. Used for view tabs, campus, term, start time, and the compare views.
 - **Chip** (toggle): 32px pill; on = brand-soft fill, brand 1.5px ring and a check glyph; variant `warn`.
 - **SearchField**, **TextField** (label above, help or error below, never a red box around a sentence), **Switch** (40x24).
 - **Plate**: building code plate + room. Variant `quiet` (paper-3) for dense lists.
@@ -276,7 +276,7 @@ States are listed where an engineer needs them. Names are React component names.
 - No **Select** or **Menu** for choosing values. The only Menu is the ⋯ overflow (rename, duplicate, export, delete).
 
 ### 8.3 Courses
-- **TermTray**: states `empty`, `running` (the Auto button holds its width with a spinner), `filled`, `just-filled` (result line with Undo), `over-credit` (attention meta "18 credits · above your usual 15").
+- **TermTray**: states `empty`, `running` (the Auto button holds its width with a spinner), `filled`, `just-filled` (result line with Undo), `over-credit` (attention meta "18 credits, above your usual 15").
 - **CourseRow**: `data-s` = available, planned, check, taking, locked, done, covered; `aria-selected` while its detail is open; one action slot (`+` on available, `−` in the tray).
 - **CourseGroup**: header button with count, tag, chevron; `data-open`.
 - **CourseDetail**: sections as in §4.2. States: `loading` (the header renders from the row at once; the rest shows a 2-line shimmer per section), `no-grades`, `instructor-fallback`, `error` ("Couldn't load grades. Retry").
@@ -315,7 +315,7 @@ Event states: default, `selected` (2px course-color ring, options visible), `con
 1. **No dropdowns for choosing values.** Five or fewer options get a segmented control or chips. More get a search list in a dialog or sheet. ⋯ menus are for actions only.
 2. **Short labels, numbers over words.** Buttons are a verb plus an object at most ("Add to Spring 2027", "Use the downloaded PDF"). Meta strings are one fact each. No sentence-long banners.
 3. **One name per action.** "Auto" produces "Planned 5 courses"; "Use this" produces "Using option A"; "Removed CSCE 2610" offers Undo.
-4. **Say where data came from once.** "Sample sections", "From transcript · Oct 13", "UNT grade records 2019–2025". Never per row.
+4. **Say where data came from once.** "Sample sections", "From transcript, Oct 13", "UNT grade records 2019–2025". Never per row.
 5. **Errors state what happened and the fix,** in the interface's voice, with no apology. "That PDF is a degree audit. In myUNT, open Academic Records › Unofficial Transcript and download that one."
 6. **Privacy in plain words where the worry happens:** "Nothing is uploaded", "UNTangle never sees your password", "Your name and student ID were removed".
 7. **Times as people read them:** "9:00–9:50", "Leave by 8:49", "in 12 min", "Right as class ends". No "AM" inside a day's itinerary unless the day crosses noon ambiguously.

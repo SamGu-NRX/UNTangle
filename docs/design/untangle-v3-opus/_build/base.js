@@ -126,6 +126,36 @@ function modalClose(el) {
   m.prev && document.contains(m.prev) && m.prev.focus({ preventScroll: true });
 }
 
+/* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
+   24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
+   reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
+   too often to animate. */
+class Panel {
+  constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
+  get isOpen() { return this.el.classList.contains("on"); }
+  instantFrame(instant) {
+    if (!instant) return;
+    this.el.classList.add("instant"); document.body.classList.add("panel-instant");
+    requestAnimationFrame(() => requestAnimationFrame(() => { this.el.classList.remove("instant"); document.body.classList.remove("panel-instant"); }));
+  }
+  open({ instant = false, trigger = document.activeElement, focus = false } = {}) {
+    if (!this.isOpen) this.trigger = trigger;
+    this.instantFrame(instant);
+    document.body.classList.add("panel-open");
+    this.el.classList.add("on"); this.el.inert = false; this.el.setAttribute("aria-hidden", "false");
+    if (focus) requestAnimationFrame(() => this.el.querySelector("h2[tabindex], input, button")?.focus({ preventScroll: true }));
+  }
+  close(instant = false) {
+    if (!this.isOpen) return;
+    const hadFocus = this.el.contains(document.activeElement);
+    this.instantFrame(instant);
+    document.body.classList.remove("panel-open");
+    this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
+    if (hadFocus && this.trigger && document.contains(this.trigger)) this.trigger.focus({ preventScroll: true });
+    this.onClose && this.onClose();
+  }
+}
+
 /* Bottom sheet with detents, pointer capture, projected release, velocity handoff. */
 class Sheet {
   constructor(el, { detents, modal = false, scrim = null, dismissible = false, onDetent, bottomInset = () => 0 }) {
