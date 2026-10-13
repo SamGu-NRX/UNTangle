@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { Button } from "@/components/ui/Button";
-import { Segmented } from "@/components/ui/Segmented";
 import { TextField } from "@/components/ui/TextField";
 import { authClient } from "@/lib/auth-client";
 import { isUntEmail, untEmailRequirementMessage } from "@/lib/unt-auth";
@@ -13,11 +12,10 @@ import { useFieldError } from "@/components/use-field-error";
 
 type Result = { error: { message?: string; code?: string } | null };
 
-/** The three server calls the sign-in page makes; a seam for tests. */
+/** The two server calls the sign-in page makes; a seam for tests. */
 export type AuthApi = {
   sendLink(email: string): Promise<Result>;
   signIn(email: string, password: string): Promise<Result>;
-  signUp(email: string, password: string, name: string): Promise<Result>;
 };
 
 const AFTER_SIGN_IN = "/courses";
@@ -32,15 +30,12 @@ const liveApi: AuthApi = {
       errorCallbackURL: "/auth?link=failed",
     }),
   signIn: (email, password) => authClient.signIn.email({ email, password }),
-  signUp: (email, password, name) =>
-    authClient.signUp.email({ email, password, name: name || email, callbackURL: AFTER_SIGN_IN }),
 };
 
 /** How long "Resend link" waits after a send. The server allows 5 requests a minute. */
 export const RESEND_COOLDOWN_S = 30;
 
-type View = "link" | "sent" | "password" | "verify";
-type PasswordMode = "signIn" | "signUp";
+type View = "link" | "sent" | "password";
 type FieldError = { field: "email" | "password"; text: string };
 
 /**
@@ -66,9 +61,10 @@ export function AuthClient({ emailInServerLog, linkFailed }: { emailInServerLog:
 }
 
 /**
- * Sign-in leads with a link emailed to the student's UNT address; a
- * password is the secondary path. Errors appear as help text under the
- * field they concern, never as a red box.
+ * Sign-in leads with a link emailed to the student's UNT address; that is
+ * also how an account is created. A password is the secondary path, for
+ * accounts that set one while signed in (account menu, "Set a password").
+ * Errors appear as help text under the field they concern, never as a red box.
  */
 export function AuthPanel({
   api,
@@ -85,10 +81,8 @@ export function AuthPanel({
   linkFailed: boolean;
 }) {
   const [view, setView] = useState<View>("link");
-  const [mode, setMode] = useState<PasswordMode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState<FieldError | null>(
     linkFailed ? { field: "email", text: "That sign-in link expired or was already used. Send a new one." } : null,
   );
@@ -160,23 +154,17 @@ export function AuthPanel({
     }
     setIsSubmitting(true);
     setError(null);
-    const response = mode === "signIn" ? await api.signIn(email, password) : await api.signUp(email, password, name);
+    const response = await api.signIn(email, password);
     setIsSubmitting(false);
     if (response.error?.code === "EMAIL_NOT_VERIFIED") {
-      fail({ field: "email", text: "Verify this email first: open the link we sent when you created the account, or email yourself a sign-in link." });
+      fail({ field: "email", text: "This account isn't verified. Email yourself a sign-in link instead." });
       return;
     }
     if (response.error) {
-      fail(
-        placeServerError(
-          response.error.message ?? (mode === "signIn" ? "Sign-in failed. Check your email and password." : "The account could not be created."),
-          "password",
-        ),
-      );
+      fail(placeServerError(response.error.message ?? "Sign-in failed. Check your email and password.", "password"));
       return;
     }
-    if (mode === "signUp") setView("verify");
-    else onContinue();
+    onContinue();
   }
 
   function goTo(next: View) {
@@ -211,7 +199,9 @@ export function AuthPanel({
           <h1 className="auth__title" ref={headingRef} tabIndex={-1}>
             Sign in
           </h1>
-          <p className="auth__lede">Use your @unt.edu or @my.unt.edu email. We&apos;ll email you a link that signs you in.</p>
+          <p className="auth__lede">
+            Use your @unt.edu or @my.unt.edu email. We&apos;ll email you a sign-in link. No password needed.
+          </p>
           <form className="auth__form" onSubmit={handleLink} noValidate>
             {emailField}
             <Button type="submit" className="auth__submit" loading={isSubmitting} loadingLabel="Sending…">
@@ -256,26 +246,12 @@ export function AuthPanel({
       {view === "password" && (
         <>
           <h1 className="auth__title" ref={headingRef} tabIndex={-1}>
-            {mode === "signIn" ? "Sign in with a password" : "Create your account"}
+            Sign in with a password
           </h1>
-          <p className="auth__lede">Use your @unt.edu or @my.unt.edu email. Your plan then saves to your account.</p>
-          <Segmented
-            label="Account"
-            fullWidth
-            value={mode}
-            onValueChange={(next) => {
-              setMode(next);
-              setError(null);
-            }}
-            options={[
-              { value: "signIn", label: "Sign in" },
-              { value: "signUp", label: "Create account" },
-            ]}
-          />
+          <p className="auth__lede">
+            For accounts that have set a password. New here, or never set one? Email yourself a sign-in link.
+          </p>
           <form className="auth__form" onSubmit={handlePassword} noValidate>
-            {mode === "signUp" ? (
-              <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-            ) : null}
             {emailField}
             <TextField
               ref={passwordRef}
@@ -286,17 +262,11 @@ export function AuthPanel({
                 setPassword(e.target.value);
                 if (error?.field === "password") setError(null);
               }}
-              autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-              help={mode === "signUp" ? "At least 8 characters." : undefined}
+              autoComplete="current-password"
               error={error?.field === "password" ? error.text : null}
             />
-            <Button
-              type="submit"
-              className="auth__submit"
-              loading={isSubmitting}
-              loadingLabel={mode === "signIn" ? "Signing in…" : "Creating account…"}
-            >
-              {mode === "signIn" ? "Sign in" : "Create account"}
+            <Button type="submit" className="auth__submit" loading={isSubmitting} loadingLabel="Signing in…">
+              Sign in
             </Button>
           </form>
           <Button variant="quiet" className="auth__guest" onClick={() => goTo("link")}>
@@ -305,31 +275,13 @@ export function AuthPanel({
         </>
       )}
 
-      {view === "verify" && (
-        <>
-          <h1 className="auth__title" ref={headingRef} tabIndex={-1}>
-            Verify your email
-          </h1>
-          <p className="auth__lede" role="status">
-            We sent a verification link to <strong>{email.trim()}</strong>. Open it to finish creating your account; it
-            signs you in.
-          </p>
-          {serverLogNote}
-          <Button variant="quiet" className="auth__guest" onClick={() => goTo("link")}>
-            Back to sign in
-          </Button>
-        </>
-      )}
-
       <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
         {fieldError.announcement}
       </p>
 
-      {view !== "verify" && (
-        <Button variant="quiet" className="auth__guest" onClick={onContinue}>
-          Continue as guest
-        </Button>
-      )}
+      <Button variant="quiet" className="auth__guest" onClick={onContinue}>
+        Continue as guest
+      </Button>
 
       <p className="auth__foot">
         <Link href="/forgot-password">Forgot password?</Link>

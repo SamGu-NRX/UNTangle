@@ -6,8 +6,8 @@ import { memoryBudgetStore, type SendBudgetStore } from "@/lib/email-budget";
 const budget: SendBudgetStore = memoryBudgetStore();
 
 /**
- * The one way the server sends auth email (sign-in links, verification,
- * password resets), with this process's environment and send budget. The
+ * The one way the server sends auth email (sign-in links and password
+ * resets), with this process's environment and send budget. The
  * rules live in auth-email.ts.
  */
 export async function sendAuthEmail(kind: AuthEmailKind, to: string, url: string) {

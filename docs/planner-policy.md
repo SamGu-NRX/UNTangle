@@ -20,10 +20,12 @@ load — the check would need to move to first-request time.
 
 ## 2. UNT email domain enforcement
 
-**Rule.** Account creation (`/sign-up/email`) requires an `@unt.edu` or
-`@my.unt.edu` address, enforced **server-side** in the better-auth `before`
-hook, matching the client-side check in `unt-auth.ts`. Sign-in is deliberately
-not gated: any existing account keeps working.
+**Rule.** Accounts are created only by a sign-in link (`/sign-in/magic-link`),
+which requires an `@unt.edu` or `@my.unt.edu` address, enforced
+**server-side** in the better-auth `before` hook, matching the client-side
+check in `unt-auth.ts`. Password sign-up (`/sign-up/email`) is disabled; a
+password is an optional extra set from a signed-in session. Password sign-in
+is deliberately not gated: any existing account keeps working.
 **Why.** Client-only checks are trivially bypassed; server enforcement makes
 the policy real. Gating sign-in too would lock out existing non-UNT accounts.
 **Reverses if** UNTangle ever needs alumni or external collaborator accounts —

@@ -4,6 +4,7 @@ import { createAuth } from "@/lib/auth-config";
 import { memoryClaims } from "@/lib/magic-link-claims";
 import { deliverAuthEmail } from "@/lib/auth-email";
 import { memoryBudgetStore } from "@/lib/email-budget";
+import { setPasswordHandler } from "@/lib/account-password";
 
 // The real auth flows on an in-memory database: each test drives the
 // better-auth handler with Requests, the way a browser (or an attacker)
@@ -75,53 +76,111 @@ function cookieFrom(response: Response): string {
     .join("; ");
 }
 
-describe("account pre-hijacking", () => {
-  test("a password sign-up gets no session, and can't sign in until the address is verified", async () => {
-    const { post } = setup();
-    const signUp = await post("/sign-up/email", { email: VICTIM, password: "attacker-password", name: "Attacker" });
-    expect(signUp.status).toBe(200);
-    expect(cookieFrom(signUp)).toBe("");
-    const signIn = await post("/sign-in/email", { email: VICTIM, password: "attacker-password" });
-    expect(signIn.status).toBe(403);
-    expect(cookieFrom(signIn)).toBe("");
+/** Asks for a sign-in link to `email` and opens it; returns the session cookie it set. */
+async function signInByLink(t: ReturnType<typeof setup>, email: string): Promise<string> {
+  expect((await t.post("/sign-in/magic-link", { email, callbackURL: "/courses" })).status).toBe(200);
+  const verify = await t.get(t.lastLink("magic-link"));
+  expect(verify.status).toBe(302);
+  return cookieFrom(verify);
+}
+
+describe("accounts come only from sign-in links", () => {
+  test("password sign-up through the API is refused and creates nothing, for UNT and other addresses", async () => {
+    const { post, store } = setup();
+    for (const email of [VICTIM, "someone@gmail.com"]) {
+      const signUp = await post("/sign-up/email", { email, password: "attacker-password", name: "Attacker" });
+      expect(signUp.status).toBe(400);
+      expect(cookieFrom(signUp)).toBe("");
+    }
+    expect(store.user).toHaveLength(0);
+    expect(store.account).toHaveLength(0);
   });
 
-  test("attacker signs up with the victim's address; the victim's sign-in link removes the attacker's password and sessions", async () => {
-    const { auth, post, get, session, lastLink, store } = setup();
-    // 1. The attacker creates an unverified account with their own password.
-    await post("/sign-up/email", { email: VICTIM, password: "attacker-password", name: "Attacker" });
-    const user = (store.user as { id: string; email: string }[]).find((u) => u.email === VICTIM)!;
-    // 2. Suppose the attacker holds a session anyway (one made before this fix, or any other way).
-    const ctx = await auth.$context;
-    const planted = await ctx.internalAdapter.createSession(user.id);
-    const attackerCookie = `better-auth.session_token=${planted.token}`;
-    expect((await session(await signed(auth, attackerCookie)))?.user?.email).toBe(VICTIM);
-
-    // 3. The victim asks for a sign-in link and opens it.
-    expect((await post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" })).status).toBe(200);
-    const verify = await get(lastLink("magic-link"));
-    expect(verify.status).toBe(302);
-    const victimCookie = cookieFrom(verify);
-    expect((await session(victimCookie))?.user?.email).toBe(VICTIM);
-
-    // 4. The attacker's password and session no longer work.
-    const attackerSignIn = await post("/sign-in/email", { email: VICTIM, password: "attacker-password" });
-    expect(attackerSignIn.status).toBe(401);
-    expect(cookieFrom(attackerSignIn)).toBe("");
-    expect(await session(await signed(auth, attackerCookie))).toBeNull();
-    expect((store.account as { providerId: string }[]).filter((a) => a.providerId === "credential")).toHaveLength(0);
+  test("a sign-in link creates the account, verified, with no password", async () => {
+    const t = setup();
+    const cookie = await signInByLink(t, VICTIM);
+    expect((await t.session(cookie))?.user?.email).toBe(VICTIM);
+    const user = (t.store.user as { email: string; emailVerified: boolean }[])[0];
+    expect(user).toMatchObject({ email: VICTIM, emailVerified: true });
+    expect((t.store.account as { providerId: string }[]).some((a) => a.providerId === "credential")).toBe(false);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "anything-at-all" })).status).toBe(401);
   });
 
-  test("a verified account keeps its password when its owner also uses a sign-in link", async () => {
-    const { post, get, lastLink } = setup();
-    await post("/sign-up/email", { email: VICTIM, password: "owner-password", name: "Owner" });
-    // The owner opens their verification email.
-    expect((await get(lastLink("verify-email"))).status).toBe(302);
-    await post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
-    expect((await get(lastLink("magic-link"))).status).toBe(302);
-    expect((await post("/sign-in/email", { email: VICTIM, password: "owner-password" })).status).toBe(200);
+  test("signed in, the owner sets a password; password sign-in then works", async () => {
+    const t = setup();
+    const cookie = await signInByLink(t, VICTIM);
+    const setPassword = setPasswordHandler(t.auth);
+    const set = await setPassword(passwordRequest("owner-password-123", cookie));
+    expect(set.status).toBe(200);
+    const signIn = await t.post("/sign-in/email", { email: VICTIM, password: "owner-password-123" });
+    expect(signIn.status).toBe(200);
+    expect(cookieFrom(signIn)).not.toBe("");
+    // A second "set" can't replace it.
+    expect((await setPassword(passwordRequest("another-password-1", cookie))).status).toBe(400);
+  });
+
+  test("setting a password needs a session from this site", async () => {
+    const t = setup();
+    const cookie = await signInByLink(t, VICTIM);
+    const setPassword = setPasswordHandler(t.auth);
+    expect((await setPassword(passwordRequest("attacker-password", ""))).status).toBe(401);
+    expect((await setPassword(passwordRequest("attacker-password", cookie, "https://evil.example"))).status).toBe(403);
+    expect((t.store.account as { providerId: string }[]).some((a) => a.providerId === "credential")).toBe(false);
+  });
+
+  test("the old attack can't start: no sign-up, and no password without the victim's session", async () => {
+    const t = setup();
+    // The attacker tries to create the victim's account with their own password.
+    expect((await t.post("/sign-up/email", { email: VICTIM, password: "attacker-password", name: "A" })).status).toBe(400);
+    // The victim signs in by link, later; the attacker has nothing to sign in with.
+    const victim = await signInByLink(t, VICTIM);
+    expect((await t.session(victim))?.user?.email).toBe(VICTIM);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "attacker-password" })).status).toBe(401);
+    expect((await setPasswordHandler(t.auth)(passwordRequest("attacker-password", ""))).status).toBe(401);
+  });
+
+  test("an owner with a password keeps it when they also use a sign-in link", async () => {
+    const t = setup();
+    const first = await signInByLink(t, VICTIM);
+    expect((await setPasswordHandler(t.auth)(passwordRequest("owner-password-123", first))).status).toBe(200);
+    await signInByLink(t, VICTIM);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "owner-password-123" })).status).toBe(200);
   });
 });
+
+describe("defense in depth: an unverified account met by a sign-in link", () => {
+  test("a password and session on a never-verified account are removed when the inbox owner's link is used", async () => {
+    const t = setup();
+    // Only possible for accounts from before sign-up was disabled: seed one directly.
+    const ctx = await t.auth.$context;
+    const user = await ctx.internalAdapter.createUser({ email: VICTIM, name: "Attacker", emailVerified: false });
+    await ctx.internalAdapter.linkAccount({
+      userId: user.id,
+      providerId: "credential",
+      accountId: user.id,
+      password: await ctx.password.hash("attacker-password"),
+    });
+    const planted = await ctx.internalAdapter.createSession(user.id);
+    const attackerCookie = await signed(t.auth, `better-auth.session_token=${planted.token}`);
+    expect((await t.session(attackerCookie))?.user?.email).toBe(VICTIM);
+    // Unverified, the password can't sign in.
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "attacker-password" })).status).toBe(403);
+
+    const victim = await signInByLink(t, VICTIM);
+    expect((await t.session(victim))?.user?.email).toBe(VICTIM);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "attacker-password" })).status).toBe(401);
+    expect(await t.session(attackerCookie)).toBeNull();
+    expect((t.store.account as { providerId: string }[]).filter((a) => a.providerId === "credential")).toHaveLength(0);
+  });
+});
+
+function passwordRequest(newPassword: string, cookie: string, origin = BASE) {
+  return new Request(`${BASE}/api/account/set-password`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin, ...(cookie ? { cookie } : {}) },
+    body: JSON.stringify({ newPassword }),
+  });
+}
 
 describe("sign-in links work once", () => {
   test("two requests using the same link at the same moment: one session, one refusal", async () => {

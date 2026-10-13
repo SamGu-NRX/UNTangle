@@ -19,18 +19,22 @@ export type AuthDeps = {
  * the real flows on an in-memory database. lib/auth.ts builds the app's.
  *
  * Who can hold an account is decided by the inbox:
- * - Only UNT addresses can sign up or ask for a sign-in link.
- * - A password account can't sign in, or get a session, until its address
- *   is verified (requireEmailVerification; no sign-in at sign-up).
- * - If a sign-in link is used on an account that was never verified, that
- *   account's password and sessions were made by someone who didn't own the
- *   inbox: they are deleted before the link's session is made, so only the
- *   inbox owner keeps access (account pre-hijacking).
+ * - Accounts are created only by a sign-in link to a UNT address. Password
+ *   sign-up is off on the server (disableSignUp), so nobody can create a
+ *   password account for an address they don't read. A password is an
+ *   optional extra, set from a signed-in session (lib/account-password.ts).
+ * - A password account whose address was never verified can't sign in
+ *   (requireEmailVerification). Only accounts from before this rule can be
+ *   in that state.
+ * - Defense in depth: if a sign-in link is used on an account that was
+ *   never verified, that account's password and sessions were made by
+ *   someone who didn't own the inbox. They are deleted before the link's
+ *   session is made, so only the inbox owner keeps access.
  * - A link works once even when two requests use it at the same moment
  *   (an atomic claim, MagicLinkClaims).
  */
 export function createAuth({ database, baseURL, secret, claims, sendEmail }: AuthDeps) {
-  /** Sends an auth email. Over budget: a sign-in link request fails with 429; verification and reset sends are dropped (logged), since their endpoints answer the same whether or not an account exists. */
+  /** Sends an auth email. Over budget: a sign-in link request fails with 429; a reset send is dropped (logged), since that endpoint answers the same whether or not an account exists. */
   async function send(kind: AuthEmailKind, to: string, url: string) {
     try {
       await sendEmail(kind, to, url);
@@ -53,20 +57,12 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail }: Aut
     database,
     emailAndPassword: {
       enabled: true,
+      disableSignUp: true,
       autoSignIn: false,
       requireEmailVerification: true,
       minPasswordLength: 8,
       sendResetPassword: async ({ user, url }) => {
         await send("password-reset", user.email, url);
-      },
-    },
-    // Password sign-ups get a verification link, and the link signs them in;
-    // magic-link users are verified by using their link.
-    emailVerification: {
-      sendOnSignUp: true,
-      autoSignInAfterVerification: true,
-      sendVerificationEmail: async ({ user, url }) => {
-        await send("verify-email", user.email, url);
       },
     },
     plugins: [
@@ -81,8 +77,8 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail }: Aut
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        // Both ways an account can be created: password sign-up, and a magic
-        // link for an address with no account yet.
+        // A magic link for an address with no account creates one; password
+        // sign-up is disabled, and gated too in case it is ever turned on.
         const refusal = untEmailGate(ctx.path, ctx.body);
         if (refusal) throw new APIError("BAD_REQUEST", { message: refusal });
 

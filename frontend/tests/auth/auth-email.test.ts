@@ -30,7 +30,6 @@ function recorder(error: { message: string } | null = null) {
 describe("auth email template", () => {
   test("each kind has its subject", () => {
     expect(renderAuthEmail("magic-link", URL_).subject).toBe("Your UNTangle sign-in link");
-    expect(renderAuthEmail("verify-email", URL_).subject).toBe("Verify your UNTangle email");
     expect(renderAuthEmail("password-reset", URL_).subject).toBe("Reset your UNTangle password");
   });
 
@@ -71,7 +70,7 @@ describe("delivery", () => {
 
   test("with a key, Resend gets the rendered email with a text alternative", async () => {
     const { sent, keys, createClient } = recorder();
-    const mode = await deliverAuthEmail("verify-email", "eagle@my.unt.edu", URL_, {
+    const mode = await deliverAuthEmail("password-reset", "eagle@my.unt.edu", URL_, {
       env: { NODE_ENV: "production", RESEND_API_KEY: "re_test", RESEND_FROM_EMAIL: "UNTangle <auth@untangle.example>" },
       createClient,
       log: () => {
@@ -84,7 +83,7 @@ describe("delivery", () => {
     expect(sent[0]).toMatchObject({
       from: "UNTangle <auth@untangle.example>",
       to: ["eagle@my.unt.edu"],
-      subject: "Verify your UNTangle email",
+      subject: "Reset your UNTangle password",
     });
     expect(sent[0].text).toContain(URL_);
   });

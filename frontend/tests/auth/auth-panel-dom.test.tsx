@@ -19,7 +19,6 @@ function fakeApi(results: Partial<Record<keyof AuthApi, { error: { message?: str
   const api: AuthApi = {
     sendLink: async (email) => (calls.push(["sendLink", email]), results.sendLink ?? ok),
     signIn: async (email, password) => (calls.push(["signIn", email, password]), results.signIn ?? ok),
-    signUp: async (email, password, name) => (calls.push(["signUp", email, password, name]), results.signUp ?? ok),
   };
   return { api, calls };
 }
@@ -72,6 +71,7 @@ describe("sign-in by emailed link", () => {
   test("leads with the email field and 'Email me a sign-in link'; a password is the secondary path", async () => {
     const { api } = fakeApi();
     const view = await render(api);
+    expect(view.container.textContent).toContain("We'll email you a sign-in link. No password needed.");
     expect(view.container.querySelector("h1")?.textContent).toBe("Sign in");
     expect(field(view.container, "UNT email")).toBeTruthy();
     expect(field(view.container, "Password")).toBeUndefined();
@@ -170,24 +170,19 @@ describe("the password path", () => {
     await type(email, "eagle@my.unt.edu");
     await type(field(view.container, "Password"), "long enough password");
     await submit(view.container);
-    expect(helpFor(email)).toContain("Verify this email first");
+    expect(helpFor(email)).toContain("isn't verified");
     expect(view.continued()).toBe(0);
     await view.unmount();
   });
 
-  test("creating an account says a verification link was sent", async () => {
-    const { api, calls } = fakeApi();
+  test("the password view only signs in: no way to create an account there", async () => {
+    const { api } = fakeApi();
     const view = await render(api);
     await click(button(view.container, "Use a password instead"));
-    await click(view.container.querySelector<HTMLElement>('[role="radio"][aria-checked="false"]')!);
-    await type(field(view.container, "UNT email"), "new@my.unt.edu");
-    await type(field(view.container, "Password"), "long enough password");
-    await submit(view.container);
-    expect(calls[0][0]).toBe("signUp");
-    expect(view.container.querySelector("h1")?.textContent).toBe("Verify your email");
-    // No session until the link is opened, so there is no way on from here but back.
-    expect(view.continued()).toBe(0);
-    expect(button(view.container, "Back to sign in")).toBeTruthy();
+    expect(view.container.querySelector("h1")?.textContent).toBe("Sign in with a password");
+    expect(view.container.textContent).not.toContain("Create account");
+    expect(view.container.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(button(view.container, "Email me a link instead")).toBeTruthy();
     await view.unmount();
   });
 });

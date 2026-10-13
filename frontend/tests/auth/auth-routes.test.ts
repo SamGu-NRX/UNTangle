@@ -82,7 +82,7 @@ function signUpRequest(email: string) {
   });
 }
 
-describe("POST /api/auth/sign-up/email (UNT-email gate)", () => {
+describe("POST /api/auth/sign-up/email (disabled, and UNT-gated in case it returns)", () => {
   test("rejects a non-UNT email with 400 and the UNT requirement message", async () => {
     const response = await POST(signUpRequest("student@gmail.com"));
     expect(response.status).toBe(400);
@@ -104,17 +104,11 @@ describe("POST /api/auth/sign-up/email (UNT-email gate)", () => {
     }
   });
 
-  test("accepts @unt.edu addresses, case-insensitively", async () => {
-    for (const email of ["student@unt.edu", "Student@UNT.EDU", "FIRST.LAST@Unt.Edu"]) {
+  test("UNT addresses are refused too: password sign-up is off, accounts come from sign-in links", async () => {
+    for (const email of ["student@unt.edu", "Student@MY.UNT.EDU"]) {
       const response = await POST(signUpRequest(email));
-      expect(response.status).toBe(200);
-    }
-  });
-
-  test("accepts @my.unt.edu addresses, case-insensitively", async () => {
-    for (const email of ["student@my.unt.edu", "Student@MY.UNT.EDU"]) {
-      const response = await POST(signUpRequest(email));
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
+      expect(JSON.stringify(await response.json())).not.toContain("@unt.edu");
     }
   });
 });
@@ -156,19 +150,5 @@ describe("POST /api/auth/sign-in/magic-link", () => {
     const response = await POST(magicLinkRequest("eagle@my.unt.edu"));
     emailFailure = null;
     expect(response.status).toBeGreaterThanOrEqual(400);
-  });
-});
-
-describe("password sign-up email verification", () => {
-  test("a password sign-up sends a verification link to the new address", async () => {
-    sentEmails.length = 0;
-    emailFailure = null;
-    const response = await POST(signUpRequest("newstudent@my.unt.edu"));
-    expect(response.status).toBe(200);
-    // better-auth may send after responding; give it a turn.
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    const verification = sentEmails.find((email) => email.kind === "verify-email");
-    expect(verification?.to).toBe("newstudent@my.unt.edu");
-    expect(new URL(verification!.url).pathname).toBe("/api/auth/verify-email");
   });
 });

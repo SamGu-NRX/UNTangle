@@ -1,5 +1,5 @@
 /**
- * Sign-in, verification and reset email: what each message says, and where
+ * Sign-in and password-reset email: what each message says, and where
  * it goes. Pure apart from the injected client and logger, so the rules are
  * tested without a network.
  *
@@ -15,7 +15,7 @@
 
 import { budgetKey, EMAIL_BUDGET, EmailBudgetExceeded, type SendBudgetStore } from "@/lib/email-budget";
 
-export type AuthEmailKind = "magic-link" | "verify-email" | "password-reset";
+export type AuthEmailKind = "magic-link" | "password-reset";
 
 type Env = Record<string, string | undefined>;
 
@@ -28,12 +28,6 @@ const copy: Record<AuthEmailKind, { subject: string; heading: string; body: stri
     heading: "Sign in to UNTangle",
     body: "This link signs you in. It works once and expires in 5 minutes.",
     action: "Sign in",
-  },
-  "verify-email": {
-    subject: "Verify your UNTangle email",
-    heading: "Verify your email",
-    body: "Confirm this is your UNT email so your plan stays tied to it. The link expires in 1 hour.",
-    action: "Verify email",
   },
   "password-reset": {
     subject: "Reset your UNTangle password",
@@ -81,7 +75,7 @@ export function assertEmailConfigured(env: Env): void {
   const missing = ["RESEND_API_KEY", "RESEND_FROM_EMAIL"].filter((name) => !env[name]);
   if (missing.length)
     throw new Error(
-      `${missing.join(" and ")} must be set when running UNTangle in production: sign-in links, email verification and password resets are sent with Resend. Set them in the environment before starting the server.`,
+      `${missing.join(" and ")} must be set when running UNTangle in production: sign-in links and password resets are sent with Resend. Set them in the environment before starting the server.`,
     );
 }
 

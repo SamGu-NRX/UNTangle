@@ -37,7 +37,7 @@ grep -rhoE "process\.env\.[A-Z0-9_]+" frontend/src | sort -u
 | `NEXT_PUBLIC_MAP_TILE_URL` | `src/components/map-leaflet-canvas.tsx` | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | Map renders on the default OpenStreetMap tiles |
 | `NEXT_PUBLIC_MAP_ATTRIBUTION` | `src/components/map-leaflet-canvas.tsx` | OSM contributors attribution | Map shows the default OSM attribution |
 | `NEXT_PUBLIC_MAP_MAX_ZOOM` | `src/components/map-leaflet-canvas.tsx` | `19` | Map caps at zoom 19 |
-| `RESEND_API_KEY` | `src/lib/auth-email.ts` | none | **Required in production**: the server refuses to start without it. In development, sign-in links, verification links and password resets are written to the server log instead, and the sign-in page says so |
+| `RESEND_API_KEY` | `src/lib/auth-email.ts` | none | **Required in production**: the server refuses to start without it. In development, sign-in links and password resets are written to the server log instead, and the sign-in page says so |
 | `RESEND_FROM_EMAIL` | `src/lib/auth-email.ts` | `UNTangle <onboarding@resend.dev>` outside production | **Required in production** (the server refuses to start): a sender on a domain verified in Resend. Resend's shared development sender only delivers to the Resend account's own address |
 | `USER` | `src/lib/db/index.ts` | — | Not app configuration: it is only the last-resort fallback for `PGUSER` when `PGUSER` is unset |
 
