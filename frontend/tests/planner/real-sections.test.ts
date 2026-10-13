@@ -543,3 +543,15 @@ describe("walking per session (Astra, 4691089)", () => {
     expect(summary).toMatchObject({ knownLegs: 2, knownSeconds: 660, unknownLegs: 0 });
   });
 });
+
+describe("walking on dates a class never meets (Astra, 71ea5ca)", () => {
+  test("two Monday classes dated only Sunday, Mar 14, have no walk", () => {
+    const sunday = { start: "2027-03-14", end: "2027-03-14" };
+    const events = [
+      { day: "Mon" as const, start: "09:00", buildingId: "a", dates: sunday },
+      { day: "Mon" as const, start: "10:00", buildingId: "b", dates: sunday },
+    ];
+    // The same-range shortcut used to count one 60 s leg; the optimizer counts none.
+    expect(summarizeWeeklyWalking(events, () => ({ seconds: 60, source: "campus-network" }))).toMatchObject({ knownLegs: 0, knownSeconds: 0 });
+  });
+});

@@ -148,9 +148,12 @@ export function backToBackPairs<T extends { day: Day; start: number; dates?: May
   const term = termDates[planningTerm.id];
   const rangeOf = (event: T) => (event.dates && knownRange(event.dates)) ?? term;
   const ordered = [...events].sort((a, b) => a.start - b.start);
-  // Every class on the same dates (the usual case): consecutive classes per day, no calendar walk.
+  // Every class on the same dates (the usual case): consecutive classes per day, no calendar walk,
+  // on the days that occur in that range (Mar 14, 2027 alone holds no Monday).
   if (new Set(events.map((event) => `${rangeOf(event).start}/${rangeOf(event).end}`)).size <= 1) {
+    const shared = events.length > 0 ? rangeOf(events[0]) : term;
     return [...new Set(events.map((event) => event.day))].flatMap((day) => {
+      if (!meetTogether(day, shared, shared)) return [];
       const that = ordered.filter((event) => event.day === day);
       return that.slice(1).map((event, i): [T, T] => [that[i], event]);
     });
