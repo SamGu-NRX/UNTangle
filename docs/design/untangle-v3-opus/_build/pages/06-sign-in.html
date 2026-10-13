@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f6f3">
+<title>UNTangle v3 · Sign in</title>
+<!--BASE_CSS-->
+<style>
+  /* a quiet stand-in for whatever screen the student was on */
+  .behind { position: fixed; inset: 0; pointer-events: none; }
+  .behind .fake { max-width: 760px; margin: 32px auto; padding: 0 24px; display: grid; gap: 12px; }
+  .behind .fake i { display: block; height: 52px; border-radius: 12px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); }
+  .behind .fake i.big { height: 220px; }
+  .form { padding: 26px 26px 22px; display: grid; gap: 16px; }
+  .form .top { display: flex; align-items: center; }
+  .form .top .close { margin-left: auto; margin-right: -8px; }
+  .form h1 { font-size: 22px; line-height: 28px; font-weight: 650; letter-spacing: -.012em; }
+  .form .lede { font-size: 14px; line-height: 20px; color: var(--ink-2); margin-top: -8px; }
+  .lrow { display: flex; align-items: baseline; justify-content: space-between; }
+  .pw { position: relative; }
+  .pw .input { padding-right: 64px; }
+  .pw .show { position: absolute; right: 4px; top: 4px; height: 36px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--brand-2); }
+  .helpslot { min-height: 18px; }
+  .submit { width: 100%; height: 48px; font-size: 15px; border-radius: 12px; margin-top: 2px; }
+  .switch-mode { font-size: 14px; color: var(--ink-2); text-align: center; }
+  .switch-mode button { color: var(--brand-2); font-weight: 600; padding: 6px 4px; }
+  .foot { font-size: 12.5px; color: var(--ink-2); text-align: center; border-top: 1px solid var(--line); padding-top: 14px; }
+  .swap-t { display: inline-block; }
+  @media (max-width: 759px) {
+    .dialog-wrap { display: none !important; }
+    .sheet .form { padding: 4px 20px calc(24px + var(--safe-b)); }
+  }
+  @media (min-width: 760px) { .sheet { display: none; } }
+</style>
+</head>
+<body>
+<div class="behind" aria-hidden="true">
+  <header class="topbar only-desk"><span class="wordmark">UNTangle</span><span></span><span></span><span></span><span class="btn btn-ink btn-sm">Sign in</span></header>
+  <header class="pheader only-phone"><span class="wordmark">UNTangle</span></header>
+  <div class="fake"><i class="big"></i><i></i><i></i><i></i><i></i></div>
+</div>
+<div class="scrim on" id="scrim"></div>
+<div class="dialog-wrap"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="t-desk" id="dlg"></div></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="t-phone"><div class="grabber"></div><div class="sheet-body" id="sbody"></div></section>
+
+<!--BASE_JS-->
+<script>
+let mode = Q.get("state") === "create" ? "create" : "signin";
+const st = Q.get("state");
+function formHTML(sfx) {
+  const c = mode === "create";
+  return `<form class="form" novalidate data-form>
+    <div class="top"><span class="wordmark" style="font-size:18px">UNTangle</span><button type="button" class="btn btn-ink btn-icon btn-sm close" aria-label="Close" data-close>${icon("close")}</button></div>
+    <h1 id="t-${sfx}"><span class="swap-t" data-swap>${c ? "Create an account" : "Sign in"}</span></h1>
+    <p class="lede">Keep your schedules on every device. What you made as a guest comes with you.</p>
+    <div class="field"><label for="em-${sfx}">Email</label><input class="input" id="em-${sfx}" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@my.unt.edu" value="${st === "error" || st === "loading" ? "sam.gu@my.unt.edu" : ""}" ${st === "bademail" ? 'aria-invalid="true" value="sam.gu@my" aria-describedby="eh-' + sfx + '"' : ""}>
+      ${st === "bademail" ? `<p class="help err" id="eh-${sfx}">Enter a full email, like you@my.unt.edu.</p>` : ""}</div>
+    <div class="field"><div class="lrow"><label for="pw-${sfx}">Password</label>${c ? "" : '<a href="#" class="meta" style="font-weight:600;color:var(--brand-2)">Forgot it?</a>'}</div>
+      <div class="pw"><input class="input" id="pw-${sfx}" type="password" autocomplete="${c ? "new-password" : "current-password"}" ${st === "error" ? 'aria-invalid="true" value="hunter22"' : st === "loading" ? 'value="correct-horse"' : ""} aria-describedby="ph-${sfx}"><button type="button" class="show" data-show>Show</button></div>
+      <p class="help helpslot ${st === "error" ? "err" : ""}" id="ph-${sfx}">${st === "error" ? "That password doesn't match this email. Try again, or reset it." : c ? "At least 8 characters." : ""}</p></div>
+    <button class="btn btn-primary submit" type="submit" data-submit><span data-swap>${c ? "Create account" : "Sign in"}</span></button>
+    <p class="switch-mode">${c ? "Have an account?" : "New here?"} <button type="button" data-mode>${c ? "Sign in" : "Create an account"}</button></p>
+    <p class="foot">You can use UNTangle without an account. Signing in only syncs.</p>
+  </form>`;
+}
+function render() { $("#dlg").innerHTML = formHTML("desk"); $("#sbody").innerHTML = formHTML("phone"); wire(); }
+function wire() {
+  $$("[data-show]").forEach((b) => (b.onclick = () => { const i = b.previousElementSibling; const on = i.type === "password"; i.type = on ? "text" : "password"; b.textContent = on ? "Hide" : "Show"; }));
+  $$("[data-mode]").forEach((b) => (b.onclick = () => {
+    mode = mode === "create" ? "signin" : "create";
+    const f = b.closest("[data-form]");
+    $$("[data-swap]", f).forEach((el) => swap(el, () => (el.textContent = el.closest("h1") ? (mode === "create" ? "Create an account" : "Sign in") : mode === "create" ? "Create account" : "Sign in")));
+    const help = $(".helpslot", f); help.classList.remove("err"); help.textContent = mode === "create" ? "At least 8 characters." : "";
+    $(".pw .input", f).autocomplete = mode === "create" ? "new-password" : "current-password";
+    $(".switch-mode", f).innerHTML = `${mode === "create" ? "Have an account?" : "New here?"} <button type="button" data-mode>${mode === "create" ? "Sign in" : "Create an account"}</button>`;
+    const lr = $(".lrow", f); lr.innerHTML = `<label for="${$(".pw .input", f).id}">Password</label>${mode === "create" ? "" : '<a href="#" class="meta" style="font-weight:600;color:var(--brand-2)">Forgot it?</a>'}`;
+    wire();
+  }));
+  $$("[data-form]").forEach((f) => (f.onsubmit = (e) => {
+    e.preventDefault(); const em = $("input[type=email]", f), pw = $(".pw .input", f), btn = $("[data-submit]", f);
+    if (!/^\S+@\S+\.\S+$/.test(em.value)) { em.setAttribute("aria-invalid", "true"); if (!$("#x-" + em.id)) em.insertAdjacentHTML("afterend", `<p class="help err" id="x-${em.id}">Enter a full email, like you@my.unt.edu.</p>`); em.focus(); return; }
+    em.removeAttribute("aria-invalid"); $("#x-" + em.id)?.remove();
+    btn.style.width = btn.offsetWidth + "px"; btn.innerHTML = '<span class="spin"></span><span class="sr">Signing in</span>'; btn.disabled = true;
+    setTimeout(() => {
+      if (pw.value.length < 8) { btn.disabled = false; btn.innerHTML = `<span data-swap>${mode === "create" ? "Create account" : "Sign in"}</span>`; pw.setAttribute("aria-invalid", "true"); const h = $(".helpslot", f); h.classList.add("err"); h.textContent = mode === "create" ? "Use at least 8 characters." : "That password doesn't match this email. Try again, or reset it."; pw.focus(); return; }
+      close(); toast(mode === "create" ? "Account created · 3 schedules synced" : "Signed in · 3 schedules synced");
+    }, 700);
+  }));
+  $$("[data-close]").forEach((b) => (b.onclick = close));
+}
+const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true });
+function close() { $("#dlg").classList.remove("on"); $("#scrim").classList.remove("on"); if (PHONE.matches) sheet.close(); else { modalClose($(".dialog-wrap")); setTimeout(() => ($(".dialog-wrap").style.display = "none"), 150); } }
+document.addEventListener("keydown", (e) => e.key === "Escape" && close());
+$("#scrim").onclick = close;
+render();
+if (PHONE.matches) sheet.open(0); else { requestAnimationFrame(() => requestAnimationFrame(() => $("#dlg").classList.add("on"))); modalOpen($(".dialog-wrap"), $("#em-desk")); }
+if (st === "loading") { const f = $(PHONE.matches ? "#sbody [data-form]" : "#dlg [data-form]"); const b = $("[data-submit]", f); b.style.width = b.offsetWidth + "px"; b.innerHTML = '<span class="spin"></span><span class="sr">Signing in</span>'; }
+</script>
+</body>
+</html>

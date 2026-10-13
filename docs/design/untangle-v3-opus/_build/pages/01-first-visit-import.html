@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f6f3">
+<title>UNTangle v3 · First visit and import</title>
+<!--BASE_CSS-->
+<style>
+  body { min-height: 100dvh; }
+  .bar { height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 clamp(16px, 4vw, 40px); padding-top: var(--safe-t); }
+  .bar .wordmark { margin-right: auto; }
+  .welcome { display: grid; grid-template-columns: minmax(0, 520px) 1fr; gap: 48px; padding: clamp(24px, 9vh, 96px) clamp(20px, 8vw, 128px) 64px; min-height: calc(100dvh - 64px); }
+  .col { max-width: 520px; }
+  .campus { margin-bottom: 28px; }
+  .lede { margin-top: 12px; font-size: 16px; line-height: 24px; color: var(--ink-2); max-width: 30em; }
+  .cta { margin-top: 32px; display: grid; gap: 10px; justify-items: start; }
+  .cta .meta { max-width: 26em; }
+  .alt { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 14px; color: var(--ink-2); }
+  .alt .btn-quiet { height: 32px; padding: 0 8px; margin-left: -2px; }
+  .skip { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .status { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px 0 8px; border-radius: 999px; background: var(--accent-soft); color: var(--brand); font-size: 13px; font-weight: 600; margin-bottom: 18px; }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .h2 { font-size: 24px; line-height: 30px; font-weight: 640; letter-spacing: -.015em; }
+  .steps { margin-top: 28px; display: grid; gap: 22px; --path-gap: 22px; }
+  .steps li { min-height: 30px; }
+  .steps strong { display: block; font-size: 15px; line-height: 22px; font-weight: 620; padding-top: 2px; }
+  .steps .stop .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; border-right-color: transparent; animation: spin .7s linear infinite; }
+  .row-actions { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .wide { width: 100%; max-width: 420px; }
+  .hint { margin-top: 14px; font-size: 13px; color: var(--ink-2); }
+  .review { margin-top: 20px; background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+  .review h3 { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--paper-2); }
+  .review li { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 12px; min-height: 40px; padding: 8px 16px; border-top: 1px solid var(--line); font-size: 14px; }
+  .review li .code { font-size: 13px; }
+  .review li .meta { text-align: right; }
+  .review li.fix { grid-template-columns: 92px 1fr; background: var(--attention-soft); }
+  .review li.fix .acts { grid-column: 2; display: flex; gap: 6px; margin-top: 2px; }
+  .review-scroll { max-height: min(46vh, 380px); overflow-y: auto; overscroll-behavior: contain; }
+  .counts { margin-top: 10px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--ink-2); }
+  .counts span { display: inline-flex; align-items: center; gap: 6px; }
+  .err-mark { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--danger-soft); color: var(--danger); margin-bottom: 18px; }
+
+  /* the thesis: four artifacts on one path line */
+  .thesis { position: relative; align-self: start; justify-self: center; width: min(420px, 100%); margin-top: 8px; }
+  .thesis ol { position: relative; display: grid; gap: 18px; }
+  .thesis ol::before { content: ""; position: absolute; left: 21px; top: var(--line-top, 30px); height: var(--line-h, calc(100% - 60px)); width: 4px; border-radius: 2px; background: var(--brand-2); box-shadow: 0 0 0 3px var(--ground); }
+  .thesis li { position: relative; display: grid; grid-template-columns: 46px 1fr; align-items: center; gap: 12px; }
+  .thesis .stop { width: 30px; height: 30px; margin-left: 8px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; font: 700 12px/1 var(--font-mark); box-shadow: 0 0 0 3px var(--ground), var(--shadow-2); position: relative; }
+  .art { background: var(--paper); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1); padding: 12px 14px; }
+  .art .cap { font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 8px; }
+  .art-file { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .art-file .i { color: var(--brand-2); }
+  .art-rows div { display: flex; align-items: center; gap: 8px; height: 26px; font-size: 13px; }
+  .art-rows .code { width: 76px; font-size: 12px; }
+  .art-rows .meta { margin-left: auto; font-size: 12px; }
+  .mini-week { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; height: 64px; }
+  .mini-week div { position: relative; border-radius: 4px; background: var(--paper-2); }
+  .mini-week i { position: absolute; left: 2px; right: 2px; border-radius: 3px; background: var(--ct); border-left: 2px solid var(--c); }
+  .art-walk { display: flex; align-items: center; gap: 14px; }
+  .art-walk .big { font: 700 30px/1 var(--font-mark); letter-spacing: -.01em; }
+  .art-walk svg.route { width: 120px; height: 44px; margin-left: auto; }
+  @media (prefers-reduced-motion: no-preference) {
+    .thesis li { animation: rise 420ms var(--ease-out) backwards; }
+    .thesis li:nth-child(2) { animation-delay: 60ms; } .thesis li:nth-child(3) { animation-delay: 120ms; } .thesis li:nth-child(4) { animation-delay: 180ms; }
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+  /* simulated popup window (desktop demo only) */
+  .fakewin { position: fixed; top: 92px; right: clamp(24px, 6vw, 96px); width: 440px; height: min(640px, calc(100dvh - 120px)); z-index: 20; border-radius: 12px; background: #fff; box-shadow: 0 30px 70px -10px rgba(10,20,12,.35), 0 0 0 1px rgba(10,20,12,.12); overflow: hidden; display: flex; flex-direction: column; transform-origin: 50% 0; }
+  .fakewin[hidden] { display: none; }
+  .fakewin.enter { animation: winIn 180ms var(--ease-out); }
+  @keyframes winIn { from { opacity: 0; transform: scale(.98) translateY(-4px); } }
+  .fw-chrome { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #ececec; border-bottom: 1px solid #d8d8d8; }
+  .fw-dots { display: flex; gap: 6px; } .fw-dots b { width: 11px; height: 11px; border-radius: 50%; background: #c9c9c9; display: block; } .fw-dots b.close { background: #f05a52; cursor: pointer; }
+  .fw-url { flex: 1; height: 24px; display: flex; align-items: center; padding: 0 10px; border-radius: 6px; background: #fff; font-size: 12px; color: #555; overflow: hidden; white-space: nowrap; }
+  .fw-body { flex: 1; padding: 22px; background: #f7f7f7; font-family: Georgia, serif; color: #333; display: grid; align-content: start; gap: 14px; }
+  .fw-body .unt { width: 44px; height: 44px; background: #0b5a32; color: #fff; display: grid; place-items: center; font: 700 13px/1 Arial, sans-serif; }
+  .fw-body .crumb { font: 12px/1.4 Arial, sans-serif; color: #666; }
+  .fw-body .pdf { height: 220px; background: #fff; border: 1px solid #ddd; display: grid; place-items: center; color: #999; font: 12px Arial, sans-serif; }
+  .fw-body button { justify-self: start; height: 34px; padding: 0 14px; background: #0b5a32; color: #fff; font: 600 13px Arial, sans-serif; border-radius: 3px; }
+  .fw-dl { height: 44px; display: none; align-items: center; gap: 10px; padding: 0 14px; border-top: 1px solid #ddd; background: #fff; font: 13px Arial, sans-serif; }
+  .fw-dl.on { display: flex; }
+  .fw-label { position: fixed; top: 66px; right: clamp(24px, 6vw, 96px); width: 440px; text-align: center; font-size: 12px; color: var(--ink-3); z-index: 20; }
+  .fw-label[hidden] { display: none; }
+
+  /* drop overlay */
+  .drop { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(244,246,243,.9); opacity: 0; pointer-events: none; transition: opacity 140ms ease; }
+  .drop.on { opacity: 1; pointer-events: auto; }
+  .drop .frame { position: absolute; inset: 14px; border: 2px dashed var(--brand-2); border-radius: 22px; transform: scale(.985); transition: transform 220ms var(--ease-out); }
+  .drop.on .frame { transform: none; }
+  .drop .inner { position: relative; display: grid; justify-items: center; gap: 10px; text-align: center; }
+  .drop .badge { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); }
+  .drop .badge .i { width: 28px; height: 28px; }
+  .drop.bad .frame { border-color: var(--ink-4); }
+  .drop.bad .badge { background: var(--paper-3); color: var(--ink-2); }
+  @media (prefers-reduced-motion: reduce) { .drop .frame { transform: none; transition: none; } }
+
+  @media (max-width: 1023px) { .welcome { grid-template-columns: 1fr; } .thesis { display: none; } }
+  @media (max-width: 759px) {
+    .bar { height: 56px; }
+    .welcome { padding: 20px 20px calc(40px + var(--safe-b)); min-height: 0; }
+    .h1 { font-size: 26px; line-height: 32px; }
+    .cta .btn-lg, .wide { width: 100%; max-width: none; }
+    .campus { margin-bottom: 22px; }
+    .review li { grid-template-columns: 84px 1fr auto; padding: 8px 14px; }
+    .row-actions > .btn { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <span class="wordmark" aria-label="UNTangle">UNTangle</span>
+  <a class="btn btn-ink btn-sm" href="06-sign-in.html">Sign in</a>
+</header>
+
+<main class="welcome">
+  <section class="col" id="stage" aria-live="polite"></section>
+  <aside class="thesis" id="thesis" aria-label="What UNTangle does with your transcript">
+    <ol>
+      <li><span class="stop">1</span><div class="art"><div class="cap">Your transcript</div><div class="art-file" data-i="file"><span>unofficial-transcript.pdf</span><span class="meta" style="margin-left:auto">stays on this device</span></div></div></li>
+      <li><span class="stop">2</span><div class="art art-rows"><div class="cap">What you can take</div>
+        <div><svg class="sg"><use href="#s-done"/></svg><span class="code">MATH 1720</span>Calculus II<span class="meta">Done · B</span></div>
+        <div><svg class="sg"><use href="#s-available"/></svg><span class="code">CSCE 2110</span>Data Structures<span class="meta">Can take</span></div>
+        <div><svg class="sg"><use href="#s-locked"/></svg><span class="code">CSCE 3110</span>Algorithms<span class="meta">Needs 2110</span></div></div></li>
+      <li><span class="stop">3</span><div class="art"><div class="cap">Next term's week</div>
+        <div class="mini-week">
+          <div><i data-c="1" style="top:6px;height:12px"></i><i data-c="3" style="top:22px;height:12px"></i><i data-c="2" style="top:38px;height:12px"></i></div>
+          <div><i data-c="4" style="top:30px;height:18px"></i></div>
+          <div><i data-c="1" style="top:6px;height:12px"></i><i data-c="3" style="top:22px;height:12px"></i><i data-c="2" style="top:38px;height:12px"></i></div>
+          <div><i data-c="4" style="top:30px;height:18px"></i></div>
+          <div><i data-c="1" style="top:6px;height:12px"></i><i data-c="3" style="top:22px;height:12px"></i></div>
+        </div></div></li>
+      <li><span class="stop">4</span><div class="art"><div class="cap">Your walk</div>
+        <div class="art-walk"><div><div class="meta">Leave Kerr by</div><div class="big">8:49</div></div>
+          <svg class="route" viewBox="0 0 120 44" aria-hidden="true"><path d="M8 36 C 40 36, 40 10, 70 12 S 104 20, 112 8" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><path d="M8 36 C 40 36, 40 10, 70 12 S 104 20, 112 8" fill="none" stroke="#007a40" stroke-width="4" stroke-linecap="round"/><circle cx="8" cy="36" r="5" fill="#fff" stroke="#4f654f" stroke-width="2"/><circle cx="112" cy="8" r="6" fill="#00512b" stroke="#fff" stroke-width="2"/></svg></div></div></li>
+    </ol>
+  </aside>
+</main>
+
+<div class="fw-label" id="fwlabel" hidden>Simulated myUNT window. The real one is a browser popup.</div>
+<div class="fakewin" id="fakewin" hidden role="dialog" aria-label="Simulated myUNT window">
+  <div class="fw-chrome"><div class="fw-dots"><b class="close" id="fwclose" title="Close window"></b><b></b><b></b></div><div class="fw-url">my.unt.edu › Academic Records › Unofficial Transcript</div></div>
+  <div class="fw-body">
+    <div class="unt">UNT</div>
+    <div class="crumb">Student Center › Academic Records › <b>View Unofficial Transcript</b></div>
+    <div class="pdf">Transcript preview</div>
+    <button type="button" id="fwdl">Download PDF</button>
+  </div>
+  <div class="fw-dl" id="fwdlbar">✓ unofficial-transcript.pdf · saved to Downloads</div>
+</div>
+
+<div class="drop" id="drop" aria-hidden="true">
+  <div class="frame"></div>
+  <div class="inner"><div class="badge" data-i="file"></div><div class="title" id="droptitle">Drop your transcript</div><div class="meta" id="dropmeta">Read on this device. Nothing is uploaded.</div></div>
+</div>
+<input type="file" id="file" accept="application/pdf,.pdf" hidden>
+
+<!--BASE_JS-->
+<script>
+const CAMPUS = {
+  unt: { portal: "myUNT", id: "EUID", path: "Academic Records › Unofficial Transcript" },
+  ut: { portal: "UT Direct", id: "UT EID", path: "Academic Summary › Unofficial Transcript" },
+};
+let campus = "unt", state = Q.get("state") || "first";
+const stage = $("#stage");
+
+const TRANSCRIPT = [
+  { term: "To check", rows: [["SPAN 1010", "Transfer · Collin College", "fix"]] },
+  { term: "Fall 2025", rows: [["CSCE 1040", "Computer Science II", "A"], ["MATH 1710", "Calculus I", "B"], ["ENGL 1310", "College Writing I", "A"], ["HIST 2610", "U.S. History to 1865", "A"], ["PSCI 2305", "U.S. Political Behavior", "A"]] },
+  { term: "Spring 2026", rows: [["MATH 1720", "Calculus II", "B"], ["HIST 2620", "U.S. History since 1865", "B"], ["COMM 1010", "Intro to Communication", "A"], ["PSCI 2306", "U.S. and Texas Government", "A"], ["PHIL 1050", "Introduction to Philosophy", "A"]] },
+  { term: "Fall 2026", rows: [["CSCE 2100", "Foundations of Computing", "now"], ["ENGL 1320", "College Writing II", "now"], ["PHYS 1710", "Mechanics", "now"]] },
+];
+
+const views = {
+  first: () => { const c = CAMPUS[campus]; return `
+    <div class="seg sm campus" id="campus" role="group" aria-label="Campus"><button type="button" data-v="unt" aria-pressed="${campus === "unt"}">UNT</button><button type="button" data-v="ut" aria-pressed="${campus === "ut"}">UT Austin</button></div>
+    <h1 class="h1">Start with your transcript</h1>
+    <p class="lede">UNTangle reads it on this device and shows what you can take next. Nothing is uploaded.</p>
+    <div class="cta">
+      <button class="btn btn-primary btn-lg" id="open" data-i="window">Open ${c.portal}</button>
+      <p class="meta">Opens in a small window. Sign in there and download your unofficial transcript.</p>
+    </div>
+    <p class="alt">Have the PDF already? <button class="btn btn-quiet" data-act="pick">Choose file</button><span class="only-desk">or drop it on this page.</span></p>
+    <div class="skip"><a class="btn btn-ink btn-sm" href="02-courses.html?state=guest" style="margin-left:-10px">Browse courses without a transcript</a><span class="meta">Free and open source</span></div>`; },
+
+  waiting: () => { const c = CAMPUS[campus]; return `
+    <span class="status">${PHONE.matches ? `${c.portal} opened in a new tab` : `${c.portal} is open in another window`}</span>
+    <h1 class="h2">Download your transcript there</h1>
+    <ol class="path steps">
+      <li><span class="stop">1</span><strong>Sign in with your ${c.id}</strong><span class="meta">UNTangle never sees your password.</span></li>
+      <li><span class="stop">2</span><strong>Open your unofficial transcript</strong><span class="meta">${c.path}</span></li>
+      <li><span class="stop">3</span><strong>Download it as a PDF</strong><span class="meta">It lands in your Downloads folder.</span></li>
+    </ol>
+    <div class="row-actions">
+      ${PHONE.matches ? `<button class="btn btn-primary btn-lg wide" data-act="returned">I'm back with the PDF</button>` : `<button class="btn btn-secondary" data-act="focuswin" data-i="window">Show the ${c.portal} window</button><button class="btn btn-quiet" data-act="returned">I have the PDF</button>`}
+    </div>
+    <p class="hint only-desk">You can also drop the PDF anywhere on this page.</p>`; },
+
+  returned: () => `
+    <h1 class="h2">Got it downloaded?</h1>
+    <p class="lede">Pick the PDF you just saved and UNTangle reads it here.</p>
+    <div class="cta">
+      <button class="btn btn-primary btn-lg wide" id="usepdf" data-act="pick" data-i="file">Use the downloaded PDF</button>
+      <p class="meta">${PHONE.matches ? "Look in Files › Downloads." : "Opens your Downloads folder."}</p>
+    </div>
+    <p class="alt"><button class="btn btn-quiet" data-act="open">Open ${CAMPUS[campus].portal} again</button><span class="only-desk">· or drop the PDF here</span></p>`,
+
+  reading: () => `
+    <h1 class="h2">Reading your transcript</h1>
+    <ol class="path steps">
+      <li><span class="stop" id="st1"><span class="spin"></span></span><strong>Reading the PDF</strong></li>
+      <li data-leg="todo"><span class="stop ring" id="st2">2</span><strong>Finding your courses</strong></li>
+      <li><span class="stop ring" id="st3">3</span><strong>Checking prerequisites</strong></li>
+    </ol>
+    <p class="hint">On this device. Nothing is uploaded.</p>`,
+
+  review: () => `
+    <h1 class="h2">14 courses found</h1>
+    <div class="counts"><span>${sg("done")}10 done</span><span>${sg("taking")}3 taking now</span><span>${sg("check")}1 to check</span></div>
+    <div class="review"><div class="review-scroll">
+      ${TRANSCRIPT.map((t) => `<h3><span class="label">${t.term}</span>${t.term === "Fall 2026" ? '<span class="meta">In progress</span>' : ""}</h3><ul>${t.rows.map(([code, title, g]) => g === "fix"
+        ? `<li class="fix"><span class="code">${code}</span><div><div>${title}</div><div class="meta" style="text-align:left;color:var(--attention)">No match in the UNT catalog</div><div class="acts"><button class="btn btn-secondary btn-sm" data-act="find" data-i="search" data-is="sm">Find course</button><button class="btn btn-ink btn-sm" data-act="skiprow">Skip</button></div></div></li>`
+        : `<li><span class="code">${code}</span><span>${title}</span><span class="meta">${g === "now" ? "Taking" : g}</span></li>`).join("")}</ul>`).join("")}
+    </div></div>
+    <p class="hint">Your name and student ID were removed before matching.</p>
+    <div class="row-actions"><a class="btn btn-primary btn-lg" href="02-courses.html?state=imported">Looks right</a><button class="btn btn-quiet" data-act="pick">Use a different file</button></div>`,
+
+  wrongfile: () => `
+    <div class="err-mark" data-i="alert"></div>
+    <h1 class="h2">That PDF is a degree audit</h1>
+    <p class="lede">UNTangle needs the unofficial transcript. In ${CAMPUS[campus].portal}, open ${CAMPUS[campus].path} and download that one.</p>
+    <div class="row-actions"><button class="btn btn-primary" data-act="pick">Choose another file</button><button class="btn btn-quiet" data-act="open">Open ${CAMPUS[campus].portal} again</button></div>`,
+
+  notext: () => `
+    <div class="err-mark" data-i="alert"></div>
+    <h1 class="h2">This PDF has no readable text</h1>
+    <p class="lede">It looks like a scan or a photo. Download the transcript again from ${CAMPUS[campus].portal}; the original PDF works.</p>
+    <div class="row-actions"><button class="btn btn-primary" data-act="open">Open ${CAMPUS[campus].portal} again</button><button class="btn btn-quiet" data-act="pick">Choose another file</button></div>`,
+
+  blocked: () => `
+    <div class="err-mark" data-i="alert"></div>
+    <h1 class="h2">Your browser blocked the window</h1>
+    <p class="lede">Open ${CAMPUS[campus].portal} in a new tab instead, download the PDF, then come back to this tab.</p>
+    <div class="row-actions"><a class="btn btn-primary" href="#" data-act="newtab" data-i="ext">Open ${CAMPUS[campus].portal} in a new tab</a><button class="btn btn-quiet" data-act="pick">I have the PDF</button></div>`,
+};
+
+function render(next, animate = true) {
+  state = next;
+  const paint = () => {
+    stage.innerHTML = views[state]();
+    hydrateIcons(stage);
+    const seg = $("#campus", stage); if (seg) initSeg(seg, (v) => { campus = v; render("first", false); });
+    $("#thesis").style.visibility = state === "first" ? "" : "hidden";
+    const focusEl = $("#usepdf", stage); if (focusEl && animate) focusEl.focus({ preventScroll: true });
+    if (state === "reading") runReading();
+  };
+  animate ? swap(stage, paint) : paint();
+}
+
+function runReading() {
+  const steps = [["#st1", 500], ["#st2", 1100], ["#st3", 1500]];
+  const done = (sel) => { const s = $(sel); if (!s) return; s.className = "stop"; s.innerHTML = icon("check"); };
+  const active = (sel) => { const s = $(sel); if (!s) return; s.className = "stop"; s.innerHTML = '<span class="spin"></span>'; };
+  if (Q.get("state") === "reading") return; // screenshot holds the in-progress frame
+  setTimeout(() => { done("#st1"); active("#st2"); $$(".steps li")[0].removeAttribute("data-leg"); $$(".steps li")[1].removeAttribute("data-leg"); }, 500);
+  setTimeout(() => { done("#st2"); active("#st3"); }, 1100);
+  setTimeout(() => { done("#st3"); setTimeout(() => render("review"), 250); }, 1500);
+}
+
+/* the separate window (simulated in this mockup) */
+const win = $("#fakewin"), wlabel = $("#fwlabel");
+function openPortal() {
+  if (PHONE.matches) { render("waiting"); return; }
+  win.hidden = false; wlabel.hidden = false; win.classList.remove("enter"); void win.offsetWidth; win.classList.add("enter");
+  $("#fwdlbar").classList.remove("on");
+  render("waiting");
+}
+function closePortal() { win.hidden = true; wlabel.hidden = true; if (state === "waiting") render("returned"); }
+$("#fwclose").onclick = closePortal;
+$("#fwdl").onclick = () => { $("#fwdlbar").classList.add("on"); };
+/* Production: poll popup.closed every 500 ms and listen for window focus; either one moves to "returned". */
+addEventListener("focus", () => { if (state === "waiting" && win.hidden) render("returned"); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state === "waiting" && PHONE.matches) render("returned"); });
+
+/* picking: showOpenFilePicker({ startIn: "downloads" }) where it exists, else the file input */
+async function pick() {
+  if (window.showOpenFilePicker && !PHONE.matches) {
+    try {
+      const [h] = await showOpenFilePicker({ startIn: "downloads", types: [{ description: "Transcript PDF", accept: { "application/pdf": [".pdf"] } }] });
+      return accept(await h.getFile());
+    } catch (e) { if (e.name === "AbortError") return; }
+  }
+  $("#file").click();
+}
+$("#file").onchange = (e) => { const f = e.target.files[0]; if (f) accept(f); e.target.value = ""; };
+function accept(file) {
+  if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) { toast("Only PDF transcripts can be read"); return; }
+  win.hidden = true; wlabel.hidden = true;
+  render(/audit/i.test(file.name) ? "wrongfile" : "reading");
+}
+
+stage.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act]"); if (!b && e.target.closest("#open")) return openPortal();
+  if (!b) return;
+  const a = b.dataset.act;
+  if (a === "pick") pick();
+  else if (a === "open") openPortal();
+  else if (a === "returned") { win.hidden = true; wlabel.hidden = true; render("returned"); }
+  else if (a === "focuswin") { win.classList.remove("enter"); void win.offsetWidth; win.classList.add("enter"); }
+  else if (a === "newtab") { e.preventDefault(); render("waiting"); }
+  else if (a === "skiprow") { const li = b.closest("li"); li.style.opacity = .5; b.closest(".acts").innerHTML = '<span class="meta">Skipped. It won\'t count toward anything.</span>'; }
+  else if (a === "find") toast("Opens course search to match SPAN 1010");
+});
+
+/* drop anywhere: overlay on dragenter with files, label adapts to the dragged type */
+const drop = $("#drop"); let depth = 0;
+const isPdf = (dt) => [...(dt?.items || [])].every((it) => it.kind === "file" && (it.type === "application/pdf" || it.type === ""));
+addEventListener("dragenter", (e) => {
+  if (![...(e.dataTransfer?.types || [])].includes("Files") || PHONE.matches) return;
+  e.preventDefault(); depth++;
+  const ok = isPdf(e.dataTransfer);
+  drop.classList.toggle("bad", !ok);
+  $("#droptitle").textContent = ok ? "Drop your transcript" : "Only PDF transcripts work";
+  $("#dropmeta").textContent = ok ? "Read on this device. Nothing is uploaded." : "Download the PDF from " + CAMPUS[campus].portal + " first.";
+  drop.classList.add("on");
+});
+addEventListener("dragover", (e) => { if (drop.classList.contains("on")) e.preventDefault(); });
+addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; drop.classList.remove("on"); } });
+addEventListener("drop", (e) => { e.preventDefault(); depth = 0; drop.classList.remove("on"); const f = e.dataTransfer.files[0]; if (f) accept(f); });
+
+/* the thesis line runs exactly from stop 1 to stop 4 (offsets ignore the entrance transforms) */
+function placeThesisLine() {
+  const ol = $("#thesis ol"), lis = $$("#thesis li");
+  const c = (li) => li.offsetTop + li.querySelector(".stop").offsetTop + 15;
+  ol.style.setProperty("--line-top", c(lis[0]) + "px");
+  ol.style.setProperty("--line-h", c(lis[lis.length - 1]) - c(lis[0]) + "px");
+}
+placeThesisLine(); addEventListener("resize", placeThesisLine);
+
+/* screenshot states */
+if (Q.get("campus")) campus = Q.get("campus");
+if (state === "drop" || state === "drop-bad") {
+  render("first", false);
+  drop.classList.add("on"); drop.classList.toggle("bad", state === "drop-bad");
+  if (state === "drop-bad") { $("#droptitle").textContent = "Only PDF transcripts work"; $("#dropmeta").textContent = "Download the PDF from myUNT first."; }
+} else if (state === "waiting") { render("first", false); openPortal(); stage.getAnimations?.().forEach((a) => a.finish()); }
+else render(state, false);
+</script>
+</body>
+</html>
