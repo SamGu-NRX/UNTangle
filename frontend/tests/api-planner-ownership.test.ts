@@ -16,7 +16,7 @@ const savePlannerState = mock<SaveFn>(async () => null);
 mock.module("@/lib/auth-server", () => ({ getServerSession }));
 mock.module("@/lib/persistence", () => ({ loadPlannerState, savePlannerState }));
 
-let GET: () => Promise<Response>;
+let GET: (request: Request) => Promise<Response>;
 let POST: (request: Request) => Promise<Response>;
 
 function postRequest(body: unknown) {
@@ -41,14 +41,14 @@ beforeEach(() => {
 describe("GET /api/planner ownership", () => {
   test("returns 401 and never touches persistence without a session", async () => {
     getServerSession.mockImplementation(async () => null);
-    const response = await GET();
+    const response = await GET(new Request("http://localhost:3000/api/planner"));
     expect(response.status).toBe(401);
     expect(loadPlannerState).not.toHaveBeenCalled();
   });
 
   test("loads state with the session user id", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "sess-user-9" } }));
-    await GET();
+    await GET(new Request("http://localhost:3000/api/planner"));
     expect(loadPlannerState).toHaveBeenCalledTimes(1);
     expect(loadPlannerState.mock.calls[0]?.[0]).toBe("sess-user-9");
   });
