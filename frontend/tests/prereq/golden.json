@@ -69,19 +69,19 @@
     "courseId": "CSCE1030",
     "source": "CSCE 1010 (for CSE majors only) with a grade of C or better and MATH 1100 , or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors only).",
     "coverage": "unknown",
-    "expected": "and(unknown,unknown)"
+    "expected": "and(unknown,coreq(unknown))"
   },
   {
     "courseId": "CSCE1035",
     "source": "CSCE 1010 with a grade of C or better, and MATH 1100 or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors).",
     "coverage": "partial",
-    "expected": "and(and(grade:C(CSCE 1010),or(grade:C(MATH 1100),grade:C(MATH 1650),grade:C(MATH 1710))),unknown)"
+    "expected": "and(and(grade:C(CSCE 1010),or(grade:C(MATH 1100),grade:C(MATH 1650),grade:C(MATH 1710))),coreq(unknown))"
   },
   {
     "courseId": "CSCE2610",
     "source": "CSCE 2100 with a grade of C or better. Corequisite(s): CSCI majors: EENG 2710 . CMPE majors: EENG 2710 taken concurrently with EENG 2711 .",
     "coverage": "partial",
-    "expected": "and(grade:C(CSCE 2100),unknown,unknown)"
+    "expected": "and(grade:C(CSCE 2100),coreq(unknown),unknown)"
   },
   {
     "courseId": "CSCE2100",
@@ -93,13 +93,13 @@
     "courseId": "CSCE2110",
     "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): This course can be taken concurrently with CSCE 2100 .",
     "coverage": "partial",
-    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),unknown)"
+    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),coreq(unknown))"
   },
   {
     "courseId": "CSCE2900",
     "source": "Students must get instructor consent by email, as well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Students must upload the instructor consent and all other consent/approval documentation in the form. For elective credit only. May be repeated for credit for a maximum of 6 hours.",
     "coverage": "unknown",
-    "expected": "and(unknown,unknown,unknown)"
+    "expected": "and(and(unknown,unknown),and(unknown,unknown),unknown)"
   },
   {
     "courseId": "MATH1710",
@@ -134,8 +134,8 @@
   {
     "courseId": "MATH2000",
     "source": "MATH 1710 or MATH 1810 (may be taken concurrently by math majors).",
-    "coverage": "unknown",
-    "expected": "and(unknown)"
+    "coverage": "partial",
+    "expected": "and(or(MATH 1710,unknown))"
   },
   {
     "courseId": "MATH3350",
@@ -158,14 +158,14 @@
   {
     "courseId": "BMEN2320",
     "source": "BMEN 1300 ; BMEN 2210 ; BMEN 1400 or concurrent enrollment.",
-    "coverage": "unknown",
-    "expected": "and(unknown)"
+    "coverage": "full",
+    "expected": "and(and(BMEN 1300,BMEN 2210,coreq(BMEN 1400)))"
   },
   {
     "courseId": "BMEN4920",
     "source": "Junior or senior standing; good academic standing in biomedical engineering. Consent of department required",
     "coverage": "partial",
-    "expected": "and(unknown,consent)"
+    "expected": "and(and(standing:junior,unknown),consent)"
   },
   {
     "courseId": "BMEN4900",
@@ -207,7 +207,7 @@
     "courseId": "CHEM3530",
     "source": "C or better in one of the following: CHEM 1420 , CHEM 1422 or CHEM 1423 . For chemistry (BA) and life science majors, and preprofessional students.",
     "coverage": "partial",
-    "expected": "and(or(grade:C(CHEM 1420),grade:C(CHEM 1422),grade:C(CHEM 1423)),unknown)"
+    "expected": "and(or(grade:C(CHEM 1420),grade:C(CHEM 1422),grade:C(CHEM 1423)),and(and(unknown,unknown),unknown))"
   },
   {
     "courseId": "CHEM1422",
@@ -254,8 +254,8 @@
   {
     "courseId": "PSYC3530",
     "source": "C or better in PSYC 1630 and upper-level standing.",
-    "coverage": "unknown",
-    "expected": "and(unknown)"
+    "coverage": "full",
+    "expected": "and(and(grade:C(PSYC 1630),standing:upper-level))"
   },
   {
     "courseId": "PHYS4500",
@@ -284,13 +284,73 @@
   {
     "courseId": "PHYS1270",
     "source": "MATH 1100 or above. Core Category: Life and Physical Sciences",
-    "coverage": "unknown",
-    "expected": "and(unknown)"
+    "coverage": "partial",
+    "expected": "and(or(MATH 1100,unknown))"
   },
   {
     "courseId": "PSYC4030",
     "source": "C or better in one of the following: PSYC 3100 or PSYC 3620 and Junior Standing.",
     "coverage": "full",
     "expected": "and(and(or(grade:C(PSYC 3100),grade:C(PSYC 3620)),standing:junior))"
+  },
+  {
+    "courseId": "BIOL2140",
+    "source": "C or higher in: BIOL 1710 , BIOL 1720 , and BIOL 1750 or BIOL 1760 or BIOL 1761 .",
+    "coverage": "full",
+    "expected": "and(and(and(grade:C(BIOL 1710),grade:C(BIOL 1720)),or(grade:C(BIOL 1750),grade:C(BIOL 1760),grade:C(BIOL 1761))))"
+  },
+  {
+    "courseId": "BIOL4801",
+    "source": "Completion of foundation requirements for a declared biological sciences major and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in BIOL 2041 / BIOL 2042 and CHEM 2380 must be completed. If these requirements are not met, department consent is required. Meets with BIOL 5800. Genetics course is recommended. May not be repeated at the graduate level as BIOL 5800.",
+    "coverage": "partial",
+    "expected": "and(and(unknown,and(grade:C(BIOL 2041),grade:C(BIOL 2042),grade:C(CHEM 2380))),unknown,consent,unknown,unknown)"
+  },
+  {
+    "courseId": "CHEM4900",
+    "source": "CHEM 3220 or equivalent, and consent of directing professor. May be repeated for credit, not to exceed 3 hours each.",
+    "coverage": "full",
+    "expected": "and(and(CHEM 3220,consent))"
+  },
+  {
+    "courseId": "JAPN3042",
+    "source": "JAPN 2050 or equivalent.",
+    "coverage": "full",
+    "expected": "and(JAPN 2050)"
+  },
+  {
+    "courseId": "ANTH4011",
+    "source": "ANTH major status, ANTH 2300 , and have completed at least 60 hours.",
+    "coverage": "partial",
+    "expected": "and(and(and(unknown,ANTH 2300),standing:credits:60))"
+  },
+  {
+    "courseId": "JOUR4240",
+    "source": "Completion of at least 45 hours of credit.",
+    "coverage": "full",
+    "expected": "and(standing:credits:45)"
+  },
+  {
+    "courseId": "JOUR3430",
+    "source": "Students must have at least 45 hours of credit.",
+    "coverage": "full",
+    "expected": "and(standing:credits:45)"
+  },
+  {
+    "courseId": "EENG3520",
+    "source": "EENG 3510 (and EENG 3511 for electrical engineering students) which must be completed with a C or better.",
+    "coverage": "partial",
+    "expected": "and(and(grade:C(EENG 3510),unknown))"
+  },
+  {
+    "courseId": "SOCI3280",
+    "source": "SOCI 3220 or equivalent Required of all sociology majors.",
+    "coverage": "partial",
+    "expected": "and(and(SOCI 3220,unknown))"
+  },
+  {
+    "courseId": "BIOL4480",
+    "source": "Completion of foundation requirements for the declared biological sciences major and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 . If the major is outside of biological sciences, foundation requirements for the biology BA and C or higher in either BIOL 3451 / BIOL 3452 or BIOL 3350 and either CHEM 2380 or CHEM 3601 must be completed. If these requirements are not met, department consent is required. May not be repeated at the graduate level as BIOL 5840.",
+    "coverage": "partial",
+    "expected": "and(and(unknown,and(or(and(grade:C(BIOL 3451),grade:C(BIOL 3452)),grade:C(BIOL 3350)),or(grade:C(CHEM 2380),grade:C(CHEM 3601)))),unknown,consent)"
   }
 ]

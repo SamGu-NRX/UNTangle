@@ -57,6 +57,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
   const recordedGrades = new Map<string, string[]>();
   const uncertain = new Set(evidence.needsReview);
   const taking = new Set(evidence.inProgress);
+  const planned = new Set(evidence.planned);
   for (const row of evidence.transcript ?? []) {
     const grades = recordedGrades.get(row.courseId) ?? [];
     grades.push(row.grade);
@@ -77,11 +78,38 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     recordedGrades.delete(id);
     uncertain.delete(id);
     taking.delete(id);
+    if (override.status !== "taking") planned.delete(id);
     if (override.status === "done") completed.set(id, {
       grades: override.grade ? [override.grade] : [],
       reason: { kind: "override", outcome: "satisfied", courseId: id, message: override.reason },
     });
     if (override.status === "taking") taking.add(id);
+  }
+
+  if (evidence.earnedHours !== undefined && (!Number.isFinite(evidence.earnedHours) || evidence.earnedHours < 0)) throw new Error("earnedHours must be finite and nonnegative.");
+  let earnedHours = evidence.earnedHours;
+  if (earnedHours === undefined && evidence.transcript !== undefined && uncertain.size === 0) {
+    const creditsByCourse = new Map<string, number>();
+    let completeHours = true;
+    for (const row of evidence.transcript) {
+      if (adapter.isPassingGrade(row.grade) !== true) continue;
+      const override = evidence.overrides?.get(row.courseId);
+      if (override && override.status !== "done") continue;
+      if (row.credits === undefined || row.credits === null || !Number.isFinite(row.credits) || row.credits < 0) { completeHours = false; continue; }
+      // Retakes do not earn the same credit twice. Repeatable-course totals need an authoritative summary.
+      creditsByCourse.set(row.courseId, Math.max(row.credits, creditsByCourse.get(row.courseId) ?? 0));
+    }
+    if (completeHours) earnedHours = [...creditsByCourse.values()].reduce((sum, credits) => sum + credits, 0);
+  }
+  function minimumHours(minimum: string): number | undefined {
+    const hours = adapter.minimumHours?.(minimum);
+    if (hours !== undefined && (!Number.isFinite(hours) || hours < 0)) throw new Error(`Invalid adapter hour threshold for ${minimum}`);
+    return hours;
+  }
+  function hasHourRequirement(node: Prerequisite): boolean {
+    if (node.kind === "standing") return minimumHours(node.minimum) !== undefined;
+    if (node.kind === "and" || node.kind === "or") return node.children.some(hasHourRequirement);
+    return (node.kind === "minGrade" || node.kind === "corequisite") && hasHourRequirement(node.requirement);
   }
 
   const closure = new Map<string, Reason>();
@@ -93,7 +121,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     return node.kind === "minGrade" && containsCorequisite(node.requirement);
   }
   function add(node: Prerequisite, witness: Reason) {
-    if (!requiresAdvisor(node) && !containsCorequisite(node)) {
+    if (!requiresAdvisor(node) && !containsCorequisite(node) && !hasHourRequirement(node)) {
       const key = requirementKey(node);
       if (!closure.has(key)) closure.set(key, witness);
     }
@@ -142,13 +170,13 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     const grades = recordedGrades.get(id);
     if (minimum !== undefined && grades) {
       const checks = grades.map(grade => adapter.meetsMinimumGrade(grade, minimum));
-      return { kind: "grade", outcome: checks.includes(true) ? "satisfied" : checks.includes(undefined) ? "unknown" : "unmet", courseId: id,
+      return { kind: "grade", outcome: uncertain.has(id) || checks.includes(undefined) ? "unknown" : "unmet", courseId: id,
         message: `${id} requires ${minimum} or better; recorded grades: ${grades.join(", ")}.` };
     }
-    if (concurrent && taking.has(id) && minimum === undefined) {
-      return { kind: "corequisite", outcome: "satisfied", courseId: id, message: `${id} is in progress.` };
+    if (concurrent && (taking.has(id) || planned.has(id)) && minimum === undefined) {
+      return { kind: "corequisite", outcome: "satisfied", courseId: id, message: `${id} is ${taking.has(id) ? "in progress" : "planned"}.` };
     }
-    return { kind: minimum !== undefined ? "grade" : "course", outcome: uncertain.has(id) || (concurrent && taking.has(id)) ? "unknown" : "unmet", courseId: id,
+    return { kind: minimum !== undefined ? "grade" : "course", outcome: uncertain.has(id) || (concurrent && (taking.has(id) || planned.has(id))) ? "unknown" : "unmet", courseId: id,
       message: minimum !== undefined ? `No completed grade of ${minimum} or better is known for ${id}.` : `No passing completion is known for ${id}.` };
   }
 
@@ -162,7 +190,13 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
       case "corequisite": result = { ...combine("and", [evaluate(node.requirement, minimum, true)], node.source), kind: "corequisite" }; break;
       case "standing": {
         const check = evidence.standing === undefined ? undefined : adapter.meetsStanding(evidence.standing, node.minimum);
-        result = { kind: "standing", outcome: check === undefined ? "unknown" : check ? "satisfied" : "unmet", source: node.source, message: `Requires ${node.minimum} standing; recorded standing: ${evidence.standing ?? "unknown"}.` };
+        const hours = minimumHours(node.minimum);
+        const outcome = check === false ? "unmet" : hours !== undefined
+          ? earnedHours === undefined ? "unknown" : earnedHours >= hours ? "satisfied" : "unmet"
+          : check === undefined ? "unknown" : check ? "satisfied" : "unmet";
+        result = { kind: "standing", outcome, source: node.source, message: hours !== undefined
+          ? `${earnedHours === undefined ? "Check with advisor: " : ""}requires ${hours} earned hours for ${node.minimum}; known hours: ${earnedHours ?? "unknown"}; recorded standing: ${evidence.standing ?? "unknown"}.`
+          : `Requires ${node.minimum} standing; recorded standing: ${evidence.standing ?? "unknown"}.` };
         break;
       }
       case "consent": case "unknown": return { kind: "advisor", outcome: "unknown", source: node.source, message: `Check with advisor: ${node.source}` };
@@ -191,7 +225,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
       return (requirement.kind === "minGrade" || requirement.kind === "corequisite") && hasStanding(requirement.requirement);
     }
     const hasExplicitStanding = evidence.standing !== undefined && hasStanding(node);
-    if (witness && !blockedByOverride && !hasDirectGrade && !hasUnresolvedEvidence && !hasExplicitStanding && !requiresAdvisor(node)) return witness;
+    if (witness && !blockedByOverride && !hasDirectGrade && !hasUnresolvedEvidence && !hasExplicitStanding && !requiresAdvisor(node) && !hasHourRequirement(node)) return witness;
     return result;
   }
 
