@@ -88,7 +88,9 @@ export function SearchTrigger({
     <button
       type="button"
       aria-haspopup="dialog"
-      aria-label={placeholder}
+      // The visible text names the full trigger; only the icon-only form
+      // needs a label. The key cap is announced via aria-keyshortcuts.
+      aria-label={compact ? placeholder : undefined}
       aria-keyshortcuts="Meta+K Control+K"
       className={cx("ui-search-trigger", compact && "ui-search-trigger--compact", className)}
       data-ui=""
@@ -97,10 +99,10 @@ export function SearchTrigger({
       <SearchGlyph />
       {compact ? null : (
         <>
-          <span className="ui-search-trigger__text" aria-hidden="true">
-            {placeholder}
+          <span className="ui-search-trigger__text">{placeholder}</span>
+          <span aria-hidden="true">
+            <Kbd className="ui-search__kbd">{shortcut}</Kbd>
           </span>
-          <Kbd className="ui-search__kbd">{shortcut}</Kbd>
         </>
       )}
     </button>

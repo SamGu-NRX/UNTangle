@@ -106,6 +106,7 @@ export function BottomSheet({
   const index = detent ?? ownDetent;
   const drag = useRef<{
     pointerId: number;
+    element: HTMLElement;
     startY: number;
     startOffset: number;
     offset: number;
@@ -198,32 +199,25 @@ export function BottomSheet({
     if (!mounted) entered.current = false;
   }, [mounted]);
 
-  const onPointerDown = (event: PointerEvent<HTMLElement>, fromBody: boolean) => {
-    // One finger at a time: a second touch mid-drag is ignored.
-    if (drag.current || (event.pointerType === "mouse" && event.button !== 0)) return;
-    if (fromBody && expanded) return;
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    suppressClick.current = false;
-    const startOffset = presentationOffset(sheet);
-    drag.current = {
-      pointerId: event.pointerId,
-      startY: event.clientY,
-      startOffset,
-      offset: startOffset,
-      active: false,
-      samples: [{ y: event.clientY, t: event.timeStamp }],
-    };
-  };
+  // Moves and the release are read from the document, not the pressed
+  // element: the first move can already be outside the 4px handle (over the
+  // scrim) before the drag claims the pointer, and on a desktop mouse there
+  // is no implicit capture to keep the events coming.
+  const stopTracking = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopTracking.current?.(), []);
 
-  const onPointerMove = (event: PointerEvent<HTMLElement>) => {
+  const onDragMove = (event: globalThis.PointerEvent) => {
     const d = drag.current;
     if (!d || d.pointerId !== event.pointerId) return;
     const dy = event.clientY - d.startY;
     if (!d.active) {
       if (Math.abs(dy) < DRAG_SLOP) return;
       d.active = true;
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try {
+        d.element.setPointerCapture(event.pointerId);
+      } catch {
+        // The pointer already ended; the release handler will run next.
+      }
     }
     d.offset = dampedOffset(d.startOffset + dy);
     d.samples.push({ y: event.clientY, t: event.timeStamp });
@@ -231,15 +225,14 @@ export function BottomSheet({
     apply(d.offset, "none");
   };
 
-  const onPointerEnd = (event: PointerEvent<HTMLElement>) => {
+  const onDragEnd = (event: globalThis.PointerEvent) => {
     const d = drag.current;
     if (!d || d.pointerId !== event.pointerId) return;
+    stopTracking.current?.();
     drag.current = null;
     if (!d.active) return;
     suppressClick.current = true;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    if (d.element.hasPointerCapture(event.pointerId)) d.element.releasePointerCapture(event.pointerId);
     const target = releaseTarget({
       offset: d.offset,
       velocity: event.type === "pointercancel" ? 0 : releaseVelocity(d.samples),
@@ -253,6 +246,34 @@ export function BottomSheet({
     }
     apply(offsets[target], prefersReducedMotion() ? "none" : SETTLE);
     if (target !== index) setIndex(target);
+  };
+
+  const onPointerDown = (event: PointerEvent<HTMLElement>, fromBody: boolean) => {
+    // One finger at a time: a second touch mid-drag is ignored.
+    if (drag.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+    if (fromBody && expanded) return;
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    suppressClick.current = false;
+    const startOffset = presentationOffset(sheet);
+    drag.current = {
+      pointerId: event.pointerId,
+      element: event.currentTarget,
+      startY: event.clientY,
+      startOffset,
+      offset: startOffset,
+      active: false,
+      samples: [{ y: event.clientY, t: event.timeStamp }],
+    };
+    document.addEventListener("pointermove", onDragMove);
+    document.addEventListener("pointerup", onDragEnd);
+    document.addEventListener("pointercancel", onDragEnd);
+    stopTracking.current = () => {
+      document.removeEventListener("pointermove", onDragMove);
+      document.removeEventListener("pointerup", onDragEnd);
+      document.removeEventListener("pointercancel", onDragEnd);
+      stopTracking.current = null;
+    };
   };
 
   const cycle = (direction: 1 | -1) => {
@@ -277,9 +298,6 @@ export function BottomSheet({
 
   const dragHandlers = (fromBody: boolean) => ({
     onPointerDown: (event: PointerEvent<HTMLElement>) => onPointerDown(event, fromBody),
-    onPointerMove,
-    onPointerUp: onPointerEnd,
-    onPointerCancel: onPointerEnd,
   });
 
   return createPortal(

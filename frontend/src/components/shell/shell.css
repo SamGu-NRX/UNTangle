@@ -187,6 +187,10 @@
   flex: 1;
   min-width: 0;
   outline: none;
+  /* A view wider than the screen must not widen the whole app: that would
+     push the bars, dialogs and sheets off the side on phones. clip (not
+     hidden) keeps sticky positioning inside views working. */
+  overflow-x: clip;
 }
 
 /* ───────── Bottom tabs (phone only) ───────── */

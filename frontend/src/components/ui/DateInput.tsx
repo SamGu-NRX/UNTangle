@@ -335,6 +335,9 @@ export function DateInput({
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"
+          // APG date picker combobox: a textbox that opens a calendar dialog.
+          role="combobox"
+          aria-autocomplete="none"
           aria-invalid={shownError ? true : undefined}
           aria-describedby={describedBy}
           aria-haspopup="dialog"
