@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { toNextJsHandler } from "better-auth/next-js";
 import { BASE, VICTIM, cookieFrom, setup, signed } from "./fixtures";
 import { deliverAuthEmail } from "@/lib/auth-email";
 import { recipientBudget } from "@/lib/email-budget";
@@ -349,4 +350,17 @@ describe("the auth route's IP budget and the recipient budget compose", () => {
     expect(blocked.status).toBe(429);
     expect(logged).toHaveLength(5);
   });
+});
+
+
+test("concurrent GET magic-link verification requests stop at the atomic path budget", async () => {
+  const t = setup();
+  const handler = toNextJsHandler(t.auth).GET;
+  let admitted = 0;
+  const GET = createRateLimitWrapper({ store: memoryStore(), session: async () => null, secret: "test", now: () => 30_000 })(
+    "auth", (request: Request) => { admitted++; return handler(request); });
+  const replies = await Promise.all(Array.from({ length: 12 }, () => GET(new Request(`${BASE}/api/auth/magic-link/verify?token=missing&callbackURL=/courses`))));
+  expect(replies.filter(r => r.status === 429)).toHaveLength(7);
+  expect(replies.filter(r => r.status === 302)).toHaveLength(5);
+  expect(admitted).toBe(5);
 });
