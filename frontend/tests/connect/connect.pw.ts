@@ -151,13 +151,17 @@ test("extension PDF handshake reaches course review and saves approved courses",
         await video.path(),
       );
     await page.goto("http://127.0.0.1:3000/connect");
+    // The app shell also has a live status region; these assertions target Connect.
+    const importStatus = page
+      .getByRole("region", { name: "Connect myUNT", exact: true })
+      .getByRole("status");
     await expect(
       page.getByRole("button", { name: "Connect myUNT" }),
     ).toBeDisabled();
     await shot(page, "permission-mobile");
     await page.getByRole("checkbox", { name: "I allow" }).check();
     await page.getByRole("button", { name: "Connect myUNT" }).click();
-    await expect(page.getByRole("status")).toContainText(
+    await expect(importStatus).toContainText(
       "Waiting for your approval",
     );
     await shot(page, "waiting-mobile");
@@ -180,12 +184,12 @@ test("extension PDF handshake reaches course review and saves approved courses",
       started,
       { timeout: 40_000 },
     );
-    await expect(page.getByRole("status")).toContainText(
+    await expect(importStatus).toContainText(
       "Waiting for your approval",
     );
     const report = await ctx.newPage();
     await report.goto("http://localhost:4317/transcript-entry");
-    await expect(page.getByRole("status")).toContainText(
+    await expect(importStatus).toContainText(
       "Waiting for your approval",
     );
     await report.getByRole("link", { name: "Submit and View Report" }).click();
@@ -198,7 +202,7 @@ test("extension PDF handshake reaches course review and saves approved courses",
     ).toBeVisible();
     await shot(approval, "extension-approval");
     await approval.getByRole("button", { name: "Send to UNTangle" }).click();
-    await expect(page.getByRole("status")).toContainText("Reading your report");
+    await expect(importStatus).toContainText("Reading your report");
     await shot(page, "reading-mobile");
     releaseDownload();
     await expect(
