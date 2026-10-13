@@ -13,6 +13,8 @@
  *   (assertEmailConfigured, called from lib/auth.ts).
  */
 
+import { budgetKey, EMAIL_BUDGET, EmailBudgetExceeded, type SendBudgetStore } from "@/lib/email-budget";
+
 export type AuthEmailKind = "magic-link" | "verify-email" | "password-reset";
 
 type Env = Record<string, string | undefined>;
@@ -83,12 +85,15 @@ export function assertEmailConfigured(env: Env): void {
     );
 }
 
-/** Where auth email goes in this environment. */
+/**
+ * Where auth email goes in this environment. Unlike the startup check, any
+ * production process refuses the log fallback, build phase included: a
+ * sign-in link must never end up in a log in production.
+ */
 export function emailDelivery(env: Env): "resend" | "server-log" {
   if (env.RESEND_API_KEY) return "resend";
-  if (isProductionServer(env)) {
-    // assertEmailConfigured stops the server first; this guards any path around it.
-    throw new Error("RESEND_API_KEY is not set; refusing to drop an auth email in production.");
+  if (env.NODE_ENV === "production") {
+    throw new Error("RESEND_API_KEY is not set; refusing to write an auth email to the log in production.");
   }
   return "server-log";
 }
@@ -109,17 +114,25 @@ export type DeliveryDeps = {
   env: Env;
   createClient: (apiKey: string) => ResendLike;
   log: (message: string) => void;
+  budget: SendBudgetStore;
+  now?: () => number;
 };
 
-/** Sends (or, in development without a key, logs) one auth email. Throws if Resend refuses it. */
+/**
+ * Sends (or, in development without a key, logs) one auth email. Takes a
+ * send from the recipient's budget first and throws EmailBudgetExceeded
+ * when there is none; throws if Resend refuses the email.
+ */
 export async function deliverAuthEmail(
   kind: AuthEmailKind,
   to: string,
   url: string,
-  { env, createClient, log }: DeliveryDeps,
+  { env, createClient, log, budget, now = Date.now }: DeliveryDeps,
 ): Promise<"resend" | "server-log"> {
   const email = renderAuthEmail(kind, url);
   const mode = emailDelivery(env);
+  if (!(await budget.consume(budgetKey(to), EMAIL_BUDGET.limit, EMAIL_BUDGET.windowMs, now())))
+    throw new EmailBudgetExceeded(to);
   if (mode === "server-log") {
     log(`[UNTangle email] Email isn't set up here (no RESEND_API_KEY). "${email.subject}" for ${to}: ${url}`);
     return mode;
