@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v3 · Phone navigation model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f3f5f1;--surface:#fff;--surface-2:#edf1ec;--surface-3:#e3e9e2;--line:#dbe4da;--line-strong:#c2d0c2;--frost:rgba(255,255,255,.8);--overlay:rgba(26,46,26,.32);--ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6f836d;--ink-4:#9aab99;--brand:#00512b;--brand-soft:#e3efe6;--accent:#00a855;--danger:#b3261e;--route:#00512b;--font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;--shadow-1:0 1px 2px rgba(26,46,26,.06);--shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);--shadow-3:0 16px 40px rgba(26,46,26,.14),0 2px 6px rgba(26,46,26,.08);--ease-out:cubic-bezier(.23,1,.32,1);--ease-sheet:cubic-bezier(.32,.72,0,1);--t-press:120ms;--t-hover:160ms;--t-pop:160ms;--t-enter:200ms;--t-exit:150ms;--t-sheet:260ms;--sa-top:0px;--sa-bot:0px}
+html,body{height:100%}
+body{font:14px/20px var(--font-body);color:var(--ink);background:#d9ded6;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;display:grid;place-items:center;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+.code{font-family:var(--font-display);font-weight:700}.num{font-variant-numeric:tabular-nums}
+/* the phone frame: at 390 wide the frame is the viewport; wider, it is a 390×844 device with safe areas */
+.phone{position:relative;width:390px;height:844px;background:var(--bg);overflow:hidden;--sa-top:47px;--sa-bot:34px;border-radius:44px;box-shadow:0 0 0 10px #1a1f1a,0 30px 80px rgba(0,0,0,.35)}
+@media (max-width:719px){body{display:block;background:var(--bg)}.phone{width:100%;height:100dvh;border-radius:0;box-shadow:none;--sa-top:env(safe-area-inset-top);--sa-bot:env(safe-area-inset-bottom)}}
+.notch{position:absolute;top:0;left:50%;width:120px;height:34px;margin-left:-60px;background:#1a1f1a;border-radius:0 0 20px 20px;z-index:50}
+@media (max-width:719px){.notch{display:none}}
+.topbar{position:absolute;left:0;right:0;top:0;height:calc(48px + var(--sa-top));padding:var(--sa-top) 16px 0;display:flex;align-items:center;gap:12px;background:var(--surface);border-bottom:1px solid var(--line);z-index:6}
+.wordmark{font:800 18px/1 var(--font-display);color:var(--brand)}
+.chip{margin-left:auto;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);font-size:13px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.caret{width:8px;height:8px;border-right:1.5px solid var(--ink-3);border-bottom:1.5px solid var(--ink-3);transform:rotate(45deg) translateY(-2px)}
+.lens{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;padding:calc(48px + var(--sa-top)) 16px calc(72px + var(--sa-bot));display:none}
+.phone[data-lens=courses] .l-courses,.phone[data-lens=week] .l-week,.phone[data-lens=day] .l-day{display:block}
+.phone[data-lens=day] .topbar{display:none}
+.l-day{padding:0;overflow:hidden}
+.viewhead{height:44px;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
+.viewhead .btn{margin-left:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 14px;border-radius:10px;font-weight:600;font-size:14px;transition:transform var(--t-press) var(--ease-out)}
+.btn:active{transform:scale(.97)}.btn-primary{background:var(--brand);color:#fff}.btn-ghost{background:var(--surface);border:1px solid var(--line-strong)}
+.search{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line-strong);color:var(--ink-3);position:sticky;top:0;z-index:2;margin-bottom:4px}
+.search input{flex:1;border:0;outline:0;background:none;font-size:16px;min-width:0}
+.group{height:36px;display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-top:8px}
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:grid;grid-template-columns:16px 1fr auto;grid-template-rows:auto auto;column-gap:10px;height:52px;padding:6px 12px;border-top:1px solid var(--line);width:100%;text-align:left;align-items:center}
+.row:first-child{border-top:0}
+.row .mark{grid-row:1/3;width:16px;height:16px;border-radius:50%}
+.row .code{font-size:13px}.row .w{font-size:12.5px;color:var(--ink-2);text-align:right}.row .t{grid-column:2/4;font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row[aria-selected=true]{background:var(--brand-soft);box-shadow:inset 2px 0 0 var(--brand)}
+.m-done{background:var(--ink-3)}.m-taking{border:1.5px solid var(--accent)}.m-planned{background:var(--brand)}.m-avail{border:1.5px solid var(--ink-4)}.m-locked{border:1.5px dotted var(--ink-4)}
+/* week (phone): grid with code-only events; tapping a day header opens that day's timeline */
+.grid{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
+.dh{display:grid;grid-template-columns:32px repeat(5,1fr);height:32px;align-items:center;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:center;border-bottom:1px solid var(--line)}
+.dh button{height:32px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+.gb{display:grid;grid-template-columns:32px repeat(5,1fr);height:432px}
+.gb .g{position:relative;border-right:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0,transparent 47px,var(--line) 47px,var(--line) 48px)}
+.gb .g:last-child{border-right:0}
+.gb .gut span{position:absolute;right:4px;font-size:10px;color:var(--ink-2);transform:translateY(-6px)}
+.ev{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 5px;border-left:3px solid var(--c);background:var(--ct);font:700 10px/12px var(--font-display)}
+.rib{position:absolute;left:50%;width:2px;margin-left:-1px;background:var(--route)}
+.rib.tight{background:var(--danger)}
+.rib span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font:500 9px/12px var(--font-body);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:0 4px;white-space:nowrap}
+.rib.tight span{color:var(--danger);border-color:var(--danger);font-weight:600}
+/* day (phone): map behind, floating chip, sheet */
+.map{position:absolute;inset:0;background:#eeede9}
+.map svg{width:100%;height:100%}
+.chipfloat{position:absolute;top:calc(8px + var(--sa-top));right:12px;z-index:5;background:var(--frost);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-radius:10px;box-shadow:var(--shadow-2)}
+.chipfloat .chip{border:0;background:none;margin:0}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(56px + var(--sa-bot));padding-bottom:var(--sa-bot);background:var(--surface);border-top:1px solid var(--line);display:flex;z-index:40}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--ink-2);user-select:none;-webkit-user-select:none}
+.tabbar button[aria-current]{color:var(--brand)}.tabbar svg{width:22px;height:22px}
+/* sheets: one modal sheet (detail, menu) and the non-modal day sheet */
+.scrim{position:absolute;inset:0;background:var(--overlay);opacity:0;pointer-events:none;transition:opacity var(--t-exit) ease;z-index:45}
+.phone[data-sheet] .scrim{opacity:1;pointer-events:auto;transition-duration:var(--t-enter)}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:92%;background:var(--surface);border-radius:14px 14px 0 0;box-shadow:var(--shadow-3);z-index:46;transform:translateY(100%);transition:transform var(--t-sheet) var(--ease-sheet);padding:24px 16px calc(16px + var(--sa-bot));overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
+.sheet.drag{transition:none}
+.sheet::before{content:"";position:absolute;top:8px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line-strong)}
+.phone[data-sheet] .sheet{transform:none}
+.sheet h2{font-size:18px;font-weight:600;margin-top:4px}.sheet .pc{font:700 20px/24px var(--font-display);color:var(--brand)}
+.sheet p{color:var(--ink-2);margin-top:8px}
+.daysheet{position:absolute;left:0;right:0;bottom:0;height:92%;background:var(--frost);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-radius:14px 14px 0 0;box-shadow:var(--shadow-2);z-index:30;transform:translateY(calc(100% - 112px - var(--sa-bot)));transition:transform var(--t-sheet) var(--ease-sheet);padding:20px 12px calc(56px + var(--sa-bot));touch-action:none}
+.daysheet.drag{transition:none}
+.daysheet::before{content:"";position:absolute;top:8px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line-strong)}
+.days{display:flex;background:var(--surface-3);border-radius:8px;padding:2px;height:36px}
+.days button{flex:1;font-size:13px;font-weight:600;color:var(--ink-2);border-radius:6px}
+.days button[aria-selected=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.upnext{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--brand-soft);color:var(--brand)}
+.upnext small{display:block;font-size:12.5px;color:var(--ink-2)}.upnext b{font:700 24px/28px var(--font-display);display:block}
+.stop{display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:center;min-height:60px;padding:8px 10px;border-radius:10px;background:var(--surface);box-shadow:var(--shadow-1);margin-top:12px}
+.stop .n{width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font:700 12px/1 var(--font-display);display:grid;place-items:center}
+.stop small{display:block;font-size:12.5px;color:var(--ink-2)}
+.menu{position:absolute;top:calc(52px + var(--sa-top));right:16px;min-width:240px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-2);padding:4px;z-index:48;transform-origin:top right;opacity:0;transform:scale(.97);pointer-events:none;transition:opacity var(--t-exit) ease,transform var(--t-exit) var(--ease-out)}
+.menu.on{opacity:1;transform:none;pointer-events:auto;transition-duration:var(--t-pop)}
+.menu button{display:flex;width:100%;align-items:center;gap:8px;text-align:left;padding:10px;border-radius:6px;font-size:14px;min-height:44px}
+.menu button small{margin-left:auto;color:var(--ink-2);font-size:12.5px}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.toast{position:absolute;left:16px;right:16px;bottom:calc(72px + var(--sa-bot));background:var(--ink);color:#fff;font-size:13px;height:44px;display:flex;align-items:center;padding:0 16px;border-radius:10px;opacity:0;transform:translateY(8px);transition:opacity var(--t-exit) ease,transform var(--t-exit) var(--ease-out);z-index:49;pointer-events:none}
+.toast.on{opacity:1;transform:none;transition-duration:var(--t-enter)}
+.legend{position:fixed;left:16px;top:16px;max-width:300px;font-size:12.5px;line-height:18px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow-2)}
+.legend b{color:var(--ink)}
+@media (max-width:719px){.legend{display:none}}
+@media (prefers-reduced-motion:reduce){.sheet,.daysheet,.menu,.toast{transition-property:opacity;transform:none!important}.btn:active{transform:none}}
+</style>
+</head>
+<body>
+<div class="legend"><b>Phone navigation model.</b> Three tabs switch lenses with no animation. Tap the active tab to scroll to top. Rows open a modal sheet (drag down or tap the scrim to close). Day has no top bar: the schedule chip floats, the day sheet rests at peek and drags to half and full. Browser back closes a sheet before it changes lens.</div>
+<div class="phone" id="phone" data-lens="courses">
+  <div class="notch"></div>
+  <header class="topbar"><span class="wordmark">UNTangle</span><button class="chip" id="chip" aria-haspopup="menu"><span class="dot"></span>Mornings<span class="caret"></span></button></header>
+
+  <main class="lens l-courses" id="l-courses">
+    <div class="viewhead">Computer Science, BS<button class="btn btn-primary">✦ Auto</button></div>
+    <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input placeholder="Search courses"></label>
+    <div class="group">Core <span style="letter-spacing:0;text-transform:none;font-size:12.5px">6 of 10 done</span></div>
+    <div class="rows" id="rows"></div>
+    <div class="group">Math</div>
+    <div class="rows"><button class="row"><span class="mark m-done"></span><span class="code">MATH 1710</span><span class="w">Done</span><span class="t">Calculus I</span></button><button class="row"><span class="mark m-avail"></span><span class="code">MATH 2700</span><span class="w"></span><span class="t">Linear Algebra</span></button></div>
+    <div style="height:300px"></div>
+  </main>
+
+  <main class="lens l-week" id="l-week">
+    <div class="viewhead">Mornings <small style="font-weight:400;font-size:12.5px;color:var(--ink-2)">16 cr</small><button class="btn btn-primary">✦ Auto</button></div>
+    <div class="grid"><div class="dh"><span></span><button data-day="mon">Mon</button><button>Tue</button><button>Wed</button><button>Thu</button><button>Fri</button></div>
+      <div class="gb"><div class="g gut"><span style="top:0">8</span><span style="top:48px">9</span><span style="top:96px">10</span><span style="top:144px">11</span><span style="top:192px">12</span><span style="top:240px">1</span><span style="top:288px">2</span><span style="top:336px">3</span><span style="top:384px">4</span></div>
+        <div class="g"><div class="ev" style="top:48px;height:38px;--c:#3f7a4f;--ct:#e6f0e8">CSCE 3110</div><div class="rib" style="top:88px;height:8px"><span>4 min</span></div><div class="ev" style="top:96px;height:38px;--c:#8d7325;--ct:#f5f0e0">MATH 2700</div><div class="rib" style="top:136px;height:56px"><span>6 min</span></div><div class="ev" style="top:192px;height:38px;--c:#7a5272;--ct:#f1e8f0">PHIL 2050</div></div>
+        <div class="g"><div class="ev" style="top:72px;height:62px;--c:#4b6a8a;--ct:#e6ecf2">PHYS 2220</div><div class="rib tight" style="top:136px;height:8px"><span>9 min</span></div><div class="ev" style="top:144px;height:62px;--c:#3f7a4f;--ct:#e6f0e8">CSCE 3600</div></div>
+        <div class="g"><div class="ev" style="top:48px;height:38px;--c:#3f7a4f;--ct:#e6f0e8">CSCE 3110</div><div class="rib" style="top:88px;height:8px"><span>4 min</span></div><div class="ev" style="top:96px;height:38px;--c:#8d7325;--ct:#f5f0e0">MATH 2700</div><div class="rib" style="top:136px;height:56px"><span>6 min</span></div><div class="ev" style="top:192px;height:38px;--c:#7a5272;--ct:#f1e8f0">PHIL 2050</div></div>
+        <div class="g"><div class="ev" style="top:72px;height:62px;--c:#4b6a8a;--ct:#e6ecf2">PHYS 2220</div><div class="rib tight" style="top:136px;height:8px"><span>9 min</span></div><div class="ev" style="top:144px;height:62px;--c:#3f7a4f;--ct:#e6f0e8">CSCE 3600</div></div>
+        <div class="g"><div class="ev" style="top:48px;height:38px;--c:#3f7a4f;--ct:#e6f0e8">CSCE 3110</div><div class="rib" style="top:88px;height:8px"><span>4 min</span></div><div class="ev" style="top:96px;height:38px;--c:#8d7325;--ct:#f5f0e0">MATH 2700</div><div class="rib" style="top:136px;height:56px"><span>6 min</span></div><div class="ev" style="top:192px;height:38px;--c:#7a5272;--ct:#f1e8f0">PHIL 2050</div></div>
+      </div></div>
+    <p style="font-size:12.5px;color:var(--ink-2);margin-top:8px">Tap a day for its timeline. Tap a class for its sections.</p>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" style="flex:1">Schedule</button><button class="btn btn-ghost" style="flex:1">Export</button></div>
+  </main>
+
+  <main class="lens l-day" id="l-day">
+    <div class="map"><svg viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice"><rect width="390" height="844" fill="#eeede9"/><rect x="40" y="420" width="140" height="90" rx="6" fill="#dde8d5"/><g stroke="#dddfd9" stroke-width="10" fill="none"><path d="M0 200H390M0 560H390M120 0V844M300 0V844"/></g><g stroke="#fff" stroke-width="8" fill="none"><path d="M0 200H390M0 560H390M120 0V844M300 0V844"/></g><g fill="#f7f6f2" stroke="#e2e2dd"><rect x="150" y="240" width="90" height="70" rx="3"/><rect x="200" y="100" width="80" height="60" rx="3"/><rect x="40" y="260" width="60" height="70" rx="3"/><rect x="180" y="400" width="100" height="80" rx="3"/></g><g font-family="DM Sans" font-weight="600" font-size="11" fill="#586e58" text-anchor="middle"><text x="195" y="280">GAB</text><text x="240" y="135">LANG</text><text x="70" y="300">ENV</text><text x="230" y="445">WILLIS</text></g><path d="M195 300 L195 320 L260 320 L260 160 L240 160" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M195 300 L195 320 L260 320 L260 160 L240 160" stroke="#00512b" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><g><circle cx="195" cy="300" r="3" fill="#fff" stroke="#00512b" stroke-width="2"/><circle cx="195" cy="278" r="14" fill="#00512b" stroke="#fff" stroke-width="2.5"/><text x="195" y="278" font-family="Syne" font-weight="700" font-size="12" fill="#fff" text-anchor="middle" dominant-baseline="central">1</text><circle cx="240" cy="160" r="3" fill="#fff" stroke="#00512b" stroke-width="2"/><circle cx="240" cy="138" r="14" fill="#00512b" stroke="#fff" stroke-width="2.5"/><text x="240" y="138" font-family="Syne" font-weight="700" font-size="12" fill="#fff" text-anchor="middle" dominant-baseline="central">2</text></g></svg></div>
+    <div class="chipfloat"><button class="chip" aria-haspopup="menu"><span class="dot"></span>Mornings<span class="caret"></span></button></div>
+    <section class="daysheet" id="daysheet" aria-label="Day">
+      <div class="days"><button aria-selected="true">Mon</button><button>Tue</button><button>Wed</button><button>Thu</button><button>Fri</button></div>
+      <div class="upnext"><small>Next · MATH 2700 · LANG 316</small><b class="num">Leave by 9:56 AM</b></div>
+      <p style="font-size:14px;margin-top:12px"><b>3 stops</b> · 0.5 mi · 10 min walking</p>
+      <div class="stop"><span class="n">1</span><span><span class="code">CSCE 3110</span><small class="num">9:00–9:50 · GAB 550</small></span></div>
+      <div class="stop"><span class="n">2</span><span><span class="code">MATH 2700</span><small class="num">10:00–10:50 · LANG 316</small></span></div>
+      <div class="stop"><span class="n">3</span><span><span class="code">PHIL 2050</span><small class="num">12:00–12:50 · ENV 120</small></span></div>
+    </section>
+  </main>
+
+  <div class="scrim" id="scrim"></div>
+  <section class="sheet" id="sheet" aria-label="Course detail"><span class="pc">CSCE 3110</span><h2>Data Structures and Algorithms</h2><p>3 credits · Core · Needs CSCE 2100 and CSCE 2110</p><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" style="height:44px;flex:1">Add to schedule</button><button class="btn btn-ghost" style="height:44px">RateMyProf ↗</button></div><p style="margin-top:20px;font-size:12.5px">Drag the handle down or tap outside to close. Browser back also closes it.</p></section>
+  <div class="menu" id="menu" role="menu"><button><span class="dot"></span>Mornings<small>16 cr · 3 days</small></button><button><span class="dot" style="opacity:0"></span>No Fridays<small>16 cr · 4 days</small></button><button><span class="dot" style="opacity:0"></span>Backup<small>13 cr</small></button><hr><button>New schedule</button><button>Duplicate</button><button>Compare…</button><button>Open library</button></div>
+  <div class="toast" id="toast">Scrolled to top</div>
+
+  <nav class="tabbar" aria-label="Lenses">
+    <button data-lens="courses" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Courses</button>
+    <button data-lens="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 5v15M15 5v15"/></svg>Week</button>
+    <button data-lens="day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Day</button>
+  </nav>
+</div>
+<script>
+const phone=document.getElementById('phone');
+const R=[['m-done','CSCE 1030','Computer Science I','Done'],['m-done','CSCE 1040','Computer Science II','Done'],['m-taking','CSCE 2100','Foundations of Computing','Taking'],['m-taking','CSCE 2110','Foundations of Data Structures','Taking'],['m-planned','CSCE 3110','Data Structures and Algorithms','Planned'],['m-avail','CSCE 3600','Systems Programming',''],['m-locked','CSCE 4110','Algorithms','Locked']];
+document.getElementById('rows').innerHTML=R.map(r=>`<button class="row" aria-selected="false"><span class="mark ${r[0]}"></span><span class="code">${r[1]}</span><span class="w">${r[3]}</span><span class="t">${r[2]}</span></button>`).join('');
+/* lenses switch instantly; tapping the active tab scrolls to top */
+document.querySelectorAll('.tabbar [data-lens]').forEach(b=>b.onclick=()=>{const l=b.dataset.lens;if(phone.dataset.lens===l){const m=document.getElementById('l-'+l);m.scrollTo({top:0,behavior:'smooth'});toast('Scrolled to top');return}closeAll();phone.dataset.lens=l;document.querySelectorAll('.tabbar [data-lens]').forEach(x=>x.toggleAttribute('aria-current',x===b));history.pushState({lens:l},'')});
+/* rows open the modal sheet */
+document.querySelectorAll('.row').forEach(r=>r.onclick=()=>{document.querySelectorAll('.row').forEach(x=>x.setAttribute('aria-selected',x===r));phone.setAttribute('data-sheet','');history.pushState({sheet:true},'')});
+document.getElementById('scrim').onclick=()=>closeSheet();
+function closeSheet(){phone.removeAttribute('data-sheet');document.querySelectorAll('.row').forEach(x=>x.setAttribute('aria-selected','false'))}
+function closeAll(){closeSheet();document.getElementById('menu').classList.remove('on')}
+addEventListener('popstate',()=>{if(phone.hasAttribute('data-sheet'))closeSheet();else{const s=history.state&&history.state.lens;if(s){phone.dataset.lens=s;document.querySelectorAll('.tabbar [data-lens]').forEach(x=>x.toggleAttribute('aria-current',x.dataset.lens===s))}}});
+/* modal sheet: drag down to dismiss with velocity; pointer capture; second touch ignored */
+const sheet=document.getElementById('sheet');let sd=null;
+sheet.addEventListener('pointerdown',e=>{if(sd||sheet.scrollTop>0)return;sd={y:e.clientY,t:performance.now(),id:e.pointerId};sheet.setPointerCapture(e.pointerId);sheet.classList.add('drag')});
+sheet.addEventListener('pointermove',e=>{if(!sd||e.pointerId!==sd.id)return;const dy=Math.max(0,e.clientY-sd.y);sheet.style.transform=`translateY(${dy}px)`});
+sheet.addEventListener('pointerup',e=>{if(!sd||e.pointerId!==sd.id)return;const dy=e.clientY-sd.y,v=dy/Math.max(1,performance.now()-sd.t);sheet.classList.remove('drag');sheet.style.transform='';sd=null;if(dy>120||v>0.11){closeSheet();history.back()}});
+/* day sheet: peek / half / full */
+const ds=document.getElementById('daysheet');const DET=()=>({peek:112,half:Math.round(phone.clientHeight*.5),full:Math.round(phone.clientHeight*.92)});let det='peek',dd=null;
+function setDet(d){det=d;ds.style.transform=`translateY(calc(${phone.clientHeight*.92-DET()[d]}px - var(--sa-bot)))`}
+ds.addEventListener('pointerdown',e=>{if(dd)return;dd={y:e.clientY,t:performance.now(),h:DET()[det],id:e.pointerId};ds.setPointerCapture(e.pointerId);ds.classList.add('drag')});
+ds.addEventListener('pointermove',e=>{if(!dd||e.pointerId!==dd.id)return;let h=dd.h-(e.clientY-dd.y);const max=DET().full;if(h>max)h=max+(h-max)*.3;h=Math.max(72,h);ds.style.transform=`translateY(calc(${phone.clientHeight*.92-h}px - var(--sa-bot)))`});
+ds.addEventListener('pointerup',e=>{if(!dd||e.pointerId!==dd.id)return;const dy=dd.y-e.clientY,v=dy/Math.max(1,performance.now()-dd.t),h=dd.h+dy;ds.classList.remove('drag');const o=['peek','half','full'];let n;if(Math.abs(v)>0.11){n=o[Math.max(0,Math.min(2,o.indexOf(det)+(v>0?1:-1)))]}else{const D=DET();n=o.reduce((a,b)=>Math.abs(D[b]-h)<Math.abs(D[a]-h)?b:a)}dd=null;setDet(n)});
+/* schedule chip menu, origin top-right */
+document.querySelectorAll('.chip').forEach(c=>c.onclick=e=>{e.stopPropagation();document.getElementById('menu').classList.toggle('on')});
+document.addEventListener('click',e=>{if(!e.target.closest('.menu,.chip'))document.getElementById('menu').classList.remove('on')});
+document.querySelectorAll('.dh button').forEach(b=>b.onclick=()=>{phone.dataset.lens='day';document.querySelectorAll('.tabbar [data-lens]').forEach(x=>x.toggleAttribute('aria-current',x.dataset.lens==='day'));setDet('half')});
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),1600)}
+history.replaceState({lens:'courses'},'');
+</script>
+</body>
+</html>

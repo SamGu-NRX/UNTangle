@@ -19,8 +19,11 @@ import {
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
 import { compareAcademicTerms } from "@/lib/term-chronology";
-import { defaultWalkingTime } from "@/lib/planner-walking";
+import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import type { WalkingTimeFn } from "@/lib/planner-walking";
+import { optimize } from "@/lib/optimizer/optimize";
+import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
+import type { OptCourse, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
 import type {
   CoursePlan,
   Course,
@@ -31,7 +34,9 @@ import type {
   OptimizationKey,
   PlannerApiPayload,
   PlannerState,
+  ScheduleConstraints,
   ScheduleEvent,
+  SchedulePreferences,
   SectionMeeting,
   WeekDay,
 } from "@/lib/types";
@@ -105,117 +110,197 @@ export function getActiveCourseCodes(state: PlannerState) {
   return getPlanningTermCourseCodes(state);
 }
 
-/**
- * `unknownLegs` counts walks between back-to-back classes where a building has
- * no walking estimate. It is ranked before `score` (fewer unknown legs wins),
- * because an unknown walk could be any length and must not count as 0.
- */
-type ScheduleScore = { unknownLegs: number; score: number };
-
-function scoreSchedule(
-  option: OptimizationKey,
-  candidateSections: CourseSection[],
-  walkingTime: WalkingTimeFn,
-): ScheduleScore {
-  if (candidateSections.length === 0) {
-    return { unknownLegs: 0, score: 0 };
-  }
-
-  if (option === "maximizeProfessor") {
-    return { unknownLegs: 0, score: candidateSections.reduce((total, section) => total + section.rating * 10, 0) };
-  }
-
-  const meetings = candidateSections.flatMap((section) => section.meetings);
-  const starts = meetings.map((meeting) => toMinutes(meeting.start));
-  const ends = meetings.map((meeting) => toMinutes(meeting.end));
-  const byDay = new Map<WeekDay, SectionMeeting[]>();
-
-  meetings.forEach((meeting) => {
-    const current = byDay.get(meeting.day) ?? [];
-    current.push(meeting);
-    byDay.set(meeting.day, current);
-  });
-
-  let gapMinutes = 0;
-  let walkingSeconds = 0;
-  let unknownLegs = 0;
-  byDay.forEach((dayMeetings) => {
-    dayMeetings.sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-    for (let index = 1; index < dayMeetings.length; index += 1) {
-      gapMinutes += Math.max(0, toMinutes(dayMeetings[index].start) - toMinutes(dayMeetings[index - 1].end));
-      const leg = walkingTime(dayMeetings[index - 1].buildingId ?? "", dayMeetings[index].buildingId ?? "");
-      if (leg.source === "unknown") {
-        unknownLegs += 1;
-      } else {
-        walkingSeconds += leg.seconds;
-      }
-    }
-  });
-
-  switch (option) {
-    case "clusterMorning":
-      return { unknownLegs: 0, score: 10000 - starts.reduce((total, start) => total + start, 0) };
-    case "clusterNight":
-      return { unknownLegs: 0, score: starts.reduce((total, start) => total + start, 0) };
-    case "compact":
-      return { unknownLegs: 0, score: 10000 - gapMinutes - (Math.max(...ends) - Math.min(...starts)) };
-    case "minimizeDistance":
-      // Seconds keep roughly the old weighting against gap minutes: a mile
-      // was 1000 points as miles x 1000 and is about 1150 seconds at 1.4 m/s.
-      return { unknownLegs, score: 10000 - walkingSeconds - gapMinutes };
-    default:
-      return { unknownLegs: 0, score: 0 };
-  }
+/** Catalog sections of the given courses in the optimizer's shape (minutes, credits, labels). */
+export function toOptimizerCourses(courseCodes: readonly string[]): OptCourse[] {
+  return [...new Set(courseCodes)]
+    .map((code) => {
+      const course = getCourseByCode(code);
+      const courseSections = getSectionsForCourse(code);
+      if (!course || courseSections.length === 0) return null;
+      return {
+        code,
+        credits: Number.isFinite(course.creditHours) && course.creditHours >= 0 ? course.creditHours : 0,
+        sections: courseSections.map(
+          (section): OptSection => ({
+            id: section.id,
+            courseCode: code,
+            label: sectionNumber(section.id),
+            rating: Number.isFinite(section.rating) && section.rating > 0 ? section.rating : null,
+            meetings: section.meetings.map((meeting) => ({
+              day: meeting.day,
+              start: toMinutes(meeting.start),
+              end: toMinutes(meeting.end),
+              buildingId: meeting.buildingId ?? null,
+            })),
+          }),
+        ),
+      };
+    })
+    .filter((course): course is OptCourse => course !== null);
 }
 
+/**
+ * Node budget for `recommendSections`. It runs inside state normalization,
+ * which must give the same answer on every render and every machine, so it
+ * is bounded by work done, not by the clock. Most calls fix every course but
+ * one and finish in a handful of nodes; this bound only matters when a goal
+ * re-plans every course at once (then the best schedule found so far is used).
+ */
+const RECOMMEND_MAX_NODES = 20_000;
+
+/**
+ * One schedule for a goal, keeping `fixedSelections` (locks and existing
+ * picks) as they are. Courses without section data are skipped. When the
+ * fixed sections clash so that nothing fits, the fixed sections are returned
+ * as they are and the clash is left for the page to show.
+ */
 export function recommendSections(
   option: OptimizationKey,
   courseCodes: string[] = courses.filter((course) => course.planned).map((course) => course.code),
   fixedSelections: Record<string, string> = {},
-  walkingTime: WalkingTimeFn = defaultWalkingTime,
+  // Campus walkway times, the same provider Optimize uses (straight line where no path is mapped).
+  walkingTime: WalkingTimeFn = getWalkingSeconds,
 ) {
-  const activeCodes = [...new Set(courseCodes)];
-  const fixedSections = activeCodes
-    .map((courseCode) => sections.find((section) => section.id === fixedSelections[courseCode]))
-    .filter((section): section is CourseSection => Boolean(section));
-  const fixedCourseCodes = new Set(fixedSections.map((section) => section.courseCode));
-  const sectionOptions = activeCodes
-    .filter((courseCode) => !fixedCourseCodes.has(courseCode))
-    .map((courseCode) => getSectionsForCourse(courseCode))
-    .filter((courseSections) => courseSections.length > 0);
-  let bestSelection: CourseSection[] = [...fixedSections];
-  let best: ScheduleScore = { unknownLegs: Number.POSITIVE_INFINITY, score: Number.NEGATIVE_INFINITY };
-
-  if (fixedSections.length === 0 && sectionOptions.length === 0) {
+  const optimizerCourses = toOptimizerCourses(courseCodes);
+  const locks = Object.fromEntries(
+    optimizerCourses
+      .filter((course) => course.sections.some((section) => section.id === fixedSelections[course.code]))
+      .map((course) => [course.code, fixedSelections[course.code]]),
+  );
+  if (optimizerCourses.length === 0) {
     return {};
   }
-
-  function walk(index: number, current: CourseSection[]) {
-    if (index === sectionOptions.length) {
-      const candidate = scoreSchedule(option, current, walkingTime);
-      if (
-        candidate.unknownLegs < best.unknownLegs ||
-        (candidate.unknownLegs === best.unknownLegs && candidate.score > best.score)
-      ) {
-        best = candidate;
-        bestSelection = [...current];
-      }
-      return;
-    }
-
-    sectionOptions[index].forEach((section) => {
-      if (sectionConflicts(section, current)) {
-        return;
-      }
-      current.push(section);
-      walk(index + 1, current);
-      current.pop();
-    });
+  const result = optimize({
+    courses: optimizerCourses,
+    locks,
+    excluded: [],
+    constraints: NO_CONSTRAINTS,
+    weights: GOAL_WEIGHTS[option],
+    walkingTime,
+    k: 1,
+    maxNodes: RECOMMEND_MAX_NODES,
+    timeBudgetMs: Number.POSITIVE_INFINITY,
+    explainBudgetMs: 0,
+  });
+  if (result.schedules.length > 0) {
+    return { ...result.schedules[0].byCourse };
   }
+  return locks;
+}
 
-  walk(0, [...fixedSections]);
+/** Course codes the optimizer was asked about that have no section data. */
+export function coursesWithoutSections(courseCodes: readonly string[]): string[] {
+  return courseCodes.filter((code) => getSectionsForCourse(code).length === 0);
+}
 
-  return Object.fromEntries(bestSelection.map((section) => [section.courseCode, section.id]));
+export const DEFAULT_SCHEDULE_CONSTRAINTS: ScheduleConstraints = {
+  earliestStart: null,
+  latestEnd: null,
+  daysOff: [],
+  blocked: [],
+  maxCredits: null,
+  // On by default: a schedule whose walk does not fit the break is not a schedule.
+  walkingBufferMinutes: 0,
+  excludedSections: [],
+};
+
+export function defaultSchedulePreferences(goal: OptimizationKey): SchedulePreferences {
+  return { constraints: DEFAULT_SCHEDULE_CONSTRAINTS, weights: { ...GOAL_WEIGHTS[goal] } };
+}
+
+const WEEK_DAYS: readonly WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+function isMinute(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 24 * 60;
+}
+
+function isWeight(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 4;
+}
+
+/**
+ * Stored preferences, or null when the stored value is not a valid
+ * preferences object (it is then replaced by defaults, never half-read).
+ */
+export function parseSchedulePreferences(raw: unknown): SchedulePreferences | null {
+  if (!isPlainRecord(raw) || !isPlainRecord(raw.constraints) || !isPlainRecord(raw.weights)) return null;
+  const c = raw.constraints;
+  const w = raw.weights;
+  const weightKeys = ["fewerDays", "compact", "mornings", "evenings", "walking", "rating"] as const;
+  if (!weightKeys.every((key) => isWeight(w[key]))) return null;
+  if (!(c.earliestStart === null || isMinute(c.earliestStart))) return null;
+  if (!(c.latestEnd === null || isMinute(c.latestEnd))) return null;
+  if (!Array.isArray(c.daysOff) || !c.daysOff.every((day) => WEEK_DAYS.includes(day as WeekDay))) return null;
+  if (!(c.maxCredits === null || (typeof c.maxCredits === "number" && c.maxCredits >= 0 && c.maxCredits <= 40))) return null;
+  if (!(c.walkingBufferMinutes === null || (isMinute(c.walkingBufferMinutes) && c.walkingBufferMinutes <= 120))) return null;
+  if (!Array.isArray(c.excludedSections) || !c.excludedSections.every((id) => typeof id === "string")) return null;
+  if (
+    !Array.isArray(c.blocked) ||
+    !c.blocked.every(
+      (block) =>
+        isPlainRecord(block) &&
+        typeof block.id === "string" &&
+        typeof block.label === "string" &&
+        WEEK_DAYS.includes(block.day as WeekDay) &&
+        isMinute(block.start) &&
+        isMinute(block.end) &&
+        (block.end as number) > (block.start as number),
+    )
+  ) {
+    return null;
+  }
+  // Blocked-time ids name the cause in an infeasibility explanation; the optimizer rejects duplicates.
+  const blockedIds = (c.blocked as Array<{ id: string }>).map((block) => block.id);
+  if (new Set(blockedIds).size !== blockedIds.length) return null;
+  return {
+    constraints: {
+      earliestStart: c.earliestStart as number | null,
+      latestEnd: c.latestEnd as number | null,
+      daysOff: [...new Set(c.daysOff as WeekDay[])],
+      blocked: c.blocked as ScheduleConstraints["blocked"],
+      maxCredits: c.maxCredits as number | null,
+      walkingBufferMinutes: c.walkingBufferMinutes as number | null,
+      excludedSections: [...new Set(c.excludedSections as string[])],
+    },
+    weights: Object.fromEntries(weightKeys.map((key) => [key, w[key]])) as SchedulePreferences["weights"],
+  };
+}
+
+/**
+ * The optimizer request for a plan. `courseCodes` defaults to the courses
+ * marked Taking; a course-suggestion step can pass its own list instead.
+ * Locks come from the plan; excluded sections that no longer exist in the
+ * catalog are dropped rather than rejected.
+ */
+export function buildOptimizeRequest(
+  state: PlannerState,
+  preferences: SchedulePreferences,
+  options: { courseCodes?: string[]; walkingTime?: WalkingTimeFn; timeBudgetMs?: number; k?: number } = {},
+): OptimizeRequest {
+  const optimizerCourses = toOptimizerCourses(options.courseCodes ?? getPlanningTermCourseCodes(state));
+  const offered = new Set(optimizerCourses.flatMap((course) => course.sections.map((section) => section.id)));
+  const locked = getLockedSelections(state);
+  const c = preferences.constraints;
+  return {
+    courses: optimizerCourses,
+    locks: Object.fromEntries(
+      optimizerCourses.filter((course) => offered.has(locked[course.code] ?? "")).map((course) => [course.code, locked[course.code]]),
+    ),
+    excluded: c.excludedSections.filter((id) => offered.has(id)),
+    constraints: {
+      earliestStart: c.earliestStart,
+      latestEnd: c.latestEnd,
+      daysOff: c.daysOff,
+      blocked: c.blocked,
+      maxCredits: c.maxCredits,
+      walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
+    },
+    weights: preferences.weights,
+    // Campus walkway times (map v2's matrix), straight-line only where the walkway graph has no route.
+    walkingTime: options.walkingTime ?? getWalkingSeconds,
+    k: options.k ?? 3,
+    timeBudgetMs: options.timeBudgetMs ?? 300,
+  };
 }
 
 export function normalizePlannerState(state: PlannerState): PlannerState {

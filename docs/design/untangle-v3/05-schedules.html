@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v3 · Schedules library and compare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f3f5f1;--surface:#fff;--surface-2:#edf1ec;--surface-3:#e3e9e2;--line:#dbe4da;--line-strong:#c2d0c2;--ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6f836d;--ink-4:#9aab99;--brand:#00512b;--brand-hover:#00703a;--brand-soft:#e3efe6;--accent:#00a855;--danger:#b3261e;--danger-soft:#fbeae8;--font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;--shadow-1:0 1px 2px rgba(26,46,26,.06);--shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);--focus:0 0 0 2px var(--surface),0 0 0 4px var(--accent);--ease-out:cubic-bezier(.23,1,.32,1);--t-press:120ms;--t-hover:160ms;--t-pop:160ms;--t-exit:150ms}
+body{font:14px/20px var(--font-body);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;min-height:100dvh}
+button,input{font:inherit;color:inherit}button{background:none;border:0;cursor:pointer;touch-action:manipulation}
+a{color:var(--brand);text-decoration:none;font-weight:600}
+.code{font-family:var(--font-display);font-weight:700}.num{font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:10px;font-weight:600;font-size:14px;white-space:nowrap;transition:transform var(--t-press) var(--ease-out),background-color var(--t-hover) ease}
+.btn:active{transform:scale(.97)}.btn:focus-visible{outline:0;box-shadow:var(--focus)}
+.btn-primary{background:var(--brand);color:#fff}.btn-ghost{background:var(--surface);border:1px solid var(--line-strong)}.btn-quiet{color:var(--ink-2)}
+.btn[disabled]{background:var(--surface-2);color:var(--ink-4);border-color:transparent;cursor:default}
+.btn-sm{height:28px;padding:0 10px;font-size:12.5px;border-radius:8px}
+@media(hover:hover) and (pointer:fine){.btn-primary:hover{background:var(--brand-hover)}.btn-ghost:hover,.btn-quiet:hover{background:var(--surface-2)}}
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:24px}
+.wordmark{font:800 22px/1 var(--font-display);color:var(--brand);letter-spacing:-.01em}
+.seg{display:inline-flex;position:relative;background:var(--surface-3);border-radius:8px;padding:2px;height:32px}
+.seg button{position:relative;z-index:1;min-width:84px;padding:0 14px;font-size:13px;font-weight:600;color:var(--ink-2);border-radius:6px}
+.plan-chip{margin-left:auto;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);font-size:13px;font-weight:600}
+.plan-chip .t{font-weight:400;color:var(--ink-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.caret{width:8px;height:8px;border-right:1.5px solid var(--ink-3);border-bottom:1.5px solid var(--ink-3);transform:rotate(45deg) translateY(-2px)}
+.sel{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font-size:13px;font-weight:600}
+main{max-width:880px;margin:0 auto;padding:0 32px 120px}
+.viewhead{display:flex;align-items:center;gap:12px;height:48px}
+.viewhead h1{font-size:15px;font-weight:600}
+.viewhead .sp{margin-left:auto;display:flex;gap:8px}
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-top:12px;overflow:visible}
+.row{display:grid;grid-template-columns:16px 16px 1fr auto auto;gap:14px;align-items:center;min-height:64px;padding:10px 14px;border-top:1px solid var(--line);position:relative}
+.row:first-child{border-top:0}
+.row .h{width:16px;height:16px;color:var(--ink-4);cursor:grab;display:grid;place-items:center;font-size:12px;letter-spacing:-2px}
+.row .cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--line-strong);display:grid;place-items:center}
+.row .cb[aria-checked=true]{background:var(--brand);border-color:var(--brand)}.row .cb[aria-checked=true]::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+.row .nm{display:flex;align-items:center;gap:8px;font-weight:600}
+.row .nm input{font-weight:600;border:0;border-bottom:1px solid var(--brand);outline:0;background:none;width:160px;display:none}
+.row.editing .nm span{display:none}.row.editing .nm input{display:inline-block}
+.row .nm small{font-weight:400;font-size:12.5px;color:var(--ink-2)}
+.row .fig{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.row .act{display:flex;gap:6px;align-items:center}
+.menu{position:absolute;top:44px;right:14px;min-width:200px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-2);padding:4px;z-index:20;transform-origin:top right;opacity:0;transform:scale(.97);pointer-events:none;transition:opacity var(--t-exit) ease,transform var(--t-exit) var(--ease-out)}
+.menu.on{opacity:1;transform:none;pointer-events:auto;transition-duration:var(--t-pop)}
+.menu button{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px}
+.menu button.d{color:var(--danger)}.menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+@media(hover:hover) and (pointer:fine){.menu button:hover{background:var(--surface-2)}}
+.empty{color:var(--ink-2);padding:24px 0}
+/* compare */
+.cmp{display:none;margin-top:16px}
+body[data-view=compare] .lib{display:none}body[data-view=compare] .cmp{display:block}
+.cmp .head{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cmp .head div{font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:8px}
+.cmp .head small{font-weight:400;font-size:12.5px;color:var(--ink-2)}
+.figs{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.figs b{display:block;font:700 20px/24px var(--font-display)}
+.figs b .d{font:600 12.5px/16px var(--font-body);margin-left:4px}
+.figs .up{color:var(--brand)}.figs .dn{color:var(--danger)}
+.figs span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.diff{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.drow{display:grid;grid-template-columns:96px 1fr 1fr;gap:12px;align-items:center;height:44px;padding:0 14px;border-top:1px solid var(--line)}
+.drow:first-child{border-top:0;height:32px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--surface-2)}
+.drow .s{font-size:13px;color:var(--ink-2)}
+.drow.added .b{background:var(--brand-soft);color:var(--brand);padding:4px 8px;border-radius:6px;font-weight:600;display:inline-block}
+.drow.removed .a{background:var(--danger-soft);color:var(--danger);padding:4px 8px;border-radius:6px;display:inline-block}
+.drow.removed .code{text-decoration:line-through}
+.drow.changed .b b{color:var(--brand)}
+.cmp .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.tabbar{display:none}
+.dev{position:fixed;left:16px;bottom:16px;display:flex;gap:6px;align-items:center;background:#1a2e1a;color:#fff;padding:6px 8px;border-radius:999px;font-size:11px;z-index:60}
+.dev b{opacity:.6;margin:0 4px}.dev button{color:#fff;background:rgba(255,255,255,.12);border-radius:999px;padding:4px 8px;font-size:11px}
+@media (max-width:719px){
+  .topbar{height:48px;padding:0 16px}.wordmark{font-size:18px}.seg{display:none}
+  main{padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+  .viewhead{flex-wrap:wrap;height:auto;padding:12px 0}.viewhead .sp{width:100%;margin:0}
+  .row{grid-template-columns:16px 1fr auto;min-height:72px}.row .h{display:none}.row .act .btn:not(.more){display:none}
+  .figs{grid-template-columns:repeat(2,1fr)}
+  .drow{grid-template-columns:72px 1fr 1fr;font-size:13px}
+  .btn{height:44px}.btn-sm{height:32px}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line);z-index:40}
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--ink-2)}
+  .tabbar svg{width:22px;height:22px}
+  .dev{left:8px;right:8px;bottom:calc(64px + env(safe-area-inset-bottom))}
+}
+@media (prefers-reduced-motion:reduce){.menu{transition-property:opacity;transform:none!important}.btn:active{transform:none}}
+</style>
+</head>
+<body data-view="library">
+<header class="topbar"><span class="wordmark">UNTangle</span><nav class="seg" aria-label="Lens"><button>Courses</button><button>Week</button><button>Day</button></nav><button class="plan-chip"><span class="dot"></span>Mornings <span class="t">· Spring 2027</span><span class="caret"></span></button></header>
+<main>
+  <section class="lib">
+    <div class="viewhead"><h1>Schedules</h1><button class="sel">Spring 2027 <span class="caret"></span></button><div class="sp"><button class="btn btn-ghost" id="cmpbtn" disabled>Compare</button><button class="btn btn-primary">New schedule</button></div></div>
+    <div class="rows" id="rows"></div>
+    <p class="empty" style="font-size:12.5px">Up to 10 schedules per term. Drag to reorder; the first one opens by default.</p>
+  </section>
+
+  <section class="cmp">
+    <div class="viewhead"><a href="#" id="back">‹ Schedules</a><h1 style="margin-left:4px">Compare</h1></div>
+    <div class="head"><div>Mornings <small>A · active</small></div><div>No Fridays <small>B</small></div></div>
+    <div class="figs">
+      <div><b class="num">16 <span class="d">→ 16</span></b><span>credits</span></div>
+      <div><b class="num">3 <span class="d dn">→ 4</span></b><span>days</span></div>
+      <div><b class="num">38 <span class="d up">→ 31 min</span></b><span>walking / wk</span></div>
+      <div><b class="num">9:00 <span class="d">→ 9:00</span></b><span>earliest</span></div>
+      <div><b class="num">12:50 <span class="d dn">→ 2:20</span></b><span>latest</span></div>
+    </div>
+    <div class="diff">
+      <div class="drow"><span>Course</span><span>Mornings</span><span>No Fridays</span></div>
+      <div class="drow"><span class="code">CSCE 3110</span><span class="s">§001 · Mon Wed Fri 9:00</span><span class="s">§001 · Mon Wed Fri 9:00</span></div>
+      <div class="drow changed"><span class="code">CSCE 3600</span><span class="s">§002 · Tue Thu 11:00</span><span class="s b"><b>§004</b> · Mon Wed 11:00–12:20</span></div>
+      <div class="drow"><span class="code">MATH 2700</span><span class="s">§003 · Mon Wed Fri 10:00</span><span class="s">§003 · Mon Wed Fri 10:00</span></div>
+      <div class="drow removed"><span class="code">PHIL 2050</span><span class="s a">§004 · Mon Wed Fri 12:00</span><span class="s">—</span></div>
+      <div class="drow added"><span class="code">PSYC 1630</span><span class="s">—</span><span class="s b">§005 · Tue Thu 1:00</span></div>
+      <div class="drow changed"><span class="code">PHYS 2220</span><span class="s">§001 · Tue Thu 9:30</span><span class="s b"><b>§003</b> · Tue Thu 2:00</span></div>
+      <div class="drow"><span class="code">ENGL 2100</span><span class="s">§900 · online</span><span class="s">§900 · online</span></div>
+    </div>
+    <div class="foot"><button class="btn btn-ghost">Open A</button><button class="btn btn-primary">Open B</button></div>
+  </section>
+</main>
+<nav class="tabbar" aria-label="Lenses"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Courses</button><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 5v15M15 5v15"/></svg>Week</button><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Day</button></nav>
+<div class="dev"><b>views</b><button data-v="library">library</button><button data-v="compare">compare</button><button data-v="menu">row menu</button></div>
+<script>
+const S=[{n:'Mornings',a:true,e:'edited 2 h ago',f:'16 cr · 5 courses · 3 days · 38 min walking · 9:00–12:50'},{n:'No Fridays',e:'edited yesterday',f:'16 cr · 5 courses · 4 days · 31 min walking · 9:00–2:20'},{n:'Backup',e:'edited Oct 2',f:'13 cr · 4 courses · 3 days · 22 min walking · 10:00–12:50'}];
+const rows=document.getElementById('rows');let checked=new Set();
+rows.innerHTML=S.map((s,i)=>`<div class="row" data-i="${i}"><span class="h" aria-hidden="true">⋮⋮</span><button class="cb" role="checkbox" aria-checked="false" aria-label="Select ${s.n}"></button><div><div class="nm">${s.a?'<span class="dot"></span>':''}<span>${s.n}</span><input value="${s.n}" aria-label="Name"><small>${s.e}</small></div><div class="fig num">${s.f}</div></div><div class="act"><button class="btn btn-ghost btn-sm" ${s.a?'disabled':''}>${s.a?'Active':'Open'}</button><button class="btn btn-quiet btn-sm more" aria-haspopup="menu" aria-expanded="false" aria-label="More">⋯</button></div><div class="menu" role="menu"><button>Compare with…</button><button>Duplicate</button><button data-ren>Rename</button><hr><button>Export…</button><hr><button class="d">Delete…</button></div></div>`).join('');
+rows.querySelectorAll('.cb').forEach(c=>c.onclick=()=>{const i=c.closest('.row').dataset.i;const on=c.getAttribute('aria-checked')!=='true';if(on&&checked.size===2)return;c.setAttribute('aria-checked',on);on?checked.add(i):checked.delete(i);document.getElementById('cmpbtn').disabled=checked.size!==2});
+function closeMenus(){rows.querySelectorAll('.menu.on').forEach(m=>m.classList.remove('on'));rows.querySelectorAll('.more').forEach(b=>b.setAttribute('aria-expanded','false'))}
+rows.querySelectorAll('.more').forEach(b=>b.onclick=e=>{e.stopPropagation();const m=b.closest('.row').querySelector('.menu');const on=!m.classList.contains('on');closeMenus();if(on){m.classList.add('on');b.setAttribute('aria-expanded','true')}});
+rows.querySelectorAll('[data-ren]').forEach(b=>b.onclick=()=>{const r=b.closest('.row');closeMenus();r.classList.add('editing');const i=r.querySelector('input');i.focus();i.select();i.onblur=i.onkeydown=e=>{if(e.type==='blur'||e.key==='Enter'){r.querySelector('.nm span:not(.dot)').textContent=i.value;r.classList.remove('editing')}if(e.key==='Escape'){r.classList.remove('editing')}}});
+document.addEventListener('click',e=>{if(!e.target.closest('.menu,.more'))closeMenus()});
+document.getElementById('cmpbtn').onclick=()=>document.body.dataset.view='compare';
+document.getElementById('back').onclick=e=>{e.preventDefault();document.body.dataset.view='library'};
+document.querySelectorAll('.dev [data-v]').forEach(b=>b.onclick=()=>{if(b.dataset.v==='menu'){document.body.dataset.view='library';rows.querySelector('.more').click()}else document.body.dataset.view=b.dataset.v});
+</script>
+</body>
+</html>
