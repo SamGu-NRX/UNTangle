@@ -18,6 +18,7 @@ import {
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
 import { compareAcademicTerms } from "@/lib/term-chronology";
+import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { defaultWalkingTime } from "@/lib/planner-walking";
 import type { WalkingTimeFn } from "@/lib/planner-walking";
 import { optimize } from "@/lib/optimizer/optimize";
@@ -230,6 +231,9 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
   ) {
     return null;
   }
+  // Blocked-time ids name the cause in an infeasibility explanation; the optimizer rejects duplicates.
+  const blockedIds = (c.blocked as Array<{ id: string }>).map((block) => block.id);
+  if (new Set(blockedIds).size !== blockedIds.length) return null;
   return {
     constraints: {
       earliestStart: c.earliestStart as number | null,
@@ -274,7 +278,8 @@ export function buildOptimizeRequest(
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },
     weights: preferences.weights,
-    walkingTime: options.walkingTime ?? defaultWalkingTime,
+    // Campus walkway times (map v2's matrix), straight-line only where the walkway graph has no route.
+    walkingTime: options.walkingTime ?? getWalkingSeconds,
     k: options.k ?? 3,
     timeBudgetMs: options.timeBudgetMs ?? 300,
   };
