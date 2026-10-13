@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { budgets, trustedIpHeader, windowMs, type Budget, type RouteClass } from "./config";
+import { budgetWindowMs, budgets, trustedIpHeader, type Budget, type RouteClass } from "./config";
 import { clientIp } from "./ip";
 import type { RateLimitStore } from "./store";
 
@@ -24,6 +24,7 @@ export function createRateLimitWrapper({ store, session, secret, now = Date.now 
     async (request: Request, ...args: Args): Promise<Response> => {
       const budget: Budget = budgets[route];
       const time = now();
+      const windowMs = budgetWindowMs(budget);
       const window = Math.floor(time / windowMs);
       let allowed: boolean;
       try {
@@ -31,7 +32,7 @@ export function createRateLimitWrapper({ store, session, secret, now = Date.now 
         const [caller, limit]: [string, number] = budget.user && userId
           ? [`user:${userId}`, budget.user]
           : [`ip:${clientIp(request, trustedIpHeader())}`, budget.ip];
-        allowed = (await store.hit(route, hash(caller), window)) <= limit;
+        allowed = (await store.hit(route, hash(caller), window, windowMs)) <= limit;
       } catch (error) {
         console.error("Rate limiting unavailable", error);
         return Response.json({ error: "Abuse prevention unavailable. Try again later." },

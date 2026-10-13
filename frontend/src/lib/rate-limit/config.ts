@@ -1,16 +1,23 @@
+/** The default window, and better-auth's own limiter window (its rows are swept on this basis). */
 export const windowMs = 60_000;
-export type Budget = { user?: number; ip: number };
+/** `windowSeconds` defaults to 60. */
+export type Budget = { user?: number; ip: number; windowSeconds?: number };
+
+/** The window length for one budget, in milliseconds. */
+export function budgetWindowMs(budget: Budget): number {
+  return (budget.windowSeconds ?? 60) * 1000;
+}
 
 /**
- * Requests per minute for each route class. Signed-in callers count against `user`, anonymous
+ * Requests per window (60 s unless `windowSeconds` says otherwise) for each route class. Signed-in callers count against `user`, anonymous
  * callers against `ip`; a class without `user` counts everyone by IP. These are unmeasured
  * starting values: no production traffic has been looked at to choose them.
  */
 export const budgets = {
   auth: { ip: 30 },
-  // Auth emails per recipient inbox, not per IP (lib/email-budget.ts): a sign-in link and one
-  // resend a minute. Counted directly through the store, never through withRateLimit.
-  authEmail: { ip: 2 },
+  // Auth emails per recipient inbox, not per IP (lib/email-budget.ts): 3 per 10 minutes, an
+  // unmeasured starting value. Counted directly through the store, never through withRateLimit.
+  authEmail: { ip: 3, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },

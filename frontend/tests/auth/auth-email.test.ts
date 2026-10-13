@@ -125,7 +125,7 @@ describe("production configuration check", () => {
   });
 });
 
-describe("the per-inbox send budget (lib/rate-limit's store, class authEmail: 2 a minute)", () => {
+describe("the per-inbox send budget (lib/rate-limit's store, class authEmail: 3 per 10 minutes)", () => {
   const deps = (now = () => 1_000_000) => {
     const lines: string[] = [];
     return {
@@ -134,36 +134,39 @@ describe("the per-inbox send budget (lib/rate-limit's store, class authEmail: 2 
     };
   };
 
-  test("12 parallel sends to one address deliver 2; the rest are refused", async () => {
+  test("12 parallel sends to one address deliver 3; the rest are refused", async () => {
     const { lines, deps: d } = deps();
     const results = await Promise.allSettled(
       Array.from({ length: 12 }, () => deliverAuthEmail("magic-link", "eagle@my.unt.edu", URL_, d)),
     );
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
     const refused = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    expect(refused).toHaveLength(10);
+    expect(refused).toHaveLength(9);
     for (const r of refused) expect(r.reason).toBeInstanceOf(EmailBudgetExceeded);
-    expect(lines).toHaveLength(2);
+    expect(lines).toHaveLength(3);
   });
 
   test("case, spaces and +tags reach the same inbox, so they share one budget", async () => {
     const { lines, deps: d } = deps();
-    for (const to of ["Eagle@My.UNT.edu", " eagle+1@my.unt.edu", "eagle+2@MY.unt.edu"]) {
+    for (const to of ["Eagle@My.UNT.edu", " eagle+1@my.unt.edu", "eagle+2@MY.unt.edu", "eagle@my.unt.edu"]) {
       await deliverAuthEmail("magic-link", to, URL_, d).catch(() => {});
     }
-    expect(lines).toHaveLength(2);
+    expect(lines).toHaveLength(3);
     expect(budgetKey(" Eagle+x@My.UNT.edu ")).toBe("eagle@my.unt.edu");
   });
 
-  test("another address has its own budget, and the next window refills it", async () => {
-    let clock = 1_000_000;
+  test("another address has its own budget, and only the next 10-minute window refills it", async () => {
+    let clock = 2 * 600_000; // the start of a 10-minute window
     const { lines, deps: d } = deps(() => clock);
-    for (let i = 0; i < 3; i++) await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d).catch(() => {});
+    for (let i = 0; i < 4; i++) await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d).catch(() => {});
     await deliverAuthEmail("magic-link", "b@my.unt.edu", URL_, d);
-    expect(lines).toHaveLength(3);
-    clock += 60_000;
-    await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d);
     expect(lines).toHaveLength(4);
+    clock += 5 * 60_000; // five minutes later: same window, still refused
+    await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d).catch(() => {});
+    expect(lines).toHaveLength(4);
+    clock += 5 * 60_000; // ten minutes: a new window
+    await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d);
+    expect(lines).toHaveLength(5);
   });
 
   test("the store only ever sees an HMAC of the address", async () => {

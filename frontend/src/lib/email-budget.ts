@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { budgets, windowMs } from "@/lib/rate-limit/config";
+import { budgetWindowMs, budgets } from "@/lib/rate-limit/config";
 import type { RateLimitStore } from "@/lib/rate-limit/store";
 
 /**
@@ -10,8 +10,7 @@ import type { RateLimitStore } from "@/lib/rate-limit/store";
  *
  * Counts live in lib/rate-limit's store, as the "authEmail" class: one
  * atomic hit per send, shared through Postgres across instances in
- * production. The store's windows are its fixed 60 s, so the budget is per
- * minute (budgets.authEmail).
+ * production, over the budget's own 10-minute window (budgets.authEmail).
  */
 export interface SendBudget {
   /** Counts one send to `recipient`; false when its budget for this window is used up. */
@@ -45,7 +44,8 @@ export function recipientBudget({
   return {
     async take(recipient) {
       const caller = createHmac("sha256", key).update(`email:${budgetKey(recipient)}`).digest("base64url");
-      const count = await store.hit("authEmail", caller, Math.floor(now() / windowMs));
+      const windowMs = budgetWindowMs(budgets.authEmail);
+      const count = await store.hit("authEmail", caller, Math.floor(now() / windowMs), windowMs);
       return count <= budgets.authEmail.ip;
     },
   };
@@ -53,7 +53,7 @@ export function recipientBudget({
 
 export class EmailBudgetExceeded extends Error {
   constructor(readonly recipient: string) {
-    super("Too many sign-in emails to this address. Try again in a minute.");
+    super("Too many sign-in emails to this address. Try again in 10 minutes.");
     this.name = "EmailBudgetExceeded";
   }
 }

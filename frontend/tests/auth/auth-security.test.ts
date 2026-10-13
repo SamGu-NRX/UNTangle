@@ -155,7 +155,7 @@ function budgetedSender(logged: string[], now = () => 1_000_000) {
 }
 
 describe("email bombing", () => {
-  test("12 parallel sign-in link requests for one inbox send 2 emails; the rest get 429", async () => {
+  test("12 parallel sign-in link requests for one inbox send 3 emails; the rest get 429", async () => {
     const logged: string[] = [];
     const { post } = setup(budgetedSender(logged));
     const statuses = await Promise.all(
@@ -163,9 +163,9 @@ describe("email bombing", () => {
         post("/sign-in/magic-link", { email: i % 2 ? "Victim+x@my.unt.edu" : VICTIM, callbackURL: "/courses" }).then((r) => r.status),
       ),
     );
-    expect(statuses.filter((s) => s === 200)).toHaveLength(2);
-    expect(statuses.filter((s) => s === 429)).toHaveLength(10);
-    expect(logged).toHaveLength(2);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(3);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(9);
+    expect(logged).toHaveLength(3);
   });
 });
 
@@ -195,10 +195,10 @@ describe("the auth route's IP budget and the recipient budget compose", () => {
     const logged: string[] = [];
     const { link } = wrapped(logged);
     const statuses = [];
-    for (let i = 0; i < 3; i++) statuses.push((await link(VICTIM)).status);
-    expect(statuses).toEqual([200, 200, 429]);
+    for (let i = 0; i < 4; i++) statuses.push((await link(VICTIM)).status);
+    expect(statuses).toEqual([200, 200, 200, 429]);
     expect((await link("someone-else@my.unt.edu")).status).toBe(200);
-    expect(logged).toHaveLength(3);
+    expect(logged).toHaveLength(4);
   });
 
   test("an exhausted IP budget answers 429 for a recipient with room left", async () => {

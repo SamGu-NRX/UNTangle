@@ -107,12 +107,15 @@ export const plannerStates = pgTable("planner_state", {
   revision: integer("revision").default(1).notNull(),
 });
 
-// One fixed-window counter per route class and caller. The window leads the key so cleanup deletes a range.
+// One fixed-window counter per route class and caller. Route classes can have different window
+// lengths, so each row carries its own expiry (epoch ms) and cleanup deletes by that.
 export const apiRateLimits = pgTable("api_rate_limit", {
   windowIndex: integer("window_index").notNull(),
   route: text("route").notNull(),
   caller: text("caller").notNull(),
   count: integer("count").notNull(),
+  // 0 for rows written before this column: already expired, swept on the next pass.
+  expiresAt: bigint("expires_at", { mode: "number" }).default(0).notNull(),
 }, (table) => [primaryKey({ columns: [table.windowIndex, table.route, table.caller] })]);
 
 // better-auth's own limiter counts here when its storage is "database".
