@@ -16,6 +16,12 @@ export type RuleToken =
   | { kind: "course"; id: string }
   | { kind: "unparsed"; text: string };
 
+/** "junior" -> "junior standing"; the engine's hour thresholds ("credits:45") -> "45 completed hours". */
+function standingText(minimum: string): string {
+  const hours = minimum.match(/^credits:(\d+)$/);
+  return hours ? `${hours[1]} completed hours` : `${minimum} standing`;
+}
+
 function group(kind: "all" | "any", items: RuleNode[]): RuleNode | null {
   const flat = items.flatMap((item) => (item.kind === kind ? item.items : [item]));
   if (flat.length === 0) return null;
@@ -51,7 +57,7 @@ export function ruleFromPrerequisite(node: Prerequisite): RuleNode | null {
       return inner && concurrent(inner);
     }
     case "standing":
-      return { kind: "standing", text: `${node.minimum} standing` };
+      return { kind: "standing", text: standingText(node.minimum) };
     case "consent":
       return { kind: "consent", text: node.authority.charAt(0).toLowerCase() + node.authority.slice(1) };
     case "unknown":
@@ -80,7 +86,7 @@ export function unmetFromReason(reason: Reason): RuleNode | null {
       return inner && concurrent(inner);
     }
     case "standing":
-      return { kind: "standing", text: reason.source ?? "class standing" };
+      return { kind: "standing", text: reason.source?.trim() || "class standing" };
     case "advisor":
       return children.length > 0
         ? group("all", children.flatMap((child) => unmetFromReason(child) ?? []))

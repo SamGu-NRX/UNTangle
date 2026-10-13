@@ -72,7 +72,12 @@ export function buildEvidence(profile: SchoolProfile, plan: PlanSnapshot): { evi
   const overrides = new Map(
     [...manualDone].map((id) => [id, { status: "done" as const, reason: "You marked this done." }]),
   );
-  return { evidence: { ...base, overrides }, manualDone };
+  // The plan for the planning term; the engine lets it satisfy plain co-requisites only.
+  const taking = new Set(base.inProgress ?? []);
+  const planned = Object.entries(plan.statuses)
+    .filter(([id, status]) => status === "inProgress" && !taking.has(id))
+    .map(([id]) => id);
+  return { evidence: { ...base, overrides, planned }, manualDone };
 }
 
 function transcriptCodes(profile: SchoolProfile, records: readonly TranscriptCourseRecord[]) {

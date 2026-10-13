@@ -199,3 +199,8 @@ test("the bundled prerequisite table matches courses/*.json", () => {
   const bundled = readFileSync(resolve(import.meta.dir, "../../src/lib/course-catalog/prerequisites.json"), "utf8");
   expect(bundled).toBe(renderPrerequisiteTable());
 });
+
+test("hour thresholds read as completed hours", () => {
+  expect(text({ kind: "standing", minimum: "credits:45", source: "45 hours" })).toBe("45 completed hours");
+  expect(text({ kind: "standing", minimum: "junior", source: "junior standing" })).toBe("junior standing");
+});
