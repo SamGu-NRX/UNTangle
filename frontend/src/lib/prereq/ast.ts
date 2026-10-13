@@ -49,10 +49,19 @@ export function requiresAdvisor(node: Prerequisite): boolean {
   }
 }
 
-/** Unknown rules may conceal a waiver; no part of such a course's rule supplies closure. */
+/** Whether the complete expression can be witnessed, without selecting an escape branch. */
 export function canSupplyClosure(node: Prerequisite): boolean {
   if (node.escape || node.kind === "consent" || node.kind === "unknown") return false;
   if (node.kind === "and" || node.kind === "or") return node.children.every(canSupplyClosure);
   if (node.kind === "corequisite" || node.kind === "minGrade") return canSupplyClosure(node.requirement);
   return true;
+}
+
+/** Only an explicitly attached escape bounds unparsed text; fallback OR prose may waive the whole rule. */
+export function hasUnscopedEscape(node: Prerequisite): boolean {
+  if (node.escape) return false;
+  if (node.kind === "unknown") return true;
+  if (node.kind === "and" || node.kind === "or") return node.children.some(hasUnscopedEscape);
+  if (node.kind === "corequisite" || node.kind === "minGrade") return hasUnscopedEscape(node.requirement);
+  return false;
 }

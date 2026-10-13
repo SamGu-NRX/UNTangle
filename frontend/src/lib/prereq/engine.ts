@@ -1,4 +1,4 @@
-import { canSupplyClosure, courseReferences, requirementKey, requiresAdvisor } from "./ast";
+import { canSupplyClosure, courseReferences, hasUnscopedEscape, requirementKey, requiresAdvisor } from "./ast";
 import type { CatalogCourse, CourseAssessment, Evidence, InferenceResult, Prerequisite, Reason, SchoolAdapter } from "./types";
 
 function compareIds(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
@@ -113,6 +113,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
   }
 
   const closure = new Map<string, Reason>();
+  const visitedRequirements = new Set<string>();
   const expanded = new Set<string>();
   const queue = [...completed.keys()].sort(compareIds);
   function containsCorequisite(node: Prerequisite): boolean {
@@ -121,10 +122,13 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     return node.kind === "minGrade" && containsCorequisite(node.requirement);
   }
   function add(node: Prerequisite, witness: Reason) {
+    if (node.escape) return;
     if (node.kind === "and" && node.children.length === 0) return;
-    if (!requiresAdvisor(node) && !containsCorequisite(node) && !hasHourRequirement(node)) {
-      const key = requirementKey(node);
-      if (!closure.has(key)) closure.set(key, witness);
+    const key = requirementKey(node);
+    if (visitedRequirements.has(key)) return;
+    visitedRequirements.add(key);
+    if (canSupplyClosure(node) && !containsCorequisite(node) && !hasHourRequirement(node)) {
+      closure.set(key, witness);
     }
     // An OR witnesses its entire expression; it does not identify a passed branch.
     if (node.kind === "and") for (const child of node.children) add(child, witness);
@@ -138,6 +142,9 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
       if (requirement.kind === "and") {
         for (const child of requirement.children) add({ kind: "minGrade", grade: node.grade, requirement: child, source: node.source }, witness);
       }
+      if (requirement.kind === "minGrade") {
+        add({ kind: "minGrade", grade: node.grade, requirement: requirement.requirement, source: node.source }, witness);
+      }
       if (requirement.kind === "course" || requirement.kind === "or" || requirement.kind === "minGrade") add(requirement, witness);
     }
     // A co-requisite could have been concurrent, so it cannot imply completion.
@@ -147,7 +154,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     if (expanded.has(id)) continue;
     expanded.add(id);
     const prerequisite = byId.get(id)?.prerequisite;
-    if (!prerequisite || !canSupplyClosure(prerequisite)) continue;
+    if (!prerequisite || hasUnscopedEscape(prerequisite)) continue;
     const parent = completed.get(id)?.reason ?? closure.get(requirementKey({ kind: "course", courseId: id, source: "" }));
     if (!parent) continue;
     add(prerequisite, {

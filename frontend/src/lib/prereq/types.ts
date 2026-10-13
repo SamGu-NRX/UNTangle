@@ -2,7 +2,7 @@ export type CourseId = string;
 
 export type Prerequisite = {
   source: string;
-  /** An alternative admission route prevents this course from proving prerequisites through closure. */
+  /** An alternative admission route blocks closure for this requirement and its descendants. */
   escape?: "equivalent" | "replacement" | "consent";
 } & (
   | { kind: "course"; courseId: CourseId }

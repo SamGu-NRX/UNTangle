@@ -364,5 +364,53 @@
     "source": "ECON 1100 and ECON 1110 ; ECON 4630 with a grade of C or better. ECON 4630 can be replaced with MATH 3680 or DSCI 3710 with a grade of C or better. May not be repeated at the graduate level as ECON 5080.",
     "coverage": "full",
     "expected": "and(and(and(ECON 1100,ECON 1110),or(grade:C(ECON 4630),or(grade:C(MATH 3680),grade:C(DSCI 3710)))))"
+  },
+  {
+    "courseId": "MEEN3210",
+    "source": "MEEN 3120 ; MEEN 3110 ; MEEN 3250 all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3120),grade:C(MEEN 3110),grade:C(MEEN 3250)))"
+  },
+  {
+    "courseId": "MEEN3230",
+    "source": "MATH 3410 ; MATH 2700 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),grade:C(MATH 2700),or(grade:C(MEEN 2302),grade:C(ENGR 2302))))"
+  },
+  {
+    "courseId": "MEEN3240",
+    "source": "MATH 3410 ; MEEN 2210 ; MEEN 2110 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),grade:C(MEEN 2210),grade:C(MEEN 2110)))"
+  },
+  {
+    "courseId": "MEEN4110",
+    "source": "MEEN 3110 ; MEEN 3210 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3110),grade:C(MEEN 3210)))"
+  },
+  {
+    "courseId": "MEEN4140",
+    "source": "MATH 3410 ; MEEN 2332 or ENGR 2332 ; MEEN 2302 or ENGR 2302 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MATH 3410),or(grade:C(MEEN 2332),grade:C(ENGR 2332)),or(grade:C(MEEN 2302),grade:C(ENGR 2302))))"
+  },
+  {
+    "courseId": "MEEN4150",
+    "source": "EENG 2610 ; MEEN 3130 ; MEEN 3210 ; MEEN 3230 ; MEEN 3242 , all with a grade of C or better. Corequisite(s): MEEN 3100 .",
+    "coverage": "full",
+    "expected": "and(and(grade:C(EENG 2610),grade:C(MEEN 3130),grade:C(MEEN 3210),grade:C(MEEN 3230),grade:C(MEEN 3242)),coreq(MEEN 3100))"
+  },
+  {
+    "courseId": "MEEN4315",
+    "source": "MEEN 3110 ; MEEN 3120 ; MEEN 3210 , all with a grade of C or better.",
+    "coverage": "full",
+    "expected": "and(and(grade:C(MEEN 3110),grade:C(MEEN 3120),grade:C(MEEN 3210)))"
+  },
+  {
+    "courseId": "TECM4920",
+    "source": "TECM 2700 ; consent of department. May be repeated for credit.",
+    "coverage": "full",
+    "expected": "and(and(TECM 2700,consent))"
   }
 ]

@@ -45,10 +45,11 @@ function unknown(source: string): Prerequisite {
 }
 
 function applyGrade(node: Prerequisite, grade: string): Prerequisite {
+  if (node.kind === "minGrade" && node.grade === grade.toUpperCase()) return node;
   if (node.kind === "and" || node.kind === "or") {
     return { ...node, children: node.children.map(child => applyGrade(child, grade)) };
   }
-  if (node.kind === "course" || node.kind === "corequisite") {
+  if (node.kind === "course" || node.kind === "corequisite" || node.kind === "minGrade") {
     return { kind: "minGrade", grade: grade.toUpperCase(), requirement: node, source: node.source };
   }
   return node;
@@ -60,7 +61,9 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
   if (!text) return { kind: "and", children: [], source };
   const hours = text.match(/^(?:(?:have |must have )?completed |completion of |students must have )?(?:at least )?(\d+)\s+(?:semester |earned |credit )?hours(?: of (?:credit|college course work|college coursework))?$/i);
   if (hours) return { kind: "standing", minimum: `credits:${hours[1]}`, source };
-  if (/^approval of\s+/i.test(text)) return { kind: "consent", authority: text, source };
+  if (/^approval of (?:the )?(?:supervisory faculty member|department chair(?: and the dean of the school or college in which the thesis is prepared)?|dean of the Honors College|department|instructor)(?: required)?$/i.test(text)) {
+    return { kind: "consent", authority: text, source };
+  }
   const explicitAlternatives = splitTopLevel(text, /\s*;\s*or\s+|\s*,?\s+or\s+(?=(?:consent\b|instructor consent\b|department(?:al)? consent\b))/gi);
   if (explicitAlternatives.length > 1) {
     const children = explicitAlternatives.map(parseClause);
@@ -76,7 +79,7 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
   const suffix = text.match(gradeSuffix);
   if (prefix && suffix) return undefined;
   const semicolonGroups = splitTopLevel(text, /\s*;\s*(?:and\s+)?/gi);
-  // ECON 4030's trailing grade qualifies ECON 4630, not the courses before its semicolon.
+  // Explicit shared grades are handled before splitting; ECON 4030's unmarked grade stays local.
   if (!prefix && semicolonGroups.length > 1 && semicolonGroups.every(group => !/^or\b/i.test(group))) {
     return { kind: "and", source, children: semicolonGroups.map(parseClause) };
   }
@@ -217,14 +220,16 @@ function parseClause(source: string): Prerequisite {
   if (text.startsWith("(") && groupEnd(text) === text.length - 1) return { ...parseClause(text.slice(1, -1)), source };
   const coreq = text.match(/^(?:co-?requisite(?:\(s\)|s)?\s*:\s*|concurrent enrollment in\s+|co-enrolled in\s+)/i);
   if (coreq) return { kind: "corequisite", requirement: parseClause(text.slice(coreq[0].length)), source };
-  if (/^if\b/i.test(text)) {
-    if (/\bdepartment(?:al)? consent (?:is )?required$/i.test(text)) return { kind: "consent", authority: "department", source };
-    return unknown(source);
-  }
+  if (/^if\b/i.test(text)) return unknown(source);
   if (/\b(?:majors?|minors?)\b[^;]*\b(?:must|that have|only)\b|\b(?:major|minor) status:|\b(?:majors?|minors?):|^Non-Majors:/i.test(text)) {
     const parts = splitTopLevel(text, /;\s*/g);
     if (parts.length > 1) return { kind: "and", source, children: parts.map(part => /^consent\b/i.test(part.trim()) ? parseClause(part) : unknown(part)) };
     return unknown(source);
+  }
+  const sharedGrade = text.match(gradeSuffix);
+  // MEEN 3210's "all" qualifies the whole list, including groups before semicolons.
+  if (sharedGrade && /\b(?:all|each|both)\b/i.test(sharedGrade[0])) {
+    return { ...applyGrade(parseClause(text.slice(0, -sharedGrade[0].length)), sharedGrade[1]), source };
   }
   const qualifiedTail = splitTopLevel(text, /\s+and\s+(?=(?:(?:a\s+)?grade of\s+)?["“]?[A-D]["”]?\s+or\s+(?:better|higher)\s+in\b)/gi);
   if (qualifiedTail.length > 1) return { kind: "and", source, children: qualifiedTail.map(parseClause) };
@@ -287,7 +292,7 @@ export function parseUntPrerequisite(source: string): ParseResult {
         return node;
       }
       for (let index = 0; index < children.length; index++) children[index] = attach(children[index]);
-      if (!found) children.push({ kind: "or", escape: "replacement", source: clause, children: [{ kind: "course", courseId: id, source: replacement[1] }, alternative] });
+      if (!found) children.push(unknown(clause));
       continue;
     }
     children.push(parseClause(clause));

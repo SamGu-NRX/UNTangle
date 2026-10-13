@@ -131,21 +131,82 @@ function closureSources(reason: Reason): string[] {
   return [...(reason.kind === "closure" && reason.courseId ? [reason.courseId] : []), ...(reason.children ?? []).flatMap(closureSources)];
 }
 
-test("no catalog escape rule supplies any closure-derived satisfaction", () => {
+function unscopedUnknown(node: Prerequisite): boolean {
+  if (node.escape) return false;
+  if (node.kind === "unknown") return true;
+  if (node.kind === "and" || node.kind === "or") return node.children.some(unscopedUnknown);
+  return (node.kind === "minGrade" || node.kind === "corequisite") && unscopedUnknown(node.requirement);
+}
+
+function mandatoryFacts(node: Prerequisite): Prerequisite[] {
+  if (node.escape) return [];
+  switch (node.kind) {
+    case "course": return [node];
+    case "and": return node.children.flatMap(mandatoryFacts);
+    case "minGrade": return mandatoryFacts(node.requirement).map(requirement => ({ ...node, requirement }));
+    default: return [];
+  }
+}
+
+function protectedAlternatives(node: Prerequisite): Prerequisite[] {
+  if (node.escape || node.kind === "or") return [node];
+  if (node.kind === "and") return node.children.flatMap(protectedAlternatives);
+  if (node.kind === "minGrade" || node.kind === "corequisite") return protectedAlternatives(node.requirement);
+  return [];
+}
+
+test("corpus scoped escapes protect alternatives and preserve mandatory closure siblings", () => {
   const escaped = coverage.courses.filter(row => /\bconsent\b|\bequivalents?\b|\breplac(?:e|ed|ement)\b|\bexceptions?\b|\bwaiv(?:e|er|ed)\b|\bsubstitut(?:e|ed|ion)\b/i.test(row.source));
-  let probes = 0;
+  let negatives = 0;
+  let positives = 0;
+  const positiveEntries = new Set<string>();
   for (const row of escaped) {
-    for (const id of references(row.source)) for (const graded of [false, true]) {
+    const entry = byId.get(row.courseId)!;
+    const blocked = unscopedUnknown(entry.prerequisite);
+    const facts = blocked ? [] : mandatoryFacts(entry.prerequisite);
+    const mandatoryIds = new Set(facts.flatMap(fact => references(fact.source)));
+    const forbiddenIds = blocked ? references(row.source) : protectedAlternatives(entry.prerequisite).flatMap(alternative => references(alternative.source)).filter(id => !mandatoryIds.has(id));
+    for (const id of new Set(forbiddenIds)) for (const graded of [false, true]) {
       const prerequisite: Prerequisite = graded ? { kind: "minGrade", grade: "C", requirement: course(id), source: id } : course(id);
-      const result = inferStatuses([byId.get(row.courseId)!, probe(prerequisite)], { transcript: [passed(row.courseId)] }, untAdapter);
-      const sources = closureSources(result.statuses.get("probe")!.reason);
-      if (sources.includes(row.courseId)) throw new Error(`${row.courseId} has an escape clause but supplied closure for ${id}.`);
-      probes++;
+      const result = inferStatuses([entry, probe(prerequisite)], { transcript: [passed(row.courseId)] }, untAdapter);
+      expect(closureSources(result.statuses.get("probe")!.reason).includes(row.courseId)).toBe(false);
+      negatives++;
     }
-    const identicalRule = inferStatuses([byId.get(row.courseId)!, probe(parseUntPrerequisite(row.source).expression)], { transcript: [passed(row.courseId)] }, untAdapter);
-    expect(closureSources(identicalRule.statuses.get("probe")!.reason).includes(row.courseId)).toBe(false);
+    for (const fact of facts) {
+      const result = inferStatuses([entry, probe(fact)], { transcript: [passed(row.courseId)] }, untAdapter);
+      expect(result.statuses.get("probe")!.status).toBe("eligible");
+      expect(closureSources(result.statuses.get("probe")!.reason)).toContain(row.courseId);
+      positives++;
+      positiveEntries.add(row.courseId);
+    }
   }
   expect(escaped.length).toBeGreaterThan(100);
-  expect(probes).toBeGreaterThan(100);
-  console.info(`Escape closure: ${escaped.length} catalog entries, ${probes} atomic and grade probes.`);
+  expect(negatives).toBeGreaterThan(100);
+  expect(positives).toBeGreaterThanOrEqual(4);
+  expect([...positiveEntries]).toContain("TECM 4920");
+  expect([...positiveEntries]).toContain("ECON 4030");
+  expect([...positiveEntries]).toContain("PHYS 4955");
+  console.info(`Scoped closure: ${escaped.length} entries, ${negatives} negative probes, ${positives} positive probes across ${positiveEntries.size} entries: ${[...positiveEntries].join(", ")}.`);
+});
+
+test("mandatory TECM consent and scoped ECON replacement retain unrelated closure", () => {
+  expect(source("TECM 4920")).toBe("TECM 2700 ; consent of department. May be repeated for credit.");
+  expect(source("TECM 3500")).toBe("TECM 2700 .");
+  expect(source("ECON 3050")).toBe("ECON 1100 , ECON 1110 .");
+  expect(inferStatuses(catalog, { transcript: [passed("TECM 4920")] }, untAdapter).statuses.get("TECM 3500")?.status).toBe("eligible");
+  expect(inferStatuses(catalog, { transcript: [passed("ECON 4030")] }, untAdapter).statuses.get("ECON 3050")?.status).toBe("eligible");
+});
+
+test("unknown waiver scope blocks all closure even when its prose contains or", () => {
+  for (const text of [
+    "MATH 1710. Exceptions may be granted by the chair or dean.",
+    "MATH 1710. Approval of the department may waive these prerequisites.",
+    "MATH 1710. Approval of the department permits admission without these prerequisites.",
+    "MATH 1710. If requirements are waived, department consent is required.",
+    "MATH 1710. ECON 4630 can be replaced with MATH 3680.",
+  ]) {
+    const entry: CatalogCourse = { id: "admitted", credits: 3, prerequisite: parseUntPrerequisite(text).expression };
+    const result = inferStatuses([entry, probe(course("MATH 1710"))], { transcript: [passed(entry.id)] }, untAdapter);
+    expect(result.statuses.get("probe")!.status).toBe("locked");
+  }
 });
