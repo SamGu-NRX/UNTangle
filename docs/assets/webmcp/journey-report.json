@@ -1,0 +1,409 @@
+{
+  "startedAt": "2026-10-13T19:34:33.958Z",
+  "base": "http://127.0.0.1:3217",
+  "checks": [
+    {
+      "name": "without WebMCP no loaded script contains the tools",
+      "passed": true,
+      "detail": "20 scripts"
+    },
+    {
+      "name": "eleven tools registered after the plan loaded",
+      "passed": true,
+      "detail": "add_section, apply_alternative, build_schedule, check_eligibility, export_class_numbers, get_course, get_day, get_schedule, remove_course, search_courses, set_busy_times"
+    },
+    {
+      "name": "get_schedule reads the seeded plan",
+      "passed": true,
+      "detail": "{\"CSCE 1040\":\"csce-1040-004\",\"ENGL 1310\":\"engl-1310-026\",\"PSYC 1630\":\"psyc-1630-005\"}"
+    },
+    {
+      "name": "build_schedule returns an alternative that moves sections",
+      "passed": true,
+      "detail": "opt-1-A"
+    },
+    {
+      "name": "apply_alternative asks the student first",
+      "passed": true,
+      "detail": "Your assistant wants to change your plan\n\nUse schedule option A? It moves CSCE 1040 to section 001, ENGL 1310 to section 058, PSYC 1630 to section 003.\n\nYou can undo it afterwards.\n\nCancel\nUse option A"
+    },
+    {
+      "name": "axe zero serious/critical: desktop confirmation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "cancel answers declined",
+      "passed": true,
+      "detail": "{\"ok\":false,\"reason\":\"declined\"}"
+    },
+    {
+      "name": "cancel leaves the plan as it was",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "confirm applies the alternative",
+      "passed": true,
+      "detail": "{\"ok\":true,\"changed\":3}"
+    },
+    {
+      "name": "the plan now holds the alternative's sections",
+      "passed": true,
+      "detail": "3 moved"
+    },
+    {
+      "name": "Undo restores the previous sections",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "each tool registered exactly once",
+      "passed": true,
+      "detail": "11 log lines"
+    },
+    {
+      "name": "no page errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: phone confirmation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Escape declines on a phone",
+      "passed": true,
+      "detail": "{\"ok\":false,\"reason\":\"declined\"}"
+    },
+    {
+      "name": "no page errors (phone)",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "axe": [
+    {
+      "label": "desktop confirmation",
+      "violations": []
+    },
+    {
+      "label": "phone confirmation",
+      "violations": []
+    }
+  ],
+  "calls": [
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "provenance": "sample",
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "sectionId": "csce-1040-004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at CHEM",
+            "instructor": "Haili Wang",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "sectionId": "engl-1310-026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at GAB",
+            "instructor": "Kathleen Long",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "sectionId": "psyc-1630-005",
+            "meetings": "Tue/Thu 08:30-09:50 at HICK",
+            "instructor": "Casey R. Guillot",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "withoutSections": [],
+        "walking": {
+          "minutesPerWeek": 8,
+          "unknownWalks": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "build_schedule",
+      "input": {
+        "goal": "compact"
+      },
+      "result": {
+        "ok": true,
+        "status": "optimal",
+        "provenance": "sample",
+        "alternatives": [
+          {
+            "id": "opt-1-A",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "001",
+              "ENGL 1310": "058",
+              "PSYC 1630": "003"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 50,
+            "walkMinutes": 11,
+            "earliest": "11:30",
+            "latest": "14:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-B",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "005",
+              "ENGL 1310": "014",
+              "PSYC 1630": "003"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 50,
+            "walkMinutes": 0,
+            "earliest": "10:30",
+            "latest": "13:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-C",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "002",
+              "ENGL 1310": "006",
+              "PSYC 1630": "002"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 60,
+            "walkMinutes": 0,
+            "earliest": "14:00",
+            "latest": "16:50",
+            "credits": 9,
+            "proven": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "apply_alternative",
+      "input": {
+        "id": "opt-1-A"
+      },
+      "result": {
+        "ok": false,
+        "reason": "declined"
+      }
+    },
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "provenance": "sample",
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "sectionId": "csce-1040-004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at CHEM",
+            "instructor": "Haili Wang",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "sectionId": "engl-1310-026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at GAB",
+            "instructor": "Kathleen Long",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "sectionId": "psyc-1630-005",
+            "meetings": "Tue/Thu 08:30-09:50 at HICK",
+            "instructor": "Casey R. Guillot",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "withoutSections": [],
+        "walking": {
+          "minutesPerWeek": 8,
+          "unknownWalks": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "apply_alternative",
+      "input": {
+        "id": "opt-1-A"
+      },
+      "result": {
+        "ok": true,
+        "changed": 3
+      }
+    },
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "provenance": "sample",
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "sectionId": "csce-1040-001",
+            "meetings": "Mon/Wed/Fri 14:00-14:50 at NTDP",
+            "instructor": "Amar Maharjan",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "sectionId": "engl-1310-058",
+            "meetings": "Mon/Wed 11:30-12:50 at WH",
+            "instructor": "Sera Harris",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "sectionId": "psyc-1630-003",
+            "meetings": "Mon/Wed/Fri 13:00-13:50 at LIFE",
+            "instructor": "Calvin M. Sims",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "withoutSections": [],
+        "walking": {
+          "minutesPerWeek": 11,
+          "unknownWalks": 3,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "get_schedule",
+      "input": {},
+      "result": {
+        "ok": true,
+        "provenance": "sample",
+        "credits": 9,
+        "courses": [
+          {
+            "code": "CSCE 1040",
+            "sectionId": "csce-1040-004",
+            "meetings": "Mon/Wed/Fri 08:00-08:50 at CHEM",
+            "instructor": "Haili Wang",
+            "locked": false
+          },
+          {
+            "code": "ENGL 1310",
+            "sectionId": "engl-1310-026",
+            "meetings": "Mon/Wed/Fri 09:00-09:50 at GAB",
+            "instructor": "Kathleen Long",
+            "locked": false
+          },
+          {
+            "code": "PSYC 1630",
+            "sectionId": "psyc-1630-005",
+            "meetings": "Tue/Thu 08:30-09:50 at HICK",
+            "instructor": "Casey R. Guillot",
+            "locked": false
+          }
+        ],
+        "overlaps": [],
+        "withoutSections": [],
+        "walking": {
+          "minutesPerWeek": 8,
+          "unknownWalks": 0,
+          "estimated": false
+        }
+      }
+    },
+    {
+      "name": "build_schedule",
+      "input": {
+        "goal": "compact"
+      },
+      "result": {
+        "ok": true,
+        "status": "optimal",
+        "provenance": "sample",
+        "alternatives": [
+          {
+            "id": "opt-1-A",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "001",
+              "ENGL 1310": "058",
+              "PSYC 1630": "003"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 50,
+            "walkMinutes": 11,
+            "earliest": "11:30",
+            "latest": "14:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-B",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "005",
+              "ENGL 1310": "014",
+              "PSYC 1630": "003"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 50,
+            "walkMinutes": 0,
+            "earliest": "10:30",
+            "latest": "13:50",
+            "credits": 9,
+            "proven": true
+          },
+          {
+            "id": "opt-1-C",
+            "changes": 3,
+            "sections": {
+              "CSCE 1040": "002",
+              "ENGL 1310": "006",
+              "PSYC 1630": "002"
+            },
+            "daysOnCampus": 3,
+            "gapMinutes": 60,
+            "walkMinutes": 0,
+            "earliest": "14:00",
+            "latest": "16:50",
+            "credits": 9,
+            "proven": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "remove_course",
+      "input": {
+        "code": "PSYC 1630"
+      },
+      "result": {
+        "ok": false,
+        "reason": "declined"
+      }
+    }
+  ],
+  "finishedAt": "2026-10-13T19:34:38.999Z",
+  "passed": 16,
+  "total": 16
+}
