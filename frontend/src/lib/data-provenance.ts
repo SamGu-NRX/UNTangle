@@ -3,7 +3,7 @@
  *
  * The catalog text in `courses/*.json` is real UNT text scraped from catalog.unt.edu,
  * but every bundled section is synthetic: the schedule rows in `backend/data/compD.csv`
- * (backend submodule) describe exactly 15 campus buildings, carry no term, and are not a
+ * (the retired backend, sunnyD1000/UNT-Schedule-Optimizer) describe exactly 15 campus buildings, carry no term, and are not a
  * record of any real UNT semester. Bundled sections must be presented as samples, never
  * as a real term's offerings.
  *
