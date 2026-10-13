@@ -64,6 +64,13 @@
       "when": 1791921533481,
       "tag": "0008_rate_limit_window_expiry",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791925029109,
+      "tag": "0009_revoke_unverified_sessions",
+      "breakpoints": true
     }
   ]
 }

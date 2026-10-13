@@ -37,3 +37,28 @@ test.skipIf(!url)("Postgres: concurrent claims of one link from many instances l
     await pool.end();
   }
 });
+
+test.skipIf(!url)("Postgres: migration 0009 deletes the sessions of never-verified accounts and keeps the rest", async () => {
+  expect(new URL(url!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);
+  const schema = `migration_0009_test_${crypto.randomUUID().replaceAll("-", "")}`;
+  const pool = new Pool({ connectionString: url, max: 2, options: `-c search_path=${schema}` });
+  try {
+    await pool.query(`CREATE SCHEMA ${schema}`);
+    const journal = JSON.parse(await readFile("drizzle/meta/_journal.json", "utf8")) as { entries: { tag: string }[] };
+    const before = journal.entries.map((entry) => entry.tag).filter((tag) => tag < "0009");
+    // 0000's foreign keys name "public"; point them at this test's schema.
+    for (const tag of before) await pool.query((await readFile(`drizzle/${tag}.sql`, "utf8")).replaceAll('"public".', `"${schema}".`));
+    await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES
+      ('verified', 'V', 'v@my.unt.edu', true), ('unverified', 'U', 'u@my.unt.edu', false)`);
+    await pool.query(`INSERT INTO "session" (id, expires_at, token, updated_at, user_id) VALUES
+      ('s1', now() + interval '1 day', 't1', now(), 'verified'),
+      ('s2', now() + interval '1 day', 't2', now(), 'unverified'),
+      ('s3', now() + interval '1 day', 't3', now(), 'unverified')`);
+    await pool.query(await readFile("drizzle/0009_revoke_unverified_sessions.sql", "utf8"));
+    expect((await pool.query(`SELECT id FROM "session" ORDER BY id`)).rows).toEqual([{ id: "s1" }]);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM "user"`)).rows).toEqual([{ n: 2 }]);
+  } finally {
+    await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+    await pool.end();
+  }
+});
