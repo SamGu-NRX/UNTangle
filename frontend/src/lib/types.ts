@@ -115,6 +115,11 @@ export type MapResolvedLocation = {
   resolutionStatus: MapResolutionStatus;
   geocodeQuery: string;
   unsupportedReason?: string;
+  /**
+   * Set on an unresolved answer when the geocoder failed rather than said
+   * "not found": try the lookup again later instead of remembering it.
+   */
+  retryable?: true;
 };
 
 export type MapRoutePoint = {

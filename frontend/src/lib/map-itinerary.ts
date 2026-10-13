@@ -13,6 +13,8 @@
  *   walk >= gap - 2). Both are flagged.
  */
 import { haversineMetersBetween } from "@/lib/campus/geo";
+import { stopIdentity } from "@/lib/campus/route-legs";
+import { walkingMinutes } from "@/lib/campus/speeds";
 import type { MapResolvedLocation, MapRouteLeg, MapRoutePoint, MapStop } from "@/lib/types";
 
 /** What building lookup said about a stop that arrived without coordinates. */
@@ -85,6 +87,9 @@ export type DaySummary = {
   /** Totals over legs with a walkway route only; straight-line estimates are counted in estimatedLegs. */
   walkMinutes: number;
   walkMeters: number;
+  /** Walk longer than the break. */
+  lateTransfers: number;
+  /** Walk fits, with two minutes or less to spare. Late transfers are not counted here. */
   tightTransfers: number;
   /** Legs whose time is unknown: straight-line estimates. */
   estimatedLegs: number;
@@ -130,10 +135,8 @@ export function formatDistance(meters: number): string {
   return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
-/** Whole minutes, rounded up; any nonzero walk is at least 1 minute. */
-export function walkMinutesFromSeconds(seconds: number): number {
-  return seconds <= 0 ? 0 : Math.max(1, Math.ceil(seconds / 60));
-}
+/** Whole minutes, rounded up; the campus-wide rule in lib/campus/speeds.ts. */
+export const walkMinutesFromSeconds = walkingMinutes;
 
 export function formatWalkMinutes(minutes: number): string {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
@@ -161,9 +164,9 @@ export function stopKey(stop: MapStop, index: number): string {
   return `${stop.day}-${index}-${stop.courseCode}-${stop.start}`;
 }
 
-/** Identity of a map point: the building when known, plus its coordinates. */
+/** Identity of a map point: the route API's own stop identity rule, so client and server count the same legs. */
 export function pointKey(point: MapRoutePoint, buildingId?: string): string {
-  return `${buildingId ?? ""}@${point.lat.toFixed(6)},${point.lng.toFixed(6)}`;
+  return stopIdentity(point, buildingId);
 }
 
 export function pairKey(from: string, to: string): string {
@@ -311,7 +314,8 @@ export function buildItinerary(
     unresolved: entries.filter((entry) => entry.placement.kind === "unresolved").length,
     walkMinutes: legs.reduce((total, leg) => total + (leg.walkMinutes ?? 0), 0),
     walkMeters: legs.reduce((total, leg) => total + (leg.route.kind === "walk" ? leg.route.meters : 0), 0),
-    tightTransfers: legs.filter((leg) => leg.transfer === "tight" || leg.transfer === "late").length,
+    lateTransfers: legs.filter((leg) => leg.transfer === "late").length,
+    tightTransfers: legs.filter((leg) => leg.transfer === "tight").length,
     estimatedLegs: legs.filter((leg) => leg.route.kind === "straight-line").length,
     loading:
       entries.some((entry) => entry.placement.kind === "resolving") || legs.some((leg) => leg.route.kind === "loading"),

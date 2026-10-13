@@ -12,6 +12,8 @@ import {
   walkingTimeMeta,
 } from "@/lib/campus/walking-times";
 import walkingTimesJson from "@/lib/campus/data/walking-times.json";
+import { routeBetweenPoints } from "@/lib/campus/graph";
+import { walkingMinutes } from "@/lib/campus/speeds";
 import { POST as routePOST } from "@/app/api/map/route/route";
 
 // Any ORS attempt in these tests must fail loudly: walkway routing is the
@@ -213,15 +215,71 @@ describe("map route API walkway tier", () => {
     const payload = (await response.json()) as {
       legs: Array<{ fromIndex: number; toIndex: number; source: string; durationSeconds: number; distanceMeters: number }>;
     };
-    // The repeated BLB stop is one stop; leg ends are reported in request indexes.
+    // Every pair keeps its own leg; the repeated BLB stop is a zero-minute leg.
     expect(payload.legs.map((leg) => [leg.fromIndex, leg.toIndex])).toEqual([
       [0, 1],
+      [1, 2],
       [2, 3],
     ]);
-    expect(payload.legs.map((leg) => leg.source)).toEqual(["campus-network", "campus-network"]);
-    expect(payload.legs[0].durationSeconds).toBe(Math.round(walkingSecondsBetween("sage", "blb")!));
-    expect(payload.legs[1].durationSeconds).toBe(Math.round(walkingSecondsBetween("blb", "gab")!));
-    expect(payload.legs[0].distanceMeters).toBeCloseTo(walkingDistanceBetween("sage", "blb")!, 0);
+    expect(payload.legs.map((leg) => leg.source)).toEqual(["campus-network", "campus-network", "campus-network"]);
+    expect(payload.legs[0].durationSeconds).toBe(walkingSecondsBetween("sage", "blb")!);
+    expect([payload.legs[1].durationSeconds, payload.legs[1].distanceMeters]).toEqual([0, 0]);
+    expect(payload.legs[2].durationSeconds).toBe(walkingSecondsBetween("blb", "gab")!);
+    expect(payload.legs[0].distanceMeters).toBe(walkingDistanceBetween("sage", "blb")!);
+  });
+
+  test("two different buildings at the same coordinates stay two stops", async () => {
+    const response = await routePOST(
+      postJson(
+        "http://localhost/api/map/route",
+        {
+          stops: [
+            { lat: 33.2121066, lng: -97.1467423, buildingId: "sage" },
+            { lat: 33.2121066, lng: -97.1467423, buildingId: "symr" },
+          ],
+        },
+        "198.51.100.12",
+      ),
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as { legs: Array<{ fromIndex: number; toIndex: number }> };
+    expect(payload.legs.map((leg) => [leg.fromIndex, leg.toIndex])).toEqual([[0, 1]]);
+  });
+
+  test("an inherited property name as a building id is just an unknown building, not a 500", async () => {
+    for (const buildingId of ["__proto__", "constructor", "toString"]) {
+      const response = await routePOST(
+        postJson(
+          "http://localhost/api/map/route",
+          {
+            stops: [
+              { lat: 33.2121066, lng: -97.1467423, buildingId },
+              { lat: 33.2088704, lng: -97.1476988, buildingId: "blb" },
+            ],
+          },
+          "198.51.100.13",
+        ),
+      );
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as { legs: Array<{ source: string }> };
+      expect(payload.legs).toHaveLength(1);
+      expect(payload.legs[0].source).toBe("campus-network");
+    }
+  });
+
+  test("anchor-to-anchor routes give exactly the matrix's seconds and minutes for every pair", () => {
+    // Rounding route seconds to whole seconds used to flip minutes on 4 of
+    // 841 pairs (CHEM to ENV read 2 min on the map and 3 from the matrix).
+    const ids = matrixBuildingIds();
+    for (const from of ids) {
+      for (const to of ids) {
+        if (from >= to) continue;
+        const route = routeBetweenPoints(buildingAnchor(from)!.anchor, buildingAnchor(to)!.anchor)!;
+        const matrix = walkingSecondsBetween(from, to)!;
+        expect([from, to, route.durationSeconds]).toEqual([from, to, matrix]);
+        expect(walkingMinutes(route.durationSeconds)).toBe(walkingMinutes(matrix));
+      }
+    }
   });
 
   test("out-of-bounds stops are still rejected", async () => {

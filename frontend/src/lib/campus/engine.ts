@@ -23,7 +23,7 @@ const engines: Record<string, CampusEngine> = {
 };
 
 export function campusEngine(campusId: string): CampusEngine {
-  const engine = engines[campusId];
+  const engine = Object.hasOwn(engines, campusId) ? engines[campusId] : undefined;
   if (!engine) {
     throw new Error(`No walking engine for campus "${campusId}". Build its geodata and register it in lib/campus/engine.ts.`);
   }

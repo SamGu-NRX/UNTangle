@@ -103,8 +103,19 @@ describe("buildItinerary", () => {
     expect(leg.walkMinutes).toBe(11);
     expect(leg.leaveBy).toBe("09:49");
     expect(leg.transfer).toBe("late");
-    expect(summary.tightTransfers).toBe(1);
+    // A late transfer is its own count, not a tight one.
+    expect(summary.lateTransfers).toBe(1);
+    expect(summary.tightTransfers).toBe(0);
     expect(summary.walkMinutes).toBe(11);
+  });
+
+  test("a walk that fits with two minutes or less to spare counts as tight, not late", () => {
+    const stops = [stop("A 1", "09:00", "09:50", { id: "gab", point: gab }), stop("B 1", "10:00", "10:50", { id: "blb", point: blb })];
+    // 481 s rounds up to 9 min against a 10 min break.
+    const answers = new Map<string, PairAnswer>([[pairKey(key(gab, "gab"), key(blb, "blb")), walkLeg(481, 700)]]);
+    const { legs, summary } = buildItinerary(stops, new Map(), answers);
+    expect(legs[0].transfer).toBe("tight");
+    expect([summary.tightTransfers, summary.lateTransfers]).toEqual([1, 0]);
   });
 
   test("a straight-line answer shows distance only: no minutes, no leave-by, no transfer verdict", () => {

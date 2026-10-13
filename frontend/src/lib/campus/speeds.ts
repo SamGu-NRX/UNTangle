@@ -26,3 +26,13 @@ export const STEPS_SPEED_MPS = 0.6;
  * Matches evals/fixtures/METHOD.md's 250 m snap cap.
  */
 export const SNAP_MAX_METERS = 250;
+
+/**
+ * Whole walking minutes for a duration, rounded up so a "leave by" time never
+ * promises time you don't have; any nonzero walk is at least 1 minute. The
+ * map and anything showing matrix times use this one rule, so the same pair
+ * never reads as two different minute counts.
+ */
+export function walkingMinutes(seconds: number): number {
+  return seconds <= 0 ? 0 : Math.max(1, Math.ceil(seconds / 60));
+}

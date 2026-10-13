@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-13T12:15:03.881Z",
+  "generatedAt": "2026-10-13T13:14:08.023Z",
   "script": "tools/campus-geodata/verification/independent-remeasure.ts",
   "standalone": true,
   "importsFromFrontend": false,
@@ -25,7 +25,7 @@
     "accuracyIsJudgedBy": "tools/campus-geodata/spot-check-fixture.ts against the independent eval fixture",
     "secondsTolerance": 1,
     "metersTolerance": 0.1,
-    "alsoRequires": "reconstruction matches the committed walkways.json"
+    "alsoRequires": "reconstruction matches the committed walkways.json: node array, way fragments (OSM id, class, node sequence) and router edges (endpoints, steps/crossing flags)"
   },
   "comparison": {
     "bySeconds": {
@@ -627,5 +627,5 @@
     }
   ],
   "warnings": [],
-  "digest": "3d3ea76d22ecf3f2"
+  "digest": "7a1cb2c0c3fa1de2"
 }

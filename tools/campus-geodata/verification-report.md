@@ -5,7 +5,7 @@ committed artifacts (no network, no API keys). Reproduce with:
 
 ```bash
 bun tools/campus-geodata/spot-check-fixture.ts <independent campus-routes.json>
-bun tools/campus-geodata/bench-routing.ts
+bun tools/campus-geodata/bench-routing.ts <independent campus-routes.json>   # exits 1 if the p95 gate fails
 cd frontend && bun test
 ```
 

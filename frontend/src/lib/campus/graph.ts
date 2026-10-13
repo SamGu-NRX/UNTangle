@@ -331,8 +331,12 @@ export function createWalkwayGraph(data: WalkwaysFile) {
 
     return {
       geometry,
-      distanceMeters: Math.round((route.networkMeters + connectorMeters) * 10) / 10,
-      durationSeconds: Math.round(route.durationSeconds + connectorSeconds),
+      // Tenths, rounded with toFixed like the matrix's meters.
+      distanceMeters: Number((route.networkMeters + connectorMeters).toFixed(1)),
+      // Tenths of a second, rounded as build-matrix.ts stores the matrix, so a
+      // route between two anchors has exactly the matrix's seconds. Rounding
+      // to whole seconds here used to flip minutes (CHEM to ENV: 2 vs 3).
+      durationSeconds: Number((route.durationSeconds + connectorSeconds).toFixed(1)),
       networkDistanceMeters: Math.round(route.networkMeters * 10) / 10,
       connectorDistanceMeters: Math.round(connectorMeters * 10) / 10,
       stepsMeters: Math.round(route.stepsMeters * 10) / 10,

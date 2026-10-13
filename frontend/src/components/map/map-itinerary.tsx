@@ -130,6 +130,12 @@ export function DaySummary({ day, itinerary }: { day: WeekDay; itinerary: Itiner
           <span key={part}> · {part}</span>
         ))}
         {summary.loading && summary.classes > 0 ? <span className="mv-summary__muted"> · finding routes</span> : null}
+        {summary.lateTransfers > 0 ? (
+          <span className="mv-summary__warn">
+            {" "}
+            · {summary.lateTransfers} late {summary.lateTransfers === 1 ? "transfer" : "transfers"}
+          </span>
+        ) : null}
         {summary.tightTransfers > 0 ? (
           <span className="mv-summary__warn">
             {" "}

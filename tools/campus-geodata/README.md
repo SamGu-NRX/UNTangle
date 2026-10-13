@@ -54,7 +54,8 @@ The route API and `WalkingTime` (`frontend/src/lib/campus/walking-times.ts`)
 are **separate contracts by design**. Do not unify them:
 
 1. **`POST /api/map/route`** (`frontend/src/app/api/map/route/route.ts`) —
-   returns one leg per consecutive pair of stops. A stop that names its
+   returns one leg per consecutive pair of stops; a repeated stop (same
+   building and coordinates) is a zero-minute leg. A stop that names its
    building (`buildingId`) starts or ends at that building's matrix anchor, so
    the leg's seconds equal the matrix's. A leg the campus graph cannot serve
    is `source: "fallback"`: a straight line with `durationSeconds: null`. The

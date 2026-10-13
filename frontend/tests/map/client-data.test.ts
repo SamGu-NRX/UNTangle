@@ -7,6 +7,7 @@ import {
   fetchRun,
   lookUpStops,
   lookupSnapshot,
+  nextAttemptDelay,
   pairAnswers,
   planLookups,
   planRuns,
@@ -174,5 +175,64 @@ describe("walking routes", () => {
         { lat: 33.2088704, lng: -97.1476988, buildingId: "blb" },
       ],
     });
+  });
+});
+
+describe("retryable lookups", () => {
+  test("a geocoder failure the server marks retryable expires instead of being remembered as unresolved", async () => {
+    const cache = createMapDataCache();
+    const queue = [unplacedStop("Mystery Hall")];
+    const fetchImpl = fakeFetch(() =>
+      jsonResponse({
+        locations: [
+          {
+            location: "Mystery Hall",
+            buildingName: "Mystery Hall",
+            shortName: "Mystery Hall",
+            resolutionStatus: "unresolved",
+            geocodeQuery: "",
+            retryable: true,
+          },
+        ],
+      }),
+    );
+    await lookUpStops(queue, cache, { fetchImpl, now: () => 1000 });
+    expect(cache.lookups.has(lookupKey("Mystery Hall"))).toBe(false);
+    expect(lookupSnapshot(cache).get(lookupKey("Mystery Hall"))).toEqual({ kind: "failed" });
+    expect(planLookups(queue, cache, 1000 + LOOKUP_FAILURE_TTL_MS)).toHaveLength(1);
+  });
+});
+
+describe("nextAttemptDelay", () => {
+  test("nothing to wait for", () => {
+    expect(nextAttemptDelay([], [run], createMapDataCache(), 0)).toBeNull();
+  });
+
+  test("a straight-line answer waits for its expiry", () => {
+    const cache = createMapDataCache();
+    cache.runs.set("gab@1|blb@2", { legs: legsBody("fallback").legs as never, cachedAt: 0 });
+    expect(nextAttemptDelay([], [run], cache, 10_000)).toBe(FALLBACK_ROUTE_TTL_MS - 10_000);
+  });
+
+  test("an expired straight-line answer whose re-ask failed waits out the failure cooldown, never zero", () => {
+    // The outage case: the fallback expired, the re-ask failed. Its expiry
+    // is in the past, which used to schedule a zero-delay loop.
+    const cache = createMapDataCache();
+    const now = FALLBACK_ROUTE_TTL_MS + 30_000;
+    cache.runs.set("gab@1|blb@2", { legs: legsBody("fallback").legs as never, cachedAt: 0 });
+    cache.runFailures.set("gab@1|blb@2", now);
+    expect(nextAttemptDelay([], [run], cache, now)).toBe(ROUTE_FAILURE_TTL_MS);
+  });
+
+  test("anything already due waits one cooldown", () => {
+    const cache = createMapDataCache();
+    cache.runs.set("gab@1|blb@2", { legs: legsBody("fallback").legs as never, cachedAt: 0 });
+    expect(nextAttemptDelay([], [run], cache, FALLBACK_ROUTE_TTL_MS * 5)).toBe(ROUTE_FAILURE_TTL_MS);
+  });
+
+  test("a lookup failure waits out its own window", () => {
+    const cache = createMapDataCache();
+    cache.lookupFailures.set("k", 1000);
+    expect(nextAttemptDelay(["k"], [], cache, 3000)).toBe(LOOKUP_FAILURE_TTL_MS - 2000);
   });
 });

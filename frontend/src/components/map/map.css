@@ -93,6 +93,8 @@
   top: var(--mv-inset);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 2 * var(--mv-inset));
   margin: 0;
   padding: 6px 12px;
   border-radius: 10px;
@@ -100,6 +102,13 @@
   box-shadow: var(--mv-shadow-2);
   font-size: 12.5px;
   color: var(--mv-ink-2);
+}
+
+/* On desktop the note sits in the map beside the panel, not under it. */
+.mv-root[data-layout="desktop"] .mv-tiles-note {
+  left: calc(var(--mv-panel-w) + 2 * var(--mv-inset));
+  max-width: calc(100% - var(--mv-panel-w) - 3 * var(--mv-inset));
+  transform: none;
 }
 
 /* ---------- glass material ---------- */

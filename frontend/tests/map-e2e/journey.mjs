@@ -13,7 +13,8 @@
  * pin; selecting a pin selects its row; a leg can be selected; the tight
  * transfer is flagged; the off-campus stop is listed as not on the map with
  * its reason; reduced motion keeps the camera flat; axe finds no serious or
- * critical violations. Any failed check exits 1.
+ * critical violations; with WebGL disabled the page keeps the itinerary and
+ * says the map is unavailable. Any failed check exits 1.
  *
  * Env: UNTANGLE_BASE_URL, UNTANGLE_OUT (screenshots, video, report),
  * UNTANGLE_E2E_MODULES (a node_modules with playwright and axe-core).
@@ -155,9 +156,11 @@ async function desktop(browser) {
   const tight = page.locator('.mv-leg[data-transfer="late"], .mv-leg[data-transfer="tight"]');
   const tightText = (await tight.first().textContent().catch(() => "")) ?? "";
   check("desktop: tight transfer flagged", (await tight.count()) >= 1 && /longer than the break|Tight transfer/.test(tightText), tightText);
+  const summaryText = (await page.locator(".mv-summary__line").textContent()) ?? "";
   check(
-    "desktop: summary counts the tight transfer",
-    /1 tight transfer/.test((await page.locator(".mv-summary__line").textContent()) ?? ""),
+    "desktop: summary counts the late transfer as late, not tight",
+    /1 late transfer/.test(summaryText) && !/tight transfer/.test(summaryText),
+    summaryText,
   );
 
   const unresolved = page.locator('.mv-stop[data-placement="unresolved"]');
@@ -361,6 +364,31 @@ async function reducedMotion(browser) {
   await context.close();
 }
 
+/* ---------- no WebGL ---------- */
+
+async function withoutWebgl() {
+  const noGl = await chromium.launch({ args: ["--disable-webgl", "--disable-3d-apis"] });
+  try {
+    const context = await noGl.newContext({ viewport: { width: 1440, height: 900 } });
+    await seed(context);
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`${BASE}/map`, { waitUntil: "domcontentloaded" });
+    await page.locator(".mv-stop").nth(3).waitFor({ timeout: 30000 });
+    const note = page.getByText(/Map unavailable/);
+    await note.waitFor({ timeout: 15000 }).catch(() => undefined);
+    check("no WebGL: the page says the map is unavailable", await note.isVisible());
+    await page.waitForFunction(() => document.querySelectorAll('.mv-leg[data-route="walk"]').length >= 2, null, { timeout: 20000 });
+    check("no WebGL: the itinerary still lists classes and walking minutes", (await page.locator('.mv-leg[data-route="walk"]').count()) >= 2);
+    check("no WebGL: no uncaught page errors", errors.length === 0, errors.join(" | ") || null);
+    await shoot(page, "desktop-07-no-webgl.png");
+    await context.close();
+  } finally {
+    await noGl.close();
+  }
+}
+
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 try {
   await desktop(browser);
@@ -370,6 +398,11 @@ try {
   check("journey ran to completion", false, error.stack ?? String(error));
 } finally {
   await browser.close();
+}
+try {
+  await withoutWebgl();
+} catch (error) {
+  check("no-WebGL pass ran to completion", false, error.stack ?? String(error));
 }
 
 report.finishedAt = new Date().toISOString();

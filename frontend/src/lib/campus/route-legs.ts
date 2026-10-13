@@ -6,7 +6,8 @@
  * walkway node the walking-time matrix uses, so a leg's minutes match
  * getWalkingSeconds for the pair. A leg the graph cannot connect tries the
  * optional external router (OpenRouteService, only when a key is set) and
- * otherwise becomes a straight-line fallback: distance only, no time.
+ * otherwise becomes a straight-line fallback: distance only, no time. An
+ * engine that throws (bad request data) counts as no campus route.
  */
 import { haversineMetersBetween, type LatLng } from "@/lib/campus/geo";
 import type { CampusEngine } from "@/lib/campus/engine";
@@ -21,6 +22,24 @@ function point(value: LatLng): LatLng {
   return { lat: value.lat, lng: value.lng };
 }
 
+/**
+ * When two stops are the same place: the same building (if named) at the
+ * same coordinates to 6 decimals. The server and the map client both use
+ * this rule, so they always agree on how many legs a day has.
+ */
+export function stopIdentity(stop: LatLng, buildingId?: string): string {
+  return `${buildingId ?? ""}@${stop.lat.toFixed(6)},${stop.lng.toFixed(6)}`;
+}
+
+/** Engine calls run on request data; one that throws becomes "no campus route", not a failed request. */
+function safely<T>(call: () => T): T | null {
+  try {
+    return call();
+  } catch {
+    return null;
+  }
+}
+
 export async function buildRouteLegs(
   stops: RouteStopInput[],
   engine: CampusEngine,
@@ -30,11 +49,25 @@ export async function buildRouteLegs(
   for (let index = 0; index < stops.length - 1; index += 1) {
     const fromStop = stops[index];
     const toStop = stops[index + 1];
-    const from = (fromStop.buildingId && engine.anchorFor(fromStop.buildingId)) || point(fromStop);
-    const to = (toStop.buildingId && engine.anchorFor(toStop.buildingId)) || point(toStop);
     const indexes = { fromIndex: index, toIndex: index + 1 };
 
-    const campus = engine.routeBetweenPoints(from, to);
+    // A repeated stop (two classes in one place) is a zero-minute leg, so
+    // every pair of stops keeps its own leg and index.
+    if (stopIdentity(fromStop, fromStop.buildingId) === stopIdentity(toStop, toStop.buildingId)) {
+      legs.push({
+        ...indexes,
+        source: "campus-network",
+        geometry: [point(fromStop), point(toStop)],
+        distanceMeters: 0,
+        durationSeconds: 0,
+      });
+      continue;
+    }
+
+    const from = (fromStop.buildingId && safely(() => engine.anchorFor(fromStop.buildingId!))) || point(fromStop);
+    const to = (toStop.buildingId && safely(() => engine.anchorFor(toStop.buildingId!))) || point(toStop);
+
+    const campus = safely(() => engine.routeBetweenPoints(from, to));
     if (campus) {
       legs.push({
         ...indexes,
@@ -46,7 +79,7 @@ export async function buildRouteLegs(
       continue;
     }
 
-    const routed = external ? await external(from, to) : null;
+    const routed = external ? await external(from, to).catch(() => null) : null;
     if (routed) {
       legs.push({ ...indexes, source: "ors", ...routed, geometry: routed.geometry.map(point) });
       continue;

@@ -11,7 +11,13 @@
  * walkway graph and matrix) is reached only through lib/campus/engine.ts on
  * the server.
  */
-import { campusBuildings, untCampusBounds, untCampusCenter } from "@/lib/campus-locations";
+import {
+  campusBuildings,
+  untCampusBounds,
+  untCampusCenter,
+  untGeocodeContext,
+  type GeocodeContext,
+} from "@/lib/campus-locations";
 import { SNAP_MAX_METERS, STEPS_SPEED_MPS, WALKING_SPEED_MPS } from "@/lib/campus/speeds";
 import type { CampusBuilding } from "@/lib/types";
 
@@ -34,6 +40,8 @@ export type CampusConfig = {
   walking: { baseMps: number; stepsMps: number; snapMaxMeters: number };
   /** OSM area the geodata build fetched; the build's bbox, recorded for provenance. */
   osmExtract: { bbox: CampusBounds; builtBy: string };
+  /** How building lookup names the campus to an external geocoder. */
+  geocode: GeocodeContext;
 };
 
 export const untDenton: CampusConfig = {
@@ -49,6 +57,7 @@ export const untDenton: CampusConfig = {
     bbox: { south: 33.2025, west: -97.1585, north: 33.2175, east: -97.1345 },
     builtBy: "tools/campus-geodata/build.mjs",
   },
+  geocode: untGeocodeContext,
 };
 
 /** The campus this deployment serves. */

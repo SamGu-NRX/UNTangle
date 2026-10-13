@@ -474,21 +474,42 @@ export function normalizeCampusLocationKey(value: string) {
   return keys[1] ?? keys[0] ?? "";
 }
 
-export function buildCampusGeocodeQuery(location: string) {
+/**
+ * How a campus's name is added to a free-text geocoding query: the suffix to
+ * append, unless the text already names the school by one of its names.
+ */
+export type GeocodeContext = { suffix: string; names: readonly string[] };
+
+export const untGeocodeContext: GeocodeContext = {
+  suffix: "University of North Texas Denton TX",
+  names: ["unt", "university of north texas"],
+};
+
+export function geocodeQuery(location: string, context: GeocodeContext) {
   const normalized = location.trim();
   const lower = normalized.toLowerCase();
-  return lower.includes("unt") || lower.includes("university of north texas")
-    ? normalized
-    : `${normalized} University of North Texas Denton TX`;
+  return context.names.some((name) => lower.includes(name)) ? normalized : `${normalized} ${context.suffix}`;
+}
+
+/** UNT's query, for the planner's stop metadata. Map code passes the active campus's context. */
+export function buildCampusGeocodeQuery(location: string) {
+  return geocodeQuery(location, untGeocodeContext);
+}
+
+export function isInsideBounds(
+  location: { lat: number; lng: number },
+  bounds: { north: number; south: number; east: number; west: number },
+) {
+  return (
+    location.lat >= bounds.south &&
+    location.lat <= bounds.north &&
+    location.lng >= bounds.west &&
+    location.lng <= bounds.east
+  );
 }
 
 export function isInsideUntBounds(location: { lat: number; lng: number }) {
-  return (
-    location.lat >= untCampusBounds.south &&
-    location.lat <= untCampusBounds.north &&
-    location.lng >= untCampusBounds.west &&
-    location.lng <= untCampusBounds.east
-  );
+  return isInsideBounds(location, untCampusBounds);
 }
 
 export function resolveCampusBuilding(location: string, buildingId?: string | null) {

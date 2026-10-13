@@ -43,9 +43,18 @@ export const walkingTimeMeta = file.meta;
 
 export type BuildingAnchorInfo = Omit<AnchorFile, "anchor"> & { anchor: LatLng };
 
+/**
+ * The matrix's own entry for an id, or undefined. Ids come from requests, so
+ * an inherited name such as "__proto__" or "constructor" must miss rather
+ * than reach Object.prototype.
+ */
+function own<T>(record: Record<string, T> | undefined, key: string): T | undefined {
+  return record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
 /** Anchored walkway node per routable building (or null for unknown ids). */
 export function buildingAnchor(buildingId: string): BuildingAnchorInfo | null {
-  const anchor = file.anchors[buildingId.toLowerCase()];
+  const anchor = own(file.anchors, buildingId.toLowerCase());
   if (!anchor) return null;
   return { ...anchor, anchor: { lat: anchor.anchor[0], lng: anchor.anchor[1] } };
 }
@@ -69,16 +78,13 @@ function lookupMatrixSeconds(
   fromId: string,
   toId: string,
 ): number | null {
-  const from = seconds[fromId.toLowerCase()];
-  const hit = from?.[toId.toLowerCase()];
+  const hit = own(own(seconds, fromId.toLowerCase()), toId.toLowerCase());
   return typeof hit === "number" ? hit : null;
 }
 
 /** Network walking distance (meters) between two matrix buildings; null rules as walkingSecondsBetween. */
 export function walkingDistanceBetween(fromBuildingId: string, toBuildingId: string): number | null {
-  const from = file.meters[fromBuildingId.toLowerCase()];
-  if (!from) return null;
-  const meters = from[toBuildingId.toLowerCase()];
+  const meters = own(own(file.meters, fromBuildingId.toLowerCase()), toBuildingId.toLowerCase());
   return typeof meters === "number" ? meters : null;
 }
 

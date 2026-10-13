@@ -7,6 +7,7 @@ import { activeCampus } from "@/lib/campus/config";
 import { stopNumbersLabel, type Itinerary, type ItineraryStop } from "@/lib/map-itinerary";
 import type { MapRoutePoint } from "@/lib/types";
 import { OSM_CONTRIBUTORS_ATTRIBUTION, campusMapStyle } from "@/components/map/campus-style";
+import { startMap } from "@/components/map/start-map";
 import {
   ROUTE_HIT_LAYER,
   addRouteOverlay,
@@ -144,6 +145,7 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
   const markersRef = useRef(new globalThis.Map<string, { marker: Marker; element: HTMLButtonElement }>());
   const [styleReady, setStyleReady] = useState(false);
   const [tilesFailed, setTilesFailed] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
   const [pitch, setPitch] = useState(0);
 
   // Latest values for map event handlers, which are bound once.
@@ -155,7 +157,7 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
     const container = containerRef.current;
     if (!container) return;
     configureWorker();
-    const map = new MapLibreMap({
+    const started = startMap(() => new MapLibreMap({
       container,
       style: campusMapStyle(activeCampus),
       center: [activeCampus.center.lng, activeCampus.center.lat],
@@ -174,7 +176,12 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
       // measured): cap the canvas at 2x and bound the unused-tile cache.
       pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       maxTileCacheSize: 48,
-    });
+    }));
+    if (!started.ok) {
+      setUnavailable(true);
+      return;
+    }
+    const { map } = started;
     mapRef.current = map;
     map.touchZoomRotate.disableRotation();
     map.touchPitch.disable();
@@ -192,7 +199,7 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
         ArrowLeft: [-KEY_PAN_PX, 0],
         ArrowRight: [KEY_PAN_PX, 0],
       };
-      if (pan[event.key]) {
+      if (Object.hasOwn(pan, event.key)) {
         map.panBy(pan[event.key], { duration: 0 });
       } else if (event.key === "+" || event.key === "=") {
         map.jumpTo({ zoom: map.getZoom() + KEY_ZOOM });
@@ -491,6 +498,17 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
       easing: cameraEase,
     });
   };
+
+  if (unavailable) {
+    return (
+      <div className="mv-canvas">
+        <div ref={containerRef} className="mv-canvas__map" data-testid="campus-map" data-unavailable="true" />
+        <p className="mv-tiles-note" role="status">
+          Map unavailable: this browser couldn&rsquo;t start it (WebGL is off or unsupported). Your itinerary and walking times still work.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mv-canvas">

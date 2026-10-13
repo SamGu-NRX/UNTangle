@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { campusBuildings, resolveCampusBuilding } from "@/lib/campus-locations";
 import {
+  buildingAnchor,
   getWalkingSeconds,
   matrixBuildingIds,
+  walkingDistanceBetween,
   walkingSecondsBetween,
   walkingTimeForResolvedPair,
 } from "@/lib/campus/walking-times";
@@ -221,5 +223,20 @@ describe("getWalkingSeconds — registry-wide invariants", () => {
     const network = getWalkingSeconds("life", "blb");
     if (network.source === "unknown") throw new Error("expected a network result");
     expect(network.seconds).toBeGreaterThan(0);
+  });
+});
+
+describe("ids that name inherited properties", () => {
+  // Ids come from requests. "__proto__" used to reach Object.prototype and
+  // throw inside buildingAnchor, which turned a route request into a 500.
+  test("miss like any unknown id", () => {
+    for (const id of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+      expect(buildingAnchor(id)).toBeNull();
+      expect(walkingSecondsBetween(id, "art")).toBeNull();
+      expect(walkingSecondsBetween("art", id)).toBeNull();
+      expect(walkingDistanceBetween(id, "art")).toBeNull();
+      expect(walkingDistanceBetween("art", id)).toBeNull();
+      expect(getWalkingSeconds(id, "art")).toEqual({ seconds: null, source: "unknown" });
+    }
   });
 });

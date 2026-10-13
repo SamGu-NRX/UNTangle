@@ -3,6 +3,7 @@ import { activeCampus } from "@/lib/campus/config";
 import { campusEngine } from "@/lib/campus/engine";
 import type { LatLng } from "@/lib/campus/geo";
 import { buildRouteLegs, summarizeRoute, type ExternalLeg, type RouteStopInput } from "@/lib/campus/route-legs";
+import { isInsideBounds } from "@/lib/campus-locations";
 import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
 
 export const runtime = "nodejs";
@@ -45,23 +46,7 @@ type OrsRouteFeature = {
   };
 };
 
-function insideCampus(point: LatLng) {
-  const { north, south, east, west } = activeCampus.bounds;
-  return point.lat >= south && point.lat <= north && point.lng >= west && point.lng <= east;
-}
-
-function samePoint(a: LatLng, b: LatLng) {
-  return Math.abs(a.lat - b.lat) < 0.00001 && Math.abs(a.lng - b.lng) < 0.00001;
-}
-
-type ParsedStops = {
-  stops: RouteStopInput[];
-  /** For each merged stop, the first and last request index it stands for. */
-  firstIndex: number[];
-  lastIndex: number[];
-};
-
-function parseStops(input: RouteInput): ParsedStops | { error: string } {
+function parseStops(input: RouteInput): { stops: RouteStopInput[] } | { error: string } {
   if (!Array.isArray(input.stops)) {
     return { error: "stops must be an array" };
   }
@@ -71,15 +56,13 @@ function parseStops(input: RouteInput): ParsedStops | { error: string } {
   }
 
   const stops: RouteStopInput[] = [];
-  const firstIndex: number[] = [];
-  const lastIndex: number[] = [];
-  for (const [requestIndex, raw] of input.stops.entries()) {
+  for (const raw of input.stops) {
     const lat = typeof raw?.lat === "number" ? raw.lat : Number.NaN;
     const lng = typeof raw?.lng === "number" ? raw.lng : Number.NaN;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return { error: "All stops must include numeric lat and lng values" };
     }
-    if (!insideCampus({ lat, lng })) {
+    if (!isInsideBounds({ lat, lng }, activeCampus.bounds)) {
       return { error: `All stops must be within ${activeCampus.name} routing bounds` };
     }
     if (
@@ -88,20 +71,16 @@ function parseStops(input: RouteInput): ParsedStops | { error: string } {
     ) {
       return { error: "buildingId, when given, must be a short non-empty string" };
     }
-    const stop: RouteStopInput = { lat, lng, ...(raw.buildingId ? { buildingId: raw.buildingId as string } : {}) };
-    // Consecutive repeats are one stop: there is no walk between them.
-    if (stops.length === 0 || !samePoint(stops[stops.length - 1], stop)) {
-      stops.push(stop);
-      firstIndex.push(requestIndex);
-    }
-    lastIndex[stops.length - 1] = requestIndex;
+    // Repeated stops are kept: each pair gets its own leg (zero minutes for a
+    // repeat), so leg i always joins stops i and i + 1.
+    stops.push({ lat, lng, ...(raw.buildingId ? { buildingId: raw.buildingId as string } : {}) });
   }
 
   if (stops.length < 2) {
-    return { error: "At least two distinct stops are required" };
+    return { error: "At least two stops are required" };
   }
 
-  return { stops, firstIndex, lastIndex };
+  return { stops };
 }
 
 function orsRouter(apiKey: string) {
@@ -136,7 +115,7 @@ function orsRouter(apiKey: string) {
         const feature = payload.features?.[0];
         const geometry = (feature?.geometry?.coordinates ?? [])
           .map(([lng, lat]) => ({ lat, lng }))
-          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && insideCampus(p));
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && isInsideBounds(p, activeCampus.bounds));
         const distanceMeters = feature?.properties?.summary?.distance;
         const durationSeconds = feature?.properties?.summary?.duration;
         if (
@@ -195,11 +174,5 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.ORS_API_KEY;
   const legs = await buildRouteLegs(parsed.stops, campusEngine(activeCampus.id), apiKey ? orsRouter(apiKey) : undefined);
-  // Report leg ends in the caller's own indexes, not the merged list's.
-  const requestLegs = legs.map((leg) => ({
-    ...leg,
-    fromIndex: parsed.lastIndex[leg.fromIndex],
-    toIndex: parsed.firstIndex[leg.toIndex],
-  }));
-  return NextResponse.json(summarizeRoute(requestLegs));
+  return NextResponse.json(summarizeRoute(legs));
 }

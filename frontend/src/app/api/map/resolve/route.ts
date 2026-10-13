@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  buildCampusGeocodeQuery,
-  isInsideUntBounds,
-  resolveCampusBuilding,
-  resolveCampusLocation,
-  untCampusBounds,
-} from "@/lib/campus-locations";
+import { activeCampus } from "@/lib/campus/config";
+import { geocodeQuery, isInsideBounds, resolveCampusBuilding, resolveCampusLocation } from "@/lib/campus-locations";
 import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
 import type { MapResolvedLocation } from "@/lib/types";
 
@@ -47,7 +42,7 @@ type OrsGeocodeFeature = {
 function unresolved(
   location: string,
   buildingId?: string,
-  metadata?: Pick<MapResolvedLocation, "buildingName" | "shortName" | "unsupportedReason">,
+  metadata?: Partial<Pick<MapResolvedLocation, "buildingName" | "shortName" | "unsupportedReason" | "retryable">>,
 ): MapResolvedLocation {
   return {
     location,
@@ -55,9 +50,19 @@ function unresolved(
     buildingName: metadata?.buildingName ?? location,
     shortName: metadata?.shortName ?? location,
     resolutionStatus: "unresolved",
-    geocodeQuery: buildCampusGeocodeQuery(location),
+    geocodeQuery: geocodeQuery(location, activeCampus.geocode),
     unsupportedReason: metadata?.unsupportedReason,
+    ...(metadata?.retryable ? { retryable: true as const } : {}),
   };
+}
+
+/**
+ * The geocoder failed (network, error status, unreadable reply). That says
+ * nothing about the building, so the client is told to ask again later
+ * instead of remembering "unresolved" for the session.
+ */
+function lookupFailed(location: string, buildingId?: string) {
+  return unresolved(location, buildingId, { retryable: true });
 }
 
 function localResolution(location: string, buildingId?: string): MapResolvedLocation | null {
@@ -66,7 +71,7 @@ function localResolution(location: string, buildingId?: string): MapResolvedLoca
     return unresolved(location, matchedBuilding.id, {
       buildingName: matchedBuilding.name,
       shortName: matchedBuilding.shortName,
-      unsupportedReason: "Outside UNT Denton main-campus routing bounds",
+      unsupportedReason: `Outside ${activeCampus.name} routing bounds`,
     });
   }
 
@@ -83,7 +88,7 @@ function localResolution(location: string, buildingId?: string): MapResolvedLoca
     lat: building.lat,
     lng: building.lng,
     resolutionStatus: "local",
-    geocodeQuery: buildCampusGeocodeQuery(location),
+    geocodeQuery: geocodeQuery(location, activeCampus.geocode),
   };
 }
 
@@ -92,15 +97,16 @@ function cacheKey(location: string, buildingId?: string) {
 }
 
 async function geocodeWithOpenRouteService(location: string, buildingId: string | undefined, apiKey: string) {
-  const query = buildCampusGeocodeQuery(location);
+  const query = geocodeQuery(location, activeCampus.geocode);
+  const { bounds } = activeCampus;
   const params = new URLSearchParams({
     api_key: apiKey,
     text: query,
     size: "5",
-    "boundary.rect.min_lon": String(untCampusBounds.west),
-    "boundary.rect.min_lat": String(untCampusBounds.south),
-    "boundary.rect.max_lon": String(untCampusBounds.east),
-    "boundary.rect.max_lat": String(untCampusBounds.north),
+    "boundary.rect.min_lon": String(bounds.west),
+    "boundary.rect.min_lat": String(bounds.south),
+    "boundary.rect.max_lon": String(bounds.east),
+    "boundary.rect.max_lat": String(bounds.north),
   });
 
   let response: Response;
@@ -109,14 +115,17 @@ async function geocodeWithOpenRouteService(location: string, buildingId: string 
       cache: "no-store",
     });
   } catch {
-    return unresolved(location, buildingId);
+    return lookupFailed(location, buildingId);
   }
 
   if (!response.ok) {
-    return unresolved(location, buildingId);
+    return lookupFailed(location, buildingId);
   }
 
   const payload = (await response.json().catch(() => null)) as { features?: OrsGeocodeFeature[] } | null;
+  if (!payload) {
+    return lookupFailed(location, buildingId);
+  }
   const candidates = payload?.features
     ?.map((feature) => {
       const [lng, lat] = feature.geometry?.coordinates ?? [];
@@ -130,7 +139,7 @@ async function geocodeWithOpenRouteService(location: string, buildingId: string 
       (candidate): candidate is { lat: number; lng: number; label: string | undefined } =>
         Number.isFinite(candidate.lat) && Number.isFinite(candidate.lng),
     );
-  const match = candidates?.find((candidate) => isInsideUntBounds(candidate));
+  const match = candidates?.find((candidate) => isInsideBounds(candidate, activeCampus.bounds));
 
   if (!match) {
     return unresolved(location, buildingId);

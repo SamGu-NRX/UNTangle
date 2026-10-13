@@ -5,8 +5,9 @@
  * Rules carried over from the PR #11 data layer:
  * - lookup answers are matched to stops by the identity the server echoes
  *   (location + building id), never by array position;
- * - a request that fails is remembered only briefly, so an outage can't
- *   unmap a building or erase a route for the rest of the session;
+ * - a request that fails, or a lookup the server marks retryable (its
+ *   geocoder failed), is remembered only briefly, so an outage can't unmap a
+ *   building or erase a route for the rest of the session;
  * - a straight-line fallback answer expires after a minute, so a recovered
  *   router can replace it with a real path;
  * - an aborted request writes nothing, and answers are stored under the key
@@ -87,6 +88,9 @@ function parseLookup(value: unknown): Extract<StopLookup, { kind: "resolved" | "
   if (typeof candidate !== "object" || candidate === null || typeof candidate.location !== "string") return null;
   if (typeof candidate.buildingName !== "string" || typeof candidate.shortName !== "string") return null;
   if (candidate.resolutionStatus === "unresolved") {
+    // A geocoder outage is not an answer about the building; lookUpStops
+    // treats it as a failure that expires.
+    if (candidate.retryable === true) return null;
     return { kind: "unresolved", location: candidate as MapResolvedLocation };
   }
   if ((candidate.resolutionStatus === "local" || candidate.resolutionStatus === "geocoded") && isPoint(candidate)) {
@@ -237,4 +241,32 @@ export function pairAnswers(runs: RunPoint[][], cache: MapDataCache): Map<string
     }
   }
   return answers;
+}
+
+/**
+ * How long to wait before asking again for this day's stops and runs, or
+ * null when nothing needs asking. A failure waits out its cooldown. A
+ * straight-line answer waits for its expiry, unless its re-ask has already
+ * failed, in which case the failure's cooldown wins; and anything already due
+ * waits one cooldown, so an outage can never spin a zero-delay loop.
+ */
+export function nextAttemptDelay(stopKeys: string[], runs: RunPoint[][], cache: MapDataCache, now: number): number | null {
+  const dueAt: number[] = [];
+  for (const key of stopKeys) {
+    const failedAt = cache.lookupFailures.get(key);
+    if (failedAt !== undefined) dueAt.push(failedAt + LOOKUP_FAILURE_TTL_MS);
+  }
+  for (const run of runs) {
+    const key = runKey(run);
+    const failedAt = cache.runFailures.get(key);
+    if (failedAt !== undefined) {
+      dueAt.push(failedAt + ROUTE_FAILURE_TTL_MS);
+      continue;
+    }
+    const cached = cache.runs.get(key);
+    if (cached?.legs.some((leg) => leg.source === "fallback")) dueAt.push(cached.cachedAt + FALLBACK_ROUTE_TTL_MS);
+  }
+  if (dueAt.length === 0) return null;
+  const wait = Math.min(...dueAt) - now;
+  return wait > 0 ? wait : ROUTE_FAILURE_TTL_MS;
 }

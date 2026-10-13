@@ -113,8 +113,11 @@ and aud→sage (−24.0%) over the 20% bar.
 
 **Reproducibility:** before the gate rewrite the script ran twice with identical
 tables and timestamp-free digests (`652f791af7977acd`). The rewrite renamed fields
-in `remeasure-results.json`; its first run under the new gate exited 0 with digest
-`3d3ea76d22ecf3f2`.
+in `remeasure-results.json`. The gate now also compares the rebuilt graph's
+normalized topology with the committed one (node array, each way's OSM id,
+class and node sequence, each router edge with its steps/crossing flags); its
+latest run exited 0 with digest `7a1cb2c0c3fa1de2`. A copy of the committed
+graph with one way's class changed makes it exit 1.
 
 ## Verdict
 
@@ -136,7 +139,7 @@ README; neither affects the agreement measured here.
 ## Reproduce
 
 ```bash
-bun tools/campus-geodata/verification/independent-remeasure.ts   # exit 0 when every pair reproduces
+bun tools/campus-geodata/verification/independent-remeasure.ts   # exit 0 when every pair and the graph reproduce
 cd frontend && bun x tsc --noEmit                                # exit 0, no errors
 ```
 

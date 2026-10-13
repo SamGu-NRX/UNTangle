@@ -57,10 +57,12 @@ const TOOL_DIR = join(HERE, "..");
 const ROOT = join(TOOL_DIR, "..", "..");
 
 const RAW_PEDESTRIAN = join(TOOL_DIR, "raw", "overpass-pedestrian-snapshot.json");
-const COMMITTED_WALKWAYS = join(ROOT, "frontend", "src", "lib", "campus", "data", "walkways.json");
+// Override for mutation checks only: point the integrity comparison at a corrupted copy.
+const COMMITTED_WALKWAYS =
+  process.env.REMEASURE_COMMITTED_WALKWAYS ?? join(ROOT, "frontend", "src", "lib", "campus", "data", "walkways.json");
 const REGISTRY_TS = join(ROOT, "frontend", "src", "lib", "campus-locations.ts");
 const EVIDENCE_JSON = join(TOOL_DIR, "verification-evidence.json");
-const OUT_JSON = join(HERE, "remeasure-results.json");
+const OUT_JSON = process.env.REMEASURE_OUTPUT ?? join(HERE, "remeasure-results.json");
 
 // ---- replicated policy constants (sources cited inline) --------------------
 
@@ -134,12 +136,44 @@ function wayClass(tags: Record<string, string>): WayClass {
 
 type Reconstructed = {
   nodes: [number, number][];
+  /** One normalized line per usable way fragment: "osmId|class|n0,n1,...", sorted. */
+  wayLines: string[];
+  /** One normalized line per unique undirected edge: "lo-hi|steps|crossing", sorted. */
+  edgeLines: string[];
   wayCount: number; // usable fragments (build.mjs usableWays)
   edgeCount: number; // unique undirected node pairs
   adjacency: Map<number, Array<{ to: number; meters: number; steps: boolean; crossing: boolean }>>;
   largestComponent: number[];
   largestComponentShare: number;
 };
+
+/**
+ * The router's edge set, normalized: for every node pair, the shortest way's
+ * steps/crossing flags (graph.ts buildGraph), as sorted "lo-hi|steps|crossing"
+ * lines. Ways must be in osmId order so ties break as the runtime breaks them.
+ */
+function edgeLinesFrom(
+  nodes: [number, number][],
+  ways: ReadonlyArray<{ steps: boolean; crossing: boolean; n: number[] }>,
+): string[] {
+  const best = new Map<string, { meters: number; steps: boolean; crossing: boolean }>();
+  for (const way of ways) {
+    for (let i = 0; i < way.n.length - 1; i += 1) {
+      const a = way.n[i];
+      const b = way.n[i + 1];
+      if (a === b) continue;
+      const meters = haversine(nodes[a][0], nodes[a][1], nodes[b][0], nodes[b][1]);
+      const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
+      const existing = best.get(key);
+      if (!existing || meters < existing.meters) best.set(key, { meters, steps: way.steps, crossing: way.crossing });
+    }
+  }
+  return [...best].map(([key, edge]) => `${key}|${edge.steps}|${edge.crossing}`).sort();
+}
+
+function sameLines(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((line, index) => line === b[index]);
+}
 
 function reconstructGraph(): Reconstructed {
   const raw = JSON.parse(readFileSync(RAW_PEDESTRIAN, "utf8")) as {
@@ -159,7 +193,7 @@ function reconstructGraph(): Reconstructed {
     return index;
   }
 
-  type Fragment = { osmId: number; steps: boolean; crossing: boolean; n: number[] };
+  type Fragment = { osmId: number; cls: string; steps: boolean; crossing: boolean; n: number[] };
   const fragments: Fragment[] = [];
 
   const rawWays = raw.elements.filter((el) => el.type === "way" && Array.isArray(el.geometry));
@@ -197,7 +231,7 @@ function reconstructGraph(): Reconstructed {
       lastIdx = idx;
     }
     if (n.length >= 2) pieces.push(n);
-    for (const piece of pieces) fragments.push({ osmId: way.id, steps: isSteps, crossing: isCrossing, n: piece });
+    for (const piece of pieces) fragments.push({ osmId: way.id, cls, steps: isSteps, crossing: isCrossing, n: piece });
   }
   fragments.sort((a, b) => a.osmId - b.osmId); // same order graph.ts sees via walkways.json
 
@@ -267,6 +301,8 @@ function reconstructGraph(): Reconstructed {
 
   return {
     nodes,
+    wayLines: fragments.map((f) => `${f.osmId}|${f.cls}|${f.n.join(",")}`).sort(),
+    edgeLines: edgeLinesFrom(nodes, fragments),
     wayCount: fragments.length,
     edgeCount: bestEdge.size,
     adjacency,
@@ -459,24 +495,41 @@ function main() {
   // 1. Reconstruct from raw.
   const graph = reconstructGraph();
 
-  // 2. Integrity: does the reconstruction match the committed artifact's
-  //    counts and node array? (Committed data used as a read-only reference —
-  //    the re-measured routes below come only from the raw snapshot.)
+  // 2. Integrity: is the reconstruction the committed graph? Compared as
+  //    normalized topology, not just counts: the node array, every way
+  //    fragment (OSM id, class, node sequence), and every router edge (node
+  //    pair with its steps/crossing flags). The committed data is a read-only
+  //    reference; the re-measured routes below come only from the raw snapshot.
   let matchesCommitted: boolean | null = null;
   try {
     const committed = JSON.parse(readFileSync(COMMITTED_WALKWAYS, "utf8")) as {
-      meta: { nodeCount: number; edgeCount: number; wayCount: number };
+      meta: { nodeCount: number; edgeCount: number; wayCount: number; classes: string[] };
       nodes: [number, number][];
+      ways: Array<{ i: number; c: number; n: number[] }>;
     };
     const nodeArrayEqual =
       committed.nodes.length === graph.nodes.length &&
       committed.nodes.every((p, i) => p[0] === graph.nodes[i][0] && p[1] === graph.nodes[i][1]);
+    const committedWays = committed.ways.map((way) => {
+      const cls = committed.meta.classes[way.c];
+      return { osmId: way.i, cls, steps: cls === "steps", crossing: cls === "crossing", n: way.n };
+    });
+    const waysEqual = sameLines(
+      committedWays.map((way) => `${way.osmId}|${way.cls}|${way.n.join(",")}`).sort(),
+      graph.wayLines,
+    );
+    // Edges from the committed ways in file order, as graph.ts reads them.
+    const edgesEqual = nodeArrayEqual && sameLines(edgeLinesFrom(committed.nodes, committedWays), graph.edgeLines);
     matchesCommitted =
       nodeArrayEqual &&
+      waysEqual &&
+      edgesEqual &&
       committed.meta.nodeCount === graph.nodes.length &&
       committed.meta.edgeCount === graph.edgeCount &&
       committed.meta.wayCount === graph.wayCount;
     if (!nodeArrayEqual) warnings.push("node array differs from committed walkways.json");
+    if (!waysEqual) warnings.push("way fragments (OSM id, class or node sequence) differ from committed walkways.json");
+    if (!edgesEqual) warnings.push("router edges (endpoints or steps/crossing flags) differ from committed walkways.json");
     if (committed.meta.edgeCount !== graph.edgeCount) {
       warnings.push(`edge count differs: committed ${committed.meta.edgeCount} vs reconstructed ${graph.edgeCount}`);
     }
@@ -588,7 +641,7 @@ function main() {
       accuracyIsJudgedBy: "tools/campus-geodata/spot-check-fixture.ts against the independent eval fixture",
       secondsTolerance: REPRODUCE_SECONDS_TOLERANCE,
       metersTolerance: 0.1,
-      alsoRequires: "reconstruction matches the committed walkways.json",
+      alsoRequires: "reconstruction matches the committed walkways.json: node array, way fragments (OSM id, class, node sequence) and router edges (endpoints, steps/crossing flags)",
     },
     comparison: {
       bySeconds: secondsSummary,

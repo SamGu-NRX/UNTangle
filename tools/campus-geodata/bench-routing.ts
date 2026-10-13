@@ -1,7 +1,8 @@
 /**
  * bench-routing.ts — milestone-3 verification evidence.
  *
- * Run: bun tools/campus-geodata/bench-routing.ts
+ * Run: bun tools/campus-geodata/bench-routing.ts <campus-routes.json | --no-fixture>
+ * Exit codes: 0 the p95 route gate passed; 1 it failed; 2 usage error.
  *
  * Produces tools/campus-geodata/verification-evidence.json only. It used to
  * regenerate verification-report.md too, which overwrote the hand-written
@@ -27,7 +28,19 @@ import { routeBetweenPoints } from "../../frontend/src/lib/campus/graph";
 import { walkingSecondsBetween } from "../../frontend/src/lib/campus/walking-times";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = "/home/user/work/untangle-evals/evals/fixtures/campus-routes.json";
+// The eval fixture path is the first argument. `--no-fixture` skips the
+// accuracy section on purpose (and says so in the evidence); a missing path
+// is a usage error, not a silent skip.
+const FIXTURE = process.argv[2];
+if (!FIXTURE) {
+  console.error("usage: bun tools/campus-geodata/bench-routing.ts <campus-routes.json | --no-fixture>");
+  process.exit(2);
+}
+const SKIP_FIXTURE = FIXTURE === "--no-fixture";
+// Overrides for checking the gate itself: a 0 ms gate must fail, and its
+// evidence must not overwrite the committed file.
+const GATE_MS = Number(process.env.BENCH_GATE_MS ?? 200);
+const OUTPUT = process.env.BENCH_OUTPUT ?? join(HERE, "verification-evidence.json");
 
 type FixturePair = {
   id: string;
@@ -54,7 +67,7 @@ function summarize(samples: number[]) {
 }
 
 // ---- 1. fixture agreement -------------------------------------------------
-const fixture = JSON.parse(readFileSync(FIXTURE, "utf8")) as { pairs: FixturePair[] };
+const fixture = SKIP_FIXTURE ? { pairs: [] as FixturePair[] } : (JSON.parse(readFileSync(FIXTURE, "utf8")) as { pairs: FixturePair[] });
 const fixtureRows = fixture.pairs.map((pair) => {
   const route = routeBetweenPoints(pair.start.entrance, pair.end.entrance);
   const mine = route?.distanceMeters ?? null;
@@ -127,7 +140,7 @@ for (let i = 0; i < 10_000; i += 1) {
 }
 const matrixLatency = summarize(lookupLatencies);
 
-const gate = { routeP95Ms: routeLatency.p95, gateMs: 200, pass: routeLatency.p95 <= 200 };
+const gate = { routeP95Ms: routeLatency.p95, gateMs: GATE_MS, pass: routeLatency.p95 <= GATE_MS };
 
 // ---- 4. evidence + report ---------------------------------------------------
 let commitSha = "unknown";
@@ -140,7 +153,7 @@ try {
 const evidence = {
   generatedAt: new Date().toISOString(),
   commit: commitSha,
-  fixture: { ...fixtureSummary, rows: fixtureRows },
+  fixture: SKIP_FIXTURE ? { skipped: "run with --no-fixture" } : { ...fixtureSummary, rows: fixtureRows },
   measuredRoutes,
   latency: {
     routeComputationMs: routeLatency,
@@ -149,11 +162,17 @@ const evidence = {
   },
   matrix: (() => { const mr = JSON.parse(readFileSync(join(HERE, "matrix-report.json"), "utf8")) as { buildings: number; maxMinutes: number; asymmetries: number }; return { buildings: mr.buildings, maxLegMinutes: mr.maxMinutes, asymmetries: mr.asymmetries }; })(),
 };
-writeFileSync(join(HERE, "verification-evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+writeFileSync(OUTPUT, `${JSON.stringify(evidence, null, 2)}\n`);
 
 
-console.log(`fixture: ${fixtureSummary.routed}/${fixtureSummary.total} routed, median |err| ${fixtureSummary.medianAbsErrorPct}%`);
+console.log(
+  SKIP_FIXTURE
+    ? "fixture: skipped (--no-fixture)"
+    : `fixture: ${fixtureSummary.routed}/${fixtureSummary.total} routed, median |err| ${fixtureSummary.medianAbsErrorPct}%`,
+);
 console.log(`measured routes: ${measuredRoutes.length}/20`);
-console.log(`route latency p95: ${routeLatency.p95} ms (gate 200) — ${gate.pass ? "PASS" : "FAIL"}`);
+console.log(`route latency p95: ${routeLatency.p95} ms (gate ${GATE_MS}) — ${gate.pass ? "PASS" : "FAIL"}`);
 console.log(`matrix lookup p95: ${matrixLatency.p95} µs`);
-console.log("wrote verification-evidence.json (verification-report.md is edited by hand from the evidence files)");
+console.log(`wrote ${OUTPUT} (verification-report.md is edited by hand from the evidence files)`);
+// A printed FAIL is a failed run.
+process.exit(gate.pass ? 0 : 1);

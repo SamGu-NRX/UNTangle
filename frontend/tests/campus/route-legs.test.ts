@@ -72,6 +72,41 @@ describe("buildRouteLegs", () => {
   });
 });
 
+describe("repeats and failures", () => {
+  test("a repeated stop is a zero-minute leg, so every pair keeps its index", async () => {
+    const legs = await buildRouteLegs([sage, { ...sage }, blb], disconnected);
+    expect(legs.map((leg) => [leg.fromIndex, leg.toIndex, leg.source, leg.durationSeconds, leg.distanceMeters])).toEqual([
+      [0, 1, "campus-network", 0, 0],
+      [1, 2, "fallback", null, 370.7],
+    ]);
+  });
+
+  test("the same coordinates under two building ids are two stops", async () => {
+    const legs = await buildRouteLegs([{ ...sage, buildingId: "sage" }, { ...sage, buildingId: "symr" }], disconnected);
+    expect(legs[0].source).toBe("fallback");
+  });
+
+  test("an engine that throws on a stop gives a straight-line leg, not an error", async () => {
+    const throwing: CampusEngine = {
+      routeBetweenPoints: () => {
+        throw new TypeError("Cannot read properties of undefined");
+      },
+      anchorFor: () => {
+        throw new TypeError("Cannot read properties of undefined (reading '0')");
+      },
+    };
+    const legs = await buildRouteLegs([{ ...sage, buildingId: "__proto__" }, blb], throwing);
+    expect(legs).toHaveLength(1);
+    expect(legs[0].source).toBe("fallback");
+    expect(legs[0].durationSeconds).toBeNull();
+  });
+
+  test("an external router that rejects counts as no route", async () => {
+    const legs = await buildRouteLegs([sage, blb], disconnected, () => Promise.reject(new Error("ORS down")));
+    expect(legs[0].source).toBe("fallback");
+  });
+});
+
 describe("summarizeRoute", () => {
   test("one straight-line leg makes the whole route's time unknown and its source fallback", async () => {
     const engine: CampusEngine = {
