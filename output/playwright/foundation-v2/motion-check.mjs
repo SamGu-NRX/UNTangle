@@ -84,7 +84,7 @@ try {
       const sheet = await page.evaluate(() => document.querySelector(".ui-sheet").style.transition);
       check(label, reduced ? "sheet fades in, does not slide" : "sheet slides in on the sheet curve", reduced ? sheet.includes("opacity") && !sheet.includes("transform") : sheet.includes("transform"), sheet);
       await page.waitForTimeout(400);
-      const handle = page.getByRole("button", { name: "Resize CSCE 2100 details" });
+      const handle = page.getByRole("button", { name: "Resize sheet" });
       await handle.focus();
       await page.keyboard.press("ArrowUp");
       const keyed = await page.evaluate(() => document.querySelector(".ui-sheet").style.transition);

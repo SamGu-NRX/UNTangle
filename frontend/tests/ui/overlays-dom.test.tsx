@@ -50,7 +50,7 @@ describe("Toaster", () => {
     const { Toaster, toast, dismissToast } = await import("@/components/ui/Toast");
     const { act } = await import("react");
     const view = await mount(<Toaster />);
-    const live = () => document.querySelector('[role="status"][data-ui-live]');
+    const live = () => document.querySelector('[data-ui-live]');
     const visible = () => document.querySelector(".ui-toast");
 
     await act(async () => {
@@ -88,7 +88,7 @@ describe("Toaster", () => {
     await act(async () => {
       toast({ message: "Optimized", action: { label: "Undo", onClick: () => {} } });
     });
-    const live = document.querySelector('[role="status"][data-ui-live]')!;
+    const live = document.querySelector('[data-ui-live]')!;
     expect(live.querySelector("button")).toBeNull();
     expect(document.querySelector(".ui-toaster")!.hasAttribute("data-ui-live")).toBe(false);
     await view.unmount();

@@ -71,7 +71,7 @@ try {
     await page.getByRole("button", { name: "Open sheet" }).scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: "Open sheet" }).click();
     await pause(page, 800);
-    const handle = page.getByRole("button", { name: "Resize CSCE 2100 details" });
+    const handle = page.getByRole("button", { name: "Resize sheet" });
     const box = await handle.boundingBox();
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;

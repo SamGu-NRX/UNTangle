@@ -245,7 +245,7 @@ async function sheet(page, size) {
   check(size, "BottomSheet opens at the 50% detent", Math.abs(half - vh * 0.5) < 6, `${Math.round(half)}px`);
   await page.screenshot({ path: join(out, `${size}-sheet-half.png`) });
 
-  const handle = page.getByRole("button", { name: "Resize CSCE 2100 details" });
+  const handle = page.getByRole("button", { name: "Resize sheet" });
   const hb = await handle.boundingBox();
   const x = hb.x + hb.width / 2;
   let y = hb.y + hb.height / 2;

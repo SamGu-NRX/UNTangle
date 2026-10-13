@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { cx } from "./cx";
@@ -51,6 +52,8 @@ export type BottomSheetProps = {
   dismissible?: boolean;
   /** Content under the handle that also drags the sheet (title, switcher). */
   header?: ReactNode;
+  /** Element to focus on open (modal sheets). Default: the first focusable. */
+  initialFocus?: RefObject<HTMLElement | null>;
   children?: ReactNode;
   className?: string;
 };
@@ -95,6 +98,7 @@ export function BottomSheet({
   modal = true,
   dismissible = true,
   header,
+  initialFocus,
   children,
   className,
 }: BottomSheetProps) {
@@ -130,6 +134,7 @@ export function BottomSheet({
 
   useModalLayer(modal && open, rootRef, {
     onEscape: dismissible ? () => onOpenChange(false) : undefined,
+    initialFocus,
   });
 
   // Reset to the opening detent each time the sheet opens.
@@ -357,19 +362,26 @@ export function BottomSheet({
         tabIndex={-1}
       >
         <div className="ui-sheet__grab" {...dragHandlers(false)}>
-          <button
-            type="button"
-            className="ui-sheet__handle"
-            aria-label={detents.length > 1 ? `Resize ${title}` : `${title} handle`}
-            onClick={() => {
-              if (suppressClick.current) {
-                suppressClick.current = false;
-                return;
-              }
-              cycle(1);
-            }}
-            onKeyDown={onHandleKeyDown}
-          />
+          {detents.length > 1 ? (
+            // A generic name: the sheet's own title stays unique on the page.
+            <button
+              type="button"
+              className="ui-sheet__handle"
+              aria-label="Resize sheet"
+              onClick={() => {
+                if (suppressClick.current) {
+                  suppressClick.current = false;
+                  return;
+                }
+                cycle(1);
+              }}
+              onKeyDown={onHandleKeyDown}
+            />
+          ) : (
+            // One detent: nothing to resize, so the grip is decoration (it
+            // still drags; Escape and the sheet's buttons close it).
+            <span className="ui-sheet__handle" aria-hidden="true" />
+          )}
           {header}
         </div>
         <div className="ui-sheet__body" {...dragHandlers(true)}>
