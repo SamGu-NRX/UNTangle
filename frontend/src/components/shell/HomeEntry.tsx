@@ -6,8 +6,12 @@ import { useEffect } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import { openConnect } from "@/components/connect/open-connect";
 import { ChevronRight } from "@/components/ui/icons";
-import { getInitialPlannerState } from "@/lib/planner";
-import { hasStartedPlan } from "./home-entry";
+import { PHONE_QUERY } from "@/components/ui/use-media-query";
+import { buildScheduleEvents, getInitialPlannerState } from "@/lib/planner";
+import { PLANNING_TERM } from "@/lib/terms";
+import { hasStartedPlan, landing, readClock } from "./home-entry";
+import { readLastLens } from "./lens-memory";
+import { LENS_HREF } from "./routes";
 
 const OPTIONS = [
   {
@@ -34,10 +38,10 @@ const OPTIONS = [
 ];
 
 /**
- * `/`: the guest Courses entry (DESIGN.md §2 Landing). A first visit gets
- * a calm three-way start; a student who has already begun goes straight
- * to Courses. Nothing renders until the stored plan has loaded, so a
- * returning student never sees the welcome flash before the redirect.
+ * `/`, where the app opens. A first visit gets the calm three-way start; a
+ * returning student goes where the landing rule says (home-entry.ts). Nothing
+ * renders until the stored plan has loaded, so a returning student never
+ * sees the welcome flash before the redirect.
  */
 export function HomeEntry() {
   const { hydrated, plannerState } = usePlanner();
@@ -45,8 +49,17 @@ export function HomeEntry() {
   const started = hydrated && hasStartedPlan(plannerState, getInitialPlannerState());
 
   useEffect(() => {
-    if (started) router.replace("/courses");
-  }, [started, router]);
+    if (!started) return;
+    const target = landing({
+      started,
+      phone: window.matchMedia(PHONE_QUERY).matches,
+      lastLens: readLastLens(),
+      clock: readClock(new Date()),
+      term: PLANNING_TERM,
+      meetings: buildScheduleEvents(plannerState),
+    });
+    if (target !== "import") router.replace(LENS_HREF[target]);
+  }, [started, plannerState, router]);
 
   if (!hydrated || started) {
     return <div className="home" aria-busy="true" />;

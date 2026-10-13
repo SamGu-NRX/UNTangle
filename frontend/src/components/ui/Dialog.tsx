@@ -32,7 +32,7 @@ export type DialogProps = {
 
 /**
  * Centred modal. Not anchored to a trigger, so it scales from its own
- * centre (.96 → 1 with opacity, 200ms in, 150ms out). The scrim is flat
+ * centre (.96 → 1 with opacity, 220ms in, 150ms out). The scrim is flat
  * --overlay with no blur. The page behind is inert while open, and focus
  * returns to the opener on close.
  */
@@ -103,7 +103,7 @@ export function Dialog({
               <span />
             )}
             {dismissible ? (
-              <button type="button" className="ui-btn ui-btn--quiet ui-btn--icon ui-btn--sm" aria-label="Close" onClick={() => onOpenChange(false)}>
+              <button type="button" className="ui-btn ui-btn--ink ui-btn--icon ui-btn--sm" aria-label="Close" onClick={() => onOpenChange(false)}>
                 <Close />
               </button>
             ) : null}

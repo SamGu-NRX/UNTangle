@@ -1,5 +1,5 @@
 import { Select } from "@/components/ui/Select";
-import { StatusGlyph, type CourseStatusGlyph } from "@/components/ui/StatusGlyph";
+import { StatusGlyph, type CourseStatus } from "@/components/ui/StatusGlyph";
 import type { TranscriptAppliedStatus, TranscriptCourseRecord } from "@/lib/types";
 import styles from "./connect.module.css";
 
@@ -18,10 +18,10 @@ const STATUS_OPTIONS = [
   { value: "ignored", label: "Ignore" },
 ];
 
-const GLYPH: Record<TranscriptAppliedStatus, CourseStatusGlyph> = {
+const GLYPH: Record<TranscriptAppliedStatus, CourseStatus> = {
   completed: "done",
   inProgress: "taking",
-  needsReview: "locked",
+  needsReview: "check",
   ignored: "available",
 };
 
@@ -63,7 +63,7 @@ export function ConnectReviewRow({ record, status, included, onInclude, onStatus
           disabled={!eligible}
           onChange={(event) => onInclude(event.target.checked)}
         />
-        <StatusGlyph status={GLYPH[status]} />
+        <StatusGlyph status={GLYPH[status]} label={STATUS_OPTIONS.find((option) => option.value === status)?.label} />
         <span className={styles.reviewText}>
           <span className={styles.reviewLine}>
             <strong className="ui-code">{record.code}</strong>

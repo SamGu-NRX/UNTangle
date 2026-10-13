@@ -2,25 +2,29 @@
 
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cx } from "./cx";
+import { Check } from "./icons";
 
 export type ChipProps = Omit<ComponentPropsWithRef<"button">, "onChange"> & {
   selected: boolean;
   onSelectedChange?: (next: boolean) => void;
-  /** Counting meta after the label, e.g. "10 min" renders "· 10 min". */
+  /** A quieter fact after the label, such as "10 min", set apart by weight and color. */
   count?: ReactNode;
   size?: "md" | "sm";
+  /** `warn` draws the chip in attention, for a choice that costs something. */
+  tone?: "default" | "warn";
 };
 
 /**
- * Toggle chip (aria-pressed). Selected chips show a 12px check that appears
- * with the state; nothing slides.
+ * Toggle chip (aria-pressed), 32px. On is a brand-soft fill, a 1.5px brand
+ * ring and a check; the check appears with the state and nothing slides.
  */
-export function Chip({ selected, onSelectedChange, count, size = "md", className, children, onClick, ...rest }: ChipProps) {
+export function Chip({ selected, onSelectedChange, count, size = "md", tone = "default", className, children, onClick, ...rest }: ChipProps) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       className={cx("ui-chip", size === "sm" && "ui-chip--sm", className)}
+      data-tone={tone === "warn" ? "warn" : undefined}
       data-ui=""
       onClick={(event) => {
         onClick?.(event);
@@ -28,13 +32,9 @@ export function Chip({ selected, onSelectedChange, count, size = "md", className
       }}
       {...rest}
     >
-      {selected ? (
-        <svg className="ui-chip__check" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-          <path d="M2.5 6.5 5 9l4.5-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ) : null}
+      {selected ? <Check size={14} className="ui-chip__check" /> : null}
       <span>{children}</span>
-      {count !== undefined ? <span className="ui-chip__count">· {count}</span> : null}
+      {count !== undefined ? <span className="ui-chip__count">{count}</span> : null}
     </button>
   );
 }

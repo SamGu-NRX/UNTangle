@@ -1,11 +1,11 @@
 /*
- * /dev/controls only. The `dev-hover` and `dev-focus` classes pin the hover
- * and keyboard-focus looks so one screenshot shows every state; they copy
- * the real :hover and :focus-visible rules in ui.css.
+ * /dev/controls only. The dev-hover, dev-press and dev-focus classes hold the
+ * hover, press and keyboard-focus looks still, so one screenshot shows every
+ * state; they copy the real :hover, :active and :focus-visible rules in ui.css.
  */
 
 .spec-page {
-  max-width: 1240px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 32px 24px 96px;
 }
@@ -14,11 +14,14 @@
 }
 .spec-page__head h1 {
   margin: 0;
-  font: 600 18px/24px var(--font-body);
+  font: 640 var(--text-h1) / var(--lh-h1) var(--font-ui);
+  letter-spacing: -0.012em;
 }
 .spec-page__head p {
+  max-width: 640px;
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
 .spec-grid {
@@ -29,21 +32,29 @@
 }
 .spec-card {
   min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  padding: 20px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1);
 }
 .spec-card h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
-  margin: 0 0 12px;
-  font: 600 13px/18px var(--font-body);
+  gap: 4px 8px;
+  margin: 0 0 8px;
+  font: 620 15px/22px var(--font-ui);
 }
 .spec-card h2 small {
+  font-size: var(--text-meta);
   font-weight: 400;
+  color: var(--ink-2);
+}
+.spec-sub {
+  margin: 20px 0 10px;
+  font: 650 var(--text-label) / var(--lh-label) var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-2);
 }
 .spec-row {
@@ -51,34 +62,29 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
+}
+.spec-row--flush {
+  margin-top: 0;
 }
 .spec-row > .spec-lab {
   flex: none;
   width: 64px;
-  font: 500 11px/16px var(--font-body);
+  font: 600 var(--text-label) / var(--lh-label) var(--font-ui);
   color: var(--ink-2);
 }
 .spec-stack {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
-.spec-field {
-  width: 220px;
+.spec-stack--gap {
+  margin-top: 16px;
 }
 .spec-note {
-  margin: 8px 0 0;
-  font-size: 12.5px;
-  line-height: 18px;
+  margin: 12px 0 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
-}
-.spec-calendar {
-  display: inline-block;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
 }
 .spec-fieldset {
   display: flex;
@@ -91,56 +97,187 @@
 .spec-fieldset legend {
   padding: 0;
   margin-bottom: 4px;
-  font: 600 12.5px/18px var(--font-body);
+  font: 600 var(--text-meta) / var(--lh-meta) var(--font-ui);
+}
+.spec-glyphs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.spec-glyphs li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+}
+.spec-stop {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 4px 0 6px;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+}
+.spec-stop strong {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 600;
+}
+.spec-stop > span {
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+}
+.spec-stop > .spec-stop__warn {
+  color: var(--danger);
+}
+.spec-hstop {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+}
+.spec-wide {
+  width: 100%;
+  margin: 4px 0 12px;
+}
+.spec-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+.spec-sheet-code {
+  font-size: 20px;
+  color: var(--brand);
+}
+.spec-day-label {
+  font-size: var(--text-meta);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.spec-numeral {
+  margin: 0;
+  font: 700 44px/1 var(--font-mark);
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.spec-sheet-body h2 {
+  margin: 0 0 4px;
+  font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
 }
 .spec-sheet-body p {
   margin: 0 0 12px;
-  font-size: 14px;
-  line-height: 20px;
   color: var(--ink-2);
 }
-@media (max-width: 1100px) {
+.spec-sheet-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 44px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.spec-sheet-row > span:first-child {
+  font-weight: 600;
+  color: var(--ink);
+}
+.spec-spinner {
+  display: inline-flex;
+  color: var(--brand);
+}
+.spec-pick {
+  display: grid;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+.spec-pick li + li {
+  border-top: 1px solid var(--line);
+}
+.spec-pick button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  background: var(--paper);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.spec-pick button[aria-pressed="true"] {
+  background: var(--brand-soft);
+}
+.spec-pick button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .spec-pick button:hover:not([aria-pressed="true"]) {
+    background: var(--paper-2);
+  }
+}
+
+@media (max-width: 1180px) {
   .spec-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 719px) {
   .spec-page {
-    padding: 20px 16px 64px;
+    padding: 20px 12px 64px;
   }
   .spec-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
-  .spec-field {
-    width: 100%;
+  .spec-card {
+    padding: 16px;
   }
 }
 
-/* Pinned states */
+/* Pinned states (copies of ui.css :hover, :active and :focus-visible). */
 .dev-hover.ui-btn--primary {
-  background: var(--brand-hover);
+  background: var(--brand-2);
 }
-.dev-hover.ui-btn--ghost,
+.dev-hover.ui-btn--secondary,
 .dev-hover.ui-btn--quiet,
+.dev-hover.ui-btn--ink,
 .dev-hover.ui-chip {
-  background: var(--surface-2);
+  background: var(--paper-2);
 }
-.dev-hover .ui-field,
-.dev-hover.ui-field {
-  border-color: var(--ink-4);
+.dev-press.ui-btn,
+.dev-press.ui-chip {
+  transform: scale(0.97);
 }
 .dev-focus.ui-btn,
 .dev-focus.ui-chip,
-.dev-focus .ui-field,
-.dev-focus.ui-field {
+.dev-focus-seg .ui-seg__item[aria-checked="true"] {
   outline: 2px solid transparent;
   box-shadow: var(--focus);
 }
-.dev-focus .ui-field,
-.dev-focus.ui-field {
-  border-color: var(--brand);
+.dev-focus .ui-field {
+  box-shadow: inset 0 0 0 1.5px var(--brand-2), 0 0 0 3px var(--accent-soft);
 }
-.dev-focus .ui-toggle__track {
+.dev-focus .ui-switch__track {
   box-shadow: var(--focus);
+}
+
+/* Wrapped specimens keep their 44px hit areas apart on a coarse pointer. */
+@media (pointer: coarse) {
+  .spec-row {
+    row-gap: 28px;
+    margin-top: 16px;
+  }
 }

@@ -2,59 +2,47 @@
 
 import { useState, type ReactNode } from "react";
 import { BottomSheet } from "../BottomSheet";
-import { Button, IconButton, SplitButton } from "../Button";
+import { Button, IconButton } from "../Button";
 import { Checkbox, Radio } from "../Checkbox";
 import { Chip, ChipGroup } from "../Chip";
-import { DateInput, DatePicker, type DateRange, type TermPreset } from "../DateInput";
+import { ContextPanel } from "../ContextPanel";
+import { DateInput } from "../DateInput";
 import { Dialog } from "../Dialog";
-import { MoreGlyph } from "../icons";
+import { Check, Close, MoreGlyph, Plus, TrayIn, Undo, Walk } from "../icons";
 import { Kbd } from "../Kbd";
 import { Menu } from "../Menu";
+import { PathLine, PathStop } from "../PathLine";
+import { Plate } from "../Plate";
 import { ProgressBar } from "../ProgressBar";
 import { ProvenanceTag } from "../ProvenanceTag";
 import { SearchField, SearchTrigger } from "../SearchField";
-import { SearchPalette, type SearchSection } from "../SearchPalette";
 import { Segmented } from "../Segmented";
-import { Select } from "../Select";
-import { RangeSlider, Slider } from "../Slider";
-import { StatusGlyph } from "../StatusGlyph";
-import { StatusMark } from "../StatusMark";
+import { Slider } from "../Slider";
+import { StatusGlyph, type CourseStatus } from "../StatusGlyph";
+import { Switch } from "../Switch";
 import { TextField } from "../TextField";
 import { toast } from "../Toast";
-import { Toggle } from "../Toggle";
 import { Tooltip } from "../Tooltip";
 import "./specimen.css";
 
-/** Sample term dates for the specimen only; real presets come from school config. */
-const PRESETS: TermPreset[] = [
-  { id: "sp27", label: "Spring 2027 · Jan 20–May 7", start: "2027-01-20", end: "2027-05-07" },
-  { id: "su27", label: "Summer 2027", start: "2027-06-01", end: "2027-08-06" },
-  { id: "fa27", label: "Fall 2027", start: "2027-08-23", end: "2027-12-10" },
-];
-/** Pinned so the calendar screenshots are stable. */
+/** Pinned so date screenshots are stable. */
 const TODAY = "2027-01-13";
 
-const INSTRUCTORS = [
-  { value: "all", label: "All instructors", meta: "14 sections" },
-  { value: "okafor", label: "R. Okafor", meta: "4 sections" },
-  { value: "delgado", label: "M. Delgado", meta: "3 sections" },
-  { value: "whitfield", label: "S. Whitfield", meta: "2 sections" },
-  { value: "lindqvist", label: "A. Lindqvist", meta: "no grades yet", disabled: true },
+const GLYPHS: Array<[CourseStatus, string]> = [
+  ["done", "Done"],
+  ["covered", "Covered"],
+  ["taking", "Taking now"],
+  ["planned", "Planned"],
+  ["available", "You can take"],
+  ["locked", "Locked"],
+  ["check", "To check"],
 ];
 
-const PALETTE_COURSES = [
-  { id: "c1", code: "CSCE 3110", title: "Data Structures and Algorithms", meta: "Locked · needs CSCE 2110" },
-  { id: "c2", code: "CSCE 4110", title: "Algorithms", meta: "Locked · needs CSCE 3110" },
-  { id: "c3", code: "CSCE 2100", title: "Computing Foundations I", meta: "Planned" },
-];
-
-function formatHour(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const twelve = h % 12 === 0 ? 12 : h % 12;
-  return m ? `${twelve}:${String(m).padStart(2, "0")} ${suffix}` : `${twelve} ${suffix}`;
-}
+const PICKS = [
+  { code: "CSCE 2110", title: "Foundations of Data Structures", meta: "Section 001, MWF 9:00" },
+  { code: "MATH 2700", title: "Linear Algebra and Vector Geometry", meta: "Section 003, MWF 10:00" },
+  { code: "PHYS 2220", title: "Electricity and Magnetism", meta: "Section 002, MW 11:00" },
+] as const;
 
 function Card({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
@@ -68,9 +56,14 @@ function Card({ title, note, children }: { title: string; note?: string; childre
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * A row of specimens. A `pinned` row shows a hover, press or focus look that
+ * CSS holds still for the screenshot; it is inert, because those copies are
+ * pictures of a state rather than controls of their own.
+ */
+function Row({ label, pinned, children }: { label: string; pinned?: boolean; children: ReactNode }) {
   return (
-    <div className="spec-row">
+    <div className="spec-row" inert={pinned || undefined}>
       <span className="spec-lab">{label}</span>
       {children}
     </div>
@@ -78,310 +71,242 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function ControlsSpecimen() {
-  const [instructor, setInstructor] = useState("okafor");
-  const [legacyDept, setLegacyDept] = useState("CSCE");
-  const [view, setView] = useState<"courses" | "week" | "map">("courses");
-  const [timeOfDay, setTimeOfDay] = useState<"earlier" | "any" | "later">("any");
-  const [day, setDay] = useState<"Mon" | "Tue" | "Wed" | "Thu" | "Fri">("Mon");
-  const [labs, setLabs] = useState(true);
-  const [ratings, setRatings] = useState(false);
-  const [checks, setChecks] = useState({ a: false, b: true });
-  const [section, setSection] = useState("003");
-  const [chips, setChips] = useState({ fridays: false, eights: true, compact: false, walks: true });
-  const [walk, setWalk] = useState(10);
-  const [windowHours, setWindowHours] = useState<[number, number]>([9, 15]);
-  const [query, setQuery] = useState("data str");
-  const [emptyQuery, setEmptyQuery] = useState("");
-  const [firstDay, setFirstDay] = useState<string | null>("2027-01-20");
-  const [range, setRange] = useState<DateRange>({ start: "2027-01-20", end: "2027-05-07" });
   const [loading, setLoading] = useState(false);
+  const [lens, setLens] = useState<"courses" | "week" | "day">("courses");
+  const [start, setStart] = useState<"any" | "9" | "10" | "11">("any");
+  const [campus, setCampus] = useState<"unt" | "utexas">("unt");
+  const [option, setOption] = useState<"a" | "b" | "c">("a");
+  const [chips, setChips] = useState({ fridays: true, lunch: false, walks: true, profs: false });
+  const [overload, setOverload] = useState(true);
+  const [walkTimes, setWalkTimes] = useState(true);
+  const [reminders, setReminders] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filled, setFilled] = useState("data str");
+  const [email, setEmail] = useState("sam@unt");
+  const [checks, setChecks] = useState({ labs: true, online: false });
+  const [section, setSection] = useState("001");
+  const [walk, setWalk] = useState(10);
+  const [firstDay, setFirstDay] = useState<string | null>("2027-01-19");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [paletteQuery, setPaletteQuery] = useState("");
-  const [email, setEmail] = useState("sam@gmail.com");
-  const [reminder, setReminder] = useState("15");
+  const [daySheetOpen, setDaySheetOpen] = useState(false);
+  const [picked, setPicked] = useState<(typeof PICKS)[number] | null>(null);
 
-  const paletteSections: SearchSection[] = [
-    {
-      id: "courses",
-      label: "Courses",
-      items: PALETTE_COURSES.filter((c) =>
-        `${c.code} ${c.title}`.toLowerCase().includes(paletteQuery.trim().toLowerCase()),
-      ).map((c) => ({ ...c, metaTone: "default" as const })),
-    },
-  ];
-  const someChecked = checks.a !== checks.b;
+  const runLoading = () => {
+    setLoading(true);
+    window.setTimeout(() => setLoading(false), 1600);
+  };
 
   return (
     <main className="spec-page" id="main">
       <header className="spec-page__head">
         <h1>Controls</h1>
-        <p>Every ui/ control and state, for visual checks. Hover and focus rows are pinned; the rest are live.</p>
+        <p>
+          Every control in components/ui and its states. Rows marked hover, press and focus are held still for screenshots; everything else is
+          live.
+        </p>
       </header>
 
       <div className="spec-grid">
-        <Card title="Button" note="primary · ghost · quiet · destructive · split · loading · disabled">
-          <Row label="default">
-            <Button>Optimize week</Button>
-            <Button variant="ghost">Print</Button>
-            <Button variant="quiet">Cancel</Button>
-            <Button variant="destructive">Remove</Button>
+        <Card title="Button" note="primary, secondary, quiet, ink, destructive, link">
+          <Row label="rest">
+            <Button icon={<TrayIn size={18} />}>Auto</Button>
+            <Button variant="secondary">Open in Week</Button>
+            <Button variant="quiet" icon={<Undo size={16} />}>
+              Undo
+            </Button>
+            <Button variant="ink">Cancel</Button>
+            <Button variant="destructive">Delete schedule</Button>
+            <Button variant="link">Import again</Button>
           </Row>
-          <Row label="hover">
-            <Button className="dev-hover" tabIndex={-1}>
-              Optimize week
+          <Row label="hover" pinned>
+            <Button className="dev-hover">Auto</Button>
+            <Button variant="secondary" className="dev-hover">
+              Open in Week
             </Button>
-            <Button variant="ghost" className="dev-hover" tabIndex={-1}>
-              Print
+            <Button variant="quiet" className="dev-hover">
+              Undo
             </Button>
-            <Button variant="quiet" className="dev-hover" tabIndex={-1}>
+            <Button variant="ink" className="dev-hover">
               Cancel
             </Button>
           </Row>
-          <Row label="focus">
-            <Button className="dev-focus" tabIndex={-1}>
-              Optimize week
-            </Button>
-            <Button variant="ghost" className="dev-focus" tabIndex={-1}>
-              Print
+          <Row label="press" pinned>
+            <Button className="dev-press">Auto</Button>
+            <Button variant="secondary" className="dev-press">
+              Open in Week
             </Button>
           </Row>
-          <Row label="other">
-            <SplitButton
-              icon={<span aria-hidden="true">✦</span>}
-              onClick={() => toast("Auto-fill ran (specimen).")}
-              menuLabel="More ways to auto-fill"
-              menuItems={[
-                { id: "connect", label: "From UNT (Connect)" },
-                { id: "pdf", label: "From a transcript PDF" },
-                { id: "next", label: "Suggest next term only" },
-                { kind: "separator", id: "s" },
-                { id: "clear", label: "Clear auto status", destructive: true },
-              ]}
-            >
-              Auto-fill
-            </SplitButton>
-            <Button
-              loading={loading}
-              loadingLabel="Filling…"
-              onClick={() => {
-                setLoading(true);
-                window.setTimeout(() => setLoading(false), 1600);
-              }}
-            >
-              Run auto-fill
+          <Row label="focus" pinned>
+            <Button className="dev-focus">Auto</Button>
+            <Button variant="secondary" className="dev-focus">
+              Open in Week
             </Button>
-            <Button disabled>Locked</Button>
-            <IconButton label="More actions" variant="ghost">
-              <MoreGlyph />
-            </IconButton>
-          </Row>
-          <Row label="small">
-            <Button size="sm" variant="ghost">
-              + Plan
-            </Button>
-            <Button size="sm" variant="link">
+            <Button variant="quiet" className="dev-focus">
               Undo
             </Button>
-            <Button size="sm" loading loadingLabel="Saving…">
+          </Row>
+          <Row label="disabled">
+            <Button disabled>Auto</Button>
+            <Button variant="secondary" disabled>
+              Open in Week
+            </Button>
+            <Button variant="quiet" disabled>
+              Undo
+            </Button>
+          </Row>
+          <Row label="loading">
+            <Button loading={loading} loadingLabel={<span className="sr-only-v2">Planning</span>} onClick={runLoading} icon={<TrayIn size={18} />}>
+              Auto
+            </Button>
+            <Button size="sm" variant="secondary" loading loadingLabel="Saving">
               Save
             </Button>
           </Row>
-        </Card>
-
-        <Card title="Select" note="custom Listbox on every pointer">
-          <div className="spec-stack">
-            <Select
-              className="spec-field"
-              label="Instructor"
-              options={INSTRUCTORS}
-              value={instructor}
-              onValueChange={setInstructor}
-            />
-            <Select className="spec-field dev-hover" label="Hover" options={INSTRUCTORS} defaultValue="all" />
-            <Select className="spec-field" label="Disabled" options={INSTRUCTORS} defaultValue="all" disabled />
-            <Select
-              className="spec-field"
-              label="Department"
-              error="Pick a department to filter by."
-              value={legacyDept}
-              onChange={(event) => setLegacyDept(event.target.value)}
-            >
-              <option value="ANTH">Anthropology</option>
-              <option value="CSCE">Computer Science</option>
-              <option value="MATH">Mathematics</option>
-            </Select>
-            <Select className="spec-field" size="sm" label="Small" options={INSTRUCTORS} defaultValue="delgado" />
-          </div>
-          <p className="spec-note">The Department select uses v1 `&lt;option&gt;` children and `onChange`; it still receives a real change event.</p>
-        </Card>
-
-        <Card title="Dropdown menu" note="PlanChip, Auto-fill caret, ⋯ overflow">
-          <Row label="trigger">
-            <Menu
-              label="Plan"
-              align="start"
-              items={[
-                { id: "copy", label: "Save a copy", shortcut: "⌘S", icon: <span aria-hidden="true">⎘</span> },
-                { id: "rename", label: "Rename", shortcut: "R", icon: <span aria-hidden="true">✎</span> },
-                { kind: "label", id: "saved", label: "Saved plans" },
-                { id: "v3", label: "Spring 2027 · v3", meta: "open", current: true },
-                { id: "v2", label: "Spring 2027 · v2", meta: "Compare" },
-                { id: "nofri", label: "No Fridays try", meta: "Compare" },
-                { kind: "separator", id: "sep" },
-                { id: "library", label: "Open library", meta: "›" },
-                { id: "export", label: "Export (soon)", disabled: true },
-                { id: "archive", label: "Archive this plan", destructive: true },
-              ]}
-              trigger={(props) => (
-                <button {...props} type="button" className="ui-btn ui-btn--ghost" data-ui="">
-                  Plan menu
-                </button>
-              )}
-            />
-            <Menu
-              label="Row actions"
-              align="end"
-              items={[
-                { id: "details", label: "Details" },
-                { id: "remove", label: "Remove from plan", destructive: true },
-              ]}
-              trigger={(props) => (
-                <button {...props} type="button" className="ui-btn ui-btn--quiet ui-btn--icon" aria-label="Row actions" data-ui="">
-                  <MoreGlyph />
-                </button>
-              )}
-            />
+          <Row label="sizes">
+            <Button size="sm" variant="secondary">
+              Small 32
+            </Button>
+            <Button variant="secondary">Medium 40</Button>
+            <Button size="lg">Use the downloaded PDF</Button>
           </Row>
-          <p className="spec-note">Enter, Space or ↓ opens on the first item; ↑ on the last. Type to jump.</p>
+          <Row label="icon">
+            <IconButton label="Add MATH 3680" variant="quiet">
+              <Plus />
+            </IconButton>
+            <IconButton label="More actions">
+              <MoreGlyph />
+            </IconButton>
+            <IconButton label="Close" size="sm">
+              <Close />
+            </IconButton>
+            <IconButton label="Add to Spring 2027" variant="secondary">
+              <Plus />
+            </IconButton>
+          </Row>
         </Card>
 
-        <Card title="Segmented control" note="32 · 28 small · full width · disabled">
+        <Card title="Segmented" note="one pill moves on a pointer; the keyboard moves it at once">
           <Row label="views">
             <Segmented
               label="View"
-              value={view}
-              onValueChange={setView}
+              value={lens}
+              onValueChange={setLens}
               options={[
                 { value: "courses", label: "Courses" },
                 { value: "week", label: "Week" },
-                { value: "map", label: "Map" },
+                { value: "day", label: "Day" },
               ]}
             />
           </Row>
-          <Row label="small">
+          <Row label="start">
             <Segmented
-              label="Time of day"
+              label="Start after"
               size="sm"
-              value={timeOfDay}
-              onValueChange={setTimeOfDay}
+              value={start}
+              onValueChange={setStart}
               options={[
-                { value: "earlier", label: "Earlier" },
                 { value: "any", label: "Any" },
-                { value: "later", label: "Later" },
+                { value: "9", label: "9 AM" },
+                { value: "10", label: "10 AM" },
+                { value: "11", label: "11 AM" },
               ]}
             />
           </Row>
-          <div className="spec-row">
+          <Row label="campus">
             <Segmented
-              label="Day"
-              fullWidth
-              value={day}
-              onValueChange={setDay}
+              label="Campus"
+              value={campus}
+              onValueChange={setCampus}
               options={[
-                { value: "Mon", label: "Mon" },
-                { value: "Tue", label: "Tue" },
-                { value: "Wed", label: "Wed" },
-                { value: "Thu", label: "Thu" },
-                { value: "Fri", label: "Fri", disabled: true },
+                { value: "unt", label: "UNT" },
+                { value: "utexas", label: "UT Austin" },
               ]}
             />
-          </div>
-        </Card>
-
-        <Card title="Toggle" note="only for true on/off settings">
-          <div className="spec-stack">
-            <Toggle checked={labs} onChange={setLabs} label="Include labs in walking time" description="Adds lab buildings to the route" />
-            <Toggle checked={ratings} onChange={setRatings} label="Show instructor ratings" />
-            <div className="spec-row" style={{ marginTop: 0 }}>
-              <span className="dev-focus">
-                <Toggle checked onChange={() => {}} ariaLabel="Pinned focus example" />
-              </span>
-              <Toggle checked={false} disabled label="Disabled" />
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Checkbox, radio, chip, tag">
-          <Row label="checkbox">
-            <Checkbox label="Off" checked={checks.a} onChange={(e) => setChecks({ ...checks, a: e.target.checked })} />
-            <Checkbox label="On" checked={checks.b} onChange={(e) => setChecks({ ...checks, b: e.target.checked })} />
-            <Checkbox
-              label="Some"
-              checked={checks.a && checks.b}
-              indeterminate={someChecked}
-              onChange={(e) => setChecks({ a: e.target.checked, b: e.target.checked })}
-            />
-            <Checkbox label="Disabled" disabled />
           </Row>
+          <Row label="options">
+            <Segmented
+              label="Option"
+              size="sm"
+              value={option}
+              onValueChange={setOption}
+              options={[
+                { value: "a", label: "A" },
+                { value: "b", label: "B" },
+                { value: "c", label: "C", disabled: true },
+              ]}
+            />
+          </Row>
+          <Row label="focus" pinned>
+            <Segmented
+              label="Pinned focus"
+              value="week"
+              onValueChange={() => {}}
+              className="dev-focus-seg"
+              options={[
+                { value: "courses", label: "Courses" },
+                { value: "week", label: "Week" },
+                { value: "day", label: "Day" },
+              ]}
+            />
+          </Row>
+        </Card>
+
+        <Card title="Chip" note="toggles; on shows a check">
           <div className="spec-row">
-            <fieldset className="spec-fieldset">
-              <legend>Section</legend>
-              {["001", "003"].map((s) => (
-                <Radio key={s} name="section" value={s} label={`§${s}`} checked={section === s} onChange={() => setSection(s)} />
-              ))}
-              <Radio name="section" value="005" label="§005 (full)" disabled />
-            </fieldset>
-          </div>
-          <div className="spec-row">
-            <ChipGroup label="Constraints">
-              <Chip selected={chips.fridays} onSelectedChange={(v) => setChips({ ...chips, fridays: v })}>
+            <ChipGroup label="Preferences">
+              <Chip selected={chips.fridays} onSelectedChange={(fridays) => setChips({ ...chips, fridays })}>
                 No Fridays
               </Chip>
-              <Chip selected={chips.eights} onSelectedChange={(v) => setChips({ ...chips, eights: v })}>
-                No 8 AMs
+              <Chip selected={chips.lunch} onSelectedChange={(lunch) => setChips({ ...chips, lunch })}>
+                Lunch break
               </Chip>
-              <Chip selected={chips.compact} onSelectedChange={(v) => setChips({ ...chips, compact: v })} className="dev-hover">
-                Compact days
-              </Chip>
-              <Chip selected={chips.walks} onSelectedChange={(v) => setChips({ ...chips, walks: v })} count="10 min">
+              <Chip selected={chips.walks} onSelectedChange={(walks) => setChips({ ...chips, walks })} count="10 min">
                 Short walks
+              </Chip>
+              <Chip selected={chips.profs} onSelectedChange={(profs) => setChips({ ...chips, profs })}>
+                Top-rated profs
               </Chip>
             </ChipGroup>
           </div>
-          <Row label="tags">
-            <ProvenanceTag source="Statuses come from the transcript PDF you imported.">From transcript</ProvenanceTag>
-            <ProvenanceTag source="Sections are samples, not this term's real schedule.">Sample</ProvenanceTag>
-            <ProvenanceTag source="Walking times are estimated from straight-line distance.">Approx.</ProvenanceTag>
+          <Row label="warn">
+            <Chip selected={overload} tone="warn" onSelectedChange={setOverload}>
+              18 credits
+            </Chip>
+          </Row>
+          <Row label="hover" pinned>
+            <Chip selected={false} className="dev-hover">
+              Lunch break
+            </Chip>
+            <Chip selected={false} className="dev-press">
+              Pressed
+            </Chip>
+            <Chip selected className="dev-focus">
+              Focused
+            </Chip>
+          </Row>
+          <Row label="disabled">
+            <Chip selected={false} disabled>
+              Fewer days
+            </Chip>
+            <Chip selected disabled>
+              No Fridays
+            </Chip>
           </Row>
         </Card>
 
-        <Card title="Slider" note="single and range; bubble while dragging or focused">
+        <Card title="Switch" note="40 × 24; true on or off settings only">
           <div className="spec-stack">
-            <Slider
-              label="Max walk between classes"
-              min={2}
-              max={20}
-              value={walk}
-              onValueChange={setWalk}
-              formatValue={(v) => `${v} min`}
-              minLabel="2"
-              maxLabel="20 min"
-            />
-            <RangeSlider
-              label="Class window"
-              min={7}
-              max={21}
-              step={0.5}
-              value={windowHours}
-              onValueChange={setWindowHours}
-              formatValue={formatHour}
-              minLabel="7 AM"
-              maxLabel="9 PM"
-              minGap={1}
-            />
+            <Switch checked={walkTimes} onChange={setWalkTimes} label="Show walking times" description="Between classes on the same day" />
+            <Switch checked={reminders} onChange={setReminders} label="Leave-by alerts in the calendar file" />
+            <Switch checked={false} disabled label="Location" description="Allow it in the browser first" />
           </div>
+          <Row label="focus" pinned>
+            <span className="dev-focus">
+              <Switch checked onChange={() => {}} ariaLabel="Pinned focus" />
+            </span>
+            <Switch checked={false} ariaLabel="Off" />
+          </Row>
         </Card>
 
         <Card title="Search and text fields">
@@ -390,180 +315,323 @@ export function ControlsSpecimen() {
               label="Search courses"
               placeholder="Search courses"
               shortcut="⌘K"
-              value={emptyQuery}
-              onChange={(e) => setEmptyQuery(e.target.value)}
-              onClear={() => setEmptyQuery("")}
-            />
-            <SearchField
-              label="Search courses (filled)"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               onClear={() => setQuery("")}
             />
+            <SearchField label="Search courses, filled" value={filled} onChange={(event) => setFilled(event.target.value)} onClear={() => setFilled("")} />
             <SearchField label="Searching" defaultValue="algo" loading />
-            <div className="spec-row" style={{ marginTop: 0 }}>
-              <SearchTrigger onClick={() => setPaletteOpen(true)} />
-              <SearchTrigger compact onClick={() => setPaletteOpen(true)} />
+            <div className="spec-row spec-row--flush">
+              <SearchTrigger onClick={() => toast("The search layer opens from the shell.")} />
+              <SearchTrigger compact onClick={() => toast("The search layer opens from the shell.")} />
             </div>
-            <TextField label="Plan name" defaultValue="Spring 2027 · v3" help="Shown in the top bar." />
+            <TextField label="Schedule name" defaultValue="Fridays off" help="Shown on the schedule tab." />
             <TextField
-              label="UNT email"
+              label="Email"
               type="email"
+              inputMode="email"
+              autoComplete="username"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={/@(my\.)?unt\.edu$/i.test(email) ? null : "Use your @unt.edu or @my.unt.edu address."}
+              onChange={(event) => setEmail(event.target.value)}
+              error={/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? null : "Add the rest of the address, like name@my.unt.edu."}
             />
-            <TextField label="Disabled" defaultValue="Read only" disabled />
-          </div>
-        </Card>
-
-        <Card title="Date input" note="term presets; range for the .ics dialog">
-          <div className="spec-stack">
-            <DateInput label="First day of classes" value={firstDay} onChange={setFirstDay} today={TODAY} help="Type 1/20/27 or pick a day." />
-            <div className="spec-calendar">
-              <DatePicker label="Term dates" mode="range" range={range} onRangeChange={setRange} presets={PRESETS} today={TODAY} />
+            <TextField label="Student ID" defaultValue="Removed" disabled />
+            <div inert>
+              <TextField label="Focused" defaultValue="Kerr Hall" className="dev-focus" />
             </div>
           </div>
         </Card>
 
-        <Card title="Tooltip, kbd, progress, toast">
-          <Row label="tooltip">
-            <Tooltip content="A · 146 students · 35%">
-              <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" data-ui="">
-                Hover me
-              </button>
-            </Tooltip>
-            <Tooltip content="You set this. Click to reset.">
-              <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" data-ui="">
-                And me
-              </button>
-            </Tooltip>
+        <Card title="Plate, status, provenance">
+          <Row label="plates">
+            <Plate building="GAB" room="535" name="General Academic Building" />
+            <Plate building="CURY" room="104" />
+            <Plate building="ESSC" room="255" quiet />
           </Row>
-          <Row label="kbd">
-            <Kbd>⌘K</Kbd>
-            <Kbd>esc</Kbd>
-            <Kbd>↵</Kbd>
-            <span>
-              <Kbd>⌘</Kbd>
-              <Kbd>↵</Kbd>
-            </span>
+          <ul className="spec-glyphs" aria-label="Course statuses">
+            {GLYPHS.map(([status, caption]) => (
+              <li key={status}>
+                <StatusGlyph status={status} />
+                <span aria-hidden="true">{caption}</span>
+              </li>
+            ))}
+          </ul>
+          <Row label="tags">
+            <ProvenanceTag source="Statuses come from the transcript PDF you imported on October 13.">From transcript, Oct 13</ProvenanceTag>
+            <ProvenanceTag source="These sections are samples, not this term's real schedule.">Sample sections</ProvenanceTag>
+            <ProvenanceTag source="Grades come from UNT's public grade distributions.">UNT grade records 2019 to 2025</ProvenanceTag>
           </Row>
-          <div className="spec-stack" style={{ marginTop: 12 }}>
-            <ProgressBar value={42} max={120} aria-label="Credits toward degree" />
-            <ProgressBar indeterminate aria-label="Reading the PDF" />
-            <ProgressBar pct={35} label="Core complete" />
-          </div>
+        </Card>
+
+        <Card title="Path line" note="order that is real; the walk is drawn">
+          <PathLine label="Monday">
+            <PathStop marker={<Walk size={14} strokeWidth={2.4} />} tone="ring" leg="walk" chip="9 min">
+              <p className="spec-stop">
+                <strong>Kerr Hall</strong>
+                <span>Leave by 8:49</span>
+              </p>
+            </PathStop>
+            <PathStop marker="1" leg="tight" chip="8 min">
+              <p className="spec-stop">
+                <strong>
+                  <span className="ui-code">CSCE 2110</span> 9:00 to 9:50
+                </strong>
+                <Plate building="GAB" room="535" quiet />
+              </p>
+            </PathStop>
+            <PathStop marker="2" leg="late" chip="12 min">
+              <p className="spec-stop">
+                <strong>
+                  <span className="ui-code">MATH 2700</span> 10:00 to 10:50
+                </strong>
+                <span className="spec-stop__warn">The walk is 2 min longer than the break</span>
+              </p>
+            </PathStop>
+            <PathStop marker="3">
+              <p className="spec-stop">
+                <strong>
+                  <span className="ui-code">PHYS 2220</span> 11:00 to 11:50
+                </strong>
+                <Plate building="PHYS" room="104" quiet />
+              </p>
+            </PathStop>
+          </PathLine>
+          <h3 className="spec-sub">Import steps</h3>
+          <PathLine label="Import steps">
+            <PathStop marker={<Check size={14} />} tone="past" leg="past">
+              <p className="spec-stop">
+                <strong>Sign in to myUNT</strong>
+              </p>
+            </PathStop>
+            <PathStop marker="2" tone="here" leg="todo">
+              <p className="spec-stop">
+                <strong>Open the unofficial transcript</strong>
+              </p>
+            </PathStop>
+            <PathStop marker="3" tone="ring">
+              <p className="spec-stop">
+                <strong>Download the PDF</strong>
+              </p>
+            </PathStop>
+          </PathLine>
+          <h3 className="spec-sub">Prerequisites</h3>
+          <PathLine orientation="horizontal" label="Path to CSCE 3110">
+            <PathStop marker={<Check size={14} />} leg="done">
+              <span className="spec-hstop">
+                <span className="ui-code">CSCE 2100</span>B
+              </span>
+            </PathStop>
+            <PathStop marker={<Check size={14} />} leg="done">
+              <span className="spec-hstop">
+                <span className="ui-code">CSCE 2110</span>A
+              </span>
+            </PathStop>
+            <PathStop marker="" tone="here" leg="todo">
+              <span className="spec-hstop">
+                <span className="ui-code">CSCE 3110</span>This course
+              </span>
+            </PathStop>
+            <PathStop marker="" tone="ring">
+              <span className="spec-hstop">
+                <span className="ui-code">CSCE 4110</span>Unlocks
+              </span>
+            </PathStop>
+          </PathLine>
+        </Card>
+
+        <Card title="Context panel" note="opens on a selection; a sheet on phones">
+          <ul className="spec-pick" aria-label="Spring 2027 courses">
+            {PICKS.map((course) => (
+              <li key={course.code}>
+                <button type="button" aria-pressed={picked?.code === course.code} onClick={() => setPicked(course)}>
+                  <span className="ui-code">{course.code}</span>
+                  <span>{course.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="spec-note">Escape or Close returns focus to the course you picked. Picking another swaps the content in place.</p>
+        </Card>
+
+        <Card title="Toast, dialog, sheet">
           <Row label="toast">
-            <Button size="sm" variant="ghost" onClick={() => toast("Saved a copy to your library.")}>
-              Plain toast
+            <Button size="sm" variant="secondary" onClick={() => toast("Saved to this device")}>
+              Plain
             </Button>
             <Button
               size="sm"
-              variant="ghost"
-              onClick={() =>
-                toast({ message: "Optimized · 2 sections moved", action: { label: "Undo", onClick: () => toast("Undone.") } })
-              }
+              variant="secondary"
+              onClick={() => toast({ message: "Removed CSCE 2610", action: { label: "Undo", onClick: () => toast("CSCE 2610 is back") } })}
             >
-              Toast with Undo
+              With Undo
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => toast({ message: "Couldn't save. Check your connection and retry.", tone: "error" })}>
+              Error
             </Button>
           </Row>
-        </Card>
-
-        <Card title="Status" note="glyph only; the row carries the word">
-          <Row label="glyphs">
-            <StatusGlyph status="done" labelled />
-            <StatusGlyph status="taking" labelled />
-            <StatusGlyph status="planned" labelled />
-            <StatusGlyph status="available" labelled />
-            <StatusGlyph status="locked" labelled />
-          </Row>
-          <Row label="v1 mark">
-            <StatusMark label="Done" tone="completed" />
-            <StatusMark label="Taking" tone="in-progress" />
-            <StatusMark label="Conflict" tone="danger" />
-          </Row>
-        </Card>
-
-        <Card title="Dialog and bottom sheet">
           <Row label="open">
-            <Button variant="ghost" onClick={() => setDialogOpen(true)}>
-              Open dialog
+            <Button variant="secondary" onClick={() => setDialogOpen(true)}>
+              Dialog
             </Button>
-            <Button variant="ghost" onClick={() => setSheetOpen(true)}>
-              Open sheet
+            <Button variant="secondary" onClick={() => setSheetOpen(true)}>
+              Course sheet
+            </Button>
+            <Button variant="secondary" onClick={() => setDaySheetOpen(true)}>
+              Day sheet
             </Button>
           </Row>
-          <p className="spec-note">The sheet has three detents (112px, 50%, 92%): drag the handle, flick, or press ↑/↓ on it.</p>
+          <p className="spec-note">
+            The course sheet opens at half height and is modal: drag, flick, tap the dimmed page, press Escape or go Back. The Day sheet is glass,
+            leaves the page live and rests at 206px, half and 86%.
+          </p>
+        </Card>
+
+        <Card title="Also in components/ui" note="checkbox, radio, slider, date, menu, tooltip, kbd, progress, spinner">
+          <Row label="checkbox">
+            <Checkbox label="Labs" checked={checks.labs} onChange={(event) => setChecks({ ...checks, labs: event.target.checked })} />
+            <Checkbox label="Online" checked={checks.online} onChange={(event) => setChecks({ ...checks, online: event.target.checked })} />
+            <Checkbox label="Disabled" disabled />
+          </Row>
+          <div className="spec-row">
+            <fieldset className="spec-fieldset">
+              <legend>Section</legend>
+              {["001", "002"].map((value) => (
+                <Radio key={value} name="spec-section" value={value} label={`§${value}`} checked={section === value} onChange={() => setSection(value)} />
+              ))}
+              <Radio name="spec-section" value="003" label="§003, full" disabled />
+            </fieldset>
+          </div>
+          <div className="spec-stack spec-stack--gap">
+            <Slider label="Longest walk" min={2} max={20} value={walk} onValueChange={setWalk} formatValue={(value) => `${value} min`} minLabel="2" maxLabel="20 min" />
+            <DateInput label="First day of classes" value={firstDay} onChange={setFirstDay} today={TODAY} />
+          </div>
+          <Row label="menu">
+            <Menu
+              label="Schedule actions"
+              align="start"
+              items={[
+                { id: "rename", label: "Rename" },
+                { id: "duplicate", label: "Duplicate" },
+                { id: "export", label: "Export" },
+                { kind: "separator", id: "sep" },
+                { id: "delete", label: "Delete", destructive: true },
+              ]}
+              trigger={(props) => (
+                <button {...props} type="button" className="ui-btn ui-btn--ink ui-btn--icon" aria-label="Schedule actions" data-ui="">
+                  <MoreGlyph />
+                </button>
+              )}
+            />
+            <Tooltip content="146 students, 35% A">
+              <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm" data-ui="">
+                Tooltip
+              </button>
+            </Tooltip>
+            <Kbd>⌘K</Kbd>
+            <Kbd>esc</Kbd>
+          </Row>
+          <div className="spec-stack spec-stack--gap">
+            <ProgressBar value={54} max={120} aria-label="Credits toward the degree" />
+            <ProgressBar indeterminate aria-label="Reading the PDF" />
+          </div>
+          <Row label="spinner">
+            <span className="spec-spinner" role="status" aria-label="Loading">
+              <SpinnerSample />
+            </span>
+          </Row>
         </Card>
       </div>
+
+      <ContextPanel open={picked !== null} onClose={() => setPicked(null)} title={picked?.code ?? ""}>
+        {picked ? (
+          <div className="spec-sheet-body">
+            <h2>{picked.title}</h2>
+            <p>{picked.meta}</p>
+            <Plate building="GAB" room="535" />
+          </div>
+        ) : null}
+      </ContextPanel>
 
       <Dialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Export calendar"
-        description="Adds this plan's classes to your calendar app."
+        title="Delete Fridays off?"
+        description="Main stays your active schedule. You can undo this for a few seconds."
+        width={420}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-              Cancel
+            <Button variant="ink" onClick={() => setDialogOpen(false)}>
+              Keep it
             </Button>
-            <Button onClick={() => setDialogOpen(false)}>Download .ics</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDialogOpen(false);
+                toast({ message: "Deleted Fridays off", action: { label: "Undo", onClick: () => toast("Fridays off is back") } });
+              }}
+            >
+              Delete
+            </Button>
           </>
         }
-      >
-        <div className="spec-stack">
-          <Select
-            label="Reminder before class"
-            value={reminder}
-            onValueChange={setReminder}
-            options={[
-              { value: "none", label: "No reminder" },
-              { value: "10", label: "10 minutes" },
-              { value: "15", label: "15 minutes" },
-              { value: "30", label: "30 minutes" },
-            ]}
-          />
-          <DatePicker label="Term dates" mode="range" range={range} onRangeChange={setRange} presets={PRESETS} today={TODAY} />
-        </div>
-      </Dialog>
+      />
 
       <BottomSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title="CSCE 2100 details"
-        detents={[112, "50%", "92%"]}
-        initialDetent={1}
+        title="MATH 3680 details"
+        closeOnBack
         header={
-          <div className="spec-row" style={{ marginTop: 0, justifyContent: "space-between" }}>
-            <span className="ui-code" style={{ fontSize: 20 }}>
-              CSCE 2100
-            </span>
-            <Button size="sm" variant="quiet" onClick={() => setSheetOpen(false)}>
-              Done
-            </Button>
+          <div className="spec-sheet-head">
+            <span className="ui-code spec-sheet-code">MATH 3680</span>
+            <IconButton label="Close" size="sm" onClick={() => setSheetOpen(false)}>
+              <Close />
+            </IconButton>
           </div>
         }
       >
         <div className="spec-sheet-body">
-          <p>Computing Foundations I · 3 credits · Core</p>
-          {Array.from({ length: 14 }, (_, i) => (
-            <p key={i}>Section §00{(i % 9) + 1} · Tue Thu 11:00–12:20 · GAB 550</p>
+          <h2>Applied Statistics</h2>
+          <p>3 credits. You can take this.</p>
+          <Button className="spec-wide" icon={<Plus size={18} />} onClick={() => setSheetOpen(false)}>
+            Add to Spring 2027
+          </Button>
+          {Array.from({ length: 12 }, (_, i) => (
+            <p key={i} className="spec-sheet-row">
+              <span>§00{(i % 9) + 1}</span>
+              <span>Tue and Thu, 11:00 to 12:20</span>
+              <Plate building="GAB" room="550" quiet />
+            </p>
           ))}
         </div>
       </BottomSheet>
 
-      <SearchPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        query={paletteQuery}
-        onQueryChange={setPaletteQuery}
-        sections={paletteSections}
-        planShortcut
-        onSelect={(item, { plan }) => {
-          setPaletteOpen(false);
-          toast(`${plan ? "Planned" : "Opened"} ${item.code}`);
-        }}
-      />
+      <BottomSheet
+        open={daySheetOpen}
+        onOpenChange={setDaySheetOpen}
+        title="Your day"
+        modal={false}
+        dismissible={false}
+        glass
+        detents={[206, "50%", "86%"]}
+        header={
+          <div className="spec-sheet-head">
+            <span className="spec-day-label">Leave Kerr Hall by</span>
+            <IconButton label="Close the Day sheet" size="sm" onClick={() => setDaySheetOpen(false)}>
+              <Close />
+            </IconButton>
+          </div>
+        }
+      >
+        <div className="spec-sheet-body">
+          <p className="spec-numeral">8:49</p>
+          <p>CSCE 2110 at 9:00, a 9 min walk to GAB 535</p>
+        </div>
+      </BottomSheet>
     </main>
   );
+}
+
+function SpinnerSample() {
+  return <span className="ui-spinner" style={{ width: 16, height: 16 }} aria-hidden="true" data-ui="" />;
 }

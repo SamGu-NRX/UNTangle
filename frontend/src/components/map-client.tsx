@@ -18,6 +18,7 @@ import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { CameraInsets } from "@/components/map/map-canvas";
 import type { MapSelection } from "@/components/map/selection";
 import { useItinerary } from "@/components/map/use-itinerary";
+import { usePageState } from "@/components/shell/shell-context";
 import { weekDays, type WeekDay } from "@/lib/types";
 import "@/components/map/map.css";
 
@@ -72,7 +73,8 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   const [selection, setSelection] = useState<MapSelection>(null);
-  const [detent, setDetent] = useState<SheetDetent>("half");
+  // Kept while the student visits other lenses: each tab keeps its own sheet.
+  const [detent, setDetent] = usePageState<SheetDetent>("sheet-detent", "half");
   const [sheetVisible, setSheetVisible] = useState(0);
   const [areaHeight, setAreaHeight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -117,7 +119,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
       // At peek the chosen row is hidden; at full the map is. Half shows both.
       if (next && isPhone && detent !== "half") setDetent("half");
     },
-    [detent, isPhone],
+    [detent, isPhone, setDetent],
   );
 
   // The matching row comes into view whichever side the selection came from.

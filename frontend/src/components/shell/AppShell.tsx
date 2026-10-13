@@ -6,41 +6,45 @@ import { ConnectHost } from "@/components/connect/connect-host";
 import { SearchPalette } from "@/components/ui/SearchPalette";
 import { Toaster } from "@/components/ui/Toast";
 import { courses } from "@/lib/seed-data";
-import { BottomTabs } from "./BottomTabs";
 import { courseHref, searchCourses } from "./course-search";
-import { shellModeFor, viewForPath } from "./routes";
+import { useLensMemory } from "./lens-memory";
+import { lensForPath, shellModeFor } from "./routes";
 import { ShellContext, type ShellApi, type ShellSearchProvider } from "./shell-context";
-import { TopBar } from "./TopBar";
+import { TabBar } from "./TabBar";
+import { PhoneHeader, TopBar } from "./TopBar";
 
 /**
- * The persistent frame around every app route (DESIGN.md §2): TopBar,
- * the routed view in <main>, BottomTabs on phones, the ⌘K palette and the
- * toast region. It lives in the root layout, so views render inside it
- * without importing it, and it stays mounted while the student moves
- * between Courses, Week and Map. Sign-in, print and /dev routes are drawn
- * bare (routes.ts).
+ * The persistent frame around every app route (DESIGN.md §3): the top bar on
+ * desktop, the phone header and tab bar on phones, the routed lens in
+ * <main>, the ⌘K search and the toast region. It lives in the root layout,
+ * so it stays mounted while the student moves between Courses, Week and
+ * Day, and it remembers where each lens was left. Sign-in, print and /dev
+ * routes are drawn bare (routes.ts).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
   const mode = shellModeFor(pathname);
-  const view = viewForPath(pathname);
+  const lens = lensForPath(pathname);
+  const { hrefs, pick } = useLensMemory(lens, pathname);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [lastPath, setLastPath] = useState(pathname);
-  // The routed view's own search (Courses), when it registers one.
+  // The routed lens's own search (Courses), when it registers one.
   const [provider, setSearchProvider] = useState<ShellSearchProvider | null>(null);
+  // Page state that outlives the page while the student visits other lenses.
+  const [pageState] = useState(() => new Map<string, unknown>());
 
   if (lastPath !== pathname) {
-    // A navigation closes the palette.
+    // A navigation closes the search.
     setLastPath(pathname);
     setSearchOpen(false);
   }
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
-  const api = useMemo<ShellApi>(() => ({ openSearch, setSearchProvider }), [openSearch]);
+  const api = useMemo<ShellApi>(() => ({ openSearch, setSearchProvider, pageState }), [openSearch, pageState]);
 
-  // ⌘K / Ctrl+K toggles the palette from anywhere in the app.
+  // ⌘K / Ctrl+K toggles the search from anywhere in the app.
   useEffect(() => {
     if (mode !== "app") return;
     const onKey = (event: KeyboardEvent) => {
@@ -67,15 +71,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <ShellContext.Provider value={api}>
-      <div className="shell" data-view={view ?? "none"}>
+      <div className="shell" data-lens={lens ?? "none"}>
         <a href="#main" className="shell-skip">
           Skip to content
         </a>
-        <TopBar view={view} onSearch={openSearch} />
+        <TopBar lens={lens} hrefs={hrefs} onPick={pick} onSearch={openSearch} />
+        <PhoneHeader />
         <main id="main" className="shell-main" tabIndex={-1}>
           {children}
         </main>
-        <BottomTabs view={view} />
+        <TabBar lens={lens} hrefs={hrefs} onPick={pick} />
       </div>
       <SearchPalette
         open={searchOpen}

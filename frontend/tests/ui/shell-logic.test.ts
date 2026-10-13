@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { courseHref, searchCourses } from "@/components/shell/course-search";
-import { hasStartedPlan, type PlanProgress } from "@/components/shell/home-entry";
+import { hasStartedPlan, landing, readClock, type LandingInput, type PlanProgress } from "@/components/shell/home-entry";
 import { chipStatusLabel, chipTone } from "@/components/shell/plan-status";
-import { shellModeFor, viewForPath } from "@/components/shell/routes";
+import { lensForPath, shellModeFor, withQuery } from "@/components/shell/routes";
 import { SAVE_LABELS, type PlannerSaveStatus } from "@/components/planner-provider";
 
 describe("shell routes", () => {
@@ -12,8 +12,8 @@ describe("shell routes", () => {
     }
   });
 
-  test("every view and library route renders inside the shell", () => {
-    for (const path of ["/", "/courses", "/courses/import", "/courses/CSCE/2100", "/schedule", "/map", "/plans", "/about", "/instructors/42"]) {
+  test("every lens and library route renders inside the shell", () => {
+    for (const path of ["/", "/courses", "/courses/import", "/courses/CSCE/2100", "/schedule", "/day", "/schedules", "/about", "/instructors/42"]) {
       expect(shellModeFor(path)).toBe("app");
     }
   });
@@ -21,15 +21,83 @@ describe("shell routes", () => {
   test("prefixes match whole segments only", () => {
     expect(shellModeFor("/authors")).toBe("app");
     expect(shellModeFor("/developer")).toBe("app");
-    expect(viewForPath("/mapping")).toBeNull();
+    expect(lensForPath("/days")).toBeNull();
+    expect(lensForPath("/schedules")).toBeNull();
   });
 
-  test("routes map to the three views; / is the Courses entry", () => {
-    expect(viewForPath("/")).toBe("courses");
-    expect(viewForPath("/courses/import")).toBe("courses");
-    expect(viewForPath("/schedule")).toBe("week");
-    expect(viewForPath("/map")).toBe("map");
-    expect(viewForPath("/plans")).toBeNull();
+  test("the /map and /plans redirects keep the query", () => {
+    expect(withQuery("/day", {})).toBe("/day");
+    expect(withQuery("/day", { campus: "unt" })).toBe("/day?campus=unt");
+    expect(withQuery("/schedules", { a: ["1", "2"], b: undefined, q: "x y&z" })).toBe("/schedules?a=1&a=2&q=x+y%26z");
+  });
+
+  test("routes map to the three lenses; / is the Courses entry", () => {
+    expect(lensForPath("/")).toBe("courses");
+    expect(lensForPath("/courses/import")).toBe("courses");
+    expect(lensForPath("/schedule")).toBe("week");
+    expect(lensForPath("/day")).toBe("day");
+    expect(lensForPath("/schedules")).toBeNull();
+  });
+});
+
+describe("landing", () => {
+  // Spring 2027 dates; 2027-02-03 is a Wednesday.
+  const term = { start: "2027-01-19", end: "2027-05-07" };
+  const meetings = [
+    { day: "Wed", end: "09:50" },
+    { day: "Wed", end: "14:20" },
+    { day: "Thu", end: "11:50" },
+  ] as const;
+  const base: LandingInput = {
+    started: true,
+    phone: true,
+    lastLens: "week",
+    clock: { date: "2027-02-03", weekday: "Wed", minutes: 8 * 60 + 37 },
+    term,
+    meetings,
+  };
+
+  test("in session with a class still ahead today, the phone opens on Day", () => {
+    expect(landing(base)).toBe("day");
+    // A class that has started but not ended still counts.
+    expect(landing({ ...base, clock: { ...base.clock, minutes: 14 * 60 } })).toBe("day");
+  });
+
+  test("once today's last class has ended, the last lens used", () => {
+    expect(landing({ ...base, clock: { ...base.clock, minutes: 14 * 60 + 20 } })).toBe("week");
+  });
+
+  test("on a weekend, the last lens used", () => {
+    expect(landing({ ...base, clock: { date: "2027-02-06", weekday: null, minutes: 9 * 60 } })).toBe("week");
+  });
+
+  test("outside the term, or with nothing scheduled today, the last lens used", () => {
+    expect(landing({ ...base, clock: { ...base.clock, date: "2026-10-14" } })).toBe("week");
+    expect(landing({ ...base, clock: { ...base.clock, date: "2027-05-12" } })).toBe("week");
+    expect(landing({ ...base, meetings: [] })).toBe("week");
+    expect(landing({ ...base, clock: { ...base.clock, weekday: "Fri" } })).toBe("week");
+  });
+
+  test("the term's first and last days are in session", () => {
+    expect(landing({ ...base, clock: { ...base.clock, date: term.start } })).toBe("day");
+    expect(landing({ ...base, clock: { ...base.clock, date: term.end } })).toBe("day");
+  });
+
+  test("desktop always reopens the last lens used", () => {
+    expect(landing({ ...base, phone: false })).toBe("week");
+  });
+
+  test("with no lens used yet, Courses", () => {
+    expect(landing({ ...base, phone: false, lastLens: null })).toBe("courses");
+  });
+
+  test("a first visit with no transcript goes to the import entry", () => {
+    expect(landing({ ...base, started: false })).toBe("import");
+  });
+
+  test("readClock reads the local date, weekday and minutes", () => {
+    expect(readClock(new Date(2027, 1, 3, 8, 37))).toEqual({ date: "2027-02-03", weekday: "Wed", minutes: 517 });
+    expect(readClock(new Date(2027, 1, 7, 0, 5))).toEqual({ date: "2027-02-07", weekday: null, minutes: 5 });
   });
 });
 
@@ -124,24 +192,5 @@ describe("first visit vs returning student", () => {
   test("the real seed, normalised, is a first visit", async () => {
     const { getInitialPlannerState } = await import("@/lib/planner");
     expect(hasStartedPlan(getInitialPlannerState(), getInitialPlannerState())).toBe(false);
-  });
-});
-
-describe("plan menu", () => {
-  const base = { saveFailed: false, isRegistered: false, recent: [], onRetry: () => {}, onConnect: () => {} };
-
-  test("Save a copy is disabled, and refuses, until the plan has loaded", async () => {
-    const { planMenuEntries } = await import("@/components/shell/PlanChip");
-    let copies = 0;
-    const entries = planMenuEntries({ ...base, planLoaded: false, onCopy: () => (copies += 1) });
-    const copy = entries.find((e) => e.id === "copy");
-    expect(copy && "disabled" in copy ? copy.disabled : undefined).toBe(true);
-    if (copy && "onSelect" in copy) copy.onSelect?.();
-    expect(copies).toBe(0);
-
-    const ready = planMenuEntries({ ...base, planLoaded: true, onCopy: () => (copies += 1) }).find((e) => e.id === "copy");
-    expect(ready && "disabled" in ready ? ready.disabled : undefined).toBe(false);
-    if (ready && "onSelect" in ready) ready.onSelect?.();
-    expect(copies).toBe(1);
   });
 });

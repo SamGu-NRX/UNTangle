@@ -44,12 +44,13 @@ export const metadata: Metadata = {
   other: { "apple-mobile-web-app-capable": "yes" },
 };
 
-// No maximum-scale: readers must be able to zoom.
+// No maximum-scale: readers must be able to zoom. The theme color is
+// --ground; the Day route overrides it with the map's land color.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#f4f6f4",
+  themeColor: "#f4f6f3",
 };
 
 export default function RootLayout({

@@ -1,85 +1,108 @@
 @import "tailwindcss";
 
 /*
- * UNTangle v2 tokens. The :root block below is DESIGN.md §3, unchanged except
- * that the font stacks lead with the next/font families loaded in layout.tsx.
- * Contrast (WCAG luminance math, not a run): --ink-3 is 4.2:1 on white, so it
- * is for glyphs, dividers and placeholders only; --accent is 3.1:1 and never
- * text on white. Meta text uses --ink-2 (5.5:1).
+ * UNTangle v3 tokens: docs/design/untangle-v3-opus/DESIGN.md §7 (color, type,
+ * spacing, radius, elevation) and MOTION.md §2 (motion). The font stacks lead
+ * with the next/font families loaded in layout.tsx. Contrast pairs are
+ * recomputed in tests/ui/tokens.test.ts: --ink-2 is the lightest text color;
+ * --ink-3 is for glyphs and placeholders only; --accent is never text.
  */
 :root {
-  /* color roles */
-  --bg: #f4f6f4;            /* app canvas */
-  --surface: #ffffff;       /* rows, panels, sheets */
-  --surface-2: #eef2ee;     /* hovered rows, insets, kbd */
-  --surface-3: #e6ece6;     /* pressed rows, segmented track */
-  --line: #dde8dd;          /* hairlines */
-  --line-strong: #c3d2c3;   /* input borders, active chip border */
-  --ink: #1a2e1a;           /* titles, codes, primary text */
-  --ink-2: #586e58;         /* body and meta text (min for text) */
-  --ink-3: #6b826b;         /* glyphs, placeholders, dividers only */
-  --ink-4: #93a593;         /* disabled, locked ring */
-  --brand: #00512b;         /* primary buttons, pins, route, planned dot */
-  --brand-hover: #007a40;
-  --brand-soft: #e4f0e8;    /* selected row, planned tint */
-  --accent: #00a855;        /* focus ring, live dot, taking ring (never text) */
-  --accent-soft: #e3f6eb;
-  --danger: #b3261e;        /* conflict text and ring */
-  --danger-soft: #fbeae8;
-  --overlay: rgba(26, 46, 26, 0.32);
+  --ground: #f4f6f3; --paper: #ffffff; --paper-2: #eef2ed; --paper-3: #e5ebe4;
+  --line: #dde6dc; --line-2: #c5d3c4;
+  --ink: #1a2e1a;   /* titles, codes */
+  --ink-2: #4f654f; /* body and meta, the lightest text allowed */
+  --ink-3: #6b806b; /* glyphs, placeholders only */
+  --ink-4: #9fb09f; /* disabled, past route, decorative */
+  --brand: #00512b; --brand-2: #007a40; --brand-soft: #e3efe6;
+  --accent: #00a855; --accent-soft: #dff5e8;          /* focus ring, live dot, taking, selected pin */
+  --attention: #8a6100; --attention-soft: #fbf3df;    /* "check" status, tight walks, full sections */
+  --danger: #b3261e; --danger-soft: #fbeae8;          /* conflicts, errors, late walks */
+  --scrim: rgba(16, 32, 18, .36);
+  --glass: rgba(255, 255, 255, .84); --glass-edge: rgba(255, 255, 255, .7);
 
-  /* course colors: one per course in a plan, assigned in plan order, never as text under 14px */
-  --course-1: #3f7a4f; --course-1-tint: #e6f0e8;   /* moss */
-  --course-2: #a3613f; --course-2-tint: #f6ebe4;   /* clay */
-  --course-3: #4b6a8a; --course-3-tint: #e6ecf2;   /* slate */
-  --course-4: #8d7325; --course-4-tint: #f5f0e0;   /* ochre */
-  --course-5: #7a5272; --course-5-tint: #f1e8f0;   /* plum */
-  --course-6: #3d7a7a; --course-6-tint: #e3f0f0;   /* teal */
+  /* course colors, assigned per schedule and clustered by department (lib/course-colors.ts) */
+  --c1: #3f7a4f; --c1t: #e6f0e8;  /* moss  */
+  --c2: #a3613f; --c2t: #f6ebe4;  /* clay  */
+  --c3: #4b6a8a; --c3t: #e6ecf2;  /* slate */
+  --c4: #8d7325; --c4t: #f5f0e0;  /* ochre */
+  --c5: #7a5272; --c5t: #f1e8f0;  /* plum  */
+  --c6: #3d7a7a; --c6t: #e3f0f0;  /* teal  */
 
-  /* type */
-  --font-body: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
-  --font-display: var(--font-syne), "Syne", sans-serif;
-  --text-xs: 11px;   --lh-xs: 16px;   /* uppercase labels, tags; letter-spacing .06em */
-  --text-sm: 12.5px; --lh-sm: 18px;   /* meta */
-  --text-md: 14px;   --lh-md: 20px;   /* rows, body */
-  --text-lg: 15px;   --lh-lg: 22px;   /* view header, panel section titles */
-  --text-xl: 18px;   --lh-xl: 24px;   /* panel course title */
-  --code-sm: 13px;                     /* Syne 700, course code in rows and events */
-  --code-lg: 20px;                     /* Syne 700, course code in panel, stat figures */
-  --wordmark: 22px;                    /* Syne 800 */
+  --font-ui: var(--font-dm-sans), "DM Sans", ui-sans-serif, sans-serif;
+  --font-mark: var(--font-syne), "Syne", var(--font-dm-sans), "DM Sans", sans-serif;
+  /* type roles (DESIGN.md §6); the numeral and wordmark sizes live with their components */
+  --text-label: 11px; --lh-label: 16px;   /* 650, +0.06em caps */
+  --text-meta: 13px;  --lh-meta: 18px;
+  --text-body: 14px;  --lh-body: 20px;    /* 15px on phones */
+  --text-title: 18px; --lh-title: 24px;   /* 620, -0.005em */
+  --text-h1: 22px;    --lh-h1: 28px;      /* 640, -0.012em */
 
-  /* spacing (4px base) */
-  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px;
-  --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+  --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
 
-  /* radius */
-  --r-sm: 6px;    /* chips, inputs, kbd, tags */
-  --r-md: 10px;   /* rows, events, buttons */
-  --r-lg: 14px;   /* panels, sheets, dialogs, floating map panel */
-  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(20, 40, 22, .07);
+  --shadow-2: 0 6px 16px -4px rgba(20, 40, 22, .12), 0 1px 3px rgba(20, 40, 22, .07);
+  --shadow-3: 0 24px 48px -12px rgba(20, 40, 22, .22), 0 4px 10px rgba(20, 40, 22, .08);
 
-  /* elevation (green-tinted, quiet) */
-  --shadow-1: 0 1px 2px rgba(26,46,26,.06);
-  --shadow-2: 0 4px 12px rgba(26,46,26,.08), 0 1px 2px rgba(26,46,26,.06);
-  --shadow-3: 0 16px 40px rgba(26,46,26,.14), 0 2px 6px rgba(26,46,26,.08);
+  --ease-out: cubic-bezier(.23, 1, .32, 1);        /* entrances, responses, popovers, press release */
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);    /* things on screen that move: FLIP, event swaps */
+  --ease-sheet: cubic-bezier(.32, .72, 0, 1);      /* programmatic sheet moves when no spring runs */
+  --ease-camera: cubic-bezier(.19, 1, .22, 1);     /* map flights */
+  --t-press: 120ms;   /* :active scale .97 */
+  --t-hover: 160ms;   /* color and background */
+  --t-enter: 220ms;   /* panels, dialogs, toasts in */
+  --t-exit: 150ms;    /* panels, dialogs, toasts out */
+  --t-swap: 160ms;    /* crossfade between two contents in one container */
+  --t-move: 300ms;    /* FLIP moves */
+  --t-sheet: 340ms;   /* CSS fallback for sheets */
+  --t-reveal: 420ms;  /* Auto's row flight, rare */
+  --t-camera: 500ms;  /* map flyTo, rare */
 
-  /* motion */
-  --ease-out: cubic-bezier(.23, 1, .32, 1);
-  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
-  --ease-sheet: cubic-bezier(.32, .72, 0, 1);
-  --t-press: 120ms; --t-hover: 160ms; --t-enter: 200ms; --t-exit: 150ms; --t-sheet: 260ms;
-
-  /* layout */
-  --topbar-h: 56px; --viewhead-h: 44px; --row-h: 44px; --panel-w: 520px;
-  --rail-w: 296px; --map-panel-w: 368px; --tabbar-h: 56px;
-  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  --topbar-h: 56px; --header-h: 52px; --tabbar-h: 56px;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  --focus: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent);
 }
 
 /*
- * Legacy names. Pages that have not moved to v2 yet (courses, schedule, map,
- * plans, import, auth) still read these. Each points at its v2 role where one
- * exists; the rest keep their v1 values so those pages do not shift before
- * their owners rebuild them. Delete a name once nothing reads it.
+ * v2 names. Views that have not been rebuilt for v3 (courses, schedule, map,
+ * plans, import, auth) still read these; each points at its v3 role, so those
+ * views take the v3 palette without edits. Delete a name once nothing reads it.
+ */
+:root {
+  --bg: var(--ground);
+  --surface: var(--paper);
+  --surface-2: var(--paper-2);
+  --surface-3: var(--paper-3);
+  --line-strong: var(--line-2);
+  --brand-hover: var(--brand-2);
+  --overlay: var(--scrim);
+  --course-1: var(--c1); --course-1-tint: var(--c1t);
+  --course-2: var(--c2); --course-2-tint: var(--c2t);
+  --course-3: var(--c3); --course-3-tint: var(--c3t);
+  --course-4: var(--c4); --course-4-tint: var(--c4t);
+  --course-5: var(--c5); --course-5-tint: var(--c5t);
+  --course-6: var(--c6); --course-6-tint: var(--c6t);
+  --font-body: var(--font-ui);
+  --font-display: var(--font-mark);
+  --text-xs: var(--text-label); --lh-xs: var(--lh-label);
+  --text-sm: var(--text-meta);  --lh-sm: var(--lh-meta);
+  --text-md: var(--text-body);  --lh-md: var(--lh-body);
+  --text-lg: 15px;              --lh-lg: 22px;
+  --text-xl: var(--text-title); --lh-xl: var(--lh-title);
+  --code-sm: 13px;
+  --code-lg: 20px;
+  --wordmark: 22px;
+  --s-1: var(--s1); --s-2: var(--s2); --s-3: var(--s3); --s-4: var(--s4); --s-5: var(--s5);
+  --s-6: var(--s6); --s-8: var(--s8); --s-10: var(--s10);
+  --viewhead-h: 44px; --row-h: 44px; --panel-w: 520px;
+  --rail-w: 296px; --map-panel-w: 368px;
+}
+
+/*
+ * v1 names, still read by the oldest page patterns below. Each points at its
+ * v3 role where one exists; the rest keep their v1 values. Delete a name once
+ * nothing reads it.
  */
 :root {
   --copy: var(--ink-2);
@@ -90,17 +113,15 @@
   --surface-muted: #f8faf8;
   --success-bg: #f0fdf4;
   --success-border: #86efac;
-  --warn: #d97706;
+  --warn: var(--attention);
   --danger-bg: var(--danger-soft);
   --danger-border: #f1b5af;
-  --r-xl: 16px;
   --sh-sm: var(--shadow-1);
   --sh-card: 0 4px 24px rgba(0, 60, 20, 0.08);
   --sh-modal: var(--shadow-3);
   --sh-toast: var(--shadow-3);
   --ease: ease;
-  --ease-out-strong: cubic-bezier(0.19, 1, 0.22, 1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-strong: var(--ease-camera);
   --d-fast: 80ms;
   --d-hover: 120ms;
   --d-enter: 160ms;
@@ -152,22 +173,48 @@ html {
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  /* Pull-to-refresh and rubber-banding would fight the sheets. */
+  overscroll-behavior: none;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  font-family: var(--font-body);
-  font-size: var(--text-md);
-  line-height: var(--lh-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  font-optical-sizing: auto;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  background: var(--bg);
+  background: var(--ground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  -webkit-tap-highlight-color: transparent;
-  /* Pull-to-refresh would fight the bottom sheets. */
-  overscroll-behavior-y: none;
+}
+
+/*
+ * Frosted material (DESIGN.md §7): only for chrome over moving content (top
+ * bar, phone header, tab bar, Day sheet, map controls). An element sets
+ * --glass-fill or --glass-blur to tune it; never put glass inside glass.
+ * Without backdrop-filter, or when the reader asks for less transparency,
+ * it is solid paper.
+ */
+[data-glass] {
+  background: var(--glass-fill, var(--glass));
+  -webkit-backdrop-filter: saturate(var(--glass-saturate, 1.7)) blur(var(--glass-blur, 22px));
+  backdrop-filter: saturate(var(--glass-saturate, 1.7)) blur(var(--glass-blur, 22px));
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-glass] {
+    background: var(--paper);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-glass] {
+    background: var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 a {
@@ -1076,20 +1123,6 @@ textarea.field-input {
   }
 }
 
-/* Conflict banner */
-.conflict-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.7rem 0.95rem;
-  border: 1px solid var(--danger-border);
-  background: var(--danger-bg);
-  color: var(--danger);
-  border-radius: var(--r-md);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 /* Map stop list */
 .stop-item {
   display: flex;
@@ -1140,7 +1173,7 @@ textarea.field-input {
   border: 2px solid #fff;
   padding: 0 8px;
   box-shadow: 0 4px 12px rgba(0, 60, 20, 0.35);
-  animation: pop-dot 350ms var(--ease-bounce) both;
+  animation: pop-dot 220ms var(--ease-out) both;
   white-space: nowrap;
 }
 .map-marker--start,
@@ -1276,11 +1309,6 @@ textarea.field-input {
   border-top-color: transparent;
   animation: spin 0.6s linear infinite;
   display: inline-block;
-}
-
-/* Stagger group */
-.stagger > * {
-  animation: content-enter var(--d-enter) var(--ease-out) both;
 }
 
 /* ───────────────────────── Reduced motion ───────────────────────── */

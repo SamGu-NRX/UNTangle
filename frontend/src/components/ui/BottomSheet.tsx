@@ -12,31 +12,38 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { useBackToClose } from "./back-close";
 import { cx } from "./cx";
 import { useModalLayer } from "./modal-layer";
 import {
-  dampedOffset,
+  BOUNCE_VELOCITY,
+  DRAG_HYSTERESIS,
+  EXIT,
+  FLICK,
+  SETTLE,
   detentHeight,
   detentOffsets,
   releaseTarget,
   releaseVelocity,
+  rubberBand,
+  springSettled,
+  springStep,
   type Detent,
+  type Spring,
 } from "./sheet-physics";
-import { usePresence } from "./use-presence";
 
-const ENTER = "transform var(--t-sheet) var(--ease-sheet)";
-const SETTLE = "transform 240ms var(--ease-sheet)";
-const EXIT = "transform 200ms var(--ease-sheet)";
-const EXIT_MS = 200;
-/** Movement before a press becomes a drag, so taps on the handle stay taps. */
-const DRAG_SLOP = 4;
+/**
+ * Extra sheet below the screen edge, so a flick that overshoots the top
+ * detent shows more sheet instead of a gap (MOTION.md §5).
+ */
+const OVERSCAN = 40;
 
 export type BottomSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Accessible name. */
   title: string;
-  /** Heights, smallest to largest is conventional. Default one detent at 92%. */
+  /** Heights, smallest to largest is conventional. Default: half, then nearly full. */
   detents?: Detent[];
   /** Index into `detents` to open at. Default 0. */
   initialDetent?: number;
@@ -44,12 +51,20 @@ export type BottomSheetProps = {
   detent?: number;
   onDetentChange?: (index: number) => void;
   /**
-   * Modal sheets (details, alternatives) dim and inert the page and trap
-   * focus. Non-modal sheets (the map) leave the page interactive.
+   * Modal sheets (details, sections, export) dim and inert the page and keep
+   * focus inside. Non-modal sheets (Day) leave the page live.
    */
   modal?: boolean;
-  /** False keeps the sheet up: no flick-to-close, no scrim close, no Escape. */
+  /** False keeps the sheet up: no swipe to close, no scrim close, no Escape. */
   dismissible?: boolean;
+  /** Frosted material, for a sheet over moving content such as the map. */
+  glass?: boolean;
+  /**
+   * Back (the browser's, the iOS edge swipe, Android's) closes the sheet
+   * before it leaves the page. Leave it off for sheets whose URL already
+   * changes when they open, such as Connect.
+   */
+  closeOnBack?: boolean;
   /** Content under the handle that also drags the sheet (title, switcher). */
   header?: ReactNode;
   /** Element to focus on open (modal sheets). Default: the first focusable. */
@@ -59,70 +74,82 @@ export type BottomSheetProps = {
 };
 
 function prefersReducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** The sheet's on-screen translateY right now, mid-transition included. */
-function presentationOffset(el: HTMLElement): number {
-  const transform = getComputedStyle(el).transform;
-  if (!transform || transform === "none") return 0;
-  const values = transform.match(/matrix(?:3d)?\(([^)]+)\)/)?.[1].split(",").map(Number);
-  if (!values) return 0;
-  return values.length === 16 ? values[13] : values[5];
-}
+type Drag = {
+  pointerId: number;
+  element: HTMLElement;
+  fromBody: boolean;
+  downY: number;
+  startY: number;
+  startOffset: number;
+  offset: number;
+  active: boolean;
+  samples: Array<{ y: number; t: number }>;
+};
 
 /**
- * Phone container for details, alternatives, the map panel and filters.
+ * The phone container for details, sections, preferences and export, and the
+ * Day itinerary.
  *
- * Drag follows the finger 1:1 from the handle and header, and from the body
- * whenever the sheet is below its tallest detent (at the top the body
- * scrolls instead). It uses pointer capture, ignores a second finger, and
- * resists past the top detent (0.3). On release it reads the velocity over
- * the last 100ms: a flick (> 0.11 px/ms) moves one detent or dismisses,
- * otherwise it settles on the nearest. Grabbing a moving sheet starts from
- * where it is on screen, not where it was heading.
+ * Physics (MOTION.md §5): a press becomes a drag after 8px, then the sheet
+ * follows the finger 1:1 with pointer capture and ignores a second finger.
+ * Past the top detent it rubber-bands. On release, the velocity over the
+ * last 100ms projects where momentum would carry the sheet, and that picks
+ * the detent; a flick always moves at least one. A spring then settles it,
+ * starting at the release velocity so there is no seam between drag and
+ * animation. Grabbing a moving sheet stops the spring where it is.
  *
- * Enter translateY(100%) → detent over 260ms, settle 240ms, exit 200ms, all
- * on the sheet curve. With reduced motion the sheet fades instead of
- * sliding; a drag still tracks the finger, because that is direct
- * manipulation rather than animation.
+ * The body scrolls only at the top detent; below it, dragging the body
+ * moves the sheet. Under reduced motion the sheet jumps to each detent with
+ * a short opacity dip; a drag still tracks the finger, because that is
+ * direct manipulation rather than animation.
  */
 export function BottomSheet({
   open,
   onOpenChange,
   title,
-  detents = ["92%"],
+  detents = ["52%", "92%"],
   initialDetent = 0,
   detent,
   onDetentChange,
   modal = true,
   dismissible = true,
+  glass = false,
+  closeOnBack = false,
   header,
   initialFocus,
   children,
   className,
 }: BottomSheetProps) {
-  const { mounted, state } = usePresence(open, EXIT_MS);
+  const [mounted, setMounted] = useState(open);
+  if (open && !mounted) setMounted(true);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [ownDetent, setOwnDetent] = useState(initialDetent);
   const index = detent ?? ownDetent;
-  const drag = useRef<{
-    pointerId: number;
-    element: HTMLElement;
-    startY: number;
-    startOffset: number;
-    offset: number;
-    active: boolean;
-    samples: Array<{ y: number; t: number }>;
-  } | null>(null);
-  const suppressClick = useRef(false);
+  const [bodyAtTop, setBodyAtTop] = useState(true);
 
   const heights = detents.map((d) => detentHeight(d, viewportHeight));
   const { max, offsets } = detentOffsets(heights.length ? heights : [0]);
+  const closedOffset = max + OVERSCAN;
   const topIndex = offsets.indexOf(0);
   const expanded = index === topIndex;
+
+  const y = useRef<number | null>(null);
+  const stopSpring = useRef<(() => void) | null>(null);
+  const drag = useRef<Drag | null>(null);
+  const handoffVelocity = useRef(0);
+  const keyboardMove = useRef(false);
+  const suppressClick = useRef(false);
+  // Moves and the release are read from the document, not the pressed
+  // element: the first move can leave a small handle before the drag claims
+  // the pointer, and a desktop mouse has no implicit capture.
+  const stopTracking = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopTracking.current?.(), []);
 
   const setIndex = useCallback(
     (next: number) => {
@@ -132,8 +159,11 @@ export function BottomSheet({
     [onDetentChange],
   );
 
+  const dismissByBack = useBackToClose(open && closeOnBack, () => onOpenChange(false));
+  const requestClose = () => (closeOnBack ? dismissByBack() : onOpenChange(false));
+
   useModalLayer(modal && open, rootRef, {
-    onEscape: dismissible ? () => onOpenChange(false) : undefined,
+    onEscape: dismissible ? requestClose : undefined,
     initialFocus,
   });
 
@@ -150,103 +180,135 @@ export function BottomSheet({
     return () => window.removeEventListener("resize", measure);
   }, [mounted]);
 
-  const apply = (offset: number, transition: string) => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    sheet.style.transition = transition;
-    sheet.style.transform = `translateY(${offset}px)`;
+  const place = (offset: number) => {
+    y.current = offset;
+    if (sheetRef.current) sheetRef.current.style.transform = `translate3d(0, ${offset}px, 0)`;
   };
 
-  // Enter: start below the screen, then move to the detent.
-  const entered = useRef(false);
-  useLayoutEffect(() => {
+  const cancelSpring = () => {
+    stopSpring.current?.();
+    stopSpring.current = null;
+  };
+
+  /** Moves to `target` on a spring that starts at `velocity` (px/ms), or jumps under reduced motion. */
+  const moveTo = (target: number, velocity: number, spring: Spring, done?: () => void) => {
+    cancelSpring();
     const sheet = sheetRef.current;
-    if (!mounted || !sheet || viewportHeight === 0 || entered.current) return;
-    entered.current = true;
-    const target = offsets[index] ?? 0;
-    if (prefersReducedMotion()) {
-      apply(target, "none");
-      sheet.style.opacity = "0";
-      void sheet.offsetHeight;
-      sheet.style.transition = "opacity 120ms ease";
-      sheet.style.opacity = "1";
+    if (!sheet) return;
+    if (prefersReducedMotion() || y.current === null) {
+      if (y.current !== null && y.current !== target) {
+        sheet.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: 140, easing: "ease-out" });
+      }
+      place(target);
+      done?.();
       return;
     }
-    apply(max, "none");
-    void sheet.offsetHeight; // commit the start position before transitioning
-    apply(target, ENTER);
-  });
+    let state = { x: y.current, v: velocity * 1000 };
+    let last = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      state = springStep(state, target, (now - last) / 1000, spring);
+      last = now;
+      if (springSettled(state, target)) {
+        place(target);
+        stopSpring.current = null;
+        done?.();
+        return;
+      }
+      place(state.x);
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    stopSpring.current = () => cancelAnimationFrame(frame);
+  };
 
-  // Settle whenever the target moves: a detent change (handle, keyboard,
-  // controlled prop), new detents or a resize while open (the resolved
-  // offsets change), or a reopen that interrupts the exit. A layout effect,
-  // so a resize never paints a frame at the old position. Arrow keys on the
-  // handle move instantly: keyboard actions never animate (DESIGN.md §1).
-  const keyboardMove = useRef(false);
-  const offsetsKey = offsets.join(",");
+  // Enter from below the screen, or fade in under reduced motion.
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
-    if (!mounted || !sheet || state !== "open" || !entered.current || drag.current?.active) return;
-    const reduced = prefersReducedMotion();
-    const instant = reduced || keyboardMove.current;
-    keyboardMove.current = false;
-    apply(offsets[index] ?? 0, reduced ? "opacity 120ms ease" : instant ? "none" : SETTLE);
-    // A reduced-motion exit faded the sheet out; a reopen fades it back.
-    sheet.style.opacity = "1";
+    if (!open || !sheet || viewportHeight === 0 || y.current !== null) return;
+    const target = offsets[index] ?? 0;
+    if (prefersReducedMotion()) {
+      place(target);
+      sheet.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "ease-out" });
+      return;
+    }
+    place(closedOffset);
+    moveTo(target, 0, SETTLE);
+  });
+
+  // Settle whenever the target moves: a detent change, new geometry, or a
+  // reopen during the exit. Keyboard moves land instantly (keyboard actions
+  // never animate). A release hands its velocity to this spring.
+  const offsetsKey = offsets.join(",");
+  useLayoutEffect(() => {
+    if (!open || y.current === null || drag.current?.active) return;
+    const target = offsets[index] ?? 0;
+    const velocity = handoffVelocity.current;
+    handoffVelocity.current = 0;
+    if (keyboardMove.current) {
+      keyboardMove.current = false;
+      cancelSpring();
+      place(target);
+      return;
+    }
+    moveTo(target, velocity, Math.abs(velocity) > BOUNCE_VELOCITY ? FLICK : SETTLE);
     // offsetsKey stands for offsets, which is rebuilt every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, offsetsKey, mounted, state]);
+  }, [index, offsetsKey, open]);
 
-  // Exit: slide (or fade) out from wherever the sheet is.
+  // Exit: down off the screen (or a fade), then unmount.
   useEffect(() => {
+    if (open || !mounted) return;
+    stopTracking.current?.();
+    drag.current = null;
     const sheet = sheetRef.current;
-    if (state !== "closed" || !sheet) return;
+    const finish = () => {
+      y.current = null;
+      setMounted(false);
+    };
+    if (!sheet || y.current === null) return finish();
     if (prefersReducedMotion()) {
-      sheet.style.transition = "opacity 120ms ease";
-      sheet.style.opacity = "0";
-    } else {
-      apply(max, EXIT);
+      cancelSpring();
+      const fade = sheet.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: "ease-out", fill: "forwards" });
+      fade.onfinish = finish;
+      return () => fade.cancel();
     }
-    // max is read at the moment of closing on purpose.
+    const velocity = handoffVelocity.current;
+    handoffVelocity.current = 0;
+    moveTo(closedOffset, velocity, EXIT, finish);
+    // closedOffset is read at the moment of closing on purpose.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [open, mounted]);
 
-  useEffect(() => {
-    if (state === "closed") {
-      // Closing mid-drag (Escape, scrim) drops the gesture.
-      stopTracking.current?.();
-      drag.current = null;
-    }
-  }, [state]);
-
-  useEffect(() => {
-    if (!mounted) entered.current = false;
-  }, [mounted]);
-
-  // Moves and the release are read from the document, not the pressed
-  // element: the first move can already be outside the 4px handle (over the
-  // scrim) before the drag claims the pointer, and on a desktop mouse there
-  // is no implicit capture to keep the events coming.
-  const stopTracking = useRef<(() => void) | null>(null);
-  useEffect(() => () => stopTracking.current?.(), []);
+  useEffect(() => () => cancelSpring(), []);
 
   const onDragMove = (event: globalThis.PointerEvent) => {
     const d = drag.current;
     if (!d || d.pointerId !== event.pointerId) return;
-    const dy = event.clientY - d.startY;
     if (!d.active) {
-      if (Math.abs(dy) < DRAG_SLOP) return;
+      const dy = event.clientY - d.downY;
+      if (Math.abs(dy) < DRAG_HYSTERESIS) return;
+      // At the top detent an upward drag in the body is a scroll, not a drag.
+      if (d.fromBody && expanded && dy < 0) {
+        stopTracking.current?.();
+        drag.current = null;
+        return;
+      }
       d.active = true;
+      cancelSpring();
+      d.startY = event.clientY;
+      d.startOffset = y.current ?? 0;
       try {
         d.element.setPointerCapture(event.pointerId);
       } catch {
-        // The pointer already ended; the release handler will run next.
+        // The pointer already ended; the release handler runs next.
       }
     }
-    d.offset = dampedOffset(d.startOffset + dy);
+    const raw = d.startOffset + event.clientY - d.startY;
+    d.offset = raw < 0 ? -rubberBand(-raw, window.innerHeight) : raw;
     d.samples.push({ y: event.clientY, t: event.timeStamp });
     if (d.samples.length > 12) d.samples.shift();
-    apply(d.offset, "none");
+    place(d.offset);
   };
 
   const onDragEnd = (event: globalThis.PointerEvent) => {
@@ -257,38 +319,34 @@ export function BottomSheet({
     if (!d.active) return;
     suppressClick.current = true;
     if (d.element.hasPointerCapture(event.pointerId)) d.element.releasePointerCapture(event.pointerId);
-    // The release itself is a sample: a finger that stopped before lifting
-    // must read as slow, not as the speed of the move before the pause.
+    // The release is a sample too: a finger that stopped before lifting reads as slow.
     d.samples.push({ y: event.clientY, t: event.timeStamp });
-    const target = releaseTarget({
-      offset: d.offset,
-      velocity: event.type === "pointercancel" ? 0 : releaseVelocity(d.samples),
-      offsets,
-      max,
-      dismissible,
-    });
+    const velocity = event.type === "pointercancel" ? 0 : releaseVelocity(d.samples);
+    const target = releaseTarget({ offset: d.offset, velocity, offsets, dismissible });
+    handoffVelocity.current = velocity;
     if (target === "dismiss") {
-      onOpenChange(false);
-      return;
+      requestClose();
+    } else if (target !== index) {
+      setIndex(target);
+    } else {
+      handoffVelocity.current = 0;
+      moveTo(offsets[target], velocity, Math.abs(velocity) > BOUNCE_VELOCITY ? FLICK : SETTLE);
     }
-    apply(offsets[target], prefersReducedMotion() ? "none" : SETTLE);
-    if (target !== index) setIndex(target);
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>, fromBody: boolean) => {
     // One finger at a time: a second touch mid-drag is ignored.
     if (drag.current || (event.pointerType === "mouse" && event.button !== 0)) return;
-    if (fromBody && expanded) return;
-    const sheet = sheetRef.current;
-    if (!sheet) return;
+    if (fromBody && expanded && (bodyRef.current?.scrollTop ?? 0) > 0) return;
     suppressClick.current = false;
-    const startOffset = presentationOffset(sheet);
     drag.current = {
       pointerId: event.pointerId,
       element: event.currentTarget,
+      fromBody,
+      downY: event.clientY,
       startY: event.clientY,
-      startOffset,
-      offset: startOffset,
+      startOffset: y.current ?? 0,
+      offset: y.current ?? 0,
       active: false,
       samples: [{ y: event.clientY, t: event.timeStamp }],
     };
@@ -315,22 +373,15 @@ export function BottomSheet({
     if (event.key === "Enter" || event.key === " ") {
       // The click that follows cycles the detent; from the keyboard, instantly.
       keyboardMove.current = true;
-    } else if (event.key === "ArrowUp") {
+    } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
       event.preventDefault();
       keyboardMove.current = true;
-      cycle(1);
-    } else if (event.key === "ArrowDown") {
-      event.preventDefault();
-      keyboardMove.current = true;
-      cycle(-1);
+      cycle(event.key === "ArrowUp" ? 1 : -1);
     }
   };
 
   if (!mounted || typeof document === "undefined") return null;
-
-  const dragHandlers = (fromBody: boolean) => ({
-    onPointerDown: (event: PointerEvent<HTMLElement>) => onPointerDown(event, fromBody),
-  });
+  const state = open ? "open" : "closed";
 
   return createPortal(
     <div
@@ -346,7 +397,7 @@ export function BottomSheet({
           data-state={state}
           data-ui=""
           aria-hidden="true"
-          onClick={dismissible ? () => onOpenChange(false) : undefined}
+          onClick={dismissible ? requestClose : undefined}
         />
       ) : null}
       <div
@@ -356,12 +407,13 @@ export function BottomSheet({
         aria-label={title}
         className={cx("ui-sheet", className)}
         data-expanded={expanded ? "" : undefined}
+        data-glass={glass ? "" : undefined}
         data-ui=""
-        // Position is written imperatively (apply); CSS starts it off screen.
-        style={{ height: max || undefined }}
+        // Position is written imperatively (place); CSS starts it off screen.
+        style={{ height: max ? max + OVERSCAN : undefined }}
         tabIndex={-1}
       >
-        <div className="ui-sheet__grab" {...dragHandlers(false)}>
+        <div className="ui-sheet__grab" onPointerDown={(event) => onPointerDown(event, false)}>
           {detents.length > 1 ? (
             // A generic name: the sheet's own title stays unique on the page.
             <button
@@ -384,7 +436,13 @@ export function BottomSheet({
           )}
           {header}
         </div>
-        <div className="ui-sheet__body" {...dragHandlers(true)}>
+        <div
+          ref={bodyRef}
+          className="ui-sheet__body"
+          data-at-top={bodyAtTop ? "" : undefined}
+          onScroll={(event) => setBodyAtTop(event.currentTarget.scrollTop <= 0)}
+          onPointerDown={(event) => onPointerDown(event, true)}
+        >
           {children}
         </div>
       </div>
