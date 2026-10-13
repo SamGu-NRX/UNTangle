@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 const root = resolve(__dirname, "../../..");
 export default defineConfig({
   testDir: __dirname,
-  testMatch: "*.spec.ts",
+  // Keep browser specs out of Bun's default .test/.spec discovery.
+  testMatch: "*.pw.ts",
   workers: 1,
   retries: 0,
   timeout: 60_000,

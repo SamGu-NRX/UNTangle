@@ -29,6 +29,8 @@ Chrome ignores the path portion of `host_permissions`. Therefore the manifest gr
 
 ## Mock and proof
 
+Browser tests use `.pw.ts`, which Bun's default test discovery skips. `verify.sh` runs the full frontend Bun suite before launching the separate Playwright proof.
+
 The server binds to localhost:4317 and serves fabricated reports only. It includes a transcript entry form, PDF report, readable HTML report, an asynchronous existing-node report link, and visible/hidden class-search rows and cells. It never proxies the real portal. The proof runner starts its own mock and Next.js server, launches persistent Chromium with `--load-extension`, waits across MV3's 30-second idle threshold, and closes the browser and servers when done. It blocks browser requests to real myUNT.
 
 ```sh

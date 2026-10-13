@@ -1,6 +1,6 @@
 # Connect runtime evidence
 
-These captures come from the 12-case Chromium regression run on 2026-10-13. The PDF, course rows, and account responses are synthetic. `frontend/tests/connect/connect.spec.ts` recreates the screenshots with the unpacked development extension.
+These captures come from the 12-case Chromium regression run on 2026-10-13. The PDF, course rows, and account responses are synthetic. `frontend/tests/connect/connect.pw.ts` recreates the screenshots with the unpacked development extension.
 
 Mobile captures use 390 CSS pixels. Desktop uses 1440. The 320-pixel review and reduced-motion desktop captures check reflow and the reduced-motion preference. Full-page images include upload recovery. `extension-approval.png` shows the requesting origin in trusted extension UI before a read is approved.
 
