@@ -1,9 +1,11 @@
-import type { ScheduleEvent, WeekDay } from "@/lib/types";
+import type { ClassDay, ScheduleEvent } from "@/lib/types";
 
 /**
- * iCalendar (RFC 5545) export of the weekly plan over term dates the user
- * typed in. UNTangle does not know UNT's academic calendar, so it never
- * guesses term dates, holidays or breaks.
+ * iCalendar (RFC 5545) export of the weekly plan. A real meeting repeats
+ * over its own dates from UNT's schedule (an eight-week class runs eight
+ * weeks); a sample meeting has no term, so it uses dates the user typed in.
+ * UNTangle does not know UNT's academic calendar, so it never guesses term
+ * dates, holidays or breaks.
  *
  * Times are floating local times (no TZID): the plan's times are wall-clock
  * times at UNT, and calendar apps place floating times in the device's zone.
@@ -51,8 +53,8 @@ export function checkTermDates(term: TermDates): TermDatesCheck {
   return { ok: true, start: term.start, end: term.end };
 }
 
-const WEEKDAY_INDEX: Record<WeekDay, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5 };
-const RRULE_DAY: Record<WeekDay, string> = { Mon: "MO", Tue: "TU", Wed: "WE", Thu: "TH", Fri: "FR" };
+const WEEKDAY_INDEX: Record<ClassDay, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+const RRULE_DAY: Record<ClassDay, string> = { Sun: "SU", Mon: "MO", Tue: "TU", Wed: "WE", Thu: "TH", Fri: "FR", Sat: "SA" };
 
 function compactDate(time: number): string {
   return new Date(time).toISOString().slice(0, 10).replaceAll("-", "");
@@ -97,18 +99,30 @@ export type IcsBuildResult = {
   ics: string;
   /** One per plan meeting written to the file. */
   eventCount: number;
-  /** Meetings whose weekday never falls inside the term (e.g. a 2-day term). */
+  /** Meetings whose weekday never falls inside their dates (e.g. a 2-day term). */
   skipped: Array<Pick<ScheduleEvent, "courseCode" | "day" | "start">>;
 };
 
-export function buildPlanIcs(events: ScheduleEvent[], term: TermDates, now: Date = new Date()): IcsBuildResult {
-  const checked = checkTermDates(term);
-  if (!checked.ok) {
-    throw new Error(`buildPlanIcs needs valid term dates: ${checked.message}`);
+/** True when some meeting has no dates of its own, so the user must type the term's. */
+export function needsTermDates(events: readonly ScheduleEvent[]): boolean {
+  return events.some((event) => event.dates === null);
+}
+
+/**
+ * `term` covers the meetings without dates of their own (samples); it is
+ * required exactly when `needsTermDates(events)`.
+ */
+export function buildPlanIcs(events: ScheduleEvent[], term: TermDates | null, now: Date = new Date()): IcsBuildResult {
+  let typed: { start: string; end: string } | null = null;
+  if (needsTermDates(events)) {
+    const checked = term ? checkTermDates(term) : null;
+    if (!checked?.ok) {
+      throw new Error(`buildPlanIcs needs valid term dates for meetings without their own: ${checked?.message ?? "none given"}`);
+    }
+    typed = checked;
   }
-  const termStart = parseDate(checked.start)!;
-  const termEnd = parseDate(checked.end)!;
   const stamp = utcStamp(now);
+  const sample = events.some((event) => event.provenance === "sample");
 
   const lines = [
     "BEGIN:VCALENDAR",
@@ -116,7 +130,7 @@ export function buildPlanIcs(events: ScheduleEvent[], term: TermDates, now: Date
     "PRODID:-//UNTangle//Planner//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    "X-WR-CALNAME:UNTangle schedule (sample data)",
+    `X-WR-CALNAME:UNTangle schedule${sample ? " (sample data)" : ""}`,
   ];
   const skipped: IcsBuildResult["skipped"] = [];
   let eventCount = 0;
@@ -124,25 +138,32 @@ export function buildPlanIcs(events: ScheduleEvent[], term: TermDates, now: Date
   [...events]
     .sort((a, b) => WEEKDAY_INDEX[a.day] - WEEKDAY_INDEX[b.day] || a.start.localeCompare(b.start))
     .forEach((event) => {
-      const offset = (WEEKDAY_INDEX[event.day] - new Date(termStart).getUTCDay() + 7) % 7;
-      const first = termStart + offset * DAY_MS;
-      if (first > termEnd) {
+      const range = (event.dates ?? typed)!;
+      const rangeStart = parseDate(range.start)!;
+      const rangeEnd = parseDate(range.end)!;
+      const offset = (WEEKDAY_INDEX[event.day] - new Date(rangeStart).getUTCDay() + 7) % 7;
+      const first = rangeStart + offset * DAY_MS;
+      if (first > rangeEnd) {
         skipped.push({ courseCode: event.courseCode, day: event.day, start: event.start });
         return;
       }
       const date = compactDate(first);
       eventCount += 1;
+      const real = event.provenance === "real";
       lines.push(
         "BEGIN:VEVENT",
-        `UID:${event.sectionId}-${event.day}-${event.start.replace(":", "")}-${checked.start}@untangle.local`,
+        `UID:${event.sectionId.replace(/[^A-Za-z0-9+-]/g, "-")}-${event.day}-${event.start.replace(":", "")}-${range.start}@untangle.local`,
         `DTSTAMP:${stamp}`,
         `DTSTART:${date}T${compactTime(event.start)}`,
-        `DTEND:${date}T${compactTime(event.end)}`,
-        `RRULE:FREQ=WEEKLY;BYDAY=${RRULE_DAY[event.day]};UNTIL=${compactDate(termEnd)}T235959`,
-        `SUMMARY:${escapeText(`${event.courseCode} ${event.title} (sample)`)}`,
+        // A class ending at midnight ("24:00") ends at 00:00 the next day; RFC 5545 has no hour 24.
+        `DTEND:${event.end === "24:00" ? `${compactDate(first + DAY_MS)}T000000` : `${date}T${compactTime(event.end)}`}`,
+        `RRULE:FREQ=WEEKLY;BYDAY=${RRULE_DAY[event.day]};UNTIL=${compactDate(rangeEnd)}T235959`,
+        `SUMMARY:${escapeText(`${event.courseCode} ${event.title}${real ? "" : " (sample)"}`)}`,
         `LOCATION:${escapeText(event.location)}`,
         `DESCRIPTION:${escapeText(
-          `Section ${event.sectionId}, instructor ${event.professor}. Sample data: this section, its times and its instructor are synthetic, not UNT's class schedule.`,
+          real
+            ? `Section ${event.sectionLabel}, instructor ${event.professor}. From UNT's class schedule as published by vsb.untgrades.app; check myUNT before you register.`
+            : `Section ${event.sectionLabel}, instructor ${event.professor}. Sample data: this section, its times and its instructor are synthetic, not UNT's class schedule.`,
         )}`,
         "END:VEVENT",
       );

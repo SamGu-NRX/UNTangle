@@ -1,7 +1,9 @@
 import { courses, sections } from "@/lib/seed-data";
 import { getMissingPrerequisites } from "@/lib/planner";
 import { getPlanningTermCourseCodes } from "@/lib/planner";
+import { findOption, sampleCatalog, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
+import type { Section } from "@/lib/sections";
 import type { Course, CourseSection, CourseStatus, PlannerState } from "@/lib/types";
 import {
   SAVED_PLAN_SCHEMA_VERSION,
@@ -16,31 +18,40 @@ export type { SavedPlanSnapshot } from "./snapshot-types";
 
 /**
  * Reference resolution for a saved plan's selected sections against the
- * *running* catalog. The planner's normalize step silently re-recommends any
- * selection it cannot preserve; this report exists so that replacement is
- * decided in the open, per reference, before a restore runs.
+ * options loaded now, so what a restore keeps, flags or replaces is decided
+ * in the open, per reference, before it runs.
+ *
+ * A real option id is never replaced: one that names no current option
+ * (`needsReview`) or whose term has not loaded yet (`unchecked`) is restored
+ * as saved, and Week marks it Needs review until the student picks again.
+ * A synthetic sample id stays a labeled sample when it still exists.
  */
-export type SectionReferenceStatus = "preserved" | "stale" | "inactive" | "unknownCourse";
+export type SectionReferenceStatus = "preserved" | "stale" | "inactive" | "unknownCourse" | "needsReview" | "unchecked";
 
 export type SectionReferenceFinding = {
   courseCode: string;
   sectionId: string;
   status: SectionReferenceStatus;
-  /** Catalog metadata when the reference resolves in the running catalog. */
-  section: CourseSection | null;
+  /** The option, when the reference resolves in what is loaded now (or is a known sample). */
+  section: Section | null;
   course: Course | null;
 };
 
 export type SectionReferenceReport = {
   findings: SectionReferenceFinding[];
   preserved: SectionReferenceFinding[];
-  /** Section id is not in the catalog for its course; restore would replace it. */
+  /** A sample id no longer in the bundled samples; restore lets the goal pick instead. */
   stale: SectionReferenceFinding[];
   /** Section id resolves, but the plan does not declare the course in progress. */
   inactive: SectionReferenceFinding[];
   /** Course codes that do not exist in the running catalog at all. */
   unknownCourses: SectionReferenceFinding[];
+  /** Real option ids the loaded options no longer include: kept as saved, flagged in Week. */
+  needsReview: SectionReferenceFinding[];
+  /** Real option ids whose course options have not loaded: kept as saved, checked in Week. */
+  unchecked: SectionReferenceFinding[];
 };
+
 
 export type SavedPlanValidation =
   | { ok: true; snapshot: SavedPlanSnapshot; references: SectionReferenceReport }
@@ -105,6 +116,10 @@ export function computeCatalogFingerprint(state: PlannerState): SavedPlanCatalog
       sectionLines.push(
         `S\t${section.id}\t${section.courseCode}\t${section.professor}\t${section.rating}\t${meetingLine(section)}`,
       );
+    } else if (sectionRef(sectionId).provenance === "real") {
+      // A real option is named by its id (term and class numbers); its times
+      // are read again from the current options on restore.
+      sectionLines.push(`S\t${sectionId}\t${courseCode}`);
     }
   });
 
@@ -117,31 +132,33 @@ export function computeCatalogFingerprint(state: PlannerState): SavedPlanCatalog
 }
 
 /**
- * Resolve every selected section of a planner state against the running
- * catalog. Read-only: uses the same `sections` data the planner uses, and the
- * same active-course rule (a section only survives normalize for a course in
- * the plan's planning term, getPlanningTermCourseCodes: a course the
+ * Resolve every selected section of a planner state against `catalog` (the
+ * planner's loaded options; the bundled samples by default). Read-only, with
+ * the planner's active-course rule (getPlanningTermCourseCodes: a course the
  * transcript says is being taken now is not scheduled, so its section is
  * inactive, exactly as restore will treat it).
  */
-export function resolveSectionReferences(state: PlannerState): SectionReferenceReport {
+export function resolveSectionReferences(state: PlannerState, catalog: SectionCatalog = sampleCatalog): SectionReferenceReport {
   const findings: SectionReferenceFinding[] = [];
   const planned = new Set(getPlanningTermCourseCodes(state));
 
   Object.entries(state.selectedSections ?? {}).forEach(([courseCode, sectionId]) => {
     const course = courses.find((entry) => entry.code === courseCode) ?? null;
-    const section =
-      sections.find((entry) => entry.id === sectionId && entry.courseCode === courseCode) ?? null;
+    const section = findOption(catalog, courseCode, sectionId);
+    const loaded = catalog(courseCode);
+    const real = sectionRef(sectionId).provenance === "real";
 
     let status: SectionReferenceStatus;
     if (!course) {
       status = "unknownCourse";
-    } else if (!section) {
+    } else if (!section && !real) {
       status = "stale";
     } else if (!planned.has(courseCode)) {
       status = "inactive";
-    } else {
+    } else if (section) {
       status = "preserved";
+    } else {
+      status = loaded.status === "ready" && loaded.result.provenance.kind === "real" ? "needsReview" : "unchecked";
     }
 
     findings.push({ courseCode, sectionId, status, section, course });
@@ -156,6 +173,8 @@ export function resolveSectionReferences(state: PlannerState): SectionReferenceR
     unknownCourses: findings.filter(
       (finding) => finding.status === "unknownCourse",
     ),
+    needsReview: findings.filter((finding) => finding.status === "needsReview"),
+    unchecked: findings.filter((finding) => finding.status === "unchecked"),
   };
 }
 

@@ -1,11 +1,10 @@
 import { sectionMeetingsSummary } from "@/lib/plan-library/diff";
 import {
-  getActiveCourseCodes,
   getInitialPlannerState,
   mergeTranscriptRecords,
   normalizePlannerState,
-  recommendSections,
 } from "@/lib/planner";
+import { optionIdLabel, planningTerm } from "@/lib/planner-sections";
 import { stableHash } from "@/lib/plan-library/snapshot";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
@@ -31,9 +30,10 @@ import type {
  * the exact selections are applied; transcript application also moves
  * statuses, so status diffs are computed after it.
  *
- * Stale/inactive/unknown references are NOT dispatched: the planner's
- * normalize step would silently re-recommend them. The adapter reports them
- * so the UI can surface the replacement in the open.
+ * Stale/inactive/unknown references are NOT dispatched; the adapter reports
+ * them so the UI can surface what replaces them in the open. A real option
+ * that needs review (or has not been checked yet) IS dispatched as saved:
+ * Week flags it, and nothing swaps it for another option.
  */
 
 export type RestorePlannerApi = {
@@ -52,7 +52,7 @@ export type RestorePlannerApi = {
 export type RestoreOutcome = {
   /** Course statuses explicitly set (diffs against the post-apply state). */
   appliedStatusCount: number;
-  /** Exact section selections dispatched (preserved references only). */
+  /** Exact section selections dispatched: preserved references and real ones kept for review. */
   appliedSectionCount: number;
   /** Locks re-applied: preserved sections the plan had locked. */
   appliedLockCount: number;
@@ -172,8 +172,10 @@ export function dispatchRestore(
   const staleSkipped: RestoreOutcome["staleSkipped"] = [];
   const inactiveSkipped: RestoreOutcome["inactiveSkipped"] = [];
   const unknownSkipped: RestoreOutcome["unknownSkipped"] = [];
+  const kept = (finding: SectionReferenceReport["findings"][number]) =>
+    finding.status === "preserved" || finding.status === "needsReview" || finding.status === "unchecked";
   references.findings.forEach((finding) => {
-    if (finding.status === "preserved") {
+    if (kept(finding)) {
       planner.setSection(finding.courseCode, finding.sectionId);
       appliedSectionCount += 1;
       return;
@@ -188,7 +190,7 @@ export function dispatchRestore(
   // reference is dropped along with the reference.
   let appliedLockCount = 0;
   references.findings.forEach((finding) => {
-    if (finding.status === "preserved" && planState.lockedSections?.[finding.courseCode] === finding.sectionId) {
+    if (kept(finding) && planState.lockedSections?.[finding.courseCode] === finding.sectionId) {
       planner.setSectionLock(finding.courseCode, true);
       appliedLockCount += 1;
     }
@@ -215,10 +217,12 @@ export function dispatchRestore(
 /**
  * Pure preview of the state the dispatch sequence above will produce, using
  * the same pure planner helpers the provider composes (getInitialPlannerState,
- * recommendSections, mergeTranscriptRecords, normalizePlannerState). The
- * authoritative result is always the real planner state read back after the
- * dispatch; this simulation exists so the confirmation preview can show the
- * exact sections the planner will keep before anything is applied.
+ * mergeTranscriptRecords, normalizePlannerState). The authoritative result is
+ * always the real planner state read back after the dispatch; this
+ * simulation exists so the confirmation preview can show the exact sections
+ * the planner will keep before anything is applied. Courses without a kept
+ * section get the goal's recommendation when sections load, which is not
+ * part of the saved state.
  */
 export function simulateRestoredState(
   snapshot: SavedPlanSnapshot,
@@ -227,14 +231,11 @@ export function simulateRestoredState(
   const planState = snapshot.state;
   let state = getInitialPlannerState();
 
-  // setOptimization re-recommends all active courses; replicate its full
-  // replacement semantics before any exact selection is applied.
   state = {
     ...state,
     selectedMajor: planState.selectedMajor,
     activeDay: planState.activeDay,
     optimization: planState.optimization,
-    selectedSections: recommendSections(planState.optimization, getActiveCourseCodes(state)),
   };
 
   const statusesAfterRecords = statusesAfterTranscriptApply(state.courseStatuses, planState.transcriptRecords);
@@ -262,7 +263,8 @@ export function simulateRestoredState(
   const coursePlan = savedCoursePlan(planState);
   if (coursePlan) state = { ...state, coursePlan };
 
-  references.preserved.forEach((finding) => {
+  const keptFindings = [...references.preserved, ...references.needsReview, ...references.unchecked];
+  keptFindings.forEach((finding) => {
     state = {
       ...state,
       selectedSections: { ...state.selectedSections, [finding.courseCode]: finding.sectionId },
@@ -270,7 +272,7 @@ export function simulateRestoredState(
   });
 
   const lockedSections = Object.fromEntries(
-    references.preserved
+    keptFindings
       .filter((finding) => planState.lockedSections?.[finding.courseCode] === finding.sectionId)
       .map((finding) => [finding.courseCode, finding.sectionId]),
   );
@@ -339,7 +341,21 @@ export function describeRestoreSteps(
   } else {
     steps.push("Select no exact sections (none of the saved selections survive in the current catalog)");
   }
-  const locks = references.preserved.filter(
+  if (references.needsReview.length > 0) {
+    steps.push(
+      `Keep saved sections that are no longer offered in ${planningTerm.label}, marked Needs review in Week: ${references.needsReview
+        .map((finding) => `${finding.courseCode} ${optionIdLabel(finding.sectionId)}`)
+        .join("; ")}`,
+    );
+  }
+  if (references.unchecked.length > 0) {
+    steps.push(
+      `Keep saved sections Week has not checked against ${planningTerm.label} yet: ${references.unchecked
+        .map((finding) => `${finding.courseCode} ${optionIdLabel(finding.sectionId)}`)
+        .join("; ")}`,
+    );
+  }
+  const locks = [...references.preserved, ...references.needsReview, ...references.unchecked].filter(
     (finding) => snapshot.state.lockedSections?.[finding.courseCode] === finding.sectionId,
   );
   if (locks.length > 0) {

@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { usePlanner, useToast } from "@/components/planner-provider";
-import { buildPlanIcs, checkTermDates, icsFileName } from "@/lib/planner-ics";
+import { myUntClassNumbers } from "@/lib/planner";
+import { buildPlanIcs, checkTermDates, icsFileName, needsTermDates, type TermDates } from "@/lib/planner-ics";
 
 function download(content: string, fileName: string, type: string) {
   const blob = new Blob([content], { type });
@@ -19,12 +20,13 @@ function download(content: string, fileName: string, type: string) {
 }
 
 /**
- * Export the week: a print view, and an .ics calendar file. The calendar
- * needs the term's first and last day, which the user types; UNTangle does
- * not know UNT's academic calendar and never guesses it.
+ * Export the week: a print view, the class numbers to enter in myUNT, and an
+ * .ics calendar file. Real meetings carry their own dates; only sample
+ * meetings need the term's first and last day, which the user types, since
+ * UNTangle does not know UNT's academic calendar and never guesses it.
  */
 export function PlannerExportPanel() {
-  const { scheduleEvents } = usePlanner();
+  const { scheduleEvents, sectionPlan } = usePlanner();
   const { toast } = useToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -36,6 +38,21 @@ export function PlannerExportPanel() {
   const errorId = useId();
   const hintId = useId();
 
+  const exportIcs = (term: TermDates | null) => {
+    const result = buildPlanIcs(scheduleEvents, term);
+    const dates = scheduleEvents.flatMap((event) => (event.dates ? [event.dates] : []));
+    const span = term ?? {
+      start: dates.map((range) => range.start).sort()[0],
+      end: dates.map((range) => range.end).sort().at(-1)!,
+    };
+    download(result.ics, icsFileName(span), "text/calendar;charset=utf-8");
+    const skippedNote =
+      result.skipped.length > 0
+        ? `; ${result.skipped.length} meeting${result.skipped.length === 1 ? "" : "s"} fall outside their dates`
+        : "";
+    toast(`Downloaded ${result.eventCount} weekly class${result.eventCount === 1 ? "" : "es"}${skippedNote}`);
+  };
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     const checked = checkTermDates({ start, end });
@@ -43,15 +60,20 @@ export function PlannerExportPanel() {
       setError({ field: checked.field, message: checked.message });
       return;
     }
-    const result = buildPlanIcs(scheduleEvents, checked);
-    download(result.ics, icsFileName(checked), "text/calendar;charset=utf-8");
+    exportIcs(checked);
     setOpen(false);
     setError(null);
-    const skippedNote =
-      result.skipped.length > 0
-        ? `; ${result.skipped.length} meeting${result.skipped.length === 1 ? "" : "s"} fall outside those dates`
-        : "";
-    toast(`Downloaded ${result.eventCount} weekly class${result.eventCount === 1 ? "" : "es"}${skippedNote}`);
+  };
+
+  const classNumbers = myUntClassNumbers(sectionPlan);
+  const copyClassNumbers = async () => {
+    try {
+      await navigator.clipboard.writeText(classNumbers.text);
+      const missingNote = classNumbers.missing.length > 0 ? `; no real section yet for ${classNumbers.missing.join(", ")}` : "";
+      toast(`Copied ${classNumbers.count} class number${classNumbers.count === 1 ? "" : "s"}${missingNote}`);
+    } catch {
+      toast("Your browser blocked copying. The numbers are listed under each course in Courses.");
+    }
   };
 
   const empty = scheduleEvents.length === 0;
@@ -65,7 +87,15 @@ export function PlannerExportPanel() {
         <button type="button" className="btn-secondary" onClick={() => router.push("/schedule/print")}>
           Print schedule
         </button>
-        <button type="button" className="btn-secondary" onClick={() => setOpen(true)} disabled={empty}>
+        <button type="button" className="btn-secondary" onClick={copyClassNumbers} disabled={classNumbers.count === 0}>
+          Copy class numbers for myUNT
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => (needsTermDates(scheduleEvents) ? setOpen(true) : exportIcs(null))}
+          disabled={empty}
+        >
           Download .ics
         </button>
         {empty ? (
@@ -76,8 +106,8 @@ export function PlannerExportPanel() {
       <Modal open={open} onClose={() => setOpen(false)} title="Download calendar" maxWidth={460}>
         <form onSubmit={submit} noValidate style={{ display: "grid", gap: "0.8rem" }}>
           <p id={hintId} style={{ margin: 0, fontSize: "0.88rem", color: "var(--copy)" }}>
-            Enter your term&rsquo;s first and last day of classes. UNTangle doesn&rsquo;t know UNT&rsquo;s academic
-            calendar, so holidays and breaks are not removed. The file contains sample sections.
+            Sample sections have no term, so enter your term&rsquo;s first and last day of classes for them. UNTangle
+            doesn&rsquo;t know UNT&rsquo;s academic calendar, so holidays and breaks are not removed.
           </p>
           <label htmlFor={startId} style={{ display: "grid", gap: 4, fontSize: "0.85rem", fontWeight: 600 }}>
             First day of classes

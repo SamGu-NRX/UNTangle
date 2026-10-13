@@ -1,6 +1,10 @@
 export const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 
 export type WeekDay = (typeof weekDays)[number];
+
+/** Every day a class can meet. Real sections meet on weekends; the planner's day settings stay Mon-Fri. */
+export const classDays = [...weekDays, "Sat", "Sun"] as const;
+export type ClassDay = (typeof classDays)[number];
 export type CourseStatus = "completed" | "inProgress" | "notTaken";
 export type TranscriptAppliedStatus = "completed" | "inProgress" | "ignored" | "needsReview";
 export type TranscriptSourceKind = "unt" | "transfer" | "exam" | "current" | "unknown";
@@ -74,17 +78,28 @@ export type CampusBuilding = {
   isOffCampus?: boolean;
 };
 
+/** One timed meeting of a planned option, for the displays that predate `Section` (map, print, calendar). */
 export type ScheduleEvent = {
   courseCode: string;
   title: string;
   sectionId: string;
+  /** How a student names the section: "110 + 111" for a real option, "002" for a sample. */
+  sectionLabel: string;
   professor: string;
-  rating: number;
+  /** Only synthetic samples have ratings. */
+  rating: number | null;
+  /** The room as the source gave it. */
   location: string;
   buildingId?: string;
-  day: WeekDay;
+  /** The catalogue building, or "Unknown building" when the room maps to none. */
+  buildingName: string;
+  day: ClassDay;
   start: string;
   end: string;
+  /** First and last day the meeting runs (inclusive ISO dates); null when unknown, as for samples. */
+  dates: { start: string; end: string } | null;
+  /** Real Spring 2027 data, or a synthetic sample. */
+  provenance: "real" | "sample";
 };
 
 export type MapStop = {
@@ -97,10 +112,17 @@ export type MapStop = {
   lat?: number;
   lng?: number;
   resolutionStatus: "local" | "unresolved";
+  /**
+   * True when the room maps to no catalogue building. Such a stop is never
+   * looked up by its text: a fuzzy match would invent a building.
+   */
+  unmappedRoom?: true;
   geocodeQuery: string;
   day: WeekDay;
   start: string;
   end: string;
+  /** Inclusive ISO dates the class runs; absent or null when unknown (samples have no term). */
+  dates?: { start: string; end: string } | null;
 };
 
 export type MapResolutionStatus = "local" | "geocoded" | "unresolved";

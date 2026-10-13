@@ -746,7 +746,8 @@
 }
 .secRow {
   display: grid;
-  grid-template-columns: 16px 48px minmax(0, 1fr);
+  /* Wide enough for a linked option's "§110 + 111", which wraps after the "+". */
+  grid-template-columns: 16px 56px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 48px;
@@ -763,6 +764,10 @@
 }
 .secRow[data-disabled="true"] {
   cursor: default;
+}
+.secRow .code {
+  white-space: normal;
+  line-height: 16px;
 }
 .secLines {
   display: flex;

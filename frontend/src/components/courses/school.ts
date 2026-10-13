@@ -16,6 +16,7 @@ import {
   type SchoolAdapter,
 } from "@/lib/prereq";
 import { gradeHistorySources, type GradeHistorySource } from "@/lib/course-history";
+import { planningTerm } from "@/lib/planner-sections";
 import { courses as seedCourses, sections as seedSections } from "@/lib/seed-data";
 import type { CourseSection, TranscriptCourseRecord } from "@/lib/types";
 
@@ -107,10 +108,8 @@ export function untProfile(): SchoolProfile {
     adapter: untAdapter,
     evidenceFromTranscript: evidenceFromUntTranscript,
     normalizeId: safeNormalize,
-    // No school term config exists yet and the bundled sections carry no term
-    // (lib/data-provenance.ts). Spring 2027 is the next registration term as of
-    // October 2026 and matches the v2 mockups; move this to the school config.
-    planningTerm: "Spring 2027",
+    // The term the planner loads real sections for (lib/planner-sections.ts).
+    planningTerm: planningTerm.label,
     // A full-time UNT undergraduate load is 12+ hours; 15 is the common
     // four-year pace. Not a degree-plan rule; change it with the school config.
     autoCreditBudget: 15,

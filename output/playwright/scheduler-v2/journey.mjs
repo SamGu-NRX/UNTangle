@@ -111,7 +111,8 @@ for (const vp of [
   await page.waitForTimeout(600);
   check(`${tag}: inside the app shell`, (await page.locator(".shell main#main").count()) === 1);
   check(`${tag}: no page headline`, (await page.getByText("Shape the semester around one planning goal.").count()) === 0);
-  check(`${tag}: sample provenance tag shown`, (await page.locator("main header").getByRole("button", { name: /^Sample( sections)?$/ }).count()) === 1);
+  // Real Spring 2027 sections since the planner switched from samples; samples only as a labeled fallback.
+  check(`${tag}: provenance tag shown`, (await page.locator("main header").getByRole("button", { name: /^(Sample( sections)?|Real · .+)$/ }).count()) === 1);
   await shot("01-week");
   await axe(page, `${tag} week`);
 
@@ -148,7 +149,7 @@ for (const vp of [
   const courseCount = await page.getByRole("button", { name: /^Lock [A-Z]+ \d{4} section/ }).count();
   check(
     `${tag}: option A lists each class's days and times for screen readers`,
-    meetings.length === courseCount && meetings.every((m) => /section \d{3}: .+ [AP]M to /.test(m)),
+    meetings.length === courseCount && meetings.every((m) => /section \d{3}( \+ \d{3})*: .+ [AP]M to /.test(m)), // real linked options read "section 110 + 111"
     `${meetings.length} of ${courseCount} courses; ${meetings[0]}`,
   );
   const widths = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, view: window.innerWidth }));

@@ -1,3 +1,4 @@
+import { sharesWeeks } from "@/lib/planner-sections";
 import { buildings } from "@/lib/seed-data";
 import type { CampusBuilding, ScheduleEvent } from "@/lib/types";
 
@@ -71,19 +72,27 @@ function toMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
-/** Walking between consecutive classes on each day of the week. */
+type WalkEvent = Pick<ScheduleEvent, "day" | "start" | "buildingId"> & Partial<Pick<ScheduleEvent, "dates">>;
+
+/**
+ * Walking between consecutive classes on each day of the week. Two classes
+ * that never meet in the same week (first and second eight-week sessions)
+ * are not a walk.
+ */
 export function summarizeWeeklyWalking(
-  events: ReadonlyArray<Pick<ScheduleEvent, "day" | "start" | "buildingId">>,
+  events: ReadonlyArray<WalkEvent>,
   walkingTime: WalkingTimeFn = defaultWalkingTime,
 ): WalkingSummary {
   const summary: WalkingSummary = { knownSeconds: 0, knownLegs: 0, unknownLegs: 0, estimated: false };
-  const byDay = new Map<string, Array<Pick<ScheduleEvent, "day" | "start" | "buildingId">>>();
+  const byDay = new Map<string, WalkEvent[]>();
   events.forEach((event) => {
     byDay.set(event.day, [...(byDay.get(event.day) ?? []), event]);
   });
   byDay.forEach((dayEvents) => {
     const ordered = [...dayEvents].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
     for (let index = 1; index < ordered.length; index += 1) {
+      const noDates = { start: null, end: null };
+      if (!sharesWeeks(ordered[index - 1].dates ?? noDates, ordered[index].dates ?? noDates)) continue;
       const leg = walkingTime(ordered[index - 1].buildingId ?? "", ordered[index].buildingId ?? "");
       if (leg.source === "unknown") {
         summary.unknownLegs += 1;

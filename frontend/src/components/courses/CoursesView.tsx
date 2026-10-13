@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/Select";
 import { toast } from "@/components/ui/Toast";
 import { usePresence } from "@/components/ui/use-presence";
 import { getMajorById, getPlanningTermCourseCodes } from "@/lib/planner";
+import { optionIdLabel, optionLabel } from "@/lib/planner-sections";
 import { majors } from "@/lib/seed-data";
 import type { CoursePlan, CourseStatus, MajorId } from "@/lib/types";
 import styles from "./courses.module.css";
@@ -70,8 +71,17 @@ export function CoursesView({
   initialInstructor?: string | null;
 }) {
   const profile = useMemo(() => untProfile(), []);
-  const { hydrated, plannerState, scheduleEvents, setSelectedMajor, applyTranscriptRecords, setSection, updateCoursePlan } =
-    usePlanner();
+  const {
+    hydrated,
+    plannerState,
+    sectionPlan,
+    sectionCatalog,
+    loadSections,
+    setSelectedMajor,
+    applyTranscriptRecords,
+    setSection,
+    updateCoursePlan,
+  } = usePlanner();
   const { openSearch } = useShell();
   const router = useRouter();
   const importTranscript = () => openConnect((href) => router.push(href));
@@ -196,7 +206,9 @@ export function CoursesView({
       // Picking a section is a hand edit to that course, even when it is already planned.
       edit(model.rows.get(id)?.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }), [id]);
       setSection(id, sectionId);
-      say(`Using section ${sectionId.split("-").at(-1)} of ${id}.`);
+      const option = sectionCatalog(id);
+      const section = option.status === "ready" ? option.result.sections.find((entry) => entry.id === sectionId) : undefined;
+      say(`Using section ${section ? optionLabel(section) : optionIdLabel(sectionId)} of ${id}.`);
     },
     close: closePanel,
   };
@@ -325,6 +337,10 @@ export function CoursesView({
 
   // selectedId is never cleared, so the panel keeps its course while it slides out.
   const panelRow = selectedId ? model.rows.get(selectedId) : undefined;
+  useEffect(() => {
+    if (selectedId && panelOpen) loadSections([selectedId]);
+  }, [loadSections, panelOpen, selectedId]);
+  const planSections = sectionPlan.courses.flatMap((course) => (course.section ? [course.section] : []));
   const desktopPresence = usePresence(panelOpen && !isPhone && panelRow !== undefined, 150);
 
   const instructorForPanel =
@@ -341,7 +357,8 @@ export function CoursesView({
       profile={profile}
       inCore={coreSet.has(row.id)}
       selectedSectionId={plannerState.selectedSections[row.id]}
-      scheduleEvents={scheduleEvents}
+      sectionOptions={sectionCatalog(row.id)}
+      planSections={planSections}
       initialInstructor={instructorForPanel}
       actions={panelActions}
       showClose

@@ -337,19 +337,20 @@ async function journey(browser, viewport) {
   }
   check(`${tag}: MATH 1720 planned through search`, (await rowStatus(page, "MATH 1720")) === "Planned");
 
-  // Pin MATH 1720 to §010 (MWF 8:00); CSCE 1030 §001 meets MWF 8:00 too, so it must show a conflict.
+  // Pin MATH 1720 to §501 (MW 1:00-3:20 PM in UNT's Spring 2027 schedule); CSCE 1030 §400 + 301 has a
+  // Monday 10:40 AM-1:30 PM lab, so it must show a conflict. Real sections replaced the samples here.
   await tap(page.locator('[data-row-open="MATH 1720"]'));
   const mathPanel = panelFor("MATH 1720");
   await tap(mathPanel.getByRole("button", { name: /Show all \d+ sections/ }));
-  await tap(mathPanel.locator("label", { hasText: "§010" }));
-  check(`${tag}: choosing a section radio updates the plan`, await mathPanel.locator("label", { hasText: "§010" }).locator("input").isChecked());
+  await tap(mathPanel.locator("label", { hasText: "§501" }));
+  check(`${tag}: choosing a section radio updates the plan`, await mathPanel.locator("label", { hasText: "§501" }).locator("input").isChecked());
   if (phone) {
     await page.getByRole("button", { name: "Close MATH 1720 details" }).tap();
     await mathPanel.waitFor({ state: "detached" });
   }
   await tap(page.locator('[data-row-open="CSCE 1030"]'));
   const csPanel = panelFor("CSCE 1030");
-  const clash = csPanel.locator("label", { hasText: "§001" }).locator("[data-conflict=true]");
+  const clash = csPanel.locator("label", { hasText: "§400 + 301" }).locator("[data-conflict=true]");
   await clash.waitFor();
   const clashText = await clash.innerText();
   // --c-danger is the shell's --danger when it exists, else DESIGN.md's #b3261e.

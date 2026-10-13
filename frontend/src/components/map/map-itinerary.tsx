@@ -110,7 +110,16 @@ function Tag({ children, title }: { children: string; title: string }) {
   );
 }
 
-export function DaySummary({ day, itinerary }: { day: WeekDay; itinerary: Itinerary }) {
+export function DaySummary({
+  day,
+  itinerary,
+  source,
+}: {
+  day: WeekDay;
+  itinerary: Itinerary;
+  /** Where the day's sections come from ("Real · Oct 4", "Sample"); null before any loads. */
+  source: { text: string; title: string } | null;
+}) {
   const { summary } = itinerary;
   const parts: string[] = [];
   if (summary.classes === 0) {
@@ -150,9 +159,7 @@ export function DaySummary({ day, itinerary }: { day: WeekDay; itinerary: Itiner
             Approx.
           </Tag>
         ) : null}
-        <Tag title="Sections, meeting times and rooms are synthetic, not UNT's class schedule. Check the official schedule before you register.">
-          Sample
-        </Tag>
+        {source ? <Tag title={source.title}>{source.text}</Tag> : null}
       </span>
     </div>
   );
@@ -200,6 +207,7 @@ function StopCard({
         </span>
         <span className="mv-stop__meta">
           {timeRange(entry)} · {stop.location}
+          {entry.ownDates ? ` · ${entry.ownDates}` : ""}
         </span>
         {placement.kind === "unresolved" ? (
           <span className="mv-stop__problem">
@@ -239,6 +247,8 @@ function legText(leg: ItineraryLeg): LegText {
       return { main: `Same building · ${gap}`, source: null, detail: null };
     case "no-route":
       return { main: "No walking route", source: null, detail: "One end of this walk isn't on the map." };
+    case "other-weeks":
+      return { main: "No walk", source: null, detail: "These classes meet in different weeks of the term." };
     case "straight-line":
       return {
         main: `~${formatDistance(leg.route.meters)}`,

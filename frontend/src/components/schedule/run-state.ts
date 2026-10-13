@@ -46,14 +46,19 @@ export function runReducer(state: RunState, action: RunAction): RunState {
   }
 }
 
-/** Everything a run depends on besides the catalog. Lock order does not matter. */
+/**
+ * Everything a run depends on. Lock order does not matter. `sectionsKey`
+ * names the options the courses had loaded, so a course that loads after a
+ * run makes its result stale.
+ */
 export function optimizerInputKey(
   preferences: SchedulePreferences,
   locks: Record<string, string>,
   courseCodes: readonly string[],
+  sectionsKey = "",
 ): string {
   const sortedLocks = Object.entries(locks).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return JSON.stringify([preferences, sortedLocks, [...courseCodes]]);
+  return JSON.stringify([preferences, sortedLocks, [...courseCodes], sectionsKey]);
 }
 
 export function locksKey(locks: Record<string, string>): string {

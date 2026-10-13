@@ -10,11 +10,14 @@
  * - a straight-line estimate shows distance only, never minutes;
  * - a transfer is "late" when the walk takes longer than the break, and
  *   "tight" when it leaves two minutes or less to spare (the design's rule:
- *   walk >= gap - 2). Both are flagged.
+ *   walk >= gap - 2). Both are flagged;
+ * - two classes that never meet in the same week (first and second
+ *   eight-week sessions) have no walk between them.
  */
 import { haversineMetersBetween } from "@/lib/campus/geo";
 import { stopIdentity } from "@/lib/campus/route-legs";
 import { walkingMinutes } from "@/lib/campus/speeds";
+import { rangeLabel, sharesWeeks } from "@/lib/planner-sections";
 import type { MapResolvedLocation, MapRouteLeg, MapRoutePoint, MapStop } from "@/lib/types";
 
 /** What building lookup said about a stop that arrived without coordinates. */
@@ -43,6 +46,8 @@ export type ItineraryStop = {
   number: number;
   stop: MapStop;
   placement: StopPlacement;
+  /** "Mar 15 – May 7" when this class runs on other dates than most of the day's; otherwise null. */
+  ownDates: string | null;
 };
 
 export type LegRoute =
@@ -50,7 +55,9 @@ export type LegRoute =
   | { kind: "same-building" }
   | { kind: "walk"; source: "campus-network" | "ors"; meters: number; seconds: number; geometry: MapRoutePoint[] }
   | { kind: "straight-line"; meters: number; geometry: MapRoutePoint[] }
-  | { kind: "no-route" };
+  | { kind: "no-route" }
+  /** The two classes never meet in the same week, so nobody walks between them. */
+  | { kind: "other-weeks" };
 
 export type ItineraryLeg = {
   key: string;
@@ -190,6 +197,9 @@ function unresolvedMessage(stop: MapStop, reason: UnresolvedReason, name: string
 }
 
 export function placeStop(stop: MapStop, lookup: StopLookup | undefined): StopPlacement {
+  if (stop.unmappedRoom) {
+    return { kind: "unresolved", reason: "unknown", message: unresolvedMessage(stop, "unknown", stop.buildingName) };
+  }
   if (typeof stop.lat === "number" && typeof stop.lng === "number") {
     return {
       kind: "mapped",
@@ -234,11 +244,14 @@ export function placementKey(placement: MappedPlacement): string {
 export function routeRuns(stops: ItineraryStop[]): Array<Array<{ key: string; point: MapRoutePoint; buildingId?: string }>> {
   const runs: Array<Array<{ key: string; point: MapRoutePoint; buildingId?: string }>> = [];
   let current: Array<{ key: string; point: MapRoutePoint; buildingId?: string }> = [];
+  let previous: ItineraryStop | null = null;
   for (const entry of stops) {
-    if (entry.placement.kind !== "mapped") {
+    const apart = previous !== null && !sameWeeks(previous.stop, entry.stop);
+    previous = entry;
+    if (entry.placement.kind !== "mapped" || apart) {
       if (current.length > 1) runs.push(current);
       current = [];
-      continue;
+      if (entry.placement.kind !== "mapped") continue;
     }
     const key = placementKey(entry.placement);
     if (current.length === 0 || current[current.length - 1].key !== key) {
@@ -249,7 +262,14 @@ export function routeRuns(stops: ItineraryStop[]): Array<Array<{ key: string; po
   return runs;
 }
 
+function sameWeeks(a: MapStop, b: MapStop): boolean {
+  return sharesWeeks(a.dates ?? { start: null, end: null }, b.dates ?? { start: null, end: null });
+}
+
 function legRoute(from: ItineraryStop, to: ItineraryStop, answers: ReadonlyMap<string, PairAnswer>): LegRoute {
+  if (!sameWeeks(from.stop, to.stop)) {
+    return { kind: "other-weeks" };
+  }
   if (from.placement.kind !== "mapped" || to.placement.kind !== "mapped") {
     return from.placement.kind === "resolving" || to.placement.kind === "resolving" ? { kind: "loading" } : { kind: "no-route" };
   }
@@ -283,11 +303,16 @@ export function buildItinerary(
   lookups: ReadonlyMap<string, StopLookup>,
   answers: ReadonlyMap<string, PairAnswer>,
 ): Itinerary {
+  const labels = stops.map((stop) => rangeLabel(stop.dates));
+  const counts = new Map<string, number>();
+  labels.forEach((label) => label && counts.set(label, (counts.get(label) ?? 0) + 1));
+  const usual = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   const entries: ItineraryStop[] = stops.map((stop, index) => ({
     key: stopKey(stop, index),
     number: index + 1,
     stop,
     placement: placeStop(stop, lookups.get(lookupKey(stop.location, stop.buildingId))),
+    ownDates: labels[index] !== usual ? labels[index] : null,
   }));
 
   const legs: ItineraryLeg[] = entries.slice(1).map((to, index) => {
@@ -304,7 +329,7 @@ export function buildItinerary(
       route,
       walkMinutes,
       leaveBy: walkMinutes ? fromMinutes(toMinutes(to.stop.start) - walkMinutes) : null,
-      transfer: transferFit(walkMinutes, gapMinutes),
+      transfer: route.kind === "other-weeks" ? "ok" : transferFit(walkMinutes, gapMinutes),
     };
   });
 

@@ -1,15 +1,15 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
-import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { UNKNOWN_WALK_SECONDS } from "@/lib/optimizer/score";
 import type { RankedSchedule, RelaxSuggestion } from "@/lib/optimizer/types";
-import { sectionNumber } from "@/lib/planner";
-import { weekDays } from "@/lib/types";
+import { isTimed, optionLabel, rangeLabel } from "@/lib/planner-sections";
+import { classDays } from "@/lib/types";
 import { differsInOneCourse, resultStanding, type RunState } from "./run-state";
 import styles from "./schedule.module.css";
 import { MiniWeek } from "./WeekGrid";
-import { clock, eventsFor, findSection, movedCourses, toMinutes } from "./week-model";
+import { clock, eventsFor, movedCourses, type FindOption } from "./week-model";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 const UNKNOWN_WALK_MINUTES = UNKNOWN_WALK_SECONDS / 60;
@@ -51,26 +51,29 @@ function Breakdown({ schedule }: { schedule: RankedSchedule }) {
  * Each option's classes as text, for screen readers: the mini week is a
  * picture, and a picture cannot be read day by day.
  */
-export function meetingLines(byCourse: Record<string, string>, courseOrder: readonly string[]): string[] {
+export function meetingLines(byCourse: Record<string, string>, courseOrder: readonly string[], find: FindOption): string[] {
   const codes = [...Object.keys(byCourse)].sort((a, b) => {
     const ia = courseOrder.indexOf(a);
     const ib = courseOrder.indexOf(b);
     return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib) || a.localeCompare(b);
   });
   return codes.flatMap((code) => {
-    const section = findSection(byCourse[code]);
+    const section = find(code, byCourse[code]);
     if (!section) return [];
-    const byTime = new Map<string, string[]>();
-    for (const meeting of section.meetings) {
-      const key = `${meeting.start}-${meeting.end}`;
-      byTime.set(key, [...(byTime.get(key) ?? []), meeting.day]);
+    const byTime = new Map<string, { start: number; end: number; dates: string | null; days: string[] }>();
+    for (const meeting of section.meetings.filter(isTimed)) {
+      const dates = rangeLabel(meeting.dates);
+      const key = `${meeting.startMinutes}-${meeting.endMinutes}-${dates}`;
+      const entry = byTime.get(key) ?? { start: meeting.startMinutes, end: meeting.endMinutes, dates, days: [] };
+      entry.days.push(meeting.day);
+      byTime.set(key, entry);
     }
-    const times = [...byTime.entries()].map(([key, days]) => {
-      const [start, end] = key.split("-");
-      const ordered = weekDays.filter((day) => days.includes(day));
-      return `${ordered.join(" ")} ${clock(toMinutes(start), true)} to ${clock(toMinutes(end), true)}`;
+    const times = [...byTime.values()].map(({ start, end, dates, days }) => {
+      const ordered = classDays.filter((day) => days.includes(day));
+      const offCycle = section.term !== null && section.session.label !== "Regular Academic Session";
+      return `${ordered.join(" ")} ${clock(start, true)} to ${clock(end, true)}${offCycle && dates ? `, ${dates}` : ""}`;
     });
-    return [`${code} section ${sectionNumber(section.id)}: ${times.join("; ")}`];
+    return [`${code} section ${optionLabel(section)}: ${times.join("; ") || "no set time"}`];
   });
 }
 
@@ -78,6 +81,8 @@ export function AlternativesCompare({
   state,
   stale,
   current,
+  find,
+  tag,
   courseOrder,
   onUse,
   onPreview,
@@ -90,6 +95,9 @@ export function AlternativesCompare({
   /** The settings changed after this result was found: show it, but nothing in it applies. */
   stale: boolean;
   current: Record<string, string>;
+  find: FindOption;
+  /** Where the sections come from (the view header's tag). */
+  tag: ReactNode;
   courseOrder: string[];
   onUse: (schedule: RankedSchedule, letter: string) => void;
   /** `fromKeyboard` previews appear without a fade. */
@@ -206,7 +214,7 @@ export function AlternativesCompare({
         <h2 id="alternatives-title">
           {result.schedules.length === 1 ? "1 schedule fits" : `${result.schedules.length} schedules to compare`}
         </h2>
-        <ProvenanceTag source="Sections, times, rooms and instructors are synthetic samples, not UNT's class schedule.">Sample</ProvenanceTag>
+        {tag}
         <span className={styles.spacer} />
         {close}
       </div>
@@ -232,7 +240,7 @@ export function AlternativesCompare({
       >
         {result.schedules.map((schedule, index) => {
           const letter = LETTERS[index];
-          const moved = movedCourses(current, schedule.byCourse);
+          const moved = movedCourses(current, schedule.byCourse, find);
           const isCurrent = Object.entries(schedule.byCourse).every(([code, id]) => current[code] === id);
           const preview = (fromKeyboard: boolean) => onPreview(isCurrent || stale ? null : schedule, fromKeyboard);
           return (
@@ -253,13 +261,13 @@ export function AlternativesCompare({
                 <span className={styles.meta}>{index === 0 ? "Best match" : `#${index + 1}`}</span>
               </div>
               <MiniWeek
-                events={eventsFor(schedule.byCourse)}
+                events={eventsFor(schedule.byCourse, find)}
                 courseOrder={courseOrder}
                 moved={moved}
                 label={`Option ${letter} week: ${schedule.breakdown.daysOnCampus} days on campus`}
               />
               <ul className={styles.srOnly} aria-label={`Option ${letter} classes`}>
-                {meetingLines(schedule.byCourse, courseOrder).map((line) => (
+                {meetingLines(schedule.byCourse, courseOrder, find).map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>

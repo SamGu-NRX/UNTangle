@@ -8,8 +8,10 @@ import { Close, ExternalGlyph, MoreGlyph } from "@/components/ui/icons";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { Select, type SelectOption } from "@/components/ui/Select";
+import { SectionsTag, summarizeProvenance } from "@/components/sections-provenance";
 import type { CourseGradeView, InstructorSlice } from "@/lib/course-history";
-import type { CourseSection, ScheduleEvent } from "@/lib/types";
+import { classNumbersOf, meetingsConflict, optionLabel, rangeLabel, sampleOption, type CourseOptions } from "@/lib/planner-sections";
+import type { Meeting, Section } from "@/lib/sections";
 import styles from "./courses.module.css";
 import { CourseLink, RuleText, StatusGlyph } from "./bits";
 import { statusLabels, type CourseRowModel } from "./model/course-model";
@@ -30,7 +32,10 @@ type Props = {
   profile: SchoolProfile;
   inCore: boolean;
   selectedSectionId: string | undefined;
-  scheduleEvents: readonly ScheduleEvent[];
+  /** This course's options, as loaded so far. */
+  sectionOptions: CourseOptions;
+  /** The other planned courses' sections, for conflict notes. */
+  planSections: readonly Section[];
   initialInstructor: string | null;
   actions: PanelActions;
   showClose: boolean;
@@ -71,37 +76,65 @@ function useGradeHistory(profile: SchoolProfile, id: string) {
   return { view: cached ?? fresh, retry: () => setAttempt((value) => value + 1) };
 }
 
-function minutesOf(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
+function clock(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  return `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-function clock(time: string) {
-  const total = minutesOf(time);
-  const hours = Math.floor(total / 60);
-  return `${hours % 12 === 0 ? 12 : hours % 12}:${String(total % 60).padStart(2, "0")}`;
+function where(meeting: Meeting) {
+  if (meeting.kind === "online") return "Online";
+  if (meeting.kind === "unassigned") return "Room not assigned";
+  return meeting.kind === "unknown" ? `${meeting.room} · Unknown building` : meeting.room;
 }
 
-function meetingLine(section: CourseSection) {
-  if (section.meetings.length === 0) return "Time to be announced";
-  const first = section.meetings[0];
-  const days = [...new Set(section.meetings.map((meeting) => meeting.day))].join(" ");
-  const suffix = minutesOf(first.end) >= 12 * 60 ? "PM" : "AM";
-  return `${days} · ${clock(first.start)}–${clock(first.end)} ${suffix} · ${first.location}`;
-}
-
-function conflictWith(section: CourseSection, events: readonly ScheduleEvent[], self: string) {
+/**
+ * One line per distinct meeting pattern, in component order (a lecture and
+ * its required lab each get theirs): "Tue Thu · 9:35–10:55 AM · Cury 203".
+ */
+function meetingLines(section: Section): string[] {
+  const lines = new Map<string, Meeting["day"][]>();
   for (const meeting of section.meetings) {
-    const clash = events.find(
-      (event) =>
-        event.courseCode !== self &&
-        event.day === meeting.day &&
-        minutesOf(event.start) < minutesOf(meeting.end) &&
-        minutesOf(meeting.start) < minutesOf(event.end),
-    );
-    if (clash) return `${clash.day} conflicts with ${clash.courseCode}`;
+    const time =
+      meeting.startMinutes === null || meeting.endMinutes === null
+        ? meeting.async
+          ? "No set time"
+          : "Time to be announced"
+        : `${clock(meeting.startMinutes)}–${clock(meeting.endMinutes)} ${meeting.endMinutes >= 12 * 60 && meeting.endMinutes < 24 * 60 ? "PM" : "AM"}`;
+    const key = `${time} · ${where(meeting)}`;
+    lines.set(key, [...(lines.get(key) ?? []), meeting.day]);
+  }
+  return [...lines].map(([rest, days]) => {
+    const named = [...new Set(days.filter((day) => day !== null))].join(" ");
+    return named ? `${named} · ${rest}` : rest;
+  });
+}
+
+function conflictWith(section: Section, others: readonly Section[]) {
+  for (const other of others) {
+    for (const meeting of section.meetings) {
+      if (other.meetings.some((theirs) => meetingsConflict(meeting, theirs))) return `${meeting.day} conflicts with ${other.courseCode}`;
+    }
   }
   return null;
+}
+
+/** Instructor, seats and class numbers for a real option; the instructor alone for a sample. */
+function optionDetail(section: Section) {
+  const instructor = section.instructor.display ?? "Instructor not listed";
+  if (section.term === null) return instructor;
+  const status =
+    section.status === "open"
+      ? section.seats.open !== null && section.seats.total !== null
+        ? `${section.seats.open} of ${section.seats.total} open`
+        : "Open"
+      : section.status === "waitlist"
+        ? "Wait list"
+        : section.status === "unknown"
+          ? section.rawStatus
+          : section.status === "closed"
+            ? "Closed"
+            : "Cancelled";
+  return `${instructor} · ${status} · Class ${classNumbersOf(section).join(" + ")}`;
 }
 
 const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? "" : "s"}`;
@@ -113,13 +146,21 @@ export function DetailContent({
   profile,
   inCore,
   selectedSectionId,
-  scheduleEvents,
+  sectionOptions,
+  planSections,
   initialInstructor,
   actions,
   showClose,
 }: Props) {
   const { view, retry } = useGradeHistory(profile, row.id);
-  const sections = profile.sections(row.id);
+  const result = sectionOptions.status === "ready" ? sectionOptions.result : null;
+  const sections = useMemo(() => result?.sections ?? [], [result]);
+  const others = planSections.filter((section) => section.courseCode !== row.id);
+  // An old plan's synthetic pick, when this course now has real options.
+  const savedSample =
+    row.status === "planned" && selectedSectionId && !sections.some((section) => section.id === selectedSectionId)
+      ? sampleOption(selectedSectionId)
+      : undefined;
   // The parent keys this component by course, so these reset when the subject changes.
   const [instructor, setInstructor] = useState<string>(initialInstructor ? instructorKey(initialInstructor) : "all");
   const [showAllSections, setShowAllSections] = useState(false);
@@ -133,15 +174,17 @@ export function DetailContent({
       if (!seen.has(key)) seen.set(key, { value: key, label: slice.instructor.name, meta: plural(slice.sectionCount, "section"), slice });
     }
     for (const section of sections) {
-      const key = instructorKey(section.professor);
-      if (!seen.has(key)) seen.set(key, { value: key, label: section.professor, meta: "No grade records" });
+      const name = section.instructor.display;
+      if (!name) continue;
+      const key = instructorKey(name);
+      if (!seen.has(key)) seen.set(key, { value: key, label: name, meta: "No grade records" });
     }
     return [{ value: "all", label: "All instructors" }, ...seen.values()] as InstructorOption[];
   }, [view, sections]);
 
   const chosen = options.find((option) => option.value === instructor);
   const selectedSection = sections.find((section) => section.id === selectedSectionId) ?? sections[0];
-  const linkName = instructor !== "all" && chosen ? chosen.label : selectedSection?.professor;
+  const linkName = instructor !== "all" && chosen ? chosen.label : (selectedSection?.instructor.display ?? undefined);
   const links = linkName ? profile.linkOuts({ name: linkName }, row.id) : [];
 
   const { readable, unparsed } = splitUnparsed(row.rule);
@@ -176,7 +219,14 @@ export function DetailContent({
     );
   }
 
-  const sectionsShown = showAllSections ? sections : sections.slice(0, 3);
+  // The short list always includes the plan's section, so the checked option is never hidden.
+  const planned = sections.find((section) => section.id === selectedSectionId);
+  const firstThree = sections.slice(0, 3);
+  const sectionsShown = showAllSections
+    ? sections
+    : planned && !firstThree.includes(planned)
+      ? [...sections.slice(0, 2), planned]
+      : firstThree;
   const canPick = row.status === "available" || row.status === "check" || row.status === "planned";
   const longDescription = row.description.length > 220;
 
@@ -306,24 +356,32 @@ export function DetailContent({
           <h3 className={styles.h3} id="sections-title">
             Sections, {profile.planningTerm}
           </h3>
-          <ProvenanceTag source="Sections are synthetic samples, not a real UNT term. Check the official schedule before you register.">
-            Sample
-          </ProvenanceTag>
+          <SectionsTag provenance={result ? summarizeProvenance([result]) : null} compact={result?.provenance.kind === "sample"} />
           <span className={styles.spacer} />
           <span className={styles.meta}>
             {canPick ? (row.status === "planned" ? "Pick the one you want" : "Picking one adds the course") : sections.length ? "Not available to plan" : ""}
           </span>
         </div>
-        {sections.length === 0 ? (
+        {savedSample ? (
+          <p className={styles.pNote}>
+            Your plan has sample section §{optionLabel(savedSample)} for this course. Pick a real {profile.planningTerm} section below.
+          </p>
+        ) : null}
+        {!result ? (
+          <div aria-busy="true" aria-label={`Loading ${profile.planningTerm} sections`} style={{ marginTop: 10 }}>
+            <div className={styles.shimmer} />
+            <div className={styles.shimmer} />
+          </div>
+        ) : sections.length === 0 ? (
           <p className={styles.meta} style={{ marginTop: 10 }}>
-            No sample sections for this course.
+            {result.availability === "no_classes" ? `Not offered in ${profile.planningTerm}.` : "No sections for this course."}
           </p>
         ) : (
           <div className={styles.secRows} role="radiogroup" aria-label={`Sections of ${row.id}`}>
             {sectionsShown.map((section) => {
-              const conflict = conflictWith(section, scheduleEvents, row.id);
+              const conflict = conflictWith(section, others);
               const checked = row.status === "planned" && section.id === selectedSectionId;
-              const number = section.id.split("-").at(-1);
+              const dates = section.session.label === "Regular Academic Session" ? null : rangeLabel(section.session.dates);
               return (
                 <label key={section.id} className={styles.secRow} data-checked={checked} data-disabled={!canPick}>
                   <Radio
@@ -332,16 +390,13 @@ export function DetailContent({
                     disabled={!canPick}
                     onChange={() => actions.chooseSection(row.id, section.id)}
                   />
-                  <span className={styles.code}>§{number}</span>
+                  <span className={styles.code}>§{optionLabel(section)}</span>
                   <span className={styles.secLines}>
-                    <span>{meetingLine(section)}</span>
-                    {conflict ? (
-                      <small data-conflict="true">{conflict}</small>
-                    ) : (
-                      <small>
-                        {section.professor} · ★ {section.rating.toFixed(1)}
-                      </small>
-                    )}
+                    {meetingLines(section).map((line) => (
+                      <span key={line}>{line}</span>
+                    ))}
+                    {dates && section.term !== null ? <small>{`${section.session.label} · ${dates}`}</small> : null}
+                    {conflict ? <small data-conflict="true">{conflict}</small> : <small>{optionDetail(section)}</small>}
                   </span>
                 </label>
               );
