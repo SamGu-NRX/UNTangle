@@ -37,6 +37,12 @@
   },
   {
     "size": "desktop",
+    "name": "Menu: Tab closes it and moves on past the trigger",
+    "pass": true,
+    "detail": "Row actions"
+  },
+  {
+    "size": "desktop",
     "name": "Segmented: → selects the next segment",
     "pass": true,
     "detail": ""
@@ -88,6 +94,18 @@
     "name": "Toast shows with its Undo action",
     "pass": true,
     "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Dialog: Tab wraps and never leaves the dialog",
+    "pass": true,
+    "detail": "10 stops"
+  },
+  {
+    "size": "desktop",
+    "name": "Select in a dialog opens on top; Escape closes the list, not the dialog",
+    "pass": true,
+    "detail": "onTop=true listClosed=true dialogStays=true"
   },
   {
     "size": "desktop",
@@ -271,6 +289,12 @@
   },
   {
     "size": "phone",
+    "name": "Menu: Tab closes it and moves on past the trigger",
+    "pass": true,
+    "detail": "Row actions"
+  },
+  {
+    "size": "phone",
     "name": "Segmented: → selects the next segment",
     "pass": true,
     "detail": ""
@@ -325,6 +349,18 @@
   },
   {
     "size": "phone",
+    "name": "Dialog: Tab wraps and never leaves the dialog",
+    "pass": true,
+    "detail": "10 stops"
+  },
+  {
+    "size": "phone",
+    "name": "Select in a dialog opens on top; Escape closes the list, not the dialog",
+    "pass": true,
+    "detail": "onTop=true listClosed=true dialogStays=true"
+  },
+  {
+    "size": "phone",
     "name": "Dialog: focus moves in, page is inert, Escape closes and refocuses the opener",
     "pass": true,
     "detail": "inside=true inert=true refocused=true"
@@ -356,6 +392,12 @@
   {
     "size": "phone",
     "name": "BottomSheet: a fast flick down (>0.11 px/ms) drops to 50%",
+    "pass": true,
+    "detail": "422px"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet: a fast drag that pauses before release stays at 50%",
     "pass": true,
     "detail": "422px"
   },

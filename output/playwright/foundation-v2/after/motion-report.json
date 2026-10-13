@@ -1,0 +1,218 @@
+[
+  {
+    "label": "desktop, reduced motion",
+    "name": "segmented pill jumps",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\",\"transitionProperty\":\"all\"}"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "toggle knob jumps",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\",\"transitionProperty\":\"all\"}"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "arrow keys move the pill without animation",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\"}"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "listbox fades 120ms, no scale",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity\",\"transitionDuration\":\"0.12s\",\"transform\":\"none\"}"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "dialog fades 120ms, no scale",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity\",\"transitionDuration\":\"0.12s\",\"transformOrigin\":\"240px 285px\"}"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "toast fades without rising",
+    "pass": true,
+    "detail": "{\"transform\":\"none\",\"transitionDuration\":\"0.12s\"}"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "sheet fades in, does not slide",
+    "pass": true,
+    "detail": "opacity 120ms"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "↑ on the sheet handle moves without sliding",
+    "pass": true,
+    "detail": "opacity 120ms"
+  },
+  {
+    "label": "desktop, reduced motion",
+    "name": "a sheet reopened during its exit is fully visible",
+    "pass": true,
+    "detail": "1"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "segmented pill slides 160ms on transform",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0.16s\",\"transitionProperty\":\"transform\"}"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "toggle knob slides 160ms on transform",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0.16s\",\"transitionProperty\":\"transform\"}"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "arrow keys move the pill without animation",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\"}"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "listbox fades and scales 160ms",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity, transform\",\"transitionDuration\":\"0.16s, 0.16s\",\"transform\":\"matrix(0.97, 0, 0, 0.97, 0, 0)\"}"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "dialog scales from its centre over 200ms",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity, transform\",\"transitionDuration\":\"0.2s, 0.2s\",\"transformOrigin\":\"240px 285px\"}"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "toast settles at rest",
+    "pass": true,
+    "detail": "{\"transform\":\"matrix(1, 0, 0, 1, 0, 0)\",\"transitionDuration\":\"0.2s, 0.2s\"}"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "sheet slides in on the sheet curve",
+    "pass": true,
+    "detail": "transform 240ms var(--ease-sheet)"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "↑ on the sheet handle moves without sliding",
+    "pass": true,
+    "detail": "none"
+  },
+  {
+    "label": "desktop, full motion",
+    "name": "a sheet reopened during its exit is fully visible",
+    "pass": true,
+    "detail": "1"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "segmented pill jumps",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\",\"transitionProperty\":\"all\"}"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "toggle knob jumps",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\",\"transitionProperty\":\"all\"}"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "arrow keys move the pill without animation",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\"}"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "listbox fades 120ms, no scale",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity\",\"transitionDuration\":\"0.12s\",\"transform\":\"none\"}"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "dialog fades 120ms, no scale",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity\",\"transitionDuration\":\"0.12s\",\"transformOrigin\":\"183px 299px\"}"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "toast fades without rising",
+    "pass": true,
+    "detail": "{\"transform\":\"none\",\"transitionDuration\":\"0.12s\"}"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "sheet fades in, does not slide",
+    "pass": true,
+    "detail": "opacity 120ms"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "↑ on the sheet handle moves without sliding",
+    "pass": true,
+    "detail": "opacity 120ms"
+  },
+  {
+    "label": "phone, reduced motion",
+    "name": "a sheet reopened during its exit is fully visible",
+    "pass": true,
+    "detail": "1"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "segmented pill slides 160ms on transform",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0.16s\",\"transitionProperty\":\"transform\"}"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "toggle knob slides 160ms on transform",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0.16s\",\"transitionProperty\":\"transform\"}"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "arrow keys move the pill without animation",
+    "pass": true,
+    "detail": "{\"transitionDuration\":\"0s\"}"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "listbox fades and scales 160ms",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity, transform\",\"transitionDuration\":\"0.16s, 0.16s\",\"transform\":\"matrix(0.97, 0, 0, 0.97, 0, 0)\"}"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "dialog scales from its centre over 200ms",
+    "pass": true,
+    "detail": "{\"transitionProperty\":\"opacity, transform\",\"transitionDuration\":\"0.2s, 0.2s\",\"transformOrigin\":\"183px 299px\"}"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "toast settles at rest",
+    "pass": true,
+    "detail": "{\"transform\":\"matrix(1, 0, 0, 1, 0, 0)\",\"transitionDuration\":\"0.2s, 0.2s\"}"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "sheet slides in on the sheet curve",
+    "pass": true,
+    "detail": "transform 240ms var(--ease-sheet)"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "↑ on the sheet handle moves without sliding",
+    "pass": true,
+    "detail": "none"
+  },
+  {
+    "label": "phone, full motion",
+    "name": "a sheet reopened during its exit is fully visible",
+    "pass": true,
+    "detail": "1"
+  }
+]

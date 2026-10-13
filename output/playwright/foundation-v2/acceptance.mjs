@@ -112,6 +112,12 @@ async function controls(page, size, phone) {
   await page.keyboard.press("Escape");
   const back = await page.evaluate(() => document.activeElement?.textContent?.trim());
   check(size, "Menu: Enter opens on the first item, ↓ moves, Escape returns focus", firstItem.includes("Save a copy") && second.includes("Rename") && back === "Plan menu", `${firstItem} → ${second} → ${back}`);
+  await page.keyboard.press("Enter");
+  await page.getByRole("menu", { name: "Plan" }).waitFor();
+  await page.keyboard.press("Tab");
+  const afterTab = await active(page);
+  // The menu fades out over 120ms; its trigger reports closed at once.
+  check(size, "Menu: Tab closes it and moves on past the trigger", afterTab === "Row actions" && (await menuTrigger.getAttribute("aria-expanded")) === "false", afterTab);
 
   // Segmented
   await page.getByRole("radio", { name: "Courses" }).focus();
@@ -181,6 +187,28 @@ async function controls(page, size, phone) {
   const inside = await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'));
   const inert = await page.evaluate(() => document.querySelector(".spec-page")?.closest("[inert]") !== null);
   await page.screenshot({ path: join(out, `${size}-dialog.png`) });
+
+  // Tab wraps inside the dialog.
+  const focusables = await page.evaluate(() => {
+    const d = document.querySelector('[role="dialog"]');
+    return Array.from(d.querySelectorAll('button, [tabindex="0"], input, [role="combobox"]')).filter((el) => el.tabIndex >= 0 && el.getClientRects().length).length;
+  });
+  for (let i = 0; i < focusables + 2; i += 1) await page.keyboard.press("Tab");
+  const stillInside = await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'));
+  check(size, "Dialog: Tab wraps and never leaves the dialog", stillInside, `${focusables} stops`);
+
+  // A Select inside the dialog opens above it, and Escape closes the list first.
+  const inner = page.getByRole("combobox", { name: "Reminder before class" });
+  await inner.focus();
+  await page.keyboard.press("ArrowDown");
+  const opt = page.getByRole("option", { name: "30 minutes" });
+  const optBox = await opt.boundingBox();
+  const onTop = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[role="option"]'), [optBox.x + optBox.width / 2, optBox.y + optBox.height / 2]);
+  await page.screenshot({ path: join(out, `${size}-dialog-select.png`) });
+  await page.keyboard.press("Escape");
+  const listClosed = (await page.getByRole("listbox").count()) === 0 || (await inner.getAttribute("aria-expanded")) === "false";
+  const dialogStays = (await page.getByRole("dialog", { name: "Export calendar" }).count()) === 1;
+  check(size, "Select in a dialog opens on top; Escape closes the list, not the dialog", onTop && listClosed && dialogStays, `onTop=${onTop} listClosed=${listClosed} dialogStays=${dialogStays}`);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(250);
   const returned = await opener.evaluate((el) => el === document.activeElement);
@@ -248,6 +276,21 @@ async function sheet(page, size) {
   await page.waitForTimeout(400);
   const afterFlick = await visible();
   check(size, "BottomSheet: a fast flick down (>0.11 px/ms) drops to 50%", Math.abs(afterFlick - vh * 0.5) < 6, `${Math.round(afterFlick)}px`);
+
+  // A drag that stops before release settles where it is, not as a flick.
+  const hbp = await handle.boundingBox();
+  y = hbp.y + hbp.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 4; i += 1) {
+    await page.mouse.move(x, y + i * 15);
+    await page.waitForTimeout(8);
+  }
+  await page.waitForTimeout(300);
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const afterPause = await visible();
+  check(size, "BottomSheet: a fast drag that pauses before release stays at 50%", Math.abs(afterPause - vh * 0.5) < 6, `${Math.round(afterPause)}px`);
 
   // Keyboard: ↓ on the handle goes to the peek detent; ↑ goes back.
   await handle.focus();
