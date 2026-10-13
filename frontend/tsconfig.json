@@ -30,5 +30,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // Browser specs need extension dependencies; extension/tsconfig.playwright.json checks them separately.
+  "exclude": [
+    "node_modules",
+    "tests/**/*.pw.ts",
+    "tests/connect/account-fixture.ts",
+    "tests/connect/playwright.config.ts"
+  ]
 }
