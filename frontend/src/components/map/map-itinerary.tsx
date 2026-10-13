@@ -122,7 +122,7 @@ export function DaySummary({
 }: {
   day: ClassDay;
   itinerary: Itinerary;
-  /** Where the day's sections come from ("Real · Oct 4", "Sample"); null before any loads. */
+  /** Where the day's sections come from ("Real, updated Oct 4", "Sample"); null before any loads. */
   source: { text: string; title: string } | null;
 }) {
   const { summary } = itinerary;
@@ -141,26 +141,26 @@ export function DaySummary({
       <p className="mv-summary__line" aria-live="polite">
         <strong>{parts[0]}</strong>
         {parts.slice(1).map((part) => (
-          <span key={part}> · {part}</span>
+          <span key={part}>, {part}</span>
         ))}
-        {summary.loading && summary.classes > 0 ? <span className="mv-summary__muted"> · finding routes</span> : null}
+        {summary.loading && summary.classes > 0 ? <span className="mv-summary__muted">, finding routes</span> : null}
         {summary.lateTransfers > 0 ? (
           <span className="mv-summary__warn">
             {" "}
-            · {summary.lateTransfers} late {summary.lateTransfers === 1 ? "transfer" : "transfers"}
+            , {summary.lateTransfers} late {summary.lateTransfers === 1 ? "transfer" : "transfers"}
           </span>
         ) : null}
         {summary.tightTransfers > 0 ? (
           <span className="mv-summary__warn">
             {" "}
-            · {summary.tightTransfers} tight {summary.tightTransfers === 1 ? "transfer" : "transfers"}
+            , {summary.tightTransfers} tight {summary.tightTransfers === 1 ? "transfer" : "transfers"}
           </span>
         ) : null}
-        {summary.unresolved > 0 ? <span className="mv-summary__muted"> · {summary.unresolved} not on map</span> : null}
+        {summary.unresolved > 0 ? <span className="mv-summary__muted">, {summary.unresolved} not on map</span> : null}
         {summary.shuttleLegs > 0 ? (
           <span className="mv-summary__muted">
             {" "}
-            · {summary.shuttleLegs} shuttle {summary.shuttleLegs === 1 ? "ride" : "rides"}
+            , {summary.shuttleLegs} shuttle {summary.shuttleLegs === 1 ? "ride" : "rides"}
           </span>
         ) : null}
       </p>
@@ -217,8 +217,8 @@ function StopCard({
           <span className="mv-stop__title">{stop.title}</span>
         </span>
         <span className="mv-stop__meta">
-          {timeRange(entry)} · {stop.location}
-          {entry.ownDates ? ` · ${entry.ownDates}` : ""}
+          {timeRange(entry)} in {stop.location}
+          {entry.ownDates ? `, ${entry.ownDates}` : ""}
         </span>
         {placement.kind === "unresolved" ? (
           <span className="mv-stop__problem">
@@ -255,14 +255,14 @@ function legText(leg: ItineraryLeg): LegText {
     case "loading":
       return { main: "Finding the walking route…", source: null, detail: null };
     case "same-building":
-      return { main: `Same building · ${gap}`, source: null, detail: null };
+      return { main: `Same building, ${gap}`, source: null, detail: null };
     case "no-route":
       return { main: "No walking route", source: null, detail: "One end of this walk isn't on the map." };
     case "other-weeks":
       return { main: "No walk", source: null, detail: "These classes meet in different weeks of the term." };
     case "shuttle":
       return {
-        main: `Shuttle · ${Math.round(leg.route.seconds / 60)} min`,
+        main: `${Math.round(leg.route.seconds / 60)} min shuttle`,
         source: null,
         detail: `Discovery Park is a shuttle ride from main campus. ${Math.round(leg.route.seconds / 60)} minutes is an estimate. ${gap}.`,
       };
@@ -274,7 +274,7 @@ function legText(leg: ItineraryLeg): LegText {
       };
     case "walk":
       return {
-        main: `${formatWalkMinutes(leg.walkMinutes ?? 0)} · ${formatDistance(leg.route.meters)}`,
+        main: `${formatWalkMinutes(leg.walkMinutes ?? 0)} walk, ${formatDistance(leg.route.meters)}`,
         source: sourceLabel[leg.route.source],
         detail: null,
       };
@@ -306,7 +306,7 @@ function LegCard({
       {detail ? <span className="mv-leg__detail">{detail}</span> : null}
       {leg.leaveBy ? (
         <span className="mv-leg__detail">
-          Leave by <strong>{formatClock(leg.leaveBy)}</strong> · {leg.gapMinutes} min break
+          Leave by <strong>{formatClock(leg.leaveBy)}</strong> for a {leg.gapMinutes} min break
         </span>
       ) : null}
       {flagged ? (

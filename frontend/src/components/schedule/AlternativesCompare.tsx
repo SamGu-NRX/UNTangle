@@ -39,9 +39,9 @@ function Breakdown({ schedule, events }: { schedule: RankedSchedule; events: Wee
       <dd>{Math.round(b.walkSeconds / 60)} min / wk</dd>
       {shuttles > 0 ? (
         <>
-          <dt>Shuttle · {SHUTTLE_SECONDS / 60} min</dt>
+          <dt>Shuttle to Discovery Park</dt>
           <dd>
-            {plural(shuttles, "trip", "trips")} to or from Discovery Park, in walking
+            {plural(shuttles, "trip", "trips")}, {SHUTTLE_SECONDS / 60} min each, in walking
           </dd>
         </>
       ) : null}

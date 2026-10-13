@@ -52,7 +52,7 @@ export function SchedulePrintView() {
         </h1>
         <p style={{ color: "var(--copy)", fontSize: "0.9rem" }}>
           {hydrated
-            ? `${scheduleEvents.length} meetings a week · ${summarizeCredits(plannerState)} credit hours`
+            ? `${scheduleEvents.length} meetings a week, ${summarizeCredits(plannerState)} credit hours`
             : "Loading your schedule…"}
         </p>
       </header>
@@ -95,9 +95,9 @@ export function SchedulePrintView() {
                             <strong>{event.courseCode}</strong> {event.title}
                             <span style={{ color: "var(--copy)" }}>
                               {" "}
-                              · section {event.sectionLabel}
+, section {event.sectionLabel}
                               {event.provenance === "sample" ? " (sample)" : ""}
-                              {rangeLabel(event.dates) ? ` · ${rangeLabel(event.dates)}` : ""}
+                              {rangeLabel(event.dates) ? `, ${rangeLabel(event.dates)}` : ""}
                             </span>
                           </td>
                           <td style={{ padding: "6px 8px" }}>{event.location}</td>

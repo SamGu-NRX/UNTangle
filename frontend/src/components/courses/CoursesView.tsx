@@ -58,7 +58,7 @@ function rowSummary(row: CourseRowModel | undefined): string {
   const label = statusLabels[row.status];
   if (row.status === "locked" || row.status === "check") {
     const needs = ruleCourseIds(onlyCheckable(row.unmet));
-    return needs.length > 0 ? `${label} · needs ${needs.slice(0, 2).join(", ")}` : label;
+    return needs.length > 0 ? `${label}, needs ${needs.slice(0, 2).join(" and ")}` : label;
   }
   return label;
 }
@@ -310,7 +310,7 @@ export function CoursesView({
             items: results.instructors.map((instructor): SearchItem => ({
               id: `${INSTRUCTOR_ITEM}${instructor.name}`,
               title: instructor.name,
-              meta: instructor.courseIds.slice(0, 3).join(" · "),
+              meta: instructor.courseIds.slice(0, 3).join(", "),
             })),
           },
         ];
@@ -427,7 +427,7 @@ export function CoursesView({
             <span className={styles.headMeta}>
               <span className={styles.meta}>
                 {coreDone} of {coreIds.length} core done
-                {coreCovered > 0 ? ` · ${coreCovered} covered` : ""}
+                {coreCovered > 0 ? `, ${coreCovered} covered` : ""}
               </span>
               <span className={styles.progress} aria-hidden="true">
                 <i style={{ transform: `scaleX(${pct})` }} />
@@ -460,9 +460,8 @@ export function CoursesView({
               {lastAuto.needsCheck.length > 0 && model.rows.has(lastAuto.needsCheck[0]) ? (
                 <button type="button" className={styles.link} onClick={() => openCourse(lastAuto.needsCheck[0])}>
                   {lastAuto.needsCheck.length === 1
-                    ? "1 core course needs an advisor"
-                    : `${lastAuto.needsCheck.length} core courses need an advisor`}{" "}
-                  · Review
+                    ? "Review the core course that needs an advisor"
+                    : `Review the ${lastAuto.needsCheck.length} core courses that need an advisor`}
                 </button>
               ) : null}
               {undoBlocked ? (

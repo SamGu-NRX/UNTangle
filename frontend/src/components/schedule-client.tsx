@@ -237,7 +237,7 @@ export function ScheduleClient() {
     applySchedule(schedule.byCourse, goalForWeights(schedulePreferences.weights));
     setPreview(null);
     setPickProblem(null);
-    toast(moved.length === 0 ? `Using option ${letter}` : `Using option ${letter} · ${moved.length} course${moved.length === 1 ? "" : "s"} moved`);
+    toast(moved.length === 0 ? `Using option ${letter}` : `Using option ${letter}, ${moved.length} course${moved.length === 1 ? "" : "s"} moved`);
   };
 
   const undoPick = () => {
@@ -355,7 +355,7 @@ export function ScheduleClient() {
         ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? " has" : "s have"} no known time and ${walking.unknownLegs === 1 ? "is" : "are"} not counted.`
         : ""}
       {walking.shuttleLegs > 0
-        ? ` Shuttle · ${SHUTTLE_SECONDS / 60} min: ${walking.shuttleLegs} trip${walking.shuttleLegs === 1 ? "" : "s"} between main campus and Discovery Park, an estimate, not counted as walking.`
+        ? ` ${walking.shuttleLegs} trip${walking.shuttleLegs === 1 ? "" : "s"} between main campus and Discovery Park ${walking.shuttleLegs === 1 ? "is a" : "are each a"} ${SHUTTLE_SECONDS / 60} min shuttle (an estimate), not counted as walking.`
         : ""}
     </p>
   );
@@ -433,11 +433,11 @@ export function ScheduleClient() {
                     if (document.activeElement === document.body) document.getElementById("week-title")?.focus();
                   }),
                 );
-                toast(`Section updated · ${section.courseCode}`);
+                toast(`${section.courseCode} section updated`);
               }}
             >
               <span className={styles.sectionPickLine}>
-                §{optionLabel(section)} · {patternOf(section)}
+                §{optionLabel(section)}, {patternOf(section)}
               </span>
               <span className={styles.meta} data-clash={clash ? "true" : "false"}>
                 {[
@@ -447,8 +447,8 @@ export function ScheduleClient() {
                   seats,
                 ]
                   .filter(Boolean)
-                  .join(" · ")}
-                {current ? " · current section" : clash ? " · overlaps another class" : ""}
+                  .join(", ")}
+                {current ? ", current section" : clash ? ", overlaps another class" : ""}
               </span>
             </button>
             <Chip
@@ -474,7 +474,7 @@ export function ScheduleClient() {
     </div>
   );
 
-  const pickerTitle = pickerCourseInfo ? `Swap section · ${pickerCourseInfo.code}` : "Swap section";
+  const pickerTitle = pickerCourseInfo ? `Swap ${pickerCourseInfo.code} section` : "Swap section";
 
   return (
     <div className={`shell-content ${styles.page}`}>
@@ -483,7 +483,7 @@ export function ScheduleClient() {
           Week
         </h1>
         <span className={styles.meta}>
-          {phone ? `${credits} cr` : `${credits} credits · ${activeCourseCodes.length} course${activeCourseCodes.length === 1 ? "" : "s"}`}
+          {phone ? `${credits} cr` : `${credits} credits in ${activeCourseCodes.length} course${activeCourseCodes.length === 1 ? "" : "s"}`}
         </span>
         <SectionsTag provenance={provenance} compact={phone} />
         <span className={styles.spacer} />
@@ -656,8 +656,8 @@ export function ScheduleClient() {
                     <Button variant="link" size="sm" onClick={() => setPickerCourse(course)}>
                       {course} §{optionLabel(section)}
                     </Button>{" "}
-                    · {meeting.async ? "Online, no set time" : `${meeting.day ?? "Day"} and time to be announced`}
-                    {meeting.kind === "building" || meeting.kind === "unknown" ? ` · ${meeting.room}` : ""}
+                    {meeting.async ? "is online with no set time" : `meets ${meeting.day ? `on ${meeting.day}` : "on a day"} at a time to be announced`}
+                    {meeting.kind === "building" || meeting.kind === "unknown" ? ` in ${meeting.room}` : ""}
                   </li>
                 ))}
               </ul>

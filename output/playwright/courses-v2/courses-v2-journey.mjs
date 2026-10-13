@@ -362,7 +362,7 @@ async function journey(browser, viewport) {
     probe.remove();
     return [getComputedStyle(el).color, resolved];
   });
-  check(`${tag}: a clashing section says so in --danger`, clashText.includes("conflicts with MATH 1720") && clashColor === dangerColor && clashColor !== "rgb(88, 110, 88)", `${clashText} · ${clashColor}`);
+  check(`${tag}: a clashing section says so in --danger`, clashText.includes("conflicts with MATH 1720") && clashColor === dangerColor && clashColor !== "rgb(88, 110, 88)", `${clashText}, ${clashColor}`);
   await page.waitForTimeout(300);
   await shoot(page, `${tag}-05-planned`);
 

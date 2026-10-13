@@ -107,8 +107,8 @@ describe("the provenance tag", () => {
   test("real sections name the term and vsb's data date", () => {
     const real = summarizeProvenance([ready("MATH 1680"), ready("ACCT 5120")]);
     expect(real).toEqual({ kind: "real", updatedAt: "2026-10-04T19:02:54.758921+00:00", checkedAt: "2026-10-13T19:00:00.000Z" });
-    expect(provenanceText(real!)).toBe("Real · Spring 2027 · updated Oct 4");
-    expect(provenanceText(real!, true)).toBe("Real · Oct 4");
+    expect(provenanceText(real!)).toBe("Real Spring 2027 sections, updated Oct 4");
+    expect(provenanceText(real!, true)).toBe("Real, updated Oct 4");
   });
 
   test("samples keep the Sample tag, even beside real sections", () => {

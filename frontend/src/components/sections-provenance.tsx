@@ -45,7 +45,7 @@ export function provenanceText(provenance: SectionsProvenance, compact = false):
   switch (provenance.kind) {
     case "real": {
       const updated = day.format(new Date(provenance.updatedAt));
-      return compact ? `Real · ${updated}` : `Real · ${planningTerm.label} · updated ${updated}`;
+      return compact ? `Real, updated ${updated}` : `Real ${planningTerm.label} sections, updated ${updated}`;
     }
     case "sample":
       return compact ? "Sample" : "Sample sections";

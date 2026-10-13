@@ -103,7 +103,7 @@ function meetingsSummary(section: Section): string {
     groups.set(key, group);
   });
   const timed = [...groups.values()].map(
-    (group) => `${group.days.join("/")} ${formatClock(group.start)}–${formatClock(group.end)} · ${group.room}`,
+    (group) => `${group.days.join("/")} ${formatClock(group.start)}–${formatClock(group.end)} in ${group.room}`,
   );
   return timed.length > 0 ? timed.join("; ") : "no set time";
 }

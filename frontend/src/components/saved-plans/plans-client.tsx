@@ -279,8 +279,8 @@ export function PlansClient() {
           <div className="plans-card__name">
             <strong>{plan.name}</strong>
             <span className="plans-card__meta">
-              {formatSavedAt(plan.source.capturedAt)} · {sourceLabel[plan.source.kind]}
-              {archived ? " · Archived" : ""}
+              {formatSavedAt(plan.source.capturedAt)}, {sourceLabel[plan.source.kind]}
+              {archived ? ", archived" : ""}
             </span>
           </div>
           <div className="plans-card__actions">

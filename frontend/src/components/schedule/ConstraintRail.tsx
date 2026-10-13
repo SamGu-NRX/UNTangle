@@ -204,7 +204,7 @@ export function ConstraintRail({
               {constraints.blocked.map((block) => (
                 <li key={block.id} className={styles.blockRow}>
                   <span>
-                    <b>{block.label}</b> · {block.day} {clock(block.start, true)}–{clock(block.end, true)}
+                    <b>{block.label}</b>, {block.day} {clock(block.start, true)}–{clock(block.end, true)}
                   </span>
                   <Button
                     variant="link"

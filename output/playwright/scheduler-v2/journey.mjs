@@ -112,7 +112,7 @@ for (const vp of [
   check(`${tag}: inside the app shell`, (await page.locator(".shell main#main").count()) === 1);
   check(`${tag}: no page headline`, (await page.getByText("Shape the semester around one planning goal.").count()) === 0);
   // Real Spring 2027 sections since the planner switched from samples; samples only as a labeled fallback.
-  check(`${tag}: provenance tag shown`, (await page.locator("main header").getByRole("button", { name: /^(Sample( sections)?|Real · .+)$/ }).count()) === 1);
+  check(`${tag}: provenance tag shown`, (await page.locator("main header").getByRole("button", { name: /^(Sample( sections)?|Real .+)$/ }).count()) === 1);
   await shot("01-week");
   await axe(page, `${tag} week`);
 

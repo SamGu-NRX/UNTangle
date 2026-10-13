@@ -82,14 +82,14 @@ function clock(minutes: number) {
 }
 
 function where(meeting: Meeting) {
-  if (meeting.kind === "online") return "Online";
-  if (meeting.kind === "unassigned") return "Room not assigned";
-  return meeting.kind === "unknown" ? `${meeting.room} · Unknown building` : meeting.room;
+  if (meeting.kind === "online") return "online";
+  if (meeting.kind === "unassigned") return "room not assigned";
+  return meeting.kind === "unknown" ? `in ${meeting.room}, a building not on the campus map` : `in ${meeting.room}`;
 }
 
 /**
  * One line per distinct meeting pattern, in component order (a lecture and
- * its required lab each get theirs): "Tue Thu · 9:35–10:55 AM · Cury 203".
+ * its required lab each get theirs): "Tue Thu 9:35–10:55 AM in Cury 203".
  */
 function meetingLines(section: Section): string[] {
   const lines = new Map<string, Meeting["day"][]>();
@@ -97,15 +97,16 @@ function meetingLines(section: Section): string[] {
     const time =
       meeting.startMinutes === null || meeting.endMinutes === null
         ? meeting.async
-          ? "No set time"
-          : "Time to be announced"
+          ? "No set time,"
+          : "Time to be announced,"
         : `${clock(meeting.startMinutes)}–${clock(meeting.endMinutes)} ${meeting.endMinutes >= 12 * 60 && meeting.endMinutes < 24 * 60 ? "PM" : "AM"}`;
-    const key = `${time} · ${where(meeting)}`;
+    const key = `${time} ${where(meeting)}`;
     lines.set(key, [...(lines.get(key) ?? []), meeting.day]);
   }
   return [...lines].map(([rest, days]) => {
     const named = [...new Set(days.filter((day) => day !== null))].join(" ");
-    return named ? `${named} · ${rest}` : rest;
+    const line = named ? `${named} ${rest}` : rest;
+    return line.charAt(0).toUpperCase() + line.slice(1);
   });
 }
 
@@ -134,7 +135,7 @@ function optionDetail(section: Section) {
           : section.status === "closed"
             ? "Closed"
             : "Cancelled";
-  return `${instructor} · ${status} · Class ${classNumbersOf(section).join(" + ")}`;
+  return `${instructor}, ${status.toLowerCase()}, class ${classNumbersOf(section).join(" + ")}`;
 }
 
 const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? "" : "s"}`;
@@ -214,7 +215,7 @@ export function DetailContent({
   } else if (row.status === "locked") {
     primary = (
       <Button key="locked" disabled>
-        {blocking.length > 0 ? `Locked · needs ${blocking.slice(0, 2).join(", ")}` : "Locked"}
+        {blocking.length > 0 ? `Locked, needs ${blocking.slice(0, 2).join(" and ")}` : "Locked"}
       </Button>
     );
   }
@@ -238,7 +239,7 @@ export function DetailContent({
           <span className={styles.pStatus}>
             <StatusGlyph status={row.status} />
             {label}
-            {row.override ? " · set by you" : ""}
+            {row.override ? " (set by you)" : ""}
           </span>
           {statusItems.length > 0 ? (
             <Menu
@@ -256,26 +257,25 @@ export function DetailContent({
           {row.title}
         </h2>
         <p className={`${styles.meta} ${styles.pMeta}`}>
-          {row.credits} credits
-          {inCore ? " · Core" : ""}
+          {row.credits} credits{inCore ? ", core" : ""}.
           {readable ? (
             <>
-              {" · Needs "}
-              <RuleText rule={readable} />
+              {" Needs "}
+              <RuleText rule={readable} />.
             </>
           ) : row.rule ? null : (
-            " · No prerequisites"
+            " No prerequisites."
           )}
           {dependents.length > 0 ? (
             <>
-              {" · Unlocks "}
+              {" Unlocks "}
               {dependents.slice(0, 4).map((id, index) => (
                 <span key={id}>
                   {index > 0 ? ", " : ""}
                   <CourseLink id={id} />
                 </span>
               ))}
-              {dependents.length > 4 ? `, +${dependents.length - 4} more` : ""}
+              {dependents.length > 4 ? `, and ${dependents.length - 4} more` : ""}.
             </>
           ) : null}
         </p>
@@ -395,7 +395,7 @@ export function DetailContent({
                     {meetingLines(section).map((line) => (
                       <span key={line}>{line}</span>
                     ))}
-                    {dates && section.term !== null ? <small>{`${section.session.label} · ${dates}`}</small> : null}
+                    {dates && section.term !== null ? <small>{`${section.session.label}, ${dates}`}</small> : null}
                     {conflict ? <small data-conflict="true">{conflict}</small> : <small>{optionDetail(section)}</small>}
                   </span>
                 </label>
