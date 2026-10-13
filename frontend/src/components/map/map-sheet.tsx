@@ -10,7 +10,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { chooseDetent, releaseVelocity, resistedHeight } from "@/components/map/sheet-physics";
+import { chooseDetent, releaseVelocity, resistedHeight, sheetHeights } from "@/components/map/sheet-physics";
 
 export type SheetDetent = "peek" | "half" | "full";
 const order: SheetDetent[] = ["peek", "half", "full"];
@@ -60,13 +60,10 @@ export function MapSheet({
     return () => observer.disconnect();
   }, []);
 
-  const full = Math.round(areaHeight * 0.92);
-  // Peek shows the handle, the day switcher and the summary (the header,
-  // whatever it measures). The map's area ends at the phone tab bar, which
-  // already clears the home indicator, so no inset is added here.
-  const peek = Math.min(headerHeight, Math.round(full * 0.45));
-  const half = Math.max(peek + 80, Math.round(areaHeight * 0.5));
-  const heights: Record<SheetDetent, number> = { peek, half, full };
+  // The map's area ends at the phone tab bar, which already clears the home
+  // indicator, so no inset is added here.
+  const heights: Record<SheetDetent, number> = sheetHeights(areaHeight, headerHeight);
+  const { peek, half, full } = heights;
 
   const visibleRef = useRef(heights[detent]);
   const drag = useRef<{
