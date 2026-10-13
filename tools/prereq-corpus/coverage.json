@@ -3,11 +3,11 @@
   "total": 656,
   "counts": {
     "full": 430,
-    "partial": 167,
-    "unknown": 59
+    "partial": 168,
+    "unknown": 58
   },
   "empty": 202,
-  "unknownWithCourseCodes": 39,
+  "unknownWithCourseCodes": 38,
   "courses": [
     {
       "courseId": "ANTH 1010",
@@ -2831,7 +2831,7 @@
     },
     {
       "courseId": "PSCI 4954",
-      "coverage": "unknown",
+      "coverage": "partial",
       "source": "Senior standing with an overall and major GPA of 3.0 or better; completion of PSCI 2306 and PSCI 2305 or their equivalents, PSCI 3300 , and at least four advanced courses from three fields of PSCI."
     },
     {

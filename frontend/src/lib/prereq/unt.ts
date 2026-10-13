@@ -110,7 +110,7 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
     if (course) {
       let node: Prerequisite = { kind: "course", courseId: normalizeUntCourseId(course[0]), source: course[0] };
       text = text.slice(course[0].length);
-      const equivalent = text.match(/^\s+or\s+(?:(?:the|its|their)\s+)?equivalents?\b/i);
+      const equivalent = text.match(/^\s+or\s+(?:(?:the|its)\s+)?equivalent\b/i);
       if (equivalent) {
         node = { kind: "or", escape: "equivalent", source: course[0] + equivalent[0], children: [
           node, { ...unknown(equivalent[0]), escape: "equivalent" },
@@ -214,6 +214,71 @@ function splitTopLevel(text: string, separator: RegExp): string[] {
   return parts;
 }
 
+function topLevelMatch(text: string, pattern: RegExp): RegExpExecArray | undefined {
+  for (const match of text.matchAll(pattern)) {
+    let depth = 0;
+    for (let index = 0; index < match.index; index++) {
+      if (text[index] === "(") depth++;
+      if (text[index] === ")") depth--;
+    }
+    if (depth === 0) return match;
+  }
+  return undefined;
+}
+
+function isCourseList(node: Prerequisite): boolean {
+  if (node.escape) return false;
+  if (node.kind === "course") return true;
+  if (node.kind === "minGrade") return isCourseList(node.requirement);
+  return (node.kind === "and" || node.kind === "or") && node.children.length > 0 && node.children.every(isCourseList);
+}
+
+function isSingleCourse(node: Prerequisite): boolean {
+  return node.kind === "course" || (node.kind === "minGrade" && isSingleCourse(node.requirement));
+}
+
+/** Both supplies a default for a demonstrated pair; an explicitly graded course keeps its own minimum. */
+function applyPairGrade(node: Prerequisite, grade: string): Prerequisite {
+  if (node.kind === "minGrade") return node;
+  if (node.kind === "and" || node.kind === "or") return { ...node, children: node.children.map(child => applyPairGrade(child, grade)) };
+  return applyGrade(node, grade);
+}
+
+function coursePair(source: string): Prerequisite | undefined {
+  let text = source.trim();
+  while (text.startsWith("(") && groupEnd(text) === text.length - 1) text = text.slice(1, -1).trim();
+  const parts = splitTopLevel(text, /\s*;\s*(?:and\s+)?|\s*,\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+(?!(?:better|higher)\b)/gi);
+  if (parts.length !== 2) return undefined;
+  const children = parts.map(parseClause);
+  if (!children.every(isSingleCourse)) return undefined;
+  const codes = parts.map(part => part.trim().replace(/^\(+/, "").match(/^[A-Z]{2,5}\s*\d{4}[A-Z]?\b/i)?.[0]);
+  if (!codes[0] || !codes[1] || normalizeUntCourseId(codes[0]) === normalizeUntCourseId(codes[1])) return undefined;
+  const separator = text.slice(parts[0].length, text.length - parts[1].length);
+  return { kind: /\bor\b/i.test(separator) ? "or" : "and", children, source };
+}
+
+function bothGrade(body: string, grade: string, source: string): Prerequisite {
+  const groups = splitTopLevel(body, /\s*;\s*(?:and\s+)?/gi);
+  const tail = groups[groups.length - 1];
+  const pair = coursePair(tail);
+  if (pair) {
+    const graded = applyPairGrade(pair, grade);
+    return groups.length === 1 ? { ...graded, source } : { kind: "and", source, children: [...groups.slice(0, -1).map(parseClause), graded] };
+  }
+  const entirePair = coursePair(body);
+  if (entirePair) return { ...applyPairGrade(entirePair, grade), source };
+  // A final parenthesized pair is an explicit scope boundary, unlike a bare three-course chain.
+  for (let index = 0; index < body.length; index++) {
+    if (body[index] !== "(" || groupEnd(body.slice(index)) !== body.length - index - 1) continue;
+    const nested = coursePair(body.slice(index));
+    const prefix = body.slice(0, index).match(/^(.*?)(\s+and\s+|\s+or\s+|,\s*(?:and\s+)?|;\s*)$/i);
+    if (!nested || !prefix?.[1].trim()) continue;
+    if (!/\bor\b/i.test(prefix[2]) && splitTopLevel(prefix[1], /\s+or\s+(?!(?:better|higher)\b)/gi).length > 1) return unknown(source);
+    return { kind: /\bor\b/i.test(prefix[2]) ? "or" : "and", source, children: [parseClause(prefix[1]), applyPairGrade(nested, grade)] };
+  }
+  return unknown(source);
+}
+
 /** Recover complete conjuncts. Conditional prose stays whole so closure cannot invent mandatory courses. */
 function parseClause(source: string): Prerequisite {
   const text = source.trim().replace(/\.$/, "").trim();
@@ -227,9 +292,30 @@ function parseClause(source: string): Prerequisite {
     return unknown(source);
   }
   const sharedGrade = text.match(gradeSuffix);
+  if (sharedGrade && /\bboth\b/i.test(sharedGrade[0])) {
+    return bothGrade(text.slice(0, -sharedGrade[0].length).trim(), sharedGrade[1], source);
+  }
   // MEEN 3210's "all" qualifies the whole list, including groups before semicolons.
-  if (sharedGrade && /\b(?:all|each|both)\b/i.test(sharedGrade[0])) {
+  if (sharedGrade && /\b(?:all|each)\b/i.test(sharedGrade[0])) {
     return { ...applyGrade(parseClause(text.slice(0, -sharedGrade[0].length)), sharedGrade[1]), source };
+  }
+  const plural = topLevelMatch(text, /\s+or\s+(?:(?:their|these)\s+equivalents?|\bthe\s+equivalents|equivalents)\b/gi);
+  if (plural) {
+    const preceding = text.slice(0, plural.index);
+    const groups = splitTopLevel(preceding, /\s*;\s*(?:and\s+)?/gi);
+    // A plural pronoun after a single final course could refer across earlier groups.
+    if (groups.length > 1 && [...groups[groups.length - 1].matchAll(/\b[A-Z]{2,5}\s*\d{4}[A-Z]?\b/gi)].length < 2) return unknown(source);
+    const clauses = splitTopLevel(text, /\s*;\s*(?:and\s+)?/gi);
+    if (clauses.length > 1) return { kind: "and", source, children: clauses.map(parseClause) };
+    const requirement = parseClause(preceding);
+    const protectedSource = preceding + plural[0];
+    const alternative: Prerequisite = isCourseList(requirement)
+      ? { kind: "or", escape: "equivalent", source: protectedSource, children: [requirement, { ...unknown(plural[0]), escape: "equivalent" }] }
+      : unknown(protectedSource);
+    const remainder = text.slice(plural.index + plural[0].length);
+    if (!remainder.trim()) return { ...alternative, source };
+    const continuation = remainder.match(/^(?:,\s*(?:and\s+)?|\s+and\s+)(?!or\b)(.+)$/i);
+    return continuation ? { kind: "and", source, children: [alternative, parseClause(continuation[1])] } : unknown(source);
   }
   const qualifiedTail = splitTopLevel(text, /\s+and\s+(?=(?:(?:a\s+)?grade of\s+)?["“]?[A-D]["”]?\s+or\s+(?:better|higher)\s+in\b)/gi);
   if (qualifiedTail.length > 1) return { kind: "and", source, children: qualifiedTail.map(parseClause) };
@@ -245,7 +331,7 @@ function parseClause(source: string): Prerequisite {
   if (commaParts.length > 1 && /\bor\b/i.test(text) && !/,\s*and\b/i.test(text)) return unknown(source);
   const separators = [
     { kind: "and", separator: /;\s*(?:and\s+)?(?!or\b)|,\s*and\s+/gi },
-    { kind: "or", separator: /\s+or\s+(?!(?:better|higher|equivalent|the equivalent|its equivalent|their equivalents|concurrent enrollment)\b)/gi },
+    { kind: "or", separator: /\s+or\s+(?!(?:better|higher|equivalents?|the equivalents?|its equivalent|their equivalents?|these equivalents?|concurrent enrollment)\b)/gi },
     { kind: "and", separator: /\s+and\s+|,\s*(?!(?:or|and)\b)/gi },
   ] as const;
   for (const { kind, separator } of separators) {
@@ -304,7 +390,7 @@ export function parseUntPrerequisite(source: string): ParseResult {
     parsed++;
   }
   children.forEach(count);
-  for (const match of source.matchAll(/\b[A-Z]{2,5}\s*\d{4}[A-Z]?\s+or\s+(?:(?:the|its|their)\s+)?equivalents?\b/gi)) annotations.push(`Equivalent credit needs advisor confirmation: ${match[0]}`);
+  for (const match of source.matchAll(/\b[A-Z]{2,5}\s*\d{4}[A-Z]?\s+or\s+(?:(?:the|its|their|these)\s+)?equivalents?\b/gi)) annotations.push(`Equivalent credit needs advisor confirmation: ${match[0]}`);
   return {
     source,
     expression: { kind: "and", source, children },

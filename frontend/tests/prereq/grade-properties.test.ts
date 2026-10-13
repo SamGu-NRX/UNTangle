@@ -18,9 +18,16 @@ function statedMinimums(text: string): Map<string, string> {
     for (const match of sentence.matchAll(/\b([A-D])\s+or\s+(?:better|higher)\b/gi)) {
       const before = sentence.slice(start, match.index);
       const after = sentence.slice(match.index + match[0].length);
-      const shared = /\b(?:all|each|both)\b[^;]*$/i.test(before);
+      const shared = /\b(?:all|each)\b[^;]*$/i.test(before);
+      const both = /\bboth\b[^;]*$/i.test(before);
       let courses: string[];
       if (/^\s+in\s*:?\s*/i.test(after)) courses = ids(after);
+      else if (both) {
+        const prefix = sentence.slice(0, match.index);
+        const pair = ids(prefix.slice(prefix.lastIndexOf(";") + 1));
+        courses = pair.length === 2 ? pair.filter(id => !result.has(id)) : [];
+        if (ids(prefix).length === 0 && previous.length === 2) courses = previous.filter(id => !result.has(id));
+      }
       else if (shared) courses = ids(sentence.slice(0, match.index));
       else courses = ids(before.slice(before.lastIndexOf(";") + 1));
       if (shared && courses.length === 0) courses = previous;
