@@ -379,11 +379,20 @@ async function signInLinkPage(page, size) {
   };
   page.on("request", onRequest);
   try {
-    const landing = `${base}/auth/link?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed`;
+    // The parameters ride in the fragment, which the browser never sends to the server.
+    const landing = `${base}/auth/link#token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed`;
+    const pageRequests = [];
+    const onPageRequest = (request) => {
+      if (new URL(request.url()).pathname === "/auth/link") pageRequests.push(request.url());
+    };
+    page.on("request", onPageRequest);
     await page.goto(landing, { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     check(size, "link page: loading it doesn't redirect", page.url() === landing, page.url());
     check(size, "link page: loading it doesn't touch the token", verifyRequests.length === 0, JSON.stringify(verifyRequests));
+    page.off("request", onPageRequest);
+    check(size, "link page: the token never reaches the server in the page request", pageRequests.every((u) => !u.includes("journey-token")), JSON.stringify(pageRequests));
+    check(size, "link page: it sends no referrer", (await page.locator('meta[name="referrer"]').getAttribute("content")) === "no-referrer");
     check(size, "link page: one button, 'Sign in'", (await page.getByRole("button").count()) === 1 && (await page.getByRole("button", { name: "Sign in" }).isVisible()));
     await shot(page, size, "auth-link-page");
     await axe(page, size, "Sign-in link page");

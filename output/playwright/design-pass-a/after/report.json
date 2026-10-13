@@ -309,13 +309,25 @@
     "size": "desktop",
     "name": "link page: loading it doesn't redirect",
     "pass": true,
-    "detail": "http://127.0.0.1:3330/auth/link?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+    "detail": "http://127.0.0.1:3330/auth/link#token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
   },
   {
     "size": "desktop",
     "name": "link page: loading it doesn't touch the token",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: the token never reaches the server in the page request",
+    "pass": true,
+    "detail": "[\"http://127.0.0.1:3330/auth/link\"]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: it sends no referrer",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "desktop",
@@ -489,13 +501,25 @@
     "size": "phone",
     "name": "link page: loading it doesn't redirect",
     "pass": true,
-    "detail": "http://127.0.0.1:3330/auth/link?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+    "detail": "http://127.0.0.1:3330/auth/link#token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
   },
   {
     "size": "phone",
     "name": "link page: loading it doesn't touch the token",
     "pass": true,
     "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: the token never reaches the server in the page request",
+    "pass": true,
+    "detail": "[\"http://127.0.0.1:3330/auth/link\"]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: it sends no referrer",
+    "pass": true,
+    "detail": ""
   },
   {
     "size": "phone",
