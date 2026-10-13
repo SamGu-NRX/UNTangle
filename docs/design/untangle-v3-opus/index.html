@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>UNTangle v3 (Opus) · mockups</title>
+<title>UNTangle v3 (Opus) mockups</title>
 <style>
 /* UNTangle v3 (Opus direction): shared tokens and components for the mockups.
    The token block is the one DESIGN.md specifies; keep the two in step. */
@@ -82,7 +82,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .btn .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 1; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; } .btn-icon, .btn-icon.btn-sm { min-width: 44px; min-height: 44px; }
   .btn-sm::after, .chip::after, .seg > button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover { background: var(--brand-2); }
@@ -136,9 +136,11 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .topbar .search { justify-self: start; display: flex; align-items: center; gap: 10px; width: min(360px, 100%); height: 36px; padding: 0 10px 0 12px; border-radius: 10px; background: var(--paper-2); color: var(--ink-3); font-size: 14px; }
 .topbar .search span { flex: 1; text-align: left; color: var(--ink-2); }
 .kbd { font: 600 11px/18px var(--font-ui); padding: 0 5px; border-radius: 4px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
-.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
+.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 650; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
 .sched-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.sched-pill .meta { font-weight: 500; }
+/* term and schedule name are told apart by weight and color, never by a separator glyph */
+.sched-pill .when { font-weight: 500; color: var(--ink-2); }
+.sched-pill .i { width: 16px; height: 16px; color: var(--ink-3); margin-right: -4px; }
 .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font: 700 12px/1 var(--font-mark); }
 
 /* phone header + tab bar */
@@ -203,6 +205,47 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 [data-c="5"] { --c: var(--c5); --ct: var(--c5t); } [data-c="6"] { --c: var(--c6); --ct: var(--c6t); }
 .cdot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
 
+/* One main region plus one contextual panel (simplification rule 2). From 1200px the main region
+   sits centered while nothing is selected; opening the panel slides the page left by half the
+   panel's width as the panel comes in, so the two never overlap and the selected row stays on
+   screen. The page moves by transform only. Under reduced motion the page keeps the open
+   position all the time, so it never moves and only the panel fades. Below 1200px the panel
+   slides over the right edge. Phones use sheets instead. */
+body { overflow-x: clip; }
+.pair { display: grid; grid-template-columns: minmax(0, var(--main-max, 720px)) var(--panel-w, 440px); gap: 32px; justify-content: center; align-items: start; padding: 0 24px; }
+@media (min-width: 1200px) {
+  .pair { transform: translateX(calc((var(--panel-w, 440px) + 32px) / 2)); transition: transform var(--t-exit) var(--ease-out); }
+  body.panel-open .pair { transform: none; transition-duration: var(--t-enter); }
+  body.panel-instant .pair { transition: none; }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) { .pair, body.panel-open .pair { transform: none; transition: none; } }
+.cpanel { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100dvh - var(--topbar-h) - 32px); display: flex; flex-direction: column; background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden;
+  opacity: 0; transform: translateX(24px); visibility: hidden;
+  transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
+.cpanel.on { opacity: 1; transform: none; visibility: visible; transition: opacity var(--t-enter) var(--ease-out), transform var(--t-enter) var(--ease-out), visibility 0s; }
+.cpanel.instant, .cpanel.instant.on { transition: none; }
+.cpanel .pscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.phd { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 16px 12px 12px 20px; background: var(--paper); }
+.phd h2 { font-size: 18px; line-height: 24px; font-weight: 620; letter-spacing: -.005em; }
+.phd .close { margin-left: auto; }
+@media (max-width: 1199px) {
+  .pair { grid-template-columns: minmax(0, var(--main-max, 720px)); }
+  .cpanel { position: fixed; z-index: 25; top: var(--topbar-h); right: 0; bottom: 0; width: min(var(--panel-w, 440px), 100vw); max-height: none; border-radius: 0; box-shadow: var(--shadow-3); }
+}
+@media (max-width: 759px) { .pair { display: block; padding: 0; } .cpanel { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cpanel { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; }
+  .cpanel.on { transform: none; transition: opacity 120ms ease, visibility 0s; }
+}
+
+/* collapsible group header: a plain row, weight and spacing instead of a box */
+.ghdr { display: flex; align-items: center; gap: 8px; width: 100%; height: 44px; padding: 0 8px 0 4px; border-radius: 10px; text-align: left; transition: background-color var(--t-hover) ease; }
+.ghdr h3 { font-size: 15px; font-weight: 650; }
+.ghdr .count { font-size: 13px; color: var(--ink-2); }
+.ghdr .chev { margin-left: auto; color: var(--ink-3); }
+.ghdr[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+@media (hover: hover) and (pointer: fine) { .ghdr:hover { background: rgba(26,46,26,.04); } }
+
 /* mockup-only furniture */
 .mock-note { position: fixed; left: 12px; bottom: 12px; z-index: 5; font-size: 11px; color: var(--ink-3); pointer-events: none; }
 @media (max-width: 759px) { .mock-note { display: none; } }
@@ -236,11 +279,11 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
   <p class="lede">Each page works at 1440 and 390 wide. State links jump to a screen; DESIGN.md, MOTION.md and HANDOFF.md explain them. Sections are samples.</p>
   <ol>
     <li><a class="main" href="01-first-visit-import.html">First visit and import</a><div class="states"><a href="01-first-visit-import.html?state=waiting">Waiting for myUNT</a><a href="01-first-visit-import.html?state=returned">Use the downloaded PDF</a><a href="01-first-visit-import.html?state=drop">Drop overlay</a><a href="01-first-visit-import.html?state=drop-bad">Drop, not a PDF</a><a href="01-first-visit-import.html?state=reading">Reading</a><a href="01-first-visit-import.html?state=review">Review</a><a href="01-first-visit-import.html?state=wrongfile">Wrong file</a><a href="01-first-visit-import.html?state=notext">Scanned PDF</a><a href="01-first-visit-import.html?state=blocked">Popup blocked</a><a href="01-first-visit-import.html?campus=ut">UT Austin</a></div></li>
-    <li><a class="main" href="02-courses.html?state=imported&quiet=1">Courses, before Auto (press Auto)</a><div class="states"><a href="02-courses.html?state=after">After Auto</a><a href="02-courses.html?state=detail">Course detail</a><a href="02-courses.html?state=major&quiet=1">Major picker</a><a href="02-courses.html?state=imported&quiet=1&open=all">All groups open</a></div></li>
-    <li><a class="main" href="03-schedule-builder.html">Week: schedule builder in UNTangle</a><div class="states"><a href="03-schedule-builder.html?state=search">Search with ghost</a><a href="03-schedule-builder.html?state=choose">Choose a section on the grid</a><a href="03-schedule-builder.html?state=options">Auto options</a><a href="03-schedule-builder.html?state=conflict">Conflict</a><a href="03-schedule-builder.html?state=export">Export</a></div></li>
+    <li><a class="main" href="02-courses.html?state=imported&quiet=1">Courses, before Auto (press Auto)</a><div class="states"><a href="02-courses.html?state=after">After Auto</a><a href="02-courses.html?state=detail">Course detail</a><a href="02-courses.html?state=major&quiet=1">Degree picker</a><a href="02-courses.html?state=imported&quiet=1&open=all">All groups open</a></div></li>
+    <li><a class="main" href="03-schedule-builder.html">Week: schedule builder in UNTangle</a><div class="states"><a href="03-schedule-builder.html?state=search">Search with ghost</a><a href="03-schedule-builder.html?state=choose">Choose a section on the grid</a><a href="03-schedule-builder.html?state=prefs">Preferences</a><a href="03-schedule-builder.html?state=options">An alternative week</a><a href="03-schedule-builder.html?state=optdetail">Alternative details</a><a href="03-schedule-builder.html?state=switch">Schedule switcher</a><a href="03-schedule-builder.html?state=conflict">Conflict</a><a href="03-schedule-builder.html?state=export">Export</a></div></li>
     <li><a class="main" href="03-schedule-builder.html?host=vsb">UNT Schedule Builder, standalone (vsb v2)</a><div class="states"><a href="03-schedule-builder.html?host=vsb&state=empty">Empty</a><a href="03-schedule-builder.html?host=vsb&state=export">Export</a></div></li>
     <li><a class="main" href="04-day-map.html">Day: map, itinerary, leave-by</a><div class="states"><a href="04-day-map.html?now=0951&stop=2">Between classes</a><a href="04-day-map.html?now=1047&leg=CURY%3EPHYS">Tight walk</a><a href="04-day-map.html?now=1600">Done for today</a><a href="04-day-map.html?day=1">Tuesday</a><a href="04-day-map.html?day=4&today=4&now=0700">Friday morning</a></div></li>
-    <li><a class="main" href="05-schedules-library.html">Schedules library</a><div class="states"><a href="05-schedules-library.html?state=version">Version selected</a><a href="05-schedules-library.html?state=compare">Compare</a></div></li>
+    <li><a class="main" href="05-schedules-library.html">Schedules library</a><div class="states"><a href="05-schedules-library.html?state=detail">Schedule selected</a><a href="05-schedules-library.html?state=version">Version selected</a><a href="05-schedules-library.html?state=compare">Compare</a></div></li>
     <li><a class="main" href="06-sign-in.html">Sign in</a><div class="states"><a href="06-sign-in.html?state=error">Wrong password</a><a href="06-sign-in.html?state=bademail">Bad email</a><a href="06-sign-in.html?state=create">Create account</a><a href="06-sign-in.html?state=loading">Signing in</a></div></li>
     <li><a class="main" href="07-phone-navigation.html">Phone navigation model</a><div class="states"><a href="07-phone-navigation.html?tab=week">Week tab</a><a href="07-phone-navigation.html?now=term">In-term landing (Day)</a><a href="07-phone-navigation.html?sheet=sched">Schedule sheet</a></div></li>
   </ol>
@@ -372,6 +415,38 @@ function modalClose(el) {
   const i = modalStack.findIndex((m) => m.el === el); if (i < 0) return;
   const [m] = modalStack.splice(i, 1); m.others.forEach((c) => (c.inert = false));
   m.prev && document.contains(m.prev) && m.prev.focus({ preventScroll: true });
+}
+
+/* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
+   24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
+   reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
+   too often to animate. `trigger` may be a function, for pages that rebuild the control that opened
+   the panel; it is resolved when focus goes back, after onClose has re-rendered. */
+class Panel {
+  constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
+  get isOpen() { return this.el.classList.contains("on"); }
+  instantFrame(instant) {
+    if (!instant) return;
+    this.el.classList.add("instant"); document.body.classList.add("panel-instant");
+    requestAnimationFrame(() => requestAnimationFrame(() => { this.el.classList.remove("instant"); document.body.classList.remove("panel-instant"); }));
+  }
+  open({ instant = false, trigger = document.activeElement, focus = false } = {}) {
+    if (!this.isOpen) this.trigger = trigger;
+    this.instantFrame(instant);
+    document.body.classList.add("panel-open");
+    this.el.classList.add("on"); this.el.inert = false; this.el.setAttribute("aria-hidden", "false");
+    if (focus) requestAnimationFrame(() => this.el.querySelector("h2[tabindex], input, button")?.focus({ preventScroll: true }));
+  }
+  close(instant = false) {
+    if (!this.isOpen) return;
+    const hadFocus = this.el.contains(document.activeElement);
+    this.instantFrame(instant);
+    document.body.classList.remove("panel-open");
+    this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
+    this.onClose && this.onClose();
+    const back = typeof this.trigger === "function" ? this.trigger() : this.trigger;
+    if (hadFocus && back && document.contains(back)) back.focus({ preventScroll: true });
+  }
 }
 
 /* Bottom sheet with detents, pointer capture, projected release, velocity handoff. */

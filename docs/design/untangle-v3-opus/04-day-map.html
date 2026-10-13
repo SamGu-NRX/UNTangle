@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#eeede9">
-<title>UNTangle v3 · Day map</title>
+<title>UNTangle v3: Day</title>
 <style>
 /* UNTangle v3 (Opus direction): shared tokens and components for the mockups.
    The token block is the one DESIGN.md specifies; keep the two in step. */
@@ -83,7 +83,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .btn .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 1; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; } .btn-icon, .btn-icon.btn-sm { min-width: 44px; min-height: 44px; }
   .btn-sm::after, .chip::after, .seg > button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover { background: var(--brand-2); }
@@ -137,9 +137,11 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .topbar .search { justify-self: start; display: flex; align-items: center; gap: 10px; width: min(360px, 100%); height: 36px; padding: 0 10px 0 12px; border-radius: 10px; background: var(--paper-2); color: var(--ink-3); font-size: 14px; }
 .topbar .search span { flex: 1; text-align: left; color: var(--ink-2); }
 .kbd { font: 600 11px/18px var(--font-ui); padding: 0 5px; border-radius: 4px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
-.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
+.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 650; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
 .sched-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.sched-pill .meta { font-weight: 500; }
+/* term and schedule name are told apart by weight and color, never by a separator glyph */
+.sched-pill .when { font-weight: 500; color: var(--ink-2); }
+.sched-pill .i { width: 16px; height: 16px; color: var(--ink-3); margin-right: -4px; }
 .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font: 700 12px/1 var(--font-mark); }
 
 /* phone header + tab bar */
@@ -204,6 +206,47 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 [data-c="5"] { --c: var(--c5); --ct: var(--c5t); } [data-c="6"] { --c: var(--c6); --ct: var(--c6t); }
 .cdot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
 
+/* One main region plus one contextual panel (simplification rule 2). From 1200px the main region
+   sits centered while nothing is selected; opening the panel slides the page left by half the
+   panel's width as the panel comes in, so the two never overlap and the selected row stays on
+   screen. The page moves by transform only. Under reduced motion the page keeps the open
+   position all the time, so it never moves and only the panel fades. Below 1200px the panel
+   slides over the right edge. Phones use sheets instead. */
+body { overflow-x: clip; }
+.pair { display: grid; grid-template-columns: minmax(0, var(--main-max, 720px)) var(--panel-w, 440px); gap: 32px; justify-content: center; align-items: start; padding: 0 24px; }
+@media (min-width: 1200px) {
+  .pair { transform: translateX(calc((var(--panel-w, 440px) + 32px) / 2)); transition: transform var(--t-exit) var(--ease-out); }
+  body.panel-open .pair { transform: none; transition-duration: var(--t-enter); }
+  body.panel-instant .pair { transition: none; }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) { .pair, body.panel-open .pair { transform: none; transition: none; } }
+.cpanel { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100dvh - var(--topbar-h) - 32px); display: flex; flex-direction: column; background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden;
+  opacity: 0; transform: translateX(24px); visibility: hidden;
+  transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
+.cpanel.on { opacity: 1; transform: none; visibility: visible; transition: opacity var(--t-enter) var(--ease-out), transform var(--t-enter) var(--ease-out), visibility 0s; }
+.cpanel.instant, .cpanel.instant.on { transition: none; }
+.cpanel .pscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.phd { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 16px 12px 12px 20px; background: var(--paper); }
+.phd h2 { font-size: 18px; line-height: 24px; font-weight: 620; letter-spacing: -.005em; }
+.phd .close { margin-left: auto; }
+@media (max-width: 1199px) {
+  .pair { grid-template-columns: minmax(0, var(--main-max, 720px)); }
+  .cpanel { position: fixed; z-index: 25; top: var(--topbar-h); right: 0; bottom: 0; width: min(var(--panel-w, 440px), 100vw); max-height: none; border-radius: 0; box-shadow: var(--shadow-3); }
+}
+@media (max-width: 759px) { .pair { display: block; padding: 0; } .cpanel { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cpanel { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; }
+  .cpanel.on { transform: none; transition: opacity 120ms ease, visibility 0s; }
+}
+
+/* collapsible group header: a plain row, weight and spacing instead of a box */
+.ghdr { display: flex; align-items: center; gap: 8px; width: 100%; height: 44px; padding: 0 8px 0 4px; border-radius: 10px; text-align: left; transition: background-color var(--t-hover) ease; }
+.ghdr h3 { font-size: 15px; font-weight: 650; }
+.ghdr .count { font-size: 13px; color: var(--ink-2); }
+.ghdr .chev { margin-left: auto; color: var(--ink-3); }
+.ghdr[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+@media (hover: hover) and (pointer: fine) { .ghdr:hover { background: rgba(26,46,26,.04); } }
+
 /* mockup-only furniture */
 .mock-note { position: fixed; left: 12px; bottom: 12px; z-index: 5; font-size: 11px; color: var(--ink-3); pointer-events: none; }
 @media (max-width: 759px) { .mock-note { display: none; } }
@@ -222,85 +265,59 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 </style>
 <style>
   html, body { height: 100%; overflow: hidden; }
-  .map { position: fixed; inset: var(--topbar-h) 0 0 0; background: #eeede9; overflow: hidden; touch-action: none; }
-  .map > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .road { fill: none; stroke: #fff; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .road-c { fill: none; stroke: #dedcd5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .walkway { fill: none; stroke: #fbfaf6; stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .bld { fill: #f7f6f2; stroke: #e1e0d9; stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .bld.dest { fill: #e6efe7; stroke: #b9cfbd; }
-  .lawn { fill: #dde8d5; } .water { fill: #c4dfe9; }
-  .route-case { fill: none; stroke: #fff; stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .route { fill: none; stroke: #007a40; stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: stroke var(--t-hover) ease, stroke-width var(--t-hover) ease; }
-  .route.past { stroke: #9fb09f; }
-  .route.next, .route.sel { stroke: #00512b; stroke-width: 7.5; }
-  .route.tight { stroke-dasharray: none; }
-  .route-hit { fill: none; stroke: transparent; stroke-width: 26; vector-effect: non-scaling-stroke; cursor: pointer; pointer-events: stroke; }
-  #routes { transition: opacity 180ms ease; }
-  .overlay { position: absolute; inset: 0; pointer-events: none; }
-  .lbl { position: absolute; transform: translate(-50%, -50%); font-size: 11px; font-weight: 600; color: #6a6f66; letter-spacing: .02em; text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; white-space: nowrap; }
-  .lbl.street { font-weight: 500; font-size: 11px; color: #8a8e86; }
-  .pin { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #46564b; color: #fff; font: 700 12px/1 var(--font-mark); box-shadow: 0 0 0 3px #fff, 0 3px 8px rgba(20,40,22,.3); transition: transform var(--t-hover) var(--ease-out), background-color var(--t-hover) ease; }
-  .pin.upcoming { background: var(--brand); }
-  .pin.past { background: #9fb09f; }
-  .pin.sel { background: var(--accent); transform: translate(-50%, -50%) scale(1.18); z-index: 3; }
-  .pin.start { width: 22px; height: 22px; background: #fff; color: var(--ink-2); box-shadow: inset 0 0 0 3px #46564b, 0 2px 6px rgba(20,40,22,.25); }
-  .pin .tag2 { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 8px); white-space: nowrap; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,.95); box-shadow: var(--shadow-1); font: 650 11px/16px var(--font-ui); color: var(--ink); }
-  .controls { position: absolute; right: 16px; bottom: 44px; display: grid; gap: 8px; z-index: 6; }
-  .ctl { display: grid; border-radius: 12px; overflow: hidden; }
-  .ctl button { width: 40px; height: 40px; display: grid; place-items: center; color: var(--ink); }
-  .ctl button + button { box-shadow: 0 -1px 0 rgba(26,46,26,.1); }
-  .ctl button[aria-disabled="true"] { color: var(--ink-4); }
-  .attr { position: absolute; right: 12px; bottom: 10px; z-index: 6; font-size: 10.5px; color: #6a6f66; background: rgba(255,255,255,.75); padding: 2px 6px; border-radius: 6px; }
+  /* The map is the live app's MapLibre map. This mockup shows a capture of it; the separate map
+     pass owns the real map, its pins, route styling and camera (../apple-maps-web/). */
+  .map { position: fixed; inset: var(--topbar-h) 0 0 0; background: #eceee8 url("assets/live-map.jpg") 62% 40% / cover no-repeat; overflow: hidden; }
+  .mapnote { position: absolute; right: 64px; bottom: 10px; z-index: 6; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.88); font-size: 11px; color: var(--ink-2); pointer-events: none; }
 
-  /* panel content (desktop panel and phone sheet share it) */
+  /* the itinerary column, floating on the map */
   .dpanel { position: fixed; top: calc(var(--topbar-h) + 16px); left: 16px; width: 384px; max-height: calc(100dvh - var(--topbar-h) - 32px); z-index: 10; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
   .dscroll { overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 16px; }
-  .daysel { width: 100%; margin-bottom: 14px; }
-  .hero { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 2px 12px; padding: 4px 2px 14px; }
-  .hero .k { grid-column: 1 / -1; font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .hero .big { font: 700 46px/1 var(--font-mark); letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums lining-nums; }
+  /* day stepper: today first, other days one tap away */
+  .daystep { display: flex; align-items: center; gap: 4px; margin: -4px -6px 12px; }
+  .daystep b { flex: 1; text-align: center; font-size: 14px; font-weight: 650; }
+  .daystep .btn[disabled] { opacity: .3; }
+  .hero { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 2px 12px; padding: 2px 2px 18px; }
+  .hero .k { grid-column: 1 / -1; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+  .hero .big { font: 700 46px/1 var(--font-mark); letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums lining-nums; margin-top: 2px; }
   .hero .big.now { color: var(--brand); }
   .hero .in { justify-self: end; margin-bottom: 6px; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 13px; font-weight: 650; white-space: nowrap; }
   .hero .in.tight { background: var(--attention-soft); color: var(--attention); }
-  .hero .sub { grid-column: 1 / -1; margin-top: 6px; font-size: 14px; color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-  .hero .sub .code { font-size: 13px; color: var(--ink); }
-  .summary { display: flex; align-items: center; gap: 8px; padding: 10px 2px; border-top: 1px solid rgba(26,46,26,.08); font-size: 13px; color: var(--ink-2); }
-  .summary .tag { margin-left: auto; }
-  .itin { --path-gap: 0px; margin-top: 6px; }
-  .itin > li { padding-top: 8px; padding-bottom: 8px; }
+  .hero .sub { grid-column: 1 / -1; margin-top: 8px; font-size: 14px; color: var(--ink); }
+  .itin { --path-gap: 0px; }
+  .itin > li { padding-top: 6px; padding-bottom: 6px; }
   .itin > li::before { top: 0; bottom: 0; }
-  .itin > li:first-child::before { top: 22px; }
-  .itin > li:last-child::before { display: block; bottom: auto; height: 22px; }
-  .itin .stop { top: 10px; z-index: 1; }
-  .stopbtn { display: block; width: 100%; text-align: left; padding: 6px 8px; margin: -6px -8px; border-radius: 10px; transition: background-color var(--t-hover) ease; }
-  .stopbtn[aria-pressed="true"] { background: rgba(0,168,85,.12); }
-  @media (hover: hover) and (pointer: fine) { .stopbtn:hover:not([aria-pressed="true"]) { background: rgba(26,46,26,.05); } }
-  .stopbtn .l1 { display: flex; align-items: baseline; gap: 8px; } .stopbtn .code { font-size: 14px; } .stopbtn .tm { margin-left: auto; font-size: 13px; color: var(--ink-2); }
-  .stopbtn .l2 { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); margin-top: 2px; }
-  .leg { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font-size: 13px; color: var(--ink-2); padding: 6px 8px; margin: 0 -8px; border-radius: 10px; }
+  .itin > li:first-child::before { top: 20px; }
+  .itin > li:last-child::before { display: block; bottom: auto; height: 20px; }
+  .itin .stop { top: 8px; z-index: 1; }
+  .itin .stop.ring { width: 22px; height: 22px; left: 5px; top: 11px; }
+  .stopbtn { display: block; width: 100%; text-align: left; padding: 6px 8px; margin: -4px -8px; border-radius: 10px; transition: background-color var(--t-hover) ease; }
+  .stopbtn[aria-expanded="true"] { background: rgba(0,168,85,.12); }
+  .stopmore { padding: 6px 0 2px; }
+  @media (hover: hover) and (pointer: fine) { .stopbtn:hover:not([aria-expanded="true"]) { background: rgba(26,46,26,.05); } }
+  .stopbtn .l1 { display: flex; align-items: center; gap: 10px; min-height: 24px; }
+  .stopbtn .code { font-size: 14px; } .stopbtn .plate { margin-left: auto; } .stopbtn .tm { font-size: 14px; color: var(--ink); min-width: 38px; text-align: right; }
+  .more { display: grid; gap: 2px; margin-top: 4px; font-size: 13px; color: var(--ink-2); }
+  .legmore { margin: 0 0 4px 24px; }
+  .more a { font-weight: 600; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; }
+  .leg { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; text-align: left; font-size: 13px; color: var(--ink-2); padding: 0 8px; margin: 0 -8px; border-radius: 10px; }
   .leg .i { width: 16px; height: 16px; color: var(--ink-3); }
   .leg b { color: var(--ink); font-weight: 650; }
-  .leg > span:first-of-type { white-space: nowrap; }
-  .leg .tl { margin-left: auto; white-space: nowrap; }
-  .leg.tight .tl { color: var(--attention); font-weight: 650; }
+  .leg .tl { margin-left: auto; white-space: nowrap; font-weight: 650; }
+  .leg.tight .tl, .leg.tight .i { color: var(--attention); }
+  .leg.late .tl, .leg.late .i { color: var(--danger); }
   .leg.next b { color: var(--brand); }
-  .leg[aria-pressed="true"] { background: rgba(0,168,85,.1); }
-  .itin li[data-kind="leg"] { padding-left: 44px; min-height: 0; }
-  .itin li[data-kind="leg"] .stop { display: none; }
+  .itin li[data-kind="leg"] { padding-left: 44px; }
   .itin li.pastrow { opacity: .62; }
-  .online { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(26,46,26,.05); font-size: 13px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
-  .online .code { font-size: 12px; color: var(--ink); }
-  .pfoot { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 14px; }
 
   .tabbar { z-index: 70; }
+  @media (pointer: coarse) { .leg, .stopbtn { min-height: 44px; } .daystep .btn { width: 44px; } }
   @media (max-width: 759px) {
-    .map { inset: 0; }
+    .map { inset: 0; background-position: 30% 30%; }
+    .mapnote { right: auto; left: 10px; bottom: auto; top: calc(var(--safe-t) + 60px); font-size: 10px; }
     .dpanel { display: none; }
     .ptop { position: fixed; z-index: 12; left: 10px; right: 10px; top: calc(10px + var(--safe-t)); display: flex; gap: 8px; align-items: center; }
-    .ptop .seg { flex: 1; height: 40px; border-radius: 12px; background: rgba(229,235,228,.86); backdrop-filter: saturate(1.6) blur(18px); -webkit-backdrop-filter: saturate(1.6) blur(18px); box-shadow: var(--shadow-2); }
-    .controls { top: calc(92px + var(--safe-t)); bottom: auto; right: 10px; }
-    .attr { bottom: auto; top: calc(var(--safe-t) + 60px); left: 10px; right: auto; font-size: 9.5px; }
+    .ptop #pdays { flex: 1; border-radius: 14px; padding: 2px 6px; } .ptop .daystep { margin: 0; }
     .sheet.glass .dscroll { padding: 0 16px 24px; }
     .hero .big { font-size: 44px; }
   }
@@ -311,28 +328,14 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
   <span class="wordmark">UNTangle</span>
   <nav class="seg" id="views" aria-label="Views"><button type="button" data-href="02-courses.html?state=after&quiet=1">Courses</button><button type="button" data-href="03-schedule-builder.html">Week</button><button type="button" aria-pressed="true">Day</button></nav>
   <button class="search" type="button" data-i="search"><span>Search buildings or courses</span><kbd class="kbd">⌘K</kbd></button>
-  <a class="sched-pill" href="05-schedules-library.html"><span class="dot"></span>Spring 2027 <span class="meta">· Main</span></a>
+  <a class="sched-pill" href="05-schedules-library.html" aria-label="Schedule: Spring 2027, Main. Switch schedule"><span class="dot"></span><span class="when">Spring 2027</span>Main</a>
   <a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a>
 </header>
 
-<div class="map" id="map" aria-label="Campus map, illustrative">
-  <svg id="svg" aria-hidden="true"><g id="cam">
-    <rect x="-400" y="-400" width="2400" height="1900" fill="#eeede9"/>
-    <path class="lawn" d="M820 470 L1150 470 L1170 640 L840 650 Z"/><path class="lawn" d="M120 600 L330 600 L330 720 L120 720 Z"/><path class="lawn" d="M1380 120 L1560 140 L1540 300 L1390 280 Z"/>
-    <ellipse class="water" cx="1240" cy="420" rx="40" ry="24"/>
-    <g id="roads"></g><g id="blds"></g>
-    <g id="routes"></g>
-  </g></svg>
-  <div class="overlay" id="overlay"></div>
-  <div class="controls">
-    <div class="ctl glass-panel"><button aria-label="Zoom in" data-zoom="1.4" data-i="plus"></button><button aria-label="Zoom out" data-zoom="0.71" data-i="minus"></button></div>
-    <div class="ctl glass-panel"><button aria-label="Fit the whole day" data-act="fit" data-i="day"></button><button aria-label="Show my location (off until you allow it)" aria-disabled="true" title="Location stays off until you turn it on" data-i="locate"></button><button aria-label="3D buildings" aria-disabled="true" title="3D buildings appear at street zoom in the real map" data-i="cube"></button></div>
-  </div>
-  <div class="attr">Illustrative map · Real map: © OpenFreeMap © OpenMapTiles © OpenStreetMap</div>
-</div>
+<div class="map" id="map" role="img" aria-label="Campus map with today's walking route"><span class="mapnote">Capture of the live map, from another sample day</span></div>
 
 <aside class="dpanel glass-panel" aria-label="Your day"><div class="dscroll" id="panelBody"></div></aside>
-<div class="ptop only-phone"><div class="seg" id="pdays" role="group" aria-label="Day"></div></div>
+<div class="ptop only-phone"><div class="glass-panel" id="pdays"></div></div>
 <section class="sheet glass only-phone" id="sheet" aria-label="Your day"><div class="grabber"></div><div class="sheet-body"><div class="dscroll" id="sheetBody"></div></div></section>
 <nav class="tabbar only-phone" aria-label="Views"><a href="02-courses.html?state=after&quiet=1" data-i="courses">Courses</a><a href="03-schedule-builder.html" data-i="week">Week</a><a aria-current="page" href="04-day-map.html" data-i="day">Day</a></nav>
 <div class="sr" aria-live="polite" id="live"></div>
@@ -466,6 +469,38 @@ function modalClose(el) {
   m.prev && document.contains(m.prev) && m.prev.focus({ preventScroll: true });
 }
 
+/* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
+   24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
+   reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
+   too often to animate. `trigger` may be a function, for pages that rebuild the control that opened
+   the panel; it is resolved when focus goes back, after onClose has re-rendered. */
+class Panel {
+  constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
+  get isOpen() { return this.el.classList.contains("on"); }
+  instantFrame(instant) {
+    if (!instant) return;
+    this.el.classList.add("instant"); document.body.classList.add("panel-instant");
+    requestAnimationFrame(() => requestAnimationFrame(() => { this.el.classList.remove("instant"); document.body.classList.remove("panel-instant"); }));
+  }
+  open({ instant = false, trigger = document.activeElement, focus = false } = {}) {
+    if (!this.isOpen) this.trigger = trigger;
+    this.instantFrame(instant);
+    document.body.classList.add("panel-open");
+    this.el.classList.add("on"); this.el.inert = false; this.el.setAttribute("aria-hidden", "false");
+    if (focus) requestAnimationFrame(() => this.el.querySelector("h2[tabindex], input, button")?.focus({ preventScroll: true }));
+  }
+  close(instant = false) {
+    if (!this.isOpen) return;
+    const hadFocus = this.el.contains(document.activeElement);
+    this.instantFrame(instant);
+    document.body.classList.remove("panel-open");
+    this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
+    this.onClose && this.onClose();
+    const back = typeof this.trigger === "function" ? this.trigger() : this.trigger;
+    if (hadFocus && back && document.contains(back)) back.focus({ preventScroll: true });
+  }
+}
+
 /* Bottom sheet with detents, pointer capture, projected release, velocity handoff. */
 class Sheet {
   constructor(el, { detents, modal = false, scrim = null, dismissible = false, onDetent, bottomInset = () => 0 }) {
@@ -576,36 +611,17 @@ function toast(msg, action, fn) {
 hydrateIcons();
 </script>
 <script>
-/* ---------- campus geometry (illustrative, not survey data) ---------- */
-const ROADS = [
-  ["M-200 150 L1800 150", 16, "W Mulberry St"], ["M-200 330 L1800 330", 14, "W Sycamore St"], ["M-200 520 L1800 520", 14, "Chestnut St"],
-  ["M-200 760 L1800 760", 18, "W Highland St"], ["M-200 960 L1800 960", 14, "Maple St"],
-  ["M380 -200 L380 1300", 18, "N Texas Blvd"], ["M620 -200 L620 1300", 14, "Avenue C"], ["M1500 -200 L1500 1300", 14, "Avenue A"],
-];
-const WALKS = ["M620 520 L900 520 L960 430", "M1150 260 L1100 330 L1000 400 L985 420", "M985 420 L1050 470 L1180 500 L1270 540 L1300 560", "M620 760 L740 660", "M380 860 L300 880", "M900 520 L900 700 L1200 700"];
-const BLD = {
-  KERR: { x: 300, y: 880, w: 120, h: 70, name: "Kerr Hall" }, GAB: { x: 1150, y: 230, w: 110, h: 70, name: "GAB" }, CURY: { x: 985, y: 420, w: 80, h: 56, name: "CURY" },
-  PHYS: { x: 1300, y: 560, w: 90, h: 64, name: "PHYS" }, ESSC: { x: 740, y: 640, w: 100, h: 60, name: "ESSC" }, LIFE: { x: 900, y: 250, w: 100, h: 80, name: "LIFE" },
-  SAGE: { x: 1360, y: 380, w: 80, h: 60, name: "SAGE" }, UU: { x: 1200, y: 700, w: 130, h: 70, name: "UU" }, BLB: { x: 1400, y: 880, w: 120, h: 80, name: "BLB" },
-  LANG: { x: 700, y: 260, w: 90, h: 60, name: "LANG" }, MUSI: { x: 760, y: 450, w: 90, h: 60, name: "MUSI" }, WILL: { x: 1020, y: 590, w: 90, h: 60, name: "WILL" },
-  CHIL: { x: 520, y: 430, w: 70, h: 60, name: "CHIL" }, MATT: { x: 1650, y: 600, w: 90, h: 70, name: "MATT" }, COL: { x: 520, y: 880, w: 140, h: 90, name: "COL" },
-};
 /* ---------- the day, from the Main schedule ---------- */
-const P = (s) => s.split(/[ML ]+/).filter(Boolean).map(Number).reduce((a, v, i) => (i % 2 ? a[a.length - 1].push(v) : a.push([v]), a), []);
-const LEGS = {
-  "KERR>GAB": { pts: P("M300 880 L380 860 L380 760 L620 760 L620 330 L1080 330 L1150 260"), min: 9, mi: 0.4 },
-  "GAB>CURY": { pts: P("M1150 260 L1100 330 L1000 400 L985 420"), min: 4, mi: 0.2 },
-  "CURY>PHYS": { pts: P("M985 420 L1050 470 L1180 500 L1270 540 L1300 560"), min: 8, mi: 0.4 },
-  "KERR>ESSC": { pts: P("M300 880 L380 860 L380 760 L620 760 L740 660"), min: 7, mi: 0.3 },
-};
-const C = { "CSCE 2110": ["Foundations of Data Structures", 3, "GAB", "535"], "MATH 2700": ["Linear Algebra", 1, "CURY", "202"], "PHYS 2220": ["Electricity and Magnetism", 4, "PHYS", "104"], "CSCE 2610": ["Assembly Language", 6, "ESSC", "255"] };
+const BLD = { KERR: "Kerr Hall", GAB: "GAB", CURY: "CURY", PHYS: "PHYS", ESSC: "ESSC" };
+const LEGS = { "KERR>GAB": 9, "GAB>CURY": 4, "CURY>PHYS": 8, "KERR>ESSC": 7 };
+const C = { "CSCE 2110": ["Foundations of Data Structures", "GAB", "535"], "MATH 2700": ["Linear Algebra", "CURY", "202"], "PHYS 2220": ["Electricity and Magnetism", "PHYS", "104"], "CSCE 2610": ["Assembly Language", "ESSC", "255"] };
 const M = (h, m) => h + m / 60; // exact clock times, so "leave at class end" compares equal
 const MWF = [["CSCE 2110", M(9, 0), M(9, 50)], ["MATH 2700", M(10, 0), M(10, 50)], ["PHYS 2220", M(11, 0), M(11, 50)]];
 const DAYS = { 0: MWF, 1: [["CSCE 2610", M(12, 30), M(13, 50)]], 2: MWF, 3: [["CSCE 2610", M(12, 30), M(13, 50)]], 4: MWF.slice(0, 2) };
 const DNAME = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-const BUFFER = 2; // minutes kept between arriving and class start
+const BUFFER = 2; // minutes kept between arriving and class start; a placeholder (untangle-v3.md)
 const fmt = (h) => { const m = Math.round(h * 60); const hh = Math.floor(m / 60), mm = m % 60; return `${hh > 12 ? hh - 12 : hh}:${String(mm).padStart(2, "0")}`; };
-const nowParam = Q.get("now") || "0837"; let NOW = +nowParam.slice(0, 2) + +nowParam.slice(2) / 60;
+const nowParam = Q.get("now") || "0837"; const NOW = +nowParam.slice(0, 2) + +nowParam.slice(2) / 60;
 const TODAY = +(Q.get("today") ?? 0);
 let day = +(Q.get("day") ?? TODAY);
 let selStop = null, selLeg = null;
@@ -613,156 +629,86 @@ let selStop = null, selLeg = null;
 function plan(d) {
   const cls = DAYS[d] || []; let from = "KERR", prevEnd = null; const items = [];
   cls.forEach(([code, s, e], i) => {
-    const to = C[code][2]; const leg = LEGS[`${from}>${to}`] || { pts: [[BLD[from].x, BLD[from].y], [BLD[to].x, BLD[to].y]], min: 6, mi: 0.3 };
-    const leave = s - (leg.min + BUFFER) / 60;
-    const tight = prevEnd !== null && leave <= prevEnd + 1e-6;
-    items.push({ kind: "leg", id: `${from}>${to}`, from, to, leg, leave: prevEnd !== null ? Math.max(leave, prevEnd) : leave, gap: prevEnd !== null ? Math.round((s - prevEnd) * 60) : null, tight, first: i === 0 });
+    const to = C[code][1]; const min = LEGS[`${from}>${to}`] ?? 6;
+    const leave = s - (min + BUFFER) / 60;
+    const late = prevEnd !== null && s - min / 60 < prevEnd - 1e-6;
+    const tight = !late && prevEnd !== null && leave <= prevEnd + 1e-6;
+    items.push({ kind: "leg", id: `${from}>${to}`, from, to, min, leave: prevEnd !== null ? Math.max(leave, prevEnd) : leave, tight, late, first: i === 0 });
     items.push({ kind: "stop", n: i + 1, code, s, e, b: to });
     from = to; prevEnd = e;
   });
   return items;
 }
+/* the hero answers three things: next class, where, and when to leave */
 function heroFor(d) {
   const items = plan(d); const stops = items.filter((x) => x.kind === "stop"); const legs = items.filter((x) => x.kind === "leg");
+  const where = (st) => `${st.code} starts at ${fmt(st.s)} in ${st.b} ${C[st.code][2]}.`;
   if (!stops.length) return { k: `No classes ${DNAME[d]}`, big: "Free", sub: "Your next class is Monday at 9:00 in GAB." };
-  if (d !== TODAY) { const l = legs[0]; return { k: `${DNAME[d]} · leave Kerr Hall by`, big: fmt(l.leave), sub: `${stops[0].code} at ${fmt(stops[0].s)} · ${l.leg.min} min walk` , stop: stops[0], leg: l }; }
+  if (d !== TODAY) return { k: `On ${DNAME[d]}, leave Kerr Hall by`, big: fmt(legs[0].leave), sub: where(stops[0]), leg: legs[0] };
   for (let i = 0; i < stops.length; i++) {
     const l = legs[i], st = stops[i];
     if (NOW < st.s) {
-      const mins = Math.round((l.leave - NOW) * 60); const fromName = BLD[l.from].name;
-      if (mins <= 1) return { k: `Head to ${st.b} now`, big: "Leave now", now: true, chip: `${l.leg.min} min walk`, sub: `${st.code} starts ${fmt(st.s)} · ${st.b} ${C[st.code][3]}`, stop: st, leg: l, tight: l.tight };
-      return { k: `Leave ${fromName} by`, big: fmt(l.leave), chip: l.tight ? "Right as class ends" : `in ${mins} min`, tight: l.tight, sub: `${st.code} at ${fmt(st.s)} · ${st.b} ${C[st.code][3]} · ${l.leg.min} min walk`, stop: st, leg: l };
+      const mins = Math.round((l.leave - NOW) * 60);
+      if (mins <= 1) return { k: `Head to ${st.b} now`, big: "Leave now", now: true, chip: `${l.min} min walk`, sub: where(st), leg: l, tight: l.tight };
+      return { k: `Leave ${BLD[l.from]} by`, big: fmt(l.leave), chip: l.tight || l.late ? "Right as class ends" : `in ${mins} min`, tight: l.tight || l.late, sub: where(st), leg: l };
     }
-    if (NOW < st.e && (i === stops.length - 1)) return { k: `In ${st.code} until ${fmt(st.e)}`, big: "Last one", sub: "Nothing after this today." , stop: st };
+    if (NOW < st.e && i === stops.length - 1) return { k: `In ${st.code} until ${fmt(st.e)}`, big: "Last one", sub: "Nothing after this today." };
   }
-  return { k: "Done for today", big: "That's it", sub: "Tomorrow: CSCE 2610 at 12:30 · ESSC 255" };
+  return { k: "Done for today", big: "That's it", sub: "Tomorrow, CSCE 2610 starts at 12:30 in ESSC 255." };
 }
 
-/* ---------- panel ---------- */
+/* ---------- itinerary: stops carry time and building; walks carry minutes unless tight or late ---------- */
 function panelHTML(withDays) {
   const items = plan(day); const h = heroFor(day);
-  const stops = items.filter((x) => x.kind === "stop"); const walkMin = items.filter((x) => x.kind === "leg").reduce((a, l) => a + l.leg.min, 0); const mi = items.filter((x) => x.kind === "leg").reduce((a, l) => a + l.leg.mi, 0);
-  const isPast = (it) => day === TODAY && (it.kind === "stop" ? NOW >= it.e : NOW > it.leave + it.leg.min / 60);
-  return `${withDays ? `<div class="seg daysel" id="days">${["Mon", "Tue", "Wed", "Thu", "Fri"].map((d, i) => `<button type="button" aria-pressed="${i === day}" data-v="${i}">${d}</button>`).join("")}</div>` : ""}
+  const isPast = (it) => day === TODAY && (it.kind === "stop" ? NOW >= it.e : NOW > it.leave + it.min / 60);
+  const legRow = (it) => {
+    const note = it.late ? `${it.min - Math.round((items[items.indexOf(it) + 1].s - it.leave) * 60)} min late` : it.tight ? `Leave right at ${fmt(it.leave)}` : "";
+    return `<li data-kind="leg" class="${isPast(it) ? "pastrow" : ""}" data-leg="${isPast(it) ? "past" : ""}">${it.first ? '<span class="stop ring" aria-hidden="true"></span>' : ""}<button class="leg ${it.late ? "late" : it.tight ? "tight" : ""} ${h.leg === it ? "next" : ""}" data-legid="${it.id}" aria-pressed="${selLeg === it.id}" aria-label="${it.min} minute walk${it.first ? " from Kerr Hall" : ""}${note ? ", " + note : ""}">${icon("walk")}<span><b>${it.min} min</b></span>${note ? `<span class="tl">${note}</span>` : ""}</button>${selLeg === it.id ? `<div class="more legmore"><span>Leave by ${fmt(it.leave)}${it.first ? " from Kerr Hall" : `, ${Math.round((items[items.indexOf(it) + 1].s - items[items.indexOf(it) - 1].e) * 60)} min break`}</span>${it.first ? '<a href="#" onclick="event.preventDefault()">Change starting point</a>' : ""}</div>` : ""}</li>`;
+  };
+  const stopRow = (it) => `<li data-kind="stop" class="${isPast(it) ? "pastrow" : ""}" data-leg="${isPast(it) ? "past" : ""}"><span class="stop ${isPast(it) ? "past" : ""}">${it.n}</span><button class="stopbtn" data-stop="${it.n}" aria-expanded="${selStop === it.n}"><div class="l1"><span class="code">${it.code}</span><span class="plate"><b>${it.b}</b></span><span class="tm">${fmt(it.s)}</span></div></button>${selStop === it.n ? `<div class="more stopmore"><span>${C[it.code][0]}</span><span>Room ${C[it.code][2]}, until ${fmt(it.e)}</span><a href="#" onclick="event.preventDefault()">Directions in Google Maps${icon("ext", "sm")}</a></div>` : ""}</li>`;
+  return `${withDays ? stepHTML() : ""}
     <div class="hero" aria-live="polite"><span class="k">${h.k}</span><span class="big ${h.now ? "now" : ""}">${h.big}</span>${h.chip ? `<span class="in ${h.tight ? "tight" : ""}">${h.chip}</span>` : "<span></span>"}<span class="sub">${h.sub}</span></div>
-    ${stops.length ? `<div class="summary"><span>${stops.length} class${stops.length > 1 ? "es" : ""} · ${mi.toFixed(1)} mi · ${walkMin} min walking</span><span class="tag">Sample sections</span></div>
-    <ol class="path itin">
-      <li data-kind="start" data-leg="${day === TODAY && NOW > 8.8 ? "past" : ""}"><span class="stop ring" style="width:22px;height:22px;left:5px;top:12px"></span><div class="stopbtn" style="pointer-events:none"><div class="l1"><strong>Kerr Hall</strong><span class="tm">Start</span></div><div class="l2"><a href="#" style="pointer-events:auto">Change starting point</a></div></div></li>
-      ${items.map((it) => it.kind === "leg"
-        ? `<li data-kind="leg" class="${isPast(it) ? "pastrow" : ""}" data-leg="${isPast(it) ? "past" : ""}"><button class="leg ${it.tight ? "tight" : ""} ${h.leg === it ? "next" : ""}" data-legid="${it.id}" aria-pressed="${selLeg === it.id}">${icon("walk")}<span><b>${it.leg.min} min</b> · ${it.leg.mi} mi</span><span class="tl">${it.tight ? `Leave right at ${fmt(it.leave)}` : `Leave by ${fmt(it.leave)}`}${it.gap ? ` · ${it.gap} min break` : ""}</span></button></li>`
-        : `<li data-kind="stop" class="${isPast(it) ? "pastrow" : ""}" data-leg="${isPast(it) ? "past" : ""}"><span class="stop ${isPast(it) ? "past" : ""}">${it.n}</span><button class="stopbtn" data-stop="${it.n}" aria-pressed="${selStop === it.n}"><div class="l1"><span class="code">${it.code}</span><span class="tm">${fmt(it.s)}–${fmt(it.e)}</span></div><div class="l2"><span class="plate"><b>${it.b}</b>${C[it.code][3]}</span><span>${C[it.code][0]}</span></div></button></li>`).join("")}
-    </ol>
-    <div class="online"><span class="code">TECM 2700</span>Online, no set time. Not on the map.</div>
-    <div class="pfoot"><a class="btn btn-secondary btn-sm" href="#">Open in Google Maps ${icon("ext", "sm")}</a><a class="btn btn-ink btn-sm" href="03-schedule-builder.html">See the week</a></div>`
-    : `<p class="meta" style="padding:8px 2px">Enjoy the day off. Fridays stay free in the “Fridays off” schedule.</p>`}`;
+    ${items.length ? `<ol class="path itin">
+      ${items.map((it) => (it.kind === "leg" ? legRow(it) : stopRow(it))).join("")}
+    </ol>` : ""}`;
+}
+function stepHTML() {
+  return `<div class="daystep" role="group" aria-label="Day"><button class="btn btn-ink btn-icon btn-sm" data-step="-1" aria-label="Previous day" ${day === 0 ? "disabled" : ""}>${icon("chevL")}</button><b aria-live="polite">${day === TODAY ? "Today" : DNAME[day]}</b><button class="btn btn-ink btn-icon btn-sm" data-step="1" aria-label="Next day" ${day === 4 ? "disabled" : ""}>${icon("chevR")}</button></div>`;
 }
 function renderPanels() {
   $("#panelBody").innerHTML = panelHTML(true);
   $("#sheetBody").innerHTML = panelHTML(false);
   hydrateIcons($("#panelBody")); hydrateIcons($("#sheetBody"));
-  const ds = $("#days"); if (ds) initSeg(ds, (v) => setDay(+v));
 }
-
-/* ---------- camera: centre + zoom, eased with the app's camera curve ---------- */
-const map = $("#map"), cam = $("#cam"), overlay = $("#overlay");
-let camera = { x: 900, y: 560, z: 0.7 }, flight = null;
-function bezier(x1, y1, x2, y2) { // CSS cubic-bezier evaluated by solving x for t first
-  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-  const X = (t) => ((ax * t + bx) * t + cx) * t, Y = (t) => ((ay * t + by) * t + cy) * t, dX = (t) => (3 * ax * t + 2 * bx) * t + cx;
-  return (x) => { let t = x; for (let i = 0; i < 6; i++) { const d = dX(t); if (Math.abs(d) < 1e-6) break; t -= (X(t) - x) / d; } return Y(Math.min(1, Math.max(0, t))); };
-}
-const cameraEase = bezier(0.19, 1, 0.22, 1);
-function padding() {
-  const m = map.getBoundingClientRect();
-  if (PHONE.matches) { const s = $("#sheet").getBoundingClientRect(); return { top: 96, right: 72, bottom: Math.max(40, m.bottom - s.top + 20), left: 30 }; }
-  const p = $(".dpanel").getBoundingClientRect(); return { top: 44, right: 88, bottom: 52, left: p.right - m.left + 28 };
-}
-function toScreen(x, y) { const m = map.getBoundingClientRect(), pd = padding(); const cx = pd.left + (m.width - pd.left - pd.right) / 2, cy = pd.top + (m.height - pd.top - pd.bottom) / 2; return [(x - camera.x) * camera.z + cx, (y - camera.y) * camera.z + cy]; }
-function applyCamera() {
-  const [ox, oy] = toScreen(0, 0); cam.setAttribute("transform", `translate(${ox} ${oy}) scale(${camera.z})`);
-  $$("[data-wx]", overlay).forEach((el) => { const [x, y] = toScreen(+el.dataset.wx, +el.dataset.wy); el.style.left = x + "px"; el.style.top = y + "px"; el.style.display = el.dataset.minz && camera.z < +el.dataset.minz ? "none" : ""; });
-}
-function flyTo(target, duration = 500) {
-  flight && cancelAnimationFrame(flight.raf);
-  if (reduced() || duration === 0) { camera = { ...target }; applyCamera(); return; }
-  const from = { ...camera }, t0 = performance.now();
-  const step = (now) => { const p = Math.min(1, (now - t0) / duration), e = cameraEase(p);
-    camera = { x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e, z: from.z * Math.pow(target.z / from.z, e) };
-    applyCamera(); if (p < 1) flight = { raf: requestAnimationFrame(step) }; else flight = null; };
-  flight = { raf: requestAnimationFrame(step) };
-}
-function fitPoints(pts, maxZ = 2.4) {
-  const m = map.getBoundingClientRect(), pd = padding(); const w = m.width - pd.left - pd.right, h = m.height - pd.top - pd.bottom;
-  if (w < 120 || h < 100) return null; // too little map to fit into; keep the camera where it is
-  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]); const bw = Math.max(80, Math.max(...xs) - Math.min(...xs)), bh = Math.max(80, Math.max(...ys) - Math.min(...ys));
-  return { x: (Math.max(...xs) + Math.min(...xs)) / 2, y: (Math.max(...ys) + Math.min(...ys)) / 2, z: Math.min(maxZ, w / (bw + 60), h / (bh + 60)) };
-}
-function dayPoints(d) { const pts = [[BLD.KERR.x, BLD.KERR.y]]; plan(d).filter((x) => x.kind === "leg").forEach((l) => pts.push(...l.leg.pts)); return pts; }
-
-/* ---------- map drawing ---------- */
-function drawStatic() {
-  $("#roads").innerHTML = ROADS.map(([d, w]) => `<path class="road-c" d="${d}" stroke-width="${w + 3}"/>`).join("") + ROADS.map(([d, w]) => `<path class="road" d="${d}" stroke-width="${w}"/>`).join("") + WALKS.map((d) => `<path class="walkway" d="${d}"/>`).join("");
-  $("#blds").innerHTML = Object.entries(BLD).map(([k, b]) => `<rect class="bld" data-b="${k}" x="${b.x - b.w / 2}" y="${b.y - b.h / 2}" width="${b.w}" height="${b.h}" rx="4"/>`).join("");
-}
-function drawDay() {
-  const items = plan(day); const h = heroFor(day);
-  const legs = items.filter((x) => x.kind === "leg");
-  const isPast = (l) => day === TODAY && NOW > l.leave + l.leg.min / 60;
-  const pathD = (pts) => "M" + pts.map((p) => p.join(" ")).join(" L");
-  $("#routes").innerHTML = legs.map((l) => `<path class="route-case" d="${pathD(l.leg.pts)}"/>`).join("") + legs.map((l) => `<path class="route ${isPast(l) ? "past" : ""} ${h.leg === l ? "next" : ""} ${selLeg === l.id ? "sel" : ""}" d="${pathD(l.leg.pts)}"/>`).join("") + legs.map((l) => `<path class="route-hit" data-legid="${l.id}" d="${pathD(l.leg.pts)}"/>`).join("");
-  $$(".bld").forEach((r) => r.classList.toggle("dest", items.some((x) => x.kind === "stop" && x.b === r.dataset.b)));
-  const stops = items.filter((x) => x.kind === "stop");
-  overlay.innerHTML = Object.entries(BLD).filter(([k]) => !stops.some((s) => s.b === k) && k !== "KERR").map(([k, b]) => `<span class="lbl" data-wx="${b.x}" data-wy="${b.y}" data-minz="0.62">${b.name}</span>`).join("") +
-    ROADS.map(([d, , n]) => { const p = P(d); const horiz = p[0][1] === p[1][1]; return `<span class="lbl street" data-wx="${horiz ? 1300 : p[0][0]}" data-wy="${horiz ? p[0][1] - 1 : 1060}" data-minz="0.85" style="${horiz ? "" : "writing-mode:vertical-rl"}">${n}</span>`; }).join("") +
-    (stops.length ? `<button class="pin start" data-wx="${BLD.KERR.x}" data-wy="${BLD.KERR.y}" aria-label="Start, Kerr Hall"><span class="tag2">Kerr Hall</span></button>` : "") +
-    stops.map((s) => `<button class="pin ${day === TODAY && NOW >= s.e ? "past" : "upcoming"} ${selStop === s.n ? "sel" : ""}" data-stop="${s.n}" data-wx="${BLD[s.b].x}" data-wy="${BLD[s.b].y}" aria-label="Stop ${s.n}, ${s.code} in ${s.b}">${s.n}<span class="tag2">${s.b} ${C[s.code][3]}</span></button>`).join("");
-  applyCamera();
-}
-function setDay(d) {
-  if (d === day) return; day = d; selStop = null; selLeg = null;
-  const r = $("#routes"); if (!reduced()) { r.style.opacity = 0; setTimeout(() => { drawDay(); r.style.opacity = 1; }, 150); } else drawDay();
-  renderPanels(); syncPhoneDays();
-  const f = fitPoints(dayPoints(d), 1.4); if (f) flyTo(f);
-  $("#live").textContent = `${DNAME[d]} selected`;
-}
-function selectStop(n) {
-  const st = plan(day).find((x) => x.kind === "stop" && x.n === n); if (!st) return;
-  selStop = n; selLeg = null; renderPanels(); drawDay();
+function setDay(d) { if (d === day || d < 0 || d > 4) return; day = d; selStop = null; selLeg = null; renderPanels(); syncPhoneDays(); }
+function selectStop(n, focus) {
+  selStop = selStop === n ? null : n; selLeg = null; renderPanels();
   if (PHONE.matches && sheet.index === 2) sheet.snap(1);
-  setTimeout(() => flyTo({ x: BLD[st.b].x, y: BLD[st.b].y, z: 2.2 }), PHONE.matches ? 60 : 0);
-  $("#live").textContent = `${st.code} in ${st.b} selected`;
+  const st = plan(day).find((x) => x.kind === "stop" && x.n === n);
+  $("#live").textContent = selStop ? `${st.code} in ${st.b} selected` : "";
+  if (focus) $(`${PHONE.matches ? "#sheetBody" : "#panelBody"} [data-stop="${n}"]`)?.focus({ preventScroll: true });
 }
-function selectLeg(id) {
-  const l = plan(day).find((x) => x.kind === "leg" && x.id === id); if (!l) return;
-  selLeg = id; selStop = null; renderPanels(); drawDay();
-  if (PHONE.matches && sheet.index === 2) sheet.snap(1);
-  const f = fitPoints(l.leg.pts, 2.4); if (f) setTimeout(() => flyTo(f), PHONE.matches ? 60 : 0);
-}
+function selectLeg(id) { selLeg = selLeg === id ? null : id; selStop = null; renderPanels(); }
 
 /* ---------- phone sheet and day switcher ---------- */
-const sheet = new Sheet($("#sheet"), { detents: [() => 206, () => Math.max(320, innerHeight * 0.5), () => innerHeight * 0.86], bottomInset: () => (PHONE.matches ? 56 : 0), onDetent: (i) => { if (i >= 0 && i < 2) setTimeout(() => { const f = selStop || selLeg ? null : fitPoints(dayPoints(day), 1.4); if (f) flyTo(f, 0); }, 360); } });
-function syncPhoneDays() { const el = $("#pdays"); el.innerHTML = ["Mon", "Tue", "Wed", "Thu", "Fri"].map((d, i) => `<button type="button" aria-pressed="${i === day}" data-v="${i}">${d}</button>`).join(""); initSeg(el, (v) => setDay(+v)); }
+const sheet = new Sheet($("#sheet"), { detents: [() => 206, () => Math.max(320, innerHeight * 0.5), () => innerHeight * 0.86], bottomInset: () => (PHONE.matches ? 56 : 0) });
+function syncPhoneDays() { const el = $("#pdays"); el.innerHTML = stepHTML(); hydrateIcons(el); }
 
 document.addEventListener("click", (e) => {
-  const s = e.target.closest("[data-stop]"), l = e.target.closest("[data-legid]"), z = e.target.closest("[data-zoom]"), v = e.target.closest("[data-href]");
-  if (s) return selectStop(+s.dataset.stop);
+  const step = e.target.closest("[data-step]");
+  if (step) { const where = step.closest("#pdays") ? "#pdays" : "#panelBody", dir = step.dataset.step; setDay(day + +dir); const same = $(`${where} [data-step="${dir}"]`); (same && !same.disabled ? same : $(`${where} [data-step="${-dir}"]`))?.focus(); return; }
+  const s = e.target.closest("[data-stop]"), l = e.target.closest("[data-legid]"), v = e.target.closest("[data-href]");
+  if (s) return selectStop(+s.dataset.stop, e.detail === 0);
   if (l) return selectLeg(l.dataset.legid);
-  if (z) return flyTo({ ...camera, z: Math.max(0.4, Math.min(3.2, camera.z * +z.dataset.zoom)) }, 250);
-  if (e.target.closest('[data-act="fit"]')) { selStop = selLeg = null; renderPanels(); drawDay(); const f = fitPoints(dayPoints(day), 1.4); if (f) flyTo(f); return; }
   if (v) location.href = v.dataset.href;
 });
-/* direct manipulation: drag pans 1:1, wheel zooms toward the pointer */
-let pan = null;
-map.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) return; flight && cancelAnimationFrame(flight.raf); pan = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y, id: e.pointerId }; map.setPointerCapture(e.pointerId); });
-map.addEventListener("pointermove", (e) => { if (!pan || e.pointerId !== pan.id) return; camera.x = pan.cx - (e.clientX - pan.x) / camera.z; camera.y = pan.cy - (e.clientY - pan.y) / camera.z; applyCamera(); });
-map.addEventListener("pointerup", () => (pan = null));
-map.addEventListener("wheel", (e) => { e.preventDefault(); camera.z = Math.max(0.4, Math.min(3.2, camera.z * Math.exp(-e.deltaY * 0.0015))); applyCamera(); }, { passive: false });
-addEventListener("resize", () => applyCamera());
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (selStop || selLeg)) { selStop = selLeg = null; renderPanels(); } });
 $$(".seg").forEach((s) => s.id === "views" && initSeg(s, (v, b) => b?.dataset.href && (location.href = b.dataset.href)));
 
-drawStatic(); renderPanels(); syncPhoneDays(); drawDay();
+renderPanels(); syncPhoneDays();
 if (PHONE.matches) sheet.open(Q.get("detent") ? +Q.get("detent") : 0); else sheet.el.style.display = "none";
-requestAnimationFrame(() => { const f = fitPoints(dayPoints(day), 1.4); if (f) flyTo(f, 0); if (Q.get("stop")) setTimeout(() => selectStop(+Q.get("stop")), 120); if (Q.get("leg")) setTimeout(() => selectLeg(Q.get("leg")), 120); });
+if (Q.get("stop")) selectStop(+Q.get("stop"));
+if (Q.get("leg")) selectLeg(Q.get("leg"));
 </script>
 </body>
 </html>

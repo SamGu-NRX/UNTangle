@@ -4,97 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f6f3">
-<title>UNTangle v3 · Courses</title>
+<title>UNTangle v3: Courses</title>
 <!--BASE_CSS-->
 <style>
-  .layout { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: calc(100dvh - var(--topbar-h)); }
-  .rail { position: sticky; top: var(--topbar-h); align-self: start; height: calc(100dvh - var(--topbar-h)); padding: 24px 16px 24px 24px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
-  .major { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; margin: -8px -10px; border-radius: 10px; text-align: left; transition: background-color var(--t-hover) ease; }
-  .major strong { display: block; font-size: 15px; line-height: 20px; font-weight: 620; }
-  .major .i { color: var(--ink-3); margin-left: auto; }
-  @media (hover: hover) and (pointer: fine) { .major:hover { background: var(--paper-2); } }
-  .progress { display: grid; gap: 8px; }
-  .progress .fig { font-size: 13px; color: var(--ink-2); } .progress .fig b { font: 700 20px/1 var(--font-mark); color: var(--ink); margin-right: 4px; }
-  .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--paper-3); gap: 2px; }
-  .bar i { display: block; height: 100%; }
-  .bar .b-done { background: var(--ink-2); } .bar .b-taking { background: var(--accent); }
-  .bar .b-planned { background: repeating-linear-gradient(135deg, var(--brand) 0 3px, #2f7a52 3px 6px); }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-2); }
-  .legend span { display: inline-flex; align-items: center; gap: 5px; } .legend i { width: 8px; height: 8px; border-radius: 2px; display: block; }
-  .index { display: grid; gap: 2px; margin: 0 -10px; }
-  .index a { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); font-size: 14px; }
-  .index a b { margin-left: auto; font-weight: 550; font-size: 13px; color: var(--ink-2); }
-  .index a[aria-current="true"] { background: var(--paper); color: var(--ink); box-shadow: var(--shadow-1); font-weight: 600; }
-  .rail-foot { margin-top: auto; display: grid; gap: 6px; }
+  body { --main-max: 720px; --panel-w: 440px; }
+  .pair { padding-top: 28px; padding-bottom: 96px; }
 
-  main { padding: 24px 32px 96px 8px; max-width: 800px; width: 100%; }
-  body.panel-open main { margin-right: 0; }
-  .tray { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1); overflow: hidden; }
-  .tray-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px 18px; }
-  .tray-head h2 { font-size: 18px; line-height: 24px; font-weight: 640; letter-spacing: -.01em; }
-  .tray-head .meta b { color: var(--ink); font-weight: 600; }
-  .tray-head .acts { margin-left: auto; display: flex; gap: 6px; align-items: center; }
-  .tray-empty { padding: 4px 18px 18px; display: grid; gap: 10px; }
+  /* page header: the degree and its progress, one line */
+  .deg { display: flex; align-items: center; gap: 16px; margin: 0 4px 20px; }
+  .degbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; margin-left: -10px; border-radius: 10px; font-size: 15px; font-weight: 650; transition: background-color var(--t-hover) ease; }
+  .degbtn .i { width: 16px; height: 16px; color: var(--ink-3); }
+  @media (hover: hover) and (pointer: fine) { .degbtn:hover { background: rgba(26,46,26,.05); } }
+  .deg .prog { margin-left: auto; font-size: 14px; color: var(--ink-2); white-space: nowrap; }
+
+  /* the term tray: the answer, and the only surface in the column */
+  .tray { background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: 4px 0 8px; }
+  .tray-head { display: flex; align-items: center; gap: 12px; padding: 14px 14px 10px 20px; }
+  .tray-head h2 { font-size: 20px; line-height: 26px; font-weight: 650; letter-spacing: -.012em; }
+  .tray-head .meta { margin-top: 1px; }
+  .tray-head .btn { margin-left: auto; }
+  .tray-empty { padding: 2px 20px 14px; display: grid; gap: 10px; }
   .tray-empty .ghosts { display: grid; gap: 6px; }
   .tray-empty .ghosts i { display: block; height: 36px; border-radius: 10px; border: 1.5px dashed var(--line-2); }
   .tray-empty p { font-size: 14px; color: var(--ink-2); }
-  .tray-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 10px 18px; border-top: 1px solid var(--line); background: var(--paper-2); font-size: 13px; color: var(--ink-2); }
-  .result { display: flex; align-items: center; gap: 4px; margin: -6px 18px 10px; font-size: 13px; color: var(--brand); font-weight: 600; }
+  .tray-link { display: flex; padding: 4px 12px 0 10px; }
+  .result { display: flex; align-items: center; gap: 4px; margin: -4px 20px 6px; font-size: 13px; color: var(--brand); font-weight: 600; }
   .result .btn { height: 28px; padding: 0 8px; font-size: 13px; }
 
-  .group { margin-top: 28px; scroll-margin-top: calc(var(--topbar-h) + 12px); }
-  .ghdr { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 4px 0 6px; width: 100%; text-align: left; }
-  .ghdr h3 { font-size: 15px; font-weight: 640; }
-  .ghdr .count { font-size: 13px; color: var(--ink-2); }
-  .ghdr .tag { margin-left: auto; }
-  .ghdr .chev { color: var(--ink-3); transition: transform var(--t-hover) var(--ease-out); }
-  .group[data-open="false"] .ghdr .chev { transform: rotate(-90deg); }
+  .group { margin-top: 24px; }
+  .sub { padding: 14px 0 4px 34px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
   .group[data-open="false"] .rows { display: none; }
-  .sub { padding: 14px 6px 6px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
-  .rows { background: var(--paper); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; margin-top: 6px; }
-  .rows .sub { background: var(--ground); border-top: 1px solid var(--line); }
-  .rows .sub:first-child { border-top: 0; }
-  .row { position: relative; display: grid; grid-template-columns: 18px 92px minmax(0, 1fr) auto 36px; align-items: center; gap: 12px; min-height: 48px; padding: 0 8px 0 14px; border-top: 1px solid var(--line); background: var(--paper); cursor: pointer; transition: background-color var(--t-hover) ease; }
-  .rows > .row:first-child, .rows > .sub + .row { border-top: 0; }
+  .row { position: relative; display: grid; grid-template-columns: 18px 88px minmax(0, 1fr) auto 36px; align-items: center; gap: 12px; min-height: 48px; padding: 0 6px 0 12px; border-radius: 10px; cursor: pointer; transition: background-color var(--t-hover) ease; }
+  .rows > .row + .row::before, .tray .row + .row::before { content: ""; position: absolute; left: 42px; right: 8px; top: 0; height: 1px; background: var(--line); }
   .row .code { font-size: 13px; }
   .row .t { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row .m { font-size: 13px; color: var(--ink-2); text-align: right; white-space: nowrap; }
   .row .m a { font-weight: 600; }
   .row .m.att { color: var(--attention); }
-  .row[data-s="locked"] .t { color: var(--ink-2); }
-  .row[data-s="done"] .t, .row[data-s="covered"] .t { color: var(--ink-2); }
+  .row[data-s="locked"] .t, .row[data-s="done"] .t, .row[data-s="covered"] .t { color: var(--ink-2); }
   .row .act { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; color: var(--brand-2); }
   .row.chosen { background: var(--brand-soft); }
   .row[data-selected="true"] { background: var(--brand-soft); box-shadow: inset 3px 0 0 var(--brand); }
-  .row-hit { position: absolute; inset: 0; z-index: 0; border-radius: 0; }
-  .row-hit:focus-visible { outline-offset: -3px; }
+  .row-hit { position: absolute; inset: 0; z-index: 0; border-radius: 10px; }
+  .row-hit:focus-visible { outline-offset: -2px; }
   .row > :not(.row-hit) { position: relative; z-index: 1; pointer-events: none; }
   .row > .act, .row .m a { pointer-events: auto; }
   .row .cdot { width: 12px; height: 12px; border-radius: 4px; margin: 3px; }
-  @media (hover: hover) and (pointer: fine) { .row:hover { background: var(--paper-2); } .row .act:hover { background: var(--brand-soft); } .row[data-selected="true"]:hover { background: var(--brand-soft); } }
-  .more { display: block; width: 100%; height: 40px; border-top: 1px solid var(--line); color: var(--brand-2); font-weight: 600; font-size: 13px; }
-  .flyer { position: fixed; z-index: 50; pointer-events: none; box-shadow: var(--shadow-2); border-radius: 10px; }
+  .tray .row { grid-template-columns: 18px 88px minmax(0, 1fr) 36px; margin: 0 8px; }
+  @media (hover: hover) and (pointer: fine) { .row:hover { background: rgba(26,46,26,.04); } .tray .row:hover { background: var(--paper-2); } .row .act:hover { background: var(--brand-soft); } .row[data-selected="true"]:hover { background: var(--brand-soft); } }
+  .more { display: block; width: 100%; height: 40px; margin-top: 2px; border-radius: 10px; color: var(--brand-2); font-weight: 600; font-size: 13px; text-align: left; padding-left: 42px; }
+  .flyer { position: fixed; z-index: 50; pointer-events: none; box-shadow: var(--shadow-2); border-radius: 10px; background: var(--paper); }
 
-  /* detail panel */
-  .panel { position: fixed; top: var(--topbar-h); right: 0; bottom: 0; width: 460px; z-index: 25; background: var(--paper); box-shadow: -1px 0 0 var(--line), -12px 0 32px -16px rgba(20,40,22,.18); display: flex; flex-direction: column; transform: translateX(24px); opacity: 0; visibility: hidden; transition: transform var(--t-exit) var(--ease-out), opacity var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
-  .panel.on { transform: none; opacity: 1; visibility: visible; transition: transform var(--t-enter) var(--ease-out), opacity var(--t-enter) var(--ease-out), visibility 0s; }
-  body.panel-open .layout { margin-right: 460px; }
-  .pbody { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-  .dhead { position: sticky; top: 0; z-index: 2; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 18px 20px 14px; display: grid; gap: 4px; box-shadow: 0 1px 0 var(--line); }
+  /* detail (panel on desktop, sheet on phone) */
+  .dhead { display: grid; gap: 4px; padding: 18px 12px 14px 20px; position: sticky; top: 0; z-index: 2; background: var(--paper); }
   .dhead .top { display: flex; align-items: center; gap: 10px; }
   .dhead .code { font-size: 22px; color: var(--brand); }
-  .dhead .close { margin-left: auto; margin-right: -8px; }
-  .dhead h2 { font-size: 18px; line-height: 24px; font-weight: 620; }
+  .dhead .close { margin-left: auto; }
+  .dhead h2 { font-size: 18px; line-height: 24px; font-weight: 620; padding-right: 8px; }
   .dstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
-  .dsec { padding: 18px 20px; border-top: 1px solid var(--line); }
-  .dsec:first-child { border-top: 0; }
-  .dsec h3 { font-size: 15px; font-weight: 640; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .dsec h3 .tag { margin-left: auto; }
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
-  .links .btn { height: 32px; font-size: 13px; padding: 0 10px; }
-  .links .btn .i { width: 14px; height: 14px; color: var(--ink-3); }
-  .hpath { display: flex; align-items: flex-start; gap: 0; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .dsec { padding: 18px 20px; }
+  .dsec + .dsec { border-top: 1px solid var(--line); }
+  .dsec h3 { font-size: 15px; font-weight: 650; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .actions { display: grid; gap: 8px; justify-items: start; }
+  .hpath { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .hpath .node { position: relative; display: grid; justify-items: center; gap: 6px; min-width: 88px; text-align: center; }
   .hpath .node::before { content: ""; position: absolute; top: 11px; left: -50%; width: 100%; height: 4px; background: var(--brand-2); box-shadow: 0 0 0 2px var(--paper); z-index: 0; }
   .hpath .node:first-child::before { display: none; }
@@ -105,7 +77,7 @@
   .hpath .node.todo .dot { background: var(--paper); box-shadow: inset 0 0 0 2px var(--ink-4), 0 0 0 2.5px var(--paper); color: var(--ink-3); }
   .hpath .code { font-size: 12px; } .hpath .meta { font-size: 11.5px; line-height: 14px; }
   .hpath button.code { color: var(--brand-2); }
-  .rule { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--paper-2); font-size: 13px; line-height: 19px; color: var(--ink-2); }
+  .rule { margin-top: 12px; font-size: 13px; line-height: 19px; color: var(--ink-2); }
   .rule b { color: var(--ink); font-weight: 600; }
   .rule .ok { color: var(--brand); font-weight: 600; }
   .ipills { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px 14px; padding: 0 20px; }
@@ -120,7 +92,8 @@
   .hbar .fill { height: 100%; border-radius: 4px; background: var(--brand); transform-origin: left; transition: transform 240ms var(--ease-out); }
   .hbar .pct { text-align: right; color: var(--ink-2); }
   .fallback { margin-bottom: 12px; font-size: 13px; color: var(--attention); }
-  .src { margin-top: 12px; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); }
+  .src { margin-top: 12px; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--ink-2); }
+  .src a { font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
   .miniweek { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; height: 112px; margin-bottom: 4px; }
   .miniweek > div { position: relative; border-radius: 6px; background: var(--paper-2); }
   .miniweek .blk { position: absolute; left: 3px; right: 3px; border-radius: 3px; background: var(--ct); box-shadow: inset 2px 0 0 var(--c); }
@@ -128,8 +101,8 @@
   .miniweek .ghost.bad { border-color: var(--danger); background: rgba(179,38,30,.1); }
   .miniweek .ghost.on { opacity: 1; }
   .mw-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; font-size: 11px; color: var(--ink-2); text-align: center; margin-bottom: 4px; }
-  .sect { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
-  .sect:first-of-type { border-top: 0; }
+  .sect { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; }
+  .sect + .sect { border-top: 1px solid var(--line); }
   .sect .add { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--brand); color: #fff; transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease; }
   @media (prefers-reduced-motion: no-preference) { .sect .add:active { transform: scale(.94); } }
   .sect .add.on { background: var(--brand-soft); color: var(--brand); }
@@ -145,31 +118,30 @@
   .desc { font-size: 14px; line-height: 21px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .desc.open { -webkit-line-clamp: unset; }
 
-  /* major picker */
-  .mlist { max-height: 360px; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+  /* degree dialog: major search, catalog year, transcript source */
+  .mlist { max-height: 300px; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
   .mrow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 0 12px; border-radius: 10px; text-align: left; }
-  .mrow .meta { margin-left: auto; }
   .mrow[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
-  .mrow[aria-pressed="true"]::after { content: ""; width: 18px; height: 18px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' stroke='black' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' stroke='black' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; }
+  .mrow[aria-pressed="true"]::after { content: ""; margin-left: auto; width: 18px; height: 18px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' stroke='black' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' stroke='black' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; }
   @media (hover: hover) and (pointer: fine) { .mrow:hover:not([aria-pressed="true"]) { background: var(--paper-2); } }
+  .msrc { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+  .msrc .btn { margin-left: auto; }
 
-  @media (prefers-reduced-motion: reduce) { .panel, .panel.on { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; } .panel.on { transition: opacity 120ms ease, visibility 0s; } }
-  @media (max-width: 1199px) { body.panel-open .layout { margin-right: 0; } .panel { box-shadow: var(--shadow-3); } }
-  @media (max-width: 1023px) { .layout { grid-template-columns: 1fr; } .rail { display: none; } main { padding: 20px 24px 96px; margin: 0 auto; } }
   @media (max-width: 759px) {
-    main { padding: 4px 12px calc(var(--tabbar-h) + 32px + var(--safe-b)); }
-    .msearch { position: sticky; top: calc(var(--header-h) + var(--safe-t)); z-index: 20; padding: 4px 4px 10px; background: linear-gradient(var(--ground) 80%, rgba(244,246,243,0)); }
-    .mmajor { display: flex; align-items: center; gap: 10px; padding: 6px 4px 14px; }
-    .mmajor .bar { flex: 1; }
-    .row { grid-template-columns: 18px minmax(0, 1fr) 36px; grid-template-rows: auto auto; column-gap: 12px; row-gap: 0; padding: 8px 6px 8px 12px; min-height: 58px; }
+    .pair { padding: 0 12px calc(var(--tabbar-h) + 32px + var(--safe-b)); }
+    .msearch { position: sticky; top: calc(var(--header-h) + var(--safe-t)); z-index: 20; padding: 4px 0 8px; background: linear-gradient(var(--ground) 80%, rgba(244,246,243,0)); }
+    .deg { margin: 2px 2px 12px; gap: 8px; } .degbtn { font-size: 14px; } .deg .prog { font-size: 13px; }
+    .row { grid-template-columns: 18px minmax(0, 1fr) 40px; grid-template-rows: auto auto; column-gap: 12px; row-gap: 0; padding: 8px 4px 8px 10px; min-height: 58px; }
     .row > svg.sg, .row > .cdot { grid-row: 1 / 3; }
     .row .code { grid-column: 2; grid-row: 1; align-self: end; }
     .row .t { grid-column: 2; grid-row: 2; font-size: 15px; }
     .row .m { grid-column: 2; grid-row: 1; justify-self: end; align-self: end; font-size: 12.5px; max-width: 58%; overflow: hidden; text-overflow: ellipsis; }
     .row .act { grid-column: 3; grid-row: 1 / 3; width: 40px; height: 40px; }
-    .tray-head { padding: 14px 12px 12px 16px; flex-wrap: wrap; }
-    .group { margin-top: 22px; }
-    .panel { display: none; }
+    .tray .row { grid-template-columns: 18px minmax(0, 1fr) 40px; margin: 0 4px; }
+    .rows > .row + .row::before, .tray .row + .row::before { left: 40px; }
+    .sub { padding-left: 40px; }
+    .tray-head { padding: 12px 10px 8px 16px; }
+    .group { margin-top: 18px; }
   }
 </style>
 </head>
@@ -178,52 +150,43 @@
   <span class="wordmark">UNTangle</span>
   <nav class="seg" id="views" aria-label="Views"><button type="button" aria-pressed="true">Courses</button><button type="button" data-href="03-schedule-builder.html">Week</button><button type="button" data-href="04-day-map.html">Day</button></nav>
   <button class="search" type="button" data-i="search"><span>Search courses or class numbers</span><kbd class="kbd">⌘K</kbd></button>
-  <a class="sched-pill" href="05-schedules-library.html"><span class="dot"></span>Spring 2027 <span class="meta">· Main</span></a>
+  <a class="sched-pill" href="05-schedules-library.html" aria-label="Schedule: Spring 2027, Main. Switch schedule"><span class="dot"></span><span class="when">Spring 2027</span>Main</a>
   <a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a>
 </header>
 <header class="pheader only-phone">
   <span class="wordmark">UNTangle</span>
-  <a class="sched-pill" href="05-schedules-library.html">Spring 27 <span class="meta">· Main</span></a>
+  <a class="sched-pill" href="05-schedules-library.html" aria-label="Schedule: Spring 2027, Main. Switch schedule"><span class="when">Spring 27</span>Main</a>
   <a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a>
 </header>
 
-<div class="layout">
-  <aside class="rail" aria-label="Degree">
-    <button class="major" type="button" data-act="major"><span><strong>Computer Science, BS</strong><span class="meta">UNT catalog 2026–27</span></span>${chev}</button>
-    <div class="progress">
-      <div class="fig"><b id="credFig">39</b>of 120 credits</div>
-      <div class="bar" id="bar"><i class="b-done" style="flex-grow:30"></i><i class="b-taking" style="flex-grow:9"></i><i class="b-planned" style="flex-grow:0"></i><i style="flex-grow:81"></i></div>
-      <div class="legend"><span><i style="background:var(--ink-2)"></i>Done 30</span><span><i style="background:var(--accent)"></i>Taking 9</span><span id="legPlanned"><i style="background:var(--brand)"></i>Planned 0</span></div>
-    </div>
-    <nav class="index" id="index" aria-label="Sections"></nav>
-    <div class="rail-foot"><span class="tag" style="justify-self:start">From transcript · Oct 13</span><a class="btn btn-quiet btn-sm" href="01-first-visit-import.html" style="justify-self:start;margin-left:-10px">Import again</a></div>
-  </aside>
+<div class="pair">
   <main id="main">
     <div class="msearch only-phone"><label class="searchfield" data-i="search"><input placeholder="Search courses or class numbers" aria-label="Search courses"></label></div>
-    <button class="mmajor only-phone" type="button" data-act="major" style="width:100%;text-align:left"><span style="font-weight:620">Computer Science, BS</span><span class="bar" id="pbar"><i class="b-done" style="flex-grow:30"></i><i class="b-taking" style="flex-grow:9"></i><i class="b-planned" style="flex-grow:0"></i><i style="flex-grow:81"></i></span><span class="meta" id="pfig">39/120</span></button>
+    <div class="deg"><button class="degbtn" type="button" data-act="major" aria-haspopup="dialog">Computer Science, BS<svg class="i" aria-hidden="true"><use href="#i-chevD"/></svg></button><span class="prog" id="prog"></span></div>
     <section class="tray" id="tray" aria-labelledby="trayTitle"></section>
     <div id="groups"></div>
   </main>
+  <aside class="cpanel" id="panel" aria-label="Course detail"><div class="pscroll" id="pbody"></div></aside>
 </div>
-
-<aside class="panel" id="panel" aria-label="Course detail" aria-hidden="true"><div class="pbody" id="pbody"></div></aside>
 
 <div class="scrim" id="scrim"></div>
 <section class="sheet only-phone" id="sheet" aria-label="Course detail" aria-hidden="true"><div class="grabber"></div><div class="sheet-body" id="sbody"></div></section>
 
 <div class="scrim" id="mscrim"></div>
 <div class="dialog-wrap" id="mwrap" style="display:none"><div class="dialog" id="mdialog" role="dialog" aria-modal="true" aria-labelledby="mtitle" style="width:min(460px,100%);padding:20px">
-  <div style="display:flex;align-items:center;margin-bottom:14px"><h2 class="title" id="mtitle">Your major</h2><button class="btn btn-ink btn-icon btn-sm" data-act="mclose" aria-label="Close" style="margin-left:auto" data-i="close"></button></div>
+  <div style="display:flex;align-items:center;margin-bottom:14px"><h2 class="title" id="mtitle">Your degree</h2><button class="btn btn-ink btn-icon btn-sm" data-act="mclose" aria-label="Close" style="margin-left:auto" data-i="close"></button></div>
   <label class="searchfield" data-i="search" style="margin-bottom:12px"><input id="mq" placeholder="Search majors" aria-label="Search majors"></label>
-  <div class="seg sm" id="cat" style="margin-bottom:12px;width:100%"><button type="button" aria-pressed="false">Catalog 2025–26</button><button type="button" aria-pressed="true">Catalog 2026–27</button></div>
+  <div class="seg sm" id="cat" style="margin-bottom:12px;width:100%" aria-label="Catalog year"><button type="button" aria-pressed="false">Catalog 2025–26</button><button type="button" aria-pressed="true">Catalog 2026–27</button></div>
   <div class="mlist" id="mlist" role="group" aria-label="Majors"></div>
+  <div class="msrc"><span>From your transcript, read Oct 13</span><a class="btn btn-quiet btn-sm" href="01-first-visit-import.html">Import again</a></div>
 </div></div>
 
 <nav class="tabbar only-phone" aria-label="Views"><a aria-current="page" href="02-courses.html" data-i="courses">Courses</a><a href="03-schedule-builder.html" data-i="week">Week</a><a href="04-day-map.html" data-i="day">Day</a></nav>
 
 <!--BASE_JS-->
 <script>
-$(".major").innerHTML = $(".major").innerHTML.replace("${chev}", icon("chevR"));
+/* code: [title, credits, status, requirement, prerequisites, unlocks, note]
+   note: the reason for "check", ["term", "grade"] for done, "Covered by ..." for covered */
 const COURSES = {
   "CSCE 2110": ["Foundations of Data Structures", 3, "available", "Major", ["CSCE 1040", "CSCE 2100"], ["CSCE 3110", "CSCE 3600", "CSCE 3444", "CSCE 3550"]],
   "CSCE 2610": ["Assembly Language and Computer Organization", 3, "available", "Major", ["CSCE 1040"], ["CSCE 3600", "CSCE 3612"]],
@@ -247,60 +210,65 @@ const COURSES = {
   "CSCE 3550": ["Foundations of Cybersecurity", 3, "locked", "Major", ["CSCE 2110"], []],
   "CSCE 4110": ["Algorithms", 3, "locked", "Major", ["CSCE 3110"], []],
   "CSCE 4290": ["Introduction to Machine Learning", 3, "locked", "Major", ["CSCE 3110", "MATH 3680"], []],
-  "CSCE 1040": ["Computer Science II", 3, "done", "Major", [], [], "Fall 2025 · A"],
+  "CSCE 1040": ["Computer Science II", 3, "done", "Major", [], [], ["Fall 2025", "A"]],
   "CSCE 1030": ["Computer Science I", 4, "covered", "Major", [], [], "Covered by CSCE 1040"],
-  "MATH 1710": ["Calculus I", 3, "done", "Math and science", [], [], "Fall 2025 · B"],
-  "MATH 1720": ["Calculus II", 3, "done", "Math and science", [], [], "Spring 2026 · B"],
-  "ENGL 1310": ["College Writing I", 3, "done", "Core curriculum", [], [], "Fall 2025 · A"],
-  "HIST 2610": ["U.S. History to 1865", 3, "done", "Core curriculum", [], [], "Fall 2025 · A"],
-  "HIST 2620": ["U.S. History since 1865", 3, "done", "Core curriculum", [], [], "Spring 2026 · B"],
-  "PSCI 2305": ["U.S. Political Behavior", 3, "done", "Core curriculum", [], [], "Fall 2025 · A"],
-  "PSCI 2306": ["U.S. and Texas Government", 3, "done", "Core curriculum", [], [], "Spring 2026 · A"],
-  "COMM 1010": ["Intro to Communication", 3, "done", "Core curriculum", [], [], "Spring 2026 · A"],
-  "PHIL 1050": ["Introduction to Philosophy", 3, "done", "Core curriculum", [], [], "Spring 2026 · A"],
+  "MATH 1710": ["Calculus I", 3, "done", "Math and science", [], [], ["Fall 2025", "B"]],
+  "MATH 1720": ["Calculus II", 3, "done", "Math and science", [], [], ["Spring 2026", "B"]],
+  "ENGL 1310": ["College Writing I", 3, "done", "Core curriculum", [], [], ["Fall 2025", "A"]],
+  "HIST 2610": ["U.S. History to 1865", 3, "done", "Core curriculum", [], [], ["Fall 2025", "A"]],
+  "HIST 2620": ["U.S. History since 1865", 3, "done", "Core curriculum", [], [], ["Spring 2026", "B"]],
+  "PSCI 2305": ["U.S. Political Behavior", 3, "done", "Core curriculum", [], [], ["Fall 2025", "A"]],
+  "PSCI 2306": ["U.S. and Texas Government", 3, "done", "Core curriculum", [], [], ["Spring 2026", "A"]],
+  "COMM 1010": ["Intro to Communication", 3, "done", "Core curriculum", [], [], ["Spring 2026", "A"]],
+  "PHIL 1050": ["Introduction to Philosophy", 3, "done", "Core curriculum", [], [], ["Spring 2026", "A"]],
 };
 const LOCKED_MORE = 23;
-/* Auto's picks: course, color (department-clustered), section summary */
-const PICKS = [["CSCE 2110", 3, "§001 · MWF 9:00"], ["CSCE 2610", 6, "§002 · TR 12:30"], ["MATH 2700", 1, "§003 · MWF 10:00"], ["PHYS 2220", 4, "§002 · MW 11:00"], ["TECM 2700", 5, "§900 · Online"]];
+const DONE_CR = 30, TAKING_CR = 9;
+/* Auto's picks: course, color (department-clustered), section */
+const PICKS = [["CSCE 2110", 3, "§001"], ["CSCE 2610", 6, "§002"], ["MATH 2700", 1, "§003"], ["PHYS 2220", 4, "§002"], ["TECM 2700", 5, "§900"]];
 const planned = new Map(); // code -> {c, sec}
 let selected = null;
 const st = Q.get("state") || "imported";
 
 const statusOf = (code) => (planned.has(code) ? "planned" : COURSES[code][2]);
-const link = (code) => `<a href="#" data-open="${code}">${code}</a>`;
+const link = (code) => `<a href="#" data-course="${code}">${code}</a>`;
+const LABEL = { available: "Can take", locked: "Locked", check: "Check with an advisor", done: "Done", covered: "Covered", taking: "Taking now", planned: "Planned" };
+/* the one fact a row carries: why it is waiting, what it needs, or the grade */
 function metaFor(code) {
   const [, , s, , needs, , note] = COURSES[code];
-  if (planned.has(code)) return planned.get(code).sec;
-  if (s === "locked") { const miss = needs.filter((n) => !["done", "covered", "taking"].includes(COURSES[n]?.[2]) && !planned.has(n)); return miss.length ? "Needs " + miss.map(link).join(" + ") : "Opens after Spring 2027"; }
+  if (s === "locked") { const miss = needs.filter((n) => !["done", "covered", "taking"].includes(COURSES[n]?.[2]) && !planned.has(n)); return miss.length ? "Needs " + miss.map(link).join(" and ") : "Opens after Spring 2027"; }
   if (s === "check") return note;
-  if (s === "taking") return "Taking now";
-  if (s === "done" || s === "covered") return note;
+  if (s === "done") return "Grade " + note[1];
+  if (s === "covered") return note;
   return "";
 }
 function row(code, inTray) {
-  const [t, cr, s] = COURSES[code]; const S = statusOf(code);
-  const lead = inTray ? `<span class="cdot" data-c="${planned.get(code).c}"></span>` : sg(S === "planned" ? "planned" : s, { available: "Can take", locked: "Locked", check: "Check with an advisor", done: "Done", covered: "Covered", taking: "Taking now", planned: "Planned" }[S]);
+  const [t, , s] = COURSES[code]; const S = statusOf(code);
+  const lead = inTray ? `<span class="cdot" data-c="${planned.get(code).c}"></span>` : sg(S === "planned" ? "planned" : s, LABEL[S]);
   const act = inTray ? `<button class="act" data-rm="${code}" aria-label="Remove ${code} from Spring 2027">${icon("minus")}</button>`
     : S === "available" ? `<button class="act" data-add="${code}" aria-label="Add ${code} to Spring 2027">${icon("plus")}</button>` : "<span></span>";
-  return `<div class="row" data-key="${inTray ? "t-" : ""}${code}" data-code="${code}" data-s="${S}" data-selected="${selected === code}"><button class="row-hit" aria-label="${code} ${t}, details" aria-current="${selected === code}"></button>${lead}<span class="code">${code}</span><span class="t">${t}</span><span class="m ${s === "check" && !inTray ? "att" : ""}">${metaFor(code)}</span>${act}</div>`;
+  const meta = inTray ? "" : `<span class="m ${s === "check" ? "att" : ""}">${metaFor(code)}</span>`;
+  return `<div class="row" data-key="${inTray ? "t-" : ""}${code}" data-code="${code}" data-s="${S}" data-selected="${selected === code}"><button class="row-hit" aria-label="${code} ${t}, details" aria-current="${selected === code}"></button>${lead}<span class="code">${code}</span><span class="t">${t}</span>${meta}${act}</div>`;
 }
 
+/* open groups show their rows, so only collapsed groups carry a count */
 const GROUPS = [
-  { id: "check", title: "To check", filter: (s) => s === "check", open: true, tag: "" },
-  { id: "can", title: "You can take", filter: (s) => s === "available", open: true, tag: "Degree plan 2026–27", sub: true },
-  { id: "taking", title: "Taking now", filter: (s) => s === "taking", open: true, tag: "Fall 2026" },
-  { id: "later", title: "Later", filter: (s) => s === "locked", open: false, tag: "", extra: LOCKED_MORE },
-  { id: "done", title: "Done", filter: (s) => s === "done" || s === "covered", open: false, tag: "From transcript" },
+  { id: "check", title: "To check", filter: (s) => s === "check", open: true },
+  { id: "can", title: "You can take", filter: (s) => s === "available", open: true, sub: true },
+  { id: "taking", title: "Taking now", filter: (s) => s === "taking", open: false },
+  { id: "later", title: "Later", filter: (s) => s === "locked", open: false, extra: LOCKED_MORE },
+  { id: "done", title: "Done", filter: (s) => s === "done" || s === "covered", open: false },
 ];
 const openState = Object.fromEntries(GROUPS.map((g) => [g.id, Q.get("open") === "all" ? true : g.open]));
+const plannedCredits = () => [...planned.keys()].reduce((a, c) => a + COURSES[c][1], 0);
 
 function renderTray() {
-  const cred = [...planned.keys()].reduce((a, c) => a + COURSES[c][1], 0);
+  const cred = plannedCredits();
   $("#tray").innerHTML = `
-    <div class="tray-head"><div><h2 id="trayTitle">Spring 2027</h2><div class="meta">Main schedule · <b id="trayCred">${cred}</b> credits</div></div>
-      <div class="acts"><button class="btn btn-primary" id="auto" data-i="trayin">Auto</button></div></div>
-    ${planned.size ? `<div class="rows" id="trayRows" style="margin:0 12px 12px">${[...planned.keys()].map((c) => row(c, true)).join("")}</div>
-      <div class="tray-foot" data-key="tray-foot"><span>Mon–Fri · 9:00–1:50 · 1 online</span><a class="btn btn-quiet btn-sm" href="03-schedule-builder.html">Open in Week ${icon("chevR", "sm")}</a></div>`
+    <div class="tray-head"><div><h2 id="trayTitle">Spring 2027</h2><div class="meta"><span id="trayCred">${cred}</span> credits</div></div>
+      <button class="btn btn-primary" id="auto" data-i="trayin">Auto</button></div>
+    ${planned.size ? `<div id="trayRows">${[...planned.keys()].map((c) => row(c, true)).join("")}</div>
+      <div class="tray-link" data-key="tray-link"><a class="btn btn-quiet btn-sm" href="03-schedule-builder.html">Open in Week ${icon("chevR", "sm")}</a></div>`
     : `<div class="tray-empty"><div class="ghosts" id="trayRows"><i></i><i></i><i></i></div><p data-key="tray-empty">Auto fills this term from courses you can take, then picks sections that fit.</p></div>`}`;
   hydrateIcons($("#tray"));
   $("#auto").onclick = runAuto;
@@ -310,29 +278,24 @@ function renderGroups() {
   $("#groups").innerHTML = GROUPS.map((g) => {
     const list = codes.filter((c) => !planned.has(c) && g.filter(COURSES[c][2]));
     const n = list.length + (g.extra || 0);
+    if (!n) return "";
     let body = "";
     if (g.sub) { const by = {}; list.forEach((c) => (by[COURSES[c][3]] ||= []).push(c)); body = Object.entries(by).map(([k, v]) => `<div class="sub" data-key="sub-${k}">${k}</div>${v.map((c) => row(c)).join("")}`).join(""); }
     else body = list.map((c) => row(c)).join("");
     if (g.extra) body += `<button class="more" data-key="more-${g.id}" type="button">Show ${g.extra} more</button>`;
-    return `<section class="group" id="g-${g.id}" data-key="g-${g.id}" data-open="${openState[g.id]}"><button class="ghdr" data-key="h-${g.id}" type="button" aria-expanded="${openState[g.id]}" data-toggle="${g.id}"><h3>${g.title}</h3><span class="count">${n}</span>${g.tag ? `<span class="tag">${g.tag}</span>` : '<span style="margin-left:auto"></span>'}${icon("chevD", "chev sm")}</button><div class="rows">${body}</div></section>`;
+    const open = openState[g.id];
+    return `<section class="group" id="g-${g.id}" data-key="g-${g.id}" data-open="${open}"><button class="ghdr" data-key="h-${g.id}" type="button" aria-expanded="${open}" data-toggle="${g.id}"><h3>${g.title}</h3>${open ? "" : `<span class="count">${n}</span>`}${icon("chevD", "chev sm")}</button><div class="rows">${body}</div></section>`;
   }).join("");
-  $("#index").innerHTML = `<a href="#tray" aria-current="true">Spring 2027<b>${[...planned.keys()].reduce((a, c) => a + COURSES[c][1], 0)} cr</b></a>` + GROUPS.map((g) => `<a href="#g-${g.id}">${g.title}<b>${Object.keys(COURSES).filter((c) => !planned.has(c) && g.filter(COURSES[c][2])).length + (g.extra || 0)}</b></a>`).join("");
 }
-function renderProgress() {
-  const p = [...planned.keys()].reduce((a, c) => a + COURSES[c][1], 0);
-  $$("#bar .b-planned, #pbar .b-planned").forEach((i) => (i.style.flexGrow = p));
-  $$("#bar i:last-child, #pbar i:last-child").forEach((i) => (i.style.flexGrow = 81 - p));
-  $("#credFig").textContent = 39 + p; $("#pfig").textContent = `${39 + p}/120`;
-  $("#legPlanned").lastChild.textContent = "Planned " + p;
-}
-const allNodes = () => $$("#main .row, #main .sub, #main .ghdr, #main .more, #tray .tray-foot, .tray-empty p");
+function renderProgress() { $("#prog").textContent = `${DONE_CR + TAKING_CR + plannedCredits()} of 120 credits`; }
+const allNodes = () => $$("#main .row, #main .sub, #main .ghdr, #main .more, #tray .tray-link, .tray-empty p");
 function renderAll() { renderTray(); renderGroups(); renderProgress(); }
 
 /* Auto: rows travel from the list into the term; the counter rises as each lands */
 let lastAuto = null;
 async function runAuto() {
   const btn = $("#auto"); const w = btn.offsetWidth;
-  btn.style.width = w + "px"; btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+  btn.style.width = w + "px"; btn.innerHTML = '<span class="spin"></span><span class="sr">Planning</span>'; btn.disabled = true;
   await new Promise((r) => setTimeout(r, 450));
   const picks = PICKS.filter(([c]) => !planned.has(c));
   picks.forEach(([c]) => { const r = $(`.row[data-key="${c}"]`); r && r.classList.add("chosen"); });
@@ -342,7 +305,7 @@ async function runAuto() {
   lastAuto = picks.map(([c]) => c);
   flip(allNodes, () => { picks.forEach(([c, col, sec]) => planned.set(c, { c: col, sec })); renderAll(); }, { duration: 320, easing: EASE.inOut });
   $("#trayCred").textContent = "0";
-  const head = $(".tray-head"); head.insertAdjacentHTML("afterend", `<p class="result" id="result" style="opacity:0">Planned ${picks.length} courses<button class="btn btn-quiet" id="undo" data-i="undo" data-is="sm">Undo</button></p>`);
+  $(".tray-head").insertAdjacentHTML("afterend", `<p class="result" id="result" style="opacity:0">Planned ${picks.length} courses<button class="btn btn-quiet" id="undo" data-i="undo" data-is="sm">Undo</button></p>`);
   hydrateIcons($("#result")); $("#undo").onclick = undoAuto;
   let cred = 0;
   picks.forEach(([c], i) => {
@@ -367,90 +330,89 @@ function undoAuto() {
   toast("Spring 2027 is back to how it was");
 }
 
-/* one-tap add / remove from rows */
+/* one-tap add and remove from rows */
 document.addEventListener("click", (e) => {
   const add = e.target.closest("[data-add]"), rm = e.target.closest("[data-rm]");
-  if (add) { e.stopPropagation(); const c = add.dataset.add; flip(allNodes, () => { planned.set(c, { c: 2, sec: "Section picked in Week" }); renderAll(); }, { duration: 260 }); toast(`Added ${c} to Spring 2027`, "Undo", () => { flip(allNodes, () => { planned.delete(c); renderAll(); }); }); return; }
-  if (rm) { e.stopPropagation(); const c = rm.dataset.rm; const prev = planned.get(c); flip(allNodes, () => { planned.delete(c); renderAll(); }, { duration: 260 }); toast(`Removed ${c}`, "Undo", () => flip(allNodes, () => { planned.set(c, prev); renderAll(); })); return; }
+  if (add) { e.stopPropagation(); const c = add.dataset.add; flip(allNodes, () => { planned.set(c, { c: 2, sec: "" }); renderAll(); }, { duration: 260 }); if (selected) openDetail(selected, true); toast(`Added ${c} to Spring 2027`, "Undo", () => { flip(allNodes, () => { planned.delete(c); renderAll(); }); }); return; }
+  if (rm) { e.stopPropagation(); const c = rm.dataset.rm; const prev = planned.get(c); flip(allNodes, () => { planned.delete(c); renderAll(); }, { duration: 260 }); if (selected) openDetail(selected, true); toast(`Removed ${c}`, "Undo", () => flip(allNodes, () => { planned.set(c, prev); renderAll(); })); return; }
   const t = e.target.closest("[data-toggle]");
-  if (t) { const g = t.dataset.toggle; openState[g] = !openState[g]; const sec = t.closest(".group"); sec.dataset.open = openState[g]; t.setAttribute("aria-expanded", openState[g]); return; }
-  const o = e.target.closest("[data-open]"); if (o) { e.preventDefault(); e.stopPropagation(); openDetail(o.dataset.open); return; }
-  const r = e.target.closest(".row"); if (r) { openDetail(r.dataset.code); return; }
+  if (t) { const g = t.dataset.toggle; openState[g] = !openState[g]; renderGroups(); markSelected(); $(`[data-toggle="${g}"]`).focus(); return; }
+  const o = e.target.closest("[data-course]"); if (o) { e.preventDefault(); e.stopPropagation(); openDetail(o.dataset.course, e.detail === 0); return; }
+  const r = e.target.closest(".row"); if (r) { openDetail(r.dataset.code, e.detail === 0); return; }
   const v = e.target.closest("[data-href]"); if (v) location.href = v.dataset.href;
   if (e.target.closest('[data-act="major"]')) openMajor();
   if (e.target.closest('[data-act="mclose"]')) closeMajor();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { if ($("#mwrap").style.display !== "none") closeMajor(); else closeDetail(); }
+  if (e.key === "Escape") { if ($("#mwrap").style.display !== "none") closeMajor(); else closeDetail(true); }
   if (selected && (e.key === "ArrowDown" || e.key === "ArrowUp") && !e.target.closest("input")) {
     const rows = $$("#main .row"); const i = rows.findIndex((x) => x.dataset.code === selected);
     const n = rows[i + (e.key === "ArrowDown" ? 1 : -1)]; if (n) { e.preventDefault(); openDetail(n.dataset.code, true); n.querySelector(".row-hit").focus(); }
   }
 });
 
-/* detail: same content in a side panel (desktop) or a sheet (phone) */
+/* detail: a contextual panel on desktop, a sheet on phone */
 const seeded = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return () => ((h = (h * 1664525 + 1013904223) >>> 0) / 2 ** 32); };
 const SCHED = [["CSCE 2110", 3, [0, 2, 4], 9, 9.83], ["MATH 2700", 1, [0, 2, 4], 10, 10.83], ["PHYS 2220", 4, [0, 2], 11, 11.83], ["CSCE 2610", 6, [1, 3], 12.5, 13.83]];
 function sectionsFor(code) {
   if (code === "MATH 3680") return [
-    { n: "001", days: [0, 2, 4], s: 10, e: 10.83, d: "MWF 10:00–10:50", who: "A. Okafor", r: 3.8, b: ["CURY", "204"], cls: "23418", seats: "18 open", conflict: "Overlaps MATH 2700 on Mon, Wed, Fri" },
-    { n: "002", days: [1, 3], s: 9.5, e: 10.83, d: "TR 9:30–10:50", who: "S. Patel", r: 4.4, b: ["GAB", "310"], cls: "23419", seats: "6 open" },
-    { n: "003", days: [0, 2], s: 14, e: 15.33, d: "MW 2:00–3:20", who: "J. Kim", r: 3.7, b: ["LANG", "114"], cls: "23420", seats: "Full · 4 on waitlist", full: true },
-    { n: "900", days: [], d: "Online · no set time", who: "M. Lee", r: 4.0, b: null, cls: "23421", seats: "22 open" },
+    { n: "001", days: [0, 2, 4], s: 10, e: 10.83, d: "MWF 10:00–10:50", who: "A. Okafor", r: 3.8, b: ["CURY", "204"], seats: "18 open", conflict: "Overlaps MATH 2700 on Mon, Wed and Fri" },
+    { n: "002", days: [1, 3], s: 9.5, e: 10.83, d: "TR 9:30–10:50", who: "S. Patel", r: 4.4, b: ["GAB", "310"], seats: "6 open" },
+    { n: "003", days: [0, 2], s: 14, e: 15.33, d: "MW 2:00–3:20", who: "J. Kim", r: 3.7, b: ["LANG", "114"], seats: "Full, 4 waiting", full: true },
+    { n: "900", days: [], d: "Online, no set time", who: "M. Lee", r: 4.0, b: null, seats: "22 open" },
   ];
   const r = seeded(code), b = ["GAB", "LIFE", "CURY", "ESSC", "SAGE"];
-  return [0, 1, 2].map((i) => { const tr = r() > 0.5; const s = 8 + Math.floor(r() * 7); return { n: "00" + (i + 1), days: tr ? [1, 3] : [0, 2, 4], s, e: s + (tr ? 1.33 : 0.83), d: `${tr ? "TR" : "MWF"} ${s > 12 ? s - 12 : s}:${tr ? "30" : "00"}`, who: ["H. Wang", "M. Delgado", "R. Shah"][i], r: +(3.4 + r() * 1.3).toFixed(1), b: [b[Math.floor(r() * 5)], String(100 + Math.floor(r() * 400))], cls: String(21000 + Math.floor(r() * 9000)), seats: Math.floor(r() * 30) + " open" }; });
+  return [0, 1, 2].map((i) => { const tr = r() > 0.5; const s = 8 + Math.floor(r() * 7); return { n: "00" + (i + 1), days: tr ? [1, 3] : [0, 2, 4], s, e: s + (tr ? 1.33 : 0.83), d: `${tr ? "TR" : "MWF"} ${s > 12 ? s - 12 : s}:${tr ? "30" : "00"}`, who: ["H. Wang", "M. Delgado", "R. Shah"][i], r: +(3.4 + r() * 1.3).toFixed(1), b: [b[Math.floor(r() * 5)], String(100 + Math.floor(r() * 400))], seats: Math.floor(r() * 30) + " open" }; });
 }
 const GRADES = { All: [29, 30, 20, 7, 6, 8, 2.84, "2,318", 41], "A. Okafor": [24, 31, 23, 9, 6, 7, 2.69, "612", 11], "S. Patel": [38, 31, 16, 5, 4, 6, 3.11, "844", 14], "J. Kim": [22, 29, 25, 10, 7, 7, 2.58, "530", 9] };
 let instr = "All";
+const gradeOf = (n) => { const x = COURSES[n]; if (!x) return ""; if (x[2] === "taking") return "taking now"; if (x[2] === "done") return x[6][1]; if (x[2] === "covered") return x[6].replace("Covered by", "via"); return ""; };
 function detailHTML(code) {
-  const [t, cr, s, req, needs, unlocks, note] = COURSES[code] || [code, 3, "available", "", [], []];
+  const [t, cr, s, , needs, unlocks, note] = COURSES[code] || [code, 3, "available", "", [], []];
   const S = statusOf(code);
-  const statusText = { available: "You can take this", planned: `Planned · ${planned.get(code)?.sec || ""}`, locked: metaFor(code).replace(/<[^>]+>/g, ""), check: "Check with an advisor · " + (note || ""), done: "Done · " + note, covered: note, taking: "Taking now" }[S];
+  const statusText = { available: "You can take this", planned: "Planned for Spring 2027", locked: metaFor(code).replace(/<[^>]+>/g, ""), check: note, done: s === "done" ? `Done in ${note[0]} with ${/^[AEIOU]/.test(note[1]) ? "an" : "a"} ${note[1]}` : "", covered: note, taking: "Taking now" }[S];
   const secs = sectionsFor(code);
   const g = GRADES[instr] || GRADES.All;
   const has = (n) => ["done", "covered", "taking"].includes(COURSES[n]?.[2]);
+  const noInstr = instr === "All";
   return `
   <header class="dhead"><div class="top"><span class="code">${code}</span><span class="tag">${cr} credits</span><button class="btn btn-ink btn-icon btn-sm close" data-close aria-label="Close" data-i="close"></button></div>
-    <h2>${t}</h2><span class="dstatus">${sg(S === "planned" ? "planned" : s)}${statusText}</span></header>
-  <section class="dsec">
-    <div class="actions">${S === "available" ? `<button class="btn btn-primary" data-add="${code}" data-i="plus">Add to Spring 2027</button>` : S === "planned" ? `<button class="btn btn-secondary" data-rm="${code}" data-i="minus">Remove from Spring 2027</button>` : S === "check" ? `<button class="btn btn-secondary">I have approval</button>` : ""}
-      ${S === "available" ? '<span class="meta">Week picks the best section, or choose one below.</span>' : ""}</div>
-    <div class="links"><a class="btn btn-secondary" href="#" ${instr === "All" ? 'aria-disabled="true" title="Pick an instructor first" style="opacity:.5"' : ""}>RateMyProf${icon("ext")}</a><a class="btn btn-secondary" href="#">Syllabi and CV${icon("ext")}</a><a class="btn btn-secondary" href="#">SPOT evaluations${icon("ext")}</a></div>
-  </section>
+    <h2 tabindex="-1">${t}</h2><span class="dstatus">${sg(S === "planned" ? "planned" : s, LABEL[S])}${statusText}</span></header>
+  ${S === "available" || S === "planned" || S === "check" ? `<section class="dsec" style="padding-top:4px"><div class="actions">${S === "available" ? `<button class="btn btn-primary" data-add="${code}" data-i="plus">Add to Spring 2027</button><span class="meta">Auto picks the section, or choose one below.</span>` : S === "planned" ? `<button class="btn btn-secondary" data-rm="${code}" data-i="minus">Remove from Spring 2027</button>` : `<button class="btn btn-secondary">I have approval</button>`}</div></section>` : ""}
   <section class="dsec"><h3>Path</h3>
     <div class="hpath">
-      ${needs.map((n) => `<div class="node${has(n) ? "" : " todo"}"><span class="dot">${has(n) ? icon("check") : ""}</span><button class="code" data-open="${n}">${n}</button><span class="meta">${COURSES[n]?.[2] === "taking" ? "Taking now" : has(n) ? (COURSES[n]?.[6] || "Done").replace("Covered by", "via") : "Not yet"}</span></div>`).join("")}
-      <div class="node this${needs.length ? "" : ""}"><span class="dot"></span><span class="code">${code}</span><span class="meta">This course</span></div>
-      ${unlocks.slice(0, 2).map((n) => `<div class="node todo"><span class="dot"></span><button class="code" data-open="${n}">${n}</button><span class="meta">Unlocks</span></div>`).join("")}
+      ${needs.map((n) => `<div class="node${has(n) ? "" : " todo"}"><span class="dot">${has(n) ? icon("check") : ""}</span><button class="code" data-course="${n}">${n}</button><span class="meta">${has(n) ? gradeOf(n).replace(/^([A-F])$/, "Grade $1") : "Not yet"}</span></div>`).join("")}
+      <div class="node this"><span class="dot"></span><span class="code">${code}</span><span class="meta">This course</span></div>
+      ${unlocks.slice(0, 2).map((n) => `<div class="node todo"><span class="dot"></span><button class="code" data-course="${n}">${n}</button><span class="meta">Unlocks</span></div>`).join("")}
     </div>
-    ${needs.length ? `<p class="rule">Catalog rule: <b>${needs.join(" and ")}${needs.length ? ", C or better" : ""}</b>. ${needs.every(has) ? `<span class="ok">You meet it</span> with ${needs.map((n) => `${n} (${(COURSES[n][6] || "taking now").split(" · ").pop()})`).join(", ")}.` : "You don't meet it yet."}</p>` : '<p class="rule">No prerequisites.</p>'}
+    ${needs.length ? `<p class="rule">Catalog rule: <b>${needs.join(" and ")}, C or better</b>. ${needs.every(has) ? `<span class="ok">You meet it</span> with ${needs.map((n) => `${n} (${gradeOf(n)})`).join(" and ")}.` : "You don't meet it yet."}</p>` : '<p class="rule">No prerequisites.</p>'}
   </section>
   <section class="dsec"><h3>Sections</h3>
-    <div class="mw-days"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div>
-    <div class="miniweek" id="mw">${[0, 1, 2, 3, 4].map((d) => `<div>${SCHED.filter((x) => x[2].includes(d)).map((x) => `<i class="blk" data-c="${x[1]}" title="${x[0]}" style="top:${((x[3] - 8) / 9) * 100}%;height:${((x[4] - x[3]) / 9) * 100}%"></i>`).join("")}</div>`).join("")}</div>
+    <div class="mw-days" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div>
+    <div class="miniweek" id="mw" aria-hidden="true">${[0, 1, 2, 3, 4].map((d) => `<div>${SCHED.filter((x) => x[2].includes(d)).map((x) => `<i class="blk" data-c="${x[1]}" style="top:${((x[3] - 8) / 9) * 100}%;height:${((x[4] - x[3]) / 9) * 100}%"></i>`).join("")}</div>`).join("")}</div>
     <p class="meta" style="margin-bottom:8px">Your Spring 2027 week. Point at a section to see where it lands.</p>
     ${secs.map((x) => `<div class="sect" data-sec='${JSON.stringify({ days: x.days, s: x.s, e: x.e, bad: !!x.conflict })}'>
-      <button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>
-      <div><div class="l1"><span class="code">§${x.n}</span>${x.d}</div><div class="l2"><span>${x.who}</span><span class="star">${icon("star")}${x.r}</span>${x.b ? `<span class="plate"><b>${x.b[0]}</b>${x.b[1]}</span>` : ""}<span>#${x.cls}</span></div>${x.conflict ? `<div class="conflict">${x.conflict}</div>` : ""}</div>
+      <button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}${x.conflict ? ", it overlaps MATH 2700" : ""}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>
+      <div><div class="l1"><span class="code">§${x.n}</span>${x.d}</div><div class="l2"><span>${x.who}</span><span class="star">${icon("star")}${x.r}</span>${x.b ? `<span class="plate"><b>${x.b[0]}</b>${x.b[1]}</span>` : ""}</div>${x.conflict ? `<div class="conflict">${x.conflict}</div>` : ""}</div>
       <span class="seats ${x.full ? "full" : ""}">${x.seats}</span></div>`).join("")}
     <div class="src"><span class="tag">Sample sections</span>Times and seats are illustrative.</div>
   </section>
   <section class="dsec"><h3>Grades</h3>
     <div class="ipills" id="ipills">${["All", "A. Okafor", "S. Patel", "J. Kim", "M. Lee"].map((n) => `<button class="chip" type="button" aria-pressed="${n === instr}" data-instr="${n}">${n === "All" ? "All instructors" : n}</button>`).join("")}</div>
     ${GRADES[instr] ? "" : `<p class="fallback">No records for ${instr} yet. Showing all instructors.</p>`}
-    <div class="figs"><div><b>${g[6]}</b><span>Average GPA</span></div><div><b>${g[7]}</b><span>Students</span></div><div><b>${g[8]}</b><span>Sections</span></div></div>
+    <div class="figs"><div><b>${g[6]}</b><span>Average GPA</span></div><div><b>${g[7]}</b><span>Students</span></div></div>
     <div class="hbars">${["A", "B", "C", "D", "F", "W"].map((L, i) => `<div class="hbar"><b>${L}</b><div class="track"><div class="fill" style="transform:scaleX(${g[i] / 40})"></div></div><span class="pct">${g[i]}%</span></div>`).join("")}</div>
-    <div class="src"><span class="tag">UNT grade records 2019–2025</span><a href="#">Data source ${icon("ext", "sm")}</a></div>
+    <div class="src"><span class="tag">UNT grade records 2019–2025</span>${noInstr ? '<span>Pick an instructor for RateMyProf and syllabi</span>' : `<a href="#">RateMyProf${icon("ext", "sm")}</a><a href="#">Syllabi${icon("ext", "sm")}</a><a href="#">SPOT${icon("ext", "sm")}</a>`}</div>
   </section>
   <section class="dsec"><h3>About</h3><p class="desc" id="desc">Descriptive and inferential statistics for science and engineering: probability models, sampling distributions, estimation, hypothesis testing, regression and analysis of variance, with computing in R. Satisfies the statistics requirement for the Computer Science BS.</p><button class="btn btn-quiet btn-sm" style="margin-left:-10px;margin-top:4px" onclick="this.previousElementSibling.classList.toggle('open');this.textContent=this.textContent==='More'?'Less':'More'">More</button></section>`;
 }
+const panel = new Panel($("#panel"));
 const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.56, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true, onDetent: (i) => { if (i < 0) { selected = null; markSelected(); } } });
 $("#scrim").onclick = () => closeDetail();
 function markSelected() { $$(".row").forEach((r) => { const on = r.dataset.code === selected && !r.dataset.key.startsWith("t-"); r.dataset.selected = on; r.querySelector(".row-hit")?.setAttribute("aria-current", on); }); }
 function wireDetail(root) {
   hydrateIcons(root);
-  $$("[data-close]", root).forEach((b) => (b.onclick = closeDetail));
+  $$("[data-close]", root).forEach((b) => (b.onclick = (e) => closeDetail(e.detail === 0)));
   $$(".sect", root).forEach((el) => {
     const d = JSON.parse(el.dataset.sec);
     const show = (on) => { $$(".ghost", root).forEach((g) => g.remove()); if (!on || !d.days.length) return; d.days.forEach((day) => { const col = $("#mw", root).children[day]; col.insertAdjacentHTML("beforeend", `<i class="ghost ${d.bad ? "bad" : ""}" style="top:${((d.s - 8) / 9) * 100}%;height:${((d.e - d.s) / 9) * 100}%"></i>`); requestAnimationFrame(() => $$(".ghost", col).forEach((g) => g.classList.add("on"))); }); };
@@ -459,23 +421,24 @@ function wireDetail(root) {
   });
   $$("[data-addsec]", root).forEach((b) => b.addEventListener("click", (e) => {
     e.stopPropagation(); const [code, n] = b.dataset.addsec.split("|");
+    const clash = b.classList.contains("warn");
     b.classList.add("on"); b.classList.remove("warn"); b.innerHTML = icon("check");
     planned.set(code, { c: 2, sec: `§${n}` }); renderAll(); markSelected();
-    toast(`Added ${code} §${n}${b.closest(".sect").querySelector(".conflict") ? " · overlaps MATH 2700" : ""}`, "Undo", () => { planned.delete(code); renderAll(); openDetail(code, true); });
+    toast(clash ? `Added ${code} §${n}. It overlaps MATH 2700.` : `Added ${code} §${n}`, "Undo", () => { planned.delete(code); renderAll(); openDetail(code, true); });
   }));
   $$("[data-instr]", root).forEach((c) => c.addEventListener("click", () => { instr = c.dataset.instr; const y = root.scrollTop; root.innerHTML = detailHTML(selected); wireDetail(root); root.scrollTop = y; }));
 }
 function openDetail(code, instant) {
   selected = code; markSelected();
   if (PHONE.matches) { $("#sbody").innerHTML = detailHTML(code); wireDetail($("#sbody")); $("#sbody").scrollTop = 0; if (sheet.index < 0) sheet.open(0); return; }
-  const p = $("#panel"); $("#pbody").innerHTML = detailHTML(code); wireDetail($("#pbody")); $("#pbody").scrollTop = 0;
-  if (!p.classList.contains("on")) { document.body.classList.add("panel-open"); p.classList.add("on"); p.setAttribute("aria-hidden", "false"); }
+  $("#pbody").innerHTML = detailHTML(code); wireDetail($("#pbody")); $("#pbody").scrollTop = 0;
+  panel.open({ instant });
 }
-function closeDetail() { selected = null; markSelected(); if (PHONE.matches) { if (sheet.index >= 0) sheet.close(); return; } $("#panel").classList.remove("on"); $("#panel").setAttribute("aria-hidden", "true"); document.body.classList.remove("panel-open"); }
+function closeDetail(instant) { selected = null; markSelected(); if (PHONE.matches) { if (sheet.index >= 0) sheet.close(); return; } panel.close(instant); }
 
-/* major picker: a search list, not a dropdown */
+/* degree dialog: a search list, not a dropdown */
 const MAJORS = [["Computer Science, BS", "CSCE"], ["Computer Engineering, BS", "CENG"], ["Cybersecurity, BS", "CSCE"], ["Data Science, BS", "DTSC"], ["Information Technology, BA", "INFO"], ["Mathematics, BS", "MATH"], ["Biology, BS", "BIOL"], ["Undeclared", ""]];
-function renderMajors(q = "") { $("#mlist").innerHTML = MAJORS.filter(([m]) => m.toLowerCase().includes(q.toLowerCase())).map(([m, c], i) => `<button class="mrow" aria-pressed="${m.startsWith("Computer Science")}">${m}<span class="meta">${c}</span></button>`).join("") || '<p class="meta" style="padding:12px">No major matches. Try the department code.</p>'; }
+function renderMajors(q = "") { $("#mlist").innerHTML = MAJORS.filter(([m]) => m.toLowerCase().includes(q.toLowerCase())).map(([m]) => `<button class="mrow" aria-pressed="${m.startsWith("Computer Science")}">${m}</button>`).join("") || '<p class="meta" style="padding:12px">No major matches. Try the department code.</p>'; }
 const msheetWrap = $("#mwrap");
 function openMajor() { renderMajors(); msheetWrap.style.display = ""; $("#mscrim").classList.add("on"); requestAnimationFrame(() => $("#mdialog").classList.add("on")); if (!$("#cat .pill")) initSeg($("#cat")); modalOpen(msheetWrap, $("#mq")); }
 function closeMajor() { $("#mdialog").classList.remove("on"); $("#mscrim").classList.remove("on"); modalClose(msheetWrap); setTimeout(() => (msheetWrap.style.display = "none"), 150); }
@@ -487,7 +450,7 @@ initSeg($("#views"));
 /* states */
 if (st === "after" || st === "detail") PICKS.forEach(([c, col, sec]) => planned.set(c, { c: col, sec }));
 renderAll();
-if (st === "detail") openDetail("MATH 3680");
+if (st === "detail") openDetail("MATH 3680", true);
 if (st === "major") openMajor();
 if (st === "imported" && !Q.get("quiet")) setTimeout(() => toast("Added 14 courses from your transcript"), 300);
 if (st === "auto-run") setTimeout(runAuto, 400);

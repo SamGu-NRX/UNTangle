@@ -8,7 +8,7 @@ const require = createRequire(join(process.cwd(), "noop.js"));
 const { chromium } = require("playwright");
 const axeSrc = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const PAGES = ["01-first-visit-import.html", "02-courses.html?state=detail", "03-schedule-builder.html", "03-schedule-builder.html?host=vsb", "04-day-map.html", "05-schedules-library.html?state=compare", "06-sign-in.html", "07-phone-navigation.html"];
+const PAGES = ["01-first-visit-import.html", "02-courses.html?state=detail", "03-schedule-builder.html", "03-schedule-builder.html?state=options", "03-schedule-builder.html?state=prefs", "03-schedule-builder.html?host=vsb", "04-day-map.html?stop=2", "05-schedules-library.html", "05-schedules-library.html?state=compare", "06-sign-in.html", "07-phone-navigation.html"];
 const browser = await chromium.launch();
 let bad = 0;
 for (const p of PAGES) for (const [n, vp] of [["desk", { width: 1440, height: 900 }], ["phone", { width: 390, height: 844 }]]) {

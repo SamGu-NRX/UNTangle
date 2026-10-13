@@ -6,6 +6,7 @@ import { ConnectHost } from "@/components/connect/connect-host";
 import { noteNavigation } from "@/components/ui/back-close";
 import { SearchPalette } from "@/components/ui/SearchPalette";
 import { Toaster } from "@/components/ui/Toast";
+import { WebMcpTools } from "@/components/webmcp/WebMcpTools";
 import { courses } from "@/lib/seed-data";
 import { courseHref, searchCourses } from "./course-search";
 import { useLensMemory } from "./lens-memory";
@@ -109,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
       <ConnectHost />
       <Toaster />
+      <WebMcpTools />
     </ShellContext.Provider>
   );
 }
