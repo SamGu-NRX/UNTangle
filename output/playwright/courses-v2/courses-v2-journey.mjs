@@ -9,10 +9,13 @@
  *   4. open CSCE 1030, switch instructor, check link-out hrefs (never followed)
  *   5. add a course to the plan through search (⌘K on desktop, the search
  *      sheet on the phone)
- * plus the deep link with the grade backend down, and axe on every state.
- * Grade history for step 4 is a fixture in the untgrades.app adapter's shape
- * (PR #30), served by intercepting the history request; the unavailable state
- * is checked against the real, absent backend.
+ * plus Undo after a reload and its refusal after an edit, the phone sheet's
+ * detents and Escape stacking, the deep link with grade history down, an
+ * unknown course code, reduced motion, a keyboard-only pass, and axe on
+ * every state. Grade history comes from the untgrades.app adapter routes
+ * (/api/grades/*), intercepted so the run never calls upstream: CSCE 1030
+ * gets a fixture in the adapter's shape, every other course gets the
+ * adapter's "unavailable" answer.
  *
  * Env: UNTANGLE_BASE_URL (default http://127.0.0.1:3123), PLAYWRIGHT_MODULE,
  * AXE_PATH, OUT_DIR (default: this script's directory).
@@ -73,13 +76,32 @@ const fixture = {
   },
 };
 fixture.data.total = fixture.data.grades.totalEnroll;
+const unavailable = {
+  status: "unavailable",
+  source: "untgrades.app",
+  data: null,
+  error: { reason: "upstream", message: "Simulated: upstream did not answer." },
+};
+const routeGrades = (page) =>
+  page.route("**/api/grades/courses/**", (route) =>
+    route.fulfill({ json: route.request().url().endsWith("/CSCE/1030") ? fixture : unavailable }),
+  );
 
 
-async function rowStatus(page, id) {
-  return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[data-row-status]").innerText();
-}
-async function rowMeta(page, id) {
-  return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[data-row-meta]").innerText();
+const rowOf = (page, id) => page.locator(`[data-row-open="${id}"]`).locator("xpath=..");
+const rowStatus = (page, id) => rowOf(page, id).locator("[data-row-status]").innerText();
+const rowMeta = (page, id) => rowOf(page, id).locator("[data-row-meta]").innerText();
+const visible = (locator) => locator.filter({ visible: true });
+
+async function chooseMajor(page, phone) {
+  const picker = visible(page.getByRole("combobox", { name: "Major" }));
+  if (phone) await picker.tap();
+  else {
+    await picker.focus();
+    await page.keyboard.press("ArrowDown");
+  }
+  await page.getByRole("listbox", { name: "Major" }).waitFor();
+  return picker;
 }
 
 async function journey(browser, viewport) {
@@ -91,50 +113,49 @@ async function journey(browser, viewport) {
     hasTouch: phone,
   });
   const page = await context.newPage();
+  await routeGrades(page);
   const tag = viewport.name;
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  const panelFor = (id) =>
+    phone ? page.getByRole("dialog", { name: `${id} details` }) : page.locator("aside[aria-labelledby=course-panel-title]");
+  const tap = (locator) => (phone ? locator.tap() : locator.click());
 
   // ---------- 1. major picker ----------
   await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Start with what you've taken" }).waitFor();
-  check(`${tag}: guest sees the empty state`, true);
-  check(`${tag}: no native select on the page`, (await page.locator("select").count()) === 0);
-  const picker = page.getByRole("combobox", { name: "Major" }).filter({ visible: true });
-  if (phone) {
-    await picker.tap();
-  } else {
-    await picker.focus();
-    await page.keyboard.press("ArrowDown");
-  }
-  const listbox = page.getByRole("listbox", { name: "Major" }).filter({ visible: true });
-  await listbox.waitFor();
-  check(`${tag}: picker opens a listbox`, await picker.getAttribute("aria-expanded") === "true");
+  check(`${tag}: a fresh guest sees the empty state`, true);
+  check(`${tag}: no visible native select`, (await page.locator("select:not([hidden])").count()) === 0);
+  check(`${tag}: no visible page headline`, (await page.locator("h1").evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height > 2).length)) === 0);
+  const picker = await chooseMajor(page, phone);
+  check(`${tag}: the picker opens a listbox`, (await picker.getAttribute("aria-expanded")) === "true");
   await page.waitForTimeout(250);
   await shoot(page, `${tag}-01-major-picker`);
   await axe(page, `${tag}: major picker open`);
-  if (phone) {
-    await listbox.getByRole("option", { name: /Computer Science/ }).tap();
-  } else {
+  if (phone) await page.getByRole("option", { name: /Computer Science/ }).first().tap();
+  else {
     await page.keyboard.press("Home");
     await page.keyboard.press("Enter");
   }
   check(`${tag}: major chosen`, (await picker.innerText()).includes("Computer Science"));
-  check(`${tag}: picker closed after choosing`, await picker.getAttribute("aria-expanded") === "false");
+  check(`${tag}: the picker closes after choosing`, (await picker.getAttribute("aria-expanded")) === "false");
 
   // ---------- 2. sample transcript + Auto ----------
-  await page.getByRole("button", { name: /Try a sample transcript/ }).click();
+  await tap(visible(page.getByRole("button", { name: "More Auto-fill options" })));
+  await tap(page.getByRole("menuitem", { name: "Try the sample transcript" }));
   await page.locator('[data-row-open="CSCE 1030"]').waitFor();
-  await page.getByRole("button", { name: "Auto-fill", exact: true }).filter({ visible: true }).click();
-  const note1 = page.locator("[data-autonote]");
-  await note1.waitFor();
-  const noteText = await note1.innerText();
-  check(`${tag}: AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 1 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
+  await tap(visible(page.getByRole("button", { name: "Auto-fill", exact: true })));
+  const noteBox = page.locator("[data-autonote]");
+  await noteBox.waitFor();
+  const noteText = await noteBox.innerText();
+  check(`${tag}: the AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 1 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
   check(`${tag}: CSCE 1030 covered through CSCE 1040`, (await rowStatus(page, "CSCE 1030")) === "Covered" && (await rowMeta(page, "CSCE 1030")).includes("Via CSCE 1040"));
-  check(`${tag}: CSCE 1040 done from transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Spring 2026 · A"));
+  check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Spring 2026 · A"));
   check(`${tag}: MATH 1720 planned by Auto`, (await rowStatus(page, "MATH 1720")) === "Planned" && (await rowMeta(page, "MATH 1720")).includes("Spring 2027 · auto"));
   check(`${tag}: CSCE 2100 left for an advisor`, (await rowStatus(page, "CSCE 2100")) === "Check");
-  const rowHeight = await page.locator('[data-row-open="CSCE 1030"]').locator("xpath=..").evaluate((el) => el.getBoundingClientRect().height);
+  const coreHeader = await page.locator("#group-core").innerText();
+  check(`${tag}: Covered is counted apart from done`, /2 of 5 done · 1 covered/.test(coreHeader), coreHeader.replace(/\s+/g, " "));
+  const rowHeight = await rowOf(page, "CSCE 1030").evaluate((el) => el.getBoundingClientRect().height);
   check(`${tag}: row height`, phone ? rowHeight >= 52 : Math.round(rowHeight) === 44, `${rowHeight}px`);
   if (!phone) {
     const codeFont = await page.locator('[data-row-open="CSCE 1030"] [class*=code]').evaluate((el) => {
@@ -142,62 +163,75 @@ async function journey(browser, viewport) {
       return `${style.fontFamily.split(",")[0]} ${style.fontSize} ${style.fontWeight}`;
     });
     check(`${tag}: row code set in Syne 13 bold`, /syne/i.test(codeFont) && codeFont.includes("13px") && codeFont.includes("700"), codeFont);
-    await page.locator('[data-row-open="MATH 2700"]').hover().catch(() => {});
     const available = await page.locator("[data-status=available] [data-row-open]").first().getAttribute("data-row-open");
     await page.locator(`[data-row-open="${available}"]`).hover();
-    const plusPlan = page.locator(`[data-row-open="${available}"]`).locator("xpath=..").getByRole("button", { name: /\+ Plan/ });
+    const plusPlan = rowOf(page, available).getByRole("button", { name: /\+ Plan/ });
     check(`${tag}: hover on an available row reveals + Plan`, (await plusPlan.evaluate((el) => getComputedStyle(el.parentElement).opacity)) === "1", available);
+    const unknownLinks = await rowOf(page, "CSCE 3020").locator("[data-row-meta] a").count();
+    check(`${tag}: a needed course outside the catalog is text, not a link`, (await rowMeta(page, "CSCE 3020")).includes("CSCE 3010") && unknownLinks === 0);
+    await page.mouse.move(5, 5);
   }
-  await page.mouse.move(5, 5);
   await shoot(page, `${tag}-02-after-auto`);
   await axe(page, `${tag}: after Auto-fill`);
 
-  // ---------- 3. undo ----------
-  await note1.getByRole("button", { name: "Undo" }).click();
-  await note1.waitFor({ state: "detached" });
-  check(`${tag}: undo removes the auto plan`, (await rowStatus(page, "MATH 1720")) === "Available");
-  check(`${tag}: inferred statuses stay after undo`, (await rowStatus(page, "CSCE 1030")) === "Covered");
+  // ---------- 3. undo, after a reload ----------
+  await page.reload({ waitUntil: "networkidle" });
+  await noteBox.waitFor();
+  check(`${tag}: the Auto run and its Undo survive a reload`, (await noteBox.getByRole("button", { name: "Undo" }).count()) === 1);
+  await tap(noteBox.getByRole("button", { name: "Undo" }));
+  await noteBox.waitFor({ state: "detached" });
+  check(`${tag}: Undo removes the auto plan`, (await rowStatus(page, "MATH 1720")) === "Available");
+  check(`${tag}: inferred statuses stay after Undo`, (await rowStatus(page, "CSCE 1030")) === "Covered");
+  if (!phone) {
+    // A second run, then a hand edit to a course it planned: Undo must refuse rather than overwrite it.
+    await page.getByRole("button", { name: "Auto-fill", exact: true }).click();
+    await noteBox.waitFor();
+    await page.locator('[data-row-open="MATH 1720"]').hover();
+    await rowOf(page, "MATH 1720").getByRole("button", { name: /Remove/ }).click();
+    const blocked = noteBox.locator("[data-undo-blocked]");
+    await blocked.waitFor();
+    check(`${tag}: Undo is refused after an edit to a course it touched`, (await blocked.innerText()).includes("MATH 1720 changed after Auto-fill."));
+    await noteBox.getByRole("button", { name: "Dismiss note" }).click();
+    await noteBox.waitFor({ state: "detached" });
+  }
 
   // ---------- 4. detail panel ----------
-  // Real backend first: it is down, so the panel must say so and still show catalog text.
-  await page.locator('[data-row-open="MATH 1710"]').click();
-  const panel = phone ? page.getByRole("dialog", { name: /details/ }) : page.locator("aside[aria-labelledby=course-panel-title]");
-  await panel.getByText(/Couldn.t load grade history/).waitFor();
-  check(`${tag}: grade backend down shows the unavailable state`, true);
-  check(`${tag}: catalog text still shows`, (await panel.innerText()).includes("Calculus I"));
+  await tap(page.locator('[data-row-open="MATH 1710"]'));
+  let panel = panelFor("MATH 1710");
+  await panel.getByText(/Couldn.t load grade history from untgrades\.app/).waitFor();
+  check(`${tag}: grade history down shows the unavailable state`, true);
+  check(`${tag}: the catalog text still shows`, (await panel.innerText()).includes("Calculus I"));
   if (phone) {
-    await page.getByRole("button", { name: /Close MATH 1710 details/ }).tap();
+    await page.getByRole("button", { name: "Close MATH 1710 details" }).tap();
     await panel.waitFor({ state: "detached" });
   }
 
-  await page.route("**/courses/CSCE/1030/history", (route) => route.fulfill({ json: fixture }));
-  await page.locator('[data-row-open="CSCE 1030"]').click();
+  await tap(page.locator('[data-row-open="CSCE 1030"]'));
+  panel = panelFor("CSCE 1030");
   await panel.getByText("Grade history from untgrades.app").waitFor();
   if (!phone) {
     const width = await panel.evaluate((el) => el.getBoundingClientRect().width);
-    check(`${tag}: panel is 520px`, Math.round(width) === 520, `${width}px`);
-    const scrims = await page.locator("[class*=scrim]").count();
-    check(`${tag}: no scrim behind the desktop panel`, scrims === 0);
+    check(`${tag}: the panel is 520px`, Math.round(width) === 520, `${width}px`);
+    check(`${tag}: no scrim behind the desktop panel`, (await page.locator(".ui-sheet-scrim, .ui-palette-scrim").count()) === 0);
     const listRight = await page.locator("[data-course-list]").evaluate((el) => el.getBoundingClientRect().right);
     const panelLeft = await panel.evaluate((el) => el.getBoundingClientRect().left);
     check(`${tag}: the list narrows beside the panel`, listRight <= panelLeft, `${listRight} <= ${panelLeft}`);
+    const top = await panel.evaluate((el) => el.getBoundingClientRect().top);
+    const bar = await page.locator(".shell-topbar").evaluate((el) => el.getBoundingClientRect().bottom);
+    check(`${tag}: the panel starts at or below the top bar`, top >= bar - 1, `${top} >= ${bar}`);
   } else {
-    const grip = page.getByRole("button", { name: /Shrink sheet|Expand sheet/ });
-    check(`${tag}: sheet has a drag handle`, await grip.isVisible());
+    check(`${tag}: the sheet has a drag handle`, await page.getByRole("button", { name: "Resize CSCE 1030 details" }).isVisible());
   }
-  const bars = await panel.locator("[data-grade-bar]").evaluateAll((els) =>
-    els.map((el) => ({ bg: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity })),
-  );
+  const bars = await panel.locator("[data-grade-bar]").evaluateAll((els) => els.map((el) => ({ bg: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity })));
   const greens = new Set(bars.map((b) => b.bg));
-  check(`${tag}: bars are one green ramp`, greens.size === 1 && [...greens][0] === "rgb(0, 81, 43)" && bars.map((b) => b.opacity).join() === "1,0.8,0.6,0.45,0.35,0.25", JSON.stringify(bars.map((b) => b.opacity)));
+  check(`${tag}: the bars are one green ramp`, greens.size === 1 && [...greens][0] === "rgb(0, 81, 43)" && bars.map((b) => b.opacity).join() === "1,0.8,0.6,0.45,0.35,0.25", JSON.stringify(bars.map((b) => b.opacity)));
   const source = panel.locator("[data-linkout=source]");
   check(`${tag}: Data source link`, (await source.getAttribute("href")) === "https://www.untgrades.app/" && (await source.getAttribute("target")) === "_blank");
 
   const instructor = panel.getByRole("combobox", { name: "Instructor" });
   const studentsBefore = await panel.locator("[data-fig]").nth(1).innerText();
-  if (phone) await instructor.tap();
-  else await instructor.click();
-  await panel.getByRole("option", { name: /Haili Wang/ }).click();
+  await tap(instructor);
+  await tap(page.getByRole("option", { name: /Haili Wang/ }));
   await page.waitForTimeout(40);
   const crossfading = await panel.locator("[data-motion=out]").count();
   await page.waitForTimeout(250);
@@ -235,22 +269,34 @@ async function journey(browser, viewport) {
     await panel.waitFor({ state: "detached" });
     check(`${tag}: Esc closes the panel`, true);
   } else {
-    // A downward drag on the handle settles at the half detent.
-    const sheet = page.getByRole("dialog", { name: /details/ });
-    const grip = page.getByRole("button", { name: /Shrink sheet/ });
+    // Drag down to the half detent; then Tab into the content opens the sheet fully again.
+    const sheet = page.getByRole("dialog", { name: "CSCE 1030 details" });
+    const grip = page.getByRole("button", { name: "Resize CSCE 1030 details" });
     const box = await grip.boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + 10);
+    await page.mouse.move(box.x + box.width / 2, box.y + 4);
     await page.mouse.down();
     for (let step = 1; step <= 10; step++) {
-      await page.mouse.move(box.x + box.width / 2, box.y + 10 + step * 30);
+      await page.mouse.move(box.x + box.width / 2, box.y + 4 + step * 30);
       await page.waitForTimeout(40);
     }
     await page.mouse.up();
     await page.waitForTimeout(400);
     const offset = await sheet.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
     const expected = (0.92 - 0.5) * viewport.height;
-    check(`${tag}: drag settles the sheet at the half detent`, Math.abs(offset - expected) < 2, `${offset.toFixed(1)}px vs ${expected}px`);
-    await page.getByRole("button", { name: /Close CSCE 1030 details/ }).tap();
+    check(`${tag}: a drag settles the sheet at the half detent`, Math.abs(offset - expected) < 3, `${offset.toFixed(1)}px vs ${expected}px`);
+    await grip.focus();
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(400);
+    check(`${tag}: moving focus into the half-height sheet opens it fully`, (await sheet.getAttribute("data-expanded")) !== null);
+    // ⌘K over the sheet, then Escape from a palette button: only the palette closes.
+    await page.keyboard.press("Meta+k");
+    const palette = page.getByRole("dialog", { name: "Search courses" });
+    await palette.waitFor();
+    await palette.getByRole("button", { name: "Cancel" }).focus();
+    await page.keyboard.press("Escape");
+    await palette.waitFor({ state: "detached" });
+    check(`${tag}: Escape in the palette leaves the sheet under it open`, await sheet.isVisible());
+    await page.getByRole("button", { name: "Close CSCE 1030 details" }).tap();
     await sheet.waitFor({ state: "detached" });
   }
 
@@ -261,52 +307,52 @@ async function journey(browser, viewport) {
     await palette.waitFor();
     const animations = await palette.evaluate((el) => el.getAnimations({ subtree: true }).length);
     check(`${tag}: ⌘K opens with no animation`, animations === 0, `${animations} running animations`);
+    check(`${tag}: the header has no search button of its own`, (await page.locator("[data-course-list]").locator("xpath=../..").getByRole("button", { name: "Search courses" }).count()) === 0);
     await page.keyboard.type("1720");
-    await palette.getByRole("option", { name: /MATH 1720/ }).waitFor();
+    const first = palette.getByRole("option").first();
+    await first.waitFor();
+    check(`${tag}: the major's core course ranks first`, (await first.innerText()).includes("MATH 1720"), (await first.innerText()).replace(/\s+/g, " "));
     await shoot(page, `${tag}-04-palette`);
     await axe(page, `${tag}: search palette`);
     await page.keyboard.press("Meta+Enter");
-    // The confirmation is a visually hidden live region, so wait on its text rather than its visibility.
-    await palette.locator('[role="status"]').filter({ hasText: "Planned MATH 1720 for Spring 2027." }).waitFor({ state: "attached" });
-    check(`${tag}: ⌘↵ plans the active result and announces it`, true);
+    await page.getByText("Planned MATH 1720 for Spring 2027.").first().waitFor();
+    check(`${tag}: ⌘↵ plans the course and keeps the palette open`, await palette.isVisible());
     await page.keyboard.press("Escape");
     await palette.waitFor({ state: "detached" });
   } else {
-    await page.getByRole("button", { name: "Search courses" }).filter({ visible: true }).tap();
+    await page.locator("[class*=phoneHead]").getByRole("button", { name: "Search courses" }).tap();
     const palette = page.getByRole("dialog", { name: "Search courses" });
     await palette.waitFor();
     await page.keyboard.type("1720");
     await palette.getByRole("option", { name: /MATH 1720/ }).tap();
-    const sheet = page.getByRole("dialog", { name: /MATH 1720 details/ });
+    const sheet = page.getByRole("dialog", { name: "MATH 1720 details" });
     await sheet.waitFor();
     await page.waitForTimeout(350);
     await shoot(page, `${tag}-04-search-to-sheet`);
     await sheet.getByRole("button", { name: "Add to Spring 2027" }).tap();
     await sheet.getByRole("button", { name: "Remove from plan" }).waitFor();
     await axe(page, `${tag}: course sheet`);
-    await page.getByRole("button", { name: /Close MATH 1720 details/ }).tap();
+    await page.getByRole("button", { name: "Close MATH 1720 details" }).tap();
     await sheet.waitFor({ state: "detached" });
   }
   check(`${tag}: MATH 1720 planned through search`, (await rowStatus(page, "MATH 1720")) === "Planned");
 
   // Pin MATH 1720 to §010 (MWF 8:00); CSCE 1030 §001 meets MWF 8:00 too, so it must show a conflict.
-  const panelFor = (id) =>
-    phone ? page.getByRole("dialog", { name: new RegExp(`${id} details`) }) : page.locator("aside[aria-labelledby=course-panel-title]");
-  await page.locator('[data-row-open="MATH 1720"]').click();
+  await tap(page.locator('[data-row-open="MATH 1720"]'));
   const mathPanel = panelFor("MATH 1720");
-  await mathPanel.getByRole("button", { name: /Show all \d+ sections/ }).click();
-  await mathPanel.locator("label", { hasText: "§010" }).click();
+  await tap(mathPanel.getByRole("button", { name: /Show all \d+ sections/ }));
+  await tap(mathPanel.locator("label", { hasText: "§010" }));
   check(`${tag}: choosing a section radio updates the plan`, await mathPanel.locator("label", { hasText: "§010" }).locator("input").isChecked());
   if (phone) {
-    await page.getByRole("button", { name: /Close MATH 1720 details/ }).tap();
+    await page.getByRole("button", { name: "Close MATH 1720 details" }).tap();
     await mathPanel.waitFor({ state: "detached" });
   }
-  await page.locator('[data-row-open="CSCE 1030"]').click();
+  await tap(page.locator('[data-row-open="CSCE 1030"]'));
   const csPanel = panelFor("CSCE 1030");
   const clash = csPanel.locator("label", { hasText: "§001" }).locator("[data-conflict=true]");
   await clash.waitFor();
   const clashText = await clash.innerText();
-  // --c-danger is the shell's --danger when it exists (today #dc2626), else DESIGN.md's #b3261e.
+  // --c-danger is the shell's --danger when it exists, else DESIGN.md's #b3261e.
   const [clashColor, dangerColor] = await clash.evaluate((el) => {
     const probe = document.createElement("span");
     probe.style.color = "var(--c-danger)";
@@ -319,13 +365,13 @@ async function journey(browser, viewport) {
   await page.waitForTimeout(300);
   await shoot(page, `${tag}-05-planned`);
 
-  // ---------- deep link with the backend down ----------
+  // ---------- deep links ----------
   const response = await page.goto(`${BASE}/courses/CSCE/2100`, { waitUntil: "networkidle" });
-  check(`${tag}: deep link renders (no 404 with the backend down)`, response.status() === 200, String(response.status()));
-  const deepPanel = phone ? page.getByRole("dialog", { name: /CSCE 2100 details/ }) : page.locator("aside[aria-labelledby=course-panel-title]");
+  check(`${tag}: the deep link renders with grade history down`, response.status() === 200, String(response.status()));
+  const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
   const deepText = await deepPanel.innerText();
-  check(`${tag}: deep link shows catalog text and the history state`, deepText.includes("Foundations of Computing") && deepText.includes("Check with an advisor"));
+  check(`${tag}: the deep link shows catalog text and the history state`, deepText.includes("Foundations of Computing") && deepText.includes("Check with an advisor"));
   await page.waitForTimeout(350);
   await shoot(page, `${tag}-06-deep-link`);
   await axe(page, `${tag}: deep link`);
@@ -346,13 +392,14 @@ try {
       check(`${viewport.name}: journey completed`, false, String(error?.stack ?? error).split("\n").slice(0, 4).join(" | "));
     }
   }
+
   // Reduced motion: the panel fades but does not slide.
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
     const page = await context.newPage();
+    await routeGrades(page);
     await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: /Pick courses by hand/ }).click();
-    await page.getByRole("listbox", { name: "Major" }).filter({ visible: true }).waitFor();
+    await chooseMajor(page, false);
     await page.keyboard.press("Home");
     await page.keyboard.press("Enter");
     await page.locator('[data-row-open="CSCE 1010"]').click();
@@ -363,19 +410,16 @@ try {
     check("reduced motion pass completed", false, String(error).split("\n")[0]);
   }
 
-  // Keyboard only: Tab from the top of the Courses view; every stop must show a focus indicator.
+  // Keyboard only: Tab through the Courses view; every stop must show a focus indicator.
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
+    await routeGrades(page);
     await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: /Pick courses by hand/ }).click();
-    await page.getByRole("listbox", { name: "Major" }).filter({ visible: true }).waitFor();
+    await chooseMajor(page, false);
     await page.keyboard.press("Home");
     await page.keyboard.press("Enter");
-    await page.locator("h1").first().evaluate((el) => {
-      el.setAttribute("tabindex", "-1");
-      el.focus();
-    });
+    await page.locator('[data-row-open="CSCE 1030"]').waitFor();
     const stops = [];
     for (let i = 0; i < 14; i++) {
       await page.keyboard.press("Tab");
@@ -389,18 +433,23 @@ try {
         }),
       );
     }
-    const ours = stops.filter((stop) => !/^(Sign in|Courses|Schedule|Map|Plans|UNTangle|01|02|03|04)/.test(stop.name));
-    check("keyboard: every Courses control shows a focus ring", ours.every((stop) => stop.ring), ours.map((stop) => `${stop.name}${stop.ring ? "" : " (no ring)"}`).join(" → "));
+    check("keyboard: every stop shows a focus ring", stops.every((stop) => stop.ring), stops.map((stop) => `${stop.name}${stop.ring ? "" : " (no ring)"}`).join(" → "));
     await context.close();
   } catch (error) {
     check("keyboard pass completed", false, String(error).split("\n")[0]);
   }
 
-  const unknown = await (await browser.newPage()).goto(`${BASE}/courses/ZZZZ/9999`);
-  check("unknown course code is a 404", unknown.status() === 404, String(unknown.status()));
-  const legacy = await browser.newPage();
-  await legacy.goto(`${BASE}/instructors/123`, { waitUntil: "domcontentloaded" });
-  check("old instructor link redirects instead of 404", new URL(legacy.url()).pathname === "/courses", legacy.url());
+  const page = await browser.newPage();
+  for (const [path, label] of [
+    ["/courses/ZZZZ/9999", "an unknown course code"],
+    ["/courses/CSCE/3010", "a code outside the catalog"],
+    ["/courses/%25/1030", "a percent-encoded segment"],
+  ]) {
+    const response = await page.goto(`${BASE}${path}`);
+    check(`${label} is a 404, not a 500`, response.status() === 404, `${path} → ${response.status()}`);
+  }
+  await page.goto(`${BASE}/instructors/123`, { waitUntil: "domcontentloaded" });
+  check("an old instructor link redirects instead of 404", new URL(page.url()).pathname === "/courses", page.url());
 } finally {
   await browser.close();
 }

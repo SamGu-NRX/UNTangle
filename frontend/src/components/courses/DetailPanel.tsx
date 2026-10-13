@@ -279,9 +279,9 @@ export function DetailContent({
             {row.description}
           </p>
           {longDescription ? (
-            <Button variant="link" size="sm" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+            <button type="button" className={styles.link} style={{ fontSize: 12.5 }} onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
               {expanded ? "Less" : "More"}
-            </Button>
+            </button>
           ) : null}
         </section>
       ) : null}
@@ -349,9 +349,9 @@ export function DetailContent({
           </div>
         )}
         {sections.length > 3 ? (
-          <Button variant="link" size="sm" className={styles.moreSections} onClick={() => setShowAllSections((value) => !value)}>
+          <button type="button" className={`${styles.link} ${styles.moreSections}`} onClick={() => setShowAllSections((value) => !value)}>
             {showAllSections ? "Show fewer sections" : `Show all ${sections.length} sections`}
-          </Button>
+          </button>
         ) : null}
       </section>
     </>

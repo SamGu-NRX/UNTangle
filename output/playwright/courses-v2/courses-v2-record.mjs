@@ -27,12 +27,18 @@ const fixture = { status: "ok", source: "untgrades.app", data: { course: { subje
 
 async function setup(context) {
   const page = await context.newPage();
-  await page.route("**/courses/*/*/history", (route) => route.fulfill({ json: fixture }));
+  await page.route("**/api/grades/courses/**", (route) =>
+    route.fulfill({
+      json: route.request().url().endsWith("/CSCE/1030")
+        ? fixture
+        : { status: "unavailable", source: "untgrades.app", data: null, error: { reason: "upstream", message: "Simulated." } },
+    }),
+  );
   await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /Try a sample transcript/ }).click();
   const picker = page.getByRole("combobox", { name: "Major" }).filter({ visible: true });
   await picker.click();
-  await page.getByRole("option", { name: /Computer Science/ }).filter({ visible: true }).first().click();
-  await page.getByRole("button", { name: /Try a sample transcript/ }).click();
+  await page.getByRole("option", { name: /Computer Science/ }).first().click();
   await page.locator('[data-row-open="CSCE 1030"]').waitFor();
   return page;
 }
@@ -42,18 +48,18 @@ try {
   {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, recordVideo: { dir: `${OUT}/video-tmp`, size: { width: 1440, height: 900 } } });
     const page = await setup(context);
-    await page.getByRole("button", { name: "Auto-fill", exact: true }).click();
+    await page.getByRole("button", { name: "Auto-fill", exact: true }).filter({ visible: true }).click();
     await page.waitForTimeout(900);
     await page.locator('[data-row-open="CSCE 1030"]').click();
     await page.waitForTimeout(1100);
     const panel = page.locator("aside[aria-labelledby=course-panel-title]");
     await panel.getByRole("combobox", { name: "Instructor" }).click();
     await page.waitForTimeout(500);
-    await panel.getByRole("option", { name: /Haili Wang/ }).click();
+    await page.getByRole("option", { name: /Haili Wang/ }).click();
     await page.waitForTimeout(900);
     await panel.getByRole("combobox", { name: "Instructor" }).click();
     await page.waitForTimeout(400);
-    await panel.getByRole("option", { name: /Beilei Jiang/ }).click();
+    await page.getByRole("option", { name: /Beilei Jiang/ }).click();
     await page.waitForTimeout(900);
     await page.locator('[data-row-open="CSCE 1030"]').focus();
     for (let i = 0; i < 3; i++) {
@@ -71,7 +77,7 @@ try {
     const page = await setup(context);
     await page.locator('[data-row-open="CSCE 1030"]').tap();
     await page.waitForTimeout(1000);
-    const grip = page.getByRole("button", { name: /Shrink sheet/ });
+    const grip = page.getByRole("button", { name: "Resize CSCE 1030 details" });
     const box = await grip.boundingBox();
     const x = box.x + box.width / 2;
     await page.mouse.move(x, box.y + 10);
@@ -82,7 +88,7 @@ try {
     }
     await page.mouse.up();
     await page.waitForTimeout(1000);
-    const half = await page.getByRole("button", { name: /Expand sheet/ }).boundingBox();
+    const half = await grip.boundingBox();
     await page.mouse.move(x, half.y + 10);
     await page.mouse.down();
     for (let step = 1; step <= 4; step++) {

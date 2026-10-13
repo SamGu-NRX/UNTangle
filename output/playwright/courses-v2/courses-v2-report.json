@@ -1,26 +1,31 @@
 {
-  "startedAt": "2026-10-13T13:30:24.709Z",
+  "startedAt": "2026-10-13T14:29:39.350Z",
   "base": "http://127.0.0.1:3123",
   "checks": [
     {
-      "name": "desktop: guest sees the empty state",
+      "name": "desktop: a fresh guest sees the empty state",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: no native select on the page",
+      "name": "desktop: no visible native select",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: picker opens a listbox",
+      "name": "desktop: no visible page headline",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: the picker opens a listbox",
       "passed": true,
       "detail": null
     },
     {
       "name": "axe no serious/critical: desktop: major picker open",
       "passed": true,
-      "detail": null
+      "detail": "region (moderate) x1"
     },
     {
       "name": "desktop: major chosen",
@@ -28,14 +33,14 @@
       "detail": null
     },
     {
-      "name": "desktop: picker closed after choosing",
+      "name": "desktop: the picker closes after choosing",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: AutoNote reports the fill",
+      "name": "desktop: the AutoNote reports the fill",
       "passed": true,
-      "detail": "✦ Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027. 1 core course needs an advisor · Review Undo Sample transcript : Statuses come from a made-up sample transcript."
+      "detail": "✦ Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027. 1 core course needs an advisor · Review Undo Sample transcript"
     },
     {
       "name": "desktop: CSCE 1030 covered through CSCE 1040",
@@ -43,7 +48,7 @@
       "detail": null
     },
     {
-      "name": "desktop: CSCE 1040 done from transcript",
+      "name": "desktop: CSCE 1040 done from the transcript",
       "passed": true,
       "detail": null
     },
@@ -58,6 +63,11 @@
       "detail": null
     },
     {
+      "name": "desktop: Covered is counted apart from done",
+      "passed": true,
+      "detail": "CORE 2 of 5 done · 1 covered"
+    },
+    {
       "name": "desktop: row height",
       "passed": true,
       "detail": "44px"
@@ -65,7 +75,7 @@
     {
       "name": "desktop: row code set in Syne 13 bold",
       "passed": true,
-      "detail": "Syne 13px 700"
+      "detail": "syne 13px 700"
     },
     {
       "name": "desktop: hover on an available row reveals + Plan",
@@ -73,34 +83,49 @@
       "detail": "CSCE 1010"
     },
     {
+      "name": "desktop: a needed course outside the catalog is text, not a link",
+      "passed": true,
+      "detail": null
+    },
+    {
       "name": "axe no serious/critical: desktop: after Auto-fill",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: undo removes the auto plan",
+      "name": "desktop: the Auto run and its Undo survive a reload",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: inferred statuses stay after undo",
+      "name": "desktop: Undo removes the auto plan",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: grade backend down shows the unavailable state",
+      "name": "desktop: inferred statuses stay after Undo",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: catalog text still shows",
+      "name": "desktop: Undo is refused after an edit to a course it touched",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: panel is 520px",
+      "name": "desktop: grade history down shows the unavailable state",
       "passed": true,
-      "detail": "520px"
+      "detail": null
+    },
+    {
+      "name": "desktop: the catalog text still shows",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: the panel is 520px",
+      "passed": true,
+      "detail": "520.0000610351562px"
     },
     {
       "name": "desktop: no scrim behind the desktop panel",
@@ -110,10 +135,15 @@
     {
       "name": "desktop: the list narrows beside the panel",
       "passed": true,
-      "detail": "796 <= 826.3934326171875"
+      "detail": "784 <= 809.0531616210938"
     },
     {
-      "name": "desktop: bars are one green ramp",
+      "name": "desktop: the panel starts at or below the top bar",
+      "passed": true,
+      "detail": "130 >= 57"
+    },
+    {
+      "name": "desktop: the bars are one green ramp",
       "passed": true,
       "detail": "[\"1\",\"0.8\",\"0.6\",\"0.45\",\"0.35\",\"0.25\"]"
     },
@@ -173,12 +203,22 @@
       "detail": "0 running animations"
     },
     {
+      "name": "desktop: the header has no search button of its own",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: the major's core course ranks first",
+      "passed": true,
+      "detail": "MATH 1720 Calculus II Available"
+    },
+    {
       "name": "axe no serious/critical: desktop: search palette",
       "passed": true,
       "detail": null
     },
     {
-      "name": "desktop: ⌘↵ plans the active result and announces it",
+      "name": "desktop: ⌘↵ plans the course and keeps the palette open",
       "passed": true,
       "detail": null
     },
@@ -195,15 +235,15 @@
     {
       "name": "desktop: a clashing section says so in --danger",
       "passed": true,
-      "detail": "Mon conflicts with MATH 1720 · rgb(220, 38, 38)"
+      "detail": "Mon conflicts with MATH 1720 · rgb(179, 38, 30)"
     },
     {
-      "name": "desktop: deep link renders (no 404 with the backend down)",
+      "name": "desktop: the deep link renders with grade history down",
       "passed": true,
       "detail": "200"
     },
     {
-      "name": "desktop: deep link shows catalog text and the history state",
+      "name": "desktop: the deep link shows catalog text and the history state",
       "passed": true,
       "detail": null
     },
@@ -218,24 +258,29 @@
       "detail": null
     },
     {
-      "name": "phone: guest sees the empty state",
+      "name": "phone: a fresh guest sees the empty state",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: no native select on the page",
+      "name": "phone: no visible native select",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: picker opens a listbox",
+      "name": "phone: no visible page headline",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: the picker opens a listbox",
       "passed": true,
       "detail": null
     },
     {
       "name": "axe no serious/critical: phone: major picker open",
       "passed": true,
-      "detail": null
+      "detail": "region (moderate) x1"
     },
     {
       "name": "phone: major chosen",
@@ -243,12 +288,12 @@
       "detail": null
     },
     {
-      "name": "phone: picker closed after choosing",
+      "name": "phone: the picker closes after choosing",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: AutoNote reports the fill",
+      "name": "phone: the AutoNote reports the fill",
       "passed": true,
       "detail": "✦ Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027. 1 core course needs an advisor · Review Undo"
     },
@@ -258,7 +303,7 @@
       "detail": null
     },
     {
-      "name": "phone: CSCE 1040 done from transcript",
+      "name": "phone: CSCE 1040 done from the transcript",
       "passed": true,
       "detail": null
     },
@@ -273,6 +318,11 @@
       "detail": null
     },
     {
+      "name": "phone: Covered is counted apart from done",
+      "passed": true,
+      "detail": "CORE 2 of 5 done · 1 covered"
+    },
+    {
       "name": "phone: row height",
       "passed": true,
       "detail": "54px"
@@ -283,32 +333,37 @@
       "detail": null
     },
     {
-      "name": "phone: undo removes the auto plan",
+      "name": "phone: the Auto run and its Undo survive a reload",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: inferred statuses stay after undo",
+      "name": "phone: Undo removes the auto plan",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: grade backend down shows the unavailable state",
+      "name": "phone: inferred statuses stay after Undo",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: catalog text still shows",
+      "name": "phone: grade history down shows the unavailable state",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: sheet has a drag handle",
+      "name": "phone: the catalog text still shows",
       "passed": true,
       "detail": null
     },
     {
-      "name": "phone: bars are one green ramp",
+      "name": "phone: the sheet has a drag handle",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: the bars are one green ramp",
       "passed": true,
       "detail": "[\"1\",\"0.8\",\"0.6\",\"0.45\",\"0.35\",\"0.25\"]"
     },
@@ -348,9 +403,19 @@
       "detail": null
     },
     {
-      "name": "phone: drag settles the sheet at the half detent",
+      "name": "phone: a drag settles the sheet at the half detent",
       "passed": true,
       "detail": "354.5px vs 354.48px"
+    },
+    {
+      "name": "phone: moving focus into the half-height sheet opens it fully",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: Escape in the palette leaves the sheet under it open",
+      "passed": true,
+      "detail": null
     },
     {
       "name": "axe no serious/critical: phone: course sheet",
@@ -370,15 +435,15 @@
     {
       "name": "phone: a clashing section says so in --danger",
       "passed": true,
-      "detail": "Mon conflicts with MATH 1720 · rgb(220, 38, 38)"
+      "detail": "Mon conflicts with MATH 1720 · rgb(179, 38, 30)"
     },
     {
-      "name": "phone: deep link renders (no 404 with the backend down)",
+      "name": "phone: the deep link renders with grade history down",
       "passed": true,
       "detail": "200"
     },
     {
-      "name": "phone: deep link shows catalog text and the history state",
+      "name": "phone: the deep link shows catalog text and the history state",
       "passed": true,
       "detail": null
     },
@@ -398,17 +463,27 @@
       "detail": "none"
     },
     {
-      "name": "keyboard: every Courses control shows a focus ring",
+      "name": "keyboard: every stop shows a focus ring",
       "passed": true,
-      "detail": "Major → Search courses⌘K → ✦Auto-fill → More Auto-fill options → Import PDF → Core0 of 5 doneSample degree plan: Core  → CSCE 1030Computer Science I3 cr, Check → CSCE 1040Computer Science II3 cr, Locked → CSCE 1030 → MATH 1100 → MATH 1650 → MATH 1710 → CSCE 2100Foundations of Computing3 cr, C → CSCE 1040"
+      "detail": "✦Auto-fillAuto-fill → More Auto-fill options → Import PDFImport PDF → Core0 of 5 done → Sample degree plan → CSCE 1030Computer Science I3 cr, Check → CSCE 1040Computer Science II3 cr, Locked → CSCE 1030 → MATH 1100 → MATH 1650 → MATH 1710 → CSCE 2100Foundations of Computing3 cr, C → CSCE 1040 → CSCE 1045"
     },
     {
-      "name": "unknown course code is a 404",
+      "name": "an unknown course code is a 404, not a 500",
       "passed": true,
-      "detail": "404"
+      "detail": "/courses/ZZZZ/9999 → 404"
     },
     {
-      "name": "old instructor link redirects instead of 404",
+      "name": "a code outside the catalog is a 404, not a 500",
+      "passed": true,
+      "detail": "/courses/CSCE/3010 → 404"
+    },
+    {
+      "name": "a percent-encoded segment is a 404, not a 500",
+      "passed": true,
+      "detail": "/courses/%25/1030 → 404"
+    },
+    {
+      "name": "an old instructor link redirects instead of 404",
       "passed": true,
       "detail": "http://127.0.0.1:3123/courses"
     }
@@ -416,7 +491,9 @@
   "axe": [
     {
       "label": "desktop: major picker open",
-      "violations": [],
+      "violations": [
+        "region (moderate) x1"
+      ],
       "blocking": []
     },
     {
@@ -441,7 +518,9 @@
     },
     {
       "label": "phone: major picker open",
-      "violations": [],
+      "violations": [
+        "region (moderate) x1"
+      ],
       "blocking": []
     },
     {
@@ -466,7 +545,7 @@
     }
   ],
   "notes": [],
-  "finishedAt": "2026-10-13T13:31:10.570Z",
-  "passed": 82,
+  "finishedAt": "2026-10-13T14:29:57.719Z",
+  "passed": 97,
   "failed": 0
 }
