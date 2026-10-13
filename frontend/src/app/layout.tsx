@@ -13,7 +13,9 @@ const syne = Syne({
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  // The variable request returns direct WOFF2 URLs. Static-weight Google URLs
+  // contain query parameters that Next 16.1.6 Turbopack fails to parse.
+  weight: "variable",
   variable: "--font-body",
   display: "swap",
 });

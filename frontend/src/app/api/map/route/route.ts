@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { activeCampus } from "@/lib/campus/config";
+import { campusById, type CampusConfig } from "@/lib/campus/config";
 import { campusEngine } from "@/lib/campus/engine";
 import type { LatLng } from "@/lib/campus/geo";
 import { buildRouteLegs, summarizeRoute, type ExternalLeg, type RouteStopInput } from "@/lib/campus/route-legs";
@@ -46,7 +46,7 @@ type OrsRouteFeature = {
   };
 };
 
-function parseStops(input: RouteInput): { stops: RouteStopInput[] } | { error: string } {
+function parseStops(input: RouteInput, campus: CampusConfig): { stops: RouteStopInput[] } | { error: string } {
   if (!Array.isArray(input.stops)) {
     return { error: "stops must be an array" };
   }
@@ -62,8 +62,8 @@ function parseStops(input: RouteInput): { stops: RouteStopInput[] } | { error: s
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return { error: "All stops must include numeric lat and lng values" };
     }
-    if (!isInsideBounds({ lat, lng }, activeCampus.bounds)) {
-      return { error: `All stops must be within ${activeCampus.name} routing bounds` };
+    if (!isInsideBounds({ lat, lng }, campus.bounds)) {
+      return { error: `All stops must be within ${campus.name} routing bounds` };
     }
     if (
       raw.buildingId !== undefined &&
@@ -83,9 +83,9 @@ function parseStops(input: RouteInput): { stops: RouteStopInput[] } | { error: s
   return { stops };
 }
 
-function orsRouter(apiKey: string) {
+function orsRouter(apiKey: string, campus: CampusConfig) {
   return async (from: LatLng, to: LatLng): Promise<ExternalLeg | null> => {
-    const key = `${from.lat.toFixed(6)},${from.lng.toFixed(6)}|${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
+    const key = `${campus.id}|${from.lat.toFixed(6)},${from.lng.toFixed(6)}|${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
     const cached = orsLegCache.get(key);
     if (cached !== undefined) {
       return cached;
@@ -115,7 +115,7 @@ function orsRouter(apiKey: string) {
         const feature = payload.features?.[0];
         const geometry = (feature?.geometry?.coordinates ?? [])
           .map(([lng, lat]) => ({ lat, lng }))
-          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && isInsideBounds(p, activeCampus.bounds));
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && isInsideBounds(p, campus.bounds));
         const distanceMeters = feature?.properties?.summary?.distance;
         const durationSeconds = feature?.properties?.summary?.duration;
         if (
@@ -167,12 +167,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "stops must be an array" }, { status: 400 });
   }
 
-  const parsed = parseStops(body);
+  let campus: CampusConfig;
+  try { campus = campusById(new URL(request.url).searchParams.get("campus")); }
+  catch (error) { return NextResponse.json({error: error instanceof Error ? error.message : "Invalid campus"},{status:400}); }
+  const parsed = parseStops(body, campus);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const apiKey = process.env.ORS_API_KEY;
-  const legs = await buildRouteLegs(parsed.stops, campusEngine(activeCampus.id), apiKey ? orsRouter(apiKey) : undefined);
+  const apiKey = campus.allowExternalServices === false ? undefined : process.env.ORS_API_KEY;
+  const legs = await buildRouteLegs(parsed.stops, campusEngine(campus.id), apiKey ? orsRouter(apiKey, campus) : undefined);
   return NextResponse.json(summarizeRoute(legs));
 }

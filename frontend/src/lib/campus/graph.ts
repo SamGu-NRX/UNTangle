@@ -1,18 +1,19 @@
 /**
  * The offline campus walkway graph, built once at first use from the
- * committed OpenStreetMap snapshot (data/walkways.json). No network calls.
+ * committed OpenStreetMap dataset (data/campus-map.json). No network calls.
  *
- * The graph is undirected; edge weights are haversine distances. Routing is
- * A* with an admissible straight-line heuristic. Snapping restricts to the
- * largest connected component so a snapped route endpoint is always routable.
+ * Committed datasets use directed campus-map-v0 edges. Routing is
+ * A* with a straight-line heuristic on haversine edge lengths. Snapping uses
+ * the largest weakly connected component; a directed route can still fail.
  *
- * createWalkwayGraph builds a router over any campus's walkways file; the
- * named exports below are bound to the UNT Denton snapshot, the one campus
- * built so far (see lib/campus/config.ts).
+ * createDatasetGraph validates any campus-map-v0 dataset. The legacy
+ * WalkwaysFile input remains for regression fixtures; named exports bind UNT.
  *
  * Data © OpenStreetMap contributors, ODbL 1.0 — see tools/campus-geodata/README.md.
  */
-import walkwaysJson from "./data/walkways.json";
+import datasetJson from "./data/campus-map.json";
+import { checkDataset } from "./contract/check";
+import type { Dataset } from "./contract/model";
 import { haversineMeters, type LatLng } from "./geo";
 import { SNAP_MAX_METERS, STEPS_SPEED_MPS, WALKING_SPEED_MPS } from "./speeds";
 
@@ -132,10 +133,22 @@ class MinHeap {
 }
 
 /** A router over one campus's walkways file. The graph is built on first use. */
-export function createWalkwayGraph(data: WalkwaysFile) {
+type RoutingMetadata = Pick<WalkwaysFile["meta"], "attribution" | "fetchedAt" | "edgeCount" | "classes">;
+
+export function createWalkwayGraph(input: WalkwaysFile | (Dataset & { walking: RoutingMetadata })) {
+  const dataset = "schema_version" in input ? input : null;
+  const data: {meta: RoutingMetadata;nodes:WalkwaysFile["nodes"];ways:WalkwaysFile["ways"]} =
+    "schema_version" in input
+      ? {
+          meta: input.walking,
+          nodes: input.graph.nodes.map((n) => [n.position[1], n.position[0]]),
+          ways: [],
+        }
+      : input;
   let adjacency: Edge[][] | null = null;
   let largestComponentNodes: number[] | null = null;
   let componentShare = 0;
+  let heuristicScale = 1;
 
   function buildGraph() {
     if (adjacency && largestComponentNodes) return;
@@ -166,9 +179,40 @@ export function createWalkwayGraph(data: WalkwaysFile) {
         }
       }
     }
-    for (const edge of bestEdge.values()) {
-      adj[edge.from].push({ to: edge.to, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
-      adj[edge.to].push({ to: edge.from, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
+    if (dataset) {
+      const indices = new Map(dataset.graph.nodes.map((n, i) => [n.id, i]));
+      const features = new Map(dataset.features.features.map((f) => [f.id, f]));
+      for (const edge of dataset.graph.edges) {
+        if (edge.access === "restricted") continue;
+        const from = indices.get(edge.from),
+          to = indices.get(edge.to);
+        if (from === undefined || to === undefined) throw new Error(`Broken routing edge ${edge.id}`);
+        const steps = edge.kind === "stairs";
+        const crossing = features.get(edge.feature_id)?.properties.crossing === true;
+        // Contract lengths can be shorter than the geographic chord. Scale
+        // the heuristic by the smallest ratio so it never overestimates.
+        const chord = haversineMeters(...data.nodes[from], ...data.nodes[to]);
+        if (chord > 0) heuristicScale = Math.min(heuristicScale, edge.length_m / chord);
+        const key = from * nodeCount + to;
+        const existing = bestEdge.get(key);
+        if (existing && existing.meters <= edge.length_m) continue;
+        bestEdge.set(key, {
+          from,
+          to,
+          meters: edge.length_m,
+          steps,
+          crossing,
+        });
+      }
+      // Both search and reconstruction use the shortest directed parallel edge.
+      for (const edge of bestEdge.values()) {
+        adj[edge.from].push({ to: edge.to, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
+      }
+    } else {
+      for (const edge of bestEdge.values()) {
+        adj[edge.from].push({ to: edge.to, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
+        adj[edge.to].push({ to: edge.from, meters: edge.meters, steps: edge.steps, crossing: edge.crossing });
+      }
     }
 
     // Union-find over edges to find the largest connected component.
@@ -244,7 +288,7 @@ export function createWalkwayGraph(data: WalkwaysFile) {
     const heap = new MinHeap();
     const h = (index: number): number => {
       const [lat, lng] = data.nodes[index];
-      return haversineMeters(lat, lng, goalLat, goalLng);
+      return haversineMeters(lat, lng, goalLat, goalLng) * heuristicScale;
     };
     gScore[start] = 0;
     heap.push(start, h(start));
@@ -369,7 +413,22 @@ export function createWalkwayGraph(data: WalkwaysFile) {
 
 export type WalkwayGraph = ReturnType<typeof createWalkwayGraph>;
 
-const untDentonGraph = createWalkwayGraph(walkwaysJson as unknown as WalkwaysFile);
+export function createDatasetGraph(input: unknown): WalkwayGraph {
+  const checked = checkDataset(input);
+  if (!checked.dataset) throw new Error(`Invalid campus-map-v0: ${JSON.stringify(checked.errors)}`);
+  const dataset = checked.dataset;
+  return createWalkwayGraph({
+    ...dataset,
+    walking: {
+      attribution: "© OpenStreetMap contributors (data: ODbL 1.0)",
+      fetchedAt: dataset.sources[0]?.retrieved_at ?? null,
+      edgeCount: dataset.graph.edges.length,
+      classes: [],
+    },
+  });
+}
+
+const untDentonGraph = createDatasetGraph(datasetJson);
 
 export const { nearestWalkwayNode, astarPath, routeBetweenNodes, routeBetweenPoints, walkwayGraphStats } =
   untDentonGraph;

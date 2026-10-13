@@ -210,7 +210,7 @@ export function createResolveHandler(campus: CampusConfig) {
           return cached;
         }
 
-        const apiKey = process.env.ORS_API_KEY;
+        const apiKey = campus.allowExternalServices === false ? undefined : process.env.ORS_API_KEY;
         if (!apiKey) {
           return unresolved(location, buildingId);
         }
