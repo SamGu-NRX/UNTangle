@@ -7,6 +7,7 @@ import {
   pairKey,
   pointKey,
   routeRuns,
+  stopNumbersLabel,
   transferFit,
   walkMinutesFromSeconds,
   type PairAnswer,
@@ -58,6 +59,18 @@ describe("transferFit", () => {
   });
   test("unknown when the walk time is unknown", () => {
     expect(transferFit(null, 10)).toBe("unknown");
+  });
+});
+
+describe("stopNumbersLabel", () => {
+  test("one stop, a run, and separate visits", () => {
+    expect(stopNumbersLabel([3])).toBe("3");
+    expect(stopNumbersLabel([2, 3])).toBe("2–3");
+    expect(stopNumbersLabel([1, 4])).toBe("1, 4");
+    expect(stopNumbersLabel([1, 2, 3, 5])).toBe("1–3, 5");
+  });
+  test("refuses an empty list", () => {
+    expect(() => stopNumbersLabel([])).toThrow();
   });
 });
 

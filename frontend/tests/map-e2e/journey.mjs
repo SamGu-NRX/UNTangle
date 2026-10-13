@@ -117,6 +117,8 @@ async function axe(page, label) {
 }
 
 const near = (a, b, tolerance) => Math.abs(a - b) <= tolerance;
+/** Holds a settled state on screen so the desktop recording is watchable; it changes no check. */
+const beat = (page) => pause(page, 1800);
 
 /* ---------- desktop ---------- */
 
@@ -132,6 +134,7 @@ async function desktop(browser) {
 
   await openMap(page);
   await shoot(page, "desktop-01-day.png");
+  await beat(page);
 
   const stops = await page.locator(".mv-stop").evaluateAll((els) =>
     els.map((el) => ({ key: el.dataset.stopKey, placement: el.dataset.placement, text: el.textContent })),
@@ -185,6 +188,7 @@ async function desktop(browser) {
   let after = await camera(page);
   check("desktop: wheel zooms in", after.zoom > before.zoom + 0.3, `${before.zoom} -> ${after.zoom}`);
   await shoot(page, "desktop-02-wheel-zoom.png");
+  await beat(page);
 
   before = after;
   await page.locator(".maplibregl-canvas").focus();
@@ -206,6 +210,7 @@ async function desktop(browser) {
   await page.mouse.up();
   await settle(page, 1200);
   after = await camera(page);
+  await beat(page);
   check("desktop: drag pans the map", !near(after.lng, before.lng, 1e-5) && !near(after.lat, before.lat, 1e-5), `${before.lat},${before.lng} -> ${after.lat},${after.lng}`);
 
   // Show the whole day again, then select from the list.
@@ -221,8 +226,14 @@ async function desktop(browser) {
   check("desktop: selecting a row flies in and tilts", after.zoom > 17 && after.pitch > 30, `zoom ${after.zoom}, pitch ${after.pitch}`);
   check("desktop: selected row is marked", (await gabRow.getAttribute("aria-pressed")) === "true", gabKey);
   await shoot(page, "desktop-03-stop-selected.png");
+  await beat(page);
 
-  // Select from the map: GATE's pin.
+  // Select from the map: zoom out (the selection stays) until GATE is in view, then tap its pin.
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await settle(page, 500);
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await settle(page, 900);
+  check("desktop: zooming out keeps the selection", (await gabRow.getAttribute("aria-pressed")) === "true");
   const gatePin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^3$/ }) });
   await gatePin.click();
   await settle(page, 1400);
@@ -230,6 +241,7 @@ async function desktop(browser) {
   check("desktop: selecting a pin selects its row", (await gateRow.getAttribute("aria-pressed")) === "true");
   check("desktop: the previous row is no longer selected", (await gabRow.getAttribute("aria-pressed")) === "false");
   await shoot(page, "desktop-04-pin-selected.png");
+  await beat(page);
 
   // Select the tight leg.
   await page.locator('.mv-leg[data-transfer="late"] .mv-leg__card, .mv-leg[data-transfer="tight"] .mv-leg__card').first().click();
@@ -241,6 +253,7 @@ async function desktop(browser) {
     `pitch ${after.pitch}`,
   );
   await shoot(page, "desktop-05-leg-selected.png");
+  await beat(page);
 
   await page.keyboard.press("Escape");
   await settle(page, 400);
@@ -249,6 +262,7 @@ async function desktop(browser) {
   // Days switch with the segmented control.
   await page.getByRole("radio", { name: /^Tuesday/ }).click();
   await settle(page, 600);
+  await beat(page);
   check("desktop: an empty day says so", /No classes on Tuesday/.test((await page.locator(".mv-panel__body").textContent()) ?? ""));
   await page.getByRole("radio", { name: /^Monday/ }).click();
   await page.locator(".mv-stop").nth(3).waitFor();
