@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v2 · Connect to myUNT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f4;--surface:#fff;--surface-2:#eef2ee;--surface-3:#e6ece6;
+  --line:#dde8dd;--line-strong:#c3d2c3;
+  --ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6b826b;--ink-4:#93a593;
+  --brand:#00512b;--brand-hover:#007a40;--brand-soft:#e4f0e8;
+  --accent:#00a855;--accent-soft:#e3f6eb;--danger:#b3261e;--danger-soft:#fbeae8;
+  --overlay:rgba(26,46,26,.32);
+  --font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;
+  --shadow-1:0 1px 2px rgba(26,46,26,.06);
+  --shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);
+  --shadow-3:0 16px 40px rgba(26,46,26,.14),0 2px 6px rgba(26,46,26,.08);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+}
+html,body{background:#e3e7e3;font-family:var(--font-body);color:var(--ink);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.stage{display:flex;gap:40px;padding:40px;align-items:flex-start;min-width:max-content}
+.col{display:flex;flex-direction:column;gap:8px}
+.cap{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.frame{background:var(--bg);border:1px solid #cfd7cf;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 24px 60px rgba(26,46,26,.12)}
+.desktop{width:1440px;height:720px}
+.phone{width:390px;height:844px;border-radius:44px;border:6px solid #1a2e1a}
+.scrimstage{background:var(--overlay);padding:40px;display:flex;gap:32px;align-items:flex-start;border-radius:12px}
+
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:var(--r-md);border:1px solid transparent;font:600 13px/1 var(--font-body);color:var(--ink);background:transparent;cursor:pointer;white-space:nowrap;transition:transform 120ms var(--ease-out),background-color 160ms ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-hover)}
+.btn.ghost{background:var(--surface);border-color:var(--line-strong)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.sm{height:32px;padding:0 12px}
+.btn.lg{height:48px;padding:0 20px;font-size:14px}
+.btn.full{width:100%;justify-content:center}
+.link{color:var(--brand);font-weight:600;text-decoration:none;cursor:pointer}
+.meta{font-size:12.5px;line-height:18px;color:var(--ink-2)}
+.code{font:700 13px/1 var(--font-display);letter-spacing:.01em;color:var(--ink);white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:var(--r-sm);border:1px dotted var(--line-strong);font:500 11px/1 var(--font-body);color:var(--ink-2);white-space:nowrap}
+.spacer{flex:1}
+.ext{font-size:11px;margin-left:2px;opacity:.8}
+
+/* dialog */
+.dlg{width:480px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-3);padding:20px 24px 20px;transform-origin:center;flex:none}
+.dots{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.dots span{display:inline-flex;align-items:center;gap:6px;font:500 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4)}
+.dots span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--line-strong)}
+.dots span.cur{color:var(--ink)}
+.dots span.cur::before{background:var(--brand)}
+.dots span.done{color:var(--ink-2)}
+.dots span.done::before{background:var(--brand);box-shadow:0 0 0 1px #fff,0 0 0 2px var(--brand-soft)}
+.mark{width:40px;height:40px;border-radius:10px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font:800 20px/1 var(--font-display);margin-bottom:14px}
+.mark.ok{background:var(--brand);color:#fff}
+.mark.err{background:var(--danger-soft);color:var(--danger)}
+.dlg h2{font:600 18px/24px var(--font-body)}
+.dlg p{color:var(--ink-2);margin-top:6px}
+.access{margin-top:14px;border-top:1px solid var(--line)}
+.access div{display:flex;align-items:center;gap:12px;height:40px;border-bottom:1px solid var(--line)}
+.access svg{flex:none;color:var(--brand)}
+.access b{font-weight:600;margin-right:4px}
+.quiet{font-size:12.5px;color:var(--ink-2);margin-top:12px}
+.foot{display:flex;align-items:center;gap:8px;margin-top:20px}
+.fallback{margin-top:14px;text-align:center;font-size:12.5px}
+
+/* browser card */
+.bc{margin-top:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.bc-chrome{height:36px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.bc-chrome i{width:8px;height:8px;border-radius:50%;background:var(--line-strong)}
+.bc-url{flex:1;height:24px;border-radius:6px;background:var(--surface);font-size:12px;color:var(--ink-2);display:flex;align-items:center;padding:0 10px;gap:6px;margin-left:6px;white-space:nowrap;overflow:hidden}
+.bc-url b{color:var(--ink);font-weight:500}
+.bc-body{padding:22px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.unt{width:40px;height:40px;border-radius:9px;background:#00853e;color:#fff;display:grid;place-items:center;font:800 11px/1 var(--font-display);letter-spacing:.02em}
+.bc-body p{margin:0;font-size:13px}
+.waiting{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line-strong);border-top-color:var(--brand);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.drop{margin-top:12px;height:96px;border:1.5px dashed var(--line-strong);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--ink-2);font-size:13px;background:var(--bg)}
+.extrow{margin-top:12px;height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:10px;background:var(--accent-soft);font-size:13px}
+.extrow i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(0,168,85,.2)}
+
+/* progress */
+.steps{margin-top:14px}
+.step{display:flex;align-items:center;gap:12px;height:36px}
+.step .ic{width:16px;height:16px;border-radius:50%;flex:none;position:relative}
+.step.done .ic{background:var(--brand)}
+.step.done .ic::after{content:"";position:absolute;left:5.5px;top:2.5px;width:3.5px;height:7.5px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.step.active .ic{border:2px solid var(--line-strong);border-top-color:var(--brand);animation:spin .8s linear infinite}
+.step.pending .ic{border:1.5px solid var(--ink-4)}
+.step.pending{color:var(--ink-2)}
+
+/* review */
+.rev{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-height:280px}
+.rr{display:grid;grid-template-columns:16px 84px 1fr auto;gap:12px;align-items:center;height:40px;padding:0 12px;border-top:1px solid var(--line)}
+.rr:first-child{border-top:0}
+.rr .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rr .r{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.rr.bad{background:var(--danger-soft)}
+.rr.bad .r{color:var(--danger)}
+.st{width:16px;height:16px;border-radius:50%;position:relative;flex:none}
+.st-done{background:var(--ink-3)}
+.st-done::after{content:"";position:absolute;left:5.5px;top:2.5px;width:3.5px;height:7.5px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.st-taking{border:1.5px solid var(--accent);background:linear-gradient(90deg,var(--accent) 50%,transparent 50%)}
+.st-none{border:1.5px dotted var(--danger)}
+.select{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 8px 0 10px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface);font:500 12.5px/1 var(--font-body);color:var(--ink)}
+.select svg{color:var(--ink-3)}
+
+/* behind the dialog */
+.ghostapp{position:absolute;inset:0;padding:0}
+.topbar{height:56px;display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.wordmark{font:800 22px/1 var(--font-display);color:var(--brand);letter-spacing:-.01em;text-decoration:none}
+.seg{display:inline-flex;height:32px;padding:2px;border-radius:8px;background:var(--surface-3)}
+.seg a{display:inline-flex;align-items:center;justify-content:center;min-width:72px;padding:0 12px;border-radius:6px;font:600 13px/1 var(--font-body);color:var(--ink-2)}
+.seg a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.empty{width:480px;margin:120px auto 0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 24px}
+.empty h3{font:600 15px/22px var(--font-body)}
+.opt{display:flex;align-items:center;gap:12px;height:56px;padding:0 14px;border-radius:10px;margin-top:8px;border:1px solid var(--line)}
+.opt.pri{background:var(--brand-soft);border-color:var(--brand-soft)}
+.opt b{font-weight:600}
+.opt small{display:block;font-size:12.5px;color:var(--ink-2)}
+.scrim{position:absolute;inset:0;background:var(--overlay)}
+.center{position:absolute;inset:0;display:grid;place-items:center}
+
+/* phone */
+.notch{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:30px;background:#1a2e1a;border-radius:0 0 18px 18px;z-index:3}
+.pbody{height:100%;position:relative;overflow:hidden;background:var(--bg)}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:92%;background:var(--surface);border-radius:14px 14px 0 0;box-shadow:var(--shadow-3);padding:0 20px 34px;display:flex;flex-direction:column}
+.handle{width:36px;height:4px;border-radius:999px;background:var(--line-strong);margin:8px auto 14px;flex:none}
+.sheet .foot{margin-top:auto;flex-direction:column}
+.sheet .foot .btn{width:100%;justify-content:center;height:48px;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="stage">
+<div class="col">
+  <div class="cap">Desktop · 1440 · request state over the guest Courses empty state (dialog scales .96→1 with opacity, 200ms; scrim has no blur)</div>
+  <div class="frame desktop">
+    <div class="ghostapp">
+      <header class="topbar"><a class="wordmark" href="#">UNTangle</a><nav class="seg"><a class="on">Courses</a><a>Week</a><a>Map</a></nav><div class="spacer"></div><span class="meta">Guest plan · not saved</span></header>
+      <div class="empty">
+        <h3>Start with what you've taken</h3>
+        <div class="opt pri"><div><b>Connect to myUNT</b><small>Import your unofficial transcript</small></div><span class="spacer"></span>›</div>
+        <div class="opt"><div><b>Upload a transcript PDF</b><small>If you already downloaded it</small></div><span class="spacer"></span>›</div>
+        <div class="opt"><div><b>Pick courses by hand</b><small>Search and mark them yourself</small></div><span class="spacer"></span>›</div>
+      </div>
+    </div>
+    <div class="scrim"></div>
+    <div class="center">
+      <div class="dlg" role="dialog" aria-labelledby="t1">
+        <div class="dots"><span class="cur">Open</span><span>Import</span><span>Review</span></div>
+        <div class="mark">U</div>
+        <h2 id="t1">UNTangle will import your unofficial transcript</h2>
+        <p>It opens myUNT in a new tab. You download the PDF there; it lands back here.</p>
+        <div class="access">
+          <div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 2.5h7l3 3v8H3z"/><path d="M6 8h4M6 11h4"/></svg><span><b>Reads</b> course codes, terms and grades from the PDF</span></div>
+          <div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h10M5 4v9h6V4M7 7v4M9 7v4"/></svg><span><b>Removes</b> your name, ID and address before matching</span></div>
+          <div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="10" height="10" rx="2"/><path d="M6 8l1.5 1.5L10 6.5"/></svg><span><b>Keeps</b> the course list, on this device and in your plan</span></div>
+        </div>
+        <div class="quiet">It never sees your myUNT password.</div>
+        <div class="foot"><button class="btn ghost">Not now</button><span class="spacer"></span><button class="btn primary">Continue</button></div>
+        <div class="fallback"><a class="link">Upload a PDF instead</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="stage" style="padding-top:0">
+<div class="col">
+  <div class="cap">Desktop · the next three states at exact size: handoff (extension not installed), progress, review. The box snaps height; content crossfades 160ms with a 2px blur.</div>
+  <div class="scrimstage">
+
+    <div class="dlg">
+      <div class="dots"><span class="cur">Open</span><span>Import</span><span>Review</span></div>
+      <h2>Download it from myUNT</h2>
+      <p>Academic Records › Unofficial Transcript › View as PDF. Then come back here.</p>
+      <div class="bc">
+        <div class="bc-chrome"><i></i><i></i><i></i><div class="bc-url"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="5" width="7" height="5" rx="1"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5"/></svg><b>my.unt.edu</b> › Academic Records › Unofficial Transcript</div></div>
+        <div class="bc-body">
+          <div class="unt">UNT</div>
+          <p>Opens in a new tab. Sign in there as usual.</p>
+          <button class="btn primary">Open myUNT<span class="ext">↗</span></button>
+          <div class="waiting"><span class="spin"></span>Waiting for the download…</div>
+        </div>
+      </div>
+      <div class="drop">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13V4M6 8l4-4 4 4"/><path d="M3 13v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg>
+        <span>Drop the transcript PDF here, or <a class="link">choose a file</a></span>
+      </div>
+      <div class="foot"><button class="btn ghost">Back</button><span class="spacer"></span><span class="meta">Get the <a class="link">browser extension</a> to skip this step</span></div>
+    </div>
+
+    <div class="dlg">
+      <div class="dots"><span class="done">Open</span><span class="cur">Import</span><span>Review</span></div>
+      <h2>Reading your transcript</h2>
+      <div class="steps">
+        <div class="step done"><span class="ic"></span><span>Reading the PDF</span><span class="spacer"></span><span class="meta">2 pages</span></div>
+        <div class="step active"><span class="ic"></span><span>Removing your name and ID</span></div>
+        <div class="step pending"><span class="ic"></span><span>Matching courses to your degree plan</span></div>
+      </div>
+      <div class="quiet">This happens in your browser. The PDF is not uploaded.</div>
+      <div class="foot"><button class="btn ghost">Cancel</button></div>
+    </div>
+
+    <div class="dlg">
+      <div class="dots"><span class="done">Open</span><span class="done">Import</span><span class="cur">Review</span></div>
+      <h2>14 courses found</h2>
+      <div class="meta" style="margin-top:4px">11 done · 2 in progress · 1 didn't match</div>
+      <div class="rev">
+        <div class="rr bad"><span class="st st-none"></span><span class="code">ELEC 2000</span><span class="t">Transfer credit, no match</span><button class="select">Pick a course <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 5.5 7 9l3.5-3.5"/></svg></button></div>
+        <div class="rr"><span class="st st-taking"></span><span class="code">CSCE 1040</span><span class="t">Computer Science II</span><span class="r">Fall 2026 · in progress</span></div>
+        <div class="rr"><span class="st st-taking"></span><span class="code">ENGL 1320</span><span class="t">College Writing II</span><span class="r">Fall 2026 · in progress</span></div>
+        <div class="rr"><span class="st st-done"></span><span class="code">CSCE 1030</span><span class="t">Computer Science I</span><span class="r">Fall 2025 · A</span></div>
+        <div class="rr"><span class="st st-done"></span><span class="code">MATH 1710</span><span class="t">Calculus I</span><span class="r">Fall 2025 · B</span></div>
+        <div class="rr"><span class="st st-done"></span><span class="code">ENGL 1310</span><span class="t">College Writing I</span><span class="r">Fall 2025 · A</span></div>
+        <div class="rr"><span class="st st-done"></span><span class="code">HIST 2610</span><span class="t">US History to 1865</span><span class="r">Fall 2025 · B</span></div>
+      </div>
+      <div class="foot"><button class="btn ghost">Cancel</button><span class="spacer"></span><button class="btn primary">Add 14 courses</button></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div class="stage" style="padding-top:0">
+<div class="col">
+  <div class="cap">Desktop · done and error states</div>
+  <div class="scrimstage">
+    <div class="dlg">
+      <div class="dots"><span class="done">Open</span><span class="done">Import</span><span class="done">Review</span></div>
+      <div class="mark ok"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 8.5 6.5 11.5 12.5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <h2>Added 14 courses</h2>
+      <p>4 are planned for Spring 2027. Adjust any you don't want in Courses.</p>
+      <div class="foot"><button class="btn ghost">Close</button><span class="spacer"></span><button class="btn primary">Go to courses</button></div>
+    </div>
+    <div class="dlg">
+      <div class="dots"><span class="done">Open</span><span class="cur">Import</span><span>Review</span></div>
+      <div class="mark err"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 4.5v4M8 11.2v.3" stroke-linecap="round"/><circle cx="8" cy="8" r="6.5"/></svg></div>
+      <h2>That file isn't a transcript</h2>
+      <p>Download the unofficial transcript from myUNT, not the degree audit. Your courses are unchanged.</p>
+      <div class="foot"><button class="btn ghost">Open myUNT again</button><span class="spacer"></span><button class="btn primary">Choose another file</button></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="stage" style="padding-top:0">
+<div class="col">
+  <div class="cap">Phone · 390 · request</div>
+  <div class="frame phone">
+    <div class="notch"></div>
+    <div class="pbody">
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="dots"><span class="cur">Open</span><span>Import</span><span>Review</span></div>
+        <div class="mark">U</div>
+        <h2>UNTangle will import your unofficial transcript</h2>
+        <p>It opens myUNT in Safari. You download the PDF there; it lands back here.</p>
+        <div class="access">
+          <div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 2.5h7l3 3v8H3z"/><path d="M6 8h4M6 11h4"/></svg><span><b>Reads</b> codes, terms and grades</span></div>
+          <div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h10M5 4v9h6V4M7 7v4M9 7v4"/></svg><span><b>Removes</b> your name, ID and address</span></div>
+          <div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="10" height="10" rx="2"/><path d="M6 8l1.5 1.5L10 6.5"/></svg><span><b>Keeps</b> only the course list</span></div>
+        </div>
+        <div class="quiet">It never sees your myUNT password.</div>
+        <div class="foot"><button class="btn primary">Continue</button><button class="btn ghost">Not now</button><a class="link" style="font-size:13px;margin-top:4px">Upload a PDF instead</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="cap">Phone · 390 · handoff (sheet survives the Safari tab; state in sessionStorage)</div>
+  <div class="frame phone">
+    <div class="notch"></div>
+    <div class="pbody">
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="dots"><span class="cur">Open</span><span>Import</span><span>Review</span></div>
+        <h2>Download it from myUNT</h2>
+        <p>Academic Records › Unofficial Transcript › View as PDF. Save it, then come back.</p>
+        <div class="bc">
+          <div class="bc-chrome"><i></i><i></i><i></i><div class="bc-url"><b>my.unt.edu</b> › Unofficial Transcript</div></div>
+          <div class="bc-body"><div class="unt">UNT</div><button class="btn primary">Open myUNT ↗</button><div class="waiting"><span class="spin"></span>Waiting for the download…</div></div>
+        </div>
+        <div class="foot">
+          <button class="btn ghost">Choose the PDF</button>
+          <span class="meta" style="text-align:center">It's in Files › Downloads</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

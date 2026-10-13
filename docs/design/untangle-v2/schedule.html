@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v2 · Week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f4;--surface:#fff;--surface-2:#eef2ee;--surface-3:#e6ece6;
+  --line:#dde8dd;--line-strong:#c3d2c3;
+  --ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6b826b;--ink-4:#93a593;
+  --brand:#00512b;--brand-hover:#007a40;--brand-soft:#e4f0e8;
+  --accent:#00a855;--accent-soft:#e3f6eb;--danger:#b3261e;--danger-soft:#fbeae8;
+  --overlay:rgba(26,46,26,.32);
+  --c1:#3f7a4f;--c1t:#e6f0e8;--c2:#a3613f;--c2t:#f6ebe4;--c3:#4b6a8a;--c3t:#e6ecf2;--c4:#8d7325;--c4t:#f5f0e0;--c5:#7a5272;--c5t:#f1e8f0;
+  --font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;
+  --shadow-1:0 1px 2px rgba(26,46,26,.06);
+  --shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);
+  --shadow-3:0 16px 40px rgba(26,46,26,.14),0 2px 6px rgba(26,46,26,.08);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+}
+html,body{background:#e3e7e3;font-family:var(--font-body);color:var(--ink);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.stage{display:flex;gap:40px;padding:40px;align-items:flex-start;min-width:max-content}
+.col{display:flex;flex-direction:column;gap:8px}
+.cap{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.frame{background:var(--bg);border:1px solid #cfd7cf;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 24px 60px rgba(26,46,26,.12)}
+.desktop{width:1440px;height:900px}
+.phone{width:390px;height:844px;border-radius:44px;border:6px solid #1a2e1a}
+
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:var(--r-md);border:1px solid transparent;font:600 13px/1 var(--font-body);color:var(--ink);background:transparent;cursor:pointer;white-space:nowrap;transition:transform 120ms var(--ease-out),background-color 160ms ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.ghost{background:var(--surface);border-color:var(--line-strong)}
+.btn.sm{height:32px;padding:0 12px}
+.btn.icon{width:32px;height:32px;padding:0;justify-content:center;border-radius:8px}
+.btn.full{width:100%;justify-content:center}
+.link{color:var(--brand);font-weight:600;text-decoration:none;cursor:pointer}
+kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);font:500 11px/1 var(--font-body);color:var(--ink-2)}
+.tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:var(--r-sm);border:1px dotted var(--line-strong);font:500 11px/1 var(--font-body);color:var(--ink-2);white-space:nowrap}
+.meta{font-size:12.5px;line-height:18px;color:var(--ink-2)}
+.code{font:700 13px/1 var(--font-display);letter-spacing:.01em;color:var(--ink);white-space:nowrap}
+.seg{display:inline-flex;height:32px;padding:2px;border-radius:8px;background:var(--surface-3)}
+.seg a{display:inline-flex;align-items:center;justify-content:center;min-width:72px;padding:0 12px;border-radius:6px;font:600 13px/1 var(--font-body);color:var(--ink-2);cursor:pointer;user-select:none}
+.seg a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.seg.sm{height:28px}.seg.sm a{min-width:0;flex:1;font-size:12.5px}
+.seg.full{display:flex;width:100%}
+
+.topbar{height:56px;display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.wordmark{font:800 22px/1 var(--font-display);color:var(--brand);letter-spacing:-.01em;text-decoration:none}
+.spacer{flex:1}
+.planchip{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font:600 13px/1 var(--font-body);color:var(--ink)}
+.planchip .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font:700 12px/1 var(--font-body)}
+.viewhead{height:44px;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--line)}
+.viewhead .ttl{font:600 15px/22px var(--font-body)}
+.note{display:flex;align-items:center;gap:12px;height:36px;margin:12px 24px 0;padding:0 12px;border-radius:8px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
+
+.body{display:grid;grid-template-columns:296px 1fr 400px;height:calc(900px - 56px - 44px - 48px);margin-top:12px}
+.rail{padding:0 16px 0 24px;overflow:hidden;display:flex;flex-direction:column;gap:20px}
+.rail h4{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface);font:500 13px/1 var(--font-body);color:var(--ink);cursor:pointer;user-select:none;transition:background-color 120ms ease,border-color 120ms ease}
+.chip.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand);font-weight:600}
+.chip.on::before{content:"";width:5px;height:9px;border:solid var(--brand);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px);margin-right:1px}
+.slider{margin-top:10px}
+.slider .lbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);margin-bottom:6px}
+.slider .lbl b{color:var(--ink);font-weight:600}
+.track{position:relative;height:4px;border-radius:999px;background:var(--line-strong)}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:33%;background:var(--brand);border-radius:999px}
+.track .thumb{position:absolute;left:33%;top:50%;width:18px;height:18px;border-radius:50%;background:var(--surface);border:1.5px solid var(--brand);box-shadow:var(--shadow-1);transform:translate(-50%,-50%)}
+.inplan{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.ip{display:grid;grid-template-columns:10px 84px 1fr auto;align-items:center;gap:10px;height:36px;padding:0 10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+.ip:first-child{border-top:0}
+.ip .sw{width:10px;height:10px;border-radius:3px}
+.ip .lock{color:var(--ink-3);font-size:11px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 8px}
+.stat b{display:block;font:700 20px/24px var(--font-display)}
+.stat span{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.export{display:flex;gap:8px}
+
+/* grid */
+.gridwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;margin-right:16px;display:flex;flex-direction:column}
+.dayhead{display:grid;grid-template-columns:48px repeat(5,1fr);height:32px;border-bottom:1px solid var(--line)}
+.dayhead div{display:flex;align-items:center;justify-content:center;font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.grid{position:relative;display:grid;grid-template-columns:48px repeat(5,1fr);height:504px;background:
+  repeating-linear-gradient(to bottom,transparent 0 55px,var(--line) 55px 56px),
+  repeating-linear-gradient(to bottom,transparent 0 27px,rgba(221,232,221,.55) 27px 28px,transparent 28px 56px)}
+.gut{position:relative;border-right:1px solid var(--line)}
+.gut span{position:absolute;right:8px;transform:translateY(-8px);font-size:11px;color:var(--ink-2)}
+.day{position:relative;border-right:1px solid var(--line)}
+.day:last-child{border-right:0}
+.ev{position:absolute;left:4px;right:4px;border-radius:8px;border-left:3px solid;padding:5px 8px;overflow:hidden;cursor:pointer;line-height:15px}
+.ev .c{font:700 12px/15px var(--font-display);color:var(--ink)}
+.ev .t,.ev .b{font-size:11px;color:var(--ink-2)}
+.ev.c1{border-color:var(--c1);background:var(--c1t)}.ev.c2{border-color:var(--c2);background:var(--c2t)}.ev.c3{border-color:var(--c3);background:var(--c3t)}.ev.c4{border-color:var(--c4);background:var(--c4t)}.ev.c5{border-color:var(--c5);background:var(--c5t)}
+.ev.sel{box-shadow:0 0 0 1.5px var(--c2),var(--shadow-1)}
+.ev.ghost{background:transparent;border:1.5px dashed var(--c2);border-left-width:3px;opacity:.75}
+.ev.ghost .c{color:var(--c2)}
+.ev .lk{position:absolute;right:6px;top:5px;font-size:10px;color:var(--ink-3)}
+
+/* panel */
+.panel{background:var(--surface);border-left:1px solid var(--line);overflow:auto;padding-bottom:24px}
+.p-head{padding:20px 20px 0;position:relative}
+.p-head .bigcode{font:700 20px/24px var(--font-display);color:var(--brand)}
+.p-head h2{font:600 18px/24px var(--font-body);margin-top:4px}
+.p-head .close{position:absolute;right:12px;top:14px}
+.p-sec{padding:18px 20px 0}
+.p-sec h3{font:600 15px/22px var(--font-body)}
+.sec-head{display:flex;align-items:center;gap:10px}
+.alt{display:grid;grid-template-columns:16px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);cursor:pointer;transition:background-color 160ms ease}
+.alt:first-child{border-top:0}
+.alt.cur{background:var(--brand-soft)}
+.alt.hov{background:var(--surface-2)}
+.alts{margin-top:10px;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.alt .l1{display:flex;align-items:center;gap:8px;line-height:20px}
+.alt .l2{font-size:12.5px;color:var(--ink-2);line-height:18px}
+.alt .l2.ok{color:var(--brand)}
+.alt .l2.bad{color:var(--danger)}
+.radio{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-strong);position:relative}
+.radio.on{border-color:var(--brand)}
+.radio.on::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--brand)}
+.toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);height:44px;display:flex;align-items:center;gap:14px;padding:0 16px;border-radius:10px;background:var(--ink);color:#fff;font:500 13px/1 var(--font-body);box-shadow:var(--shadow-3)}
+.toast a{color:#9fdcb8;font-weight:600;cursor:pointer}
+
+/* phone */
+.notch{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:30px;background:#1a2e1a;border-radius:0 0 18px 18px;z-index:3}
+.pbody{height:100%;position:relative;overflow:hidden}
+.ptop{height:78px;padding:30px 16px 0;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:1px solid var(--line)}
+.ptop .wordmark{font-size:20px}
+.pvh{height:40px;display:flex;align-items:center;gap:10px;padding:0 16px}
+.pvh .ttl{font:600 15px/22px var(--font-body)}
+.pstats{display:flex;gap:14px;padding:0 16px 8px;font-size:12.5px;color:var(--ink-2)}
+.pgrid{margin:0 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.pgrid .dayhead{grid-template-columns:32px repeat(5,1fr);height:28px}
+.pgrid .grid{grid-template-columns:32px repeat(5,1fr);height:380px;background:repeating-linear-gradient(to bottom,transparent 0 41px,var(--line) 41px 42px)}
+.pgrid .gut span{right:4px;font-size:9.5px}
+.pgrid .ev{left:2px;right:2px;padding:3px 4px;border-radius:5px;border-left-width:2.5px}
+.pgrid .ev .c{font-size:9.5px;line-height:12px}
+.pgrid .ev .t{font-size:9px;line-height:11px}
+.pscrim{position:absolute;inset:0;background:var(--overlay)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:14px 14px 0 0;box-shadow:var(--shadow-3);padding-bottom:28px}
+.handle{width:36px;height:4px;border-radius:999px;background:var(--line-strong);margin:8px auto 0}
+.sheet .p-head{padding:10px 16px 0}
+.sheet .p-sec{padding:14px 16px 0}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:78px;padding-bottom:22px;display:grid;grid-template-columns:1fr 1fr 1fr;background:rgba(255,255,255,.92);border-top:1px solid var(--line)}
+.tabbar a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:500 11px/1 var(--font-body);color:var(--ink-2)}
+.tabbar a.on{color:var(--brand)}
+.tabbar svg{width:22px;height:22px}
+</style>
+</head>
+<body>
+<div class="stage">
+
+<!-- ===================== DESKTOP ===================== -->
+<div class="col">
+  <div class="cap">Desktop · 1440 · Week with CSCE 2100 selected; hovering alternative §003 paints the dashed ghost on Tue/Thu</div>
+  <div class="frame desktop">
+    <header class="topbar">
+      <a class="wordmark" href="#">UNTangle</a>
+      <nav class="seg"><a>Courses</a><a class="on">Week</a><a>Map</a></nav>
+      <button class="btn icon ghost" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg></button>
+      <div class="spacer"></div>
+      <button class="planchip"><span class="dot"></span>Spring 2027 · v3 <span class="meta">Saved</span><span style="font-size:10px;color:var(--ink-3)">▾</span></button>
+      <div class="avatar">SG</div>
+    </header>
+    <div class="viewhead">
+      <span class="ttl">Spring 2027</span><span class="meta">16 credits · 5 courses</span><span class="tag">Sample sections</span>
+      <div class="spacer"></div>
+      <button class="btn ghost sm">Print</button><button class="btn ghost sm">Download .ics</button>
+    </div>
+    <div class="note">Sections here are samples, not UNT's class schedule. Check the official schedule before you register.<span class="spacer"></span><a class="link">Dismiss</a></div>
+
+    <div class="body">
+      <aside class="rail">
+        <div>
+          <h4>Constraints</h4>
+          <nav class="seg sm full"><a>Earlier</a><a class="on">Any</a><a>Later</a></nav>
+          <div class="chips">
+            <span class="chip on">No Fridays</span><span class="chip on">No 8 AMs</span><span class="chip">Compact days</span><span class="chip on">Short walks</span><span class="chip">Top-rated profs</span><span class="chip">Lunch gap</span>
+          </div>
+          <div class="slider"><div class="lbl"><span>Max walk between classes</span><b>10 min</b></div><div class="track"><div class="fill"></div><div class="thumb"></div></div></div>
+          <button class="btn primary full" style="margin-top:14px">Optimize week</button>
+        </div>
+        <div>
+          <h4>In this plan</h4>
+          <div class="inplan">
+            <div class="ip"><span class="sw" style="background:var(--c1)"></span><span class="code">ENGL 1320</span><span>§004 · MWF 9:00</span><span class="lock">🔒</span></div>
+            <div class="ip"><span class="sw" style="background:var(--c3)"></span><span class="code">MATH 1720</span><span>§010 · MWF 11:00</span><span></span></div>
+            <div class="ip" style="background:var(--brand-soft)"><span class="sw" style="background:var(--c2)"></span><span class="code">CSCE 2100</span><span>§001 · MWF 12:00</span><span></span></div>
+            <div class="ip"><span class="sw" style="background:var(--c4)"></span><span class="code">PHYS 1710</span><span>§002 + lab §204</span><span></span></div>
+            <div class="ip"><span class="sw" style="background:var(--c5)"></span><span class="code">PSCI 2305</span><span>§006 · MW 2:00</span><span></span></div>
+          </div>
+        </div>
+        <div>
+          <h4>This week</h4>
+          <div class="stats">
+            <div class="stat"><b>16</b><span>Credits</span></div>
+            <div class="stat"><b>9:00</b><span>Earliest</span></div>
+            <div class="stat"><b>4:50</b><span>Latest</span></div>
+            <div class="stat"><b>38<small style="font:600 12px var(--font-body)"> min</small></b><span>Walking / wk</span></div>
+            <div class="stat"><b>Thu</b><span>Longest day</span></div>
+            <div class="stat"><b>7<small style="font:600 12px var(--font-body)">h 20</small></b><span>On campus</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="gridwrap">
+        <div class="dayhead"><div></div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div></div>
+        <div class="grid">
+          <div class="gut"><span style="top:0">8 AM</span><span style="top:56px">9</span><span style="top:112px">10</span><span style="top:168px">11</span><span style="top:224px">12 PM</span><span style="top:280px">1</span><span style="top:336px">2</span><span style="top:392px">3</span><span style="top:448px">4</span></div>
+          <div class="day">
+            <div class="ev c1" style="top:56px;height:46px"><div class="c">ENGL 1320</div><div class="t">9:00–9:50 · LANG 316</div><span class="lk">🔒</span></div>
+            <div class="ev c3" style="top:168px;height:46px"><div class="c">MATH 1720</div><div class="t">11:00–11:50 · GAB 105</div></div>
+            <div class="ev c2 sel" style="top:224px;height:46px"><div class="c">CSCE 2100</div><div class="t">12:00–12:50 · GAB 550</div></div>
+            <div class="ev c5" style="top:336px;height:74px"><div class="c">PSCI 2305</div><div class="t">2:00–3:20</div><div class="b">SAGE 116 · M. Delgado</div></div>
+          </div>
+          <div class="day">
+            <div class="ev c4" style="top:84px;height:74px"><div class="c">PHYS 1710</div><div class="t">9:30–10:50</div><div class="b">PHYS 104 · A. Lindqvist</div></div>
+            <div class="ev c2 ghost" style="top:168px;height:74px"><div class="c">CSCE 2100 §003</div><div class="t">11:00–12:20</div></div>
+          </div>
+          <div class="day">
+            <div class="ev c1" style="top:56px;height:46px"><div class="c">ENGL 1320</div><div class="t">9:00–9:50 · LANG 316</div><span class="lk">🔒</span></div>
+            <div class="ev c3" style="top:168px;height:46px"><div class="c">MATH 1720</div><div class="t">11:00–11:50 · GAB 105</div></div>
+            <div class="ev c2 sel" style="top:224px;height:46px"><div class="c">CSCE 2100</div><div class="t">12:00–12:50 · GAB 550</div></div>
+            <div class="ev c5" style="top:336px;height:74px"><div class="c">PSCI 2305</div><div class="t">2:00–3:20</div><div class="b">SAGE 116 · M. Delgado</div></div>
+          </div>
+          <div class="day">
+            <div class="ev c4" style="top:84px;height:74px"><div class="c">PHYS 1710</div><div class="t">9:30–10:50</div><div class="b">PHYS 104 · A. Lindqvist</div></div>
+            <div class="ev c2 ghost" style="top:168px;height:74px"><div class="c">CSCE 2100 §003</div><div class="t">11:00–12:20</div></div>
+            <div class="ev c4" style="top:336px;height:158px"><div class="c">PHYS 1730</div><div class="t">2:00–4:50</div><div class="b">PHYS 213 · lab</div></div>
+          </div>
+          <div class="day">
+            <div class="ev c1" style="top:56px;height:46px"><div class="c">ENGL 1320</div><div class="t">9:00–9:50 · LANG 316</div><span class="lk">🔒</span></div>
+            <div class="ev c3" style="top:168px;height:46px"><div class="c">MATH 1720</div><div class="t">11:00–11:50 · GAB 105</div></div>
+            <div class="ev c2 sel" style="top:224px;height:46px"><div class="c">CSCE 2100</div><div class="t">12:00–12:50 · GAB 550</div></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <div class="p-head">
+          <span class="bigcode">CSCE 2100</span>
+          <h2>Computing Foundations I</h2>
+          <div class="meta">3 credits · in this plan as §001 · <a class="link">Course details</a></div>
+          <button class="btn icon close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="p-sec">
+          <div class="sec-head"><h3>Alternatives</h3><span class="tag">Sample</span><span class="spacer"></span><span class="meta">ranked by your constraints</span></div>
+          <div class="alts">
+            <div class="alt cur"><span class="radio on"></span><div><div class="l1"><span class="code">§001</span><span>Mon Wed Fri · 12:00–12:50 · GAB 550</span></div><div class="l2">R. Okafor · ★ 4.1 · current section</div></div><span class="meta">Keep</span></div>
+            <div class="alt hov"><span class="radio"></span><div><div class="l1"><span class="code">§003</span><span>Tue Thu · 11:00–12:20 · GAB 550</span></div><div class="l2 ok">M. Delgado · ★ 4.6 · no conflicts · frees Mon Wed Fri noon</div></div><button class="btn ghost sm">Use</button></div>
+            <div class="alt"><span class="radio"></span><div><div class="l1"><span class="code">§005</span><span>Mon Wed Fri · 2:00–2:50 · GAB 550</span></div><div class="l2 bad">R. Okafor · ★ 4.1 · conflicts with PSCI 2305</div></div><button class="btn ghost sm">Use</button></div>
+            <div class="alt"><span class="radio"></span><div><div class="l1"><span class="code">§007</span><span>Tue Thu · 3:30–4:50 · NTDP B155</span></div><div class="l2 bad">S. Whitfield · ★ 3.4 · Thu conflicts with PHYS 1730 · +12 min walk</div></div><button class="btn ghost sm">Use</button></div>
+          </div>
+          <a class="link" style="display:inline-block;margin-top:10px;font-size:12.5px">Show all 6 sections</a>
+        </div>
+        <div class="p-sec">
+          <div class="sec-head"><h3>Section §001</h3></div>
+          <div class="meta" style="margin-top:6px">R. Okafor · ★ 4.1 on RateMyProf · 31 of 40 seats · GAB 550 is a 4 min walk from LANG</div>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn ghost sm">Lock this section</button><button class="btn ghost sm">Remove from plan</button></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast">Optimized · 2 sections moved <a>Undo</a></div>
+  </div>
+</div>
+
+<!-- ===================== PHONE ===================== -->
+<div class="col">
+  <div class="cap">Phone · 390 · code-only grid; tapping CSCE 2100 opened the alternatives sheet</div>
+  <div class="frame phone">
+    <div class="notch"></div>
+    <div class="pbody">
+      <div class="ptop"><a class="wordmark" href="#">UNTangle</a><button class="planchip" style="height:32px;font-size:12.5px"><span class="dot"></span>Spring 2027 · v3 ▾</button></div>
+      <div class="pvh"><span class="ttl">Spring 2027</span><span class="meta">16 cr</span><span class="tag">Sample</span><span class="spacer"></span><button class="btn primary sm">Optimize</button></div>
+      <div class="pstats"><span>9:00–4:50</span><span>38 min walking</span><span>longest Thu</span></div>
+      <div class="pgrid">
+        <div class="dayhead"><div></div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div></div>
+        <div class="grid">
+          <div class="gut"><span style="top:0">8</span><span style="top:42px">9</span><span style="top:84px">10</span><span style="top:126px">11</span><span style="top:168px">12</span><span style="top:210px">1</span><span style="top:252px">2</span><span style="top:294px">3</span><span style="top:336px">4</span></div>
+          <div class="day"><div class="ev c1" style="top:42px;height:34px"><div class="c">ENGL 1320</div><div class="t">9:00</div></div><div class="ev c3" style="top:126px;height:34px"><div class="c">MATH 1720</div><div class="t">11:00</div></div><div class="ev c2 sel" style="top:168px;height:34px"><div class="c">CSCE 2100</div><div class="t">12:00</div></div><div class="ev c5" style="top:252px;height:55px"><div class="c">PSCI 2305</div><div class="t">2:00</div></div></div>
+          <div class="day"><div class="ev c4" style="top:63px;height:55px"><div class="c">PHYS 1710</div><div class="t">9:30</div></div></div>
+          <div class="day"><div class="ev c1" style="top:42px;height:34px"><div class="c">ENGL 1320</div><div class="t">9:00</div></div><div class="ev c3" style="top:126px;height:34px"><div class="c">MATH 1720</div><div class="t">11:00</div></div><div class="ev c2 sel" style="top:168px;height:34px"><div class="c">CSCE 2100</div><div class="t">12:00</div></div><div class="ev c5" style="top:252px;height:55px"><div class="c">PSCI 2305</div><div class="t">2:00</div></div></div>
+          <div class="day"><div class="ev c4" style="top:63px;height:55px"><div class="c">PHYS 1710</div><div class="t">9:30</div></div><div class="ev c4" style="top:252px;height:118px"><div class="c">PHYS 1730</div><div class="t">2:00 lab</div></div></div>
+          <div class="day"><div class="ev c1" style="top:42px;height:34px"><div class="c">ENGL 1320</div><div class="t">9:00</div></div><div class="ev c3" style="top:126px;height:34px"><div class="c">MATH 1720</div><div class="t">11:00</div></div><div class="ev c2 sel" style="top:168px;height:34px"><div class="c">CSCE 2100</div><div class="t">12:00</div></div></div>
+        </div>
+      </div>
+      <div class="pscrim"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="p-head"><span class="bigcode">CSCE 2100</span><h2 style="font-size:16px">Computing Foundations I</h2><div class="meta">In this plan as §001 · MWF 12:00</div></div>
+        <div class="p-sec">
+          <div class="sec-head"><h3>Alternatives</h3><span class="tag">Sample</span></div>
+          <div class="alts">
+            <div class="alt cur" style="grid-template-columns:16px 1fr"><span class="radio on"></span><div><div class="l1"><span class="code">§001</span><span style="font-size:13px">MWF 12:00–12:50 · GAB 550</span></div><div class="l2">R. Okafor · ★ 4.1 · current</div></div></div>
+            <div class="alt" style="grid-template-columns:16px 1fr"><span class="radio"></span><div><div class="l1"><span class="code">§003</span><span style="font-size:13px">TTh 11:00–12:20 · GAB 550</span></div><div class="l2 ok">M. Delgado · ★ 4.6 · no conflicts</div></div></div>
+            <div class="alt" style="grid-template-columns:16px 1fr"><span class="radio"></span><div><div class="l1"><span class="code">§005</span><span style="font-size:13px">MWF 2:00–2:50 · GAB 550</span></div><div class="l2 bad">Conflicts with PSCI 2305</div></div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary" style="flex:1;justify-content:center">Use §003</button><button class="btn ghost">Course details</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

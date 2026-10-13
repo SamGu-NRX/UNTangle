@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v2 · Courses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f4;--surface:#fff;--surface-2:#eef2ee;--surface-3:#e6ece6;
+  --line:#dde8dd;--line-strong:#c3d2c3;
+  --ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6b826b;--ink-4:#93a593;
+  --brand:#00512b;--brand-hover:#007a40;--brand-soft:#e4f0e8;
+  --accent:#00a855;--accent-soft:#e3f6eb;--danger:#b3261e;--danger-soft:#fbeae8;
+  --overlay:rgba(26,46,26,.32);
+  --font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;
+  --shadow-1:0 1px 2px rgba(26,46,26,.06);
+  --shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);
+  --shadow-3:0 16px 40px rgba(26,46,26,.14),0 2px 6px rgba(26,46,26,.08);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --focus:0 0 0 2px #fff,0 0 0 4px var(--accent);
+}
+html,body{background:#e3e7e3;font-family:var(--font-body);color:var(--ink);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.stage{display:flex;gap:40px;padding:40px;align-items:flex-start;min-width:max-content}
+.col{display:flex;flex-direction:column;gap:8px}
+.cap{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.frame{background:var(--bg);border:1px solid #cfd7cf;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 24px 60px rgba(26,46,26,.12)}
+.desktop{width:1440px;height:900px}
+.phone{width:390px;height:844px;border-radius:44px;border:6px solid #1a2e1a}
+
+/* primitives */
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:var(--r-md);border:1px solid transparent;font:600 13px/1 var(--font-body);color:var(--ink);background:transparent;cursor:pointer;white-space:nowrap;transition:transform 120ms var(--ease-out),background-color 160ms ease,border-color 160ms ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-hover)}
+.btn.ghost{background:var(--surface);border-color:var(--line-strong)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.quiet:hover{background:var(--surface-2)}
+.btn.sm{height:32px;padding:0 12px}
+.btn.split{padding-right:0}
+.btn.split .caret{display:inline-flex;align-items:center;justify-content:center;height:100%;width:28px;margin-left:8px;border-left:1px solid rgba(255,255,255,.25);font-size:10px}
+.link{color:var(--brand);font-weight:600;text-decoration:none;cursor:pointer}
+.link:hover{text-decoration:underline}
+kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);font:500 11px/1 var(--font-body);color:var(--ink-2)}
+.tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:var(--r-sm);border:1px dotted var(--line-strong);font:500 11px/1 var(--font-body);color:var(--ink-2);white-space:nowrap}
+.meta{font-size:12.5px;line-height:18px;color:var(--ink-2)}
+.code{font:700 13px/1 var(--font-display);letter-spacing:.01em;color:var(--ink);white-space:nowrap}
+.seg{display:inline-flex;height:32px;padding:2px;border-radius:8px;background:var(--surface-3);position:relative}
+.seg a{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:72px;padding:0 12px;border-radius:6px;font:600 13px/1 var(--font-body);color:var(--ink-2);text-decoration:none;cursor:pointer;user-select:none}
+.seg a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+
+/* shell */
+.topbar{height:56px;display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.wordmark{font:800 22px/1 var(--font-display);color:var(--brand);letter-spacing:-.01em;text-decoration:none}
+.search{display:flex;align-items:center;gap:8px;height:36px;width:280px;padding:0 10px 0 12px;border-radius:8px;background:var(--surface-2);color:var(--ink-3);font-size:13px;border:1px solid transparent;cursor:text}
+.search svg{flex:none}
+.search span{flex:1}
+.spacer{flex:1}
+.planchip{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font:600 13px/1 var(--font-body);color:var(--ink);cursor:pointer}
+.planchip .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.planchip .meta{font-weight:500}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font:700 12px/1 var(--font-body)}
+
+.viewhead{height:44px;display:flex;align-items:center;gap:16px;padding:0 32px;border-bottom:1px solid var(--line);background:var(--bg)}
+.viewhead .ttl{font:600 15px/22px var(--font-body)}
+.prog{width:120px;height:4px;border-radius:999px;background:var(--surface-3);overflow:hidden}
+.prog i{display:block;height:100%;width:35%;background:var(--brand);border-radius:999px}
+
+.autonote{display:flex;align-items:center;gap:12px;margin:12px 32px 0;height:36px;padding:0 12px;border-radius:8px;background:var(--brand-soft);font-size:13px;color:var(--ink)}
+.autonote .spark{color:var(--brand)}
+
+/* list */
+.list{max-width:880px;padding:12px 32px 32px}
+.group{display:flex;align-items:center;gap:10px;height:36px;margin-top:12px;padding:0 12px;user-select:none;cursor:pointer}
+.group .chev{color:var(--ink-3);font-size:10px}
+.group .gname{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.group .meta{flex:1}
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.row{display:grid;grid-template-columns:16px 92px 1fr auto auto 72px;align-items:center;gap:14px;height:44px;padding:0 12px 0 14px;border-top:1px solid var(--line);cursor:pointer;transition:background-color 160ms ease;position:relative}
+.row:first-child{border-top:0}
+.row:hover{background:var(--surface-2)}
+.row.sel{background:var(--brand-soft);box-shadow:inset 2px 0 0 var(--brand)}
+.row .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .cr{font-size:12.5px;color:var(--ink-2)}
+.row .right{font-size:12.5px;color:var(--ink-2);white-space:nowrap;text-align:right}
+.row .stl{font-size:12.5px;color:var(--ink-2);text-align:right}
+.row .stl.over{text-decoration:underline dotted;text-underline-offset:3px}
+.row.locked .title{color:var(--ink-2)}
+.row .hov{display:none;position:absolute;right:92px;top:6px}
+.row:hover .hov{display:inline-flex}
+.row:hover .right.hide-on-hover{visibility:hidden}
+
+/* status glyphs */
+.st{width:16px;height:16px;border-radius:50%;position:relative;flex:none}
+.st-done{background:var(--ink-3)}
+.st-done::after{content:"";position:absolute;left:5.5px;top:2.5px;width:3.5px;height:7.5px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.st-taking{border:1.5px solid var(--accent);background:linear-gradient(90deg,var(--accent) 50%,transparent 50%)}
+.st-planned{background:var(--brand)}
+.st-planned::after{content:"";position:absolute;left:5.5px;top:2.5px;width:3.5px;height:7.5px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);opacity:.0}
+.st-avail{border:1.5px solid var(--ink-4)}
+.st-locked{border:1.5px dotted var(--ink-4)}
+
+/* palette */
+.scrim{position:absolute;inset:0;background:var(--overlay)}
+.palette{position:absolute;left:50%;top:96px;transform:translateX(-50%);width:560px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-3);overflow:hidden}
+.pal-in{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border-bottom:1px solid var(--line);font-size:15px}
+.pal-in .q{flex:1;color:var(--ink)}
+.pal-in .q b{font-weight:400;border-right:1.5px solid var(--brand);padding-right:1px}
+.pal-sec{padding:10px 14px 4px;font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.pal-item{display:grid;grid-template-columns:92px 1fr auto;align-items:center;gap:14px;height:40px;margin:0 6px;padding:0 10px;border-radius:8px;font-size:14px}
+.pal-item.on{background:var(--surface-2)}
+.pal-item .r{font-size:12.5px;color:var(--ink-2)}
+.pal-item .r.d{color:var(--danger)}
+.pal-foot{display:flex;gap:16px;align-items:center;height:36px;padding:0 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-2);margin-top:6px}
+.pal-foot span{display:inline-flex;align-items:center;gap:6px}
+
+/* phone */
+.ptop{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.ptop .wordmark{font-size:20px}
+.ptop .planchip{height:32px;font-size:12.5px;padding:0 8px 0 10px}
+.psearch{position:sticky;top:0;padding:10px 16px;background:var(--bg)}
+.psearch .search{width:100%;height:40px;font-size:16px;background:var(--surface);border:1px solid var(--line-strong)}
+.pact{display:flex;align-items:center;gap:10px;padding:0 16px 6px}
+.pact .meta{flex:1}
+.plist{padding:0 16px 80px;overflow:hidden}
+.plist .group{padding:0 4px;margin-top:8px}
+.prow{display:grid;grid-template-columns:16px 1fr auto;grid-template-rows:20px 18px;column-gap:12px;align-items:center;padding:8px 14px;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .st{grid-row:1/3}
+.prow .code{grid-column:2}
+.prow .stl{grid-column:3;grid-row:1;font-size:12.5px;color:var(--ink-2)}
+.prow .sub{grid-column:2/4;font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .sub b{font-weight:500;color:var(--ink)}
+.prow.locked .sub b{color:var(--ink-2)}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:78px;padding-bottom:22px;display:grid;grid-template-columns:1fr 1fr 1fr;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-top:1px solid var(--line)}
+.tabbar a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:500 11px/1 var(--font-body);color:var(--ink-2);text-decoration:none;user-select:none}
+.tabbar a.on{color:var(--brand)}
+.tabbar svg{width:22px;height:22px}
+.notch{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:30px;background:#1a2e1a;border-radius:0 0 18px 18px;z-index:3}
+.pbody{padding-top:30px;height:100%;overflow:hidden}
+
+@media (prefers-reduced-motion:reduce){.btn,.row{transition:none}}
+</style>
+</head>
+<body>
+<div class="stage">
+
+<!-- ===================== DESKTOP A: courses after Auto-fill ===================== -->
+<div class="col">
+  <div class="cap">Desktop · 1440 · Courses after Auto-fill, CSCE 2100 selected (panel closed to show the full list)</div>
+  <div class="frame desktop">
+    <header class="topbar">
+      <a class="wordmark" href="#">UNTangle</a>
+      <nav class="seg"><a class="on">Courses</a><a>Week</a><a>Map</a></nav>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg>
+        <span>Search courses</span><kbd>⌘K</kbd>
+      </div>
+      <div class="spacer"></div>
+      <button class="planchip"><span class="dot"></span>Spring 2027 · v3 <span class="meta">Saved</span><span style="font-size:10px;color:var(--ink-3)">▾</span></button>
+      <div class="avatar">SG</div>
+    </header>
+
+    <div class="viewhead">
+      <span class="ttl">Computer Science, BS</span>
+      <span class="meta">42 of 120 credits</span>
+      <div class="prog"><i></i></div>
+      <div class="spacer"></div>
+      <button class="btn primary split"><span style="font-size:14px">✦</span>Auto-fill<span class="caret">▾</span></button>
+      <button class="btn ghost">Import PDF</button>
+    </div>
+
+    <div class="autonote">
+      <span class="spark">✦</span>
+      <span>Filled 11 courses from your transcript and planned 4 for Spring 2027.</span>
+      <a class="link">Undo</a>
+      <span class="spacer"></span>
+      <span class="tag">From transcript</span>
+    </div>
+
+    <div class="list">
+      <div class="group"><span class="chev">▾</span><span class="gname">Core</span><span class="meta">5 of 9 done</span><span class="tag">Degree plan 2024</span></div>
+      <div class="rows">
+        <div class="row"><span class="st st-done"></span><span class="code">CSCE 1030</span><span class="title">Computer Science I</span><span class="cr">3 cr</span><span class="right">Fall 2025 · A</span><span class="stl">Done</span></div>
+        <div class="row"><span class="st st-taking"></span><span class="code">CSCE 1040</span><span class="title">Computer Science II</span><span class="cr">3 cr</span><span class="right">This term</span><span class="stl">Taking</span></div>
+        <div class="row sel"><span class="st st-planned"></span><span class="code">CSCE 2100</span><span class="title">Computing Foundations I</span><span class="cr">3 cr</span><span class="right hide-on-hover">Spring 2027 · auto</span><span class="stl">Planned</span><button class="btn ghost sm hov">Remove</button></div>
+        <div class="row"><span class="st st-avail"></span><span class="code">CSCE 2610</span><span class="title">Assembly Language and Computer Organization</span><span class="cr">3 cr</span><span class="right hide-on-hover"></span><span class="stl">Available</span><button class="btn ghost sm hov">+ Plan</button></div>
+        <div class="row locked"><span class="st st-locked"></span><span class="code">CSCE 2110</span><span class="title">Computing Foundations II</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">CSCE 2100</a></span><span class="stl">Locked</span></div>
+        <div class="row locked"><span class="st st-locked"></span><span class="code">CSCE 3110</span><span class="title">Data Structures and Algorithms</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">CSCE 2110</a>, <a class="link">MATH 1720</a></span><span class="stl">Locked</span></div>
+        <div class="row locked"><span class="st st-locked"></span><span class="code">CSCE 3600</span><span class="title">Principles of Systems Programming</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">CSCE 2110</a></span><span class="stl">Locked</span></div>
+        <div class="row"><span class="st st-done"></span><span class="code">CSCE 2900</span><span class="title">Special Problems</span><span class="cr">1 cr</span><span class="right">Fall 2025 · A</span><span class="stl over" title="You set this. Click to reset.">Done</span></div>
+      </div>
+
+      <div class="group"><span class="chev">▾</span><span class="gname">Math</span><span class="meta">1 of 4 done</span></div>
+      <div class="rows">
+        <div class="row"><span class="st st-done"></span><span class="code">MATH 1710</span><span class="title">Calculus I</span><span class="cr">4 cr</span><span class="right">Fall 2025 · B</span><span class="stl">Done</span></div>
+        <div class="row"><span class="st st-planned"></span><span class="code">MATH 1720</span><span class="title">Calculus II</span><span class="cr">3 cr</span><span class="right hide-on-hover">Spring 2027 · auto</span><span class="stl">Planned</span><button class="btn ghost sm hov">Remove</button></div>
+        <div class="row"><span class="st st-avail"></span><span class="code">MATH 2700</span><span class="title">Linear Algebra and Vector Geometry</span><span class="cr">3 cr</span><span class="right hide-on-hover"></span><span class="stl">Available</span><button class="btn ghost sm hov">+ Plan</button></div>
+        <div class="row locked"><span class="st st-locked"></span><span class="code">MATH 2730</span><span class="title">Multivariable Calculus</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">MATH 1720</a></span><span class="stl">Locked</span></div>
+      </div>
+
+      <div class="group"><span class="chev">▾</span><span class="gname">Science</span><span class="meta">0 of 2 done</span></div>
+      <div class="rows">
+        <div class="row"><span class="st st-planned"></span><span class="code">PHYS 1710</span><span class="title">Mechanics</span><span class="cr">3 cr</span><span class="right hide-on-hover">Spring 2027 · auto</span><span class="stl">Planned</span><button class="btn ghost sm hov">Remove</button></div>
+        <div class="row"><span class="st st-planned"></span><span class="code">PHYS 1730</span><span class="title">Laboratory in Mechanics</span><span class="cr">1 cr</span><span class="right hide-on-hover">Spring 2027 · auto</span><span class="stl">Planned</span><button class="btn ghost sm hov">Remove</button></div>
+      </div>
+
+      <div class="group"><span class="chev">▸</span><span class="gname">Core curriculum</span><span class="meta">4 of 12 done · 2 planned</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PHONE ===================== -->
+<div class="col">
+  <div class="cap">Phone · 390 · same state</div>
+  <div class="frame phone">
+    <div class="notch"></div>
+    <div class="pbody">
+      <div class="ptop">
+        <a class="wordmark" href="#">UNTangle</a>
+        <button class="planchip"><span class="dot"></span>Spring 2027 · v3<span style="font-size:10px;color:var(--ink-3)">▾</span></button>
+      </div>
+      <div class="psearch">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg>
+          <span>Search courses</span>
+        </div>
+      </div>
+      <div class="pact">
+        <button class="btn primary sm split"><span style="font-size:13px">✦</span>Auto-fill<span class="caret">▾</span></button>
+        <a class="link" style="font-size:13px">Import PDF</a>
+        <span class="meta" style="text-align:right">42 / 120 cr</span>
+      </div>
+      <div class="autonote" style="margin:4px 16px 0;height:auto;padding:8px 12px;line-height:18px;font-size:12.5px">
+        <span class="spark">✦</span><span>Filled 11 from your transcript, planned 4 for Spring 2027.</span><a class="link">Undo</a>
+      </div>
+      <div class="plist">
+        <div class="group"><span class="chev">▾</span><span class="gname">Core</span><span class="meta">5 of 9 done</span></div>
+        <div class="rows">
+          <div class="prow"><span class="st st-done"></span><span class="code">CSCE 1030</span><span class="stl">Done</span><span class="sub"><b>Computer Science I</b> · 3 cr · Fall 2025 · A</span></div>
+          <div class="prow"><span class="st st-taking"></span><span class="code">CSCE 1040</span><span class="stl">Taking</span><span class="sub"><b>Computer Science II</b> · 3 cr · this term</span></div>
+          <div class="prow" style="background:var(--brand-soft);box-shadow:inset 2px 0 0 var(--brand)"><span class="st st-planned"></span><span class="code">CSCE 2100</span><span class="stl">Planned</span><span class="sub"><b>Computing Foundations I</b> · 3 cr · Spring 2027</span></div>
+          <div class="prow"><span class="st st-avail"></span><span class="code">CSCE 2610</span><span class="stl">Available</span><span class="sub"><b>Assembly Language and Computer Org.</b> · 3 cr</span></div>
+          <div class="prow locked"><span class="st st-locked"></span><span class="code">CSCE 2110</span><span class="stl">Locked</span><span class="sub"><b>Computing Foundations II</b> · needs CSCE 2100</span></div>
+          <div class="prow locked"><span class="st st-locked"></span><span class="code">CSCE 3110</span><span class="stl">Locked</span><span class="sub"><b>Data Structures and Algorithms</b> · needs CSCE 2110</span></div>
+        </div>
+        <div class="group"><span class="chev">▾</span><span class="gname">Math</span><span class="meta">1 of 4 done</span></div>
+        <div class="rows">
+          <div class="prow"><span class="st st-done"></span><span class="code">MATH 1710</span><span class="stl">Done</span><span class="sub"><b>Calculus I</b> · 4 cr · Fall 2025 · B</span></div>
+          <div class="prow"><span class="st st-planned"></span><span class="code">MATH 1720</span><span class="stl">Planned</span><span class="sub"><b>Calculus II</b> · 3 cr · Spring 2027</span></div>
+          <div class="prow"><span class="st st-avail"></span><span class="code">MATH 2700</span><span class="stl">Available</span><span class="sub"><b>Linear Algebra and Vector Geometry</b> · 3 cr</span></div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <a class="on"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="16" height="14" rx="2"/><path d="M7 9h8M7 13h5"/></svg>Courses</a>
+        <a><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="16" height="15" rx="2"/><path d="M3 9h16M8 4v4M14 4v4"/></svg>Week</a>
+        <a><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 19s6-5.3 6-9.5A6 6 0 0 0 5 9.5C5 13.7 11 19 11 19z"/><circle cx="11" cy="9.5" r="2"/></svg>Map</a>
+      </nav>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===================== DESKTOP B: ⌘K open ===================== -->
+<div class="stage" style="padding-top:0">
+<div class="col">
+  <div class="cap">Desktop · 1440 · ⌘K search palette open (no open animation; Enter opens the row, ⌘↵ plans it)</div>
+  <div class="frame desktop" style="height:560px">
+    <header class="topbar">
+      <a class="wordmark" href="#">UNTangle</a>
+      <nav class="seg"><a class="on">Courses</a><a>Week</a><a>Map</a></nav>
+      <div class="search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg><span>Search courses</span><kbd>⌘K</kbd></div>
+      <div class="spacer"></div>
+      <button class="planchip"><span class="dot"></span>Spring 2027 · v3 <span class="meta">Saved</span><span style="font-size:10px;color:var(--ink-3)">▾</span></button>
+      <div class="avatar">SG</div>
+    </header>
+    <div class="viewhead"><span class="ttl">Computer Science, BS</span><span class="meta">42 of 120 credits</span><div class="prog"><i></i></div><div class="spacer"></div><button class="btn primary split"><span style="font-size:14px">✦</span>Auto-fill<span class="caret">▾</span></button><button class="btn ghost">Import PDF</button></div>
+    <div class="list">
+      <div class="group"><span class="chev">▾</span><span class="gname">Core</span><span class="meta">5 of 9 done</span></div>
+      <div class="rows">
+        <div class="row"><span class="st st-done"></span><span class="code">CSCE 1030</span><span class="title">Computer Science I</span><span class="cr">3 cr</span><span class="right">Fall 2025 · A</span><span class="stl">Done</span></div>
+        <div class="row"><span class="st st-taking"></span><span class="code">CSCE 1040</span><span class="title">Computer Science II</span><span class="cr">3 cr</span><span class="right">This term</span><span class="stl">Taking</span></div>
+        <div class="row"><span class="st st-planned"></span><span class="code">CSCE 2100</span><span class="title">Computing Foundations I</span><span class="cr">3 cr</span><span class="right">Spring 2027 · auto</span><span class="stl">Planned</span></div>
+      </div>
+    </div>
+    <div class="scrim"></div>
+    <div class="palette" role="dialog" aria-label="Search courses">
+      <div class="pal-in">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#6b826b" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg>
+        <div class="q">data str<b></b></div><kbd>esc</kbd>
+      </div>
+      <div class="pal-sec">Courses</div>
+      <div class="pal-item on"><span class="code">CSCE 3110</span><span>Data Structures and Algorithms</span><span class="r">Locked · needs CSCE 2110</span></div>
+      <div class="pal-item"><span class="code">CSCE 4110</span><span>Algorithms</span><span class="r">Locked · needs CSCE 3110</span></div>
+      <div class="pal-item"><span class="code">CSCE 4350</span><span>Introduction to Database Systems Design</span><span class="r">Locked</span></div>
+      <div class="pal-sec">Instructors</div>
+      <div class="pal-item"><span style="font-weight:500">R. Okafor</span><span class="r" style="text-align:left">CSCE 3110 · CSCE 4110 · ★ 4.1</span><span></span></div>
+      <div class="pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>⌘</kbd><kbd>↵</kbd> plan / unplan</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
