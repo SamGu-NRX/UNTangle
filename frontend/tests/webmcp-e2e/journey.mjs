@@ -105,7 +105,10 @@ const finish = async (page, name, input) => {
   report.calls.push({ name, input, result });
   return result;
 };
-const sectionsOf = (schedule) => Object.fromEntries(schedule.courses.map((course) => [course.code, course.sectionId]));
+/** Each course's section as get_schedule names it. */
+const sectionsOf = (schedule) => Object.fromEntries(schedule.courses.map((course) => [course.code, course.section]));
+/** Sections and states together: a recommendation and the same section picked by hand differ. */
+const planOf = (schedule) => JSON.stringify(schedule.courses.map((course) => [course.code, course.section, course.state]));
 
 async function axe(page, label) {
   await page.addScriptTag({ content: AXE });
@@ -161,7 +164,7 @@ async function desktop(browser) {
   const declined = await finish(page, "apply_alternative", { id: option.id });
   check("cancel answers declined", declined.reason === "declined", JSON.stringify(declined));
   const afterCancel = await call(page, "get_schedule");
-  check("cancel leaves the plan as it was", JSON.stringify(sectionsOf(afterCancel)) === JSON.stringify(sectionsOf(before)));
+  check("cancel leaves the plan as it was", planOf(afterCancel) === planOf(before));
 
   await page.waitForTimeout(300);
   await start(page, "apply_alternative", { id: option.id });
@@ -182,7 +185,7 @@ async function desktop(browser) {
   await undo.click();
   await page.waitForTimeout(400);
   const afterUndo = await call(page, "get_schedule");
-  check("Undo restores the previous sections", JSON.stringify(sectionsOf(afterUndo)) === JSON.stringify(sectionsOf(before)));
+  check("Undo restores the previous sections", planOf(afterUndo) === planOf(before), planOf(afterUndo));
 
   const log = await page.evaluate(() => window.__webmcp.log);
   check("each tool registered exactly once", log.filter((line) => line.startsWith("register")).length === 11, `${log.length} log lines`);
