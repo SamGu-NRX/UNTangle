@@ -4,7 +4,6 @@ import { deliverAuthEmail } from "@/lib/auth-email";
 import { recipientBudget } from "@/lib/email-budget";
 import { memoryStore } from "@/lib/rate-limit/store";
 import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
-import { budgets } from "@/lib/rate-limit/config";
 import { SET_PASSWORD_MAX_SESSION_AGE_MS, setPasswordHandler } from "@/lib/account-password";
 
 // Attacks on the real auth flows (fixtures.ts: better-auth on an in-memory
@@ -342,12 +341,12 @@ describe("the auth route's IP budget and the recipient budget compose", () => {
     expect(logged).toHaveLength(4);
   });
 
-  test("an exhausted IP budget answers 429 for a recipient with room left", async () => {
+  test("an exhausted magic-link IP budget answers 429 for a recipient with room left", async () => {
     const logged: string[] = [];
     const { link } = wrapped(logged);
-    for (let i = 0; i < budgets.auth.ip; i++) expect((await link(`student${i}@my.unt.edu`)).status).toBe(200);
+    for (let i = 0; i < 5; i++) expect((await link(`student${i}@my.unt.edu`)).status).toBe(200);
     const blocked = await link("fresh@my.unt.edu");
     expect(blocked.status).toBe(429);
-    expect(logged).toHaveLength(budgets.auth.ip);
+    expect(logged).toHaveLength(5);
   });
 });

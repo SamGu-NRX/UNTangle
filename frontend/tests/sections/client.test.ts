@@ -1,10 +1,11 @@
 import { afterEach, expect, test } from "bun:test";
+import type { CourseSections } from "../../src/lib/sections/model";
 import { getCourseSections } from "../../src/lib/sections/client";
 
 const originalFetch = globalThis.fetch;
 const originalTimeout = AbortSignal.timeout;
 afterEach(() => { globalThis.fetch = originalFetch; AbortSignal.timeout = originalTimeout; });
-const fallback = { term: "spring-2027", courseCode: "MATH 1680", status: "fallback", sections: [] };
+const fallback: CourseSections = { term: "spring-2027", courseCode: "MATH 1680", status: "unavailable", availability: "sample", provenance: { kind: "sample", source: "bundled", note: "Sample sections" }, diagnostic: { code: "upstream_error", message: "upstream timeout" }, sections: [] };
 
 test("the browser receives the proxy's fallback after its upstream deadline", async () => {
   AbortSignal.timeout = () => originalTimeout(1);
