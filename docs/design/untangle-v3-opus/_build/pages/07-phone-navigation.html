@@ -187,8 +187,10 @@ if (!asPhone) {
   }
   function openSearch() { $("#search").classList.add("on"); $("#sq").focus(); pushEntry(); }
   function closeSearch() { $("#search").classList.remove("on"); if (sheet.index < 0) dropEntry(); }
-  addEventListener("popstate", () => {
+  addEventListener("popstate", (e) => {
     if (skipPops) { skipPops--; return; }
+    // Forward onto a layer entry whose layer is gone: adopt the entry, so the next layer reuses it.
+    if (e.state?.layer && !searchOn() && sheet.index < 0) { layerEntry = true; return; }
     layerEntry = false; closingFromHistory = true;
     if (searchOn()) closeSearch(); else if (sheet.index >= 0) sheet.close();
     closingFromHistory = false;

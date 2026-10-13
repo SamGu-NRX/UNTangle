@@ -178,7 +178,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
 .toast .toast-x .i { width: 16px; height: 16px; }
 @media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
-@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */
@@ -714,7 +714,7 @@ function renderCompare() {
   const later = (x, y) => (x === null || y === null ? 0 : y - x);
   const rows = [["Days on campus", a.days, b.days, b.days - a.days], ["First class", t(a.first), t(b.first), -later(a.first, b.first)], ["Last class ends", t(a.last), t(b.last), later(a.last, b.last)], ["Walking a week", WALK[A.id] + " min", WALK[B.id] + " min", WALK[B.id] - WALK[A.id]], ["Tight walks", TIGHT[A.id], TIGHT[B.id], TIGHT[B.id] - TIGHT[A.id]]];
   const changes = Object.keys({ ...A.map, ...B.map }).map((c) => ({ c, a: A.map[c], b: B.map[c] }));
-  const sec = (c, n) => { const [dd, s] = S[c].s[n]; return dd.length ? `${dd.map((i) => "MTWRF"[i]).join("")} ${fmt(s)}` : "Online"; };
+  const sec = (c, n) => { if (!n) return "Not in this schedule"; const [dd, s] = S[c].s[n]; return dd.length ? `${dd.map((i) => "MTWRF"[i]).join("")} ${fmt(s)}` : "Online"; };
   d.innerHTML = `${phd(`${A.name} and ${B.name}`)}<div class="pin"><div class="pacts"><button class="btn btn-primary btn-sm" data-act="useb">Make ${B.name} active</button><button class="btn btn-secondary btn-sm" data-act="endcmp">Done</button></div>
     <div class="seg sm" id="cmpSeg" style="margin-bottom:12px;width:100%" aria-label="Show"><button type="button" data-v="a" aria-pressed="${cmpView === "a"}">${A.name}</button><button type="button" data-v="both" aria-pressed="${cmpView === "both"}">Both</button><button type="button" data-v="b" aria-pressed="${cmpView === "b"}">${B.name}</button></div><div id="cmpWeek">${cmpWeek(A, B)}</div>
     <div class="legend2"><span><i style="background:var(--c3t);box-shadow:inset 3px 0 0 var(--c3)"></i>${A.name}</span><span><i style="outline:1.5px dashed var(--c3);outline-offset:-1.5px"></i>${B.name}, where it differs</span></div>

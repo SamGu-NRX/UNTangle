@@ -178,7 +178,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
 .toast .toast-x .i { width: 16px; height: 16px; }
 @media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
-@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */
@@ -285,7 +285,6 @@ body { overflow-x: clip; }
   .helpslot { min-height: 18px; }
   .submit { width: 100%; height: 48px; font-size: 15px; border-radius: 12px; margin-top: 2px; }
   .alts { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: -6px; }
-  .form h1:focus { outline: none; }
   .foot { font-size: 12.5px; color: var(--ink-2); text-align: center; border-top: 1px solid var(--line); padding-top: 14px; }
   @media (max-width: 759px) {
     .dialog-wrap { display: none !important; }
@@ -634,10 +633,14 @@ function formHTML(sfx) {
 const host = () => (PHONE.matches ? $("#sbody") : $("#dlg"));
 function render() { $("#dlg").innerHTML = formHTML("desk"); $("#sbody").innerHTML = formHTML("phone"); wire(); }
 /* A view change crossfades the form (swap) and moves focus to the new heading, as the live page does. */
+let viewToken = 0;
 function goTo(next, fromKeyboard = viaKeyboard) {
   const f = $("[data-form]", host()); const em = f && $("input[type=email]", f); if (em) email = em.value;
   view = next;
-  const done = () => { render(); $("h1", host())?.focus({ preventScroll: true }); };
+  // A second change while the first is still fading wins; the first one's render is dropped.
+  const token = ++viewToken;
+  const done = () => { if (token !== viewToken) return; render(); $("h1", host())?.focus({ preventScroll: true }); };
+  host().getAnimations().forEach((a) => a.cancel());
   if (fromKeyboard) done(); else swap(host(), done);
 }
 function busy(btn, label) { btn.style.width = btn.offsetWidth + "px"; btn.innerHTML = `<span class="spin"></span><span class="sr">${label}</span>`; btn.disabled = true; }

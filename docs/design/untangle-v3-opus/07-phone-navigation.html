@@ -178,7 +178,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
 .toast .toast-x .i { width: 16px; height: 16px; }
 @media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
-@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */
@@ -727,8 +727,10 @@ if (!asPhone) {
   }
   function openSearch() { $("#search").classList.add("on"); $("#sq").focus(); pushEntry(); }
   function closeSearch() { $("#search").classList.remove("on"); if (sheet.index < 0) dropEntry(); }
-  addEventListener("popstate", () => {
+  addEventListener("popstate", (e) => {
     if (skipPops) { skipPops--; return; }
+    // Forward onto a layer entry whose layer is gone: adopt the entry, so the next layer reuses it.
+    if (e.state?.layer && !searchOn() && sheet.index < 0) { layerEntry = true; return; }
     layerEntry = false; closingFromHistory = true;
     if (searchOn()) closeSearch(); else if (sheet.index >= 0) sheet.close();
     closingFromHistory = false;
