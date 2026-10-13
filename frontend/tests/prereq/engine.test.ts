@@ -105,7 +105,8 @@ test("standing is adapter-owned and missing standing needs review", () => {
   const catalog = [row("a", { kind: "standing", minimum: "junior", source: "junior standing" })];
   expect(status(assess(catalog), "a")).toBe("unknown");
   expect(status(assess(catalog, { standing: "sophomore" }), "a")).toBe("locked");
-  expect(status(assess(catalog, { standing: "senior" }), "a")).toBe("eligible");
+  expect(status(assess(catalog, { standing: "senior" }), "a")).toBe("unknown");
+  expect(status(assess(catalog, { standing: "senior", earnedHours: 90 }), "a")).toBe("eligible");
 });
 
 test("explicit standing outranks a standing witness from completion history", () => {

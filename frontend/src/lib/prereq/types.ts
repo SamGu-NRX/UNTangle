@@ -28,17 +28,21 @@ export interface SchoolAdapter {
   isPassingGrade(grade: string): boolean | undefined;
   meetsMinimumGrade(actual: string, minimum: string): boolean | undefined;
   meetsStanding(actual: string, minimum: string): boolean | undefined;
+  /** Hour threshold for a standing label or adapter-defined credit requirement. */
+  minimumHours?(minimum: string): number | undefined;
 }
 
-export type Completion = { courseId: CourseId; grade: string; source?: string };
+export type Completion = { courseId: CourseId; grade: string; source?: string; credits?: number | null };
 export type CourseStatus = "done" | "taking" | "eligible" | "locked" | "unknown";
 export type Override = { status: CourseStatus; reason: string; grade?: string };
 export type Evidence = {
   transcript?: readonly Completion[];
   inProgress?: readonly CourseId[];
+  planned?: readonly CourseId[];
   needsReview?: readonly CourseId[];
   overrides?: ReadonlyMap<CourseId, Override>;
   standing?: string;
+  earnedHours?: number;
 };
 
 export type Reason = {

@@ -16,7 +16,7 @@ test("transcript importer output supplies accepted credit, enrollment, and revie
     record("MATH2700", { appliedStatus: "ignored", grade: "F", prerequisiteSatisfied: false }),
     record("MATH1650", { appliedStatus: "completed", grade: "P", reviewRequired: true }),
   ]);
-  expect(evidence.transcript).toEqual([{ courseId: "CSCE 1030", grade: "B", source: "CSCE1030" }]);
+  expect(evidence.transcript).toEqual([{ courseId: "CSCE 1030", grade: "B", source: "CSCE1030", credits: 3 }]);
   expect(evidence.inProgress).toEqual(["CSCE 1040"]);
   expect(evidence.needsReview).toEqual(["MATH 1720", "MATH 1650"]);
 });
