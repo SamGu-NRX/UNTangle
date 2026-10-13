@@ -279,7 +279,7 @@
     "size": "desktop",
     "name": "auth: a server password error shows as help text under a field",
     "pass": true,
-    "detail": "Invalid origin"
+    "detail": "Sign-in failed. Check your email and password."
   },
   {
     "size": "desktop",
@@ -423,7 +423,7 @@
     "size": "phone",
     "name": "auth: a server password error shows as help text under a field",
     "pass": true,
-    "detail": "Invalid origin"
+    "detail": "Sign-in failed. Check your email and password."
   },
   {
     "size": "phone",

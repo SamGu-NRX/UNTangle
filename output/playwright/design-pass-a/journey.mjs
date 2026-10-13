@@ -301,7 +301,9 @@ async function connectPhone(page, size) {
 
 /** The import adds transcript records, not statuses: mark a course as credit so Plans has a course-level diff. */
 async function markACourseDone(page) {
-  await page.goto(`${base}/courses/math/1650`, { waitUntil: "networkidle" });
+  // "load", not "networkidle": since #39, the test server has a database URL it
+  // can't reach, and this page's network didn't go idle within 30 s.
+  await page.goto(`${base}/courses/math/1650`, { waitUntil: "load" });
   await page.getByRole("button", { name: "Status options for MATH 1650" }).first().click();
   await page.getByRole("menuitem", { name: "I have credit for this" }).click();
   await page.waitForTimeout(400);
