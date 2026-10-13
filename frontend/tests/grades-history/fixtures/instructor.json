@@ -1,0 +1,51 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"firstName\":\"Pradhumna Lal\",\"lastName\":\"Shrestha\",\"totalCourses\":5,\"offset\":0,\"nextOffset\":null,\"courses\":[{\"prefix\":\"CSCE\",\"number\":\"1030\",\"title\":\"COMPUTER SCIENCE I\",\"path\":\"/course/CSCE/1030\"},{\"prefix\":\"CSCE\",\"number\":\"4915\",\"title\":\"CMPE DESIGN II\",\"path\":\"/course/CSCE/4915\"},{\"prefix\":\"CSCE\",\"number\":\"4927\",\"title\":\"SECURITY CAPSTONE II\",\"path\":\"/course/CSCE/4927\"},{\"prefix\":\"CSCE\",\"number\":\"4907\",\"title\":\"SECURITY CAPSTONE I\",\"path\":\"/course/CSCE/4907\"},{\"prefix\":\"CSCE\",\"number\":\"4910\",\"title\":\"CMPE DESIGN I\",\"path\":\"/course/CSCE/4910\"}]}"
+      }
+    ],
+    "structuredContent": {
+      "firstName": "Pradhumna Lal",
+      "lastName": "Shrestha",
+      "totalCourses": 5,
+      "offset": 0,
+      "nextOffset": null,
+      "courses": [
+        {
+          "prefix": "CSCE",
+          "number": "1030",
+          "title": "COMPUTER SCIENCE I",
+          "path": "/course/CSCE/1030"
+        },
+        {
+          "prefix": "CSCE",
+          "number": "4915",
+          "title": "CMPE DESIGN II",
+          "path": "/course/CSCE/4915"
+        },
+        {
+          "prefix": "CSCE",
+          "number": "4927",
+          "title": "SECURITY CAPSTONE II",
+          "path": "/course/CSCE/4927"
+        },
+        {
+          "prefix": "CSCE",
+          "number": "4907",
+          "title": "SECURITY CAPSTONE I",
+          "path": "/course/CSCE/4907"
+        },
+        {
+          "prefix": "CSCE",
+          "number": "4910",
+          "title": "CMPE DESIGN I",
+          "path": "/course/CSCE/4910"
+        }
+      ]
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 9
+}

@@ -1,0 +1,17 @@
+{
+  "codeSha": "6c9c95da038afa6f3ca4b4845aa4ba35a5f51566",
+  "route": "/connect",
+  "mode": "local production build, mobile Lighthouse, permission state only",
+  "runs": 1,
+  "lighthouseVersion": "13.5.0",
+  "fetchTime": "2026-10-13T12:25:38.768Z",
+  "scores": {
+    "performance": 90,
+    "accessibility": 100
+  },
+  "limits": [
+    "Synthetic guest browser only",
+    "Does not audit the full import flow or real myUNT",
+    "No real phone hardware check"
+  ]
+}

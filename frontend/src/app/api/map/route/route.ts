@@ -1,16 +1,36 @@
 import { NextResponse } from "next/server";
-import { isInsideUntBounds } from "@/lib/campus-locations";
-import type { MapRoutePoint, MapRouteResponse } from "@/lib/types";
+import { activeCampus } from "@/lib/campus/config";
+import { campusEngine } from "@/lib/campus/engine";
+import type { LatLng } from "@/lib/campus/geo";
+import { buildRouteLegs, summarizeRoute, type ExternalLeg, type RouteStopInput } from "@/lib/campus/route-legs";
+import { isInsideBounds } from "@/lib/campus-locations";
+import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
 
 export const runtime = "nodejs";
 
 const maxStops = 12;
-const routeCache = new Map<string, MapRouteResponse>();
+const maxBuildingIdLength = 32;
+
+const failureTtlMs = 5 * 60 * 1000;
+const rateLimitWindowMs = 60 * 1000;
+const rateLimitMaxRequests = 60;
+
+/** OpenRouteService legs only; campus-network legs are computed locally and cheap to redo. */
+const orsLegCache = new TtlLruCache<ExternalLeg | null>({
+  maxEntries: 200,
+  ttlMs: 6 * 60 * 60 * 1000,
+  failureTtlMs,
+});
+const limiter = new SlidingWindowRateLimiter({
+  windowMs: rateLimitWindowMs,
+  maxRequests: rateLimitMaxRequests,
+});
 
 type RouteInput = {
   stops?: Array<{
     lat?: unknown;
     lng?: unknown;
+    buildingId?: unknown;
   }>;
 };
 
@@ -26,43 +46,7 @@ type OrsRouteFeature = {
   };
 };
 
-function samePoint(a: MapRoutePoint, b: MapRoutePoint) {
-  return Math.abs(a.lat - b.lat) < 0.00001 && Math.abs(a.lng - b.lng) < 0.00001;
-}
-
-function collapseConsecutiveStops(stops: MapRoutePoint[]) {
-  return stops.filter((stop, index) => index === 0 || !samePoint(stop, stops[index - 1]));
-}
-
-function cacheKey(stops: MapRoutePoint[]) {
-  return stops.map((stop) => `${stop.lat.toFixed(6)},${stop.lng.toFixed(6)}`).join("|");
-}
-
-function haversineMeters(a: MapRoutePoint, b: MapRoutePoint) {
-  const earthRadiusMeters = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * earthRadiusMeters * Math.asin(Math.sqrt(h));
-}
-
-function fallbackRoute(stops: MapRoutePoint[]) {
-  return {
-    geometry: stops,
-    distanceMeters: stops.reduce(
-      (total, stop, index) => total + (index === 0 ? 0 : haversineMeters(stops[index - 1], stop)),
-      0,
-    ),
-    durationSeconds: 0,
-    source: "fallback",
-  } satisfies MapRouteResponse;
-}
-
-function parseStops(input: RouteInput) {
+function parseStops(input: RouteInput): { stops: RouteStopInput[] } | { error: string } {
   if (!Array.isArray(input.stops)) {
     return { error: "stops must be an array" };
   }
@@ -71,28 +55,106 @@ function parseStops(input: RouteInput) {
     return { error: `Cannot route more than ${maxStops} stops` };
   }
 
-  const stops = input.stops.map((stop) => ({
-    lat: typeof stop.lat === "number" ? stop.lat : Number.NaN,
-    lng: typeof stop.lng === "number" ? stop.lng : Number.NaN,
-  }));
-
-  if (stops.some((stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng))) {
-    return { error: "All stops must include numeric lat and lng values" };
+  const stops: RouteStopInput[] = [];
+  for (const raw of input.stops) {
+    const lat = typeof raw?.lat === "number" ? raw.lat : Number.NaN;
+    const lng = typeof raw?.lng === "number" ? raw.lng : Number.NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return { error: "All stops must include numeric lat and lng values" };
+    }
+    if (!isInsideBounds({ lat, lng }, activeCampus.bounds)) {
+      return { error: `All stops must be within ${activeCampus.name} routing bounds` };
+    }
+    if (
+      raw.buildingId !== undefined &&
+      (typeof raw.buildingId !== "string" || raw.buildingId.length === 0 || raw.buildingId.length > maxBuildingIdLength)
+    ) {
+      return { error: "buildingId, when given, must be a short non-empty string" };
+    }
+    // Repeated stops are kept: each pair gets its own leg (zero minutes for a
+    // repeat), so leg i always joins stops i and i + 1.
+    stops.push({ lat, lng, ...(raw.buildingId ? { buildingId: raw.buildingId as string } : {}) });
   }
 
-  if (stops.some((stop) => !isInsideUntBounds(stop))) {
-    return { error: "All stops must be within UNT main campus bounds" };
+  if (stops.length < 2) {
+    return { error: "At least two stops are required" };
   }
 
-  const collapsed = collapseConsecutiveStops(stops);
-  if (collapsed.length < 2) {
-    return { error: "At least two distinct stops are required" };
-  }
-
-  return { stops: collapsed };
+  return { stops };
 }
 
+function orsRouter(apiKey: string) {
+  return async (from: LatLng, to: LatLng): Promise<ExternalLeg | null> => {
+    const key = `${from.lat.toFixed(6)},${from.lng.toFixed(6)}|${to.lat.toFixed(6)},${to.lng.toFixed(6)}`;
+    const cached = orsLegCache.get(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    let leg: ExternalLeg | null = null;
+    try {
+      const response = await fetch("https://api.openrouteservice.org/v2/directions/foot-walking/geojson", {
+        method: "POST",
+        headers: {
+          Accept: "application/json, application/geo+json",
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          coordinates: [
+            [from.lng, from.lat],
+            [to.lng, to.lat],
+          ],
+          instructions: false,
+          preference: "recommended",
+        }),
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const payload = (await response.json()) as { features?: OrsRouteFeature[] };
+        const feature = payload.features?.[0];
+        const geometry = (feature?.geometry?.coordinates ?? [])
+          .map(([lng, lat]) => ({ lat, lng }))
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && isInsideBounds(p, activeCampus.bounds));
+        const distanceMeters = feature?.properties?.summary?.distance;
+        const durationSeconds = feature?.properties?.summary?.duration;
+        if (
+          geometry.length >= 2 &&
+          typeof distanceMeters === "number" &&
+          Number.isFinite(distanceMeters) &&
+          typeof durationSeconds === "number" &&
+          Number.isFinite(durationSeconds)
+        ) {
+          leg = { geometry, distanceMeters, durationSeconds };
+        }
+      }
+    } catch {
+      leg = null;
+    }
+
+    orsLegCache.set(key, leg, { failure: leg === null });
+    return leg;
+  };
+}
+
+/**
+ * POST { stops: [{ lat, lng, buildingId? }] } -> MapRouteResponse.
+ *
+ * Every consecutive pair becomes a leg on the offline campus walkway graph
+ * (source "campus-network"). No network calls and no key are needed for
+ * that. A leg the graph refuses goes to OpenRouteService only when
+ * ORS_API_KEY is set, and otherwise is a straight-line fallback with a
+ * distance and no walking time.
+ */
 export async function POST(request: Request) {
+  const limit = limiter.check(clientIpFromRequest(request));
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let body: RouteInput;
 
   try {
@@ -101,70 +163,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "stops must be an array" }, { status: 400 });
+  }
+
   const parsed = parseStops(body);
   if ("error" in parsed) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
   const apiKey = process.env.ORS_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(fallbackRoute(parsed.stops));
-  }
-
-  const key = cacheKey(parsed.stops);
-  const cached = routeCache.get(key);
-  if (cached) {
-    return NextResponse.json(cached);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch("https://api.openrouteservice.org/v2/directions/foot-walking/geojson", {
-      method: "POST",
-      headers: {
-        Accept: "application/json, application/geo+json",
-        Authorization: apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        coordinates: parsed.stops.map((stop) => [stop.lng, stop.lat]),
-        instructions: false,
-        preference: "recommended",
-      }),
-      cache: "no-store",
-    });
-  } catch {
-    const fallback = fallbackRoute(parsed.stops);
-    routeCache.set(key, fallback);
-    return NextResponse.json(fallback);
-  }
-
-  if (!response.ok) {
-    const fallback = fallbackRoute(parsed.stops);
-    routeCache.set(key, fallback);
-    return NextResponse.json(fallback);
-  }
-
-  const payload = (await response.json()) as { features?: OrsRouteFeature[] };
-  const feature = payload.features?.[0];
-  const coordinates = feature?.geometry?.coordinates ?? [];
-  const geometry = coordinates
-    .map(([lng, lat]) => ({ lat, lng }))
-    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng) && isInsideUntBounds(point));
-
-  if (geometry.length < 2) {
-    const fallback = fallbackRoute(parsed.stops);
-    routeCache.set(key, fallback);
-    return NextResponse.json(fallback);
-  }
-
-  const route = {
-    geometry,
-    distanceMeters: feature?.properties?.summary?.distance ?? 0,
-    durationSeconds: feature?.properties?.summary?.duration ?? 0,
-    source: "ors",
-  } satisfies MapRouteResponse;
-
-  routeCache.set(key, route);
-  return NextResponse.json(route);
+  const legs = await buildRouteLegs(parsed.stops, campusEngine(activeCampus.id), apiKey ? orsRouter(apiKey) : undefined);
+  return NextResponse.json(summarizeRoute(legs));
 }
