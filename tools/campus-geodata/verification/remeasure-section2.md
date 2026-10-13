@@ -98,9 +98,12 @@ steps meters, and road crossings — 20/20 at Δ = 0.0 s and Δ = 0.0 m.
 | wh | env | 635 | 635 | 0.0 | 0.00% | 836.2 | 836.2 | 0.00% | 0 | 5 |
 | uu | gate | 652 | 652 | 0.0 | 0.00% | 823.4 | 823.4 | 0.00% | 20.4 | 2 |
 
-**Reproduction:** median |Δ| **0.00%**, max |Δ| **0.00%** on seconds and on
-network meters; all 20 pairs reproduce exactly. The script gates this: every
-pair must agree within the runtime's output rounding (1 s, 0.1 m) on seconds
+**Reproduction:** network meters reproduce exactly on all 20 pairs. Seconds
+reproduced exactly when both sides rounded to whole seconds (the table above);
+since the runtime and this script report tenths, the recorded whole seconds
+differ by at most 0.5 s (max |Δ| 0.34%, median 0.08%). The script gates this: every
+pair must agree within output rounding (0.55 s, 0.1 m: the recorded seconds are whole seconds
+from 6a01f2b and the runtime now reports tenths) on seconds
 *and* meters, and the rebuilt graph must match the committed `walkways.json`;
 otherwise it exits 1.
 
@@ -116,7 +119,7 @@ tables and timestamp-free digests (`652f791af7977acd`). The rewrite renamed fiel
 in `remeasure-results.json`. The gate now also compares the rebuilt graph's
 normalized topology with the committed one (node array, each way's OSM id,
 class and node sequence, each router edge with its steps/crossing flags); its
-latest run exited 0 with digest `7a1cb2c0c3fa1de2`. A copy of the committed
+latest run exited 0 with digest `f849974e28e922d3`. A copy of the committed
 graph with one way's class changed makes it exit 1.
 
 ## Verdict

@@ -451,19 +451,6 @@ function baseLocationKeys(value: string) {
   return unique([...aliasLocationKeys(value), ...codeKeys(value)]);
 }
 
-const aliasMap = new Map(
-  campusBuildings.flatMap((building) =>
-    unique([
-      building.id,
-      building.shortName,
-      building.mnemonic ?? "",
-      building.name,
-      building.buildingNumber ?? "",
-      ...(building.aliases ?? []),
-    ]).flatMap((alias) => aliasLocationKeys(alias).map((key) => [key, building] as const)),
-  ),
-);
-
 export function normalizeCampusLocationKey(value: string) {
   const building = resolveCampusBuilding(value);
   if (building) {
@@ -512,29 +499,64 @@ export function isInsideUntBounds(location: { lat: number; lng: number }) {
   return isInsideBounds(location, untCampusBounds);
 }
 
-export function resolveCampusBuilding(location: string, buildingId?: string | null) {
-  const idMatch = buildingId
-    ? baseLocationKeys(buildingId)
-        .map((key) => aliasMap.get(key))
-        .find(Boolean)
-    : undefined;
+type Bounds = { north: number; south: number; east: number; west: number };
 
-  if (idMatch) {
-    return idMatch;
-  }
+/** Building lookup for one campus: its own registry, aliases and routing bounds. */
+export type CampusResolver = {
+  /** The registry building a free-text location (or id) names, on campus or off. */
+  resolveBuilding: (location: string, buildingId?: string | null) => CampusBuilding | null;
+  /** The building, only if it is on campus and inside the campus's routing bounds. */
+  resolveLocation: (location: string, buildingId?: string | null) => CampusBuilding | null;
+};
 
-  return (
-    baseLocationKeys(location)
-      .map((key) => aliasMap.get(key))
-      .find(Boolean) ?? null
+export function createCampusResolver(buildings: readonly CampusBuilding[], bounds: Bounds): CampusResolver {
+  const aliasMap = new Map(
+    buildings.flatMap((building) =>
+      unique([
+        building.id,
+        building.shortName,
+        building.mnemonic ?? "",
+        building.name,
+        building.buildingNumber ?? "",
+        ...(building.aliases ?? []),
+      ]).flatMap((alias) => aliasLocationKeys(alias).map((key) => [key, building] as const)),
+    ),
   );
+
+  const resolveBuilding = (location: string, buildingId?: string | null) => {
+    const idMatch = buildingId
+      ? baseLocationKeys(buildingId)
+          .map((key) => aliasMap.get(key))
+          .find(Boolean)
+      : undefined;
+    if (idMatch) {
+      return idMatch;
+    }
+    return (
+      baseLocationKeys(location)
+        .map((key) => aliasMap.get(key))
+        .find(Boolean) ?? null
+    );
+  };
+
+  const resolveLocation = (location: string, buildingId?: string | null) => {
+    const building = resolveBuilding(location, buildingId);
+    if (!building || building.isOffCampus || !isInsideBounds(building, bounds)) {
+      return null;
+    }
+    return building;
+  };
+
+  return { resolveBuilding, resolveLocation };
+}
+
+/** UNT Denton's resolver, for code that is UNT-specific (the planner, the walking matrix). */
+const untResolver = createCampusResolver(campusBuildings, untCampusBounds);
+
+export function resolveCampusBuilding(location: string, buildingId?: string | null) {
+  return untResolver.resolveBuilding(location, buildingId);
 }
 
 export function resolveCampusLocation(location: string, buildingId?: string | null) {
-  const building = resolveCampusBuilding(location, buildingId);
-  if (!building || building.isOffCampus || !isInsideUntBounds(building)) {
-    return null;
-  }
-
-  return building;
+  return untResolver.resolveLocation(location, buildingId);
 }

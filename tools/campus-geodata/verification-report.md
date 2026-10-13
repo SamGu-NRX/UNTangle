@@ -116,6 +116,13 @@ matt→uu 2.2560, cury→lang 2.1694, col→gate 2.1182, sage→symr 2.0106, chi
 was centroid-based; the set changed as the ruling anticipated — 7 of 18 survive, 11 drop below 2.0,
 2 enter — and the new largest outlier is life→symr.)
 
+> **Update 2026-10-13 (acceptance ruling).** The acceptance owner ruled the art/arta deficit is
+> storage rounding, not a routing error. `detour-bounds.ts` now fails a pair only when its stored
+> network distance is more than **0.1 m** below the same-anchor crow distance (`FLOOR_TOLERANCE_M`,
+> documented at the constant). The committed matrix exits **0** (largest deficit 0.0491 m, art/arta);
+> a copy with art/arta stored at 70.9 m (0.149 m short) still exits 3. The analysis below is the
+> record from before the ruling.
+
 **Enforcement verdicts, reported alongside the bounds:**
 
 - **Same-anchor great-circle floor: FAIL — 1 violation, surfaced as a hard error (exit 3), never

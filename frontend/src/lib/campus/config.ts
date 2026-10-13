@@ -13,9 +13,11 @@
  */
 import {
   campusBuildings,
+  createCampusResolver,
   untCampusBounds,
   untCampusCenter,
   untGeocodeContext,
+  type CampusResolver,
   type GeocodeContext,
 } from "@/lib/campus-locations";
 import { SNAP_MAX_METERS, STEPS_SPEED_MPS, WALKING_SPEED_MPS } from "@/lib/campus/speeds";
@@ -62,3 +64,15 @@ export const untDenton: CampusConfig = {
 
 /** The campus this deployment serves. */
 export const activeCampus: CampusConfig = untDenton;
+
+const resolvers = new WeakMap<CampusConfig, CampusResolver>();
+
+/** Building lookup over this campus's own registry and bounds, built once per config. */
+export function campusResolver(campus: CampusConfig): CampusResolver {
+  let resolver = resolvers.get(campus);
+  if (!resolver) {
+    resolver = createCampusResolver(campus.buildings, campus.bounds);
+    resolvers.set(campus, resolver);
+  }
+  return resolver;
+}

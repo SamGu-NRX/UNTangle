@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-13T13:14:08.023Z",
+  "generatedAt": "2026-10-13T13:39:18.248Z",
   "script": "tools/campus-geodata/verification/independent-remeasure.ts",
   "standalone": true,
   "importsFromFrontend": false,
@@ -11,7 +11,7 @@
     "edgeDedup": "shortest way per node pair keeps its class flags (crossing/sidewalk take precedence over the highway tag)",
     "snapping": "nearest node in largest connected component, 250 m cap",
     "routing": "A* minimizing haversine meters (R = 6,371,000 m); duration computed along the path per edge: meters / (0.6 steps | 1.4 base) m/s; connectors added at base speed",
-    "rounding": "as routeBetweenPoints: seconds Math.round; meters round to 0.1"
+    "rounding": "as routeBetweenPoints: seconds and meters to 0.1 (toFixed(1)); recorded seconds are whole seconds from 6a01f2b"
   },
   "reconstruction": {
     "nodes": 8129,
@@ -23,18 +23,18 @@
   "reproductionGate": {
     "kind": "reproduction of the same model from the same raw snapshot; this is not plan accuracy",
     "accuracyIsJudgedBy": "tools/campus-geodata/spot-check-fixture.ts against the independent eval fixture",
-    "secondsTolerance": 1,
+    "secondsTolerance": 0.55,
     "metersTolerance": 0.1,
     "alsoRequires": "reconstruction matches the committed walkways.json: node array, way fragments (OSM id, class, node sequence) and router edges (endpoints, steps/crossing flags)"
   },
   "comparison": {
     "bySeconds": {
       "n": 20,
-      "exact": 20,
+      "exact": 1,
       "within10Pct": 20,
       "within20Pct": 20,
-      "medianAbsDeltaPct": 0,
-      "maxAbsDeltaPct": 0
+      "medianAbsDeltaPct": 0.08,
+      "maxAbsDeltaPct": 0.34
     },
     "byNetworkMeters": {
       "exact": 20,
@@ -56,7 +56,7 @@
       },
       "remeasured": {
         "networkMeters": 580.1,
-        "durationSeconds": 455,
+        "durationSeconds": 454.5,
         "stepsMeters": 10.3,
         "roadCrossings": 6,
         "connectorMeters": 42.5,
@@ -69,8 +69,8 @@
           "meters": 27.1
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.5,
+      "deltaSecondsPct": -0.11,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -85,7 +85,7 @@
       },
       "remeasured": {
         "networkMeters": 354.1,
-        "durationSeconds": 288,
+        "durationSeconds": 287.7,
         "stepsMeters": 7,
         "roadCrossings": 0,
         "connectorMeters": 39.4,
@@ -98,8 +98,8 @@
           "meters": 23.9
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.3,
+      "deltaSecondsPct": -0.1,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -114,7 +114,7 @@
       },
       "remeasured": {
         "networkMeters": 301.9,
-        "durationSeconds": 252,
+        "durationSeconds": 251.8,
         "stepsMeters": 7,
         "roadCrossings": 3,
         "connectorMeters": 41.3,
@@ -127,8 +127,8 @@
           "meters": 25.8
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.2,
+      "deltaSecondsPct": -0.08,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -143,7 +143,7 @@
       },
       "remeasured": {
         "networkMeters": 1083.2,
-        "durationSeconds": 823,
+        "durationSeconds": 823.5,
         "stepsMeters": 19.4,
         "roadCrossings": 2,
         "connectorMeters": 43.8,
@@ -156,8 +156,8 @@
           "meters": 28.3
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": 0.5,
+      "deltaSecondsPct": 0.06,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -172,7 +172,7 @@
       },
       "remeasured": {
         "networkMeters": 1094.9,
-        "durationSeconds": 877,
+        "durationSeconds": 877.2,
         "stepsMeters": 42.2,
         "roadCrossings": 2,
         "connectorMeters": 76.9,
@@ -185,8 +185,8 @@
           "meters": 61.4
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": 0.2,
+      "deltaSecondsPct": 0.02,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -201,7 +201,7 @@
       },
       "remeasured": {
         "networkMeters": 540.3,
-        "durationSeconds": 401,
+        "durationSeconds": 400.6,
         "stepsMeters": 0,
         "roadCrossings": 4,
         "connectorMeters": 20.6,
@@ -214,8 +214,8 @@
           "meters": 7.1
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.1,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -230,7 +230,7 @@
       },
       "remeasured": {
         "networkMeters": 451.5,
-        "durationSeconds": 344,
+        "durationSeconds": 343.5,
         "stepsMeters": 3,
         "roadCrossings": 2,
         "connectorMeters": 25.5,
@@ -243,8 +243,8 @@
           "meters": 12
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.5,
+      "deltaSecondsPct": -0.15,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -259,7 +259,7 @@
       },
       "remeasured": {
         "networkMeters": 371.6,
-        "durationSeconds": 304,
+        "durationSeconds": 303.6,
         "stepsMeters": 16.4,
         "roadCrossings": 2,
         "connectorMeters": 31.6,
@@ -272,8 +272,8 @@
           "meters": 18.2
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.13,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -317,7 +317,7 @@
       },
       "remeasured": {
         "networkMeters": 685,
-        "durationSeconds": 515,
+        "durationSeconds": 514.6,
         "stepsMeters": 12.4,
         "roadCrossings": 2,
         "connectorMeters": 18.9,
@@ -330,8 +330,8 @@
           "meters": 5.5
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.08,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -346,7 +346,7 @@
       },
       "remeasured": {
         "networkMeters": 583.3,
-        "durationSeconds": 484,
+        "durationSeconds": 483.6,
         "stepsMeters": 32.4,
         "roadCrossings": 2,
         "connectorMeters": 50.5,
@@ -359,8 +359,8 @@
           "meters": 27.1
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.08,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -375,7 +375,7 @@
       },
       "remeasured": {
         "networkMeters": 267.1,
-        "durationSeconds": 223,
+        "durationSeconds": 223.5,
         "stepsMeters": 0,
         "roadCrossings": 0,
         "connectorMeters": 45.8,
@@ -388,8 +388,8 @@
           "meters": 22.4
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": 0.5,
+      "deltaSecondsPct": 0.22,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -404,7 +404,7 @@
       },
       "remeasured": {
         "networkMeters": 294.5,
-        "durationSeconds": 253,
+        "durationSeconds": 253.2,
         "stepsMeters": 20.1,
         "roadCrossings": 1,
         "connectorMeters": 33.3,
@@ -417,8 +417,8 @@
           "meters": 9.9
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": 0.2,
+      "deltaSecondsPct": 0.08,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -433,7 +433,7 @@
       },
       "remeasured": {
         "networkMeters": 583.7,
-        "durationSeconds": 470,
+        "durationSeconds": 469.8,
         "stepsMeters": 6.9,
         "roadCrossings": 2,
         "connectorMeters": 64.8,
@@ -446,8 +446,8 @@
           "meters": 41.4
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.2,
+      "deltaSecondsPct": -0.04,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -462,7 +462,7 @@
       },
       "remeasured": {
         "networkMeters": 1031.1,
-        "durationSeconds": 794,
+        "durationSeconds": 793.7,
         "stepsMeters": 19.2,
         "roadCrossings": 5,
         "connectorMeters": 54.5,
@@ -475,8 +475,8 @@
           "meters": 31
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.3,
+      "deltaSecondsPct": -0.04,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -491,7 +491,7 @@
       },
       "remeasured": {
         "networkMeters": 801.3,
-        "durationSeconds": 595,
+        "durationSeconds": 594.6,
         "stepsMeters": 0,
         "roadCrossings": 9,
         "connectorMeters": 31.2,
@@ -504,8 +504,8 @@
           "meters": 26.6
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.4,
+      "deltaSecondsPct": -0.07,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -520,7 +520,7 @@
       },
       "remeasured": {
         "networkMeters": 370.3,
-        "durationSeconds": 273,
+        "durationSeconds": 272.9,
         "stepsMeters": 0,
         "roadCrossings": 2,
         "connectorMeters": 11.7,
@@ -533,8 +533,8 @@
           "meters": 7.1
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.1,
+      "deltaSecondsPct": -0.04,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -549,7 +549,7 @@
       },
       "remeasured": {
         "networkMeters": 155,
-        "durationSeconds": 145,
+        "durationSeconds": 144.5,
         "stepsMeters": 0,
         "roadCrossings": 0,
         "connectorMeters": 47.3,
@@ -562,8 +562,8 @@
           "meters": 23.4
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": -0.5,
+      "deltaSecondsPct": -0.34,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -578,7 +578,7 @@
       },
       "remeasured": {
         "networkMeters": 836.2,
-        "durationSeconds": 635,
+        "durationSeconds": 635.2,
         "stepsMeters": 0,
         "roadCrossings": 5,
         "connectorMeters": 53.1,
@@ -591,8 +591,8 @@
           "meters": 27.2
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": 0.2,
+      "deltaSecondsPct": 0.03,
       "deltaMetersPct": 0,
       "reproduced": true
     },
@@ -607,7 +607,7 @@
       },
       "remeasured": {
         "networkMeters": 823.4,
-        "durationSeconds": 652,
+        "durationSeconds": 652.3,
         "stepsMeters": 20.4,
         "roadCrossings": 2,
         "connectorMeters": 62.6,
@@ -620,12 +620,12 @@
           "meters": 28.3
         }
       },
-      "deltaSeconds": 0,
-      "deltaSecondsPct": 0,
+      "deltaSeconds": 0.3,
+      "deltaSecondsPct": 0.05,
       "deltaMetersPct": 0,
       "reproduced": true
     }
   ],
   "warnings": [],
-  "digest": "7a1cb2c0c3fa1de2"
+  "digest": "f849974e28e922d3"
 }

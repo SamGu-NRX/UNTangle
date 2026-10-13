@@ -84,10 +84,14 @@ const SNAP_MAX_METERS = 250; // speeds.ts SNAP_MAX_METERS
 
 // This is a reproduction check, not an accuracy check: it rebuilds the same
 // model from the same raw data, so an honest pipeline reproduces every number
-// up to the runtime's output rounding (seconds to the whole second, meters to
-// 0.1 m). Anything larger is a defect. Accuracy against hand-measured routes
-// is judged only by spot-check-fixture.ts on the independent eval fixture.
-const REPRODUCE_SECONDS_TOLERANCE = 1;
+// up to output rounding. The runtime (graph.ts routeBetweenPoints) reports
+// seconds and meters to a tenth, and so does this script. The recorded rows
+// in verification-evidence.json were written at 6a01f2b, when the runtime
+// still rounded seconds to the whole second, so the seconds tolerance is that
+// half second plus the tenth; meters have always been tenths. Anything larger
+// is a defect. Accuracy against hand-measured routes is judged only by
+// spot-check-fixture.ts on the independent eval fixture.
+const REPRODUCE_SECONDS_TOLERANCE = 0.55;
 const REPRODUCE_METERS_TOLERANCE = 0.1 + 1e-9;
 
 // The 20 pairs, in report §2 order (bench-routing.ts MEASURED_PAIRS).
@@ -431,7 +435,7 @@ type Remeasured = {
   networkMeters: number; // round(x,1), as routeBetweenPoints reports
   connectorMeters: number; // round(x,1)
   distanceMeters: number; // round(x,1)
-  durationSeconds: number; // Math.round of float sum, as routeBetweenPoints reports
+  durationSeconds: number; // tenths, as routeBetweenPoints reports
   stepsMeters: number; // round(x,1)
   roadCrossings: number;
   snapFrom: { index: number; meters: number };
@@ -466,7 +470,7 @@ function routePinPair(graph: Reconstructed, from: Pin, to: Pin): Remeasured {
     networkMeters: round(meters, 1),
     connectorMeters: round(connectorMeters, 1),
     distanceMeters: round(meters + connectorMeters, 1),
-    durationSeconds: Math.round(seconds + connectorMeters / WALK_SPEED_MPS),
+    durationSeconds: Number((seconds + connectorMeters / WALK_SPEED_MPS).toFixed(1)),
     stepsMeters: round(stepsMeters, 1),
     roadCrossings: crossings,
     snapFrom: { index: snapA.index, meters: round(snapA.meters, 1) },
@@ -587,7 +591,7 @@ function main() {
       deltaSecondsPct,
       deltaMetersPct,
       reproduced:
-        Math.abs(mine.durationSeconds - recorded.durationSeconds) <= REPRODUCE_SECONDS_TOLERANCE &&
+        Math.abs(mine.durationSeconds - recorded.durationSeconds) <= REPRODUCE_SECONDS_TOLERANCE + 1e-9 &&
         Math.abs(mine.networkMeters - recorded.networkMeters) <= REPRODUCE_METERS_TOLERANCE,
     };
   });
@@ -627,7 +631,7 @@ function main() {
       edgeDedup: "shortest way per node pair keeps its class flags (crossing/sidewalk take precedence over the highway tag)",
       snapping: "nearest node in largest connected component, 250 m cap",
       routing: "A* minimizing haversine meters (R = 6,371,000 m); duration computed along the path per edge: meters / (0.6 steps | 1.4 base) m/s; connectors added at base speed",
-      rounding: "as routeBetweenPoints: seconds Math.round; meters round to 0.1",
+      rounding: "as routeBetweenPoints: seconds and meters to 0.1 (toFixed(1)); recorded seconds are whole seconds from 6a01f2b",
     },
     reconstruction: {
       nodes: graph.nodes.length,

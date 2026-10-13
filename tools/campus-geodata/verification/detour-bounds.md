@@ -18,6 +18,13 @@ bun tools/campus-geodata/verification/detour-bounds.ts            # evidence JSO
 bun tools/campus-geodata/verification/detour-bounds-crosscheck.ts # outlier hand cross-check
 ```
 
+> **Update 2026-10-13 (acceptance ruling).** The acceptance owner ruled the art/arta deficit is
+> storage rounding, not a routing error. `detour-bounds.ts` now fails a pair only when its stored
+> network distance is more than **0.1 m** below the same-anchor crow distance (`FLOOR_TOLERANCE_M`,
+> documented at the constant). The committed matrix exits **0** (largest deficit 0.0491 m, art/arta);
+> a copy with art/arta stored at 70.9 m (0.149 m short) still exits 3. The analysis below is the
+> record from before the ruling.
+
 The bounds script ran twice; the evidence JSON is timestamp-free and **byte-identical across runs**
 (sha256 `266082fc7f153d9249a1159caf86e9200eacb7ac0cd8b6365c15fae9114eb905` on both runs). The exit
 code is **3**: the enforced same-anchor floor surfaces one violation (§4) — per the round-2 ruling

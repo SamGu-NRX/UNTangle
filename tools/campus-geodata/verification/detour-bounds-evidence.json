@@ -2,20 +2,12 @@
   "threshold": 2,
   "enforcement": {
     "sameAnchorFloor": {
-      "status": "fail",
-      "ratioTolerance": 1e-9,
-      "definition": "ratio = meters[a][b] / haversine(anchors[a].anchor, anchors[b].anchor); the anchors are the exact walkway nodes routeBetweenNodes connects, so any ratio < 1 - tolerance is geometrically impossible and is a hard error (never clamped, skipped or hidden)",
+      "status": "pass",
+      "toleranceMeters": 0.1,
+      "definition": "violation = haversine(anchors[a].anchor, anchors[b].anchor) - meters[a][b] > toleranceMeters; the anchors are the exact walkway nodes routeBetweenNodes connects, so a network path shorter than the straight line by more than the 0.1 m storage-rounding allowance is impossible and is a hard error (never clamped, skipped or hidden)",
+      "largestDeficitMeters": 0.0491,
       "minRatio": 0.999309,
-      "violations": [
-        {
-          "from": "art",
-          "to": "arta",
-          "networkMeters": 71,
-          "sameAnchorCrowMeters": 71.0491,
-          "ratio": 0.999309,
-          "deficitMeters": 0.0491
-        }
-      ]
+      "violations": []
     },
     "reverseSymmetry": {
       "status": "pass",

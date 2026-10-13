@@ -31,13 +31,11 @@
  *      sameAnchorCrowMeters must satisfy ratio >= 1.0 for every unordered
  *      pair: the routed path is a sum of haversine graph-edge lengths between
  *      the two anchor nodes, and the geodesic triangle inequality makes any
- *      ratio < 1 impossible up to float error. Any ratio < 1 - 1e-9 is a
- *      HARD ERROR: every violation is listed and the run exits non-zero.
- *      Violations are never clamped, skipped or hidden. (Known benign cause
- *      to check first when one fires: the matrix stores meters at 1-decimal
- *      precision, so a stored path can sit up to 0.05 m below its true
- *      length; each violation's deficit is recorded so storage rounding can
- *      be distinguished from a real defect.)
+ *      ratio < 1 impossible except for storage rounding. A pair whose stored
+ *      network distance is more than FLOOR_TOLERANCE_M (0.1 m) below its
+ *      crow distance is a HARD ERROR: every violation is listed and the run
+ *      exits non-zero. Violations are never clamped, skipped or hidden.
+ *      Every pair's deficit is recorded either way.
  *   2. Reverse-entry symmetry — over the full matrix, every reverse entry
  *      [b][a] is checked against [a][b] for all 406 unordered pairs; max
  *      asymmetry is reported in meters and in seconds, and the run fails
@@ -89,8 +87,18 @@ const STEPS_SPEED_MPS = 0.6;
 /** Mirrors frontend/src/lib/campus/geo.ts: haversine on a 6,371,000 m sphere. */
 const EARTH_RADIUS_M = 6371000;
 const DETOUR_FLAG_RATIO = 2.0;
-/** Ratio-space float tolerance: only a ratio below 1 - FLOOR_TOLERANCE is a floor violation. */
-const FLOOR_TOLERANCE = 1e-9;
+/**
+ * How far (meters) a stored network distance may sit below the straight line
+ * between the same two anchors before it counts as a floor violation.
+ *
+ * The matrix stores meters to one decimal, so a true path length can be
+ * stored up to 0.05 m short. art/arta is exactly that: true length 71.0491 m
+ * (independent Dijkstra, detour-bounds.md section 4), stored 71.0, crow
+ * 71.0491 m, a 0.0491 m deficit. The acceptance owner ruled (2026-10-13)
+ * that this is storage rounding, not a routing error, and set 0.1 m: twice
+ * the storage step, still far below any real shortcut. A larger gap fails.
+ */
+const FLOOR_TOLERANCE_M = 0.1;
 /** Reverse-entry asymmetry fails beyond this relative tolerance. */
 const SYMMETRY_RELATIVE_TOLERANCE = 1e-6;
 
@@ -396,7 +404,7 @@ function main(): number {
   // geometrically impossible between the routed endpoints; never clamped.
   const minRatio = Math.min(...metrics.map((m) => m.ratio));
   const floorViolations = metrics
-    .filter((m) => m.ratio < 1 - FLOOR_TOLERANCE)
+    .filter((m) => m.crowMeters - m.networkMeters > FLOOR_TOLERANCE_M)
     .map((m) => ({
       from: m.from,
       to: m.to,
@@ -423,9 +431,10 @@ function main(): number {
     enforcement: {
       sameAnchorFloor: {
         status: floorStatus,
-        ratioTolerance: FLOOR_TOLERANCE,
+        toleranceMeters: FLOOR_TOLERANCE_M,
         definition:
-          "ratio = meters[a][b] / haversine(anchors[a].anchor, anchors[b].anchor); the anchors are the exact walkway nodes routeBetweenNodes connects, so any ratio < 1 - tolerance is geometrically impossible and is a hard error (never clamped, skipped or hidden)",
+          "violation = haversine(anchors[a].anchor, anchors[b].anchor) - meters[a][b] > toleranceMeters; the anchors are the exact walkway nodes routeBetweenNodes connects, so a network path shorter than the straight line by more than the 0.1 m storage-rounding allowance is impossible and is a hard error (never clamped, skipped or hidden)",
+        largestDeficitMeters: round(Math.max(...metrics.map((m) => m.crowMeters - m.networkMeters)), 4),
         minRatio: round(minRatio, 6),
         violations: floorViolations,
       },
@@ -480,7 +489,7 @@ function main(): number {
   console.log(`ratio (network / same-anchor crow) over unordered pairs: ${JSON.stringify(ratioDist)}`);
   console.log(`ratio via seconds x 1.4 m/s (same-anchor basis): ${JSON.stringify(ratioSecondsDist)}`);
   console.log(
-    `enforcement — same-anchor floor (tolerance 1e-9): ${floorStatus.toUpperCase()}` +
+    `enforcement — same-anchor floor (0.1 m storage-rounding allowance): ${floorStatus.toUpperCase()}` +
       (floorViolations.length === 0 ? ` (min ratio ${round(minRatio, 6)})` : ""),
   );
   console.log(
