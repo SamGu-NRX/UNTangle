@@ -77,7 +77,7 @@ try {
     const page = await setup(context);
     await page.locator('[data-row-open="CSCE 1030"]').tap();
     await page.waitForTimeout(1000);
-    const grip = page.getByRole("button", { name: "Resize CSCE 1030 details" });
+    const grip = page.getByRole("dialog", { name: "CSCE 1030 details" }).getByRole("button", { name: "Resize sheet" });
     const box = await grip.boundingBox();
     const x = box.x + box.width / 2;
     await page.mouse.move(x, box.y + 10);

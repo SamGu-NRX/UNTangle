@@ -72,6 +72,19 @@ export const verifications = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+/**
+ * One row per magic-link token that has been used: the atomic claim that
+ * keeps a link single-use under concurrent verifies (lib/magic-link-claims.ts).
+ * Rows are pruned after the link would have expired.
+ */
+export const magicLinkClaims = pgTable("magic_link_claim", {
+  tokenHash: text("token_hash").primaryKey(),
+  // With time zone: node-postgres sends Dates in the server's local zone, so a
+  // plain timestamp compared with now() breaks when Node and Postgres differ.
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const plannerStates = pgTable("planner_state", {
   userId: text("user_id")
     .primaryKey()
@@ -96,12 +109,15 @@ export const plannerStates = pgTable("planner_state", {
   revision: integer("revision").default(1).notNull(),
 });
 
-// One fixed-window counter per route class and caller. The window leads the key so cleanup deletes a range.
+// One fixed-window counter per route class and caller. Route classes can have different window
+// lengths, so each row carries its own expiry (epoch ms) and cleanup deletes by that.
 export const apiRateLimits = pgTable("api_rate_limit", {
   windowIndex: integer("window_index").notNull(),
   route: text("route").notNull(),
   caller: text("caller").notNull(),
   count: integer("count").notNull(),
+  // 0 for rows written before this column: already expired, swept on the next pass.
+  expiresAt: bigint("expires_at", { mode: "number" }).default(0).notNull(),
 }, (table) => [primaryKey({ columns: [table.windowIndex, table.route, table.caller] })]);
 
 // better-auth's own limiter counts here when its storage is "database".
@@ -117,6 +133,7 @@ export const schema = {
   sessions,
   accounts,
   verifications,
+  magicLinkClaims,
   plannerStates,
   apiRateLimits,
   authRateLimits,

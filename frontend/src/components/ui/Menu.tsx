@@ -59,10 +59,6 @@ export type MenuProps = {
 
 const EXIT_MS = 120;
 
-function isItem(entry: MenuEntry): entry is MenuItem {
-  return entry.kind === undefined || entry.kind === "item";
-}
-
 function textOf(item: MenuItem): string {
   return item.textValue ?? (typeof item.label === "string" ? item.label : "");
 }

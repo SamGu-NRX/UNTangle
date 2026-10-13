@@ -72,7 +72,7 @@ Check: pale basemap, buildings extruded at zoom ≥ 16 with the camera pitched; 
 
 ## 8. Connect
 
-New: `ConnectSheet` with `request`, `handoff`, `progress`, `review`, `done`, `error`, `upload` states; `BrowserCard`, `DropZone`, `ExtensionRow`, `StepDots`. Replaces `course-import-panel.tsx` and `transcript-import-client.tsx`; `app/courses/import/page.tsx` becomes a route that opens the sheet over Courses. Build to `connect.html`.
+New: `ConnectSheet` with `request`, `handoff`, `progress`, `review`, `done`, `error`, `upload` states; `BrowserCard`, `DropZone`, `StepDots`. Replaces `course-import-panel.tsx` and `transcript-import-client.tsx`; `app/courses/import/page.tsx` becomes a route that opens the sheet over Courses. Build to `connect.html`.
 
 Check: three step dots; the request copy lists Reads / Removes / Keeps; "Upload a PDF instead" visible in request and handoff; the browser card has the myUNT breadcrumb and a single primary; progress has three steps and never says "AI"; the review list flags the unmatched row with a Select; on phone the sheet survives a trip to Safari.
 
@@ -88,4 +88,4 @@ Apply DESIGN.md §6 as written; then run `prep-for-prod`. Exits faster than ente
 
 ## Open items the lead must resolve before step 8
 
-See DESIGN.md §9: landing as the guest Courses view; Plans as a switcher; Auto-fill plans suggestions directly; SPOT and Faculty Information System link patterns; whether the extension ships now.
+See DESIGN.md §9: landing as the guest Courses view; Plans as a switcher; Auto-fill plans suggestions directly; SPOT and Faculty Information System link patterns.

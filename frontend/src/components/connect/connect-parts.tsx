@@ -1,13 +1,19 @@
+import type { ChangeEvent, Ref } from "react";
 import styles from "./connect.module.css";
+
+const STEPS = ["Open", "Import", "Review"] as const;
+
+/**
+ * Open · Import · Review. 6px dots: current brand, done brand with a ring,
+ * pending line-strong. Fixed at the top while the content below changes.
+ */
 export function StepDots({ current }: { current: 0 | 1 | 2 | 3 }) {
   return (
     <ol className={styles.steps} aria-label="Import steps">
-      {["Open", "Import", "Review"].map((name, i) => (
+      {STEPS.map((name, i) => (
         <li
           key={name}
-          data-state={
-            i < current ? "done" : i === current ? "current" : "pending"
-          }
+          data-state={i < current ? "done" : i === current ? "current" : "pending"}
           aria-current={i === current ? "step" : undefined}
         >
           {name}
@@ -16,28 +22,25 @@ export function StepDots({ current }: { current: 0 | 1 | 2 | 3 }) {
     </ol>
   );
 }
-export function BrowserCard({ href }: { href: string }) {
+
+/**
+ * The file input behind "Use the downloaded PDF" where the browser has no
+ * File System Access picker. Visible buttons click it; it is out of the tab
+ * order and the accessibility tree, so the PDF has one control, not two.
+ */
+export function HiddenPdfInput({ ref, onFile }: { ref: Ref<HTMLInputElement>; onFile: (file: File | undefined) => void }) {
   return (
-    <div className={styles.browser}>
-      <div className={styles.browserChrome}>
-        <span aria-hidden="true">•••</span>
-        <span>my.unt.edu › Academic Records</span>
-      </div>
-      <div className={styles.browserBody}>
-        <span className={styles.seal} aria-hidden="true">
-          U
-        </span>
-        <p>Open your unofficial transcript in myUNT.</p>
-        <a
-          className={styles.primary}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open myUNT <span aria-hidden="true">↗</span>
-        </a>
-        <small>Opens a new tab. Sign in there.</small>
-      </div>
-    </div>
+    <input
+      ref={ref}
+      type="file"
+      className={styles.fileInput}
+      accept="application/pdf,.pdf"
+      tabIndex={-1}
+      aria-hidden="true"
+      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+        onFile(event.target.files?.[0]);
+        event.target.value = "";
+      }}
+    />
   );
 }

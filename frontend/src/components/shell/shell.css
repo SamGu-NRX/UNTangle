@@ -330,6 +330,45 @@
   }
 }
 
+/* ───────── View header ───────── */
+
+.view-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: var(--viewhead-h);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.view-header__context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.view-header__title {
+  margin: 0;
+  font: 600 var(--text-lg) / var(--lh-lg) var(--font-body);
+  color: var(--ink);
+}
+.view-header__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.view-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ───────── Content frame for v1 views (NavShell) ───────── */
 
 .shell-content {
@@ -373,6 +412,11 @@
   border-top: 1px solid var(--line);
 }
 .home-option__link {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -504,4 +548,12 @@
   .about {
     padding: 32px 16px 48px;
   }
+}
+
+/* The one-line intro in a small shell dialog (Set a password). */
+.shell-dialog-lede {
+  margin: 0 0 12px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
 }

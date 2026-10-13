@@ -128,7 +128,7 @@ describe("first visit vs returning student", () => {
 });
 
 describe("plan menu", () => {
-  const base = { saveFailed: false, isRegistered: false, recent: [], onRetry: () => {} };
+  const base = { saveFailed: false, isRegistered: false, recent: [], onRetry: () => {}, onConnect: () => {} };
 
   test("Save a copy is disabled, and refuses, until the plan has loaded", async () => {
     const { planMenuEntries } = await import("@/components/shell/PlanChip");

@@ -1,0 +1,566 @@
+[
+  {
+    "size": "desktop",
+    "name": "plans: the view header replaces the headline",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the plan menu opens the sheet over Courses at /connect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the start lists Reads / Removes / Keeps",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: no extension anywhere in the flow",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: one primary action, Open myUNT",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect start has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: Open myUNT opens the transcript page in a separate window",
+    "pass": true,
+    "detail": "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the myUNT window can't reach back to UNTangle",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: while away the sheet waits calmly",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the trip is remembered for a reload",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect waiting for myUNT has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing myUNT makes 'Use the downloaded PDF' the primary action",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: it takes focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: it is not pressed for the student (the picker needs a gesture)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect back from myUNT has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the picker opens in Downloads for one PDF",
+    "pass": true,
+    "detail": "{\"startIn\":\"downloads\",\"types\":[{\"description\":\"Transcript PDF\",\"accept\":{\"application/pdf\":[\".pdf\"]}}],\"excludeAcceptAllOption\":true,\"multiple\":false}"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: choosing the file ends the trip",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: progress and review never say 'AI'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: every row that needs a decision is tinted and carries a ui Select",
+    "pass": true,
+    "detail": "1 flagged rows, 1 Selects"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect review has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: crossing the phone breakpoint after approving a row keeps the review and the approval",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect done has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: 'Go to courses' closes the sheet on Courses",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: a text drag shows no drop target",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: dragging a file over the app shows the full-window target",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: leaving the window hides it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "drop: a PDF dropped with the sheet closed opens it and imports, through a breakpoint crossing mid-read",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "desktop",
+    "name": "drop: two files are refused with a reason",
+    "pass": true,
+    "detail": "That was 2 files. Drop one PDF: the unofficial transcript you downloaded."
+  },
+  {
+    "size": "desktop",
+    "name": "drop: a non-PDF is refused by name",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing leaves no trip flag behind",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: Back closes the sheet and stays on Plans",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/plans"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: after Back/Forward, closing still returns to Plans",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/plans"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing returns focus to the plan menu button",
+    "pass": true,
+    "detail": "shell-planchip"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: a cold /courses/import opens the sheet at /connect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing it lands on Courses",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/courses"
+  },
+  {
+    "size": "desktop",
+    "name": "plans: diff rows set course codes in Syne",
+    "pass": true,
+    "detail": "CSCE 1030 in syne"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Plans with a comparison has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Plans restore preview has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "plans: restoring goes to the Week view",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: sign-in leads with the email field and 'Email me a sign-in link'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a configured server shows no server-log note",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Sign in by link has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a missing UNT email errors under Email and takes focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a non-UNT email names the accepted domains",
+    "pass": true,
+    "detail": "Use a UNT email address ending in @unt.edu or @my.unt.edu."
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a failed link request shows its reason under Email",
+    "pass": true,
+    "detail": "The sign-in link couldn't be sent. Try again in a minute."
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a short password errors under Password",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a server password error shows as help text under a field",
+    "pass": true,
+    "detail": "Sign-in failed. Check your email and password."
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Password sign-in with errors has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "auth: returning from a dead link says so under Email",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "reset: an empty email errors under the field",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Password reset with an error has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: loading it doesn't redirect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/auth/link#token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: loading it doesn't touch the token",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: the token never reaches the server in the page request",
+    "pass": true,
+    "detail": "[\"http://127.0.0.1:3330/auth/link\"]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: it sends no referrer",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "link page: one button, 'Sign in'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Sign-in link page has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: the button sends the token to the verify endpoint",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/api/auth/magic-link/verify?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "desktop",
+    "name": "link page: without a token it says the link is incomplete",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "plans: the view header replaces the headline",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect start has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "connect: after a reload the sheet reopens on 'Use the downloaded PDF'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "connect: the restored trip consumed its flag",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect back from myUNT has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "connect: without the picker, the native file chooser opens for one PDF",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect review has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect done has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "plans: diff rows set course codes in Syne",
+    "pass": true,
+    "detail": "CSCE 1030 in syne"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Plans with a comparison has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Plans restore preview has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "plans: restoring goes to the Week view",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: sign-in leads with the email field and 'Email me a sign-in link'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a configured server shows no server-log note",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Sign in by link has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "auth: a missing UNT email errors under Email and takes focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a non-UNT email names the accepted domains",
+    "pass": true,
+    "detail": "Use a UNT email address ending in @unt.edu or @my.unt.edu."
+  },
+  {
+    "size": "phone",
+    "name": "auth: a failed link request shows its reason under Email",
+    "pass": true,
+    "detail": "The sign-in link couldn't be sent. Try again in a minute."
+  },
+  {
+    "size": "phone",
+    "name": "auth: a short password errors under Password",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a server password error shows as help text under a field",
+    "pass": true,
+    "detail": "Sign-in failed. Check your email and password."
+  },
+  {
+    "size": "phone",
+    "name": "axe: Password sign-in with errors has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "auth: returning from a dead link says so under Email",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "reset: an empty email errors under the field",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Password reset with an error has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: loading it doesn't redirect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/auth/link#token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "phone",
+    "name": "link page: loading it doesn't touch the token",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: the token never reaches the server in the page request",
+    "pass": true,
+    "detail": "[\"http://127.0.0.1:3330/auth/link\"]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: it sends no referrer",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "link page: one button, 'Sign in'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Sign-in link page has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "link page: the button sends the token to the verify endpoint",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/api/auth/magic-link/verify?token=journey-token-not-real&callbackURL=%2Fcourses&errorCallbackURL=%2Fauth%3Flink%3Dfailed"
+  },
+  {
+    "size": "phone",
+    "name": "link page: without a token it says the link is incomplete",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "blocked: with popups blocked, myUNT opens in a new tab",
+    "pass": true,
+    "detail": "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL"
+  },
+  {
+    "size": "desktop",
+    "name": "blocked: the sheet still waits for the return",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "blocked: coming back to the tab leads with 'Use the downloaded PDF'",
+    "pass": true,
+    "detail": ""
+  }
+]

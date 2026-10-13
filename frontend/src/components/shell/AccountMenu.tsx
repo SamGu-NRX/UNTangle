@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Menu } from "@/components/ui/Menu";
+import { SetPasswordDialog } from "./SetPasswordDialog";
 
 function initials(name: string | null | undefined, email: string): string {
   const source = name?.trim() || email.split("@")[0];
@@ -16,6 +18,7 @@ function initials(name: string | null | undefined, email: string): string {
 export function AccountMenu() {
   const { data, isPending } = authClient.useSession();
   const router = useRouter();
+  const [settingPassword, setSettingPassword] = useState(false);
   const user = data?.user;
 
   if (isPending) {
@@ -30,26 +33,30 @@ export function AccountMenu() {
     );
   }
   return (
-    <Menu
-      label="Account"
-      align="end"
-      header={<span className="shell-account-email">{user.email}</span>}
-      items={[
-        { id: "library", label: "Plan library", href: "/plans" },
-        {
-          id: "sign-out",
-          label: "Sign out",
-          onSelect: async () => {
-            await authClient.signOut();
-            router.push("/");
+    <>
+      <Menu
+        label="Account"
+        align="end"
+        header={<span className="shell-account-email">{user.email}</span>}
+        items={[
+          { id: "library", label: "Plan library", href: "/plans" },
+          { id: "set-password", label: "Set a password", onSelect: () => setSettingPassword(true) },
+          {
+            id: "sign-out",
+            label: "Sign out",
+            onSelect: async () => {
+              await authClient.signOut();
+              router.push("/");
+            },
           },
-        },
-      ]}
-      trigger={(props) => (
-        <button {...props} type="button" className="shell-avatar" aria-label={`Account: ${user.email}`}>
-          {initials(user.name, user.email)}
-        </button>
-      )}
-    />
+        ]}
+        trigger={(props) => (
+          <button {...props} type="button" className="shell-avatar" aria-label={`Account: ${user.email}`}>
+            {initials(user.name, user.email)}
+          </button>
+        )}
+      />
+      <SetPasswordDialog open={settingPassword} onOpenChange={setSettingPassword} />
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import type { TranscriptCourseRecord } from "@/lib/types";
 import styles from "./connect.module.css";
@@ -10,15 +9,15 @@ type Props = {
   onReapply: () => void;
 };
 
-export function ConnectPersistence({
-  records,
-  missingRecords,
-  canReapply,
-  onReapply,
-}: Props) {
+/**
+ * The done state's body: how many approved courses are in the plan now,
+ * the way to re-apply any a newer saved version dropped, and the plan's
+ * save state. The sheet's footer carries "Go to courses" and "Close".
+ */
+export function ConnectPersistence({ records, missingRecords, canReapply, onReapply }: Props) {
   const count = records.length - missingRecords.length;
   return (
-    <div>
+    <div className={styles.done}>
       <p className={styles.lead} role="status" aria-label="Transcript import">
         {count === 0
           ? "Your transcript import was discarded from this plan."
@@ -32,24 +31,13 @@ export function ConnectPersistence({
               : ""}
             Re-apply the courses you approved to the current plan.
           </p>
-          <button
-            type="button"
-            className={styles.primary}
-            disabled={!canReapply}
-            onClick={onReapply}
-          >
+          <button type="button" className="ui-btn ui-btn--primary" disabled={!canReapply} onClick={onReapply} data-ui="">
             Re-apply approved courses
           </button>
         </>
       )}
-      <p className={styles.detail}>
-        Your original PDF wasn&apos;t stored. Check your courses, then keep
-        planning.
-      </p>
+      <p className={styles.detail}>Your original PDF wasn&apos;t stored.</p>
       <PlannerPersistencePanel />
-      <Link className={styles.primary} href="/courses">
-        Review my plan →
-      </Link>
     </div>
   );
 }

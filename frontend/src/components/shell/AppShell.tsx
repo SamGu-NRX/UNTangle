@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ConnectHost } from "@/components/connect/connect-host";
 import { SearchPalette } from "@/components/ui/SearchPalette";
 import { Toaster } from "@/components/ui/Toast";
 import { courses } from "@/lib/seed-data";
@@ -97,6 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           if (item.code) router.push(courseHref(item.code));
         }}
       />
+      <ConnectHost />
       <Toaster />
     </ShellContext.Provider>
   );

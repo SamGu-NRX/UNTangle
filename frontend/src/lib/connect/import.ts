@@ -3,31 +3,28 @@ import {
   reconcileTranscriptCourses,
   redactTranscriptText,
 } from "../transcript-import";
-import { MAX_PDF_BYTES, type Payload } from "./protocol";
+
+export const MAX_PDF_BYTES = 12 * 1024 * 1024;
+
+/** The transcript PDF the student chose, or its text (what the tests feed in). */
+export type TranscriptInput = File | { kind: "transcript-text"; text: string };
+
+/**
+ * Reads an unofficial transcript in the browser: PDF text via pdf.js,
+ * labeled identity fields redacted, then rows matched to the catalog.
+ * Nothing is uploaded.
+ */
 export async function parseConnectTranscript(
-  input: File | Payload,
+  input: TranscriptInput,
   signal: AbortSignal,
 ) {
   signal.throwIfAborted();
   let text: string;
-  if (!(input instanceof File) && input.kind === "transcript-text")
-    text = input.text;
+  if (!(input instanceof File)) text = input.text;
   else {
-    let data: Uint8Array;
-    if (input instanceof File) {
-      if (input.size > MAX_PDF_BYTES)
-        throw new Error("Choose a transcript PDF under 12 MB.");
-      data = new Uint8Array(await input.arrayBuffer());
-    } else {
-      if (input.kind !== "pdf")
-        throw new Error(
-          "Expected a transcript report, received class search results.",
-        );
-      const binary = atob(input.base64);
-      if (binary.length > MAX_PDF_BYTES)
-        throw new Error("Choose a transcript PDF under 12 MB.");
-      data = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    }
+    if (input.size > MAX_PDF_BYTES)
+      throw new Error("Choose a transcript PDF under 12 MB.");
+    const data = new Uint8Array(await input.arrayBuffer());
     if (new TextDecoder().decode(data.subarray(0, 5)) !== "%PDF-")
       throw new Error("Choose the PDF you saved from myUNT.");
     signal.throwIfAborted();
@@ -77,7 +74,8 @@ export async function parseConnectTranscript(
   });
   if (!result.records.length)
     throw new Error(
-      "No readable course rows were found. Save a text PDF from myUNT, or use the transcript importer for scanned PDFs.",
+      // Only text PDFs are read; there is no scanned-PDF importer to send people to.
+      "No readable course rows were found. In myUNT, use View as PDF and upload that file; a scan or photo of the transcript can't be read.",
     );
   return result;
 }

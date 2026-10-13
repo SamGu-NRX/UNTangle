@@ -1,77 +1,388 @@
-.page { min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); color: var(--ink); }
-.frame { max-width: 480px; margin: 0 auto; }
-.chrome { display: flex; gap: 20px; justify-content: space-between; align-items: center; font-size: 14px; padding: 12px 0 24px; }
-.chrome a { color: var(--brand-900); min-height: 44px; display: inline-flex; align-items: center; }
-.chrome > span:not(.secure) { font: 800 20px var(--font-display-syne); color: var(--brand-900); }
-.secure { font-size: 12px; color: var(--copy); }
-.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; box-shadow: var(--sh-card); }
-/* The v2 reference reserves Syne for identity and course codes; prose uses DM Sans. */
-.sheet h1 { font: 600 22px/28px var(--font-body); letter-spacing: -.01em; margin: 0 0 12px; }
-.sheet h1:focus-visible { outline: 2px solid var(--brand-900); outline-offset: 4px; }
-.sheet > p:not(.lead) { font-size: 14px; line-height: 20px; }
-.lead { font-size: 15px; line-height: 22px; margin: 0 0 18px; }
-.detail { color: var(--copy); font-size: 14px; line-height: 1.6; }
-.seal { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 14px; background: var(--brand-soft, #e4f0e8); color: var(--brand-900); border-radius: 10px; font: 800 20px var(--font-display-syne); }
-.access { padding: 0; margin: 16px 0; list-style: none; border-top: 1px solid var(--line); font-size: 13px; line-height: 20px; }
-.access li { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.access strong { color: var(--brand-900); margin-right: 6px; }
-.steps { display: flex; gap: 20px; padding: 0; margin: 0 0 20px; list-style: none; }
-.steps li { display: inline-flex; align-items: center; gap: 6px; color: var(--copy); font-size: 11px; line-height: 16px; text-transform: uppercase; letter-spacing: .06em; }
-.steps li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); }
-.steps li[data-state="current"] { color: var(--ink); }
-.steps li[data-state="current"]::before, .steps li[data-state="done"]::before { background: var(--brand-900); }
-.steps li[data-state="done"]::before { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--line-strong); }
-.check, .row { display: flex; align-items: center; gap: 12px; min-height: 44px; line-height: 1.5; cursor: pointer; }
-.check { font-size: 14px; margin: 24px 0; }
-.check input, .row input { flex: 0 0 20px; height: 20px; accent-color: var(--brand-900); }
-.primary, .uploadButton { min-height: 48px; width: 100%; padding: 14px 18px; border-radius: var(--r-md); font: 600 16px/1.4 var(--font-body); text-align: center; cursor: pointer; text-decoration: none; }
-.primary { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--brand-900); background: var(--brand-900); color: var(--surface); }
-.primary:disabled { opacity: .5; cursor: not-allowed; }
-/* Instant color feedback confirms a press without moving keyboard-operated controls. */
-.primary:enabled:active { opacity: .8; }
-.waiting { padding: 12px 0; line-height: 1.6; }
-.spinner { display: inline-block; height: 24px; width: 24px; border: 3px solid var(--line-strong); border-top-color: var(--brand-900); border-radius: 50%; animation: spin 800ms linear infinite; margin-bottom: 14px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.parsing { display: flex; gap: 12px; align-items: center; }
-.progressSteps { padding-left: 20px; font-size: 14px; line-height: 2; color: var(--copy); }
-.parsing .spinner { margin: 0; flex-shrink: 0; }
-.textButton { color: var(--brand-900); background: transparent; border: 0; min-height: 44px; padding: 8px 0; font: 600 15px var(--font-body); text-decoration: underline; cursor: pointer; }
-.error { padding: 16px; margin: 20px 0; border: 1px solid var(--danger-border); background: var(--danger-bg); border-radius: var(--r-md); line-height: 1.6; }
-.error p { margin-top: 0; }
-.error summary { cursor: pointer; min-height: 44px; display: list-item; padding: 10px 0; font-weight: 600; }
-.error ol { padding-left: 20px; font-size: 14px; }
-.error code { overflow-wrap: anywhere; }
-.records { list-style: none; margin: 16px 0; padding: 0; }
-.records li { border-top: 1px solid var(--line); padding: 12px 0; }
-.row > span { min-width: 0; }
-.row strong, .row span span, .row small { display: block; }
-.row strong { font: 700 13px/20px var(--font-display-syne); }
-.row span span { font-size: 14px; overflow-wrap: anywhere; }
-.row small { font-size: 12px; color: var(--copy); margin-top: 4px; }
-.decision { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--copy); margin-top: 12px; }
-.decision select { min-height: 44px; font: 400 16px var(--font-body); padding: 8px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); max-width: 100%; }
-.exception { font-size: 12px; color: var(--copy); margin: 4px 0 0 32px; }
-.exception summary { min-height: 44px; padding: 12px 0; cursor: pointer; }
-.note { margin: 8px 0 0 32px; font-size: 13px; color: var(--copy); }
-.browser { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 16px; }
-.browserChrome { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px; background: var(--surface-muted); border-bottom: 1px solid var(--line); font-size: 11px; color: var(--copy); }
-.browserChrome > span:last-child { background: var(--surface); border-radius: var(--r-sm); padding: 4px 8px; overflow-wrap: anywhere; }
-.browserBody { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
-.browserBody .seal { margin: 0; }
-.browserBody p { margin: 0; font-size: 13px; color: var(--copy); }
-.browserBody small { font-size: 12px; color: var(--copy); }
-.upload { padding: 18px; border: 1.5px dashed var(--line-strong); border-radius: 10px; background: var(--surface-muted); margin-top: 20px; }
-.upload > p:first-child { font-weight: 600; margin: 0; }
-.upload[data-dragging="true"] { outline: 2px dashed var(--brand-900); outline-offset: 8px; }
-.uploadButton { position: relative; display: block; background: var(--surface); border: 1px solid var(--line-strong); color: var(--brand-900); padding: 10px; font-size: 14px; }
-.uploadButton input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
-.uploadButton:focus-within { outline: 2px solid var(--brand-900); outline-offset: 3px; }
-.uploadButton:active { background: var(--surface-muted); }
-.help { display: block; min-height: 44px; padding: 12px 0 0; font-size: 13px; color: var(--brand-900); }
-.footer { color: var(--copy); font-size: 12px; line-height: 1.5; text-align: center; padding: 8px; }
-.page a:focus-visible, .page button:focus-visible, .page input:focus-visible, .page select:focus-visible, .page summary:focus-visible { outline: 2px solid var(--brand-900); outline-offset: 3px; }
-.page button, .page a, .page summary, .uploadButton { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.page button, .uploadButton { user-select: none; }
-@media (hover: hover) and (pointer: fine) { .primary:enabled:hover { opacity: .9; } .uploadButton:hover { background: var(--surface-muted); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
-@media (max-width: 480px) { .page { padding-left: 12px; padding-right: 12px; } .sheet { padding: 20px; } .secure { display: none; } }
+/*
+ * Connect sheet (DESIGN.md §4 ConnectSheet, mockup connect.html). The host
+ * supplies the container: a 480px dialog on desktop, a 92% bottom sheet on
+ * phones. Everything here is the content inside it.
+ */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  color: var(--ink);
+}
+
+/* ---------- step dots ---------- */
+
+.steps {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  font: 500 11px/16px var(--font-body);
+  color: var(--ink-2);
+}
+.steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.steps li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.steps li[data-state="current"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+.steps li[data-state="current"]::before {
+  background: var(--brand);
+}
+.steps li[data-state="done"]::before {
+  background: var(--brand);
+  box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--brand);
+}
+
+/* ---------- heading block ---------- */
+
+.seal {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font: 800 20px/1 var(--font-display);
+}
+.seal[data-tone="ok"] {
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font: 700 18px/1 var(--font-body);
+}
+.seal[data-tone="error"] {
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font: 700 18px/1 var(--font-body);
+}
+.title {
+  margin: 0;
+  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
+  color: var(--ink);
+  outline: none;
+}
+/* The heading takes focus on each step change so screen readers read the new
+   step; it is not a control, so it shows no ring (the global :focus-visible
+   rule would otherwise draw one after keyboard or file-picker input). */
+.title:focus,
+.title:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.lead,
+.summary {
+  margin: 0;
+  color: var(--ink);
+}
+.summary {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+  margin-top: -6px;
+}
+.detail {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.quiet {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--ink);
+  font-size: var(--text-md);
+}
+
+/* ---------- start: access list ---------- */
+
+.access {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.access li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.access strong {
+  font-weight: 600;
+}
+.accessGlyph {
+  flex: none;
+  color: var(--brand);
+}
+
+/* ---------- footer, links ---------- */
+
+.foot {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.foot:has(> :only-child) {
+  justify-content: flex-start;
+}
+/* Phones: actions fill the row (two share it when they fit), so the primary
+   is a full-width thumb target instead of a button pushed to the right. */
+@media (max-width: 719px) {
+  .foot > * {
+    flex: 1 1 auto;
+  }
+}
+.linkButton {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: 600 13px/20px var(--font-body);
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+.linkButton {
+  justify-self: start;
+  width: fit-content;
+}
+.linkButton:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.linkButton:disabled {
+  color: var(--ink-4);
+  cursor: default;
+}
+.linkButton:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+
+/* The fallback file input: clicked by "Use the downloaded PDF", never seen. */
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+  white-space: nowrap;
+}
+
+/* ---------- progress ---------- */
+
+.progress {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.progress li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  color: var(--ink-2);
+}
+.progress li[data-state="active"],
+.progress li[data-state="done"] {
+  color: var(--ink);
+}
+.progressIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-4);
+}
+.progressIcon[data-state="done"] {
+  border: 0;
+  background: var(--brand)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.5 7 11l4.5-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+}
+.progressSpin {
+  color: var(--brand);
+}
+
+/* ---------- review ---------- */
+
+.records {
+  display: grid;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+@media (max-width: 719px) {
+  .records {
+    max-height: none;
+  }
+}
+.reviewRow {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+}
+.reviewRow:first-child {
+  border-top: 0;
+}
+.reviewRow[data-flagged] {
+  background: var(--danger-soft);
+}
+.reviewMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  cursor: pointer;
+}
+.reviewMain :global(.ui-check__box) {
+  margin: 0;
+}
+.reviewText {
+  display: grid;
+  min-width: 0;
+}
+.reviewLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.reviewTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reviewText small {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.reviewDecision {
+  display: grid;
+  gap: 6px;
+  padding-left: 52px;
+}
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--danger);
+}
+.exception {
+  padding-left: 52px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.exception summary {
+  width: fit-content;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.exception[open] summary {
+  margin-bottom: 6px;
+}
+.decision {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.decision :global(.ui-select) {
+  width: 180px;
+}
+
+/* The trailing arrow on "Open myUNT": flex trims the space before it, so
+   the gap is set here. */
+.trail {
+  margin-left: 4px;
+}
+
+/* ---------- page-wide drop target ---------- */
+
+/* Covers the window while a file is dragged over it. Visual only: the drop
+   itself is handled on the window (pdf-drop.tsx), so this ignores the
+   pointer and sits above every layer, the Connect dialog included. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  pointer-events: none;
+}
+.dropCard {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: min(560px, 100%);
+  padding: 40px 24px;
+  border: 2px dashed var(--brand);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  color: var(--brand);
+  text-align: center;
+}
+.dropCard strong {
+  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
+  color: var(--ink);
+}
+.dropCard span {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dropOverlay {
+    animation: dropIn 120ms ease-out;
+  }
+}
+@keyframes dropIn {
+  from {
+    opacity: 0;
+  }
+}

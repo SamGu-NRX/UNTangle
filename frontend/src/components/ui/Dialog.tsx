@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { cx } from "./cx";
 import { Close } from "./icons";
@@ -56,9 +56,7 @@ export function Dialog({
   const descriptionId = useId();
   // Keep the last title through the exit so the closing dialog stays named.
   const [shownTitle, setShownTitle] = useState(title);
-  useEffect(() => {
-    if (title) setShownTitle(title);
-  }, [title]);
+  if (title && title !== shownTitle) setShownTitle(title);
 
   useModalLayer(open, rootRef, {
     onEscape: dismissible ? () => onOpenChange(false) : undefined,

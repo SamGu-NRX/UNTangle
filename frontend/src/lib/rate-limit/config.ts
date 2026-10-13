@@ -1,9 +1,17 @@
+/** The default window, and better-auth's own limiter window (its rows are swept on this basis). */
 export const windowMs = 60_000;
-export type Budget = { user?: number; ip: number };
+/** `windowSeconds` defaults to 60. */
+export type Budget = { user?: number; ip: number; windowSeconds?: number };
+
+/** The window length for one budget, in milliseconds. */
+export function budgetWindowMs(budget: { windowSeconds?: number }): number {
+  return (budget.windowSeconds ?? 60) * 1000;
+}
 
 /**
- * Requests per minute for each route class. Signed-in callers count against `user`, anonymous
- * callers against `ip`; a class without `user` counts everyone by IP. These are unmeasured
+ * Requests per window (60 s unless `windowSeconds` says otherwise) for each route class.
+ * Signed-in callers count against `user`, anonymous callers against `ip`; a class without
+ * `user` counts everyone by IP. These are unmeasured
  * starting values: no production traffic has been looked at to choose them.
  */
 export const budgets = {
@@ -14,8 +22,20 @@ export const budgets = {
   plannerRead: { user: 120, ip: 360 },
   plannerSave: { user: 60, ip: 180 },
   sections: { user: 60, ip: 180 },
+  // Setting a password is rare: a few tries per signed-in user per 10 minutes.
+  setPassword: { user: 5, ip: 10, windowSeconds: 600 },
 } satisfies Record<string, Budget>;
 export type RouteClass = keyof typeof budgets;
+
+/**
+ * Budgets counted per email recipient, not per caller, so they are kept out of `budgets`:
+ * withRateLimit can't apply one by IP. lib/email-budget.ts counts these through the store
+ * directly. `perRecipient` is per inbox and per email kind, per window; an unmeasured
+ * starting value.
+ */
+export const recipientBudgets = {
+  authEmail: { perRecipient: 3, windowSeconds: 600 },
+} as const;
 
 const proxyHeaders: Record<string, string | null> = {
   vercel: "x-vercel-forwarded-for",
