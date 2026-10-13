@@ -11,7 +11,7 @@ import {
   type ItineraryStop,
 } from "@/lib/map-itinerary";
 import { weekDays, type WeekDay } from "@/lib/types";
-import type { MapSelection } from "@/components/map/selection";
+import { fromKeyboard, type MapSelection } from "@/components/map/selection";
 
 const dayNames: Record<WeekDay, string> = {
   Mon: "Monday",
@@ -34,6 +34,8 @@ export function DaySwitcher({
 }) {
   const refs = useRef<Partial<Record<WeekDay, HTMLButtonElement | null>>>({});
   const [pill, setPill] = useState<{ x: number; width: number } | null>(null);
+  // The pill slides when a day is clicked and snaps for arrow keys and resizes.
+  const [slide, setSlide] = useState(false);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -41,8 +43,12 @@ export function DaySwitcher({
       if (element) setPill({ x: element.offsetLeft, width: element.offsetWidth });
     };
     measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    const onResize = () => {
+      setSlide(false);
+      measure();
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [activeDay]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -50,6 +56,7 @@ export function DaySwitcher({
     if (!step) return;
     event.preventDefault();
     const next = weekDays[(weekDays.indexOf(activeDay) + step + weekDays.length) % weekDays.length];
+    setSlide(false);
     onChange(next);
     refs.current[next]?.focus();
   };
@@ -57,7 +64,12 @@ export function DaySwitcher({
   return (
     <div className="mv-days" role="radiogroup" aria-label="Day" onKeyDown={onKeyDown}>
       {pill ? (
-        <span className="mv-days__pill" aria-hidden="true" style={{ width: pill.width, transform: `translateX(${pill.x}px)` }} />
+        <span
+          className="mv-days__pill"
+          aria-hidden="true"
+          data-slide={slide ? "true" : "false"}
+          style={{ width: pill.width, transform: `translateX(${pill.x}px)` }}
+        />
       ) : null}
       {weekDays.map((day) => {
         const active = day === activeDay;
@@ -74,7 +86,10 @@ export function DaySwitcher({
             tabIndex={active ? 0 : -1}
             className="mv-days__day"
             data-active={active ? "true" : "false"}
-            onClick={() => onChange(day)}
+            onClick={(event) => {
+              setSlide(!fromKeyboard(event));
+              onChange(day);
+            }}
           >
             {day}
             <span className="mv-days__dot" data-has-classes={counts[day] > 0 ? "true" : "false"} aria-hidden="true" />
@@ -154,7 +169,7 @@ function StopCard({
 }: {
   entry: ItineraryStop;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (instant: boolean) => void;
   cardRef: (element: HTMLButtonElement | null) => void;
 }) {
   const { placement, stop } = entry;
@@ -167,7 +182,7 @@ function StopCard({
       data-selected={selected ? "true" : "false"}
       data-placement={placement.kind}
       aria-pressed={selected}
-      onClick={onSelect}
+      onClick={(event) => onSelect(fromKeyboard(event))}
     >
       <span className="mv-stop__badge" aria-hidden="true">
         {entry.number}
@@ -178,8 +193,7 @@ function StopCard({
           <span className="mv-stop__title">{stop.title}</span>
         </span>
         <span className="mv-stop__meta">
-          {timeRange(entry)}
-          {placement.kind === "mapped" ? ` · ${placement.buildingName}` : ` · ${stop.location}`}
+          {timeRange(entry)} · {stop.location}
         </span>
         {placement.kind === "unresolved" ? (
           <span className="mv-stop__problem">
@@ -242,7 +256,7 @@ function LegCard({
 }: {
   leg: ItineraryLeg;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (instant: boolean) => void;
   cardRef: (element: HTMLButtonElement | null) => void;
 }) {
   const { main, source, detail } = legText(leg);
@@ -281,7 +295,7 @@ function LegCard({
           data-leg-key={leg.key}
           data-selected={selected ? "true" : "false"}
           aria-pressed={selected}
-          onClick={onSelect}
+          onClick={(event) => onSelect(fromKeyboard(event))}
         >
           {content}
         </button>
@@ -315,14 +329,14 @@ export function Timeline({
               <LegCard
                 leg={leg}
                 selected={selection?.kind === "leg" && selection.key === leg.key}
-                onSelect={() => onSelect({ kind: "leg", key: leg.key })}
+                onSelect={(instant) => onSelect({ kind: "leg", key: leg.key, instant })}
                 cardRef={(element) => registerRow(leg.key, element)}
               />
             ) : null}
             <StopCard
               entry={entry}
               selected={selection?.kind === "stop" && selection.key === entry.key}
-              onSelect={() => onSelect({ kind: "stop", key: entry.key })}
+              onSelect={(instant) => onSelect({ kind: "stop", key: entry.key, instant })}
               cardRef={(element) => registerRow(entry.key, element)}
             />
           </li>

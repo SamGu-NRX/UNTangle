@@ -2,9 +2,9 @@
 
 import { LngLatBounds, Map as MapLibreMap, Marker, getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { activeCampus } from "@/lib/campus/config";
-import type { Itinerary, ItineraryStop } from "@/lib/map-itinerary";
+import { stopNumbersLabel, type Itinerary, type ItineraryStop } from "@/lib/map-itinerary";
 import type { MapRoutePoint } from "@/lib/types";
 import { OSM_CONTRIBUTORS_ATTRIBUTION, campusMapStyle } from "@/components/map/campus-style";
 import {
@@ -25,6 +25,8 @@ type Props = {
   /** Space covered by the panel or sheet, so the camera centers in what's visible. */
   insets: CameraInsets;
   reducedMotion: boolean;
+  /** Skip camera moves (the phone sheet is at full height and hides the map). */
+  frozen: boolean;
 };
 
 /*
@@ -88,23 +90,6 @@ type Pin = {
   title: string;
 };
 
-/** "1", "2–3", "1, 4": stops in one building share one pin. */
-function pinLabel(numbers: number[]): string {
-  const parts: string[] = [];
-  let start = numbers[0];
-  let previous = numbers[0];
-  for (const value of [...numbers.slice(1), Number.NaN]) {
-    if (value === previous + 1) {
-      previous = value;
-      continue;
-    }
-    parts.push(start === previous ? String(start) : `${start}–${previous}`);
-    start = value;
-    previous = value;
-  }
-  return parts.join(", ");
-}
-
 function pinsFor(stops: ItineraryStop[]): Pin[] {
   const byPlace = new Map<string, { point: MapRoutePoint; entries: ItineraryStop[]; name: string }>();
   for (const entry of stops) {
@@ -120,7 +105,7 @@ function pinsFor(stops: ItineraryStop[]): Pin[] {
       key,
       point: group.point,
       stopKeys: group.entries.map((entry) => entry.key),
-      label: pinLabel(group.entries.map((entry) => entry.number)),
+      label: stopNumbersLabel(group.entries.map((entry) => entry.number)),
       title: `${group.name}. Stop ${classes}`,
     };
   });
@@ -146,7 +131,14 @@ function withMargin(insets: CameraInsets, margin: number) {
   };
 }
 
-export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotion }: Props) {
+/** Below this much visible map (px) a fit has nothing useful to aim at; camera.md's floor. */
+const MIN_FRAME_WIDTH = 120;
+const MIN_FRAME_HEIGHT = 100;
+/** Keyboard pan step, px, and zoom step, levels. */
+const KEY_PAN_PX = 100;
+const KEY_ZOOM = 1;
+
+export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotion, frozen }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new globalThis.Map<string, { marker: Marker; element: HTMLButtonElement }>());
@@ -155,8 +147,8 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
   const [pitch, setPitch] = useState(0);
 
   // Latest values for map event handlers, which are bound once.
-  const latest = useRef({ itinerary, onSelect, insets, reducedMotion });
-  latest.current = { itinerary, onSelect, insets, reducedMotion };
+  const latest = useRef({ itinerary, selection, onSelect, insets, reducedMotion, frozen });
+  latest.current = { itinerary, selection, onSelect, insets, reducedMotion, frozen };
 
   /* ---------- create the map once ---------- */
   useEffect(() => {
@@ -186,10 +178,32 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
     mapRef.current = map;
     map.touchZoomRotate.disableRotation();
     map.touchPitch.disable();
-    map.keyboard.disableRotation();
+    // MapLibre's keyboard handler eases every key press. Keyboard moves here
+    // are instant instead (keyboard actions never animate).
+    map.keyboard.disable();
 
     const canvas = map.getCanvas();
     canvas.setAttribute("aria-label", "Campus map. Arrow keys pan, plus and minus zoom.");
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const pan: Record<string, [number, number]> = {
+        ArrowUp: [0, -KEY_PAN_PX],
+        ArrowDown: [0, KEY_PAN_PX],
+        ArrowLeft: [-KEY_PAN_PX, 0],
+        ArrowRight: [KEY_PAN_PX, 0],
+      };
+      if (pan[event.key]) {
+        map.panBy(pan[event.key], { duration: 0 });
+      } else if (event.key === "+" || event.key === "=") {
+        map.jumpTo({ zoom: map.getZoom() + KEY_ZOOM });
+      } else if (event.key === "-" || event.key === "_") {
+        map.jumpTo({ zoom: map.getZoom() - KEY_ZOOM });
+      } else {
+        return;
+      }
+      event.preventDefault();
+    };
+    canvas.addEventListener("keydown", onKeyDown);
 
     map.on("load", () => {
       addRouteOverlay(map);
@@ -244,6 +258,7 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
 
     const markers = markersRef.current;
     return () => {
+      canvas.removeEventListener("keydown", onKeyDown);
       markers.forEach(({ marker }) => marker.remove());
       markers.clear();
       map.remove();
@@ -251,15 +266,28 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
     };
   }, []);
 
-  // Reduced motion turned on mid-session: stop, flatten, stay put.
+  // Reduced motion, including when it turns on mid-session: stop, flatten,
+  // stay put, and swap MapLibre's smoothed wheel zoom for stepped jumps.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     map.setMaxPitch(reducedMotion ? 0 : MAX_PITCH);
-    if (reducedMotion) {
-      map.stop();
-      map.jumpTo({ pitch: 0 });
+    if (!reducedMotion) {
+      map.scrollZoom.enable();
+      return;
     }
+    map.stop();
+    map.jumpTo({ pitch: 0 });
+    map.scrollZoom.disable();
+    const container = map.getCanvasContainer();
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const around = map.unproject([event.clientX - rect.left, event.clientY - rect.top]);
+      map.zoomTo(map.getZoom() + (event.deltaY < 0 ? 0.5 : -0.5), { around, duration: 0 });
+    };
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => container.removeEventListener("wheel", onWheel);
   }, [reducedMotion]);
 
   /* ---------- route lines ---------- */
@@ -299,11 +327,12 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
       const disc = element.querySelector(".mv-pin__disc");
       if (disc) disc.textContent = pin.label;
       element.dataset.pinKey = pin.key;
-      element.dataset.stopKeys = pin.stopKeys.join(" ");
+      // Stop keys contain spaces (course codes), so they're joined with "|".
+      element.dataset.stopKeys = pin.stopKeys.join("|");
       element.setAttribute("aria-label", pin.title);
       element.onclick = (event) => {
         event.stopPropagation();
-        latest.current.onSelect({ kind: "stop", key: pin.stopKeys[0] });
+        latest.current.onSelect({ kind: "stop", key: pin.stopKeys[0], instant: event.detail === 0 });
       };
     }
     // pinSignature captures everything about `pins` this effect reads.
@@ -313,7 +342,7 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
   useEffect(() => {
     const selectedKey = selection?.kind === "stop" ? selection.key : null;
     for (const { element } of markersRef.current.values()) {
-      const isSelected = selectedKey !== null && (element.dataset.stopKeys ?? "").split(" ").includes(selectedKey);
+      const isSelected = selectedKey !== null && (element.dataset.stopKeys ?? "").split("|").includes(selectedKey);
       element.dataset.selected = isSelected ? "true" : "false";
       element.setAttribute("aria-pressed", isSelected ? "true" : "false");
       // The marker element is the button itself; raise it over its neighbours.
@@ -327,87 +356,127 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
     .map((point) => `${point.lat},${point.lng}`)
     .join("|");
 
-  // Frame the whole day when the day (or where its stops sit) changes. The
-  // first frame and day switches are instant; only chosen stops fly.
-  useEffect(() => {
+  /**
+   * Point the camera at the selection, or at the whole day when nothing is
+   * selected. Insets are the panel or sheet's space, so the target lands in
+   * the visible part of the map. `animate` is for pointer choices only.
+   */
+  const frame = useCallback((animate: boolean) => {
     const map = mapRef.current;
     if (!map) return;
-    map.stop();
-    const box = boundsOf(mappedPoints(latest.current.itinerary));
-    const padding = withMargin(latest.current.insets, 44);
-    if (box) {
-      map.fitBounds(box, { padding, maxZoom: DAY_MAX_ZOOM, pitch: 0, bearing: 0, duration: 0 });
-    } else {
-      map.fitBounds(campusBounds, { padding, maxZoom: OVERVIEW_MAX_ZOOM, pitch: 0, bearing: 0, duration: 0 });
+    const { itinerary: current, selection: chosen, insets: space, reducedMotion: reduce, frozen: hidden } = latest.current;
+    const canvas = map.getCanvas().getBoundingClientRect();
+    if (
+      hidden ||
+      canvas.width - space.left - space.right < MIN_FRAME_WIDTH ||
+      canvas.height - space.top - space.bottom < MIN_FRAME_HEIGHT
+    ) {
+      return;
     }
-  }, [daySignature, mappedSignature]);
+    const move = animate && !reduce;
+    map.stop();
 
-  // Fly to what was selected, from the list or the map. Deferred a frame so
-  // the panel or sheet has settled and the insets are current.
-  useEffect(() => {
-    if (!selection) return;
-    const frame = requestAnimationFrame(() => {
-      const map = mapRef.current;
-      if (!map) return;
-      const { itinerary: current, insets: currentInsets, reducedMotion: reduce } = latest.current;
-      map.stop();
-      if (selection.kind === "stop") {
-        const entry = current.stops.find((stop) => stop.key === selection.key);
-        if (!entry || entry.placement.kind !== "mapped") return;
+    if (chosen?.kind === "stop") {
+      const entry = current.stops.find((stop) => stop.key === chosen.key);
+      if (entry?.placement.kind === "mapped") {
         const point = entry.placement.point;
-        // Center the stop in the space the panel or sheet leaves visible. The
-        // padding goes into this calculation only; passing it to flyTo would
-        // make it stick to the map and add to every later fit.
+        // The padding goes into this calculation only; passing it to flyTo
+        // would make it stick to the map and add to every later fit.
         const camera = map.cameraForBounds(new LngLatBounds([point.lng, point.lat], [point.lng, point.lat]), {
-          padding: withMargin(currentInsets, 40),
+          padding: withMargin(space, 40),
           maxZoom: STOP_ZOOM,
           bearing: 0,
         });
         if (!camera?.center) return;
-        if (reduce) {
-          map.jumpTo({ center: camera.center, zoom: camera.zoom, pitch: 0, bearing: 0 });
+        if (move) {
+          map.flyTo({ center: camera.center, zoom: camera.zoom, pitch: STREET_PITCH, bearing: 0, duration: FLIGHT_MS, easing: cameraEase });
         } else {
-          map.flyTo({
-            center: camera.center,
-            zoom: camera.zoom,
-            pitch: STREET_PITCH,
-            bearing: 0,
-            duration: FLIGHT_MS,
-            easing: cameraEase,
-          });
+          map.jumpTo({ center: camera.center, zoom: camera.zoom, pitch: reduce ? 0 : map.getPitch(), bearing: 0 });
         }
         return;
       }
-      const leg = current.legs.find((candidate) => candidate.key === selection.key);
-      if (!leg || (leg.route.kind !== "walk" && leg.route.kind !== "straight-line")) return;
-      const box = boundsOf(leg.route.geometry);
-      // Legs stay flat: a tilted fit can push part of a bent path out of view.
+    }
+
+    if (chosen?.kind === "leg") {
+      const leg = current.legs.find((candidate) => candidate.key === chosen.key);
+      const box = leg && (leg.route.kind === "walk" || leg.route.kind === "straight-line") ? boundsOf(leg.route.geometry) : null;
       if (box) {
+        // Legs stay flat: a tilted fit can push part of a bent path out of view.
         map.fitBounds(box, {
-          padding: withMargin(currentInsets, 56),
+          padding: withMargin(space, 56),
           maxZoom: LEG_MAX_ZOOM,
           pitch: 0,
           bearing: 0,
-          duration: reduce ? 0 : FLIGHT_MS,
+          duration: move ? FLIGHT_MS : 0,
           easing: cameraEase,
         });
+        return;
       }
+    }
+
+    const day = boundsOf(mappedPoints(current));
+    map.fitBounds(day ?? campusBounds, {
+      padding: withMargin(space, 44),
+      maxZoom: day ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM,
+      pitch: 0,
+      bearing: 0,
+      duration: move ? CONTROL_MS : 0,
+      easing: cameraEase,
     });
-    return () => cancelAnimationFrame(frame);
-  }, [selection]);
+  }, []);
+
+  // A new day, or its stops moving: frame it at once (first render and day
+  // switches are instant).
+  useEffect(() => {
+    frame(false);
+  }, [daySignature, mappedSignature, frame]);
+
+  // A selection, or its target arriving later (a building lookup, a route):
+  // fly there for a pointer choice, jump for a keyboard one. Deferred a frame
+  // so the sheet has settled and the insets are current.
+  const target = (() => {
+    if (!selection) return "none";
+    if (selection.kind === "stop") {
+      const entry = itinerary.stops.find((stop) => stop.key === selection.key);
+      return entry?.placement.kind === "mapped" ? `stop:${selection.key}:${entry.placement.point.lat},${entry.placement.point.lng}` : `pending:${selection.key}`;
+    }
+    const leg = itinerary.legs.find((candidate) => candidate.key === selection.key);
+    return leg && (leg.route.kind === "walk" || leg.route.kind === "straight-line")
+      ? `leg:${selection.key}:${leg.route.geometry.length}`
+      : `pending:${selection.key}`;
+  })();
+  useEffect(() => {
+    if (target === "none" || target.startsWith("pending:")) return;
+    const animate = !latest.current.selection?.instant;
+    const handle = requestAnimationFrame(() => frame(animate));
+    return () => cancelAnimationFrame(handle);
+  }, [target, frame]);
+
+  // The panel or sheet settled at a new size: reframe instantly, no replayed flight.
+  const insetSignature = `${insets.top},${insets.right},${insets.bottom},${insets.left},${frozen}`;
+  const firstInsets = useRef(true);
+  useEffect(() => {
+    if (firstInsets.current) {
+      firstInsets.current = false;
+      return;
+    }
+    const handle = requestAnimationFrame(() => frame(false));
+    return () => cancelAnimationFrame(handle);
+  }, [insetSignature, frame]);
 
   /* ---------- controls ---------- */
-  const controlMs = reducedMotion ? 0 : CONTROL_MS;
-  const zoomBy = (delta: number) => {
+  // Pointer presses ease for 250 ms; keyboard presses (detail 0) and reduced motion jump.
+  const controlMs = (event: { detail: number }) => (reducedMotion || event.detail === 0 ? 0 : CONTROL_MS);
+  const zoomBy = (delta: number, event: { detail: number }) => {
     const map = mapRef.current;
     if (!map) return;
     map.stop();
-    map.easeTo({ zoom: map.getZoom() + delta, duration: controlMs, easing: cameraEase });
+    map.easeTo({ zoom: map.getZoom() + delta, duration: controlMs(event), easing: cameraEase });
   };
-  const flatten = () => {
-    mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: controlMs, easing: cameraEase });
+  const flatten = (event: { detail: number }) => {
+    mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: controlMs(event), easing: cameraEase });
   };
-  const fitDay = () => {
+  const fitDay = (event: { detail: number }) => {
     const map = mapRef.current;
     if (!map) return;
     onSelect(null);
@@ -418,7 +487,7 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
       maxZoom: box ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM,
       pitch: 0,
       bearing: 0,
-      duration: controlMs,
+      duration: controlMs(event),
       easing: cameraEase,
     });
   };
@@ -428,10 +497,10 @@ export function MapCanvas({ itinerary, selection, onSelect, insets, reducedMotio
       <div ref={containerRef} className="mv-canvas__map" data-testid="campus-map" />
       <div className="mv-controls" style={{ bottom: insets.bottom + 16 }} role="group" aria-label="Map controls">
         <div className="mv-controls__stack">
-          <button type="button" className="mv-control" onClick={() => zoomBy(1)} aria-label="Zoom in">
+          <button type="button" className="mv-control" onClick={(event) => zoomBy(1, event)} aria-label="Zoom in">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
           </button>
-          <button type="button" className="mv-control" onClick={() => zoomBy(-1)} aria-label="Zoom out">
+          <button type="button" className="mv-control" onClick={(event) => zoomBy(-1, event)} aria-label="Zoom out">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
           </button>
         </div>

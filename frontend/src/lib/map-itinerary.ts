@@ -139,6 +139,24 @@ export function formatWalkMinutes(minutes: number): string {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
 }
 
+/** A shared pin's label for the stop numbers it stands for: "1", "2–3", "1, 4". Numbers must be ascending. */
+export function stopNumbersLabel(numbers: readonly number[]): string {
+  if (numbers.length === 0) throw new Error("stopNumbersLabel needs at least one stop number");
+  const parts: string[] = [];
+  let start = numbers[0];
+  let previous = numbers[0];
+  for (const value of [...numbers.slice(1), Number.NaN]) {
+    if (value === previous + 1) {
+      previous = value;
+      continue;
+    }
+    parts.push(start === previous ? String(start) : `${start}–${previous}`);
+    start = value;
+    previous = value;
+  }
+  return parts.join(", ");
+}
+
 export function stopKey(stop: MapStop, index: number): string {
   return `${stop.day}-${index}-${stop.courseCode}-${stop.start}`;
 }

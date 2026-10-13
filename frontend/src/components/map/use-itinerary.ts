@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  FALLBACK_ROUTE_TTL_MS,
   LOOKUP_FAILURE_TTL_MS,
   ROUTE_FAILURE_TTL_MS,
   createMapDataCache,
@@ -61,12 +62,25 @@ export function useItinerary(stops: MapStop[]): Itinerary {
         setRevision((value) => value + 1);
       }
 
+      // Come back when something on this day can be asked again: a failure's
+      // retry window, or a straight-line answer's expiry.
       const settled = buildItinerary(stops, lookupSnapshot(sessionCache), new Map());
-      const failing =
+      const settledRuns = routeRuns(settled.stops);
+      const waits: number[] = [];
+      if (
         stops.some((stop) => sessionCache.lookupFailures.has(lookupKey(stop.location, stop.buildingId))) ||
-        routeRuns(settled.stops).some((run) => sessionCache.runFailures.has(runKey(run)));
-      if (failing) {
-        retry = setTimeout(() => setAttempt((value) => value + 1), Math.max(LOOKUP_FAILURE_TTL_MS, ROUTE_FAILURE_TTL_MS));
+        settledRuns.some((run) => sessionCache.runFailures.has(runKey(run)))
+      ) {
+        waits.push(Math.max(LOOKUP_FAILURE_TTL_MS, ROUTE_FAILURE_TTL_MS));
+      }
+      for (const run of settledRuns) {
+        const cached = sessionCache.runs.get(runKey(run));
+        if (cached?.legs.some((leg) => leg.source === "fallback")) {
+          waits.push(Math.max(0, cached.cachedAt + FALLBACK_ROUTE_TTL_MS - Date.now()));
+        }
+      }
+      if (waits.length > 0) {
+        retry = setTimeout(() => setAttempt((value) => value + 1), Math.min(...waits));
       }
     }
 

@@ -218,8 +218,10 @@ export function campusMapStyle(campus: CampusConfig): StyleSpecification {
           "text-field": ["step", ["zoom"], ["get", "code"], 16.6, ["get", "name"]],
           "text-font": FONT,
           "text-size": ["interpolate", ["linear"], ["zoom"], 15.5, 12, 18, 14],
-          "text-anchor": "bottom",
-          "text-offset": [0, -1.8],
+          // Below the building's point: the lollipop pins stand above it.
+          // (The design's style puts labels above, for centered circle pins.)
+          "text-anchor": "top",
+          "text-offset": [0, 0.7],
           "text-max-width": 11,
           "text-padding": 5,
           "symbol-sort-key": ["get", "priority"],

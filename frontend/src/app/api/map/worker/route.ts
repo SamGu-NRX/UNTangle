@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { join } from "node:path";
 
 export const runtime = "nodejs";
 
@@ -10,18 +10,35 @@ export const runtime = "nodejs";
  * bundler has renamed and moved that module, the file isn't there, so the map
  * page points MapLibre here instead (setWorkerUrl). The response is the
  * worker exactly as the installed package ships it.
+ *
+ * The file is found on disk rather than through require.resolve, which the
+ * server bundler rewrites. Bun workspaces may install the package in the
+ * frontend's node_modules or hoist it to the repository root.
  */
-const require = createRequire(import.meta.url);
+const WORKER_FILE = join("maplibre-gl", "dist", "maplibre-gl-worker.mjs");
+const candidates = [
+  join(process.cwd(), "node_modules", WORKER_FILE),
+  join(process.cwd(), "..", "node_modules", WORKER_FILE),
+];
+
 let cached: Promise<string> | null = null;
 
-function workerSource() {
-  cached ??= readFile(require.resolve("maplibre-gl/dist/maplibre-gl-worker.mjs"), "utf8");
-  return cached;
+async function workerSource(): Promise<string> {
+  const failures: string[] = [];
+  for (const path of candidates) {
+    try {
+      return await readFile(path, "utf8");
+    } catch (error) {
+      failures.push(`${path}: ${(error as Error).message}`);
+    }
+  }
+  throw new Error(`maplibre-gl worker not found. Tried ${failures.join("; ")}`);
 }
 
 export async function GET() {
   try {
-    return new Response(await workerSource(), {
+    cached ??= workerSource();
+    return new Response(await cached, {
       headers: {
         "Content-Type": "text/javascript; charset=utf-8",
         // The page requests this with ?v=<maplibre version>, so a new version is a new URL.

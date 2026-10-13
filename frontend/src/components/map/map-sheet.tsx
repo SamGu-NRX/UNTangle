@@ -60,10 +60,21 @@ export function MapSheet({
     return () => observer.disconnect();
   }, []);
 
+  // The home indicator's inset, read from CSS: env() has no JavaScript API.
+  const [safeBottom, setSafeBottom] = useState(0);
+  useLayoutEffect(() => {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)";
+    document.body.appendChild(probe);
+    setSafeBottom(parseFloat(getComputedStyle(probe).paddingBottom) || 0);
+    probe.remove();
+  }, []);
+
   const full = Math.round(areaHeight * 0.92);
-  // Peek shows the handle, the day switcher and the summary: the header, whatever it measures.
-  const peek = Math.min(headerHeight, Math.round(full * 0.45));
-  const half = Math.max(peek + 80, Math.round(areaHeight * 0.5));
+  // Peek shows the handle, the day switcher and the summary (the header,
+  // whatever it measures) above the home indicator.
+  const peek = Math.min(headerHeight + safeBottom, Math.round(full * 0.45));
+  const half = Math.max(peek + 80, Math.round(areaHeight * 0.5) + safeBottom);
   const heights: Record<SheetDetent, number> = { peek, half, full };
 
   const visibleRef = useRef(heights[detent]);
@@ -106,6 +117,8 @@ export function MapSheet({
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (drag.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+    // A drag's trailing click, if the browser sent one, came before this press.
+    suppressClick.current = false;
     const fromBody = bodyRef.current?.contains(event.target as Node) ?? false;
     drag.current = {
       pointerId: event.pointerId,
@@ -150,6 +163,8 @@ export function MapSheet({
     drag.current = null;
     if (!state.active) return;
     suppressClick.current = true;
+    // The release itself is a sample, so a drag that paused before letting go has no flick left.
+    state.samples.push({ t: event.timeStamp, y: state.startVisible + (state.startY - event.clientY) });
     const velocity = releaseVelocity(state.samples);
     const landing = order[chooseDetent(visibleRef.current, velocity, [peek, half, full])];
     if (landing === detent) {
@@ -158,6 +173,24 @@ export function MapSheet({
     } else {
       onDetentChange(landing);
     }
+  };
+
+  /** The system took the gesture (a scroll, a call): settle where we were, no momentum, no click to swallow. */
+  const cancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const state = drag.current;
+    if (!state || event.pointerId !== state.pointerId) return;
+    drag.current = null;
+    if (state.active) place(heights[detent], true);
+  };
+
+  /** At half the list is cut off by the screen edge; tabbing to a card below it opens the sheet fully. */
+  const onFocusCapture = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (detent !== "half") return;
+    const sheet = sheetRef.current;
+    const target = event.target as HTMLElement;
+    if (!sheet || !bodyRef.current?.contains(target)) return;
+    const visibleBottom = sheet.getBoundingClientRect().top + heights.half;
+    if (target.getBoundingClientRect().bottom > visibleBottom) onDetentChange("full");
   };
 
   // A click that ends a drag is not a tap on whatever card it ended over.
@@ -186,7 +219,8 @@ export function MapSheet({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finish}
-      onPointerCancel={finish}
+      onPointerCancel={cancel}
+      onFocusCapture={onFocusCapture}
       role="region"
       aria-label="Itinerary"
     >
@@ -202,7 +236,13 @@ export function MapSheet({
         </button>
         {header}
       </div>
-      <div ref={bodyRef} className="mv-sheet__body" data-scrollable={detent === "full" ? "true" : "false"}>
+      {/* At peek the list is off screen, so it leaves the tab order (inert) until the sheet opens. */}
+      <div
+        ref={bodyRef}
+        className="mv-sheet__body"
+        data-scrollable={detent === "full" ? "true" : "false"}
+        inert={detent === "peek"}
+      >
         {children}
       </div>
     </div>

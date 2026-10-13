@@ -1,7 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 import { NavShell } from "@/components/nav-shell";
 import { usePlanner } from "@/components/planner-provider";
 import { DaySummary, DaySwitcher, EmptyDay, Timeline } from "@/components/map/map-itinerary";
@@ -37,6 +46,8 @@ function useMediaQuery(query: string): boolean {
 const PANEL_WIDTH = 368;
 const INSET = 16;
 const CONTROLS_WIDTH = 36;
+/** The map credits line above the phone sheet, about two lines of 11px text. */
+const PHONE_CREDITS_HEIGHT = 40;
 
 /** Bring a row into view inside its own scroll container, without scrolling the page. */
 function revealRow(container: HTMLElement | null, row: HTMLElement | undefined, align: "nearest" | "start", smooth: boolean) {
@@ -141,7 +152,12 @@ export function MapClient() {
   // The matching row comes into view whichever side the selection came from.
   useEffect(() => {
     if (!selection) return;
-    revealRow(scrollRef.current, rows.current.get(selection.key), isPhone ? "start" : "nearest", !reducedMotion);
+    revealRow(
+      scrollRef.current,
+      rows.current.get(selection.key),
+      isPhone ? "start" : "nearest",
+      !reducedMotion && !selection.instant,
+    );
   }, [isPhone, reducedMotion, selection]);
 
   useEffect(() => {
@@ -157,8 +173,9 @@ export function MapClient() {
     else rows.current.delete(key);
   }, []);
 
+  // Phone: the sheet's settled height, plus room for the credits line above it.
   const insets: CameraInsets = isPhone
-    ? { top: 12, right: 12, bottom: sheetVisible, left: 12 }
+    ? { top: 24, right: 12, bottom: sheetVisible + PHONE_CREDITS_HEIGHT, left: 12 }
     : { top: INSET, right: INSET * 2 + CONTROLS_WIDTH, bottom: INSET, left: PANEL_WIDTH + INSET * 2 };
 
   const header = (
@@ -187,7 +204,12 @@ export function MapClient() {
 
   return (
     <NavShell step={2}>
-      <div ref={rootRef} className="mv-root" data-layout={isPhone ? "phone" : "desktop"}>
+      <div
+        ref={rootRef}
+        className="mv-root"
+        data-layout={isPhone ? "phone" : "desktop"}
+        style={{ "--mv-sheet-visible": `${isPhone ? sheetVisible : 0}px` } as CSSProperties}
+      >
         <h1 className="mv-visually-hidden">Campus map</h1>
         <MapCanvas
           itinerary={itinerary}
@@ -195,6 +217,8 @@ export function MapClient() {
           onSelect={select}
           insets={insets}
           reducedMotion={reducedMotion}
+          // At full the sheet covers the map: no useful framing is possible.
+          frozen={isPhone && detent === "full"}
         />
         {isPhone ? (
           areaHeight > 0 ? (
