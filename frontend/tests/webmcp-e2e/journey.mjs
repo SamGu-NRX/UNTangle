@@ -13,8 +13,10 @@
  * reads the plan; build_schedule finds an alternative that moves sections;
  * apply_alternative opens the confirmation, changes nothing when the
  * student cancels, and applies once when they confirm; Undo in the toast
- * puts the old sections back; axe finds no serious or critical violations
- * with the dialog open (desktop and phone). Any failed check exits 1.
+ * puts the old sections back; the dialog and toast move by CSS transitions
+ * (opacity plus scale or rise), and with reduced motion the dialog only
+ * fades; axe finds no serious or critical violations with the dialog open
+ * (desktop and phone). Any failed check exits 1.
  *
  * Env: UNTANGLE_BASE_URL, UNTANGLE_OUT (screenshots and report),
  * UNTANGLE_E2E_MODULES (a node_modules with playwright and axe-core).
@@ -114,8 +116,16 @@ async function axe(page, label) {
   check(`axe zero serious/critical: ${label}`, blocking.length === 0, all.join(" | ") || null);
 }
 
-async function openWeek(browser, viewport) {
-  const context = await browser.newContext({ viewport });
+/** How an element moves: CSS transitions (interruptible) and no keyframe animation. */
+const motionOf = (page, selector) =>
+  page.evaluate((sel) => {
+    const style = getComputedStyle(document.querySelector(sel));
+    return { transition: style.transitionProperty, animation: style.animationName };
+  }, selector);
+const byTransition = (motion, properties) => motion.animation === "none" && motion.transition === properties;
+
+async function openWeek(browser, viewport, options = {}) {
+  const context = await browser.newContext({ viewport, ...options });
   await context.addInitScript(installStub, plannerDoc);
   const page = await context.newPage();
   const errors = [];
@@ -143,6 +153,8 @@ async function desktop(browser) {
   await dialog.waitFor({ timeout: 10000 });
   await page.waitForTimeout(400);
   check("apply_alternative asks the student first", await dialog.isVisible(), await dialog.innerText());
+  const dialogMotion = await motionOf(page, ".ui-dialog");
+  check("the dialog moves by transition: opacity and scale", byTransition(dialogMotion, "opacity, transform"), JSON.stringify(dialogMotion));
   await page.screenshot({ path: join(OUT, "desktop-confirm.png") });
   await axe(page, "desktop confirmation");
   await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -164,6 +176,8 @@ async function desktop(browser) {
   await undo.waitFor({ timeout: 5000 });
   await page.waitForTimeout(400);
   await page.screenshot({ path: join(OUT, "desktop-applied.png") });
+  const toastMotion = await motionOf(page, ".ui-toast");
+  check("the toast moves by transition, not keyframes: opacity and rise", byTransition(toastMotion, "opacity, transform"), JSON.stringify(toastMotion));
 
   await undo.click();
   await page.waitForTimeout(400);
@@ -177,13 +191,16 @@ async function desktop(browser) {
 }
 
 async function phone(browser) {
-  const { context, page, errors } = await openWeek(browser, { width: 390, height: 844 });
+  // Reduced motion on the phone: the dialog keeps its fade and drops its scale.
+  const { context, page, errors } = await openWeek(browser, { width: 390, height: 844 }, { reducedMotion: "reduce" });
   await call(page, "build_schedule", { goal: "compact" });
   await start(page, "remove_course", { code: "PSYC 1630" });
   const dialog = page.getByRole("alertdialog");
   await dialog.waitFor({ timeout: 10000 });
   await page.waitForTimeout(400);
   await page.screenshot({ path: join(OUT, "phone-confirm.png") });
+  const reducedMotion = await motionOf(page, ".ui-dialog");
+  check("with reduced motion the dialog only fades", byTransition(reducedMotion, "opacity"), JSON.stringify(reducedMotion));
   await axe(page, "phone confirmation");
   await page.keyboard.press("Escape");
   const declined = await finish(page, "remove_course", { code: "PSYC 1630" });

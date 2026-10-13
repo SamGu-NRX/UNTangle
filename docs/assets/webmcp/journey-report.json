@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-13T21:31:10.410Z",
+  "startedAt": "2026-10-13T21:33:34.054Z",
   "base": "http://127.0.0.1:3217",
   "checks": [
     {
@@ -28,6 +28,11 @@
       "detail": "Your assistant wants to change your plan\n\nUse schedule option A? It moves CSCE 1040 to section 001, ENGL 1310 to section 058, PSYC 1630 to section 003.\n\nYou can undo it afterwards.\n\nCancel\nUse option A"
     },
     {
+      "name": "the dialog moves by transition: opacity and scale",
+      "passed": true,
+      "detail": "{\"transition\":\"opacity, transform\",\"animation\":\"none\"}"
+    },
+    {
       "name": "axe zero serious/critical: desktop confirmation",
       "passed": true,
       "detail": null
@@ -53,6 +58,11 @@
       "detail": "3 moved"
     },
     {
+      "name": "the toast moves by transition, not keyframes: opacity and rise",
+      "passed": true,
+      "detail": "{\"transition\":\"opacity, transform\",\"animation\":\"none\"}"
+    },
+    {
       "name": "Undo restores the previous sections",
       "passed": true,
       "detail": null
@@ -66,6 +76,11 @@
       "name": "no page errors",
       "passed": true,
       "detail": null
+    },
+    {
+      "name": "with reduced motion the dialog only fades",
+      "passed": true,
+      "detail": "{\"transition\":\"opacity\",\"animation\":\"none\"}"
     },
     {
       "name": "axe zero serious/critical: phone confirmation",
@@ -409,7 +424,7 @@
       }
     }
   ],
-  "finishedAt": "2026-10-13T21:31:15.727Z",
-  "passed": 16,
-  "total": 16
+  "finishedAt": "2026-10-13T21:33:39.243Z",
+  "passed": 19,
+  "total": 19
 }
