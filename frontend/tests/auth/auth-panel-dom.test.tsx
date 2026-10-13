@@ -13,7 +13,7 @@ afterAll(() => {
 
 type Call = [keyof AuthApi, ...string[]];
 
-function fakeApi(results: Partial<Record<keyof AuthApi, { error: { message?: string } | null }>> = {}) {
+function fakeApi(results: Partial<Record<keyof AuthApi, { error: { message?: string; code?: string } | null }>> = {}) {
   const calls: Call[] = [];
   const ok = { error: null };
   const api: AuthApi = {
@@ -162,6 +162,19 @@ describe("the password path", () => {
     await view.unmount();
   });
 
+  test("an unverified account's password sign-in says to verify first, under Email", async () => {
+    const { api } = fakeApi({ signIn: { error: { message: "Email not verified", code: "EMAIL_NOT_VERIFIED" } } });
+    const view = await render(api);
+    await click(button(view.container, "Use a password instead"));
+    const email = field(view.container, "UNT email");
+    await type(email, "eagle@my.unt.edu");
+    await type(field(view.container, "Password"), "long enough password");
+    await submit(view.container);
+    expect(helpFor(email)).toContain("Verify this email first");
+    expect(view.continued()).toBe(0);
+    await view.unmount();
+  });
+
   test("creating an account says a verification link was sent", async () => {
     const { api, calls } = fakeApi();
     const view = await render(api);
@@ -172,6 +185,9 @@ describe("the password path", () => {
     await submit(view.container);
     expect(calls[0][0]).toBe("signUp");
     expect(view.container.querySelector("h1")?.textContent).toBe("Verify your email");
+    // No session until the link is opened, so there is no way on from here but back.
+    expect(view.continued()).toBe(0);
+    expect(button(view.container, "Back to sign in")).toBeTruthy();
     await view.unmount();
   });
 });

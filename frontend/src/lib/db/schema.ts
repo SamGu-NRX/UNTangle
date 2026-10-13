@@ -72,6 +72,17 @@ export const verifications = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+/**
+ * One row per magic-link token that has been used: the atomic claim that
+ * keeps a link single-use under concurrent verifies (lib/magic-link-claims.ts).
+ * Rows are pruned after the link would have expired.
+ */
+export const magicLinkClaims = pgTable("magic_link_claim", {
+  tokenHash: text("token_hash").primaryKey(),
+  expiresAt: timestamp("expires_at").notNull(),
+  claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+});
+
 export const plannerStates = pgTable("planner_state", {
   userId: text("user_id")
     .primaryKey()
@@ -101,5 +112,6 @@ export const schema = {
   sessions,
   accounts,
   verifications,
+  magicLinkClaims,
   plannerStates,
 };

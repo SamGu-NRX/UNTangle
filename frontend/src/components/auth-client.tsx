@@ -11,7 +11,7 @@ import { authClient } from "@/lib/auth-client";
 import { isUntEmail, untEmailRequirementMessage } from "@/lib/unt-auth";
 import { useFieldError } from "@/components/use-field-error";
 
-type Result = { error: { message?: string } | null };
+type Result = { error: { message?: string; code?: string } | null };
 
 /** The three server calls the sign-in page makes; a seam for tests. */
 export type AuthApi = {
@@ -162,6 +162,10 @@ export function AuthPanel({
     setError(null);
     const response = mode === "signIn" ? await api.signIn(email, password) : await api.signUp(email, password, name);
     setIsSubmitting(false);
+    if (response.error?.code === "EMAIL_NOT_VERIFIED") {
+      fail({ field: "email", text: "Verify this email first: open the link we sent when you created the account, or email yourself a sign-in link." });
+      return;
+    }
     if (response.error) {
       fail(
         placeServerError(
@@ -307,11 +311,12 @@ export function AuthPanel({
             Verify your email
           </h1>
           <p className="auth__lede" role="status">
-            Your account is ready. We sent a verification link to <strong>{email.trim()}</strong>; open it when you can.
+            We sent a verification link to <strong>{email.trim()}</strong>. Open it to finish creating your account; it
+            signs you in.
           </p>
           {serverLogNote}
-          <Button className="auth__submit" onClick={onContinue}>
-            Continue to your plan
+          <Button variant="quiet" className="auth__guest" onClick={() => goTo("link")}>
+            Back to sign in
           </Button>
         </>
       )}
