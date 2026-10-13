@@ -1,80 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { memoryAdapter } from "better-auth/adapters/memory";
-import { createAuth } from "@/lib/auth-config";
-import { memoryClaims } from "@/lib/magic-link-claims";
+import { BASE, VICTIM, cookieFrom, setup, signed } from "./fixtures";
 import { deliverAuthEmail } from "@/lib/auth-email";
-import { memoryBudgetStore } from "@/lib/email-budget";
+import { recipientBudget } from "@/lib/email-budget";
+import { memoryStore } from "@/lib/rate-limit/store";
+import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
+import { budgets } from "@/lib/rate-limit/config";
 import { setPasswordHandler } from "@/lib/account-password";
 
-// The real auth flows on an in-memory database: each test drives the
-// better-auth handler with Requests, the way a browser (or an attacker)
-// would, and reads the emails it would have sent.
-
-const BASE = "http://localhost:3000";
-const VICTIM = "victim@my.unt.edu";
-
-/**
- * The memory adapter answers in the same tick, which hides races. Reads of
- * a verification row here take a few milliseconds, like a database round
- * trip, so concurrent verifies interleave the way they do in production.
- */
-function withReadLatency(adapter: ReturnType<typeof memoryAdapter>): ReturnType<typeof memoryAdapter> {
-  return ((options: Parameters<ReturnType<typeof memoryAdapter>>[0]) => {
-    const inner = adapter(options);
-    const pause = (model: string) => (model === "verification" ? new Promise((r) => setTimeout(r, 15)) : undefined);
-    return {
-      ...inner,
-      findOne: async (args: Parameters<typeof inner.findOne>[0]) => {
-        const row = await inner.findOne(args);
-        await pause(args.model);
-        return row;
-      },
-      findMany: async (args: Parameters<typeof inner.findMany>[0]) => {
-        const rows = await inner.findMany(args);
-        await pause(args.model);
-        return rows;
-      },
-    };
-  }) as ReturnType<typeof memoryAdapter>;
-}
-
-function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"]) {
-  const store: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
-  const mail: { kind: string; to: string; url: string }[] = [];
-  const auth = createAuth({
-    database: withReadLatency(memoryAdapter(store)),
-    baseURL: BASE,
-    secret: "test-secret-at-least-32-characters-long",
-    claims: memoryClaims(),
-    sendEmail:
-      sendEmail ??
-      (async (kind, to, url) => {
-        mail.push({ kind, to, url });
-      }),
-  });
-  const post = (path: string, body: unknown, cookie?: string) =>
-    auth.handler(
-      new Request(`${BASE}/api/auth${path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json", origin: BASE, ...(cookie ? { cookie } : {}) },
-        body: JSON.stringify(body),
-      }),
-    );
-  const get = (url: string, cookie?: string) =>
-    auth.handler(new Request(url, { headers: cookie ? { cookie, origin: BASE } : { origin: BASE } }));
-  const session = async (cookie: string) => (await (await get(`${BASE}/api/auth/get-session`, cookie)).json()) as { user?: { email: string } } | null;
-  const lastLink = (kind: string) => [...mail].reverse().find((m) => m.kind === kind)?.url ?? "";
-  return { auth, store, mail, post, get, session, lastLink };
-}
-
-/** The session cookie a response set, as a Cookie header ("" if none). */
-function cookieFrom(response: Response): string {
-  return response.headers
-    .getSetCookie()
-    .map((c) => c.split(";")[0])
-    .filter((c) => c.includes("session_token=") && !c.endsWith("="))
-    .join("; ");
-}
+// Attacks on the real auth flows (fixtures.ts: better-auth on an in-memory
+// database). Each test reproduces an attack the fix has to stop.
 
 /** Asks for a sign-in link to `email` and opens it; returns the session cookie it set. */
 async function signInByLink(t: ReturnType<typeof setup>, email: string): Promise<string> {
@@ -206,36 +140,73 @@ describe("sign-in links work once", () => {
   });
 });
 
+/** A sender with the real recipient budget on lib/rate-limit's memory store; links go to `logged`. */
+function budgetedSender(logged: string[], now = () => 1_000_000) {
+  const budget = recipientBudget({ store: memoryStore(), secret: "test-secret", now });
+  return (kind: Parameters<typeof deliverAuthEmail>[0], to: string, url: string) =>
+    deliverAuthEmail(kind, to, url, {
+      env: { NODE_ENV: "development" },
+      createClient: () => {
+        throw new Error("no Resend in this test");
+      },
+      log: (line) => logged.push(line),
+      budget,
+    });
+}
+
 describe("email bombing", () => {
-  test("12 parallel sign-in link requests for one inbox send 3 emails; the rest get 429", async () => {
+  test("12 parallel sign-in link requests for one inbox send 2 emails; the rest get 429", async () => {
     const logged: string[] = [];
-    const budget = memoryBudgetStore();
-    const { post } = setup((kind, to, url) =>
-      deliverAuthEmail(kind, to, url, {
-        env: { NODE_ENV: "development" },
-        createClient: () => {
-          throw new Error("no Resend in this test");
-        },
-        log: (line) => logged.push(line),
-        budget,
-      }),
-    );
+    const { post } = setup(budgetedSender(logged));
     const statuses = await Promise.all(
       Array.from({ length: 12 }, (_, i) =>
         post("/sign-in/magic-link", { email: i % 2 ? "Victim+x@my.unt.edu" : VICTIM, callbackURL: "/courses" }).then((r) => r.status),
       ),
     );
-    expect(statuses.filter((s) => s === 200)).toHaveLength(3);
-    expect(statuses.filter((s) => s === 429)).toHaveLength(9);
-    expect(logged).toHaveLength(3);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(2);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(10);
+    expect(logged).toHaveLength(2);
   });
 });
 
-/** better-auth signs its session cookie; a raw token from the adapter needs the same signature to be presented. */
-async function signed(auth: ReturnType<typeof createAuth>, cookie: string): Promise<string> {
-  const [name, token] = cookie.split("=");
-  const ctx = await auth.$context;
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(ctx.secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const signature = Buffer.from(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(token))).toString("base64");
-  return `${name}=${encodeURIComponent(`${token}.${signature}`)}`;
-}
+describe("the auth route's IP budget and the recipient budget compose", () => {
+  /** The auth POST as the app serves it: lib/rate-limit's "auth" IP budget around better-auth. */
+  function wrapped(logged: string[]) {
+    const t = setup(budgetedSender(logged));
+    const withRateLimit = createRateLimitWrapper({
+      store: memoryStore(),
+      session: async () => null,
+      secret: "test-secret",
+      now: () => 1_000_000,
+    });
+    const POST = withRateLimit("auth", (request: Request) => t.auth.handler(request));
+    const link = (email: string) =>
+      POST(
+        new Request(`${BASE}/api/auth/sign-in/magic-link`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: BASE },
+          body: JSON.stringify({ email, callbackURL: "/courses" }),
+        }),
+      );
+    return { link };
+  }
+
+  test("an exhausted recipient budget answers 429 while the IP still has room", async () => {
+    const logged: string[] = [];
+    const { link } = wrapped(logged);
+    const statuses = [];
+    for (let i = 0; i < 3; i++) statuses.push((await link(VICTIM)).status);
+    expect(statuses).toEqual([200, 200, 429]);
+    expect((await link("someone-else@my.unt.edu")).status).toBe(200);
+    expect(logged).toHaveLength(3);
+  });
+
+  test("an exhausted IP budget answers 429 for a recipient with room left", async () => {
+    const logged: string[] = [];
+    const { link } = wrapped(logged);
+    for (let i = 0; i < budgets.auth.ip; i++) expect((await link(`student${i}@my.unt.edu`)).status).toBe(200);
+    const blocked = await link("fresh@my.unt.edu");
+    expect(blocked.status).toBe(429);
+    expect(logged).toHaveLength(budgets.auth.ip);
+  });
+});

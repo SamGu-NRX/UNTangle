@@ -1,41 +1,21 @@
+import { createHmac } from "node:crypto";
+import { budgets, windowMs } from "@/lib/rate-limit/config";
+import type { RateLimitStore } from "@/lib/rate-limit/store";
+
 /**
  * A send budget per recipient inbox, so nobody can use UNTangle to flood a
- * student's mailbox. better-auth's own limiter is per IP, reads before it
- * increments (12 parallel requests sent 12 emails) and is off without
- * x-forwarded-for, so it can't be this guard.
+ * student's mailbox. better-auth's own limiter is per IP and reads before it
+ * increments (12 parallel requests sent 12 emails), and the auth route's IP
+ * budget (lib/rate-limit, "auth") can't tell recipients apart.
  *
- * The check is one atomic "take a send if any are left" on a fixed window,
- * keyed by the normalized address. The store behind it is an interface:
- * the in-memory store here is atomic within one server process only. A
- * shared Postgres store (PR #39's lib/rate-limit) replaces it once that
- * lands, so the budget holds across instances.
+ * Counts live in lib/rate-limit's store, as the "authEmail" class: one
+ * atomic hit per send, shared through Postgres across instances in
+ * production. The store's windows are its fixed 60 s, so the budget is per
+ * minute (budgets.authEmail).
  */
-
-/** Starting values, not measured against real use: 3 auth emails per address per 10 minutes. */
-export const EMAIL_BUDGET = { limit: 3, windowMs: 10 * 60 * 1000 } as const;
-
-export interface SendBudgetStore {
-  /** Atomically takes one send for `key` in the current window; false when none are left. */
-  consume(key: string, limit: number, windowMs: number, now: number): Promise<boolean>;
-}
-
-/** Fixed windows in a Map. The check and the increment run with no await between, so concurrent calls can't both take the last send. */
-export function memoryBudgetStore(): SendBudgetStore {
-  const windows = new Map<string, { start: number; used: number }>();
-  return {
-    async consume(key, limit, windowMs, now) {
-      const start = now - (now % windowMs);
-      const current = windows.get(key);
-      const window = current && current.start === start ? current : { start, used: 0 };
-      if (window.used >= limit) return false;
-      window.used += 1;
-      windows.set(key, window);
-      if (windows.size > 10_000) {
-        for (const [k, w] of windows) if (w.start < start) windows.delete(k);
-      }
-      return true;
-    },
-  };
+export interface SendBudget {
+  /** Counts one send to `recipient`; false when its budget for this window is used up. */
+  take(recipient: string): Promise<boolean>;
 }
 
 /**
@@ -47,9 +27,33 @@ export function budgetKey(email: string): string {
   return `${local.split("+")[0]}@${domain}`;
 }
 
+/**
+ * The budget on a rate-limit store. Recipients are stored as HMACs, keyed
+ * the same way as lib/rate-limit's callers, so the table never holds an
+ * address.
+ */
+export function recipientBudget({
+  store,
+  secret,
+  now = Date.now,
+}: {
+  store: RateLimitStore;
+  secret: string;
+  now?: () => number;
+}): SendBudget {
+  const key = createHmac("sha256", secret).update("untangle rate limit").digest();
+  return {
+    async take(recipient) {
+      const caller = createHmac("sha256", key).update(`email:${budgetKey(recipient)}`).digest("base64url");
+      const count = await store.hit("authEmail", caller, Math.floor(now() / windowMs));
+      return count <= budgets.authEmail.ip;
+    },
+  };
+}
+
 export class EmailBudgetExceeded extends Error {
   constructor(readonly recipient: string) {
-    super("Too many sign-in emails to this address. Try again in 10 minutes.");
+    super("Too many sign-in emails to this address. Try again in a minute.");
     this.name = "EmailBudgetExceeded";
   }
 }

@@ -13,7 +13,7 @@
  *   (assertEmailConfigured, called from lib/auth.ts).
  */
 
-import { budgetKey, EMAIL_BUDGET, EmailBudgetExceeded, type SendBudgetStore } from "@/lib/email-budget";
+import { EmailBudgetExceeded, type SendBudget } from "@/lib/email-budget";
 
 export type AuthEmailKind = "magic-link" | "password-reset";
 
@@ -108,8 +108,7 @@ export type DeliveryDeps = {
   env: Env;
   createClient: (apiKey: string) => ResendLike;
   log: (message: string) => void;
-  budget: SendBudgetStore;
-  now?: () => number;
+  budget: SendBudget;
 };
 
 /**
@@ -121,12 +120,11 @@ export async function deliverAuthEmail(
   kind: AuthEmailKind,
   to: string,
   url: string,
-  { env, createClient, log, budget, now = Date.now }: DeliveryDeps,
+  { env, createClient, log, budget }: DeliveryDeps,
 ): Promise<"resend" | "server-log"> {
   const email = renderAuthEmail(kind, url);
   const mode = emailDelivery(env);
-  if (!(await budget.consume(budgetKey(to), EMAIL_BUDGET.limit, EMAIL_BUDGET.windowMs, now())))
-    throw new EmailBudgetExceeded(to);
+  if (!(await budget.take(to))) throw new EmailBudgetExceeded(to);
   if (mode === "server-log") {
     log(`[UNTangle email] Email isn't set up here (no RESEND_API_KEY). "${email.subject}" for ${to}: ${url}`);
     return mode;

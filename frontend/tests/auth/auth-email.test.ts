@@ -6,7 +6,10 @@ import {
   renderAuthEmail,
   type ResendLike,
 } from "@/lib/auth-email";
-import { budgetKey, EmailBudgetExceeded, memoryBudgetStore } from "@/lib/email-budget";
+import { budgetKey, EmailBudgetExceeded, recipientBudget } from "@/lib/email-budget";
+import { memoryStore } from "@/lib/rate-limit/store";
+
+const freshBudget = (now = () => 1_000_000) => recipientBudget({ store: memoryStore(), secret: "test-secret", now });
 
 const URL_ = "https://untangle.example/api/auth/magic-link/verify?token=abc&callbackURL=%2Fcourses";
 
@@ -59,7 +62,7 @@ describe("delivery", () => {
       env: { NODE_ENV: "development" },
       createClient,
       log: (line) => lines.push(line),
-      budget: memoryBudgetStore(),
+      budget: freshBudget(),
     });
     expect(mode).toBe("server-log");
     expect(sent).toHaveLength(0);
@@ -76,7 +79,7 @@ describe("delivery", () => {
       log: () => {
         throw new Error("must not log a link when email is configured");
       },
-      budget: memoryBudgetStore(),
+      budget: freshBudget(),
     });
     expect(mode).toBe("resend");
     expect(keys).toEqual(["re_test"]);
@@ -95,7 +98,7 @@ describe("delivery", () => {
         env: { NODE_ENV: "development", RESEND_API_KEY: "re_test" },
         createClient,
         log: () => {},
-        budget: memoryBudgetStore(),
+        budget: freshBudget(),
       }),
     ).rejects.toThrow("domain not verified");
   });
@@ -122,41 +125,55 @@ describe("production configuration check", () => {
   });
 });
 
-describe("the per-inbox send budget", () => {
-  const deps = (budget = memoryBudgetStore(), now = () => 1_000_000) => {
+describe("the per-inbox send budget (lib/rate-limit's store, class authEmail: 2 a minute)", () => {
+  const deps = (now = () => 1_000_000) => {
     const lines: string[] = [];
-    return { lines, deps: { env: { NODE_ENV: "development" }, createClient: recorder().createClient, log: (l: string) => lines.push(l), budget, now } };
+    return {
+      lines,
+      deps: { env: { NODE_ENV: "development" }, createClient: recorder().createClient, log: (l: string) => lines.push(l), budget: freshBudget(now) },
+    };
   };
 
-  test("12 parallel sends to one address deliver 3; the rest are refused", async () => {
+  test("12 parallel sends to one address deliver 2; the rest are refused", async () => {
     const { lines, deps: d } = deps();
     const results = await Promise.allSettled(
       Array.from({ length: 12 }, () => deliverAuthEmail("magic-link", "eagle@my.unt.edu", URL_, d)),
     );
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
     const refused = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    expect(refused).toHaveLength(9);
+    expect(refused).toHaveLength(10);
     for (const r of refused) expect(r.reason).toBeInstanceOf(EmailBudgetExceeded);
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(2);
   });
 
   test("case, spaces and +tags reach the same inbox, so they share one budget", async () => {
     const { lines, deps: d } = deps();
-    for (const to of ["Eagle@My.UNT.edu", " eagle+1@my.unt.edu", "eagle+2@MY.unt.edu", "eagle@my.unt.edu"]) {
+    for (const to of ["Eagle@My.UNT.edu", " eagle+1@my.unt.edu", "eagle+2@MY.unt.edu"]) {
       await deliverAuthEmail("magic-link", to, URL_, d).catch(() => {});
     }
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(2);
     expect(budgetKey(" Eagle+x@My.UNT.edu ")).toBe("eagle@my.unt.edu");
   });
 
-  test("another address has its own budget, and a new window refills it", async () => {
+  test("another address has its own budget, and the next window refills it", async () => {
     let clock = 1_000_000;
-    const { lines, deps: d } = deps(memoryBudgetStore(), () => clock);
-    for (let i = 0; i < 4; i++) await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d).catch(() => {});
+    const { lines, deps: d } = deps(() => clock);
+    for (let i = 0; i < 3; i++) await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d).catch(() => {});
     await deliverAuthEmail("magic-link", "b@my.unt.edu", URL_, d);
-    expect(lines).toHaveLength(4);
-    clock += 10 * 60 * 1000;
+    expect(lines).toHaveLength(3);
+    clock += 60_000;
     await deliverAuthEmail("magic-link", "a@my.unt.edu", URL_, d);
-    expect(lines).toHaveLength(5);
+    expect(lines).toHaveLength(4);
+  });
+
+  test("the store only ever sees an HMAC of the address", async () => {
+    const seen: string[] = [];
+    const budget = recipientBudget({
+      store: { hit: async (_route, caller) => (seen.push(caller), 1) },
+      secret: "test-secret",
+    });
+    await budget.take("eagle@my.unt.edu");
+    expect(seen[0]).not.toContain("eagle");
+    expect(seen[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
 });

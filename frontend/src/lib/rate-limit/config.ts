@@ -8,6 +8,9 @@ export type Budget = { user?: number; ip: number };
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Auth emails per recipient inbox, not per IP (lib/email-budget.ts): a sign-in link and one
+  // resend a minute. Counted directly through the store, never through withRateLimit.
+  authEmail: { ip: 2 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },

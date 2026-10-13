@@ -3,9 +3,11 @@ import { db } from "@/lib/db";
 import { accounts, authRateLimits, sessions, users, verifications } from "@/lib/db/schema";
 import { assertEmailConfigured } from "@/lib/auth-email";
 import { createAuth } from "@/lib/auth-config";
-import { sendAuthEmail } from "@/lib/email";
+import { createAuthEmailSender } from "@/lib/email";
+import { recipientBudget } from "@/lib/email-budget";
 import { postgresClaims } from "@/lib/magic-link-claims";
 import { checkProductionEnv, trustedIpHeader } from "@/lib/rate-limit/config";
+import { memoryStore, postgresStore } from "@/lib/rate-limit/store";
 
 // `next build` evaluates route modules with NODE_ENV=production but no server
 // secrets; only fail fast when actually serving production traffic.
@@ -24,7 +26,7 @@ if (isProductionServer) checkProductionEnv();
 assertEmailConfigured(process.env);
 
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-/** Also keys the rate limiter's HMAC of callers. */
+/** Also keys the rate limiter's HMAC of callers and of email recipients. */
 export const authSecret =
   configuredSecret ?? "untangle-development-secret-at-least-32-characters";
 
@@ -50,5 +52,11 @@ export const auth = createAuth({
     rateLimit: { storage: process.env.NODE_ENV === "production" ? "database" : "memory" },
   },
   claims: postgresClaims((statement, params) => db.$client.query(statement, params)),
-  sendEmail: sendAuthEmail,
+  // Shared through Postgres in production, like the API limits (lib/rate-limit).
+  sendEmail: createAuthEmailSender(
+    recipientBudget({
+      store: process.env.NODE_ENV === "production" ? postgresStore(db) : memoryStore(),
+      secret: authSecret,
+    }),
+  ),
 });
