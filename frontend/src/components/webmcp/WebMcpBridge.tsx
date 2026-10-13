@@ -37,9 +37,9 @@ export function livePort(get: () => Planner): PlannerPort {
   return {
     plan: () => get().plannerState,
     preferences: () => get().schedulePreferences,
-    epoch: () => get().planEpoch,
+    stamp: () => get().planStamp,
     optimize: optimizeInWorker,
-    transact: (fn) => get().transact(fn),
+    transact: (fn, stamp) => get().transact(fn, stamp),
     setSchedulePreferences: (update) => get().setSchedulePreferences(update),
   };
 }

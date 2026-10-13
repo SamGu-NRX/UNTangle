@@ -102,7 +102,7 @@ describe("ending a registration", () => {
     const { port } = fixturePort();
     let release = () => {};
     // The provider acknowledges the transaction only after the registration has ended.
-    const slow: PlannerPort = { ...port, transact: (fn) => new Promise((resolve) => (release = () => void port.transact(fn).then(resolve))) };
+    const slow: PlannerPort = { ...port, transact: (fn, stamp) => new Promise((resolve) => (release = () => void port.transact(fn, stamp).then(resolve))) };
     const page = await session(slow);
     const { done } = await page.start("remove_course", { code: "PSYC 1630" });
     await click(button("Remove"));

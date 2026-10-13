@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -34,6 +35,14 @@ import {
   type WriteOutcome,
 } from "@/components/schedule/preferences-store";
 import { createPlannerStateStore } from "@/lib/planner-store";
+import {
+  plannerBox,
+  reducePlannerBox,
+  TransactionRequest,
+  type PlanStamp,
+  type PlanTransaction,
+  type TransactionOutcome,
+} from "@/lib/planner-transaction";
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import {
   loadPlannerStateFromServer,
@@ -201,23 +210,37 @@ type PlannerContextValue = {
   /**
    * One check-and-write on the plan as it actually is, for callers that act
    * after an await and must not trust the last render (the WebMCP tools).
-   * `fn` runs inside the state updater on the normalized current state,
-   * including updates still queued, and returns `next` to commit or no
-   * `next` to change nothing. It must be pure: React may call it twice.
-   * Resolves with `fn`'s result once the update has rendered, or with
-   * "identity_changed" without calling `fn` when the signed-in identity
-   * changed after the call. Other actions are unchanged.
+   * `fn` runs inside the plan's reducer on the normalized current state,
+   * including updates still queued, with the pending Auto-fill run's edit
+   * count, and returns `next` to commit or no `next` to change nothing. It
+   * must be pure: React may run it twice or again on a newer base.
+   *
+   * Refused without calling `fn` when `stamp` no longer matches: another
+   * identity is signed in ("identity_changed"), or the plan was replaced
+   * since ("plan_replaced"). The outcome is recorded in the state the
+   * reducer returns, and the promise resolves only after a commit that
+   * holds it, so a render React discards acknowledges nothing. Unmounting
+   * settles every open transaction as "cancelled". Other actions are unchanged
+   * (lib/planner-transaction.ts).
    */
-  transact: <R>(fn: (current: PlannerState) => PlanTransaction<R>) => Promise<R | "identity_changed">;
+  transact: <R>(fn: (current: PlannerState, meta: { runEdits: number }) => PlanTransaction<R>, stamp: PlanStamp) => Promise<TransactionOutcome<R>>;
+  /** The identity and plan replacement count of this render, for `transact`. */
+  planStamp: PlanStamp;
 };
-
-export type PlanTransaction<R> = { next?: PlannerState; result: R };
 
 const PlannerContext = createContext<PlannerContextValue | null>(null);
 
 export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const sessionResult = authClient.useSession();
-  const [plannerState, setPlannerState] = useState<PlannerState>(getInitialPlannerState());
+  // The plan lives in a reducer (lib/planner-transaction.ts) so transactions are checked and acknowledged in
+  // state. Its dispatch takes everything setState did, so every existing setPlannerState call is unchanged.
+  const transactionIdentity = sessionResult.data?.user?.id ? `user:${sessionResult.data.user.id}` : "guest";
+  const [planBox, setPlannerState] = useReducer(
+    (box: ReturnType<typeof plannerBox>, action: Parameters<typeof reducePlannerBox>[1]) => reducePlannerBox(box, action, transactionIdentity),
+    undefined,
+    () => plannerBox(getInitialPlannerState()),
+  );
+  const plannerState = planBox.plan;
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<PlannerSaveState>(PENDING);
   // Fingerprint the last `saved` acknowledgement covered. `Saved` is only
@@ -308,13 +331,28 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     conflictRef.current = conflict;
   }, [conflict]);
 
-  // transact: every call also bumps this tick, so a render and commit follow even when `fn` changes nothing,
-  // and the effect below then resolves each transaction whose updater has run.
-  const [, setTransactionTick] = useState(0);
-  const transactions = useRef<Array<() => boolean>>([]);
+  // transact: resolvers by transaction id; ids whose receipt has been resolved, so later updates drop it.
+  const transactionWaiters = useRef(new Map<number, (outcome: TransactionOutcome<unknown>) => void>());
+  const settledTransactions = useRef(new Set<number>());
+  const lastTransactionId = useRef(0);
   useEffect(() => {
-    transactions.current = transactions.current.filter((settle) => !settle());
-  });
+    const present = new Set(planBox.receipts.map((receipt) => receipt.id));
+    for (const id of settledTransactions.current) if (!present.has(id)) settledTransactions.current.delete(id);
+    for (const { id, outcome } of planBox.receipts) {
+      const resolve = transactionWaiters.current.get(id);
+      if (!resolve) continue;
+      transactionWaiters.current.delete(id);
+      settledTransactions.current.add(id);
+      resolve(outcome);
+    }
+  }, [planBox.receipts]);
+  useEffect(() => {
+    const waiters = transactionWaiters.current;
+    return () => {
+      waiters.forEach((resolve) => resolve({ status: "cancelled" }));
+      waiters.clear();
+    };
+  }, []);
 
   const guestStore = useMemo(() => createPlannerStateStore(), []);
   const isRegistered = Boolean(sessionResult.data?.user);
@@ -1215,33 +1253,22 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       dismissNewerVersionNotice: () => setTookNewerVersion(false),
       afterHydration,
       storeNotices,
-      transact: <R,>(fn: (current: PlannerState) => PlanTransaction<R>) =>
-        new Promise<R | "identity_changed">((resolve) => {
+      transact: <R,>(fn: (current: PlannerState, meta: { runEdits: number }) => PlanTransaction<R>, stamp: PlanStamp) =>
+        new Promise<TransactionOutcome<R>>((resolve) => {
           if (!hydrated) {
             mutatedBeforeBootstrap.current = true;
           }
-          const generation = sessionGeneration.current;
-          const updatedAt = new Date().toISOString();
-          let outcome: { value: R | "identity_changed" } | null = null;
-          setPlannerState((current) => {
-            if (generation !== sessionGeneration.current) {
-              outcome = { value: "identity_changed" };
-              return current;
-            }
-            const { next, result } = fn(normalizePlannerState(current));
-            outcome = { value: result };
-            return next ? { ...next, updatedAt } : current;
-          });
-          setTransactionTick((tick) => tick + 1);
-          transactions.current.push(() => {
-            if (!outcome) return false;
-            resolve(outcome.value);
-            return true;
-          });
+          const id = ++lastTransactionId.current;
+          // The reducer's receipt carries fn's result typed as unknown; this resolver is the one that asked for R.
+          transactionWaiters.current.set(id, resolve as (outcome: TransactionOutcome<unknown>) => void);
+          setPlannerState(new TransactionRequest(id, stamp, fn, new Date().toISOString(), new Set(settledTransactions.current)));
         }),
+      planStamp: { identity: transactionIdentity, epoch: planBox.epoch },
     };
   }, [
     afterHydration,
+    planBox.epoch,
+    transactionIdentity,
     conflict,
     guestStorageAvailable,
     hydrated,

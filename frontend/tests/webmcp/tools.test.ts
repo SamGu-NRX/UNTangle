@@ -162,11 +162,11 @@ describe("write tools", () => {
 
   test("Undo is refused once the plan was replaced", async () => {
     const tools = createTools();
-    const { port, snapshot, replacePlan } = fixturePort();
+    const { port, snapshot, student } = fixturePort();
     const { ctx, undos } = session(port, true);
     await named(tools, "remove_course").run({ code: "PSYC 1630" }, ctx);
     const after = snapshot();
-    replacePlan();
+    student.replacePlan();
     expect(await undos[0]()).toBe(false);
     expect(snapshot()).toEqual(after);
   });
@@ -290,6 +290,31 @@ describe("writes stay bound to what the student approved", () => {
     expect(await undos[0]()).toBe(true);
     expect(port.plan().courseStatuses["PSYC 1630"]).toBe("inProgress");
     expect(undoBlocker(port.plan().coursePlan!.lastAuto!, port.plan().courseStatuses, port.plan().selectedMajor)).not.toBeNull();
+  });
+
+  test("Undo leaves Auto-fill's Undo off after another course of the run was changed and changed back", async () => {
+    const plan = fixturePlan({}, { "PSYC 1630": "inProgress", "ENGL 1310": "inProgress" });
+    const changes = ["PSYC 1630", "ENGL 1310"].map((code) => ({ code, from: "notTaken" as const, to: "inProgress" as const }));
+    const run = { id: "auto-3", at: "2026-10-01T00:00:00.000Z", major: null, changes, autoPlannedBefore: [], summary: "", needsCheck: [] };
+    const { port, student } = fixturePort({ ...plan, coursePlan: { manualCredit: [], autoPlanned: ["PSYC 1630", "ENGL 1310"], lastAuto: run } });
+    const { ctx, undos } = session(port, true);
+    await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
+    const original = port.plan().selectedSections["ENGL 1310"];
+    student.setSection("ENGL 1310", getSectionsForCourse("ENGL 1310").find((s) => s.id !== original)!.id);
+    student.setSection("ENGL 1310", original);
+    expect(await undos[0]()).toBe(true);
+    expect(port.plan().coursePlan?.lastAuto?.invalidatedBy).toBe("PSYC 1630");
+  });
+
+  test("set_busy_times changes nothing when the call is cancelled after the student said yes", async () => {
+    const { port, writes } = fixturePort();
+    const controller = new AbortController();
+    const { ctx, undos } = session(port, true, () => controller.abort());
+    const result = await named(createTools(), "set_busy_times").run({ blocks: [{ day: "Tue", start: "09:00", end: "11:00" }] }, { ...ctx, signal: controller.signal });
+    expect(result).toEqual({ ok: false, reason: "cancelled" });
+    expect(writes).toEqual([]);
+    expect(undos).toEqual([]);
+    expect(port.preferences().constraints.blocked).toEqual([]);
   });
 
   test("add_section refuses a course already passed or in progress on the transcript", async () => {

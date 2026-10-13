@@ -78,3 +78,12 @@ test("Undo with a section change still queued restores its course and keeps the 
   expect(planned(planner, "PSYC 1630")).toBe(true);
   expect(planner.get().plannerState.selectedSections["ENGL 1310"]).toBe(queued);
 });
+
+test("Undo is refused while a plan reset is still queued", async () => {
+  const { planner, port } = await plannerWithCourses();
+  const { ctx, undos } = session(port, true);
+  expect(await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx)).toMatchObject({ ok: true });
+  planner.get().resetPlanner();
+  expect(await undos[0]()).toBe(false);
+  expect(planned(planner, "PSYC 1630")).toBe(false);
+});
