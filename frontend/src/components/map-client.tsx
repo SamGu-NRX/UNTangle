@@ -75,7 +75,10 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   const stops = useMemo(() => campus.id === activeCampus.id ? routeStops[activeDay] ?? [] : [], [activeDay, routeStops, campus.id]);
   const itinerary = useItinerary(stops);
 
-  const isPhone = useMediaQuery("(max-width: 720px)");
+  // The shell's phone layout (bottom tabs, which carry the home-indicator
+  // inset the sheet relies on) is below 720px; matching it keeps the sheet
+  // from appearing at exactly 720px without that clearance.
+  const isPhone = useMediaQuery("(max-width: 719px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   const [selection, setSelection] = useState<MapSelection>(null);

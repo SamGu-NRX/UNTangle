@@ -379,6 +379,23 @@ export function Timeline({
   );
 }
 
+/**
+ * A campus other than the planner's has no itinerary: the planner and its
+ * sections are UNT's, so offering Schedule here would lead nowhere.
+ */
+export function OtherCampusEmpty({ campusName, homeName }: { campusName: string; homeName: string }) {
+  return (
+    <div className="mv-empty">
+      <p>
+        This {campusName} map shows buildings only. Your plan&rsquo;s classes are at {homeName}, so their walks are on the {homeName} map.
+      </p>
+      <Link className="mv-link" href="/map">
+        Open the {homeName} map
+      </Link>
+    </div>
+  );
+}
+
 export function EmptyDay({ day, firstDayWithClasses, onPickDay }: { day: ClassDay; firstDayWithClasses: ClassDay | undefined; onPickDay: (day: ClassDay) => void }) {
   return (
     <div className="mv-empty">
