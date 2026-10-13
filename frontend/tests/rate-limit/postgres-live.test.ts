@@ -13,7 +13,7 @@ test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, 
   const pool = new Pool({ connectionString: url, max: 8, options: `-c search_path=${schema}` });
   try {
     await pool.query(`CREATE SCHEMA ${schema}`);
-    for (const file of ["0006_abuse_limits", "0007_magic_link_claim", "0008_rate_limit_window_expiry"]) {
+    for (const file of ["0006_abuse_limits", "0007_magic_link_claim", "0008_rate_limit_window_expiry", "0010_auth_rate_limit_cleanup_index"]) {
       await pool.query(await readFile(`drizzle/${file}.sql`, "utf8"));
     }
     const db = drizzle(pool);
@@ -26,7 +26,12 @@ test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, 
       VALUES ('spent', 'a', 3, $1), ('live', 'b', 3, $2)`, [100 * 60_000 - 1, 100 * 60_000]);
     expect(await postgresStore(db).hit("grades", "caller", 101, 60_000)).toBe(1);
     const windows = await pool.query("SELECT window_index, count, expires_at FROM api_rate_limit");
-    expect(windows.rows).toEqual([{ window_index: 101, count: 1, expires_at: String(102 * 60_000) }]);
+    expect(windows.rows.sort((a, b) => a.window_index - b.window_index)).toEqual([
+      { window_index: 100, count: 40, expires_at: String(101 * 60_000) },
+      { window_index: 101, count: 1, expires_at: String(102 * 60_000) },
+    ]);
+    expect(await postgresStore(db).hit("grades", "caller", 100, 60_000)).toBe(41);
+    expect((await pool.query("SELECT indexdef FROM pg_indexes WHERE schemaname = $1 AND indexname = 'auth_rate_limit_last_request_idx'", [schema])).rows[0].indexdef).toContain("(last_request)");
 
     expect((await pool.query("SELECT id FROM auth_rate_limit")).rows).toEqual([{ id: "live" }]);
 
@@ -35,7 +40,7 @@ test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, 
     expect(await postgresStore(db).hit("authEmail", "inbox", 10, 600_000)).toBe(1);
     expect(await postgresStore(db).hit("grades", "caller", 102, 60_000)).toBe(1);
     expect((await pool.query("SELECT route FROM api_rate_limit WHERE route = 'authEmail'")).rowCount).toBe(1);
-    expect(await postgresStore(db).hit("grades", "caller", 110, 60_000)).toBe(1);
+    expect(await postgresStore(db).hit("grades", "caller", 112, 60_000)).toBe(1);
     expect((await pool.query("SELECT route FROM api_rate_limit WHERE route = 'authEmail'")).rowCount).toBe(0);
   } finally {
     await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);

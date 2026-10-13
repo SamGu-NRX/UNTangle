@@ -63,3 +63,17 @@ test("a failing store answers 503 and never runs the handler", async () => {
     console.error = error;
   }
 });
+
+
+test.each([
+  ["/sign-in/email", 3, "10"], ["/sign-up/email", 3, "10"],
+  ["/request-password-reset", 3, "30"], ["/send-verification-email", 3, "30"],
+  ["/sign-in/magic-link", 5, "30"],
+])("concurrent %s requests stop before excess handlers run", async (path, limit, retry) => {
+  let ran = 0;
+  const route = limiter()("auth", async () => { ran++; await Bun.sleep(1); return ok(); });
+  const req = () => new Request(`http://localhost/api/auth${path}`, { headers: { "x-real-ip": "203.0.113.1" } });
+  const responses = await Promise.all(Array.from({ length: 12 }, () => route(req())));
+  expect(responses.filter(r => r.status === 200)).toHaveLength(limit);
+  expect([ran, responses.find(r => r.status === 429)?.headers.get("Retry-After")]).toEqual([limit, retry]);
+});

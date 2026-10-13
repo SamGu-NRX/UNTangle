@@ -60,3 +60,19 @@ export function checkProductionEnv(env: Partial<NodeJS.ProcessEnv> = process.env
   }
   if (!env.DATABASE_URL) throw new Error("Production needs DATABASE_URL: rate-limit counters are shared through Postgres.");
 }
+
+/** Better Auth 1.5.5 special rules and the installed magic-link plugin's override.
+ * The atomic layer enforces these before handlers; Better Auth counts after handlers.
+ */
+export function authPathBudget(path: string): Budget | null {
+  if (path.startsWith("/sign-in/magic-link") || path.startsWith("/magic-link/verify")) {
+    return { ip: 5, windowSeconds: 60 };
+  }
+  if (["/sign-in", "/sign-up", "/change-password", "/change-email"].some(prefix => path.startsWith(prefix))) {
+    return { ip: 3, windowSeconds: 10 };
+  }
+  if (["/request-password-reset", "/send-verification-email", "/email-otp/send-verification-otp", "/email-otp/request-password-reset"].includes(path) || path.startsWith("/forget-password")) {
+    return { ip: 3, windowSeconds: 60 };
+  }
+  return null;
+}

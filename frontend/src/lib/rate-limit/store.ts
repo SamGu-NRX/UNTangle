@@ -1,4 +1,4 @@
-import { lt, lte, sql } from "drizzle-orm";
+import { lt, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { apiRateLimits, authRateLimits } from "@/lib/db/schema";
 import { windowMs as defaultWindowMs } from "./config";
@@ -11,13 +11,13 @@ export interface RateLimitStore {
   hit(route: string, caller: string, window: number, windowMs: number): Promise<number>;
 }
 
-/** Process-local counts for development and tests. A count is dropped once its window has ended. */
+/** Process-local counts for development and tests. Spent counts are retained for one minute for in-flight hits. */
 export function memoryStore(): RateLimitStore {
   const counts = new Map<string, { count: number; expiresAt: number }>();
   return {
     async hit(route, caller, window, windowMs) {
       const start = window * windowMs;
-      for (const [key, entry] of counts) if (entry.expiresAt <= start) counts.delete(key);
+      for (const [key, entry] of counts) if (entry.expiresAt < start - defaultWindowMs) counts.delete(key);
       const key = `${route} ${caller} ${window}`;
       const entry = counts.get(key) ?? { count: 0, expiresAt: start + windowMs };
       entry.count += 1;
@@ -36,9 +36,9 @@ export function postgresStore(db: Pick<NodePgDatabase, "insert" | "delete">): Ra
       if (start >= swept + defaultWindowMs) {
         swept = start;
         // About once a minute per instance. Each row carries its own expiry, so windows of any length are
-        // swept when they end; better-auth's longest window is 60 s, so its older rows are spent too.
+        // retained for another minute so a hit already in flight cannot recreate a spent counter.
         await Promise.all([
-          db.delete(apiRateLimits).where(lte(apiRateLimits.expiresAt, start)),
+          db.delete(apiRateLimits).where(lt(apiRateLimits.expiresAt, start - defaultWindowMs)),
           db.delete(authRateLimits).where(lt(authRateLimits.lastRequest, start - defaultWindowMs)),
         ]);
       }

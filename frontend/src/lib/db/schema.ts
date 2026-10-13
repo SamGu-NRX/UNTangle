@@ -126,7 +126,7 @@ export const authRateLimits = pgTable("auth_rate_limit", {
   key: text("key").notNull().unique(),
   count: integer("count").notNull(),
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
-});
+}, (table) => [index("auth_rate_limit_last_request_idx").on(table.lastRequest)]);
 
 export const schema = {
   users,
