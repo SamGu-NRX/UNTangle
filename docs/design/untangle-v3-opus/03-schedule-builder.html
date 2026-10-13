@@ -83,7 +83,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .btn .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 1; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; } .btn-icon, .btn-icon.btn-sm { min-width: 44px; min-height: 44px; }
   .btn-sm::after, .chip::after, .seg > button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover { background: var(--brand-2); }
@@ -382,13 +382,13 @@ body { overflow-x: clip; }
   /* switcher popover (from the schedule pill) */
   .pop { position: fixed; z-index: 64; width: 280px; padding: 6px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-3); transform-origin: top right; opacity: 0; transform: scale(.97); visibility: hidden; transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
   .pop.on { opacity: 1; transform: none; visibility: visible; transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), visibility 0s; }
-  .pop.instant { transition: none; }
   .pop .lab { padding: 8px 10px 4px; }
   .pop button, .pop a { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 10px; border-radius: 8px; font-size: 14px; color: var(--ink); text-align: left; }
   .pop .ck { margin-left: auto; color: var(--brand); }
   .pop hr { border: 0; height: 1px; background: var(--line); margin: 6px 4px; }
   @media (hover: hover) and (pointer: fine) { .pop button:hover, .pop a:hover { background: var(--paper-2); } }
   @media (prefers-reduced-motion: reduce) { .pop, .pop.on { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; } .pop.on { transition: opacity 120ms ease, visibility 0s; } }
+  .pop.instant, .pop.instant.on { transition: none; }
 
   /* export */
   .xsec { padding: 14px 0; border-top: 1px solid var(--line); display: grid; gap: 10px; }
@@ -612,7 +612,8 @@ function modalClose(el) {
 /* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
    24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
    reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
-   too often to animate. */
+   too often to animate. `trigger` may be a function, for pages that rebuild the control that opened
+   the panel; it is resolved when focus goes back, after onClose has re-rendered. */
 class Panel {
   constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
   get isOpen() { return this.el.classList.contains("on"); }
@@ -634,8 +635,9 @@ class Panel {
     this.instantFrame(instant);
     document.body.classList.remove("panel-open");
     this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
-    if (hadFocus && this.trigger && document.contains(this.trigger)) this.trigger.focus({ preventScroll: true });
     this.onClose && this.onClose();
+    const back = typeof this.trigger === "function" ? this.trigger() : this.trigger;
+    if (hadFocus && back && document.contains(back)) back.focus({ preventScroll: true });
   }
 }
 
@@ -889,7 +891,7 @@ function renderGrid() {
   if (ghost) { const s = secOf(ghost.code, ghost.n); if (s && !s.online) s.days.forEach((d) => { const clash = list.some((o) => o.d === d && o.s < s.e && s.s < o.e); cols[d].insertAdjacentHTML("beforeend", `<div class="ghost ${clash ? "bad" : ""}" style="top:${(s.s - H0) * H + 1}px;height:${(s.e - s.s) * H - 2}px">${ghost.code}</div>`); }); }
   $$(".ev", body).forEach((e) => {
     const f = prev.get(e.dataset.key); const l = e.getBoundingClientRect();
-    if (!f) { if (prev.size) e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" }); return; }
+    if (!f) { if (prev.size && !instant) e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" }); return; }
     if (reduced() || instant) return;
     const dx = f.left - l.left, dy = f.top - l.top;
     if (Math.abs(dx) + Math.abs(dy) > 1) e.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 300, easing: EASE.inOut });
@@ -986,12 +988,12 @@ function altHTML() {
 }
 const panel = new Panel($("#panel"), { onClose: () => { mode = null; selected = null; ghost = null; renderGrid(); renderPrefBtn(); } });
 const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.5, () => innerHeight * 0.92], scrim: null, dismissible: true, onDetent: (i) => { if (i < 0) { mode = null; selected = null; renderGrid(); } } });
-function showPanel(m, { code, instant: inst = false, detent = 0, focus = false } = {}) {
+function showPanel(m, { code, instant: inst = false, detent = 0, focus = false, trigger } = {}) {
   mode = m;
   const html = m === "find" ? findHTML() : m === "course" ? courseHTML(code) : m === "prefs" ? prefsHTML() : altHTML();
   const host = PHONE.matches ? $("#sbody") : $("#pbody");
   host.innerHTML = html; hydrateIcons(host); wirePanel(host);
-  if (PHONE.matches) { sheet.open(detent); } else panel.open({ instant: inst, focus });
+  if (PHONE.matches) { sheet.open(detent); } else panel.open({ instant: inst, focus, ...(trigger ? { trigger } : {}) });
   if (m === "find" && !PHONE.matches) requestAnimationFrame(() => $("#q", host)?.focus({ preventScroll: true }));
   renderPrefBtn();
 }
@@ -1054,6 +1056,8 @@ function showOption(i, fromKeyboard) {
 
 /* ---------- schedule switcher (from the pill) ---------- */
 let popTrigger = null;
+/* the switcher is a popover on desktop and a sheet on phone; picking from it closes whichever is open */
+function dismissSwitch(fromKeyboard) { if (PHONE.matches) { if (sheet.index >= 0) sheet.close(); } else closeSwitch(fromKeyboard); }
 function openSwitch(trigger, fromKeyboard) {
   if (PHONE.matches) { $("#sbody").innerHTML = `${panelHead("Spring 2027 schedules")}<div class="pop on" style="position:static;width:auto;box-shadow:none;padding:0 10px">${switchItems()}</div>`; hydrateIcons($("#sbody")); wirePanel($("#sbody")); sheet.open(0); return; }
   const p = $("#pop"), r = trigger.getBoundingClientRect();
@@ -1075,14 +1079,14 @@ document.addEventListener("click", (e) => {
   if (!t) { if (selected && mode === "course" && e.target.closest(".gday")) closePanel(); return; }
   const kb = e.detail === 0;
   if (t.dataset.href) location.href = t.dataset.href;
-  if (t.dataset.tab) { closeSwitch(); active = t.dataset.tab; sched = { ...SCHEDULES[active] }; preview = null; selected = null; history = []; if (mode === "course" || mode === "alt") closePanel(true); renderAll(); toast(`Showing ${active}`); return; }
+  if (t.dataset.tab) { dismissSwitch(kb); active = t.dataset.tab; sched = { ...SCHEDULES[active] }; preview = null; selected = null; history = []; if (mode === "course" || mode === "alt") closePanel(true); instant = kb; renderAll(); instant = false; toast(`Showing ${active}`); return; }
   if (t.dataset.q) { query = t.dataset.q; expanded = Object.keys(SECTIONS).find((c) => c === t.dataset.q) || null; showPanel("find", { detent: 1 }); return; }
   if (t.dataset.exp) { expanded = expanded === t.dataset.exp ? null : t.dataset.exp; const r = t.closest(".pscroll, .sheet-body"); $("#results", r).innerHTML = resultsHTML(); hydrateIcons($("#results", r)); $(`[data-exp="${t.dataset.exp}"]`, r)?.focus(); return; }
   if (t.dataset.addsec) { const [c, n] = t.dataset.addsec.split("|"); if (sched[c] === n) return; const clash = t.classList.contains("warn"); ghost = null; commit({ ...sched, [c]: n }, `${sched[c] ? "Moved" : "Added"} ${c} §${n}${clash ? ". It overlaps another class." : ""}`); return; }
   if (t.dataset.remove) { const c = t.dataset.remove; const next = { ...sched }; delete next[c]; closePanel(kb); commit(next, `Removed ${c}`); return; }
   if (t.dataset.pick) { const [c, n] = t.dataset.pick.split("|"); if (sched[c] === n) return; commit({ ...sched, [c]: n }, `Moved ${c} to §${n}`); return; }
   if (t.dataset.unbusy) { prefs.busy.splice(+t.dataset.unbusy, 1); showPanel("prefs", { instant: true }); prefsChanged(); return; }
-  if (t.classList.contains("ev")) { if (preview) return; const c = t.dataset.code; if (selected === c && mode === "course") { closePanel(kb); return; } selected = c; renderGrid(); showPanel("course", { code: c, instant: kb, focus: kb }); return; }
+  if (t.classList.contains("ev")) { if (preview) return; const c = t.dataset.code, k = t.dataset.key; if (selected === c && mode === "course") { closePanel(kb); return; } selected = c; renderGrid(); showPanel("course", { code: c, instant: kb, focus: kb, trigger: () => $(`.ev[data-key="${k}"]`) }); return; }
   const a = t.dataset.act;
   if (a === "build") build();
   else if (a === "find") { if (mode === "find" && !PHONE.matches) { $("#q")?.focus(); return; } showPanel("find", { instant: kb, detent: 1 }); }
@@ -1093,8 +1097,8 @@ document.addEventListener("click", (e) => {
   else if (a === "cancelprev") { preview = null; if (mode === "alt") closePanel(true); renderAll(); }
   else if (a === "useopt") { const map = preview ? preview.map : OPTIONS[optIndex].map; const k = optIndex + 1; preview = null; if (mode === "alt") closePanel(true); commit({ ...map }, `Using option ${k}`); }
   else if (a === "saveopt") { const name = ["Short walks", "Fridays free", "Tue and Thu"][optIndex]; SCHEDULES[name] = { ...preview.map }; active = name; sched = SCHEDULES[name]; preview = null; closePanel(true); renderAll(); toast(`Saved as “${name}”`); }
-  else if (a === "newsched") { closeSwitch(); const name = "Schedule " + (Object.keys(SCHEDULES).length + 1); SCHEDULES[name] = { ...sched }; active = name; renderAll(); toast(`Copied into “${name}”`); }
-  else if (a === "clear") { closeSwitch(); commit({}, `Cleared ${active}`); }
+  else if (a === "newsched") { dismissSwitch(kb); const name = "Schedule " + (Object.keys(SCHEDULES).length + 1); SCHEDULES[name] = { ...sched }; active = name; renderAll(); toast(`Copied into “${name}”`); }
+  else if (a === "clear") { dismissSwitch(kb); instant = kb; commit({}, `Cleared ${active}`); instant = false; }
   else if (a === "switch") { $("#pop").classList.contains("on") ? closeSwitch(kb) : openSwitch(t, kb); }
   else if (a === "resetprefs") { prefs = { ...DEFAULT_PREFS, busy: [] }; showPanel("prefs", { instant: true }); prefsChanged(); }
   else if (a === "export") openExport();
@@ -1144,7 +1148,7 @@ function openExport() {
 function closeExport() { $("#xdialog").classList.remove("on"); $("#xscrim").classList.remove("on"); modalClose($("#xwrap")); setTimeout(() => ($("#xwrap").style.display = "none"), 150); }
 $("#xscrim").onclick = closeExport;
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { if ($("#xwrap").style.display !== "none") closeExport(); else if ($("#pop").classList.contains("on")) closeSwitch(true); else if (mode) closePanel(true); else if (preview) { preview = null; renderAll(); } }
+  if (e.key === "Escape") { if ($("#xwrap").style.display !== "none") closeExport(); else if ($("#pop").classList.contains("on")) closeSwitch(true); else if (PHONE.matches && sheet.index >= 0) closePanel(true); else if (mode) closePanel(true); else if (preview) { preview = null; renderAll(); } }
   if ((e.metaKey || e.ctrlKey) && e.key === "z") { e.preventDefault(); undo(true); }
   if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); showPanel("find", { instant: true, detent: 1 }); }
 });

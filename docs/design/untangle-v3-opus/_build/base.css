@@ -75,7 +75,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .btn .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 1; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; } .btn-icon, .btn-icon.btn-sm { min-width: 44px; min-height: 44px; }
   .btn-sm::after, .chip::after, .seg > button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover { background: var(--brand-2); }

@@ -129,7 +129,8 @@ function modalClose(el) {
 /* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
    24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
    reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
-   too often to animate. */
+   too often to animate. `trigger` may be a function, for pages that rebuild the control that opened
+   the panel; it is resolved when focus goes back, after onClose has re-rendered. */
 class Panel {
   constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
   get isOpen() { return this.el.classList.contains("on"); }
@@ -151,8 +152,9 @@ class Panel {
     this.instantFrame(instant);
     document.body.classList.remove("panel-open");
     this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
-    if (hadFocus && this.trigger && document.contains(this.trigger)) this.trigger.focus({ preventScroll: true });
     this.onClose && this.onClose();
+    const back = typeof this.trigger === "function" ? this.trigger() : this.trigger;
+    if (hadFocus && back && document.contains(back)) back.focus({ preventScroll: true });
   }
 }
 

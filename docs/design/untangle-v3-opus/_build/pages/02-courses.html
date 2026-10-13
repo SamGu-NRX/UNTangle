@@ -231,7 +231,7 @@ let selected = null;
 const st = Q.get("state") || "imported";
 
 const statusOf = (code) => (planned.has(code) ? "planned" : COURSES[code][2]);
-const link = (code) => `<a href="#" data-open="${code}">${code}</a>`;
+const link = (code) => `<a href="#" data-course="${code}">${code}</a>`;
 const LABEL = { available: "Can take", locked: "Locked", check: "Check with an advisor", done: "Done", covered: "Covered", taking: "Taking now", planned: "Planned" };
 /* the one fact a row carries: why it is waiting, what it needs, or the grade */
 function metaFor(code) {
@@ -337,7 +337,7 @@ document.addEventListener("click", (e) => {
   if (rm) { e.stopPropagation(); const c = rm.dataset.rm; const prev = planned.get(c); flip(allNodes, () => { planned.delete(c); renderAll(); }, { duration: 260 }); if (selected) openDetail(selected, true); toast(`Removed ${c}`, "Undo", () => flip(allNodes, () => { planned.set(c, prev); renderAll(); })); return; }
   const t = e.target.closest("[data-toggle]");
   if (t) { const g = t.dataset.toggle; openState[g] = !openState[g]; renderGroups(); markSelected(); $(`[data-toggle="${g}"]`).focus(); return; }
-  const o = e.target.closest("[data-open]"); if (o) { e.preventDefault(); e.stopPropagation(); openDetail(o.dataset.open, e.detail === 0); return; }
+  const o = e.target.closest("[data-course]"); if (o) { e.preventDefault(); e.stopPropagation(); openDetail(o.dataset.course, e.detail === 0); return; }
   const r = e.target.closest(".row"); if (r) { openDetail(r.dataset.code, e.detail === 0); return; }
   const v = e.target.closest("[data-href]"); if (v) location.href = v.dataset.href;
   if (e.target.closest('[data-act="major"]')) openMajor();
@@ -381,9 +381,9 @@ function detailHTML(code) {
   ${S === "available" || S === "planned" || S === "check" ? `<section class="dsec" style="padding-top:4px"><div class="actions">${S === "available" ? `<button class="btn btn-primary" data-add="${code}" data-i="plus">Add to Spring 2027</button><span class="meta">Auto picks the section, or choose one below.</span>` : S === "planned" ? `<button class="btn btn-secondary" data-rm="${code}" data-i="minus">Remove from Spring 2027</button>` : `<button class="btn btn-secondary">I have approval</button>`}</div></section>` : ""}
   <section class="dsec"><h3>Path</h3>
     <div class="hpath">
-      ${needs.map((n) => `<div class="node${has(n) ? "" : " todo"}"><span class="dot">${has(n) ? icon("check") : ""}</span><button class="code" data-open="${n}">${n}</button><span class="meta">${has(n) ? gradeOf(n).replace(/^([A-F])$/, "Grade $1") : "Not yet"}</span></div>`).join("")}
+      ${needs.map((n) => `<div class="node${has(n) ? "" : " todo"}"><span class="dot">${has(n) ? icon("check") : ""}</span><button class="code" data-course="${n}">${n}</button><span class="meta">${has(n) ? gradeOf(n).replace(/^([A-F])$/, "Grade $1") : "Not yet"}</span></div>`).join("")}
       <div class="node this"><span class="dot"></span><span class="code">${code}</span><span class="meta">This course</span></div>
-      ${unlocks.slice(0, 2).map((n) => `<div class="node todo"><span class="dot"></span><button class="code" data-open="${n}">${n}</button><span class="meta">Unlocks</span></div>`).join("")}
+      ${unlocks.slice(0, 2).map((n) => `<div class="node todo"><span class="dot"></span><button class="code" data-course="${n}">${n}</button><span class="meta">Unlocks</span></div>`).join("")}
     </div>
     ${needs.length ? `<p class="rule">Catalog rule: <b>${needs.join(" and ")}, C or better</b>. ${needs.every(has) ? `<span class="ok">You meet it</span> with ${needs.map((n) => `${n} (${gradeOf(n)})`).join(" and ")}.` : "You don't meet it yet."}</p>` : '<p class="rule">No prerequisites.</p>'}
   </section>

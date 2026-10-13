@@ -83,7 +83,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .btn .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 1; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; } .btn-icon, .btn-icon.btn-sm { min-width: 44px; min-height: 44px; }
   .btn-sm::after, .chip::after, .seg > button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover { background: var(--brand-2); }
@@ -291,7 +291,7 @@ body { overflow-x: clip; }
   .chips5 span { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 7px; background: var(--ct); box-shadow: inset 3px 0 0 var(--c); font: 700 11px/1 var(--font-mark); }
   .gh { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 4px 2px; } .gh h3 { font-size: 15px; font-weight: 650; } .gh .meta { margin-left: 2px; } .gh .chev { margin-left: auto; color: var(--ink-3); transform: rotate(-90deg); display: grid; }
   .deg { display: flex; align-items: baseline; gap: 8px; margin: 10px 4px 0; font-size: 14px; font-weight: 650; } .deg .meta { margin-left: auto; font-weight: 400; }
-  .prefline { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 6px; color: var(--ink-2); font-size: 14px; text-align: left; }
+  .prefline { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 6px; color: var(--ink-2); font-size: 14px; text-align: left; }
   .prefline span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .verdict { display: flex; align-items: center; gap: 8px; padding: 2px 6px 6px; font-size: 13.5px; color: var(--attention); }
   .rows { margin-bottom: 14px; }
@@ -513,7 +513,8 @@ function modalClose(el) {
 /* Contextual panel (desktop). Opens on a selection and is empty otherwise. A pointer open slides
    24px in from the right and fades while the page moves aside (220ms, --ease-out); the × button
    reverses it in 150ms. Opening from the keyboard and closing with Esc are instant: they repeat
-   too often to animate. */
+   too often to animate. `trigger` may be a function, for pages that rebuild the control that opened
+   the panel; it is resolved when focus goes back, after onClose has re-rendered. */
 class Panel {
   constructor(el, { onClose } = {}) { this.el = el; this.onClose = onClose; this.trigger = null; el.inert = true; el.setAttribute("aria-hidden", "true"); }
   get isOpen() { return this.el.classList.contains("on"); }
@@ -535,8 +536,9 @@ class Panel {
     this.instantFrame(instant);
     document.body.classList.remove("panel-open");
     this.el.classList.remove("on"); this.el.inert = true; this.el.setAttribute("aria-hidden", "true");
-    if (hadFocus && this.trigger && document.contains(this.trigger)) this.trigger.focus({ preventScroll: true });
     this.onClose && this.onClose();
+    const back = typeof this.trigger === "function" ? this.trigger() : this.trigger;
+    if (hadFocus && back && document.contains(back)) back.focus({ preventScroll: true });
   }
 }
 
