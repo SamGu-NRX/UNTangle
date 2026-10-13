@@ -53,7 +53,7 @@ import type {
   PlannerState,
   SchedulePreferences,
   TranscriptCourseRecord,
-  WeekDay,
+  ClassDay,
 } from "@/lib/types";
 
 /** One cache of loaded sections for the page, shared by every view. */
@@ -196,7 +196,7 @@ type PlannerContextValue = {
    * count changed no longer applies.
    */
   planEpoch: number;
-  setActiveDay: (day: WeekDay) => void;
+  setActiveDay: (day: ClassDay) => void;
   setSelectedMajor: (id: MajorId | null) => void;
   resetPlanner: () => void;
   /** Save lifecycle for the durable working schedule (guest store or server). */
@@ -236,17 +236,6 @@ export function PlannerProvider({
   useEffect(() => {
     if (plannedKey) sectionStore.ensure(plannedKey.split("|"));
   }, [plannedKey, sectionStore]);
-  const sectionPlan = useMemo(
-    () => resolveSectionPlan(normalizedState, sectionStore.catalog),
-    // catalogVersion is how the catalog says it has more loaded.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [normalizedState, sectionStore, catalogVersion],
-  );
-  // Actions read the newest plan: a lock pins the section the page shows.
-  const sectionPlanRef = useRef(sectionPlan);
-  useEffect(() => {
-    sectionPlanRef.current = sectionPlan;
-  }, [sectionPlan]);
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<PlannerSaveState>(PENDING);
   // Fingerprint the last `saved` acknowledgement covered. `Saved` is only
@@ -261,6 +250,18 @@ export function PlannerProvider({
     defaultSchedulePreferences(getInitialPlannerState().optimization),
   );
   const [preferencesStorage, setPreferencesStorage] = useState<PreferencesStorage>("stored");
+  const { openSeatsOnly, otherSites } = schedulePreferences.constraints;
+  const sectionPlan = useMemo(
+    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }),
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites],
+  );
+  // Actions read the newest plan: a lock pins the section the page shows.
+  const sectionPlanRef = useRef(sectionPlan);
+  useEffect(() => {
+    sectionPlanRef.current = sectionPlan;
+  }, [sectionPlan]);
   // The identity whose preferences are loaded ("user:<id>" or "guest"); null before the first read.
   const [preferencesFor, setPreferencesFor] = useState<string | null>(null);
   const [planEpoch, setPlanEpoch] = useState(0);

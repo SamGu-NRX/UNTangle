@@ -86,9 +86,10 @@ export function laneLayout(events: readonly WeekEvent[]): Map<WeekEvent, { lane:
 }
 
 /**
- * The date range most of the week's classes share (the regular session).
- * Events that run on other dates show theirs, so an eight-week class reads
- * as one.
+ * The date range more of the week's classes share than any other (the
+ * regular session). Events that run on other dates show theirs, so an
+ * eight-week class reads as one; with no single most common range, every
+ * event shows its dates.
  */
 export function usualRange(events: readonly WeekEvent[]): string | null {
   const counts = new Map<string, number>();
@@ -96,7 +97,8 @@ export function usualRange(events: readonly WeekEvent[]): string | null {
     const label = rangeLabel(event.dates);
     if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
   }
-  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const [first, second] = [...counts].sort((a, b) => b[1] - a[1]);
+  return first && (!second || first[1] > second[1]) ? first[0] : null;
 }
 
 /** Hour range shown: one hour around the classes, never narrower than 8–5. */

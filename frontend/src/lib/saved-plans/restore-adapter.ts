@@ -15,7 +15,7 @@ import type {
   OptimizationKey,
   PlannerState,
   TranscriptCourseRecord,
-  WeekDay,
+  ClassDay,
 } from "@/lib/types";
 
 /**
@@ -40,7 +40,7 @@ export type RestorePlannerApi = {
   resetPlanner: () => void;
   setSelectedMajor: (id: MajorId | null) => void;
   setOptimization: (optimization: OptimizationKey) => void;
-  setActiveDay: (day: WeekDay) => void;
+  setActiveDay: (day: ClassDay) => void;
   applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
   setSection: (courseCode: string, sectionId: string) => void;

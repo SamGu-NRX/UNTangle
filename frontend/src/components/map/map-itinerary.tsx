@@ -10,29 +10,34 @@ import {
   type ItineraryLeg,
   type ItineraryStop,
 } from "@/lib/map-itinerary";
-import { weekDays, type WeekDay } from "@/lib/types";
+import type { ClassDay } from "@/lib/types";
 import { fromKeyboard, type MapSelection } from "@/components/map/selection";
 
-const dayNames: Record<WeekDay, string> = {
+const dayNames: Record<ClassDay, string> = {
   Mon: "Monday",
   Tue: "Tuesday",
   Wed: "Wednesday",
   Thu: "Thursday",
   Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
 };
 
 /* ---------- day switcher ---------- */
 
 export function DaySwitcher({
+  days,
   activeDay,
   counts,
   onChange,
 }: {
-  activeDay: WeekDay;
-  counts: Record<WeekDay, number>;
-  onChange: (day: WeekDay) => void;
+  /** Mon-Fri, plus a weekend day when the plan meets on it. */
+  days: readonly ClassDay[];
+  activeDay: ClassDay;
+  counts: Record<ClassDay, number>;
+  onChange: (day: ClassDay) => void;
 }) {
-  const refs = useRef<Partial<Record<WeekDay, HTMLButtonElement | null>>>({});
+  const refs = useRef<Partial<Record<ClassDay, HTMLButtonElement | null>>>({});
   const [pill, setPill] = useState<{ x: number; width: number } | null>(null);
   // The pill slides when a day is clicked and snaps for arrow keys and resizes.
   const [slide, setSlide] = useState(false);
@@ -49,13 +54,13 @@ export function DaySwitcher({
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [activeDay]);
+  }, [activeDay, days]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
     if (!step) return;
     event.preventDefault();
-    const next = weekDays[(weekDays.indexOf(activeDay) + step + weekDays.length) % weekDays.length];
+    const next = days[(days.indexOf(activeDay) + step + days.length) % days.length];
     setSlide(false);
     onChange(next);
     refs.current[next]?.focus();
@@ -71,7 +76,7 @@ export function DaySwitcher({
           style={{ width: pill.width, transform: `translateX(${pill.x}px)` }}
         />
       ) : null}
-      {weekDays.map((day) => {
+      {days.map((day) => {
         const active = day === activeDay;
         return (
           <button
@@ -115,7 +120,7 @@ export function DaySummary({
   itinerary,
   source,
 }: {
-  day: WeekDay;
+  day: ClassDay;
   itinerary: Itinerary;
   /** Where the day's sections come from ("Real · Oct 4", "Sample"); null before any loads. */
   source: { text: string; title: string } | null;
@@ -362,7 +367,7 @@ export function Timeline({
   );
 }
 
-export function EmptyDay({ day, firstDayWithClasses, onPickDay }: { day: WeekDay; firstDayWithClasses: WeekDay | undefined; onPickDay: (day: WeekDay) => void }) {
+export function EmptyDay({ day, firstDayWithClasses, onPickDay }: { day: ClassDay; firstDayWithClasses: ClassDay | undefined; onPickDay: (day: ClassDay) => void }) {
   return (
     <div className="mv-empty">
       {firstDayWithClasses ? (

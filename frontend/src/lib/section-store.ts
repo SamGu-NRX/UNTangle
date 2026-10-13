@@ -3,7 +3,8 @@
  * however many views ask for it, and kept for the life of the page. A request
  * that fails (UNTangle's own route unreachable, say) falls back to the
  * labeled samples, so nothing throws into the page; a later ask for that
- * course tries again once `retryMs` has passed.
+ * course tries again once `retryMs` has passed. Cancelled options are
+ * dropped here, so no view offers one and a saved pick of one needs review.
  */
 import { sampleCatalog, type CourseOptions, type SectionCatalog } from "@/lib/planner-sections";
 import { getCourseSections, type CourseSections } from "@/lib/sections";
@@ -32,7 +33,8 @@ export function createSectionStore(term: string, load: Load = getCourseSections,
   let version = 0;
 
   const settle = (courseCode: string, result: CourseSections) => {
-    loaded.set(courseCode, { status: "ready", result });
+    const offered = result.sections.filter((section) => section.status !== "cancelled");
+    loaded.set(courseCode, { status: "ready", result: { ...result, sections: offered } });
     inFlight.delete(courseCode);
     version += 1;
     listeners.forEach((listener) => listener());

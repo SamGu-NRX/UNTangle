@@ -12,19 +12,23 @@ import {
 } from "@/lib/campus-locations";
 import {
   classNumbersOf,
+  hasOpenSeats,
+  isCandidate,
+  otherSiteOf,
   optionLabel,
   sampleCatalog,
   sampleOption,
   scheduleEventsOf,
   sectionRef,
   toOptSection,
+  type CandidateFilter,
   type SectionCatalog,
 } from "@/lib/planner-sections";
 import type { CourseSections, Section } from "@/lib/sections";
 import {
   isValidCourseStatus,
   isValidOptimization,
-  isValidWeekDay,
+  isValidClassDay,
   sanitizeCoursePlan,
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
@@ -35,7 +39,8 @@ import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import type { OptCourse, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
 import {
-  weekDays,
+  classDays,
+  type ClassDay,
   type CoursePlan,
   type Course,
   type CourseStatus,
@@ -95,16 +100,27 @@ export function getActiveCourseCodes(state: PlannerState) {
   return getPlanningTermCourseCodes(state);
 }
 
+/** Main campus only, closed sections allowed: what the optimizer suggests until the student widens it. */
+export const DEFAULT_CANDIDATE_FILTER: CandidateFilter = { openSeatsOnly: false, otherSites: false };
+
 /**
- * Each course's options that have a set time, in the optimizer's shape.
- * Courses still loading, and courses with no timed option, are left out.
+ * Each course's options that have a set time and pass `filter`, in the
+ * optimizer's shape. Courses still loading, and courses with no such option,
+ * are left out.
  */
-export function toOptimizerCourses(courseCodes: readonly string[], catalog: SectionCatalog = sampleCatalog): OptCourse[] {
+export function toOptimizerCourses(
+  courseCodes: readonly string[],
+  catalog: SectionCatalog = sampleCatalog,
+  filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
+): OptCourse[] {
   return [...new Set(courseCodes)].flatMap((code) => {
     const course = getCourseByCode(code);
     const options = catalog(code);
     if (!course || options.status !== "ready") return [];
-    const sections = options.result.sections.map(toOptSection).filter((section): section is OptSection => section !== null);
+    const sections = options.result.sections
+      .filter((section) => isCandidate(section, filter))
+      .map(toOptSection)
+      .filter((section): section is OptSection => section !== null);
     if (sections.length === 0) return [];
     return [{ code, credits: Number.isFinite(course.creditHours) && course.creditHours >= 0 ? course.creditHours : 0, sections }];
   });
@@ -135,8 +151,9 @@ export function recommendSections(
   catalog: SectionCatalog = sampleCatalog,
   // Campus walkway times, the same provider Optimize uses (straight line where no path is mapped).
   walkingTime: WalkingTimeFn = getWalkingSeconds,
+  filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
 ) {
-  const optimizerCourses = toOptimizerCourses(courseCodes, catalog).filter(
+  const optimizerCourses = toOptimizerCourses(courseCodes, catalog, filter).filter(
     (course) => !(course.code in fixedSelections) || course.sections.some((section) => section.id === fixedSelections[course.code]),
   );
   const locks = Object.fromEntries(
@@ -222,6 +239,7 @@ function placeSavedPick(code: string, result: CourseSections, savedId: string): 
 export function resolveSectionPlan(
   state: PlannerState,
   catalog: SectionCatalog = sampleCatalog,
+  filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
   walkingTime: WalkingTimeFn = getWalkingSeconds,
 ): SectionPlan {
   const placed = getPlanningTermCourseCodes(state).map((code): PlannedCourse => {
@@ -239,13 +257,14 @@ export function resolveSectionPlan(
   const open = placed.filter((course) => course.state === "choose");
   const recommended =
     open.length > 0
-      ? recommendSections(state.optimization, [...Object.keys(chosen), ...open.map((course) => course.code)], chosen, catalog, walkingTime)
+      ? recommendSections(state.optimization, [...Object.keys(chosen), ...open.map((course) => course.code)], chosen, catalog, walkingTime, filter)
       : {};
   const courses = placed.map((course): PlannedCourse => {
     if (course.state !== "choose") return course;
     const options = course.result!.sections;
-    // With nothing to place on the week, a lone option is still the only choice.
-    const section = options.find((option) => option.id === recommended[course.code]) ?? (options.length === 1 ? options[0] : null);
+    // With nothing to place on the week, a lone suggestible option is still the only choice.
+    const lone = options.length === 1 && isCandidate(options[0], filter) ? options[0] : null;
+    const section = options.find((option) => option.id === recommended[course.code]) ?? lone;
     return section ? { ...course, state: "recommended", section } : course;
   });
 
@@ -266,6 +285,8 @@ export const DEFAULT_SCHEDULE_CONSTRAINTS: ScheduleConstraints = {
   // On by default: a schedule whose walk does not fit the break is not a schedule.
   walkingBufferMinutes: 0,
   excludedSections: [],
+  openSeatsOnly: false,
+  otherSites: false,
 };
 
 export function defaultSchedulePreferences(goal: OptimizationKey): SchedulePreferences {
@@ -298,6 +319,8 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
   if (!(c.maxCredits === null || (typeof c.maxCredits === "number" && c.maxCredits >= 0 && c.maxCredits <= 40))) return null;
   if (!(c.walkingBufferMinutes === null || (isMinute(c.walkingBufferMinutes) && c.walkingBufferMinutes <= 120))) return null;
   if (!Array.isArray(c.excludedSections) || !c.excludedSections.every((id) => typeof id === "string")) return null;
+  // Preferences stored before these switches existed have neither; absent means off.
+  if (![c.openSeatsOnly, c.otherSites].every((flag) => flag === undefined || typeof flag === "boolean")) return null;
   if (
     !Array.isArray(c.blocked) ||
     !c.blocked.every(
@@ -325,6 +348,8 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
       maxCredits: c.maxCredits as number | null,
       walkingBufferMinutes: c.walkingBufferMinutes as number | null,
       excludedSections: [...new Set(c.excludedSections as string[])],
+      openSeatsOnly: c.openSeatsOnly === true,
+      otherSites: c.otherSites === true,
     },
     weights: Object.fromEntries(weightKeys.map((key) => [key, w[key]])) as SchedulePreferences["weights"],
   };
@@ -348,8 +373,9 @@ export function buildOptimizeRequest(
   } = {},
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
-  // A picked option with no set time (online, say) stays as picked: the
-  // optimizer could only replace it, and a lock on it would not hold.
+  // A picked option the optimizer cannot offer (no set time, or at another
+  // site) stays as picked: the optimizer could only replace it, and a lock
+  // on it would not hold.
   const untimedPick = (course: OptCourse) => {
     const pick = state.selectedSections[course.code];
     const loaded = catalog(course.code);
@@ -359,7 +385,7 @@ export function buildOptimizeRequest(
       !course.sections.some((section) => section.id === pick)
     );
   };
-  const optimizerCourses = toOptimizerCourses(options.courseCodes ?? getPlanningTermCourseCodes(state), catalog).filter(
+  const optimizerCourses = toOptimizerCourses(options.courseCodes ?? getPlanningTermCourseCodes(state), catalog, preferences.constraints).filter(
     (course) => !untimedPick(course),
   );
   const offered = new Set(optimizerCourses.flatMap((course) => course.sections.map((section) => section.id)));
@@ -391,7 +417,7 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
   const optimization = isValidOptimization(state.optimization)
     ? state.optimization
     : defaultPlannerState.optimization;
-  const activeDay = isValidWeekDay(state.activeDay) ? state.activeDay : defaultPlannerState.activeDay;
+  const activeDay = isValidClassDay(state.activeDay) ? state.activeDay : defaultPlannerState.activeDay;
   const userCourseStatuses: Record<string, CourseStatus> = {};
   Object.entries(state.courseStatuses ?? {}).forEach(([courseCode, status]) => {
     if (isValidCourseStatus(status) && catalogCourseCodes.has(courseCode)) {
@@ -503,6 +529,24 @@ export function getLockedSelections(state: PlannerState): Record<string, string>
 }
 
 /**
+ * Options of planned courses the optimizer will not suggest under `filter`,
+ * counted by why: each other site ("Frisco": 2), and full sections. A
+ * section at another site that is also full counts as the site.
+ */
+export function hiddenOptions(plan: SectionPlan, filter: CandidateFilter): { sites: Map<string, number>; full: number } {
+  const sites = new Map<string, number>();
+  let full = 0;
+  for (const course of plan.courses) {
+    for (const section of course.result?.sections ?? []) {
+      const site = otherSiteOf(section);
+      if (site && !filter.otherSites) sites.set(site, (sites.get(site) ?? 0) + 1);
+      else if (filter.openSeatsOnly && !hasOpenSeats(section)) full += 1;
+    }
+  }
+  return { sites, full };
+}
+
+/**
  * What a student types into myUNT: each real option's class numbers, every
  * component, one course per line. Courses without a real option on the plan
  * (a sample, a pick needing review, still loading) are listed in `missing`.
@@ -533,7 +577,7 @@ export function buildScheduleEvents(plan: SectionPlan): ScheduleEvent[] {
  * catalogue building stays unplaced: its text is never looked up, because a
  * fuzzy match would invent a building.
  */
-export function buildStopsForDay(events: readonly ScheduleEvent[], day: WeekDay): MapStop[] {
+export function buildStopsForDay(events: readonly ScheduleEvent[], day: ClassDay): MapStop[] {
   return events
     .filter((event) => event.day === day)
     .sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
@@ -571,8 +615,8 @@ export function buildStopsForDay(events: readonly ScheduleEvent[], day: WeekDay)
     });
 }
 
-export function routeStopsOf(events: readonly ScheduleEvent[]): Record<WeekDay, MapStop[]> {
-  return Object.fromEntries(weekDays.map((day) => [day, buildStopsForDay(events, day)])) as Record<WeekDay, MapStop[]>;
+export function routeStopsOf(events: readonly ScheduleEvent[]): Record<ClassDay, MapStop[]> {
+  return Object.fromEntries(classDays.map((day) => [day, buildStopsForDay(events, day)])) as Record<ClassDay, MapStop[]>;
 }
 
 /**

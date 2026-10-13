@@ -17,8 +17,8 @@ import {
 } from "@/lib/prereq";
 import { gradeHistorySources, type GradeHistorySource } from "@/lib/course-history";
 import { planningTerm } from "@/lib/planner-sections";
-import { courses as seedCourses, sections as seedSections } from "@/lib/seed-data";
-import type { CourseSection, TranscriptCourseRecord } from "@/lib/types";
+import { courses as seedCourses } from "@/lib/seed-data";
+import type { TranscriptCourseRecord } from "@/lib/types";
 
 export type CatalogEntry = {
   id: string;
@@ -44,7 +44,6 @@ export type SchoolProfile = {
   planningTerm: string;
   /** Credit budget Auto fills for the planning term. */
   autoCreditBudget: number;
-  sections(id: string): CourseSection[];
   linkOuts(instructor: InstructorRef, courseId: string): LinkOut[];
   gradeHistory: GradeHistorySource;
   /** "CSCE 1030" -> ["CSCE", "1030"] for URLs and grade lookups. */
@@ -95,11 +94,6 @@ export function untProfile(): SchoolProfile {
       dependents.set(id, [...(dependents.get(id) ?? []), course.id]);
     }
   }
-  const sectionsByCourse = new Map<string, CourseSection[]>();
-  for (const section of seedSections) {
-    sectionsByCourse.set(section.courseCode, [...(sectionsByCourse.get(section.courseCode) ?? []), section]);
-  }
-
   cached = {
     catalog,
     entries,
@@ -113,7 +107,6 @@ export function untProfile(): SchoolProfile {
     // A full-time UNT undergraduate load is 12+ hours; 15 is the common
     // four-year pace. Not a degree-plan rule; change it with the school config.
     autoCreditBudget: 15,
-    sections: (id) => sectionsByCourse.get(id) ?? [],
     linkOuts: untLinkOuts,
     gradeHistory: gradeHistorySources.untgrades,
     splitId: (id) => {

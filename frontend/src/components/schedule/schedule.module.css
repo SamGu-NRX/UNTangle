@@ -502,7 +502,7 @@ ul.notice.statusList {
 }
 .dayHead,
 .grid {
-  min-width: calc(48px + var(--days, 5) * 64px);
+  min-width: calc(48px + var(--days, 5) * var(--lanes, 1) * 64px);
 }
 .dayHead {
   display: grid;
@@ -653,6 +653,7 @@ ul.notice.statusList {
 .eventStart {
   display: none;
 }
+
 @media (max-width: 760px) {
   .eventStart {
     display: block;
@@ -671,7 +672,7 @@ ul.notice.statusList {
   .dayHead,
   .grid {
     grid-template-columns: 32px repeat(var(--days, 5), minmax(0, 1fr));
-    min-width: calc(32px + var(--days, 5) * 56px);
+    min-width: calc(32px + var(--days, 5) * var(--lanes, 1) * 56px);
   }
   .halfLine {
     left: 32px;
@@ -691,6 +692,7 @@ ul.notice.statusList {
     font-size: 9.5px;
     line-height: 12px;
   }
+
   .eventMeta {
     font-size: 9px;
     line-height: 11px;

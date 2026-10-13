@@ -306,7 +306,9 @@ export function buildItinerary(
   const labels = stops.map((stop) => rangeLabel(stop.dates));
   const counts = new Map<string, number>();
   labels.forEach((label) => label && counts.set(label, (counts.get(label) ?? 0) + 1));
-  const usual = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  // The day's most common range, when one range is; otherwise every stop shows its dates.
+  const [first, second] = [...counts].sort((a, b) => b[1] - a[1]);
+  const usual = first && (!second || first[1] > second[1]) ? first[0] : null;
   const entries: ItineraryStop[] = stops.map((stop, index) => ({
     key: stopKey(stop, index),
     number: index + 1,

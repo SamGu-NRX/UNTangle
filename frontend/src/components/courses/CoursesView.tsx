@@ -76,6 +76,7 @@ export function CoursesView({
     plannerState,
     sectionPlan,
     sectionCatalog,
+    catalogVersion,
     loadSections,
     setSelectedMajor,
     applyTranscriptRecords,
@@ -128,7 +129,19 @@ export function CoursesView({
   const coreCovered = coreIds.filter((id) => model.rows.get(id)?.status === "covered").length;
 
   const searchCourses = useMemo(() => [...model.rows.values()].map((row) => ({ id: row.id, title: row.title })), [model]);
-  const instructors = useMemo(() => instructorIndex(profile.catalog.flatMap((course) => profile.sections(course.id))), [profile]);
+  // Instructors of every course whose options have loaded: real ones, or the samples a fallback course shows.
+  const instructors = useMemo(
+    () =>
+      instructorIndex(
+        profile.catalog.flatMap((course) => {
+          const options = sectionCatalog(course.id);
+          return options.status === "ready" ? options.result.sections : [];
+        }),
+      ),
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, sectionCatalog, catalogVersion],
+  );
 
   const untouched =
     !model.hasTranscript && Object.values(plannerState.courseStatuses).every((status) => status === "notTaken");

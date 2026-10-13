@@ -73,7 +73,12 @@ export function WeekGrid({
   };
 
   return (
-    <section className={styles.gridWrap} aria-label={label} style={{ ["--days" as string]: days.length }}>
+    <section
+      className={styles.gridWrap}
+      aria-label={label}
+      // --lanes widens the day columns so each lane still fits a course code; on a phone the week then scrolls sideways.
+      style={{ ["--days" as string]: days.length, ["--lanes" as string]: Math.max(1, ...[...lanes.values()].map((place) => place.lanes)) }}
+    >
       <div className={styles.dayHead} aria-hidden="true">
         <div />
         {days.map((day) => (

@@ -16,13 +16,19 @@ import {
   buildStopsForDay,
   defaultSchedulePreferences,
   getInitialPlannerState,
+  hiddenOptions,
   myUntClassNumbers,
   normalizePlannerState,
+  parseSchedulePreferences,
   resolveSectionPlan,
+  routeStopsOf,
   toOptimizerCourses,
 } from "@/lib/planner";
 import {
+  hasOpenSeats,
+  isCandidate,
   meetingsConflict,
+  otherSiteOf,
   optionsConflict,
   scheduleEventsOf,
   sectionRef,
@@ -38,7 +44,7 @@ import { courseAs, fixtureCatalog, fixtureInput, optionsOf, renumber, setDates }
 const FIRST_HALF = "01/11/2027 - 03/05/2027";
 const SECOND_HALF = "03/15/2027 - 05/07/2027";
 
-function plan(codes: string[], selectedSections: Record<string, string> = {}): PlannerState {
+function plan_(codes: string[], selectedSections: Record<string, string> = {}): PlannerState {
   const base = getInitialPlannerState();
   return normalizePlannerState({
     ...base,
@@ -117,13 +123,13 @@ describe("the optimizer adapter", () => {
     const input = fixtureInput();
     courseAs(input, "ACCT 5120", "SPAN 2040");
     const catalog = fixtureCatalog(input);
-    const state = plan(["SPAN 2040", "MATH 1680"]);
+    const state = plan_(["SPAN 2040", "MATH 1680"]);
     expect(toOptimizerCourses(["SPAN 2040"], catalog)).toEqual([]);
     const course = resolveSectionPlan(state, catalog).courses.find((entry) => entry.code === "SPAN 2040")!;
     expect(course.state).toBe("recommended");
     expect(course.section?.async).toBe(true);
     // Picked, it stays as picked when the week is optimized.
-    const picked = plan(["SPAN 2040", "MATH 1680"], { "SPAN 2040": course.section!.id });
+    const picked = plan_(["SPAN 2040", "MATH 1680"], { "SPAN 2040": course.section!.id });
     const request = buildOptimizeRequest(picked, defaultSchedulePreferences("compact"), { catalog });
     expect(request.courses.map((entry) => entry.code)).toEqual(["MATH 1680"]);
   });
@@ -173,7 +179,7 @@ describe("the optimizer adapter", () => {
 describe("the eight-week pair on the week and the map", () => {
   test("walking and map legs skip classes that meet in different weeks", () => {
     const catalog = eightWeekPair();
-    const state = plan(["SPAN 2040", "SPAN 2050"]);
+    const state = plan_(["SPAN 2040", "SPAN 2050"]);
     const events = buildScheduleEvents(resolveSectionPlan(state, catalog));
     const tuesday = buildStopsForDay(events, "Tue");
     expect(tuesday.map((stop) => [stop.courseCode, stop.dates?.start])).toEqual([
@@ -187,7 +193,7 @@ describe("the eight-week pair on the week and the map", () => {
 
   test("the calendar file runs each half over its own dates, with no typed term", () => {
     const catalog = eightWeekPair();
-    const events = buildScheduleEvents(resolveSectionPlan(plan(["SPAN 2040", "SPAN 2050"]), catalog));
+    const events = buildScheduleEvents(resolveSectionPlan(plan_(["SPAN 2040", "SPAN 2050"]), catalog));
     expect(needsTermDates(events)).toBe(false);
     const ics = buildPlanIcs(events, null, new Date("2026-10-13T00:00:00Z")).ics;
     expect(ics).toContain("DTSTART:20270112T093500"); // first Tuesday of the first half
@@ -204,7 +210,7 @@ describe("Copy class numbers for myUNT", () => {
     courseAs(input, "ACCT 5120", "SPAN 2040");
     const catalog = fixtureCatalog(input);
     // MATH 1680 and SPAN 2040 are real; MATH 1710 is not in the file, so it falls back to samples.
-    const state = plan(["MATH 1680", "SPAN 2040", "MATH 1710"]);
+    const state = plan_(["MATH 1680", "SPAN 2040", "MATH 1710"]);
     const list = myUntClassNumbers(resolveSectionPlan(state, catalog));
     expect(list.text.split("\n")).toEqual(["MATH 1680 §110 + 111: 6862, 6863", "SPAN 2040 §400: 1002"]);
     expect(list.count).toBe(3);
@@ -248,5 +254,86 @@ describe("week lanes", () => {
     // A real conflict (same weeks) is not split into lanes: it stays flagged on top of each other.
     const clash = event(540, 600, "2027-01-11", "2027-05-07");
     expect(laneLayout([a, clash]).get(clash)).toEqual({ lane: 0, lanes: 1 });
+  });
+});
+
+describe("which options the optimizer suggests", () => {
+  const filter = (over: Partial<{ openSeatsOnly: boolean; otherSites: boolean }> = {}) => ({ openSeatsOnly: false, otherSites: false, ...over });
+
+  /** MATH 1680 on main campus, plus SPAN 2040 with one Frisco option (DBAS 6003's row) and one at Discovery Park. */
+  function sites() {
+    const input = fixtureInput();
+    courseAs(input, "MATH 1680", "SPAN 2040", (row) => {
+      row.linked_sections[0].room = "NTDP F223";
+      row.meetings.filter((m) => m.class_number === "6862").forEach((m) => (m.room = "NTDP F223"));
+    });
+    const frisco = structuredClone(input.courses["DBAS 6003"].sections[0]);
+    (input.courses as Record<string, { sections: unknown[] }>)["SPAN 2040"].sections.push(frisco);
+    return fixtureCatalog(input);
+  }
+
+  test("sections off Denton's main campus are not suggested by default, are counted, and come back on request", () => {
+    const catalog = sites();
+    const [park, frisco] = optionsOf(catalog, "SPAN 2040");
+    expect([otherSiteOf(park), otherSiteOf(frisco), otherSiteOf(optionsOf(catalog, "MATH 1680")[0])]).toEqual(["Discovery Park", "Frisco", null]);
+    // Online and unassigned rooms do not move an option off campus.
+    expect(otherSiteOf(optionsOf(catalog, "ACCT 5120")[0])).toBeNull();
+    expect(otherSiteOf(optionsOf(catalog, "ART 5450")[0])).toBeNull();
+
+    expect(toOptimizerCourses(["SPAN 2040"], catalog)).toEqual([]);
+    expect(toOptimizerCourses(["SPAN 2040"], catalog, filter({ otherSites: true }))[0].sections).toHaveLength(2);
+
+    const plan = resolveSectionPlan(plan_(["SPAN 2040", "MATH 1680"]), catalog);
+    expect(plan.courses.find((course) => course.code === "SPAN 2040")?.state).toBe("choose");
+    expect(hiddenOptions(plan, filter())).toEqual({ sites: new Map([["Discovery Park", 1], ["Frisco", 1]]), full: 0 });
+    // (Alone: the Discovery Park option shares MATH 1680's slot.)
+    const wide = resolveSectionPlan(plan_(["SPAN 2040"]), catalog, filter({ otherSites: true }));
+    expect(wide.courses.find((course) => course.code === "SPAN 2040")?.state).toBe("recommended");
+    // A pick made by hand at another site stays: Optimize leaves the course alone.
+    const picked = plan_(["SPAN 2040", "MATH 1680"], { "SPAN 2040": park.id });
+    expect(buildOptimizeRequest(picked, defaultSchedulePreferences("compact"), { catalog }).courses.map((c) => c.code)).toEqual(["MATH 1680"]);
+  });
+
+  test("Open seats only leaves out closed, wait-listed and full-component options", () => {
+    const catalog = fixtureCatalog();
+    const closed = optionsOf(catalog, "ADES 5510")[0];
+    const waitlist = optionsOf(catalog, "ART 5450")[0];
+    const [math] = optionsOf(catalog, "MATH 1680");
+    const fullLab = { ...math, components: [math.components[0], { ...math.components[1], seats: { open: 0, total: 33 } }] };
+    expect([closed, waitlist, math, fullLab].map(hasOpenSeats)).toEqual([false, false, true, false]);
+    expect(isCandidate(closed, filter())).toBe(true);
+    expect(isCandidate(closed, filter({ openSeatsOnly: true }))).toBe(false);
+  });
+
+  test("stored preferences from before these switches load with both off", () => {
+    const stored = defaultSchedulePreferences("compact");
+    const older: Record<string, unknown> = { ...stored.constraints };
+    delete older.openSeatsOnly;
+    delete older.otherSites;
+    expect(parseSchedulePreferences({ ...stored, constraints: older })?.constraints).toMatchObject({ openSeatsOnly: false, otherSites: false });
+    expect(parseSchedulePreferences({ ...stored, constraints: { ...older, otherSites: "yes" } })).toBeNull();
+  });
+});
+
+describe("weekend days on the map", () => {
+  test("Saturday classes get map stops, and a Saturday map day is a valid plan state", () => {
+    const [weekend] = optionsOf(fixtureCatalog(), "DBAS 6003");
+    const stops = routeStopsOf(scheduleEventsOf(weekend));
+    expect(stops.Sat.length).toBeGreaterThan(0);
+    expect(stops.Mon).toEqual([]);
+    expect(normalizePlannerState({ ...getInitialPlannerState(), activeDay: "Sat" }).activeDay).toBe("Sat");
+    expect(normalizePlannerState({ ...getInitialPlannerState(), activeDay: "Caturday" as never }).activeDay).toBe("Mon");
+  });
+});
+
+describe("date labels on the week", () => {
+  test("only classes off the most common range show dates; with no most common range, all do", async () => {
+    const { usualRange } = await import("@/components/schedule/week-model");
+    const at = (start: string, end: string) => ({ courseCode: "X", sectionId: "x", day: "Tue" as const, start: 0, end: 1, room: "", professor: "", dates: { start, end, raw: "" } });
+    const full = at("2027-01-11", "2027-05-07");
+    const first = at("2027-01-11", "2027-03-05");
+    const second = at("2027-03-15", "2027-05-07");
+    expect(usualRange([full, full, first])).toBe("Jan 11 – May 7");
+    expect(usualRange([first, second])).toBeNull();
   });
 });

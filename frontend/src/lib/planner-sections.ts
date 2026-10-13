@@ -127,6 +127,43 @@ export function optionsConflict(a: Pick<Section, "meetings">, b: Pick<Section, "
   return a.meetings.some((m) => b.meetings.some((n) => meetingsConflict(m, n)));
 }
 
+/** Which options the optimizer may suggest; the student can still pick any option by hand. */
+export type CandidateFilter = { openSeatsOnly: boolean; otherSites: boolean };
+
+/**
+ * Sites of rooms the campus catalogue does not map. Frisco's codes are the
+ * only unmapped codes in the planner's Spring 2027 courses (FRLD and FRISCO,
+ * checked against vsb's file on 2026-10-13); anything else unmapped is an
+ * unknown site.
+ */
+const unmappedSites: Record<string, string> = { FRLD: "Frisco", FRISCO: "Frisco" };
+
+/**
+ * Where an option meets when that is not Denton's main campus: "Frisco",
+ * "Discovery Park", "another UNT site". Null for main-campus options;
+ * online meetings and unassigned rooms do not move an option off campus.
+ * Synthetic samples have no real site, so they are never off campus.
+ */
+export function otherSiteOf(section: Section): string | null {
+  if (section.term === null) return null;
+  for (const meeting of section.meetings) {
+    if (meeting.kind === "building" && meeting.offCampus) return meeting.buildingName;
+    if (meeting.kind === "unknown") return unmappedSites[meeting.buildingCode ?? ""] ?? "another UNT site";
+  }
+  return null;
+}
+
+/** Open per INTEGRATION.md: not closed or wait-listed, and every component with known seats has one open. */
+export function hasOpenSeats(section: Section): boolean {
+  if (section.status === "closed" || section.status === "waitlist" || section.status === "cancelled") return false;
+  return section.components.every((component) => component.seats.open === null || component.seats.open > 0);
+}
+
+/** Whether the optimizer may suggest this option. */
+export function isCandidate(section: Section, filter: CandidateFilter): boolean {
+  return (filter.otherSites || otherSiteOf(section) === null) && (!filter.openSeatsOnly || hasOpenSeats(section));
+}
+
 // Only the synthetic samples carry instructor ratings; real options have none.
 const sampleRatings = new Map(seedSections.map((section) => [section.id, section.rating] as const));
 

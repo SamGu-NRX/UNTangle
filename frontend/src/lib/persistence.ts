@@ -67,6 +67,8 @@ export async function savePlannerState(
     transcriptRecords: payload.transcriptRecords,
     lockedSections: payload.lockedSections ?? {},
     coursePlan: payload.coursePlan ?? null,
+    // Nothing reads this column back: the client builds its own stops from the sections it loads.
+    // The server has none loaded, so these cover synthetic sample picks only.
     routeStops: payload.routeStops,
     updatedAt: new Date(payload.updatedAt),
   };

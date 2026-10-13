@@ -118,7 +118,7 @@ export type MapStop = {
    */
   unmappedRoom?: true;
   geocodeQuery: string;
-  day: WeekDay;
+  day: ClassDay;
   start: string;
   end: string;
   /** Inclusive ISO dates the class runs; absent or null when unknown (samples have no term). */
@@ -237,7 +237,8 @@ export type PlannerState = {
   courseStatuses: Record<string, CourseStatus>;
   selectedSections: Record<string, string>;
   optimization: OptimizationKey;
-  activeDay: WeekDay;
+  /** The map's day; a weekend day when the plan meets then. */
+  activeDay: ClassDay;
   selectedMajor: MajorId | null;
   transcriptRecords: TranscriptCourseRecord[];
   updatedAt: string;
@@ -276,6 +277,10 @@ export type ScheduleConstraints = {
   walkingBufferMinutes: number | null;
   /** Sections the student never wants. */
   excludedSections: string[];
+  /** Suggest only options whose every component with known seats has one open (closed and wait-listed ones stay pickable). */
+  openSeatsOnly: boolean;
+  /** Suggest options at Frisco, Discovery Park and other sites off Denton's main campus too. */
+  otherSites: boolean;
 };
 
 /** Preference weights, each 0..4. The five goals are presets of these. */
@@ -294,5 +299,5 @@ export type SchedulePreferences = {
 };
 
 export type PlannerApiPayload = PlannerState & {
-  routeStops: Record<WeekDay, MapStop[]>;
+  routeStops: Record<ClassDay, MapStop[]>;
 };

@@ -41,11 +41,13 @@ import {
   buildOptimizeRequest,
   getPlanningTermCourseCodes,
   getCourseByCode,
+  hiddenOptions,
   summarizeCredits,
   type PlannedCourse,
 } from "@/lib/planner";
 import {
   findOption,
+  isCandidate,
   isTimed,
   optionIdLabel,
   optionLabel,
@@ -157,6 +159,12 @@ export function ScheduleClient() {
     course.section ? untimedMeetings(course.section).map((meeting) => ({ course: course.code, section: course.section!, meeting })) : [],
   );
   const showsSample = selectedSections.some((section) => section.term === null);
+  const filter = schedulePreferences.constraints;
+  const hidden = hiddenOptions(sectionPlan, filter);
+  const hiddenNote = [
+    ...[...hidden.sites].map(([site, count]) => `${count} ${site} section${count === 1 ? "" : "s"}`),
+    hidden.full > 0 ? `${hidden.full} full section${hidden.full === 1 ? "" : "s"}` : null,
+  ].filter(Boolean);
   const provenance = summarizeProvenance(
     sectionPlan.courses.flatMap((course) => (course.result ? [course.result] : [])),
     showsSample,
@@ -551,9 +559,11 @@ export function ScheduleClient() {
                     ? `${course.code} isn't offered in ${planningTerm.label}.`
                     : course.state === "no-data"
                       ? `No sections for ${course.code}.`
-                      : course.result?.sections.some((section) => section.meetings.some(isTimed))
-                        ? `No section of ${course.code} fits around your other classes.`
-                        : `${course.code} has no section with a set time.`}
+                      : !course.result?.sections.some((section) => section.meetings.some(isTimed))
+                        ? `${course.code} has no section with a set time.`
+                        : course.result.sections.some((section) => section.meetings.some(isTimed) && isCandidate(section, filter))
+                          ? `No section of ${course.code} fits around your other classes.`
+                          : `Every section of ${course.code} with a set time is hidden from suggestions.`}
                   {course.state === "choose" ? (
                     <>
                       {" "}
@@ -565,6 +575,16 @@ export function ScheduleClient() {
                 </li>
               ))}
             </ul>
+          ) : null}
+          {hiddenNote.length > 0 ? (
+            <p className={styles.meta}>
+              Hidden from suggestions: {hiddenNote.join(", ")}. You can still pick them.{" "}
+              {hidden.sites.size > 0 ? (
+                <Button variant="link" size="sm" onClick={() => setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, otherSites: true } }))}>
+                  Include other UNT sites
+                </Button>
+              ) : null}
+            </p>
           ) : null}
           {pickProblem ? (
             <p className={styles.notice} role="alert">

@@ -19,7 +19,7 @@ import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { CameraInsets } from "@/components/map/map-canvas";
 import type { MapSelection } from "@/components/map/selection";
 import { useItinerary } from "@/components/map/use-itinerary";
-import { weekDays, type WeekDay } from "@/lib/types";
+import { classDays, weekDays, type ClassDay } from "@/lib/types";
 import "@/components/map/map.css";
 
 const MapCanvas = dynamic(() => import("@/components/map/map-canvas").then((module) => module.MapCanvas), {
@@ -87,10 +87,11 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   const rows = useRef(new Map<string, HTMLElement>());
 
   const counts = useMemo(
-    () => Object.fromEntries(weekDays.map((day) => [day, (campus.id === activeCampus.id ? routeStops[day] ?? [] : []).length])) as Record<WeekDay, number>,
+    () => Object.fromEntries(classDays.map((day) => [day, (campus.id === activeCampus.id ? routeStops[day] ?? [] : []).length])) as Record<ClassDay, number>,
     [routeStops, campus.id],
   );
-  const firstDayWithClasses = weekDays.find((day) => counts[day] > 0);
+  const days = classDays.filter((day) => (weekDays as readonly ClassDay[]).includes(day) || counts[day] > 0 || day === activeDay);
+  const firstDayWithClasses = days.find((day) => counts[day] > 0);
 
   // Open on a day that has classes, unless the student picked one. While
   // sections load, an empty day may only be empty for now.
@@ -102,7 +103,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   }, [activeDay, counts, firstDayWithClasses, hydrated, sectionsLoading, setActiveDay]);
 
   const changeDay = useCallback(
-    (day: WeekDay) => {
+    (day: ClassDay) => {
       pickedDay.current = true;
       setSelection(null);
       setActiveDay(day);
@@ -159,7 +160,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
 
   const header = (
     <div className="mv-panel__header">
-      <DaySwitcher activeDay={activeDay} counts={counts} onChange={changeDay} />
+      <DaySwitcher days={days} activeDay={activeDay} counts={counts} onChange={changeDay} />
       <DaySummary day={activeDay} itinerary={itinerary} source={source} />
     </div>
   );

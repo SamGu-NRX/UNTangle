@@ -8,7 +8,8 @@ import { provenanceText, summarizeProvenance } from "@/components/sections-prove
 import { retryMs } from "@/lib/sections/config";
 import { createSectionStore } from "@/lib/section-store";
 import type { CourseSections } from "@/lib/sections";
-import { courseAs, fixtureCatalog, fixtureInput, renumber } from "../sections/real-term";
+import { getInitialPlannerState, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
+import { courseAs, fixtureCatalog, fixtureInput, optionsOf, renumber } from "../sections/real-term";
 import { FakePlannerServer, flushSaves, installDom, mountPlanner, removeDom, setSession, waitFor } from "./test-dom";
 
 const MATH_ID = "vsb:spring-2027:MATH 1680:6862+6863";
@@ -69,6 +70,30 @@ describe("the browser's section store", () => {
     await settled();
     const real = store.catalog("MATH 1680");
     expect(real.status === "ready" && real.result.provenance.kind).toBe("real");
+  });
+});
+
+describe("cancelled options", () => {
+  test("are never offered, and a saved pick of one needs review", async () => {
+    const input = fixtureInput();
+    courseAs(input, "ART 5450", "MATH 1680");
+    const art = input.courses["MATH 1680"].sections;
+    art[0].status = "Cancelled";
+    const catalog = fixtureCatalog(input);
+    const cancelledId = optionsOf(catalog, "MATH 1680")[0].id;
+    const store = createSectionStore("spring-2027", fixtureLoader(catalog).load);
+    store.ensure(["MATH 1680"]);
+    await settled();
+    const options = store.catalog("MATH 1680");
+    expect(options.status === "ready" && options.result.sections.map((section) => section.id)).toEqual([]);
+
+    const base = getInitialPlannerState();
+    const state = normalizePlannerState({
+      ...base,
+      courseStatuses: { ...base.courseStatuses, "MATH 1680": "inProgress" },
+      selectedSections: { "MATH 1680": cancelledId },
+    });
+    expect(resolveSectionPlan(state, store.catalog).courses[0]).toMatchObject({ state: "needs-review", savedId: cancelledId });
   });
 });
 
