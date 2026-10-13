@@ -156,6 +156,13 @@
 .foot:has(> :only-child) {
   justify-content: flex-start;
 }
+/* Phones: actions fill the row (two share it when they fit), so the primary
+   is a full-width thumb target instead of a button pushed to the right. */
+@media (max-width: 719px) {
+  .foot > * {
+    flex: 1 1 auto;
+  }
+}
 .linkButton {
   position: relative;
   padding: 0;
