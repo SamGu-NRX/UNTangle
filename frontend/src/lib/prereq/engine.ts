@@ -113,6 +113,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
   }
 
   const closure = new Map<string, Reason>();
+  const coverage = new Map<string, string>();
   const visitedRequirements = new Set<string>();
   const expanded = new Set<string>();
   const queue = [...completed.keys()].sort(compareIds);
@@ -121,7 +122,8 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     if (node.kind === "and" || node.kind === "or") return node.children.some(containsCorequisite);
     return node.kind === "minGrade" && containsCorequisite(node.requirement);
   }
-  function add(node: Prerequisite, witness: Reason) {
+  /** `root` is the passed course whose prerequisite walk reached this node. */
+  function add(node: Prerequisite, witness: Reason, root: string) {
     if (node.escape) return;
     if (node.kind === "and" && node.children.length === 0) return;
     const key = requirementKey(node);
@@ -131,21 +133,25 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
       closure.set(key, witness);
     }
     // An OR witnesses its entire expression; it does not identify a passed branch.
-    if (node.kind === "and") for (const child of node.children) add(child, witness);
+    if (node.kind === "and") for (const child of node.children) add(child, witness, root);
     if (node.kind === "course") {
       const override = evidence.overrides?.get(node.courseId);
       const hasUnresolvedEvidence = (recordedGrades.has(node.courseId) || uncertain.has(node.courseId)) && !completed.has(node.courseId);
-      if ((!override || override.status === "done") && !hasUnresolvedEvidence) queue.push(node.courseId);
+      if ((!override || override.status === "done") && !hasUnresolvedEvidence) {
+        queue.push(node.courseId);
+        // Covered: closure proves it and nothing contradicts it, but there is no credit of its own.
+        if (closure.has(key) && !completed.has(node.courseId) && !coverage.has(node.courseId)) coverage.set(node.courseId, root);
+      }
     }
     if (node.kind === "minGrade") {
       const requirement = node.requirement;
       if (requirement.kind === "and") {
-        for (const child of requirement.children) add({ kind: "minGrade", grade: node.grade, requirement: child, source: node.source }, witness);
+        for (const child of requirement.children) add({ kind: "minGrade", grade: node.grade, requirement: child, source: node.source }, witness, root);
       }
       if (requirement.kind === "minGrade") {
-        add({ kind: "minGrade", grade: node.grade, requirement: requirement.requirement, source: node.source }, witness);
+        add({ kind: "minGrade", grade: node.grade, requirement: requirement.requirement, source: node.source }, witness, root);
       }
-      if (requirement.kind === "course" || requirement.kind === "or" || requirement.kind === "minGrade") add(requirement, witness);
+      if (requirement.kind === "course" || requirement.kind === "or" || requirement.kind === "minGrade") add(requirement, witness, root);
     }
     // A co-requisite could have been concurrent, so it cannot imply completion.
   }
@@ -160,7 +166,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     add(prerequisite, {
       kind: "closure", outcome: "satisfied", courseId: id, source: prerequisite.source,
       message: `${id} implies its prerequisite requirement was satisfied; no credit is inferred.`, children: [parent],
-    });
+    }, completed.has(id) ? id : coverage.get(id) ?? id);
   }
 
   function courseEvidence(id: string, minimum?: string, concurrent = false): Reason {
@@ -262,5 +268,5 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     const status = reason.outcome === "satisfied" ? "eligible" : reason.outcome === "unmet" ? "locked" : "unknown";
     statuses.set(course.id, { courseId: course.id, status, reason });
   }
-  return { catalog: ordered, statuses, cycles };
+  return { catalog: ordered, statuses, cycles, coverage };
 }
