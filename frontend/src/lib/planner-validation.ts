@@ -173,6 +173,7 @@ export function sanitizeCoursePlan(value: unknown, isCourse: (code: string) => b
       autoPlannedBefore: codes(raw.autoPlannedBefore),
       summary: raw.summary,
       needsCheck: codes(raw.needsCheck),
+      ...(typeof raw.invalidatedBy === "string" && isCourse(raw.invalidatedBy) ? { invalidatedBy: raw.invalidatedBy } : {}),
     };
   }
   return { manualCredit: codes(value.manualCredit), autoPlanned: codes(value.autoPlanned), lastAuto };

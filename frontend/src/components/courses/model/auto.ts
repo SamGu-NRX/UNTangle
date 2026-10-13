@@ -82,6 +82,7 @@ export function undoBlocker(
   statuses: Readonly<Record<string, PlannerCourseStatus>>,
   major: MajorId | null,
 ): string | null {
+  if (run.invalidatedBy) return `You changed ${run.invalidatedBy} after Auto-fill.`;
   if (run.major !== major) return "The major changed after Auto-fill.";
   const moved = run.changes.find((change) => statusOf(statuses, change.code) !== change.to);
   return moved ? `${moved.code} changed after Auto-fill.` : null;

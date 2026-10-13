@@ -190,7 +190,7 @@ async function journey(browser, viewport) {
     await rowOf(page, "MATH 1720").getByRole("button", { name: /Remove/ }).click();
     const blocked = noteBox.locator("[data-undo-blocked]");
     await blocked.waitFor();
-    check(`${tag}: Undo is refused after an edit to a course it touched`, (await blocked.innerText()).includes("MATH 1720 changed after Auto-fill."));
+    check(`${tag}: Undo is refused after an edit to a course it touched`, (await blocked.innerText()).includes("You changed MATH 1720 after Auto-fill."));
     await noteBox.getByRole("button", { name: "Dismiss note" }).click();
     await noteBox.waitFor({ state: "detached" });
   }

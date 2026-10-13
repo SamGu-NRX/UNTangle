@@ -273,8 +273,36 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
     selectedMajor,
     selectedSections: recommended,
     lockedSections,
-    coursePlan: sanitizeCoursePlan(state.coursePlan, (code) => catalogCourseCodes.has(code)),
+    coursePlan:
+      state.coursePlan === undefined || state.coursePlan === null
+        ? { manualCredit: legacyManualCredit(merged), autoPlanned: [], lastAuto: null }
+        : sanitizeCoursePlan(state.coursePlan, (code) => catalogCourseCodes.has(code)),
   };
+}
+
+/** The annotation v1's "Done" toggle wrote onto a course's transcript rows. */
+const MANUALLY_DONE_NOTE = "Manually marked done in course review.";
+
+/**
+ * Plans saved before coursePlan existed: a course marked done by hand while
+ * its transcript row still says in progress carries v1's explicit
+ * annotation. Only that annotation counts as the student's credit claim;
+ * a bare "completed" next to an in-progress row is not guessed at.
+ */
+function legacyManualCredit(state: PlannerState): string[] {
+  return [
+    ...new Set(
+      (state.transcriptRecords ?? [])
+        .filter(
+          (record) =>
+            !record.duplicateExcluded &&
+            record.appliedStatus === "inProgress" &&
+            record.rationale.includes(MANUALLY_DONE_NOTE) &&
+            state.courseStatuses[record.code] === "completed",
+        )
+        .map((record) => record.code),
+    ),
+  ].sort();
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

@@ -198,6 +198,8 @@ export type AutoTransaction = {
   summary: string;
   /** Core courses Auto left for an advisor check. */
   needsCheck: string[];
+  /** A course this run changed that the student then edited by hand; Undo is refused from then on. */
+  invalidatedBy?: string;
 };
 
 /** Courses-view facts that belong to the plan, not to the browser. */

@@ -16,13 +16,14 @@ import { toast } from "@/components/ui/Toast";
 import { usePresence } from "@/components/ui/use-presence";
 import { getMajorById, getPlanningTermCourseCodes } from "@/lib/planner";
 import { majors } from "@/lib/seed-data";
-import type { AutoTransaction, CoursePlan, CourseStatus, MajorId } from "@/lib/types";
+import type { CoursePlan, CourseStatus, MajorId } from "@/lib/types";
 import styles from "./courses.module.css";
 import { CourseNavigationContext, type CourseNavigation } from "./bits";
 import { CourseList, type RowActions } from "./CourseList";
 import { DetailContent, type PanelActions } from "./DetailPanel";
 import { PHONE_QUERY, useMediaQuery } from "./hooks";
-import { computeAuto, describeAuto, undoBlocker, undoStatuses } from "./model/auto";
+import { computeAuto, describeAuto, undoBlocker } from "./model/auto";
+import { applyAuto, manualEdit, undoAuto as undoAutoUpdate } from "./model/plan-edits";
 import { buildCourseModel, buildGroups, isFinished, statusLabels, type CourseRowModel } from "./model/course-model";
 import { onlyCheckable, ruleCourseIds } from "./model/rules";
 import { SAMPLE_TRANSCRIPT_LABEL, sampleTranscript } from "./model/sample-transcript";
@@ -138,12 +139,12 @@ export function CoursesView({
   );
   const navigation = useMemo<CourseNavigation>(() => ({ open: openCourse, isKnown: (id) => model.rows.has(id) }), [openCourse, model]);
 
-  /** One atomic plan edit: statuses plus coursePlan, both read from the planner's current state. */
-  const edit = (statuses: Record<string, CourseStatus>, plan: (current: CoursePlan) => Partial<CoursePlan> = () => ({})) =>
-    updateCoursePlan((current) => ({
-      courseStatuses: { ...current.courseStatuses, ...statuses },
-      coursePlan: { ...current.coursePlan, ...plan(current.coursePlan) },
-    }));
+  /** The student's own edit, applied atomically to the planner's current state (model/plan-edits). */
+  const edit = (
+    statuses: Record<string, CourseStatus>,
+    plan: (current: CoursePlan) => Partial<CoursePlan> = () => ({}),
+    alsoTouched: readonly string[] = [],
+  ) => updateCoursePlan(manualEdit(statuses, plan, alsoTouched));
 
   const plan = (id: string) => {
     edit({ [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
@@ -192,7 +193,8 @@ export function CoursesView({
     markCredit,
     clearCredit,
     chooseSection: (id, sectionId) => {
-      if (!model.rows.get(id)?.inPlan) edit({ [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
+      // Picking a section is a hand edit to that course, even when it is already planned.
+      edit(model.rows.get(id)?.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }), [id]);
       setSection(id, sectionId);
       say(`Using section ${sectionId.split("-").at(-1)} of ${id}.`);
     },
@@ -211,20 +213,16 @@ export function CoursesView({
     }
     const outcome = computeAuto(model, plannerState.courseStatuses, coreIds, profile.autoCreditBudget);
     const summary = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
-    const run: AutoTransaction = {
-      id: `auto-${Date.now().toString(36)}`,
-      at: new Date().toISOString(),
-      major: major.id,
-      changes: outcome.changes,
-      autoPlannedBefore: coursePlan.autoPlanned,
-      summary,
-      needsCheck: outcome.needsCheck,
-    };
-    const unplanned = new Set(outcome.unplanned);
-    edit(Object.fromEntries(outcome.changes.map((change) => [change.code, change.to])), (current) => ({
-      autoPlanned: [...current.autoPlanned.filter((id) => !unplanned.has(id)), ...outcome.planned],
-      lastAuto: { ...run, autoPlannedBefore: current.autoPlanned },
-    }));
+    updateCoursePlan(
+      applyAuto(outcome, {
+        id: `auto-${Date.now().toString(36)}`,
+        at: new Date().toISOString(),
+        major: major.id,
+        changes: outcome.changes,
+        summary,
+        needsCheck: outcome.needsCheck,
+      }),
+    );
     say(summary);
   };
 
@@ -233,10 +231,7 @@ export function CoursesView({
 
   const undoAuto = () => {
     if (!lastAuto || undoBlocked) return;
-    updateCoursePlan((current) => ({
-      courseStatuses: undoStatuses(lastAuto, current.courseStatuses),
-      coursePlan: { ...current.coursePlan, autoPlanned: lastAuto.autoPlannedBefore, lastAuto: null },
-    }));
+    updateCoursePlan(undoAutoUpdate(plannerState.selectedMajor));
     say("Auto-fill undone. Your plan is back to how it was.");
   };
 
