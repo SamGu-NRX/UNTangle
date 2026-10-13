@@ -1,4 +1,13 @@
-// Client-safe contract. Import sections/server only from the server.
-export type { SectionSource, Section, Meeting, LinkedComponent, CourseSections, Term, Provenance, Freshness, Day } from "./model";
-export { createBrowserSectionSource, loadBrowserSectionSource } from "./client";
-export { createSectionsConfig, type SectionsConfig } from "./config";
+// Browser-safe planner API. Server code uses `sectionsProxy` from ./server.
+export { getCourseSections } from "./client";
+export { supportedTerms } from "./config";
+export type {
+  CourseSections,
+  Day,
+  Diagnostic,
+  LinkedComponent,
+  Meeting,
+  RealCourseSections,
+  SampleCourseSections,
+  Section,
+} from "./model";

@@ -1,30 +1,41 @@
 import { campusBuildings } from "../campus-locations";
 import type { Location } from "./model";
 
-// campus/config.ts uses this same UNT catalogue. Only exact registered aliases
-// are accepted, including WH, AUDB, HKRY, ARTF and NTDP. No fuzzy name matching.
-const byCode = new Map(campusBuildings.flatMap(building =>
-  [building.id, building.shortName, building.mnemonic, ...building.aliases ?? []]
-    .filter((code): code is string => typeof code === "string" && /^[a-z0-9]+$/i.test(code))
-    .map(code => [code.toUpperCase(), building] as const),
-));
+type Building = (typeof campusBuildings)[number];
+
+// Exact catalogue codes only (id, short name, mnemonic, one-word aliases); no fuzzy
+// matching. Two buildings claiming one code would make lookups depend on list order.
+const byCode = new Map<string, Building>();
+for (const building of campusBuildings) {
+  const names = [building.id, building.shortName, building.mnemonic, ...(building.aliases ?? [])];
+  const codes = names
+    .filter((name): name is string => name !== undefined && /^[a-z0-9]+$/i.test(name))
+    .map(name => name.toUpperCase());
+  for (const code of new Set(codes)) {
+    const owner = byCode.get(code);
+    if (owner) throw new Error(`Building code ${code} names both ${owner.id} and ${building.id}`);
+    byCode.set(code, building);
+  }
+}
+
+const unplaced = { buildingCode: null, buildingId: null, offCampus: false };
 
 export function resolveRoom(room: string): Location {
   const trimmed = room.trim();
   if (/^UNT Internet Course$/i.test(trimmed)) {
-    return { room, buildingCode: null, buildingId: null, buildingName: "Online", kind: "online", offCampus: false };
+    return { room, ...unplaced, buildingName: "Online", kind: "online" };
   }
   if (/^(?:|None|No Room|No Facility Assigned|TBA)$/i.test(trimmed)) {
-    return { room, buildingCode: null, buildingId: null, buildingName: "Unassigned room", kind: "unassigned", offCampus: false };
+    return { room, ...unplaced, buildingName: "Unassigned room", kind: "unassigned" };
   }
   const buildingCode = trimmed.split(/\s+/)[0].toUpperCase();
-  // The catalogue names MGV Building P as mgvp; room P124 identifies that
-  // building. Other MGV room letters have no verified mapping here.
-  const lookupCode = /^MGV\s+P\d/i.test(trimmed) ? "MGVP" : buildingCode;
-  const building = byCode.get(lookupCode);
+  const building = byCode.get(buildingCode);
   return {
-    room, buildingCode, buildingId: building?.id ?? null,
+    room,
+    buildingCode,
+    buildingId: building?.id ?? null,
     buildingName: building?.name ?? "Unknown building",
-    kind: building ? "building" : "unknown", offCampus: building?.isOffCampus ?? false,
+    kind: building ? "building" : "unknown",
+    offCampus: building?.isOffCampus ?? false,
   };
 }

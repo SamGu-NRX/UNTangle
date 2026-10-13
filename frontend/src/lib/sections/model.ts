@@ -2,6 +2,8 @@ export type Day = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 export type SectionStatus = "open" | "closed" | "waitlist" | "cancelled" | "unknown";
 export type DateRange = { start: string | null; end: string | null; raw: string };
 export type Instructor = { display: string | null; raw: string };
+export type Seats = { open: number | null; total: number | null };
+
 export type Location = {
   room: string;
   buildingCode: string | null;
@@ -10,28 +12,30 @@ export type Location = {
   kind: "building" | "unknown" | "online" | "unassigned";
   offCampus: boolean;
 };
+
+/** Times are minutes after midnight; null means the source gave no day or time. */
 export type Meeting = Location & {
   day: Day | null;
   startMinutes: number | null;
   endMinutes: number | null;
   dates: DateRange;
   instructor: Instructor;
-  online: boolean;
   async: boolean;
   tba: boolean;
 };
-export type Seats = { open: number | null; total: number | null };
+
 export type LinkedComponent = {
   id: string;
-  classNumber: string;
+  /** Null only for synthetic samples, which have no class numbers. */
+  classNumber: string | null;
   sectionCode: string;
   role: "primary" | "required-linked";
-  // Schema v2 labels the option, but does not identify lecture/lab/recitation types.
-  componentType: "unspecified";
   instructor: Instructor;
   seats: Seats;
   meetings: Meeting[];
 };
+
+/** One enrollment option: a primary component plus any required linked components. */
 export type Section = {
   id: string;
   term: string | null;
@@ -45,33 +49,42 @@ export type Section = {
   rawStatus: string;
   session: { label: string; dates: DateRange };
   components: LinkedComponent[];
+  /** Every component's meetings, flattened once. */
   meetings: Meeting[];
   online: boolean;
   async: boolean;
   tba: boolean;
 };
-export type Provenance =
-  | { kind: "real"; source: "vsb.untgrades.app"; term: string; updated_at: string; note: string }
-  | { kind: "sample"; source: string; term: null; updated_at: null; note: string };
-export type Diagnostic = { code: "schema_error" | "upstream_error" | "cache_error"; message: string };
-export type Freshness = {
-  status: "ok" | "stale" | "unavailable";
-  checkedAt: string | null;
-  updatedAt: string | null;
-  diagnostic: Diagnostic | null;
+
+export type Diagnostic = { code: "schema_error" | "upstream_error"; message: string };
+export type RealProvenance = {
+  kind: "real";
+  source: "vsb.untgrades.app";
+  updatedAt: string;
+  note: string;
 };
-export type CourseSections = {
+export type SampleProvenance = { kind: "sample"; source: string; note: string };
+
+type CourseBase = {
   term: string;
   courseCode: string;
-  status: Freshness["status"];
-  freshness: Freshness;
-  provenance: Provenance;
-  availability: "sections" | "no_classes" | "sample" | "missing";
+  diagnostic: Diagnostic | null;
   sections: Section[];
 };
-export type Term = { id: string; label: string; freshness: Freshness; provenance: Provenance };
-export interface SectionSource {
-  getTerms(): Promise<Term[]>;
-  getCourseSections(term: string, courseCode: string): Promise<CourseSections>;
-  freshness(term: string): Promise<Freshness>;
-}
+
+/** Real vsb data, checked within the TTL (`ok`) or kept after it lapsed (`stale`). */
+export type RealCourseSections = CourseBase & {
+  status: "ok" | "stale";
+  availability: "sections" | "no_classes";
+  provenance: RealProvenance;
+  checkedAt: string;
+};
+
+/** No usable real record: labeled synthetic samples, or nothing. */
+export type SampleCourseSections = CourseBase & {
+  status: "unavailable";
+  availability: "sample" | "missing";
+  provenance: SampleProvenance;
+};
+
+export type CourseSections = RealCourseSections | SampleCourseSections;
