@@ -33,12 +33,13 @@ export function validate(schema: Schema, value: unknown, path = "input"): string
     case "object": {
       if (typeof value !== "object" || value === null || Array.isArray(value)) return `${path}: expected an object`;
       const record = value as Record<string, unknown>;
-      const extra = Object.keys(record).find((key) => !(key in schema.properties));
+      // Own properties only: `in` would accept inherited names such as "__proto__", "constructor" or "toString".
+      const extra = Object.keys(record).find((key) => !Object.hasOwn(schema.properties, key));
       if (extra !== undefined) return `${path}.${extra}: unknown field`;
-      const missing = schema.required?.find((key) => record[key] === undefined);
+      const missing = schema.required?.find((key) => !Object.hasOwn(record, key));
       if (missing !== undefined) return `${path}.${missing}: required`;
       for (const [key, child] of Object.entries(schema.properties)) {
-        if (record[key] === undefined) continue;
+        if (!Object.hasOwn(record, key)) continue;
         const problem = validate(child, record[key], `${path}.${key}`);
         if (problem) return problem;
       }

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-13T19:34:33.958Z",
+  "startedAt": "2026-10-13T20:15:35.196Z",
   "base": "http://127.0.0.1:3217",
   "checks": [
     {
@@ -154,6 +154,7 @@
             "daysOnCampus": 3,
             "gapMinutes": 50,
             "walkMinutes": 11,
+            "unknownWalks": 3,
             "earliest": "11:30",
             "latest": "14:50",
             "credits": 9,
@@ -170,6 +171,7 @@
             "daysOnCampus": 3,
             "gapMinutes": 50,
             "walkMinutes": 0,
+            "unknownWalks": 5,
             "earliest": "10:30",
             "latest": "13:50",
             "credits": 9,
@@ -186,6 +188,7 @@
             "daysOnCampus": 3,
             "gapMinutes": 60,
             "walkMinutes": 0,
+            "unknownWalks": 6,
             "earliest": "14:00",
             "latest": "16:50",
             "credits": 9,
@@ -352,6 +355,7 @@
             "daysOnCampus": 3,
             "gapMinutes": 50,
             "walkMinutes": 11,
+            "unknownWalks": 3,
             "earliest": "11:30",
             "latest": "14:50",
             "credits": 9,
@@ -368,6 +372,7 @@
             "daysOnCampus": 3,
             "gapMinutes": 50,
             "walkMinutes": 0,
+            "unknownWalks": 5,
             "earliest": "10:30",
             "latest": "13:50",
             "credits": 9,
@@ -384,6 +389,7 @@
             "daysOnCampus": 3,
             "gapMinutes": 60,
             "walkMinutes": 0,
+            "unknownWalks": 6,
             "earliest": "14:00",
             "latest": "16:50",
             "credits": 9,
@@ -403,7 +409,7 @@
       }
     }
   ],
-  "finishedAt": "2026-10-13T19:34:38.999Z",
+  "finishedAt": "2026-10-13T20:15:40.841Z",
   "passed": 16,
   "total": 16
 }

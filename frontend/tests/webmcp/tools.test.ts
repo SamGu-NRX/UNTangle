@@ -5,98 +5,9 @@
  */
 import { describe, expect, test } from "bun:test";
 import { findSection } from "@/components/schedule/week-model";
-import { optimize } from "@/lib/optimizer/optimize";
-import { defaultSchedulePreferences, getInitialPlannerState, getSectionsForCourse, normalizePlannerState, sectionConflicts } from "@/lib/planner";
-import type { CourseStatus, PlannerState, SchedulePreferences, TranscriptCourseRecord } from "@/lib/types";
+import { getSectionsForCourse, sectionConflicts } from "@/lib/planner";
 import { createTools, type PlannerPort, type Tool, type ToolResult } from "@/lib/webmcp/tools";
-
-const row = (code: string, grade: string): TranscriptCourseRecord => ({
-  id: `t-${code}`,
-  code,
-  title: code,
-  term: "Fall 2025",
-  grade,
-  credits: 3,
-  sourceKind: "unt",
-  confidence: 1,
-  rationale: "fixture",
-  duplicateExcluded: false,
-  appliedStatus: "completed",
-  prerequisiteSatisfied: true,
-  reviewRequired: false,
-});
-
-/** Passed MATH 1710 and CSCE 1030; plans CSCE 1040, ENGL 1310 and PSYC 1630. */
-function fixturePlan(grades: Record<string, string> = { "MATH 1710": "A", "CSCE 1030": "B" }, extra: Record<string, CourseStatus> = {}): PlannerState {
-  const initial = getInitialPlannerState();
-  return {
-    ...initial,
-    transcriptRecords: Object.entries(grades).map(([code, grade]) => row(code, grade)),
-    courseStatuses: {
-      ...initial.courseStatuses,
-      ...Object.fromEntries(Object.keys(grades).map((code) => [code, "completed" as const])),
-      "CSCE 1040": "inProgress",
-      "ENGL 1310": "inProgress",
-      "PSYC 1630": "inProgress",
-      ...extra,
-    },
-  };
-}
-
-/** The provider's actions on plain state, recording which ran. */
-function fixturePort(start: PlannerState = fixturePlan(), selected: Record<string, string> = {}) {
-  let plan = normalizePlannerState({ ...start, selectedSections: { ...start.selectedSections, ...selected } });
-  let preferences: SchedulePreferences = defaultSchedulePreferences(plan.optimization);
-  let epoch = 1;
-  const writes: string[] = [];
-  const set = (next: PlannerState) => (plan = normalizePlannerState(next));
-  const port: PlannerPort = {
-    plan: () => plan,
-    preferences: () => preferences,
-    epoch: () => epoch,
-    // A node budget instead of the clock, so every run gives the same answer.
-    optimize: async (request) => optimize({ ...request, timeBudgetMs: Number.POSITIVE_INFINITY, maxNodes: 200_000 }),
-    applySchedule: (byCourse, goal) => {
-      writes.push("applySchedule");
-      set({ ...plan, selectedSections: { ...plan.selectedSections, ...byCourse }, optimization: goal ?? plan.optimization });
-    },
-    restoreSchedule: ({ sections, goal }) => {
-      writes.push("restoreSchedule");
-      set({ ...plan, selectedSections: { ...sections }, optimization: goal });
-    },
-    setSection: (code, sectionId) => {
-      writes.push("setSection");
-      set({ ...plan, selectedSections: { ...plan.selectedSections, [code]: sectionId } });
-    },
-    updateCoursePlan: (update) => {
-      writes.push("updateCoursePlan");
-      const next = update({ courseStatuses: plan.courseStatuses, coursePlan: plan.coursePlan! });
-      set({ ...plan, courseStatuses: next.courseStatuses ?? plan.courseStatuses, coursePlan: next.coursePlan ?? plan.coursePlan });
-    },
-    setSchedulePreferences: (update) => {
-      writes.push("setSchedulePreferences");
-      preferences = update(preferences);
-    },
-  };
-  return { port, writes, snapshot: () => structuredClone({ plan, preferences }), replacePlan: () => (epoch += 1) };
-}
-
-function session(port: PlannerPort, answer: boolean) {
-  const asked: string[] = [];
-  const undos: Array<() => boolean> = [];
-  return {
-    asked,
-    undos,
-    ctx: {
-      port,
-      confirm: async (question: string) => {
-        asked.push(question);
-        return answer;
-      },
-      applied: (_message: string, undo: () => boolean) => undos.push(undo),
-    },
-  };
-}
+import { fixturePlan, fixturePort, row, session } from "./fixture";
 
 const named = (tools: Tool[], name: string) => tools.find((tool) => tool.name === name)!;
 
@@ -307,4 +218,123 @@ describe("invalid input", () => {
       expect(writes).toEqual([]);
     });
   }
+});
+
+describe("writes stay bound to what the student approved", () => {
+  test("apply_alternative refuses when another tab moved a course while the student decided", async () => {
+    const tools = createTools();
+    const { port, writes } = fixturePort();
+    await named(tools, "build_schedule").run({}, session(port, true).ctx);
+    const alternative = port.plan().selectedSections;
+    // Another tab picks a different ENGL 1310 section while the dialog is open.
+    const other = getSectionsForCourse("ENGL 1310").find((s) => s.id !== alternative["ENGL 1310"])!;
+    const { ctx } = session(port, true, () => port.setSection("ENGL 1310", other.id));
+    expect(await named(tools, "apply_alternative").run({ id: "opt-1-B" }, ctx)).toMatchObject({ ok: false, reason: "plan_changed" });
+    expect(writes).toEqual(["setSection"]);
+    expect(port.plan().selectedSections["ENGL 1310"]).toBe(other.id);
+  });
+
+  test("set_busy_times Undo puts back what it replaced at save time, not what was there before the question", async () => {
+    const { port } = fixturePort();
+    const tab = [{ id: "tab", label: "Practice", day: "Wed" as const, start: 900, end: 1000 }];
+    const { ctx, undos } = session(port, true, () =>
+      port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: tab } })),
+    );
+    await named(createTools(), "set_busy_times").run({ blocks: [{ day: "Tue", start: "09:00", end: "11:00" }] }, ctx);
+    expect(undos[0]()).toBe(true);
+    expect(port.preferences().constraints.blocked).toEqual(tab);
+  });
+
+  test("set_busy_times Undo is refused once the busy times changed again", async () => {
+    const { port } = fixturePort();
+    const { ctx, undos } = session(port, true);
+    await named(createTools(), "set_busy_times").run({ blocks: [{ day: "Tue", start: "09:00", end: "11:00" }] }, ctx);
+    port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: [] } }));
+    expect(undos[0]()).toBe(false);
+    expect(port.preferences().constraints.blocked).toEqual([]);
+  });
+
+  test("Undo restores only the course it changed and keeps later edits elsewhere", async () => {
+    const { port } = fixturePort();
+    const { ctx, undos } = session(port, true);
+    await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
+    const other = getSectionsForCourse("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!;
+    port.setSection("ENGL 1310", other.id);
+    expect(undos[0]()).toBe(true);
+    expect(port.plan().courseStatuses["PSYC 1630"]).toBe("inProgress");
+    expect(port.plan().selectedSections["ENGL 1310"]).toBe(other.id);
+  });
+
+  test("Undo gives Auto-fill its Undo back when the write is what took it away", async () => {
+    const plan = fixturePlan();
+    const run = { id: "auto-1", at: "2026-10-01T00:00:00.000Z", major: null, changes: [{ code: "PSYC 1630", from: "notTaken" as const, to: "inProgress" as const }], autoPlannedBefore: [], summary: "", needsCheck: [] };
+    const { port } = fixturePort({ ...plan, coursePlan: { manualCredit: [], autoPlanned: ["PSYC 1630"], lastAuto: run } });
+    const { ctx, undos } = session(port, true);
+    await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
+    expect(port.plan().coursePlan?.lastAuto?.invalidatedBy).toBe("PSYC 1630");
+    expect(undos[0]()).toBe(true);
+    expect(port.plan().coursePlan).toEqual({ manualCredit: [], autoPlanned: ["PSYC 1630"], lastAuto: run });
+  });
+
+  test("add_section refuses a course already passed or in progress on the transcript", async () => {
+    const plan = fixturePlan();
+    const { port, writes } = fixturePort({ ...plan, transcriptRecords: [...plan.transcriptRecords, row("BIOL 1710", "IP", "inProgress")], courseStatuses: { ...plan.courseStatuses, "BIOL 1710": "inProgress" } });
+    const tools = createTools();
+    expect(await named(tools, "add_section").run({ code: "CSCE 1030", sectionId: "001" }, session(port, true).ctx)).toMatchObject({ reason: "not_plannable" });
+    expect(await named(tools, "add_section").run({ code: "BIOL 1710", sectionId: "001" }, session(port, true).ctx)).toMatchObject({ reason: "not_plannable" });
+    expect(writes).toEqual([]);
+  });
+
+  test("add_section reports not_applied, with no Undo, when the page did not take the change", async () => {
+    const { port } = fixturePort();
+    const ignoring: PlannerPort = { ...port, updateCoursePlan: () => {}, setSection: () => {} };
+    const { ctx, undos } = session(ignoring, true);
+    expect(await named(createTools(), "add_section").run({ code: "MATH 1720", sectionId: "001" }, ctx)).toMatchObject({ ok: false, reason: "not_applied" });
+    expect(undos).toEqual([]);
+  });
+});
+
+describe("build_schedule runs one search at a time", () => {
+  /** An optimizer that waits to be released and rejects when its signal aborts. */
+  function heldPort() {
+    const { port } = fixturePort();
+    const held: Array<{ release: () => void; signal: AbortSignal }> = [];
+    const holding: PlannerPort = {
+      ...port,
+      optimize: (request, signal) =>
+        new Promise((resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason));
+          held.push({ release: () => port.optimize(request, signal).then(resolve), signal });
+        }),
+    };
+    return { port: holding, held };
+  }
+
+  test("a newer build cancels the older one, whose ids never become usable", async () => {
+    const { port, held } = heldPort();
+    const tools = createTools();
+    const older = named(tools, "build_schedule").run({}, session(port, true).ctx);
+    const newer = named(tools, "build_schedule").run({ goal: "compact" }, session(port, true).ctx);
+    expect(held[0].signal.aborted).toBe(true);
+    expect(await older).toEqual({ ok: false, reason: "cancelled" });
+    held[1].release();
+    const result = (await newer) as Record<string, unknown>;
+    expect(result.alternatives).toContainEqual(expect.objectContaining({ id: "opt-2-A", unknownWalks: expect.any(Number) }));
+    expect(await call("apply_alternative", { id: "opt-1-A" }, port, tools)).toMatchObject({ reason: "unknown_alternative" });
+  });
+
+  test("the agent cancelling the call stops the search", async () => {
+    const { port, held } = heldPort();
+    const controller = new AbortController();
+    const result = named(createTools(), "build_schedule").run({}, { ...session(port, true).ctx, signal: controller.signal });
+    controller.abort();
+    expect(held[0].signal.aborted).toBe(true);
+    expect(await result).toEqual({ ok: false, reason: "cancelled" });
+  });
+});
+
+test("check_eligibility names the requirement a closure proves, not the course that proves it", async () => {
+  // ECON 3050 needs ECON 1100 and ECON 1110; passing ECON 4030 proves both through its own prerequisites.
+  const port = fixturePort(fixturePlan({ "ECON 4030": "A" })).port;
+  expect(await call("check_eligibility", { code: "ECON 3050" }, port)).toMatchObject({ verdict: "eligible", met: ["ECON 1100", "ECON 1110"], unmet: [], unknown: [] });
 });

@@ -39,8 +39,15 @@ describe("validate", () => {
     [{ code: "CSCE 1030", blocks: [{ at: "1" }, { at: "2" }, { at: "3" }] }, "input.blocks: more than 2 items"],
     [{ code: "CSCE 1030", blocks: [{ at: "09:00" }, {}] }, "input.blocks[1].at: required"],
   ];
+  // Names every object inherits must not pass as declared fields, at any depth.
+  cases.push(
+    [JSON.parse('{"code": "CSCE 1030", "__proto__": {"x": 1}}'), "input.__proto__: unknown field"],
+    [{ code: "CSCE 1030", constructor: "x".repeat(10_000) }, "input.constructor: unknown field"],
+    [{ code: "CSCE 1030", toString: "x" }, "input.toString: unknown field"],
+    [{ code: "CSCE 1030", blocks: [{ at: "09:00", hasOwnProperty: 1 }] }, "input.blocks[0].hasOwnProperty: unknown field"],
+  );
   for (const [value, problem] of cases) {
-    test(`rejects ${JSON.stringify(value)}`, () => {
+    test(`rejects ${JSON.stringify(value).slice(0, 80)}`, () => {
       expect(validate(schema, value)).toBe(problem);
     });
   }

@@ -149,13 +149,27 @@ describe("calls", () => {
     expect(events).toEqual(["paused", "asked", "resumed"]);
   });
 
-  test("the current draft's execution signal reaches the question", async () => {
-    const controller = new AbortController();
-    let seen: AbortSignal | undefined;
-    const ask = async (_q: string, _a: string, signal?: AbortSignal) => ((seen = signal), false);
-    const write = tool("w", true, async (_input, ctx) => ({ ok: true, granted: await ctx.confirm("q", "a") }));
-    await registeredExecute([write], { ask })("w")({}, { signal: controller.signal });
-    expect(seen).toBe(controller.signal);
+  test("the agent cancelling a call, or unregistering, aborts the call's signal and voids a late yes", async () => {
+    const seen: AbortSignal[] = [];
+    let answer: (granted: boolean) => void = () => {};
+    const ask = (_q: string, _a: string, signal: AbortSignal) => (seen.push(signal), new Promise<boolean>((resolve) => (answer = resolve)));
+    const write = tool("w", true, async (_input, ctx) => ({ ok: true, granted: await ctx.confirm("q", "a"), aborted: ctx.signal.aborted }));
+    const { modelContext, registered } = stubContext();
+    const unregister = registerTools(modelContext, [write], session({ ask }));
+    const execute = registered.get("w")!.definition.execute;
+
+    const execution = new AbortController();
+    const cancelled = execute({}, { signal: execution.signal });
+    execution.abort();
+    expect(seen[0].aborted).toBe(true);
+    answer(true);
+    expect(await cancelled).toEqual({ ok: true, granted: false, aborted: true });
+
+    const open = execute({});
+    unregister();
+    expect(seen[1].aborted).toBe(true);
+    answer(true);
+    expect(await open).toEqual({ ok: true, granted: false, aborted: true });
   });
 
   test("a tool that throws answers failed instead of rejecting", async () => {

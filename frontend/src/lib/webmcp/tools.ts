@@ -13,11 +13,11 @@
  */
 import { buildCourseModel, type CourseModel } from "@/components/courses/model/course-model";
 import { manualEdit, type PlanUpdate } from "@/components/courses/model/plan-edits";
-import { ruleTokens, tokensToString } from "@/components/courses/model/rules";
+import { ruleFromPrerequisite, ruleTokens, tokensToString } from "@/components/courses/model/rules";
 import { searchCatalog } from "@/components/courses/model/search";
 import { untProfile } from "@/components/courses/school";
 import { parseBlockDraft } from "@/components/schedule/constraint-logic";
-import { canApply, IDLE, locksKey, optimizerInputKey, undoAvailable } from "@/components/schedule/run-state";
+import { canApply, IDLE, optimizerInputKey } from "@/components/schedule/run-state";
 import { findSection } from "@/components/schedule/week-model";
 import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { activeDataset } from "@/lib/data-provenance";
@@ -37,7 +37,7 @@ import {
   summarizeCredits,
 } from "@/lib/planner";
 import { summarizeWeeklyWalking } from "@/lib/planner-walking";
-import type { Reason } from "@/lib/prereq";
+import type { Prerequisite, Reason } from "@/lib/prereq";
 import {
   weekDays,
   type BlockedTime,
@@ -57,7 +57,10 @@ export type PlannerPort = {
   preferences(): SchedulePreferences;
   /** planner-provider's planEpoch: counts plan replacements, which end Undo. */
   epoch(): number;
-  optimize(request: OptimizeRequest): Promise<OptimizeResult>;
+  /** Resolves once the page has rendered the writes made so far, so `plan()` shows them. */
+  committed(): Promise<void>;
+  /** Rejects when `signal` aborts, and stops the search. */
+  optimize(request: OptimizeRequest, signal: AbortSignal): Promise<OptimizeResult>;
   applySchedule(byCourse: Record<string, string>, goal: OptimizationKey | null): void;
   restoreSchedule(snapshot: { sections: Record<string, string>; goal: OptimizationKey }): void;
   setSection(courseCode: string, sectionId: string): void;
@@ -67,6 +70,8 @@ export type PlannerPort = {
 
 export type ToolContext = {
   port: PlannerPort;
+  /** Aborts when the agent cancels the call or the tools are unregistered. */
+  signal: AbortSignal;
   /** Asks the student in the page. True only when they approve. */
   confirm(question: string, action: string): Promise<boolean>;
   /** Tells the student a write happened and offers Undo; `undo` returns false once it no longer applies. */
@@ -78,6 +83,10 @@ export type FailureReason =
   | "rate_limited"
   | "busy"
   | "declined"
+  | "cancelled"
+  | "plan_changed"
+  | "not_applied"
+  | "not_plannable"
   | "unknown_course"
   | "unknown_section"
   | "unknown_alternative"
@@ -156,54 +165,114 @@ type Outcome = "met" | "unmet" | "unknown";
 const OUTCOME: Record<Reason["outcome"], Outcome> = { satisfied: "met", unmet: "unmet", unknown: "unknown" };
 const SEVERITY: Record<Outcome, number> = { met: 0, unknown: 1, unmet: 2 };
 
+/** A requirement as the student reads it: a course id, or the rule's readable text. */
+function requirementLabel(node: Prerequisite): string {
+  if (node.kind === "course") return node.courseId;
+  const rule = ruleFromPrerequisite(node);
+  return clip(rule ? tokensToString(ruleTokens(rule)) : node.source.trim(), 120);
+}
+
 /**
- * Every course or condition the engine checked, with its outcome. Built
- * from the reason tree's structure only (course ids and catalog text,
- * never `message`), because messages quote the student's recorded grades.
+ * Each requirement of a course's catalog rule with the engine's outcome for
+ * it. Walks the rule and the engine's reason tree together, following the
+ * engine's own shapes (engine.ts evaluate), so a requirement met through
+ * another passed course's prerequisites is reported as that requirement,
+ * not as the other course. Reads outcomes only, never `message`, because
+ * messages quote the student's recorded grades.
  */
-function checkedRequirements(reason: Reason, found = new Map<string, Outcome>()): Map<string, Outcome> {
-  if (reason.kind === "cycle" || (!reason.courseId && reason.children?.length)) {
-    reason.children?.forEach((child) => checkedRequirements(child, found));
-    return found;
+function projectRequirements(node: Prerequisite, reason: Reason, found: Map<string, Outcome>, minimum?: string): void {
+  const record = (key: string, outcome: Outcome) => {
+    const previous = found.get(key);
+    // One course checked twice (two grade minimums) counts by its worse result.
+    if (!previous || SEVERITY[outcome] > SEVERITY[previous]) found.set(key, outcome);
+  };
+  // Closure proves a requirement whole: every part of an AND, or an OR as one requirement.
+  const metThroughClosure = (part: Prerequisite): void =>
+    part.kind === "and" ? part.children.forEach(metThroughClosure) : record(requirementLabel(part), "met");
+  if (reason.kind === "closure") return metThroughClosure(node);
+  const child = (index: number) => reason.children?.[index];
+  switch (node.kind) {
+    case "and":
+    case "or":
+      node.children.forEach((part, index) => {
+        const evaluated = child(index);
+        if (evaluated) projectRequirements(part, evaluated, found, minimum);
+      });
+      return;
+    case "minGrade":
+      if (minimum === undefined) return projectRequirements(node.requirement, reason, found, node.grade);
+      // Two minimums on one requirement: the engine checks each in turn.
+      [node.grade, minimum].forEach((grade, index) => {
+        const evaluated = child(index);
+        if (evaluated) projectRequirements(node.requirement, evaluated, found, grade);
+      });
+      return;
+    case "corequisite": {
+      const evaluated = child(0);
+      if (evaluated) projectRequirements(node.requirement, evaluated, found, minimum);
+      return;
+    }
+    default:
+      record(requirementLabel(node), OUTCOME[reason.outcome]);
   }
-  const key = reason.courseId ?? reason.source?.trim();
-  if (!key) return found;
-  const outcome = OUTCOME[reason.outcome];
-  const previous = found.get(key);
-  // One course checked twice (two grade minimums) counts by its worse result.
-  if (!previous || SEVERITY[outcome] > SEVERITY[previous]) found.set(key, outcome);
-  return found;
+}
+
+/** The engine wraps a course's reason when it needs an advisor or sits in a cycle; the rule lies under the wrappers. */
+function unwrap(reason: Reason): Reason {
+  return (reason.kind === "advisor" || reason.kind === "cycle") && reason.children?.length === 1 ? unwrap(reason.children[0]) : reason;
 }
 
 const VERDICT = { done: "done", taking: "taking", eligible: "eligible", locked: "not_eligible", unknown: "check_with_advisor" } as const;
 
 /* ---------- write helpers ---------- */
 
+const pick = <T,>(record: Record<string, T>, codes: readonly string[]) =>
+  Object.fromEntries(codes.flatMap((code) => (code in record ? [[code, record[code]]] : [])));
+
 /**
- * Undo for a tool's write, by the Week view's rule (run-state.ts
- * undoAvailable): offered while the plan has not been replaced and no lock
- * has changed. Restores the picks and goal, and the course statuses when
- * the write changed them.
+ * Undo for a write that changed `codes`. It restores only what the write
+ * owned: those courses' statuses, sections and Auto-fill membership, the
+ * goal when the write set it, and the pending Auto-fill run when the write
+ * is what made that run's Undo unavailable (takeFromAutoRun). It is refused
+ * once the plan was replaced (planEpoch), a course was locked, or
+ * `stillOurs` says the student or another tab changed one of those fields.
  */
-function undoFor(port: PlannerPort, label: string, restoresStatuses: boolean): () => boolean {
-  const plan = port.plan();
-  const snapshot = {
-    sections: { ...plan.selectedSections },
-    goal: plan.optimization,
-    letter: label,
-    epoch: port.epoch(),
-    locks: locksKey(plan.lockedSections ?? {}),
-  };
-  const parts = { courseStatuses: plan.courseStatuses, coursePlan: plan.coursePlan ?? EMPTY_PLAN };
+function undoFor(
+  port: PlannerPort,
+  codes: readonly string[],
+  stillOurs: (plan: PlannerState) => boolean,
+  goalSet: OptimizationKey | null = null,
+): () => boolean {
+  const before = port.plan();
+  const beforePlan = before.coursePlan ?? EMPTY_PLAN;
+  const epoch = port.epoch();
   return () => {
-    if (!undoAvailable(snapshot, port.epoch(), locksKey(port.plan().lockedSections ?? {}))) return false;
-    if (restoresStatuses) port.updateCoursePlan(() => parts);
-    port.restoreSchedule(snapshot);
+    const now = port.plan();
+    if (port.epoch() !== epoch || codes.some((code) => now.lockedSections?.[code]) || !stillOurs(now)) return false;
+    if (goalSet !== null && now.optimization !== goalSet) return false;
+    port.updateCoursePlan((current) => {
+      const run = current.coursePlan.lastAuto;
+      const ours = run && run.id === beforePlan.lastAuto?.id && !beforePlan.lastAuto.invalidatedBy && codes.includes(run.invalidatedBy ?? "");
+      return {
+        courseStatuses: { ...current.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, before.courseStatuses[code] ?? "notTaken"])) },
+        coursePlan: {
+          ...current.coursePlan,
+          autoPlanned: [...current.coursePlan.autoPlanned.filter((id) => !codes.includes(id)), ...beforePlan.autoPlanned.filter((id) => codes.includes(id))],
+          lastAuto: ours ? beforePlan.lastAuto : run,
+        },
+      };
+    });
+    // The Week view's restore: sets sections and goal without counting as a hand edit to an Auto-fill course.
+    port.restoreSchedule({ sections: { ...now.selectedSections, ...pick(before.selectedSections, codes) }, goal: goalSet === null ? now.optimization : before.optimization });
     return true;
   };
 }
 
 const withoutCode = (list: readonly string[], code: string) => list.filter((id) => id !== code);
+/** No from the student, or no answer because the call was cancelled. */
+const refused = (ctx: ToolContext) => fail(ctx.signal.aborted ? "cancelled" : "declined");
+const PLAN_CHANGED = "The plan changed while the student was deciding; ask again.";
+const NOT_APPLIED = "The page did not take the change; read the plan again.";
 
 /* ---------- build_schedule state ---------- */
 
@@ -242,6 +311,8 @@ type Build = { number: number; input: BuildInput; key: string; goal: Optimizatio
 export function createTools(): Tool[] {
   let builds = 0;
   let latest: Build | null = null;
+  // One search at a time: a newer build_schedule cancels the one still running.
+  let running: AbortController | null = null;
 
   const alternative = (id: string): { build: Build; schedule: RankedSchedule; letter: string } | null => {
     const match = /^opt-(\d+)-([ABC])$/.exec(id);
@@ -327,7 +398,9 @@ export function createTools(): Tool[] {
         if (!id) return fail("unknown_course");
         const row = courseModel(port.plan()).rows.get(id)!;
         const verdict = VERDICT[row.assessment?.status ?? "unknown"];
-        const checked = verdict === "done" || verdict === "taking" || !row.assessment ? new Map<string, Outcome>() : checkedRequirements(row.assessment.reason);
+        const checked = new Map<string, Outcome>();
+        const rule = untProfile().catalog.find((course) => course.id === id)?.prerequisite;
+        if (rule && row.assessment && verdict !== "done" && verdict !== "taking") projectRequirements(rule, unwrap(row.assessment.reason), checked);
         const having = (outcome: Outcome) => [...checked].filter(([, value]) => value === outcome).map(([key]) => clip(key, 120));
         return {
           ok: true,
@@ -434,14 +507,27 @@ export function createTools(): Tool[] {
         additionalProperties: false,
       },
       writes: false,
-      async run(input, { port }) {
+      async run(input, { port, signal }) {
         const plan = port.plan();
         const preferences = withOverrides(port.preferences(), input);
         const request = buildOptimizeRequest(plan, preferences);
         if (request.courses.length === 0) return fail("nothing_to_schedule", "No planned course has section data.");
-        const result = await port.optimize(request);
-        builds += 1;
-        latest = { number: builds, input, key: runKey(plan, preferences), goal: goalForWeights(preferences.weights), result };
+        // The number is taken before waiting, so an older search finishing late cannot replace a newer one.
+        const number = ++builds;
+        running?.abort();
+        const mine = new AbortController();
+        running = mine;
+        let result: OptimizeResult;
+        try {
+          result = await port.optimize(request, AbortSignal.any([signal, mine.signal]));
+        } catch (error) {
+          if (signal.aborted || mine.signal.aborted) return fail("cancelled");
+          throw error;
+        } finally {
+          if (running === mine) running = null;
+        }
+        if (signal.aborted || number !== builds) return fail("cancelled");
+        latest = { number, input, key: runKey(plan, preferences), goal: goalForWeights(preferences.weights), result };
         const current = plan.selectedSections;
         return {
           ok: true,
@@ -450,12 +536,13 @@ export function createTools(): Tool[] {
           alternatives: result.schedules.map((schedule, index) => {
             const b = schedule.breakdown;
             return {
-              id: `opt-${builds}-${"ABC"[index]}`,
+              id: `opt-${number}-${"ABC"[index]}`,
               changes: Object.entries(schedule.byCourse).filter(([code, id]) => current[code] !== id).length,
               sections: Object.fromEntries(Object.entries(schedule.byCourse).map(([code, id]) => [code, sectionNumber(id)])),
               daysOnCampus: b.daysOnCampus,
               gapMinutes: b.gapMinutes,
               walkMinutes: Math.round(b.walkSeconds / 60),
+              unknownWalks: b.unknownWalks,
               earliest: b.earliestStart === null ? null : fromMinutes(b.earliestStart),
               latest: b.latestEnd === null ? null : fromMinutes(b.latestEnd),
               credits: b.credits,
@@ -506,23 +593,32 @@ export function createTools(): Tool[] {
         const found = alternative(id);
         if (!found) return fail("unknown_alternative", "Use an id from the latest build_schedule.");
         const { build, schedule, letter } = found;
-        const check = () => {
-          const plan = ctx.port.plan();
-          const key = runKey(plan, withOverrides(ctx.port.preferences(), build.input));
+        const { port } = ctx;
+        // Each course this option would move right now, from which section to which, or why it cannot be used.
+        const assess = () => {
+          const plan = port.plan();
+          const key = runKey(plan, withOverrides(port.preferences(), build.input));
           const verdict = canApply({ ...IDLE, result: build.result, resultKey: build.key }, key, schedule, plan.lockedSections ?? {});
-          return verdict.ok ? null : fail("cannot_apply", verdict.reason);
+          if (!verdict.ok) return fail("cannot_apply", verdict.reason);
+          return Object.entries(schedule.byCourse)
+            .filter(([code, sectionId]) => plan.selectedSections[code] !== sectionId)
+            .map(([code, sectionId]) => [code, plan.selectedSections[code], sectionId] as const);
         };
-        const refused = check();
-        if (refused) return refused;
-        const current = ctx.port.plan().selectedSections;
-        const changes = Object.entries(schedule.byCourse).filter(([code, sectionId]) => current[code] !== sectionId);
+        const changes = assess();
+        if (!Array.isArray(changes)) return changes;
         if (changes.length === 0) return { ok: true, changed: 0 };
-        const list = changes.map(([code, sectionId]) => `${code} to section ${sectionNumber(sectionId)}`).join(", ");
-        if (!(await ctx.confirm(`Use schedule option ${letter}? It moves ${list}.`, `Use option ${letter}`))) return fail("declined");
-        const stale = check();
-        if (stale) return stale;
-        const undo = undoFor(ctx.port, letter, false);
-        ctx.port.applySchedule(schedule.byCourse, build.goal);
+        const list = changes.map(([code, , to]) => `${code} to section ${sectionNumber(to)}`).join(", ");
+        if (!(await ctx.confirm(`Use schedule option ${letter}? It moves ${list}.`, `Use option ${letter}`))) return refused(ctx);
+        // The student approved these exact moves; anything else needs a new question.
+        const now = assess();
+        if (!Array.isArray(now)) return now;
+        if (JSON.stringify(now) !== JSON.stringify(changes)) return fail("plan_changed", PLAN_CHANGED);
+        const moves = Object.fromEntries(changes.map(([code, , to]) => [code, to]));
+        const ours = (plan: PlannerState) => changes.every(([code, , to]) => plan.selectedSections[code] === to);
+        const undo = undoFor(port, Object.keys(moves), ours, build.goal);
+        port.applySchedule(moves, build.goal);
+        await port.committed();
+        if (!ours(port.plan())) return fail("not_applied", NOT_APPLIED);
         ctx.applied(`Using option ${letter} from your assistant`, undo);
         return { ok: true, changed: changes.length };
       },
@@ -544,37 +640,47 @@ export function createTools(): Tool[] {
       },
       writes: true,
       async run({ code, sectionId }, ctx) {
+        const { port } = ctx;
         const id = courseId(code);
         if (!id) return fail("unknown_course");
         const section = getSectionsForCourse(id).find((s) => s.id === sectionId || sectionNumber(s.id) === sectionId);
         if (!section) return fail("unknown_section", `Sections of ${id} are listed by get_course.`);
-        const check = () => {
-          const plan = ctx.port.plan();
+        // Where the course stands right now, or why this section cannot be added.
+        const assess = () => {
+          const plan = port.plan();
+          const status = courseModel(plan).rows.get(id)!.status;
+          // Planning a course already passed, or one the transcript shows in progress, would be normalized away.
+          if (status === "done" || status === "taking") return fail("not_plannable", `${id} is ${status === "done" ? "already done" : "in progress this term"}.`);
           const lock = plan.lockedSections?.[id];
-          return lock && lock !== section.id ? fail("course_locked", `The student locked ${id}; they can unlock it in Week.`) : null;
+          if (lock && lock !== section.id) return fail("course_locked", `The student locked ${id}; they can unlock it in Week.`);
+          const planned = getPlanningTermCourseCodes(plan);
+          const overlapsWith = planned.filter((other) => {
+            const picked = other === id ? undefined : findSection(plan.selectedSections[other]);
+            return picked !== undefined && sectionConflicts(section, [picked]);
+          });
+          return { inPlan: planned.includes(id), current: plan.selectedSections[id] ?? null, overlapsWith };
         };
-        const refused = check();
-        if (refused) return refused;
-        const plan = ctx.port.plan();
-        const inPlan = getPlanningTermCourseCodes(plan).includes(id);
-        if (inPlan && plan.selectedSections[id] === section.id) return { ok: true, changed: false, overlapsWith: [] };
-        const overlapsWith = getPlanningTermCourseCodes(plan).filter((other) => {
-          const picked = other === id ? undefined : findSection(plan.selectedSections[other]);
-          return picked !== undefined && sectionConflicts(section, [picked]);
-        });
-        const clash = overlapsWith.length > 0 ? ` It overlaps ${overlapsWith.join(" and ")}.` : "";
+        const before = assess();
+        if ("ok" in before) return before;
+        if (before.inPlan && before.current === section.id) return { ok: true, changed: false, overlapsWith: [] };
+        const clash = before.overlapsWith.length > 0 ? ` It overlaps ${before.overlapsWith.join(" and ")}.` : "";
         const question = `Add ${id} section ${sectionNumber(section.id)} (${meetingsText(section)}) to your plan?${clash}`;
-        if (!(await ctx.confirm(question, "Add section"))) return fail("declined");
-        const stale = check();
-        if (stale) return stale;
-        const undo = undoFor(ctx.port, id, true);
+        if (!(await ctx.confirm(question, "Add section"))) return refused(ctx);
+        const now = assess();
+        if ("ok" in now) return now;
+        if (JSON.stringify(now) !== JSON.stringify(before)) return fail("plan_changed", PLAN_CHANGED);
+        const ours = (plan: PlannerState) =>
+          plan.courseStatuses[id] === "inProgress" && plan.selectedSections[id] === section.id && getPlanningTermCourseCodes(plan).includes(id);
+        const undo = undoFor(port, [id], ours);
         // The Courses view's "choose section" edit: plan the course by hand, then pick the section.
-        ctx.port.updateCoursePlan(
-          manualEdit(inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) }), [id]),
+        port.updateCoursePlan(
+          manualEdit(before.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) }), [id]),
         );
-        ctx.port.setSection(id, section.id);
+        port.setSection(id, section.id);
+        await port.committed();
+        if (!ours(port.plan())) return fail("not_applied", NOT_APPLIED);
         ctx.applied(`Your assistant added ${id} section ${sectionNumber(section.id)}`, undo);
-        return { ok: true, changed: true, overlapsWith };
+        return { ok: true, changed: true, overlapsWith: before.overlapsWith };
       },
     }),
 
@@ -586,21 +692,25 @@ export function createTools(): Tool[] {
       inputSchema: { type: "object", properties: { code: codeField }, required: ["code"], additionalProperties: false },
       writes: true,
       async run({ code }, ctx) {
+        const { port } = ctx;
         const id = courseId(code);
         if (!id) return fail("unknown_course");
         const check = () => {
-          const plan = ctx.port.plan();
+          const plan = port.plan();
           if (!getPlanningTermCourseCodes(plan).includes(id)) return fail("not_in_plan");
           return plan.lockedSections?.[id] ? fail("course_locked", `The student locked ${id}; they can unlock it in Week.`) : null;
         };
-        const refused = check();
-        if (refused) return refused;
-        if (!(await ctx.confirm(`Remove ${id} from your ${untProfile().planningTerm} plan?`, "Remove"))) return fail("declined");
+        const problem = check();
+        if (problem) return problem;
+        if (!(await ctx.confirm(`Remove ${id} from your ${untProfile().planningTerm} plan?`, "Remove"))) return refused(ctx);
         const stale = check();
         if (stale) return stale;
-        const undo = undoFor(ctx.port, id, true);
+        const ours = (plan: PlannerState) => !getPlanningTermCourseCodes(plan).includes(id) && (plan.courseStatuses[id] ?? "notTaken") === "notTaken";
+        const undo = undoFor(port, [id], ours);
         // The Courses view's "remove from plan" edit.
-        ctx.port.updateCoursePlan(manualEdit({ [id]: "notTaken" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) })));
+        port.updateCoursePlan(manualEdit({ [id]: "notTaken" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) })));
+        await port.committed();
+        if (!ours(port.plan())) return fail("not_applied", NOT_APPLIED);
         ctx.applied(`Your assistant removed ${id} from the plan`, undo);
         return { ok: true, removed: id };
       },
@@ -641,16 +751,23 @@ export function createTools(): Tool[] {
           if (!parsed.ok) return fail("invalid_input", `blocks[${index}]: ${parsed.reason}`);
           blocked.push(parsed.block);
         }
-        const before = ctx.port.preferences().constraints.blocked;
         const list = blocks.map((b) => `${b.day} ${b.start}-${b.end}`).join(", ");
         const question = blocked.length === 0 ? "Clear all your busy times?" : `Replace your busy times with ${list}?`;
-        if (!(await ctx.confirm(question, "Save busy times"))) return fail("declined");
-        ctx.port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked } }));
+        if (!(await ctx.confirm(question, "Save busy times"))) return refused(ctx);
+        // Read what is replaced, and later compare before restoring, inside the updater: it sees the newest stored value.
+        const replaced: { blocked?: BlockedTime[] } = {};
+        ctx.port.setSchedulePreferences((p) => {
+          replaced.blocked = p.constraints.blocked;
+          return { ...p, constraints: { ...p.constraints, blocked } };
+        });
         ctx.applied("Your assistant updated your busy times", () => {
-          // Only while the list is still the one this call saved.
-          if (JSON.stringify(ctx.port.preferences().constraints.blocked) !== JSON.stringify(blocked)) return false;
-          ctx.port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: before } }));
-          return true;
+          let restored = false;
+          ctx.port.setSchedulePreferences((p) => {
+            if (!replaced.blocked || JSON.stringify(p.constraints.blocked) !== JSON.stringify(blocked)) return p;
+            restored = true;
+            return { ...p, constraints: { ...p.constraints, blocked: replaced.blocked } };
+          });
+          return restored;
         });
         return { ok: true, busyTimes: blocked.length };
       },

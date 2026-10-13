@@ -44,6 +44,11 @@ function isModelContext(value: unknown): value is ModelContextLike {
   return typeof value === "object" && value !== null && "registerTool" in value && typeof value.registerTool === "function";
 }
 
+/** The current draft's execution signal, when the agent passed one. */
+function executionSignal(second: unknown): AbortSignal | undefined {
+  return hasField(second, "signal") && second.signal instanceof AbortSignal ? second.signal : undefined;
+}
+
 /**
  * The student's answer, asked through the page. When the agent passed a
  * client with `requestUserInteraction` (drafts before June 2026), the
@@ -51,12 +56,15 @@ function isModelContext(value: unknown): value is ModelContextLike {
  */
 export function confirmThrough(
   second: unknown,
-  ask: (question: string, action: string, signal?: AbortSignal) => Promise<boolean>,
+  signal: AbortSignal,
+  ask: (question: string, action: string, signal: AbortSignal) => Promise<boolean>,
 ): ToolContext["confirm"] {
-  const signal = hasField(second, "signal") && second.signal instanceof AbortSignal ? second.signal : undefined;
   return async (question, action) => {
-    if (!canPause(second)) return ask(question, action, signal);
-    return (await second.requestUserInteraction(() => ask(question, action, signal))) === true;
+    const granted = canPause(second)
+      ? (await second.requestUserInteraction(() => ask(question, action, signal))) === true
+      : await ask(question, action, signal);
+    // A yes that arrives after the call was cancelled does not count.
+    return granted && !signal.aborted;
   };
 }
 
@@ -90,8 +98,9 @@ export function createLimiter(now: () => number = Date.now) {
   };
 }
 
-export type Session = Omit<ToolContext, "confirm"> & {
-  ask(question: string, action: string, signal?: AbortSignal): Promise<boolean>;
+export type Session = Omit<ToolContext, "confirm" | "signal"> & {
+  /** Asks the student; must answer false once `signal` aborts. */
+  ask(question: string, action: string, signal: AbortSignal): Promise<boolean>;
   limit?: (name: string) => boolean;
 };
 
@@ -107,8 +116,12 @@ export function registerTools(modelContext: ModelContextLike, tools: readonly To
       if (!limit(tool.name)) return { ok: false, reason: "rate_limited", detail: "Too many calls; wait a minute." };
       if (tool.writes && writing) return { ok: false, reason: "busy", detail: "The student is still answering another change." };
       writing ||= tool.writes;
+      // Ends when the agent cancels this call or the tools are unregistered.
+      const execution = executionSignal(second);
+      const signal = execution ? AbortSignal.any([controller.signal, execution]) : controller.signal;
       try {
-        return await tool.run(input, { port: session.port, applied: session.applied, confirm: confirmThrough(second, session.ask) });
+        const confirm = confirmThrough(second, signal, session.ask);
+        return await tool.run(input, { port: session.port, applied: session.applied, signal, confirm });
       } catch (error) {
         console.error(`WebMCP tool ${tool.name} failed`, error);
         return { ok: false, reason: "failed" };
