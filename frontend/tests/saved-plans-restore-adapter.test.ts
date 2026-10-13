@@ -10,6 +10,7 @@ import { buildSavedPlanSnapshot, resolveSectionReferences } from "@/lib/plan-lib
 import { normalizePlannerState } from "@/lib/planner";
 import { defaultPlannerState } from "@/lib/seed-data";
 import type {
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -78,6 +79,9 @@ class RecorderPlanner {
   }
   setSectionLock(courseCode: string, locked: boolean) {
     this.record("setSectionLock", [courseCode, locked]);
+  }
+  setCoursePlan(coursePlan: CoursePlan) {
+    this.record("setCoursePlan", [coursePlan]);
   }
   actionNames(): string[] {
     return this.calls.map((call) => call.action);

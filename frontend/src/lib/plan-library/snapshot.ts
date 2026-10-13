@@ -1,5 +1,6 @@
 import { courses, sections } from "@/lib/seed-data";
 import { getMissingPrerequisites } from "@/lib/planner";
+import { getPlanningTermCourseCodes } from "@/lib/planner";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
 import type { Course, CourseSection, CourseStatus, PlannerState } from "@/lib/types";
 import {
@@ -118,12 +119,14 @@ export function computeCatalogFingerprint(state: PlannerState): SavedPlanCatalog
 /**
  * Resolve every selected section of a planner state against the running
  * catalog. Read-only: uses the same `sections` data the planner uses, and the
- * same active-course rule (a section only survives normalize for a course the
- * plan declares in progress).
+ * same active-course rule (a section only survives normalize for a course in
+ * the plan's planning term, getPlanningTermCourseCodes: a course the
+ * transcript says is being taken now is not scheduled, so its section is
+ * inactive, exactly as restore will treat it).
  */
 export function resolveSectionReferences(state: PlannerState): SectionReferenceReport {
   const findings: SectionReferenceFinding[] = [];
-  const byStatus = { ...state.courseStatuses };
+  const planned = new Set(getPlanningTermCourseCodes(state));
 
   Object.entries(state.selectedSections ?? {}).forEach(([courseCode, sectionId]) => {
     const course = courses.find((entry) => entry.code === courseCode) ?? null;
@@ -135,7 +138,7 @@ export function resolveSectionReferences(state: PlannerState): SectionReferenceR
       status = "unknownCourse";
     } else if (!section) {
       status = "stale";
-    } else if ((byStatus[courseCode] ?? "notTaken") !== "inProgress") {
+    } else if (!planned.has(courseCode)) {
       status = "inactive";
     } else {
       status = "preserved";

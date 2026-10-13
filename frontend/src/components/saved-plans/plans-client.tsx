@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { usePlanner, useToast } from "@/components/planner-provider";
 import { PlannerSampleNotice } from "@/components/planner-sample-notice";
 import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
-import { describeLockChanges } from "@/lib/plan-library/diff";
+import { describeCourseFactChanges, describeLockChanges } from "@/lib/plan-library/diff";
 import {
   createSavedPlanStore,
   subscribeSavedPlans,
@@ -360,6 +360,9 @@ export function PlansClient() {
                 ))}
                 {describeLockChanges(compare.lockChanges).map((line) => (
                   <DiffRow key={`lock-${line}`}>{line}</DiffRow>
+                ))}
+                {describeCourseFactChanges(compare.courseFactChanges).map((line) => (
+                  <DiffRow key={`fact-${line}`}>{line}</DiffRow>
                 ))}
                 {compare.optimizationChanged ? <DiffRow>The optimization preference differs</DiffRow> : null}
                 {compare.activeDayChanged ? <DiffRow>The preferred day differs</DiffRow> : null}

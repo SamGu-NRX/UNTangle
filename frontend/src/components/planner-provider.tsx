@@ -119,6 +119,8 @@ type PlannerContextValue = {
       coursePlan?: CoursePlan;
     },
   ) => void;
+  /** Replaces the plan's Courses-view facts wholesale (restoring a saved plan). */
+  setCoursePlan: (coursePlan: CoursePlan) => void;
   applyTranscriptRecords: (records: TranscriptCourseRecord[]) => void;
   setOptimization: (optimization: OptimizationKey) => void;
   setSection: (courseCode: string, sectionId: string) => void;
@@ -881,6 +883,12 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
             updatedAt: new Date().toISOString(),
           };
         });
+      },
+      setCoursePlan: (coursePlan) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => ({ ...current, coursePlan, updatedAt: new Date().toISOString() }));
       },
       applyTranscriptRecords: (records) => {
         if (!hydrated) {

@@ -10,6 +10,7 @@ import { stableHash } from "@/lib/plan-library/snapshot";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import type {
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -44,6 +45,7 @@ export type RestorePlannerApi = {
   setCourseStatus: (courseCode: string, status: CourseStatus) => void;
   setSection: (courseCode: string, sectionId: string) => void;
   setSectionLock: (courseCode: string, locked: boolean) => void;
+  setCoursePlan: (coursePlan: CoursePlan) => void;
   plannerState: PlannerState;
 };
 
@@ -90,6 +92,13 @@ function annotateCompletedRecord(record: TranscriptCourseRecord): TranscriptCour
     reviewRequired: false,
     rationale: record.rationale.includes(marker) ? record.rationale : `${record.rationale} ${marker}`,
   };
+}
+
+/** The saved plan's Courses-view facts, when it has any (plans from before them have none). */
+function savedCoursePlan(state: PlannerState): CoursePlan | null {
+  const plan = state.coursePlan;
+  if (!plan) return null;
+  return plan.manualCredit.length > 0 || plan.autoPlanned.length > 0 || plan.lastAuto ? plan : null;
 }
 
 function statusOf(statuses: Record<string, CourseStatus>, courseCode: string): CourseStatus {
@@ -151,6 +160,11 @@ export function dispatchRestore(
       appliedStatusCount += 1;
     }
   });
+
+  // Manual credit, Auto provenance and the last Auto run travel with the plan.
+  // Statuses come first so the facts land on the statuses they describe.
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) planner.setCoursePlan(coursePlan);
 
   let appliedSectionCount = 0;
   const staleSkipped: RestoreOutcome["staleSkipped"] = [];
@@ -237,6 +251,9 @@ export function simulateRestoredState(
     }
   });
 
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) state = { ...state, coursePlan };
+
   references.preserved.forEach((finding) => {
     state = {
       ...state,
@@ -291,6 +308,16 @@ export function describeRestoreSteps(
       ? `Declare course statuses: ${statusDiffs.join(", ")}`
       : "Declare no course-status changes (they already match)",
   );
+
+  const coursePlan = savedCoursePlan(planState);
+  if (coursePlan) {
+    const facts = [
+      coursePlan.manualCredit.length > 0 ? `credit you claimed for ${coursePlan.manualCredit.join(", ")}` : null,
+      coursePlan.autoPlanned.length > 0 ? `${coursePlan.autoPlanned.length} course(s) planned by Auto-fill` : null,
+      coursePlan.lastAuto ? "the last Auto-fill run" : null,
+    ].filter(Boolean);
+    steps.push(`Restore ${facts.join(", ")}`);
+  }
 
   if (references.preserved.length > 0) {
     const selections = references.preserved
