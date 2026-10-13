@@ -1083,7 +1083,10 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           }
           // Like a hand pick, using an option edits those courses' sections, so a
           // pending Auto run that planned them can no longer be undone.
-          const changed = Object.keys(byCourse).filter((code) => current.selectedSections[code] !== byCourse[code]);
+          // Compare with what the page shows (normalized): an Auto-planned course
+          // whose section was filled in by normalization is not "changed".
+          const shown = normalizePlannerState(current).selectedSections;
+          const changed = Object.keys(byCourse).filter((code) => shown[code] !== byCourse[code]);
           return {
             ...current,
             selectedSections: { ...current.selectedSections, ...byCourse },
@@ -1176,6 +1179,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           mutatedBeforeBootstrap.current = true;
         }
         setPlannerState(getInitialPlannerState());
+        // Weights follow the goal: a restore resets first and only re-sets a
+        // goal that differs from the default, so the reset must carry the default's.
+        setSchedulePreferences((current) => withGoalWeights(current, getInitialPlannerState().optimization));
         bumpPlanEpoch();
       },
       saveState: shownSaveState,
