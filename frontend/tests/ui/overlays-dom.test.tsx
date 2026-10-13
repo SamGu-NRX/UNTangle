@@ -17,12 +17,14 @@ describe("Select inside a Dialog", () => {
   test("Escape closes the open listbox first, then the dialog", async () => {
     const { Dialog } = await import("@/components/ui/Dialog");
     const { Select } = await import("@/components/ui/Select");
-    const { useState } = await import("react");
+    const { useEffect, useState } = await import("react");
     const { act } = await import("react");
-    let open = true;
+    const seen = { open: true };
     function Harness() {
       const [isOpen, setOpen] = useState(true);
-      open = isOpen;
+      useEffect(() => {
+        seen.open = isOpen;
+      });
       return (
         <Dialog open={isOpen} onOpenChange={setOpen} title="Export calendar">
           <Select label="Reminder" options={[{ value: "10", label: "10 minutes" }, { value: "15", label: "15 minutes" }]} defaultValue="10" />
@@ -37,10 +39,10 @@ describe("Select inside a Dialog", () => {
 
     await press(combo, "Escape");
     expect(combo.getAttribute("aria-expanded")).toBe("false");
-    expect(open).toBe(true);
+    expect(seen.open).toBe(true);
 
     await press(combo, "Escape");
-    expect(open).toBe(false);
+    expect(seen.open).toBe(false);
     await view.unmount();
   });
 });
