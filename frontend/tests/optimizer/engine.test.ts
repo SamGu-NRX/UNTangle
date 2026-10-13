@@ -26,7 +26,7 @@ describe("optimizer against the brute-force reference", () => {
   });
 
   test("infeasibility explanations are minimal: the set conflicts, and dropping any member fixes it", () => {
-    const { failures, checked } = checkExplanations(optimize, SEEDS);
+    const { failures, checked } = checkExplanations(optimize, [...SEEDS, ...Array.from({ length: 150 }, (_, i) => 401 + i)]);
     expect(failures).toEqual([]);
     expect(checked).toBeGreaterThan(20);
   });

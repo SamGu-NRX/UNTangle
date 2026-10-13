@@ -7,6 +7,7 @@
  */
 
 import {
+  OptimizerInputError,
   OPT_DAYS,
   type OptDay,
   type OptMeeting,
@@ -84,11 +85,21 @@ export function sameBuilding(a: string | null, b: string | null): boolean {
 }
 
 /** Walking seconds between two classes, or null when unknown. Same building is 0. */
+/**
+ * Walking seconds between two classes, or null when unknown. Same building
+ * is 0. Providers may return fractional seconds (the campus network does);
+ * this is the one place they are normalized, to whole seconds by rounding,
+ * so the walking check, the cost and the breakdown always agree.
+ */
 export function walkSeconds(walkingTime: OptWalkingTimeFn, from: string | null, to: string | null): number | null {
   if (sameBuilding(from, to)) return 0;
   if (from === null || to === null) return null;
   const leg = walkingTime(from, to);
-  return leg.source === "unknown" ? null : leg.seconds;
+  if (leg.source === "unknown" || leg.seconds === null) return null;
+  if (!Number.isFinite(leg.seconds) || leg.seconds < 0) {
+    throw new OptimizerInputError(`walking time ${from} -> ${to} is ${leg.seconds}, not a non-negative number of seconds`);
+  }
+  return Math.round(leg.seconds);
 }
 
 /**

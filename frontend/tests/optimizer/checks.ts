@@ -5,9 +5,10 @@
  */
 
 import type { OptimizeRequest, OptimizeResult } from "@/lib/optimizer/types";
-import { generateInstance, type InstanceShape } from "./generator";
+import { generateInstance, syntheticWalkingTime, type InstanceShape } from "./generator";
 import {
   combinationCount,
+  referenceRelax,
   referenceFeasible,
   referenceRestrict,
   referenceTopK,
@@ -88,22 +89,44 @@ export function checkAgainstReference(optimize: OptimizeFn, seeds: number[]): st
 export function checkExplanations(optimize: OptimizeFn, seeds: number[]): { failures: string[]; checked: number } {
   const failures: string[] = [];
   let checked = 0;
+  // Seeds above 400 use a dense profile, where several independent conflicts are common.
+  const instance = (seed: number) =>
+    seed > 400
+      ? generateInstance(seed, { courses: 4, sectionsPerCourse: [2, 4], style: "irregular", constraintDensity: 0.95, walking: "non-metric" })
+      : smallInstance(seed);
   for (const seed of seeds) {
-    const request = smallInstance(seed);
+    const request = instance(seed);
     if (combinationCount(request) > 20_000) continue;
     const result = optimize(request);
     if (result.status !== "infeasible") continue;
     checked += 1;
-    const { members, minimal } = result.explanation;
+    const { members, minimal, sentence } = result.explanation;
     const fail = (message: string) => failures.push(`seed ${seed}: ${message}`);
-    if (!minimal) fail("explanation not marked minimal with an unlimited budget");
     if (referenceFeasible(referenceRestrict(request, members))) fail(`set ${JSON.stringify(members)} is feasible on its own`);
-    members.forEach((member, index) => {
-      const without = members.filter((_, i) => i !== index);
-      if (!referenceFeasible(referenceRestrict(request, without))) fail(`dropping ${JSON.stringify(member)} leaves it infeasible`);
-    });
+    // Each constraint the explanation names is needed by the full request:
+    // with every course kept, relaxing just that one makes the rest fit.
+    const allCourses = request.courses.map((course) => ({ kind: "course" as const, courseCode: course.code }));
+    const named = members.filter((m) => m.kind !== "course");
+    if (minimal) {
+      named.forEach((member, index) => {
+        const others = named.filter((_, i) => i !== index);
+        if (!referenceFeasible(referenceRestrict(request, [...allCourses, ...others]))) {
+          fail(`${JSON.stringify(member)} is blamed but not needed by the full request`);
+        }
+      });
+      members.forEach((member, index) => {
+        const without = members.filter((_, i) => i !== index);
+        if (!referenceFeasible(referenceRestrict(request, without))) fail(`marked minimal, but dropping ${JSON.stringify(member)} leaves it infeasible`);
+      });
+    } else if (!sentence.startsWith("These can't all hold together")) {
+      fail(`not minimal, yet worded as a precise cause: ${sentence}`);
+    } else if (!members.some((m) => m.kind === "walking")) {
+      // With an unlimited budget only the walking check may leave a set unreduced.
+      fail(`not minimal without the walking check: ${JSON.stringify(members)}`);
+    }
     for (const suggestion of result.explanation.suggestions) {
-      if (suggestion.resolves === null) fail(`suggestion ${suggestion.label} unchecked with an unlimited budget`);
+      const truth = referenceFeasible(referenceRelax(request, suggestion.relaxation));
+      if (suggestion.resolves !== truth) fail(`suggestion "${suggestion.label}" says resolves=${suggestion.resolves}, reference says ${truth}`);
     }
   }
   return { failures, checked };
@@ -165,6 +188,78 @@ export function checkBudgets(optimize: OptimizeFn): string[] {
     const elapsed = performance.now() - started;
     // Preparation runs before the clock is first read; 150 ms leaves room for it.
     if (elapsed > 150) failures.push(`instance ${index}: 20 ms budget took ${elapsed.toFixed(0)} ms`);
+  }
+  return failures;
+}
+
+const X = "b-arts";
+const meet = (day: "Mon" | "Tue", start: number, end: number, buildingId: string | null = X) => ({ day, start, end, buildingId });
+
+/** Review regressions (PR #32, Astra), each a fixed instance with a known answer. */
+export function regressionCases(): Array<{ name: string; request: OptimizeRequest; verify: (result: OptimizeResult) => string | null }> {
+  const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
+  const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
+  const base = { locks: {}, excluded: [], walkingTime: syntheticWalkingTime, timeBudgetMs: 60_000, explainBudgetMs: 60_000 };
+  // One section can fill a break with two meetings; crediting only its
+  // longest meeting overestimated the bound and proved a worse schedule.
+  const fillCourses = [
+    { code: "A", credits: 3, sections: [
+      { id: "a0", courseCode: "A", rating: null, meetings: [meet("Mon", 540, 550), meet("Mon", 650, 660)] },
+      { id: "a1", courseCode: "A", rating: null, meetings: [meet("Mon", 740, 750), meet("Mon", 770, 780)] },
+    ] },
+    { code: "B", credits: 3, sections: [
+      { id: "b0", courseCode: "B", rating: null, meetings: [meet("Mon", 550, 600), meet("Mon", 600, 650)] },
+      { id: "b1", courseCode: "B", rating: null, meetings: [meet("Mon", 750, 755), meet("Mon", 760, 770)] },
+      { id: "b2", courseCode: "B", rating: null, meetings: [meet("Tue", 540, 600)] },
+    ] },
+  ];
+  // 600.5 s between two buildings 10 minutes apart: rounds to 601 s, so it doesn't fit.
+  const fractional: OptimizeRequest["walkingTime"] = (from, to) =>
+    from === to ? { seconds: 0, source: "campus-network" } : { seconds: 600.5, source: "campus-network" };
+  const walkCourses = [
+    { code: "P", credits: 3, sections: [{ id: "p0", courseCode: "P", rating: null, meetings: [meet("Mon", 540, 590, "b-arts")] }] },
+    { code: "Q", credits: 3, sections: [
+      { id: "q0", courseCode: "Q", rating: null, meetings: [meet("Mon", 600, 650, "b-sci")] },
+      { id: "q1", courseCode: "Q", rating: null, meetings: [meet("Mon", 601, 651, "b-sci")] },
+    ] },
+  ];
+  return [
+    {
+      name: "fill bound, k=1",
+      request: { ...base, courses: fillCourses, constraints: none, weights: { ...zero, compact: 1 }, k: 1 },
+      verify: (r) => (r.status === "optimal" && r.schedules[0].cost === 0 && r.schedules[0].byCourse.A === "a0" && r.schedules[0].byCourse.B === "b0" ? null : `got ${r.status} ${JSON.stringify(r.schedules.map((s) => [s.byCourse, s.cost]))}`),
+    },
+    {
+      name: "fill bound, k=3 ascending",
+      request: { ...base, courses: fillCourses, constraints: none, weights: { ...zero, compact: 1 }, k: 3 },
+      verify: (r) => {
+        const costs = r.schedules.map((s) => s.cost);
+        return costs[0] === 0 && costs.every((c, i) => i === 0 || costs[i - 1] <= c) ? null : `costs ${costs.join(",")}`;
+      },
+    },
+    {
+      name: "fractional walking seconds",
+      request: { ...base, walkingTime: fractional, courses: walkCourses, constraints: { ...none, walking: { bufferMinutes: 0 } }, weights: { ...zero, walking: 1 }, k: 3 },
+      verify: (r) => (r.status === "optimal" && r.schedules.length === 1 && r.schedules[0].byCourse.Q === "q1" && r.schedules[0].breakdown.walkSeconds === 601 ? null : `got ${r.status} ${JSON.stringify(r.schedules.map((s) => [s.byCourse, s.breakdown.walkSeconds]))}`),
+    },
+  ];
+}
+
+export function checkRegressions(optimize: OptimizeFn): string[] {
+  const failures: string[] = [];
+  for (const { name, request, verify } of regressionCases()) {
+    let message: string | null;
+    try {
+      message = verify(optimize(request));
+    } catch (error) {
+      message = String(error);
+    }
+    if (message) failures.push(`${name}: ${message}`);
+    const reference = referenceTopK(request);
+    if (reference.schedules[0] && message === null) {
+      const result = optimize(request);
+      if (result.schedules[0]?.cost !== reference.schedules[0].cost) failures.push(`${name}: disagrees with the reference`);
+    }
   }
   return failures;
 }

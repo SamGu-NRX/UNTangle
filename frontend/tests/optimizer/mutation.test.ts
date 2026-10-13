@@ -10,7 +10,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkAgainstReference, checkBudgets, checkExplanations, checkLargeInstancesValid, type OptimizeFn } from "./checks";
+import { checkAgainstReference, checkBudgets, checkExplanations, checkLargeInstancesValid, checkRegressions, type OptimizeFn } from "./checks";
 
 const SOURCE = join(import.meta.dir, "../../src/lib/optimizer");
 const created: string[] = [];
@@ -31,7 +31,7 @@ async function mutant(file: string, from: string, to: string): Promise<OptimizeF
 
 const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
 const agreement = (fn: OptimizeFn) => checkAgainstReference(fn, SEEDS);
-const explanations = (fn: OptimizeFn) => checkExplanations(fn, SEEDS).failures;
+const explanations = (fn: OptimizeFn) => checkExplanations(fn, [...SEEDS, ...Array.from({ length: 150 }, (_, i) => 401 + i)]).failures;
 
 const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; check: (fn: OptimizeFn) => string[] }> = [
   {
@@ -159,6 +159,20 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
     from: "const verdict = check(restrictTo(request, pruned));",
     to: 'const verdict = member.kind === "course" ? false : check(restrictTo(request, pruned));',
     check: explanations,
+  },
+  {
+    name: "every suggestion's resolves flag is inverted",
+    file: "explain.ts",
+    from: "    resolves: check(applyRelaxation(request, entry.relaxation)),",
+    to: "    resolves: !check(applyRelaxation(request, entry.relaxation)),",
+    check: explanations,
+  },
+  {
+    name: "a break is credited with one meeting, not a section's total",
+    file: "prepare.ts",
+    from: "            total += own[last].end - own[last].start;",
+    to: "            total = Math.max(total, own[last].end - own[last].start);",
+    check: (fn) => checkRegressions(fn),
   },
   {
     name: "a locked section is not forced",

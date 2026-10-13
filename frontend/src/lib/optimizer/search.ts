@@ -170,19 +170,26 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     dayStack.push(new Float64Array(5));
   }
 
+  // Direct shifts instead of splice: these run for every evaluated child.
   function insertMeetings(candidate: Candidate): void {
     for (const meeting of candidate.meetings) {
       const list = dayLists[meeting.day];
-      let index = 0;
-      while (index < list.length && list[index].start < meeting.start) index += 1;
-      list.splice(index, 0, meeting);
+      let index = list.length;
+      list.push(meeting);
+      while (index > 0 && list[index - 1].start > meeting.start) {
+        list[index] = list[index - 1];
+        index -= 1;
+      }
+      list[index] = meeting;
     }
   }
 
   function removeMeetings(candidate: Candidate): void {
     for (const meeting of candidate.meetings) {
       const list = dayLists[meeting.day];
-      list.splice(list.indexOf(meeting), 1);
+      let index = list.indexOf(meeting);
+      for (; index < list.length - 1; index += 1) list[index] = list[index + 1];
+      list.pop();
     }
   }
 

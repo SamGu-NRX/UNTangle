@@ -15,7 +15,7 @@
  */
 
 import { OPT_DAYS, type ExplainMember, type Explanation, type OptDay, type OptimizeRequest, type OptSection, type Relaxation, type RelaxSuggestion } from "./types";
-import { prepare } from "./prepare";
+import { prepare, PrepareBudgetExhausted } from "./prepare";
 import { isFeasible, type Budget } from "./search";
 
 function memberKey(member: ExplainMember): string {
@@ -87,59 +87,70 @@ function makeCheck(deadline: number, now: () => number): Check {
   return (request) => {
     const budget: Budget = { deadline, maxNodes: Number.POSITIVE_INFINITY, now, nodes: 0 };
     if (now() > deadline) return null;
-    return isFeasible(prepare(request), budget);
+    try {
+      return isFeasible(prepare(request, deadline, now), budget);
+    } catch (error) {
+      if (error instanceof PrepareBudgetExhausted) return null;
+      throw error;
+    }
   };
 }
 
-/** The first small member set (one course, then two) that already conflicts, else everything. */
-function seedSet(request: OptimizeRequest, all: ExplainMember[], check: Check): ExplainMember[] {
-  const shared = all.filter((member) => member.kind !== "course" && member.kind !== "lock" && member.kind !== "excluded");
-  const ofCourse = (code: string) => {
-    const ids = new Set(request.courses.find((course) => course.code === code)!.sections.map((section) => section.id));
-    return all.filter(
-      (member) =>
-        (member.kind === "course" && member.courseCode === code) ||
-        (member.kind === "lock" && member.courseCode === code) ||
-        (member.kind === "excluded" && ids.has(member.sectionId)),
-    );
-  };
-  const codes = all.filter((member) => member.kind === "course").map((member) => (member as { courseCode: string }).courseCode);
-  if (codes.length > 1) {
-    for (const code of codes) {
-      const set = [...ofCourse(code), ...shared];
-      if (check(restrictTo(request, set)) === false) return set;
-    }
-  }
-  if (codes.length > 2) {
-    for (let i = 0; i < codes.length; i += 1) {
-      for (let j = i + 1; j < codes.length; j += 1) {
-        const set = [...ofCourse(codes[i]), ...ofCourse(codes[j]), ...shared];
-        if (check(restrictTo(request, set)) === false) return set;
-      }
-    }
-  }
-  return all;
+function sharesADay(request: OptimizeRequest, code: string, others: readonly string[]): boolean {
+  const days = (c: string) => new Set(request.courses.find((course) => course.code === c)!.sections.flatMap((s) => s.meetings.map((m) => m.day)));
+  const own = days(code);
+  return others.some((other) => [...days(other)].some((day) => own.has(day)));
 }
 
 /**
- * A smallest conflicting set for an infeasible request. `minimal` is false
- * when a check ran out of budget: the set still conflicts, but a member may
- * be unnecessary.
+ * A smallest conflicting set for an infeasible request, in two passes.
+ *
+ * 1. With every course kept, drop each constraint, lock and exclusion that
+ *    the conflict doesn't need. Dropping one only loosens the request, so
+ *    each verdict holds for the full request.
+ * 2. Drop each course the conflict doesn't need. Without the walking check
+ *    this is safe too: fewer classes never create a clash. With it, removing
+ *    a class can leave two others back to back and invent a walking conflict
+ *    the full request doesn't have, so a course that shares a day with the
+ *    rest is kept.
+ *
+ * `minimal` is true only when every check finished and dropping any single
+ * member of the result makes it feasible. Otherwise the set still conflicts
+ * but may name more than it needs, and the sentence says so plainly.
  */
 export function findConflictSet(request: OptimizeRequest, check: Check): { members: ExplainMember[]; minimal: boolean } {
   const all = allMembers(request);
-  let kept = seedSet(request, all, check);
-  let minimal = true;
-  for (const member of [...kept]) {
-    const without = kept.filter((m) => memberKey(m) !== memberKey(member));
-    // A lock or exclusion means nothing without its course; drop it with the course.
-    const pruned =
-      member.kind === "course"
-        ? without.filter((m) => !(m.kind === "lock" && m.courseCode === member.courseCode))
-        : without;
+  const courses = all.filter((member) => member.kind === "course");
+  let others = all.filter((member) => member.kind !== "course");
+  let decided = true;
+  for (const member of [...others]) {
+    const without = others.filter((m) => memberKey(m) !== memberKey(member));
+    const verdict = check(restrictTo(request, [...courses, ...without]));
+    if (verdict === false) others = without;
+    else if (verdict === null) decided = false;
+  }
+  const walking = others.some((member) => member.kind === "walking");
+  let kept = [...courses, ...others];
+  for (const member of courses) {
+    const code = (member as { courseCode: string }).courseCode;
+    const remainingCodes = kept
+      .filter((m): m is Extract<ExplainMember, { kind: "course" }> => m.kind === "course" && m.courseCode !== code)
+      .map((m) => m.courseCode);
+    if (walking && sharesADay(request, code, remainingCodes)) continue;
+    // A lock means nothing without its course; drop it with the course.
+    const pruned = kept.filter((m) => memberKey(m) !== memberKey(member) && !(m.kind === "lock" && m.courseCode === code));
     const verdict = check(restrictTo(request, pruned));
     if (verdict === false) kept = pruned;
-    else if (verdict === null) minimal = false;
+    else if (verdict === null) decided = false;
+  }
+  // Exclusions of dropped courses no longer mean anything.
+  const keptCodes = new Set(kept.filter((m) => m.kind === "course").map((m) => (m as { courseCode: string }).courseCode));
+  const sectionCourse = new Map(request.courses.flatMap((c) => c.sections.map((s) => [s.id, c.code] as const)));
+  kept = kept.filter((m) => m.kind !== "excluded" || keptCodes.has(sectionCourse.get(m.sectionId) ?? ""));
+  let minimal = decided && check(restrictTo(request, kept)) === false;
+  for (const member of kept) {
+    if (!minimal) break;
+    if (check(restrictTo(request, kept.filter((m) => memberKey(m) !== memberKey(member)))) !== true) minimal = false;
   }
   return { members: kept, minimal };
 }
@@ -273,6 +284,15 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
   return `${joinList(names)} can't all fit together${where}: every combination has a clash.`.replace(/^./, (s) => s.toUpperCase());
 }
 
+/** Used when the set could not be shown minimal: it conflicts, but may name more than needed. */
+export function fallbackSentence(request: OptimizeRequest, members: ExplainMember[]): string {
+  const codes = members.filter((m) => m.kind === "course").map((m) => (m as { courseCode: string }).courseCode);
+  const locks = members.filter((m): m is Extract<ExplainMember, { kind: "lock" }> => m.kind === "lock").map((m) => `your ${m.courseCode} lock`);
+  const parts = [...codes, ...locks, ...conditionPhrases(request, members)];
+  if (members.some((m) => m.kind === "maxCredits")) parts.push(`a ${request.constraints.maxCredits}-credit limit`);
+  return `These can't all hold together: ${joinList(parts)}.`;
+}
+
 /* ---------- One-click relaxations ---------- */
 
 function applyRelaxation(request: OptimizeRequest, relaxation: Relaxation): OptimizeRequest {
@@ -378,11 +398,12 @@ function relaxationsFor(
 export function explainInfeasible(request: OptimizeRequest, budgetMs: number, now: () => number): Explanation {
   const check = makeCheck(now() + budgetMs, now);
   const { members, minimal } = findConflictSet(request, check);
+  const sentence = minimal ? explainSentence(request, members) : fallbackSentence(request, members);
   const suggestions: RelaxSuggestion[] = relaxationsFor(request, members, check).map((entry) => ({
     ...entry,
     resolves: check(applyRelaxation(request, entry.relaxation)),
   }));
   // Changes that make everything fit come first; otherwise keep member order.
   suggestions.sort((a, b) => Number(b.resolves === true) - Number(a.resolves === true));
-  return { members, minimal, sentence: explainSentence(request, members), suggestions };
+  return { members, minimal, sentence, suggestions };
 }

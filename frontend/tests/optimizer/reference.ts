@@ -8,7 +8,7 @@
  * usable on small instances.
  */
 
-import type { ExplainMember, OptCourse, OptDay, OptimizeRequest, OptSection, OptWeights } from "@/lib/optimizer/types";
+import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptSection, OptWeights } from "@/lib/optimizer/types";
 
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const UNKNOWN_WALK = 600;
@@ -33,7 +33,8 @@ function walkBetween(request: OptimizeRequest, a: string | null, b: string | nul
   if (a !== null && b !== null && a === b) return 0;
   if (a === null || b === null) return null;
   const leg = request.walkingTime(a, b);
-  return leg.source === "unknown" ? null : leg.seconds;
+  // Contract: fractional seconds are rounded to whole seconds.
+  return leg.source === "unknown" || leg.seconds === null ? null : Math.round(leg.seconds);
 }
 
 /** Every hard-constraint violation of a complete selection, as readable strings. */
@@ -256,4 +257,22 @@ export function referenceRestrict(request: OptimizeRequest, members: ExplainMemb
       walking: named((m) => m.kind === "walking") ? c.walking : null,
     },
   };
+}
+
+/** A suggested relaxation applied to the full request, written from the contract. */
+export function referenceRelax(request: OptimizeRequest, relaxation: Relaxation): OptimizeRequest {
+  const c = { ...request.constraints };
+  let locks = { ...request.locks };
+  let excluded = [...request.excluded];
+  switch (relaxation.kind) {
+    case "earliestStart": c.earliestStart = relaxation.to; break;
+    case "latestEnd": c.latestEnd = relaxation.to; break;
+    case "dayOff": c.daysOff = c.daysOff.filter((d) => d !== relaxation.day); break;
+    case "blocked": c.blocked = c.blocked.filter((b) => b.id !== relaxation.blockedId); break;
+    case "maxCredits": c.maxCredits = relaxation.to; break;
+    case "walking": c.walking = relaxation.to; break;
+    case "unlock": locks = Object.fromEntries(Object.entries(locks).filter(([code]) => code !== relaxation.courseCode)); break;
+    case "include": excluded = excluded.filter((id) => id !== relaxation.sectionId); break;
+  }
+  return { ...request, constraints: c, locks, excluded };
 }

@@ -65,7 +65,7 @@ export type Prepared = {
   /** Per candidate bit: the bits of candidates it can never be combined with. */
   conflicts: Uint32Array[];
   /** Walking seconds between interned buildings; -1 when unknown. */
-  walk: Int32Array;
+  walk: Float64Array;
   buildingCount: number;
   /** Seconds a back-to-back transfer needs on top of the walk; null when the walking check is off. */
   bufferSeconds: number | null;
@@ -81,8 +81,9 @@ export type Prepared = {
   /** Minute of the day -> index into `times`, -1 when no meeting starts or ends then. */
   timeIndex: Int16Array;
   /**
-   * fill[course][day][i * times.length + j]: the longest meeting of any of the
-   * course's candidates on that day that fits inside [times[i], times[j]].
+   * fill[course][day][i * times.length + j]: the most class time any one of
+   * the course's candidates puts inside [times[i], times[j]] on that day (the
+   * total of all its meetings that fit there, not just the longest one).
    * The search uses it to bound how much of a break other courses can fill.
    */
   fill: Int16Array[][];
@@ -133,8 +134,12 @@ export function validateRequest(request: OptimizeRequest): void {
       throw new OptimizerInputError(`lock on ${courseCode} names ${sectionId}, which is not one of its sections`);
     }
   }
+  const excludedSeen = new Set<string>();
   for (const sectionId of request.excluded) {
     if (!sectionIds.has(sectionId)) throw new OptimizerInputError(`excluded section ${sectionId} is not in the request`);
+    // A repeated id would be two explanation members for one exclusion.
+    if (excludedSeen.has(sectionId)) throw new OptimizerInputError(`excluded section ${sectionId} is listed twice`);
+    excludedSeen.add(sectionId);
   }
   for (const [key, value] of Object.entries(request.weights)) {
     if (!isInteger(value, 0, MAX_WEIGHT)) throw new OptimizerInputError(`weight ${key} must be an integer 0..${MAX_WEIGHT}, got ${value}`);
@@ -235,14 +240,31 @@ function compareIds(a: string, b: string) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-export function prepare(request: OptimizeRequest): Prepared {
+/** Thrown when preparation outlives the request's deadline; `optimize` reports `timeout`. */
+export class PrepareBudgetExhausted extends Error {
+  constructor() {
+    super("optimizer: time budget ran out while preparing");
+  }
+}
+
+export function prepare(
+  request: OptimizeRequest,
+  deadline: number = Number.POSITIVE_INFINITY,
+  now: () => number = () => performance.now(),
+): Prepared {
   validateRequest(request);
   const { constraints, weights } = request;
   const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
+  const checkDeadline = () => {
+    if (deadline !== Number.POSITIVE_INFINITY && now() > deadline) throw new PrepareBudgetExhausted();
+  };
+  // Buildings matter only to walking. With walking unweighted and unchecked,
+  // every meeting is treated as "no building" and no walking time is fetched.
+  const walkingMatters = weights.walking > 0 || constraints.walking !== null;
 
   const buildingIndex = new Map<string, number>();
   const intern = (id: string | null) => {
-    if (id === null) return -1;
+    if (id === null || !walkingMatters) return -1;
     let index = buildingIndex.get(id);
     if (index === undefined) {
       index = buildingIndex.size;
@@ -251,10 +273,14 @@ export function prepare(request: OptimizeRequest): Prepared {
     return index;
   };
 
+  // Sections that pass the time constraints come first, so nothing below
+  // (buildings, walking times, conflicts) is spent on sections that can't be used.
+  const allowedByCourse = sortedCourses.map((course) =>
+    allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)),
+  );
   // Shortest meeting any chosen section could have: a break shorter than
   // this can never hold another class.
   let globalMinDuration = Number.POSITIVE_INFINITY;
-  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request));
   for (const list of allowedByCourse) {
     for (const section of list) {
       for (const meeting of section.meetings) {
@@ -265,9 +291,10 @@ export function prepare(request: OptimizeRequest): Prepared {
   }
 
   const buildingCount = buildingIndex.size;
-  const walk = new Int32Array(buildingCount * buildingCount);
+  const walk = new Float64Array(buildingCount * buildingCount);
   const buildingIds = [...buildingIndex.keys()];
   for (let a = 0; a < buildingCount; a += 1) {
+    checkDeadline();
     for (let b = 0; b < buildingCount; b += 1) {
       const seconds = walkSeconds(request.walkingTime, buildingIds[a], buildingIds[b]);
       walk[a * buildingCount + b] = seconds === null ? -1 : seconds;
@@ -301,7 +328,6 @@ export function prepare(request: OptimizeRequest): Prepared {
     const allowed = allowedByCourse[courseIndex];
     const kept: Candidate[] = [];
     for (const section of allowed) {
-      if (!passesTimeConstraints(section, constraints)) continue;
       const meetings = section.meetings
         .map((m) => ({ day: DAY_INDEX.get(m.day)!, start: m.start, end: m.end, building: intern(m.buildingId) }))
         .sort((a, b) => a.day - b.day || a.start - b.start);
@@ -350,7 +376,7 @@ export function prepare(request: OptimizeRequest): Prepared {
       wordLo,
       wordHi: word,
       byDayMask: [],
-      sectionsBeforeConstraints: allowed.length,
+      sectionsBeforeConstraints: allowedSections(course, request).length,
     });
   });
 
@@ -374,6 +400,7 @@ export function prepare(request: OptimizeRequest): Prepared {
   const conflicts: Uint32Array[] = [];
   for (const candidate of candidates) conflicts[candidate.bit] = new Uint32Array(words);
   for (let i = 0; i < candidates.length; i += 1) {
+    if ((i & 15) === 0) checkDeadline();
     for (let j = i + 1; j < candidates.length; j += 1) {
       const a = candidates[i];
       const b = candidates[j];
@@ -400,10 +427,16 @@ export function prepare(request: OptimizeRequest): Prepared {
     OPT_DAYS.map((_, day) => {
       const table = new Int16Array(t * t);
       for (const candidate of course.candidates) {
-        for (const meeting of candidate.meetings) {
-          if (meeting.day !== day) continue;
-          const k = timeIndex[meeting.start] * t + timeIndex[meeting.end];
-          table[k] = Math.max(table[k], meeting.end - meeting.start);
+        // One section can put several meetings inside one break: credit every
+        // run of its consecutive meetings that day with their total length.
+        const own = candidate.meetings.filter((meeting) => meeting.day === day);
+        for (let first = 0; first < own.length; first += 1) {
+          let total = 0;
+          for (let last = first; last < own.length; last += 1) {
+            total += own[last].end - own[last].start;
+            const k = timeIndex[own[first].start] * t + timeIndex[own[last].end];
+            if (total > table[k]) table[k] = total;
+          }
         }
       }
       // Widen: a window [i, j] holds everything a narrower window inside it holds.

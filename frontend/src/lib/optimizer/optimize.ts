@@ -17,7 +17,7 @@
  * different machines; `maxNodes` does not.
  */
 
-import { prepare } from "./prepare";
+import { prepare, PrepareBudgetExhausted } from "./prepare";
 import { differingCourses, leafBefore, search, type Budget, type Leaf } from "./search";
 import { scoreSchedule } from "./score";
 import { explainInfeasible } from "./explain";
@@ -41,7 +41,17 @@ export function optimize(request: OptimizeRequest): OptimizeResult {
     now,
     nodes: 0,
   };
-  const prepared = prepare(request);
+  let prepared: ReturnType<typeof prepare>;
+  try {
+    prepared = prepare(request, budget.deadline, now);
+  } catch (error) {
+    if (!(error instanceof PrepareBudgetExhausted)) throw error;
+    return {
+      status: "timeout",
+      schedules: [],
+      stats: { nodes: 0, elapsedMs: now() - started, candidates: {}, minDifferentCourses: 0 },
+    };
+  }
   const minDifferent = prepared.minDifferentCourses;
 
   const pool: Leaf[] = [];
