@@ -1,0 +1,554 @@
+[
+  {
+    "size": "desktop",
+    "name": "every control is a reachable tab stop",
+    "pass": true,
+    "detail": "58/58 stops reached"
+  },
+  {
+    "size": "desktop",
+    "name": "each tab stop shows the accent focus ring",
+    "pass": true,
+    "detail": "58/58"
+  },
+  {
+    "size": "desktop",
+    "name": "Select opens from the keyboard with a check on the selected option",
+    "pass": true,
+    "detail": "R. Okafor"
+  },
+  {
+    "size": "desktop",
+    "name": "Select: ↓ then Enter picks the next option",
+    "pass": true,
+    "detail": "M. Delgado"
+  },
+  {
+    "size": "desktop",
+    "name": "no native <select> is ever shown",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Menu: Enter opens on the first item, ↓ moves, Escape returns focus",
+    "pass": true,
+    "detail": "⎘Save a copy⌘S → ✎RenameR → Plan menu"
+  },
+  {
+    "size": "desktop",
+    "name": "Menu: Tab closes it and moves on past the trigger",
+    "pass": true,
+    "detail": "Row actions"
+  },
+  {
+    "size": "desktop",
+    "name": "Segmented: → selects the next segment",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Slider: → steps 1, Shift+→ steps 5",
+    "pass": true,
+    "detail": "16 min"
+  },
+  {
+    "size": "desktop",
+    "name": "Toggle: Space switches it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Checkbox: Space checks it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Chip: Enter toggles it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "DateInput accepts a typed 1/21/27",
+    "pass": true,
+    "detail": "Jan 21, 2027"
+  },
+  {
+    "size": "desktop",
+    "name": "DatePicker grid: arrows move, Enter picks",
+    "pass": true,
+    "detail": "1 selected"
+  },
+  {
+    "size": "desktop",
+    "name": "Tooltip shows on keyboard focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Toast shows with its Undo action",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "Dialog: Tab wraps and never leaves the dialog",
+    "pass": true,
+    "detail": "10 stops"
+  },
+  {
+    "size": "desktop",
+    "name": "Select in a dialog opens on top; Escape closes the list, not the dialog",
+    "pass": true,
+    "detail": "onTop=true listClosed=true dialogStays=true"
+  },
+  {
+    "size": "desktop",
+    "name": "Dialog: focus moves in, page is inert, Escape closes and refocuses the opener",
+    "pass": true,
+    "detail": "inside=true inert=true refocused=true"
+  },
+  {
+    "size": "desktop",
+    "name": "Search palette: typing filters, ↓ moves the active result, Escape closes",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: no serious or critical findings on /dev/controls",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: 56px bar with the view switcher and search",
+    "pass": true,
+    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\\nSearch courses\\n⌘K\",\"contentTop\":81,\"current\":\"Courses\",\"overflow\":0,\"wideInView\":[]}"
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: search trigger shows ⌘K",
+    "pass": true,
+    "detail": "Search courses\nSearch courses\n⌘K"
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: ⌘K opens the search palette",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: the current view is marked",
+    "pass": true,
+    "detail": "Courses"
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: no horizontal overflow",
+    "pass": true,
+    "detail": "0px"
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: axe finds nothing serious or critical in the shell",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "/courses: full-page axe (view content belongs to its owner)",
+    "info": []
+  },
+  {
+    "size": "desktop",
+    "name": "/schedule: 56px bar with the view switcher and search",
+    "pass": true,
+    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\",\"contentTop\":81,\"current\":\"Week\",\"overflow\":0,\"wideInView\":[]}"
+  },
+  {
+    "size": "desktop",
+    "name": "/schedule: ⌘K opens the search palette",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "/schedule: the current view is marked",
+    "pass": true,
+    "detail": "Week"
+  },
+  {
+    "size": "desktop",
+    "name": "/schedule: no horizontal overflow",
+    "pass": true,
+    "detail": "0px"
+  },
+  {
+    "size": "desktop",
+    "name": "/schedule: axe finds nothing serious or critical in the shell",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "/schedule: full-page axe (view content belongs to its owner)",
+    "info": []
+  },
+  {
+    "size": "desktop",
+    "name": "/map: 56px bar with the view switcher and search",
+    "pass": true,
+    "detail": "{\"barHeight\":56,\"tabsHeight\":0,\"switcherShown\":true,\"searchShown\":true,\"searchText\":\"Search courses\",\"contentTop\":57,\"current\":\"Map\",\"overflow\":0,\"wideInView\":[]}"
+  },
+  {
+    "size": "desktop",
+    "name": "/map: ⌘K opens the search palette",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "/map: the current view is marked",
+    "pass": true,
+    "detail": "Map"
+  },
+  {
+    "size": "desktop",
+    "name": "/map: no horizontal overflow",
+    "pass": true,
+    "detail": "0px"
+  },
+  {
+    "size": "desktop",
+    "name": "/map: axe finds nothing serious or critical in the shell",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "/map: full-page axe (view content belongs to its owner)",
+    "info": [
+      {
+        "id": "target-size",
+        "impact": "serious",
+        "nodes": 1,
+        "target": [
+          "summary"
+        ]
+      }
+    ]
+  },
+  {
+    "size": "desktop",
+    "name": "/plans: a copy saved from the plan chip appears in the library at once",
+    "pass": true,
+    "detail": "Plan 2026-10-13 09:05 listed 1x"
+  },
+  {
+    "size": "desktop",
+    "name": "full-bleed body spans exactly from the bar to the tabs, page does not scroll",
+    "pass": true,
+    "detail": "{\"top\":57,\"bottom\":900,\"barBottom\":57,\"tabsTop\":900,\"scroll\":0}"
+  },
+  {
+    "size": "phone",
+    "name": "every control is a reachable tab stop",
+    "pass": true,
+    "detail": "58/58 stops reached"
+  },
+  {
+    "size": "phone",
+    "name": "each tab stop shows the accent focus ring",
+    "pass": true,
+    "detail": "58/58"
+  },
+  {
+    "size": "phone",
+    "name": "Select opens from the keyboard with a check on the selected option",
+    "pass": true,
+    "detail": "R. Okafor"
+  },
+  {
+    "size": "phone",
+    "name": "Select: ↓ then Enter picks the next option",
+    "pass": true,
+    "detail": "M. Delgado"
+  },
+  {
+    "size": "phone",
+    "name": "no native <select> is ever shown",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "Menu: Enter opens on the first item, ↓ moves, Escape returns focus",
+    "pass": true,
+    "detail": "⎘Save a copy⌘S → ✎RenameR → Plan menu"
+  },
+  {
+    "size": "phone",
+    "name": "Menu: Tab closes it and moves on past the trigger",
+    "pass": true,
+    "detail": "Row actions"
+  },
+  {
+    "size": "phone",
+    "name": "Segmented: → selects the next segment",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "Slider: → steps 1, Shift+→ steps 5",
+    "pass": true,
+    "detail": "16 min"
+  },
+  {
+    "size": "phone",
+    "name": "Toggle: Space switches it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "Checkbox: Space checks it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "Chip: Enter toggles it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "DateInput is a native date input on touch",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "DatePicker grid: arrows move, Enter picks",
+    "pass": true,
+    "detail": "1 selected"
+  },
+  {
+    "size": "phone",
+    "name": "Tooltip shows on keyboard focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "Toast shows with its Undo action",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "Dialog: Tab wraps and never leaves the dialog",
+    "pass": true,
+    "detail": "10 stops"
+  },
+  {
+    "size": "phone",
+    "name": "Select in a dialog opens on top; Escape closes the list, not the dialog",
+    "pass": true,
+    "detail": "onTop=true listClosed=true dialogStays=true"
+  },
+  {
+    "size": "phone",
+    "name": "Dialog: focus moves in, page is inert, Escape closes and refocuses the opener",
+    "pass": true,
+    "detail": "inside=true inert=true refocused=true"
+  },
+  {
+    "size": "phone",
+    "name": "Search palette: typing filters, ↓ moves the active result, Escape closes",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: no serious or critical findings on /dev/controls",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet opens at the 50% detent",
+    "pass": true,
+    "detail": "422px"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet: a slow drag up settles at the 92% detent",
+    "pass": true,
+    "detail": "776px"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet: a fast flick down (>0.11 px/ms) drops to 50%",
+    "pass": true,
+    "detail": "422px"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet: a fast drag that pauses before release stays at 50%",
+    "pass": true,
+    "detail": "422px"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet: ↓ on the handle moves to the 112px peek",
+    "pass": true,
+    "detail": "112px"
+  },
+  {
+    "size": "phone",
+    "name": "BottomSheet: a flick down from the peek dismisses it",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "/courses: 48px bar, bottom tabs, no switcher in the bar",
+    "pass": true,
+    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search coursesSearch courses⌘K\",\"contentTop\":65,\"current\":\"Courses\",\"overflow\":0,\"wideInView\":[\"header. \\\"Step 1 — Previous coursesMark the course\\\"\",\"div.surface-card \\\"Pick your major to see your core courses\\\"\",\"div.courses-tools \\\"All departmentsAll departmentsANTHBIOLBM\\\"\"]}"
+  },
+  {
+    "size": "phone",
+    "name": "/courses: content starts within 100px of the top",
+    "pass": true,
+    "detail": "65px"
+  },
+  {
+    "size": "phone",
+    "name": "/courses: the current view is marked",
+    "pass": true,
+    "detail": "Courses"
+  },
+  {
+    "size": "phone",
+    "name": "/courses: no horizontal overflow",
+    "pass": true,
+    "detail": "0px"
+  },
+  {
+    "size": "phone",
+    "name": "/courses: view content wider than the screen (owner's)",
+    "info": [
+      "header. \"Step 1 — Previous coursesMark the course\"",
+      "div.surface-card \"Pick your major to see your core courses\"",
+      "div.courses-tools \"All departmentsAll departmentsANTHBIOLBM\""
+    ]
+  },
+  {
+    "size": "phone",
+    "name": "/courses: axe finds nothing serious or critical in the shell",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "/courses: full-page axe (view content belongs to its owner)",
+    "info": []
+  },
+  {
+    "size": "phone",
+    "name": "/schedule: 48px bar, bottom tabs, no switcher in the bar",
+    "pass": true,
+    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search courses\",\"contentTop\":65,\"current\":\"Week\",\"overflow\":0,\"wideInView\":[]}"
+  },
+  {
+    "size": "phone",
+    "name": "/schedule: content starts within 100px of the top",
+    "pass": true,
+    "detail": "65px"
+  },
+  {
+    "size": "phone",
+    "name": "/schedule: the current view is marked",
+    "pass": true,
+    "detail": "Week"
+  },
+  {
+    "size": "phone",
+    "name": "/schedule: no horizontal overflow",
+    "pass": true,
+    "detail": "0px"
+  },
+  {
+    "size": "phone",
+    "name": "/schedule: axe finds nothing serious or critical in the shell",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "/schedule: full-page axe (view content belongs to its owner)",
+    "info": []
+  },
+  {
+    "size": "phone",
+    "name": "/map: 48px bar, bottom tabs, no switcher in the bar",
+    "pass": true,
+    "detail": "{\"barHeight\":48,\"tabsHeight\":56,\"switcherShown\":false,\"searchShown\":false,\"searchText\":\"Search courses\",\"contentTop\":49,\"current\":\"Map\",\"overflow\":0,\"wideInView\":[]}"
+  },
+  {
+    "size": "phone",
+    "name": "/map: content starts within 100px of the top",
+    "pass": true,
+    "detail": "49px"
+  },
+  {
+    "size": "phone",
+    "name": "/map: the current view is marked",
+    "pass": true,
+    "detail": "Map"
+  },
+  {
+    "size": "phone",
+    "name": "/map: no horizontal overflow",
+    "pass": true,
+    "detail": "0px"
+  },
+  {
+    "size": "phone",
+    "name": "/map: axe finds nothing serious or critical in the shell",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "/map: full-page axe (view content belongs to its owner)",
+    "info": []
+  },
+  {
+    "size": "phone",
+    "name": "full-bleed body spans exactly from the bar to the tabs, page does not scroll",
+    "pass": true,
+    "detail": "{\"top\":49,\"bottom\":788,\"barBottom\":49,\"tabsTop\":788,\"scroll\":0}"
+  },
+  {
+    "size": "tablet",
+    "name": "search folds to an icon at 900px and keeps its name",
+    "pass": true,
+    "detail": "text shown=false, named=1"
+  },
+  {
+    "size": "tablet",
+    "name": "axe: nothing serious or critical in the shell at 900px",
+    "pass": true,
+    "detail": "[]"
+  }
+]

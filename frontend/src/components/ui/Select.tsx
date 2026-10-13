@@ -115,6 +115,16 @@ export function Select({
   const selectedIndex = options.findIndex((option) => option.value === current);
   const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
   const [validationFailed, setValidationFailed] = useState(false);
+  // What the hidden native select holds: the value, or "" when nothing
+  // matches (the placeholder option).
+  const nativeValue = selected ? current : "";
+  // The built-in "Choose an option." belongs to a failed check of the value
+  // that failed. "Missing" follows native `required`: an empty value is
+  // missing even when an option such as "Choose term" carries it. Once a new
+  // value, new options or `required` turning off make the field valid, the
+  // message clears; a caller's `error` is never touched.
+  const missing = Boolean(required) && nativeValue === "";
+  if (validationFailed && !missing) setValidationFailed(false);
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -148,7 +158,7 @@ export function Select({
   // Names and descriptions belong on the control people operate, merged
   // with the field's own label and help text.
   const labelledBy = [label ? labelId : null, ariaLabelledBy].filter(Boolean).join(" ") || undefined;
-  const shownError = error ?? (validationFailed ? "Choose an option." : null);
+  const shownError = error ?? (validationFailed && missing ? "Choose an option." : null);
   const describedBy = [shownError || help ? helpId : null, ariaDescribedBy].filter(Boolean).join(" ") || undefined;
   const invalid = shownError ? true : ariaInvalid;
 
@@ -321,7 +331,7 @@ export function Select({
           tabIndex={-1}
           aria-hidden="true"
           className="ui-select__native"
-          value={selected ? current : ""}
+          value={nativeValue}
           onChange={handleNativeChange}
           onInvalid={(event) => {
             // The hidden select cannot take focus or show a bubble; the
