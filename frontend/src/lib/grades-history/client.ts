@@ -147,7 +147,7 @@ export class GradesMcpClient {
         throw new GradesError(response.status === 429 ? "throttled" : "upstream", `untgrades.app HTTP ${response.status}`, Math.ceil(wait / 1_000));
       }
       if (!response.ok) throw new GradesError("upstream", `untgrades.app HTTP ${response.status}`);
-      if (response.headers.get("Content-Type")?.includes("text/event-stream")) return await readSseResult(response, id);
+      if (response.headers.get("Content-Type")?.toLowerCase().includes("text/event-stream")) return await readSseResult(response, id);
       return parseRpc(await response.text(), id);
     } catch (error) {
       if (error instanceof GradesError) throw error;

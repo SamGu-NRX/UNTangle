@@ -114,7 +114,13 @@ async function backendFetch<T>(path: string): Promise<T | null> {
         throw new Error(`${baseUrl} responded with ${response.status}`);
       }
 
-      return (await response.json()) as T;
+      const result: unknown = await response.json();
+      // Next's grade-history proxy shares this URL but returns a different envelope.
+      if (typeof result === "object" && result !== null && "source" in result && result.source === "untgrades.app" && "status" in result) {
+        errors.push(`${baseUrl} returned the frontend grade-history envelope`);
+        continue;
+      }
+      return result as T;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(`${baseUrl}: ${message}`);

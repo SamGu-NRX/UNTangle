@@ -3,7 +3,7 @@ import { GradesDiskCache } from "./cache";
 import { GradesError, NoHistoryError, malformed } from "./errors";
 import { courseInput, instructorInput, searchInput, parseCoursePage, parseInstructorPage, parseSearch } from "./parse";
 import type { CoursePage, InstructorPage } from "./parse";
-import { normalizeCourse, sumCounts, totals } from "./normalize";
+import { gradeGpa, normalizeCourse, sumCounts, totals } from "./normalize";
 import type { CourseHistory, GradeSearch, HistoryResult, InstructorHistory } from "./types";
 
 export function failure<T>(error: unknown): HistoryResult<T> {
@@ -141,7 +141,8 @@ export class GradesHistoryService {
           if (!sections.length) malformed("instructor course sections", "at least one section for the listed instructor");
           courses.push(normalizeCourse(full.course, sections));
         }
-        return { instructor: identity, courses, ...totals(sumCounts(courses.map((c) => c.counts))) };
+        const counts = sumCounts(courses.map((c) => c.counts));
+        return { instructor: identity, courses, ...totals(counts), gpa: gradeGpa(counts) };
       } catch (error) {
         if (error instanceof GradesError && error.reason === "malformed") await this.cache.remove(key);
         throw error;
