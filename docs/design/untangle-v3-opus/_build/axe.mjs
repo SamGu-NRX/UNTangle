@@ -27,6 +27,8 @@ for (const p of PAGES) for (const [n, vp] of [["desk", { width: 1440, height: 90
     await page.keyboard.press("Tab");
     const r = await page.evaluate(() => {
       const el = document.activeElement; if (!el || el === document.body) return null;
+      // Focus inside 07's device frame belongs to the framed page, which the phone run audits.
+      if (el.tagName === "IFRAME") return null;
       const cs = getComputedStyle(el);
       if (cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0) return null;
       const chain = [el]; for (let n = el.parentElement; n && chain.length < 4; n = n.parentElement) chain.push(n);
