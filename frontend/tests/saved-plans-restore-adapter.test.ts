@@ -10,6 +10,7 @@ import { buildSavedPlanSnapshot, resolveSectionReferences } from "@/lib/plan-lib
 import { normalizePlannerState } from "@/lib/planner";
 import { defaultPlannerState } from "@/lib/seed-data";
 import type {
+  CoursePlan,
   CourseStatus,
   MajorId,
   OptimizationKey,
@@ -79,6 +80,9 @@ class RecorderPlanner {
   setSectionLock(courseCode: string, locked: boolean) {
     this.record("setSectionLock", [courseCode, locked]);
   }
+  setCoursePlan(coursePlan: CoursePlan) {
+    this.record("setCoursePlan", [coursePlan]);
+  }
   actionNames(): string[] {
     return this.calls.map((call) => call.action);
   }
@@ -94,18 +98,27 @@ describe("restore adapter", () => {
 
     // The fixture's preferences equal the planner defaults, so no preference
     // actions are dispatched. The transcript record already restores
-    // ANTH 1150 to completed during apply, so the status diff dispatches
-    // only the remaining inProgress status; one selection survives.
+    // ANTH 1150 to completed during apply, so the status diff dispatches the
+    // other four non-default statuses (a fresh plan has every course
+    // notTaken); one selection survives.
     expect(planner.actionNames()).toEqual([
       "resetPlanner",
       "applyTranscriptRecords",
       "setCourseStatus",
+      "setCourseStatus",
+      "setCourseStatus",
+      "setCourseStatus",
       "setSection",
     ]);
-    expect(planner.calls[2].args).toEqual(["ANTH 1010", "inProgress"]);
-    expect(planner.calls[3].args).toEqual(["ANTH 1010", "anth-1010-001"]);
+    expect(planner.calls.slice(2, 6).map((call) => call.args)).toEqual([
+      ["ANTH 1010", "inProgress"],
+      ["CSCE 1030", "completed"],
+      ["CSCE 1040", "completed"],
+      ["MATH 1710", "inProgress"],
+    ]);
+    expect(planner.calls[6].args).toEqual(["ANTH 1010", "anth-1010-001"]);
 
-    expect(outcome.appliedStatusCount).toBe(1);
+    expect(outcome.appliedStatusCount).toBe(4);
     expect(outcome.appliedSectionCount).toBe(1);
     expect(outcome.mergedTranscriptRecordCount).toBe(1);
     expect(outcome.staleSkipped).toEqual([]);

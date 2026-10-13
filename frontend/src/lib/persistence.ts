@@ -36,6 +36,7 @@ export async function loadPlannerState(userId: string): Promise<StoredPlannerSta
       selectedMajor: plannerState.selectedMajor as PlannerState["selectedMajor"],
       transcriptRecords: plannerState.transcriptRecords as PlannerState["transcriptRecords"],
       lockedSections: plannerState.lockedSections as Record<string, string>,
+      coursePlan: (plannerState.coursePlan ?? undefined) as PlannerState["coursePlan"],
       updatedAt: plannerState.updatedAt.toISOString(),
       routeStops: plannerState.routeStops as PlannerApiPayload["routeStops"],
     },
@@ -65,6 +66,7 @@ export async function savePlannerState(
     selectedMajor: payload.selectedMajor,
     transcriptRecords: payload.transcriptRecords,
     lockedSections: payload.lockedSections ?? {},
+    coursePlan: payload.coursePlan ?? null,
     routeStops: payload.routeStops,
     updatedAt: new Date(payload.updatedAt),
   };

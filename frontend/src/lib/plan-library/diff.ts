@@ -49,8 +49,18 @@ export type PlanLockChange = {
   workingState: string | null;
 };
 
+/** A Courses-view fact that differs: credit the student claimed, or a course Auto-fill planned. */
+export type PlanCourseFactChange = {
+  courseCode: string;
+  fact: "manualCredit" | "autoPlanned";
+  savedPlan: boolean;
+  workingState: boolean;
+};
+
 export type PlanDiff = {
   statusChanges: PlanStatusChange[];
+  /** Manual credit and Auto provenance: the same statuses can read Done in one and Taking in the other. */
+  courseFactChanges: PlanCourseFactChange[];
   lockChanges: PlanLockChange[];
   sectionChanges: PlanSectionChange[];
   unknownReferences: UnknownPlanReference[];
@@ -224,6 +234,19 @@ export function diffSavedPlanAgainstWorking(
       }
     });
 
+  const courseFactChanges: PlanCourseFactChange[] = [];
+  (["manualCredit", "autoPlanned"] as const).forEach((fact) => {
+    const saved = new Set(savedState.coursePlan?.[fact] ?? []);
+    const working = new Set(workingState.coursePlan?.[fact] ?? []);
+    [...new Set([...saved, ...working])].sort((a, b) => a.localeCompare(b)).forEach((code) => {
+      comparedFieldCount += 1;
+      if (saved.has(code) !== working.has(code)) {
+        changedFieldCount += 1;
+        courseFactChanges.push({ courseCode: code, fact, savedPlan: saved.has(code), workingState: working.has(code) });
+      }
+    });
+  });
+
   comparedFieldCount += 1;
   const transcriptChanged =
     JSON.stringify(savedState.transcriptRecords) !== JSON.stringify(workingState.transcriptRecords);
@@ -231,6 +254,7 @@ export function diffSavedPlanAgainstWorking(
 
   return {
     statusChanges,
+    courseFactChanges,
     lockChanges,
     sectionChanges,
     unknownReferences,
@@ -246,6 +270,16 @@ export function diffSavedPlanAgainstWorking(
     preservedFieldCount: comparedFieldCount - changedFieldCount,
     changedFieldCount,
   };
+}
+
+/** One sentence per Courses-view fact that differs, for the compare panel. */
+export function describeCourseFactChanges(changes: PlanCourseFactChange[]): string[] {
+  return changes.map(({ courseCode, fact, savedPlan }) => {
+    const where = savedPlan ? "in the plan but not in the working schedule" : "in the working schedule but not in the plan";
+    return fact === "manualCredit"
+      ? `${courseCode} is marked as credit you have ${where}`
+      : `${courseCode} was planned by Auto-fill ${where}`;
+  });
 }
 
 /** One sentence per lock difference, shared by the compare panel and the restore preview. */

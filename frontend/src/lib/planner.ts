@@ -15,12 +15,14 @@ import {
   isValidCourseStatus,
   isValidOptimization,
   isValidWeekDay,
+  sanitizeCoursePlan,
   sanitizeTranscriptRecords,
 } from "@/lib/planner-validation";
 import { compareAcademicTerms } from "@/lib/term-chronology";
 import { defaultWalkingTime } from "@/lib/planner-walking";
 import type { WalkingTimeFn } from "@/lib/planner-walking";
 import type {
+  CoursePlan,
   Course,
   CourseSection,
   CourseStatus,
@@ -76,15 +78,31 @@ export function getSectionsForCourse(courseCode: string) {
   return sections.filter((section) => section.courseCode === courseCode);
 }
 
-export function getActiveCourseCodes(state: PlannerState) {
+/**
+ * Courses in the plan for the planning term: `inProgress` with no current
+ * transcript row. `inProgress` with an in-progress transcript row is a
+ * course the student is taking this term; it is not scheduled, mapped or
+ * counted in the plan's credits.
+ */
+export function getPlanningTermCourseCodes(state: PlannerState) {
   const courseStatuses = {
     ...defaultPlannerState.courseStatuses,
     ...(state.courseStatuses ?? {}),
   };
+  const takingNow = new Set(
+    (state.transcriptRecords ?? [])
+      .filter((record) => !record.duplicateExcluded && record.appliedStatus === "inProgress")
+      .map((record) => record.code),
+  );
 
   return courses
-    .filter((course) => courseStatuses[course.code] === "inProgress")
+    .filter((course) => courseStatuses[course.code] === "inProgress" && !takingNow.has(course.code))
     .map((course) => course.code);
+}
+
+/** @deprecated Same as getPlanningTermCourseCodes; kept so existing callers compile. */
+export function getActiveCourseCodes(state: PlannerState) {
+  return getPlanningTermCourseCodes(state);
 }
 
 /**
@@ -232,7 +250,7 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
     updatedAt:
       typeof state.updatedAt === "string" ? state.updatedAt : defaultPlannerState.updatedAt,
   };
-  const activeCourseCodes = getActiveCourseCodes(merged);
+  const activeCourseCodes = getPlanningTermCourseCodes(merged);
   const activeCourseCodeSet = new Set(activeCourseCodes);
   const preservedSelections = Object.fromEntries(
     Object.entries(merged.selectedSections).filter(([courseCode, sectionId]) =>
@@ -256,7 +274,51 @@ export function normalizePlannerState(state: PlannerState): PlannerState {
     selectedMajor,
     selectedSections: recommended,
     lockedSections,
+    coursePlan:
+      state.coursePlan === undefined || state.coursePlan === null
+        ? { manualCredit: legacyManualCredit(merged), autoPlanned: [], lastAuto: null }
+        : sanitizeCoursePlan(state.coursePlan, (code) => catalogCourseCodes.has(code)),
   };
+}
+
+/** The annotation v1's "Done" toggle wrote onto a course's transcript rows. */
+const MANUALLY_DONE_NOTE = "Manually marked done in course review.";
+
+/**
+ * Plans saved before coursePlan existed: a course marked done by hand while
+ * its transcript rows were not completed (in progress, ignored or needing
+ * review) carries v1's explicit annotation. Only that annotation counts as the student's credit claim;
+ * a bare "completed" next to an in-progress row is not guessed at.
+ */
+function legacyManualCredit(state: PlannerState): string[] {
+  return [
+    ...new Set(
+      (state.transcriptRecords ?? [])
+        .filter(
+          (record) =>
+            !record.duplicateExcluded &&
+            // v1's Done toggle annotated every non-completed row of the course:
+            // in progress, ignored and needs-review alike.
+            record.appliedStatus !== "completed" &&
+            record.rationale.includes(MANUALLY_DONE_NOTE) &&
+            state.courseStatuses[record.code] === "completed",
+        )
+        .map((record) => record.code),
+    ),
+  ].sort();
+}
+
+/**
+ * A hand edit to `codes` (a status change, or a section picked in Week).
+ * When the pending Auto run changed one of them, the course is the
+ * student's now and Undo is refused: restoring the run's old values would
+ * overwrite their choice. Restore paths must not call this.
+ */
+export function takeFromAutoRun(coursePlan: CoursePlan, codes: readonly string[]): CoursePlan {
+  const run = coursePlan.lastAuto;
+  if (!run || run.invalidatedBy) return coursePlan;
+  const owned = codes.find((code) => run.changes.some((change) => change.code === code));
+  return owned ? { ...coursePlan, lastAuto: { ...run, invalidatedBy: owned } } : coursePlan;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -278,7 +340,7 @@ export function sectionNumber(sectionId: string): string {
 
 export function buildScheduleEvents(state: PlannerState): ScheduleEvent[] {
   const normalized = normalizePlannerState(state);
-  const activeCourseCodes = getActiveCourseCodes(normalized);
+  const activeCourseCodes = getPlanningTermCourseCodes(normalized);
 
   return activeCourseCodes.flatMap((courseCode) => {
     const selectedSectionId = normalized.selectedSections[courseCode];
@@ -396,7 +458,7 @@ export function formatTime(value: string) {
 }
 
 export function summarizeCredits(state: PlannerState) {
-  return getActiveCourseCodes(state).reduce((total, courseCode) => {
+  return getPlanningTermCourseCodes(state).reduce((total, courseCode) => {
     const course = getCourseByCode(courseCode);
     return total + (course?.creditHours ?? 0);
   }, 0);
@@ -405,7 +467,7 @@ export function summarizeCredits(state: PlannerState) {
 export function getUnscheduledActiveCourses(state: PlannerState): Course[] {
   const normalized = normalizePlannerState(state);
 
-  return getActiveCourseCodes(normalized)
+  return getPlanningTermCourseCodes(normalized)
     .filter((courseCode) => {
       const selectedSectionId = normalized.selectedSections[courseCode];
       return !sections.some((section) => section.courseCode === courseCode && section.id === selectedSectionId);
