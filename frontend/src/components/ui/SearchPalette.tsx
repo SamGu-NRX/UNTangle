@@ -42,7 +42,7 @@ export type SearchPaletteProps = {
  * ⌘K palette. No open or close animation: it is summoned from the keyboard
  * many times a session (DESIGN.md §6). Focus stays in the input; ↑/↓ move
  * the active result (aria-activedescendant), Enter opens, ⌘↵ plans,
- * Escape closes and returns focus to whatever opened it. Below 720px it
+ * Escape closes and returns focus to whatever opened it. Below 760px it
  * fills the screen as a sheet with a Cancel button and the keyboard up.
  */
 export function SearchPalette({

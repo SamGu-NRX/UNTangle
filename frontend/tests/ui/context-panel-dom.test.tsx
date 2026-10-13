@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { afterStalePop } from "@/components/ui/back-close";
 import { click, installDom, mount, press, removeDom } from "./dom";
 
 beforeAll(() => {
@@ -7,23 +6,6 @@ beforeAll(() => {
 });
 afterAll(() => {
   removeDom();
-});
-
-describe("Back after a sheet closed without giving back its history entry", () => {
-  const stale = { id: "sheet-3", href: "http://localhost/courses" };
-
-  test("landing on the stale entry itself keeps waiting", () => {
-    expect(afterStalePop(stale, "sheet-3", stale.href)).toEqual({ stale, back: false });
-  });
-
-  test("stepping off it onto the same page skips one more step", () => {
-    expect(afterStalePop(stale, undefined, stale.href)).toEqual({ stale: null, back: true });
-  });
-
-  test("anywhere else forgets it", () => {
-    expect(afterStalePop(stale, undefined, "http://localhost/schedule")).toEqual({ stale: null, back: false });
-    expect(afterStalePop(stale, "sheet-9", stale.href)).toEqual({ stale: null, back: false });
-  });
 });
 
 describe("ContextPanel on desktop", () => {
@@ -34,30 +16,45 @@ describe("ContextPanel on desktop", () => {
       const [picked, setPicked] = useState<string | null>(null);
       return (
         <>
-          {["CSCE 2110", "MATH 2700"].map((code) => (
-            <button key={code} type="button" onClick={() => setPicked(code)}>
+          {["CSCE 2110", "MATH 2700", "Elsewhere"].map((code) => (
+            <button key={code} type="button" data-pick={code} onClick={() => setPicked(code)}>
               {code}
             </button>
           ))}
-          <ContextPanel open={picked !== null} onClose={() => setPicked(null)} title={picked ?? ""}>
+          <ContextPanel
+            open={picked !== null}
+            onClose={() => setPicked(null)}
+            title={picked ?? ""}
+            returnFocus={() => (picked ? document.querySelector<HTMLElement>(`[data-pick="${picked}"]`) : null)}
+          >
             <a href="#sections">Sections for {picked}</a>
           </ContextPanel>
         </>
       );
     }
+    // The shell's <main>, which the panel marks so the page can make room.
+    const main = document.createElement("main");
+    main.id = "main";
+    document.body.appendChild(main);
     const view = await mount(<Harness />);
     const row = (code: string) => Array.from(view.container.querySelectorAll("button")).find((b) => b.textContent === code)!;
-    const panel = () => view.container.querySelector<HTMLElement>("aside.ui-context");
-    return { view, row, panel };
+    const panel = () => document.querySelector<HTMLElement>("aside.ui-context");
+    const unmount = async () => {
+      await view.unmount();
+      main.remove();
+    };
+    return { view: { unmount }, row, panel, main };
   }
 
-  test("renders nothing until something is selected, then a labelled panel", async () => {
-    const { view, row, panel } = await setup();
+  test("renders nothing until something is selected, then a labelled panel, and marks the page", async () => {
+    const { view, row, panel, main } = await setup();
     expect(panel()).toBeNull();
-    row("CSCE 2110").focus();
+    expect(main.hasAttribute("data-context-host")).toBe(true);
+    expect(main.hasAttribute("data-context-open")).toBe(false);
     await click(row("CSCE 2110"));
     expect(panel()?.getAttribute("data-state")).toBe("open");
     expect(panel()?.querySelector("h2")?.textContent).toBe("CSCE 2110");
+    expect(main.hasAttribute("data-context-open")).toBe(true);
     await view.unmount();
   });
 
@@ -71,13 +68,15 @@ describe("ContextPanel on desktop", () => {
     await view.unmount();
   });
 
-  test("Escape closes it and focus returns to the selected item", async () => {
-    const { view, row, panel } = await setup();
-    row("MATH 2700").focus();
+  test("Escape closes it without animating, and focus returns to the selected item", async () => {
+    const { view, row, panel, main } = await setup();
     await click(row("MATH 2700"));
+    // Focus wanders to another control and then into the panel; the selection is still MATH 2700.
+    row("Elsewhere").focus();
     panel()!.querySelector<HTMLElement>("a")!.focus();
     await press(document.activeElement!, "Escape");
-    expect(panel()?.getAttribute("data-state")).toBe("closed");
+    expect(panel() === null || panel()!.hasAttribute("data-instant")).toBe(true);
+    expect(main.hasAttribute("data-context-open")).toBe(false);
     expect(document.activeElement).toBe(row("MATH 2700"));
     await view.unmount();
   });

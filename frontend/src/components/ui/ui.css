@@ -807,7 +807,7 @@
   height: 24px;
   border-radius: var(--r-pill);
   background: var(--line-2);
-  transition: background-color var(--t-hover) ease;
+  transition: background-color 120ms ease;
 }
 .ui-switch__knob {
   position: absolute;
@@ -899,9 +899,7 @@
   border-radius: 4px;
   background: var(--paper) center / 10px 10px no-repeat;
   cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease;
+  transition: background-color 120ms ease;
 }
 .ui-check__box:checked,
 .ui-check__box:indeterminate {
@@ -1665,7 +1663,7 @@
   padding: 0 16px;
   pointer-events: none;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .ui-toaster {
     bottom: calc(var(--tabbar-h) + 12px + var(--safe-b));
   }
@@ -1780,6 +1778,11 @@
   opacity: 0;
   transition-duration: var(--t-exit);
 }
+/* Closed from the keyboard: no exit animation. */
+.ui-dialog-layer[data-instant] .ui-dialog,
+.ui-dialog-layer[data-instant] .ui-dialog-scrim {
+  transition: none;
+}
 /* A closing layer lets clicks through to the page during its exit. */
 .ui-dialog-layer[data-state="closed"],
 .ui-sheet-layer[data-state="closed"],
@@ -1844,7 +1847,7 @@
   gap: 8px;
   padding: 0 24px 20px;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .ui-dialog-layer {
     padding: 12px;
   }
@@ -1852,7 +1855,7 @@
 
 /* ───────── Context panel (desktop) ───────── */
 
-/* One panel on the right, under the top bar; it enters from its own edge. */
+/* Below 1200px it overlays the page from the right edge. */
 .ui-context {
   position: fixed;
   top: calc(var(--topbar-h) + var(--safe-t));
@@ -1861,12 +1864,23 @@
   z-index: 30;
   display: flex;
   flex-direction: column;
-  width: var(--context-w, 460px);
-  max-width: 100vw;
+  width: min(var(--context-w), 100vw);
   background: var(--paper);
-  box-shadow: -1px 0 0 var(--line), -12px 0 32px -16px rgba(20, 40, 22, 0.18);
+  box-shadow: var(--shadow-3);
   opacity: 1;
   transition: opacity var(--t-enter) var(--ease-out);
+}
+/* From 1200px it sits beside the page, which has slid left to make room (shell.css). */
+@media (min-width: 1200px) {
+  .ui-context {
+    top: calc(var(--topbar-h) + var(--safe-t) + 16px);
+    right: auto;
+    bottom: 16px;
+    left: calc(50% + (var(--main-max, 720px) - var(--context-w) + var(--context-gap)) / 2);
+    border-radius: var(--r-lg);
+    box-shadow: inset 0 0 0 1px var(--line), var(--shadow-2);
+    overflow: hidden;
+  }
 }
 @starting-style {
   .ui-context {
@@ -1877,6 +1891,9 @@
   opacity: 0;
   pointer-events: none;
   transition-duration: var(--t-exit);
+}
+.ui-context[data-instant] {
+  transition: none;
 }
 .ui-context__head {
   display: flex;
@@ -2101,7 +2118,7 @@
   align-items: center;
   gap: 4px;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .ui-palette {
     inset: 0;
     width: 100%;
@@ -2195,13 +2212,23 @@
   .ui-slider__thumb {
     transition: transform 120ms var(--ease-out);
   }
+  /* The value bubble rides inside the thumb; it counter-scales so its text keeps its size. */
+  .ui-slider__bubble {
+    transform-origin: bottom center;
+  }
   @media (hover: hover) and (pointer: fine) {
     .ui-slider__thumb:hover {
       transform: scale(1.1);
     }
+    .ui-slider__thumb:hover .ui-slider__bubble {
+      scale: calc(1 / 1.1);
+    }
   }
   .ui-slider__thumb[data-active] {
     transform: scale(1.15);
+  }
+  .ui-slider__thumb[data-active] .ui-slider__bubble {
+    scale: calc(1 / 1.15);
   }
 
   .ui-toast {
@@ -2246,6 +2273,9 @@
   }
   .ui-context[data-state="closed"] {
     transform: translateX(24px);
+  }
+  .ui-context[data-instant] {
+    transition: none;
   }
 }
 

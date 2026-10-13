@@ -171,7 +171,7 @@ async function connectPopup(page, size) {
   await shot(page, size, "connect-review");
   await axe(page, size, "Connect review");
 
-  // Crossing 719px (rotation, zoom) must not remount the sheet and drop approvals.
+  // Crossing the phone breakpoint (rotation, zoom) must not remount the sheet and drop approvals.
   const include = page.getByRole("checkbox", { name: "Include CSCE 1030", exact: true });
   await include.check();
   await page.setViewportSize({ width: 390, height: 844 });

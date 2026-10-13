@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ConnectHost } from "@/components/connect/connect-host";
+import { noteNavigation } from "@/components/ui/back-close";
 import { SearchPalette } from "@/components/ui/SearchPalette";
 import { Toaster } from "@/components/ui/Toast";
 import { courses } from "@/lib/seed-data";
@@ -43,6 +44,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
   const api = useMemo<ShellApi>(() => ({ openSearch, setSearchProvider, pageState }), [openSearch, pageState]);
+
+  // Sheets judge Back against the entry we are on; a route change moved it.
+  useEffect(() => noteNavigation(), [pathname]);
 
   // ⌘K / Ctrl+K toggles the search from anywhere in the app.
   useEffect(() => {

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { BottomSheet } from "./BottomSheet";
 import { IconButton } from "./Button";
 import { Close } from "./icons";
+import { useIsClient } from "./Toast";
 import { PHONE_QUERY, useMediaQuery } from "./use-media-query";
 import { usePresence } from "./use-presence";
 
@@ -15,63 +17,105 @@ export type ContextPanelProps = {
   onClose: () => void;
   /** The panel's heading and accessible name, such as "CSCE 2110". */
   title: string;
-  /**
-   * Where focus goes on close. Defaults to whatever had focus when the panel
-   * opened, which is normally the selected row.
-   */
-  returnFocus?: () => HTMLElement | null;
+  /** The selected item, which takes focus back when the panel closes. */
+  returnFocus: () => HTMLElement | null;
   children: ReactNode;
 };
 
+/** Marks the shell's <main> so its CSS can make room for the panel (shell.css). */
+function markMain(name: string, on: boolean) {
+  document.getElementById("main")?.toggleAttribute(name, on);
+}
+
 /**
- * The one detail surface for a selection: a panel on the right on desktop,
- * the same content in a modal sheet on phones.
+ * The one detail surface for a selection (docs/design/untangle-v3.md,
+ * simplification rule 2): a panel on the right on desktop, the same content
+ * in a modal sheet on phones.
  *
- * On desktop it is not modal: the page stays live, so the student can pick
- * another row and the content swaps in place without animating. Escape
- * closes it unless a dialog, sheet or open menu took that Escape first.
- * When it closes, focus goes back to the selected item if focus was in the
- * panel (or had nowhere to be); it never pulls focus from somewhere the
- * student moved it on purpose.
+ * Desktop is not modal: the page stays live, so picking another item swaps
+ * the content in place without animating. From 1200px the page slides left
+ * by half the panel and its gap as the panel comes in, so the two sit side
+ * by side; narrower, the panel overlays. Opened from the keyboard, or closed
+ * with Escape, nothing animates. Under reduced motion the page keeps the
+ * open position and only the panel fades.
+ *
+ * Escape closes it unless a dialog or sheet on top, or an open menu, took
+ * that Escape first. Closing returns focus to the selected item when focus
+ * was in the panel or had nowhere to be; it never pulls focus away from
+ * somewhere the student moved it on purpose.
+ *
+ * The page under a panel moves with a transform, so a lens using it should
+ * not rely on position: fixed inside <main>.
  */
 export function ContextPanel({ open, onClose, title, returnFocus, children }: ContextPanelProps) {
   const phone = useMediaQuery(PHONE_QUERY);
-  const { mounted, state } = usePresence(open && !phone, EXIT_MS);
-  const panelRef = useRef<HTMLElement | null>(null);
-  const opener = useRef<HTMLElement | null>(null);
+  const isClient = useIsClient();
+  /** Closing from the keyboard skips the exit; reset whenever the panel opens again. */
+  const [instant, setInstant] = useState(false);
+  const desktopOpen = open && !phone;
+  const [wasOpen, setWasOpen] = useState(desktopOpen);
+  if (desktopOpen !== wasOpen) {
+    setWasOpen(desktopOpen);
+    if (desktopOpen) setInstant(false);
+  }
+  const { mounted, state } = usePresence(desktopOpen, instant ? 0 : EXIT_MS);
   const titleId = useId();
   const [shownTitle, setShownTitle] = useState(title);
   if (open && title !== shownTitle) setShownTitle(title);
 
-  const close = useEffectEvent(() => onClose());
-  const focusTarget = useEffectEvent(() => returnFocus?.() ?? opener.current);
+  const closeFromKeyboard = useEffectEvent(() => {
+    setInstant(true);
+    onClose();
+  });
+  // The selected item, read on every commit while open: by the time the panel
+  // closes, the parent has usually cleared its selection.
+  const selected = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (desktopOpen) selected.current = returnFocus();
+  });
 
-  useEffect(() => {
-    if (!open || phone) return;
-    const panel = panelRef.current;
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    // The last thing focused outside the panel is the current selection.
-    const onFocusIn = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement && !panel?.contains(event.target)) opener.current = event.target;
-    };
-    document.addEventListener("focusin", onFocusIn);
+  // While a panel can open here the page knows; under reduced motion it then keeps the open position.
+  useLayoutEffect(() => {
+    markMain("data-context-host", true);
+    return () => markMain("data-context-host", false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!desktopOpen) return;
+    // A keyboard selection lands at once; a pointer one slides. Set before the
+    // panel's first style is computed, so its entrance transition never starts.
+    const keyboard = document.activeElement instanceof HTMLElement && document.activeElement.matches(":focus-visible");
+    document.getElementById(titleId)?.closest("aside")?.toggleAttribute("data-instant", keyboard);
+    markMain("data-context-instant", keyboard);
+    markMain("data-context-open", true);
+
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       // A dialog or sheet on top owns Escape.
       if (document.querySelector('[aria-modal="true"]')) return;
       event.preventDefault();
-      close();
+      markMain("data-context-instant", true);
+      closeFromKeyboard();
     };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.removeEventListener("focusin", onFocusIn);
+      markMain("data-context-open", false);
+    };
+  }, [desktopOpen, titleId]);
+
+  // Focus goes back after the commit: React restores the focus it saw before
+  // a commit, which would undo a move made in a layout effect.
+  useEffect(() => {
+    if (!desktopOpen) return;
+    return () => {
+      const panel = document.getElementById(titleId)?.closest("aside");
       const active = document.activeElement;
       const lost = !active || active === document.body || panel?.contains(active);
-      const target = focusTarget();
+      const target = selected.current;
       if (lost && target?.isConnected) target.focus({ preventScroll: true });
     };
-  }, [open, phone]);
+  }, [desktopOpen, titleId]);
 
   if (phone) {
     return (
@@ -82,25 +126,34 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
         }}
         title={shownTitle}
         detents={["52%", "92%"]}
-        closeOnBack
+        returnFocus={returnFocus}
       >
         {children}
       </BottomSheet>
     );
   }
 
-  if (!mounted) return null;
-  return (
-    <aside ref={panelRef} className="ui-context" data-state={state} aria-labelledby={titleId} data-ui="">
+  if (!mounted || !isClient) return null;
+  return createPortal(
+    <aside className="ui-context" data-state={state} data-instant={instant ? "" : undefined} aria-labelledby={titleId} data-ui="">
       <div className="ui-context__head">
         <h2 id={titleId} className="ui-context__title">
           {shownTitle}
         </h2>
-        <IconButton label={`Close ${shownTitle}`} size="sm" onClick={onClose}>
+        <IconButton
+          label={`Close ${shownTitle}`}
+          size="sm"
+          onClick={() => {
+            markMain("data-context-instant", false);
+            setInstant(false);
+            onClose();
+          }}
+        >
           <Close />
         </IconButton>
       </div>
       <div className="ui-context__body">{children}</div>
-    </aside>
+    </aside>,
+    document.body,
   );
 }

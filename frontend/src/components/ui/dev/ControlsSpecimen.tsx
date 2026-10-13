@@ -443,7 +443,7 @@ export function ControlsSpecimen() {
           <ul className="spec-pick" aria-label="Spring 2027 courses">
             {PICKS.map((course) => (
               <li key={course.code}>
-                <button type="button" aria-pressed={picked?.code === course.code} onClick={() => setPicked(course)}>
+                <button type="button" aria-pressed={picked?.code === course.code} data-pick={course.code} onClick={() => setPicked(course)}>
                   <span className="ui-code">{course.code}</span>
                   <span>{course.title}</span>
                 </button>
@@ -542,7 +542,12 @@ export function ControlsSpecimen() {
         </Card>
       </div>
 
-      <ContextPanel open={picked !== null} onClose={() => setPicked(null)} title={picked?.code ?? ""}>
+      <ContextPanel
+        open={picked !== null}
+        onClose={() => setPicked(null)}
+        title={picked?.code ?? ""}
+        returnFocus={() => (picked ? document.querySelector<HTMLElement>(`[data-pick="${picked.code}"]`) : null)}
+      >
         {picked ? (
           <div className="spec-sheet-body">
             <h2>{picked.title}</h2>

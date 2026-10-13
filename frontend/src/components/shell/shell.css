@@ -1,6 +1,6 @@
 /*
  * App shell (DESIGN.md §3.3, §3.4, §8.1; mockups 02 and 07).
- * Desktop: one 56px frosted top bar, the only navigation. Phone (< 720px,
+ * Desktop: one 56px frosted top bar, the only navigation. Phone (< 760px,
  * the breakpoint every current view uses): a 52px frosted header and a
  * frosted tab bar, with the header hidden on Day. Nothing here animates:
  * lens switches are instant.
@@ -99,7 +99,7 @@
   border-radius: 10px;
   background: var(--paper);
   box-shadow: inset 0 0 0 1px var(--line-2);
-  color: var(--brand);
+  color: var(--ink);
   font: 600 13px/1 var(--font-ui);
   white-space: nowrap;
   cursor: pointer;
@@ -122,14 +122,21 @@
 .shell-pill[data-tone="error"] .shell-pill__dot {
   background: var(--danger);
 }
+/* The term is set lighter before the name; the gap separates them, no glyph. */
 .shell-pill__term {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 450;
+  color: var(--ink-2);
 }
 .shell-pill__name {
-  font-weight: 500;
-  color: var(--ink-2);
+  font-weight: 650;
+}
+.shell-pill__chevron {
+  flex: none;
+  margin-right: -2px;
+  color: var(--ink-3);
 }
 .shell-pill-error {
   font-size: var(--text-meta);
@@ -214,6 +221,37 @@
   }
 }
 
+/*
+ * A lens with a ContextPanel: from 1200px, opening it slides the page left by
+ * half the panel and its gap, so the selection stays in view beside the panel.
+ * Transform only; a keyboard open is instant. Under reduced motion the page
+ * holds the open position, so opening never moves it and only the panel fades.
+ */
+@media (min-width: 1200px) {
+  .shell-main[data-context-host] {
+    --context-shift: calc((var(--context-w) + var(--context-gap)) / -2);
+  }
+  .shell-main[data-context-open] {
+    transform: translateX(var(--context-shift));
+  }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+  .shell-main[data-context-host] {
+    transition: transform var(--t-exit) var(--ease-out);
+  }
+  .shell-main[data-context-open] {
+    transition-duration: var(--t-enter);
+  }
+  .shell-main[data-context-instant] {
+    transition: none;
+  }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) {
+  .shell-main[data-context-host] {
+    transform: translateX(var(--context-shift));
+  }
+}
+
 /* ───────── Phone header and tab bar ───────── */
 
 .shell-pheader,
@@ -233,7 +271,7 @@
   overflow-x: clip;
 }
 
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .shell {
     --shell-top-h: calc(var(--header-h) + var(--safe-t));
     --shell-bottom-h: calc(var(--tabbar-h) + var(--safe-b));
@@ -415,7 +453,7 @@
   height: calc(100dvh - var(--shell-top-h) - var(--shell-bottom-h));
   overflow: hidden;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   /* The phone tabs are fixed, so the body ends where they begin. */
   .shell-main:has([data-shell-body="full-bleed"]) {
     padding-bottom: var(--shell-bottom-h);
@@ -469,7 +507,7 @@
   margin: 0 auto;
   padding: 24px 32px 48px;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .shell-content {
     padding: 16px 16px 32px;
   }
@@ -564,13 +602,15 @@
   color: var(--brand);
   font-weight: 600;
 }
-.home-foot a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .home-foot a:hover {
+    text-decoration: underline;
+  }
 }
 .home-install-hint {
   display: none;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .home {
     padding: 24px 16px 32px;
   }
@@ -636,7 +676,7 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .about {
     padding: 32px 16px 48px;
   }

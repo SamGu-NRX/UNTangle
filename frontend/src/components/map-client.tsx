@@ -76,7 +76,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   const stops = useMemo(() => campus.id === activeCampus.id ? routeStops[activeDay] ?? [] : [], [activeDay, routeStops, campus.id]);
   const itinerary = useItinerary(stops);
 
-  const isPhone = useMediaQuery("(max-width: 720px)");
+  const isPhone = useMediaQuery("(max-width: 759px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   const [selection, setSelection] = useState<MapSelection>(null);
@@ -224,7 +224,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
       ) : (
         <aside className="mv-panel" aria-label="Itinerary">
           {header}
-          <div ref={scrollRef} className="mv-panel__body">
+          <div ref={scrollRef} className="mv-panel__body" data-lens-scroll="">
             {body}
           </div>
         </aside>

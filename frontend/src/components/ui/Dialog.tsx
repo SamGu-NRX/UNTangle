@@ -50,7 +50,9 @@ export function Dialog({
   initialFocus,
   className,
 }: DialogProps) {
-  const { mounted, state } = usePresence(open, EXIT_MS);
+  // Escape closes at once: keyboard actions never animate.
+  const [instant, setInstant] = useState(false);
+  const { mounted, state } = usePresence(open, instant ? 0 : EXIT_MS);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -58,8 +60,19 @@ export function Dialog({
   const [shownTitle, setShownTitle] = useState(title);
   if (title && title !== shownTitle) setShownTitle(title);
 
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setInstant(false);
+  }
+
   useModalLayer(open, rootRef, {
-    onEscape: dismissible ? () => onOpenChange(false) : undefined,
+    onEscape: dismissible
+      ? () => {
+          setInstant(true);
+          onOpenChange(false);
+        }
+      : undefined,
     initialFocus,
   });
 
@@ -67,7 +80,7 @@ export function Dialog({
   const heading = title ?? shownTitle;
 
   return createPortal(
-    <div ref={rootRef} className="ui-dialog-layer" data-state={state} data-ui="" tabIndex={-1}>
+    <div ref={rootRef} className="ui-dialog-layer" data-state={state} data-instant={instant ? "" : undefined} data-ui="" tabIndex={-1}>
       <div
         className="ui-dialog-scrim"
         data-state={state}

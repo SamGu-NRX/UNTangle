@@ -10,53 +10,125 @@ import { useCallback, useEffect, useRef } from "react";
  * on the page underneath and closes the sheet instead of leaving the page.
  *
  * Closing a sheet any other way has to give that entry back. When the sheet
- * closes itself (scrim, swipe, Escape, its own Close), it calls history.back()
- * at once. When it closes because the page changed it (a link inside the
- * sheet, a router.push after an import), calling back() could cancel that
- * navigation, so the entry is left in place as "stale": the next Back that
- * steps off it onto the same page skips once more, so no Back press is ever
- * spent on a sheet that is already gone.
+ * closes itself (scrim, swipe, Escape, its own Close), it calls back() at
+ * once. When the page closes it (a link inside the sheet, a router.push
+ * after an import), calling back() could cancel that navigation in the
+ * Next.js router, so the entry stays behind as "stale": a Back that steps
+ * off a stale entry onto the same page steps once more, so no Back press is
+ * ever spent on a sheet that is already gone.
  */
 
 const KEY = "__untangleSheet";
 
-export type StaleEntry = { id: string; href: string };
+/** The parts of window.history and location this needs; a fake stands in for tests. */
+export type HistoryPort = {
+  marker(): string | undefined;
+  href(): string;
+  push(marker: string): void;
+  replace(marker: string): void;
+  back(): void;
+};
 
-/**
- * What to do on popstate while a closed sheet's entry is still in history.
- * Pure, so the one rule with a single correct answer is tested on its own.
- */
-export function afterStalePop(stale: StaleEntry, marker: string | undefined, href: string): { stale: StaleEntry | null; back: boolean } {
-  if (marker === stale.id) return { stale, back: false }; // stepped back onto the stale entry itself
-  if (marker === undefined && href === stale.href) return { stale: null, back: true }; // stepped off it onto its page
-  return { stale: null, back: false };
+type Open = { id: string; href: string; close: () => void };
+
+export class SheetHistory {
+  private open: Open[] = [];
+  /** Entries left behind by sheets the page closed, by marker: the page each one shows. */
+  private stale = new Map<string, string>();
+  /** The marker of the entry we are on, as of the last change we saw. */
+  private here: string | undefined;
+  private ownPops = 0;
+  private nextId = 1;
+
+  constructor(private readonly port: HistoryPort) {
+    this.here = port.marker();
+  }
+
+  /** A sheet opened: give it an entry, reusing a stale one we are standing on. */
+  opened(close: () => void): string {
+    const id = `sheet-${this.nextId++}`;
+    const current = this.port.marker();
+    if (current !== undefined && this.stale.has(current)) {
+      this.stale.delete(current);
+      this.port.replace(id);
+    } else {
+      this.port.push(id);
+    }
+    this.here = id;
+    this.open.push({ id, href: this.port.href(), close });
+    return id;
+  }
+
+  /** The sheet closed itself: give its entry back now. */
+  dismissed(id: string): void {
+    const at = this.open.findIndex((sheet) => sheet.id === id);
+    if (at < 0) return;
+    this.open.splice(at, 1);
+    if (this.port.marker() === id) {
+      this.ownPops += 1;
+      this.port.back();
+    } else {
+      this.stale.set(id, this.port.href());
+    }
+  }
+
+  /** The page closed the sheet (or unmounted it): its entry stays behind as stale. */
+  abandoned(id: string): void {
+    const at = this.open.findIndex((sheet) => sheet.id === id);
+    if (at < 0) return; // already closed by Back or dismissed()
+    const [sheet] = this.open.splice(at, 1);
+    this.stale.set(id, sheet.href);
+  }
+
+  /** The app navigated (a push or replace we did not make). */
+  navigated(): void {
+    this.here = this.port.marker();
+  }
+
+  /** The browser moved through history. */
+  popped(): void {
+    const left = this.here;
+    this.here = this.port.marker();
+    if (this.ownPops > 0) {
+      this.ownPops -= 1;
+      return;
+    }
+    const top = this.open[this.open.length - 1];
+    if (top && this.here !== top.id) {
+      this.open.pop();
+      top.close();
+      return;
+    }
+    // Stepped off a stale entry onto the same page: that Back changed nothing visible, so take one more.
+    if (left !== undefined && this.stale.get(left) === this.port.href()) {
+      this.stale.delete(left);
+      this.port.back();
+    }
+  }
 }
 
-type OpenSheet = { id: string; href: string; close: () => void };
+const windowPort: HistoryPort = {
+  marker: () => window.history.state?.[KEY],
+  href: () => window.location.href,
+  // Next.js copies its own router state into entries pushed without a URL.
+  push: (marker) => window.history.pushState({ [KEY]: marker }, ""),
+  replace: (marker) => window.history.replaceState({ [KEY]: marker }, ""),
+  back: () => window.history.back(),
+};
 
-const open: OpenSheet[] = [];
-let stale: StaleEntry | null = null;
-let ownPops = 0;
-let listening = false;
-let nextId = 1;
-
-const currentMarker = (): string | undefined => window.history.state?.[KEY];
-
-function onPopState() {
-  if (ownPops > 0) {
-    ownPops -= 1;
-    return;
+let shared: SheetHistory | null = null;
+function sheetHistory(): SheetHistory {
+  if (!shared) {
+    const instance = new SheetHistory(windowPort);
+    window.addEventListener("popstate", () => instance.popped());
+    shared = instance;
   }
-  const top = open[open.length - 1];
-  if (top && currentMarker() !== top.id) {
-    open.pop();
-    top.close();
-    return;
-  }
-  if (!stale) return;
-  const step = afterStalePop(stale, currentMarker(), window.location.href);
-  stale = step.stale;
-  if (step.back) window.history.back();
+  return shared;
+}
+
+/** The shell calls this when the route changes, so stale entries are judged against the right place. */
+export function noteNavigation(): void {
+  shared?.navigated();
 }
 
 /**
@@ -72,38 +144,17 @@ export function useBackToClose(active: boolean, close: () => void): () => void {
 
   useEffect(() => {
     if (!active) return;
-    if (!listening) {
-      window.addEventListener("popstate", onPopState);
-      listening = true;
-    }
-    const id = `sheet-${nextId++}`;
+    const history = sheetHistory();
+    const id = history.opened(() => closeRef.current());
     idRef.current = id;
-    const href = window.location.href;
-    // Reopening on top of this sheet's own stale entry reuses it rather than stacking another.
-    if (stale && currentMarker() === stale.id) {
-      window.history.replaceState({ [KEY]: id }, "");
-      stale = null;
-    } else {
-      window.history.pushState({ [KEY]: id }, "");
-    }
-    open.push({ id, href, close: () => closeRef.current() });
     return () => {
       idRef.current = null;
-      const at = open.findIndex((sheet) => sheet.id === id);
-      if (at < 0) return; // closed by Back or by dismiss()
-      open.splice(at, 1);
-      stale = { id, href };
+      history.abandoned(id);
     };
   }, [active]);
 
   return useCallback(() => {
-    const id = idRef.current;
-    const at = id ? open.findIndex((sheet) => sheet.id === id) : -1;
-    if (at >= 0 && currentMarker() === id) {
-      open.splice(at, 1);
-      ownPops += 1;
-      window.history.back();
-    }
+    if (idRef.current) sheetHistory().dismissed(idRef.current);
     closeRef.current();
   }, []);
 }

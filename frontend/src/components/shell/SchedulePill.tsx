@@ -5,7 +5,7 @@ import { useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Check, ChevronRight, Close } from "@/components/ui/icons";
+import { Check, ChevronDown, ChevronRight, Close } from "@/components/ui/icons";
 import { PLANNING_TERM } from "@/lib/terms";
 import { SCHEDULE_NAME, chipStatusLabel, chipTone, savedWhere, type ChipTone } from "./plan-status";
 import { SCHEDULES_HREF } from "./routes";
@@ -29,6 +29,7 @@ function PillText({ term, status, action }: { term: string; status: string; acti
       <span className="shell-pill__dot" aria-hidden="true" />
       <span className="shell-pill__term">{term}</span>{" "}
       <span className="shell-pill__name">{SCHEDULE_NAME}</span>
+      <ChevronDown size={14} className="shell-pill__chevron" />
       <span className="sr-only-v2">
         {" "}
         schedule. {status}.{action ? ` ${action}` : ""}

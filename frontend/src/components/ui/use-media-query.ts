@@ -3,7 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 /** The phone layout: the tab bar shell and sheets instead of side panels. */
-export const PHONE_QUERY = "(max-width: 719px)";
+export const PHONE_QUERY = "(max-width: 759px)";
 
 /** Whether a media query matches now, kept live. False on the server. */
 export function useMediaQuery(query: string): boolean {

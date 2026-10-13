@@ -21,9 +21,13 @@ type Props = {
 export function ViewTabs({ lens, hrefs, onPick }: Props) {
   const [pending, setPending] = useState<{ from: Lens | null; to: Lens; keyboard: boolean } | null>(null);
   const [committed, setCommitted] = useState(lens);
+  // The pill slides only for a pointer press on these tabs. A route that
+  // changes any other way (a keyboard press, the search, a link, Back) lands
+  // at once; a pressed tab's own route landing keeps the slide it started.
+  const [instant, setInstant] = useState(false);
   if (committed !== lens) {
-    // Any navigation that lands (the pressed link, Back, a link elsewhere)
-    // ends the pending press, so it can never resurface later.
+    // Any navigation that lands ends the pending press, so it can never resurface later.
+    setInstant(!(pending && pending.to === lens && !pending.keyboard));
     setCommitted(lens);
     setPending(null);
   }
@@ -35,7 +39,7 @@ export function ViewTabs({ lens, hrefs, onPick }: Props) {
       aria-label="Views"
       className="ui-seg shell-viewtabs"
       style={{ "--seg-count": LENSES.length } as CSSProperties}
-      data-instant={pending?.keyboard ? "" : undefined}
+      data-instant={instant ? "" : undefined}
       data-ui=""
     >
       <SegmentPill index={index} />
@@ -43,13 +47,17 @@ export function ViewTabs({ lens, hrefs, onPick }: Props) {
         <Link
           key={item.id}
           href={hrefs?.[item.id] ?? item.href}
+          // Lenses are not history (DESIGN.md §3.4): a switch replaces the entry.
+          replace
           scroll={false}
           className="ui-seg__item"
           aria-current={item.id === lens ? "page" : undefined}
           onClick={(event) => {
             onPick?.(item.id, event);
             if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-            setPending({ from: lens, to: item.id, keyboard: event.detail === 0 });
+            const keyboard = event.detail === 0;
+            setInstant(keyboard);
+            setPending({ from: lens, to: item.id, keyboard });
           }}
         >
           {item.label}

@@ -65,10 +65,12 @@ export type BottomSheetProps = {
   glass?: boolean;
   /**
    * Back (the browser's, the iOS edge swipe, Android's) closes the sheet
-   * before it leaves the page. Leave it off for sheets whose URL already
-   * changes when they open, such as Connect.
+   * before it leaves the page. On by default; turn it off for a sheet whose
+   * URL already changes when it opens, such as Connect.
    */
   closeOnBack?: boolean;
+  /** Where focus goes when the sheet closes. Default: whatever had focus when it opened. */
+  returnFocus?: () => HTMLElement | null;
   /** Content under the handle that also drags the sheet (title, switcher). */
   header?: ReactNode;
   /** Element to focus on open (modal sheets). Default: the first focusable. */
@@ -121,9 +123,10 @@ export function BottomSheet({
   modal = true,
   dismissible = true,
   glass = false,
-  closeOnBack = false,
+  closeOnBack = true,
   header,
   initialFocus,
+  returnFocus,
   children,
   className,
 }: BottomSheetProps) {
@@ -144,9 +147,16 @@ export function BottomSheet({
   const expanded = index === topIndex;
 
   const y = useRef<number | null>(null);
+  /** The running spring's velocity (px/s), so a new target starts from the motion already under way. */
+  const liveVelocity = useRef(0);
   const stopSpring = useRef<(() => void) | null>(null);
+  /** Set when a touch stopped a moving sheet; a tap then lets it carry on to its detent. */
+  const stoppedByTouch = useRef(false);
+  /** Escape closes without animating: keyboard actions never animate. */
+  const instantExit = useRef(false);
   const drag = useRef<Drag | null>(null);
-  const handoffVelocity = useRef(0);
+  /** A release's velocity (px/ms) for the next spring; null when there was no release. */
+  const handoffVelocity = useRef<number | null>(null);
   const keyboardMove = useRef(false);
   const suppressClick = useRef(false);
   // Moves and the release are read from the document, not the pressed
@@ -167,8 +177,14 @@ export function BottomSheet({
   const requestClose = () => (closeOnBack ? dismissByBack() : onOpenChange(false));
 
   useModalLayer(modal && open, rootRef, {
-    onEscape: dismissible ? requestClose : undefined,
+    onEscape: dismissible
+      ? () => {
+          instantExit.current = true;
+          requestClose();
+        }
+      : undefined,
     initialFocus,
+    returnFocus,
   });
 
   // Reset to the opening detent each time the sheet opens.
@@ -189,33 +205,48 @@ export function BottomSheet({
     if (sheetRef.current) sheetRef.current.style.transform = `translate3d(0, ${offset}px, 0)`;
   };
 
+  /** will-change only while the sheet moves (MOTION.md §11). */
+  const moving = (on: boolean) => {
+    if (sheetRef.current) sheetRef.current.style.willChange = on ? "transform" : "";
+  };
+
   const cancelSpring = () => {
     stopSpring.current?.();
     stopSpring.current = null;
+    moving(false);
   };
 
-  /** Moves to `target` on a spring that starts at `velocity` (px/ms), or jumps under reduced motion. */
-  const moveTo = (target: number, velocity: number, spring: Spring, done?: () => void) => {
+  /**
+   * Moves to `target` on a spring, or jumps under reduced motion. The spring
+   * starts at `velocity` (px/ms) when a release hands one over; otherwise it
+   * keeps whatever motion is already under way, so retargeting never stalls.
+   */
+  const moveTo = (target: number, velocity: number | null, spring: Spring, done?: () => void) => {
+    const carried = stopSpring.current ? liveVelocity.current : 0;
     cancelSpring();
     const sheet = sheetRef.current;
     if (!sheet) return;
     if (prefersReducedMotion() || y.current === null) {
       if (y.current !== null && y.current !== target) {
-        sheet.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: 140, easing: "ease-out" });
+        sheet.animate([{ opacity: 1 }, { opacity: 0.6 }, { opacity: 1 }], { duration: 140, easing: "ease-out" });
       }
       place(target);
       done?.();
       return;
     }
-    let state = { x: y.current, v: velocity * 1000 };
+    let state = { x: y.current, v: velocity === null ? carried : velocity * 1000 };
     let last = performance.now();
     let frame = 0;
+    moving(true);
     const step = (now: number) => {
       state = springStep(state, target, (now - last) / 1000, spring);
+      liveVelocity.current = state.v;
       last = now;
       if (springSettled(state, target)) {
         place(target);
         stopSpring.current = null;
+        liveVelocity.current = 0;
+        moving(false);
         done?.();
         return;
       }
@@ -237,7 +268,7 @@ export function BottomSheet({
       return;
     }
     place(closedOffset);
-    moveTo(target, 0, SETTLE);
+    moveTo(target, null, SETTLE);
   });
 
   // Settle whenever the target moves: a detent change, new geometry, or a
@@ -248,14 +279,14 @@ export function BottomSheet({
     if (!open || y.current === null || drag.current?.active) return;
     const target = offsets[index] ?? 0;
     const velocity = handoffVelocity.current;
-    handoffVelocity.current = 0;
+    handoffVelocity.current = null;
     if (keyboardMove.current) {
       keyboardMove.current = false;
       cancelSpring();
       place(target);
       return;
     }
-    moveTo(target, velocity, Math.abs(velocity) > BOUNCE_VELOCITY ? FLICK : SETTLE);
+    moveTo(target, velocity, velocity !== null && Math.abs(velocity) > BOUNCE_VELOCITY ? FLICK : SETTLE);
     // offsetsKey stands for offsets, which is rebuilt every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, offsetsKey, open]);
@@ -271,6 +302,11 @@ export function BottomSheet({
       setMounted(false);
     };
     if (!sheet || y.current === null) return finish();
+    if (instantExit.current) {
+      instantExit.current = false;
+      cancelSpring();
+      return finish();
+    }
     if (prefersReducedMotion()) {
       cancelSpring();
       const fade = sheet.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: "ease-out", fill: "forwards" });
@@ -278,13 +314,14 @@ export function BottomSheet({
       return () => fade.cancel();
     }
     const velocity = handoffVelocity.current;
-    handoffVelocity.current = 0;
+    handoffVelocity.current = null;
     moveTo(closedOffset, velocity, EXIT, finish);
     // closedOffset is read at the moment of closing on purpose.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted]);
 
-  useEffect(() => () => cancelSpring(), []);
+  // Unmounting mid-spring stops its frame loop.
+  useEffect(() => () => stopSpring.current?.(), []);
 
   const onDragMove = (event: globalThis.PointerEvent) => {
     const d = drag.current;
@@ -299,7 +336,7 @@ export function BottomSheet({
         return;
       }
       d.active = true;
-      cancelSpring();
+      moving(true);
       d.startY = event.clientY;
       d.startOffset = y.current ?? 0;
       try {
@@ -320,7 +357,13 @@ export function BottomSheet({
     if (!d || d.pointerId !== event.pointerId) return;
     stopTracking.current?.();
     drag.current = null;
-    if (!d.active) return;
+    if (!d.active) {
+      // A tap stopped a moving sheet: let it finish its way to the detent.
+      if (stoppedByTouch.current && open) moveTo(offsets[index] ?? 0, 0, SETTLE);
+      stoppedByTouch.current = false;
+      return;
+    }
+    stoppedByTouch.current = false;
     suppressClick.current = true;
     if (d.element.hasPointerCapture(event.pointerId)) d.element.releasePointerCapture(event.pointerId);
     // The release is a sample too: a finger that stopped before lifting reads as slow.
@@ -333,16 +376,19 @@ export function BottomSheet({
     } else if (target !== index) {
       setIndex(target);
     } else {
-      handoffVelocity.current = 0;
+      handoffVelocity.current = null;
       moveTo(offsets[target], velocity, Math.abs(velocity) > BOUNCE_VELOCITY ? FLICK : SETTLE);
     }
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>, fromBody: boolean) => {
-    // One finger at a time: a second touch mid-drag is ignored.
-    if (drag.current || (event.pointerType === "mouse" && event.button !== 0)) return;
+    // A closing sheet cannot be caught, and one finger at a time: a second touch mid-drag is ignored.
+    if (!open || drag.current || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (fromBody && expanded && (bodyRef.current?.scrollTop ?? 0) > 0) return;
     suppressClick.current = false;
+    // Touching a moving sheet stops it where it is (MOTION.md §5, Interrupt).
+    stoppedByTouch.current = stopSpring.current !== null;
+    cancelSpring();
     drag.current = {
       pointerId: event.pointerId,
       element: event.currentTarget,
@@ -392,6 +438,8 @@ export function BottomSheet({
       ref={rootRef}
       className={cx("ui-sheet-layer", !modal && "ui-sheet-layer--passive")}
       data-state={state}
+      // A closing sheet is on its way out: nothing in it can be reached.
+      inert={!open || undefined}
       data-ui=""
       tabIndex={modal ? -1 : undefined}
     >
