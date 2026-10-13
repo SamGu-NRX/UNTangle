@@ -12,7 +12,6 @@
  */
 import { inferStatuses, type CourseAssessment, type Evidence, type InferenceResult } from "@/lib/prereq";
 import type { CourseStatus as PlannerCourseStatus, TranscriptCourseRecord } from "@/lib/types";
-import { coveredByCompletion } from "./closure";
 import { onlyCheckable, ruleFromPrerequisite, unmetFromReason, type RuleNode } from "./rules";
 import type { CatalogEntry, SchoolProfile } from "../school";
 
@@ -103,10 +102,8 @@ function latestPassing(profile: SchoolProfile, records: readonly TranscriptCours
 export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): CourseModel {
   const { evidence, manualDone } = buildEvidence(profile, plan);
   const inference = inferStatuses(profile.catalog, evidence, profile.adapter);
-  const done = new Set([...inference.statuses.values()].filter((a) => a.status === "done").map((a) => a.courseId));
-  const withRows = transcriptCodes(profile, plan.transcript);
-  const blocked = new Set([...withRows].filter((id) => !done.has(id)));
-  const covered = coveredByCompletion(profile.catalog, done, blocked);
+  // Courses closure satisfies, as the engine decided them (no second copy of its rules).
+  const covered = inference.coverage;
   const prerequisites = new Map(profile.catalog.map((course) => [course.id, course.prerequisite]));
 
   const rows = new Map<string, CourseRowModel>();

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { inferStatuses, untAdapter, type CatalogCourse, type Prerequisite } from "@/lib/prereq";
 import { renderPrerequisiteTable } from "@/lib/course-catalog/build";
-import { coveredByCompletion } from "@/components/courses/model/closure";
 import { computeAuto, describeAuto, undoBlocker, undoStatuses } from "@/components/courses/model/auto";
 import { getInitialPlannerState, getPlanningTermCourseCodes } from "@/lib/planner";
 import { buildCourseModel, buildGroups, type PlanSnapshot } from "@/components/courses/model/course-model";
@@ -59,31 +58,6 @@ describe("rule text", () => {
   test("the row summary never drops an alternative from an OR", () => {
     expect(onlyCheckable({ kind: "any", items: [{ kind: "course", id: "a" }, { kind: "unparsed", text: "or placement" }] })).toBeNull();
     expect(onlyCheckable({ kind: "all", items: [{ kind: "course", id: "a" }, { kind: "unparsed", text: "advisor" }] })).toEqual({ kind: "course", id: "a" });
-  });
-});
-
-describe("closure coverage", () => {
-  const catalog = [row("a"), row("b", grade(course("a"))), row("c", and(course("b"), course("e"))), row("e"), row("f", or(course("a"), course("e"))), row("g", course("f"))];
-
-  test("a passed course covers its mandatory prerequisites transitively", () => {
-    const covered = coveredByCompletion(catalog, new Set(["c"]), new Set());
-    expect(Object.fromEntries(covered)).toEqual({ b: "c", a: "c", e: "c" });
-  });
-
-  test("an OR names no single course, so it covers nothing", () => {
-    expect(coveredByCompletion(catalog, new Set(["g"]), new Set()).has("a")).toBe(false);
-    expect(coveredByCompletion(catalog, new Set(["g"]), new Set()).get("f")).toBe("g");
-  });
-
-  test("contrary evidence stops coverage at that course", () => {
-    const covered = coveredByCompletion(catalog, new Set(["c"]), new Set(["b"]));
-    expect(covered.has("b")).toBe(false);
-    expect(covered.has("a")).toBe(false);
-    expect(covered.get("e")).toBe("c");
-  });
-
-  test("courses with credit are never reported as covered", () => {
-    expect(coveredByCompletion(catalog, new Set(["c", "b"]), new Set()).has("b")).toBe(false);
   });
 });
 
