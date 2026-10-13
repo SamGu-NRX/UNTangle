@@ -9,24 +9,50 @@ export function courseReferences(node: Prerequisite): string[] {
   }
 }
 
-/** Source-independent identity lets closure reuse the same catalog requirement. */
-export function requirementKey(node: Prerequisite): string {
-  switch (node.kind) {
-    case "course": return JSON.stringify([node.kind, node.courseId]);
-    case "and": case "or": return JSON.stringify([node.kind, node.children.map(requirementKey).sort()]);
-    case "minGrade": return JSON.stringify([node.kind, node.grade, requirementKey(node.requirement)]);
-    case "corequisite": return JSON.stringify([node.kind, requirementKey(node.requirement)]);
-    case "standing": return JSON.stringify([node.kind, node.minimum]);
-    case "consent": return JSON.stringify([node.kind, node.authority]);
-    case "unknown": return JSON.stringify([node.kind, node.source]);
+type Canonical = string | readonly Canonical[];
+
+function compareCanonical(a: Canonical, b: Canonical): number {
+  if (typeof a === "string") return typeof b === "string" ? a < b ? -1 : a > b ? 1 : 0 : -1;
+  if (typeof b === "string") return 1;
+  for (let index = 0; index < Math.min(a.length, b.length); index++) {
+    const order = compareCanonical(a[index], b[index]);
+    if (order !== 0) return order;
   }
+  return a.length - b.length;
+}
+
+function canonical(node: Prerequisite): Canonical {
+  const escape = node.escape ?? "";
+  switch (node.kind) {
+    case "course": return [node.kind, escape, node.courseId];
+    case "and": case "or": return [node.kind, escape, node.children.map(canonical).sort(compareCanonical)];
+    case "minGrade": return [node.kind, escape, node.grade, canonical(node.requirement)];
+    case "corequisite": return [node.kind, escape, canonical(node.requirement)];
+    case "standing": return [node.kind, escape, node.minimum];
+    case "consent": return [node.kind, escape, node.authority];
+    case "unknown": return [node.kind, escape, node.source];
+  }
+}
+
+/** Build a canonical tree and serialize once; child JSON strings would multiply escaping at every wrapper. */
+export function requirementKey(node: Prerequisite): string {
+  return JSON.stringify(canonical(node));
 }
 
 export function requiresAdvisor(node: Prerequisite): boolean {
   switch (node.kind) {
-    case "consent": case "unknown": return true;
+    case "consent": return true;
+    case "unknown": return node.escape !== "equivalent";
     case "and": case "or": return node.children.some(requiresAdvisor);
     case "corequisite": case "minGrade": return requiresAdvisor(node.requirement);
     default: return false;
   }
+}
+
+/** Unknown rules may conceal a waiver; no part of such a course's rule supplies closure. */
+export function canSupplyClosure(node: Prerequisite): boolean {
+  if (node.escape || node.kind === "consent" || node.kind === "unknown") return false;
+  if (node.kind === "and" || node.kind === "or") return node.children.every(canSupplyClosure);
+  if (node.kind === "corequisite" || node.kind === "minGrade") return canSupplyClosure(node.requirement);
+  return true;
 }

@@ -2,8 +2,8 @@
   "corpusSha256": "7b1f6cfd71b19c44e5fab4b12dc1d7457a329933c9c76a9645ae0dde7bd20af7",
   "total": 656,
   "counts": {
-    "full": 429,
-    "partial": 168,
+    "full": 430,
+    "partial": 167,
     "unknown": 59
   },
   "empty": 202,
@@ -1131,7 +1131,7 @@
     },
     {
       "courseId": "ECON 4030",
-      "coverage": "partial",
+      "coverage": "full",
       "source": "ECON 1100 and ECON 1110 ; ECON 4630 with a grade of C or better. ECON 4630 can be replaced with MATH 3680 or DSCI 3710 with a grade of C or better. May not be repeated at the graduate level as ECON 5080."
     },
     {

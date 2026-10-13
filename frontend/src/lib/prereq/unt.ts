@@ -75,6 +75,11 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
   const prefix = text.match(gradePrefix) ?? text.match(/^Grade of A, B, or C in\s+/i);
   const suffix = text.match(gradeSuffix);
   if (prefix && suffix) return undefined;
+  const semicolonGroups = splitTopLevel(text, /\s*;\s*(?:and\s+)?/gi);
+  // ECON 4030's trailing grade qualifies ECON 4630, not the courses before its semicolon.
+  if (!prefix && semicolonGroups.length > 1 && semicolonGroups.every(group => !/^or\b/i.test(group))) {
+    return { kind: "and", source, children: semicolonGroups.map(parseClause) };
+  }
   let grade: string | undefined;
   if (prefix) { grade = prefix[1] ?? "C"; text = text.slice(prefix[0].length); }
   if (suffix) { grade = suffix[1]; text = text.slice(0, text.length - suffix[0].length); }
@@ -82,7 +87,7 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
   text = text.replace(/^either\s+|^both\s+|^one of the following:\s*/i, "");
   text = text.replace(/([A-Z]{2,5}\s*\d{4}[A-Z]?)\s*\(or\s+([A-Z]{2,5}\s*\d{4}[A-Z]?)\s*\)/gi, "($1 or $2)");
   const alternativesList = standaloneList || /one of the following/i.test(prefix?.[0] ?? "");
-  if (alternativesList) text = text.replace(/,\s*(?:or\s+)?/gi, " or ");
+  if (alternativesList) text = splitTopLevel(text, /,\s*(?:or\s+)?/gi).join(" or ");
   // Without an explicit list rule, A, B or C does not tell us whether A is mandatory.
   if (!alternativesList && /,/.test(text) && /\bor\b/i.test(text) && !/,\s*and\b/i.test(text) && !/,\s*or\s+consent\b/i.test(text)) return undefined;
 
@@ -94,7 +99,7 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
     return grade ? applyGrade(result, grade) : result;
   }
 
-  type Token = { type: "atom"; node: Prerequisite } | { type: "and" | "or" | "open" | "close" };
+  type Token = { type: "atom"; node: Prerequisite } | { type: "and" | "or" };
   const tokens: Token[] = [];
   while (text.trim()) {
     text = text.trimStart();
@@ -103,7 +108,12 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
       let node: Prerequisite = { kind: "course", courseId: normalizeUntCourseId(course[0]), source: course[0] };
       text = text.slice(course[0].length);
       const equivalent = text.match(/^\s+or\s+(?:(?:the|its|their)\s+)?equivalents?\b/i);
-      if (equivalent) { node.source += equivalent[0]; text = text.slice(equivalent[0].length); }
+      if (equivalent) {
+        node = { kind: "or", escape: "equivalent", source: course[0] + equivalent[0], children: [
+          node, { ...unknown(equivalent[0]), escape: "equivalent" },
+        ] };
+        text = text.slice(equivalent[0].length);
+      }
       const conditionalCompanion = text.match(/^\s*\(and\s+[A-Z]{2,5}\s*\d{4}[A-Z]?\s+for\s+[^()]+students\)/i);
       if (conditionalCompanion) {
         node = { kind: "and", source: course[0] + conditionalCompanion[0], children: [node, unknown(conditionalCompanion[0])] };
@@ -115,6 +125,13 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
         text = text.slice(concurrent[0].length);
       }
       tokens.push({ type: "atom", node });
+      continue;
+    }
+    if (text.startsWith("(")) {
+      const end = groupEnd(text);
+      if (end === undefined) return undefined;
+      tokens.push({ type: "atom", node: { ...parseClause(text.slice(1, end)), source: text.slice(0, end + 1) } });
+      text = text.slice(end + 1);
       continue;
     }
     const consent = text.match(/^(?:(?:instructor|department(?:al)?)\s+consent|(?:by\s+)?consent\s+(?:of\s+)?(?:the\s+)?(?:department|instructor|directing professor|supervising faculty member|Forensic Science Program|Honors College dean|school|Mayborn school|Teach North Texas advisor))(?:\s+required)?/i);
@@ -135,10 +152,10 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
       text = text.slice(upperLevel[0].length);
       continue;
     }
-    const operator = text.match(/^(and|or)\b|^([,;/()])/i);
+    const operator = text.match(/^(and|or)\b|^([,;/])/i);
     if (!operator) return undefined;
     const value = operator[0].toLowerCase();
-    const type = value === "(" ? "open" : value === ")" ? "close" : value === "or" ? "or" : "and";
+    const type = value === "or" ? "or" : "and";
     // Catalog commas before 'or' are punctuation, not a second operator.
     if (!(value === "," && /^\s*(?:or|and)\b/i.test(text.slice(1)))) tokens.push({ type });
     text = text.slice(operator[0].length);
@@ -146,11 +163,7 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
   let position = 0;
   function atom(): Prerequisite | undefined {
     const token = tokens[position++];
-    if (token?.type === "atom") return token.node;
-    if (token?.type !== "open") return undefined;
-    const result = expression("or");
-    if (tokens[position++]?.type !== "close") return undefined;
-    return result;
+    return token?.type === "atom" ? token.node : undefined;
   }
   function expression(operator: "and" | "or"): Prerequisite | undefined {
     const next = operator === "or" ? () => expression("and") : atom;
@@ -168,6 +181,15 @@ function parseSimpleClause(source: string): Prerequisite | undefined {
   const result = expression("or");
   if (!result || position !== tokens.length) return undefined;
   return grade ? applyGrade({ ...result, source }, grade) : { ...result, source };
+}
+
+function groupEnd(text: string): number | undefined {
+  let depth = 0;
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] === "(") depth++;
+    if (text[index] === ")" && --depth === 0) return index;
+  }
+  return undefined;
 }
 
 function splitTopLevel(text: string, separator: RegExp): string[] {
@@ -192,6 +214,7 @@ function splitTopLevel(text: string, separator: RegExp): string[] {
 /** Recover complete conjuncts. Conditional prose stays whole so closure cannot invent mandatory courses. */
 function parseClause(source: string): Prerequisite {
   const text = source.trim().replace(/\.$/, "").trim();
+  if (text.startsWith("(") && groupEnd(text) === text.length - 1) return { ...parseClause(text.slice(1, -1)), source };
   const coreq = text.match(/^(?:co-?requisite(?:\(s\)|s)?\s*:\s*|concurrent enrollment in\s+|co-enrolled in\s+)/i);
   if (coreq) return { kind: "corequisite", requirement: parseClause(text.slice(coreq[0].length)), source };
   if (/^if\b/i.test(text)) {
@@ -240,10 +263,37 @@ export function parseUntPrerequisite(source: string): ParseResult {
       annotations.push(clause);
       continue;
     }
+    const consentException = clause.trim().match(/^If (?:these|the above) requirements are not met,?\s*(?:department(?:al)? )?consent is required$/i);
+    if (consentException) {
+      const consent: Prerequisite = { kind: "consent", authority: "department", source: clause };
+      if (children.length === 0) { children.push(consent); continue; }
+      const requirement: Prerequisite = { kind: "and", source: children.map(child => child.source).join(". "), children: [...children] };
+      children.splice(0, children.length, { kind: "or", escape: "consent", source: requirement.source + ". " + clause, children: [requirement, consent] });
+      continue;
+    }
+    const replacement = clause.trim().match(/^([A-Z]{2,5}\s*\d{4}[A-Z]?) can be replaced (?:with|by) (.+)$/i);
+    if (replacement) {
+      const id = normalizeUntCourseId(replacement[1]);
+      const alternative = parseClause(replacement[2]);
+      let found = false;
+      function attach(node: Prerequisite): Prerequisite {
+        const course = node.kind === "course" ? node : node.kind === "minGrade" && node.requirement.kind === "course" ? node.requirement : undefined;
+        if (course?.courseId === id) {
+          found = true;
+          return { kind: "or", escape: "replacement", source: clause, children: [node, alternative] };
+        }
+        if (node.kind === "and" || node.kind === "or") return { ...node, children: node.children.map(attach) };
+        if (node.kind === "minGrade" || node.kind === "corequisite") return { ...node, requirement: attach(node.requirement) };
+        return node;
+      }
+      for (let index = 0; index < children.length; index++) children[index] = attach(children[index]);
+      if (!found) children.push({ kind: "or", escape: "replacement", source: clause, children: [{ kind: "course", courseId: id, source: replacement[1] }, alternative] });
+      continue;
+    }
     children.push(parseClause(clause));
   }
   function count(node: Prerequisite) {
-    if (node.kind === "unknown") { unparsed++; return; }
+    if (node.kind === "unknown") { if (node.escape === "equivalent") parsed++; else unparsed++; return; }
     if (node.kind === "and" || node.kind === "or") { node.children.forEach(count); return; }
     if (node.kind === "corequisite" || node.kind === "minGrade") { count(node.requirement); return; }
     parsed++;

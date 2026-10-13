@@ -1,6 +1,10 @@
 export type CourseId = string;
 
-export type Prerequisite = { source: string } & (
+export type Prerequisite = {
+  source: string;
+  /** An alternative admission route prevents this course from proving prerequisites through closure. */
+  escape?: "equivalent" | "replacement" | "consent";
+} & (
   | { kind: "course"; courseId: CourseId }
   | { kind: "and" | "or"; children: readonly Prerequisite[] }
   | { kind: "consent"; authority: string }

@@ -1,4 +1,4 @@
-import { courseReferences, requirementKey, requiresAdvisor } from "./ast";
+import { canSupplyClosure, courseReferences, requirementKey, requiresAdvisor } from "./ast";
 import type { CatalogCourse, CourseAssessment, Evidence, InferenceResult, Prerequisite, Reason, SchoolAdapter } from "./types";
 
 function compareIds(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
@@ -121,6 +121,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     return node.kind === "minGrade" && containsCorequisite(node.requirement);
   }
   function add(node: Prerequisite, witness: Reason) {
+    if (node.kind === "and" && node.children.length === 0) return;
     if (!requiresAdvisor(node) && !containsCorequisite(node) && !hasHourRequirement(node)) {
       const key = requirementKey(node);
       if (!closure.has(key)) closure.set(key, witness);
@@ -146,7 +147,7 @@ export function inferStatuses(catalog: readonly CatalogCourse[], evidence: Evide
     if (expanded.has(id)) continue;
     expanded.add(id);
     const prerequisite = byId.get(id)?.prerequisite;
-    if (!prerequisite) continue;
+    if (!prerequisite || !canSupplyClosure(prerequisite)) continue;
     const parent = completed.get(id)?.reason ?? closure.get(requirementKey({ kind: "course", courseId: id, source: "" }));
     if (!parent) continue;
     add(prerequisite, {
