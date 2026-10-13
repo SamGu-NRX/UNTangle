@@ -1,1 +1,18 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>UNTangle Connect</title><style>body{width:280px;margin:0;padding:20px;font:15px/1.5 system-ui;color:#1a2e1a;background:#f8faf8}h1{font-size:18px;margin:0 0 12px}p{margin:12px 0}</style><h1>UNTangle Connect</h1><p id="status" role="status">Checking connection…</p><p>Open UNTangle's Connect page, then open your unofficial transcript in myUNT.</p><p>Reads the report you open. No passwords or cookies are read or saved.</p><script src="popup.js"></script></html>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>UNTangle Connect approval</title>
+<style>
+body{width:300px;margin:0;padding:20px;font:15px/1.5 system-ui;color:#1a2e1a;background:#f8faf8}
+h1{font-size:18px;margin:0 0 12px}p{margin:12px 0}strong{overflow-wrap:anywhere}
+button{min-height:48px;width:100%;border:0;border-radius:8px;background:#00512b;color:white;font:600 16px system-ui;padding:12px;cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible{outline:2px solid #00512b;outline-offset:3px}
+</style>
+<h1>Send to UNTangle</h1>
+<p id="status" role="status">Checking request…</p>
+<p id="request" hidden>Requesting origin: <strong id="origin"></strong></p>
+<p id="detail"></p>
+<button id="approve" disabled>Send to UNTangle</button>
+<p>This approves one read for this request. No password or cookies are read or saved.</p>
+<script src="popup.js"></script>
+</html>

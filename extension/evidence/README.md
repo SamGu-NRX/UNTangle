@@ -1,9 +1,9 @@
 # Connect runtime evidence
 
-These captures show `/connect` running from code commit `0a53a50`. The PDF and course rows are synthetic. `frontend/tests/connect/connect.spec.ts` recreates the screenshots with Chromium and the unpacked development extension.
+These captures come from the 12-case Chromium regression run on 2026-10-13. The PDF, course rows, and account responses are synthetic. `frontend/tests/connect/connect.spec.ts` recreates the screenshots with the unpacked development extension.
 
-Mobile captures use 390 CSS pixels. Desktop uses 1440. The 320-pixel review and reduced-motion desktop captures check reflow and the reduced-motion preference. Full-page images include the upload recovery area.
+Mobile captures use 390 CSS pixels. Desktop uses 1440. The 320-pixel review and reduced-motion desktop captures check reflow and the reduced-motion preference. Full-page images include upload recovery. `extension-approval.png` shows the requesting origin in trusted extension UI before a read is approved.
 
-`connect-flow.mp4` records the automated consent, report wait, browser parsing, and saved-state transition at normal speed. It joins source intervals 0–2 and 34.5–37 seconds, omitting 32.5 seconds of idle waiting. The encoded H.264 frames were inspected. The screenshot set separately shows the brief review state and all four detected courses.
+`connect-flow.webm` is the unedited, normal-speed recording of the UNTangle tab during consent, waiting for extension approval, report reading, browser parsing, review, and guest saving. It includes the 35-second worker-idle regression wait. The popup approval is shown separately in its screenshot because it runs in another extension page.
 
-This evidence covers the localhost mock and guest browser persistence. It does not establish real myUNT compatibility, signed-in account saving, or phone hardware behavior.
+The account tests use the real planner provider with synthetic API responses to verify approved-record persistence, conflict version selection, and signed-out retry/export. This evidence does not establish real myUNT compatibility, live backend durability, or phone hardware behavior. `lighthouse-summary.json` records an earlier production permission-screen run and is not a measurement of this revision.
