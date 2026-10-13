@@ -17,7 +17,21 @@ Earlier notes in this thread referred to Apple's executable-code rule as **guide
 Expo documents first-class support for Bun workspaces monorepos ([Expo: Work with monorepos](https://docs.expo.dev/guides/monorepos/)):
 
 - **Layout:** the conventional shape is `apps/*` for applications and `packages/*` for shared code. For UNTangle that means `apps/mobile/` for the Expo app and `packages/shared/` (or similar) for extracted `frontend/src/lib` logic.
-- **Root `package.json`:** declare `"workspaces": ["apps/*", "packages/*"]` on a private root package; add `frontend/` to the same array so the existing app stays a workspace.
+- **Root `package.json`:** the root package is private and its `workspaces` property lists glob patterns for every workspace in the monorepo ([Expo: Work with monorepos](https://docs.expo.dev/guides/monorepos/)). The docs show `["apps/*", "packages/*"]` as the conventional example and note an existing app can be copied under `apps/` — but the globs are yours to define, so UNTangle keeps `frontend/` where it is and adds globs for the new directories:
+
+```json
+"workspaces": ["frontend", "apps/*", "packages/*"]
+```
+
+Resulting shape:
+
+```text
+frontend/            # existing Next.js app - stays in place, remains a workspace
+apps/
+  mobile/            # new Expo app (bun create expo apps/mobile)
+packages/
+  unt-core/          # shared TS extracted from frontend/src/lib (see section 2)
+```
 - **Shared package consumption:** internal packages are consumed with Bun's `workspace:*` protocol, which makes Metro resolve the workspace package rather than any published package of the same name.
 - **Metro:** Expo's Metro config has *built-in* monorepo support for Bun workspaces. The docs explicitly say **not** to hand-roll `watchFolders`, `resolver.nodeModulesPaths`, `resolver.extraNodeModules`, or `disableHierarchicalLookup` anymore — remove those if present and clear the cache once (`bunx expo start --clear`).
 - **Bun lockfile:** EAS decides the package manager from the lockfile present; keep a single `bun.lock` at the repo root and delete lockfiles from other package managers ([Expo: Using Bun](https://docs.expo.dev/guides/using-bun/)).
@@ -49,13 +63,13 @@ React Native has no DOM, no `window`/`document` globals, no Node built-ins, and 
 Follow the "domain core + platform adapters" pattern from Expo/RN guidance ([React Native: Document nodes](https://reactnative.dev/docs/document-nodes) clarifies RN is *not* a DOM; [Expo Metro config](https://docs.expo.dev/versions/latest/config/metro/) for the worker constraint):
 
 ```text
+frontend/            # existing Next.js app - stays in place
+apps/
+  mobile/            # new Expo app
 packages/
   unt-core/          # pure TS: prereq engine, optimizer core, campus engine/geo/graph
   unt-core/web/      # web adapter: Web Worker for optimizer search
   unt-core/native/   # native adapter: see below
-apps/
-  frontend/          # existing Next.js app (moved or aliased)
-  mobile/            # Expo app
 ```
 
 - **Dependency direction:** apps → adapters → `unt-core`. Never `unt-core` → Expo/Next/Node/browser.
@@ -64,17 +78,38 @@ apps/
 
 **Verification:** `packages/unt-core` has zero imports of `react-dom`, `next`, `expo`, Node built-ins, or `Worker`; its tests (ported from the current lib tests) pass when run under both the Next.js app and a React Native test runner.
 
-## 3. OTA updates with EAS Update
+## 3. OTA updates with EAS Update: what can and cannot ship without a store release
 
-EAS Update ships a new JavaScript bundle and assets to installed builds; it never replaces the native binary ([Expo: EAS Update introduction](https://docs.expo.dev/eas-update/introduction/)).
+EAS Update ships a new JavaScript bundle and assets to installed builds; it never replaces the native binary ([Expo: EAS Update introduction](https://docs.expo.dev/eas-update/introduction/)). The gate is the **runtime version**: Expo's docs define it as "a property that guarantees compatibility between a build's native code and an update" ([Expo: Runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)). An update downloads and runs only when its `runtimeVersion` matches the runtime embedded in the installed build.
 
-- **Runtime versions:** an update downloads only when its `runtimeVersion` matches the runtime embedded in the installed build. Expo recommends the `appVersion` policy (`"runtimeVersion": { "policy": "appVersion" }`) or `fingerprint` ([Expo: runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)). Bump the native build (and thus the runtime) whenever native modules, the Expo SDK, permissions, or app configuration change.
-- **Channels and branches:** the channel is baked into the native build and maps to an update branch (`production` → production, `preview` → preview). Publishing to a branch doesn't reach a device unless the branch matches its channel *and* the runtime version matches ([Expo: branch management](https://docs.expo.dev/eas-update/branch-management/)).
-- **What OTA can change:** JS components/screens, TS business logic, navigation behavior, styles, bundled assets, feature flags, and endpoint configuration — anything that stays compatible with the installed native runtime.
-- **What requires a store release:** new/upgraded native modules, SDK upgrades that change native code, permission/entitlement/Info.plist changes, bundle identifier or signing changes, launch-screen or icon changes, any native code ([Expo: EAS Build / Submit](https://docs.expo.dev/build/introduction/)).
-- **Rollback:** two distinct tools — republish a prior compatible update on the same branch, or fall back to the binary's embedded bundle. Neither can undo a native change or span a runtime-version boundary ([Expo: rollbacks](https://docs.expo.dev/eas-update/rollbacks/)). Documented recovery behavior can also auto-revert to the embedded bundle after failed launches ([Expo: Updates SDK](https://docs.expo.dev/versions/latest/sdk/updates/)).
+### 3.1 CAN change over OTA (no App Store release required)
 
-**Practical rule for UNTangle:** because the valuable shared logic (§2) is pure TS, most iteration — prereq suggestions, optimizer tuning, schedule views — is OTA-shippable. Map tiles, routing, and storage come from libraries fixed at build time.
+Anything delivered as JavaScript or bundled assets that stays compatible with the native runtime already in the shipped build:
+
+- React components and screens; navigation behavior implemented in JS
+- TS business logic - for UNTangle, the prereq engine, optimizer logic, and schedule views
+- Styles and layout; bundled assets (images, fonts); text and feature flags
+- Bug fixes that need no native change
+- Server endpoint configuration represented in the update's JS
+
+### 3.2 CANNOT change over OTA (new build + App Store release)
+
+Anything that touches the native layer. Expo states the rule directly: "any time native code is updated, we're required to make a new build before publishing an update" ([Expo: Runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)):
+
+- Adding, removing, or upgrading a native module (e.g. a new map or storage library)
+- Expo SDK or React Native upgrades that change native code
+- Permissions, entitlements, Info.plist keys, URL schemes, background modes
+- Bundle identifier, signing configuration, capabilities, native extensions
+- Launch screen or app icon configuration; any Swift/Objective-C/Kotlin code
+
+### 3.3 Managing the native/JS boundary
+
+- **Runtime policy:** the `appVersion` policy ties the runtime version to the app version; the `fingerprint` policy increments it "whenever anything that may impact the native runtime changes," trading more frequent builds for near-elimination of mismatch risk ([Expo: Runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)).
+- **Channels and branches:** the channel is baked into the native build and maps to an update branch (`production` → production, `preview` → preview). An update reaches a device only when branch matches channel *and* runtime version matches ([Expo: Branch management](https://docs.expo.dev/eas-update/branch-management/)).
+- **Rollback:** republish a prior compatible update on the same branch, or fall back to the binary's embedded bundle; `expo-updates` error recovery can also auto-revert to the previously working update after failed launches ([Expo: Rollbacks](https://docs.expo.dev/eas-update/rollbacks/), [Expo: Updates SDK](https://docs.expo.dev/versions/latest/sdk/updates/)).
+- **Gradual rollout:** publish to a small percentage of users and monitor error rates before promoting fully - Expo documents rollouts for exactly this ([Expo: Runtime versions](https://docs.expo.dev/eas-update/runtime-versions/)).
+
+**Practical rule for UNTangle:** because the shared logic (section 2) is pure TS, prereq-suggestion tuning, optimizer scoring changes, and schedule-view iteration are OTA-shippable *as long as* they run on the native modules already inside the shipped build. The moment a change needs a new library - a different map renderer, a new storage module - it is a build-and-store event, not an update.
 
 ## 4. Apple constraints on OTA (2.5.2)
 
@@ -83,8 +118,9 @@ Apple's guideline 2.5.2 requires apps to be self-contained and forbids downloadi
 - Updates must not unlock materially new features that would require review (the narrow exception is limited to educational apps).
 - JS updates are not automatically exempt; Apple evaluates what the downloaded code does.
 - Updates that unlock or sell functionality must also satisfy Apple's payment rules (IAP requirements).
+- OTA is a delivery mechanism, not a review bypass: Apple evaluates what the app does, including what its downloaded updates do. EAS Update is designed to keep JS/asset changes inside 2.5.2's permitted scope; it confers no exemption by itself.
 
-**Assessment:** UNTangle's planner/prereq/optimizer OTA iterations are squarely within the permitted model — no new native surface, no payments, no entitlement changes.
+**Assessment:** UNTangle's planner/prereq/optimizer OTA iterations stay within the permitted model while they remain JS/assets inside the already-reviewed feature set - no new native surface, no payments, no entitlement changes. An update that surfaces a materially new capability should ship as a new build through review instead.
 
 ## 5. Maps without API keys or paid plans: MapLibre React Native + OpenFreeMap
 
@@ -114,9 +150,25 @@ Apple's guideline 2.5.2 requires apps to be self-contained and forbids downloadi
 4. Use `@maplibre/maplibre-react-native` with OpenFreeMap's `liberty` style for keyless maps; expect a dev build, not Expo Go, and keep attribution.
 5. Budget the US$99/year Apple Developer Program for TestFlight; keep `eas.json` in `apps/mobile` and one root `bun.lock`.
 
+## 8. Citation audit (2026-10-13)
+
+**Verified by fetching the live page in full this session:**
+
+- [Expo: Work with monorepos](https://docs.expo.dev/guides/monorepos/) - first-class Bun/npm/pnpm/Yarn workspaces support; automatic Metro configuration (delete manual `watchFolders`, `resolver.nodeModulesPath`, `resolver.extraNodeModules`, `disableHierarchicalLookup`, then run `npx expo start --clear` once); the root `workspaces` property takes glob patterns (`["apps/*", "packages/*"]` is the documented example, so keeping `frontend/` as its own glob is consistent with the documented mechanism); `bun create expo apps/cool-app`; "If you have an existing app, you can copy all those files into a directory inside apps."
+- [Expo: Runtime versions](https://docs.expo.dev/eas-update/runtime-versions/) - "Runtime versions are a property that guarantees compatibility between a build's native code and an update"; "any time native code is updated, we're required to make a new build before publishing an update"; `appVersion` vs `fingerprint` policy trade-off; gradual-rollout and error-recovery guidance.
+- [Expo: metro.config.js](https://docs.expo.dev/versions/latest/config/metro/) - web-workers section verified via a search excerpt of this page: alpha, web-only, native usage errors with "Property 'Worker' doesn't exist." (Section not re-fetched in full this session.)
+
+**Relied on research summaries citing the page, not fetched in full - flag before quoting exact numbers:**
+
+- [expo.dev/pricing](https://expo.dev/pricing) - EAS free-tier build-credit and concurrency specifics. Section 6 deliberately directs the reader to this page instead of quoting numbers.
+- [OpenFreeMap](https://openfreemap.org/) - "no API key, no paid plan" and the `liberty` style URL come from summaries of the site and docs; service-terms details (fair use, caching, commercial use) were not read verbatim - review before production.
+- [Apple: Membership details](https://developer.apple.com/programs/whats-included/) - the 10,000-external-tester TestFlight figure comes from a page excerpt.
+- [Apple: App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) - the 2.5.2 wording is quoted from a page excerpt of the current guidelines. The current guidelines page does not carry an executable-code provision numbered 3.3.2; this note did not verify whether 3.3.2 was the number in some older revision of the document.
+- MapLibre React Native binding - MapLibre Native is BSD-2-Clause per maplibre.org, but the `@maplibre/maplibre-react-native` package's own license was not read from the package repository; check it before adoption.
+
 ## Sources
 
-All sources inspected 2026-10-13 via web research (Perplexity Sonar summaries with citations):
+All sources inspected 2026-10-13. The three pages listed in section 8 were fetched in full; the rest were inspected via research summaries with page excerpts:
 
 - [Expo: Work with monorepos](https://docs.expo.dev/guides/monorepos/)
 - [Expo: Using Bun](https://docs.expo.dev/guides/using-bun/)
