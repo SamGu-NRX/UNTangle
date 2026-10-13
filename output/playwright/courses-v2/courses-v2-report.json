@@ -1,0 +1,472 @@
+{
+  "startedAt": "2026-10-13T13:30:24.709Z",
+  "base": "http://127.0.0.1:3123",
+  "checks": [
+    {
+      "name": "desktop: guest sees the empty state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: no native select on the page",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: picker opens a listbox",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe no serious/critical: desktop: major picker open",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: major chosen",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: picker closed after choosing",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: AutoNote reports the fill",
+      "passed": true,
+      "detail": "✦ Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027. 1 core course needs an advisor · Review Undo Sample transcript : Statuses come from a made-up sample transcript."
+    },
+    {
+      "name": "desktop: CSCE 1030 covered through CSCE 1040",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: CSCE 1040 done from transcript",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: MATH 1720 planned by Auto",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: CSCE 2100 left for an advisor",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: row height",
+      "passed": true,
+      "detail": "44px"
+    },
+    {
+      "name": "desktop: row code set in Syne 13 bold",
+      "passed": true,
+      "detail": "Syne 13px 700"
+    },
+    {
+      "name": "desktop: hover on an available row reveals + Plan",
+      "passed": true,
+      "detail": "CSCE 1010"
+    },
+    {
+      "name": "axe no serious/critical: desktop: after Auto-fill",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: undo removes the auto plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: inferred statuses stay after undo",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: grade backend down shows the unavailable state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: catalog text still shows",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: panel is 520px",
+      "passed": true,
+      "detail": "520px"
+    },
+    {
+      "name": "desktop: no scrim behind the desktop panel",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: the list narrows beside the panel",
+      "passed": true,
+      "detail": "796 <= 826.3934326171875"
+    },
+    {
+      "name": "desktop: bars are one green ramp",
+      "passed": true,
+      "detail": "[\"1\",\"0.8\",\"0.6\",\"0.45\",\"0.35\",\"0.25\"]"
+    },
+    {
+      "name": "desktop: Data source link",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: switching instructor redraws the chart",
+      "passed": true,
+      "detail": "387 STUDENTS -> 95 STUDENTS"
+    },
+    {
+      "name": "desktop: the old bars crossfade out",
+      "passed": true,
+      "detail": "1 outgoing layer"
+    },
+    {
+      "name": "desktop: rmp link follows the chosen instructor",
+      "passed": true,
+      "detail": "https://www.ratemyprofessors.com/search/professors/1252?q=Haili%20Wang"
+    },
+    {
+      "name": "desktop: syllabi link follows the chosen instructor",
+      "passed": true,
+      "detail": "https://facultyinfo.unt.edu/faculty-search?name=Haili%20Wang"
+    },
+    {
+      "name": "desktop: spot link follows the chosen instructor",
+      "passed": true,
+      "detail": "https://facultyinfo.unt.edu/faculty-search?name=Haili%20Wang&course=CSCE%201030"
+    },
+    {
+      "name": "axe no serious/critical: desktop: detail panel",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: ↓ moves the panel to the next course",
+      "passed": true,
+      "detail": "Computer Science II"
+    },
+    {
+      "name": "desktop: the panel stays open while retargeting",
+      "passed": true,
+      "detail": "open,open,open,open,open,open"
+    },
+    {
+      "name": "desktop: Esc closes the panel",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: ⌘K opens with no animation",
+      "passed": true,
+      "detail": "0 running animations"
+    },
+    {
+      "name": "axe no serious/critical: desktop: search palette",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: ⌘↵ plans the active result and announces it",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: MATH 1720 planned through search",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: choosing a section radio updates the plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: a clashing section says so in --danger",
+      "passed": true,
+      "detail": "Mon conflicts with MATH 1720 · rgb(220, 38, 38)"
+    },
+    {
+      "name": "desktop: deep link renders (no 404 with the backend down)",
+      "passed": true,
+      "detail": "200"
+    },
+    {
+      "name": "desktop: deep link shows catalog text and the history state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe no serious/critical: desktop: deep link",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: no uncaught page errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: guest sees the empty state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: no native select on the page",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: picker opens a listbox",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe no serious/critical: phone: major picker open",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: major chosen",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: picker closed after choosing",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: AutoNote reports the fill",
+      "passed": true,
+      "detail": "✦ Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027. 1 core course needs an advisor · Review Undo"
+    },
+    {
+      "name": "phone: CSCE 1030 covered through CSCE 1040",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: CSCE 1040 done from transcript",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: MATH 1720 planned by Auto",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: CSCE 2100 left for an advisor",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: row height",
+      "passed": true,
+      "detail": "54px"
+    },
+    {
+      "name": "axe no serious/critical: phone: after Auto-fill",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: undo removes the auto plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: inferred statuses stay after undo",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: grade backend down shows the unavailable state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: catalog text still shows",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: sheet has a drag handle",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: bars are one green ramp",
+      "passed": true,
+      "detail": "[\"1\",\"0.8\",\"0.6\",\"0.45\",\"0.35\",\"0.25\"]"
+    },
+    {
+      "name": "phone: Data source link",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: switching instructor redraws the chart",
+      "passed": true,
+      "detail": "387 STUDENTS -> 95 STUDENTS"
+    },
+    {
+      "name": "phone: the old bars crossfade out",
+      "passed": true,
+      "detail": "1 outgoing layer"
+    },
+    {
+      "name": "phone: rmp link follows the chosen instructor",
+      "passed": true,
+      "detail": "https://www.ratemyprofessors.com/search/professors/1252?q=Haili%20Wang"
+    },
+    {
+      "name": "phone: syllabi link follows the chosen instructor",
+      "passed": true,
+      "detail": "https://facultyinfo.unt.edu/faculty-search?name=Haili%20Wang"
+    },
+    {
+      "name": "phone: spot link follows the chosen instructor",
+      "passed": true,
+      "detail": "https://facultyinfo.unt.edu/faculty-search?name=Haili%20Wang&course=CSCE%201030"
+    },
+    {
+      "name": "axe no serious/critical: phone: detail panel",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: drag settles the sheet at the half detent",
+      "passed": true,
+      "detail": "354.5px vs 354.48px"
+    },
+    {
+      "name": "axe no serious/critical: phone: course sheet",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: MATH 1720 planned through search",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: choosing a section radio updates the plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: a clashing section says so in --danger",
+      "passed": true,
+      "detail": "Mon conflicts with MATH 1720 · rgb(220, 38, 38)"
+    },
+    {
+      "name": "phone: deep link renders (no 404 with the backend down)",
+      "passed": true,
+      "detail": "200"
+    },
+    {
+      "name": "phone: deep link shows catalog text and the history state",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe no serious/critical: phone: deep link",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: no uncaught page errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "reduced motion: the panel enters without moving",
+      "passed": true,
+      "detail": "none"
+    },
+    {
+      "name": "keyboard: every Courses control shows a focus ring",
+      "passed": true,
+      "detail": "Major → Search courses⌘K → ✦Auto-fill → More Auto-fill options → Import PDF → Core0 of 5 doneSample degree plan: Core  → CSCE 1030Computer Science I3 cr, Check → CSCE 1040Computer Science II3 cr, Locked → CSCE 1030 → MATH 1100 → MATH 1650 → MATH 1710 → CSCE 2100Foundations of Computing3 cr, C → CSCE 1040"
+    },
+    {
+      "name": "unknown course code is a 404",
+      "passed": true,
+      "detail": "404"
+    },
+    {
+      "name": "old instructor link redirects instead of 404",
+      "passed": true,
+      "detail": "http://127.0.0.1:3123/courses"
+    }
+  ],
+  "axe": [
+    {
+      "label": "desktop: major picker open",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "desktop: after Auto-fill",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "desktop: detail panel",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "desktop: search palette",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "desktop: deep link",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "phone: major picker open",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "phone: after Auto-fill",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "phone: detail panel",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "phone: course sheet",
+      "violations": [],
+      "blocking": []
+    },
+    {
+      "label": "phone: deep link",
+      "violations": [],
+      "blocking": []
+    }
+  ],
+  "notes": [],
+  "finishedAt": "2026-10-13T13:31:10.570Z",
+  "passed": 82,
+  "failed": 0
+}

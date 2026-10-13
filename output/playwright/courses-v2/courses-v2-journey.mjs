@@ -74,7 +74,6 @@ const fixture = {
 };
 fixture.data.total = fixture.data.grades.totalEnroll;
 
-const DANGER = "rgb(179, 38, 30)";
 
 async function rowStatus(page, id) {
   return page.locator(`[data-row-open="${id}"]`).locator("xpath=..").locator("[data-row-status]").innerText();
@@ -290,15 +289,33 @@ async function journey(browser, viewport) {
   }
   check(`${tag}: MATH 1720 planned through search`, (await rowStatus(page, "MATH 1720")) === "Planned");
 
-  // A planned course now occupies sections; look for a conflict row drawn in --danger.
+  // Pin MATH 1720 to §010 (MWF 8:00); CSCE 1030 §001 meets MWF 8:00 too, so it must show a conflict.
+  const panelFor = (id) =>
+    phone ? page.getByRole("dialog", { name: new RegExp(`${id} details`) }) : page.locator("aside[aria-labelledby=course-panel-title]");
+  await page.locator('[data-row-open="MATH 1720"]').click();
+  const mathPanel = panelFor("MATH 1720");
+  await mathPanel.getByRole("button", { name: /Show all \d+ sections/ }).click();
+  await mathPanel.locator("label", { hasText: "§010" }).click();
+  check(`${tag}: choosing a section radio updates the plan`, await mathPanel.locator("label", { hasText: "§010" }).locator("input").isChecked());
+  if (phone) {
+    await page.getByRole("button", { name: /Close MATH 1720 details/ }).tap();
+    await mathPanel.waitFor({ state: "detached" });
+  }
   await page.locator('[data-row-open="CSCE 1030"]').click();
-  const panel2 = phone ? page.getByRole("dialog", { name: /CSCE 1030 details/ }) : page.locator("aside[aria-labelledby=course-panel-title]");
-  await panel2.waitFor();
-  const more = panel2.getByRole("button", { name: /Show all \d+ sections/ });
-  if (await more.count()) await more.click();
-  const conflictColors = await panel2.locator("[data-conflict=true]").evaluateAll((els) => els.map((el) => getComputedStyle(el).color));
-  if (conflictColors.length > 0) check(`${tag}: section conflicts are drawn in --danger`, conflictColors.every((c) => c === "rgb(179, 38, 30)"), `${conflictColors.length} conflict rows`);
-  else note(`${tag}: no CSCE 1030 sample section overlaps MATH 1720's chosen section, so no conflict row to check`);
+  const csPanel = panelFor("CSCE 1030");
+  const clash = csPanel.locator("label", { hasText: "§001" }).locator("[data-conflict=true]");
+  await clash.waitFor();
+  const clashText = await clash.innerText();
+  // --c-danger is the shell's --danger when it exists (today #dc2626), else DESIGN.md's #b3261e.
+  const [clashColor, dangerColor] = await clash.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--c-danger)";
+    el.parentElement.appendChild(probe);
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return [getComputedStyle(el).color, resolved];
+  });
+  check(`${tag}: a clashing section says so in --danger`, clashText.includes("conflicts with MATH 1720") && clashColor === dangerColor && clashColor !== "rgb(88, 110, 88)", `${clashText} · ${clashColor}`);
   await page.waitForTimeout(300);
   await shoot(page, `${tag}-05-planned`);
 
