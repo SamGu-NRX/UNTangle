@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, text, timestamp, boolean, bigint } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -96,10 +96,27 @@ export const plannerStates = pgTable("planner_state", {
   revision: integer("revision").default(1).notNull(),
 });
 
+export const apiRateLimits = pgTable("api_rate_limit", {
+  key: text("key").primaryKey(),
+  hits: bigint("hits", { mode: "number" }).array().notNull(),
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+  allowed: boolean("allowed").notNull(),
+}, (table) => [index("api_rate_limit_expiry_idx").on(table.expiresAt)]);
+
+// better-auth 1.5.5 owns a separate counter schema on the same Postgres database.
+export const authRateLimits = pgTable("auth_rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
 export const schema = {
   users,
   sessions,
   accounts,
   verifications,
   plannerStates,
+  apiRateLimits,
+  authRateLimits,
 };

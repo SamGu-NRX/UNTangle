@@ -1,3 +1,4 @@
+import { withRateLimit } from "@/lib/rate-limit/server";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -35,7 +36,7 @@ async function workerSource(): Promise<string> {
   throw new Error(`maplibre-gl worker not found. Tried ${failures.join("; ")}`);
 }
 
-export async function GET() {
+async function getWorker() {
   try {
     cached ??= workerSource();
     return new Response(await cached, {
@@ -50,3 +51,5 @@ export async function GET() {
     return new Response(`MapLibre worker unavailable: ${(error as Error).message}`, { status: 500 });
   }
 }
+
+export const GET = withRateLimit("general", getWorker);

@@ -18,6 +18,7 @@ import { POST as routePOST } from "@/app/api/map/route/route";
 
 // Any ORS attempt in these tests must fail loudly: walkway routing is the
 // primary tier, so a fetch here would mean an unexpected fallback tier ran.
+process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
 const originalFetch = globalThis.fetch;
 globalThis.fetch = Object.assign(
   () => Promise.reject(new Error("Network access is disabled in campus-routing tests")),
@@ -28,12 +29,10 @@ afterAll(() => {
 });
 
 function postJson(url: string, body: unknown, ip = "198.51.100.10") {
-  // Unique IP per test: the route module's per-IP limiter is module-global
-  // and map-hardening's burst test exhausts the default bucket in the same
-  // bun test process.
+  // Use a separate trusted IP so map-hardening's burst cannot consume this fixture's allowance.
   return new Request(url, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": ip },
+    headers: { "content-type": "application/json", "x-real-ip": ip },
     body: JSON.stringify(body),
   });
 }

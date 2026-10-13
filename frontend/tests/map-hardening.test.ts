@@ -7,6 +7,7 @@ import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/li
 // Force the no-API-key code path and make any accidental network call fail
 // loudly instead of hanging or passing silently.
 delete process.env.ORS_API_KEY;
+process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
 const originalFetch = globalThis.fetch;
 globalThis.fetch = Object.assign(
   () => Promise.reject(new Error("Network access is disabled in map-hardening tests")),
@@ -29,7 +30,7 @@ function createClock(startMs = 1_000_000) {
 function postJson(url: string, body: unknown) {
   return new Request(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-real-ip": "198.51.100.200" },
     body: JSON.stringify(body),
   });
 }

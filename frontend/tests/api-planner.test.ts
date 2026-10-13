@@ -38,7 +38,7 @@ beforeEach(() => {
 describe("GET /api/planner", () => {
   test("returns 401 without a session", async () => {
     getServerSession.mockImplementation(async () => null);
-    const response = await GET();
+    const response = await GET(new Request("http://localhost:3000/api/planner"));
     expect(response.status).toBe(401);
     expect(loadPlannerState).not.toHaveBeenCalled();
   });
@@ -47,7 +47,7 @@ describe("GET /api/planner", () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     const stored = getInitialPlannerState();
     loadPlannerState.mockImplementation(async () => ({ state: stored, revision: 4 }));
-    const response = await GET();
+    const response = await GET(new Request("http://localhost:3000/api/planner"));
     expect(response.status).toBe(200);
     // `persistent: true` tells the client this deployment stores rows, so the
     // UI may acknowledge a save as durable. The revision is what the next
@@ -58,7 +58,7 @@ describe("GET /api/planner", () => {
   test("an account with no stored plan answers revision 0", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     loadPlannerState.mockImplementation(async () => null);
-    const response = await GET();
+    const response = await GET(new Request("http://localhost:3000/api/planner"));
     expect(await response.json()).toEqual({ state: null, revision: 0, persistent: true });
   });
 
@@ -67,7 +67,7 @@ describe("GET /api/planner", () => {
     loadPlannerState.mockImplementation(async () => {
       throw new Error("db down");
     });
-    const response = await GET();
+    const response = await GET(new Request("http://localhost:3000/api/planner"));
     expect(response.status).toBe(500);
     expect((await response.json()).error).toBe("db down");
   });

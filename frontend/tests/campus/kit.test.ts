@@ -16,6 +16,8 @@ import utMatrix from "@/lib/campus/data/ut-austin/walking-times.json";
 import { campusEngine, createCampusEngineRegistry, type CampusEngine } from "@/lib/campus/engine";
 import { pedestrianDirections } from "../../../tools/campus-geodata/pedestrian-directions.mjs";
 
+process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
+
 const sha = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 
 test("kit builds identical artifacts from fixed raw inputs, independently of destination", () => {
@@ -305,7 +307,7 @@ test("selected APIs route UT without keyed services and reject unknown campuses"
   const resolved = await resolvePOST(
     new Request("http://localhost/api/map/resolve?campus=ut-austin", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.217" },
+      headers: { "content-type": "application/json", "x-real-ip": "198.51.100.217" },
       body: JSON.stringify({
         locations: selected.map((b) => ({ location: b.name })),
       }),
@@ -319,7 +321,7 @@ test("selected APIs route UT without keyed services and reject unknown campuses"
   const response = await routePOST(
     new Request("http://localhost/api/map/route?campus=ut-austin", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.217" },
+      headers: { "content-type": "application/json", "x-real-ip": "198.51.100.217" },
       body: JSON.stringify({
         stops: selected.map((b) => ({
           lat: b.lat,
