@@ -13,6 +13,7 @@ export const budgets = {
   mapResolve: { user: 60, ip: 60 },
   plannerRead: { user: 120, ip: 360 },
   plannerSave: { user: 60, ip: 180 },
+  sections: { user: 60, ip: 180 },
 } satisfies Record<string, Budget>;
 export type RouteClass = keyof typeof budgets;
 

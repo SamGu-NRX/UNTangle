@@ -1,0 +1,17 @@
+import { expect, mock, test } from "bun:test";
+import { budgets } from "@/lib/rate-limit/config";
+import { pinClockMidWindow, trustRealIp } from "./route-fixtures";
+
+mock.module("server-only", () => ({}));
+trustRealIp();
+
+test("the sections route answers 429 once an anonymous caller passes its budget", async () => {
+  pinClockMidWindow();
+  const { GET } = await import("@/app/api/sections/[term]/[subject]/[number]/route");
+  // An unknown term answers 400 before any upstream fetch.
+  const params = { term: "x", subject: "CSCE", number: "1030" };
+  const call = () => GET(new Request("http://localhost/api/sections/x/CSCE/1030", { headers: { "x-real-ip": "192.0.2.77" } }),
+    { params: Promise.resolve(params) });
+  for (let i = 0; i < budgets.sections.ip; i++) expect((await call()).status).toBe(400);
+  expect((await call()).status).toBe(429);
+});
