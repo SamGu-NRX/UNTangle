@@ -9,8 +9,8 @@ import { validatePlannerStatePayload } from "@/lib/planner-validation";
 
 export const runtime = "nodejs";
 
-async function getPlanner() {
-  const session = await getServerSession();
+async function getPlanner(request: Request) {
+  const session = await getServerSession(request);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -41,7 +41,7 @@ function parseBaseRevision(value: string | null): number | null {
 }
 
 async function savePlanner(request: Request) {
-  const session = await getServerSession();
+  const session = await getServerSession(request);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -98,5 +98,5 @@ async function savePlanner(request: Request) {
   }
 }
 
-export const GET = withRateLimit("general", getPlanner);
+export const GET = withRateLimit("plannerRead", getPlanner);
 export const POST = withRateLimit("plannerSave", savePlanner);

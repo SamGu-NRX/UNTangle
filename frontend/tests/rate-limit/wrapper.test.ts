@@ -1,89 +1,65 @@
 import { expect, test } from "bun:test";
+import { budgets } from "@/lib/rate-limit/config";
 import { createRateLimitWrapper } from "@/lib/rate-limit/server";
-import { MemoryRateLimitStore } from "@/lib/rate-limit/store";
-import { resolveIdentity, type ApiSession } from "@/lib/rate-limit/identity";
+import { memoryStore, type RateLimitStore } from "@/lib/rate-limit/store";
+import { trustRealIp } from "./route-fixtures";
 
-function setup(session: ApiSession = null) {
-  let now = 1000;
-  const store = new MemoryRateLimitStore(() => now);
-  const wrap = createRateLimitWrapper({ store: async () => store, session: async () => session,
-    identity: (request, user) => resolveIdentity(request, user, { secret: "unit-test-identity-secret-long-enough", now,
-      env: { RATE_LIMIT_TRUSTED_PROXY: "reverse-proxy" } }),
-  });
-  return { wrap, advance: (ms: number) => { now += ms; } };
+trustRealIp();
+
+let sessionLookups = 0;
+function limiter(store: RateLimitStore = memoryStore()) {
+  sessionLookups = 0;
+  return createRateLimitWrapper({ store, secret: "test", now: () => 30_000, session: async (request) => {
+    sessionLookups++;
+    const id = request.headers.get("x-test-user");
+    return id ? { user: { id } } : null;
+  } });
 }
-const budget = { identity: { maxRequests: 2, windowMs: 1500 }, ip: { maxRequests: 3, windowMs: 1500 } };
-function request(cookie = "", ip = "203.0.113.1") {
-  return new Request("http://localhost/api", { headers: { cookie, "x-real-ip": ip } });
-}
+const request = (ip: string, user?: string) =>
+  new Request("http://localhost/", { headers: { "x-real-ip": ip, ...(user && { "x-test-user": user }) } });
+const ok = () => new Response("ok");
 
-test("signed-in user limits span devices and IPs and retain route context", async () => {
-  const t = setup({ user: { id: "student" } });
-  const handler = t.wrap("sections", async (_request, context: { id: string }) => Response.json(context), budget);
-  expect(await (await handler(request(), { id: "A" })).json()).toEqual({ id: "A" });
-  expect((await handler(request("", "203.0.113.2"), { id: "B" })).status).toBe(200);
-  const denied = await handler(request("", "203.0.113.3"), { id: "C" });
-  expect(denied.status).toBe(429);
-  expect(denied.headers.get("Retry-After")).toBe("2");
-  t.advance(1500);
-  expect((await handler(request(), { id: "D" })).status).toBe(200);
+test("a handler's own headers pass through untouched, including immutable ones", async () => {
+  const worker = limiter()("grades", () => new Response("", { headers: { "Cache-Control": "public, max-age=31536000, immutable" } }));
+  expect((await worker(request("203.0.113.1"))).headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+  const redirect = limiter()("grades", () => Response.redirect("http://localhost/elsewhere", 302));
+  expect((await redirect(request("203.0.113.1"))).headers.get("Location")).toBe("http://localhost/elsewhere");
 });
 
-test("per-IP enforcement survives guest-cookie cycling and denied calls do not extend the window", async () => {
-  const t = setup();
-  const handler = t.wrap("expensive", () => Response.json({ accepted: true }), budget);
-  for (let i = 0; i < 3; i++) expect((await handler(request(`untangle_guest=forged-${i}`))).status).toBe(200);
-  const denied = await handler(request());
-  expect(denied.status).toBe(429);
-  expect(denied.headers.get("RateLimit-Limit")).toBe("3");
-  expect(denied.headers.get("RateLimit-Remaining")).toBe("0");
-  expect(denied.headers.get("Retry-After")).toBe("2");
-  t.advance(1500);
-  expect((await handler(request())).status).toBe(200);
+test("anonymous callers are limited by IP alone", async () => {
+  const route = limiter()("mapRoute", ok);
+  for (let i = 0; i < budgets.mapRoute.ip; i++) expect((await route(request("203.0.113.1"))).status).toBe(200);
+  const denied = await route(request("203.0.113.1"));
+  expect([denied.status, denied.headers.get("Cache-Control")]).toEqual([429, "no-store"]);
+  expect((await route(request("203.0.113.2"))).status).toBe(200);
 });
 
-test("guest limit survives repeat requests; route classes have independent windows", async () => {
-  const t = setup();
-  const handler = t.wrap("sections", () => Response.json({ accepted: true }), budget);
-  const response = await handler(request());
-  const cookie = response.headers.get("set-cookie")!.split(";")[0];
-  expect(response.status).toBe(200);
-  expect((await handler(request(cookie))).status).toBe(200);
-  expect((await handler(request(cookie))).status).toBe(429);
-  const other = t.wrap("expensive", () => Response.json({ accepted: true }), budget);
-  expect((await other(request(cookie))).status).toBe(200);
-});
-
-test("unknown IP fallback holds even when forwarded headers are spoofed", async () => {
-  const t = setup();
-  const handler = t.wrap("expensive", () => Response.json({ accepted: true }), budget);
-  for (let i = 0; i < 3; i++) {
-    const req = new Request("http://localhost/api", { headers: { "x-forwarded-for": `203.0.113.${i}` } });
-    expect((await handler(req)).status).toBe(200);
+test("signed-in callers are limited by user alone, so classmates behind one NAT keep their own budgets", async () => {
+  const route = limiter()("mapRoute", ok);
+  for (let i = 0; i < budgets.mapRoute.user; i++) {
+    expect((await route(request(`203.0.113.${i % 2}`, "alice"))).status).toBe(200);
   }
-  expect((await handler(new Request("http://localhost/api"))).status).toBe(429);
+  expect((await route(request("198.51.100.9", "alice"))).status).toBe(429);
+  expect((await route(request("203.0.113.0", "bob"))).status).toBe(200);
+  expect((await route(request("203.0.113.0"))).status).toBe(200);
 });
 
-test("storage/session failures stop the handler with 503 and a recovery header", async () => {
-  const originalError = console.error;
-  const messages: unknown[][] = [];
-  console.error = (...args: unknown[]) => { messages.push(args); };
+test("the auth class counts by IP without looking up a session", async () => {
+  const signIn = limiter()("auth", ok);
+  for (let i = 0; i < budgets.auth.ip; i++) await signIn(request("203.0.113.1", `user-${i}`));
+  expect((await signIn(request("203.0.113.1", "fresh"))).status).toBe(429);
+  expect(sessionLookups).toBe(0);
+});
+
+test("a failing store answers 503 and never runs the handler", async () => {
+  const error = console.error;
+  console.error = () => {};
+  let ran = false;
   try {
-    const store = new MemoryRateLimitStore();
-    for (const failure of ["store", "session"] as const) {
-      const wrap = createRateLimitWrapper({
-        store: async () => { if (failure === "store") throw new Error("missing table"); return store; },
-        session: async () => { throw new Error("session database offline"); },
-        identity: () => ({ key: "guest", ipKey: "ip" }),
-      });
-      let ran = false;
-      const handler = wrap("grades", () => { ran = true; return Response.json({ accepted: true }); });
-      const response = await handler(request());
-      expect(response.status).toBe(503);
-      expect(response.headers.get("Retry-After")).toBe("60");
-      expect(await response.json()).toEqual({ error: "Abuse prevention unavailable. Try again later." });
-      expect(ran).toBe(false);
-    }
-    expect(messages).toHaveLength(2);
-  } finally { console.error = originalError; }
+    const route = limiter({ hit: () => Promise.reject(new Error("table missing")) })("grades", () => ((ran = true), ok()));
+    const response = await route(request("203.0.113.1"));
+    expect([response.status, response.headers.get("Retry-After"), ran]).toEqual([503, "60", false]);
+  } finally {
+    console.error = error;
+  }
 });

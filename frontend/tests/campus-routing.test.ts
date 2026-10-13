@@ -15,10 +15,11 @@ import walkingTimesJson from "@/lib/campus/data/walking-times.json";
 import { routeBetweenPoints } from "@/lib/campus/graph";
 import { walkingMinutes } from "@/lib/campus/speeds";
 import { POST as routePOST } from "@/app/api/map/route/route";
+import { trustRealIp } from "./rate-limit/route-fixtures";
 
 // Any ORS attempt in these tests must fail loudly: walkway routing is the
 // primary tier, so a fetch here would mean an unexpected fallback tier ran.
-process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
+trustRealIp();
 const originalFetch = globalThis.fetch;
 globalThis.fetch = Object.assign(
   () => Promise.reject(new Error("Network access is disabled in campus-routing tests")),
@@ -29,7 +30,7 @@ afterAll(() => {
 });
 
 function postJson(url: string, body: unknown, ip = "198.51.100.10") {
-  // Use a separate trusted IP so map-hardening's burst cannot consume this fixture's allowance.
+  // A separate IP, so map-hardening's burst cannot spend this file's route budget.
   return new Request(url, {
     method: "POST",
     headers: { "content-type": "application/json", "x-real-ip": ip },

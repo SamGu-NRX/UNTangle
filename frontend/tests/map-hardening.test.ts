@@ -2,12 +2,13 @@ import { describe, expect, test, afterAll } from "bun:test";
 import { untCampusBounds } from "@/lib/campus-locations";
 import { POST as routePOST } from "@/app/api/map/route/route";
 import { POST as resolvePOST } from "@/app/api/map/resolve/route";
-import { SlidingWindowRateLimiter, TtlLruCache, clientIpFromRequest } from "@/lib/map-cache";
+import { TtlLruCache } from "@/lib/map-cache";
+import { pinClockMidWindow, trustRealIp } from "./rate-limit/route-fixtures";
 
 // Force the no-API-key code path and make any accidental network call fail
 // loudly instead of hanging or passing silently.
 delete process.env.ORS_API_KEY;
-process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
+trustRealIp();
 const originalFetch = globalThis.fetch;
 globalThis.fetch = Object.assign(
   () => Promise.reject(new Error("Network access is disabled in map-hardening tests")),
@@ -116,85 +117,9 @@ describe("TtlLruCache", () => {
   });
 });
 
-describe("SlidingWindowRateLimiter", () => {
-  test("allows the burst then denies with a retry-after hint", () => {
-    const clock = createClock();
-    const limiter = new SlidingWindowRateLimiter({ windowMs: 1000, maxRequests: 3, now: clock.now });
-
-    expect(limiter.check("ip").allowed).toBe(true);
-    expect(limiter.check("ip").allowed).toBe(true);
-    expect(limiter.check("ip").allowed).toBe(true);
-
-    const denied = limiter.check("ip");
-    expect(denied.allowed).toBe(false);
-    expect(denied.retryAfterSeconds).toBe(1);
-  });
-
-  test("recovers after the window passes", () => {
-    const clock = createClock();
-    const limiter = new SlidingWindowRateLimiter({ windowMs: 1000, maxRequests: 2, now: clock.now });
-
-    limiter.check("ip");
-    limiter.check("ip");
-    expect(limiter.check("ip").allowed).toBe(false);
-
-    clock.advance(1000);
-    const recovered = limiter.check("ip");
-    expect(recovered.allowed).toBe(true);
-    expect(recovered.retryAfterSeconds).toBe(0);
-  });
-
-  test("denied requests do not extend the block", () => {
-    const clock = createClock();
-    const limiter = new SlidingWindowRateLimiter({ windowMs: 1000, maxRequests: 2, now: clock.now });
-
-    limiter.check("ip");
-    limiter.check("ip");
-    expect(limiter.check("ip").allowed).toBe(false);
-
-    clock.advance(500);
-    expect(limiter.check("ip").allowed).toBe(false);
-
-    clock.advance(500);
-    expect(limiter.check("ip").allowed).toBe(true);
-  });
-
-  test("prunes stale keys and caps the number of tracked keys", () => {
-    const clock = createClock();
-    const limiter = new SlidingWindowRateLimiter({
-      windowMs: 1000,
-      maxRequests: 5,
-      maxTrackedKeys: 3,
-      now: clock.now,
-    });
-
-    for (const key of ["a", "b", "c", "d", "e"]) {
-      limiter.check(key);
-    }
-    expect(limiter.trackedKeys).toBe(3);
-
-    clock.advance(2000); // everything from t=0 is now stale
-    limiter.check("fresh");
-    expect(limiter.trackedKeys).toBe(1);
-  });
-});
-
-describe("clientIpFromRequest", () => {
-  test("prefers the first forwarded hop, then x-real-ip, then the shared bucket", () => {
-    const forwarded = new Request("https://example.test/", {
-      headers: { "x-forwarded-for": "203.0.113.7, 70.41.3.2" },
-    });
-    expect(clientIpFromRequest(forwarded)).toBe("203.0.113.7");
-
-    const realIp = new Request("https://example.test/", { headers: { "x-real-ip": "198.51.100.9" } });
-    expect(clientIpFromRequest(realIp)).toBe("198.51.100.9");
-
-    expect(clientIpFromRequest(new Request("https://example.test/"))).toBe("unknown");
-  });
-});
-
 describe("map routes", () => {
   test("route POST allows the burst then returns 429 with the shared error shape", async () => {
+    pinClockMidWindow();
     const midLat = (untCampusBounds.north + untCampusBounds.south) / 2;
     const midLng = (untCampusBounds.east + untCampusBounds.west) / 2;
     const body = {

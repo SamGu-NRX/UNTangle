@@ -168,8 +168,4 @@ async function route(request: Request) {
   return NextResponse.json(summarizeRoute(legs));
 }
 
-export const POST = withRateLimit("mapRoute", route, undefined, (request) => {
-  // Preserve independent campus windows; aliases resolve to the same configured id.
-  try { return campusById(new URL(request.url).searchParams.get("campus")).id; }
-  catch { return "invalid-campus"; }
-});
+export const POST = withRateLimit("mapRoute", route);

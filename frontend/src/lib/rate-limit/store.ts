@@ -1,31 +1,52 @@
-import type { Budget } from "./config";
+import { lt, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { apiRateLimits, authRateLimits } from "@/lib/db/schema";
+import { windowMs } from "./config";
 
-export type LimitResult = { allowed: boolean; remaining: number; retryAfter: number; resetAfter: number };
 export interface RateLimitStore {
-  consume(key: string, budget: Budget): Promise<LimitResult>;
+  /** Adds one request to the caller's count for this route class and window, and returns the new count. */
+  hit(route: string, caller: string, window: number): Promise<number>;
 }
 
-export function windowResult(hits: number[], allowed: boolean, budget: Budget, now: number): LimitResult {
-  const resetAfter = hits.length ? Math.max(0, Math.ceil((hits[0] + budget.windowMs - now) / 1000)) : 0;
-  return { allowed, remaining: Math.max(0, budget.maxRequests - hits.length), retryAfter: allowed ? 0 : Math.max(1, resetAfter), resetAfter };
+/** Process-local counts for development and tests. Only the current window is kept. */
+export function memoryStore(): RateLimitStore {
+  const counts = new Map<string, number>();
+  let current = -1;
+  return {
+    async hit(route, caller, window) {
+      if (window !== current) {
+        counts.clear();
+        current = window;
+      }
+      const key = `${route} ${caller}`;
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      return count;
+    },
+  };
 }
 
-export class MemoryRateLimitStore implements RateLimitStore {
-  private readonly entries = new Map<string, { hits: number[]; expiresAt: number }>();
-  constructor(private readonly now: () => number = Date.now, private readonly maxKeys = 10_000) {}
-
-  async consume(key: string, budget: Budget): Promise<LimitResult> {
-    const now = this.now();
-    for (const [entryKey, entry] of this.entries) {
-      if (entry.expiresAt <= now) this.entries.delete(entryKey);
-    }
-    if (!this.entries.has(key) && this.entries.size >= this.maxKeys) {
-      throw new Error("In-memory rate-limit store is full; configure Postgres for higher traffic.");
-    }
-    const hits = (this.entries.get(key)?.hits ?? []).filter((hit) => hit > now - budget.windowMs);
-    const allowed = hits.length < budget.maxRequests;
-    if (allowed) hits.push(now);
-    this.entries.set(key, { hits, expiresAt: hits[hits.length - 1] + budget.windowMs });
-    return windowResult(hits, allowed, budget, now);
-  }
+/** Counts shared by every instance. The upsert holds the row lock, so concurrent hits never lose a count. */
+export function postgresStore(db: Pick<NodePgDatabase, "insert" | "delete">): RateLimitStore {
+  let swept = -1;
+  return {
+    async hit(route, caller, window) {
+      if (window > swept) {
+        swept = window;
+        // Once per window per instance. better-auth's longest window is 60 s, so its older rows are spent too.
+        await Promise.all([
+          db.delete(apiRateLimits).where(lt(apiRateLimits.windowIndex, window)),
+          db.delete(authRateLimits).where(lt(authRateLimits.lastRequest, (window - 1) * windowMs)),
+        ]);
+      }
+      const [row] = await db.insert(apiRateLimits)
+        .values({ windowIndex: window, route, caller, count: 1 })
+        .onConflictDoUpdate({
+          target: [apiRateLimits.windowIndex, apiRateLimits.route, apiRateLimits.caller],
+          set: { count: sql`${apiRateLimits.count} + 1` },
+        })
+        .returning({ count: apiRateLimits.count });
+      return row.count;
+    },
+  };
 }

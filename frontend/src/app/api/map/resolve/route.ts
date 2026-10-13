@@ -16,8 +16,4 @@ function resolve(request: Request) {
   }
 }
 
-export const POST = withRateLimit("mapResolve", resolve, undefined, (request) => {
-  // Preserve independent campus windows; aliases resolve to the same configured id.
-  try { return campusById(new URL(request.url).searchParams.get("campus")).id; }
-  catch { return "invalid-campus"; }
-});
+export const POST = withRateLimit("mapResolve", resolve);
