@@ -10,6 +10,7 @@ import { createTools, type PlannerPort, type Tool, type ToolResult } from "@/lib
 import { fixturePlan, fixturePort, row, samplesOf, session } from "./fixture";
 
 const named = (tools: Tool[], name: string) => tools.find((tool) => tool.name === name)!;
+type Alternative = { id: string; changes: number };
 /** Lets a call reach its optimizer search, past the section load it awaits first. */
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -359,6 +360,33 @@ describe("build_schedule runs one search at a time", () => {
     const result = (await newer) as Record<string, unknown>;
     expect(result.alternatives).toContainEqual(expect.objectContaining({ id: "opt-2-A", unknownWalks: expect.any(Number) }));
     expect(await call("apply_alternative", { id: "opt-1-A" }, port, tools)).toMatchObject({ reason: "unknown_alternative" });
+  });
+
+  test("a build still loading sections when a newer one starts never replaces it", async () => {
+    const { port } = fixturePort();
+    let release = () => {};
+    let held = true;
+    // The first call's section load is held (a course still loading); later loads answer at once, as the live port does.
+    const holding: PlannerPort = {
+      ...port,
+      load: (codes, signal) =>
+        held
+          ? ((held = false),
+            new Promise<void>((resolve) => {
+              release = resolve;
+              signal.addEventListener("abort", () => resolve());
+            }))
+          : port.load(codes, signal),
+    };
+    const tools = createTools();
+    const older = named(tools, "build_schedule").run({}, session(holding, true).ctx);
+    await tick();
+    const newer = (await named(tools, "build_schedule").run({ goal: "compact" }, session(holding, true).ctx)) as { ok: boolean; alternatives: Alternative[] };
+    expect(newer.ok).toBe(true);
+    release();
+    expect(await older).toEqual({ ok: false, reason: "cancelled" });
+    const id = newer.alternatives.find((alt) => alt.changes > 0)?.id ?? newer.alternatives[0].id;
+    expect(await named(tools, "apply_alternative").run({ id }, session(holding, true).ctx)).toMatchObject({ ok: true });
   });
 
   test("the agent cancelling the call stops the search", async () => {

@@ -606,28 +606,36 @@ export function createTools(): Tool[] {
       },
       writes: false,
       async run(input, { port, signal }) {
-        await port.load(getPlanningTermCourseCodes(port.plan()), signal);
-        const plan = port.plan();
-        const catalog = port.catalog();
-        const preferences = withOverrides(port.preferences(), input);
-        // The Week view's request: its Open seats only and other-site filters, and the courses it holds out.
-        const request = buildOptimizeRequest(plan, preferences, { catalog });
-        if (request.courses.length === 0) return fail("nothing_to_schedule", "No planned course has a section to suggest.");
-        // The number is taken before waiting, so an older search finishing late cannot replace a newer one.
+        // The number is taken and older work cancelled before any wait (section loading, then the search),
+        // so an older call that finishes late can neither replace a newer one's alternatives nor cancel it.
         const number = ++builds;
         running?.abort();
         const mine = new AbortController();
         running = mine;
+        const stop = AbortSignal.any([signal, mine.signal]);
+        const superseded = () => stop.aborted || number !== builds;
+        let plan: PlannerState;
+        let catalog: SectionCatalog;
+        let preferences: SchedulePreferences;
+        let request: OptimizeRequest;
         let result: OptimizeResult;
         try {
-          result = await port.optimize(request, AbortSignal.any([signal, mine.signal]));
+          await port.load(getPlanningTermCourseCodes(port.plan()), stop);
+          if (superseded()) return fail("cancelled");
+          plan = port.plan();
+          catalog = port.catalog();
+          preferences = withOverrides(port.preferences(), input);
+          // The Week view's request: its Open seats only and other-site filters, and the courses it holds out.
+          request = buildOptimizeRequest(plan, preferences, { catalog });
+          if (request.courses.length === 0) return fail("nothing_to_schedule", "No planned course has a section to suggest.");
+          result = await port.optimize(request, stop);
         } catch (error) {
-          if (signal.aborted || mine.signal.aborted) return fail("cancelled");
+          if (stop.aborted) return fail("cancelled");
           throw error;
         } finally {
           if (running === mine) running = null;
         }
-        if (signal.aborted || number !== builds) return fail("cancelled");
+        if (superseded()) return fail("cancelled");
         latest = { number, input, key: requestKey(request), goal: goalForWeights(preferences.weights), result };
         const current = plan.selectedSections;
         return {
