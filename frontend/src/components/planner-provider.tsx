@@ -12,7 +12,6 @@ import {
 } from "react";
 import { authClient } from "@/lib/auth-client";
 import {
-  buildOptimizeRequest,
   buildScheduleEvents,
   defaultSchedulePreferences,
   getActiveCourseCodes,
@@ -21,12 +20,18 @@ import {
   isCourseLocked,
   mergeTranscriptRecords,
   normalizePlannerState,
-  parseSchedulePreferences,
   recommendSections,
   serializePlannerPayload,
 } from "@/lib/planner";
-import { optimize } from "@/lib/optimizer/optimize";
-import type { OptimizeRequest, OptimizeResult } from "@/lib/optimizer/types";
+import {
+  initialPreferences,
+  preferencesKey,
+  readOrCreateGuestId,
+  readStoredPreferences,
+  withGoalWeights,
+  writeStoredPreferences,
+  type WriteOutcome,
+} from "@/components/schedule/preferences-store";
 import { createPlannerStateStore } from "@/lib/planner-store";
 import type { PlannerStoreIncoming } from "@/lib/planner-store";
 import {
@@ -46,10 +51,21 @@ import type {
   WeekDay,
 } from "@/lib/types";
 
-/** Browser-local key for the schedule builder's constraints and weights. */
-const PREFERENCES_KEY = "untangle-schedule-preferences:v1";
+/** Whether the schedule builder's preferences reached this browser's storage on the last write. */
+export type PreferencesStorage = WriteOutcome["kind"];
 
-export type OptimizeRun = { request: OptimizeRequest; result: OptimizeResult };
+function makeGuestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Save lifecycle, honest by construction:
@@ -126,17 +142,28 @@ type PlannerContextValue = {
   setSectionLock: (courseCode: string, locked: boolean) => void;
   /** Re-run the optimizer for the current goal; locked sections stay fixed. */
   optimizeSchedule: () => void;
-  /** Constraints and weights for the schedule builder, kept in this browser. */
+  /**
+   * Constraints and weights for the schedule builder, kept in this browser
+   * per identity (components/schedule/preferences-store.ts).
+   */
   schedulePreferences: SchedulePreferences;
   setSchedulePreferences: (update: (current: SchedulePreferences) => SchedulePreferences) => void;
+  /** False until the plan has loaded and the preferences for this identity have been read. */
+  preferencesReady: boolean;
+  preferencesStorage: PreferencesStorage;
   /**
-   * Ranked alternatives for the current plan under the current preferences,
-   * without changing the plan. `courseCodes` defaults to the courses marked
-   * Taking; a course-suggestion step can pass its own list.
+   * Use a schedule: its sections replace the current picks for those
+   * courses. Refused as a whole when it would move a locked section.
    */
-  runOptimizer: (courseCodes?: string[]) => OptimizeRun;
-  /** Use a schedule: its sections replace the current picks for those courses. */
   applySchedule: (byCourse: Record<string, string>, goal?: OptimizationKey | null) => void;
+  /** Put back exactly these picks and this goal (Undo after a pick). */
+  restoreSchedule: (snapshot: { sections: Record<string, string>; goal: OptimizationKey }) => void;
+  /**
+   * Counts plan replacements: a load, a reset (restore starts with one),
+   * a conflict resolution, another tab's version. An Undo taken before the
+   * count changed no longer applies.
+   */
+  planEpoch: number;
   setActiveDay: (day: WeekDay) => void;
   setSelectedMajor: (id: MajorId | null) => void;
   resetPlanner: () => void;
@@ -177,29 +204,52 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const [schedulePreferences, setSchedulePreferencesState] = useState<SchedulePreferences>(() =>
     defaultSchedulePreferences(getInitialPlannerState().optimization),
   );
+  const [preferencesStorage, setPreferencesStorage] = useState<PreferencesStorage>("stored");
+  // The identity whose preferences are loaded ("user:<id>" or "guest"); null before the first read.
+  const [preferencesFor, setPreferencesFor] = useState<string | null>(null);
+  const [planEpoch, setPlanEpoch] = useState(0);
+  const bumpPlanEpoch = useCallback(() => setPlanEpoch((n) => n + 1), []);
+  const preferencesRef = useRef(schedulePreferences);
+  const preferencesKeyRef = useRef<string | null>(null);
+  // Revision of the stored entry this tab last read or wrote (0 for none).
+  const preferencesRevision = useRef(0);
+  const userId = sessionResult.data?.user?.id ?? null;
+  const identityTag = userId ? `user:${userId}` : "guest";
 
-  // Read after mount so the server render and the first client render agree.
+  const adoptPreferences = useCallback((next: SchedulePreferences) => {
+    preferencesRef.current = next;
+    setSchedulePreferencesState(next);
+  }, []);
+
+  // Another tab of this browser stored newer preferences for this identity.
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(PREFERENCES_KEY);
-      const parsed = raw ? parseSchedulePreferences(JSON.parse(raw)) : null;
-      if (parsed) setSchedulePreferencesState(parsed);
-    } catch {
-      // Unreadable storage: keep the defaults.
-    }
-  }, []);
+    const onStorage = (event: StorageEvent) => {
+      const key = preferencesKeyRef.current;
+      const storage = browserStorage();
+      if (!key || event.key !== key || !storage) return;
+      const read = readStoredPreferences(storage, key);
+      if (read.kind !== "ok" || read.revision <= preferencesRevision.current) return;
+      preferencesRevision.current = read.revision;
+      adoptPreferences(read.preferences);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [adoptPreferences]);
 
-  const setSchedulePreferences = useCallback((update: (current: SchedulePreferences) => SchedulePreferences) => {
-    setSchedulePreferencesState((current) => {
-      const next = update(current);
-      try {
-        window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
-      } catch {
-        // Storage denied: preferences last for this visit only.
-      }
-      return next;
-    });
-  }, []);
+  const setSchedulePreferences = useCallback(
+    (update: (current: SchedulePreferences) => SchedulePreferences) => {
+      const key = preferencesKeyRef.current;
+      const storage = browserStorage();
+      const outcome: WriteOutcome =
+        key && storage
+          ? writeStoredPreferences(storage, key, preferencesRevision.current, preferencesRef.current, update)
+          : { kind: "not-stored", revision: preferencesRevision.current, preferences: update(preferencesRef.current) };
+      preferencesRevision.current = outcome.revision;
+      adoptPreferences(outcome.preferences);
+      setPreferencesStorage(outcome.kind);
+    },
+    [adoptPreferences],
+  );
 
   const bootstrappedFor = useRef<string | null>(null);
   // Incremented on every identity change; async results from an older
@@ -237,6 +287,22 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     stateRef.current = plannerState;
   }, [plannerState]);
+
+  // Once the plan for this identity has loaded, read that identity's
+  // preferences. Declared after the stateRef sync, so the plan's goal is the
+  // loaded one when nothing is stored yet.
+  useEffect(() => {
+    if (!hydrated) return;
+    const storage = browserStorage();
+    const guestId = !userId && storage ? readOrCreateGuestId(storage, makeGuestId) : null;
+    const key = userId ? preferencesKey({ kind: "user", id: userId }) : guestId ? preferencesKey({ kind: "guest", id: guestId }) : null;
+    const read = key && storage ? readStoredPreferences(storage, key) : ({ kind: "unavailable" } as const);
+    preferencesKeyRef.current = key;
+    preferencesRevision.current = read.kind === "ok" ? read.revision : 0;
+    adoptPreferences(initialPreferences(read, stateRef.current.optimization));
+    setPreferencesStorage(read.kind === "unavailable" ? "not-stored" : "stored");
+    setPreferencesFor(userId ? `user:${userId}` : "guest");
+  }, [adoptPreferences, hydrated, userId]);
 
   const markSaved = useCallback((fingerprint: string) => {
     lastPersistedFingerprint.current = fingerprint;
@@ -427,9 +493,10 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     }
     lastPersistedFingerprint.current = storedFingerprint;
     setPlannerState(loaded.state);
+    bumpPlanEpoch();
     setTookNewerVersion(true);
     markSaved(storedFingerprint);
-  }, [enterSignedOut, markSaved, persistServer, raiseConflict]);
+  }, [bumpPlanEpoch, enterSignedOut, markSaved, persistServer, raiseConflict]);
 
   const handleSessionRestored = useCallback(() => {
     if (!sessionExpired.current) {
@@ -597,11 +664,12 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       }
 
       hydratedRef.current = true;
+      bumpPlanEpoch();
       setHydrated(true);
       hydrationWaiters.current.forEach((resolve) => resolve());
       hydrationWaiters.current = [];
     });
-  }, [enterSignedOut, guestStore, markSaved, raiseConflict, sessionResult.data, sessionResult.isPending]);
+  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionResult.data, sessionResult.isPending]);
 
   // Local bridge until #19 lands: a new session for the same signed-in user
   // (signing in again in this tab) counts as a restore. Idempotent, so #19's
@@ -764,10 +832,11 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       adoptRevision();
       lastPersistedFingerprint.current = incomingFingerprint;
       setPlannerState(incoming.state);
+      bumpPlanEpoch();
       setTookNewerVersion(true);
       markSaved(incomingFingerprint);
     },
-    [markSaved, raiseConflict],
+    [bumpPlanEpoch, markSaved, raiseConflict],
   );
 
   useEffect(() => {
@@ -825,6 +894,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       if (!current) {
         return;
       }
+      // Either way the plan on screen is now a resolved version.
+      bumpPlanEpoch();
       if (resolution === "take-theirs") {
         if (current.theirs) {
           if (current.source === "browser") {
@@ -851,7 +922,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         void persistServer(mine);
       }
     },
-    [guestStore, markSaved, persistGuest, persistServer],
+    [bumpPlanEpoch, guestStore, markSaved, persistGuest, persistServer],
   );
 
   const value = useMemo<PlannerContextValue>(() => {
@@ -943,6 +1014,8 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           selectedSections: recommendSections(optimization, getActiveCourseCodes(current), getLockedSelections(normalizePlannerState(current))),
           updatedAt: new Date().toISOString(),
         }));
+        // A goal set from outside the Week rail (a plan restore) brings its weights along.
+        setSchedulePreferences((current) => withGoalWeights(current, optimization));
       },
       optimizeSchedule: () => {
         if (!hydrated) {
@@ -960,18 +1033,35 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       },
       schedulePreferences,
       setSchedulePreferences,
-      runOptimizer: (courseCodes) => {
-        const request = buildOptimizeRequest(normalized, schedulePreferences, { courseCodes });
-        return { request, result: optimize(request) };
-      },
+      preferencesReady: hydrated && preferencesFor === identityTag,
+      preferencesStorage,
+      planEpoch,
       applySchedule: (byCourse, goal) => {
+        if (!hydrated) {
+          mutatedBeforeBootstrap.current = true;
+        }
+        setPlannerState((current) => {
+          const locked = normalizePlannerState(current).lockedSections ?? {};
+          // Never move a locked section, even if a stale option asks to; the page checks first.
+          if (Object.entries(locked).some(([code, id]) => code in byCourse && byCourse[code] !== id)) {
+            return current;
+          }
+          return {
+            ...current,
+            selectedSections: { ...current.selectedSections, ...byCourse },
+            optimization: goal ?? current.optimization,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+      },
+      restoreSchedule: ({ sections: restored, goal }) => {
         if (!hydrated) {
           mutatedBeforeBootstrap.current = true;
         }
         setPlannerState((current) => ({
           ...current,
-          selectedSections: { ...current.selectedSections, ...byCourse },
-          optimization: goal ?? current.optimization,
+          selectedSections: { ...restored },
+          optimization: goal,
           updatedAt: new Date().toISOString(),
         }));
       },
@@ -1044,6 +1134,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           mutatedBeforeBootstrap.current = true;
         }
         setPlannerState(getInitialPlannerState());
+        bumpPlanEpoch();
       },
       saveState: shownSaveState,
       retrySave,
@@ -1067,6 +1158,11 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     retrySave,
     saveState,
     savedFingerprint,
+    bumpPlanEpoch,
+    identityTag,
+    planEpoch,
+    preferencesFor,
+    preferencesStorage,
     schedulePreferences,
     serverPersistent,
     setSchedulePreferences,

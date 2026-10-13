@@ -20,13 +20,17 @@ function LockGlyph() {
  * by their own text (the accessible-name contract the M6 journey checks).
  * `ghosts` are another schedule's classes drawn dashed on top, for previewing
  * an alternative; they are decorative and hidden from assistive tech.
+ * `rangeEvents` fixes the hours shown (default: events and ghosts), so a
+ * preview can be kept from resizing the grid.
  */
 export function WeekGrid({
   events,
   courseOrder,
   lockedSections,
   conflictSections,
+  rangeEvents,
   ghosts = [],
+  ghostsInstant = false,
   dimmedCourses = [],
   onSelect,
 }: {
@@ -34,22 +38,24 @@ export function WeekGrid({
   courseOrder: string[];
   lockedSections: Record<string, string>;
   conflictSections: Set<string>;
+  rangeEvents?: WeekEvent[];
   ghosts?: WeekEvent[];
+  /** Ghosts from a keyboard preview appear without the fade. */
+  ghostsInstant?: boolean;
   dimmedCourses?: string[];
-  onSelect: (courseCode: string, origin: { x: number; y: number }) => void;
+  onSelect: (courseCode: string) => void;
 }) {
-  const { first, last } = hourRange([...events, ...ghosts]);
+  const { first, last } = hourRange([...(rangeEvents ?? events), ...ghosts]);
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
   const height = (last - first) * HOUR_PX;
   const top = (minutes: number) => ((minutes - first * 60) / 60) * HOUR_PX;
+  // Hour hairlines are the background; half-hours are dashed lines drawn under the events (DESIGN.md §4 ScheduleGrid).
   const lines = {
-    backgroundImage: `repeating-linear-gradient(to bottom, transparent 0 ${HOUR_PX - 1}px, var(--line, #dde8dd) ${HOUR_PX - 1}px ${HOUR_PX}px)`,
+    backgroundImage: `repeating-linear-gradient(to bottom, transparent 0 ${HOUR_PX - 1}px, var(--line) ${HOUR_PX - 1}px ${HOUR_PX}px)`,
   };
 
   return (
     <section className={styles.gridWrap} aria-label="Week calendar (sample sections)">
-      {/* Sample label outside the events, so it never changes an event's name. */}
-      <p className={styles.gridCaption}>Sample sections, times and instructors</p>
       <div className={styles.dayHead} aria-hidden="true">
         <div />
         {weekDays.map((day) => (
@@ -57,6 +63,9 @@ export function WeekGrid({
         ))}
       </div>
       <div className={styles.grid} style={{ height, ...lines }}>
+        {hours.map((hour) => (
+          <span key={`half-${hour}`} className={styles.halfLine} style={{ top: (hour - first) * HOUR_PX + HOUR_PX / 2 }} aria-hidden="true" />
+        ))}
         <div className={styles.gutter} aria-hidden="true">
           {hours.map((hour) => (
             <span key={hour} style={{ top: (hour - first) * HOUR_PX }}>
@@ -82,10 +91,7 @@ export function WeekGrid({
                     aria-describedby={describedBy}
                     data-dimmed={dimmedCourses.includes(event.courseCode) ? "true" : "false"}
                     style={{ ...courseColor(courseOrder, event.courseCode), top: top(event.start) + 2, height: top(event.end) - top(event.start) - 4 }}
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      onSelect(event.courseCode, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
-                    }}
+                    onClick={() => onSelect(event.courseCode)}
                   >
                     {/* Described, not named: the name stays "{COURSE} {START} – {END} {PROFESSOR}". */}
                     <span id={describedBy} hidden>
@@ -114,6 +120,7 @@ export function WeekGrid({
                 <div
                   key={`ghost-${event.sectionId}-${day}-${event.start}`}
                   className={styles.ghostEvent}
+                  data-instant={ghostsInstant ? "true" : "false"}
                   aria-hidden="true"
                   style={{ ...courseColor(courseOrder, event.courseCode), top: top(event.start) + 2, height: top(event.end) - top(event.start) - 4 }}
                 >
