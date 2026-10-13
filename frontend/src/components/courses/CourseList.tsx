@@ -156,14 +156,14 @@ const CourseRow = memo(function CourseRow({
         <StatusGlyph status={row.status} />
         <span className={styles.code}>{row.id}</span>
         <span className={styles.rowTitle}>{row.title}</span>
-        <span className={styles.rowCredits}>
-          {row.credits} cr<span className={styles.srOnly}>, {label}</span>
-        </span>
+        <span className={styles.rowCredits}>{row.credits} cr</span>
+        {/* Outside .rowCredits, which phones hide; the visible label beside the button is aria-hidden. */}
+        <span className={styles.srOnly}>, {label}</span>
       </button>
-      <span className={styles.rowMeta} data-hideable={action ? "true" : "false"}>
+      <span className={styles.rowMeta} data-row-meta data-hideable={action ? "true" : "false"}>
         <RowMeta row={row} />
       </span>
-      <span className={styles.rowStatus}>
+      <span className={styles.rowStatus} data-row-status>
         {row.override ? (
           <button
             type="button"

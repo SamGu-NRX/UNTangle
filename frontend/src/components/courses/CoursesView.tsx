@@ -360,14 +360,17 @@ export function CoursesView({
 
         <div role="status" aria-live="polite">
           {lastAuto ? (
-            <div className={styles.autonote}>
+            <div className={styles.autonote} data-autonote>
               <span className={styles.spark} aria-hidden="true">
                 ✦
               </span>
               <span className={styles.autonoteText}>{lastAuto.text}</span>
               {lastAuto.needsCheck.length > 0 ? (
                 <button type="button" className={styles.link} onClick={() => openCourse(lastAuto.needsCheck[0])}>
-                  {lastAuto.needsCheck.length} need an advisor check · Review
+                  {lastAuto.needsCheck.length === 1
+                    ? "1 core course needs an advisor"
+                    : `${lastAuto.needsCheck.length} core courses need an advisor`}{" "}
+                  · Review
                 </button>
               ) : null}
               <button type="button" className={styles.link} onClick={undoAuto}>
@@ -390,7 +393,7 @@ export function CoursesView({
         </div>
 
         <div className={styles.body}>
-          <div className={styles.list}>
+          <div className={styles.list} data-course-list>
             {!hydrated ? (
               <div style={{ display: "grid", placeItems: "center", padding: 64, color: "var(--c-ink-3)" }} aria-label="Loading your plan" role="status">
                 <span className={styles.spinner} style={{ width: 20, height: 20 }} />

@@ -18,9 +18,10 @@ export function GradeChart({ grades, dataKey, label }: { grades: GradeData; data
   const [changed, setChanged] = useState(false);
 
   if (shown.key !== dataKey) {
-    setOutgoing({ key: `${shown.key}:out`, grades: shown.grades });
+    // A second change during a crossfade swaps at once rather than restarting a half-faded layer.
+    setOutgoing(outgoing ? null : { key: `${shown.key}:out`, grades: shown.grades });
     setShown({ key: dataKey, grades });
-    setChanged(true);
+    setChanged(!outgoing);
   } else if (shown.grades !== grades) {
     setShown({ key: dataKey, grades });
   }

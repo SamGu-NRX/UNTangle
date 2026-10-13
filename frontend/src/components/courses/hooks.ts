@@ -30,40 +30,34 @@ export function useIsClient(): boolean {
 export type PresenceState = "entering" | "open" | "closing";
 
 /**
- * Keeps an element mounted through its exit transition. It mounts in
- * "entering" (the CSS start state), flips to "open" on the next frame so the
- * transition runs, and stays mounted in "closing" for `exitMs`. Transitions,
- * not keyframes, so reopening mid-exit reverses from where it is.
+ * Keeps an element mounted through its exit transition. While `open` it is
+ * always mounted: first in "entering" (the CSS start state), then "open" two
+ * frames later so the transition runs. After `open` turns false it stays in
+ * "closing" for `exitMs`. Reopening during the exit goes straight back to
+ * "open", so the CSS transition reverses from where it is.
  */
 export function usePresence(open: boolean, exitMs: number): { mounted: boolean; state: PresenceState } {
-  const [mounted, setMounted] = useState(open);
-  const [state, setState] = useState<PresenceState>(open ? "open" : "entering");
-  const [previousOpen, setPreviousOpen] = useState(open);
-  // Adjust during render when `open` flips (React's pattern for state derived from a prop change).
-  if (open !== previousOpen) {
-    setPreviousOpen(open);
-    if (open) {
-      if (!mounted) setState("entering");
-      setMounted(true);
-    } else if (mounted) {
-      setState("closing");
-    }
-  }
+  const [lingering, setLingering] = useState(open);
+  const [entered, setEntered] = useState(open);
   useEffect(() => {
     if (open) {
       let second = 0;
       const first = requestAnimationFrame(() => {
-        second = requestAnimationFrame(() => setState("open"));
+        setLingering(true);
+        second = requestAnimationFrame(() => setEntered(true));
       });
       return () => {
         cancelAnimationFrame(first);
         cancelAnimationFrame(second);
       };
     }
-    const timer = window.setTimeout(() => setMounted(false), exitMs);
+    const timer = window.setTimeout(() => {
+      setLingering(false);
+      setEntered(false);
+    }, exitMs);
     return () => window.clearTimeout(timer);
   }, [open, exitMs]);
-  return { mounted, state };
+  return { mounted: open || lingering, state: open ? (entered ? "open" : "entering") : "closing" };
 }
 
 /**
@@ -141,33 +135,38 @@ export function useOutsidePress(ref: React.RefObject<HTMLElement | null>, active
 const focusableSelector =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Keeps Tab inside a modal surface and restores focus to the opener on close. */
+/**
+ * Modal behavior for a portaled surface: everything else on the page is
+ * `inert` while it is open, Tab cycles through its own controls (also when
+ * focus starts on the container itself), and focus returns to the opener.
+ */
 export function useFocusTrap(ref: React.RefObject<HTMLElement | null>, active: boolean) {
   useEffect(() => {
-    if (!active) return;
+    if (!active || !ref.current) return;
     const opener = document.activeElement as HTMLElement | null;
+    const portalRoot = ref.current.closest("body > *");
+    const inerted = [...document.body.children].filter(
+      (element): element is HTMLElement => element !== portalRoot && element instanceof HTMLElement && !element.inert,
+    );
+    inerted.forEach((element) => (element.inert = true));
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Tab" || !ref.current) return;
       const items = [...ref.current.querySelectorAll<HTMLElement>(focusableSelector)].filter(
-        (element) => element.offsetParent !== null,
+        (element) => element.getClientRects().length > 0,
       );
-      if (items.length === 0) {
-        event.preventDefault();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      event.preventDefault();
+      if (items.length === 0) return;
+      const index = items.indexOf(document.activeElement as HTMLElement);
+      const next =
+        index === -1
+          ? event.shiftKey ? items.length - 1 : 0
+          : (index + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+      items[next].focus();
     };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      inerted.forEach((element) => (element.inert = false));
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [ref, active]);

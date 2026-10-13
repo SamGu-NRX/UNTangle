@@ -40,7 +40,10 @@ export function GradeChartCanvas({ grades, motion }: { grades: GradeData; motion
           onPointerEnter={() => setHover(bar.grade)}
           onPointerLeave={() => setHover((current) => (current === bar.grade ? null : current))}
         >
-          <div className={styles.bar} style={{ height: `${bar.height}%`, opacity: bar.opacity }} />
+          <div className={styles.bar} data-grade-bar style={{ height: `${bar.height}%`, opacity: bar.opacity }} />
+          <span className={styles.value} style={{ bottom: `calc(${bar.height}% + 4px)` }}>
+            {bar.percent}%
+          </span>
           <span className={styles.label}>{bar.grade}</span>
           {hover === bar.grade && motion !== "out" ? (
             <span className={styles.tip}>

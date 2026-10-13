@@ -177,7 +177,7 @@ export function DetailContent({
 
   return (
     <>
-      <header className={styles.pHead}>
+      <div className={styles.pHead}>
         <div className={styles.codeline}>
           <span className={styles.bigcode}>{row.id}</span>
           <span className={styles.pStatus}>
@@ -255,7 +255,7 @@ export function DetailContent({
             <CloseIcon />
           </button>
         ) : null}
-      </header>
+      </div>
 
       <div className={styles.pActions}>
         {primary}
@@ -427,15 +427,15 @@ function GradeBody({
   return (
     <>
       <div className={styles.figs}>
-        <div className={styles.fig}>
+        <div className={styles.fig} data-fig>
           <b>{slice.gpa === null ? "—" : slice.gpa.toFixed(2)}</b>
           <span>Avg GPA</span>
         </div>
-        <div className={styles.fig}>
+        <div className={styles.fig} data-fig>
           <b>{slice.total.toLocaleString()}</b>
           <span>Students</span>
         </div>
-        <div className={styles.fig}>
+        <div className={styles.fig} data-fig>
           <b>{slice.sectionCount.toLocaleString()}</b>
           <span>Sections</span>
         </div>

@@ -52,6 +52,15 @@
   border-radius: 4px 4px 0 0;
   background: var(--c-brand, #00512b);
 }
+/* Every bar's share is printed, so reading the chart never depends on hover. */
+.value {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 500 11px/14px var(--c-body, sans-serif);
+  color: var(--c-ink-2, #586e58);
+}
 .label {
   position: absolute;
   left: 0;

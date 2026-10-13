@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./courses.module.css";
 import { CloseIcon, SearchIcon } from "./bits";
+import { useFocusTrap } from "./hooks";
 import { statusLabels, type CourseRowModel } from "./model/course-model";
 import { onlyCheckable, ruleCourseIds } from "./model/rules";
 import { searchCatalog, type SearchCourse, type SearchInstructor } from "./model/search";
@@ -66,14 +67,15 @@ function PaletteBody({
     [results],
   );
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Declared before the focus effect so the trap records the opener, not the input.
+  useFocusTrap(dialogRef, true);
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
     inputRef.current?.focus();
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previous;
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
 
@@ -102,9 +104,8 @@ function PaletteBody({
       else activate(item);
     } else if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       onClose();
-    } else if (event.key === "Tab") {
-      event.preventDefault();
     }
   };
 
@@ -141,7 +142,7 @@ function PaletteBody({
   return createPortal(
     <div className={className}>
       <div className={styles.scrim} onClick={onClose} aria-hidden="true" />
-      <div className={styles.palette} role="dialog" aria-modal="true" aria-label="Search courses">
+      <div ref={dialogRef} className={styles.palette} role="dialog" aria-modal="true" aria-label="Search courses">
         <div className={styles.palIn}>
           <SearchIcon size={18} />
           <input

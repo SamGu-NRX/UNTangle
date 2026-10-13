@@ -36,6 +36,8 @@ export function BottomSheet({
   const reduced = useMediaQuery(REDUCED_MOTION_QUERY);
   const [detent, setDetent] = useState<Detent>("full");
   const [dragging, setDragging] = useState(false);
+  /** After a drag or a tap on the handle the sheet settles at 240ms instead of entering at 260ms. */
+  const [settling, setSettling] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const justDragged = useRef(false);
@@ -44,7 +46,10 @@ export function BottomSheet({
   const [previousOpen, setPreviousOpen] = useState(open);
   if (open !== previousOpen) {
     setPreviousOpen(open);
-    if (open) setDetent("full");
+    if (open) {
+      setDetent("full");
+      setSettling(false);
+    }
   }
 
   useEffect(() => {
@@ -60,7 +65,8 @@ export function BottomSheet({
     if (!open) return;
     sheetRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      // A popover or the palette above the sheet handles its own Escape first.
+      if (event.key === "Escape" && !event.defaultPrevented) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -82,6 +88,7 @@ export function BottomSheet({
     }
     // React will not rewrite an unchanged style prop, so put the resting transform back by hand.
     if (element) element.style.transform = `translateY(${restingOffset(target)}px)`;
+    setSettling(true);
     setDetent(target);
   };
 
@@ -89,7 +96,9 @@ export function BottomSheet({
     if (drag.current) return; // a second finger never takes over a drag
     justDragged.current = false;
     event.currentTarget.setPointerCapture(event.pointerId);
-    const offset = restingOffset(detent);
+    // Start from where the sheet is drawn now, so grabbing it mid-transition does not jump.
+    const drawn = sheetRef.current ? new DOMMatrixReadOnly(getComputedStyle(sheetRef.current).transform).m42 : NaN;
+    const offset = Number.isFinite(drawn) ? drawn : restingOffset(detent);
     drag.current = { pointerId: event.pointerId, startY: event.clientY, startOffset: offset, offset, samples: [{ y: event.clientY, t: event.timeStamp }], moved: false };
   };
 
@@ -137,6 +146,7 @@ export function BottomSheet({
         className={styles.sheet}
         data-state={presence.state}
         data-dragging={dragging}
+        data-settling={settling}
         style={{ transform, outline: "none" }}
       >
         <button
