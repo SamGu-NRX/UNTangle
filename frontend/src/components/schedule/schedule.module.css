@@ -1,0 +1,759 @@
+/*
+ * Week view layout, scoped to this page. Controls come from components/ui
+ * and keep their own styles; this file places them and draws what is
+ * specific to the Week: the grid, events, alternatives and stats. Tokens
+ * are DESIGN.md §3, defined in app/globals.css.
+ */
+
+.page {
+  display: grid;
+  /* minmax(0, …): the alternatives' sideways scroller must not widen the page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.viewhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: var(--viewhead-h);
+  border-bottom: 1px solid var(--line);
+}
+.viewheadTitle {
+  font: 600 var(--text-lg) / var(--lh-lg) var(--font-body);
+  margin: 0;
+}
+.meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.spacer {
+  flex: 1;
+}
+
+.sampleNote {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.sampleNote p {
+  margin: 0;
+  flex: 1;
+}
+
+.statsStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.side {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+  min-width: 0;
+}
+
+/* ---------- constraints ---------- */
+.rail {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+.railSection {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.railHeading {
+  font: 600 var(--text-xs) / var(--lh-xs) var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 0;
+}
+.subLabel {
+  margin: 0 0 -4px;
+  padding: 0;
+  font: 600 var(--text-sm) / var(--lh-sm) var(--font-body);
+  color: var(--ink);
+}
+
+.fineTune summary {
+  width: fit-content;
+  font: 600 var(--text-sm) / var(--lh-sm) var(--font-body);
+  color: var(--brand);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.fineTune summary:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+.fineTuneBody {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.blockSet {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.blockList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.blockRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.blockForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+.blockForm > button {
+  grid-column: 1 / -1;
+}
+/*
+ * Chromium's time input has a clock-icon tab stop inside its built-in shadow
+ * tree; there the input matches neither :focus nor :focus-visible, so the
+ * ring ui.css keys to those drops. :focus-within still matches (checked in
+ * keyboard.mjs), so time fields key their ring to it.
+ */
+.blockForm :global(.ui-field:has(input[type="time"]):focus-within) {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+
+.optimizeRow {
+  display: grid;
+  gap: 8px;
+}
+.full {
+  width: 100%;
+}
+
+.sheetBody {
+  display: grid;
+  gap: 16px;
+  padding-top: 4px;
+}
+.sheetTitle {
+  margin: 0;
+  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
+}
+.bigCode {
+  font: 700 var(--code-lg) / 24px var(--font-display);
+  color: var(--brand);
+}
+
+.inPlan {
+  display: grid;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 8px;
+}
+.stat b {
+  display: block;
+  font: 700 var(--code-lg) / 24px var(--font-display);
+  white-space: nowrap;
+}
+.stat small {
+  font: 600 12px var(--font-body);
+}
+.stat span {
+  font: 600 var(--text-xs) / var(--lh-xs) var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ---------- main column ---------- */
+.main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 18px;
+}
+.noticeQuiet {
+  background: var(--surface-2);
+}
+
+/* ---------- alternatives ---------- */
+.alternatives {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  animation: rise var(--t-enter) var(--ease-out);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+/* A run started from the keyboard shows its result at once (DESIGN.md §1). */
+.alternatives[data-instant="true"] {
+  animation: none;
+}
+.altHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.altHead h2 {
+  font: 600 var(--text-lg) / var(--lh-lg) var(--font-body);
+  margin: 0;
+}
+.standing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+/* 14px spinner while the longer search runs (DESIGN.md §4 Loading). */
+.searching {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--brand);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.staleNote {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink);
+}
+.errorNote {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  color: var(--ink);
+}
+.errorNote p {
+  margin: 0;
+  flex: 1;
+}
+.altGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .altGrid {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: 84%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    padding-bottom: 4px;
+  }
+  .altCard {
+    scroll-snap-align: start;
+  }
+}
+.altCard {
+  /* Positioned, so the card's visually hidden meeting list stays inside the phone scroller instead of widening the page. */
+  position: relative;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition:
+    background-color var(--t-hover) ease,
+    border-color var(--t-hover) ease,
+    opacity var(--t-hover) ease;
+}
+.altCard[data-current="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+.altCard[data-stale="true"] {
+  opacity: 0.6;
+}
+@media (hover: hover) and (pointer: fine) {
+  .altCard:hover {
+    border-color: var(--line-strong);
+  }
+}
+.altTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.altTitle h3 {
+  margin: 0;
+  font: 700 var(--code-sm) / 18px var(--font-display);
+}
+.breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+.breakdown dt {
+  color: var(--ink-2);
+}
+.breakdown dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+.changed {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.explain {
+  display: grid;
+  gap: 10px;
+}
+.explainSentence {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- section swap ---------- */
+.sectionList {
+  display: grid;
+  gap: 6px;
+}
+.sectionRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.sectionRow[data-current="true"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.sectionPick {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sectionPick:disabled {
+  cursor: default;
+}
+.sectionPick:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+.sectionPickLine {
+  font-weight: 600;
+}
+.sectionPick [data-clash="true"] {
+  color: var(--danger);
+}
+
+/* ---------- week grid ---------- */
+.gridWrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.dayHead {
+  display: grid;
+  grid-template-columns: 48px repeat(5, minmax(0, 1fr));
+  height: 32px;
+  border-bottom: 1px solid var(--line);
+}
+.dayHead > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 var(--text-xs) / var(--lh-xs) var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px repeat(5, minmax(0, 1fr));
+}
+.halfLine {
+  position: absolute;
+  left: 48px;
+  right: 0;
+  border-top: 1px dashed var(--line);
+  pointer-events: none;
+}
+.gutter {
+  position: relative;
+  border-right: 1px solid var(--line);
+}
+.gutter span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-7px);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+.day {
+  position: relative;
+  border-right: 1px solid var(--line);
+}
+.day:last-child {
+  border-right: 0;
+}
+.event {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border: 0;
+  border-left: 3px solid var(--ev);
+  background: var(--ev-tint);
+  border-radius: 8px;
+  padding: 5px 8px;
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+  line-height: 15px;
+  touch-action: manipulation;
+  transition:
+    opacity 120ms ease,
+    transform var(--t-press) var(--ease-out);
+}
+.event:active {
+  transform: scale(0.98);
+}
+.event:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.event[data-conflict="true"] {
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
+.event[data-dimmed="true"] {
+  opacity: 0.35;
+}
+.eventCode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 700 12px/15px var(--font-display);
+}
+.eventMeta {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+.ghostEvent {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  border: 1.5px dashed var(--ev);
+  border-left-width: 3px;
+  border-radius: 8px;
+  padding: 5px 8px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.8;
+  font: 700 12px/15px var(--font-display);
+  color: var(--ink);
+  animation: fade 120ms var(--ease-out);
+  background: rgba(255, 255, 255, 0.6);
+}
+.ghostEvent[data-instant="true"] {
+  animation: none;
+}
+
+/* Mini grid inside an alternative card */
+.mini {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+  background: var(--surface);
+}
+.miniDay {
+  position: relative;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+.miniLabel {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 600 9.5px/12px var(--font-body);
+  color: var(--ink-2);
+}
+.miniEvent {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 3px;
+  background: var(--ev);
+}
+.miniEvent[data-moved="true"] {
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+
+.eventStart {
+  display: none;
+}
+@media (max-width: 760px) {
+  .eventStart {
+    display: block;
+    font-size: 9px;
+    line-height: 11px;
+    color: var(--ink-2);
+  }
+  .eventRange {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .dayHead,
+  .grid {
+    grid-template-columns: 32px repeat(5, minmax(0, 1fr));
+  }
+  .halfLine {
+    left: 32px;
+  }
+  .gutter span {
+    right: 4px;
+    font-size: 9.5px;
+  }
+  .event {
+    left: 2px;
+    right: 2px;
+    padding: 3px 4px;
+    border-radius: 5px;
+    border-left-width: 2.5px;
+  }
+  .eventCode {
+    font-size: 9.5px;
+    line-height: 12px;
+  }
+  .eventMeta {
+    font-size: 9px;
+    line-height: 11px;
+  }
+  .eventExtra {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The shared lock toggle (schedule-section-locks.tsx) is styled by its page. */
+.page :global(.lock-toggle) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-body);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color 120ms ease,
+    transform var(--t-press) var(--ease-out);
+}
+.page :global(.lock-toggle[aria-pressed="true"]) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.page :global(.lock-toggle:active) {
+  transform: scale(0.97);
+}
+.page :global(.lock-toggle:focus-visible) {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+@media (pointer: coarse) {
+  .page :global(.lock-toggle) {
+    min-height: 44px;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alternatives {
+    animation-name: fade;
+    animation-duration: 120ms;
+  }
+  .event,
+  .page :global(.lock-toggle) {
+    transition-property: opacity, background-color, border-color, color;
+  }
+  .event:active,
+  .page :global(.lock-toggle:active) {
+    transform: none;
+  }
+  /* No rotation: the "Still searching" text carries the state. */
+  .searching {
+    animation: none;
+    border-color: var(--line-strong);
+  }
+}
+
+/* Touch: 44px targets for the Week's compact controls, in the rail (also inside the phone sheet) and the alternatives. */
+@media (pointer: coarse) {
+  .rail :global(.ui-seg),
+  .rail :global(.ui-chip),
+  .rail :global(.ui-btn),
+  .rail :global(.ui-field),
+  .rail :global(.ui-select__trigger),
+  .alternatives :global(.ui-btn),
+  .sectionRow :global(.ui-chip) {
+    min-height: 44px;
+  }
+  .fineTune summary {
+    padding: 12px 0;
+  }
+}
