@@ -1,5 +1,7 @@
-import { courses, sections } from "@/lib/seed-data";
-import type { Course, CourseSection, CourseStatus, PlannerState } from "@/lib/types";
+import { findOption, isTimed, optionIdLabel, sampleCatalog, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
+import { courses } from "@/lib/seed-data";
+import type { Section } from "@/lib/sections";
+import type { Course, CourseStatus, PlannerState } from "@/lib/types";
 import type { SavedPlanSnapshot } from "./snapshot-types";
 
 /**
@@ -85,65 +87,64 @@ export type PlanDiff = {
   changedFieldCount: number;
 };
 
-function formatClock(time: string): string {
-  const [hours, minutes] = time.split(":").map((part) => Number(part));
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return time;
-  }
-  const period = hours >= 12 ? "PM" : "AM";
+function formatClock(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const period = hours >= 12 && hours < 24 ? "PM" : "AM";
   const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `${hour12}:${String(minutes).padStart(2, "0")} ${period}`;
+  return `${hour12}:${String(minutes % 60).padStart(2, "0")} ${period}`;
 }
 
-function meetingsSummary(section: CourseSection): string {
-  const groups = new Map<string, CourseSection["meetings"]>();
-  section.meetings.forEach((meeting) => {
-    const key = `${meeting.start}|${meeting.end}|${meeting.location}`;
-    const group = groups.get(key);
-    if (group) {
-      group.push(meeting);
-    } else {
-      groups.set(key, [meeting]);
-    }
+function meetingsSummary(section: Section): string {
+  const groups = new Map<string, { start: number; end: number; room: string; days: string[] }>();
+  section.meetings.filter(isTimed).forEach((meeting) => {
+    const key = `${meeting.startMinutes}|${meeting.endMinutes}|${meeting.room}`;
+    const group = groups.get(key) ?? { start: meeting.startMinutes, end: meeting.endMinutes, room: meeting.room, days: [] };
+    group.days.push(meeting.day);
+    groups.set(key, group);
   });
-  return [...groups.values()]
-    .map((group) => {
-      const first = group[0];
-      const days = group.map((meeting) => meeting.day).join("/");
-      return `${days} ${formatClock(first.start)}–${formatClock(first.end)} · ${first.location}`;
-    })
-    .join("; ");
+  const timed = [...groups.values()].map(
+    (group) => `${group.days.join("/")} ${formatClock(group.start)}–${formatClock(group.end)} in ${group.room}`,
+  );
+  return timed.length > 0 ? timed.join("; ") : "no set time";
 }
 
-function sectionRefOf(state: PlannerState, courseCode: string): PlanDiffSectionRef | null {
+function sectionRefOf(state: PlannerState, courseCode: string, catalog: SectionCatalog): PlanDiffSectionRef | null {
   const sectionId = state.selectedSections[courseCode];
   if (!sectionId) {
     return null;
   }
-  const section =
-    sections.find((entry) => entry.id === sectionId && entry.courseCode === courseCode) ?? null;
+  const section = findOption(catalog, courseCode, sectionId);
   if (!section) {
-    // Exact id preserved even though the running catalog cannot resolve it.
+    // Exact id preserved even though nothing loaded resolves it.
     return {
       sectionId,
       professor: "unknown section",
-      meetingsSummary: "not in the current catalog",
+      meetingsSummary: sectionRef(sectionId).provenance === "real" ? optionIdLabel(sectionId) : "not in the current catalog",
     };
   }
   return {
     sectionId: section.id,
-    professor: section.professor,
+    professor: section.instructor.display ?? "Instructor not listed",
     meetingsSummary: meetingsSummary(section),
   };
 }
 
-function sectionExistsInCatalog(courseCode: string, sectionId: string): boolean {
-  return sections.some((entry) => entry.id === sectionId && entry.courseCode === courseCode);
+/**
+ * Whether a reference resolves now. A real option whose course options have
+ * not loaded (or fell back to samples) cannot be judged, so it is not called
+ * unknown.
+ */
+function sectionResolves(catalog: SectionCatalog, courseCode: string, sectionId: string): boolean {
+  if (findOption(catalog, courseCode, sectionId)) return true;
+  const loaded = catalog(courseCode);
+  return sectionRef(sectionId).provenance === "real" && !(loaded.status === "ready" && loaded.result.provenance.kind === "real");
 }
 
+/** `catalog` is the planner's loaded options; the bundled samples by default. */
 export function diffSavedPlanAgainstWorking(
   savedPlan: SavedPlanSnapshot,
   workingState: PlannerState,
+  catalog: SectionCatalog = sampleCatalog,
 ): PlanDiff {
   const savedState = savedPlan.state;
   const statusOf = (state: PlannerState, courseCode: string): CourseStatus =>
@@ -198,14 +199,14 @@ export function diffSavedPlanAgainstWorking(
           courseCode: code,
           course: courseByCode(code),
           kind: savedRef ? (workingRef ? "changed" : "removed") : "added",
-          from: sectionRefOf(savedState, code),
-          to: sectionRefOf(workingState, code),
+          from: sectionRefOf(savedState, code, catalog),
+          to: sectionRefOf(workingState, code, catalog),
         });
       }
-      if (savedRef && !sectionExistsInCatalog(code, savedRef)) {
+      if (savedRef && !sectionResolves(catalog, code, savedRef)) {
         unknownReferences.push({ courseCode: code, sectionId: savedRef, side: "savedPlan" });
       }
-      if (workingRef && !sectionExistsInCatalog(code, workingRef)) {
+      if (workingRef && !sectionResolves(catalog, code, workingRef)) {
         unknownReferences.push({ courseCode: code, sectionId: workingRef, side: "workingState" });
       }
     }
@@ -296,6 +297,6 @@ export function describeLockChanges(changes: PlanLockChange[]): string[] {
 }
 
 /** Shared with the restore adapter so previews quote the same strings. */
-export function sectionMeetingsSummary(section: CourseSection): string {
+export function sectionMeetingsSummary(section: Section): string {
   return meetingsSummary(section);
 }

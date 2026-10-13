@@ -1,8 +1,135 @@
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
-import { OptimizerInputError, type OptimizeRequest } from "@/lib/optimizer/types";
-import { checkRegressions, regressionCases } from "./checks";
+import { OptimizerInputError, type OptimizeRequest, type OptMeeting } from "@/lib/optimizer/types";
+import { createHash } from "node:crypto";
+import { checkRegressions, regressionCases, smallInstance } from "./checks";
+import { FIRST_HALF, FULL_TERM, SECOND_HALF } from "./generator";
 import { fromPlainRequest, toPlainRequest } from "@/lib/optimizer/worker/protocol";
+import { referenceTopK } from "./reference";
+
+describe("meeting dates and weekend days", () => {
+  const zero = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
+  const none = { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null };
+  const request = (meetings: OptMeeting[][], overrides: Partial<OptimizeRequest> = {}): OptimizeRequest => ({
+    term: FULL_TERM,
+    courses: [
+      {
+        code: "SPAN 2040",
+        credits: 3,
+        sections: meetings.map((m, i) => ({ id: `s${i}`, courseCode: "SPAN 2040", rating: 4, meetings: m })),
+      },
+    ],
+    locks: {},
+    excluded: [],
+    constraints: none,
+    weights: zero,
+    walkingTime: () => ({ seconds: 60, source: "campus-network" }),
+    ...overrides,
+  });
+  const slot = (dates: OptMeeting["dates"]): OptMeeting[] => [{ day: "Tue", start: 930, end: 1100, buildingId: "LANG", dates }];
+
+  test("two sections identical except their dates are not twins, and differ for the diversity rule", () => {
+    for (const walking of [null, { bufferMinutes: 0 }]) {
+      const result = optimize(request([slot(FIRST_HALF), slot(SECOND_HALF)], { constraints: { ...none, walking } }));
+      expect(result.stats.candidates["SPAN 2040"]).toBe(2);
+      expect(result.schedules.map((s) => s.byCourse["SPAN 2040"])).toEqual(["s0", "s1"]);
+    }
+    // Same dates: twins, so only the first is kept.
+    const twins = optimize(request([slot(FIRST_HALF), slot({ ...FIRST_HALF })]));
+    expect(twins.stats.candidates["SPAN 2040"]).toBe(1);
+  });
+
+  test("a Saturday day off rules out Saturday sections and is offered as a relaxation", () => {
+    const result = optimize(request([[{ day: "Sat", start: 540, end: 650, buildingId: null }]], { constraints: { ...none, daysOff: ["Sat"] } }));
+    expect(result.status).toBe("infeasible");
+    if (result.status !== "infeasible") return;
+    expect(result.explanation.suggestions.map((s) => s.label)).toContain("Allow classes on Saturdays");
+  });
+
+  test("dated meetings require an explicit term, including excluded sections", () => {
+    for (const excluded of [[], ["s0"]]) {
+      expect(() => optimize(request([slot(FIRST_HALF)], { term: undefined, excluded })))
+        .toThrow("optimizer: term is required when any meeting has dates");
+    }
+    expect(optimize(request([slot(null)], { term: undefined })).status).toBe("optimal");
+  });
+
+  test("term dates reject malformed, impossible and reversed ranges like meeting dates", () => {
+    for (const term of [
+      { start: "2027-1-11", end: "2027-05-07" },
+      { start: "2027-02-30", end: "2027-05-07" },
+      { start: "2027-05-07", end: "2027-01-11" },
+      null,
+    ]) {
+      expect(() => optimize(request([slot(null)], { term: term as OptimizeRequest["term"] }))).toThrow(OptimizerInputError);
+    }
+  });
+
+  test("a dated meeting outside the term is not clipped, but undated meetings stop at the term", () => {
+    const outside = { start: "2027-05-11", end: "2027-05-11" };
+    const undatedAndOutside = request([[...slot(null), ...slot(outside)]]);
+    expect(optimize(undatedAndOutside).status).toBe("optimal");
+    expect(optimize(request([[...slot(outside), ...slot(outside)]])).status).toBe("infeasible");
+    // Tuesday Jan 12 is outside this Monday-only term, so the undated
+    // Tuesday occurrence cannot create an overlap with the dated one.
+    expect(optimize(request([[...slot(null), ...slot({ start: "2027-01-12", end: "2027-01-12" })]],
+      { term: { start: "2027-01-11", end: "2027-01-11" } })).status).toBe("optimal");
+  });
+
+  test("malformed, impossible or reversed dates throw OptimizerInputError", () => {
+    for (const dates of [
+      { start: "2027-1-11", end: "2027-03-05" },
+      { start: "2027-02-30", end: "2027-03-05" },
+      { start: "2027-01-11", end: "March 5" },
+      { start: "2027-03-05", end: "2027-01-11" },
+      { start: 20270111, end: "2027-03-05" },
+    ]) {
+      expect(() => optimize(request([slot(dates as OptMeeting["dates"])]))).toThrow(OptimizerInputError);
+    }
+    // One-day ranges and null are fine.
+    expect(optimize(request([slot({ start: "2027-01-11", end: "2027-01-11" }), slot(null)])).status).toBe("optimal");
+  });
+
+  const disjoint = () => request(Array.from({ length: 10_000 }, (_, i) => {
+    const date = new Date(Date.UTC(2027, 0, 12 + i * 7)).toISOString().slice(0, 10);
+    return slot({ start: date, end: date });
+  }), { timeBudgetMs: 60_000 });
+
+  test("10,000 disjoint ranges stop at the 33rd distinct activity pattern", () => {
+    expect(() => optimize(disjoint())).toThrow(/33 distinct stretches/);
+  });
+
+  test("10,000 disjoint ranges respect the preparation deadline before rejecting the segment cap", () => {
+    let tick = 0;
+    const result = optimize({ ...disjoint(), timeBudgetMs: 5, now: () => ++tick });
+    expect(result.status).toBe("timeout");
+    expect(result.stats.nodes).toBe(0);
+    expect(tick).toBeLessThan(10);
+  });
+
+  test("dates that need more than 32 week segments throw OptimizerInputError", () => {
+    // 40 disjoint ranges, each containing a Tuesday. The explicit term does
+    // not clip the dated ranges that continue beyond it.
+    const ranges = Array.from({ length: 40 }, (_, i) => {
+      const day = (n: number) => new Date(Date.UTC(2027, 0, 11 + n)).toISOString().slice(0, 10);
+      return { start: day(i * 7), end: day(i * 7 + 2) };
+    });
+    expect(() => optimize(request([...ranges.map(slot), slot(null)]))).toThrow(/at most 32/);
+    expect(optimize(request(ranges.slice(0, 15).map(slot))).status).toBe("optimal");
+  });
+});
+
+describe("calendar review regressions", () => {
+  for (const repro of regressionCases().filter((c) => /bridge|sharing only Sunday/.test(c.name))) {
+    test(repro.name, () => {
+      const result = optimize(repro.request);
+      expect(repro.verify(result)).toBeNull();
+      const reference = referenceTopK(repro.request);
+      expect(reference.schedules.map((s) => [s.byCourse, s.cost, s.breakdown.gapMinutes]))
+        .toEqual(result.schedules.map((s) => [s.byCourse, s.cost, s.breakdown.gapMinutes]));
+    });
+  }
+});
 
 describe("review regressions (PR #32)", () => {
   test("each fixed instance gives its known answer and agrees with the reference", () => {
@@ -157,5 +284,99 @@ describe("worker walking table (PR #32 re-review)", () => {
     const r = request();
     toPlainRequest({ ...r, walkingTime: (a, b) => (asked.push(`${a}${b}`), r.walkingTime(a, b)) });
     expect(asked.some((pair) => pair[0] === pair[1])).toBe(false);
+  });
+});
+
+describe("credits of courses outside the request (Astra blocker 2)", () => {
+  // Six planned 3-credit courses, one of them an online section with no set time, under a 15-credit limit.
+  // The caller leaves the online one out of the search; its credits must still count.
+  const fiveTimed = (fixedCredits: number | undefined, maxCredits: number): OptimizeRequest => ({
+    courses: [0, 1, 2, 3, 4].map((i) => ({
+      code: `C${i}`,
+      credits: 3,
+      sections: [{ id: `c${i}`, courseCode: `C${i}`, rating: null, meetings: [{ day: "Mon", start: 480 + i * 60, end: 530 + i * 60, buildingId: null }] }],
+    })),
+    locks: {},
+    excluded: [],
+    constraints: { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits, walking: null },
+    weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+    walkingTime: () => ({ seconds: null, source: "unknown" }),
+    fixedCredits,
+  });
+
+  test("the limit counts them: 15 + 3 is over 15, and the suggestion raises it to the true total", () => {
+    // Without fixedCredits this was "optimal" with 15 credits while the plan kept 18.
+    expect(optimize(fiveTimed(undefined, 15)).status).toBe("optimal");
+    const over = optimize(fiveTimed(3, 15));
+    expect(over.status).toBe("infeasible");
+    if (over.status !== "infeasible") return;
+    expect(over.explanation.sentence).toContain("your other 3 credits add up to 18 credits, over your 15-credit limit.");
+    expect(over.explanation.suggestions.map((s) => s.relaxation)).toContainEqual({ kind: "maxCredits", to: 18 });
+    expect(referenceTopK(fiveTimed(3, 15)).schedules).toEqual([]);
+  });
+
+  test("the reported credits include them", () => {
+    const fits = optimize(fiveTimed(3, 18));
+    expect(fits.status).toBe("optimal");
+    expect(fits.schedules[0].breakdown.credits).toBe(18);
+    expect(referenceTopK(fiveTimed(3, 18)).schedules[0].breakdown.credits).toBe(18);
+  });
+
+  test("a negative or non-finite fixedCredits is a caller bug", () => {
+    expect(() => optimize(fiveTimed(-1, 15))).toThrow(OptimizerInputError);
+    expect(() => optimize(fiveTimed(Number.NaN, 15))).toThrow(OptimizerInputError);
+  });
+});
+
+describe("explanations name dates when the sessions differ", () => {
+  const TERM = { start: "2027-01-11", end: "2027-05-07" };
+  const overlap = (a: OptMeeting["dates"], b: OptMeeting["dates"]) => {
+    const course = (code: string, dates: OptMeeting["dates"]) => ({
+      code,
+      credits: 3,
+      sections: [{ id: code, courseCode: code, rating: null, meetings: (["Tue", "Thu"] as const).map((day) => ({ day, start: 930, end: 1100, buildingId: null, dates })) }],
+    });
+    const result = optimize({
+      courses: [course("SPAN 2040", a), course("SPAN 2050", b)],
+      term: TERM,
+      locks: {},
+      excluded: [],
+      constraints: { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null },
+      weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+      walkingTime: () => ({ seconds: null, source: "unknown" }),
+    });
+    if (result.status !== "infeasible") throw new Error(`expected infeasible, got ${result.status}`);
+    return result.explanation.sentence;
+  };
+
+  test("both full term: no dates", () => {
+    expect(overlap(null, TERM)).toBe("SPAN 2040 and SPAN 2050 overlap (TTh 3:30 PM and TTh 3:30 PM).");
+  });
+
+  test("one partial: its range and full term", () => {
+    expect(overlap({ start: "2027-01-11", end: "2027-03-05" }, null)).toBe(
+      "SPAN 2040 and SPAN 2050 overlap: TTh 3:30 PM (Jan 11–Mar 5) and TTh 3:30 PM (full term).",
+    );
+  });
+
+  test("both partial with different ranges: each range", () => {
+    expect(overlap({ start: "2027-01-11", end: "2027-03-05" }, { start: "2027-02-01", end: "2027-04-30" })).toBe(
+      "SPAN 2040 and SPAN 2050 overlap: TTh 3:30 PM (Jan 11–Mar 5) and TTh 3:30 PM (Feb 1–Apr 30).",
+    );
+  });
+
+  test("a single-day session: one date", () => {
+    expect(overlap({ start: "2027-01-12", end: "2027-01-12" }, TERM)).toBe(
+      "SPAN 2040 and SPAN 2050 overlap: TTh 3:30 PM (Jan 12) and TTh 3:30 PM (full term).",
+    );
+  });
+
+  test("the 400 undated seeds' explanations are unchanged", () => {
+    const sentences = Array.from({ length: 400 }, (_, i) => i + 1).map((seed) => {
+      const result = optimize(smallInstance(seed));
+      return result.status === "infeasible" ? result.explanation.sentence : "";
+    });
+    // Recorded from the engine before explanations named dates (4691089).
+    expect(createHash("sha256").update(JSON.stringify(sentences)).digest("hex")).toBe("9f704e6ae9b4da83fa60c644c7969f645ca70b4ced25f3ab4299dc1cb66af533");
   });
 });

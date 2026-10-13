@@ -1,13 +1,12 @@
-import { getBuildingById } from "@/lib/planner";
-import { sections } from "@/lib/seed-data";
-import { weekDays, type CourseSection, type WeekDay } from "@/lib/types";
+import { backToBackPairs, isTimed, meetTogether, optionsConflict, rangeLabel } from "@/lib/planner-sections";
+import { isShuttleLeg } from "@/lib/planner-walking";
+import type { Section } from "@/lib/sections";
+import type { DateRange } from "@/lib/sections/model";
+import { classDays, weekDays, type ClassDay } from "@/lib/types";
 import type { CSSProperties } from "react";
 
-const sectionById = new Map(sections.map((section) => [section.id, section] as const));
-
-export function findSection(id: string | undefined): CourseSection | undefined {
-  return id ? sectionById.get(id) : undefined;
-}
+/** The loaded option a course's id names, if any. */
+export type FindOption = (courseCode: string, optionId: string) => Section | undefined;
 
 export function toMinutes(value: string): number {
   return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
@@ -19,33 +18,110 @@ export function clock(minutes: number, withSuffix = false): string {
   const m = minutes % 60;
   const hour = h % 12 === 0 ? 12 : h % 12;
   const text = `${hour}:${String(m).padStart(2, "0")}`;
-  return withSuffix ? `${text} ${h >= 12 ? "PM" : "AM"}` : text;
+  return withSuffix ? `${text} ${h >= 12 && h < 24 ? "PM" : "AM"}` : text;
 }
 
 export type WeekEvent = {
   courseCode: string;
   sectionId: string;
-  day: WeekDay;
+  day: ClassDay;
   start: number;
   end: number;
-  building: string;
+  room: string;
+  /** Catalogue building, or null for an unmapped room. */
+  buildingId: string | null;
   professor: string;
+  dates: DateRange;
 };
 
-export function eventsFor(byCourse: Record<string, string>): WeekEvent[] {
+export function eventsFor(byCourse: Record<string, string>, find: FindOption): WeekEvent[] {
   return Object.entries(byCourse).flatMap(([courseCode, sectionId]) => {
-    const section = findSection(sectionId);
+    const section = find(courseCode, sectionId);
     if (!section) return [];
-    return section.meetings.map((meeting) => ({
+    return section.meetings.filter(isTimed).map((meeting) => ({
       courseCode,
       sectionId,
       day: meeting.day,
-      start: toMinutes(meeting.start),
-      end: toMinutes(meeting.end),
-      building: getBuildingById(meeting.buildingId)?.shortName ?? meeting.location,
-      professor: section.professor,
+      start: meeting.startMinutes,
+      end: meeting.endMinutes,
+      room: meeting.room,
+      buildingId: meeting.buildingId,
+      professor: meeting.instructor.display ?? section.instructor.display ?? "Instructor not listed",
+      dates: meeting.dates,
     }));
   });
+}
+
+/** The first two courses whose options overlap in `byCourse`, or null when none do. */
+export function firstClash(byCourse: Record<string, string>, find: FindOption): [string, string] | null {
+  const sections = Object.entries(byCourse).flatMap(([code, id]) => {
+    const section = find(code, id);
+    return section ? [section] : [];
+  });
+  for (let i = 0; i < sections.length; i += 1) {
+    for (let j = i + 1; j < sections.length; j += 1) {
+      if (optionsConflict(sections[i], sections[j])) return [sections[i].courseCode, sections[j].courseCode];
+    }
+  }
+  return null;
+}
+
+/** Back-to-back trips between main campus and Discovery Park (shuttle rides), counting only classes that meet in the same weeks. */
+export function shuttleTrips(events: readonly WeekEvent[]): number {
+  return backToBackPairs(events).filter(([from, to]) => isShuttleLeg(from.buildingId, to.buildingId)).length;
+}
+
+/** Mon-Fri, plus a weekend day only when some class meets on it. */
+export function daysShown(events: readonly WeekEvent[]): ClassDay[] {
+  return classDays.filter((day) => (weekDays as readonly ClassDay[]).includes(day) || events.some((event) => event.day === day));
+}
+
+/** Two events at overlapping times that never meet in the same week (first and second eight-week sessions). */
+function sideBySide(a: WeekEvent, b: WeekEvent): boolean {
+  return a.day === b.day && a.start < b.end && b.start < a.end && !meetTogether(a.day, a.dates, b.dates);
+}
+
+/**
+ * Columns within a day for classes that share a time slot in different weeks,
+ * so both stay readable. Classes that overlap in the same weeks are a real
+ * conflict and keep drawing on top of each other, flagged.
+ */
+export function laneLayout(events: readonly WeekEvent[]): Map<WeekEvent, { lane: number; lanes: number }> {
+  const lanes = new Map<WeekEvent, number>();
+  const ordered = [...events].sort((a, b) => a.start - b.start || a.end - b.end);
+  for (const event of ordered) {
+    let lane = 0;
+    while ([...lanes].some(([other, otherLane]) => otherLane === lane && sideBySide(event, other))) lane += 1;
+    lanes.set(event, lane);
+  }
+  // Every event in a chain of side-by-side events shares one column count, so no two overlap.
+  const layout = new Map<WeekEvent, { lane: number; lanes: number }>();
+  for (const event of ordered) {
+    if (layout.has(event)) continue;
+    const group = [event];
+    for (let i = 0; i < group.length; i += 1) {
+      for (const other of ordered) if (!group.includes(other) && sideBySide(group[i], other)) group.push(other);
+    }
+    const count = Math.max(...group.map((member) => lanes.get(member)!)) + 1;
+    for (const member of group) layout.set(member, { lane: lanes.get(member)!, lanes: count });
+  }
+  return layout;
+}
+
+/**
+ * The date range more of the week's classes share than any other (the
+ * regular session). Events that run on other dates show theirs, so an
+ * eight-week class reads as one; with no single most common range, every
+ * event shows its dates.
+ */
+export function usualRange(events: readonly WeekEvent[]): string | null {
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    const label = rangeLabel(event.dates);
+    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const [first, second] = [...counts].sort((a, b) => b[1] - a[1]);
+  return first && (!second || first[1] > second[1]) ? first[0] : null;
 }
 
 /** Hour range shown: one hour around the classes, never narrower than 8–5. */
@@ -56,7 +132,7 @@ export function hourRange(events: WeekEvent[]): { first: number; last: number } 
     first = Math.min(first, Math.floor(event.start / 60) - (event.start % 60 === 0 ? 1 : 0));
     last = Math.max(last, Math.ceil(event.end / 60));
   }
-  return { first: Math.max(6, first), last: Math.min(23, last) };
+  return { first: Math.max(6, first), last: Math.min(24, last) };
 }
 
 const COURSE_COLORS: Array<[string, string]> = [
@@ -78,22 +154,26 @@ export function courseColor(courseCodes: readonly string[], courseCode: string):
   } as CSSProperties;
 }
 
-export function dayLetter(day: WeekDay): string {
-  return { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F" }[day];
+export function dayLetter(day: ClassDay): string {
+  return { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F", Sat: "Sa", Sun: "Su" }[day];
 }
 
-/** "MWF 9:00" for a section's pattern. */
-export function patternOf(section: CourseSection): string {
-  const byStart = new Map<string, WeekDay[]>();
-  section.meetings.forEach((m) => byStart.set(m.start, [...(byStart.get(m.start) ?? []), m.day]));
+/** "MWF 9:00 AM" for an option's timed meetings; "No set time" when it has none. */
+export function patternOf(section: Section): string {
+  const byStart = new Map<number, ClassDay[]>();
+  section.meetings.filter(isTimed).forEach((m) => byStart.set(m.startMinutes, [...(byStart.get(m.startMinutes) ?? []), m.day]));
+  if (byStart.size === 0) return "No set time";
   return [...byStart.entries()]
-    .map(([start, days]) => `${weekDays.filter((d) => days.includes(d)).map(dayLetter).join("")} ${clock(toMinutes(start), true)}`)
+    .map(([start, days]) => `${classDays.filter((d) => days.includes(d)).map(dayLetter).join("")} ${clock(start, true)}`)
     .join(", ");
 }
 
 /** Courses whose meeting times differ between two schedules. */
-export function movedCourses(from: Record<string, string>, to: Record<string, string>): string[] {
-  const times = (id: string | undefined) =>
-    (findSection(id)?.meetings ?? []).map((m) => `${m.day}${m.start}${m.end}`).sort().join();
-  return Object.keys(to).filter((code) => from[code] !== to[code] && times(from[code]) !== times(to[code]));
+export function movedCourses(from: Record<string, string>, to: Record<string, string>, find: FindOption): string[] {
+  const times = (code: string, id: string | undefined) =>
+    ((id && find(code, id)?.meetings.filter(isTimed)) || [])
+      .map((m) => `${m.day}${m.startMinutes}${m.endMinutes}${m.dates.start}${m.dates.end}`)
+      .sort()
+      .join();
+  return Object.keys(to).filter((code) => from[code] !== to[code] && times(code, from[code]) !== times(code, to[code]));
 }

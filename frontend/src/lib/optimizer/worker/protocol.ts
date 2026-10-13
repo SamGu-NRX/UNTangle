@@ -28,7 +28,7 @@ export const FINAL_BUDGET_MS = 3000;
 /** Walking times between `ids`, row-major: legs[i * ids.length + j] is ids[i] -> ids[j]. */
 export type WalkingTable = { ids: string[]; legs: OptWalkingTime[] };
 
-/** An OptimizeRequest that survives structured cloning. Budgets are set by the worker. */
+/** An OptimizeRequest, including its term, that survives structured cloning. Budgets are set by the worker. */
 export type PlainRequest = Omit<OptimizeRequest, "walkingTime" | "now" | "timeBudgetMs" | "maxNodes"> & {
   walking: WalkingTable;
 };

@@ -16,8 +16,14 @@
  * mutated by the mutation tests (tests/optimizer/mutation.test.ts).
  */
 
-export const OPT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
+export const OPT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export type OptDay = (typeof OPT_DAYS)[number];
+
+/**
+ * Inclusive calendar dates, ISO `YYYY-MM-DD`, such as an eight-week session
+ * (2027-01-11 to 2027-03-05).
+ */
+export type OptDateRange = { start: string; end: string };
 
 /**
  * Walking time between two buildings. Structurally the same as
@@ -36,6 +42,13 @@ export type OptMeeting = {
   end: number;
   /** null when the catalog has no building: every walk to or from it is unknown. */
   buildingId: string | null;
+  /**
+   * Inclusive activity range; absent or null uses the request's term.
+   * Meetings share activity only on actual occurrences of their weekday
+   * inside both ranges. Dated ranges are not clipped to the term (see weeks.ts).
+   * Time-of-day limits, days off and blocked times apply whatever the dates.
+   */
+  dates?: OptDateRange | null;
 };
 
 export type OptSection = {
@@ -110,6 +123,15 @@ export const MAX_WEIGHT = 4;
 export type OptimizeRequest = {
   /** The courses to schedule: exactly one section of each is chosen. */
   courses: OptCourse[];
+  /** Inclusive first/last day for undated meetings. Required if any meeting has dates. */
+  term?: OptDateRange;
+  /**
+   * Credits of courses the student takes that are not in `courses` (the
+   * caller decided their sections already, such as an online section with
+   * no set time). They count toward `maxCredits` and the reported credits.
+   * Default 0.
+   */
+  fixedCredits?: number;
   /** Course code -> section id that must be chosen. */
   locks: Record<string, string>;
   /** Section ids that must not be chosen. */
@@ -135,12 +157,13 @@ export type OptimizeRequest = {
 
 /** Per-schedule numbers a student can read. */
 export type ScheduleBreakdown = {
+  /** Distinct days with a class, weekends included, whatever the class's dates. */
   daysOnCampus: number;
-  /** Idle minutes between consecutive classes, summed over every day. */
+  /** Idle minutes between back-to-back classes, each pair counted once, summed over every day. */
   gapMinutes: number;
-  /** Known walking between consecutive classes, summed over the week. */
+  /** Known walking between back-to-back classes, each pair counted once, summed over the week. */
   walkSeconds: number;
-  /** Consecutive classes in different buildings with no walking estimate. */
+  /** Back-to-back classes in different buildings with no walking estimate. */
   unknownWalks: number;
   /** Earliest class start of the week (minutes), null for an empty schedule. */
   earliestStart: number | null;

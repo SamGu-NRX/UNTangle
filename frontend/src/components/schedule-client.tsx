@@ -8,50 +8,67 @@ import { ScheduleSectionLocks } from "@/components/schedule-section-locks";
 import { AlternativesCompare } from "@/components/schedule/AlternativesCompare";
 import { ConstraintRail } from "@/components/schedule/ConstraintRail";
 import { SampleNote } from "@/components/schedule/SampleNote";
+import { SectionsTag, summarizeProvenance } from "@/components/sections-provenance";
 import { WeekGrid } from "@/components/schedule/WeekGrid";
 import {
   canApply,
   isStale,
   locksKey,
-  optimizerInputKey,
+  requestKey,
   undoAvailable,
   type UndoSnapshot,
 } from "@/components/schedule/run-state";
 import styles from "@/components/schedule/schedule.module.css";
 import { useMediaQuery, useOptimizerRuns } from "@/components/schedule/use-optimizer";
-import { clock, eventsFor, findSection, movedCourses, patternOf } from "@/components/schedule/week-model";
+import {
+  clock,
+  eventsFor,
+  firstClash,
+  movedCourses,
+  patternOf,
+  type FindOption,
+} from "@/components/schedule/week-model";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Dialog } from "@/components/ui/Dialog";
-import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { toast } from "@/components/ui/Toast";
-import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { goalForWeights } from "@/lib/optimizer/presets";
 import type { OptimizeResult, RankedSchedule, RelaxSuggestion } from "@/lib/optimizer/types";
 import { toPlainRequest } from "@/lib/optimizer/worker/protocol";
-import { summarizeWeeklyWalking } from "@/lib/planner-walking";
+import { plannerTravelTime, SHUTTLE_SECONDS, summarizeWeeklyWalking } from "@/lib/planner-walking";
 import {
   buildOptimizeRequest,
   getPlanningTermCourseCodes,
+  heldOutCourses,
   getCourseByCode,
-  getSectionsForCourse,
-  getUnscheduledActiveCourses,
-  sectionConflicts,
-  sectionNumber,
+  hiddenOptions,
   summarizeCredits,
+  type PlannedCourse,
 } from "@/lib/planner";
-import { weekDays, type CourseSection } from "@/lib/types";
+import {
+  findOption,
+  isCandidate,
+  isTimed,
+  optionIdLabel,
+  optionLabel,
+  optionsConflict,
+  planningTerm,
+  rangeLabel,
+  sectionRef,
+  untimedMeetings,
+} from "@/lib/planner-sections";
+import type { Section } from "@/lib/sections";
+import { classDays } from "@/lib/types";
 
 /** The shell's phone breakpoint (shell.css). */
 const PHONE = "(max-width: 719px)";
-const SAMPLE_SOURCE = "Sections, times, rooms and instructors are synthetic samples, not UNT's class schedule.";
 
-function overlapping(selected: CourseSection[]): Set<string> {
+function overlapping(selected: Section[]): Set<string> {
   const ids = new Set<string>();
   for (let i = 0; i < selected.length; i += 1) {
     for (let j = i + 1; j < selected.length; j += 1) {
-      if (sectionConflicts(selected[i], [selected[j]])) {
+      if (optionsConflict(selected[i], selected[j])) {
         ids.add(selected[i].id);
         ids.add(selected[j].id);
       }
@@ -60,9 +77,38 @@ function overlapping(selected: CourseSection[]): Set<string> {
   return ids;
 }
 
+/** Why a saved pick is flagged, in one sentence; null when it is not. */
+function reviewNote(course: PlannedCourse): string | null {
+  if (course.state === "sample-pick") {
+    return `${course.code} §${optionIdLabel(course.savedId!)} is a sample section, not a real ${planningTerm.label} class.`;
+  }
+  if (course.state !== "needs-review") return null;
+  const saved = optionIdLabel(course.savedId!);
+  const ref = sectionRef(course.savedId!);
+  if (ref.provenance === "real" && course.result?.provenance.kind === "sample") {
+    return `${course.code} ${saved} can't be checked: ${planningTerm.label} sections didn't load.`;
+  }
+  if (ref.provenance === "real" && ref.term !== planningTerm.id) return `${course.code} ${saved} is from another term.`;
+  return `${course.code} ${saved} is no longer offered in ${planningTerm.label}.`;
+}
+
+/** "12 of 28 open", "Closed", "Wait list" for a real option; nothing for a sample, which has no seats. */
+function seatsNote(section: Section): string | null {
+  if (section.term === null) return null;
+  if (section.status === "closed") return "Closed";
+  if (section.status === "waitlist") return "Wait list";
+  if (section.status === "cancelled") return "Cancelled";
+  const { open, total } = section.seats;
+  return open !== null && total !== null ? `${open} of ${total} open` : null;
+}
+
 export function ScheduleClient() {
   const {
     plannerState,
+    sectionPlan,
+    sectionCatalog,
+    catalogVersion,
+    loadSections,
     scheduleEvents,
     setSection,
     setSectionLock,
@@ -94,17 +140,49 @@ export function ScheduleClient() {
 
   const activeCourseCodes = useMemo(() => getPlanningTermCourseCodes(plannerState), [plannerState]);
   const selected = plannerState.selectedSections;
-  const selectedSections = useMemo(
-    () => Object.values(selected).map((id) => findSection(id)).filter((s): s is CourseSection => Boolean(s)),
-    [selected],
+  const find = useMemo<FindOption>(
+    () => (courseCode, optionId) => findOption(sectionCatalog, courseCode, optionId) ?? undefined,
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sectionCatalog, catalogVersion],
   );
-  const events = useMemo(() => eventsFor(selected), [selected]);
+  const selectedSections = useMemo(
+    () => sectionPlan.courses.flatMap((course) => (course.section ? [course.section] : [])),
+    [sectionPlan],
+  );
+  const events = useMemo(() => eventsFor(selected, find), [selected, find]);
   const conflicts = useMemo(() => overlapping(selectedSections), [selectedSections]);
-  const unscheduled = useMemo(() => getUnscheduledActiveCourses(plannerState), [plannerState]);
   const locks = useMemo(() => plannerState.lockedSections ?? {}, [plannerState.lockedSections]);
-
-  // What a run depends on. A shown result computed from other inputs is stale.
-  const inputKey = optimizerInputKey(schedulePreferences, locks, activeCourseCodes);
+  const loadingCourses = sectionPlan.courses.filter((course) => course.state === "loading");
+  const review = sectionPlan.courses.filter((course) => course.state === "sample-pick" || course.state === "needs-review");
+  const unplaceable = sectionPlan.courses.filter((course) => ["choose", "not-offered", "no-data"].includes(course.state));
+  const untimed = sectionPlan.courses.flatMap((course) =>
+    course.section ? untimedMeetings(course.section).map((meeting) => ({ course: course.code, section: course.section!, meeting })) : [],
+  );
+  const showsSample = selectedSections.some((section) => section.term === null);
+  const lockUnavailable = new Set(
+    heldOutCourses(plannerState, sectionCatalog, schedulePreferences.constraints)
+      .filter((course) => course.reason === "lock-unavailable")
+      .map((course) => course.code),
+  );
+  const filter = schedulePreferences.constraints;
+  const hidden = hiddenOptions(sectionPlan, filter);
+  const hiddenNote = [
+    ...[...hidden.sites].map(([site, count]) => `${count} ${site} section${count === 1 ? "" : "s"}`),
+    hidden.full > 0 ? `${hidden.full} full section${hidden.full === 1 ? "" : "s"}` : null,
+  ].filter(Boolean);
+  const provenance = summarizeProvenance(
+    sectionPlan.courses.flatMap((course) => (course.result ? [course.result] : [])),
+    showsSample,
+  );
+  // The request Optimize would send now; a shown result computed from another request is stale.
+  const request = useMemo(
+    () => buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog }),
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plannerState, schedulePreferences, sectionCatalog, catalogVersion],
+  );
+  const inputKey = requestKey(request);
   const currentLocks = locksKey(locks);
   const stale = isStale(run, inputKey);
   const dirty = run.result === null || run.resultKey !== inputKey;
@@ -119,9 +197,9 @@ export function ScheduleClient() {
       setPickProblem(null);
       setInstantResult(fromKeyboard);
       // The worker gets plain data: the request with its walking provider turned into a table.
-      startRun(toPlainRequest(buildOptimizeRequest(plannerState, schedulePreferences)), inputKey);
+      startRun(toPlainRequest(request), inputKey);
     },
-    [inputKey, plannerState, schedulePreferences, startRun],
+    [inputKey, request, startRun],
   );
 
   // Bring the first answer of each run into view; on a phone it renders below the header.
@@ -150,17 +228,17 @@ export function ScheduleClient() {
 
   const pickSchedule = (schedule: RankedSchedule, letter: string) => {
     // Checked again here: the button may have drawn before the settings changed.
-    const check = canApply(run, inputKey, schedule, locks);
+    const check = canApply(run, inputKey, schedule, locks, (merged) => firstClash(merged, find), selected);
     if (!check.ok) {
       setPickProblem(check.reason);
       return;
     }
-    const moved = movedCourses(selected, schedule.byCourse);
+    const moved = movedCourses(selected, schedule.byCourse, find);
     setUndo({ sections: { ...selected }, goal: plannerState.optimization, letter, epoch: planEpoch, locks: currentLocks });
     applySchedule(schedule.byCourse, goalForWeights(schedulePreferences.weights));
     setPreview(null);
     setPickProblem(null);
-    toast(moved.length === 0 ? `Using option ${letter}` : `Using option ${letter} · ${moved.length} course${moved.length === 1 ? "" : "s"} moved`);
+    toast(moved.length === 0 ? `Using option ${letter}` : `Using option ${letter}, ${moved.length} course${moved.length === 1 ? "" : "s"} moved`);
   };
 
   const undoPick = () => {
@@ -207,11 +285,11 @@ export function ScheduleClient() {
   };
 
   const credits = summarizeCredits(plannerState);
-  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents, getWalkingSeconds), [scheduleEvents]);
+  const walking = useMemo(() => summarizeWeeklyWalking(scheduleEvents, plannerTravelTime), [scheduleEvents]);
   const walkMinutes = Math.round(walking.knownSeconds / 60);
   const earliest = events.length ? Math.min(...events.map((e) => e.start)) : null;
   const latest = events.length ? Math.max(...events.map((e) => e.end)) : null;
-  const longest = weekDays
+  const longest = classDays
     .map((day) => {
       const list = events.filter((e) => e.day === day);
       return { day, span: list.length ? Math.max(...list.map((e) => e.end)) - Math.min(...list.map((e) => e.start)) : 0 };
@@ -220,16 +298,22 @@ export function ScheduleClient() {
   const daysOnCampus = new Set(events.map((e) => e.day)).size;
 
   const shownPreview = preview && preview.result === run.result && !stale ? preview.schedule : null;
-  const movedInPreview = shownPreview ? movedCourses(selected, shownPreview.byCourse) : [];
-  const ghosts = shownPreview ? eventsFor(Object.fromEntries(movedInPreview.map((code) => [code, shownPreview.byCourse[code]]))) : [];
+  const movedInPreview = shownPreview ? movedCourses(selected, shownPreview.byCourse, find) : [];
+  const ghosts = shownPreview
+    ? eventsFor(Object.fromEntries(movedInPreview.map((code) => [code, shownPreview.byCourse[code]])), find)
+    : [];
   // The grid's hours cover the plan and every shown option, so previewing one never moves the others.
   const rangeEvents = useMemo(
-    () => (run.result && !stale ? [...events, ...run.result.schedules.flatMap((schedule) => eventsFor(schedule.byCourse))] : events),
-    [events, run.result, stale],
+    () => (run.result && !stale ? [...events, ...run.result.schedules.flatMap((schedule) => eventsFor(schedule.byCourse, find))] : events),
+    [events, find, run.result, stale],
   );
 
   const pickerCourseInfo = pickerCourse ? getCourseByCode(pickerCourse) : undefined;
-  const pickerSections = pickerCourse ? getSectionsForCourse(pickerCourse) : [];
+  const pickerOptions = pickerCourse ? sectionCatalog(pickerCourse) : null;
+  const pickerSections = pickerOptions?.status === "ready" ? pickerOptions.result.sections : [];
+  useEffect(() => {
+    if (pickerCourse) loadSections([pickerCourse]);
+  }, [loadSections, pickerCourse]);
   const excluded = new Set(schedulePreferences.constraints.excludedSections);
 
   const rail = (
@@ -270,6 +354,9 @@ export function ScheduleClient() {
       Walking follows campus walkways{walking.estimated ? "; some walks are straight-line estimates" : ""}.
       {walking.unknownLegs > 0
         ? ` ${walking.unknownLegs} walk${walking.unknownLegs === 1 ? " has" : "s have"} no known time and ${walking.unknownLegs === 1 ? "is" : "are"} not counted.`
+        : ""}
+      {walking.shuttleLegs > 0
+        ? ` ${walking.shuttleLegs} trip${walking.shuttleLegs === 1 ? "" : "s"} between main campus and Discovery Park ${walking.shuttleLegs === 1 ? "is a" : "are each a"} ${SHUTTLE_SECONDS / 60} min shuttle (an estimate), not counted as walking.`
         : ""}
     </p>
   );
@@ -314,9 +401,22 @@ export function ScheduleClient() {
 
   const sectionList = (
     <div className={styles.sectionList}>
+      {pickerOptions?.status === "loading" ? (
+        <p className={styles.meta} role="status">
+          Loading {planningTerm.label} sections…
+        </p>
+      ) : pickerSections.length === 0 ? (
+        <p className={styles.meta}>
+          {pickerOptions?.status === "ready" && pickerOptions.result.availability === "no_classes"
+            ? `Not offered in ${planningTerm.label}.`
+            : "No sections for this course."}
+        </p>
+      ) : null}
       {pickerSections.map((section) => {
         const others = selectedSections.filter((s) => s.courseCode !== section.courseCode);
-        const clash = sectionConflicts(section, others);
+        const clash = others.some((other) => optionsConflict(section, other));
+        const seats = seatsNote(section);
+        const dates = rangeLabel(section.session.dates);
         const current = selected[section.courseCode] === section.id;
         const skipped = excluded.has(section.id);
         return (
@@ -328,15 +428,28 @@ export function ScheduleClient() {
               onClick={() => {
                 setSection(section.courseCode, section.id);
                 setPickerCourse(null);
-                toast(`Section updated · ${section.courseCode}`);
+                // The button that opened the picker may be gone (a Needs review entry): land on the view's heading.
+                requestAnimationFrame(() =>
+                  requestAnimationFrame(() => {
+                    if (document.activeElement === document.body) document.getElementById("week-title")?.focus();
+                  }),
+                );
+                toast(`${section.courseCode} section updated`);
               }}
             >
               <span className={styles.sectionPickLine}>
-                §{sectionNumber(section.id)} · {patternOf(section)}
+                §{optionLabel(section)}, {patternOf(section)}
               </span>
               <span className={styles.meta} data-clash={clash ? "true" : "false"}>
-                {section.professor} · ★ {section.rating.toFixed(1)}
-                {current ? " · current section" : clash ? " · overlaps another class" : ""}
+                {[
+                  section.instructor.display ?? "Instructor not listed",
+                  [...new Set(section.meetings.map((meeting) => meeting.room))].join(", "),
+                  section.term !== null && section.session.label !== "Regular Academic Session" ? dates : null,
+                  seats,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+                {current ? ", current section" : clash ? ", overlaps another class" : ""}
               </span>
             </button>
             <Chip
@@ -354,7 +467,7 @@ export function ScheduleClient() {
                 }))
               }
             >
-              Skip<span className={styles.srOnly}> section {sectionNumber(section.id)} when optimizing</span>
+              Skip<span className={styles.srOnly}> section {optionLabel(section)} when optimizing</span>
             </Chip>
           </div>
         );
@@ -362,16 +475,18 @@ export function ScheduleClient() {
     </div>
   );
 
-  const pickerTitle = pickerCourseInfo ? `Swap section · ${pickerCourseInfo.code}` : "Swap section";
+  const pickerTitle = pickerCourseInfo ? `Swap ${pickerCourseInfo.code} section` : "Swap section";
 
   return (
     <div className={`shell-content ${styles.page}`}>
       <header className={styles.viewhead}>
-        <h1 className={styles.viewheadTitle}>Week</h1>
+        <h1 className={styles.viewheadTitle} id="week-title" tabIndex={-1}>
+          Week
+        </h1>
         <span className={styles.meta}>
-          {phone ? `${credits} cr` : `${credits} credits · ${activeCourseCodes.length} course${activeCourseCodes.length === 1 ? "" : "s"}`}
+          {phone ? `${credits} cr` : `${credits} credits in ${activeCourseCodes.length} course${activeCourseCodes.length === 1 ? "" : "s"}`}
         </span>
-        <ProvenanceTag source={SAMPLE_SOURCE}>{phone ? "Sample" : "Sample sections"}</ProvenanceTag>
+        <SectionsTag provenance={provenance} compact={phone} />
         <span className={styles.spacer} />
         {phone ? (
           <Button size="sm" onClick={() => setSheetOpen(true)} loading={running} loadingLabel="Optimizing…" aria-haspopup="dialog">
@@ -380,7 +495,7 @@ export function ScheduleClient() {
         ) : null}
       </header>
 
-      <SampleNote />
+      {showsSample ? <SampleNote /> : null}
       {/* The PlanChip shows a calm save state; the panel's own bar appears only when something needs attention.
           It stays mounted for its status region and the conflict dialog (which renders in a portal). */}
       <div className={saveCalm ? styles.srOnly : undefined}>
@@ -411,9 +526,77 @@ export function ScheduleClient() {
               Two of your sections overlap. Optimize week, or select a red class to swap its section.
             </p>
           ) : null}
-          {unscheduled.length > 0 ? (
-            <p className={`${styles.notice} ${styles.noticeQuiet}`} role="status">
-              No section data yet for {unscheduled.map((course) => course.code).join(", ")}. It is left out of the week and the optimizer.
+          {/* One live region, mounted from the start, so loading and its outcome are announced. */}
+          <p className={styles.srOnly} role="status">
+            {loadingCourses.length > 0
+              ? `Loading ${planningTerm.label} sections.`
+              : review.length > 0
+                ? `${review.length} course${review.length === 1 ? " needs" : "s need"} review.`
+                : ""}
+          </p>
+          {loadingCourses.length > 0 ? (
+            <p className={`${styles.notice} ${styles.noticeQuiet}`}>
+              Loading {planningTerm.label} sections for {loadingCourses.map((course) => course.code).join(", ")}…
+            </p>
+          ) : null}
+          {review.length > 0 ? (
+            <div className={`${styles.notice} ${styles.noticeQuiet}`} aria-labelledby="review-title">
+              <p id="review-title">
+                <strong>Needs review.</strong>{" "}
+                {review.some((course) => course.state === "sample-pick") ? "Pick real sections for these courses." : "Pick a current section."}
+              </p>
+              <ul className={styles.statusList}>
+                {review.map((course) => (
+                  <li key={course.code}>
+                    {reviewNote(course)}
+                    {lockUnavailable.has(course.code) ? " It is locked, so Optimize leaves the course as it is." : ""}{" "}
+                    <Button variant="link" size="sm" onClick={() => setPickerCourse(course.code)}>
+                      {course.state === "sample-pick" ? "Pick real section" : "Pick a section"}
+                      <span className={styles.srOnly}> for {course.code}</span>
+                    </Button>
+                    {lockUnavailable.has(course.code) ? (
+                      <Button variant="link" size="sm" onClick={() => setSectionLock(course.code, false)}>
+                        Unlock<span className={styles.srOnly}> {course.code}</span>
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {unplaceable.length > 0 ? (
+            <ul className={`${styles.notice} ${styles.noticeQuiet} ${styles.statusList}`} aria-label="Courses not on the week">
+              {unplaceable.map((course) => (
+                <li key={course.code}>
+                  {course.state === "not-offered"
+                    ? `${course.code} isn't offered in ${planningTerm.label}.`
+                    : course.state === "no-data"
+                      ? `No sections for ${course.code}.`
+                      : !course.result?.sections.some((section) => section.meetings.some(isTimed))
+                        ? `${course.code} has no section with a set time.`
+                        : course.result.sections.some((section) => section.meetings.some(isTimed) && isCandidate(section, filter))
+                          ? `No section of ${course.code} fits around your other classes.`
+                          : `Every section of ${course.code} with a set time is hidden from suggestions.`}
+                  {course.state === "choose" ? (
+                    <>
+                      {" "}
+                      <Button variant="link" size="sm" onClick={() => setPickerCourse(course.code)}>
+                        Pick a section<span className={styles.srOnly}> for {course.code}</span>
+                      </Button>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {hiddenNote.length > 0 ? (
+            <p className={styles.meta}>
+              Hidden from suggestions: {hiddenNote.join(", ")}. You can still pick them.{" "}
+              {hidden.sites.size > 0 ? (
+                <Button variant="link" size="sm" onClick={() => setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, otherSites: true } }))}>
+                  Include other UNT sites
+                </Button>
+              ) : null}
             </p>
           ) : null}
           {pickProblem ? (
@@ -434,6 +617,8 @@ export function ScheduleClient() {
             state={run}
             stale={stale}
             current={selected}
+            find={find}
+            tag={<SectionsTag provenance={provenance} compact />}
             courseOrder={activeCourseCodes}
             onUse={pickSchedule}
             instant={instantResult}
@@ -458,7 +643,28 @@ export function ScheduleClient() {
             ghostsInstant={Boolean(preview?.instant)}
             dimmedCourses={movedInPreview}
             onSelect={setPickerCourse}
+            label={`Week calendar${provenance?.kind === "sample" ? " (sample sections)" : ""}`}
           />
+
+          {untimed.length > 0 ? (
+            <section className={styles.noSetTime} aria-labelledby="no-set-time-title">
+              <h2 className={styles.railHeading} id="no-set-time-title">
+                No set time
+              </h2>
+              <ul className={styles.statusList}>
+                {untimed.map(({ course, section, meeting }, index) => (
+                  <li key={`${course}-${index}`}>
+                    <Button variant="link" size="sm" onClick={() => setPickerCourse(course)}>
+                      {course} §{optionLabel(section)}
+                    </Button>{" "}
+                    {meeting.async ? "is online with no set time" : `meets ${meeting.day ? `on ${meeting.day}` : "on a day"} at a time to be announced`}
+                    {meeting.kind === "building" || meeting.kind === "unknown" ? ` in ${meeting.room}` : ""}
+                  </li>
+                ))}
+              </ul>
+              <p className={styles.meta}>These aren&rsquo;t on the week, so they aren&rsquo;t checked for conflicts.</p>
+            </section>
+          ) : null}
         </div>
 
         {phone ? (

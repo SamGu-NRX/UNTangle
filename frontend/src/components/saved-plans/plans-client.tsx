@@ -211,14 +211,20 @@ export function PlansClient() {
   };
 
   const restorePlan = plans.find((plan) => plan.planId === restorePlanId) ?? null;
+  // Saved section ids are checked against the options loaded now, so load the plan's courses.
+  const { loadSections, sectionCatalog } = planner;
+  const checkedPlan = restorePlan ?? plans.find((plan) => plan.planId === openCompareId) ?? null;
+  useEffect(() => {
+    if (checkedPlan) loadSections(Object.keys(checkedPlan.state.selectedSections));
+  }, [checkedPlan, loadSections]);
   // Cheap computations on a small plan — recomputed per render, no memoization
   // needed, and the React Compiler cannot prove the deps stay unmutated.
-  const restoreReferences = restorePlan ? resolveSectionReferences(restorePlan.state) : null;
+  const restoreReferences = restorePlan ? resolveSectionReferences(restorePlan.state, sectionCatalog) : null;
   const restoreDrift = restorePlan ? assessRestoreDrift(restorePlan, planner.plannerState) : null;
   // Lock differences, shown before the steps: restoring replaces the working
   // schedule's locks with the plan's.
   const restoreLockLines = restorePlan
-    ? describeLockChanges(comparePlan(restorePlan, planner.plannerState).lockChanges)
+    ? describeLockChanges(comparePlan(restorePlan, planner.plannerState, sectionCatalog).lockChanges)
     : [];
   const restoreSkipWarnings =
     restorePlan && restoreReferences ? describeSkippedReferences(restoreReferences) : [];
@@ -265,7 +271,7 @@ export function PlansClient() {
   const renderPlanCard = (plan: SavedPlanSnapshot, archived: boolean) => {
     const busy = busyPlanId === plan.planId;
     const compareOpen = openCompareId === plan.planId;
-    const compare = compareOpen ? comparePlan(plan, planner.plannerState) : null;
+    const compare = compareOpen ? comparePlan(plan, planner.plannerState, sectionCatalog) : null;
     const compareId = `plan-compare-${plan.planId}`;
     return (
       <li key={plan.planId} className="plans-card">
@@ -273,8 +279,8 @@ export function PlansClient() {
           <div className="plans-card__name">
             <strong>{plan.name}</strong>
             <span className="plans-card__meta">
-              {formatSavedAt(plan.source.capturedAt)} · {sourceLabel[plan.source.kind]}
-              {archived ? " · Archived" : ""}
+              {formatSavedAt(plan.source.capturedAt)}, {sourceLabel[plan.source.kind]}
+              {archived ? ", archived" : ""}
             </span>
           </div>
           <div className="plans-card__actions">

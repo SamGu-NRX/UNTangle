@@ -1,3 +1,4 @@
+import { sampleCatalog } from "@/lib/planner-sections";
 import { describe, expect, test } from "bun:test";
 import {
   createStraightLineWalkingTime,
@@ -110,7 +111,7 @@ describe("recommendSections walking term", () => {
       // Only informative when every schedule that wins with free unknown legs loses once they are charged.
       if (!freeWinners.every((c) => presetCost(c, 600) > bestCharged)) continue;
 
-      const chosen = recommendSections("minimizeDistance", [a, b], {}, lifeUnknown);
+      const chosen = recommendSections("minimizeDistance", [a, b], {}, sampleCatalog, lifeUnknown);
       const picked = [a, b].map((code) => sections.find((s) => s.id === chosen[code])!);
       expect(oracleConflictingPairs(picked)).toEqual([]);
       expect(presetCost(picked, 600)).toBe(bestCharged);
@@ -124,7 +125,7 @@ describe("recommendSections walking term", () => {
     // avoid unknown legs, the result is still a valid conflict-free schedule.
     const unknownEverywhere: WalkingTimeFn = () => ({ seconds: null, source: "unknown" });
     const active = courses.filter((c) => sections.some((s) => s.courseCode === c.code)).slice(0, 3).map((c) => c.code);
-    const chosen = recommendSections("minimizeDistance", active, {}, unknownEverywhere);
+    const chosen = recommendSections("minimizeDistance", active, {}, sampleCatalog, unknownEverywhere);
     const picked = Object.values(chosen).map((id) => sections.find((s) => s.id === id)!);
     expect(oracleConflictingPairs(picked)).toEqual([]);
   });

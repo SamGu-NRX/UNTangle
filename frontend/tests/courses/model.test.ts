@@ -206,13 +206,23 @@ describe("search", () => {
     expect(searchCatalog("1030", courses, [], new Set(["MATH 1030"])).courses.map((c) => c.id)).toEqual(["MATH 1030", "CSCE 1030"]);
   });
 
-  test("instructors are indexed by name with their courses", () => {
+  test("instructors are indexed by name with their courses, linked components and co-teachers included", () => {
+    const person = (display: string | null) => ({ display, raw: display ?? "Staff" });
+    const option = (courseCode: string, primary: string | null, linked: string | null = null) => ({
+      courseCode,
+      instructor: person(primary),
+      components: [{ instructor: person(primary) }, ...(linked === null ? [] : [{ instructor: person(linked) }])],
+    });
     const index = instructorIndex([
-      { id: "1", courseCode: "CSCE 1030", title: "", professor: "Beilei Jiang", rating: 4, meetings: [] },
-      { id: "2", courseCode: "CSCE 2610", title: "", professor: "Beilei Jiang", rating: 4, meetings: [] },
-      { id: "3", courseCode: "CSCE 2610", title: "", professor: "Staff", rating: 0, meetings: [] },
+      option("CSCE 1030", "Beilei Jiang"),
+      option("CSCE 2610", "Beilei Jiang; Ana Ruiz", "Lab Leader"),
+      option("CSCE 2610", null), // staff: no display name
     ]);
-    expect(index).toEqual([{ name: "Beilei Jiang", courseIds: ["CSCE 1030", "CSCE 2610"] }]);
+    expect(index).toEqual([
+      { name: "Ana Ruiz", courseIds: ["CSCE 2610"] },
+      { name: "Beilei Jiang", courseIds: ["CSCE 1030", "CSCE 2610"] },
+      { name: "Lab Leader", courseIds: ["CSCE 2610"] },
+    ]);
     expect(searchCatalog("jiang", courses, index).instructors).toHaveLength(1);
   });
 });
