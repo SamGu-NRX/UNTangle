@@ -13,8 +13,8 @@ import {
   getInitialPlannerState,
   normalizePlannerState,
   recommendSections,
-  sectionNumber,
 } from "@/lib/planner";
+import { optionIdLabel } from "@/lib/planner-sections";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
 import { oracleConflictingPairs } from "@/lib/schedule-oracle";
 import { sections } from "@/lib/seed-data";
@@ -91,7 +91,7 @@ describe("lockedSections in planner state", () => {
   });
 
   test("sectionNumber is the last dash-separated token", () => {
-    expect(sectionNumber("csce-2100-002")).toBe("002");
+    expect(optionIdLabel("csce-2100-002")).toBe("002");
   });
 });
 
@@ -161,7 +161,7 @@ describe("lock control in the planner", () => {
     await takeCourses(planner);
     const sectionId = planner.get().plannerState.selectedSections["MATH 1710"];
     const toggle = button(planner.container, "MATH 1710");
-    expect(toggle.textContent).toBe(`Lock MATH 1710 section ${sectionNumber(sectionId)}`);
+    expect(toggle.textContent).toBe(`Lock MATH 1710 section ${optionIdLabel(sectionId)}`);
     expect(toggle.hasAttribute("aria-label")).toBe(false);
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     toggle.click();

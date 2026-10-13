@@ -8,9 +8,12 @@
  * - first: click to the first shown result (the first search's wall time).
  * - final: click to the last result (both searches when there is a second).
  *
- * Run: bun tests/optimizer/bench.ts [instances]
+ * Run: bun tests/optimizer/bench.ts [instances] [--terms]
  * Prints one line per instance and p50/p95/max of both, plus statuses.
  * Wall times on the machine that runs it; a busy machine reads slower.
+ * `--terms` gives sections half-term dates and some weekend meetings
+ * (`terms` in generator.ts). On mixed-activity days, the search uses the
+ * maximum bound across segments rather than their sum (see search.ts).
  */
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS } from "@/lib/optimizer/presets";
@@ -23,7 +26,7 @@ function quantiles(values: number[]) {
   return { p50: at(0.5), p95: at(0.95), max: sorted[sorted.length - 1] };
 }
 
-export function latencyRun(instances: number, log = false) {
+export function latencyRun(instances: number, log = false, terms = false) {
   const goals = Object.values(GOAL_WEIGHTS);
   const first: number[] = [];
   const final: number[] = [];
@@ -35,6 +38,7 @@ export function latencyRun(instances: number, log = false) {
       sectionsPerCourse: 40,
       style: "realistic",
       constraintDensity: i % 2 === 0 ? 0 : 0.15,
+      terms,
     });
     // Half the instances use the planner's goal presets, half the generator's random weights.
     const weights = i % 4 < 2 ? goals[i % goals.length] : generated.weights;
@@ -66,6 +70,6 @@ export function latencyRun(instances: number, log = false) {
 }
 
 if (import.meta.main) {
-  const instances = Number(process.argv[2] ?? 40);
-  console.log(JSON.stringify(latencyRun(instances, true)));
+  const instances = Number(process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? 40);
+  console.log(JSON.stringify(latencyRun(instances, true, process.argv.includes("--terms"))));
 }

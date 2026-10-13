@@ -165,9 +165,25 @@ export function formatClock(minutes: number): string {
   return mins === 0 ? `${hour} ${suffix}` : `${hour}:${String(mins).padStart(2, "0")} ${suffix}`;
 }
 
-const DAY_LETTER: Record<OptDay, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F" };
-const DAY_PLURAL: Record<OptDay, string> = { Mon: "Mondays", Tue: "Tuesdays", Wed: "Wednesdays", Thu: "Thursdays", Fri: "Fridays" };
-const DAY_NAME: Record<OptDay, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
+const DAY_LETTER: Record<OptDay, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "Th", Fri: "F", Sat: "Sa", Sun: "Su" };
+const DAY_PLURAL: Record<OptDay, string> = {
+  Mon: "Mondays",
+  Tue: "Tuesdays",
+  Wed: "Wednesdays",
+  Thu: "Thursdays",
+  Fri: "Fridays",
+  Sat: "Saturdays",
+  Sun: "Sundays",
+};
+const DAY_NAME: Record<OptDay, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
+};
 
 /** "MWF 10 AM" style: days sharing a start time are grouped. */
 export function describePattern(section: OptSection): string {
@@ -180,6 +196,26 @@ export function describePattern(section: OptSection): string {
       return `${ordered.map((day) => DAY_LETTER[day]).join("")} ${formatClock(start)}`;
     })
     .join(", ");
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** The first and last day a section meets: its meetings' ranges, the term for undated ones; null with neither. */
+function rangeOf(request: OptimizeRequest, section: OptSection): { start: string; end: string } | null {
+  const ranges = section.meetings.map((meeting) => meeting.dates ?? request.term ?? null);
+  const known = ranges.filter((range): range is { start: string; end: string } => range !== null);
+  if (known.length !== ranges.length) return null;
+  return {
+    start: known.reduce((min, range) => (range.start < min ? range.start : min), known[0].start),
+    end: known.reduce((max, range) => (range.end > max ? range.end : max), known[0].end),
+  };
+}
+
+/** "full term" for the term itself, "Jan 11" for one day, "Jan 11–Mar 5" otherwise (ISO dates, read without a time zone). */
+export function datesLabel(request: Pick<OptimizeRequest, "term">, range: { start: string; end: string }): string {
+  if (request.term && range.start === request.term.start && range.end === request.term.end) return "full term";
+  const day = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
+  return range.start === range.end ? day(range.start) : `${day(range.start)}–${day(range.end)}`;
 }
 
 function joinList(items: string[]): string {
@@ -235,10 +271,26 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
   );
   const sectionById = new Map(request.courses.flatMap((course) => course.sections).map((section) => [section.id, section] as const));
   const sub = restrictTo(request, members);
+  // When the courses in question run on different dates (first and second
+  // eight-week sessions, say), each pattern names its dates so the sentence
+  // stays true; when they all run the same dates, nothing is added.
+  const rangeKeys = new Set(sub.courses.flatMap((course) => course.sections.map((section) => JSON.stringify(rangeOf(request, section)))));
+  const dated = rangeKeys.size > 1;
+  const datesOf = (section: OptSection) => {
+    const range = rangeOf(request, section);
+    return range ? datesLabel(request, range) : null;
+  };
+  const pattern = (section: OptSection) => {
+    const dates = dated ? datesOf(section) : null;
+    return dates ? `${describePattern(section)}, ${dates}` : describePattern(section);
+  };
 
   if (members.some((member) => member.kind === "maxCredits")) {
-    const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, 0);
-    return `${joinList(codes)} add up to ${credits} credits, over your ${request.constraints.maxCredits}-credit limit.`;
+    const fixed = request.fixedCredits ?? 0;
+    const credits = request.courses.filter((course) => codes.includes(course.code)).reduce((sum, course) => sum + course.credits, fixed);
+    const parts = [...codes, ...(fixed > 0 ? [`your other ${fixed} credits`] : [])];
+    const subject = codes.length > 0 ? joinList(parts) : "Your other courses";
+    return `${subject} add up to ${credits} credits, over your ${request.constraints.maxCredits}-credit limit.`;
   }
 
   const conditions = conditionPhrases(request, members);
@@ -254,13 +306,13 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
   };
   const describe = (code: string): string => {
     const lockedId = locked.get(code);
-    if (lockedId) return `your locked ${code} section (${describePattern(sectionById.get(lockedId)!)})`;
+    if (lockedId) return `your locked ${code} section (${pattern(sectionById.get(lockedId)!)})`;
     return code;
   };
 
   if (codes.length === 1) {
     const code = codes[0];
-    if (locked.has(code)) return `Your locked ${code} section (${describePattern(sectionById.get(locked.get(code)!)!)}) doesn't fit${where}.`;
+    if (locked.has(code)) return `Your locked ${code} section (${pattern(sectionById.get(locked.get(code)!)!)}) doesn't fit${where}.`;
     if (conditions.length === 0) return `No section of ${code} works: each one's own meetings clash.`;
     return `No section of ${code} fits${where}.`;
   }
@@ -270,13 +322,21 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
     const onlyA = onlySection(a);
     const onlyB = onlySection(b);
     if (conditions.length === 0) {
-      if (onlyA && onlyB) return `${describe(a)} and ${describe(b)} overlap (${describePattern(onlyA)} and ${describePattern(onlyB)}).`.replace(/^./, (s) => s.toUpperCase());
-      if (onlyB) return `Every section of ${a} overlaps ${locked.has(b) ? describe(b) : `${b}'s only section (${describePattern(onlyB)})`}.`;
-      if (onlyA) return `Every section of ${b} overlaps ${locked.has(a) ? describe(a) : `${a}'s only section (${describePattern(onlyA)})`}.`;
+      if (onlyA && onlyB) {
+        const datesA = dated ? datesOf(onlyA) : null;
+        const datesB = dated ? datesOf(onlyB) : null;
+        const both =
+          datesA && datesB
+            ? `: ${describePattern(onlyA)} (${datesA}) and ${describePattern(onlyB)} (${datesB})`
+            : ` (${describePattern(onlyA)} and ${describePattern(onlyB)})`;
+        return `${describe(a)} and ${describe(b)} overlap${both}.`.replace(/^./, (s) => s.toUpperCase());
+      }
+      if (onlyB) return `Every section of ${a} overlaps ${locked.has(b) ? describe(b) : `${b}'s only section (${pattern(onlyB)})`}.`;
+      if (onlyA) return `Every section of ${b} overlaps ${locked.has(a) ? describe(a) : `${a}'s only section (${pattern(onlyA)})`}.`;
       return `Every section of ${a} overlaps every section of ${b}.`;
     }
-    if (onlyB && !onlyA) return `No section of ${a} fits alongside ${locked.has(b) ? describe(b) : `${b} (${describePattern(onlyB)})`}${where}.`;
-    if (onlyA && !onlyB) return `No section of ${b} fits alongside ${locked.has(a) ? describe(a) : `${a} (${describePattern(onlyA)})`}${where}.`;
+    if (onlyB && !onlyA) return `No section of ${a} fits alongside ${locked.has(b) ? describe(b) : `${b} (${pattern(onlyB)})`}${where}.`;
+    if (onlyA && !onlyB) return `No section of ${b} fits alongside ${locked.has(a) ? describe(a) : `${a} (${pattern(onlyA)})`}${where}.`;
     return `No pair of ${a} and ${b} sections fits together${where}.`;
   }
 
@@ -367,7 +427,7 @@ function relaxationsFor(
         break;
       }
       case "maxCredits": {
-        const total = request.courses.reduce((sum, course) => sum + course.credits, 0);
+        const total = request.courses.reduce((sum, course) => sum + course.credits, request.fixedCredits ?? 0);
         out.push({ relaxation: { kind: "maxCredits", to: total }, label: `Raise the credit limit to ${total}` });
         break;
       }

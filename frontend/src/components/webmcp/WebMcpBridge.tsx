@@ -32,10 +32,34 @@ function optimizeInWorker(request: OptimizeRequest, signal: AbortSignal): Promis
   });
 }
 
-/** The port over the planner as of the last render; plan writes go through the provider's transact. */
-export function livePort(get: () => Planner): PlannerPort {
+/**
+ * The port over the planner as of the last render; plan writes go through
+ * the provider's transact. `onRender` calls its listener after each render
+ * until the returned function is called.
+ */
+export function livePort(get: () => Planner, onRender: (listener: () => void) => () => void): PlannerPort {
   return {
     plan: () => get().plannerState,
+    sectionPlan: () => get().sectionPlan,
+    catalog: () => get().sectionCatalog,
+    // Ready once the store has each course and a render has placed the planned ones in the section plan.
+    load: (courseCodes, signal) =>
+      new Promise((resolve) => {
+        const ready = () =>
+          courseCodes.every((code) => get().sectionCatalog(code).status === "ready") &&
+          get().sectionPlan.courses.every((course) => course.state !== "loading" || !courseCodes.includes(course.code));
+        get().loadSections(courseCodes);
+        if (ready() || signal.aborted) return resolve();
+        const done = () => {
+          stop();
+          signal.removeEventListener("abort", done);
+          resolve();
+        };
+        const stop = onRender(() => {
+          if (ready()) done();
+        });
+        signal.addEventListener("abort", done);
+      }),
     preferences: () => get().schedulePreferences,
     stamp: () => get().planStamp,
     optimize: optimizeInWorker,
@@ -53,7 +77,18 @@ export function livePort(get: () => Planner): PlannerPort {
  */
 function plannerSource(initial: Planner) {
   let planner = initial;
-  return { port: livePort(() => planner), rendered: (next: Planner) => void (planner = next) };
+  const listeners = new Set<() => void>();
+  const onRender = (listener: () => void) => {
+    listeners.add(listener);
+    return () => void listeners.delete(listener);
+  };
+  return {
+    port: livePort(() => planner, onRender),
+    rendered: (next: Planner) => {
+      planner = next;
+      [...listeners].forEach((listener) => listener());
+    },
+  };
 }
 
 export function WebMcpBridge() {

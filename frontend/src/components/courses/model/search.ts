@@ -2,7 +2,10 @@
  * The one search model behind ⌘K and the phone search sheet: code, title and
  * instructor matches, ranked so a typed code wins over a word in a title.
  */
-import type { CourseSection } from "@/lib/types";
+import type { Instructor } from "@/lib/sections/model";
+
+/** The parts of an option (lib/sections Section) the index reads. */
+type InstructedOption = { courseCode: string; instructor: Instructor; components: ReadonlyArray<{ instructor: Instructor }> };
 
 export type SearchCourse = { id: string; title: string };
 export type SearchInstructor = { name: string; courseIds: string[] };
@@ -10,12 +13,18 @@ export type SearchResults = { courses: SearchCourse[]; instructors: SearchInstru
 
 const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-export function instructorIndex(sections: readonly CourseSection[]): SearchInstructor[] {
+/**
+ * Instructors of the given options, each component's included. A display
+ * name naming several people ("Allen Mann; Ana Ruiz") is split, and an
+ * option without one (staff, TBA) adds nobody.
+ */
+export function instructorIndex(sections: readonly InstructedOption[]): SearchInstructor[] {
   const byName = new Map<string, Set<string>>();
   for (const section of sections) {
-    const name = section.professor.trim();
-    if (!name || /^(staff|tba)$/i.test(name)) continue;
-    byName.set(name, (byName.get(name) ?? new Set()).add(section.courseCode));
+    const displays = [section.instructor, ...section.components.map((component) => component.instructor)].map((i) => i.display);
+    for (const name of new Set(displays.flatMap((display) => display?.split("; ") ?? []))) {
+      byName.set(name, (byName.get(name) ?? new Set()).add(section.courseCode));
+    }
   }
   return [...byName.entries()]
     .map(([name, ids]) => ({ name, courseIds: [...ids].sort() }))

@@ -6,12 +6,78 @@
  *
  * It enumerates every combination of one section per course, so it is only
  * usable on small instances.
+ *
+ * Dates, from the contract: undated meetings run inside the explicit term;
+ * dated meetings run inside their own range, without clipping. This reference
+ * enumerates calendar dates and their weekdays, not the engine's event sweep
+ * or bitmasks. Dates with identical active meetings need only one pair check.
  */
 
-import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptSection, OptWeights } from "@/lib/optimizer/types";
+import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
 
-const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const UNKNOWN_WALK = 600;
+
+function runsOn(request: OptimizeRequest, meeting: OptMeeting, date: string): boolean {
+  const range = meeting.dates ?? request.term;
+  return !range || (range.start <= date && date <= range.end);
+}
+
+type Occurrence = { day: OptDay; date: string };
+const occurrencesCache = new WeakMap<OptimizeRequest, Occurrence[]>();
+function occurrences(request: OptimizeRequest): Occurrence[] {
+  const cached = occurrencesCache.get(request);
+  if (cached) return cached;
+  const meetings = request.courses.flatMap((c) => c.sections.flatMap((s) => s.meetings));
+  if (meetings.some((m) => m.dates) && !request.term) throw new Error("reference: dated meetings require term");
+  if (!request.term) return DAYS.map((day) => ({ day, date: "any" }));
+  const ranges = [request.term, ...meetings.flatMap((m) => m.dates ? [m.dates] : [])];
+  const start = ranges.map((r) => r.start).sort()[0];
+  const end = ranges.map((r) => r.end).sort().at(-1)!;
+  const out: Occurrence[] = [];
+  const seen = new Set<string>();
+  const cursor = new Date(`${start}T00:00:00Z`);
+  for (;;) {
+    const date = cursor.toISOString().slice(0, 10);
+    if (date > end) break;
+    const day = DAYS[(cursor.getUTCDay() + 6) % 7];
+    const active = meetings.flatMap((m, i) => m.day === day && runsOn(request, m, date) ? [i] : []);
+    const key = `${day}:${active.join(",")}`;
+    if (active.length > 0 && !seen.has(key)) {
+      seen.add(key);
+      out.push({ day, date });
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  occurrencesCache.set(request, out);
+  return out;
+}
+
+function shareAWeek(request: OptimizeRequest, a: OptMeeting, b: OptMeeting): boolean {
+  return occurrences(request).some(({ day, date }) => day === a.day && runsOn(request, a, date) && runsOn(request, b, date));
+}
+
+type Placed = OptMeeting & { owner: string };
+
+/** Distinct back-to-back pairs of a selection, each once. */
+function backToBackPairs(request: OptimizeRequest, chosen: OptSection[]): Array<[Placed, Placed]> {
+  const all: Placed[] = chosen.flatMap((section) => section.meetings.map((m) => ({ ...m, owner: section.id })));
+  const seen = new Set<string>();
+  const pairs: Array<[Placed, Placed]> = [];
+  for (const { day, date } of occurrences(request)) {
+    const list = all
+      .map((m, index) => ({ m, index }))
+      .filter(({ m }) => m.day === day && runsOn(request, m, date))
+      .sort((a, b) => a.m.start - b.m.start || a.m.end - b.m.end);
+    for (let i = 1; i < list.length; i += 1) {
+      const key = `${list[i - 1].index}|${list[i].index}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push([list[i - 1].m, list[i].m]);
+    }
+  }
+  return pairs;
+}
 
 export type RefSchedule = {
   sections: OptSection[];
@@ -64,23 +130,19 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
     for (let j = i + 1; j < all.length; j += 1) {
       const a = all[i];
       const b = all[j];
-      if (a.day === b.day && a.start < b.end && b.start < a.end) problems.push(`overlap ${a.owner} ${b.owner}`);
+      if (a.day === b.day && a.start < b.end && b.start < a.end && shareAWeek(request, a, b)) problems.push(`overlap ${a.owner} ${b.owner}`);
     }
   }
   if (c.maxCredits !== null) {
-    const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, 0);
+    // Courses outside the request still count toward the limit (fixedCredits).
+    const credits = chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, request.fixedCredits ?? 0);
     if (credits > c.maxCredits) problems.push("too many credits");
   }
   if (c.walking !== null) {
-    for (const day of DAYS) {
-      const list = all.filter((m) => m.day === day).sort((a, b) => a.start - b.start);
-      for (let i = 1; i < list.length; i += 1) {
-        const prev = list[i - 1];
-        const next = list[i];
-        if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
-        const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
-        if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
-      }
+    for (const [prev, next] of backToBackPairs(request, chosen)) {
+      if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
+      const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
+      if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
     }
   }
   return problems;
@@ -97,17 +159,13 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
   let gap = 0;
   let walk = 0;
   let unknown = 0;
-  const days = new Set<string>();
-  for (const day of DAYS) {
-    const list = all.filter((m) => m.day === day).sort((a, b) => a.start - b.start);
-    if (list.length > 0) days.add(day);
-    for (let i = 1; i < list.length; i += 1) {
-      gap += Math.max(0, list[i].start - list[i - 1].end);
-      if (list[i - 1].buildingId !== null && list[i - 1].buildingId === list[i].buildingId) continue;
-      const seconds = walkBetween(request, list[i - 1].buildingId, list[i].buildingId);
-      if (seconds === null) unknown += 1;
-      else walk += seconds;
-    }
+  const days = new Set(all.map((m) => m.day));
+  for (const [prev, next] of backToBackPairs(request, chosen)) {
+    gap += Math.max(0, next.start - prev.end);
+    if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
+    const seconds = walkBetween(request, prev.buildingId, next.buildingId);
+    if (seconds === null) unknown += 1;
+    else walk += seconds;
   }
   let cost = w.fewerDays * 3600 * days.size + w.compact * 60 * gap + w.walking * (walk + 600 * unknown);
   for (const section of chosen) {
@@ -128,13 +186,14 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
       unknownWalks: unknown,
       earliestStart: all.length ? Math.min(...all.map((m) => m.start)) : null,
       latestEnd: all.length ? Math.max(...all.map((m) => m.end)) : null,
-      credits: chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, 0),
+      credits: chosen.reduce((sum, s) => sum + request.courses.find((course) => course.code === s.courseCode)!.credits, request.fixedCredits ?? 0),
     },
   };
 }
 
+/** Meeting times including dates: a first-half and a second-half section at one slot differ. */
 function timePattern(section: OptSection): string {
-  return section.meetings.map((m) => `${m.day} ${m.start} ${m.end}`).sort().join(";");
+  return section.meetings.map((m) => `${m.day} ${m.start} ${m.end} ${m.dates ? `${m.dates.start}..${m.dates.end}` : "every week"}`).sort().join(";");
 }
 
 /** The contract's diversity threshold, recomputed from its definition. */

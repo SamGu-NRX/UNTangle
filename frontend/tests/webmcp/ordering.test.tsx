@@ -38,6 +38,8 @@ async function page() {
   const { PlannerProvider, usePlanner } = await import("@/components/planner-provider");
   const { WebMcpBridge } = await import("@/components/webmcp/WebMcpBridge");
   const { Toaster } = await import("@/components/ui/Toast");
+  // The bundled samples, answered at once: nothing is fetched.
+  const { sampleSectionStore } = await import("@/lib/section-store");
   const tools = new Map<string, Execute>();
   Object.defineProperty(document, "modelContext", {
     configurable: true,
@@ -60,7 +62,7 @@ async function page() {
   document.body.appendChild(container);
   const root = createRoot(container);
   root.render(
-    <PlannerProvider>
+    <PlannerProvider sectionStore={sampleSectionStore}>
       <Probe />
       <WebMcpBridge />
       <Toaster />

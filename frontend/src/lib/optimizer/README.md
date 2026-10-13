@@ -16,6 +16,32 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
 
 - Times are minutes after midnight, half-open `[start, end)`. A class ending at
   10:00 and one starting at 10:00 do not overlap.
+- Days run Monday to Sunday. Days on campus counts every distinct day with a
+  class, weekends included.
+- A meeting may carry `dates`, an inclusive range of ISO calendar dates such
+  as the first eight weeks, 2027-01-11 to 2027-03-05. If any meeting has dates,
+  the request must supply `term`, its first and last day, inclusive. The engine
+  never infers the term from candidates. Without dated meetings, `term` is optional.
+- An undated meeting runs on each occurrence of its weekday inside the term.
+  A dated meeting runs inside its own range, even outside the term. Two meetings
+  share activity only if their ranges contain a common occurrence of their
+  weekday. Two Monday ranges sharing only a Sunday do not conflict. SPAN 2040-051
+  and SPAN 2050-051 in different halves can both sit in the same Tuesday slot.
+- Back-to-back pairs drive idle time, walking and the walking check. For each
+  weekday, group its dates by which ranges are active. Within each group, sort
+  the classes by start; neighbors are back to back. A pair that is back to back
+  in several groups counts once. A 9:00 class every week followed at 10:00
+  by a first-half class in one building and a second-half class in another
+  makes two pairs, and both walks are checked. `weeks.ts` has the rule.
+- Earliest start, latest end, days off and blocked times apply to every
+  meeting whatever its dates. Two sections that differ only in dates are
+  different times for the diversity rule.
+- A malformed date, an impossible one such as 2027-02-30, a range that ends
+  before it starts, or more than 32 distinct active-range groups throw
+  `OptimizerInputError`. This validates both the term and meeting dates.
+  A missing term with dated meetings throws `term is required when any meeting has dates`.
+  Segmentation stops at the 33rd group and checks the preparation deadline;
+  exhausting that deadline reports `timeout`.
 - Constraints are all or nothing: earliest start, latest end, days off,
   blocked times, max credits, and the walking check. Locks and exclusions are
   hard too.
@@ -86,8 +112,15 @@ map v2, with a straight-line fallback where the graph has no route.
 | `recommendSections` (state normalization) | 20,000 nodes, no clock | Runs synchronously on every normalization and must give the same answer everywhere. |
 | Infeasibility explanation | 250 ms default (`explainBudgetMs`) | When it runs out, `explanation.minimal` is false and suggestions may have `resolves: null`. |
 
-Preparation checks the deadline too, so a huge request reports `timeout`
-instead of overrunning.
+Preparation checks the deadline too, including date validation and segmentation,
+so a huge request reports `timeout` instead of finishing an unbounded calendar scan.
+
+The search keeps its weekly bound path for requests with one active segment.
+On days where all candidates share one activity mask, the same bounds apply.
+For mixed days it computes fill, walking-floor and outside-span bounds within
+one segment at a time, then takes the maximum. Adding them would count some
+pairs more than once. The fixed-pair bound is combined by maximum too; the
+union-of-days bound is unchanged.
 
 ## The worker
 
@@ -102,9 +135,9 @@ The browser runs `worker/optimize.worker.bundle.js`, a committed, self-contained
 build of `optimize.worker.ts`. Next 16.1's Turbopack copies a
 `new Worker(new URL("./x.ts", import.meta.url))` source as a raw asset instead
 of compiling it, so the bundle is built with Bun:
-`bun tests/optimizer/build-worker.ts --write`. `tests/optimizer/worker.test.ts`
+`bun --no-env-file tests/optimizer/build-worker.ts --write`. `tests/optimizer/worker.test.ts`
 fails while the bundle is out of date. The bundle holds only the engine and the
-protocol (about 60 KB), not the catalog. `worker/client.ts` drops replies to anything but the newest job, and
+protocol (about 65 KB), not the catalog. `worker/client.ts` drops replies to anything but the newest job, and
 replaces the worker when a new job arrives while one is still searching,
 because a running search cannot be interrupted. A crash or a worker that
 cannot start becomes an `error` reply, which the page shows inline with "Try
@@ -128,8 +161,9 @@ of overwriting it. A failed write is shown as "not stored".
 ## Tests
 
 - `tests/optimizer/engine.test.ts`: agreement with a brute-force reference
-  (`reference.ts`) on 400 seeds, plus budgets and large instances
-  (`checks.ts`, `generator.ts`).
+  (`reference.ts`) on 400 seeds, and on 300 seeds with half-term dates and
+  weekend meetings with the walking check on and off, plus budgets and large
+  instances (`checks.ts`, `generator.ts`).
 - `tests/optimizer/regressions.test.ts`: pinned bugs from review.
 - `tests/optimizer/mutation.test.ts`: plants one bug at a time in a copy of
   this folder and asserts a check fails.

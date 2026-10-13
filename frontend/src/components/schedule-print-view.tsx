@@ -4,9 +4,18 @@ import Link from "next/link";
 import { usePlanner } from "@/components/planner-provider";
 import { PlannerSampleNotice } from "@/components/planner-sample-notice";
 import { formatTime, summarizeCredits } from "@/lib/planner";
-import { weekDays } from "@/lib/types";
+import { rangeLabel } from "@/lib/planner-sections";
+import { classDays, weekDays, type ClassDay } from "@/lib/types";
 
-const DAY_NAMES = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" } as const;
+const DAY_NAMES: Record<ClassDay, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
+};
 
 // Scoped print rules: hide the controls and the toast stack, keep each day
 // together on paper, print in black on white.
@@ -22,6 +31,8 @@ const PRINT_CSS = `
 /** One-page week of the working schedule, for printing. */
 export function SchedulePrintView() {
   const { hydrated, plannerState, scheduleEvents } = usePlanner();
+  const days = classDays.filter((day) => (weekDays as readonly ClassDay[]).includes(day) || scheduleEvents.some((event) => event.day === day));
+  const sample = scheduleEvents.some((event) => event.provenance === "sample");
 
   return (
     <main className="print-sheet" style={{ maxWidth: 820, margin: "0 auto", padding: "1.5rem 1.25rem", display: "grid", gap: 16 }}>
@@ -41,7 +52,7 @@ export function SchedulePrintView() {
         </h1>
         <p style={{ color: "var(--copy)", fontSize: "0.9rem" }}>
           {hydrated
-            ? `${scheduleEvents.length} meetings a week · ${summarizeCredits(plannerState)} credit hours`
+            ? `${scheduleEvents.length} meetings a week, ${summarizeCredits(plannerState)} credit hours`
             : "Loading your schedule…"}
         </p>
       </header>
@@ -53,7 +64,7 @@ export function SchedulePrintView() {
       ) : null}
 
       {hydrated
-        ? weekDays.map((day) => {
+        ? days.map((day) => {
             const dayEvents = scheduleEvents
               .filter((event) => event.day === day)
               .sort((a, b) => a.start.localeCompare(b.start));
@@ -68,10 +79,10 @@ export function SchedulePrintView() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.86rem", marginTop: 4 }}>
                     <thead>
                       <tr style={{ textAlign: "left", color: "var(--copy)" }}>
-                        <th scope="col" style={{ padding: "4px 8px 4px 0", fontWeight: 600 }}>Time (sample)</th>
+                        <th scope="col" style={{ padding: "4px 8px 4px 0", fontWeight: 600 }}>Time{sample ? " (sample)" : ""}</th>
                         <th scope="col" style={{ padding: "4px 8px", fontWeight: 600 }}>Course</th>
                         <th scope="col" style={{ padding: "4px 8px", fontWeight: 600 }}>Room</th>
-                        <th scope="col" style={{ padding: "4px 0 4px 8px", fontWeight: 600 }}>Instructor (sample)</th>
+                        <th scope="col" style={{ padding: "4px 0 4px 8px", fontWeight: 600 }}>Instructor{sample ? " (sample)" : ""}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -82,7 +93,12 @@ export function SchedulePrintView() {
                           </td>
                           <td style={{ padding: "6px 8px" }}>
                             <strong>{event.courseCode}</strong> {event.title}
-                            <span style={{ color: "var(--copy)" }}> · section {event.sectionId}</span>
+                            <span style={{ color: "var(--copy)" }}>
+                              {" "}
+, section {event.sectionLabel}
+                              {event.provenance === "sample" ? " (sample)" : ""}
+                              {rangeLabel(event.dates) ? `, ${rangeLabel(event.dates)}` : ""}
+                            </span>
                           </td>
                           <td style={{ padding: "6px 8px" }}>{event.location}</td>
                           <td style={{ padding: "6px 0 6px 8px" }}>{event.professor}</td>

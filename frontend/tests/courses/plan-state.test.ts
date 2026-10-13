@@ -4,6 +4,7 @@ import {
   getInitialPlannerState,
   getPlanningTermCourseCodes,
   normalizePlannerState,
+  resolveSectionPlan,
   summarizeCredits,
 } from "@/lib/planner";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
@@ -40,7 +41,7 @@ describe("planning-term courses", () => {
   test("Week, Map and the credit summary see only the planning term", () => {
     const planned = getPlanningTermCourseCodes(state);
     expect(summarizeCredits(state)).toBe(planned.length * 3);
-    expect(buildScheduleEvents(state).some((event) => event.courseCode === "ENGL 1320")).toBe(false);
+    expect(buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state))).some((event) => event.courseCode === "ENGL 1320")).toBe(false);
     expect(normalizePlannerState(state).selectedSections["ENGL 1320"]).toBeUndefined();
   });
 });

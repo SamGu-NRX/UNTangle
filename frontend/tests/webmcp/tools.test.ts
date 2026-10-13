@@ -5,12 +5,13 @@
  */
 import { describe, expect, test } from "bun:test";
 import { undoBlocker } from "@/components/courses/model/auto";
-import { findSection } from "@/components/schedule/week-model";
-import { getSectionsForCourse, sectionConflicts } from "@/lib/planner";
+import { optionLabel, optionsConflict } from "@/lib/planner-sections";
 import { createTools, type PlannerPort, type Tool, type ToolResult } from "@/lib/webmcp/tools";
-import { fixturePlan, fixturePort, row, session } from "./fixture";
+import { fixturePlan, fixturePort, row, samplesOf, session } from "./fixture";
 
 const named = (tools: Tool[], name: string) => tools.find((tool) => tool.name === name)!;
+/** Lets a call reach its optimizer search, past the section load it awaits first. */
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function call(name: string, input: unknown, port: PlannerPort = fixturePort().port, tools = createTools()): Promise<Record<string, unknown>> {
   return (await named(tools, name).run(input, session(port, true).ctx)) as Record<string, unknown>;
@@ -34,7 +35,7 @@ describe("read tools", () => {
       sections: { provenance: "sample", total: 6 },
     });
     const items = (result.sections as { items: Array<{ id: string; meetings: string }> }).items;
-    expect(items.map((item) => item.id)).toEqual(getSectionsForCourse("CSCE 1040").map((section) => section.id));
+    expect(items.map((item) => item.id)).toEqual(samplesOf("CSCE 1040").map((section) => section.id));
     expect(items[0].meetings).toMatch(/^(Mon|Tue|Wed|Thu|Fri)(\/(Mon|Tue|Wed|Thu|Fri))* \d\d:\d\d-\d\d:\d\d at \S+/);
     expect(await call("get_course", { code: "CSCE 9999" })).toEqual({ ok: false, reason: "unknown_course" });
   });
@@ -52,10 +53,14 @@ describe("read tools", () => {
 
   test("get_schedule lists the planned week with credits and walking", async () => {
     const result = await call("get_schedule", {});
-    expect(result).toMatchObject({ ok: true, provenance: "sample", credits: 9, overlaps: [], withoutSections: [] });
-    const courses = result.courses as Array<{ code: string; sectionId: string; locked: boolean }>;
+    expect(result).toMatchObject({ ok: true, credits: 9, overlaps: [] });
+    const courses = result.courses as Array<{ code: string; state: string; section: string; provenance: string; locked: boolean }>;
     expect(courses.map((course) => course.code)).toEqual(["CSCE 1040", "ENGL 1310", "PSYC 1630"]);
-    for (const course of courses) expect(getSectionsForCourse(course.code).some((s) => s.id === course.sectionId)).toBe(true);
+    for (const course of courses) {
+      // Nothing is picked yet, so the page shows the goal's recommendation for each course.
+      expect(course).toMatchObject({ state: "recommended", provenance: "sample", locked: false });
+      expect(samplesOf(course.code).some((s) => optionLabel(s) === course.section)).toBe(true);
+    }
     expect(result.walking).toMatchObject({ unknownWalks: 0, estimated: false });
   });
 
@@ -65,13 +70,13 @@ describe("read tools", () => {
     const plan = fixturePlan({}, { "CSCE 1040": "notTaken", "ENGL 1310": "notTaken", "PSYC 1630": "notTaken", ...Object.fromEntries(Object.keys(monday).map((code) => [code, "inProgress" as const])) });
     const result = await call("get_day", { day: "Mon" }, fixturePort(plan, monday).port);
     expect(result.classes).toEqual([
-      { code: "ANTH 3700", start: "09:30", end: "10:50", building: "ENV" },
-      { code: "ANTH 1010", start: "12:00", end: "12:50", building: "GAB" },
-      { code: "BIOL 1720", start: "13:00", end: "13:50", building: "GATE" },
+      { code: "ANTH 3700", start: "09:30", end: "10:50", room: "Environmental Science Building" },
+      { code: "ANTH 1010", start: "12:00", end: "12:50", room: "General Academic Building" },
+      { code: "BIOL 1720", start: "13:00", end: "13:50", room: "Gateway Center" },
     ]);
-    const [, late] = result.walks as Array<{ from: string; to: string; gapMinutes: number; walkMinutes: number; leaveBy: string; fit: string }>;
-    expect(late).toMatchObject({ from: "ANTH 1010", to: "BIOL 1720", gapMinutes: 10, fit: "late" });
-    expect(late.walkMinutes).toBeGreaterThan(10);
+    const [, late] = result.walks as Array<{ from: string; to: string; gapMinutes: number; minutes: number; leaveBy: string; fit: string }>;
+    expect(late).toMatchObject({ from: "ANTH 1010", to: "BIOL 1720", gapMinutes: 10, travel: "walk", fit: "late" });
+    expect(late.minutes).toBeGreaterThan(10);
     expect(late.leaveBy < "12:50").toBe(true);
   });
 
@@ -79,7 +84,7 @@ describe("read tools", () => {
     const { port, writes, snapshot } = fixturePort();
     const before = snapshot();
     const result = await call("build_schedule", { goal: "compact", daysOff: ["Fri"] }, port);
-    expect(result).toMatchObject({ ok: true, status: "optimal", provenance: "sample" });
+    expect(result).toMatchObject({ ok: true, status: "optimal" });
     const alternatives = result.alternatives as Array<{ id: string; sections: Record<string, string>; daysOnCampus: number }>;
     expect(alternatives.map((alt) => alt.id)).toEqual(["opt-1-A", "opt-1-B", "opt-1-C"].slice(0, alternatives.length));
     for (const alt of alternatives) expect(Object.keys(alt.sections).sort()).toEqual(["CSCE 1040", "ENGL 1310", "PSYC 1630"]);
@@ -87,11 +92,8 @@ describe("read tools", () => {
     expect(writes).toEqual([]);
   });
 
-  test("export_class_numbers says sample sections have no class numbers", async () => {
-    const result = await call("export_class_numbers", {});
-    expect(result).toMatchObject({ ok: true, provenance: "sample" });
-    expect(result.courses).toHaveLength(3);
-    for (const course of result.courses as Array<{ classNumber: unknown }>) expect(course.classNumber).toBeNull();
+  test("export_class_numbers lists courses with only sample sections as missing", async () => {
+    expect(await call("export_class_numbers", {})).toEqual({ ok: true, lines: [], classNumbers: 0, missing: ["CSCE 1040", "ENGL 1310", "PSYC 1630"] });
   });
 });
 
@@ -184,13 +186,13 @@ describe("write tools", () => {
 
   test("add_section names the overlap before asking", async () => {
     const { port } = fixturePort();
-    const taken = Object.values(port.plan().selectedSections).map((id) => findSection(id)!);
-    const clashing = getSectionsForCourse("MATH 1720").find((section) => sectionConflicts(section, taken))!;
+    const taken = port.sectionPlan().courses.flatMap((course) => (course.section ? [course.section] : []));
+    const clashing = samplesOf("MATH 1720").find((section) => taken.some((other) => optionsConflict(section, other)))!;
     const { ctx, asked } = session(port, true);
     const result = await named(createTools(), "add_section").run({ code: "MATH 1720", sectionId: clashing.id }, ctx);
     const overlaps = /It overlaps (.+)\.$/.exec(asked[0])?.[1].split(" and ");
     expect(overlaps?.length).toBeGreaterThan(0);
-    expect(result).toEqual({ ok: true, changed: true, overlapsWith: overlaps });
+    expect(result).toEqual({ ok: true, changed: true, overlapsWith: overlaps, notes: [] });
   });
 });
 
@@ -200,7 +202,7 @@ describe("invalid input", () => {
     ["get_course", { code: 1030 }],
     ["get_course", { code: "CSCE 1030", extra: true }],
     ["search_courses", { query: "x".repeat(81) }],
-    ["get_day", { day: "Sat" }],
+    ["get_day", { day: "Monday" }],
     ["build_schedule", { earliestStart: "7am" }],
     ["build_schedule", { maxCredits: 2.5 }],
     ["apply_alternative", { id: "opt-1-D" }],
@@ -228,7 +230,7 @@ describe("writes stay bound to what the student approved", () => {
     await named(tools, "build_schedule").run({}, session(port, true).ctx);
     const alternative = port.plan().selectedSections;
     // Another tab picks a different ENGL 1310 section while the dialog is open.
-    const other = getSectionsForCourse("ENGL 1310").find((s) => s.id !== alternative["ENGL 1310"])!;
+    const other = samplesOf("ENGL 1310").find((s) => s.id !== alternative["ENGL 1310"])!;
     const { ctx } = session(port, true, () => student.setSection("ENGL 1310", other.id));
     expect(await named(tools, "apply_alternative").run({ id: "opt-1-B" }, ctx)).toMatchObject({ ok: false, reason: "plan_changed" });
     expect(writes).toEqual([]);
@@ -259,7 +261,7 @@ describe("writes stay bound to what the student approved", () => {
     const { port, student } = fixturePort();
     const { ctx, undos } = session(port, true);
     await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
-    const other = getSectionsForCourse("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!;
+    const other = samplesOf("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!;
     student.setSection("ENGL 1310", other.id);
     expect(await undos[0]()).toBe(true);
     expect(port.plan().courseStatuses["PSYC 1630"]).toBe("inProgress");
@@ -286,7 +288,7 @@ describe("writes stay bound to what the student approved", () => {
     const { ctx, undos } = session(port, true);
     await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
     // The student then picks another ENGL 1310 section by hand; invalidatedBy already names PSYC, so it records nothing new.
-    student.setSection("ENGL 1310", getSectionsForCourse("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!.id);
+    student.setSection("ENGL 1310", samplesOf("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!.id);
     expect(await undos[0]()).toBe(true);
     expect(port.plan().courseStatuses["PSYC 1630"]).toBe("inProgress");
     expect(undoBlocker(port.plan().coursePlan!.lastAuto!, port.plan().courseStatuses, port.plan().selectedMajor)).not.toBeNull();
@@ -300,7 +302,7 @@ describe("writes stay bound to what the student approved", () => {
     const { ctx, undos } = session(port, true);
     await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
     const original = port.plan().selectedSections["ENGL 1310"];
-    student.setSection("ENGL 1310", getSectionsForCourse("ENGL 1310").find((s) => s.id !== original)!.id);
+    student.setSection("ENGL 1310", samplesOf("ENGL 1310").find((s) => s.id !== original)!.id);
     student.setSection("ENGL 1310", original);
     expect(await undos[0]()).toBe(true);
     expect(port.plan().coursePlan?.lastAuto?.invalidatedBy).toBe("PSYC 1630");
@@ -348,7 +350,9 @@ describe("build_schedule runs one search at a time", () => {
     const { port, held } = heldPort();
     const tools = createTools();
     const older = named(tools, "build_schedule").run({}, session(port, true).ctx);
+    await tick();
     const newer = named(tools, "build_schedule").run({ goal: "compact" }, session(port, true).ctx);
+    await tick();
     expect(held[0].signal.aborted).toBe(true);
     expect(await older).toEqual({ ok: false, reason: "cancelled" });
     held[1].release();
@@ -361,6 +365,7 @@ describe("build_schedule runs one search at a time", () => {
     const { port, held } = heldPort();
     const controller = new AbortController();
     const result = named(createTools(), "build_schedule").run({}, { ...session(port, true).ctx, signal: controller.signal });
+    await tick();
     controller.abort();
     expect(held[0].signal.aborted).toBe(true);
     expect(await result).toEqual({ ok: false, reason: "cancelled" });

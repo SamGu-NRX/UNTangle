@@ -10,6 +10,7 @@ import {
   useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -17,14 +18,16 @@ import {
   defaultSchedulePreferences,
   getPlanningTermCourseCodes,
   getInitialPlannerState,
-  getLockedSelections,
   isCourseLocked,
   mergeTranscriptRecords,
   normalizePlannerState,
-  recommendSections,
-  serializePlannerPayload,
+  resolveSectionPlan,
+  routeStopsOf,
   takeFromAutoRun,
+  type SectionPlan,
 } from "@/lib/planner";
+import { planningTerm, type SectionCatalog } from "@/lib/planner-sections";
+import { createSectionStore, type SectionStore } from "@/lib/section-store";
 import {
   initialPreferences,
   preferencesKey,
@@ -61,8 +64,11 @@ import type {
   PlannerState,
   SchedulePreferences,
   TranscriptCourseRecord,
-  WeekDay,
+  ClassDay,
 } from "@/lib/types";
+
+/** One cache of loaded sections for the page, shared by every view. */
+const browserSectionStore = createSectionStore(planningTerm.id);
 
 /** Whether the schedule builder's preferences reached this browser's storage on the last write. */
 export type PreferencesStorage = WriteOutcome["kind"];
@@ -142,8 +148,20 @@ type PlannerContextValue = {
   hydrated: boolean;
   isRegistered: boolean;
   isAuthPending: boolean;
+  /**
+   * The normalized plan, with `selectedSections` showing what the page shows:
+   * every saved pick plus the goal's recommendation for each unpicked course.
+   */
   plannerState: PlannerState;
-  routeStops: ReturnType<typeof serializePlannerPayload>["routeStops"];
+  /** Each planned course's option against the sections loaded so far. */
+  sectionPlan: SectionPlan;
+  /** Loaded options by course; `loading` until a view asks with `loadSections`. */
+  sectionCatalog: SectionCatalog;
+  /** Changes when any course's options finish loading. */
+  catalogVersion: number;
+  /** Starts loading these courses' options (cached, shared with every view). */
+  loadSections: (courseCodes: readonly string[]) => void;
+  routeStops: ReturnType<typeof routeStopsOf>;
   scheduleEvents: ReturnType<typeof buildScheduleEvents>;
   lockedCourses: Set<string>;
   isLocked: (courseCode: string) => boolean;
@@ -189,7 +207,7 @@ type PlannerContextValue = {
    * count changed no longer applies.
    */
   planEpoch: number;
-  setActiveDay: (day: WeekDay) => void;
+  setActiveDay: (day: ClassDay) => void;
   setSelectedMajor: (id: MajorId | null) => void;
   resetPlanner: () => void;
   /** Save lifecycle for the durable working schedule (guest store or server). */
@@ -232,7 +250,14 @@ type PlannerContextValue = {
 
 const PlannerContext = createContext<PlannerContextValue | null>(null);
 
-export function PlannerProvider({ children }: { children: React.ReactNode }) {
+export function PlannerProvider({
+  children,
+  sectionStore = browserSectionStore,
+}: {
+  children?: React.ReactNode;
+  /** Where course options come from; tests pass the sample store. */
+  sectionStore?: SectionStore;
+}) {
   const sessionResult = authClient.useSession();
   // The plan lives in a reducer (lib/planner-transaction.ts) so transactions are checked and acknowledged in
   // state. Its dispatch takes everything setState did, so every existing setPlannerState call is unchanged.
@@ -249,6 +274,12 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   const lastActionSeq = useRef(0);
   const setPlannerState = useCallback((action: PlannerAction) => dispatchPlan({ seq: ++lastActionSeq.current, action }), []);
   const plannerState = planBox.plan;
+  const catalogVersion = useSyncExternalStore(sectionStore.subscribe, sectionStore.version, () => 0);
+  const normalizedState = useMemo(() => normalizePlannerState(plannerState), [plannerState]);
+  const plannedKey = getPlanningTermCourseCodes(normalizedState).join("|");
+  useEffect(() => {
+    if (plannedKey) sectionStore.ensure(plannedKey.split("|"));
+  }, [plannedKey, sectionStore]);
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<PlannerSaveState>(PENDING);
   // Fingerprint the last `saved` acknowledgement covered. `Saved` is only
@@ -263,6 +294,18 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     defaultSchedulePreferences(getInitialPlannerState().optimization),
   );
   const [preferencesStorage, setPreferencesStorage] = useState<PreferencesStorage>("stored");
+  const { openSeatsOnly, otherSites } = schedulePreferences.constraints;
+  const sectionPlan = useMemo(
+    () => resolveSectionPlan(normalizedState, sectionStore.catalog, { openSeatsOnly, otherSites }),
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [normalizedState, sectionStore, catalogVersion, openSeatsOnly, otherSites],
+  );
+  // Actions read the newest plan: a lock pins the section the page shows.
+  const sectionPlanRef = useRef(sectionPlan);
+  useEffect(() => {
+    sectionPlanRef.current = sectionPlan;
+  }, [sectionPlan]);
   // The identity whose preferences are loaded ("user:<id>" or "guest"); null before the first read.
   const [preferencesFor, setPreferencesFor] = useState<string | null>(null);
   const [planEpoch, setPlanEpoch] = useState(0);
@@ -1007,7 +1050,18 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<PlannerContextValue>(() => {
-    const normalized = normalizePlannerState(plannerState);
+    const normalized = normalizedState;
+    const scheduleEvents = buildScheduleEvents(sectionPlan);
+    /** Drops picks that are unlocked and resolve, so the goal re-plans them; a pick needing review is kept. */
+    const releaseResolvedPicks = (current: PlannerState) => {
+      const locks = normalizePlannerState(current).lockedSections ?? {};
+      const resolved = new Set(
+        sectionPlanRef.current.courses.filter((course) => course.state === "chosen").map((course) => course.code),
+      );
+      return Object.fromEntries(
+        Object.entries(current.selectedSections).filter(([code, id]) => locks[code] === id || !resolved.has(code)),
+      );
+    };
     const lockedCourses = new Set<string>(
       courses
         .filter((course) => isCourseLocked(normalized, course.code))
@@ -1023,9 +1077,13 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       isRegistered,
       isAuthPending: sessionResult.isPending,
-      plannerState: normalized,
-      routeStops: serializePlannerPayload(normalized).routeStops,
-      scheduleEvents: buildScheduleEvents(normalized),
+      plannerState: { ...normalized, selectedSections: sectionPlan.selections },
+      sectionPlan,
+      sectionCatalog: sectionStore.catalog,
+      catalogVersion,
+      loadSections: sectionStore.ensure,
+      routeStops: routeStopsOf(scheduleEvents),
+      scheduleEvents,
       lockedCourses,
       isLocked: (courseCode: string) => lockedCourses.has(courseCode),
       setCourseStatus: (courseCode, status) => {
@@ -1113,7 +1171,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         setPlannerState((current) => ({
           ...current,
           optimization,
-          selectedSections: recommendSections(optimization, getPlanningTermCourseCodes(current), getLockedSelections(normalizePlannerState(current))),
+          selectedSections: releaseResolvedPicks(current),
           updatedAt: new Date().toISOString(),
         }));
         // A goal set from outside the Week rail (a plan restore) brings its weights along.
@@ -1125,11 +1183,7 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         }
         setPlannerState((current) => ({
           ...current,
-          selectedSections: recommendSections(
-            current.optimization,
-            getPlanningTermCourseCodes(current),
-            getLockedSelections(normalizePlannerState(current)),
-          ),
+          selectedSections: releaseResolvedPicks(current),
           updatedAt: new Date().toISOString(),
         }));
       },
@@ -1150,9 +1204,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
           }
           // Like a hand pick, using an option edits those courses' sections, so a
           // pending Auto run that planned them can no longer be undone.
-          // Compare with what the page shows (normalized): an Auto-planned course
-          // whose section was filled in by normalization is not "changed".
-          const shown = normalizePlannerState(current).selectedSections;
+          // Compare with what the page shows: an Auto-planned course whose
+          // recommended section the option keeps is not "changed".
+          const shown = sectionPlanRef.current.selections;
           const changed = Object.keys(byCourse).filter((code) => shown[code] !== byCourse[code]);
           return {
             ...current,
@@ -1180,20 +1234,23 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
         }
         setPlannerState((current) => {
           const normalizedCurrent = normalizePlannerState(current);
-          const sectionId = normalizedCurrent.selectedSections[courseCode];
+          // The section the page shows, which may be a recommendation: locking makes it the pick.
+          const sectionId = normalizedCurrent.selectedSections[courseCode] ?? sectionPlanRef.current.selections[courseCode];
+          const selectedSections = { ...normalizedCurrent.selectedSections };
           const lockedSections = { ...(normalizedCurrent.lockedSections ?? {}) };
           if (locked) {
             if (!sectionId) {
               // The lock control only renders for scheduled sections.
               return current;
             }
+            selectedSections[courseCode] = sectionId;
             lockedSections[courseCode] = sectionId;
           } else {
             delete lockedSections[courseCode];
           }
           return {
             ...current,
-            selectedSections: normalizedCurrent.selectedSections,
+            selectedSections,
             lockedSections,
             updatedAt: new Date().toISOString(),
           };
@@ -1278,6 +1335,10 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     planBox.epoch,
     transactionIdentity,
     setPlannerState,
+    catalogVersion,
+    normalizedState,
+    sectionPlan,
+    sectionStore,
     conflict,
     guestStorageAvailable,
     hydrated,

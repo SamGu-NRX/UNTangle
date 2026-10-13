@@ -1,4 +1,5 @@
 import { diffSavedPlanAgainstWorking } from "@/lib/plan-library/diff";
+import type { SectionCatalog } from "@/lib/planner-sections";
 import type { PlanDiff } from "@/lib/plan-library/diff";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
@@ -26,8 +27,8 @@ export function assessRestoreDrift(plan: SavedPlanSnapshot, workingState: Planne
 }
 
 /** Differences-only comparison for the compare view; no scores, no rankings. */
-export function comparePlan(plan: SavedPlanSnapshot, workingState: PlannerState): PlanDiff {
-  return diffSavedPlanAgainstWorking(plan, workingState);
+export function comparePlan(plan: SavedPlanSnapshot, workingState: PlannerState, catalog?: SectionCatalog): PlanDiff {
+  return diffSavedPlanAgainstWorking(plan, workingState, catalog);
 }
 
 /** Download name for an exported plan file. */

@@ -45,6 +45,8 @@ async function mountStrict() {
   const React = await import("react");
   const { createRoot } = await import("react-dom/client");
   const { PlannerProvider, usePlanner } = await import("@/components/planner-provider");
+  // The bundled samples, answered at once: nothing is fetched.
+  const { sampleSectionStore } = await import("@/lib/section-store");
   let latest: PlannerValue | null = null;
   let tick: () => void = () => {};
   let release = () => {};
@@ -74,7 +76,7 @@ async function mountStrict() {
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <PlannerProvider>
+      <PlannerProvider sectionStore={sampleSectionStore}>
         <Probe />
         <Ticker />
         <React.Suspense fallback={<span data-day="fallback" />}>

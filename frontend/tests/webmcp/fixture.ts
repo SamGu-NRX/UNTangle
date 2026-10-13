@@ -3,7 +3,9 @@
  * do to plain state (including takeFromAutoRun), recording which ran.
  */
 import { optimize } from "@/lib/optimizer/optimize";
-import { defaultSchedulePreferences, getInitialPlannerState, normalizePlannerState, takeFromAutoRun } from "@/lib/planner";
+import { defaultSchedulePreferences, getInitialPlannerState, normalizePlannerState, resolveSectionPlan, takeFromAutoRun } from "@/lib/planner";
+import { sampleCatalog, type SectionCatalog } from "@/lib/planner-sections";
+import type { Section } from "@/lib/sections";
 import {
   plannerBox,
   reducePlannerBox,
@@ -55,7 +57,7 @@ export function fixturePlan(grades: Record<string, string> = { "MATH 1710": "A",
  * edit count behave as in the page. `student` makes the edits the pages
  * make, including takeFromAutoRun on a section pick.
  */
-export function fixturePort(start: PlannerState = fixturePlan(), selected: Record<string, string> = {}) {
+export function fixturePort(start: PlannerState = fixturePlan(), selected: Record<string, string> = {}, catalog: SectionCatalog = sampleCatalog) {
   let box = plannerBox(normalizePlannerState({ ...start, selectedSections: { ...start.selectedSections, ...selected } }));
   let preferences: SchedulePreferences = defaultSchedulePreferences(box.plan.optimization);
   let identity = "guest";
@@ -63,8 +65,13 @@ export function fixturePort(start: PlannerState = fixturePlan(), selected: Recor
   const writes: string[] = [];
   let lastSeq = 0;
   const dispatch = (action: PlannerAction) => (box = reducePlannerBox(box, { seq: ++lastSeq, action }, identity));
+  // What planner-provider shows: the section plan over the bundled samples, under the student's filters.
+  const sectionPlan = () => resolveSectionPlan(normalizePlannerState(box.plan), catalog, preferences.constraints);
   const port: PlannerPort = {
-    plan: () => normalizePlannerState(box.plan),
+    plan: () => ({ ...normalizePlannerState(box.plan), selectedSections: sectionPlan().selections }),
+    sectionPlan,
+    catalog: () => catalog,
+    load: async () => {},
     preferences: () => preferences,
     stamp: () => ({ identity, epoch: box.epoch }),
     // A node budget instead of the clock, so every run gives the same answer.
@@ -117,4 +124,10 @@ export function session(port: PlannerPort, answer: boolean, meanwhile: () => voi
     applied: (_message, undo) => undos.push(undo),
   };
   return { asked, undos, ctx };
+}
+
+/** A course's bundled sample sections. */
+export function samplesOf(courseCode: string): Section[] {
+  const options = sampleCatalog(courseCode);
+  return options.status === "ready" ? options.result.sections : [];
 }

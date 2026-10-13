@@ -17,10 +17,8 @@ import { ruleFromPrerequisite, ruleTokens, tokensToString } from "@/components/c
 import { searchCatalog } from "@/components/courses/model/search";
 import { untProfile } from "@/components/courses/school";
 import { parseBlockDraft } from "@/components/schedule/constraint-logic";
-import { canApply, IDLE, optimizerInputKey } from "@/components/schedule/run-state";
-import { findSection } from "@/components/schedule/week-model";
-import { getWalkingSeconds } from "@/lib/campus/walking-times";
-import { activeDataset } from "@/lib/data-provenance";
+import { canApply, IDLE, requestKey } from "@/components/schedule/run-state";
+import { firstClash } from "@/components/schedule/week-model";
 import { fromMinutes, toMinutes, transferFit, walkMinutesFromSeconds } from "@/lib/map-itinerary";
 import { GOAL_WEIGHTS, goalForWeights } from "@/lib/optimizer/presets";
 import type { OptimizeRequest, OptimizeResult, RankedSchedule } from "@/lib/optimizer/types";
@@ -28,34 +26,46 @@ import {
   buildOptimizeRequest,
   buildScheduleEvents,
   buildStopsForDay,
-  getBuildingById,
   getMajorById,
   getPlanningTermCourseCodes,
-  getSectionsForCourse,
-  sectionConflicts,
-  sectionNumber,
+  myUntClassNumbers,
+  resolveSectionPlan,
   summarizeCredits,
   takeFromAutoRun,
+  type SectionPlan,
 } from "@/lib/planner";
-import type { PlanStamp, PlanTransaction, TransactionOutcome } from "@/lib/planner-transaction";
-import { summarizeWeeklyWalking } from "@/lib/planner-walking";
-import type { Prerequisite, Reason } from "@/lib/prereq";
 import {
-  weekDays,
-  type BlockedTime,
-  type CoursePlan,
-  type CourseSection,
-  type OptimizationKey,
-  type PlannerState,
-  type SchedulePreferences,
-  type WeekDay,
-} from "@/lib/types";
+  findOption,
+  hasOpenSeats,
+  isTimed,
+  meetTogether,
+  optionIdLabel,
+  optionLabel,
+  optionsConflict,
+  otherSiteOf,
+  type SectionCatalog,
+} from "@/lib/planner-sections";
+import type { PlanStamp, PlanTransaction, TransactionOutcome } from "@/lib/planner-transaction";
+import { isShuttleLeg, plannerTravelTime, SHUTTLE_SECONDS, summarizeWeeklyWalking } from "@/lib/planner-walking";
+import type { Prerequisite, Reason } from "@/lib/prereq";
+import type { Section } from "@/lib/sections";
+import { classDays, type BlockedTime, type ClassDay, type CoursePlan, type OptimizationKey, type PlannerState, type SchedulePreferences, type WeekDay } from "@/lib/types";
 import { validate, type ObjectSchema, type StringSchema } from "./schema";
 
 /** The planner as the tools see it: the page's last render for reads, a transaction for plan writes. */
 export type PlannerPort = {
-  /** The plan as the page last rendered it (normalized). Reads and questions only; writes check inside `transact`. */
+  /**
+   * The plan as the page last rendered it: normalized, with the sections the
+   * page shows (saved picks plus the goal's recommendations). Reads and
+   * questions only; writes check inside `transact`.
+   */
   plan(): PlannerState;
+  /** Each planned course's option as the page resolved it (planner-provider's sectionPlan). */
+  sectionPlan(): SectionPlan;
+  /** Loaded course options; a course not loaded yet is "loading". */
+  catalog(): SectionCatalog;
+  /** Starts loading these courses' options and resolves once the page shows them, or when `signal` aborts. */
+  load(courseCodes: readonly string[], signal: AbortSignal): Promise<void>;
   preferences(): SchedulePreferences;
   /** The identity and plan replacement count the page last rendered; a write or Undo made under another is refused. */
   stamp(): PlanStamp;
@@ -122,14 +132,14 @@ function defineTool<Input>(spec: Omit<Tool, "run"> & { run(input: Input, ctx: To
 
 /* ---------- shared readers ---------- */
 
-const PROVENANCE = activeDataset.kind === "synthetic-sample" ? "sample" : "real";
 const EMPTY_PLAN: CoursePlan = { manualCredit: [], autoPlanned: [], lastAuto: null };
 /** get_course lists this many sections; build_schedule always considers all of them. */
-const SECTIONS_SHOWN = 10;
+const SECTIONS_SHOWN = 8;
 
 const codeField: StringSchema = { type: "string", minLength: 1, maxLength: 20, description: 'A UNT course code, such as "CSCE 1030".' };
 const timeField = (description: string): StringSchema => ({ type: "string", maxLength: 5, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$", description });
-const dayField: StringSchema = { type: "string", maxLength: 3, enum: weekDays, description: "Mon, Tue, Wed, Thu or Fri." };
+const dayField: StringSchema = { type: "string", maxLength: 3, enum: classDays, description: "Mon, Tue, Wed, Thu, Fri, Sat or Sun." };
+const weekdayField: StringSchema = { type: "string", maxLength: 3, enum: ["Mon", "Tue", "Wed", "Thu", "Fri"], description: "Mon, Tue, Wed, Thu or Fri." };
 
 function courseId(code: string): string | null {
   const id = untProfile().normalizeId(code);
@@ -147,15 +157,32 @@ function courseModel(plan: PlannerState): CourseModel {
   });
 }
 
-/** "Mon/Wed/Fri 09:00-09:50 at GAB; Tue 14:00-15:20 at ENV". */
-function meetingsText(section: CourseSection): string {
-  const groups = new Map<string, WeekDay[]>();
+/** "Mon/Wed/Fri 09:00-09:50 at GAB 105; online, no set time". */
+function meetingsText(section: Section): string {
+  const groups = new Map<string, string[]>();
   for (const meeting of section.meetings) {
-    const place = getBuildingById(meeting.buildingId)?.shortName ?? meeting.location;
-    const key = `${meeting.start}-${meeting.end} at ${place}`;
-    groups.set(key, [...(groups.get(key) ?? []), meeting.day]);
+    const key = isTimed(meeting)
+      ? `${fromMinutes(meeting.startMinutes)}-${fromMinutes(meeting.endMinutes)} at ${meeting.room}`
+      : meeting.async || meeting.kind === "online"
+        ? "online, no set time"
+        : "time to be announced";
+    groups.set(key, [...(groups.get(key) ?? []), ...(isTimed(meeting) ? [meeting.day] : [])]);
   }
-  return [...groups].map(([key, days]) => `${days.join("/")} ${key}`).join("; ");
+  return [...groups].map(([key, days]) => (days.length > 0 ? `${[...new Set(days)].join("/")} ${key}` : key)).join("; ");
+}
+
+/** The plan with the sections the page shows (planner-provider's plannerState), from saved picks and loaded options. */
+function withShownSections(plan: PlannerState, catalog: SectionCatalog, preferences: SchedulePreferences): PlannerState {
+  return { ...plan, selectedSections: resolveSectionPlan(plan, catalog, preferences.constraints).selections };
+}
+
+/** "the section has no open seats", "it meets at Frisco": what the Week and Courses lists tell a student about an option. */
+function optionNotes(section: Section): string[] {
+  const site = otherSiteOf(section);
+  return [
+    ...(section.term !== null && !hasOpenSeats(section) ? ["It has no open seats."] : []),
+    ...(site ? [`It meets at ${site}.`] : []),
+  ];
 }
 
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
@@ -225,8 +252,15 @@ const VERDICT = { done: "done", taking: "taking", eligible: "eligible", locked: 
 
 /* ---------- write helpers ---------- */
 
-const pick = <T,>(record: Record<string, T>, codes: readonly string[]) =>
-  Object.fromEntries(codes.flatMap((code) => (code in record ? [[code, record[code]]] : [])));
+/** `current` with each of `codes` set back to its saved pick in `before`, or to no pick when it had none. */
+function restoreSections(current: Record<string, string>, before: Record<string, string>, codes: readonly string[]): Record<string, string> {
+  const sections = { ...current };
+  for (const code of codes) {
+    if (code in before) sections[code] = before[code];
+    else delete sections[code];
+  }
+  return sections;
+}
 const withoutCode = (list: readonly string[], code: string) => list.filter((id) => id !== code);
 
 /** A Courses-view edit (model/plan-edits) applied to a plan, as planner-provider's updateCoursePlan does. */
@@ -266,7 +300,7 @@ function undoFor(port: PlannerPort, stamp: PlanStamp, runEditsAfter: number, { b
       const next: PlannerState = {
         ...plan,
         courseStatuses: { ...plan.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, before.courseStatuses[code] ?? "notTaken"])) },
-        selectedSections: { ...plan.selectedSections, ...pick(before.selectedSections, codes) },
+        selectedSections: restoreSections(plan.selectedSections, before.selectedSections, codes),
         optimization: goalSet === null ? plan.optimization : before.optimization,
         coursePlan: {
           ...coursePlan,
@@ -340,8 +374,15 @@ function withOverrides(saved: SchedulePreferences, input: BuildInput): ScheduleP
   };
 }
 
-function runKey(plan: PlannerState, preferences: SchedulePreferences): string {
-  return optimizerInputKey(preferences, plan.lockedSections ?? {}, getPlanningTermCourseCodes(plan));
+/** The Week view's run key: the request Optimize sends for this plan (run-state.ts requestKey). */
+function runKey(plan: PlannerState, preferences: SchedulePreferences, catalog: SectionCatalog): string {
+  return requestKey(buildOptimizeRequest(plan, preferences, { catalog }));
+}
+
+/** How the page names an option id: its section code when loaded, else its class numbers or sample number. */
+function labelOf(catalog: SectionCatalog, courseCode: string, optionId: string): string {
+  const option = findOption(catalog, courseCode, optionId);
+  return option ? optionLabel(option) : optionIdLabel(optionId);
 }
 
 type Build = { number: number; input: BuildInput; key: string; goal: OptimizationKey | null; result: OptimizeResult };
@@ -397,14 +438,17 @@ export function createTools(): Tool[] {
     defineTool<{ code: string }>({
       name: "get_course",
       title: "Get course",
-      description: `One course: catalog title, credits, description, the student's status, the prerequisite rule, and up to ${SECTIONS_SHOWN} sections with meeting times (24-hour). sections.provenance is "sample" while sections are synthetic, not UNT's class schedule.`,
+      description: `One course: catalog title, credits, description, the student's status, the prerequisite rule, and up to ${SECTIONS_SHOWN} of its Spring 2027 sections: section code, meetings (24-hour), instructor, open seats and a site other than Denton. provenance is "real" for UNT's class schedule and "sample" for synthetic sections.`,
       inputSchema: { type: "object", properties: { code: codeField }, required: ["code"], additionalProperties: false },
       writes: false,
-      run({ code }, { port }) {
+      async run({ code }, { port, signal }) {
         const id = courseId(code);
         if (!id) return fail("unknown_course");
+        await port.load([id], signal);
+        const options = port.catalog()(id);
+        if (options.status !== "ready") return fail("cancelled");
         const row = courseModel(port.plan()).rows.get(id)!;
-        const sections = getSectionsForCourse(id);
+        const sections = options.result.sections;
         return {
           ok: true,
           code: id,
@@ -415,12 +459,16 @@ export function createTools(): Tool[] {
           inPlan: row.inPlan,
           prerequisites: row.rule ? clip(tokensToString(ruleTokens(row.rule)), 300) : null,
           sections: {
-            provenance: PROVENANCE,
+            provenance: options.result.provenance.kind,
+            offered: options.result.availability !== "no_classes",
             total: sections.length,
             items: sections.slice(0, SECTIONS_SHOWN).map((section) => ({
               id: section.id,
+              section: optionLabel(section),
               meetings: meetingsText(section),
-              instructor: section.professor,
+              instructor: section.instructor.display,
+              openSeats: section.term === null ? null : hasOpenSeats(section),
+              site: otherSiteOf(section),
             })),
           },
         };
@@ -460,66 +508,75 @@ export function createTools(): Tool[] {
       name: "get_schedule",
       title: "Get schedule",
       description:
-        "The student's planned week for the planning term: each course's section and meeting times (24-hour), total credits, pairs of courses that overlap, courses with no section data, and walking minutes per week between back-to-back classes.",
+        "The student's planned week for the planning term: each course's section and meeting times (24-hour) and its state (chosen by the student, recommended for the goal, sample-pick or needs-review for a saved pick to look at again, choose, not-offered, no-data, loading), total credits, courses that overlap, and walking minutes per week between back-to-back classes.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       writes: false,
-      run(_input, { port }) {
+      async run(_input, { port, signal }) {
+        await port.load(getPlanningTermCourseCodes(port.plan()), signal);
         const plan = port.plan();
+        const sectionPlan = port.sectionPlan();
         const locks = plan.lockedSections ?? {};
-        const planned = getPlanningTermCourseCodes(plan).map((code) => ({ code, section: findSection(plan.selectedSections[code]) }));
-        const scheduled = planned.filter((entry): entry is { code: string; section: CourseSection } => Boolean(entry.section));
-        const overlaps = scheduled.flatMap((a, i) =>
-          scheduled.slice(i + 1).filter((b) => sectionConflicts(a.section, [b.section])).map((b) => [a.code, b.code]),
-        );
-        const walking = summarizeWeeklyWalking(buildScheduleEvents(plan), getWalkingSeconds);
+        const placed = sectionPlan.courses.flatMap((course) => (course.section ? [{ code: course.code, section: course.section }] : []));
+        const walking = summarizeWeeklyWalking(buildScheduleEvents(sectionPlan), plannerTravelTime);
         return {
           ok: true,
-          provenance: PROVENANCE,
           credits: summarizeCredits(plan),
-          courses: scheduled.map(({ code, section }) => ({
-            code,
-            sectionId: section.id,
-            meetings: meetingsText(section),
-            instructor: section.professor,
-            locked: locks[code] === section.id,
+          courses: sectionPlan.courses.map((course) => ({
+            code: course.code,
+            state: course.state,
+            section: course.section ? optionLabel(course.section) : course.savedId ? optionIdLabel(course.savedId) : null,
+            meetings: course.section ? meetingsText(course.section) : null,
+            provenance: course.section ? (course.section.term === null ? "sample" : "real") : null,
+            locked: Boolean(course.savedId && locks[course.code] === course.savedId),
           })),
-          overlaps,
-          withoutSections: planned.filter((entry) => !entry.section).map((entry) => entry.code),
+          overlaps: placed.flatMap((a, i) => placed.slice(i + 1).filter((b) => optionsConflict(a.section, b.section)).map((b) => [a.code, b.code])),
           walking: {
             minutesPerWeek: Math.round(walking.knownSeconds / 60),
             unknownWalks: walking.unknownLegs,
+            shuttleRides: walking.shuttleLegs,
             estimated: walking.estimated,
           },
         };
       },
     }),
 
-    defineTool<{ day: WeekDay }>({
+    defineTool<{ day: ClassDay }>({
       name: "get_day",
       title: "Get day",
       description:
-        "One weekday's classes in time order and the walk between each pair: break minutes, walking minutes over campus walkways (null when unknown), leaveBy (24-hour time to leave the earlier class) and fit: ok, tight (2 minutes or less to spare), late or unknown.",
+        "One day's classes in time order and the trip between each pair: break minutes, travel (walk, shuttle to or from Discovery Park, or other-weeks when the two never meet on the same date), minutes over campus walkways (null when unknown), leaveBy (24-hour time to leave the earlier class) and fit: ok, tight (2 minutes or less to spare), late or unknown.",
       inputSchema: { type: "object", properties: { day: dayField }, required: ["day"], additionalProperties: false },
       writes: false,
-      run({ day }, { port }) {
-        const stops = buildStopsForDay(port.plan(), day);
+      async run({ day }, { port, signal }) {
+        await port.load(getPlanningTermCourseCodes(port.plan()), signal);
+        const stops = buildStopsForDay(buildScheduleEvents(port.sectionPlan()), day);
         return {
           ok: true,
           day,
-          classes: stops.map((stop) => ({ code: stop.courseCode, start: stop.start, end: stop.end, building: stop.shortName })),
+          classes: stops.map((stop) => ({ code: stop.courseCode, start: stop.start, end: stop.end, room: stop.location })),
           walks: stops.slice(1).map((to, index) => {
             const from = stops[index];
             const gapMinutes = toMinutes(to.start) - toMinutes(from.end);
-            const walk = getWalkingSeconds(from.buildingId ?? "", to.buildingId ?? "");
-            // Like the map: a straight-line estimate gives no minutes, because nobody walks a straight line.
-            const walkMinutes = walk.source === "campus-network" ? walkMinutesFromSeconds(walk.seconds) : null;
+            // Like the map: classes in different weeks make no trip, the shuttle has its fixed time,
+            // and a straight-line estimate gives no minutes, because nobody walks a straight line.
+            const together = meetTogether(day, from.dates, to.dates);
+            const shuttle = isShuttleLeg(from.buildingId, to.buildingId);
+            const walk = plannerTravelTime(from.buildingId ?? "", to.buildingId ?? "");
+            const minutes = !together
+              ? null
+              : shuttle
+                ? walkMinutesFromSeconds(SHUTTLE_SECONDS)
+                : walk.source === "campus-network"
+                  ? walkMinutesFromSeconds(walk.seconds)
+                  : null;
             return {
               from: from.courseCode,
               to: to.courseCode,
               gapMinutes,
-              walkMinutes,
-              leaveBy: walkMinutes ? fromMinutes(toMinutes(to.start) - walkMinutes) : null,
-              fit: transferFit(walkMinutes, gapMinutes),
+              travel: !together ? "other-weeks" : shuttle ? "shuttle" : "walk",
+              minutes,
+              leaveBy: minutes ? fromMinutes(toMinutes(to.start) - minutes) : null,
+              fit: together ? transferFit(minutes, gapMinutes) : "ok",
             };
           }),
         };
@@ -542,17 +599,20 @@ export function createTools(): Tool[] {
           },
           earliestStart: timeField("No class before this time, HH:MM."),
           latestEnd: timeField("No class after this time, HH:MM."),
-          daysOff: { type: "array", maxItems: 5, items: dayField, description: "Weekdays with no class." },
+          daysOff: { type: "array", maxItems: 5, items: weekdayField, description: "Weekdays with no class." },
           maxCredits: { type: "integer", minimum: 1, maximum: 24, description: "Most credit hours." },
         },
         additionalProperties: false,
       },
       writes: false,
       async run(input, { port, signal }) {
+        await port.load(getPlanningTermCourseCodes(port.plan()), signal);
         const plan = port.plan();
+        const catalog = port.catalog();
         const preferences = withOverrides(port.preferences(), input);
-        const request = buildOptimizeRequest(plan, preferences);
-        if (request.courses.length === 0) return fail("nothing_to_schedule", "No planned course has section data.");
+        // The Week view's request: its Open seats only and other-site filters, and the courses it holds out.
+        const request = buildOptimizeRequest(plan, preferences, { catalog });
+        if (request.courses.length === 0) return fail("nothing_to_schedule", "No planned course has a section to suggest.");
         // The number is taken before waiting, so an older search finishing late cannot replace a newer one.
         const number = ++builds;
         running?.abort();
@@ -568,18 +628,17 @@ export function createTools(): Tool[] {
           if (running === mine) running = null;
         }
         if (signal.aborted || number !== builds) return fail("cancelled");
-        latest = { number, input, key: runKey(plan, preferences), goal: goalForWeights(preferences.weights), result };
+        latest = { number, input, key: requestKey(request), goal: goalForWeights(preferences.weights), result };
         const current = plan.selectedSections;
         return {
           ok: true,
           status: result.status,
-          provenance: PROVENANCE,
           alternatives: result.schedules.map((schedule, index) => {
             const b = schedule.breakdown;
             return {
               id: `opt-${number}-${"ABC"[index]}`,
               changes: Object.entries(schedule.byCourse).filter(([code, id]) => current[code] !== id).length,
-              sections: Object.fromEntries(Object.entries(schedule.byCourse).map(([code, id]) => [code, sectionNumber(id)])),
+              sections: Object.fromEntries(Object.entries(schedule.byCourse).map(([code, id]) => [code, labelOf(catalog, code, id)])),
               daysOnCampus: b.daysOnCampus,
               gapMinutes: b.gapMinutes,
               walkMinutes: Math.round(b.walkSeconds / 60),
@@ -601,20 +660,13 @@ export function createTools(): Tool[] {
       name: "export_class_numbers",
       title: "Export class numbers",
       description:
-        'Registration class numbers for the planned sections. While provenance is "sample", sections are synthetic and classNumber is null; the student finds real class numbers in UNT\'s class search.',
+        "What the student types into myUNT to register: one line per planned course with every class number of its section. missing lists courses with no real section on the plan yet (a sample, a pick to look at again, still loading).",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       writes: false,
-      run(_input, { port }) {
-        const plan = port.plan();
-        return {
-          ok: true,
-          provenance: PROVENANCE,
-          courses: getPlanningTermCourseCodes(plan).flatMap((code) => {
-            const section = findSection(plan.selectedSections[code]);
-            // The bundled sections carry no class numbers (lib/data-provenance.ts).
-            return section ? [{ code, section: sectionNumber(section.id), classNumber: null }] : [];
-          }),
-        };
+      async run(_input, { port, signal }) {
+        await port.load(getPlanningTermCourseCodes(port.plan()), signal);
+        const { text, count, missing } = myUntClassNumbers(port.sectionPlan());
+        return { ok: true, lines: text ? text.split("\n") : [], classNumbers: count, missing };
       },
     }),
 
@@ -635,34 +687,48 @@ export function createTools(): Tool[] {
         if (!found) return fail("unknown_alternative", "Use an id from the latest build_schedule.");
         const { build, schedule, letter } = found;
         const { port } = ctx;
-        // Each course this option would move in `plan`, from which section to which, or why it cannot be used.
-        const assess = (plan: PlannerState) => {
-          const key = runKey(plan, withOverrides(port.preferences(), build.input));
-          const verdict = canApply({ ...IDLE, result: build.result, resultKey: build.key }, key, schedule, plan.lockedSections ?? {});
+        const catalog = port.catalog();
+        const find = (courseCode: string, optionId: string) => findOption(catalog, courseCode, optionId) ?? undefined;
+        /**
+         * Each course this option would move from the sections `shown` holds, or why it cannot be used: the
+         * Week view's own check (run-state.ts canApply), with its merged-plan guard, so an option is refused
+         * when the plan's picks with it applied would make two courses overlap.
+         */
+        const assess = (shown: PlannerState) => {
+          const preferences = withOverrides(port.preferences(), build.input);
+          const verdict = canApply(
+            { ...IDLE, result: build.result, resultKey: build.key },
+            runKey(shown, preferences, catalog),
+            schedule,
+            shown.lockedSections ?? {},
+            (merged) => firstClash(merged, find),
+            shown.selectedSections,
+          );
           if (!verdict.ok) return fail("cannot_apply", verdict.reason);
           return Object.entries(schedule.byCourse)
-            .filter(([code, sectionId]) => plan.selectedSections[code] !== sectionId)
-            .map(([code, sectionId]) => [code, plan.selectedSections[code], sectionId] as const);
+            .filter(([code, sectionId]) => shown.selectedSections[code] !== sectionId)
+            .map(([code, sectionId]) => [code, shown.selectedSections[code] ?? null, sectionId] as const);
         };
         const stamp = port.stamp();
         const changes = assess(port.plan());
         if (!Array.isArray(changes)) return changes;
         if (changes.length === 0) return { ok: true, changed: 0 };
-        const list = changes.map(([code, , to]) => `${code} to section ${sectionNumber(to)}`).join(", ");
+        const list = changes.map(([code, , to]) => `${code} to section ${labelOf(catalog, code, to)}`).join(", ");
         if (!(await ctx.confirm(`Use schedule option ${letter}? It moves ${list}.`, `Use option ${letter}`))) return refused(ctx);
-        const codes = changes.map(([code]) => code);
-        const ours = (plan: PlannerState) => changes.every(([code, , to]) => plan.selectedSections[code] === to);
+        // Like the Week view, using an option makes every section in it the student's pick.
+        const codes = Object.keys(schedule.byCourse);
+        const ours = (plan: PlannerState) => codes.every((code) => plan.selectedSections[code] === schedule.byCourse[code]);
         return commitWrite(ctx, stamp, `Using option ${letter} from your assistant`, (plan) => {
           // The student approved these exact moves; anything else needs a new question.
-          const now = assess(plan);
+          const now = assess(withShownSections(plan, catalog, port.preferences()));
           if (!Array.isArray(now)) return { result: now };
           if (JSON.stringify(now) !== JSON.stringify(changes)) return { result: fail("plan_changed", PLAN_CHANGED) };
           // planner-provider's applySchedule: a moved course counts as a hand edit to a pending Auto-fill run.
           const next: PlannerState = {
             ...plan,
-            selectedSections: { ...plan.selectedSections, ...Object.fromEntries(changes.map(([code, , to]) => [code, to])) },
+            selectedSections: { ...plan.selectedSections, ...schedule.byCourse },
             optimization: build.goal ?? plan.optimization,
-            coursePlan: plan.coursePlan && takeFromAutoRun(plan.coursePlan, codes),
+            coursePlan: plan.coursePlan && takeFromAutoRun(plan.coursePlan, changes.map(([code]) => code)),
           };
           return { next, result: { before: plan, codes, stillOurs: ours, goalSet: build.goal } };
         }, { ok: true, changed: changes.length });
@@ -673,12 +739,12 @@ export function createTools(): Tool[] {
       name: "add_section",
       title: "Add section",
       description:
-        "Puts one section of a course in the plan, adding the course to the planning term if needed. Reports overlaps with other planned classes. The student must confirm in the page and can Undo afterwards. Refused for a course whose section the student locked.",
+        "Puts one section of a course in the plan, adding the course to the planning term if needed, as the student can by hand. Reports overlaps with other planned classes, a full section and a site other than Denton. The student must confirm in the page and can Undo afterwards. Refused for a course whose section the student locked.",
       inputSchema: {
         type: "object",
         properties: {
           code: codeField,
-          sectionId: { type: "string", minLength: 1, maxLength: 40, description: 'A section id from get_course, such as "csce-1030-002", or its number, "002".' },
+          sectionId: { type: "string", minLength: 1, maxLength: 80, description: 'A section id from get_course, or its section code, such as "001".' },
         },
         required: ["code", "sectionId"],
         additionalProperties: false,
@@ -688,32 +754,35 @@ export function createTools(): Tool[] {
         const { port } = ctx;
         const id = courseId(code);
         if (!id) return fail("unknown_course");
-        const section = getSectionsForCourse(id).find((s) => s.id === sectionId || sectionNumber(s.id) === sectionId);
+        await port.load([id], ctx.signal);
+        const catalog = port.catalog();
+        const options = catalog(id);
+        const section = options.status === "ready" ? options.result.sections.find((s) => s.id === sectionId || optionLabel(s) === sectionId) : undefined;
         if (!section) return fail("unknown_section", `Sections of ${id} are listed by get_course.`);
-        // Where the course stands in `plan`, or why this section cannot be added.
-        const assess = (plan: PlannerState) => {
-          const status = courseModel(plan).rows.get(id)!.status;
+        // Where the course stands in `shown`, or why this section cannot be added.
+        const assess = (shown: PlannerState) => {
+          const status = courseModel(shown).rows.get(id)!.status;
           // Planning a course already passed, or one the transcript shows in progress, would be normalized away.
           if (status === "done" || status === "taking") return fail("not_plannable", `${id} is ${status === "done" ? "already done" : "in progress this term"}.`);
-          const lock = plan.lockedSections?.[id];
+          const lock = shown.lockedSections?.[id];
           if (lock && lock !== section.id) return fail("course_locked", `The student locked ${id}; they can unlock it in Week.`);
-          const planned = getPlanningTermCourseCodes(plan);
+          const planned = getPlanningTermCourseCodes(shown);
           const overlapsWith = planned.filter((other) => {
-            const picked = other === id ? undefined : findSection(plan.selectedSections[other]);
-            return picked !== undefined && sectionConflicts(section, [picked]);
+            const picked = other === id ? null : findOption(catalog, other, shown.selectedSections[other] ?? "");
+            return picked !== null && optionsConflict(section, picked);
           });
-          return { inPlan: planned.includes(id), current: plan.selectedSections[id] ?? null, overlapsWith };
+          return { inPlan: planned.includes(id), current: shown.selectedSections[id] ?? null, overlapsWith };
         };
         const stamp = port.stamp();
         const before = assess(port.plan());
         if ("ok" in before) return before;
         if (before.inPlan && before.current === section.id) return { ok: true, changed: false, overlapsWith: [] };
-        const clash = before.overlapsWith.length > 0 ? ` It overlaps ${before.overlapsWith.join(" and ")}.` : "";
-        const question = `Add ${id} section ${sectionNumber(section.id)} (${meetingsText(section)}) to your plan?${clash}`;
+        const notes = [...(before.overlapsWith.length > 0 ? [`It overlaps ${before.overlapsWith.join(" and ")}.`] : []), ...optionNotes(section)];
+        const question = [`Add ${id} section ${optionLabel(section)} (${meetingsText(section)}) to your plan?`, ...notes].join(" ");
         if (!(await ctx.confirm(question, "Add section"))) return refused(ctx);
         const ours = (plan: PlannerState) => plan.courseStatuses[id] === "inProgress" && plan.selectedSections[id] === section.id;
-        return commitWrite(ctx, stamp, `Your assistant added ${id} section ${sectionNumber(section.id)}`, (plan) => {
-          const now = assess(plan);
+        return commitWrite(ctx, stamp, `Your assistant added ${id} section ${optionLabel(section)}`, (plan) => {
+          const now = assess(withShownSections(plan, catalog, port.preferences()));
           if ("ok" in now) return { result: now };
           if (JSON.stringify(now) !== JSON.stringify(before)) return { result: fail("plan_changed", PLAN_CHANGED) };
           // The Courses view's "choose section" edit: plan the course by hand, then pick the section.
@@ -723,7 +792,7 @@ export function createTools(): Tool[] {
           );
           const next = { ...planned, selectedSections: { ...planned.selectedSections, [id]: section.id } };
           return { next, result: { before: plan, codes: [id], stillOurs: ours } };
-        }, { ok: true, changed: true, overlapsWith: before.overlapsWith });
+        }, { ok: true, changed: true, overlapsWith: before.overlapsWith, notes: optionNotes(section) });
       },
     }),
 
@@ -771,7 +840,7 @@ export function createTools(): Tool[] {
             items: {
               type: "object",
               properties: {
-                day: dayField,
+                day: weekdayField,
                 start: timeField("Start, HH:MM."),
                 end: timeField("End, HH:MM, after start."),
                 label: { type: "string", maxLength: 40, description: 'What it is, such as "Work". Default "Busy".' },

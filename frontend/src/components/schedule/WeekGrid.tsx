@@ -1,8 +1,9 @@
 "use client";
 
-import { weekDays } from "@/lib/types";
+import type { CSSProperties } from "react";
 import styles from "./schedule.module.css";
-import { clock, courseColor, hourRange, type WeekEvent } from "./week-model";
+import { rangeLabel } from "@/lib/planner-sections";
+import { clock, courseColor, daysShown, hourRange, laneLayout, usualRange, type WeekEvent } from "./week-model";
 
 const HOUR_PX = 56;
 
@@ -21,7 +22,9 @@ function LockGlyph() {
  * `ghosts` are another schedule's classes drawn dashed on top, for previewing
  * an alternative; they are decorative and hidden from assistive tech.
  * `rangeEvents` fixes the hours shown (default: events and ghosts), so a
- * preview can be kept from resizing the grid.
+ * preview can be kept from resizing the grid. Weekend columns appear only
+ * when a class meets then. Classes sharing a slot in different weeks (first
+ * and second eight-week sessions) sit side by side, each with its dates.
  */
 export function WeekGrid({
   events,
@@ -33,6 +36,7 @@ export function WeekGrid({
   ghostsInstant = false,
   dimmedCourses = [],
   onSelect,
+  label,
 }: {
   events: WeekEvent[];
   courseOrder: string[];
@@ -44,8 +48,22 @@ export function WeekGrid({
   ghostsInstant?: boolean;
   dimmedCourses?: string[];
   onSelect: (courseCode: string) => void;
+  /** The grid's accessible name, which says where the sections come from. */
+  label: string;
 }) {
   const { first, last } = hourRange([...(rangeEvents ?? events), ...ghosts]);
+  const days = daysShown([...(rangeEvents ?? events), ...ghosts]);
+  const lanes = laneLayout(events);
+  const usual = usualRange(events);
+  /** Narrows an event to its lane when it shares the slot with a class in other weeks. */
+  const laneStyle = (event: WeekEvent): CSSProperties => {
+    const place = lanes.get(event);
+    if (!place || place.lanes === 1) return {};
+    return {
+      left: `calc(${place.lane} * 100% / ${place.lanes} + 2px)`,
+      right: `calc(${place.lanes - place.lane - 1} * 100% / ${place.lanes} + 2px)`,
+    };
+  };
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
   const height = (last - first) * HOUR_PX;
   const top = (minutes: number) => ((minutes - first * 60) / 60) * HOUR_PX;
@@ -55,10 +73,15 @@ export function WeekGrid({
   };
 
   return (
-    <section className={styles.gridWrap} aria-label="Week calendar (sample sections)">
+    <section
+      className={styles.gridWrap}
+      aria-label={label}
+      // --lanes widens the day columns so each lane still fits a course code; on a phone the week then scrolls sideways.
+      style={{ ["--days" as string]: days.length, ["--lanes" as string]: Math.max(1, ...[...lanes.values()].map((place) => place.lanes)) }}
+    >
       <div className={styles.dayHead} aria-hidden="true">
         <div />
-        {weekDays.map((day) => (
+        {days.map((day) => (
           <div key={day}>{day}</div>
         ))}
       </div>
@@ -73,7 +96,7 @@ export function WeekGrid({
             </span>
           ))}
         </div>
-        {weekDays.map((day) => (
+        {days.map((day) => (
           <div key={day} className={styles.day} data-day={day}>
             {events
               .filter((event) => event.day === day)
@@ -82,6 +105,8 @@ export function WeekGrid({
                 const conflict = conflictSections.has(event.sectionId);
                 const tall = event.end - event.start >= 60;
                 const describedBy = `ev-${event.sectionId}-${day}-${event.start}`;
+                const dates = rangeLabel(event.dates);
+                const ownDates = dates !== null && dates !== usual ? dates : null;
                 return (
                   <button
                     key={`${event.sectionId}-${day}-${event.start}`}
@@ -90,12 +115,17 @@ export function WeekGrid({
                     data-conflict={conflict ? "true" : "false"}
                     aria-describedby={describedBy}
                     data-dimmed={dimmedCourses.includes(event.courseCode) ? "true" : "false"}
-                    style={{ ...courseColor(courseOrder, event.courseCode), top: top(event.start) + 2, height: top(event.end) - top(event.start) - 4 }}
+                    style={{
+                      ...courseColor(courseOrder, event.courseCode),
+                      top: top(event.start) + 2,
+                      height: top(event.end) - top(event.start) - 4,
+                      ...laneStyle(event),
+                    }}
                     onClick={() => onSelect(event.courseCode)}
                   >
                     {/* Described, not named: the name stays "{COURSE} {START} – {END} {PROFESSOR}". */}
                     <span id={describedBy} hidden>
-                      {[day, locked ? "locked" : null, conflict ? "overlaps another class" : null].filter(Boolean).join(", ")}
+                      {[day, ownDates, locked ? "locked" : null, conflict ? "overlaps another class" : null].filter(Boolean).join(", ")}
                     </span>
                     <span className={styles.eventCode}>
                       {event.courseCode}
@@ -111,6 +141,11 @@ export function WeekGrid({
                     <span className={`${styles.eventMeta} ${styles.eventExtra}`} style={tall ? undefined : { position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)" }}>
                       {event.professor}
                     </span>
+                    {ownDates ? (
+                      <span className={styles.eventMeta} aria-hidden="true">
+                        {ownDates}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -140,9 +175,10 @@ export function MiniWeek({ events, courseOrder, moved, label }: { events: WeekEv
   const last = Math.max(18, ...events.map((event) => Math.ceil(event.end / 60)));
   const height = 96;
   const scale = height / ((last - first) * 60);
+  const days = daysShown(events);
   return (
-    <div className={styles.mini} role="img" aria-label={label}>
-      {weekDays.map((day) => (
+    <div className={styles.mini} role="img" aria-label={label} style={{ ["--days" as string]: days.length }}>
+      {days.map((day) => (
         <div key={day} className={styles.miniDay} style={{ height }}>
           {events
             .filter((event) => event.day === day)

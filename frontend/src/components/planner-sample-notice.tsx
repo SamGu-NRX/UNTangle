@@ -1,9 +1,16 @@
+"use client";
+
+import { usePlanner } from "@/components/planner-provider";
+
 /**
- * Every section in the bundled data is synthetic: generated sections, times,
- * rooms and instructors over 15 buildings, with no term attached. Anywhere the
- * planner shows them, say so.
+ * The bundled sections are synthetic: generated times, rooms and instructors
+ * over 15 buildings, with no term. The planner falls back to them when real
+ * sections cannot load, and old plans may still hold them. Wherever the plan
+ * shows one, say so; with only real sections there is nothing to say.
  */
 export function PlannerSampleNotice({ compact = false }: { compact?: boolean }) {
+  const { sectionPlan } = usePlanner();
+  if (!sectionPlan.courses.some((course) => course.section?.term === null)) return null;
   return (
     <p
       role="status"

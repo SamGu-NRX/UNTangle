@@ -6,9 +6,8 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
 import { installDom, mountPlanner, removeDom, setSession, waitFor, type PlannerValue } from "../planner/test-dom";
-import { getSectionsForCourse } from "@/lib/planner";
 import { createTools, type PlannerPort, type Tool } from "@/lib/webmcp/tools";
-import { session } from "./fixture";
+import { samplesOf, session } from "./fixture";
 
 const mounted: Array<() => Promise<void>> = [];
 beforeAll(() => {
@@ -40,12 +39,17 @@ async function plannerWithCourses() {
   );
   await waitFor(() => PLANNED.every((code) => planner.get().plannerState.selectedSections[code]), "sections shown");
   const { livePort } = await import("@/components/webmcp/WebMcpBridge");
-  return { planner, port: livePort(planner.get) };
+  // Each check runs every 10 ms, standing in for the bridge's after-render notice.
+  const onRender = (listener: () => void) => {
+    const timer = setInterval(listener, 10);
+    return () => clearInterval(timer);
+  };
+  return { planner, port: livePort(planner.get, onRender) };
 }
 
 const named = (tools: Tool[], name: string) => tools.find((tool) => tool.name === name)!;
 const planned = (planner: { get: () => PlannerValue }, code: string) => planner.get().plannerState.courseStatuses[code] === "inProgress";
-const otherSection = (port: PlannerPort, code: string) => getSectionsForCourse(code).find((s) => s.id !== port.plan().selectedSections[code])!.id;
+const otherSection = (port: PlannerPort, code: string) => samplesOf(code).find((s) => s.id !== port.plan().selectedSections[code])!.id;
 
 test("a lock queued while the student decides stops remove_course", async () => {
   const { planner, port } = await plannerWithCourses();
