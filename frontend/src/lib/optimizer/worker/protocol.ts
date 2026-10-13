@@ -18,6 +18,7 @@
  * file and nothing else (see build-worker.ts).
  */
 import type { OptimizeRequest, OptimizeResult, OptWalkingTime, OptWalkingTimeFn } from "../types";
+import { allowedSections, passesTimeConstraints } from "../prepare";
 
 /** Budget for the answer shown first. */
 export const FIRST_BUDGET_MS = 300;
@@ -44,17 +45,32 @@ export type OptimizeReply =
     }
   | { id: number; phase: "error"; message: string };
 
-/** Every walk the engine can ask about: each ordered pair of buildings in the request. */
+/**
+ * Every walk the engine can ask about, as a table. With walking weighted or
+ * checked, buildings come from every section of the request's courses,
+ * including excluded, locked-out and time-filtered ones, so a suggested
+ * relaxation that brings a section back still has its walks. Without
+ * walking, walks only feed the breakdown of returned schedules, which use
+ * allowed sections alone, so only their buildings are tabulated (none when
+ * everything is filtered out). The diagonal is never asked (the same
+ * building is 0 before the provider is consulted).
+ */
 export function toPlainRequest(request: OptimizeRequest): PlainRequest {
   const { walkingTime, now: _now, timeBudgetMs: _budget, maxNodes: _nodes, ...rest } = request;
+  void _now;
+  void _budget;
+  void _nodes;
+  const walkingActive = request.weights.walking > 0 || request.constraints.walking !== null;
+  const sections = request.courses.flatMap((course) =>
+    walkingActive
+      ? course.sections
+      : allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints)),
+  );
   const ids = [
-    ...new Set(
-      request.courses.flatMap((course) =>
-        course.sections.flatMap((section) => section.meetings.map((meeting) => meeting.buildingId).filter((id): id is string => id !== null)),
-      ),
-    ),
+    ...new Set(sections.flatMap((section) => section.meetings.map((meeting) => meeting.buildingId).filter((id): id is string => id !== null))),
   ].sort();
-  const legs = ids.flatMap((from) => ids.map((to) => walkingTime(from, to)));
+  const same: OptWalkingTime = { seconds: 0, source: "campus-network" };
+  const legs = ids.flatMap((from) => ids.map((to) => (from === to ? same : walkingTime(from, to))));
   return { ...rest, walking: { ids, legs } };
 }
 

@@ -86,7 +86,8 @@ export type Prepared = {
    * total of all its meetings that fit there, not just the longest one).
    * The search uses it to bound how much of a break other courses can fill.
    */
-  fill: Int16Array[][];
+  /** null when there are too many distinct times to tabulate (see MAX_FILL_TIMES); the bound then assumes any break can be filled. */
+  fill: Int16Array[][] | null;
   /**
    * Least walking cost between two buildings over any chain of buildings in
    * between (shortest paths, unknown legs at UNKNOWN_WALK_SECONDS), indexed
@@ -240,6 +241,10 @@ function compareIds(a: string, b: string) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/** Above these sizes the fill tables and the walking floor are skipped (both only tighten the bound). */
+const MAX_FILL_TIMES = 256;
+const MAX_FLOOR_BUILDINGS = 64;
+
 /** Thrown when preparation outlives the request's deadline; `optimize` reports `timeout`. */
 export class PrepareBudgetExhausted extends Error {
   constructor() {
@@ -296,6 +301,7 @@ export function prepare(
   for (let a = 0; a < buildingCount; a += 1) {
     checkDeadline();
     for (let b = 0; b < buildingCount; b += 1) {
+      if (a === b) continue;
       const seconds = walkSeconds(request.walkingTime, buildingIds[a], buildingIds[b]);
       walk[a * buildingCount + b] = seconds === null ? -1 : seconds;
     }
@@ -423,8 +429,11 @@ export function prepare(
   const timeIndex = new Int16Array(24 * 60 + 1).fill(-1);
   times.forEach((minute, index) => (timeIndex[minute] = index));
   const t = times.length;
-  const fill = courses.map((course) =>
+  // Each table is t x t; past a few hundred distinct times (irregular data)
+  // they cost more time and memory than the bound saves, so they are skipped.
+  const fill = t > MAX_FILL_TIMES ? null : courses.map((course) =>
     OPT_DAYS.map((_, day) => {
+      checkDeadline();
       const table = new Int16Array(t * t);
       for (const candidate of course.candidates) {
         // One section can put several meetings inside one break: credit every
@@ -441,6 +450,7 @@ export function prepare(
       }
       // Widen: a window [i, j] holds everything a narrower window inside it holds.
       for (let i = t - 1; i >= 0; i -= 1) {
+        if ((i & 31) === 0) checkDeadline();
         for (let j = 0; j < t; j += 1) {
           let value = table[i * t + j];
           if (i + 1 < t && table[(i + 1) * t + j] > value) value = table[(i + 1) * t + j];
@@ -460,7 +470,11 @@ export function prepare(
       walkFloor[a * nodes + b] = a === b && a < buildingCount ? 0 : (known ?? UNKNOWN_WALK_SECONDS);
     }
   }
-  for (let via = 0; via < nodes; via += 1) {
+  // Shortest chains (Floyd-Warshall) cost nodes^3; with many buildings the
+  // floor stays at the direct walks' minimum of 0 for splittable pairs instead.
+  if (nodes > MAX_FLOOR_BUILDINGS) walkFloor.fill(0);
+  for (let via = 0; via < nodes && nodes <= MAX_FLOOR_BUILDINGS; via += 1) {
+    checkDeadline();
     for (let a = 0; a < nodes; a += 1) {
       for (let b = 0; b < nodes; b += 1) {
         const through = walkFloor[a * nodes + via] + walkFloor[via * nodes + b];

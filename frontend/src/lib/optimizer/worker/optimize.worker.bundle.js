@@ -240,6 +240,8 @@ function minDifferentCourses(request) {
 function compareIds(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+var MAX_FILL_TIMES = 256;
+var MAX_FLOOR_BUILDINGS = 64;
 
 class PrepareBudgetExhausted extends Error {
   constructor() {
@@ -282,6 +284,8 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
   for (let a = 0;a < buildingCount; a += 1) {
     checkDeadline();
     for (let b = 0;b < buildingCount; b += 1) {
+      if (a === b)
+        continue;
       const seconds = walkSeconds(request.walkingTime, buildingIds[a], buildingIds[b]);
       walk[a * buildingCount + b] = seconds === null ? -1 : seconds;
     }
@@ -399,7 +403,8 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
   const timeIndex = new Int16Array(24 * 60 + 1).fill(-1);
   times.forEach((minute, index) => timeIndex[minute] = index);
   const t = times.length;
-  const fill = courses.map((course) => OPT_DAYS.map((_, day) => {
+  const fill = t > MAX_FILL_TIMES ? null : courses.map((course) => OPT_DAYS.map((_, day) => {
+    checkDeadline();
     const table = new Int16Array(t * t);
     for (const candidate of course.candidates) {
       const own = candidate.meetings.filter((meeting) => meeting.day === day);
@@ -414,6 +419,8 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
       }
     }
     for (let i = t - 1;i >= 0; i -= 1) {
+      if ((i & 31) === 0)
+        checkDeadline();
       for (let j = 0;j < t; j += 1) {
         let value = table[i * t + j];
         if (i + 1 < t && table[(i + 1) * t + j] > value)
@@ -433,7 +440,10 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
       walkFloor[a * nodes + b] = a === b && a < buildingCount ? 0 : known ?? UNKNOWN_WALK_SECONDS;
     }
   }
-  for (let via = 0;via < nodes; via += 1) {
+  if (nodes > MAX_FLOOR_BUILDINGS)
+    walkFloor.fill(0);
+  for (let via = 0;via < nodes && nodes <= MAX_FLOOR_BUILDINGS; via += 1) {
+    checkDeadline();
     for (let a = 0;a < nodes; a += 1) {
       for (let b = 0;b < nodes; b += 1) {
         const through = walkFloor[a * nodes + via] + walkFloor[via * nodes + b];
@@ -564,8 +574,11 @@ function search(prepared, budget, options) {
       const window = next.start - prev.end;
       const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
       let filled = 0;
-      for (let r = 0;r < remainingCount && filled < window; r += 1)
-        filled += fill[remaining[r]][day][cell];
+      if (fill === null)
+        filled = remainingCount > 0 ? window : 0;
+      else
+        for (let r = 0;r < remainingCount && filled < window; r += 1)
+          filled += fill[remaining[r]][day][cell];
       if (filled > 0) {
         if (filled < window)
           gap += window - filled;
@@ -886,7 +899,7 @@ function search(prepared, budget, options) {
         return -1;
       pairs += inside;
       const list = dayLists[d];
-      if (list.length === 0)
+      if (list.length === 0 || fill === null)
         continue;
       const spanStart = list[0].start;
       const spanEnd = list[list.length - 1].end;

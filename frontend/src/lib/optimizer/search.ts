@@ -132,7 +132,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       const window = next.start - prev.end;
       const cell = timeIndex[prev.end] * timeCount + timeIndex[next.start];
       let filled = 0;
-      for (let r = 0; r < remainingCount && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
+      if (fill === null) filled = remainingCount > 0 ? window : 0;
+      else for (let r = 0; r < remainingCount && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
       if (filled > 0) {
         if (filled < window) gap += window - filled;
         if (!(prev.building >= 0 && prev.building === next.building)) {
@@ -457,7 +458,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       if (inside < 0) return -1;
       pairs += inside;
       const list = dayLists[d];
-      if (list.length === 0) continue;
+      if (list.length === 0 || fill === null) continue;
       const spanStart = list[0].start;
       const spanEnd = list[list.length - 1].end;
       let right = 0;
