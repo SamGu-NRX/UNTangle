@@ -14,6 +14,21 @@ function Code({ children }: { children: React.ReactNode }) {
   return <strong className="ui-code">{children}</strong>;
 }
 
+/**
+ * A shared sentence from diff.ts that opens with the course code, with the
+ * code set as a Code. The wording stays single-sourced with the restore
+ * preview, which quotes the same strings.
+ */
+function CodeLead({ code, line }: { code: string; line: string }) {
+  if (!line.startsWith(code)) return <>{line}</>;
+  return (
+    <>
+      <Code>{code}</Code>
+      {line.slice(code.length)}
+    </>
+  );
+}
+
 export function PlanComparison({ id, diff }: { id: string; diff: PlanDiff }) {
   return (
     <div id={id} className="plans-diff">
@@ -47,11 +62,15 @@ export function PlanComparison({ id, diff }: { id: string; diff: PlanDiff }) {
               {ref.side === "savedPlan" ? "saved plan" : "working schedule"})
             </DiffRow>
           ))}
-          {describeLockChanges(diff.lockChanges).map((line) => (
-            <DiffRow key={`lock-${line}`}>{line}</DiffRow>
+          {describeLockChanges(diff.lockChanges).map((line, i) => (
+            <DiffRow key={`lock-${line}`}>
+              <CodeLead code={diff.lockChanges[i].courseCode} line={line} />
+            </DiffRow>
           ))}
-          {describeCourseFactChanges(diff.courseFactChanges).map((line) => (
-            <DiffRow key={`fact-${line}`}>{line}</DiffRow>
+          {describeCourseFactChanges(diff.courseFactChanges).map((line, i) => (
+            <DiffRow key={`fact-${line}`}>
+              <CodeLead code={diff.courseFactChanges[i].courseCode} line={line} />
+            </DiffRow>
           ))}
           {diff.optimizationChanged ? <DiffRow>The optimization preference differs</DiffRow> : null}
           {diff.activeDayChanged ? <DiffRow>The preferred day differs</DiffRow> : null}
