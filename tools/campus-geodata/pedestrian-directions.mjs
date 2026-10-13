@@ -10,7 +10,7 @@ const deniedAccess = new Set(["no", "private"]);
 export function pedestrianDirections(tags, wayId) {
   const source = Object.fromEntries(directionKeys.filter(key => tags[key] !== undefined).map(key => [key, tags[key]]));
   for (const key of Object.keys(tags)) {
-    if (/^(oneway:foot|foot:(forward|backward)|access:(forward|backward)):/.test(key)) {
+    if (/^(?:foot:conditional|access:conditional)(?::|$)/.test(key) || /^(oneway:foot|foot:(forward|backward)|access:(forward|backward)):/.test(key)) {
       throw new Error(`OSM way ${wayId}: unsupported pedestrian direction tag ${key}=${tags[key]}`);
     }
   }
