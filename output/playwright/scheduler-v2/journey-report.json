@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:3117",
-  "startedAt": "2026-10-13T13:39:40.874Z",
+  "startedAt": "2026-10-13T13:45:19.377Z",
   "checks": [
     {
       "name": "desktop: no page headline",
@@ -205,5 +205,5 @@
       "blocking": []
     }
   ],
-  "finishedAt": "2026-10-13T13:39:59.883Z"
+  "finishedAt": "2026-10-13T13:45:38.789Z"
 }

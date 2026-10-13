@@ -63,7 +63,7 @@ function Segmented({ value, onChange, label }: { value: Lean; onChange: (lean: L
           className={styles.segment}
           onClick={() => onChange(key)}
           onKeyDown={(event) => {
-            const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
             if (step === 0) return;
             event.preventDefault();
             const next = options[(index + step + options.length) % options.length][0];

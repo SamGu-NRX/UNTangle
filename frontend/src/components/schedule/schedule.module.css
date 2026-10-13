@@ -105,7 +105,7 @@
   border-radius: 6px;
   background: var(--surface, #fff);
   box-shadow: var(--shadow-1, 0 1px 2px rgba(26, 46, 26, 0.06));
-  transition: transform 160ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  /* No transition: the pill also moves on arrow keys, and keyboard actions never animate. */
   pointer-events: none;
 }
 .segment {
@@ -206,6 +206,11 @@
   font: 400 14px/1 var(--font-body, "DM Sans", sans-serif);
   color: var(--ink, #1a2e1a);
   min-width: 0;
+}
+/* Time inputs focus their hour/minute parts, which :focus-visible on the input misses. */
+.field[type="time"]:focus-within {
+  outline: 2px solid var(--accent, #00a855);
+  outline-offset: 2px;
 }
 @media (pointer: coarse) {
   .field {
@@ -709,14 +714,33 @@
     animation-duration: 120ms;
     animation-name: fade;
   }
-  .segmentPill,
   .chip,
   .button,
-  .event {
-    transition-property: opacity, background-color, border-color;
+  .event,
+  .page :global(.lock-toggle) {
+    transition-property: opacity, background-color, border-color, color;
+  }
+  .chip:active,
+  .button:active:not(:disabled),
+  .event:active,
+  .page :global(.lock-toggle:active) {
+    transform: none;
   }
   .spinner {
-    animation-duration: 1.6s;
+    animation: none;
+    border-top-color: rgba(255, 255, 255, 0.4);
+  }
+}
+/* Touch: 44px targets for the rail's controls. */
+@media (pointer: coarse) {
+  .chip,
+  .button,
+  .segmented,
+  .field {
+    min-height: 44px;
+  }
+  .range {
+    height: 44px;
   }
 }
 @keyframes fade {

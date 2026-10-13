@@ -70,13 +70,16 @@ export function WeekGrid({
               .filter((event) => event.day === day)
               .map((event) => {
                 const locked = lockedSections[event.courseCode] === event.sectionId;
+                const conflict = conflictSections.has(event.sectionId);
                 const tall = event.end - event.start >= 60;
+                const describedBy = `ev-${event.sectionId}-${day}-${event.start}`;
                 return (
                   <button
                     key={`${event.sectionId}-${day}-${event.start}`}
                     type="button"
                     className={styles.event}
-                    data-conflict={conflictSections.has(event.sectionId) ? "true" : "false"}
+                    data-conflict={conflict ? "true" : "false"}
+                    aria-describedby={describedBy}
                     data-dimmed={dimmedCourses.includes(event.courseCode) ? "true" : "false"}
                     style={{ ...courseColor(courseOrder, event.courseCode), top: top(event.start) + 2, height: top(event.end) - top(event.start) - 4 }}
                     onClick={(e) => {
@@ -84,6 +87,10 @@ export function WeekGrid({
                       onSelect(event.courseCode, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
                     }}
                   >
+                    {/* Described, not named: the name stays "{COURSE} {START} – {END} {PROFESSOR}". */}
+                    <span id={describedBy} hidden>
+                      {[day, locked ? "locked" : null, conflict ? "overlaps another class" : null].filter(Boolean).join(", ")}
+                    </span>
                     <span className={styles.eventCode}>
                       {event.courseCode}
                       {locked ? <LockGlyph /> : null}

@@ -131,7 +131,13 @@ export function AlternativesCompare({
           Close
         </button>
       </div>
-      <div className={styles.altGrid} onMouseLeave={() => onPreview(null)}>
+      <div
+        className={styles.altGrid}
+        onMouseLeave={() => onPreview(null)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onPreview(null);
+        }}
+      >
         {result.schedules.map((schedule, index) => {
           const letter = LETTERS[index];
           const moved = movedCourses(current, schedule.byCourse);
@@ -142,7 +148,10 @@ export function AlternativesCompare({
               className={styles.altCard}
               data-current={isCurrent ? "true" : "false"}
               aria-label={`Option ${letter}`}
-              onMouseEnter={() => onPreview(isCurrent ? null : schedule)}
+              onMouseEnter={() => {
+                // Hover preview only where hover exists; touch gets it from focus.
+                if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) onPreview(isCurrent ? null : schedule);
+              }}
               onFocus={() => onPreview(isCurrent ? null : schedule)}
             >
               <div className={styles.altTitle}>
