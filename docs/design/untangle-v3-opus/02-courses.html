@@ -175,6 +175,10 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); z-index: 80; display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 0 8px 0 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: var(--shadow-3); opacity: 0; transform: translate(-50%, 8px); transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out); pointer-events: none; white-space: nowrap; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); transition-duration: var(--t-enter); pointer-events: auto; }
 .toast button { height: 32px; padding: 0 10px; border-radius: 8px; color: #a8e8c4; font-weight: 650; }
+.toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
+.toast .toast-x .i { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */
@@ -613,24 +617,26 @@ class Sheet {
   yFor(i) { const h = typeof this.detents[i] === "function" ? this.detents[i]() : this.detents[i]; return this.H() - h - this.bottomInset(); }
   closedY() { return this.H() + 40; }
   setY(y) { this.y = y; this.el.style.transform = `translateY(${y}px)`; if (this.body) this.body.style.overflowY = this.index === this.detents.length - 1 ? "auto" : "hidden"; }
-  animateTo(y, v = 0, flick = false, done) {
+  animateTo(y, v = 0, flick = false, done, instant = false) {
     this.cancel && this.cancel();
+    if (instant) { this.setY(y); done && done(); return; }
     if (reduced()) { this.el.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: 140 }); this.setY(y); done && done(); return; }
     const from = this.y ?? this.closedY();
     this.cancel = spring(from, y, v, { response: 0.34, damping: flick ? 0.86 : 1 }, (x) => this.setY(x), done);
   }
-  open(i = 0) {
+  /* instant: no motion, for state a tab switch restores (tab switches never animate). */
+  open(i = 0, { instant = false } = {}) {
     if (this.y === null) this.setY(this.closedY());
-    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i)); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
+    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i), 0, false, null, instant); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
     if (this.modal && wasClosed) { this.el.setAttribute("role", "dialog"); this.el.setAttribute("aria-modal", "true"); modalOpen(this.el); }
     if (this.scrim) this.scrim.classList.add("on");
     this.onDetent && this.onDetent(i);
   }
   snap(i, v = 0, flick = false) { this.index = i; this.animateTo(this.yFor(i), v, flick); this.onDetent && this.onDetent(i); }
-  close(v = 0) {
+  close(v = 0, { instant = false } = {}) {
     this.index = -1; if (this.scrim) this.scrim.classList.remove("on");
     if (this.modal) modalClose(this.el);
-    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; });
+    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; }, instant);
     this.onDetent && this.onDetent(-1);
   }
   bindDrag() {
@@ -699,13 +705,21 @@ function swap(el, render) {
   out.onfinish = () => { render(); el.animate([{ opacity: 0, filter: "blur(2px)", transform: "translateY(4px)" }, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 200, easing: EASE.out }); };
 }
 
+/* A toast with an action (Undo, Show) stays until the student uses it or dismisses it: a fixed
+   window would take the recovery away from anyone slower to reach it. A plain notice leaves after 5s. */
 let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
-  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button">${action}</button>` : ""}`;
-  if (action) t.querySelector("button").onclick = () => { t.classList.remove("on"); fn && fn(); };
+  const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
+  if (action) {
+    t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
+    t.querySelector(".toast-x").onclick = hide;
+  }
+  t.inert = false;
   requestAnimationFrame(() => t.classList.add("on"));
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 5000);
+  clearTimeout(toastTimer);
+  if (!action) toastTimer = setTimeout(hide, 5000);
 }
 
 hydrateIcons();
@@ -824,16 +838,23 @@ async function runAuto() {
   btn.style.width = w + "px"; btn.innerHTML = '<span class="spin"></span><span class="sr">Planning</span>'; btn.disabled = true;
   await new Promise((r) => setTimeout(r, 450));
   const picks = PICKS.filter(([c]) => !planned.has(c));
+  if (!picks.length) {
+    // Everything Auto would pick is already in the term: say so, and offer no Undo that would do nothing.
+    btn.disabled = false; btn.style.width = ""; btn.innerHTML = "Auto"; hydrateIcons($("#tray")); btn.focus({ preventScroll: true });
+    toast("Spring 2027 already has everything Auto would pick");
+    return;
+  }
+  const before = plannedCredits();
   picks.forEach(([c]) => { const r = $(`.row[data-key="${c}"]`); r && r.classList.add("chosen"); });
   await new Promise((r) => setTimeout(r, 160));
   const from = new Map(picks.map(([c]) => { const r = $(`.row[data-key="${c}"]`); return [c, r ? r.getBoundingClientRect() : null]; }));
   const snaps = new Map(picks.map(([c]) => [c, $(`.row[data-key="${c}"]`)?.cloneNode(true)]));
   lastAuto = picks.map(([c]) => c);
   flip(allNodes, () => { picks.forEach(([c, col, sec]) => planned.set(c, { c: col, sec })); renderAll(); }, { duration: 320, easing: EASE.inOut });
-  $("#trayCred").textContent = "0";
+  $("#trayCred").textContent = before;
   $(".tray-head").insertAdjacentHTML("afterend", `<p class="result" id="result" style="opacity:0">Planned ${picks.length} courses<button class="btn btn-quiet" id="undo" data-i="undo" data-is="sm">Undo</button></p>`);
   hydrateIcons($("#result")); $("#undo").onclick = undoAuto;
-  let cred = 0;
+  let cred = before;
   picks.forEach(([c], i) => {
     const target = $(`.row[data-key="t-${c}"]`); if (!target) return;
     const land = () => { target.style.visibility = ""; cred += COURSES[c][1]; $("#trayCred").textContent = cred; };
@@ -918,7 +939,9 @@ function detailHTML(code) {
     <div class="miniweek" id="mw" aria-hidden="true">${[0, 1, 2, 3, 4].map((d) => `<div>${SCHED.filter((x) => x[2].includes(d)).map((x) => `<i class="blk" data-c="${x[1]}" style="top:${((x[3] - 8) / 9) * 100}%;height:${((x[4] - x[3]) / 9) * 100}%"></i>`).join("")}</div>`).join("")}</div>
     <p class="meta" style="margin-bottom:8px">Your Spring 2027 week. Point at a section to see where it lands.</p>
     ${secs.map((x) => `<div class="sect" data-sec='${JSON.stringify({ days: x.days, s: x.s, e: x.e, bad: !!x.conflict })}'>
-      <button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}${x.conflict ? ", it overlaps MATH 2700" : ""}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>
+      ${planned.get(code)?.sec === `§${x.n}`
+        ? `<button class="add on" aria-label="Section ${x.n} is in Spring 2027" data-addsec="${code}|${x.n}">${icon("check")}</button>`
+        : `<button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}${x.conflict ? ", it overlaps MATH 2700" : ""}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>`}
       <div><div class="l1"><span class="code">§${x.n}</span>${x.d}</div><div class="l2"><span>${x.who}</span><span class="star">${icon("star")}${x.r}</span>${x.b ? `<span class="plate"><b>${x.b[0]}</b>${x.b[1]}</span>` : ""}</div>${x.conflict ? `<div class="conflict">${x.conflict}</div>` : ""}</div>
       <span class="seats ${x.full ? "full" : ""}">${x.seats}</span></div>`).join("")}
     <div class="src"><span class="tag">Sample sections</span>Times and seats are illustrative.</div>
@@ -936,6 +959,11 @@ const panel = new Panel($("#panel"));
 const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.56, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true, onDetent: (i) => { if (i < 0) { selected = null; markSelected(); } } });
 $("#scrim").onclick = () => closeDetail();
 function markSelected() { $$(".row").forEach((r) => { const on = r.dataset.code === selected && !r.dataset.key.startsWith("t-"); r.dataset.selected = on; r.querySelector(".row-hit")?.setAttribute("aria-current", on); }); }
+/* Rebuild the open detail in place (its status line and action follow the plan), keeping scroll and focus. */
+function refreshDetail(root, focusSelector) {
+  const y = root.scrollTop; root.innerHTML = detailHTML(selected); wireDetail(root); root.scrollTop = y;
+  if (focusSelector) $(focusSelector, root)?.focus({ preventScroll: true });
+}
 function wireDetail(root) {
   hydrateIcons(root);
   $$("[data-close]", root).forEach((b) => (b.onclick = (e) => closeDetail(e.detail === 0)));
@@ -947,12 +975,13 @@ function wireDetail(root) {
   });
   $$("[data-addsec]", root).forEach((b) => b.addEventListener("click", (e) => {
     e.stopPropagation(); const [code, n] = b.dataset.addsec.split("|");
+    if (planned.get(code)?.sec === `§${n}`) return;
     const clash = b.classList.contains("warn");
-    b.classList.add("on"); b.classList.remove("warn"); b.innerHTML = icon("check");
     planned.set(code, { c: 2, sec: `§${n}` }); renderAll(); markSelected();
+    refreshDetail(root, `[data-addsec="${code}|${n}"]`);
     toast(clash ? `Added ${code} §${n}. It overlaps MATH 2700.` : `Added ${code} §${n}`, "Undo", () => { planned.delete(code); renderAll(); openDetail(code, true); });
   }));
-  $$("[data-instr]", root).forEach((c) => c.addEventListener("click", () => { instr = c.dataset.instr; const y = root.scrollTop; root.innerHTML = detailHTML(selected); wireDetail(root); root.scrollTop = y; }));
+  $$("[data-instr]", root).forEach((c) => c.addEventListener("click", () => { instr = c.dataset.instr; refreshDetail(root, `[data-instr="${instr}"]`); }));
 }
 function openDetail(code, instant) {
   selected = code; markSelected();

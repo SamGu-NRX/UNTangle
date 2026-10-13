@@ -175,6 +175,10 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); z-index: 80; display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 0 8px 0 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: var(--shadow-3); opacity: 0; transform: translate(-50%, 8px); transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out); pointer-events: none; white-space: nowrap; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); transition-duration: var(--t-enter); pointer-events: auto; }
 .toast button { height: 32px; padding: 0 10px; border-radius: 8px; color: #a8e8c4; font-weight: 650; }
+.toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
+.toast .toast-x .i { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */
@@ -513,24 +517,26 @@ class Sheet {
   yFor(i) { const h = typeof this.detents[i] === "function" ? this.detents[i]() : this.detents[i]; return this.H() - h - this.bottomInset(); }
   closedY() { return this.H() + 40; }
   setY(y) { this.y = y; this.el.style.transform = `translateY(${y}px)`; if (this.body) this.body.style.overflowY = this.index === this.detents.length - 1 ? "auto" : "hidden"; }
-  animateTo(y, v = 0, flick = false, done) {
+  animateTo(y, v = 0, flick = false, done, instant = false) {
     this.cancel && this.cancel();
+    if (instant) { this.setY(y); done && done(); return; }
     if (reduced()) { this.el.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: 140 }); this.setY(y); done && done(); return; }
     const from = this.y ?? this.closedY();
     this.cancel = spring(from, y, v, { response: 0.34, damping: flick ? 0.86 : 1 }, (x) => this.setY(x), done);
   }
-  open(i = 0) {
+  /* instant: no motion, for state a tab switch restores (tab switches never animate). */
+  open(i = 0, { instant = false } = {}) {
     if (this.y === null) this.setY(this.closedY());
-    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i)); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
+    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i), 0, false, null, instant); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
     if (this.modal && wasClosed) { this.el.setAttribute("role", "dialog"); this.el.setAttribute("aria-modal", "true"); modalOpen(this.el); }
     if (this.scrim) this.scrim.classList.add("on");
     this.onDetent && this.onDetent(i);
   }
   snap(i, v = 0, flick = false) { this.index = i; this.animateTo(this.yFor(i), v, flick); this.onDetent && this.onDetent(i); }
-  close(v = 0) {
+  close(v = 0, { instant = false } = {}) {
     this.index = -1; if (this.scrim) this.scrim.classList.remove("on");
     if (this.modal) modalClose(this.el);
-    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; });
+    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; }, instant);
     this.onDetent && this.onDetent(-1);
   }
   bindDrag() {
@@ -599,13 +605,21 @@ function swap(el, render) {
   out.onfinish = () => { render(); el.animate([{ opacity: 0, filter: "blur(2px)", transform: "translateY(4px)" }, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 200, easing: EASE.out }); };
 }
 
+/* A toast with an action (Undo, Show) stays until the student uses it or dismisses it: a fixed
+   window would take the recovery away from anyone slower to reach it. A plain notice leaves after 5s. */
 let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
-  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button">${action}</button>` : ""}`;
-  if (action) t.querySelector("button").onclick = () => { t.classList.remove("on"); fn && fn(); };
+  const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
+  if (action) {
+    t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
+    t.querySelector(".toast-x").onclick = hide;
+  }
+  t.inert = false;
   requestAnimationFrame(() => t.classList.add("on"));
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 5000);
+  clearTimeout(toastTimer);
+  if (!action) toastTimer = setTimeout(hide, 5000);
 }
 
 hydrateIcons();
@@ -680,15 +694,22 @@ function renderPanels() {
   $("#sheetBody").innerHTML = panelHTML(false);
   hydrateIcons($("#panelBody")); hydrateIcons($("#sheetBody"));
 }
+/* Selecting rebuilds the itinerary, which would drop focus on the body. Put it back on the same
+   stop or walk in the same panel, so the keyboard keeps its place. */
+function renderKeepingFocus() {
+  const a = document.activeElement, host = a?.closest?.("#panelBody, #sheetBody");
+  const key = a?.dataset?.stop ? `[data-stop="${a.dataset.stop}"]` : a?.dataset?.legid ? `[data-legid="${a.dataset.legid}"]` : null;
+  renderPanels();
+  if (host && key) $(`#${host.id} ${key}`)?.focus({ preventScroll: true });
+}
 function setDay(d) { if (d === day || d < 0 || d > 4) return; day = d; selStop = null; selLeg = null; renderPanels(); syncPhoneDays(); }
-function selectStop(n, focus) {
-  selStop = selStop === n ? null : n; selLeg = null; renderPanels();
+function selectStop(n) {
+  selStop = selStop === n ? null : n; selLeg = null; renderKeepingFocus();
   if (PHONE.matches && sheet.index === 2) sheet.snap(1);
   const st = plan(day).find((x) => x.kind === "stop" && x.n === n);
   $("#live").textContent = selStop ? `${st.code} in ${st.b} selected` : "";
-  if (focus) $(`${PHONE.matches ? "#sheetBody" : "#panelBody"} [data-stop="${n}"]`)?.focus({ preventScroll: true });
 }
-function selectLeg(id) { selLeg = selLeg === id ? null : id; selStop = null; renderPanels(); }
+function selectLeg(id) { selLeg = selLeg === id ? null : id; selStop = null; renderKeepingFocus(); }
 
 /* ---------- phone sheet and day switcher ---------- */
 const sheet = new Sheet($("#sheet"), { detents: [() => 206, () => Math.max(320, innerHeight * 0.5), () => innerHeight * 0.86], bottomInset: () => (PHONE.matches ? 56 : 0) });
@@ -698,11 +719,11 @@ document.addEventListener("click", (e) => {
   const step = e.target.closest("[data-step]");
   if (step) { const where = step.closest("#pdays") ? "#pdays" : "#panelBody", dir = step.dataset.step; setDay(day + +dir); const same = $(`${where} [data-step="${dir}"]`); (same && !same.disabled ? same : $(`${where} [data-step="${-dir}"]`))?.focus(); return; }
   const s = e.target.closest("[data-stop]"), l = e.target.closest("[data-legid]"), v = e.target.closest("[data-href]");
-  if (s) return selectStop(+s.dataset.stop, e.detail === 0);
+  if (s) return selectStop(+s.dataset.stop);
   if (l) return selectLeg(l.dataset.legid);
   if (v) location.href = v.dataset.href;
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (selStop || selLeg)) { selStop = selLeg = null; renderPanels(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (selStop || selLeg)) { selStop = selLeg = null; renderKeepingFocus(); } });
 $$(".seg").forEach((s) => s.id === "views" && initSeg(s, (v, b) => b?.dataset.href && (location.href = b.dataset.href)));
 
 renderPanels(); syncPhoneDays();

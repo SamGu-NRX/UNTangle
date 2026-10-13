@@ -23,10 +23,9 @@
   .pw .show { position: absolute; right: 4px; top: 4px; height: 36px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--brand-2); }
   .helpslot { min-height: 18px; }
   .submit { width: 100%; height: 48px; font-size: 15px; border-radius: 12px; margin-top: 2px; }
-  .switch-mode { font-size: 14px; color: var(--ink-2); text-align: center; }
-  .switch-mode button { color: var(--brand-2); font-weight: 600; padding: 6px 4px; }
+  .alts { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: -6px; }
+  .form h1:focus { outline: none; }
   .foot { font-size: 12.5px; color: var(--ink-2); text-align: center; border-top: 1px solid var(--line); padding-top: 14px; }
-  .swap-t { display: inline-block; }
   @media (max-width: 759px) {
     .dialog-wrap { display: none !important; }
     .sheet .form { padding: 4px 20px calc(24px + var(--safe-b)); }
@@ -46,45 +45,83 @@
 
 <!--BASE_JS-->
 <script>
-let mode = Q.get("state") === "create" ? "create" : "signin";
+/* Magic link first, password second (untangle-v3.md, Decisions). The views and copy follow the
+   shipped /auth (frontend/src/components/auth-client.tsx): link, sent, password. A new student
+   needs no separate sign-up; the first link creates the account. */
 const st = Q.get("state");
-function formHTML(sfx) {
-  const c = mode === "create";
-  return `<form class="form" novalidate data-form>
-    <div class="top"><span class="wordmark" style="font-size:18px">UNTangle</span><button type="button" class="btn btn-ink btn-icon btn-sm close" aria-label="Close" data-close>${icon("close")}</button></div>
-    <h1 id="t-${sfx}"><span class="swap-t" data-swap>${c ? "Create an account" : "Sign in"}</span></h1>
-    <p class="lede">Keep your schedules on every device. What you made as a guest comes with you.</p>
-    <div class="field"><label for="em-${sfx}">Email</label><input class="input" id="em-${sfx}" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@my.unt.edu" value="${st === "error" || st === "loading" ? "sam.gu@my.unt.edu" : ""}" ${st === "bademail" ? 'aria-invalid="true" value="sam.gu@my" aria-describedby="eh-' + sfx + '"' : ""}>
-      ${st === "bademail" ? `<p class="help err" id="eh-${sfx}">Enter a full email, like you@my.unt.edu.</p>` : ""}</div>
-    <div class="field"><div class="lrow"><label for="pw-${sfx}">Password</label>${c ? "" : '<a href="#" class="meta" style="font-weight:600;color:var(--brand-2)">Forgot it?</a>'}</div>
-      <div class="pw"><input class="input" id="pw-${sfx}" type="password" autocomplete="${c ? "new-password" : "current-password"}" ${st === "error" ? 'aria-invalid="true" value="hunter22"' : st === "loading" ? 'value="correct-horse"' : ""} aria-describedby="ph-${sfx}"><button type="button" class="show" data-show>Show</button></div>
-      <p class="help helpslot ${st === "error" ? "err" : ""}" id="ph-${sfx}">${st === "error" ? "That password doesn't match this email. Try again, or reset it." : c ? "At least 8 characters." : ""}</p></div>
-    <button class="btn btn-primary submit" type="submit" data-submit><span data-swap>${c ? "Create account" : "Sign in"}</span></button>
-    <p class="switch-mode">${c ? "Have an account?" : "New here?"} <button type="button" data-mode>${c ? "Sign in" : "Create an account"}</button></p>
-    <p class="foot">You can use UNTangle without an account. Signing in only syncs.</p>
-  </form>`;
+let view = st === "sent" ? "sent" : st === "password" || st === "error" ? "password" : "link";
+let email = st === "error" || st === "loading" || st === "sent" ? "sam.gu@my.unt.edu" : st === "bademail" ? "sam.gu@my" : "";
+const UNT = /^[^\s@]+@(my\.)?unt\.edu$/i;
+const EMAIL_RULE = "Use a UNT email address ending in @unt.edu or @my.unt.edu.";
+// Keyboard actions never animate (DESIGN.md §1), so remember how the last action came in.
+let viaKeyboard = false;
+addEventListener("keydown", () => (viaKeyboard = true), true);
+addEventListener("pointerdown", () => (viaKeyboard = false), true);
+const esc = (v) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+function emailField(sfx, err) {
+  return `<div class="field"><label for="em-${sfx}">UNT email</label><input class="input" id="em-${sfx}" type="email" inputmode="email" autocomplete="${view === "password" ? "username" : "email"}" autocapitalize="none" spellcheck="false" placeholder="eagleid@my.unt.edu" value="${esc(email)}"${err ? ` aria-invalid="true" aria-describedby="eh-${sfx}"` : ""}>
+    ${err ? `<p class="help err" id="eh-${sfx}">${err}</p>` : ""}</div>`;
 }
+function formHTML(sfx) {
+  const top = `<div class="top"><span class="wordmark" style="font-size:18px">UNTangle</span><button type="button" class="btn btn-ink btn-icon btn-sm close" aria-label="Close" data-close>${icon("close")}</button></div>`;
+  const foot = `<p class="foot">You can use UNTangle without an account. Signing in only syncs.</p>`;
+  const badEmail = st === "bademail" ? EMAIL_RULE : "";
+  if (view === "sent") return `<div class="form" data-form>${top}
+    <h1 id="t-${sfx}" tabindex="-1">Check your UNT email</h1>
+    <p class="lede" role="status">We sent a sign-in link to <b>${esc(email)}</b>. It works once and expires in 5 minutes.</p>
+    <button class="btn btn-secondary submit" type="button" data-resend>Resend link</button>
+    <div class="alts"><button type="button" class="btn btn-quiet" data-view="link">Use a different email</button><button type="button" class="btn btn-quiet" data-view="password">Use a password instead</button></div>
+    ${foot}</div>`;
+  if (view === "password") return `<form class="form" novalidate data-form>${top}
+    <h1 id="t-${sfx}" tabindex="-1">Sign in with a password</h1>
+    <p class="lede">For accounts that have set a password. New here, or never set one? Email yourself a sign-in link.</p>
+    ${emailField(sfx, badEmail)}
+    <div class="field"><div class="lrow"><label for="pw-${sfx}">Password</label><a href="#" class="meta" style="font-weight:600;color:var(--brand-2)">Forgot it?</a></div>
+      <div class="pw"><input class="input" id="pw-${sfx}" type="password" autocomplete="current-password" ${st === "error" ? 'aria-invalid="true" value="hunter22"' : st === "loading" ? 'value="correct-horse"' : ""} aria-describedby="ph-${sfx}"><button type="button" class="show" data-show>Show</button></div>
+      <p class="help helpslot ${st === "error" ? "err" : ""}" id="ph-${sfx}">${st === "error" ? "That password doesn't match this email. Try again, or reset it." : ""}</p></div>
+    <button class="btn btn-primary submit" type="submit" data-submit>Sign in</button>
+    <div class="alts"><button type="button" class="btn btn-quiet" data-view="link">Email me a link instead</button></div>
+    ${foot}</form>`;
+  return `<form class="form" novalidate data-form>${top}
+    <h1 id="t-${sfx}" tabindex="-1">Sign in</h1>
+    <p class="lede">Keep your schedules on every device. What you made as a guest comes with you. We'll email you a sign-in link. No password needed.</p>
+    ${emailField(sfx, badEmail)}
+    <button class="btn btn-primary submit" type="submit" data-submit>Email me a sign-in link</button>
+    <div class="alts"><button type="button" class="btn btn-quiet" data-view="password">Use a password instead</button></div>
+    ${foot}</form>`;
+}
+const host = () => (PHONE.matches ? $("#sbody") : $("#dlg"));
 function render() { $("#dlg").innerHTML = formHTML("desk"); $("#sbody").innerHTML = formHTML("phone"); wire(); }
+/* A view change crossfades the form (swap) and moves focus to the new heading, as the live page does. */
+function goTo(next, fromKeyboard = viaKeyboard) {
+  const f = $("[data-form]", host()); const em = f && $("input[type=email]", f); if (em) email = em.value;
+  view = next;
+  const done = () => { render(); $("h1", host())?.focus({ preventScroll: true }); };
+  if (fromKeyboard) done(); else swap(host(), done);
+}
+function busy(btn, label) { btn.style.width = btn.offsetWidth + "px"; btn.innerHTML = `<span class="spin"></span><span class="sr">${label}</span>`; btn.disabled = true; }
 function wire() {
   $$("[data-show]").forEach((b) => (b.onclick = () => { const i = b.previousElementSibling; const on = i.type === "password"; i.type = on ? "text" : "password"; b.textContent = on ? "Hide" : "Show"; }));
-  $$("[data-mode]").forEach((b) => (b.onclick = () => {
-    mode = mode === "create" ? "signin" : "create";
-    const f = b.closest("[data-form]");
-    $$("[data-swap]", f).forEach((el) => swap(el, () => (el.textContent = el.closest("h1") ? (mode === "create" ? "Create an account" : "Sign in") : mode === "create" ? "Create account" : "Sign in")));
-    const help = $(".helpslot", f); help.classList.remove("err"); help.textContent = mode === "create" ? "At least 8 characters." : "";
-    $(".pw .input", f).autocomplete = mode === "create" ? "new-password" : "current-password";
-    $(".switch-mode", f).innerHTML = `${mode === "create" ? "Have an account?" : "New here?"} <button type="button" data-mode>${mode === "create" ? "Sign in" : "Create an account"}</button>`;
-    const lr = $(".lrow", f); lr.innerHTML = `<label for="${$(".pw .input", f).id}">Password</label>${mode === "create" ? "" : '<a href="#" class="meta" style="font-weight:600;color:var(--brand-2)">Forgot it?</a>'}`;
-    wire();
-  }));
-  $$("[data-form]").forEach((f) => (f.onsubmit = (e) => {
-    e.preventDefault(); const em = $("input[type=email]", f), pw = $(".pw .input", f), btn = $("[data-submit]", f);
-    if (!/^\S+@\S+\.\S+$/.test(em.value)) { em.setAttribute("aria-invalid", "true"); if (!$("#x-" + em.id)) em.insertAdjacentHTML("afterend", `<p class="help err" id="x-${em.id}">Enter a full email, like you@my.unt.edu.</p>`); em.focus(); return; }
-    em.removeAttribute("aria-invalid"); $("#x-" + em.id)?.remove();
-    btn.style.width = btn.offsetWidth + "px"; btn.innerHTML = '<span class="spin"></span><span class="sr">Signing in</span>'; btn.disabled = true;
+  $$("[data-view]").forEach((b) => (b.onclick = () => goTo(b.dataset.view)));
+  $$("[data-resend]").forEach((b) => (b.onclick = () => toast("Sent another link")));
+  $$("form[data-form]").forEach((f) => (f.onsubmit = (e) => {
+    e.preventDefault(); const em = $("input[type=email]", f), btn = $("[data-submit]", f);
+    const errId = "x-" + em.id;
+    if (!UNT.test(em.value.trim())) {
+      // The message is tied to the field (aria-describedby) as well as shown, so a screen reader reads why.
+      em.setAttribute("aria-invalid", "true"); $("#eh-" + em.id.slice(3))?.remove();
+      if (!$("#" + errId)) em.insertAdjacentHTML("afterend", `<p class="help err" id="${errId}">${EMAIL_RULE}</p>`);
+      em.setAttribute("aria-describedby", errId); em.focus(); return;
+    }
+    em.removeAttribute("aria-invalid"); em.removeAttribute("aria-describedby"); $("#" + errId)?.remove(); $("#eh-" + em.id.slice(3))?.remove();
+    email = em.value.trim();
+    if (view === "link") { busy(btn, "Sending"); setTimeout(() => goTo("sent"), 600); return; }
+    const pw = $(".pw .input", f);
+    busy(btn, "Signing in");
     setTimeout(() => {
-      if (pw.value.length < 8) { btn.disabled = false; btn.innerHTML = `<span data-swap>${mode === "create" ? "Create account" : "Sign in"}</span>`; pw.setAttribute("aria-invalid", "true"); const h = $(".helpslot", f); h.classList.add("err"); h.textContent = mode === "create" ? "Use at least 8 characters." : "That password doesn't match this email. Try again, or reset it."; pw.focus(); return; }
-      close(); toast(mode === "create" ? "Account created. 3 schedules synced." : "Signed in. 3 schedules synced.");
+      if (pw.value.length < 8) { btn.disabled = false; btn.style.width = ""; btn.textContent = "Sign in"; pw.setAttribute("aria-invalid", "true"); const h = $(".helpslot", f); h.classList.add("err"); h.textContent = "That password doesn't match this email. Try again, or reset it."; pw.focus(); return; }
+      close(); toast("Signed in. 3 schedules synced.");
     }, 700);
   }));
   $$("[data-close]").forEach((b) => (b.onclick = close));
@@ -94,8 +131,9 @@ function close() { $("#dlg").classList.remove("on"); $("#scrim").classList.remov
 document.addEventListener("keydown", (e) => e.key === "Escape" && close());
 $("#scrim").onclick = close;
 render();
-if (PHONE.matches) sheet.open(0); else { requestAnimationFrame(() => requestAnimationFrame(() => $("#dlg").classList.add("on"))); modalOpen($(".dialog-wrap"), $("#em-desk")); }
-if (st === "loading") { const f = $(PHONE.matches ? "#sbody [data-form]" : "#dlg [data-form]"); const b = $("[data-submit]", f); b.style.width = b.offsetWidth + "px"; b.innerHTML = '<span class="spin"></span><span class="sr">Signing in</span>'; }
+const first = () => $(view === "sent" ? "[data-resend]" : "input[type=email]", host());
+if (PHONE.matches) sheet.open(0); else { requestAnimationFrame(() => requestAnimationFrame(() => $("#dlg").classList.add("on"))); modalOpen($(".dialog-wrap"), first()); }
+if (st === "loading") { const f = $("[data-form]", host()); busy($("[data-submit]", f), "Signing in"); }
 </script>
 </body>
 </html>

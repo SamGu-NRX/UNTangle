@@ -154,15 +154,22 @@ function renderPanels() {
   $("#sheetBody").innerHTML = panelHTML(false);
   hydrateIcons($("#panelBody")); hydrateIcons($("#sheetBody"));
 }
+/* Selecting rebuilds the itinerary, which would drop focus on the body. Put it back on the same
+   stop or walk in the same panel, so the keyboard keeps its place. */
+function renderKeepingFocus() {
+  const a = document.activeElement, host = a?.closest?.("#panelBody, #sheetBody");
+  const key = a?.dataset?.stop ? `[data-stop="${a.dataset.stop}"]` : a?.dataset?.legid ? `[data-legid="${a.dataset.legid}"]` : null;
+  renderPanels();
+  if (host && key) $(`#${host.id} ${key}`)?.focus({ preventScroll: true });
+}
 function setDay(d) { if (d === day || d < 0 || d > 4) return; day = d; selStop = null; selLeg = null; renderPanels(); syncPhoneDays(); }
-function selectStop(n, focus) {
-  selStop = selStop === n ? null : n; selLeg = null; renderPanels();
+function selectStop(n) {
+  selStop = selStop === n ? null : n; selLeg = null; renderKeepingFocus();
   if (PHONE.matches && sheet.index === 2) sheet.snap(1);
   const st = plan(day).find((x) => x.kind === "stop" && x.n === n);
   $("#live").textContent = selStop ? `${st.code} in ${st.b} selected` : "";
-  if (focus) $(`${PHONE.matches ? "#sheetBody" : "#panelBody"} [data-stop="${n}"]`)?.focus({ preventScroll: true });
 }
-function selectLeg(id) { selLeg = selLeg === id ? null : id; selStop = null; renderPanels(); }
+function selectLeg(id) { selLeg = selLeg === id ? null : id; selStop = null; renderKeepingFocus(); }
 
 /* ---------- phone sheet and day switcher ---------- */
 const sheet = new Sheet($("#sheet"), { detents: [() => 206, () => Math.max(320, innerHeight * 0.5), () => innerHeight * 0.86], bottomInset: () => (PHONE.matches ? 56 : 0) });
@@ -172,11 +179,11 @@ document.addEventListener("click", (e) => {
   const step = e.target.closest("[data-step]");
   if (step) { const where = step.closest("#pdays") ? "#pdays" : "#panelBody", dir = step.dataset.step; setDay(day + +dir); const same = $(`${where} [data-step="${dir}"]`); (same && !same.disabled ? same : $(`${where} [data-step="${-dir}"]`))?.focus(); return; }
   const s = e.target.closest("[data-stop]"), l = e.target.closest("[data-legid]"), v = e.target.closest("[data-href]");
-  if (s) return selectStop(+s.dataset.stop, e.detail === 0);
+  if (s) return selectStop(+s.dataset.stop);
   if (l) return selectLeg(l.dataset.legid);
   if (v) location.href = v.dataset.href;
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (selStop || selLeg)) { selStop = selLeg = null; renderPanels(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (selStop || selLeg)) { selStop = selLeg = null; renderKeepingFocus(); } });
 $$(".seg").forEach((s) => s.id === "views" && initSeg(s, (v, b) => b?.dataset.href && (location.href = b.dataset.href)));
 
 renderPanels(); syncPhoneDays();
