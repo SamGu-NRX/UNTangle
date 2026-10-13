@@ -153,19 +153,20 @@ export function DetailContent({
   let primary: React.ReactNode = null;
   if (row.status === "available" || row.status === "check") {
     primary = (
-      <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => actions.plan(row.id)}>
+      // Separate keys: reusing one element would swap the text color before the background finishes its transition.
+      <button key="add" type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => actions.plan(row.id)}>
         Add to {profile.planningTerm}
       </button>
     );
   } else if (row.status === "planned") {
     primary = (
-      <button type="button" className={`${styles.btn} ${styles.ghost}`} onClick={() => actions.unplan(row.id)}>
+      <button key="remove" type="button" className={`${styles.btn} ${styles.ghost}`} onClick={() => actions.unplan(row.id)}>
         Remove from plan
       </button>
     );
   } else if (row.status === "locked") {
     primary = (
-      <button type="button" className={`${styles.btn} ${styles.primary}`} disabled>
+      <button key="locked" type="button" className={`${styles.btn} ${styles.primary}`} disabled>
         {blocking.length > 0 ? `Locked · needs ${blocking.slice(0, 2).join(", ")}` : "Locked"}
       </button>
     );

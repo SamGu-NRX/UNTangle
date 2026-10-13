@@ -526,6 +526,10 @@
 .root[data-panel="open"] .list {
   margin: 0;
 }
+/* Beside the panel the list is ~800px; give the title the room and let long meta ellipsize. */
+.root[data-panel="open"] .row {
+  grid-template-columns: 16px 92px minmax(0, 1fr) 36px 168px 72px;
+}
 
 .group {
   margin-top: 12px;
@@ -1258,10 +1262,26 @@
   .root[data-panel="open"] .body {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* Phone: spark and sentence on the first line, links and dismiss on the second. */
   .autonote {
-    align-items: flex-start;
     flex-wrap: wrap;
+    row-gap: 4px;
     font-size: 12.5px;
+  }
+  .autonoteText {
+    flex: 1 1 calc(100% - 32px);
+  }
+  .autonote .tag {
+    display: none;
+  }
+  .autonote {
+    position: relative;
+    padding-right: 48px;
+  }
+  .noteDismiss {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
   .row {
     grid-template-columns: 16px minmax(0, 1fr) auto;
@@ -1347,6 +1367,9 @@
   }
   .figs {
     gap: 20px;
+  }
+  .secHead > .meta {
+    display: none;
   }
 }
 

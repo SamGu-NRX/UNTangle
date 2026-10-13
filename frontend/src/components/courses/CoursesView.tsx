@@ -387,7 +387,7 @@ export function CoursesView({
                   {sampleOnly ? SAMPLE_TRANSCRIPT_LABEL : "From transcript"}
                 </ProvenanceTag>
               ) : null}
-              <button type="button" className={`${styles.btn} ${styles.iconBtn}`} aria-label="Dismiss note" onClick={() => setLastAuto(null)}>
+              <button type="button" className={`${styles.btn} ${styles.iconBtn} ${styles.noteDismiss}`} aria-label="Dismiss note" onClick={() => setLastAuto(null)}>
                 <CloseIcon />
               </button>
             </div>
