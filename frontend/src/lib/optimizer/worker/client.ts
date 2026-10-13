@@ -1,0 +1,103 @@
+/**
+ * Main-thread side of the optimizer worker: numbers each job, drops replies
+ * to anything but the newest job, and replaces the worker when a new job
+ * arrives while one is still searching (a running search cannot be
+ * interrupted, so the newest job would otherwise wait up to
+ * FINAL_BUDGET_MS behind a result nobody wants).
+ */
+import type { OptimizeJob, OptimizeReply, PlainRequest } from "./protocol";
+
+/** The parts of a Worker the client uses, so tests can pass a fake. */
+export type WorkerPort = {
+  post: (job: OptimizeJob) => void;
+  terminate: () => void;
+  listen: (onReply: (reply: OptimizeReply) => void, onFailure: (message: string) => void) => void;
+};
+
+export function createOptimizerWorker(): WorkerPort {
+  // A prebuilt, self-contained module (see optimize.worker.ts for why); the bundler serves it as a static file.
+  const worker = new Worker(new URL("./optimize.worker.bundle.js", import.meta.url), { type: "module" });
+  return {
+    post: (job) => worker.postMessage(job),
+    terminate: () => worker.terminate(),
+    listen: (onReply, onFailure) => {
+      worker.onmessage = (event: MessageEvent<OptimizeReply>) => onReply(event.data);
+      worker.onerror = (event) => {
+        event.preventDefault();
+        onFailure(event.message || "The optimizer stopped unexpectedly.");
+      };
+      worker.onmessageerror = () => onFailure("The optimizer's answer could not be read.");
+    },
+  };
+}
+
+export class OptimizerClient {
+  private port: WorkerPort | null = null;
+  private latest = 0;
+  /** True while the newest job may still send a reply. */
+  private pending = false;
+
+  constructor(
+    private readonly create: () => WorkerPort,
+    private readonly onReply: (reply: OptimizeReply) => void,
+  ) {}
+
+  /**
+   * Starts a job and returns its id. Replies, failures included, always
+   * arrive after this returns, so the caller can record the id first.
+   */
+  run(request: PlainRequest): number {
+    const id = ++this.latest;
+    if (this.pending) this.dropWorker();
+    this.pending = true;
+    try {
+      const job: OptimizeJob = { id, request };
+      this.ensurePort().post(job);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      queueMicrotask(() => this.fail(id, `The optimizer could not start: ${message}`));
+    }
+    return id;
+  }
+
+  dispose() {
+    this.pending = false;
+    this.dropWorker();
+  }
+
+  private ensurePort(): WorkerPort {
+    if (this.port) return this.port;
+    const port = this.create();
+    port.listen(
+      (reply) => {
+        if (this.port !== port) return;
+        this.receive(reply);
+      },
+      (message) => {
+        if (this.port !== port) return;
+        this.dropWorker();
+        this.fail(this.latest, message);
+      },
+    );
+    this.port = port;
+    return port;
+  }
+
+  private receive(reply: OptimizeReply) {
+    // A reply to an older job is stale: its inputs are no longer on screen.
+    if (reply.id !== this.latest) return;
+    if (reply.phase === "error" || reply.settled) this.pending = false;
+    this.onReply(reply);
+  }
+
+  private fail(id: number, message: string) {
+    if (id !== this.latest || !this.pending) return;
+    this.pending = false;
+    this.onReply({ id, phase: "error", message });
+  }
+
+  private dropWorker() {
+    this.port?.terminate();
+    this.port = null;
+  }
+}
