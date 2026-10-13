@@ -15,7 +15,7 @@ A UNT Denton student can open UNTangle on `alpha` and, as a guest or a registere
 5. print it or download it as a calendar file.
 
 The data must say what it is. The course catalog text is real (catalog.unt.edu). All 2,704 sections are
-synthetic (`backend/data/compD.csv`: exactly 15 buildings and no term) and are labeled as samples until a
+synthetic (`data/compD.csv` in the retired backend repository: exactly 15 buildings and no term) and are labeled as samples until a
 permitted real-term source is ingested.
 
 ## Integration base
@@ -93,7 +93,7 @@ Directions still open: OSRM's foot profile as a routing alternative, if the A* e
 ## Rules every task inherits
 
 - Never open, print, test or use any `.env*` file: a live Resend key was reported committed in this public repo, and
-  rotating it is Sam's call. Never push to the backend submodule (sunnyD1000's) or the `vishyj/*` branches.
+  rotating it is Sam's call. Never push to sunnyD1000's UNT-Schedule-Optimizer repository or the `vishyj/*` branches.
 - Design source: vishyj's jointv2 UI on main (UNT green palette, Syne and DM Sans, compact and task-first) with
   gt-credits-style motion.
 
