@@ -12,19 +12,23 @@
  * - `receipts` holds each transaction's outcome in the state that carries
  *   its effect. The provider resolves a transaction only when a committed
  *   state holds its receipt, so a render React discards acknowledges nothing.
- * - `applied` counts the actions this state includes. Every action is
- *   numbered when it is dispatched (1, 2, 3, ...). React renders by
+ * - `applied` is the count of included actions: each action this state
+ *   includes adds one, whatever its number. Every action is numbered when
+ *   it is dispatched (1, 2, 3, ...). React renders by
  *   priority: an ordinary update can commit while an earlier transition
  *   update is still waiting, and React later re-applies the later updates on
  *   top of the earlier one (rebasing). A transaction applied in such a
  *   render would be checked against a plan missing that earlier update, and
  *   its receipt would claim a result the final plan does not have. So a
- *   transaction numbered n acts only on a state that includes all n - 1
- *   earlier actions; otherwise it leaves the state unchanged and records no
- *   receipt, and runs for real when React rebases it onto the state that
- *   includes them. A count is enough because React applies a hook's queued
- *   updates in dispatch order and never applies a later one without the
- *   earlier ones it skipped, except in a render it will redo.
+ *   transaction numbered n acts only when the count is n - 1, that is, when
+ *   all n - 1 earlier actions are included. Otherwise it leaves the state
+ *   unchanged, adds nothing to the count and records no receipt; React runs
+ *   it again when it rebases it onto the state that includes them, and that
+ *   run adds it to the count. A count is enough because React applies a
+ *   hook's queued updates in dispatch order and never applies a later one
+ *   without the earlier ones it skipped, except in a render it will redo.
+ *   The latest number would not do: an ordinary action numbered n + 1,
+ *   included while n was skipped, would hide the gap.
  *
  * Pure: React may run a reducer twice (StrictMode) or again on a new base.
  */
@@ -80,7 +84,7 @@ export function reducePlannerBox(state: PlannerBox, { seq, action }: NumberedAct
   if (action instanceof TransactionRequest) {
     // An earlier action is missing from this state: wait for the rebase that includes it.
     if (state.applied !== seq - 1) return state;
-    const box = { ...state, applied: seq };
+    const box = { ...state, applied: state.applied + 1 };
     const receipts = box.receipts.filter((receipt) => !action.settled.has(receipt.id));
     const refusal = action.stamp.identity !== identity ? "identity_changed" : action.stamp.epoch !== box.epoch ? "plan_replaced" : null;
     if (refusal) return { ...box, receipts: [...receipts, { id: action.id, outcome: { status: refusal } }] };
@@ -89,7 +93,7 @@ export function reducePlannerBox(state: PlannerBox, { seq, action }: NumberedAct
     const runEdits = box.runEdits + (touchesAutoRun(box.plan, plan) ? 1 : 0);
     return { ...box, plan, runEdits, receipts: [...receipts, { id: action.id, outcome: { status: "committed", result, runEdits } }] };
   }
-  const box = { ...state, applied: seq };
+  const box = { ...state, applied: state.applied + 1 };
   const plan = typeof action === "function" ? action(box.plan) : action;
   if (plan === box.plan) return box;
   return {

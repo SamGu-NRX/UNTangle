@@ -243,6 +243,9 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
     () => plannerBox(getInitialPlannerState()),
   );
   // Numbers every action at dispatch, so a transaction can tell whether the state it gets includes all earlier ones.
+  // Never dispatch to the plan while rendering: React can discard a render-phase update without rolling back
+  // this counter, and a transaction would then wait for a number that never arrives. Dispatch from events,
+  // effects and promise callbacks only.
   const lastActionSeq = useRef(0);
   const setPlannerState = useCallback((action: PlannerAction) => dispatchPlan({ seq: ++lastActionSeq.current, action }), []);
   const plannerState = planBox.plan;

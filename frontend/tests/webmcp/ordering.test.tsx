@@ -102,6 +102,20 @@ test("removal approved while a lock waits in a transition reports the lock, and 
   expect(toastText()).toBeNull();
 });
 
+test("an ordinary update between the queued lock and the approval does not hide the lock", async () => {
+  const { get, tools, startTransition } = await page();
+  const done = tools.get("remove_course")!({ code: "PSYC 1630" });
+  await waitFor(() => Boolean(button('[role="alertdialog"]', "Remove")), "question shown");
+  startTransition(() => get().setSectionLock("PSYC 1630", true));
+  get().setOptimization("compact");
+  button('[role="alertdialog"]', "Remove")!.click();
+  expect(await done).toMatchObject({ ok: false, reason: "course_locked" });
+  await waitFor(() => Boolean(get().plannerState.lockedSections?.["PSYC 1630"]) && get().plannerState.optimization === "compact", "lock and goal committed");
+  await sleep(50);
+  expect(planned(get, "PSYC 1630")).toBe(true);
+  expect(toastText()).toBeNull();
+});
+
 test("Undo clicked while a reset waits in a transition reports Undo off, and the plan stays reset", async () => {
   const { get, tools, startTransition } = await page();
   const done = tools.get("remove_course")!({ code: "PSYC 1630" });
