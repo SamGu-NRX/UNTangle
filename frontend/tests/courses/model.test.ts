@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import { inferStatuses, untAdapter, type CatalogCourse, type Prerequisite } from "@/lib/prereq";
 import { renderPrerequisiteTable } from "@/lib/course-catalog/build";
 import { coveredByCompletion } from "@/components/courses/model/closure";
-import { computeAuto, describeAuto, undoChanges } from "@/components/courses/model/auto";
+import { computeAuto, describeAuto, undoBlocker, undoStatuses } from "@/components/courses/model/auto";
+import { getInitialPlannerState, getPlanningTermCourseCodes } from "@/lib/planner";
 import { buildCourseModel, buildGroups, type PlanSnapshot } from "@/components/courses/model/course-model";
 import {
   onlyCheckable,
@@ -17,7 +18,7 @@ import {
 import { sampleTranscript } from "@/components/courses/model/sample-transcript";
 import { instructorIndex, searchCatalog } from "@/components/courses/model/search";
 import { untLinkOuts, untProfile } from "@/components/courses/school";
-import type { CourseStatus } from "@/lib/types";
+import type { AutoTransaction, CourseStatus } from "@/lib/types";
 
 const course = (courseId: string): Prerequisite => ({ kind: "course", courseId, source: courseId });
 const and = (...children: Prerequisite[]): Prerequisite => ({ kind: "and", children, source: "all" });
@@ -92,10 +93,18 @@ function sampleStatuses(): Record<string, CourseStatus> {
   return statuses;
 }
 
-const plan = (statuses: Record<string, CourseStatus>, autoPlanned: string[] = []): PlanSnapshot => ({
+/** Mirrors CoursesView: the plan is the planner's own planning-term selector. */
+const plan = (
+  statuses: Record<string, CourseStatus>,
+  extra: { autoPlanned?: string[]; manualCredit?: string[] } = {},
+): PlanSnapshot => ({
   statuses,
   transcript: sampleTranscript,
-  autoPlanned: new Set(autoPlanned),
+  planned: new Set(
+    getPlanningTermCourseCodes({ ...getInitialPlannerState(), courseStatuses: statuses, transcriptRecords: sampleTranscript }),
+  ),
+  manualCredit: new Set(extra.manualCredit ?? []),
+  autoPlanned: new Set(extra.autoPlanned ?? []),
 });
 
 describe("course model on the UNT catalog with the sample transcript", () => {
@@ -107,7 +116,7 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     const get = (id: string) => model.rows.get(id)!;
     expect(get("CSCE 1040")).toMatchObject({ status: "done", override: false, meta: { kind: "grade", term: "Spring 2026", grade: "A" } });
     expect(get("CSCE 1030")).toMatchObject({ status: "covered", coveredBy: "CSCE 1040", meta: { kind: "via", id: "CSCE 1040" } });
-    expect(get("ENGL 1320")).toMatchObject({ status: "taking", meta: { kind: "text", text: "This term" } });
+    expect(get("ENGL 1320")).toMatchObject({ status: "taking", inPlan: false, meta: { kind: "text", text: "This term" } });
     expect(get("MATH 1720").status).toBe("available");
     expect(get("CSCE 2100").status).toBe("check");
     expect(model.hasTranscript).toBe(true);
@@ -118,9 +127,17 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     expect(model.rows.get("CSCE 1010")).toMatchObject({ status: "done", override: true, meta: { kind: "text", text: "You marked this" } });
   });
 
+  test("manual credit wins over a transcript row that says the course is in progress", () => {
+    const model = buildCourseModel(profile, plan({ ...sampleStatuses(), "ENGL 1320": "completed" }, { manualCredit: ["ENGL 1320"] }));
+    expect(model.rows.get("ENGL 1320")).toMatchObject({ status: "done", override: true, meta: { kind: "text", text: "You marked this" } });
+  });
+
   test("planning a course the engine has not cleared is marked as an override", () => {
-    const model = buildCourseModel(profile, plan({ ...sampleStatuses(), "MATH 2700": "inProgress", "MATH 1720": "inProgress" }, ["MATH 1720"]));
-    expect(model.rows.get("MATH 2700")).toMatchObject({ status: "planned", override: true });
+    const model = buildCourseModel(
+      profile,
+      plan({ ...sampleStatuses(), "MATH 2700": "inProgress", "MATH 1720": "inProgress" }, { autoPlanned: ["MATH 1720"] }),
+    );
+    expect(model.rows.get("MATH 2700")).toMatchObject({ status: "planned", inPlan: true, override: true });
     expect(model.rows.get("MATH 1720")).toMatchObject({ status: "planned", override: false, auto: true, meta: { kind: "text", text: "Spring 2027 · auto" } });
   });
 
@@ -131,17 +148,21 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     expect(locked.meta.kind).toBe("needs");
   });
 
-  test("Auto plans eligible core courses, leaves unclear ones to the student, and undoes exactly", () => {
+  test("Auto plans eligible core courses and leaves unclear ones to the student", () => {
     const statuses = sampleStatuses();
     const model = buildCourseModel(profile, plan(statuses));
     const outcome = computeAuto(model, statuses, csCore, 15);
     expect(outcome.planned).toEqual(["MATH 1720"]);
     expect(outcome.needsCheck).toEqual(["CSCE 2100"]);
     expect(outcome.filled).toEqual({ done: 3, taking: 1, covered: 1 });
-    // The test plan omits untouched courses; a missing status undoes to notTaken.
-    expect(outcome.changes).toEqual([{ id: "MATH 1720", from: undefined, to: "inProgress" }]);
-    expect(undoChanges(outcome.changes)).toEqual([{ id: "MATH 1720", from: "inProgress", to: "notTaken" }]);
+    expect(outcome.changes).toEqual([{ code: "MATH 1720", from: "notTaken", to: "inProgress" }]);
     expect(describeAuto(outcome, true, "Spring 2027")).toBe("Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027.");
+  });
+
+  test("Auto never unplans a course the student is taking now", () => {
+    const statuses = sampleStatuses();
+    const outcome = computeAuto(buildCourseModel(profile, plan(statuses)), statuses, csCore, 15);
+    expect(outcome.unplanned).not.toContain("ENGL 1320");
   });
 
   test("Auto removes a planned course the transcript now covers, and respects the credit budget", () => {
@@ -150,15 +171,49 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     const outcome = computeAuto(model, statuses, csCore, 2);
     expect(outcome.unplanned).toEqual(["CSCE 1030"]);
     expect(outcome.planned).toEqual([]);
-    expect(outcome.changes).toContainEqual({ id: "CSCE 1030", from: "inProgress", to: "notTaken" });
+    expect(outcome.changes).toContainEqual({ code: "CSCE 1030", from: "inProgress", to: "notTaken" });
   });
 
-  test("groups put the core first, then the major's department", () => {
+  test("groups count only credit as done and report coverage separately", () => {
     const model = buildCourseModel(profile, plan(sampleStatuses()));
     const groups = buildGroups(model, csCore, "CSCE");
-    expect(groups[0]).toMatchObject({ key: "core", ids: csCore, finished: 3 });
+    // CSCE 1040 and MATH 1710 are done; CSCE 1030 is covered, not done.
+    expect(groups[0]).toMatchObject({ key: "core", ids: csCore, finished: 2, covered: 1 });
     expect(groups[1].key).toBe("dept:CSCE");
     expect(groups[1].ids).not.toContain("CSCE 1030");
+  });
+});
+
+describe("Auto undo", () => {
+  const run: AutoTransaction = {
+    id: "auto-1",
+    at: "2026-10-13T12:00:00.000Z",
+    major: "cs",
+    changes: [
+      { code: "MATH 1720", from: "notTaken", to: "inProgress" },
+      { code: "CSCE 1030", from: "inProgress", to: "notTaken" },
+    ],
+    autoPlannedBefore: [],
+    summary: "",
+    needsCheck: [],
+  };
+  const after = { "MATH 1720": "inProgress", "CSCE 1030": "notTaken", "ENGL 1310": "completed" } as const;
+
+  test("restores every status Auto changed and nothing else", () => {
+    expect(undoBlocker(run, after, "cs")).toBeNull();
+    expect(undoStatuses(run, after)).toEqual({ "MATH 1720": "notTaken", "CSCE 1030": "inProgress", "ENGL 1310": "completed" });
+  });
+
+  test("is refused after the student edits a course Auto touched", () => {
+    expect(undoBlocker(run, { ...after, "MATH 1720": "notTaken" }, "cs")).toBe("MATH 1720 changed after Auto-fill.");
+  });
+
+  test("is refused after a major switch", () => {
+    expect(undoBlocker(run, after, "math")).toBe("The major changed after Auto-fill.");
+  });
+
+  test("ignores edits to courses Auto did not touch", () => {
+    expect(undoBlocker(run, { ...after, "HIST 2610": "inProgress" }, "cs")).toBeNull();
   });
 });
 

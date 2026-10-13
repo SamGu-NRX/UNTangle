@@ -2,13 +2,15 @@
  * What one press of Auto changes. Statuses are already inferred live; Auto's
  * job is the plan: drop planned courses the evidence says are finished, then
  * fill the term budget with the engine's ranked eligible core courses.
- * Every change records its previous value so Undo restores it exactly.
+ * Every change records its previous value so Undo restores it exactly, and
+ * the run is kept with the plan (`coursePlan.lastAuto`) so Undo survives a
+ * reload but refuses once the plan has moved on.
  */
 import { suggestNext } from "@/lib/prereq";
-import type { CourseStatus as PlannerCourseStatus } from "@/lib/types";
+import type { AutoTransaction, CourseStatus as PlannerCourseStatus, MajorId } from "@/lib/types";
 import type { CourseModel } from "./course-model";
 
-export type StatusChange = { id: string; from: PlannerCourseStatus | undefined; to: PlannerCourseStatus };
+export type StatusChange = AutoTransaction["changes"][number];
 
 export type AutoOutcome = {
   changes: StatusChange[];
@@ -19,6 +21,9 @@ export type AutoOutcome = {
   filled: { done: number; taking: number; covered: number };
 };
 
+const statusOf = (statuses: Readonly<Record<string, PlannerCourseStatus>>, id: string): PlannerCourseStatus =>
+  statuses[id] ?? "notTaken";
+
 export function computeAuto(
   model: CourseModel,
   statuses: Readonly<Record<string, PlannerCourseStatus>>,
@@ -28,16 +33,15 @@ export function computeAuto(
   const rows = model.rows;
   const changes: StatusChange[] = [];
   const unplanned: string[] = [];
-  for (const [id, status] of Object.entries(statuses)) {
-    const row = rows.get(id);
-    if (status !== "inProgress" || !row) continue;
-    if (row.assessment?.status === "done" || (row.coveredBy && row.status !== "taking")) {
-      changes.push({ id, from: status, to: "notTaken" });
-      unplanned.push(id);
+  for (const row of rows.values()) {
+    if (!row.inPlan) continue;
+    if (row.assessment?.status === "done" || row.coveredBy) {
+      changes.push({ code: row.id, from: statusOf(statuses, row.id), to: "notTaken" });
+      unplanned.push(row.id);
     }
   }
   const unplannedSet = new Set(unplanned);
-  const stillPlanned = [...rows.values()].filter((row) => row.status === "planned" && !unplannedSet.has(row.id));
+  const stillPlanned = [...rows.values()].filter((row) => row.inPlan && !unplannedSet.has(row.id));
   let credits = stillPlanned.reduce((sum, row) => sum + row.credits, 0);
   const plannedIds = new Set(stillPlanned.map((row) => row.id));
 
@@ -49,7 +53,7 @@ export function computeAuto(
     if (credits + row.credits > creditBudget) continue;
     credits += row.credits;
     planned.push(row.id);
-    changes.push({ id: row.id, from: statuses[row.id], to: "inProgress" });
+    changes.push({ code: row.id, from: statusOf(statuses, row.id), to: "inProgress" });
   }
 
   const finishedOrPlanned = new Set([...plannedIds, ...planned]);
@@ -68,8 +72,29 @@ export function computeAuto(
   };
 }
 
-export function undoChanges(changes: readonly StatusChange[]): StatusChange[] {
-  return changes.map((change) => ({ id: change.id, from: change.to, to: change.from ?? "notTaken" }));
+/**
+ * Why Undo can no longer run, or null when it can. Undo restores old
+ * statuses wholesale, so it is refused once any course it touched changed
+ * again or the major (which chose the plan) changed.
+ */
+export function undoBlocker(
+  run: AutoTransaction,
+  statuses: Readonly<Record<string, PlannerCourseStatus>>,
+  major: MajorId | null,
+): string | null {
+  if (run.major !== major) return "The major changed after Auto-fill.";
+  const moved = run.changes.find((change) => statusOf(statuses, change.code) !== change.to);
+  return moved ? `${moved.code} changed after Auto-fill.` : null;
+}
+
+/** The statuses after Undo. Call only when undoBlocker returned null. */
+export function undoStatuses(
+  run: AutoTransaction,
+  statuses: Readonly<Record<string, PlannerCourseStatus>>,
+): Record<string, PlannerCourseStatus> {
+  const next = { ...statuses };
+  for (const change of run.changes) next[change.code] = change.from;
+  return next;
 }
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;

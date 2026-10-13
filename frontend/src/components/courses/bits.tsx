@@ -5,20 +5,40 @@ import styles from "./courses.module.css";
 import type { RowStatus } from "./model/course-model";
 import { ruleTokens, type RuleNode } from "./model/rules";
 
-/** Opens a course in the detail panel; links fall back to the deep-link URL. */
-export const OpenCourseContext = createContext<(id: string) => void>(() => {});
+export type CourseNavigation = {
+  open: (id: string) => void;
+  /** Courses the view can open. Rules name courses outside the bundled catalog (CSCE 3010). */
+  isKnown: (id: string) => boolean;
+};
+
+export const CourseNavigationContext = createContext<CourseNavigation>({ open: () => {}, isKnown: () => false });
 
 export function courseHref(id: string): string {
   const [subject, number] = id.split(" ");
   return `/courses/${encodeURIComponent(subject)}/${encodeURIComponent(number ?? "")}`;
 }
 
+/**
+ * Covered and Check have no glyph in ui/StatusGlyph (it draws the five
+ * DESIGN.md states), so the Courses view keeps this one with all seven.
+ */
 export function StatusGlyph({ status }: { status: RowStatus }) {
   return <span className={styles.glyph} data-status={status} aria-hidden="true" />;
 }
 
+/**
+ * A course code that opens the panel. A code the catalog does not carry stays
+ * plain text with an explanation, so following it can never empty the panel.
+ */
 export function CourseLink({ id, children }: { id: string; children?: ReactNode }) {
-  const open = useContext(OpenCourseContext);
+  const { open, isKnown } = useContext(CourseNavigationContext);
+  if (!isKnown(id)) {
+    return (
+      <span className={styles.unknownCourse} title={`${id} is not in UNTangle's catalog yet.`}>
+        {children ?? id}
+      </span>
+    );
+  }
   return (
     <a
       className={styles.link}
@@ -51,25 +71,3 @@ export function RuleText({ rule, grades = true }: { rule: RuleNode | null; grade
     </>
   );
 }
-
-export function ProvenanceTag({ children, title }: { children: ReactNode; title: string }) {
-  return (
-    <span className={styles.tag} title={title}>
-      {children}
-      <span className={styles.srOnly}>: {title}</span>
-    </span>
-  );
-}
-
-export const SearchIcon = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-    <circle cx="7" cy="7" r="4.5" />
-    <path d="M10.5 10.5 14 14" strokeLinecap="round" />
-  </svg>
-);
-
-export const CloseIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.6" fill="none" aria-hidden="true">
-    <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
-  </svg>
-);

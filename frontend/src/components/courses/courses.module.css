@@ -53,74 +53,6 @@
 
 /* ---------- primitives ---------- */
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--c-ink);
-  font: 600 13px/1 var(--c-body);
-  white-space: nowrap;
-  cursor: pointer;
-  text-decoration: none;
-  touch-action: manipulation;
-  user-select: none;
-  transition:
-    transform 120ms var(--c-ease-out),
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-.btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-.btn:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
-}
-.btn:disabled {
-  cursor: not-allowed;
-  background: var(--c-surface-2);
-  color: var(--c-ink-2);
-  border-color: var(--c-line);
-}
-.primary {
-  background: var(--c-brand);
-  color: #ffffff;
-}
-.ghost {
-  background: var(--c-surface);
-  border-color: var(--c-line-strong);
-}
-.quiet {
-  background: transparent;
-}
-.sm {
-  height: 32px;
-  padding: 0 12px;
-}
-.iconBtn {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: 8px;
-  color: var(--c-ink-2);
-}
-@media (hover: hover) and (pointer: fine) {
-  .primary:hover:not(:disabled) {
-    background: var(--c-brand-hover);
-  }
-  .ghost:hover:not(:disabled),
-  .quiet:hover:not(:disabled),
-  .iconBtn:hover {
-    background: var(--c-surface-2);
-  }
-}
-
 .link {
   appearance: none;
   border: 0;
@@ -147,30 +79,6 @@
   font-size: 11px;
   color: var(--c-ink-3);
   margin-left: 1px;
-}
-
-.kbd {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--c-surface-2);
-  border: 1px solid var(--c-line);
-  font: 500 11px/1 var(--c-body);
-  color: var(--c-ink-2);
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px dotted var(--c-line-strong);
-  font: 500 11px/1 var(--c-body);
-  color: var(--c-ink-2);
-  white-space: nowrap;
 }
 
 .meta {
@@ -295,193 +203,54 @@
   transform-origin: left center;
 }
 
-.searchTrigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 240px;
-  height: 36px;
-  padding: 0 10px 0 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: var(--c-surface-2);
-  color: var(--c-ink-2);
-  font: 400 13px/1 var(--c-body);
-  cursor: text;
-  text-align: left;
-}
-.searchTrigger > span {
-  flex: 1;
-}
-.searchTrigger svg {
-  color: var(--c-ink-3);
-  flex: none;
-}
-.searchTrigger:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
-}
-
 .phoneHead {
   display: none;
 }
 
-/* ---------- listbox (major + instructor pickers) ---------- */
-
-.listboxWrap {
-  position: relative;
-  display: inline-flex;
-  min-width: 0;
-}
-.listboxTrigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  height: 32px;
-  padding: 0 8px 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--c-line-strong);
-  background: var(--c-surface);
-  color: var(--c-ink);
-  font: 500 13px/1 var(--c-body);
-  cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease;
-}
-.listboxTrigger > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.listboxTrigger svg {
-  flex: none;
-  color: var(--c-ink-3);
-}
-.listboxTrigger[aria-expanded="true"] {
-  border-color: var(--c-brand);
-}
-.listboxTrigger:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
-}
-@media (hover: hover) and (pointer: fine) {
-  .listboxTrigger:hover {
-    border-color: var(--c-ink-4);
-  }
-  .titleTrigger:hover {
-    background: var(--c-surface-2);
-  }
-}
-/* The major picker reads as the view title, not as a form field. */
-.titleTrigger {
+/* The major picker is the view title: ui/Select's trigger without the field chrome. */
+.majorPicker :global(.ui-select__trigger) {
   height: 36px;
+  min-width: 0;
   padding: 0 8px 0 10px;
   margin-left: -10px;
   border-color: transparent;
   background: transparent;
   font: 600 15px/22px var(--c-body);
+  color: var(--c-ink);
 }
-.titleTrigger[data-empty="true"] {
+.majorPicker :global(.ui-select__value--placeholder) {
   color: var(--c-brand);
 }
-.titleTrigger[aria-expanded="true"] {
+.majorPicker :global(.ui-select__trigger[aria-expanded="true"]) {
   border-color: var(--c-line-strong);
   background: var(--c-surface);
 }
-
-.popover {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 100%;
-  max-height: 320px;
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--c-line);
-  background: var(--c-surface);
-  box-shadow: var(--c-shadow-2);
-  transform-origin: top left;
-  transition:
-    opacity 160ms var(--c-ease-out),
-    transform 160ms var(--c-ease-out);
+@media (hover: hover) and (pointer: fine) {
+  .majorPicker :global(.ui-select__trigger:hover) {
+    background: var(--c-surface-2);
+  }
 }
-.popover[data-align="end"] {
-  left: auto;
-  right: 0;
-  transform-origin: top right;
+.instructorPicker {
+  width: 200px;
 }
-.popover[data-state="entering"],
-.popover[data-state="closing"] {
-  opacity: 0;
-  transform: scale(0.97);
+.loading {
+  display: grid;
+  place-items: center;
+  padding: 64px;
+  color: var(--c-ink-3);
 }
-.popover[data-state="closing"] {
-  transition-duration: 120ms;
-  pointer-events: none;
+.loading .spinner {
+  width: 20px;
+  height: 20px;
 }
-.option,
-.menuItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--c-ink);
-  font: 400 13px/18px var(--c-body);
-  text-align: left;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.option[data-active="true"],
-.menuItem:focus-visible,
-.menuItem[data-active="true"] {
-  outline: none;
-  background: var(--c-surface-2);
-}
-.option[aria-selected="true"] {
-  font-weight: 600;
-}
-.optionLabel {
-  flex: 1;
-}
-.optionMeta {
-  font-size: 12px;
-  color: var(--c-ink-2);
-}
-.optionCheck {
-  flex: none;
-  width: 14px;
-  color: var(--c-brand);
-}
-.menuSep {
-  height: 1px;
-  margin: 4px 0;
-  background: var(--c-line);
+.unknownCourse {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
 }
 
 /* ---------- auto control + note ---------- */
 
-.split {
-  position: relative;
-  display: inline-flex;
-}
-.split > .btn:first-child {
-  border-radius: 10px 0 0 10px;
-}
-.splitCaret {
-  width: 28px;
-  padding: 0;
-  border-radius: 0 10px 10px 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.25);
-}
 .spark {
   font-size: 14px;
   line-height: 1;
@@ -533,6 +302,16 @@
 
 .group {
   margin-top: 12px;
+}
+.groupHeadRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.groupHeading {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
 }
 .groupHead {
   display: flex;
@@ -780,13 +559,14 @@
 
 /* ---------- detail panel ---------- */
 
+/* The shell publishes its top bar height as --shell-top-h; the panel sticks just under it. */
 .panelCol {
   position: sticky;
-  top: var(--sticky-top, 56px);
+  top: var(--shell-top-h, 57px);
   align-self: start;
 }
 .panel {
-  height: calc(100dvh - var(--sticky-top, 56px));
+  height: calc(100dvh - var(--shell-top-h, 57px));
   overflow: auto;
   overscroll-behavior: contain;
   border-left: 1px solid var(--c-line);
@@ -795,12 +575,16 @@
     opacity 200ms var(--c-ease-out),
     transform 200ms var(--c-ease-out);
 }
-.panel[data-state="entering"],
-.panel[data-state="closing"] {
+/* Enter: from 16px right and transparent. Exit (ui/use-presence "closed"): back out, faster. */
+@starting-style {
+  .panel {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+.panel[data-state="closed"] {
   opacity: 0;
   transform: translateX(16px);
-}
-.panel[data-state="closing"] {
   transition-duration: 150ms;
 }
 
@@ -985,242 +769,26 @@
 .secLines small[data-conflict="true"] {
   color: var(--c-danger);
 }
-.radio {
-  appearance: none;
-  position: relative;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  border-radius: 50%;
-  border: 1.5px solid var(--c-line-strong);
-  background: var(--c-surface);
-  cursor: inherit;
-  transition: border-color 120ms ease;
-}
-.radio:checked {
-  border-color: var(--c-brand);
-}
-.radio:checked::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--c-brand);
-}
-.radio:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
-}
-.radio:disabled {
-  border-color: var(--c-line);
-  background: var(--c-surface-2);
-}
-
-/* ---------- search palette ---------- */
-
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: var(--c-overlay);
-}
-.palette {
-  position: fixed;
-  z-index: 61;
-  left: 50%;
-  top: 96px;
-  width: 560px;
-  max-width: calc(100vw - 32px);
-  transform: translateX(-50%);
-  overflow: hidden;
-  border-radius: 14px;
-  background: var(--c-surface);
-  box-shadow: var(--c-shadow-3);
-}
-.palIn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 48px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--c-line);
-}
-.palIn svg {
-  flex: none;
-  color: var(--c-ink-3);
-}
-.palIn input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--c-ink);
-  font: 400 15px/1 var(--c-body);
-  outline: none;
-}
-.palIn input::placeholder {
-  color: var(--c-ink-3);
-}
-.palList {
-  max-height: min(420px, calc(100dvh - 240px));
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding-bottom: 6px;
-}
-.palSec {
-  padding: 10px 14px 4px;
-  font: 600 11px/16px var(--c-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--c-ink-2);
-}
-.palItem {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  min-height: 40px;
-  margin: 0 6px;
-  padding: 0 10px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.palItem[data-active="true"] {
-  background: var(--c-surface-2);
-}
-.palItem > span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.palHint {
-  padding: 14px;
-  color: var(--c-ink-2);
-}
-.palFoot {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  height: 36px;
-  padding: 0 14px;
-  border-top: 1px solid var(--c-line);
-  font-size: 12px;
-  color: var(--c-ink-2);
-}
-.palFoot > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* ---------- bottom sheet (phone) ---------- */
-
-.sheetScrim {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: var(--c-overlay);
-  transition: opacity 260ms var(--c-ease-sheet);
-}
-.sheetScrim[data-state="entering"],
-.sheetScrim[data-state="closing"] {
-  opacity: 0;
-}
-.sheetScrim[data-state="closing"] {
-  transition-duration: 200ms;
-}
-.sheet {
-  position: fixed;
-  z-index: 51;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 92dvh;
-  display: flex;
-  flex-direction: column;
-  border-radius: 14px 14px 0 0;
-  background: var(--c-surface);
-  box-shadow: var(--c-shadow-3);
-  transition: transform 260ms var(--c-ease-sheet);
-  will-change: transform;
-}
-.sheet[data-state="closing"] {
-  transition-duration: 200ms;
-}
-.sheet[data-settling="true"] {
-  transition-duration: 240ms;
-}
-.sheet[data-dragging="true"] {
-  transition: none;
-}
-.sheetGrip {
-  flex: none;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  height: 24px;
-  padding: 8px 0 0;
-  border: 0;
-  background: transparent;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-.sheetGrip::before {
-  content: "";
-  width: 36px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--c-line-strong);
-}
-.sheetGrip:focus-visible {
-  outline: none;
-}
-.sheetGrip:focus-visible::before {
-  box-shadow: var(--c-focus);
-}
-.sheetBody {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .btn,
   .emptyOption,
   .chev {
     transition: background-color 160ms ease;
   }
-  .btn:active:not(:disabled),
   .emptyOption:active {
     transform: none;
   }
-  .popover,
-  .panel {
+  /* Fades stay at 120ms; nothing moves. Matches the closed selector's specificity. */
+  .panel,
+  .panel[data-state="closed"] {
     transition: opacity 120ms ease;
-  }
-  .popover[data-state],
-  .panel[data-state] {
     transform: none;
   }
-  /* Match the closing selectors' specificity so their longer durations do not win. */
-  .popover[data-state="closing"],
-  .panel[data-state="closing"],
-  .sheet,
-  .sheet[data-state="closing"],
-  .sheet[data-settling="true"],
-  .sheetScrim,
-  .sheetScrim[data-state="closing"] {
-    transition: opacity 120ms ease;
-  }
-  .sheet[data-state="entering"],
-  .sheet[data-state="closing"] {
-    opacity: 0;
+  @starting-style {
+    .panel {
+      transform: none;
+    }
   }
   .spinner {
     animation-duration: 1.6s;
@@ -1242,10 +810,10 @@
   }
   .phoneSearch {
     width: 100%;
-    height: 40px;
-    border: 1px solid var(--c-line-strong);
-    background: var(--c-surface);
-    font-size: 16px;
+  }
+  /* No keyboard shortcut to show on a phone. */
+  .phoneSearch :global(.ui-search__kbd) {
+    display: none;
   }
   .phoneBar {
     display: flex;
@@ -1253,7 +821,7 @@
     gap: 10px;
     margin-top: 10px;
   }
-  .titleTrigger {
+  .majorPicker :global(.ui-select__trigger) {
     font-size: 14px;
   }
   .panelCol {
@@ -1262,21 +830,19 @@
   .root[data-panel="open"] .body {
     grid-template-columns: minmax(0, 1fr);
   }
-  /* Phone: spark and sentence on the first line, links and dismiss on the second. */
+  /* Phone: spark and sentence on the first line, links on the second, dismiss in the corner. */
   .autonote {
+    position: relative;
     flex-wrap: wrap;
     row-gap: 4px;
+    padding-right: 48px;
     font-size: 12.5px;
   }
   .autonoteText {
     flex: 1 1 calc(100% - 32px);
   }
-  .autonote .tag {
+  .autonote :global(.ui-tag) {
     display: none;
-  }
-  .autonote {
-    position: relative;
-    padding-right: 48px;
   }
   .noteDismiss {
     position: absolute;
@@ -1326,44 +892,20 @@
   .rowAction {
     display: none;
   }
-  .palette {
-    inset: 0;
-    top: 0;
-    left: 0;
-    width: 100%;
-    max-width: none;
-    transform: none;
-    border-radius: 0;
-    display: flex;
-    flex-direction: column;
-    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
-  }
-  .palList {
-    flex: 1;
-    max-height: none;
-  }
-  .palIn input {
-    font-size: 16px;
-  }
-  .palFoot {
-    display: none;
-  }
-  .palItem {
-    grid-template-columns: 84px minmax(0, 1fr);
-  }
-  .palItem > span:nth-child(3) {
-    display: none;
-  }
   .pHead {
-    padding: 12px 52px 0 20px;
+    padding: 4px 52px 0 4px;
+  }
+  .pClose {
+    right: 0;
+    top: 0;
   }
   .pActions {
     flex-wrap: nowrap;
     overflow-x: auto;
-    padding: 14px 20px 2px;
+    padding: 14px 4px 2px;
   }
   .pSec {
-    padding: 20px 20px 0;
+    padding: 20px 4px 0;
   }
   .figs {
     gap: 20px;
@@ -1373,43 +915,9 @@
   }
 }
 
-@media (min-width: 721px) {
-  .phoneOnly {
-    display: none;
-  }
+.retry {
+  margin-top: 10px;
 }
-@media (max-width: 720px) {
-  .desktopOnly {
-    display: none;
-  }
-}
-
-/* Touch: 44px hit areas and 16px inputs (iOS zooms anything smaller on focus). */
-@media (pointer: coarse) {
-  .iconBtn {
-    width: 44px;
-    height: 44px;
-  }
-  .sm {
-    height: 40px;
-  }
-  .splitCaret {
-    width: 44px;
-  }
-  .option,
-  .menuItem {
-    min-height: 44px;
-  }
-  .listboxTrigger {
-    height: 44px;
-  }
-  .sheetGrip {
-    height: 44px;
-  }
-  .palIn input {
-    font-size: 16px;
-  }
-  .palItem {
-    min-height: 48px;
-  }
+.moreSections {
+  margin-top: 10px;
 }

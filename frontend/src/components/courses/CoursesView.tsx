@@ -1,37 +1,65 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import { getMajorById } from "@/lib/planner";
-import { defaultPlannerState, majors } from "@/lib/seed-data";
-import type { MajorId } from "@/lib/types";
+import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Button, IconButton, SplitButton } from "@/components/ui/Button";
+import { Close } from "@/components/ui/icons";
+import type { MenuEntry } from "@/components/ui/Menu";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
+import { SearchTrigger } from "@/components/ui/SearchField";
+import type { SearchItem } from "@/components/ui/SearchPalette";
+import { Select } from "@/components/ui/Select";
+import { toast } from "@/components/ui/Toast";
+import { usePresence } from "@/components/ui/use-presence";
+import { getMajorById, getPlanningTermCourseCodes } from "@/lib/planner";
+import { majors } from "@/lib/seed-data";
+import type { AutoTransaction, CoursePlan, CourseStatus, MajorId } from "@/lib/types";
 import styles from "./courses.module.css";
-import { CloseIcon, OpenCourseContext, ProvenanceTag, SearchIcon } from "./bits";
-import { BottomSheet } from "./BottomSheet";
+import { CourseNavigationContext, type CourseNavigation } from "./bits";
 import { CourseList, type RowActions } from "./CourseList";
 import { DetailContent, type PanelActions } from "./DetailPanel";
-import { PHONE_QUERY, useMediaQuery, usePresence, useStickyTop, useStoredState } from "./hooks";
-import { Listbox, type ListboxHandle } from "./Listbox";
-import { Menu, type MenuItem } from "./Menu";
-import { computeAuto, describeAuto, undoChanges, type StatusChange } from "./model/auto";
+import { PHONE_QUERY, useMediaQuery } from "./hooks";
+import { computeAuto, describeAuto, undoBlocker, undoStatuses } from "./model/auto";
 import { buildCourseModel, buildGroups, isFinished, statusLabels, type CourseRowModel } from "./model/course-model";
+import { onlyCheckable, ruleCourseIds } from "./model/rules";
 import { SAMPLE_TRANSCRIPT_LABEL, sampleTranscript } from "./model/sample-transcript";
-import { instructorIndex } from "./model/search";
+import { instructorIndex, searchCatalog } from "./model/search";
 import { untProfile } from "./school";
-import { SearchPalette } from "./SearchPalette";
 
-type AutoRun = {
-  text: string;
-  changes: StatusChange[];
-  needsCheck: string[];
-  previousAutoPlanned: string[];
-};
+const majorOptions = majors.map((major) => ({
+  value: major.id,
+  label: major.name,
+  meta: major.department === "—" ? undefined : major.department,
+}));
+const MAJOR_TRIGGER = { desktop: "courses-major-desktop", phone: "courses-major-phone" };
+const INSTRUCTOR_ITEM = "instructor:";
+/** Phone sheet detents: half and nearly full; it opens nearly full. */
+const SHEET_DETENTS = ["50%", "92%"] as const;
 
-const majorOptions = majors.map((major) => ({ value: major.id, label: major.name, meta: major.department === "—" ? undefined : major.department }));
+const without = (list: readonly string[], id: string) => list.filter((value) => value !== id);
 
-/** Seed demo statuses a fresh guest inherits; cleared when they start their own plan. */
-const seedDemo = Object.entries(defaultPlannerState.courseStatuses).filter(([, status]) => status !== "notTaken");
+/**
+ * Opens the Connect sheet over Courses. Its owner listens for
+ * `untangle:open-connect` and calls preventDefault() to claim the event;
+ * when nothing claims it (the sheet is not mounted), go to the import route.
+ */
+export function openConnect(navigate: (href: string) => void) {
+  const claimed = !window.dispatchEvent(new CustomEvent("untangle:open-connect", { cancelable: true }));
+  if (!claimed) navigate("/courses/import");
+}
+
+function rowSummary(row: CourseRowModel | undefined): string {
+  if (!row) return "";
+  const label = statusLabels[row.status];
+  if (row.status === "locked" || row.status === "check") {
+    const needs = ruleCourseIds(onlyCheckable(row.unmet));
+    return needs.length > 0 ? `${label} · needs ${needs.slice(0, 2).join(", ")}` : label;
+  }
+  return label;
+}
 
 export function CoursesView({
   initialCourseId = null,
@@ -41,38 +69,34 @@ export function CoursesView({
   initialInstructor?: string | null;
 }) {
   const profile = useMemo(() => untProfile(), []);
-  const {
-    hydrated,
-    plannerState,
-    scheduleEvents,
-    setCourseStatus,
-    setSelectedMajor,
-    applyTranscriptRecords,
-    setSection,
-  } = usePlanner();
+  const { hydrated, plannerState, scheduleEvents, setSelectedMajor, applyTranscriptRecords, setSection, updateCoursePlan } =
+    usePlanner();
+  const { openSearch } = useShell();
+  const router = useRouter();
+  const importTranscript = () => openConnect((href) => router.push(href));
   const isPhone = useMediaQuery(PHONE_QUERY);
-  const stickyTop = useStickyTop();
 
-  const [autoPlanned, setAutoPlanned] = useStoredState<string[]>("untangle.courses.auto-planned.v1", []);
-  const [collapsed, setCollapsed] = useStoredState<Record<string, boolean>>("untangle.courses.groups.v1", {});
-  const [startedByHand, setStartedByHand] = useStoredState<boolean>("untangle.courses.started.v1", false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<string | null>(initialCourseId);
   const [panelOpen, setPanelOpen] = useState(initialCourseId !== null);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [lastAuto, setLastAuto] = useState<AutoRun | null>(null);
+  const [paletteInstructor, setPaletteInstructor] = useState<{ id: string; name: string } | null>(null);
+  const [sheetDetent, setSheetDetent] = useState(1);
   const [announcement, setAnnouncement] = useState("");
-  const desktopMajor = useRef<ListboxHandle>(null);
-  const phoneMajor = useRef<ListboxHandle>(null);
 
-  const autoSet = useMemo(() => new Set(autoPlanned), [autoPlanned]);
+  const coursePlan: CoursePlan = plannerState.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
+  const planned = useMemo(() => new Set(getPlanningTermCourseCodes(plannerState)), [plannerState]);
+  const manualCredit = useMemo(() => new Set(coursePlan.manualCredit), [coursePlan.manualCredit]);
+  const autoPlanned = useMemo(() => new Set(coursePlan.autoPlanned), [coursePlan.autoPlanned]);
   const model = useMemo(
     () =>
       buildCourseModel(profile, {
         statuses: plannerState.courseStatuses,
         transcript: plannerState.transcriptRecords,
-        autoPlanned: autoSet,
+        planned,
+        manualCredit,
+        autoPlanned,
       }),
-    [profile, plannerState.courseStatuses, plannerState.transcriptRecords, autoSet],
+    [profile, plannerState.courseStatuses, plannerState.transcriptRecords, planned, manualCredit, autoPlanned],
   );
   const major = getMajorById(plannerState.selectedMajor);
   const coreIds = useMemo(() => major?.coreCourseCodes ?? [], [major]);
@@ -90,36 +114,55 @@ export function CoursesView({
     const row = model.rows.get(id);
     return row ? isFinished(row) : false;
   }).length;
+  const coreCovered = coreIds.filter((id) => model.rows.get(id)?.status === "covered").length;
 
   const searchCourses = useMemo(() => [...model.rows.values()].map((row) => ({ id: row.id, title: row.title })), [model]);
   const instructors = useMemo(() => instructorIndex(profile.catalog.flatMap((course) => profile.sections(course.id))), [profile]);
 
   const untouched =
-    !model.hasTranscript &&
-    Object.entries(plannerState.courseStatuses).every(
-      ([code, status]) => status === (defaultPlannerState.courseStatuses[code] ?? "notTaken"),
-    );
-  const idle = hydrated && untouched && !startedByHand;
+    !model.hasTranscript && Object.values(plannerState.courseStatuses).every((status) => status === "notTaken");
+  // The empty state stays until the student has a major or any course data.
+  const idle = hydrated && untouched && !major;
   const sampleOnly = model.hasTranscript && plannerState.transcriptRecords.every((record) => record.id.startsWith("sample-"));
 
   const say = (text: string) => setAnnouncement(text);
 
-  const openCourse = useCallback((id: string) => {
-    setSelectedId(id);
-    setPanelOpen(true);
-  }, []);
-  const [paletteInstructor, setPaletteInstructor] = useState<{ id: string; name: string } | null>(null);
+  const openCourse = useCallback(
+    (id: string) => {
+      if (!model.rows.has(id)) return;
+      setSelectedId(id);
+      setPanelOpen(true);
+      setSheetDetent(1);
+    },
+    [model],
+  );
+  const navigation = useMemo<CourseNavigation>(() => ({ open: openCourse, isKnown: (id) => model.rows.has(id) }), [openCourse, model]);
 
-  const forgetAuto = (id: string) => setAutoPlanned((list) => (list.includes(id) ? list.filter((value) => value !== id) : list));
+  /** One atomic plan edit: statuses plus coursePlan, both read from the planner's current state. */
+  const edit = (statuses: Record<string, CourseStatus>, plan: (current: CoursePlan) => Partial<CoursePlan> = () => ({})) =>
+    updateCoursePlan((current) => ({
+      courseStatuses: { ...current.courseStatuses, ...statuses },
+      coursePlan: { ...current.coursePlan, ...plan(current.coursePlan) },
+    }));
 
   const plan = (id: string) => {
-    setCourseStatus(id, "inProgress");
+    edit({ [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
     say(`Planned ${id} for ${profile.planningTerm}.`);
   };
   const unplan = (id: string) => {
-    setCourseStatus(id, "notTaken");
-    forgetAuto(id);
+    edit({ [id]: "notTaken" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
     say(`Removed ${id} from the plan.`);
+  };
+  const markCredit = (id: string) => {
+    edit(
+      { [id]: "completed" },
+      (current) => ({ manualCredit: [...without(current.manualCredit, id), id], autoPlanned: without(current.autoPlanned, id) }),
+    );
+    say(`Marked ${id} as credit you have.`);
+  };
+  const clearCredit = (id: string) => {
+    edit({ [id]: "notTaken" }, (current) => ({ manualCredit: without(current.manualCredit, id) }));
+    say(`Removed your credit mark from ${id}.`);
   };
 
   const rowActions: RowActions = {
@@ -127,125 +170,163 @@ export function CoursesView({
     plan,
     unplan,
     resetOverride: (id) => {
-      setCourseStatus(id, "notTaken");
-      forgetAuto(id);
-      say(`Reset ${id} to its inferred status.`);
+      const row = model.rows.get(id);
+      if (row?.status === "done") clearCredit(id);
+      else unplan(id);
     },
   };
 
   const closePanel = useCallback(() => {
     setPanelOpen(false);
     const id = selectedId;
-    if (id) window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-row-open="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }));
+    if (id) {
+      window.requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>(`[data-row-open="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }),
+      );
+    }
   }, [selectedId]);
 
   const panelActions: PanelActions = {
     plan,
     unplan,
-    markDone: (id) => {
-      setCourseStatus(id, "completed");
-      forgetAuto(id);
-      say(`Marked ${id} done.`);
-    },
-    clearDone: (id) => {
-      setCourseStatus(id, "notTaken");
-      say(`Removed your done mark from ${id}.`);
-    },
+    markCredit,
+    clearCredit,
     chooseSection: (id, sectionId) => {
-      if (model.rows.get(id)?.status !== "planned") setCourseStatus(id, "inProgress");
+      if (!model.rows.get(id)?.inPlan) edit({ [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
       setSection(id, sectionId);
       say(`Using section ${sectionId.split("-").at(-1)} of ${id}.`);
     },
     close: closePanel,
   };
 
-  const clearSeedDemo = () => {
-    for (const [code, status] of seedDemo) {
-      if (plannerState.courseStatuses[code] === status) setCourseStatus(code, "notTaken");
-    }
+  const focusMajorPicker = () => {
+    document.getElementById(isPhone ? MAJOR_TRIGGER.phone : MAJOR_TRIGGER.desktop)?.focus();
   };
-
-  const openMajorPicker = () => (isPhone ? phoneMajor : desktopMajor).current?.open();
 
   const runAuto = () => {
     if (!major) {
-      say("Choose your major first; Auto-fill plans from its core courses.");
-      openMajorPicker();
+      toast("Choose your major first. Auto-fill plans from its core courses.");
+      focusMajorPicker();
       return;
     }
     const outcome = computeAuto(model, plannerState.courseStatuses, coreIds, profile.autoCreditBudget);
-    for (const change of outcome.changes) setCourseStatus(change.id, change.to);
-    const previousAutoPlanned = autoPlanned;
-    setAutoPlanned([...autoPlanned.filter((id) => !outcome.unplanned.includes(id)), ...outcome.planned]);
-    const text = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
-    setLastAuto({ text, changes: outcome.changes, needsCheck: outcome.needsCheck, previousAutoPlanned });
-    say(text);
+    const summary = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
+    const run: AutoTransaction = {
+      id: `auto-${Date.now().toString(36)}`,
+      at: new Date().toISOString(),
+      major: major.id,
+      changes: outcome.changes,
+      autoPlannedBefore: coursePlan.autoPlanned,
+      summary,
+      needsCheck: outcome.needsCheck,
+    };
+    const unplanned = new Set(outcome.unplanned);
+    edit(Object.fromEntries(outcome.changes.map((change) => [change.code, change.to])), (current) => ({
+      autoPlanned: [...current.autoPlanned.filter((id) => !unplanned.has(id)), ...outcome.planned],
+      lastAuto: { ...run, autoPlannedBefore: current.autoPlanned },
+    }));
+    say(summary);
   };
 
+  const lastAuto = coursePlan.lastAuto;
+  const undoBlocked = lastAuto ? undoBlocker(lastAuto, plannerState.courseStatuses, plannerState.selectedMajor) : null;
+
   const undoAuto = () => {
-    if (!lastAuto) return;
-    for (const change of undoChanges(lastAuto.changes)) setCourseStatus(change.id, change.to);
-    setAutoPlanned(lastAuto.previousAutoPlanned);
-    setLastAuto(null);
+    if (!lastAuto || undoBlocked) return;
+    updateCoursePlan((current) => ({
+      courseStatuses: undoStatuses(lastAuto, current.courseStatuses),
+      coursePlan: { ...current.coursePlan, autoPlanned: lastAuto.autoPlannedBefore, lastAuto: null },
+    }));
     say("Auto-fill undone. Your plan is back to how it was.");
   };
 
+  const dismissAuto = () => edit({}, () => ({ lastAuto: null }));
+
   const clearAutoPlan = () => {
-    const ids = autoPlanned.filter((id) => plannerState.courseStatuses[id] === "inProgress");
-    for (const id of ids) setCourseStatus(id, "notTaken");
-    setAutoPlanned([]);
-    setLastAuto(null);
+    const ids = coursePlan.autoPlanned.filter((id) => model.rows.get(id)?.inPlan);
+    edit(Object.fromEntries(ids.map((id) => [id, "notTaken" as const])), () => ({ autoPlanned: [], lastAuto: null }));
     say(ids.length ? `Removed ${ids.length} auto-planned course${ids.length === 1 ? "" : "s"}.` : "Nothing was auto-planned.");
   };
 
   const trySample = () => {
-    clearSeedDemo();
     applyTranscriptRecords(sampleTranscript);
-    setStartedByHand(true);
     say("Added the sample transcript. Press Auto-fill to plan from it.");
   };
 
-  const pickByHand = () => {
-    clearSeedDemo();
-    setStartedByHand(true);
-    // The list is grouped around the major's core, so ask for it first.
-    if (!major) window.requestAnimationFrame(openMajorPicker);
-    else window.requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-row-open]")?.focus());
-  };
-
-  const togglePlanFromPalette = (id: string) => {
+  const togglePlanFromSearch = (id: string) => {
     const row = model.rows.get(id);
-    if (!row) return "";
+    if (!row) return;
     if (row.status === "available" || row.status === "check") {
       plan(id);
-      return `Planned ${id} for ${profile.planningTerm}.`;
-    }
-    if (row.status === "planned") {
+      toast(`Planned ${id} for ${profile.planningTerm}.`);
+    } else if (row.status === "planned") {
       unplan(id);
-      return `Removed ${id} from the plan.`;
+      toast(`Removed ${id} from the plan.`);
+    } else {
+      toast(`${id} is ${statusLabels[row.status].toLowerCase()}. Press Enter to see why.`);
     }
-    return `${id} is ${statusLabels[row.status].toLowerCase()}. Press Enter to see why.`;
   };
+
+  // The shell's palette (⌘K, the top bar's field, the phone search sheet) shows this search on Courses.
+  const searchProvider = useMemo<ShellSearchProvider>(
+    () => ({
+      placeholder: "Search courses",
+      emptyQueryHint: "Type a course code like 1030, a title, or an instructor.",
+      planShortcut: true,
+      search: (query) => {
+        const results = searchCatalog(query, searchCourses, instructors, coreSet);
+        return [
+          {
+            id: "courses",
+            label: "Courses",
+            items: results.courses.map((course): SearchItem => {
+              const row = model.rows.get(course.id);
+              return { id: course.id, code: course.id, title: course.title, meta: rowSummary(row), metaTone: row?.status === "locked" ? "danger" : "default" };
+            }),
+          },
+          {
+            id: "instructors",
+            label: "Instructors",
+            items: results.instructors.map((instructor): SearchItem => ({
+              id: `${INSTRUCTOR_ITEM}${instructor.name}`,
+              title: instructor.name,
+              meta: instructor.courseIds.slice(0, 3).join(" · "),
+            })),
+          },
+        ];
+      },
+      onSelect: (item, { plan: wantsPlan }) => {
+        if (item.id.startsWith(INSTRUCTOR_ITEM)) {
+          const name = item.id.slice(INSTRUCTOR_ITEM.length);
+          const first = instructors.find((instructor) => instructor.name === name)?.courseIds[0];
+          if (first) {
+            setPaletteInstructor({ id: first, name });
+            openCourse(first);
+          }
+          return;
+        }
+        if (wantsPlan) {
+          togglePlanFromSearch(item.id);
+          return true;
+        }
+        setPaletteInstructor(null);
+        openCourse(item.id);
+      },
+    }),
+    // togglePlanFromSearch and openCourse read the same model.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [model, searchCourses, instructors, coreSet, openCourse],
+  );
+  useShellSearch(searchProvider);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPaletteOpen(true);
-      } else if (event.key === "Escape" && panelOpen && !paletteOpen && !isPhone && !event.defaultPrevented) {
-        const inPopover = (event.target as HTMLElement | null)?.closest?.('[role="menu"], [aria-expanded="true"]');
-        if (!inPopover) closePanel();
-      }
+      // Modal layers (the palette, a Select, a Menu) handle their own Escape first.
+      if (event.key === "Escape" && panelOpen && !isPhone && !event.defaultPrevented) closePanel();
     };
-    // The app shell's search trigger can open this palette without importing it.
-    const onOpenSearch = () => setPaletteOpen(true);
     window.addEventListener("keydown", onKey);
-    window.addEventListener("untangle:open-search", onOpenSearch);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("untangle:open-search", onOpenSearch);
-    };
-  }, [panelOpen, paletteOpen, isPhone, closePanel]);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [panelOpen, isPhone, closePanel]);
 
   // selectedId is never cleared, so the panel keeps its course while it slides out.
   const panelRow = selectedId ? model.rows.get(selectedId) : undefined;
@@ -258,79 +339,70 @@ export function CoursesView({
         ? initialInstructor
         : null;
 
-  const content = (row: CourseRowModel, showClose: boolean) => (
+  const content = (row: CourseRowModel) => (
     <DetailContent
       key={`${row.id}|${instructorForPanel ?? ""}`}
       row={row}
       profile={profile}
-      inCore={coreIds.includes(row.id)}
+      inCore={coreSet.has(row.id)}
       selectedSectionId={plannerState.selectedSections[row.id]}
       scheduleEvents={scheduleEvents}
       initialInstructor={instructorForPanel}
       actions={panelActions}
-      showClose={showClose}
+      showClose
     />
   );
 
-  const autoItems: MenuItem[] = [
-    { key: "import", label: "Import a transcript PDF", href: "/courses/import" },
-    ...(model.hasTranscript ? [] : [{ key: "sample", label: "Try the sample transcript", onSelect: trySample }]),
-    ...(autoPlanned.length > 0 ? [{ key: "clear", label: "Clear the auto plan", onSelect: clearAutoPlan }] : []),
+  const autoItems: MenuEntry[] = [
+    { id: "import", label: "Import a transcript", onSelect: importTranscript },
+    ...(model.hasTranscript ? [] : [{ id: "sample", label: "Try the sample transcript", onSelect: trySample }]),
+    ...(coursePlan.autoPlanned.length > 0
+      ? [{ kind: "separator" as const, id: "sep" }, { id: "clear", label: "Clear the auto plan", onSelect: clearAutoPlan, destructive: true }]
+      : []),
   ];
 
   const autoControl = (small: boolean) => (
-    <div className={styles.split}>
-      <button type="button" className={`${styles.btn} ${styles.primary} ${small ? styles.sm : ""}`} onClick={runAuto}>
-        <span className={styles.spark} aria-hidden="true">
-          ✦
-        </span>
-        Auto-fill
-      </button>
-      <Menu
-        label="More Auto-fill options"
-        items={autoItems}
-        triggerClassName={`${styles.btn} ${styles.primary} ${styles.splitCaret} ${small ? styles.sm : ""}`}
-        trigger={
-          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-            <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        }
+    <SplitButton
+      size={small ? "sm" : "md"}
+      icon={<span aria-hidden="true">✦</span>}
+      onClick={runAuto}
+      menuLabel="More Auto-fill options"
+      menuItems={autoItems}
+    >
+      Auto-fill
+    </SplitButton>
+  );
+
+  const majorPicker = (id: string) => (
+    <div className={styles.majorPicker}>
+      <Select
+        id={id}
+        label="Major"
+        hideLabel
+        options={majorOptions}
+        value={plannerState.selectedMajor ?? ""}
+        placeholder="Choose your major"
+        onValueChange={(value) => {
+          setSelectedMajor(value as MajorId);
+          say(`Major set to ${getMajorById(value as MajorId)?.name}.`);
+        }}
       />
     </div>
   );
 
-  const majorPicker = (ref: React.Ref<ListboxHandle>) => (
-    <Listbox
-      ref={ref}
-      label="Major"
-      variant="title"
-      options={majorOptions}
-      value={plannerState.selectedMajor}
-      onChange={(value) => {
-        setSelectedMajor(value as MajorId);
-        say(`Major set to ${getMajorById(value as MajorId)?.name}.`);
-      }}
-      placeholder="Choose your major"
-    />
-  );
-
-  const openSearch = () => setPaletteOpen(true);
   const pct = coreIds.length ? coreDone / coreIds.length : 0;
 
   return (
-    <OpenCourseContext.Provider value={openCourse}>
-      <div
-        className={`${styles.tokens} ${styles.root}`}
-        data-panel={desktopPresence.mounted ? "open" : "closed"}
-        style={{ ["--sticky-top" as string]: `${stickyTop}px` }}
-      >
+    <CourseNavigationContext.Provider value={navigation}>
+      <div className={`${styles.tokens} ${styles.root}`} data-panel={desktopPresence.mounted ? "open" : "closed"}>
         <h1 className={styles.srOnly}>Courses</h1>
         <div className={styles.viewhead}>
-          {majorPicker(desktopMajor)}
+          {majorPicker(MAJOR_TRIGGER.desktop)}
           {major && coreIds.length > 0 ? (
             <span className={styles.headMeta}>
               <span className={styles.meta}>
                 {coreDone} of {coreIds.length} core done
+                {coreCovered > 0 ? ` · ${coreCovered} covered` : ""}
               </span>
               <span className={styles.progress} aria-hidden="true">
                 <i style={{ transform: `scaleX(${pct})` }} />
@@ -338,24 +410,16 @@ export function CoursesView({
             </span>
           ) : null}
           <span className={styles.spacer} />
-          <button type="button" className={styles.searchTrigger} onClick={openSearch} aria-keyshortcuts="Meta+K Control+K">
-            <SearchIcon />
-            <span>Search courses</span>
-            <kbd className={styles.kbd}>⌘K</kbd>
-          </button>
           {autoControl(false)}
-          <Link href="/courses/import" className={`${styles.btn} ${styles.ghost}`}>
+          <Button variant="ghost" onClick={importTranscript}>
             Import PDF
-          </Link>
+          </Button>
         </div>
 
         <div className={styles.phoneHead}>
-          <button type="button" className={`${styles.searchTrigger} ${styles.phoneSearch}`} onClick={openSearch}>
-            <SearchIcon />
-            <span>Search courses</span>
-          </button>
+          <SearchTrigger className={styles.phoneSearch} shortcut="" onClick={openSearch} />
           <div className={styles.phoneBar}>
-            {majorPicker(phoneMajor)}
+            {majorPicker(MAJOR_TRIGGER.phone)}
             <span className={styles.spacer} />
             {autoControl(true)}
           </div>
@@ -367,8 +431,8 @@ export function CoursesView({
               <span className={styles.spark} aria-hidden="true">
                 ✦
               </span>
-              <span className={styles.autonoteText}>{lastAuto.text}</span>
-              {lastAuto.needsCheck.length > 0 ? (
+              <span className={styles.autonoteText}>{lastAuto.summary}</span>
+              {lastAuto.needsCheck.length > 0 && model.rows.has(lastAuto.needsCheck[0]) ? (
                 <button type="button" className={styles.link} onClick={() => openCourse(lastAuto.needsCheck[0])}>
                   {lastAuto.needsCheck.length === 1
                     ? "1 core course needs an advisor"
@@ -376,20 +440,26 @@ export function CoursesView({
                   · Review
                 </button>
               ) : null}
-              <button type="button" className={styles.link} onClick={undoAuto}>
-                Undo
-              </button>
+              {undoBlocked ? (
+                <span className={styles.meta} data-undo-blocked>
+                  Undo is off: {undoBlocked}
+                </span>
+              ) : (
+                <button type="button" className={styles.link} onClick={undoAuto}>
+                  Undo
+                </button>
+              )}
               <span className={styles.spacer} />
               {model.hasTranscript ? (
                 <ProvenanceTag
-                  title={sampleOnly ? "Statuses come from a made-up sample transcript." : "Statuses come from the transcript you imported."}
+                  source={sampleOnly ? "Statuses come from a made-up sample transcript." : "Statuses come from the transcript you imported."}
                 >
                   {sampleOnly ? SAMPLE_TRANSCRIPT_LABEL : "From transcript"}
                 </ProvenanceTag>
               ) : null}
-              <button type="button" className={`${styles.btn} ${styles.iconBtn} ${styles.noteDismiss}`} aria-label="Dismiss note" onClick={() => setLastAuto(null)}>
-                <CloseIcon />
-              </button>
+              <IconButton size="sm" className={styles.noteDismiss} label="Dismiss note" onClick={dismissAuto}>
+                <Close />
+              </IconButton>
             </div>
           ) : null}
           <span className={styles.srOnly}>{announcement}</span>
@@ -398,11 +468,11 @@ export function CoursesView({
         <div className={styles.body}>
           <div className={styles.list} data-course-list>
             {!hydrated ? (
-              <div style={{ display: "grid", placeItems: "center", padding: 64, color: "var(--c-ink-3)" }} aria-label="Loading your plan" role="status">
-                <span className={styles.spinner} style={{ width: 20, height: 20 }} />
+              <div className={styles.loading} aria-label="Loading your plan" role="status">
+                <span className={styles.spinner} />
               </div>
             ) : idle ? (
-              <EmptyState onSample={trySample} onByHand={pickByHand} />
+              <EmptyState onImport={importTranscript} onSample={trySample} onByHand={focusMajorPicker} />
             ) : (
               <CourseList
                 groups={groups}
@@ -418,7 +488,7 @@ export function CoursesView({
           {desktopPresence.mounted && panelRow ? (
             <div className={styles.panelCol}>
               <aside className={styles.panel} data-state={desktopPresence.state} aria-labelledby="course-panel-title">
-                {content(panelRow, true)}
+                {content(panelRow)}
               </aside>
             </div>
           ) : null}
@@ -426,46 +496,38 @@ export function CoursesView({
 
         {isPhone && panelRow ? (
           <BottomSheet
-            open={panelOpen && panelRow !== undefined}
-            onClose={closePanel}
-            label={`${panelRow.id} details`}
+            open={panelOpen}
+            onOpenChange={(open) => {
+              if (!open) closePanel();
+            }}
+            title={`${panelRow.id} details`}
+            detents={[...SHEET_DETENTS]}
+            initialDetent={1}
+            detent={sheetDetent}
+            onDetentChange={setSheetDetent}
             className={styles.tokens}
           >
-            {content(panelRow, true)}
+            {/* At half height the body does not scroll; moving focus into it opens the sheet fully. */}
+            <div onFocusCapture={() => setSheetDetent(1)}>{content(panelRow)}</div>
           </BottomSheet>
         ) : null}
-
-        <SearchPalette
-          open={paletteOpen}
-          onClose={() => setPaletteOpen(false)}
-          className={styles.tokens}
-          courses={searchCourses}
-          instructors={instructors}
-          rows={model.rows}
-          preferred={coreSet}
-          onOpenCourse={(id, instructor) => {
-            setPaletteInstructor(instructor ? { id, name: instructor } : null);
-            openCourse(id);
-          }}
-          onTogglePlan={togglePlanFromPalette}
-        />
       </div>
-    </OpenCourseContext.Provider>
+    </CourseNavigationContext.Provider>
   );
 }
 
-function EmptyState({ onSample, onByHand }: { onSample: () => void; onByHand: () => void }) {
+function EmptyState({ onImport, onSample, onByHand }: { onImport: () => void; onSample: () => void; onByHand: () => void }) {
   return (
     <section className={styles.empty} aria-labelledby="empty-title">
       <h2 className={styles.emptyTitle} id="empty-title">
         Start with what you&apos;ve taken
       </h2>
-      <Link href="/courses/import" className={styles.emptyOption} data-primary="true">
+      <button type="button" className={styles.emptyOption} data-primary="true" onClick={onImport}>
         <span>
           <strong>Import your transcript</strong>
           <span className={styles.meta}>Upload the unofficial transcript PDF from myUNT.</span>
         </span>
-      </Link>
+      </button>
       <button type="button" className={styles.emptyOption} onClick={onSample}>
         <span>
           <strong>Try a sample transcript</strong>
@@ -475,7 +537,7 @@ function EmptyState({ onSample, onByHand }: { onSample: () => void; onByHand: ()
       <button type="button" className={styles.emptyOption} onClick={onByHand}>
         <span>
           <strong>Pick courses by hand</strong>
-          <span className={styles.meta}>Browse the catalog and plan courses yourself.</span>
+          <span className={styles.meta}>Choose your major, then browse its courses.</span>
         </span>
       </button>
     </section>

@@ -2,11 +2,12 @@
  * Turns the plan (persisted statuses + transcript rows) into what each row
  * shows. Status is inferred on every call; nothing here writes state.
  *
- * The planner stores three statuses per course. Their meaning in v2:
- * - "completed" with no transcript row is the student saying "I have credit"
- *   (an override the engine honors as `done`).
- * - "inProgress" is a course in the plan for the planning term, except when
- *   the transcript says the student is taking it now.
+ * The planner stores three statuses per course plus `coursePlan`:
+ * - `coursePlan.manualCredit` is the student saying "I have credit for
+ *   this", honored as a `done` override even when a transcript row says
+ *   otherwise. "completed" with no transcript row (v1 data) counts the same.
+ * - the plan for the planning term is the planner's own selector
+ *   (getPlanningTermCourseCodes): "inProgress" with no current transcript row.
  * - everything else comes from the engine.
  */
 import { inferStatuses, type CourseAssessment, type Evidence, type InferenceResult } from "@/lib/prereq";
@@ -26,6 +27,8 @@ export type RowMeta =
 
 export type CourseRowModel = CatalogEntry & {
   status: RowStatus;
+  /** In the plan for the planning term, whatever the row shows. */
+  inPlan: boolean;
   /** The student set this, against or without the evidence. */
   override: boolean;
   /** Planned by Auto rather than by hand. */
@@ -42,6 +45,9 @@ export type CourseRowModel = CatalogEntry & {
 export type PlanSnapshot = {
   statuses: Readonly<Record<string, PlannerCourseStatus>>;
   transcript: readonly TranscriptCourseRecord[];
+  /** getPlanningTermCourseCodes(plannerState). */
+  planned: ReadonlySet<string>;
+  manualCredit: ReadonlySet<string>;
   autoPlanned: ReadonlySet<string>;
 };
 
@@ -64,20 +70,17 @@ export const statusLabels: Record<RowStatus, string> = {
 export function buildEvidence(profile: SchoolProfile, plan: PlanSnapshot): { evidence: Evidence; manualDone: Set<string> } {
   const base = profile.evidenceFromTranscript(plan.transcript);
   const withRows = transcriptCodes(profile, plan.transcript);
-  const manualDone = new Set(
-    Object.entries(plan.statuses)
+  const manualDone = new Set([
+    ...plan.manualCredit,
+    ...Object.entries(plan.statuses)
       .filter(([id, status]) => status === "completed" && !withRows.has(id))
       .map(([id]) => id),
-  );
+  ]);
   const overrides = new Map(
     [...manualDone].map((id) => [id, { status: "done" as const, reason: "You marked this done." }]),
   );
   // The plan for the planning term; the engine lets it satisfy plain co-requisites only.
-  const taking = new Set(base.inProgress ?? []);
-  const planned = Object.entries(plan.statuses)
-    .filter(([id, status]) => status === "inProgress" && !taking.has(id))
-    .map(([id]) => id);
-  return { evidence: { ...base, overrides, planned }, manualDone };
+  return { evidence: { ...base, overrides, planned: [...plan.planned] }, manualDone };
 }
 
 function transcriptCodes(profile: SchoolProfile, records: readonly TranscriptCourseRecord[]) {
@@ -112,7 +115,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
     const prerequisite = prerequisites.get(entry.id);
     const rule = prerequisite ? ruleFromPrerequisite(prerequisite) : null;
     const engine = assessment?.status ?? "unknown";
-    const planned = plan.statuses[entry.id] === "inProgress";
+    const planned = plan.planned.has(entry.id);
     const coveredBy = covered.get(entry.id) ?? null;
     const unmet = engine === "locked" || engine === "unknown" ? (assessment ? unmetFromReason(assessment.reason) : null) : null;
 
@@ -150,6 +153,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
     rows.set(entry.id, {
       ...entry,
       status,
+      inPlan: planned,
       override,
       auto: status === "planned" && plan.autoPlanned.has(entry.id),
       meta,
@@ -162,12 +166,12 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
   return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded) };
 }
 
-/** Counted as finished in group headers: credit, or covered by a passed course. */
-export const isFinished = (row: CourseRowModel) => row.status === "done" || row.status === "covered";
+/** Counted as done in group headers: credit only. Covered courses are counted separately. */
+export const isFinished = (row: CourseRowModel) => row.status === "done";
 /** Can be added to the plan from a row or the palette without an override. */
 export const isPlannable = (row: CourseRowModel) => row.status === "available";
 
-export type CourseGroupModel = { key: string; label: string; ids: string[]; finished: number; tag?: string };
+export type CourseGroupModel = { key: string; label: string; ids: string[]; finished: number; covered: number; tag?: string };
 
 export function buildGroups(model: CourseModel, coreIds: readonly string[], majorDepartment: string | null): CourseGroupModel[] {
   const core = coreIds.filter((id) => model.rows.has(id));
@@ -181,11 +185,14 @@ export function buildGroups(model: CourseModel, coreIds: readonly string[], majo
     a === majorDepartment ? -1 : b === majorDepartment ? 1 : a.localeCompare(b),
   );
   const finished = (ids: string[]) => ids.filter((id) => isFinished(model.rows.get(id)!)).length;
+  const covered = (ids: string[]) => ids.filter((id) => model.rows.get(id)!.status === "covered").length;
   const groups: CourseGroupModel[] = [];
-  if (core.length > 0) groups.push({ key: "core", label: "Core", ids: core, finished: finished(core), tag: "Sample degree plan" });
+  if (core.length > 0) {
+    groups.push({ key: "core", label: "Core", ids: core, finished: finished(core), covered: covered(core), tag: "Sample degree plan" });
+  }
   for (const department of departments) {
     const ids = byDepartment.get(department)!.sort();
-    groups.push({ key: `dept:${department}`, label: department, ids, finished: finished(ids) });
+    groups.push({ key: `dept:${department}`, label: department, ids, finished: finished(ids), covered: covered(ids) });
   }
   return groups;
 }

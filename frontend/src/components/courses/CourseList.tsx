@@ -1,8 +1,10 @@
 "use client";
 
 import { memo, useCallback, useRef } from "react";
+import { Button } from "@/components/ui/Button";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import styles from "./courses.module.css";
-import { CourseLink, ProvenanceTag, RuleText, StatusGlyph } from "./bits";
+import { CourseLink, RuleText, StatusGlyph } from "./bits";
 import { statusLabels, type CourseGroupModel, type CourseRowModel } from "./model/course-model";
 
 export type RowActions = {
@@ -50,28 +52,31 @@ export function CourseList({ groups, rows, selectedId, collapsed, onToggleGroup,
         const headId = `group-${group.key}`;
         return (
           <section key={group.key} className={styles.group} aria-labelledby={headId}>
-            <h2 style={{ margin: 0 }}>
-              <button
-                id={headId}
-                type="button"
-                className={styles.groupHead}
-                aria-expanded={!isCollapsed}
-                onClick={() => onToggleGroup(group.key)}
-              >
-                <svg className={styles.chev} width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                  <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                <span className={styles.gname}>{group.label}</span>
-                <span className={styles.meta}>
-                  {group.finished} of {group.ids.length} done
-                </span>
-                {group.tag ? (
-                  <ProvenanceTag title="Core lists are hand-picked samples, not UNT's official degree plan.">
-                    {group.tag}
-                  </ProvenanceTag>
-                ) : null}
-              </button>
-            </h2>
+            <div className={styles.groupHeadRow}>
+              <h2 className={styles.groupHeading}>
+                <button
+                  id={headId}
+                  type="button"
+                  className={styles.groupHead}
+                  aria-expanded={!isCollapsed}
+                  onClick={() => onToggleGroup(group.key)}
+                >
+                  <svg className={styles.chev} width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                    <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span className={styles.gname}>{group.label}</span>
+                  <span className={styles.meta}>
+                    {group.finished} of {group.ids.length} done
+                    {group.covered > 0 ? ` · ${group.covered} covered` : ""}
+                  </span>
+                </button>
+              </h2>
+              {group.tag ? (
+                <ProvenanceTag source="Core lists are hand-picked samples, not UNT's official degree plan.">
+                  {group.tag}
+                </ProvenanceTag>
+              ) : null}
+            </div>
             {isCollapsed ? null : (
               <ul className={styles.rows}>
                 {group.ids.map((id) => (
@@ -114,7 +119,9 @@ function RowMeta({ row }: { row: CourseRowModel }) {
 }
 
 function overrideHint(row: CourseRowModel): string {
-  return row.status === "done" ? "You marked this done. Click to reset." : "You planned this before its prerequisites are met. Click to reset.";
+  return row.status === "done"
+    ? "You marked this done. Click to reset."
+    : "You planned this before its prerequisites are met. Click to reset.";
 }
 
 const CourseRow = memo(function CourseRow({
@@ -129,13 +136,13 @@ const CourseRow = memo(function CourseRow({
   const label = statusLabels[row.status];
   const action =
     row.status === "available" ? (
-      <button type="button" className={`${styles.btn} ${styles.ghost} ${styles.sm}`} onClick={() => actions.plan(row.id)}>
+      <Button variant="ghost" size="sm" onClick={() => actions.plan(row.id)}>
         + Plan<span className={styles.srOnly}> {row.id}</span>
-      </button>
+      </Button>
     ) : row.status === "planned" ? (
-      <button type="button" className={`${styles.btn} ${styles.ghost} ${styles.sm}`} onClick={() => actions.unplan(row.id)}>
+      <Button variant="ghost" size="sm" onClick={() => actions.unplan(row.id)}>
         Remove<span className={styles.srOnly}> {row.id} from plan</span>
-      </button>
+      </Button>
     ) : null;
 
   return (

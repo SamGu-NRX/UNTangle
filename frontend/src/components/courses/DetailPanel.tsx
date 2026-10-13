@@ -2,12 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GradeChart } from "@/components/grade-chart";
+import { Button, IconButton } from "@/components/ui/Button";
+import { Radio } from "@/components/ui/Checkbox";
+import { Close, ExternalGlyph, MoreGlyph } from "@/components/ui/icons";
+import { Menu, type MenuItem } from "@/components/ui/Menu";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
+import { Select, type SelectOption } from "@/components/ui/Select";
 import type { CourseGradeView, InstructorSlice } from "@/lib/course-history";
 import type { CourseSection, ScheduleEvent } from "@/lib/types";
 import styles from "./courses.module.css";
-import { CloseIcon, CourseLink, ProvenanceTag, RuleText, StatusGlyph } from "./bits";
-import { Listbox, type ListboxOption } from "./Listbox";
-import { Menu, type MenuItem } from "./Menu";
+import { CourseLink, RuleText, StatusGlyph } from "./bits";
 import { statusLabels, type CourseRowModel } from "./model/course-model";
 import { onlyCheckable, ruleCourseIds, splitUnparsed } from "./model/rules";
 import type { SchoolProfile } from "./school";
@@ -15,8 +19,8 @@ import type { SchoolProfile } from "./school";
 export type PanelActions = {
   plan: (id: string) => void;
   unplan: (id: string) => void;
-  markDone: (id: string) => void;
-  clearDone: (id: string) => void;
+  markCredit: (id: string) => void;
+  clearCredit: (id: string) => void;
   chooseSection: (id: string, sectionId: string) => void;
   close: () => void;
 };
@@ -102,6 +106,8 @@ function conflictWith(section: CourseSection, events: readonly ScheduleEvent[], 
 
 const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? "" : "s"}`;
 
+type InstructorOption = SelectOption & { slice?: InstructorSlice };
+
 export function DetailContent({
   row,
   profile,
@@ -121,7 +127,7 @@ export function DetailContent({
 
   const options = useMemo(() => {
     const graded = view?.status === "ok" ? view.instructors : [];
-    const seen = new Map<string, ListboxOption & { slice?: InstructorSlice }>();
+    const seen = new Map<string, InstructorOption>();
     for (const slice of graded) {
       const key = instructorKey(slice.instructor.name, slice.instructor.firstName, slice.instructor.lastName);
       if (!seen.has(key)) seen.set(key, { value: key, label: slice.instructor.name, meta: plural(slice.sectionCount, "section"), slice });
@@ -130,12 +136,10 @@ export function DetailContent({
       const key = instructorKey(section.professor);
       if (!seen.has(key)) seen.set(key, { value: key, label: section.professor, meta: "No grade records" });
     }
-    return [{ value: "all", label: "All instructors" }, ...seen.values()];
+    return [{ value: "all", label: "All instructors" }, ...seen.values()] as InstructorOption[];
   }, [view, sections]);
 
-  const chosen = options.find((option) => option.value === instructor) as
-    | (ListboxOption & { slice?: InstructorSlice })
-    | undefined;
+  const chosen = options.find((option) => option.value === instructor);
   const selectedSection = sections.find((section) => section.id === selectedSectionId) ?? sections[0];
   const linkName = instructor !== "all" && chosen ? chosen.label : selectedSection?.professor;
   const links = linkName ? profile.linkOuts({ name: linkName }, row.id) : [];
@@ -146,29 +150,29 @@ export function DetailContent({
   const label = statusLabels[row.status];
 
   const statusItems: MenuItem[] = [];
-  if (row.status !== "done") statusItems.push({ key: "done", label: "I have credit for this", onSelect: () => actions.markDone(row.id) });
-  if (row.status === "done" && row.override) statusItems.push({ key: "undone", label: "Remove my “done” mark", onSelect: () => actions.clearDone(row.id) });
-  if (row.status === "locked") statusItems.push({ key: "anyway", label: `Plan for ${profile.planningTerm} anyway`, onSelect: () => actions.plan(row.id) });
+  if (row.status !== "done") statusItems.push({ id: "credit", label: "I have credit for this", onSelect: () => actions.markCredit(row.id) });
+  if (row.status === "done" && row.override) statusItems.push({ id: "uncredit", label: "Remove my credit mark", onSelect: () => actions.clearCredit(row.id) });
+  if (row.status === "locked") statusItems.push({ id: "anyway", label: `Plan for ${profile.planningTerm} anyway`, onSelect: () => actions.plan(row.id) });
 
   let primary: React.ReactNode = null;
+  // Separate keys: reusing one element would swap the text color before the background finishes its transition.
   if (row.status === "available" || row.status === "check") {
     primary = (
-      // Separate keys: reusing one element would swap the text color before the background finishes its transition.
-      <button key="add" type="button" className={`${styles.btn} ${styles.primary}`} onClick={() => actions.plan(row.id)}>
+      <Button key="add" onClick={() => actions.plan(row.id)}>
         Add to {profile.planningTerm}
-      </button>
+      </Button>
     );
   } else if (row.status === "planned") {
     primary = (
-      <button key="remove" type="button" className={`${styles.btn} ${styles.ghost}`} onClick={() => actions.unplan(row.id)}>
+      <Button key="remove" variant="ghost" onClick={() => actions.unplan(row.id)}>
         Remove from plan
-      </button>
+      </Button>
     );
   } else if (row.status === "locked") {
     primary = (
-      <button key="locked" type="button" className={`${styles.btn} ${styles.primary}`} disabled>
+      <Button key="locked" disabled>
         {blocking.length > 0 ? `Locked · needs ${blocking.slice(0, 2).join(", ")}` : "Locked"}
-      </button>
+      </Button>
     );
   }
 
@@ -190,15 +194,11 @@ export function DetailContent({
             <Menu
               label={`Status options for ${row.id}`}
               items={statusItems}
-              align="start"
-              triggerClassName={`${styles.btn} ${styles.iconBtn}`}
-              trigger={
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <circle cx="3.5" cy="8" r="1.3" />
-                  <circle cx="8" cy="8" r="1.3" />
-                  <circle cx="12.5" cy="8" r="1.3" />
-                </svg>
-              }
+              trigger={(props) => (
+                <button {...props} type="button" className="ui-btn ui-btn--quiet ui-btn--icon ui-btn--sm" aria-label={`Status options for ${row.id}`} data-ui="">
+                  <MoreGlyph />
+                </button>
+              )}
             />
           ) : null}
         </div>
@@ -247,14 +247,9 @@ export function DetailContent({
           </p>
         ) : null}
         {showClose ? (
-          <button
-            type="button"
-            className={`${styles.btn} ${styles.iconBtn} ${styles.pClose}`}
-            aria-label={`Close ${row.id} details`}
-            onClick={actions.close}
-          >
-            <CloseIcon />
-          </button>
+          <IconButton className={styles.pClose} size="sm" label={`Close ${row.id} details`} onClick={actions.close}>
+            <Close />
+          </IconButton>
         ) : null}
       </div>
 
@@ -263,7 +258,8 @@ export function DetailContent({
         {links.map((link) => (
           <a
             key={link.key}
-            className={`${styles.btn} ${styles.ghost}`}
+            className="ui-btn ui-btn--ghost"
+            data-ui=""
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
@@ -271,9 +267,7 @@ export function DetailContent({
             data-linkout={link.key}
           >
             {link.label}
-            <span className={styles.ext} aria-hidden="true">
-              ↗
-            </span>
+            <ExternalGlyph size={12} />
             <span className={styles.srOnly}> for {linkName} (opens in a new tab)</span>
           </a>
         ))}
@@ -285,9 +279,9 @@ export function DetailContent({
             {row.description}
           </p>
           {longDescription ? (
-            <button type="button" className={styles.link} style={{ fontSize: 12.5 }} onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+            <Button variant="link" size="sm" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
               {expanded ? "Less" : "More"}
-            </button>
+            </Button>
           ) : null}
         </section>
       ) : null}
@@ -299,14 +293,9 @@ export function DetailContent({
           </h3>
           <span className={styles.spacer} />
           {options.length > 1 ? (
-            <Listbox
-              label="Instructor"
-              options={options}
-              value={instructor}
-              onChange={setInstructor}
-              placeholder="All instructors"
-              align="end"
-            />
+            <div className={styles.instructorPicker}>
+              <Select label="Instructor" hideLabel size="sm" options={options} value={instructor} onValueChange={setInstructor} />
+            </div>
           ) : null}
         </div>
         <GradeBody view={view} retry={retry} chosen={chosen} instructorKey={instructor} courseId={row.id} />
@@ -317,7 +306,7 @@ export function DetailContent({
           <h3 className={styles.h3} id="sections-title">
             Sections, {profile.planningTerm}
           </h3>
-          <ProvenanceTag title="Sections are synthetic samples, not a real UNT term. Check the official schedule before you register.">
+          <ProvenanceTag source="Sections are synthetic samples, not a real UNT term. Check the official schedule before you register.">
             Sample
           </ProvenanceTag>
           <span className={styles.spacer} />
@@ -337,9 +326,7 @@ export function DetailContent({
               const number = section.id.split("-").at(-1);
               return (
                 <label key={section.id} className={styles.secRow} data-checked={checked} data-disabled={!canPick}>
-                  <input
-                    type="radio"
-                    className={styles.radio}
+                  <Radio
                     name={`section-${row.id}`}
                     checked={checked}
                     disabled={!canPick}
@@ -362,14 +349,9 @@ export function DetailContent({
           </div>
         )}
         {sections.length > 3 ? (
-          <button
-            type="button"
-            className={styles.link}
-            style={{ marginTop: 10, fontSize: 12.5 }}
-            onClick={() => setShowAllSections((value) => !value)}
-          >
+          <Button variant="link" size="sm" className={styles.moreSections} onClick={() => setShowAllSections((value) => !value)}>
             {showAllSections ? "Show fewer sections" : `Show all ${sections.length} sections`}
-          </button>
+          </Button>
         ) : null}
       </section>
     </>
@@ -385,7 +367,7 @@ function GradeBody({
 }: {
   view: CourseGradeView | null;
   retry: () => void;
-  chosen: (ListboxOption & { slice?: InstructorSlice }) | undefined;
+  chosen: InstructorOption | undefined;
   instructorKey: string;
   courseId: string;
 }) {
@@ -401,9 +383,9 @@ function GradeBody({
     return (
       <div className={styles.stateLine} role="status">
         <p>Couldn&apos;t load grade history from {view.source}. The course details above are from the catalog.</p>
-        <button type="button" className={`${styles.btn} ${styles.ghost} ${styles.sm}`} style={{ marginTop: 10 }} onClick={retry}>
+        <Button variant="ghost" size="sm" className={styles.retry} onClick={retry}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -424,7 +406,7 @@ function GradeBody({
       </div>
     );
   }
-  const name = key === "all" ? "all instructors" : chosen?.label ?? "this instructor";
+  const name = key === "all" ? "all instructors" : (chosen?.label ?? "this instructor");
   return (
     <>
       <div className={styles.figs}>
@@ -460,15 +442,11 @@ function Credit({ view }: { view: Exclude<CourseGradeView, { status: "unavailabl
       {view.sourceUrl ? (
         <a className={styles.link} href={view.sourceUrl} target="_blank" rel="noopener noreferrer" data-linkout="source">
           Data source
-          <span className={styles.ext} aria-hidden="true">
-            ↗
-          </span>
+          <ExternalGlyph size={11} />
           <span className={styles.srOnly}> (opens in a new tab)</span>
         </a>
       ) : null}
-      {terms ? (
-        <ProvenanceTag title="Terms covered by the grade records shown.">{terms}</ProvenanceTag>
-      ) : null}
+      {terms ? <ProvenanceTag source="Terms covered by the grade records shown.">{terms}</ProvenanceTag> : null}
     </div>
   );
 }
