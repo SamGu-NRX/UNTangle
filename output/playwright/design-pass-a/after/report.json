@@ -1,0 +1,314 @@
+[
+  {
+    "size": "desktop",
+    "name": "plans: the view header replaces the headline",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: the plan menu opens the sheet over Courses at /connect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: request lists Reads / Removes / Keeps",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: 'Upload a PDF instead' is visible in request",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect request has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: handoff shows the myUNT browser card",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect handoff has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: progress and review never say 'AI'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: every row that needs a decision is tinted and carries a ui Select",
+    "pass": true,
+    "detail": "1 flagged rows, 1 Selects"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect review has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Connect done has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: 'Go to courses' closes the sheet on Courses",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "connect: Back closes the sheet and stays on Plans",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/plans"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: after Back/Forward, closing still returns to Plans",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/plans"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing returns focus to the plan menu button",
+    "pass": true,
+    "detail": "shell-planchip"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: a cold /courses/import opens the sheet at /connect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "desktop",
+    "name": "connect: closing it lands on Courses",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/courses"
+  },
+  {
+    "size": "desktop",
+    "name": "plans: diff rows set course codes in Syne",
+    "pass": true,
+    "detail": "ANTH 1010 in syne"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Plans with a comparison has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Plans restore preview has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "plans: restoring goes to the Week view",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: no magic-link copy remains",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a missing UNT email errors under Email and takes focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a non-UNT email names the accepted domains",
+    "pass": true,
+    "detail": "Use a UNT email address ending in @unt.edu or @my.unt.edu."
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a short password errors under Password",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "auth: a server sign-in error shows as help text under a field",
+    "pass": true,
+    "detail": "Invalid origin"
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Sign in with errors has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "desktop",
+    "name": "reset: an empty email errors under the field",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "desktop",
+    "name": "axe: Password reset with an error has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "plans: the view header replaces the headline",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "connect: the plan menu opens the sheet over Courses at /connect",
+    "pass": true,
+    "detail": "http://127.0.0.1:3330/connect"
+  },
+  {
+    "size": "phone",
+    "name": "connect: on touch the request leads with myUNT and the PDF",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "connect: handoff shows the myUNT browser card",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect handoff has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "connect: after a reload the sheet reopens on 'Choose the PDF'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "connect: progress and review never say 'AI'",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "connect: every row that needs a decision is tinted and carries a ui Select",
+    "pass": true,
+    "detail": "1 flagged rows, 1 Selects"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect review has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Connect done has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "connect: 'Go to courses' closes the sheet on Courses",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "plans: diff rows set course codes in Syne",
+    "pass": true,
+    "detail": "ANTH 1010 in syne"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Plans with a comparison has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Plans restore preview has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "plans: restoring goes to the Week view",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: no magic-link copy remains",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a missing UNT email errors under Email and takes focus",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a non-UNT email names the accepted domains",
+    "pass": true,
+    "detail": "Use a UNT email address ending in @unt.edu or @my.unt.edu."
+  },
+  {
+    "size": "phone",
+    "name": "auth: a short password errors under Password",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "auth: a server sign-in error shows as help text under a field",
+    "pass": true,
+    "detail": "Invalid origin"
+  },
+  {
+    "size": "phone",
+    "name": "axe: Sign in with errors has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "size": "phone",
+    "name": "reset: an empty email errors under the field",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "size": "phone",
+    "name": "axe: Password reset with an error has no serious or critical findings",
+    "pass": true,
+    "detail": "[]"
+  }
+]
