@@ -177,9 +177,12 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 ### 4.6 Sign in (`06-sign-in.html`)
 
 - A dialog on desktop, a sheet on phone, over the current screen.
-- Content: "Sign in", "Keep your schedules on every device. What you made as a guest comes with you.", Email (`autocomplete=username`, `inputmode=email`, no autocapitalize), Password (`current-password`, Show, Forgot it?), a full-width **Sign in**, "New here? Create an account", and "You can use UNTangle without an account. Signing in only syncs."
-- "Create an account" switches the title and button in place and reserves the help line, so the form never jumps.
-- Errors sit under the field in danger text ("That password doesn't match this email. Try again, or reset it."). No magic-link button and no social buttons.
+- **Changed by the sign-in decision** ([`../untangle-v3.md`](../untangle-v3.md#decisions-taken-defaults-until-sam-says-otherwise): magic link first, password second). The mockup follows the shipped `/auth` (`components/auth-client.tsx`) in three views, swapped in place with focus moved to the new heading:
+  - **Link** (the default): "Sign in", "Keep your schedules on every device. What you made as a guest comes with you. We'll email you a sign-in link. No password needed.", UNT email (`autocomplete=email`, `inputmode=email`, no autocapitalize), a full-width **Email me a sign-in link**, and "Use a password instead".
+  - **Sent**: "Check your UNT email", the address, "It works once and expires in 5 minutes.", Resend link, "Use a different email" and "Use a password instead".
+  - **Password**: "Sign in with a password", UNT email (`autocomplete=username`), Password (`current-password`, Show, Forgot it?), **Sign in**, and "Email me a link instead".
+- There is no separate create-account mode: the first link creates the account. Every view ends with "You can use UNTangle without an account. Signing in only syncs."
+- Errors sit under the field in danger text and are tied to it with `aria-describedby` ("Use a UNT email address ending in @unt.edu or @my.unt.edu.", "That password doesn't match this email. Try again, or reset it."). No social buttons.
 
 ## 5. Grid, spacing and breakpoints
 

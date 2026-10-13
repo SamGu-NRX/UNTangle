@@ -92,7 +92,7 @@ Both systems share the same four curves, so use the Opus [MOTION](untangle-v3-op
 | Standalone name | "UNT Schedule Builder", vsb's current name. Whether an unofficial tool may use "UNT" is Sam's call with Dylan. |
 | Share links | The schedule is encoded in the URL; nothing is stored or revocable. |
 | Extension | None, anywhere. |
-| AI agents | WebMCP tools (slice 10) expose the same actions; writes need the student's confirmation. |
+| AI agents | WebMCP tools expose the same actions; writes need the student's confirmation in the page. They shipped in #41 (`lib/webmcp/`); HANDOFF slice 10 owns keeping them working through the v3 rebuild. |
 | Preference defaults | Any start time, no days off, short walks on, no credit limit, no busy times. These are starting values with no data behind them (see the list below). |
 | Schedule tabs | None. The top-bar switcher is the only switcher; the Schedules compare view covers side-by-side. |
 | vsb host | No Find column (search is reached from the top bar), no Help or "Sign in to sync", and on phone the term picker sits in the switcher sheet. The Week slice still checks the DESIGN.md §3.5 vsb parity list item by item. |
