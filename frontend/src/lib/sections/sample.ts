@@ -1,11 +1,6 @@
-import { activeDataset } from "../data-provenance";
 import { sections } from "../seed-data";
 import { campusBuildings } from "../campus-locations";
-import type { Provenance, Section } from "./model";
-
-export const sampleProvenance: Extract<Provenance, { kind: "sample" }> = {
-  kind: "sample", source: activeDataset.source, term: null, updated_at: null, note: activeDataset.label,
-};
+import type { Section } from "./model";
 const buildings = new Map(campusBuildings.map(building => [building.id, building]));
 const sampleMinutes = (time: string) => { const [hours, minutes] = time.split(":").map(Number); return hours * 60 + minutes; };
 export function getSampleSections(courseCode: string): Section[] {

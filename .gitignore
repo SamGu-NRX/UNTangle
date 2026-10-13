@@ -53,7 +53,6 @@ Thumbs.db
 .playwright-cli/
 # Server-side grade-history responses
 .grades-history-cache/
-.sections-cache/
 
 # Cached Overpass source responses are inputs, never app assets.
 tools/campus-geodata/raw/
