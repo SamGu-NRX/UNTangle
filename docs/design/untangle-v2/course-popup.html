@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UNTangle v2 · Course detail panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f4;--surface:#fff;--surface-2:#eef2ee;--surface-3:#e6ece6;
+  --line:#dde8dd;--line-strong:#c3d2c3;
+  --ink:#1a2e1a;--ink-2:#586e58;--ink-3:#6b826b;--ink-4:#93a593;
+  --brand:#00512b;--brand-hover:#007a40;--brand-soft:#e4f0e8;
+  --accent:#00a855;--accent-soft:#e3f6eb;--danger:#b3261e;--danger-soft:#fbeae8;
+  --overlay:rgba(26,46,26,.32);
+  --font-body:"DM Sans",system-ui,sans-serif;--font-display:"Syne",sans-serif;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;
+  --shadow-1:0 1px 2px rgba(26,46,26,.06);
+  --shadow-2:0 4px 12px rgba(26,46,26,.08),0 1px 2px rgba(26,46,26,.06);
+  --shadow-3:0 16px 40px rgba(26,46,26,.14),0 2px 6px rgba(26,46,26,.08);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --focus:0 0 0 2px #fff,0 0 0 4px var(--accent);
+}
+html,body{background:#e3e7e3;font-family:var(--font-body);color:var(--ink);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.stage{display:flex;gap:40px;padding:40px;align-items:flex-start;min-width:max-content}
+.col{display:flex;flex-direction:column;gap:8px}
+.cap{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.frame{background:var(--bg);border:1px solid #cfd7cf;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 24px 60px rgba(26,46,26,.12)}
+.desktop{width:1440px;height:900px}
+.phone{width:390px;height:844px;border-radius:44px;border:6px solid #1a2e1a}
+
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:var(--r-md);border:1px solid transparent;font:600 13px/1 var(--font-body);color:var(--ink);background:transparent;cursor:pointer;white-space:nowrap;transition:transform 120ms var(--ease-out),background-color 160ms ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-hover)}
+.btn.ghost{background:var(--surface);border-color:var(--line-strong)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.sm{height:32px;padding:0 12px}
+.btn.icon{width:32px;height:32px;padding:0;justify-content:center;border-radius:8px}
+.btn.icon:hover{background:var(--surface-2)}
+.link{color:var(--brand);font-weight:600;text-decoration:none;cursor:pointer}
+.link:hover{text-decoration:underline}
+kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);font:500 11px/1 var(--font-body);color:var(--ink-2)}
+.tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:var(--r-sm);border:1px dotted var(--line-strong);font:500 11px/1 var(--font-body);color:var(--ink-2);white-space:nowrap}
+.meta{font-size:12.5px;line-height:18px;color:var(--ink-2)}
+.code{font:700 13px/1 var(--font-display);letter-spacing:.01em;color:var(--ink);white-space:nowrap}
+.seg{display:inline-flex;height:32px;padding:2px;border-radius:8px;background:var(--surface-3)}
+.seg a{display:inline-flex;align-items:center;justify-content:center;min-width:72px;padding:0 12px;border-radius:6px;font:600 13px/1 var(--font-body);color:var(--ink-2);cursor:pointer;user-select:none}
+.seg a.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1)}
+.st{width:16px;height:16px;border-radius:50%;position:relative;flex:none;display:inline-block;vertical-align:-3px}
+.st-done{background:var(--ink-3)}
+.st-done::after{content:"";position:absolute;left:5.5px;top:2.5px;width:3.5px;height:7.5px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.st-taking{border:1.5px solid var(--accent);background:linear-gradient(90deg,var(--accent) 50%,transparent 50%)}
+.st-planned{background:var(--brand)}
+.st-avail{border:1.5px solid var(--ink-4)}
+.st-locked{border:1.5px dotted var(--ink-4)}
+
+/* shell */
+.topbar{height:56px;display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.wordmark{font:800 22px/1 var(--font-display);color:var(--brand);letter-spacing:-.01em;text-decoration:none}
+.search{display:flex;align-items:center;gap:8px;height:36px;width:280px;padding:0 10px 0 12px;border-radius:8px;background:var(--surface-2);color:var(--ink-3);font-size:13px}
+.search span{flex:1}
+.spacer{flex:1}
+.planchip{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font:600 13px/1 var(--font-body);color:var(--ink)}
+.planchip .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font:700 12px/1 var(--font-body)}
+.viewhead{height:44px;display:flex;align-items:center;gap:16px;padding:0 32px;border-bottom:1px solid var(--line)}
+.viewhead .ttl{font:600 15px/22px var(--font-body)}
+.prog{width:120px;height:4px;border-radius:999px;background:var(--surface-3);overflow:hidden}
+.prog i{display:block;height:100%;width:35%;background:var(--brand);border-radius:999px}
+
+.body{display:grid;grid-template-columns:1fr 520px;height:calc(900px - 56px - 44px)}
+.list{padding:12px 32px;overflow:hidden}
+.group{display:flex;align-items:center;gap:10px;height:36px;margin-top:12px;padding:0 12px}
+.group .gname{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.row{display:grid;grid-template-columns:16px 92px 1fr auto auto 72px;align-items:center;gap:14px;height:44px;padding:0 12px 0 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.sel{background:var(--brand-soft);box-shadow:inset 2px 0 0 var(--brand)}
+.row .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .cr,.row .right,.row .stl{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.row .stl{text-align:right}
+.row.locked .title{color:var(--ink-2)}
+
+/* panel */
+.panel{background:var(--surface);border-left:1px solid var(--line);overflow:auto;display:flex;flex-direction:column}
+.p-head{padding:20px 24px 0;position:relative}
+.p-head .codeline{display:flex;align-items:center;gap:10px}
+.p-head .bigcode{font:700 20px/24px var(--font-display);color:var(--brand)}
+.p-head .status{font-size:12.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.p-head h2{font:600 18px/24px var(--font-body);margin-top:6px}
+.p-head .meta{margin-top:4px}
+.p-head .close{position:absolute;right:16px;top:16px}
+.p-actions{display:flex;flex-wrap:wrap;gap:8px;padding:16px 24px 0}
+.p-sec{padding:20px 24px 0}
+.p-sec h3{font:600 15px/22px var(--font-body)}
+.sec-head{display:flex;align-items:center;gap:10px}
+.sec-head .spacer{flex:1}
+.desc{color:var(--ink-2);margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.figs{display:flex;gap:28px;margin-top:12px}
+.fig b{display:block;font:700 20px/24px var(--font-display);color:var(--ink)}
+.fig span{font:600 11px/16px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.select{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 12px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);font:500 13px/1 var(--font-body);color:var(--ink);cursor:pointer}
+.select svg{color:var(--ink-3)}
+.chart{position:relative;height:160px;margin-top:14px;display:grid;grid-template-columns:repeat(6,1fr);align-items:end;gap:14px;padding:0 4px 22px;border-bottom:1px solid var(--line)}
+.chart::before,.chart::after{content:"";position:absolute;left:0;right:0;border-top:1px dashed var(--line);pointer-events:none}
+.chart::before{top:34%}.chart::after{top:67%}
+.bar{position:relative;background:var(--brand);border-radius:4px 4px 0 0}
+.bar::after{content:attr(data-g);position:absolute;left:0;right:0;bottom:-20px;text-align:center;font:500 11px/16px var(--font-body);color:var(--ink-2)}
+.bar i{position:absolute;left:0;right:0;top:-18px;text-align:center;font:500 11px/14px var(--font-body);color:var(--ink-2)}
+.tip{position:absolute;left:50%;top:-50px;transform:translateX(-50%);background:var(--ink);color:#fff;font:500 12px/1 var(--font-body);padding:6px 8px;border-radius:6px;white-space:nowrap}
+.tip::after{content:"";position:absolute;left:50%;bottom:-4px;width:8px;height:8px;background:var(--ink);transform:translateX(-50%) rotate(45deg)}
+.secrow{display:grid;grid-template-columns:16px 48px 1fr auto;align-items:center;gap:12px;height:48px;padding:0 12px;border-top:1px solid var(--line)}
+.secrow:first-child{border-top:0}
+.secrows{margin-top:10px;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.radio{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-strong);position:relative}
+.radio.on{border-color:var(--brand)}
+.radio.on::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--brand)}
+.secrow .two{display:flex;flex-direction:column;line-height:18px}
+.secrow .two small{font-size:12.5px;color:var(--ink-2)}
+.secrow .two small.d{color:var(--danger)}
+.secrow .star{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.secrow.on{background:var(--brand-soft)}
+.ext{font-size:11px;margin-left:2px;color:var(--ink-3)}
+
+/* phone */
+.notch{position:absolute;left:50%;top:0;transform:translateX(-50%);width:120px;height:30px;background:#1a2e1a;border-radius:0 0 18px 18px;z-index:3}
+.pbody{height:100%;position:relative;overflow:hidden}
+.ptop{height:78px;padding-top:30px;display:flex;align-items:center;justify-content:space-between;padding-left:16px;padding-right:16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.ptop .wordmark{font-size:20px}
+.plist{padding:10px 16px;filter:none}
+.prow{display:grid;grid-template-columns:16px 1fr auto;grid-template-rows:20px 18px;column-gap:12px;align-items:center;padding:8px 14px;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .st{grid-row:1/3}
+.prow .stl{font-size:12.5px;color:var(--ink-2)}
+.prow .sub{grid-column:2/4;font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pscrim{position:absolute;inset:0;background:var(--overlay)}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:92%;background:var(--surface);border-radius:14px 14px 0 0;box-shadow:var(--shadow-3);overflow:hidden;display:flex;flex-direction:column}
+.handle{width:36px;height:4px;border-radius:999px;background:var(--line-strong);margin:8px auto 0}
+.sheet .p-head{padding:12px 20px 0}
+.sheet .p-actions{padding:14px 20px 0;overflow-x:auto;flex-wrap:nowrap}
+.sheet .p-sec{padding:18px 20px 0}
+.sheet .inner{overflow:auto;padding-bottom:40px}
+</style>
+</head>
+<body>
+<div class="stage">
+
+<!-- ===================== DESKTOP ===================== -->
+<div class="col">
+  <div class="cap">Desktop · 1440 · Detail panel open on CSCE 3110 (list narrows; ↑↓ retargets the panel without re-animating)</div>
+  <div class="frame desktop">
+    <header class="topbar">
+      <a class="wordmark" href="#">UNTangle</a>
+      <nav class="seg"><a class="on">Courses</a><a>Week</a><a>Map</a></nav>
+      <div class="search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg><span>Search courses</span><kbd>⌘K</kbd></div>
+      <div class="spacer"></div>
+      <button class="planchip"><span class="dot"></span>Spring 2027 · v3 <span class="meta">Saved</span><span style="font-size:10px;color:var(--ink-3)">▾</span></button>
+      <div class="avatar">SG</div>
+    </header>
+    <div class="viewhead"><span class="ttl">Computer Science, BS</span><span class="meta">42 of 120 credits</span><div class="prog"><i></i></div><div class="spacer"></div><button class="btn primary">✦ Auto-fill ▾</button><button class="btn ghost">Import PDF</button></div>
+
+    <div class="body">
+      <div class="list">
+        <div class="group"><span class="gname">Core</span><span class="meta">5 of 9 done</span><span class="tag">Degree plan 2024</span></div>
+        <div class="rows">
+          <div class="row"><span class="st st-done"></span><span class="code">CSCE 1030</span><span class="title">Computer Science I</span><span class="cr">3 cr</span><span class="right">Fall 2025 · A</span><span class="stl">Done</span></div>
+          <div class="row"><span class="st st-taking"></span><span class="code">CSCE 1040</span><span class="title">Computer Science II</span><span class="cr">3 cr</span><span class="right">This term</span><span class="stl">Taking</span></div>
+          <div class="row"><span class="st st-planned"></span><span class="code">CSCE 2100</span><span class="title">Computing Foundations I</span><span class="cr">3 cr</span><span class="right">Spring 2027 · auto</span><span class="stl">Planned</span></div>
+          <div class="row"><span class="st st-avail"></span><span class="code">CSCE 2610</span><span class="title">Assembly Language and Computer Organization</span><span class="cr">3 cr</span><span class="right"></span><span class="stl">Available</span></div>
+          <div class="row locked"><span class="st st-locked"></span><span class="code">CSCE 2110</span><span class="title">Computing Foundations II</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">CSCE 2100</a></span><span class="stl">Locked</span></div>
+          <div class="row locked sel"><span class="st st-locked"></span><span class="code">CSCE 3110</span><span class="title">Data Structures and Algorithms</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">CSCE 2110</a>, <a class="link">MATH 1720</a></span><span class="stl">Locked</span></div>
+          <div class="row locked"><span class="st st-locked"></span><span class="code">CSCE 3600</span><span class="title">Principles of Systems Programming</span><span class="cr">3 cr</span><span class="right">Needs <a class="link">CSCE 2110</a></span><span class="stl">Locked</span></div>
+        </div>
+        <div class="group"><span class="gname">Math</span><span class="meta">1 of 4 done</span></div>
+        <div class="rows">
+          <div class="row"><span class="st st-done"></span><span class="code">MATH 1710</span><span class="title">Calculus I</span><span class="cr">4 cr</span><span class="right">Fall 2025 · B</span><span class="stl">Done</span></div>
+          <div class="row"><span class="st st-planned"></span><span class="code">MATH 1720</span><span class="title">Calculus II</span><span class="cr">3 cr</span><span class="right">Spring 2027 · auto</span><span class="stl">Planned</span></div>
+          <div class="row"><span class="st st-avail"></span><span class="code">MATH 2700</span><span class="title">Linear Algebra and Vector Geometry</span><span class="cr">3 cr</span><span class="right"></span><span class="stl">Available</span></div>
+        </div>
+      </div>
+
+      <aside class="panel" aria-label="CSCE 3110">
+        <div class="p-head">
+          <div class="codeline"><span class="bigcode">CSCE 3110</span><span class="status"><span class="st st-locked"></span>Locked</span></div>
+          <h2>Data Structures and Algorithms</h2>
+          <div class="meta">3 credits · Core · Needs <a class="link">CSCE 2110</a> and <a class="link">MATH 1720</a> · Unlocks <a class="link">CSCE 4110</a>, <a class="link">CSCE 4310</a>, <a class="link">CSCE 4350</a></div>
+          <button class="btn icon close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="p-actions">
+          <button class="btn primary" disabled style="opacity:.5;cursor:not-allowed">Locked · needs CSCE 2110</button>
+          <button class="btn ghost">RateMyProf<span class="ext">↗</span></button>
+          <button class="btn ghost">Syllabi &amp; CV<span class="ext">↗</span></button>
+          <button class="btn ghost">SPOT<span class="ext">↗</span></button>
+        </div>
+        <div class="p-sec">
+          <p class="desc">Linear and non-linear data structures: lists, stacks, queues, trees, hash tables and graphs. Algorithms for searching, sorting and traversal with asymptotic analysis. Implementation in C++ with an emphasis on correctness and performance, including a semester project.</p>
+          <a class="link" style="font-size:12.5px">More</a>
+        </div>
+        <div class="p-sec">
+          <div class="sec-head">
+            <h3>Grade distribution</h3>
+            <span class="spacer"></span>
+            <button class="select">R. Okafor <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 5.5 7 9l3.5-3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+          <div class="figs">
+            <div class="fig"><b>2.91</b><span>Avg GPA</span></div>
+            <div class="fig"><b>412</b><span>Students</span></div>
+            <div class="fig"><b>6</b><span>Sections</span></div>
+            <div class="spacer"></div>
+            <div style="align-self:flex-end"><a class="link" style="font-size:12.5px">Data source<span class="ext">↗</span></a> <span class="tag" style="margin-left:6px">UNT records 2019–2024</span></div>
+          </div>
+          <div class="chart" aria-label="Grades for R. Okafor">
+            <div class="bar" data-g="A" style="height:70%;opacity:1"><div class="tip">A · 146 · 35%</div></div>
+            <div class="bar" data-g="B" style="height:58%;opacity:.8"></div>
+            <div class="bar" data-g="C" style="height:40%;opacity:.6"></div>
+            <div class="bar" data-g="D" style="height:14%;opacity:.45"></div>
+            <div class="bar" data-g="F" style="height:12%;opacity:.35"></div>
+            <div class="bar" data-g="W" style="height:18%;opacity:.25"></div>
+          </div>
+        </div>
+        <div class="p-sec" style="padding-bottom:28px">
+          <div class="sec-head"><h3>Sections, Spring 2027</h3><span class="tag">Sample</span><span class="spacer"></span><span class="meta">Pick one to use when it unlocks</span></div>
+          <div class="secrows">
+            <div class="secrow on"><span class="radio on"></span><span class="code">§001</span><span class="two">Mon Wed Fri · 10:00–10:50 · GAB 105<small>R. Okafor · ★ 4.1 · 31 of 40 seats</small></span><span class="star">Fits your week</span></div>
+            <div class="secrow"><span class="radio"></span><span class="code">§003</span><span class="two">Tue Thu · 2:00–3:20 · NTDP B155<small class="d">Thu conflicts with PHYS 1730 lab</small></span><span class="star">M. Delgado · ★ 4.6</span></div>
+            <div class="secrow"><span class="radio"></span><span class="code">§005</span><span class="two">Tue Thu · 11:00–12:20 · GAB 550<small>S. Whitfield · ★ 3.4 · 4 of 40 seats</small></span><span class="star">+6 min walk</span></div>
+          </div>
+          <a class="link" style="display:inline-block;margin-top:10px;font-size:12.5px">Show all 6 sections</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PHONE ===================== -->
+<div class="col">
+  <div class="cap">Phone · 390 · same course as a bottom sheet at 92%, draggable, actions scroll sideways</div>
+  <div class="frame phone">
+    <div class="notch"></div>
+    <div class="pbody">
+      <div class="ptop"><a class="wordmark" href="#">UNTangle</a><button class="planchip" style="height:32px;font-size:12.5px"><span class="dot"></span>Spring 2027 · v3 ▾</button></div>
+      <div class="plist">
+        <div class="rows">
+          <div class="prow"><span class="st st-done"></span><span class="code">CSCE 1030</span><span class="stl">Done</span><span class="sub">Computer Science I · 3 cr · Fall 2025 · A</span></div>
+          <div class="prow"><span class="st st-taking"></span><span class="code">CSCE 1040</span><span class="stl">Taking</span><span class="sub">Computer Science II · 3 cr · this term</span></div>
+          <div class="prow"><span class="st st-planned"></span><span class="code">CSCE 2100</span><span class="stl">Planned</span><span class="sub">Computing Foundations I · 3 cr · Spring 2027</span></div>
+        </div>
+      </div>
+      <div class="pscrim"></div>
+      <div class="sheet" role="dialog" aria-label="CSCE 3110">
+        <div class="handle"></div>
+        <div class="inner">
+          <div class="p-head">
+            <div class="codeline"><span class="bigcode">CSCE 3110</span><span class="status"><span class="st st-locked"></span>Locked</span></div>
+            <h2>Data Structures and Algorithms</h2>
+            <div class="meta">3 credits · Core · Needs <a class="link">CSCE 2110</a> and <a class="link">MATH 1720</a> · Unlocks <a class="link">CSCE 4110</a>, <a class="link">CSCE 4310</a></div>
+          </div>
+          <div class="p-actions">
+            <button class="btn primary" disabled style="opacity:.5">Locked</button>
+            <button class="btn ghost">RateMyProf ↗</button>
+            <button class="btn ghost">Syllabi &amp; CV ↗</button>
+            <button class="btn ghost">SPOT ↗</button>
+          </div>
+          <div class="p-sec">
+            <p class="desc">Linear and non-linear data structures: lists, stacks, queues, trees, hash tables and graphs. Algorithms for searching, sorting and traversal with asymptotic analysis.</p>
+            <a class="link" style="font-size:12.5px">More</a>
+          </div>
+          <div class="p-sec">
+            <div class="sec-head"><h3>Grades</h3><span class="spacer"></span><button class="select">All instructors <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 5.5 7 9l3.5-3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+            <div class="figs" style="gap:20px">
+              <div class="fig"><b>2.84</b><span>Avg GPA</span></div>
+              <div class="fig"><b>1,120</b><span>Students</span></div>
+              <div class="fig"><b>14</b><span>Sections</span></div>
+            </div>
+            <div class="chart" style="height:130px">
+              <div class="bar" data-g="A" style="height:62%;opacity:1"></div>
+              <div class="bar" data-g="B" style="height:70%;opacity:.8"></div>
+              <div class="bar" data-g="C" style="height:46%;opacity:.6"></div>
+              <div class="bar" data-g="D" style="height:16%;opacity:.45"></div>
+              <div class="bar" data-g="F" style="height:14%;opacity:.35"></div>
+              <div class="bar" data-g="W" style="height:22%;opacity:.25"></div>
+            </div>
+            <div class="meta" style="margin-top:8px"><a class="link">Data source ↗</a> · UNT records 2019–2024</div>
+          </div>
+          <div class="p-sec">
+            <div class="sec-head"><h3>Sections, Spring 2027</h3><span class="tag">Sample</span></div>
+            <div class="secrows">
+              <div class="secrow on" style="grid-template-columns:16px 44px 1fr;height:auto;padding:8px 12px"><span class="radio on"></span><span class="code">§001</span><span class="two">MWF · 10:00–10:50 · GAB 105<small>R. Okafor · ★ 4.1</small></span></div>
+              <div class="secrow" style="grid-template-columns:16px 44px 1fr;height:auto;padding:8px 12px"><span class="radio"></span><span class="code">§003</span><span class="two">TTh · 2:00–3:20 · NTDP B155<small class="d">Thu conflicts with PHYS 1730</small></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
