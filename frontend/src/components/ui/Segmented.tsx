@@ -76,8 +76,9 @@ export function Segmented<V extends string>({
     }
   };
 
-  // With no selection, the first enabled segment takes the tab stop.
-  const tabStop = index >= 0 ? index : nextEnabledWrapping(disabled, -1, 1);
+  // The selected segment is the tab stop unless it is missing or disabled
+  // (a disabled button cannot take focus); then the first enabled one is.
+  const tabStop = index >= 0 && !disabled[index] ? index : nextEnabledWrapping(disabled, -1, 1);
 
   return (
     <div

@@ -235,6 +235,16 @@ export function DatePicker(props: PickerProps) {
   );
 }
 
+/** Why `iso` is outside [min, max], or null when it is inside. */
+export function boundsError(iso: ISODate, min?: ISODate, max?: ISODate): string | null {
+  if (min && max && (compareDates(iso, min) < 0 || compareDates(iso, max) > 0)) {
+    return `Pick a date from ${formatDate(min)} to ${formatDate(max)}.`;
+  }
+  if (min && compareDates(iso, min) < 0) return `Pick a date on or after ${formatDate(min)}.`;
+  if (max && compareDates(iso, max) > 0) return `Pick a date on or before ${formatDate(max)}.`;
+  return null;
+}
+
 export type DateInputProps = {
   label: string;
   value: ISODate | null;
@@ -311,6 +321,12 @@ export function DateInput({
     const parsed = parseDateText(text, parts(today ?? todayISO()).year);
     if (!parsed) {
       setParseError("Enter a date like Jan 20, 2027 or 1/20/27.");
+      return;
+    }
+    // Typed dates obey the same bounds as the calendar and the native input.
+    const bounds = boundsError(parsed, min, max);
+    if (bounds) {
+      setParseError(bounds);
       return;
     }
     setParseError(null);

@@ -85,10 +85,20 @@ describe("course search", () => {
 });
 
 describe("first visit vs returning student", () => {
-  const defaults: Pick<PlanProgress, "courseStatuses"> = {
-    courseStatuses: { "CSCE 1030": "completed", "MATH 1710": "notTaken" },
+  const defaults = {
+    courseStatuses: { "CSCE 1030": "completed", "MATH 1710": "notTaken" } satisfies PlanProgress["courseStatuses"],
+    selectedSections: { "CSCE 1030": "CSCE1030-001" },
+    lockedSections: {},
+    optimization: "clusterMorning",
   };
-  const fresh: PlanProgress = { selectedMajor: null, transcriptRecords: [], courseStatuses: { ...defaults.courseStatuses } };
+  const fresh: PlanProgress = {
+    selectedMajor: null,
+    transcriptRecords: [],
+    courseStatuses: { ...defaults.courseStatuses },
+    selectedSections: { ...defaults.selectedSections },
+    lockedSections: {},
+    optimization: defaults.optimization,
+  };
 
   test("the seeded state alone is a first visit", () => {
     expect(hasStartedPlan(fresh, defaults)).toBe(false);
@@ -99,5 +109,39 @@ describe("first visit vs returning student", () => {
     expect(hasStartedPlan({ ...fresh, transcriptRecords: [{ code: "CSCE 1030" }] }, defaults)).toBe(true);
     expect(hasStartedPlan({ ...fresh, courseStatuses: { ...fresh.courseStatuses, "MATH 1710": "inProgress" } }, defaults)).toBe(true);
     expect(hasStartedPlan({ ...fresh, courseStatuses: { "CSCE 1030": "notTaken" } }, defaults)).toBe(true);
+  });
+
+  test("section, lock and optimization edits alone count as started", () => {
+    expect(hasStartedPlan({ ...fresh, selectedSections: { "CSCE 1030": "CSCE1030-003" } }, defaults)).toBe(true);
+    expect(hasStartedPlan({ ...fresh, lockedSections: { "CSCE 1030": "CSCE1030-001" } }, defaults)).toBe(true);
+    expect(hasStartedPlan({ ...fresh, optimization: "compact" }, defaults)).toBe(true);
+  });
+
+  test("seed sections and a missing lock map are still a first visit", () => {
+    expect(hasStartedPlan({ ...fresh, lockedSections: undefined }, defaults)).toBe(false);
+  });
+
+  test("the real seed, normalised, is a first visit", async () => {
+    const { getInitialPlannerState } = await import("@/lib/planner");
+    expect(hasStartedPlan(getInitialPlannerState(), getInitialPlannerState())).toBe(false);
+  });
+});
+
+describe("plan menu", () => {
+  const base = { saveFailed: false, isRegistered: false, recent: [], onRetry: () => {} };
+
+  test("Save a copy is disabled, and refuses, until the plan has loaded", async () => {
+    const { planMenuEntries } = await import("@/components/shell/PlanChip");
+    let copies = 0;
+    const entries = planMenuEntries({ ...base, planLoaded: false, onCopy: () => (copies += 1) });
+    const copy = entries.find((e) => e.id === "copy");
+    expect(copy && "disabled" in copy ? copy.disabled : undefined).toBe(true);
+    if (copy && "onSelect" in copy) copy.onSelect?.();
+    expect(copies).toBe(0);
+
+    const ready = planMenuEntries({ ...base, planLoaded: true, onCopy: () => (copies += 1) }).find((e) => e.id === "copy");
+    expect(ready && "disabled" in ready ? ready.disabled : undefined).toBe(false);
+    if (ready && "onSelect" in ready) ready.onSelect?.();
+    expect(copies).toBe(1);
   });
 });

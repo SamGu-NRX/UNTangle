@@ -209,8 +209,7 @@
     background: transparent;
     color: var(--ink-2);
   }
-  .shell-search .ui-search-trigger__text,
-  .shell-search .ui-kbd {
+  .shell-search .ui-search-trigger__visible {
     display: none;
   }
   .shell-planchip__status {

@@ -13,6 +13,13 @@ import { VIEWS, type ViewId } from "./routes";
  */
 export function ViewSwitcher({ view }: { view: ViewId | null }) {
   const [pending, setPending] = useState<{ from: ViewId | null; to: ViewId } | null>(null);
+  const [committedView, setCommittedView] = useState(view);
+  if (committedView !== view) {
+    // Any navigation that lands (the pressed link, Back, a link elsewhere)
+    // ends the pending press, so it can never resurface later.
+    setCommittedView(view);
+    setPending(null);
+  }
   // A press only overrides the route until the route catches up.
   const shown = pending && pending.from === view ? pending.to : view;
   const index = VIEWS.findIndex((v) => v.id === shown);

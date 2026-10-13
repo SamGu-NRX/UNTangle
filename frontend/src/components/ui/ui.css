@@ -416,6 +416,7 @@
 }
 
 .ui-search-trigger {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -435,6 +436,13 @@
 }
 .ui-search-trigger svg {
   flex: none;
+}
+.ui-search-trigger__visible {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 .ui-search-trigger__text {
   flex: 1;

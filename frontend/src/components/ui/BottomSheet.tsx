@@ -172,11 +172,13 @@ export function BottomSheet({
     apply(target, ENTER);
   });
 
-  // Settle on detent changes (handle, keyboard, controlled prop) and on a
-  // reopen that interrupts the exit. A layout effect, so a resize never
-  // paints a frame at the old position. Arrow keys on the handle move
-  // instantly: keyboard actions never animate (DESIGN.md §1).
+  // Settle whenever the target moves: a detent change (handle, keyboard,
+  // controlled prop), new detents or a resize while open (the resolved
+  // offsets change), or a reopen that interrupts the exit. A layout effect,
+  // so a resize never paints a frame at the old position. Arrow keys on the
+  // handle move instantly: keyboard actions never animate (DESIGN.md §1).
   const keyboardMove = useRef(false);
+  const offsetsKey = offsets.join(",");
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
     if (!mounted || !sheet || state !== "open" || !entered.current || drag.current?.active) return;
@@ -186,9 +188,9 @@ export function BottomSheet({
     apply(offsets[index] ?? 0, reduced ? "opacity 120ms ease" : instant ? "none" : SETTLE);
     // A reduced-motion exit faded the sheet out; a reopen fades it back.
     sheet.style.opacity = "1";
-    // offsets derive from detents and viewportHeight, both listed.
+    // offsetsKey stands for offsets, which is rebuilt every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, viewportHeight, mounted, state]);
+  }, [index, offsetsKey, mounted, state]);
 
   // Exit: slide (or fade) out from wherever the sheet is.
   useEffect(() => {

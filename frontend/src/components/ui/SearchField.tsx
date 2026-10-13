@@ -76,6 +76,10 @@ export type SearchTriggerProps = Omit<ComponentPropsWithRef<"button">, "children
 /**
  * A button drawn as the search field. It opens the search palette rather
  * than taking text itself, so it announces as a button with the shortcut.
+ * Its name comes from a visually hidden label that is always in the
+ * accessibility tree, so it holds whether the visible text shows, is hidden
+ * by a layout's CSS (the shell folds it to an icon on narrow screens), or
+ * is left out (`compact`).
  */
 export function SearchTrigger({
   placeholder = "Search courses",
@@ -88,22 +92,18 @@ export function SearchTrigger({
     <button
       type="button"
       aria-haspopup="dialog"
-      // The visible text names the full trigger; only the icon-only form
-      // needs a label. The key cap is announced via aria-keyshortcuts.
-      aria-label={compact ? placeholder : undefined}
       aria-keyshortcuts="Meta+K Control+K"
       className={cx("ui-search-trigger", compact && "ui-search-trigger--compact", className)}
       data-ui=""
       {...rest}
     >
       <SearchGlyph />
+      <span className="sr-only-v2">{placeholder}</span>
       {compact ? null : (
-        <>
+        <span className="ui-search-trigger__visible" aria-hidden="true">
           <span className="ui-search-trigger__text">{placeholder}</span>
-          <span aria-hidden="true">
-            <Kbd className="ui-search__kbd">{shortcut}</Kbd>
-          </span>
-        </>
+          <Kbd className="ui-search__kbd">{shortcut}</Kbd>
+        </span>
       )}
     </button>
   );

@@ -36,6 +36,12 @@ describe("slider math", () => {
     expect(snap(0.1 + 0.2, { min: 0, max: 1, step: 0.1 })).toBe(0.3);
   });
 
+  test("precision follows the minimum as well as the step", () => {
+    const offset = { min: 0.5, max: 10, step: 1 };
+    expect(snap(0.5, offset)).toBe(0.5);
+    expect(valueForKey(0.5, "ArrowRight", false, offset)).toBe(1.5);
+  });
+
   test("pointer ratio maps onto the step grid and clamps", () => {
     expect(valueFromRatio(0.5, bounds)).toBe(11);
     expect(valueFromRatio(-0.2, bounds)).toBe(2);

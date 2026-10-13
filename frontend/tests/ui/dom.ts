@@ -20,6 +20,7 @@ const KEYS = [
   "DocumentFragment",
   "Event",
   "CustomEvent",
+  "StorageEvent",
   "KeyboardEvent",
   "MouseEvent",
   "PointerEvent",

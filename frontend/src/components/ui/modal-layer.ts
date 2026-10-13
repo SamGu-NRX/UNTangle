@@ -5,18 +5,97 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 export const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Open modal layers, bottom to top. Only the top one handles Escape. */
-const stack: symbol[] = [];
+type Layer = { id: symbol; root: HTMLElement; opener: HTMLElement | null };
+
+/**
+ * Open modal layers, bottom to top. One stack owns everything layers share,
+ * so layers may close in any order: inert state, the scroll lock and focus
+ * restore are recomputed from the whole stack, never undone by one layer
+ * on its own.
+ */
+const layers: Layer[] = [];
+/** Elements this module made inert; anything inert for another reason is left alone. */
+const managedInert = new Set<Element>();
+/** html's own overflow, saved while any layer holds the scroll lock. */
+let savedOverflow: string | null = null;
+
+/** Brings inert state and the scroll lock in line with the current stack. */
+function syncStack() {
+  const top = layers[layers.length - 1];
+  const html = document.documentElement;
+  if (top && savedOverflow === null) {
+    savedOverflow = html.style.overflow;
+    html.style.overflow = "hidden";
+  } else if (!top && savedOverflow !== null) {
+    html.style.overflow = savedOverflow;
+    savedOverflow = null;
+  }
+
+  // Everything except the top layer's root (and the text-only live region)
+  // is inert, lower layers included.
+  const wanted = new Set<Element>();
+  if (top) {
+    for (const el of Array.from(document.body.children)) {
+      if (el === top.root || el.hasAttribute("data-ui-live")) continue;
+      if (el.hasAttribute("inert") && !managedInert.has(el)) continue;
+      wanted.add(el);
+    }
+  }
+  for (const el of Array.from(managedInert)) {
+    if (!wanted.has(el)) {
+      el.removeAttribute("inert");
+      managedInert.delete(el);
+    }
+  }
+  for (const el of wanted) {
+    if (!managedInert.has(el)) {
+      el.setAttribute("inert", "");
+      managedInert.add(el);
+    }
+  }
+}
+
+function usable(el: HTMLElement | null): el is HTMLElement {
+  return Boolean(el && el.isConnected && !el.closest("[inert]"));
+}
+
+function pushLayer(layer: Layer) {
+  layers.push(layer);
+  syncStack();
+}
+
+function removeLayer(id: symbol) {
+  const at = layers.findIndex((layer) => layer.id === id);
+  if (at < 0) return;
+  const [layer] = layers.splice(at, 1);
+  const wasTop = at === layers.length;
+  if (!wasTop) {
+    // A lower layer closed first. The layer above may have been opened from
+    // inside it; if so, it now returns focus to where this one would have.
+    const above = layers[at];
+    if (above && (!above.opener || layer.root.contains(above.opener))) above.opener = layer.opener;
+  }
+  syncStack();
+  if (!wasTop) return;
+  const top = layers[layers.length - 1];
+  const target = usable(layer.opener)
+    ? layer.opener
+    : top
+      ? (top.root.querySelector<HTMLElement>(FOCUSABLE) ?? top.root)
+      : null;
+  target?.focus({ preventScroll: true });
+}
 
 /**
  * Behaviour every modal surface shares (Dialog, modal BottomSheet,
  * SearchPalette):
  *
- * - everything outside the layer's portal root becomes `inert`, so Tab, the
- *   pointer and the screen reader's virtual cursor all stay inside;
- * - page scroll is locked;
+ * - everything outside the top layer's portal root becomes `inert`, so Tab,
+ *   the pointer and the screen reader's virtual cursor all stay inside;
+ * - page scroll is locked while any layer is open;
  * - focus moves in on open (the `initialFocus` element, else the first
- *   focusable, else the root) and returns to the opener on close;
+ *   focusable, else the root) and, when the top layer closes, returns to
+ *   its opener (or, if that is gone, into the layer now on top);
  * - Tab and Shift+Tab wrap inside the topmost layer;
  * - Escape calls `onEscape`, for the topmost layer only, and only when no
  *   widget inside it (an open Select, Menu or date picker) already handled
@@ -44,25 +123,14 @@ export function useModalLayer(
     const root = rootRef.current;
     if (!root) return;
     const id = Symbol("modal-layer");
-    stack.push(id);
-
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const madeInert: Element[] = [];
-    for (const el of Array.from(document.body.children)) {
-      if (el === root || el.hasAttribute("inert") || el.hasAttribute("data-ui-live")) continue;
-      el.setAttribute("inert", "");
-      madeInert.push(el);
-    }
-    const html = document.documentElement;
-    const previousOverflow = html.style.overflow;
-    html.style.overflow = "hidden";
+    pushLayer({ id, root, opener });
 
-    const target =
-      initialFocusRef?.current ?? root.querySelector<HTMLElement>(FOCUSABLE) ?? root;
+    const target = initialFocusRef?.current ?? root.querySelector<HTMLElement>(FOCUSABLE) ?? root;
     target.focus({ preventScroll: true });
 
     const onKey = (event: KeyboardEvent) => {
-      if (stack[stack.length - 1] !== id || event.defaultPrevented) return;
+      if (layers[layers.length - 1]?.id !== id || event.defaultPrevented) return;
       if (event.key === "Tab") {
         const active = document.activeElement;
         if (!(active instanceof HTMLElement) || !root.contains(active)) return;
@@ -89,11 +157,7 @@ export function useModalLayer(
 
     return () => {
       document.removeEventListener("keydown", onKey);
-      const at = stack.indexOf(id);
-      if (at >= 0) stack.splice(at, 1);
-      for (const el of madeInert) el.removeAttribute("inert");
-      html.style.overflow = previousOverflow;
-      if (opener && opener.isConnected) opener.focus({ preventScroll: true });
+      removeLayer(id);
     };
   }, [open, rootRef, initialFocusRef]);
 }

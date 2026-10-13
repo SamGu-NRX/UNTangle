@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { NavShell } from "@/components/nav-shell";
 import { Modal } from "@/components/ui/Modal";
@@ -10,6 +10,7 @@ import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
 import { describeLockChanges } from "@/lib/plan-library/diff";
 import {
   createSavedPlanStore,
+  subscribeSavedPlans,
   exportPlanJson,
 } from "@/lib/saved-plans/store";
 import type { SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
@@ -100,6 +101,9 @@ export function PlansClient() {
     return cache.state;
   }, [store, storeVersion]);
   const bumpLibrary = useCallback(() => setStoreVersion((version) => version + 1), []);
+  // Writes from elsewhere (the top bar's "Save a copy", another tab) re-read
+  // the library too.
+  useEffect(() => subscribeSavedPlans(bumpLibrary), [bumpLibrary]);
   const listState = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING_LIST);
   // Availability is read through a store snapshot too: the server renders the
   // storage-disabled state and React re-renders after hydration, so the banner

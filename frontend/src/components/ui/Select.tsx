@@ -69,6 +69,12 @@ function optionsFromChildren(children: ReactNode): SelectOption[] {
  * option sets its value and dispatches a real `change` event, so callers
  * written against the v1 Select (`onChange={(e) => e.target.value}`) keep
  * working without a fabricated event.
+ *
+ * A value that matches no option means "nothing selected", on both sides:
+ * the trigger shows the placeholder, and the native select holds an empty
+ * placeholder option, so a form submits "" and `required` fails. When
+ * validation fails, focus, `aria-invalid` and the message land on the
+ * visible trigger, never on the hidden select.
  */
 export function Select({
   label,
@@ -85,6 +91,7 @@ export function Select({
   defaultValue,
   onChange,
   disabled,
+  required,
   id: idProp,
   ref,
   "aria-label": ariaLabel,
@@ -107,6 +114,7 @@ export function Select({
   const current = value !== undefined && value !== null ? String(value) : uncontrolled;
   const selectedIndex = options.findIndex((option) => option.value === current);
   const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
+  const [validationFailed, setValidationFailed] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -140,10 +148,12 @@ export function Select({
   // Names and descriptions belong on the control people operate, merged
   // with the field's own label and help text.
   const labelledBy = [label ? labelId : null, ariaLabelledBy].filter(Boolean).join(" ") || undefined;
-  const describedBy = [error || help ? helpId : null, ariaDescribedBy].filter(Boolean).join(" ") || undefined;
-  const invalid = error ? true : ariaInvalid;
+  const shownError = error ?? (validationFailed ? "Choose an option." : null);
+  const describedBy = [shownError || help ? helpId : null, ariaDescribedBy].filter(Boolean).join(" ") || undefined;
+  const invalid = shownError ? true : ariaInvalid;
 
   const handleNativeChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setValidationFailed(false);
     setUncontrolled(event.target.value);
     onValueChange?.(event.target.value);
     onChange?.(event);
@@ -260,7 +270,7 @@ export function Select({
   return (
     <div
       className={cx("ui-select", size === "sm" && "ui-select--sm", className)}
-      data-invalid={error ? "" : undefined}
+      data-invalid={shownError ? "" : undefined}
       data-ui=""
     >
       {label ? (
@@ -292,6 +302,7 @@ export function Select({
           aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
           aria-describedby={describedBy}
           aria-invalid={invalid}
+          aria-required={required || undefined}
           disabled={disabled}
           data-open={open ? "" : undefined}
           onClick={() => (open ? closeList() : openAt(selectedIndex >= 0 ? selectedIndex : firstEnabled(options)))}
@@ -310,15 +321,23 @@ export function Select({
           tabIndex={-1}
           aria-hidden="true"
           className="ui-select__native"
-          value={current}
+          value={selected ? current : ""}
           onChange={handleNativeChange}
+          onInvalid={(event) => {
+            // The hidden select cannot take focus or show a bubble; the
+            // visible trigger does both jobs instead.
+            event.preventDefault();
+            setValidationFailed(true);
+            triggerRef.current?.focus();
+          }}
           disabled={disabled}
+          required={required}
         >
-          {placeholder && !selected ? (
-            <option value={current} disabled>
-              {placeholder}
+          {selected ? null : (
+            <option value="" hidden>
+              {placeholder ?? "Choose…"}
             </option>
-          ) : null}
+          )}
           {optionsProp
             ? options.map((option) => (
                 <option key={option.value} value={option.value} disabled={option.disabled}>
@@ -328,9 +347,9 @@ export function Select({
             : children}
         </select>
       </div>
-      {error ? (
+      {shownError ? (
         <p id={helpId} className="ui-help ui-help--error">
-          {error}
+          {shownError}
         </p>
       ) : help ? (
         <p id={helpId} className="ui-help">
