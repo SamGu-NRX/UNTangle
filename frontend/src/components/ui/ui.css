@@ -1945,7 +1945,6 @@
   outline: none;
   pointer-events: auto;
   transform: translateY(110%);
-  will-change: transform;
 }
 .ui-sheet[data-glass] {
   box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow-3);
@@ -2044,6 +2043,11 @@
 .ui-palette__input input::placeholder {
   color: var(--ink-3);
 }
+@media (pointer: coarse) {
+  .ui-palette__input input {
+    font-size: 16px;
+  }
+}
 .ui-palette__cancel {
   display: none;
   height: 36px;
@@ -2136,7 +2140,12 @@
   .ui-palette__foot {
     display: none;
   }
-  .ui-palette__cancel {
+  @media (pointer: coarse) {
+  .ui-palette__input input {
+    font-size: 16px;
+  }
+}
+.ui-palette__cancel {
     display: inline-flex;
     align-items: center;
   }
@@ -2164,8 +2173,9 @@
       background-color var(--t-hover) ease,
       color var(--t-hover) ease;
   }
-  .ui-btn:active:not(:disabled):not([aria-disabled="true"]),
-  .ui-chip:active:not(:disabled) {
+  /* A pointer press; a key press (focus ring showing) does not move. */
+  .ui-btn:active:not(:disabled):not([aria-disabled="true"]):not(:focus-visible),
+  .ui-chip:active:not(:disabled):not(:focus-visible) {
     transform: scale(0.97);
   }
   .ui-split {
@@ -2208,6 +2218,10 @@
   }
   .ui-switch__knob {
     transition: transform 200ms var(--ease-out);
+  }
+  .ui-switch[data-instant] .ui-switch__knob,
+  .ui-switch[data-instant] .ui-switch__track {
+    transition: none;
   }
   .ui-slider__thumb {
     transition: transform 120ms var(--ease-out);

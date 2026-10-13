@@ -37,7 +37,11 @@ export function Switch({ checked, onChange, disabled, ariaLabel, label, descript
       disabled={disabled}
       className={cx("ui-switch", label ? "ui-switch--row" : undefined, className)}
       data-ui=""
-      onClick={() => onChange?.(!checked)}
+      onClick={(event) => {
+        // From the keyboard the knob jumps; from a pointer it slides.
+        event.currentTarget.toggleAttribute("data-instant", event.detail === 0);
+        onChange?.(!checked);
+      }}
     >
       <span className="ui-switch__track" aria-hidden="true" data-ui="">
         <span className="ui-switch__knob" data-ui="" />

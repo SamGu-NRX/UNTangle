@@ -389,9 +389,9 @@ a.btn-primary,
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .btn-primary:active,
-  .btn-secondary:active,
-  .btn-ghost:active {
+  .btn-primary:active:not(:focus-visible),
+  .btn-secondary:active:not(:focus-visible),
+  .btn-ghost:active:not(:focus-visible) {
     transform: scale(0.97);
   }
 }

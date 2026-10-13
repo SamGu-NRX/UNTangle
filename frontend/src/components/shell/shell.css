@@ -177,6 +177,19 @@
   white-space: nowrap;
 }
 @media (pointer: coarse) {
+  /* 44px targets: the wordmark is a link home, the pill is 36px drawn. */
+  .shell-wordmark {
+    position: relative;
+  }
+  .shell-wordmark::after,
+  .shell-topbar .shell-pill::after {
+    content: "";
+    position: absolute;
+    inset: -12px -4px;
+  }
+  .shell-topbar .shell-pill::after {
+    inset: -4px 0;
+  }
   .shell-avatar {
     position: relative;
   }
@@ -194,8 +207,8 @@
       transform var(--t-press) var(--ease-out),
       background-color var(--t-hover) ease;
   }
-  .shell-pill:active,
-  .shell-avatar:active {
+  .shell-pill:active:not(:focus-visible),
+  .shell-avatar:active:not(:focus-visible) {
     transform: scale(0.97);
   }
 }

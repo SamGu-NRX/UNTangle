@@ -14,6 +14,7 @@ import {
 import { createPortal } from "react-dom";
 import { useBackToClose } from "./back-close";
 import { cx } from "./cx";
+import { keyboardFocused } from "./input-source";
 import { useModalLayer } from "./modal-layer";
 import {
   BOUNCE_VELOCITY,
@@ -132,6 +133,14 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(open);
   if (open && !mounted) setMounted(true);
+  // Opened or closed from the keyboard (an opener with a focus ring, Escape,
+  // Enter on a Close button), the sheet appears and leaves without moving.
+  const [wasOpen, setWasOpen] = useState(open);
+  const [keyboardMotion, setKeyboardMotion] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    setKeyboardMotion(keyboardFocused());
+  }
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -152,8 +161,6 @@ export function BottomSheet({
   const stopSpring = useRef<(() => void) | null>(null);
   /** Set when a touch stopped a moving sheet; a tap then lets it carry on to its detent. */
   const stoppedByTouch = useRef(false);
-  /** Escape closes without animating: keyboard actions never animate. */
-  const instantExit = useRef(false);
   const drag = useRef<Drag | null>(null);
   /** A release's velocity (px/ms) for the next spring; null when there was no release. */
   const handoffVelocity = useRef<number | null>(null);
@@ -177,12 +184,7 @@ export function BottomSheet({
   const requestClose = () => (closeOnBack ? dismissByBack() : onOpenChange(false));
 
   useModalLayer(modal && open, rootRef, {
-    onEscape: dismissible
-      ? () => {
-          instantExit.current = true;
-          requestClose();
-        }
-      : undefined,
+    onEscape: dismissible ? requestClose : undefined,
     initialFocus,
     returnFocus,
   });
@@ -239,6 +241,15 @@ export function BottomSheet({
     let frame = 0;
     moving(true);
     const step = (now: number) => {
+      // The reader turned reduced motion on mid-flight: land now.
+      if (prefersReducedMotion()) {
+        place(target);
+        stopSpring.current = null;
+        liveVelocity.current = 0;
+        moving(false);
+        done?.();
+        return;
+      }
       state = springStep(state, target, (now - last) / 1000, spring);
       liveVelocity.current = state.v;
       last = now;
@@ -262,6 +273,10 @@ export function BottomSheet({
     const sheet = sheetRef.current;
     if (!open || !sheet || viewportHeight === 0 || y.current !== null) return;
     const target = offsets[index] ?? 0;
+    if (keyboardMotion) {
+      place(target);
+      return;
+    }
     if (prefersReducedMotion()) {
       place(target);
       sheet.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "ease-out" });
@@ -302,8 +317,7 @@ export function BottomSheet({
       setMounted(false);
     };
     if (!sheet || y.current === null) return finish();
-    if (instantExit.current) {
-      instantExit.current = false;
+    if (keyboardMotion) {
       cancelSpring();
       return finish();
     }

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { cx } from "./cx";
 import { Close } from "./icons";
 import { useModalLayer } from "./modal-layer";
+import { keyboardFocused } from "./input-source";
 import { usePresence } from "./use-presence";
 
 const EXIT_MS = 150;
@@ -50,7 +51,8 @@ export function Dialog({
   initialFocus,
   className,
 }: DialogProps) {
-  // Escape closes at once: keyboard actions never animate.
+  // Opened or closed from the keyboard (an opener with a focus ring, Escape,
+  // Enter on Close), the dialog appears and leaves at once.
   const [instant, setInstant] = useState(false);
   const { mounted, state } = usePresence(open, instant ? 0 : EXIT_MS);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -63,16 +65,11 @@ export function Dialog({
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setInstant(false);
+    setInstant(keyboardFocused());
   }
 
   useModalLayer(open, rootRef, {
-    onEscape: dismissible
-      ? () => {
-          setInstant(true);
-          onOpenChange(false);
-        }
-      : undefined,
+    onEscape: dismissible ? () => onOpenChange(false) : undefined,
     initialFocus,
   });
 

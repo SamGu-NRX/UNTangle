@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { BottomSheet } from "./BottomSheet";
 import { IconButton } from "./Button";
 import { Close } from "./icons";
+import { keyboardFocused } from "./input-source";
 import { useIsClient } from "./Toast";
 import { PHONE_QUERY, useMediaQuery } from "./use-media-query";
 import { usePresence } from "./use-presence";
@@ -84,7 +85,7 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
     if (!desktopOpen) return;
     // A keyboard selection lands at once; a pointer one slides. Set before the
     // panel's first style is computed, so its entrance transition never starts.
-    const keyboard = document.activeElement instanceof HTMLElement && document.activeElement.matches(":focus-visible");
+    const keyboard = keyboardFocused();
     document.getElementById(titleId)?.closest("aside")?.toggleAttribute("data-instant", keyboard);
     markMain("data-context-instant", keyboard);
     markMain("data-context-open", true);
@@ -135,7 +136,15 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
 
   if (!mounted || !isClient) return null;
   return createPortal(
-    <aside className="ui-context" data-state={state} data-instant={instant ? "" : undefined} aria-labelledby={titleId} data-ui="">
+    <aside
+      className="ui-context"
+      data-state={state}
+      data-instant={instant ? "" : undefined}
+      // On its way out, nothing in it can be reached.
+      inert={state === "closed" || undefined}
+      aria-labelledby={titleId}
+      data-ui=""
+    >
       <div className="ui-context__head">
         <h2 id={titleId} className="ui-context__title">
           {shownTitle}
@@ -143,9 +152,11 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
         <IconButton
           label={`Close ${shownTitle}`}
           size="sm"
-          onClick={() => {
-            markMain("data-context-instant", false);
-            setInstant(false);
+          onClick={(event) => {
+            // Enter or Space on Close is a keyboard action: no exit animation.
+            const keyboard = event.detail === 0;
+            markMain("data-context-instant", keyboard);
+            setInstant(keyboard);
             onClose();
           }}
         >

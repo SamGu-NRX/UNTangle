@@ -109,7 +109,8 @@ export function useLensMemory(lens: Lens | null, pathname: string) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     if (target === lens && pathname === hrefs[target]) {
       event.preventDefault();
-      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+      // A keyboard press, or reduced motion, jumps; a tap scrolls up.
+      const behavior = event.detail === 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
       window.scrollTo({ top: 0, behavior });
       for (const el of containers()) el.scrollTo({ top: 0, behavior });
       return;
