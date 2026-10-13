@@ -35,6 +35,7 @@ import {
   sectionConflicts,
   sectionNumber,
   summarizeCredits,
+  takeFromAutoRun,
 } from "@/lib/planner";
 import { summarizeWeeklyWalking } from "@/lib/planner-walking";
 import type { Prerequisite, Reason } from "@/lib/prereq";
@@ -50,23 +51,21 @@ import {
 } from "@/lib/types";
 import { validate, type ObjectSchema, type StringSchema } from "./schema";
 
-/** The planner as the tools see it: the page's live state and its existing actions. */
+/** The planner as the tools see it: the page's last render for reads, a transaction for plan writes. */
 export type PlannerPort = {
-  /** The plan as the page shows it (normalized). */
+  /** The plan as the page last rendered it (normalized). Reads and questions only; writes check inside `transact`. */
   plan(): PlannerState;
   preferences(): SchedulePreferences;
   /** planner-provider's planEpoch: counts plan replacements, which end Undo. */
   epoch(): number;
-  /** Resolves once the page has rendered the writes made so far, so `plan()` shows them. */
-  committed(): Promise<void>;
   /** Rejects when `signal` aborts, and stops the search. */
   optimize(request: OptimizeRequest, signal: AbortSignal): Promise<OptimizeResult>;
-  applySchedule(byCourse: Record<string, string>, goal: OptimizationKey | null): void;
-  restoreSchedule(snapshot: { sections: Record<string, string>; goal: OptimizationKey }): void;
-  setSection(courseCode: string, sectionId: string): void;
-  updateCoursePlan(update: PlanUpdate): void;
+  /** planner-provider's transact: `fn` sees the plan as it actually is and decides there. */
+  transact<R>(fn: (plan: PlannerState) => PlanTransaction<R>): Promise<R | "identity_changed">;
   setSchedulePreferences(update: (current: SchedulePreferences) => SchedulePreferences): void;
 };
+
+export type PlanTransaction<R> = { next?: PlannerState; result: R };
 
 export type ToolContext = {
   port: PlannerPort;
@@ -74,8 +73,8 @@ export type ToolContext = {
   signal: AbortSignal;
   /** Asks the student in the page. True only when they approve. */
   confirm(question: string, action: string): Promise<boolean>;
-  /** Tells the student a write happened and offers Undo; `undo` returns false once it no longer applies. */
-  applied(message: string, undo: () => boolean): void;
+  /** Tells the student a write happened and offers Undo; `undo` resolves false once it no longer applies. */
+  applied(message: string, undo: () => Promise<boolean>): void;
 };
 
 export type FailureReason =
@@ -85,7 +84,7 @@ export type FailureReason =
   | "declined"
   | "cancelled"
   | "plan_changed"
-  | "not_applied"
+  | "identity_changed"
   | "not_plannable"
   | "unknown_course"
   | "unknown_section"
@@ -228,51 +227,85 @@ const VERDICT = { done: "done", taking: "taking", eligible: "eligible", locked: 
 
 const pick = <T,>(record: Record<string, T>, codes: readonly string[]) =>
   Object.fromEntries(codes.flatMap((code) => (code in record ? [[code, record[code]]] : [])));
+const withoutCode = (list: readonly string[], code: string) => list.filter((id) => id !== code);
+
+/** A Courses-view edit (model/plan-edits) applied to a plan, as planner-provider's updateCoursePlan does. */
+function withPlanEdit(plan: PlannerState, update: PlanUpdate): PlannerState {
+  const next = update({ courseStatuses: plan.courseStatuses, coursePlan: plan.coursePlan ?? EMPTY_PLAN });
+  return { ...plan, courseStatuses: next.courseStatuses ?? plan.courseStatuses, coursePlan: next.coursePlan ?? plan.coursePlan };
+}
 
 /**
- * Undo for a write that changed `codes`. It restores only what the write
- * owned: those courses' statuses, sections and Auto-fill membership, the
- * goal when the write set it, and the pending Auto-fill run when the write
- * is what made that run's Undo unavailable (takeFromAutoRun). It is refused
- * once the plan was replaced (planEpoch), a course was locked, or
- * `stillOurs` says the student or another tab changed one of those fields.
+ * Undo for a write that turned `before` into `after` by changing `codes`.
+ * It runs as a transaction and restores only what the write owned: those
+ * courses' statuses, sections and Auto-fill membership, and the goal when
+ * the write set it. It is refused once the plan was replaced, one of those
+ * courses was locked, or `stillOurs` finds a field the write set changed.
+ * A pending Auto-fill run gets its Undo back only when this write is what
+ * took it away and none of the run's other courses changed since the
+ * write: `invalidatedBy` keeps only the first edit, so later ones are found
+ * by comparing with `after`.
  */
 function undoFor(
   port: PlannerPort,
+  epoch: number,
+  before: PlannerState,
+  after: PlannerState,
   codes: readonly string[],
   stillOurs: (plan: PlannerState) => boolean,
   goalSet: OptimizationKey | null = null,
-): () => boolean {
-  const before = port.plan();
-  const beforePlan = before.coursePlan ?? EMPTY_PLAN;
-  const epoch = port.epoch();
-  return () => {
-    const now = port.plan();
-    if (port.epoch() !== epoch || codes.some((code) => now.lockedSections?.[code]) || !stillOurs(now)) return false;
-    if (goalSet !== null && now.optimization !== goalSet) return false;
-    port.updateCoursePlan((current) => {
-      const run = current.coursePlan.lastAuto;
-      const ours = run && run.id === beforePlan.lastAuto?.id && !beforePlan.lastAuto.invalidatedBy && codes.includes(run.invalidatedBy ?? "");
-      return {
-        courseStatuses: { ...current.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, before.courseStatuses[code] ?? "notTaken"])) },
+): () => Promise<boolean> {
+  return async () => {
+    if (port.epoch() !== epoch) return false;
+    const outcome = await port.transact((plan) => {
+      if (codes.some((code) => plan.lockedSections?.[code]) || !stillOurs(plan)) return { result: false };
+      if (goalSet !== null && plan.optimization !== goalSet) return { result: false };
+      const coursePlan = plan.coursePlan ?? EMPTY_PLAN;
+      const run = coursePlan.lastAuto;
+      const prior = before.coursePlan?.lastAuto;
+      const untouched = (run?.changes ?? [])
+        .filter((change) => !codes.includes(change.code))
+        .every(({ code }) => plan.courseStatuses[code] === after.courseStatuses[code] && plan.selectedSections[code] === after.selectedSections[code]);
+      const giveBack = run && prior && run.id === prior.id && !prior.invalidatedBy && codes.includes(run.invalidatedBy ?? "") && untouched;
+      const next: PlannerState = {
+        ...plan,
+        courseStatuses: { ...plan.courseStatuses, ...Object.fromEntries(codes.map((code) => [code, before.courseStatuses[code] ?? "notTaken"])) },
+        selectedSections: { ...plan.selectedSections, ...pick(before.selectedSections, codes) },
+        optimization: goalSet === null ? plan.optimization : before.optimization,
         coursePlan: {
-          ...current.coursePlan,
-          autoPlanned: [...current.coursePlan.autoPlanned.filter((id) => !codes.includes(id)), ...beforePlan.autoPlanned.filter((id) => codes.includes(id))],
-          lastAuto: ours ? beforePlan.lastAuto : run,
+          ...coursePlan,
+          autoPlanned: [
+            ...coursePlan.autoPlanned.filter((id) => !codes.includes(id)),
+            ...(before.coursePlan?.autoPlanned ?? []).filter((id) => codes.includes(id)),
+          ],
+          lastAuto: giveBack ? prior : run,
         },
       };
+      return { next, result: true };
     });
-    // The Week view's restore: sets sections and goal without counting as a hand edit to an Auto-fill course.
-    port.restoreSchedule({ sections: { ...now.selectedSections, ...pick(before.selectedSections, codes) }, goal: goalSet === null ? now.optimization : before.optimization });
-    return true;
+    return outcome === true;
   };
 }
 
-const withoutCode = (list: readonly string[], code: string) => list.filter((id) => id !== code);
+type Receipt = { undo: () => Promise<boolean> };
+
+/**
+ * Commits a write decided inside `transact`, then tells the student, unless
+ * the call was cancelled meanwhile: a toast from an ended registration
+ * would offer an Undo that can no longer work.
+ */
+async function commitWrite(ctx: ToolContext, message: string, fn: (plan: PlannerState) => PlanTransaction<Failure | Receipt>, reply: ToolResult): Promise<ToolResult> {
+  if (ctx.signal.aborted) return fail("cancelled");
+  const outcome = await ctx.port.transact(fn);
+  if (outcome === "identity_changed") return fail("identity_changed", "The student signed in or out; ask again.");
+  if ("ok" in outcome) return outcome;
+  if (!ctx.signal.aborted) ctx.applied(message, outcome.undo);
+  return reply;
+}
+
 /** No from the student, or no answer because the call was cancelled. */
 const refused = (ctx: ToolContext) => fail(ctx.signal.aborted ? "cancelled" : "declined");
 const PLAN_CHANGED = "The plan changed while the student was deciding; ask again.";
-const NOT_APPLIED = "The page did not take the change; read the plan again.";
 
 /* ---------- build_schedule state ---------- */
 
@@ -594,9 +627,8 @@ export function createTools(): Tool[] {
         if (!found) return fail("unknown_alternative", "Use an id from the latest build_schedule.");
         const { build, schedule, letter } = found;
         const { port } = ctx;
-        // Each course this option would move right now, from which section to which, or why it cannot be used.
-        const assess = () => {
-          const plan = port.plan();
+        // Each course this option would move in `plan`, from which section to which, or why it cannot be used.
+        const assess = (plan: PlannerState) => {
           const key = runKey(plan, withOverrides(port.preferences(), build.input));
           const verdict = canApply({ ...IDLE, result: build.result, resultKey: build.key }, key, schedule, plan.lockedSections ?? {});
           if (!verdict.ok) return fail("cannot_apply", verdict.reason);
@@ -604,23 +636,28 @@ export function createTools(): Tool[] {
             .filter(([code, sectionId]) => plan.selectedSections[code] !== sectionId)
             .map(([code, sectionId]) => [code, plan.selectedSections[code], sectionId] as const);
         };
-        const changes = assess();
+        const changes = assess(port.plan());
         if (!Array.isArray(changes)) return changes;
         if (changes.length === 0) return { ok: true, changed: 0 };
         const list = changes.map(([code, , to]) => `${code} to section ${sectionNumber(to)}`).join(", ");
         if (!(await ctx.confirm(`Use schedule option ${letter}? It moves ${list}.`, `Use option ${letter}`))) return refused(ctx);
-        // The student approved these exact moves; anything else needs a new question.
-        const now = assess();
-        if (!Array.isArray(now)) return now;
-        if (JSON.stringify(now) !== JSON.stringify(changes)) return fail("plan_changed", PLAN_CHANGED);
-        const moves = Object.fromEntries(changes.map(([code, , to]) => [code, to]));
+        const codes = changes.map(([code]) => code);
         const ours = (plan: PlannerState) => changes.every(([code, , to]) => plan.selectedSections[code] === to);
-        const undo = undoFor(port, Object.keys(moves), ours, build.goal);
-        port.applySchedule(moves, build.goal);
-        await port.committed();
-        if (!ours(port.plan())) return fail("not_applied", NOT_APPLIED);
-        ctx.applied(`Using option ${letter} from your assistant`, undo);
-        return { ok: true, changed: changes.length };
+        const epoch = port.epoch();
+        return commitWrite(ctx, `Using option ${letter} from your assistant`, (plan) => {
+          // The student approved these exact moves; anything else needs a new question.
+          const now = assess(plan);
+          if (!Array.isArray(now)) return { result: now };
+          if (JSON.stringify(now) !== JSON.stringify(changes)) return { result: fail("plan_changed", PLAN_CHANGED) };
+          // planner-provider's applySchedule: a moved course counts as a hand edit to a pending Auto-fill run.
+          const next: PlannerState = {
+            ...plan,
+            selectedSections: { ...plan.selectedSections, ...Object.fromEntries(changes.map(([code, , to]) => [code, to])) },
+            optimization: build.goal ?? plan.optimization,
+            coursePlan: plan.coursePlan && takeFromAutoRun(plan.coursePlan, codes),
+          };
+          return { next, result: { undo: undoFor(port, epoch, plan, next, codes, ours, build.goal) } };
+        }, { ok: true, changed: changes.length });
       },
     }),
 
@@ -645,9 +682,8 @@ export function createTools(): Tool[] {
         if (!id) return fail("unknown_course");
         const section = getSectionsForCourse(id).find((s) => s.id === sectionId || sectionNumber(s.id) === sectionId);
         if (!section) return fail("unknown_section", `Sections of ${id} are listed by get_course.`);
-        // Where the course stands right now, or why this section cannot be added.
-        const assess = () => {
-          const plan = port.plan();
+        // Where the course stands in `plan`, or why this section cannot be added.
+        const assess = (plan: PlannerState) => {
           const status = courseModel(plan).rows.get(id)!.status;
           // Planning a course already passed, or one the transcript shows in progress, would be normalized away.
           if (status === "done" || status === "taking") return fail("not_plannable", `${id} is ${status === "done" ? "already done" : "in progress this term"}.`);
@@ -660,27 +696,26 @@ export function createTools(): Tool[] {
           });
           return { inPlan: planned.includes(id), current: plan.selectedSections[id] ?? null, overlapsWith };
         };
-        const before = assess();
+        const before = assess(port.plan());
         if ("ok" in before) return before;
         if (before.inPlan && before.current === section.id) return { ok: true, changed: false, overlapsWith: [] };
         const clash = before.overlapsWith.length > 0 ? ` It overlaps ${before.overlapsWith.join(" and ")}.` : "";
         const question = `Add ${id} section ${sectionNumber(section.id)} (${meetingsText(section)}) to your plan?${clash}`;
         if (!(await ctx.confirm(question, "Add section"))) return refused(ctx);
-        const now = assess();
-        if ("ok" in now) return now;
-        if (JSON.stringify(now) !== JSON.stringify(before)) return fail("plan_changed", PLAN_CHANGED);
-        const ours = (plan: PlannerState) =>
-          plan.courseStatuses[id] === "inProgress" && plan.selectedSections[id] === section.id && getPlanningTermCourseCodes(plan).includes(id);
-        const undo = undoFor(port, [id], ours);
-        // The Courses view's "choose section" edit: plan the course by hand, then pick the section.
-        port.updateCoursePlan(
-          manualEdit(before.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) }), [id]),
-        );
-        port.setSection(id, section.id);
-        await port.committed();
-        if (!ours(port.plan())) return fail("not_applied", NOT_APPLIED);
-        ctx.applied(`Your assistant added ${id} section ${sectionNumber(section.id)}`, undo);
-        return { ok: true, changed: true, overlapsWith: before.overlapsWith };
+        const ours = (plan: PlannerState) => plan.courseStatuses[id] === "inProgress" && plan.selectedSections[id] === section.id;
+        const epoch = port.epoch();
+        return commitWrite(ctx, `Your assistant added ${id} section ${sectionNumber(section.id)}`, (plan) => {
+          const now = assess(plan);
+          if ("ok" in now) return { result: now };
+          if (JSON.stringify(now) !== JSON.stringify(before)) return { result: fail("plan_changed", PLAN_CHANGED) };
+          // The Courses view's "choose section" edit: plan the course by hand, then pick the section.
+          const planned = withPlanEdit(
+            plan,
+            manualEdit(before.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) }), [id]),
+          );
+          const next = { ...planned, selectedSections: { ...planned.selectedSections, [id]: section.id } };
+          return { next, result: { undo: undoFor(port, epoch, plan, next, [id], ours) } };
+        }, { ok: true, changed: true, overlapsWith: before.overlapsWith });
       },
     }),
 
@@ -695,24 +730,22 @@ export function createTools(): Tool[] {
         const { port } = ctx;
         const id = courseId(code);
         if (!id) return fail("unknown_course");
-        const check = () => {
-          const plan = port.plan();
+        const check = (plan: PlannerState) => {
           if (!getPlanningTermCourseCodes(plan).includes(id)) return fail("not_in_plan");
           return plan.lockedSections?.[id] ? fail("course_locked", `The student locked ${id}; they can unlock it in Week.`) : null;
         };
-        const problem = check();
+        const problem = check(port.plan());
         if (problem) return problem;
         if (!(await ctx.confirm(`Remove ${id} from your ${untProfile().planningTerm} plan?`, "Remove"))) return refused(ctx);
-        const stale = check();
-        if (stale) return stale;
-        const ours = (plan: PlannerState) => !getPlanningTermCourseCodes(plan).includes(id) && (plan.courseStatuses[id] ?? "notTaken") === "notTaken";
-        const undo = undoFor(port, [id], ours);
-        // The Courses view's "remove from plan" edit.
-        port.updateCoursePlan(manualEdit({ [id]: "notTaken" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) })));
-        await port.committed();
-        if (!ours(port.plan())) return fail("not_applied", NOT_APPLIED);
-        ctx.applied(`Your assistant removed ${id} from the plan`, undo);
-        return { ok: true, removed: id };
+        const ours = (plan: PlannerState) => (plan.courseStatuses[id] ?? "notTaken") === "notTaken";
+        const epoch = port.epoch();
+        return commitWrite(ctx, `Your assistant removed ${id} from the plan`, (plan) => {
+          const stale = check(plan);
+          if (stale) return { result: stale };
+          // The Courses view's "remove from plan" edit.
+          const next = withPlanEdit(plan, manualEdit({ [id]: "notTaken" }, (current) => ({ autoPlanned: withoutCode(current.autoPlanned, id) })));
+          return { next, result: { undo: undoFor(port, epoch, plan, next, [id], ours) } };
+        }, { ok: true, removed: id });
       },
     }),
 
@@ -760,7 +793,8 @@ export function createTools(): Tool[] {
           replaced.blocked = p.constraints.blocked;
           return { ...p, constraints: { ...p.constraints, blocked } };
         });
-        ctx.applied("Your assistant updated your busy times", () => {
+        if (ctx.signal.aborted) return { ok: true, busyTimes: blocked.length };
+        ctx.applied("Your assistant updated your busy times", async () => {
           let restored = false;
           ctx.port.setSchedulePreferences((p) => {
             if (!replaced.blocked || JSON.stringify(p.constraints.blocked) !== JSON.stringify(blocked)) return p;

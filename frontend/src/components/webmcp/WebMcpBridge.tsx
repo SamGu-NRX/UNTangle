@@ -32,42 +32,28 @@ function optimizeInWorker(request: OptimizeRequest, signal: AbortSignal): Promis
   });
 }
 
-function livePort(get: () => Planner, afterRender: (resolve: () => void) => void): PlannerPort {
+/** The port over the planner as of the last render; plan writes go through the provider's transact. */
+export function livePort(get: () => Planner): PlannerPort {
   return {
     plan: () => get().plannerState,
     preferences: () => get().schedulePreferences,
     epoch: () => get().planEpoch,
-    // A write that changes nothing renders nothing; the timeout keeps the call from waiting on it forever.
-    committed: () =>
-      new Promise((resolve) => {
-        afterRender(resolve);
-        window.setTimeout(resolve, 1000);
-      }),
     optimize: optimizeInWorker,
-    applySchedule: (byCourse, goal) => get().applySchedule(byCourse, goal),
-    restoreSchedule: (snapshot) => get().restoreSchedule(snapshot),
-    setSection: (courseCode, sectionId) => get().setSection(courseCode, sectionId),
-    updateCoursePlan: (update) => get().updateCoursePlan(update),
+    transact: (fn) => get().transact(fn),
     setSchedulePreferences: (update) => get().setSchedulePreferences(update),
   };
 }
 
 /**
- * The planner as of the last render, and calls waiting for the next one.
- * Tools read it through the port, so they see every edit without
- * re-registering: each re-registration would fire `toolchange` at the agent
- * and open a moment in which a call finds no tool.
+ * Tools read the planner as of the last render, through a holder updated
+ * after each one, so they see every edit without re-registering: each
+ * re-registration would fire `toolchange` at the agent and open a moment in
+ * which a call finds no tool. Writes do not depend on that render; they
+ * decide inside the provider's transact.
  */
 function plannerSource(initial: Planner) {
   let planner = initial;
-  const waiting: Array<() => void> = [];
-  return {
-    port: livePort(() => planner, (resolve) => waiting.push(resolve)),
-    rendered(next: Planner) {
-      planner = next;
-      waiting.splice(0).forEach((resolve) => resolve());
-    },
-  };
+  return { port: livePort(() => planner), rendered: (next: Planner) => void (planner = next) };
 }
 
 export function WebMcpBridge() {
@@ -121,16 +107,20 @@ export function WebMcpSession({ ready, port }: { ready: boolean; port: PlannerPo
           setOpenId(id);
         }),
       applied: (message, undo) => {
-        const onClick = () => {
+        // A write that finishes after this registration ended gets no toast: its Undo would belong to no one.
+        if (!active) return;
+        const onClick = async () => {
+          if (!active) return;
+          const restored = await undo();
           if (!active) return;
           toast(
-            undo()
+            restored
               ? { message: "Restored your previous plan", duration: 5000 }
               : // A refused Undo stays until dismissed.
                 { message: "Undo is off: your plan changed since then", tone: "error" },
           );
         };
-        toasts.push(toast({ message, action: { label: "Undo", onClick } }));
+        toasts.push(toast({ message, action: { label: "Undo", onClick: () => void onClick() } }));
       },
     });
     return () => {

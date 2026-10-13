@@ -81,8 +81,9 @@ function hasField<K extends string>(value: unknown, key: K): value is Record<K, 
 /**
  * Calls per tool per minute in this tab. Starting points with no usage data
  * behind them: build_schedule keeps a worker busy for up to 3.3 s per call.
- * TODO(untangle/abuse-limits): charge the per-user client budget from
- * lib/rate-limit once that branch lands on alpha.
+ * lib/rate-limit (#39) limits API routes on the server; these tools make no
+ * requests, so it cannot see them. TODO: move to a shared per-user budget
+ * if lib/rate-limit gains a client side.
  */
 export const CALLS_PER_MINUTE: Record<string, number> = { build_schedule: 6 };
 const DEFAULT_CALLS_PER_MINUTE = 30;

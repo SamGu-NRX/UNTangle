@@ -40,58 +40,52 @@ export function fixturePlan(grades: Record<string, string> = { "MATH 1710": "A",
   };
 }
 
+/**
+ * A port over plain state. Plan writes go through `transact` as in
+ * planner-provider (normalized input, `next` committed); `student` makes the
+ * edits the pages make, including takeFromAutoRun on a section pick.
+ */
 export function fixturePort(start: PlannerState = fixturePlan(), selected: Record<string, string> = {}) {
   let plan = normalizePlannerState({ ...start, selectedSections: { ...start.selectedSections, ...selected } });
   let preferences: SchedulePreferences = defaultSchedulePreferences(plan.optimization);
   let epoch = 1;
   const writes: string[] = [];
-  const set = (next: PlannerState) => (plan = normalizePlannerState(next));
   const port: PlannerPort = {
     plan: () => plan,
     preferences: () => preferences,
     epoch: () => epoch,
-    committed: async () => {},
     // A node budget instead of the clock, so every run gives the same answer.
     optimize: async (request) => optimize({ ...request, timeBudgetMs: Number.POSITIVE_INFINITY, maxNodes: 200_000 }),
-    applySchedule: (byCourse, goal) => {
-      writes.push("applySchedule");
-      const changed = Object.keys(byCourse).filter((code) => plan.selectedSections[code] !== byCourse[code]);
-      set({
-        ...plan,
-        selectedSections: { ...plan.selectedSections, ...byCourse },
-        optimization: goal ?? plan.optimization,
-        coursePlan: plan.coursePlan && changed.length > 0 ? takeFromAutoRun(plan.coursePlan, changed) : plan.coursePlan,
-      });
+    transact: async (fn) => {
+      const { next, result } = fn(normalizePlannerState(plan));
+      if (next) {
+        writes.push("commit");
+        plan = normalizePlannerState(next);
+      }
+      return result;
     },
-    restoreSchedule: ({ sections, goal }) => {
-      writes.push("restoreSchedule");
-      set({ ...plan, selectedSections: { ...sections }, optimization: goal });
+    setSchedulePreferences: (update) => {
+      writes.push("preferences");
+      preferences = update(preferences);
     },
-    setSection: (code, sectionId) => {
-      writes.push("setSection");
-      set({
+  };
+  const student = {
+    setSection: (code: string, sectionId: string) => {
+      plan = normalizePlannerState({
         ...plan,
         selectedSections: { ...plan.selectedSections, [code]: sectionId },
         coursePlan: plan.coursePlan ? takeFromAutoRun(plan.coursePlan, [code]) : plan.coursePlan,
       });
     },
-    updateCoursePlan: (update) => {
-      writes.push("updateCoursePlan");
-      const next = update({ courseStatuses: plan.courseStatuses, coursePlan: plan.coursePlan! });
-      set({ ...plan, courseStatuses: next.courseStatuses ?? plan.courseStatuses, coursePlan: next.coursePlan ?? plan.coursePlan });
-    },
-    setSchedulePreferences: (update) => {
-      writes.push("setSchedulePreferences");
-      preferences = update(preferences);
-    },
+    setPreferences: (update: (current: SchedulePreferences) => SchedulePreferences) => (preferences = update(preferences)),
   };
-  return { port, writes, snapshot: () => structuredClone({ plan, preferences }), replacePlan: () => (epoch += 1) };
+  return { port, writes, student, snapshot: () => structuredClone({ plan, preferences }), replacePlan: () => (epoch += 1) };
 }
 
 /** A tool context whose student answers `answer`, after running `meanwhile` (another tab's edit). */
 export function session(port: PlannerPort, answer: boolean, meanwhile: () => void = () => {}) {
   const asked: string[] = [];
-  const undos: Array<() => boolean> = [];
+  const undos: Array<() => Promise<boolean>> = [];
   const ctx: ToolContext = {
     port,
     signal: new AbortController().signal,

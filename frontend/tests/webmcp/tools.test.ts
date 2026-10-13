@@ -4,6 +4,7 @@
  * yes and can be undone, and that bad input changes nothing.
  */
 import { describe, expect, test } from "bun:test";
+import { undoBlocker } from "@/components/courses/model/auto";
 import { findSection } from "@/components/schedule/week-model";
 import { getSectionsForCourse, sectionConflicts } from "@/lib/planner";
 import { createTools, type PlannerPort, type Tool, type ToolResult } from "@/lib/webmcp/tools";
@@ -121,12 +122,12 @@ describe("write tools", () => {
     {
       name: "apply_alternative",
       input: { id: "opt-1-B" },
-      actions: ["applySchedule"],
+      actions: ["commit"],
       setup: (tools, port) => named(tools, "build_schedule").run({}, session(port, true).ctx),
     },
-    { name: "add_section", input: { code: "MATH 1720", sectionId: "001" }, actions: ["updateCoursePlan", "setSection"] },
-    { name: "remove_course", input: { code: "PSYC 1630" }, actions: ["updateCoursePlan"] },
-    { name: "set_busy_times", input: { blocks: [{ day: "Tue", start: "09:00", end: "11:00", label: "Work" }] }, actions: ["setSchedulePreferences"] },
+    { name: "add_section", input: { code: "MATH 1720", sectionId: "001" }, actions: ["commit"] },
+    { name: "remove_course", input: { code: "PSYC 1630" }, actions: ["commit"] },
+    { name: "set_busy_times", input: { blocks: [{ day: "Tue", start: "09:00", end: "11:00", label: "Work" }] }, actions: ["preferences"] },
   ];
 
   for (const { name, input, actions, setup } of cases) {
@@ -154,7 +155,7 @@ describe("write tools", () => {
       expect(writes).toEqual(actions);
       expect(snapshot()).not.toEqual(before);
       expect(undos).toHaveLength(1);
-      expect(undos[0]()).toBe(true);
+      expect(await undos[0]()).toBe(true);
       expect(snapshot()).toEqual(before);
     });
   }
@@ -166,19 +167,19 @@ describe("write tools", () => {
     await named(tools, "remove_course").run({ code: "PSYC 1630" }, ctx);
     const after = snapshot();
     replacePlan();
-    expect(undos[0]()).toBe(false);
+    expect(await undos[0]()).toBe(false);
     expect(snapshot()).toEqual(after);
   });
 
   test("an alternative found under other settings is refused without asking", async () => {
     const tools = createTools();
-    const { port, writes } = fixturePort();
+    const { port, writes, student } = fixturePort();
     await named(tools, "build_schedule").run({}, session(port, true).ctx);
-    port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, maxCredits: 12 } }));
+    student.setPreferences((p) => ({ ...p, constraints: { ...p.constraints, maxCredits: 12 } }));
     const { ctx, asked } = session(port, true);
     expect(await named(tools, "apply_alternative").run({ id: "opt-1-B" }, ctx)).toMatchObject({ ok: false, reason: "cannot_apply" });
     expect(asked).toEqual([]);
-    expect(writes).toEqual(["setSchedulePreferences"]);
+    expect(writes).toEqual([]);
   });
 
   test("add_section names the overlap before asking", async () => {
@@ -223,44 +224,44 @@ describe("invalid input", () => {
 describe("writes stay bound to what the student approved", () => {
   test("apply_alternative refuses when another tab moved a course while the student decided", async () => {
     const tools = createTools();
-    const { port, writes } = fixturePort();
+    const { port, writes, student } = fixturePort();
     await named(tools, "build_schedule").run({}, session(port, true).ctx);
     const alternative = port.plan().selectedSections;
     // Another tab picks a different ENGL 1310 section while the dialog is open.
     const other = getSectionsForCourse("ENGL 1310").find((s) => s.id !== alternative["ENGL 1310"])!;
-    const { ctx } = session(port, true, () => port.setSection("ENGL 1310", other.id));
+    const { ctx } = session(port, true, () => student.setSection("ENGL 1310", other.id));
     expect(await named(tools, "apply_alternative").run({ id: "opt-1-B" }, ctx)).toMatchObject({ ok: false, reason: "plan_changed" });
-    expect(writes).toEqual(["setSection"]);
+    expect(writes).toEqual([]);
     expect(port.plan().selectedSections["ENGL 1310"]).toBe(other.id);
   });
 
   test("set_busy_times Undo puts back what it replaced at save time, not what was there before the question", async () => {
-    const { port } = fixturePort();
+    const { port, student } = fixturePort();
     const tab = [{ id: "tab", label: "Practice", day: "Wed" as const, start: 900, end: 1000 }];
     const { ctx, undos } = session(port, true, () =>
-      port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: tab } })),
+      student.setPreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: tab } })),
     );
     await named(createTools(), "set_busy_times").run({ blocks: [{ day: "Tue", start: "09:00", end: "11:00" }] }, ctx);
-    expect(undos[0]()).toBe(true);
+    expect(await undos[0]()).toBe(true);
     expect(port.preferences().constraints.blocked).toEqual(tab);
   });
 
   test("set_busy_times Undo is refused once the busy times changed again", async () => {
-    const { port } = fixturePort();
+    const { port, student } = fixturePort();
     const { ctx, undos } = session(port, true);
     await named(createTools(), "set_busy_times").run({ blocks: [{ day: "Tue", start: "09:00", end: "11:00" }] }, ctx);
-    port.setSchedulePreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: [] } }));
-    expect(undos[0]()).toBe(false);
+    student.setPreferences((p) => ({ ...p, constraints: { ...p.constraints, blocked: [] } }));
+    expect(await undos[0]()).toBe(false);
     expect(port.preferences().constraints.blocked).toEqual([]);
   });
 
   test("Undo restores only the course it changed and keeps later edits elsewhere", async () => {
-    const { port } = fixturePort();
+    const { port, student } = fixturePort();
     const { ctx, undos } = session(port, true);
     await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
     const other = getSectionsForCourse("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!;
-    port.setSection("ENGL 1310", other.id);
-    expect(undos[0]()).toBe(true);
+    student.setSection("ENGL 1310", other.id);
+    expect(await undos[0]()).toBe(true);
     expect(port.plan().courseStatuses["PSYC 1630"]).toBe("inProgress");
     expect(port.plan().selectedSections["ENGL 1310"]).toBe(other.id);
   });
@@ -272,8 +273,23 @@ describe("writes stay bound to what the student approved", () => {
     const { ctx, undos } = session(port, true);
     await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
     expect(port.plan().coursePlan?.lastAuto?.invalidatedBy).toBe("PSYC 1630");
-    expect(undos[0]()).toBe(true);
+    expect(await undos[0]()).toBe(true);
     expect(port.plan().coursePlan).toEqual({ manualCredit: [], autoPlanned: ["PSYC 1630"], lastAuto: run });
+  });
+
+  test("Undo leaves Auto-fill's Undo off when the student edited another course of that run since", async () => {
+    // One Auto run planned both PSYC 1630 and ENGL 1310; Auto Undo would unplan both.
+    const plan = fixturePlan({}, { "PSYC 1630": "inProgress", "ENGL 1310": "inProgress" });
+    const changes = ["PSYC 1630", "ENGL 1310"].map((code) => ({ code, from: "notTaken" as const, to: "inProgress" as const }));
+    const run = { id: "auto-2", at: "2026-10-01T00:00:00.000Z", major: null, changes, autoPlannedBefore: [], summary: "", needsCheck: [] };
+    const { port, student } = fixturePort({ ...plan, coursePlan: { manualCredit: [], autoPlanned: ["PSYC 1630", "ENGL 1310"], lastAuto: run } });
+    const { ctx, undos } = session(port, true);
+    await named(createTools(), "remove_course").run({ code: "PSYC 1630" }, ctx);
+    // The student then picks another ENGL 1310 section by hand; invalidatedBy already names PSYC, so it records nothing new.
+    student.setSection("ENGL 1310", getSectionsForCourse("ENGL 1310").find((s) => s.id !== port.plan().selectedSections["ENGL 1310"])!.id);
+    expect(await undos[0]()).toBe(true);
+    expect(port.plan().courseStatuses["PSYC 1630"]).toBe("inProgress");
+    expect(undoBlocker(port.plan().coursePlan!.lastAuto!, port.plan().courseStatuses, port.plan().selectedMajor)).not.toBeNull();
   });
 
   test("add_section refuses a course already passed or in progress on the transcript", async () => {
@@ -285,13 +301,6 @@ describe("writes stay bound to what the student approved", () => {
     expect(writes).toEqual([]);
   });
 
-  test("add_section reports not_applied, with no Undo, when the page did not take the change", async () => {
-    const { port } = fixturePort();
-    const ignoring: PlannerPort = { ...port, updateCoursePlan: () => {}, setSection: () => {} };
-    const { ctx, undos } = session(ignoring, true);
-    expect(await named(createTools(), "add_section").run({ code: "MATH 1720", sectionId: "001" }, ctx)).toMatchObject({ ok: false, reason: "not_applied" });
-    expect(undos).toEqual([]);
-  });
 });
 
 describe("build_schedule runs one search at a time", () => {

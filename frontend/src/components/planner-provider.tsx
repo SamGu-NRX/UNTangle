@@ -198,7 +198,20 @@ type PlannerContextValue = {
   afterHydration: () => Promise<void>;
   /** Structural notices from reading the guest store (e.g. quarantine). */
   storeNotices: Array<{ message: string; quarantinedTo?: string }>;
+  /**
+   * One check-and-write on the plan as it actually is, for callers that act
+   * after an await and must not trust the last render (the WebMCP tools).
+   * `fn` runs inside the state updater on the normalized current state,
+   * including updates still queued, and returns `next` to commit or no
+   * `next` to change nothing. It must be pure: React may call it twice.
+   * Resolves with `fn`'s result once the update has rendered, or with
+   * "identity_changed" without calling `fn` when the signed-in identity
+   * changed after the call. Other actions are unchanged.
+   */
+  transact: <R>(fn: (current: PlannerState) => PlanTransaction<R>) => Promise<R | "identity_changed">;
 };
+
+export type PlanTransaction<R> = { next?: PlannerState; result: R };
 
 const PlannerContext = createContext<PlannerContextValue | null>(null);
 
@@ -294,6 +307,14 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     conflictRef.current = conflict;
   }, [conflict]);
+
+  // transact: every call also bumps this tick, so a render and commit follow even when `fn` changes nothing,
+  // and the effect below then resolves each transaction whose updater has run.
+  const [, setTransactionTick] = useState(0);
+  const transactions = useRef<Array<() => boolean>>([]);
+  useEffect(() => {
+    transactions.current = transactions.current.filter((settle) => !settle());
+  });
 
   const guestStore = useMemo(() => createPlannerStateStore(), []);
   const isRegistered = Boolean(sessionResult.data?.user);
@@ -1194,6 +1215,30 @@ export function PlannerProvider({ children }: { children: React.ReactNode }) {
       dismissNewerVersionNotice: () => setTookNewerVersion(false),
       afterHydration,
       storeNotices,
+      transact: <R,>(fn: (current: PlannerState) => PlanTransaction<R>) =>
+        new Promise<R | "identity_changed">((resolve) => {
+          if (!hydrated) {
+            mutatedBeforeBootstrap.current = true;
+          }
+          const generation = sessionGeneration.current;
+          const updatedAt = new Date().toISOString();
+          let outcome: { value: R | "identity_changed" } | null = null;
+          setPlannerState((current) => {
+            if (generation !== sessionGeneration.current) {
+              outcome = { value: "identity_changed" };
+              return current;
+            }
+            const { next, result } = fn(normalizePlannerState(current));
+            outcome = { value: result };
+            return next ? { ...next, updatedAt } : current;
+          });
+          setTransactionTick((tick) => tick + 1);
+          transactions.current.push(() => {
+            if (!outcome) return false;
+            resolve(outcome.value);
+            return true;
+          });
+        }),
     };
   }, [
     afterHydration,

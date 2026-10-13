@@ -98,6 +98,21 @@ describe("ending a registration", () => {
     expect(writes).toEqual([]);
   });
 
+  test("a write approved before it ended and acknowledged after shows no Undo", async () => {
+    const { port } = fixturePort();
+    let release = () => {};
+    // The provider acknowledges the transaction only after the registration has ended.
+    const slow: PlannerPort = { ...port, transact: (fn) => new Promise((resolve) => (release = () => void port.transact(fn).then(resolve))) };
+    const page = await session(slow);
+    const { done } = await page.start("remove_course", { code: "PSYC 1630" });
+    await click(button("Remove"));
+    await page.setReady(false);
+    release();
+    expect(await done).toMatchObject({ ok: true });
+    await settle();
+    expect(document.querySelector(".ui-toast")).toBeNull();
+  });
+
   test("takes back the Undo it offered", async () => {
     const { port } = fixturePort();
     const page = await session(port);
