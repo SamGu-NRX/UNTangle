@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { parseConnectTranscript } from "../../src/lib/connect/import";
+import { missingApprovedRecords } from "../../src/lib/connect/import-confirmation";
 import { transcriptLines } from "../../../tools/mock-myunt/pdf";
 test("rendered transcript uses the existing local parser and contains course records only", async () => {
   const result = await parseConnectTranscript(
@@ -42,4 +43,37 @@ test("identity fields inside an unknown course title are removed before the pars
   expect(result.records[0].title).toContain("[redacted]");
   expect(result.records[0].title).not.toContain("Synthetic Person");
   expect(result.records[0].title).not.toContain("01234567");
+});
+
+test("an approved import survives when its records are in the adopted planner", async () => {
+  const { records } = await parseConnectTranscript(
+    { kind: "transcript-text", text: transcriptLines.join("\n") },
+    new AbortController().signal,
+  );
+  expect(missingApprovedRecords(records, records)).toEqual([]);
+});
+
+test("an adopted plan without the approved batch needs those courses re-applied", async () => {
+  const { records } = await parseConnectTranscript(
+    { kind: "transcript-text", text: transcriptLines.join("\n") },
+    new AbortController().signal,
+  );
+  expect(
+    missingApprovedRecords(records.slice(0, 2), []).map((row) => row.code),
+  ).toEqual(["CSCE 1030", "ENGL 1310"]);
+});
+
+test("partial adoption retains matching approvals and restores changed statuses", async () => {
+  const { records } = await parseConnectTranscript(
+    { kind: "transcript-text", text: transcriptLines.join("\n") },
+    new AbortController().signal,
+  );
+  const current = records.slice(0, 2).map((record) => ({
+    ...record,
+    appliedStatus:
+      record.code === "ENGL 1310" ? ("ignored" as const) : record.appliedStatus,
+  }));
+  expect(
+    missingApprovedRecords(records.slice(0, 3), current).map((row) => row.code),
+  ).toEqual(["ENGL 1310", "MATH 1650"]);
 });

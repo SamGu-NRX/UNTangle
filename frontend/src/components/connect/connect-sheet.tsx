@@ -7,11 +7,15 @@ import { ConnectPersistence } from "./connect-persistence";
 import { usePlanner } from "@/components/planner-provider";
 import { exchange, ConnectError, errorText } from "@/lib/connect/client";
 import { parseConnectTranscript } from "@/lib/connect/import";
+import { missingApprovedRecords } from "@/lib/connect/import-confirmation";
 import {
   selectApprovedTranscriptRecords,
   type TranscriptReconcileResult,
 } from "@/lib/transcript-import";
-import type { TranscriptAppliedStatus } from "@/lib/types";
+import type {
+  TranscriptAppliedStatus,
+  TranscriptCourseRecord,
+} from "@/lib/types";
 import type { Payload } from "@/lib/connect/protocol";
 import { BrowserCard, StepDots } from "./connect-parts";
 import styles from "./connect.module.css";
@@ -21,7 +25,7 @@ type State =
   | { phase: "parsing" }
   | { phase: "error"; message: string; install: boolean }
   | { phase: "review"; result: TranscriptReconcileResult }
-  | { phase: "saved"; count: number };
+  | { phase: "saved"; records: TranscriptCourseRecord[] };
 const MYUNT_LINK =
   "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL";
 export function ConnectSheet() {
@@ -36,7 +40,8 @@ export function ConnectSheet() {
 }
 
 function IdentityConnectSheet({ identityReady }: { identityReady: boolean }) {
-  const { applyTranscriptRecords, hydrated } = usePlanner();
+  const { applyTranscriptRecords, hydrated, plannerState, conflict } =
+    usePlanner();
   const [state, setState] = useState<State>({ phase: "permission" });
   const [consent, setConsent] = useState(false);
   const [included, setIncluded] = useState<Set<string>>(new Set());
@@ -142,13 +147,25 @@ function IdentityConnectSheet({ identityReady }: { identityReady: boolean }) {
   function save() {
     if (!selected.length || !identityReady || !hydrated) return;
     applyTranscriptRecords(selected);
-    setState({ phase: "saved", count: selected.length });
+    setState({ phase: "saved", records: selected });
+  }
+  const missingRecords =
+    state.phase === "saved"
+      ? missingApprovedRecords(state.records, plannerState.transcriptRecords)
+      : [];
+  function reapply() {
+    if (!missingRecords.length || !identityReady || !hydrated || conflict)
+      return;
+    applyTranscriptRecords(missingRecords);
+    heading.current?.focus();
   }
   const title =
     state.phase === "review"
       ? "Review your courses"
       : state.phase === "saved"
-        ? "Your courses are ready"
+        ? missingRecords.length
+          ? "Review your import"
+          : "Your courses are ready"
         : "Connect myUNT";
   return (
     <main className={styles.page}>
@@ -377,7 +394,12 @@ function IdentityConnectSheet({ identityReady }: { identityReady: boolean }) {
             </>
           )}
           {state.phase === "saved" && (
-            <ConnectPersistence count={state.count} />
+            <ConnectPersistence
+              records={state.records}
+              missingRecords={missingRecords}
+              canReapply={identityReady && hydrated && !conflict}
+              onReapply={reapply}
+            />
           )}
           <div
             className={styles.upload}

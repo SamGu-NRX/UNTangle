@@ -659,6 +659,72 @@ test("account save persists the approved record and conflict recovery chooses a 
     expect(account.state?.transcriptRecords.map((row) => row.code)).toEqual([
       "CSCE 1030",
     ]);
+    await expect(
+      page.getByRole("status", { name: "Transcript import", exact: true }),
+    ).toHaveText("1 course added to your plan.");
+    await expect(
+      page.getByRole("button", { name: "Re-apply approved courses" }),
+    ).toHaveCount(0);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("using the newer version discards the import and offers to re-apply the approved batch", async () => {
+  const ctx = await context(false);
+  try {
+    const account = await accountFixture(ctx);
+    const page = await ctx.newPage();
+    await page.goto("http://127.0.0.1:3000/connect");
+    await upload(page);
+    account.failNext("conflict");
+    await saveOne(page);
+    await expect(
+      page.getByRole("alertdialog", { name: "Unsaved changes conflict" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Use the newer version" }).click();
+    await expect(
+      page.getByRole("alertdialog", { name: "Unsaved changes conflict" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("status", { name: "Transcript import", exact: true }),
+    ).toHaveText("Your transcript import was discarded from this plan.");
+    await expect(
+      page.getByText("1 course added to your plan.", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Review your import" }),
+    ).toBeVisible();
+    expect(account.posts.map((post) => post.status)).toEqual([409]);
+    expect(account.state?.transcriptRecords).toEqual([]);
+    await shot(page, "import-discarded-mobile");
+    await page
+      .getByRole("button", { name: "Re-apply approved courses" })
+      .focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("status", { name: "Save state" }),
+    ).toContainText("Saved");
+    await expect(
+      page.getByRole("status", { name: "Transcript import", exact: true }),
+    ).toHaveText("1 course added to your plan.");
+    await expect(
+      page.getByRole("button", { name: "Re-apply approved courses" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Your courses are ready" }),
+    ).toBeFocused();
+    expect(account.posts.map((post) => post.status)).toEqual([409, 200]);
+    expect(account.posts[1].base).toBe("1");
+    expect(account.state?.optimization).toBe("clusterNight");
+    expect(account.state?.transcriptRecords.map((row) => row.code)).toEqual([
+      "CSCE 1030",
+    ]);
+    await shot(page, "import-reapplied-mobile");
+    await writeFile(
+      resolve(root, "extension/test-results/newer-version-video.txt"),
+      await page.video()!.path(),
+    );
   } finally {
     await ctx.close();
   }
