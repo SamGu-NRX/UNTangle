@@ -12,6 +12,7 @@ import {
 } from "@/lib/campus-locations";
 import {
   classNumbersOf,
+  findOption,
   hasOpenSeats,
   isCandidate,
   otherSiteOf,
@@ -393,11 +394,15 @@ export function heldOutCourses(
 /**
  * The optimizer request for a plan. `courseCodes` defaults to the courses
  * marked Taking; a course-suggestion step can pass its own list instead.
- * Courses `heldOutCourses` names are left out, and so are courses with no
- * option it may suggest; their credits still count toward the credit limit
- * (`fixedCredits`), except a course not offered this term. Locks come from
- * the plan; excluded sections that no longer exist in the catalog are
- * dropped rather than rejected.
+ * A course `heldOutCourses` names keeps exactly its current section: it
+ * goes in as a locked one-option course, so its meetings count for
+ * conflicts, walking and days. The student's own pick ignores the
+ * suggestion filters, and an old sample lock brings the meetings Week shows
+ * for it. A held course with nothing timed to place (online, or a pick that
+ * no longer exists), and a course with no option to suggest, adds only its
+ * credits (`fixedCredits`); a course not offered this term adds nothing.
+ * Excluded sections that no longer exist in the catalog are dropped rather
+ * than rejected.
  */
 export function buildOptimizeRequest(
   state: PlannerState,
@@ -413,7 +418,16 @@ export function buildOptimizeRequest(
   const catalog = options.catalog ?? sampleCatalog;
   const codes = options.courseCodes ?? getPlanningTermCourseCodes(state);
   const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes).map((course) => course.code));
-  const optimizerCourses = toOptimizerCourses(codes, catalog, preferences.constraints).filter((course) => !held.has(course.code));
+  const keptAsIs = [...held].flatMap((code): OptCourse[] => {
+    const section = findOption(catalog, code, state.selectedSections[code]);
+    const fixed = section && toOptSection(section);
+    const course = getCourseByCode(code);
+    return fixed && course ? [{ code, credits: course.creditHours, sections: [fixed] }] : [];
+  });
+  const optimizerCourses = [
+    ...toOptimizerCourses(codes, catalog, preferences.constraints).filter((course) => !held.has(course.code)),
+    ...keptAsIs,
+  ];
   const searched = new Set(optimizerCourses.map((course) => course.code));
   const fixedCredits = codes
     .filter((code) => !searched.has(code))
@@ -425,12 +439,14 @@ export function buildOptimizeRequest(
   const offered = new Set(optimizerCourses.flatMap((course) => course.sections.map((section) => section.id)));
   const locked = getLockedSelections(state);
   const c = preferences.constraints;
+  const keptIds = new Set(keptAsIs.map((course) => course.sections[0].id));
   return {
     courses: optimizerCourses,
-    locks: Object.fromEntries(
-      optimizerCourses.filter((course) => offered.has(locked[course.code] ?? "")).map((course) => [course.code, locked[course.code]]),
-    ),
-    excluded: c.excludedSections.filter((id) => offered.has(id)),
+    locks: Object.fromEntries([
+      ...optimizerCourses.filter((course) => offered.has(locked[course.code] ?? "")).map((course) => [course.code, locked[course.code]]),
+      ...keptAsIs.map((course) => [course.code, course.sections[0].id]),
+    ]),
+    excluded: c.excludedSections.filter((id) => offered.has(id) && !keptIds.has(id)),
     constraints: {
       earliestStart: c.earliestStart,
       latestEnd: c.latestEnd,

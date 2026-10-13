@@ -8,6 +8,7 @@
 import { describe, expect, test } from "bun:test";
 import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { canApply, IDLE, requestKey, runReducer } from "@/components/schedule/run-state";
+import { firstClash } from "@/components/schedule/week-model";
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
 import { buildPlanIcs, needsTermDates } from "@/lib/planner-ics";
@@ -34,6 +35,7 @@ import {
   otherSiteOf,
   optionsConflict,
   scheduleEventsOf,
+  findOption,
   sectionRef,
   termDates,
   toOptSection,
@@ -295,7 +297,13 @@ describe("which options the optimizer suggests", () => {
     expect(hiddenOptions(plan, filter())).toEqual({ sites: new Map([["Frisco", 1]]), full: 0 });
     // A pick made by hand at another site stays: Optimize leaves the course alone.
     const picked = plan_(["SPAN 2040", "MATH 1680"], { "SPAN 2040": frisco.id });
-    expect(buildOptimizeRequest(picked, defaultSchedulePreferences("compact"), { catalog }).courses.map((c) => c.code)).toEqual(["MATH 1680"]);
+    // It still takes its time slot in the search, as a locked one-option course.
+    const request = buildOptimizeRequest(picked, defaultSchedulePreferences("compact"), { catalog });
+    expect(request.courses.map((c) => [c.code, c.sections.map((section) => section.id)])).toEqual([
+      ["MATH 1680", [optionsOf(catalog, "MATH 1680")[0].id]],
+      ["SPAN 2040", [frisco.id]],
+    ]);
+    expect(request.locks).toEqual({ "SPAN 2040": frisco.id });
   });
 
   test("Open seats only leaves out closed, wait-listed and full-component options", () => {
@@ -439,15 +447,99 @@ describe("review findings on the planner side (Astra, 01eff64)", () => {
   test("a lock on an old sample section is held out of the search and named, not dropped", () => {
     const locked = { "MATH 1680": "math-1680-002" };
     const state = plan_(["MATH 1680", "MATH 1710"], locked);
-    const withLock = { ...state, lockedSections: locked };
     const catalog = fixtureCatalog();
-    expect(heldOutCourses(withLock, catalog, filter())).toEqual([{ code: "MATH 1680", reason: "lock-unavailable" }]);
-    const request = buildOptimizeRequest(withLock, defaultSchedulePreferences("compact"), { catalog });
-    expect(request.courses.map((course) => course.code)).toEqual(["MATH 1710"]);
-    // Every option keeps the locked course where it is, so applying one is never refused for moving it.
-    const result = optimize(request);
-    expect(result.schedules.every((schedule) => canApply({ ...IDLE, id: 1, inputKey: "k", resultKey: "k", status: "done", result }, "k", schedule, locked).ok)).toBe(true);
+    expect(heldOutCourses({ ...state, lockedSections: locked }, catalog, filter())).toEqual([{ code: "MATH 1680", reason: "lock-unavailable" }]);
     // Unlocked, the old sample is replaced by a real option like any other pick.
     expect(heldOutCourses(state, catalog, filter())).toEqual([]);
+  });
+
+  /** Every row and meeting line of a fixture row moved to one weekly slot. */
+  const retime = (row: { linked_sections: Line[]; meetings: Line[] }, days: string, start: string, end: string) =>
+    [...row.linked_sections, ...row.meetings].forEach((line) => Object.assign(line, { days, start_time: start, end_time: end }));
+  type Line = { days: string; start_time: string; end_time: string };
+
+  /** Applies each returned option the way Week does and checks the merged plan, as canApply now does too. */
+  function appliedPlansAreFeasible(picks: Record<string, string>, locks: Record<string, string>, catalog: ReturnType<typeof fixtureCatalog>, openSeatsOnly: boolean) {
+    const state = { ...plan_(Object.keys(picks).concat("SPAN 2050"), picks), lockedSections: locks };
+    const prefs = defaultSchedulePreferences("compact");
+    const request = buildOptimizeRequest(state, { ...prefs, constraints: { ...prefs.constraints, openSeatsOnly } }, { catalog });
+    const result = optimize(request);
+    const find = (code: string, id: string) => findOption(catalog, code, id) ?? undefined;
+    const shown = { ...IDLE, id: 1, inputKey: "k", resultKey: "k", status: "done" as const, result };
+    return result.schedules.map((schedule) => ({
+      clash: firstClash({ ...picks, ...schedule.byCourse }, find),
+      applicable: canApply(shown, "k", schedule, locks, (merged) => firstClash(merged, find), picks).ok,
+    }));
+  }
+
+  /** SPAN 2050: a full-term option in GAB 511 at `slot`, and one on Tuesday and Thursday at 1:00 PM. */
+  function span2050(input: ReturnType<typeof fixtureInput>, slot: [string, string, string]) {
+    const option = (number: string, days: string, start: string, end: string) => {
+      const row = structuredClone(input.courses["ACCT 5120"].sections[0]);
+      renumber(row, [number]);
+      setDates(row, "01/11/2027 - 05/07/2027");
+      row.session = "Regular Academic Session";
+      [...row.linked_sections, ...row.meetings].forEach((line) => (line.room = "Gab 511"));
+      retime(row, days, start, end);
+      return row;
+    };
+    (input.courses as Record<string, unknown>)["SPAN 2050"] = {
+      ...structuredClone(input.courses["ACCT 5120"]),
+      course_code: "SPAN 2050",
+      sections: [option("7100", ...slot), option("7200", "TR", "1:00PM", "2:20PM")],
+    };
+  }
+
+  test("a closed pick kept under Open seats only still blocks its time slot", () => {
+    const input = fixtureInput();
+    courseAs(input, "MATH 1680", "SPAN 2040", (row) => (row.status = "Closed"));
+    span2050(input, ["TR", "9:35AM", "10:55AM"]);
+    const catalog = fixtureCatalog(input);
+    const closed = optionsOf(catalog, "SPAN 2040")[0];
+    expect(closed.status).toBe("closed");
+    const outcomes = appliedPlansAreFeasible({ "SPAN 2040": closed.id }, {}, catalog, true);
+    // Before the fix the search saw only SPAN 2050, and its same-slot option came back applicable.
+    expect(outcomes.length).toBeGreaterThan(0);
+    expect(outcomes).toEqual(outcomes.map(() => ({ clash: null, applicable: true })));
+  });
+
+  test("an old sample lock still blocks the slot Week shows for it", () => {
+    const input = fixtureInput();
+    // math-1680-002 meets MWF 2:00-2:50 PM.
+    span2050(input, ["MWF", "2:00PM", "2:50PM"]);
+    const catalog = fixtureCatalog(input);
+    const locked = { "MATH 1680": "math-1680-002" };
+    const outcomes = appliedPlansAreFeasible(locked, locked, catalog, false);
+    expect(outcomes.length).toBeGreaterThan(0);
+    expect(outcomes).toEqual(outcomes.map(() => ({ clash: null, applicable: true })));
+  });
+
+  test("canApply refuses an option whose merged plan clashes", () => {
+    const catalog = fixtureCatalog();
+    const [math] = optionsOf(catalog, "MATH 1680");
+    const result = optimize(buildOptimizeRequest(plan_(["MATH 1680"]), defaultSchedulePreferences("compact"), { catalog }));
+    const shown = { ...IDLE, id: 1, inputKey: "k", resultKey: "k", status: "done" as const, result };
+    // The plan already holds a SPAN 2040 pick at MATH 1680's times.
+    const current = { "SPAN 2040": math.id.replace("MATH 1680", "SPAN 2040") };
+    const find = (code: string, id: string) => (code === "SPAN 2040" ? { ...math, courseCode: "SPAN 2040" } : findOption(catalog, code, id) ?? undefined);
+    const check = canApply(shown, "k", result.schedules[0], {}, (merged) => firstClash(merged, find), current);
+    expect(check).toEqual({ ok: false, reason: "This option would make SPAN 2040 and MATH 1680 overlap. Optimize again, or pick a section by hand." });
+  });
+});
+
+describe("walking per session (Astra, 4691089)", () => {
+  test("a full-term class followed by a first-half and a second-half class has a walk to each", () => {
+    const at = (buildingId: string, start: string, dates: { start: string; end: string }) => ({ day: "Mon" as const, start, buildingId, dates });
+    const events = [
+      at("a", "09:00", { start: "2027-01-11", end: "2027-05-07" }),
+      at("b", "10:00", { start: "2027-01-11", end: "2027-03-05" }),
+      at("c", "10:00", { start: "2027-03-15", end: "2027-05-07" }),
+    ];
+    const seconds: Record<string, number> = { "a>b": 60, "a>c": 600 };
+    const summary = summarizeWeeklyWalking(events, (from, to) =>
+      seconds[`${from}>${to}`] === undefined ? { seconds: null, source: "unknown" } : { seconds: seconds[`${from}>${to}`], source: "campus-network" },
+    );
+    // Adjacent entries alone gave 1 leg of 60 s.
+    expect(summary).toMatchObject({ knownLegs: 2, knownSeconds: 660, unknownLegs: 0 });
   });
 });

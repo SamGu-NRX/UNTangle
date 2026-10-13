@@ -1,4 +1,4 @@
-import { isTimed, meetTogether, rangeLabel } from "@/lib/planner-sections";
+import { backToBackPairs, isTimed, meetTogether, optionsConflict, rangeLabel } from "@/lib/planner-sections";
 import { isShuttleLeg } from "@/lib/planner-walking";
 import type { Section } from "@/lib/sections";
 import type { DateRange } from "@/lib/sections/model";
@@ -52,16 +52,23 @@ export function eventsFor(byCourse: Record<string, string>, find: FindOption): W
   });
 }
 
-/** Back-to-back trips between main campus and Discovery Park (shuttle rides), counting only classes that meet in the same weeks. */
-export function shuttleTrips(events: readonly WeekEvent[]): number {
-  let trips = 0;
-  for (const day of classDays) {
-    const list = events.filter((event) => event.day === day).sort((a, b) => a.start - b.start);
-    for (let i = 1; i < list.length; i += 1) {
-      if (meetTogether(day, list[i - 1].dates, list[i].dates) && isShuttleLeg(list[i - 1].buildingId, list[i].buildingId)) trips += 1;
+/** The first two courses whose options overlap in `byCourse`, or null when none do. */
+export function firstClash(byCourse: Record<string, string>, find: FindOption): [string, string] | null {
+  const sections = Object.entries(byCourse).flatMap(([code, id]) => {
+    const section = find(code, id);
+    return section ? [section] : [];
+  });
+  for (let i = 0; i < sections.length; i += 1) {
+    for (let j = i + 1; j < sections.length; j += 1) {
+      if (optionsConflict(sections[i], sections[j])) return [sections[i].courseCode, sections[j].courseCode];
     }
   }
-  return trips;
+  return null;
+}
+
+/** Back-to-back trips between main campus and Discovery Park (shuttle rides), counting only classes that meet in the same weeks. */
+export function shuttleTrips(events: readonly WeekEvent[]): number {
+  return backToBackPairs(events).filter(([from, to]) => isShuttleLeg(from.buildingId, to.buildingId)).length;
 }
 
 /** Mon-Fri, plus a weekend day only when some class meets on it. */

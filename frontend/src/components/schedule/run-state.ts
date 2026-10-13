@@ -85,6 +85,13 @@ export function canApply(
   currentKey: string,
   schedule: RankedSchedule,
   locks: Record<string, string>,
+  /**
+   * The plan's picks after applying the option, checked once more for a
+   * clash (two course codes that would overlap), in case the search could
+   * not see a section. Null when nothing clashes.
+   */
+  clashAfter: (merged: Record<string, string>) => [string, string] | null = () => null,
+  current: Record<string, string> = {},
 ): { ok: true } | { ok: false; reason: string } {
   if (state.result === null || isStale(state, currentKey)) {
     return { ok: false, reason: "Your settings changed after these were found. Optimize again to get options for them." };
@@ -93,6 +100,10 @@ export function canApply(
     if (code in schedule.byCourse && schedule.byCourse[code] !== sectionId) {
       return { ok: false, reason: `This option moves your locked ${code}. Optimize again to keep it.` };
     }
+  }
+  const clash = clashAfter({ ...current, ...schedule.byCourse });
+  if (clash) {
+    return { ok: false, reason: `This option would make ${clash[0]} and ${clash[1]} overlap. Optimize again, or pick a section by hand.` };
   }
   return { ok: true };
 }

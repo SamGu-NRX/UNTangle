@@ -137,6 +137,45 @@ export function meetTogether(day: Day, a: MaybeRange, b: MaybeRange): boolean {
   return start + offset * DAY_MS <= end;
 }
 
+/**
+ * Back-to-back pairs of classes, counted the way the optimizer counts them:
+ * on every date a class runs, the classes that day in time order, each
+ * consecutive pair once however many dates it recurs on. With a full-term
+ * class at 9:00 and first- and second-half classes at 10:00, both 10:00
+ * classes follow the 9:00 one, in their own weeks. `start` is minutes.
+ */
+export function backToBackPairs<T extends { day: Day; start: number; dates?: MaybeRange }>(events: readonly T[]): Array<[T, T]> {
+  const term = termDates[planningTerm.id];
+  const rangeOf = (event: T) => (event.dates && knownRange(event.dates)) ?? term;
+  const ordered = [...events].sort((a, b) => a.start - b.start);
+  // Every class on the same dates (the usual case): consecutive classes per day, no calendar walk.
+  if (new Set(events.map((event) => `${rangeOf(event).start}/${rangeOf(event).end}`)).size <= 1) {
+    return [...new Set(events.map((event) => event.day))].flatMap((day) => {
+      const that = ordered.filter((event) => event.day === day);
+      return that.slice(1).map((event, i): [T, T] => [that[i], event]);
+    });
+  }
+  const days = (event: T): Set<number> => {
+    const range = rangeOf(event);
+    const first = Date.parse(`${range.start}T00:00:00Z`);
+    const last = Date.parse(`${range.end}T00:00:00Z`);
+    const dates = new Set<number>();
+    for (let date = first + ((weekdayIndex[event.day] - new Date(first).getUTCDay() + 7) % 7) * DAY_MS; date <= last; date += 7 * DAY_MS) {
+      dates.add(date);
+    }
+    return dates;
+  };
+  const runs = new Map(events.map((event) => [event, days(event)] as const));
+  const pairs = new Map<string, [T, T]>();
+  for (const date of new Set(events.flatMap((event) => [...runs.get(event)!]))) {
+    for (const day of new Set(events.map((event) => event.day))) {
+      const that = ordered.filter((event) => event.day === day && runs.get(event)!.has(date));
+      for (let i = 1; i < that.length; i += 1) pairs.set(`${events.indexOf(that[i - 1])}>${events.indexOf(that[i])}`, [that[i - 1], that[i]]);
+    }
+  }
+  return [...pairs.values()];
+}
+
 /** Same day, overlapping times, overlapping dates. TBA and async meetings never conflict. */
 export function meetingsConflict(a: Meeting, b: Meeting): boolean {
   return (

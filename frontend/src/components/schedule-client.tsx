@@ -23,6 +23,7 @@ import { useMediaQuery, useOptimizerRuns } from "@/components/schedule/use-optim
 import {
   clock,
   eventsFor,
+  firstClash,
   movedCourses,
   patternOf,
   type FindOption,
@@ -227,7 +228,7 @@ export function ScheduleClient() {
 
   const pickSchedule = (schedule: RankedSchedule, letter: string) => {
     // Checked again here: the button may have drawn before the settings changed.
-    const check = canApply(run, inputKey, schedule, locks);
+    const check = canApply(run, inputKey, schedule, locks, (merged) => firstClash(merged, find), selected);
     if (!check.ok) {
       setPickProblem(check.reason);
       return;

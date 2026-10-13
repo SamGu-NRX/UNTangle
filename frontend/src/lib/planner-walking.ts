@@ -1,6 +1,6 @@
 import { getWalkingSeconds } from "@/lib/campus/walking-times";
 import { resolveCampusBuilding } from "@/lib/campus-locations";
-import { DISCOVERY_PARK_ID, meetTogether } from "@/lib/planner-sections";
+import { backToBackPairs, DISCOVERY_PARK_ID } from "@/lib/planner-sections";
 import { buildings } from "@/lib/seed-data";
 import type { CampusBuilding, ScheduleEvent } from "@/lib/types";
 
@@ -104,38 +104,31 @@ function toMinutes(value: string) {
 type WalkEvent = Pick<ScheduleEvent, "day" | "start" | "buildingId"> & Partial<Pick<ScheduleEvent, "dates">>;
 
 /**
- * Walking between consecutive classes on each day of the week. Two classes
- * that never meet in the same week (first and second eight-week sessions)
- * are not a walk.
+ * Walking between back-to-back classes (`backToBackPairs`): two classes that
+ * never meet on the same date are not a walk, and a class followed by
+ * different classes in different weeks has a walk to each.
  */
 export function summarizeWeeklyWalking(
   events: ReadonlyArray<WalkEvent>,
   walkingTime: WalkingTimeFn = defaultWalkingTime,
 ): WalkingSummary {
   const summary: WalkingSummary = { knownSeconds: 0, knownLegs: 0, unknownLegs: 0, shuttleLegs: 0, estimated: false };
-  const byDay = new Map<string, WalkEvent[]>();
-  events.forEach((event) => {
-    byDay.set(event.day, [...(byDay.get(event.day) ?? []), event]);
-  });
-  byDay.forEach((dayEvents) => {
-    const ordered = [...dayEvents].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-    for (let index = 1; index < ordered.length; index += 1) {
-      if (!meetTogether(ordered[index].day, ordered[index - 1].dates, ordered[index].dates)) continue;
-      if (isShuttleLeg(ordered[index - 1].buildingId, ordered[index].buildingId)) {
-        summary.shuttleLegs += 1;
-        continue;
-      }
-      const leg = walkingTime(ordered[index - 1].buildingId ?? "", ordered[index].buildingId ?? "");
-      if (leg.source === "unknown") {
-        summary.unknownLegs += 1;
-        continue;
-      }
-      summary.knownSeconds += leg.seconds;
-      summary.knownLegs += 1;
-      if (leg.source === "straight-line") {
-        summary.estimated = true;
-      }
+  const timed = events.map((event) => ({ ...event, start: toMinutes(event.start) }));
+  for (const [from, to] of backToBackPairs(timed)) {
+    if (isShuttleLeg(from.buildingId, to.buildingId)) {
+      summary.shuttleLegs += 1;
+      continue;
     }
-  });
+    const leg = walkingTime(from.buildingId ?? "", to.buildingId ?? "");
+    if (leg.source === "unknown") {
+      summary.unknownLegs += 1;
+      continue;
+    }
+    summary.knownSeconds += leg.seconds;
+    summary.knownLegs += 1;
+    if (leg.source === "straight-line") {
+      summary.estimated = true;
+    }
+  }
   return summary;
 }
