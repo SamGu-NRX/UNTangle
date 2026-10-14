@@ -28,12 +28,14 @@ export function candidatesFromHistory(history: CourseHistory): Candidate[] {
  * Joins one section to its course's grade history through the abstain-first
  * matcher: the matched instructor's own sections within this course provide
  * every figure, so the result speaks only for the same instructor in the same
- * course. An abstention is a no-history state, never an inferred figure, and
- * figures wait for MIN_GRADED_SECTIONS graded sections.
+ * course. The join matches on the section's raw instructor field, so the
+ * matcher's damaged-name abstentions always apply; the display name is never
+ * used as a fallback. An abstention is a no-history state, never an inferred
+ * figure, and figures wait for MIN_GRADED_SECTIONS graded sections.
  */
 export function joinSectionToHistory(section: Pick<Section, "instructor">, history: CourseHistory | null): SectionGradeFacts {
   if (!history || history.sectionCount === 0) return { kind: "no-history", reason: "the course has no grade history" };
-  const match = matchInstructor(section.instructor.display ?? section.instructor.raw, candidatesFromHistory(history));
+  const match = matchInstructor(section.instructor.raw, candidatesFromHistory(history));
   if (match.candidateId === null) return { kind: "no-history", reason: match.reason };
   const rows = history.terms.flatMap((term) => term.sections).filter((row) => row.instructor.id === match.candidateId);
   const graded = rows.filter((row) => gradedEnrollments(row.counts) > 0);

@@ -91,6 +91,24 @@ describe("joinSectionToHistory", () => {
     expect(Object.keys(result).sort()).toEqual(["kind", "reason"]);
   });
 
+  test("a damaged raw field abstains even when the display name is clean", () => {
+    const john = identity("John", "Smith");
+    const johnRows = [
+      historySection("1008", john, { A: 3, B: 1 }),
+      historySection("1009", john, { A: 2, B: 2 }),
+      historySection("1010", john, { A: 1, B: 1 }),
+    ];
+    const johnHistory = courseHistory("TEST 101", [historyTerm("2025", "spring", johnRows)]);
+    // The raw field carries damaged separators, so the matcher must abstain on
+    // it; the clean display name must never resurrect the match or its figures.
+    const result = joinSectionToHistory({ instructor: { display: "John Smith", raw: "Smith,,John" } }, johnHistory);
+    expect(result.kind).toBe("no-history");
+    expect(Object.keys(result).sort()).toEqual(["kind", "reason"]);
+    expect("avgGpa" in result).toBe(false);
+    expect("abShare" in result).toBe(false);
+    expect(result).toMatchObject({ reason: "section instructor field is unparseable" });
+  });
+
   test("a team-taught field with several qualifying instructors abstains", () => {
     const result = joinSectionToHistory({ instructor: { display: "Jane Smith; Bob Lee", raw: "Jane Smith; Bob Lee" } }, full);
     expect(result.kind).toBe("no-history");
