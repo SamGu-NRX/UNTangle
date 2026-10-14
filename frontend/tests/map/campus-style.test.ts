@@ -26,6 +26,22 @@ describe("campus map style", () => {
     expect(ids(style)).toContain(LABEL_ANCHOR_LAYER);
   });
 
+  test("campuses without detail keep basemap parking, while detail replaces it", () => {
+    const fallback = campusMapStyle(utAustin);
+    expect(fallback.layers.find((layer) => layer.id === "parking")).toMatchObject({
+      type: "fill",
+      source: "openmaptiles",
+      "source-layer": "landuse",
+      minzoom: 14,
+      filter: ["==", ["get", "class"], "parking"],
+      paint: { "fill-color": "#e2e1dd" },
+    });
+    expect(ids(fallback).indexOf("parking")).toBeLessThan(ids(fallback).indexOf("road-surface"));
+    const detailed = campusMapStyle(untDenton);
+    expect(ids(detailed)).toContain("detail-parking");
+    expect(ids(detailed)).not.toContain("parking");
+  });
+
   test("layer ids are unique", () => {
     for (const campus of [untDenton, utAustin]) {
       const layers = ids(campusMapStyle(campus));

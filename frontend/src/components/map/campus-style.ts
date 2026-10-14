@@ -147,6 +147,17 @@ const ground: LayerSpecification[] = [
   },
 ];
 
+// Campuses without mapDetail still need the tiles' parking lots.
+const tileParking: LayerSpecification = {
+  id: "parking",
+  type: "fill",
+  source: "openmaptiles",
+  "source-layer": "landuse",
+  minzoom: 14,
+  filter: ["==", ["get", "class"], "parking"],
+  paint: { "fill-color": "#e2e1dd" },
+};
+
 const roads: LayerSpecification[] = [
   {
     id: "road-casing",
@@ -545,7 +556,7 @@ export function campusMapStyle(campus: CampusConfig): StyleSpecification {
   }
   const layers: LayerSpecification[] = detail
     ? [...ground, ...detailGround(), ...roads, tileFootprints, ...detailBuildings(), ...basemapLabels, ...detailLabels()]
-    : [...ground, ...roads, tileFootprints, tileExtrusions, registryLabelLayer, ...basemapLabels];
+    : [...ground, tileParking, ...roads, tileFootprints, tileExtrusions, registryLabelLayer, ...basemapLabels];
   return {
     version: 8,
     name: `${campus.shortName} campus light`,
