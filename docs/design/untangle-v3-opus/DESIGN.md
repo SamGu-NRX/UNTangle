@@ -180,7 +180,7 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 - **Changed by the sign-in decision** ([`../untangle-v3.md`](../untangle-v3.md#decisions-taken-defaults-until-sam-says-otherwise): magic link first, password second). The mockup follows the shipped `/auth` (`components/auth-client.tsx`) in three views, swapped in place with focus moved to the new heading:
   - **Link** (the default): "Sign in", "Keep your schedules on every device. What you made as a guest comes with you. We'll email you a sign-in link. No password needed.", UNT email (`autocomplete=email`, `inputmode=email`, no autocapitalize), a full-width **Email me a sign-in link**, and "Use a password instead".
   - **Sent**: "Check your UNT email", the address, "It works once and expires in 5 minutes.", Resend link, "Use a different email" and "Use a password instead".
-  - **Password**: "Sign in with a password", UNT email (`autocomplete=username`), Password (`current-password`, Show, Forgot it?), **Sign in**, and "Email me a link instead".
+  - **Password**: "Sign in with a password", UNT email (`autocomplete=email`, matching the shipped `/auth`), Password (`current-password`, Show, Forgot it?), **Sign in**, and "Email me a link instead".
 - There is no separate create-account mode: the first link creates the account. Every view ends with "You can use UNTangle without an account. Signing in only syncs."
 - Errors sit under the field in danger text and are tied to it with `aria-describedby` ("Use a UNT email address ending in @unt.edu or @my.unt.edu.", "That password doesn't match this email. Try again, or reset it."). No social buttons.
 

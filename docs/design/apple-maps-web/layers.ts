@@ -203,7 +203,7 @@ export function addCampusOverlays(map: MapLibreMap, data: OverlayData): void {
   }
   addChevron(map);
   // MapLibre keeps only numeric feature ids: a string id such as "gab" reaches
-  // queryRenderedFeatures and feature-state as 0. Copy each id into a `key`
+  // queryRenderedFeatures and feature-state as undefined. Copy each id into a `key`
   // property and promote it, so string and numeric ids both address their feature.
   map.addSource(SOURCES.routes, { type: "geojson", data: withKeys(data.routes), lineMetrics: false, promoteId: "key" });
   map.addSource(SOURCES.stops, { type: "geojson", data: withKeys(data.stops), promoteId: "key" });

@@ -159,6 +159,14 @@ export type UndoSnapshot = {
   after: string;
 };
 
+export function undoSnapshotForPick(before: Omit<UndoSnapshot, "after">, byCourse: Record<string, string>): UndoSnapshot {
+  return {
+    ...before,
+    sections: { ...before.sections },
+    after: sectionsKey({ ...before.sections, ...byCourse }),
+  };
+}
+
 /**
  * Undo is offered only while the plan is still the one the pick changed:
  * replacing the plan (a restore, a conflict resolution, a reset, another

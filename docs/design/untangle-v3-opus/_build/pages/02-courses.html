@@ -400,7 +400,7 @@ function detailHTML(code) {
     <p class="meta" style="margin-bottom:8px">Your Spring 2027 week. Point at a section to see where it lands.</p>
     ${secs.map((x) => `<div class="sect" data-sec='${JSON.stringify({ days: x.days, s: x.s, e: x.e, bad: !!x.conflict })}'>
       ${planned.get(code)?.sec === `§${x.n}`
-        ? `<button class="add on" aria-label="Section ${x.n} is in Spring 2027" data-addsec="${code}|${x.n}">${icon("check")}</button>`
+        ? `<button class="add on" aria-disabled="true" aria-label="Section ${x.n} is in Spring 2027" data-addsec="${code}|${x.n}">${icon("check")}</button>`
         : `<button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}${x.conflict ? ", it overlaps MATH 2700" : ""}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>`}
       <div><div class="l1"><span class="code">§${x.n}</span>${x.d}</div><div class="l2"><span>${x.who}</span><span class="star">${icon("star")}${x.r}</span>${x.b ? `<span class="plate"><b>${x.b[0]}</b>${x.b[1]}</span>` : ""}</div>${x.conflict ? `<div class="conflict">${x.conflict}</div>` : ""}</div>
       <span class="seats ${x.full ? "full" : ""}">${x.seats}</span></div>`).join("")}

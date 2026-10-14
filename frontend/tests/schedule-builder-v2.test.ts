@@ -32,6 +32,7 @@ import {
   runReducer,
   sectionsKey,
   undoAvailable,
+  undoSnapshotForPick,
   type RunState,
 } from "@/components/schedule/run-state";
 import { getWalkingSeconds } from "@/lib/campus/walking-times";
@@ -360,6 +361,16 @@ describe("Sol 3: Undo restores what the pick changed, and only while the plan is
   });
   test("key order of the section map does not matter", () => {
     expect(undoAvailable(snapshot, 4, locksKey({}), sectionsKey({ C: "c1", A: "a2" }))).toBe(true);
+  });
+  test("the snapshot built for a pick tracks stored picks without displayed recommendations", () => {
+    const own = { A: "a1" };
+    const picked = undoSnapshotForPick({ sections: own, goal: "clusterNight", letter: "B", epoch: 4, locks: locksKey({}) }, { A: "a2" });
+    expect(picked.sections).toEqual({ A: "a1" });
+    expect(picked.after).toBe('[["A","a2"]]');
+    own.A = "a3";
+    expect(picked.sections).toEqual({ A: "a1" });
+    expect(undoAvailable(picked, 4, locksKey({}), sectionsKey({ A: "a2" }))).toBe(true);
+    expect(undoAvailable(picked, 4, locksKey({}), sectionsKey({ A: "a2", C: "c2" }))).toBe(false);
   });
 });
 

@@ -570,12 +570,12 @@ let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
   const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.inert = false;
   t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
   if (action) {
     t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
     t.querySelector(".toast-x").onclick = hide;
   }
-  t.inert = false;
   requestAnimationFrame(() => t.classList.add("on"));
   clearTimeout(toastTimer);
   if (!action) toastTimer = setTimeout(hide, 5000);
@@ -599,7 +599,7 @@ addEventListener("pointerdown", () => (viaKeyboard = false), true);
 const esc = (v) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 function emailField(sfx, err) {
-  return `<div class="field"><label for="em-${sfx}">UNT email</label><input class="input" id="em-${sfx}" type="email" inputmode="email" autocomplete="${view === "password" ? "username" : "email"}" autocapitalize="none" spellcheck="false" placeholder="eagleid@my.unt.edu" value="${esc(email)}"${err ? ` aria-invalid="true" aria-describedby="eh-${sfx}"` : ""}>
+  return `<div class="field"><label for="em-${sfx}">UNT email</label><input class="input" id="em-${sfx}" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="eagleid@my.unt.edu" value="${esc(email)}"${err ? ` aria-invalid="true" aria-describedby="eh-${sfx}"` : ""}>
     ${err ? `<p class="help err" id="eh-${sfx}">${err}</p>` : ""}</div>`;
 }
 function formHTML(sfx) {
@@ -676,7 +676,7 @@ $("#scrim").onclick = close;
 render();
 const first = () => $(view === "sent" ? "[data-resend]" : "input[type=email]", host());
 if (PHONE.matches) sheet.open(0); else { requestAnimationFrame(() => requestAnimationFrame(() => $("#dlg").classList.add("on"))); modalOpen($(".dialog-wrap"), first()); }
-if (st === "loading") { const f = $("[data-form]", host()); busy($("[data-submit]", f), "Signing in"); }
+if (st === "loading") { const f = $("[data-form]", host()); busy($("[data-submit]", f), view === "link" ? "Sending" : "Signing in"); }
 </script>
 </body>
 </html>

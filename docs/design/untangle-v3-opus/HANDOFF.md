@@ -34,12 +34,12 @@ Before slice 3, the lead decides DESIGN.md §12 items 1 to 3 (landing on Day, th
 
 ## 3. App shell and routes
 
-**Owns:** `components/shell/**`, `app/page.tsx`, `app/day/page.tsx` (new), `app/schedules/page.tsx` (new), redirects from `app/map` and `app/plans`, new `lib/brand.ts`.
+**Owns:** `components/shell/**`, `app/page.tsx`, `app/day/page.tsx` (new), `app/schedules/page.tsx` (new), redirects from `app/map` and `app/plans`.
 
 - TopBar with ViewTabs, SearchTrigger (which matches 5-digit class numbers), SchedulePill and Account. **Changed by rule 2:** the top bar is the only navigation. SchedulePill shows the term in a lighter weight and then the name, with no separator glyph, and opens a switcher (a popover on desktop, a sheet on phone) listing the term's schedules, New schedule, All schedules and compare, and Clear. No lens has its own schedule tabs. PhoneHeader (hidden on Day). TabBar with Courses, Week and Day.
 - Landing rule (DESIGN.md §3.2) in `home-entry.ts` / `routes.ts`. It is pure logic with one correct answer, so it gets strict tests for: in session with a class still ahead, in session with the day over, a weekend, no in-session schedule, and a first visit with no transcript.
 - Per-tab scroll and sheet state survive tab switches; re-tapping the current tab scrolls to the top.
-- **Changed by the decision page ("One app, branded by host"):** `lib/brand.ts` reads the hostname once and returns the host: `untangle` (untangleapp.vercel.app, and the default) or `vsb` (vsb.untgrades.app). It is the only place that branches on hostname. The shell takes the name, the account control and the term picker from it; slice 6 builds its `BuilderHost` from it. It has one correct answer, so it gets strict tests for both hostnames, an unknown host, and localhost.
+- #52 shipped slices 1–3 without `lib/brand.ts`; the shell does not read it yet. Slice 6 owns the host branding module, as the first slice that needs it for `BuilderHost`.
 
 **Accept:** `07-phone-navigation.html` behavior on a phone: instant tabs, preserved scroll, schedule sheet, back closes the sheet first. The desktop bar matches `screens/02-*-desk.png`. The tests pass.
 
@@ -79,7 +79,7 @@ Before slice 3, the lead decides DESIGN.md §12 items 1 to 3 (landing on Day, th
 
 ## 6. Schedule builder (both hosts)
 
-**Owns:** new `components/schedule-builder/**`, `app/schedule/page.tsx`, `app/schedule/print/page.tsx`, `lib/planner-ics.ts`, new `lib/export/class-numbers.ts`. It replaces `schedule-client.tsx`, `schedule-section-locks.tsx`, `planner-export-panel.tsx` and `schedule-print-view.tsx`. **Changed by the decision page:** there is no separate vsb app. Both hosts are this one deployment; `app/schedule/page.tsx` builds the `BuilderHost` (DESIGN.md §8.4) from slice 3's `lib/brand.ts`, with the local schedule store on vsb and the account-backed one on UNTangle.
+**Owns:** new `components/schedule-builder/**`, `app/schedule/page.tsx`, `app/schedule/print/page.tsx`, `lib/planner-ics.ts`, new `lib/export/class-numbers.ts`, new `lib/brand.ts`. It replaces `schedule-client.tsx`, `schedule-section-locks.tsx`, `planner-export-panel.tsx` and `schedule-print-view.tsx`. **Changed by the decision page:** there is no separate vsb app. Both hosts are this one deployment; `app/schedule/page.tsx` builds the `BuilderHost` (DESIGN.md §8.4) from this slice's `lib/brand.ts`, with the local schedule store on vsb and the account-backed one on UNTangle. The branding module reads the hostname once and returns `untangle` for untangleapp.vercel.app and the default, or `vsb` for vsb.untgrades.app. It is the only place that branches on hostname; strict tests cover both hostnames, an unknown host and localhost. The shell can then read its name, account control and term picker from the same module.
 
 - Nothing in `components/schedule-builder/**` imports UNTangle stores, the prereq engine or shell components. A lint rule or import test enforces it.
 - WeekGrid: events by department color, overlap groups side by side, walk chips (`walkMinutes` prop), busy blocks (drag to create), the No set time strip, dotted section options and drag-to-snap on fine pointers only, and a ghost preview from search. **Changed by rule 4:** events show the code and the time only (no building plate); the walk chip sits on a 2px line between the two classes, amber when tight and red when late.
@@ -126,7 +126,7 @@ Before slice 3, the lead decides DESIGN.md §12 items 1 to 3 (landing on Day, th
 - A dialog on desktop and a sheet on phone over the current route (`/auth` stays as a deep link). **Changed by the decision page (magic link first, password second):** the views are link, sent and password as in DESIGN.md §4.6, which is what `/auth` already ships (`components/auth-client.tsx`, `components/sign-in-link-form.tsx`). This slice moves that flow into the dialog and sheet; it does not rebuild it. There is no create-account mode; the first link creates the account. Errors sit under the field and are tied to it with `aria-describedby`.
 - Merging the guest's schedules into the account on first sign-in is stated in the copy, so it has to be true. Confirm the persistence layer does it before shipping.
 
-**Accept:** the 06 screens (link, sent and password, redrawn for this decision); `autocomplete` values as in DESIGN.md §4.6; a view change moves focus to its heading; Esc closes and focus returns to the Sign in trigger; the closed dialog is not tabbable.
+**Accept:** the 06 screens (link, sent and password, redrawn for this decision); `autocomplete=email` for the UNT email in both views and `current-password` for the password, as in the shipped `/auth`; a view change moves focus to its heading; Esc closes and focus returns to the Sign in trigger; the closed dialog is not tabbable.
 
 ## 10. Motion, agents and ship check
 

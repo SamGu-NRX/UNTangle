@@ -631,12 +631,12 @@ let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
   const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.inert = false;
   t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
   if (action) {
     t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
     t.querySelector(".toast-x").onclick = hide;
   }
-  t.inert = false;
   requestAnimationFrame(() => t.classList.add("on"));
   clearTimeout(toastTimer);
   if (!action) toastTimer = setTimeout(hide, 5000);

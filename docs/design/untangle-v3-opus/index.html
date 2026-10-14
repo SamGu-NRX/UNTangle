@@ -288,7 +288,7 @@ body { overflow-x: clip; }
     <li><a class="main" href="03-schedule-builder.html?host=vsb">UNT Schedule Builder, standalone (vsb v2)</a><div class="states"><a href="03-schedule-builder.html?host=vsb&state=empty">Empty</a><a href="03-schedule-builder.html?host=vsb&state=export">Export</a></div></li>
     <li><a class="main" href="04-day-map.html">Day: map, itinerary, leave-by</a><div class="states"><a href="04-day-map.html?now=0951&stop=2">Between classes</a><a href="04-day-map.html?now=1047&leg=CURY%3EPHYS">Tight walk</a><a href="04-day-map.html?now=1600">Done for today</a><a href="04-day-map.html?day=1">Tuesday</a><a href="04-day-map.html?day=4&today=4&now=0700">Friday morning</a></div></li>
     <li><a class="main" href="05-schedules-library.html">Schedules library</a><div class="states"><a href="05-schedules-library.html?state=detail">Schedule selected</a><a href="05-schedules-library.html?state=version">Version selected</a><a href="05-schedules-library.html?state=compare">Compare</a></div></li>
-    <li><a class="main" href="06-sign-in.html">Sign in</a><div class="states"><a href="06-sign-in.html?state=sent">Link sent</a><a href="06-sign-in.html?state=bademail">Bad email</a><a href="06-sign-in.html?state=password">Password</a><a href="06-sign-in.html?state=error">Wrong password</a><a href="06-sign-in.html?state=loading">Signing in</a></div></li>
+    <li><a class="main" href="06-sign-in.html">Sign in</a><div class="states"><a href="06-sign-in.html?state=sent">Link sent</a><a href="06-sign-in.html?state=bademail">Bad email</a><a href="06-sign-in.html?state=password">Password</a><a href="06-sign-in.html?state=error">Wrong password</a><a href="06-sign-in.html?state=loading">Sending link</a></div></li>
     <li><a class="main" href="07-phone-navigation.html">Phone navigation model</a><div class="states"><a href="07-phone-navigation.html?tab=week">Week tab</a><a href="07-phone-navigation.html?now=term">In-term landing (Day)</a><a href="07-phone-navigation.html?sheet=sched">Schedule sheet</a></div></li>
   </ol>
 </main>
@@ -559,12 +559,12 @@ let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
   const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.inert = false;
   t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
   if (action) {
     t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
     t.querySelector(".toast-x").onclick = hide;
   }
-  t.inert = false;
   requestAnimationFrame(() => t.classList.add("on"));
   clearTimeout(toastTimer);
   if (!action) toastTimer = setTimeout(hide, 5000);

@@ -17,6 +17,7 @@ import {
   requestKey,
   sectionsKey,
   undoAvailable,
+  undoSnapshotForPick,
   type UndoSnapshot,
 } from "@/components/schedule/run-state";
 import styles from "@/components/schedule/schedule.module.css";
@@ -106,6 +107,7 @@ function seatsNote(section: Section): string | null {
 export function ScheduleClient() {
   const {
     plannerState,
+    sectionPicks,
     sectionPlan,
     sectionCatalog,
     catalogVersion,
@@ -185,7 +187,7 @@ export function ScheduleClient() {
   );
   const inputKey = requestKey(request);
   const currentLocks = locksKey(locks);
-  const currentSections = sectionsKey(selected);
+  const currentSections = sectionsKey(sectionPicks);
   const stale = isStale(run, inputKey);
   const dirty = run.result === null || run.resultKey !== inputKey;
   const running = run.status === "running";
@@ -236,15 +238,13 @@ export function ScheduleClient() {
       return;
     }
     const moved = movedCourses(selected, schedule.byCourse, find);
-    setUndo({
-      sections: { ...selected },
+    setUndo(undoSnapshotForPick({
+      sections: sectionPicks,
       goal: plannerState.optimization,
       letter,
       epoch: planEpoch,
       locks: currentLocks,
-      // What applySchedule leaves in selectedSections; a hand pick after this changes it.
-      after: sectionsKey({ ...selected, ...schedule.byCourse }),
-    });
+    }, schedule.byCourse));
     applySchedule(schedule.byCourse, goalForWeights(schedulePreferences.weights));
     setPreview(null);
     setPickProblem(null);
