@@ -57,7 +57,7 @@ export function GradeChartCanvas({ grades, motion }: { grades: GradeData; motion
           <span className={styles.label}>{bar.grade}</span>
           {hover === bar.grade && motion !== "out" ? (
             <span className={styles.tip}>
-              {bar.grade} · {bar.count.toLocaleString()} · {bar.percent}%
+              {bar.count.toLocaleString()} students
             </span>
           ) : null}
         </div>

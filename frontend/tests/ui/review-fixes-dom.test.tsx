@@ -167,19 +167,40 @@ describe("Segmented", () => {
   });
 });
 
-describe("ViewSwitcher", () => {
+describe("ViewTabs", () => {
   test("a pending press does not resurface after Back", async () => {
-    const { ViewSwitcher } = await import("@/components/shell/ViewSwitcher");
-    const view = await mount(<ViewSwitcher view="courses" />);
+    const { ViewTabs } = await import("@/components/shell/ViewTabs");
+    const view = await mount(<ViewTabs lens="courses" />);
     const pill = () => view.container.querySelector<HTMLElement>(".ui-seg__pill")!.style.transform;
     const week = Array.from(view.container.querySelectorAll("a")).find((a) => a.textContent === "Week")!;
     // Pressing Week moves the pill at once; stop the anchor's own navigation.
     week.addEventListener("click", (event) => event.preventDefault());
     await click(week);
     expect(pill()).toBe("translateX(100%)");
-    await view.rerender(<ViewSwitcher view="week" />); // the route commits
-    await view.rerender(<ViewSwitcher view="courses" />); // browser Back
+    await view.rerender(<ViewTabs lens="week" />); // the route commits
+    await view.rerender(<ViewTabs lens="courses" />); // browser Back
     expect(pill()).toBe("translateX(0%)");
+    await view.unmount();
+  });
+
+  test("a keyboard press moves the pill without animating; a pointer press animates", async () => {
+    const { ViewTabs } = await import("@/components/shell/ViewTabs");
+    const view = await mount(<ViewTabs lens="courses" />);
+    const nav = view.container.querySelector("nav")!;
+    const link = (name: string) => Array.from(view.container.querySelectorAll("a")).find((a) => a.textContent === name)!;
+    for (const a of view.container.querySelectorAll("a")) a.addEventListener("click", (event) => event.preventDefault());
+
+    // Enter on a link fires a click with detail 0.
+    await act(async () => {
+      link("Day").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 0, button: 0 }));
+    });
+    expect(nav.hasAttribute("data-instant")).toBe(true);
+
+    await view.rerender(<ViewTabs lens="day" />);
+    await act(async () => {
+      link("Week").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1, button: 0 }));
+    });
+    expect(nav.hasAttribute("data-instant")).toBe(false);
     await view.unmount();
   });
 });
@@ -218,12 +239,19 @@ describe("BottomSheet", () => {
         <p>Body</p>
       </BottomSheet>
     );
+    // The settle spring runs on animation frames; give it time to land.
+    const settle = () => act(() => sleep(1000));
     const view = await mount(sheetFor([100, 300]));
     const sheet = () => document.querySelector<HTMLElement>(".ui-sheet")!;
-    expect(sheet().style.transform).toBe("translateY(200px)");
-    await view.rerender(sheetFor([150, 300]));
-    expect(sheet().style.transform).toBe("translateY(150px)");
-    await view.unmount();
+    try {
+      await settle();
+      expect(sheet().style.transform).toBe("translate3d(0, 200px, 0)");
+      await view.rerender(sheetFor([150, 300]));
+      await settle();
+      expect(sheet().style.transform).toBe("translate3d(0, 150px, 0)");
+    } finally {
+      await view.unmount();
+    }
   });
 });
 

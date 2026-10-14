@@ -150,11 +150,11 @@ async function journey(browser, viewport) {
   const noteText = await noteBox.innerText();
   check(`${tag}: the AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 1 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
   check(`${tag}: CSCE 1030 covered through CSCE 1040`, (await rowStatus(page, "CSCE 1030")) === "Covered" && (await rowMeta(page, "CSCE 1030")).includes("Via CSCE 1040"));
-  check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Spring 2026 · A"));
-  check(`${tag}: MATH 1720 planned by Auto`, (await rowStatus(page, "MATH 1720")) === "Planned" && (await rowMeta(page, "MATH 1720")).includes("Spring 2027 · auto"));
+  check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Grade A"));
+  check(`${tag}: MATH 1720 planned by Auto`, (await rowStatus(page, "MATH 1720")) === "Planned" && (await rowMeta(page, "MATH 1720")).includes("Spring 2027"));
   check(`${tag}: CSCE 2100 left for an advisor`, (await rowStatus(page, "CSCE 2100")) === "Check");
   const coreHeader = await page.locator("#group-core").innerText();
-  check(`${tag}: Covered is counted apart from done`, /2 of 5 done · 1 covered/.test(coreHeader), coreHeader.replace(/\s+/g, " "));
+  check(`${tag}: the group header carries one fact, how much is done`, /2 of 5 done/.test(coreHeader) && !/covered/.test(coreHeader), coreHeader.replace(/\s+/g, " "));
   const rowHeight = await rowOf(page, "CSCE 1030").evaluate((el) => el.getBoundingClientRect().height);
   check(`${tag}: row height`, phone ? rowHeight >= 52 : Math.round(rowHeight) === 44, `${rowHeight}px`);
   if (!phone) {

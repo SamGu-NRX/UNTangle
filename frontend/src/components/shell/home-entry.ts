@@ -1,4 +1,63 @@
-import type { CourseStatus } from "@/lib/types";
+import type { ClassDay, CourseStatus } from "@/lib/types";
+import type { Lens } from "./routes";
+
+/** A reading of the local clock, so the landing rule is pure. */
+export type Clock = {
+  /** Local date, YYYY-MM-DD. */
+  date: string;
+  /** Local day of the week. */
+  weekday: ClassDay;
+  /** Minutes since local midnight. */
+  minutes: number;
+};
+
+const DAYS: readonly ClassDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function readClock(now: Date): Clock {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    weekday: DAYS[now.getDay()],
+    minutes: now.getHours() * 60 + now.getMinutes(),
+  };
+}
+
+export type LandingInput = {
+  /** Anything planned or imported yet (hasStartedPlan). */
+  started: boolean;
+  /** The phone layout; desktop sessions are planning sessions. */
+  phone: boolean;
+  /** The lens the student last had open, if any. */
+  lastLens: Lens | null;
+  clock: Clock;
+  /** First and last day of classes of the active schedule's term. */
+  term: { start: string; end: string };
+  /** The active schedule's meetings; `end` is "HH:MM", 24-hour. */
+  meetings: ReadonlyArray<{ day: ClassDay; end: string }>;
+};
+
+/**
+ * Where opening the app lands (docs/design/untangle-v3.md, "Phone
+ * landing"): a first visit goes to the import entry; on a phone, during the
+ * term, Day when a class has not yet ended today; otherwise the last lens
+ * used, and Courses when there is none. Deterministic, so a student can
+ * learn it.
+ */
+export function landing(input: LandingInput): "import" | Lens {
+  if (!input.started) return "import";
+  if (input.phone && classStillAhead(input)) return "day";
+  return input.lastLens ?? "courses";
+}
+
+function classStillAhead({ clock, term, meetings }: LandingInput): boolean {
+  if (clock.date < term.start || clock.date > term.end) return false;
+  return meetings.some((meeting) => meeting.day === clock.weekday && toMinutes(meeting.end) > clock.minutes);
+}
+
+function toMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
 
 /** The persisted parts of PlannerState that a student changes by planning. */
 export type PlanProgress = {

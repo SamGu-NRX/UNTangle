@@ -5,7 +5,7 @@ import { useEffect, useEffectEvent, type RefObject } from "react";
 export const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-type Layer = { id: symbol; root: HTMLElement; opener: HTMLElement | null };
+type Layer = { id: symbol; root: HTMLElement; opener: HTMLElement | null; restore: () => HTMLElement | null };
 
 /**
  * Open modal layers, bottom to top. One stack owns everything layers share,
@@ -105,8 +105,9 @@ function removeLayer(id: symbol) {
   syncStack();
   if (!wasTop) return;
   const top = layers[layers.length - 1];
-  const target = usable(layer.opener)
-    ? layer.opener
+  const chosen = layer.restore() ?? layer.opener;
+  const target = usable(chosen)
+    ? chosen
     : top
       ? (top.root.querySelector<HTMLElement>(FOCUSABLE) ?? top.root)
       : null;
@@ -137,13 +138,23 @@ function removeLayer(id: symbol) {
 export function useModalLayer(
   open: boolean,
   rootRef: RefObject<HTMLElement | null>,
-  { onEscape, initialFocus }: { onEscape?: () => void; initialFocus?: RefObject<HTMLElement | null> } = {},
+  {
+    onEscape,
+    initialFocus,
+    returnFocus,
+  }: {
+    onEscape?: () => void;
+    initialFocus?: RefObject<HTMLElement | null>;
+    /** Where focus goes on close, when it should not be the opener (a selection that moved). */
+    returnFocus?: () => HTMLElement | null;
+  } = {},
 ) {
   // Read the latest callback and focus target when an effect needs them,
   // not during render, and without re-running the layer when they change.
   const escape = useEffectEvent(() => onEscape?.());
   const canEscape = onEscape !== undefined;
   const focusTarget = useEffectEvent(() => initialFocus?.current ?? null);
+  const restoreTarget = useEffectEvent(() => returnFocus?.() ?? null);
 
   useEffect(() => {
     if (!open) return;
@@ -151,7 +162,7 @@ export function useModalLayer(
     if (!root) return;
     const id = Symbol("modal-layer");
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    pushLayer({ id, root, opener });
+    pushLayer({ id, root, opener, restore: restoreTarget });
 
     const target = focusTarget() ?? root.querySelector<HTMLElement>(FOCUSABLE) ?? root;
     target.focus({ preventScroll: true });

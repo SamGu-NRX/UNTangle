@@ -8,7 +8,7 @@ type Params = Promise<{ subject: string; number: string }>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { subject, number } = await params;
   const id = courseIdFromRoute(subject, number);
-  return { title: id ? `${id} · UNTangle` : "Course not found · UNTangle" };
+  return { title: id ?? "Course not found" };
 }
 
 /**

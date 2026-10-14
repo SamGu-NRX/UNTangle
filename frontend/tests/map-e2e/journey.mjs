@@ -144,8 +144,8 @@ async function desktop(browser) {
 
   const walks = await page.locator('.mv-leg[data-route="walk"]').evaluateAll((els) => els.map((el) => el.textContent));
   check(
-    "desktop: walkway legs show minutes, distance and source",
-    walks.length >= 2 && walks.every((text) => /\d+ min walk, [\d.]+ (mi|ft)/.test(text) && /via campus walkways/.test(text)),
+    "desktop: walkway legs show minutes and source",
+    walks.length >= 2 && walks.every((text) => /\d+ min walk/.test(text) && /via campus walkways/.test(text)),
     walks.join(" | "),
   );
   check("desktop: a walk leg has a leave-by time", walks.some((text) => /Leave by \d{1,2}:\d{2} (AM|PM)/.test(text)));
