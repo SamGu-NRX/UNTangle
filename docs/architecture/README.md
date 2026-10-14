@@ -325,8 +325,8 @@ Obvious agents build bounded pieces against frozen contracts:
 How it works:
 - A line in the list is a test file's path from the repo root, which skips the file, or `path::name`, which skips one test by the full name Bun prints.
 - Every package's `test` script runs `tools/repo-rules/src/run-tests.ts`. It gives `bun test` the package's test files minus the listed ones. A file with listed test names runs on its own, with a name pattern that leaves those tests out. A listed path that doesn't exist, or that no package's tests cover, fails the run.
-- The Task rule job (`.github/workflows/pr-rules.yml`) runs from the base branch through `pull_request_target`, so a PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line for a test that already existed.
-- The lead lists a new acceptance test by adding the test and its line in one PR. The `lead-approved` label lifts the check.
+- The Task rule job (`.github/workflows/pr-rules.yml`) runs from the base branch through `pull_request_target`, so a PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line to it.
+- The lead lists a new acceptance test with the test and its line in one PR, labeled `lead-approved`, which lifts the check.
 
 Where a task family repeats, the lead writes one harness that covers every member instead of one test per task. For example, a degree-plan validator checks every file in `plans/`, so each new plan is a data-only PR.
 

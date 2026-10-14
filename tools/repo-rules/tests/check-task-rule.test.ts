@@ -14,8 +14,6 @@ function pr(overrides: Partial<TaskRuleInput>): TaskRuleInput {
     forkList: list,
     headList: list,
     changes: [],
-    existedAtFork: (filePath) => filePath === accept,
-    existsAtHead: (filePath) => filePath === accept,
     ...overrides,
   };
 }
@@ -47,47 +45,14 @@ describe("taskRuleViolations", () => {
     ]);
   });
 
-  test("refuses listing a test that already exists, which would hide it", () => {
-    const existing = "packages/core/tests/weights.test.ts";
-    const input = pr({ headList: `${list}${existing}\n`, existedAtFork: (filePath) => [accept, existing].includes(filePath) });
-    expect(taskRuleViolations(input)).toEqual([
-      `tests/pending-acceptance.txt line 3 adds ${existing}, which already exists. Listing an existing test hides it from CI.`,
-    ]);
-  });
-
-  test("refuses listing an existing test the PR renamed", () => {
-    const renamed = "frontend/tests/a-pending.test.ts";
-    const input = pr({
-      headList: `${list}${renamed}\n`,
-      changes: [{ status: "R", previousPath: "frontend/tests/a.test.ts", path: renamed }],
-      existsAtHead: (filePath) => [accept, renamed].includes(filePath),
-    });
-    expect(taskRuleViolations(input)).toEqual([
-      `tests/pending-acceptance.txt line 3 adds ${renamed}, which this PR made from frontend/tests/a.test.ts. Listing an existing test hides it from CI.`,
-    ]);
-  });
-
-  test("refuses renaming a listed test's entry, since that unlists one test and lists another", () => {
-    const input = pr({ headList: `# pending\n${accept}::filters some other test\n` });
-    expect(taskRuleViolations(input)).toEqual([
-      `tests/pending-acceptance.txt line 2 adds ${accept}, which already exists. Listing an existing test hides it from CI.`,
-    ]);
-  });
-
-  test("allows the lead's flow: a new acceptance test listed in the same PR", () => {
-    const added = "packages/core/tests/weights.test.ts";
-    const input = pr({
-      headList: `${list}${added}\n`,
-      changes: [{ status: "A", path: added }],
-      existsAtHead: (filePath) => [accept, added].includes(filePath),
-    });
-    expect(taskRuleViolations(input)).toEqual([]);
-  });
-
-  test("refuses listing a file the PR doesn't add", () => {
-    const input = pr({ headList: `${list}packages/core/tests/ghost.test.ts\n` });
-    expect(taskRuleViolations(input)).toEqual([
-      "tests/pending-acceptance.txt line 3 lists packages/core/tests/ghost.test.ts, which this PR doesn't add.",
+  test.each([
+    ["an existing test, which would hide it", "packages/core/tests/weights.test.ts"],
+    ["a test moved and edited from an old one, which git may not see as a rename", "frontend/tests/a-pending.test.ts"],
+    ["a new test, which is the lead's job", "packages/core/tests/new.test.ts"],
+    ["a changed name for a listed test, which unlists one test and lists another", `${accept}::filters some other test`],
+  ])("refuses a new line for %s", (_case, line) => {
+    expect(taskRuleViolations(pr({ headList: `${list}${line}\n` }))).toEqual([
+      `tests/pending-acceptance.txt line 3 adds "${line}". Only the lead adds pending tests, since a new line can hide an existing test from CI.`,
     ]);
   });
 
@@ -142,18 +107,22 @@ describe("the check, run against real commits", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  test("fails a PR that renames an existing test and lists the new name", () => {
+  test("fails a PR that moves an existing test, rewrites it and lists the new path", () => {
     const original = "frontend/tests/a.test.ts";
     writeFiles(dir, { [original]: 'import { test } from "bun:test";\ntest("a", () => { throw new Error("broken"); });\n' });
     git(dir, ["add", "-A"]);
     git(dir, ["commit", "-qm", "an existing test"]);
     git(dir, ["tag", "-f", "base"]);
-    git(dir, ["mv", original, "frontend/tests/a-pending.test.ts"]);
-    writeFiles(dir, { "tests/pending-acceptance.txt": `${list}frontend/tests/a-pending.test.ts\n` });
+    // Rewritten enough that git reports a delete and an add, not a rename.
+    git(dir, ["rm", "-q", original]);
+    writeFiles(dir, {
+      "frontend/tests/a-pending.test.ts": 'import { describe, test } from "bun:test";\ndescribe("renamed", () => {\n  test("a, rewritten", () => {});\n});\n',
+      "tests/pending-acceptance.txt": `${list}frontend/tests/a-pending.test.ts\n`,
+    });
     git(dir, ["add", "-A"]);
     git(dir, ["commit", "-qm", "hide it"]);
     const result = check();
-    expect(result.output).toContain("which this PR made from frontend/tests/a.test.ts");
+    expect(result.output).toContain('adds "frontend/tests/a-pending.test.ts". Only the lead adds pending tests');
     expect(result.exitCode).toBe(1);
   });
 

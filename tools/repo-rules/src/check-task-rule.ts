@@ -3,10 +3,10 @@
  *
  * A test listed in tests/pending-acceptance.txt is an acceptance test the
  * lead wrote for a task. A PR may make it pass, but may not edit, move or
- * delete it. Its only allowed edit to the list is deleting lines. It may add
- * a line only for a test file the PR itself creates, not one it renamed or
- * copied, so an existing test can't be hidden from CI by listing it. The lead-approved label lifts the
- * rule, for the lead's own changes to an acceptance test.
+ * delete it. Its only allowed edit to the list is deleting lines: a new line
+ * could hide an existing test from CI, and telling a new test from a moved
+ * and edited old one would rest on git's rename guess. Listing tests is the
+ * lead's job, so the lead-approved label lifts the rule.
  *
  * CI runs this from the base branch (pull_request_target), so a PR can't
  * edit the check that judges it.
@@ -15,7 +15,6 @@ import { PENDING_LIST, PendingListError, parsePendingList, type PendingEntry } f
 import {
   LEAD_APPROVED,
   changedFiles,
-  existsAt,
   labelsFromEnv,
   mergeBase,
   readAt,
@@ -33,8 +32,6 @@ export type TaskRuleInput = {
   headList: string | null;
   /** Files the PR changes, from where it branched off. */
   changes: FileChange[];
-  existedAtFork: (path: string) => boolean;
-  existsAtHead: (path: string) => boolean;
 };
 
 function entriesOf(list: string | null, where: string, problems: string[]): PendingEntry[] {
@@ -67,23 +64,11 @@ export function taskRuleViolations(input: TaskRuleInput): string[] {
     return problems;
   }
   const before = new Set(forkEntries.map((entry) => entry.text));
-  // A renamed or copied file is an existing test under a new name.
-  const derived = new Map(
-    input.changes.flatMap((change) => (change.previousPath === undefined ? [] : [[change.path, change.previousPath]])),
-  );
   for (const entry of entriesOf(input.headList, "this PR", problems)) {
-    if (before.has(entry.text)) continue;
-    const source = derived.get(entry.path);
-    if (source !== undefined) {
+    if (!before.has(entry.text)) {
       problems.push(
-        `${PENDING_LIST} line ${entry.line} adds ${entry.path}, which this PR made from ${source}. Listing an existing test hides it from CI.`,
+        `${PENDING_LIST} line ${entry.line} adds "${entry.text}". Only the lead adds pending tests, since a new line can hide an existing test from CI.`,
       );
-    } else if (input.existedAtFork(entry.path)) {
-      problems.push(
-        `${PENDING_LIST} line ${entry.line} adds ${entry.path}, which already exists. Listing an existing test hides it from CI.`,
-      );
-    } else if (!input.existsAtHead(entry.path)) {
-      problems.push(`${PENDING_LIST} line ${entry.line} lists ${entry.path}, which this PR doesn't add.`);
     }
   }
   return problems;
@@ -103,8 +88,6 @@ if (import.meta.main) {
     forkList: readAt(repoDir, fork, PENDING_LIST),
     headList: readAt(repoDir, head, PENDING_LIST),
     changes: changedFiles(repoDir, fork, head),
-    existedAtFork: (filePath) => existsAt(repoDir, fork, filePath),
-    existsAtHead: (filePath) => existsAt(repoDir, head, filePath),
   });
   if (problems.length === 0) {
     console.log("The PR follows the task rule.");
