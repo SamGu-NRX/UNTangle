@@ -90,6 +90,27 @@ test("a choice follows the first branch until the student starts another", () =>
   expect(thesis.courses.get("a1")!.onRemainingPath).toBe(false);
 });
 
+test("shared credit does not start a choice branch", () => {
+  const catalog = [row("s"), row("a1"), row("b1")];
+  const choice = plan({
+    kind: "choice",
+    name: "Capstone or thesis",
+    branches: [
+      { name: "Capstone", requirements: [{ kind: "all", name: "Shared + capstone", courses: ["s", "a1"] }] },
+      { name: "Thesis", requirements: [{ kind: "all", name: "Shared + thesis", courses: ["s", "b1"] }] },
+    ],
+  });
+  // Only the shared course is done: neither route has started, so both stay open.
+  const shared = unlockAnalysis(choice, assess(catalog, { transcript: [pass("s")] }));
+  expect(shared.requirements[0]!.branch).toBe("Capstone");
+  expect(shared.courses.get("a1")!.onRemainingPath).toBe(true);
+  expect(shared.courses.get("b1")!.onRemainingPath).toBe(true);
+  // A branch-unique course starts its route and drops the other branch's courses.
+  const started = unlockAnalysis(choice, assess(catalog, { transcript: [pass("s"), pass("a1")] }));
+  expect(started.requirements[0]!.branch).toBe("Capstone");
+  expect(started.courses.get("b1")!.onRemainingPath).toBe(false);
+});
+
 test("a choice prefers a branch that needs no advisor", () => {
   const catalog = [row("a1", consent()), row("b1")];
   const choice = plan({

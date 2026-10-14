@@ -61,4 +61,20 @@ describe("plan-to-catalog coverage", () => {
     expect(shipped).toEqual(buildPrerequisiteTable());
     expect(shipped).toEqual(JSON.parse(renderPrerequisiteTable()));
   });
+
+  test("every plan-referenced course exists in the shipped seed bundle with credit hours", async () => {
+    // The Courses page derives catalog credit hours from generated/seed-data.json:
+    // a plan course absent from the bundle makes adaptUntCatalog throw at runtime.
+    const bundle = JSON.parse(
+      readFileSync(new URL("../../src/lib/generated/seed-data.json", import.meta.url), "utf8"),
+    ) as { courses: { code: string; creditHours: number }[] };
+    const bundledHours = new Map(bundle.courses.map((course) => [normalize(course.code), course.creditHours]));
+    for (const plan of await Promise.all(plans)) {
+      for (const set of plan.sets) {
+        const absent = [...new Set(set.requirements.flatMap(courseIds).map(normalize))]
+          .filter((code) => bundledHours.get(code) === undefined);
+        expect(absent, `${plan.name} (${set.name}) references courses missing from the seed bundle`).toEqual([]);
+      }
+    }
+  });
 });
