@@ -1,0 +1,1438 @@
+{
+  "labeledBy": "hand-labeled from the original cache (lost); revalidated on 2026-10-14 against freshly downloaded text, keeping only entries whose every labeled excerpt appears verbatim",
+  "entries": [
+    {
+      "id": "0211309a",
+      "course": "PSCI 2305",
+      "section": "704",
+      "faculty": "Matthew J. Eshbaugh-Soha",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=me0075",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/me0075%2Fschteach%2FPSCI%202305%20Fall%202026-3.pdf",
+      "docQuote": "US Political Behavior and Policy PSCI 2305.REC Fall 2026 Professor: Matthew Eshbaugh-Soha Office: 156 Wooten Hall E-mail: Matthew.Eshbaugh-Soha@unt.ed",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance: Attendance is part of course expectations and will be graded weekly."
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "Exams: There are two exams for this course, and no comprehensive final exam."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Online Engagement Assignments",
+            "weightPct": 35
+          },
+          {
+            "name": "Two Exams (taken at testing center)",
+            "weightPct": 25
+          },
+          {
+            "name": "In-person Class (recitation) Assignments",
+            "weightPct": 40
+          }
+        ]
+      },
+      "textSha256": "0a816a90c269f929c70e0807c5c71b181f1584adcc3ea7fc7f04c8d3e66af700"
+    },
+    {
+      "id": "048f9f0d",
+      "course": "CSCE 3420",
+      "section": "401",
+      "faculty": "Ryan M. Garlick",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=rmg0045",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rmg0045%2Fschteach%2F3420%20Syllabus%20-%20Fall%202026-1.pdf",
+      "docQuote": "Syllabus CSCE 3420 / Internet Programming Instructor Contact Instructor: Dr. Ryan Garlick Office Hours: see Canvas. Please email well in advance for Z",
+      "attendance": {
+        "present": true,
+        "excerpt": "Students are expected to regularly login to Canvas, keep up with assignments, and actively participate in online discussions and activities as posted."
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "Grade Percentages Category Percentage of Final Grade Homework 40% Quizzes 40% Midterm 10% Final Exam 10%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Homework",
+            "weightPct": 40
+          },
+          {
+            "name": "Quizzes",
+            "weightPct": 40
+          },
+          {
+            "name": "Midterm",
+            "weightPct": 10
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 10
+          }
+        ]
+      },
+      "textSha256": "2f730c5ee7cc2b2065e44164c2403f8a4aba4e83f594b182ce5c72ac50116e2d"
+    },
+    {
+      "id": "0b53402c",
+      "course": "SPAN 3510",
+      "section": "401",
+      "faculty": "Maria Carpio Manickam",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=mc0876",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/mc0876%2Fschteach%2FSPAN%203510%20Syllabus%20and%20Assignments%20Schedule%20F2026-1.pdf",
+      "docQuote": "1 College of Liberal Arts and Social Sciences (CLASS) Department of World Languages, Literature, and Culture SPAN 3510 ONLINE Spanish for Law Enforcem",
+      "attendance": {
+        "present": true,
+        "excerpt": "For online courses, there are no excused absences since the course is available 24/7."
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "Midterm Exam 60 15% Final Exam 75 15%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Homework",
+            "weightPct": 35
+          },
+          {
+            "name": "Discussions",
+            "weightPct": 15
+          },
+          {
+            "name": "Quizzes",
+            "weightPct": 20
+          },
+          {
+            "name": "Midterm Exam",
+            "weightPct": 15
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 15
+          }
+        ]
+      },
+      "textSha256": "fd1c69ca4134bdc56fa752eea3f57b8f59699ef5d5734f800c8ddc77805e532c"
+    },
+    {
+      "id": "0dc4d48d",
+      "course": "SOCI 3330",
+      "section": "400",
+      "faculty": "Milan Z. Zafirovski",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=mz0008",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/mz0008%2Fschteach%2FSYLSOCI3330FALL2026-1.pdf",
+      "docQuote": "SYLLABUS COURSE INFORMATION UNIVERSITY OF NORTH TEXAS FALL 2026 SOCI 3330/400, 431 SOCIAL INEQUALITY AND SOCIAL STRATIFICATION Credit Hours 3 Internet",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "In this course there will be three exams, including the first, midterm and final examination"
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "7f4220cfaed89299b400a1d332dc1ea87e3ea123387d27280fe5320c5b75affd"
+    },
+    {
+      "id": "1373561b",
+      "course": "PSCI 3300",
+      "section": "001",
+      "faculty": "Paul R. Hensel",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=prh0050",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/prh0050%2Fschteach%2Fpsci3300-5.pdf",
+      "docQuote": "PSCI 3300.001: Political Science Research Methods Dr. Paul Hensel Fall 2026 phensel@unt.edu MWF 10:10-11:00 https://www.paulhensel.org 121 Wooten Hall",
+      "attendance": {
+        "present": true,
+        "excerpt": "Students are expected to attend every class meeting, even if attendance is not directly considered in calculating the course grade."
+      },
+      "examCount": {
+        "present": true,
+        "count": 4,
+        "excerpt": "Examinations: Four (noncumulative) exams are required."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Each exam",
+            "weightPct": 15
+          },
+          {
+            "name": "Assignments",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "ba81d46e207329248270ebf5997c6a0d2fc62f0738c73d7a866a740c82f0af07"
+    },
+    {
+      "id": "153a2c62",
+      "course": "JOUR 2310",
+      "section": "001",
+      "faculty": "Dorothy M. Bland",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=dmb0303",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/dmb0303%2Fschteach%2FJOUR_2310.001_Syllabus_Fall_2026.docx-1.pdf",
+      "docQuote": "JOUR 2310 Introduction to Media Writing JOUR 2310 Introduction to Media Writing Fall 2026 Syllabus content subject to change. Professor Dorothy Bland,",
+      "attendance": {
+        "present": true,
+        "excerpt": "One absence in the course is the limit without penalty toward your final grade, unless you have communicated with me from the beginning about an extraordinary problem."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "0a48d076ce2bf7ec275bad08ddfd13a16723256710f3bbe3622808f01b00e497"
+    },
+    {
+      "id": "222d3dfe",
+      "course": "PSCI 2315",
+      "section": "002",
+      "faculty": "Gabriela C. Okundaye",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=gco0008",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/gco0008%2Fschteach%2FPSCI%202315.002%20Honors%20US%20Political%20Behavior%20Fall%202026_v1-1.pdf",
+      "docQuote": "Honors U.S. Political Behavior PSCI 2315.002 \u2013 Fall 2026 Instructor: Dr. Gabriela Okundaye Last name pronounced (\u201coh-kun-die\u201d) Contact: Please use Can",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "Midterm Exam 15% Final Exam 15%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Webtext Chapters",
+            "weightPct": 30
+          },
+          {
+            "name": "Chapter/Module Quizzes",
+            "weightPct": 30
+          },
+          {
+            "name": "Syllabus Quiz",
+            "weightPct": 10
+          },
+          {
+            "name": "Midterm Exam",
+            "weightPct": 15
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 15
+          }
+        ]
+      },
+      "textSha256": "74bb9e813b66561a81100ebce19f2d6ce3f44143d8cba9055b596ee9537212f4"
+    },
+    {
+      "id": "2757d8f1",
+      "course": "ENGL 4450",
+      "section": "003",
+      "faculty": "John G. Peters",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=jp0078",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jp0078%2Fschteach%2FSyllabusConradF26-1.pdf",
+      "docQuote": "Course Policies and Requirements for The Works of Joseph Conrad Professor: Course: Jack Peters English 4450, Section 001 301 Language, 9:35-10:55 a.m.",
+      "attendance": {
+        "present": true,
+        "excerpt": "You are allowed 3 unexcused absences without penalty."
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "the completion of 1 term paper and 2 exams (a mid-term exam and a final exam)"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Midterm exam",
+            "weightPct": 30
+          },
+          {
+            "name": "Final exam",
+            "weightPct": 30
+          },
+          {
+            "name": "Term paper",
+            "weightPct": 25
+          },
+          {
+            "name": "Reading quizzes",
+            "weightPct": 15
+          }
+        ]
+      },
+      "textSha256": "f66ecc378384d138b21352a15f93e6234de132e7776bd9d7a7119df209d45399"
+    },
+    {
+      "id": "300ca07c",
+      "course": "ECON 1100",
+      "section": "408",
+      "faculty": "Janice A. Hauge",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=jah0135",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jah0135%2Fschteach%2F1100%20Syllabus%20Fall%202026_jah-1.pdf",
+      "docQuote": "Principles of Microeconomics Course Economics 1100.408 \u2013 Principles of Microeconomics Time and Place Monday (Online, Synchronous): 1:00 pm \u2013 1:50 pm v",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance: All three weekly sessions \u2014 the online Monday meeting and the two in-person meetings \u2014 are required class time."
+      },
+      "examCount": {
+        "present": true,
+        "count": 4,
+        "excerpt": "Pre-class homework 4% Post-class homework 6% In-Class Graded Work and Quizzes 15% In-Class Essay 5% Exam 1 15% Exam 2 15% Exam 3 15% Comprehensive Final Exam 25%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Pre-class homework",
+            "weightPct": 4
+          },
+          {
+            "name": "Post-class homework",
+            "weightPct": 6
+          },
+          {
+            "name": "In-Class Graded Work and Quizzes",
+            "weightPct": 15
+          },
+          {
+            "name": "In-Class Essay",
+            "weightPct": 5
+          },
+          {
+            "name": "Exam 1",
+            "weightPct": 15
+          },
+          {
+            "name": "Exam 2",
+            "weightPct": 15
+          },
+          {
+            "name": "Exam 3",
+            "weightPct": 15
+          },
+          {
+            "name": "Comprehensive Final Exam",
+            "weightPct": 25
+          }
+        ]
+      },
+      "textSha256": "beedb3c117e8269e8bcf33b55622e2409ac3a0089ece99fa2e17bb4e67cc21f3"
+    },
+    {
+      "id": "383f763d",
+      "course": "BIOL 4900",
+      "section": "729",
+      "faculty": "Roisin C. McGarry",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=rcm0042",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rcm0042%2Fschteach%2FSyllabus%20Special%20Problems%204900-5.pdf",
+      "docQuote": "Syllabus, Special Problems, BIOL/BIOC 4900 Page 1 of 4 Instructor: McGarry (ver 01/01/2023) Special Problems BIOL/BIOL 4900 Instructor(s): R\u00f3is\u00edn McGa",
+      "attendance": {
+        "present": true,
+        "excerpt": "Special Problems students are expected to attend these meetings"
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "eedb022cb6f19b1cc45047640fae76b1aeaaebf1f1c2255457e777745d631398"
+    },
+    {
+      "id": "39ca3519",
+      "course": "SOCI 3330",
+      "section": "431",
+      "faculty": "Milan Z. Zafirovski",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=mz0008",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/mz0008%2Fschteach%2FSYLSOCI3330FALL2026-2.pdf",
+      "docQuote": "SYLLABUS COURSE INFORMATION UNIVERSITY OF NORTH TEXAS FALL 2026 SOCI 3330/400, 431 SOCIAL INEQUALITY AND SOCIAL STRATIFICATION Credit Hours 3 Internet",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "In this course there will be three exams, including the first, midterm and final examination"
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "7f4220cfaed89299b400a1d332dc1ea87e3ea123387d27280fe5320c5b75affd"
+    },
+    {
+      "id": "40f8f051",
+      "course": "PSCI 2306",
+      "section": "405",
+      "faculty": "Yu-Hsien Sung",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=ys0570",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/ys0570%2Fschteach%2FSyllabus_2026%20Fall_PSCI2306-2.pdf",
+      "docQuote": "PSCI 2306: US and Texas Constitutions and Institutions Fall, 2026 Online - Asynchronous Instructor: Dr. Yu-hsien Sung (she) Yu-hsien.Sung@unt.edu Virt",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "9e0da78fbc58979da4ea712a072c86bbafe4de0bad3b6b8f046ae2fed4636e61"
+    },
+    {
+      "id": "420d6d0d",
+      "course": "JOUR 4250",
+      "section": "401",
+      "faculty": "Dorothy M. Bland",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=dmb0303",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/dmb0303%2Fschteach%2FRGM-SYLLABUS-Fall%2026.docx%20%282%29%20%281%29-2.pdf",
+      "docQuote": "RACE, GENDER, AND THE MEDIA: A METHODS APPROACH JOUR 4250/5210 UNDERGRADUATE AND GRADUATE SYLLABUS SPRING 2026 Location: Online, asynchronous (This sy",
+      "attendance": {
+        "present": true,
+        "excerpt": "One absence in the course is the limit without penalty toward your final grade, unless you have communicated with me from the beginning about an extraordinary problem."
+      },
+      "examCount": {
+        "present": true,
+        "count": 1,
+        "excerpt": "Concepts/Methods Exam, 20%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Your individual blog (10 posts)",
+            "weightPct": 20
+          },
+          {
+            "name": "Online quizzes",
+            "weightPct": 10
+          },
+          {
+            "name": "Diversity style guide essay",
+            "weightPct": 10
+          },
+          {
+            "name": "Project I, Individual Media Analysis",
+            "weightPct": 20
+          },
+          {
+            "name": "Concepts/Methods Exam",
+            "weightPct": 20
+          },
+          {
+            "name": "Project II, Group or Individual Community Service Project",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "031bfa373dd28d2ee1e4256150b1defbb63fd2bfe088d3a87c7df455e09eefc4"
+    },
+    {
+      "id": "4556bf9b",
+      "course": "PSCI 2305",
+      "section": "404",
+      "faculty": "Gabriela C. Okundaye",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=gco0008",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/gco0008%2Fschteach%2FPSCI%202305.404%20U.S.%20Political%20Behavior%20Fall%202026_v1-1.pdf",
+      "docQuote": "U.S. Political Behavior PSCI 2305.404 \u2013 Fall 2026 Instructor: Dr. Gabriela Okundaye Last name pronounced (\u201coh-kun-die\u201d) Contact: Please use Canvas Mes",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 1,
+        "excerpt": "Webtext Chapters (15) 40% Chapter/Module Quizzes (15) 30% Syllabus Quiz 15% Final Exam 15%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Webtext Chapters",
+            "weightPct": 40
+          },
+          {
+            "name": "Chapter/Module Quizzes",
+            "weightPct": 30
+          },
+          {
+            "name": "Syllabus Quiz",
+            "weightPct": 15
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 15
+          }
+        ]
+      },
+      "textSha256": "ffe3c80d0a2b9f139902c9c78188cc1319c06aadead7af3972095a0dd46344a3"
+    },
+    {
+      "id": "4b20269a",
+      "course": "BIOL 3510",
+      "section": "002",
+      "faculty": "Roisin C. McGarry",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=rcm0042",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rcm0042%2Fschteach%2FSyllabus%20Fall%202026-1.pdf",
+      "docQuote": "CELL BIOLOGY (BIOL 3510) Fall, 2026 Monday, Wednesday, and Friday, 8:00 am \u2013 8:50 am, BLB250 INSTRUCTOR Dr. R\u00f3is\u00edn McGarry. Dr. McGarry is a plant dev",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 5,
+        "excerpt": "There will be five exams this semester: four unit exams and one comprehensive final exam."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Your four highest-scored exams",
+            "weightPct": 80
+          },
+          {
+            "name": "Assignments",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "6b6aff697203533d9aaf40892598d82746168f5397bd6ac1979e26d7b33ef9fa"
+    },
+    {
+      "id": "4befc376",
+      "course": "PSCI 2305",
+      "section": "702",
+      "faculty": "Matthew J. Eshbaugh-Soha",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=me0075",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/me0075%2Fschteach%2FPSCI%202305%20Fall%202026-1.pdf",
+      "docQuote": "US Political Behavior and Policy PSCI 2305.REC Fall 2026 Professor: Matthew Eshbaugh-Soha Office: 156 Wooten Hall E-mail: Matthew.Eshbaugh-Soha@unt.ed",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance: Attendance is part of course expectations and will be graded weekly."
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "Exams: There are two exams for this course, and no comprehensive final exam."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Online Engagement Assignments",
+            "weightPct": 35
+          },
+          {
+            "name": "Two Exams (taken at testing center)",
+            "weightPct": 25
+          },
+          {
+            "name": "In-person Class (recitation) Assignments",
+            "weightPct": 40
+          }
+        ]
+      },
+      "textSha256": "0a816a90c269f929c70e0807c5c71b181f1584adcc3ea7fc7f04c8d3e66af700"
+    },
+    {
+      "id": "560b5bd5",
+      "course": "JOUR 2310",
+      "section": "301",
+      "faculty": "Dorothy M. Bland",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=dmb0303",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/dmb0303%2Fschteach%2FJOUR_2310.001_Syllabus_Fall_2026.docx-2.pdf",
+      "docQuote": "JOUR 2310 Introduction to Media Writing JOUR 2310 Introduction to Media Writing Fall 2026 Syllabus content subject to change. Professor Dorothy Bland,",
+      "attendance": {
+        "present": true,
+        "excerpt": "One absence in the course is the limit without penalty toward your final grade, unless you have communicated with me from the beginning about an extraordinary problem."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "0a48d076ce2bf7ec275bad08ddfd13a16723256710f3bbe3622808f01b00e497"
+    },
+    {
+      "id": "56671627",
+      "course": "FREN 1010",
+      "section": "002",
+      "faculty": "Laetitia J. Knight",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=lk0074",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/lk0074%2Fschteach%2FWLLC%20French%201010.002%20Fall%2026-1.pdf",
+      "docQuote": "University of North Texas | WLLC \u2013 French Elementary & Intermediate Program | 1 WLLC \u2013 FRENCH PROGRAM \u2013 FALL 2026 SYLLABUS COURSE INFORMATION AND POLI",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance is taken at every class meeting and recorded in Canvas."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "MINDTAP Activities",
+            "weightPct": 30
+          },
+          {
+            "name": "UNIT Activities",
+            "weightPct": 20
+          },
+          {
+            "name": "In class quizzes",
+            "weightPct": 35
+          },
+          {
+            "name": "Presentation",
+            "weightPct": 7.5
+          },
+          {
+            "name": "Final - Recording",
+            "weightPct": 7.5
+          }
+        ]
+      },
+      "textSha256": "1e9cd41dd07117359706a9eb7f99835a4c42cac6960138af18480bc2a26a98e6"
+    },
+    {
+      "id": "5a91ecc8",
+      "course": "BIOL 1132",
+      "section": "003",
+      "faculty": "Samuel J. Ogden",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=sjo0010",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/sjo0010%2Fschteach%2FBIol%201132.003%20Fall%2020216-1.pdf",
+      "docQuote": "1 Instructor Information Samuel James Ogden, Jr. Samuel.OgdenJr@unt.edu Office: Life Sciences A, Suite 246, Office B Office Hours: 8:30-9:00 AM Monday",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance and Participation Please attend class since that is when we will be taking iClicker quizzes and in class exercises"
+      },
+      "examCount": {
+        "present": true,
+        "count": 4,
+        "excerpt": "you have the option to take a 50 point cumulative final after completion of exam 4"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Exams",
+            "weightPct": 40
+          },
+          {
+            "name": "Online assignments",
+            "weightPct": 15
+          },
+          {
+            "name": "Quizzes",
+            "weightPct": 15
+          },
+          {
+            "name": "Lab",
+            "weightPct": 30
+          }
+        ]
+      },
+      "textSha256": "593995bbf02f01cf066f0922cc0b97398350b6a974eebd2159c7d3fda8e1ea54"
+    },
+    {
+      "id": "5dc1e897",
+      "course": "FREN 1010",
+      "section": "003",
+      "faculty": "Laetitia J. Knight",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=lk0074",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/lk0074%2Fschteach%2FWLLC%20French%201010.003%20Fall%2026-1.pdf",
+      "docQuote": "University of North Texas | WLLC \u2013 French Elementary & Intermediate Program | 1 WLLC \u2013 FRENCH PROGRAM \u2013 FALL 2026 SYLLABUS COURSE INFORMATION AND POLI",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance is taken at every class meeting and recorded in Canvas."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "MINDTAP Activities",
+            "weightPct": 30
+          },
+          {
+            "name": "UNIT Activities",
+            "weightPct": 20
+          },
+          {
+            "name": "In class quizzes",
+            "weightPct": 35
+          },
+          {
+            "name": "Presentation",
+            "weightPct": 7.5
+          },
+          {
+            "name": "Final - Recording",
+            "weightPct": 7.5
+          }
+        ]
+      },
+      "textSha256": "281fcf8444d2982dba5e8f96447f869b8492a0932f6d350e14a879c690336b69"
+    },
+    {
+      "id": "67549316",
+      "course": "JAPN 3020",
+      "section": "002",
+      "faculty": "Angela R. Harris",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=arh0312",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/arh0312%2Fschteach%2FFall%202026%20JAPN%203020%20Syllabus%20002-1.pdf",
+      "docQuote": "\u65e5\u672c\u8a9e 3020: Advanced Japanese I \u79cb\u5b66\u671f Fall 202\uff16 University of North Texas Class Information Instructor: angela.harris@unt.edu Office: LANG 405A Office Hou",
+      "attendance": {
+        "present": true,
+        "excerpt": "You will get three free class absences, no questions asked."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Class Participation",
+            "weightPct": 20
+          },
+          {
+            "name": "Homework",
+            "weightPct": 15
+          },
+          {
+            "name": "Conversation Table",
+            "weightPct": 5
+          },
+          {
+            "name": "Vocab Quiz",
+            "weightPct": 5
+          },
+          {
+            "name": "Kanji Quiz",
+            "weightPct": 5
+          },
+          {
+            "name": "Speaking Activities",
+            "weightPct": 15
+          },
+          {
+            "name": "Chapter Tests",
+            "weightPct": 20
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "52dda32d28a3816ec3a82d28b3df65c85ecd310f3a4904a034a1ee2aa72f68b7"
+    },
+    {
+      "id": "6a9219dc",
+      "course": "BIOL 2140",
+      "section": "001",
+      "faculty": "James C. Bednarz",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=jcb0384",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jcb0384%2Fschteach%2FSyllabus%20BIOL2140%20spring%202026%20-%20Bednarz-3.pdf",
+      "docQuote": "BIOL 2140.003 and 004 \u2013 Principles of Ecology 3 credits (Tues/Thurs 12:30-1:50 PM) \u2013 Spring 2026 Location: GAB 104 Instructor: Dr. Jim Bednarz Office ",
+      "attendance": {
+        "present": true,
+        "excerpt": "All three 100-pt exams will contribute to the final grade for students that have more than 2 unexcused absences."
+      },
+      "examCount": {
+        "present": true,
+        "count": 4,
+        "excerpt": "Your grade in the course will be based on four lecture exams, one written assignment, completion of on-line homework assignments, and class participation."
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "2ecb2ec813185f323b0400751bf04208ecc47c7b34f51f4446a3695fa4c9c326"
+    },
+    {
+      "id": "6f7e6c98",
+      "course": "JOUR 4410",
+      "section": "002",
+      "faculty": "Randy L. Loftis",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=rll0049",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rll0049%2Fschteach%2FJOUR%204410%20Syllabus%20Fall%202026-1.pdf",
+      "docQuote": "JOUR 4410.002: Public Affairs Reporting Fall 2026 Professor: Randy Lee Loftis, MA Senior Lecturer Contact information: randy.loftis@unt.edu Email thro",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance: Attendance is mandatory, just like at a job."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Weekly attendance and in-class exercises",
+            "weightPct": 45
+          },
+          {
+            "name": "Deadline story",
+            "weightPct": 20
+          },
+          {
+            "name": "Semester story",
+            "weightPct": 35
+          }
+        ]
+      },
+      "textSha256": "bc382d6cc4bf88839389319667375289556e8d19947a6684a6765769f3920d91"
+    },
+    {
+      "id": "73f8f431",
+      "course": "BIOL 1132",
+      "section": "402",
+      "faculty": "Samuel J. Ogden",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=sjo0010",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/sjo0010%2Fschteach%2FBIOL%201132.402%20Fall%202026-1.pdf",
+      "docQuote": "Instructor Information Samuel James Ogden, Jr. Samuel.OgdenJr@unt.edu Office: Life Sciences A, Suite 246, Office B Office Hours: 8:30-9:00 AM Monday a",
+      "attendance": {
+        "present": true,
+        "excerpt": "Since all lecture is online and done via zoom, attendance is assessed via participation in zoom"
+      },
+      "examCount": {
+        "present": true,
+        "count": 4,
+        "excerpt": "you have the option to take a 50 point cumulative final after completion of exam 4"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Exams",
+            "weightPct": 40
+          },
+          {
+            "name": "Online assignments",
+            "weightPct": 15
+          },
+          {
+            "name": "Quizzes",
+            "weightPct": 15
+          },
+          {
+            "name": "Lab",
+            "weightPct": 30
+          }
+        ]
+      },
+      "textSha256": "222d5bedab8fb6b423a3255dd00cb8fef5489b24ed8f4d60f90ca084ac40b1d7"
+    },
+    {
+      "id": "74deeedc",
+      "course": "JAPN 3020",
+      "section": "001",
+      "faculty": "Angela R. Harris",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=arh0312",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/arh0312%2Fschteach%2FFall%202026%20JAPN%203020%20001%E3%80%80Syllabus-1.pdf",
+      "docQuote": "\u65e5\u672c\u8a9e 3020: Advanced Japanese I \u79cb\u5b66\u671f Fall 202\uff16 University of North Texas Class Information Instructor: angela.harris@unt.edu Office: LANG 405A Office Hou",
+      "attendance": {
+        "present": true,
+        "excerpt": "You will get three free class absences, no questions asked."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Class Participation",
+            "weightPct": 20
+          },
+          {
+            "name": "Homework",
+            "weightPct": 15
+          },
+          {
+            "name": "Conversation Table",
+            "weightPct": 5
+          },
+          {
+            "name": "Vocab Quiz",
+            "weightPct": 5
+          },
+          {
+            "name": "Kanji Quiz",
+            "weightPct": 5
+          },
+          {
+            "name": "Speaking Activities",
+            "weightPct": 15
+          },
+          {
+            "name": "Chapter Tests",
+            "weightPct": 20
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "08230918c69f934bf1294268f7a0794b7c89279102e1ad99de6d3942fa09d70d"
+    },
+    {
+      "id": "79e5b49a",
+      "course": "PSCI 2305",
+      "section": "703",
+      "faculty": "Matthew J. Eshbaugh-Soha",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=me0075",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/me0075%2Fschteach%2FPSCI%202305%20Fall%202026-2.pdf",
+      "docQuote": "US Political Behavior and Policy PSCI 2305.REC Fall 2026 Professor: Matthew Eshbaugh-Soha Office: 156 Wooten Hall E-mail: Matthew.Eshbaugh-Soha@unt.ed",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance: Attendance is part of course expectations and will be graded weekly."
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "Exams: There are two exams for this course, and no comprehensive final exam."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Online Engagement Assignments",
+            "weightPct": 35
+          },
+          {
+            "name": "Two Exams (taken at testing center)",
+            "weightPct": 25
+          },
+          {
+            "name": "In-person Class (recitation) Assignments",
+            "weightPct": 40
+          }
+        ]
+      },
+      "textSha256": "0a816a90c269f929c70e0807c5c71b181f1584adcc3ea7fc7f04c8d3e66af700"
+    },
+    {
+      "id": "79ea149e",
+      "course": "EENG 3810",
+      "section": "001",
+      "faculty": "Kamesh Namuduri",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=kn0100",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/kn0100%2Fschteach%2FEENG%203810-Fall2026-Syllabus-1.pdf",
+      "docQuote": "University of North Texas | 1 EENG 3810: Communication Systems: Fall 2026 Syllabus Instructor Contact Name: Kamesh Namuduri Office Location: DP B234 P",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance is required and carries 10% of the final grade."
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "Grading \u2022 Homework Assignments: 40% \u2022 Mid-term Exams (2): each 20% \u2022 Final Exam: 20%"
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Homework Assignments",
+            "weightPct": 40
+          },
+          {
+            "name": "Mid-term Exams",
+            "weightPct": 20
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "0c4323d5eb92f0a3e8ff255809e10793c39b43c2710e9290721906173d703679"
+    },
+    {
+      "id": "7c1dac40",
+      "course": "PSCI 2305",
+      "section": "708",
+      "faculty": "Natasha Altema",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=nea0067",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/nea0067%2Fschteach%2FPSCI%202305_708_fall%202026-1.pdf",
+      "docQuote": "PSCI 2305-708| US Political Behavior and Policy Important Note: The modality of this course has changed for this and future semesters. Students are re",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "25% - Two exams: midterm and final - There are two in-class exams for this course."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Online reading and assignments",
+            "weightPct": 35
+          },
+          {
+            "name": "In-class activities",
+            "weightPct": 40
+          },
+          {
+            "name": "Two exams",
+            "weightPct": 25
+          }
+        ]
+      },
+      "textSha256": "668b22654e231ee7d0b0c0ca49827d38f5917607597e5d40d651c611118972b1"
+    },
+    {
+      "id": "7cc0267c",
+      "course": "JOUR 4810",
+      "section": "715",
+      "faculty": "Randy L. Loftis",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=rll0049",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rll0049%2Fschteach%2FSyllabus%20JOUR%204810.713%20Fall%202026%20%281%29-1.pdf",
+      "docQuote": "JOUR 4810.713 News/Sports Practicum Fall 2026 Course Introduction The News/Sports Practicum is experiential learning -- that is, a course in which you",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance at Slash is mandatory."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "f317c01192e52da5c2975b5baefc05e8f7f91ae5f152bba58934ac8e4f5f7c47"
+    },
+    {
+      "id": "856da2fd",
+      "course": "BIOL 4005",
+      "section": "003",
+      "faculty": "Ikjot Singh Sohal",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=iss0047",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/iss0047%2Fschteach%2FCOURSE%20SYLLABUS-6.pdf",
+      "docQuote": "COURSE SYLLABUS (Fall 2026) Course Title BIOL 4005/5005 Contemporary Topics in Biology (Molecular Biology of Cancer) Meeting Times Tues, Thurs 8:00-9:",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance In-person attendance is expected for all class meetings."
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "Exams (60% of your overall grade) There will be 3 mid-term exams."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Exams",
+            "weightPct": 60
+          },
+          {
+            "name": "in-class participation",
+            "weightPct": 10
+          },
+          {
+            "name": "assignment",
+            "weightPct": 30
+          }
+        ]
+      },
+      "textSha256": "85c7a9993c0f6e7b3db7870d703fd4e729d75eccc1b462ce9dfa79194a88a235"
+    },
+    {
+      "id": "93e26795",
+      "course": "PSCI 2305",
+      "section": "710",
+      "faculty": "Natasha Altema",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=nea0067",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/nea0067%2Fschteach%2FPSCI%202305_710_fall%202026-2.pdf",
+      "docQuote": "PSCI 2305-710| US Political Behavior and Policy Important Note: The modality of this course has changed for this and future semesters. Students are re",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": true,
+        "count": 2,
+        "excerpt": "25% - Two exams: midterm and final - There are two in-class exams for this course."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Online reading and assignments",
+            "weightPct": 35
+          },
+          {
+            "name": "In-class activities",
+            "weightPct": 40
+          },
+          {
+            "name": "Two exams",
+            "weightPct": 25
+          }
+        ]
+      },
+      "textSha256": "5e1732d1c5a53f1cb42b7de245f2854b1a7cb698f0c676414fb54ecacf44d2b3"
+    },
+    {
+      "id": "a1f7871a",
+      "course": "ECON 4510",
+      "section": "001",
+      "faculty": "David J. Molina",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=djm0041",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/djm0041%2Fschteach%2FECONOMICS%204510%20SEC.%20001%20%202026z-1.pdf",
+      "docQuote": "HISTORY OF ECONOMIC THOUGHT ECONOMICS 4510/5090 Fall 2026 Professor: David J. Molina Phone: 940-565-4543 E-mail: david.molina@unt.edu Office: 344 Woot",
+      "attendance": {
+        "present": true,
+        "excerpt": "Class attendance will significantly increase your chances for a better understanding of economics and a better grade in the course."
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "There will be three exams in this course."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Exam I",
+            "weightPct": 30
+          },
+          {
+            "name": "Exam II",
+            "weightPct": 30
+          },
+          {
+            "name": "Paper and discussion",
+            "weightPct": 15
+          },
+          {
+            "name": "Final Exam",
+            "weightPct": 25
+          }
+        ]
+      },
+      "textSha256": "e3a9a974f1f1067b4c457b4442a50586daaedc0328a08fd97e1b7f3d1f7510d9"
+    },
+    {
+      "id": "abe70772",
+      "course": "PSCI 3500",
+      "section": "001",
+      "faculty": "Melissa M. McKay",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=mmm0240",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/mmm0240%2Fschteach%2FPSCI%203500%20Human%20Security%20McKay-1.pdf",
+      "docQuote": "PSCI 3500 Human Security \u2013 This syllabus is subject to change at Dr. McKay\u2019s discretion Dr. McKay Fall 2026 1 Course Information Meeting Information: ",
+      "attendance": {
+        "present": true,
+        "excerpt": "Authorized Absences Policy An absence will be excused by the university for:"
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Reading & Preparation",
+            "weightPct": 15
+          },
+          {
+            "name": "In-Class Activities & Discussions",
+            "weightPct": 15
+          },
+          {
+            "name": "Midterm Policy Memo",
+            "weightPct": 15
+          },
+          {
+            "name": "Reacting to the Past Simulation",
+            "weightPct": 20
+          },
+          {
+            "name": "Country Assessment & Policy Analysis",
+            "weightPct": 35
+          }
+        ]
+      },
+      "textSha256": "c5c2cad9a2ceb991b0940c479e1367cae8b82ab9173e5d9cac959f027447ebef"
+    },
+    {
+      "id": "abea80f7",
+      "course": "JOUR 4900",
+      "section": "713",
+      "faculty": "Randy L. Loftis",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=rll0049",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rll0049%2Fschteach%2FSyllabus%20JOUR%204900.713%20Supervising%20Student%20Media%20Fall%202026-1.pdf",
+      "docQuote": "JOUR 4900.713: Supervising Student Media Fall 2026 Professor: Randy Lee Loftis, MA Senior Lecturer Contact information: randy.loftis@unt.edu Email thr",
+      "attendance": {
+        "present": false
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "e959668a7e9ec79ec064b6448b663e345dd538c664117e575cc0f857dd602e1f"
+    },
+    {
+      "id": "ac2e4902",
+      "course": "SPAN 3080",
+      "section": "001",
+      "faculty": "Maria Carpio Manickam",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=mc0876",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/mc0876%2Fschteach%2FSPAN%203080%20Syllabus%20F2026-1.pdf",
+      "docQuote": "1 Department of World Languages, Literature, and Culture Spanish Language Proficiency for Educators (SPAN 3080) Fall 2026 Instructor Contact Informati",
+      "attendance": {
+        "present": true,
+        "excerpt": "In the case of an anticipated absence, such as military deployment, the student should contact the professor in advance and plan to complete the required assignments."
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Active Class Participation",
+            "weightPct": 20
+          },
+          {
+            "name": "Listening and Reading Comprehension",
+            "weightPct": 10
+          },
+          {
+            "name": "Oral Communication",
+            "weightPct": 20
+          },
+          {
+            "name": "Writing Communication",
+            "weightPct": 20
+          },
+          {
+            "name": "Quizzes",
+            "weightPct": 10
+          },
+          {
+            "name": "Service to the Community",
+            "weightPct": 20
+          }
+        ]
+      },
+      "textSha256": "b4f9ade30f9cdbd612f5de6c57f66180caee3115bc143c6d3c6b9753c384f593"
+    },
+    {
+      "id": "bf3264fa",
+      "course": "SPAN 3003",
+      "section": "001",
+      "faculty": "Jiyoung Yoon",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=jy0015",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jy0015%2Fschteach%2FFall%202026-in%20person-hybrid%203003%20syllabus%20for%20faculty%20profile-1.pdf",
+      "docQuote": "University of North Texas-Yoon/SPAN3003| 1 SPAN3003/ Advanced Spanish Grammar Fall 2026 TuTh 9:35 AM -10:55 AM, LANG 313, Section 001 Instructor Conta",
+      "attendance": {
+        "present": true,
+        "excerpt": "Regular and punctual class attendance is required of all students."
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "Exams: There will be two exams and one final."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Homework",
+            "weightPct": 20
+          },
+          {
+            "name": "Exam 1",
+            "weightPct": 20
+          },
+          {
+            "name": "Subjunctive Project in class (in lieu of exam 2) or Exam 2",
+            "weightPct": 10
+          },
+          {
+            "name": "Participation / Preparation / Punctuality",
+            "weightPct": 28
+          },
+          {
+            "name": "Composition activities",
+            "weightPct": 5
+          },
+          {
+            "name": "Final",
+            "weightPct": 17
+          }
+        ]
+      },
+      "textSha256": "24113629854ef217407bd3cde0075fc9e4a68f1556034808d429d5175db37396"
+    },
+    {
+      "id": "c31ab645",
+      "course": "BIOL 1132",
+      "section": "004",
+      "faculty": "James C. Bednarz",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=jcb0384",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jcb0384%2Fschteach%2FBIOL%201132.004%20Syllabus%20-%20Bednarz%20Fall%2026-1.pdf",
+      "docQuote": "1 BIOL 1132.004: ENVIRONMENTAL SCIENCE FALL 2026 Lecture: WH 217, Tuesdays and Thursdays, 3:55 \u2013 5:15 pm Lab: based upon your individual schedule 1. I",
+      "attendance": {
+        "present": true,
+        "excerpt": "If you have more than 2 unexcused absences, you are not eligible to drop your lowest regular exam score."
+      },
+      "examCount": {
+        "present": true,
+        "count": 3,
+        "excerpt": "There will be three (3) exams, each of equal weight and several homework exercises."
+      },
+      "gradingWeights": {
+        "present": true,
+        "components": [
+          {
+            "name": "Exams",
+            "weightPct": 30
+          },
+          {
+            "name": "Laboratory Grade",
+            "weightPct": 30
+          },
+          {
+            "name": "Assignments",
+            "weightPct": 30
+          },
+          {
+            "name": "iClicker Participation Points",
+            "weightPct": 10
+          }
+        ]
+      },
+      "textSha256": "a79dd3206c4c2a92538d2ccb11d8dfe58789242c48aabd6cbb023560575541e1"
+    },
+    {
+      "id": "c4628fff",
+      "course": "ENGL 4610",
+      "section": "001",
+      "faculty": "Jacqueline M. Foertsch",
+      "profileUrl": "https://facultyinfo.unt.edu/faculty-profile?profile=jmf0062",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jmf0062%2Fschteach%2FENGL%204610%20YA%20Lit%20fall%202026-1.pdf",
+      "docQuote": "ENGL 4610.001/301 \u2013 Young Adult Literature Fall 2026 / T/Th 12:45-2:05 / LANG 210 Inst: J. Foertsch LANG 409-D / foertsch@unt.edu Office Hours: W 1:30",
+      "attendance": {
+        "present": true,
+        "excerpt": "Attendance/Technology Policy: Excessive absences (more than five) may lead to reduction in the final grade"
+      },
+      "examCount": {
+        "present": false
+      },
+      "gradingWeights": {
+        "present": false
+      },
+      "textSha256": "8f4b73c7dce472553a7e21d1a9a9682bf3c5e5d2fa7b1582a62d36b8deccfbf6"
+    }
+  ],
+  "excluded": [
+    {
+      "id": "12ecdeb5",
+      "course": "EENG 2610",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/yw0301%2Fschteach%2FSyllabus-13.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "Grading Policy: Homework: 15% Quiz: 20% Midterm Exam 1: 20% Midterm Exam 2: 20% Final Exam"
+    },
+    {
+      "id": "27c898ea",
+      "course": "JOUR 4999",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rll0049%2Fschteach%2FSyllabus%20JOUR%204999.001%20News%20Capstone%20Fall%202026-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "Each unexcused absence will result in a 50-point deduction from the final semester grade."
+    },
+    {
+      "id": "2c9683ed",
+      "course": "COMM 2140",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/bal0014%2Fschteach%2FSyllabus%20for%20COMM%202140%20Section%28s%29%20001201-205%20%28Fall%202026%201%29-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "If you accumulate more than five class absences over the course of the semester your grade"
+    },
+    {
+      "id": "35d398f5",
+      "course": "EENG 2620",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/yw0301%2Fschteach%2FSyllabus-12.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "Grading Policy: Homework: 15% Quiz: 20% Midterm Exam 1: 20% Midterm Exam 2: 20% Final Exam"
+    },
+    {
+      "id": "3b36d995",
+      "course": "SPAN 3002",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/dac0475%2Fschteach%2FSPAN3002-Fall2026-Syllabus-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "After the 4th absence, whether excused or unexcused, one percentage point (1%) per absence"
+    },
+    {
+      "id": "454201d6",
+      "course": "COMM 2140",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/bal0014%2Fschteach%2FSyllabus%20for%20COMM%202140%20Section%28s%29%20001201-205%20%28Fall%202026%201%29-2.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "If you accumulate more than five class absences over the course of the semester your grade"
+    },
+    {
+      "id": "72b50fa8",
+      "course": "CSCE 3220",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rmg0045%2Fschteach%2F3220%20Syllabus%20-%20Fall%202026-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "Week 8 Midterm Week 16 Final Exam"
+    },
+    {
+      "id": "81ff7e51",
+      "course": "BIOL 1132",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/jb1230%2Fschteach%2Fsyllabus_1132_asynch-3.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "This course is asynchronous, thus there is no attendance for lecture, but you must complet"
+    },
+    {
+      "id": "afae6d64",
+      "course": "COMM 2140",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/bal0014%2Fschteach%2FSyllabus%20for%20COMM%202140%20Section%28s%29%20001201-205%20%28Fall%202026%201%29-3.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "If you accumulate more than five class absences over the course of the semester your grade"
+    },
+    {
+      "id": "b4c71421",
+      "course": "GEOG 3010",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/wa0047%2Fschteach%2FEG%20Syllabus%20Fall%202026-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "Regular and punctual attendance is required."
+    },
+    {
+      "id": "bb146f24",
+      "course": "JOUR 4999",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/rll0049%2Fschteach%2FSyllabus%20JOUR%204999.002%20News%20Capstone%20Fall%202026-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "Each unexcused absence will result in a 50-point deduction from the final semester grade."
+    },
+    {
+      "id": "bcc2542f",
+      "course": "SPAN 3001",
+      "syllabusUrl": "https://s3.amazonaws.com/mirror.facultyinfo.unt.edu/dac0475%2Fschteach%2FSPAN3001-Fall2026-Syllabus-1.pdf",
+      "reason": "a labeled excerpt no longer appears verbatim in the text downloaded on 2026-10-14",
+      "missingExcerpt": "After the 4th absence, whether excused or unexcused, one percentage point (1%) per absence"
+    }
+  ]
+}

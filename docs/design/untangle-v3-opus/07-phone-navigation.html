@@ -175,6 +175,10 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); z-index: 80; display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 0 8px 0 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: var(--shadow-3); opacity: 0; transform: translate(-50%, 8px); transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out); pointer-events: none; white-space: nowrap; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); transition-duration: var(--t-enter); pointer-events: auto; }
 .toast button { height: 32px; padding: 0 10px; border-radius: 8px; color: #a8e8c4; font-weight: 650; }
+.toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
+.toast .toast-x .i { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */
@@ -556,24 +560,26 @@ class Sheet {
   yFor(i) { const h = typeof this.detents[i] === "function" ? this.detents[i]() : this.detents[i]; return this.H() - h - this.bottomInset(); }
   closedY() { return this.H() + 40; }
   setY(y) { this.y = y; this.el.style.transform = `translateY(${y}px)`; if (this.body) this.body.style.overflowY = this.index === this.detents.length - 1 ? "auto" : "hidden"; }
-  animateTo(y, v = 0, flick = false, done) {
+  animateTo(y, v = 0, flick = false, done, instant = false) {
     this.cancel && this.cancel();
+    if (instant) { this.setY(y); done && done(); return; }
     if (reduced()) { this.el.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: 140 }); this.setY(y); done && done(); return; }
     const from = this.y ?? this.closedY();
     this.cancel = spring(from, y, v, { response: 0.34, damping: flick ? 0.86 : 1 }, (x) => this.setY(x), done);
   }
-  open(i = 0) {
+  /* instant: no motion, for state a tab switch restores (tab switches never animate). */
+  open(i = 0, { instant = false } = {}) {
     if (this.y === null) this.setY(this.closedY());
-    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i)); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
+    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i), 0, false, null, instant); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
     if (this.modal && wasClosed) { this.el.setAttribute("role", "dialog"); this.el.setAttribute("aria-modal", "true"); modalOpen(this.el); }
     if (this.scrim) this.scrim.classList.add("on");
     this.onDetent && this.onDetent(i);
   }
   snap(i, v = 0, flick = false) { this.index = i; this.animateTo(this.yFor(i), v, flick); this.onDetent && this.onDetent(i); }
-  close(v = 0) {
+  close(v = 0, { instant = false } = {}) {
     this.index = -1; if (this.scrim) this.scrim.classList.remove("on");
     if (this.modal) modalClose(this.el);
-    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; });
+    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; }, instant);
     this.onDetent && this.onDetent(-1);
   }
   bindDrag() {
@@ -642,13 +648,21 @@ function swap(el, render) {
   out.onfinish = () => { render(); el.animate([{ opacity: 0, filter: "blur(2px)", transform: "translateY(4px)" }, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 200, easing: EASE.out }); };
 }
 
+/* A toast with an action (Undo, Show) stays until the student uses it or dismisses it: a fixed
+   window would take the recovery away from anyone slower to reach it. A plain notice leaves after 5s. */
 let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
-  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button">${action}</button>` : ""}`;
-  if (action) t.querySelector("button").onclick = () => { t.classList.remove("on"); fn && fn(); };
+  const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.inert = false;
+  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
+  if (action) {
+    t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
+    t.querySelector(".toast-x").onclick = hide;
+  }
   requestAnimationFrame(() => t.classList.add("on"));
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 5000);
+  clearTimeout(toastTimer);
+  if (!action) toastTimer = setTimeout(hide, 5000);
 }
 
 hydrateIcons();
@@ -667,35 +681,69 @@ if (!asPhone) {
   const EV = [[0, 9, 0.83, 3, "CSCE 2110"], [2, 9, 0.83, 3, "CSCE 2110"], [4, 9, 0.83, 3, "CSCE 2110"], [0, 10, 0.83, 1, "MATH 2700"], [2, 10, 0.83, 1, "MATH 2700"], [4, 10, 0.83, 1, "MATH 2700"], [0, 11, 0.83, 4, "PHYS 2220"], [2, 11, 0.83, 4, "PHYS 2220"], [1, 12.5, 1.33, 6, "CSCE 2610"], [3, 12.5, 1.33, 6, "CSCE 2610"]];
   $("#wkbd").innerHTML = '<div></div>' + [0, 1, 2, 3, 4].map((d) => `<div class="col">${EV.filter((e) => e[0] === d).map((e) => `<button class="e" data-c="${e[3]}" data-code="${e[4]}" style="top:${(e[1] - 8) * 52 + 1}px;height:${e[2] * 52 - 2}px">${e[4].replace(" ", "<br>")}</button>`).join("")}</div>`).join("");
   const tabs = { courses: $("#tab-courses"), week: $("#tab-week"), day: $("#tab-day") };
-  const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.52, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true });
+  // One shared sheet element, but its state belongs to the tab that opened it: leaving a tab hides
+  // that tab's sheet instantly and coming back restores it at the same detent (HANDOFF slice 3).
+  let sheetKind = null;
+  const parked = {};
+  // An open sheet or the search layer holds one history entry, so browser Back closes it before
+  // leaving the page (DESIGN.md: Back closes the top sheet; tabs are not history).
+  // `holding` keeps the entry while a tab switch hides one sheet and may restore another.
+  let layerEntry = false, skipPops = 0, closingFromHistory = false, holding = false;
+  const searchOn = () => $("#search").classList.contains("on");
+  const pushEntry = () => { if (!layerEntry) { history.pushState({ layer: true }, ""); layerEntry = true; } };
+  const dropEntry = () => { if (layerEntry && !closingFromHistory && !holding) { layerEntry = false; skipPops++; history.back(); } };
+  const sheet = new Sheet($("#sheet"), {
+    detents: [() => innerHeight * 0.52, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true,
+    // Every way the sheet closes (drag, scrim, ×, Esc, Back, a tab switch) ends here.
+    onDetent: (i) => { if (i < 0) { sheetKind = null; if (!searchOn()) dropEntry(); } },
+  });
   const daySheet = new Sheet($("#daysheet"), { detents: [() => 200, () => innerHeight * 0.5], bottomInset: () => 56 });
   let current = "courses";
   function go(t) {
     if (t === current) { tabs[t].scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }); return; } // re-tap scrolls to top
-    if (sheet.index >= 0) sheet.close();
+    holding = true;
+    if (searchOn()) closeSearch();
+    if (sheet.index >= 0) { parked[current] = { kind: sheetKind, index: sheet.index }; sheet.close(0, { instant: true }); }
     Object.entries(tabs).forEach(([k, el]) => el.classList.toggle("on", k === t));
     $$(".tabbar a").forEach((a) => a.setAttribute("aria-current", a.dataset.go === t ? "page" : "false"));
     $(".pheader").style.display = t === "day" ? "none" : "";
     if (t === "day") daySheet.open(0); else if (daySheet.index >= 0) { daySheet.index = -1; daySheet.setY(daySheet.closedY()); }
     current = t;
+    const back = parked[t]; delete parked[t];
+    if (back) openSheet(back.kind, { index: back.index, instant: true });
+    holding = false;
+    if (sheet.index < 0) dropEntry();
   }
-  function openSheet(kind) {
+  function openSheet(kind, { index = 0, instant = false } = {}) {
     const html = kind === "prefs"
       ? `<div class="dsheet-h"><h2 class="title">Preferences</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><p class="meta" style="margin-bottom:12px">Auto follows these. Most weeks need none. The full panel is in 03-schedule-builder.html.</p><div class="label" style="margin-bottom:6px">Start after</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><button class="chip">Any time</button><button class="chip" aria-pressed="true">9 AM</button><button class="chip">10 AM</button><button class="chip">11 AM</button></div><div class="label" style="margin-bottom:6px">Busy times</div><p style="font-size:14px">Work, Tue and Thu 3:00–5:00</p>`
       : kind === "sched"
       ? `<div class="dsheet-h"><h2 class="title">Spring 2027 schedules</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><div class="sched-list"><button aria-current="true"><span>Main</span><span class="meta">Mon to Fri</span><span class="ck">${icon("check")}</span></button><button><span>Fridays off</span><span class="meta">Mon to Thu</span></button><button><span>Short walks</span><span class="meta">Mon to Fri</span></button><button style="color:var(--brand-2)">${icon("plus")}New schedule</button></div><a class="btn btn-secondary" style="width:100%;margin-top:12px" href="05-schedules-library.html">All schedules and compare</a>`
       : `<div class="dsheet-h"><span class="code">MATH 3680</span><span class="tag">3 credits</span><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><h2 class="title">Applied Statistics</h2><p class="meta" style="margin:4px 0 14px">You can take this. Full detail is in 02-courses.html.</p><button class="btn btn-primary" style="width:100%">${icon("plus")}Add to Spring 2027</button><button class="btn btn-quiet" style="width:100%;margin-top:6px" data-go="week">See it in Week</button>`;
     $("#sbody").innerHTML = html; $("[data-sclose]", $("#sbody")).onclick = () => sheet.close();
-    if (sheet.index >= 0) swap($("#sbody"), () => {}); else sheet.open(0);
+    sheetKind = kind;
+    if (sheet.index >= 0) swap($("#sbody"), () => {}); else sheet.open(index, { instant });
+    pushEntry();
   }
+  function openSearch() { $("#search").classList.add("on"); $("#sq").focus(); pushEntry(); }
+  function closeSearch() { $("#search").classList.remove("on"); if (sheet.index < 0) dropEntry(); }
+  addEventListener("popstate", (e) => {
+    if (skipPops) { skipPops--; return; }
+    // Forward onto a layer entry whose layer is gone: adopt the entry, so the next layer reuses it.
+    if (e.state?.layer && !searchOn() && sheet.index < 0) { layerEntry = true; return; }
+    layerEntry = false; closingFromHistory = true;
+    if (searchOn()) closeSearch(); else if (sheet.index >= 0) sheet.close();
+    closingFromHistory = false;
+    if (searchOn() || sheet.index >= 0) pushEntry(); // a layer is still open under the one Back closed
+  });
   document.addEventListener("click", (e) => {
     const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); go(g.dataset.go); return; }
-    const o = e.target.closest("[data-open]"); if (o) { const k = o.dataset.open; if (k === "search") { $("#search").classList.add("on"); $("#sq").focus(); } else openSheet(k); return; }
-    if (e.target.closest("[data-close-search]")) $("#search").classList.remove("on");
+    const o = e.target.closest("[data-open]"); if (o) { const k = o.dataset.open; if (k === "search") openSearch(); else openSheet(k); return; }
+    if (e.target.closest("[data-close-search]")) closeSearch();
     const ev = e.target.closest(".wk .e"); if (ev) { $$(".wk .e").forEach((x) => x.classList.toggle("hl", x.dataset.code === ev.dataset.code)); openSheet("detail"); }
   });
   $("#scrim").onclick = () => sheet.close();
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("#search").classList.contains("on")) $("#search").classList.remove("on"); else if (sheet.index >= 0) sheet.close(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (searchOn()) closeSearch(); else if (sheet.index >= 0) sheet.close(); } });
   addEventListener("message", (e) => { const k = e.data?.go; if (!k) return; if (k === "sched" || k === "detail") openSheet(k); else go(k); });
   const start = Q.get("tab") || (Q.get("now") === "term" ? "day" : "courses");
   if (start !== "courses") go(start);
