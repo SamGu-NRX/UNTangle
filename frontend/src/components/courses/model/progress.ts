@@ -13,6 +13,9 @@ import type { CourseModel } from "./course-model";
  */
 export const DEGREE_CREDITS = 120;
 
+/** "1 credit", "3 credits", "0 credits". */
+export const creditsLabel = (count: number) => `${count} credit${count === 1 ? "" : "s"}`;
+
 export function creditProgress(
   model: CourseModel,
   transcript: readonly TranscriptCourseRecord[],

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildCourseModel, type CourseRowModel, type PlanSnapshot } from "@/components/courses/model/course-model";
 import { buildGroups, degreeScope, OPEN_AT_START, rowFact, visibleParts } from "@/components/courses/model/groups";
-import { creditProgress } from "@/components/courses/model/progress";
+import { creditProgress, creditsLabel } from "@/components/courses/model/progress";
 import type { RuleNode } from "@/components/courses/model/rules";
 import { sampleTranscript } from "@/components/courses/model/sample-transcript";
 import { untProfile } from "@/components/courses/school";
@@ -139,6 +139,10 @@ describe("rowFact", () => {
     expect(fact(with_("covered", null, { coveredBy: "CSCE 1040" }))).toBe("Covered by CSCE 1040");
     for (const status of ["available", "taking", "planned"] as const) expect(rowFact(with_(status, null))).toBeNull();
   });
+});
+
+test("credit counts read as English", () => {
+  expect([0, 1, 3].map(creditsLabel)).toEqual(["0 credits", "1 credit", "3 credits"]);
 });
 
 describe("creditProgress", () => {

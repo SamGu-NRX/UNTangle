@@ -9,6 +9,7 @@ import type { Hue } from "@/lib/course-colors";
 import styles from "./courses.module.css";
 import { CourseRow, type RowActions } from "./CourseRow";
 import type { CourseRowModel } from "./model/course-model";
+import { creditsLabel } from "./model/progress";
 
 type Props = {
   term: string;
@@ -48,7 +49,7 @@ export function TermTray({ term, rows, colors, pending, budget, running, onAuto,
             {term}
           </h2>
           <p className={styles.trayMeta} data-tone={over ? "attention" : undefined}>
-            {over ? `${credits} credits, above the usual ${budget}` : `${credits} credits`}
+            {over ? `${creditsLabel(credits)}, above the usual ${budget}` : creditsLabel(credits)}
           </p>
         </div>
         {more.length > 0 ? (

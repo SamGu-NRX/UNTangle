@@ -24,7 +24,7 @@ import { computeAuto, undoBlocker } from "./model/auto";
 import { buildCourseModel, type CourseModel, type CourseRowModel } from "./model/course-model";
 import { buildGroups, OPEN_AT_START, ROWS_BEFORE_MORE, rowFact, type GroupKey } from "./model/groups";
 import { autoTransaction, courseEdit, manualEdit, snapshotOf, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
-import { creditProgress, DEGREE_CREDITS } from "./model/progress";
+import { creditProgress, creditsLabel, DEGREE_CREDITS } from "./model/progress";
 import { sampleTranscript } from "./model/sample-transcript";
 import { instructorIndex, searchCatalog } from "./model/search";
 import { AUTO_TIMELINE, fadeIn, flip, fly, measure, MOVE, reducedMotion, wait, type Rects } from "./reveal";
@@ -641,7 +641,7 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
           detailRow ? (
             <span className={styles.panelHeading}>
               <span className={styles.panelCode}>{detailRow.id}</span>
-              <span className={styles.creditsTag}>{detailRow.credits} credits</span>
+              <span className={styles.creditsTag}>{creditsLabel(detailRow.credits)}</span>
             </span>
           ) : undefined
         }
