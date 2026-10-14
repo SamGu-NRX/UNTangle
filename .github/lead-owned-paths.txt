@@ -57,6 +57,16 @@ frontend/src/app/layout.tsx
 frontend/src/components/ui/**
 frontend/src/app/globals.css
 
+# Step-1 lane acceptance tests and the fixtures they read. The Task rule
+# protects only the test files listed in tests/pending-acceptance.txt; these
+# globs also keep an agent from editing a fixture to make its test pass.
+packages/core/tests/filters/**
+packages/core/tests/importance/**
+packages/core/tests/instructor-tiebreak/**
+packages/core/tests/occurrences/**
+packages/ingest/tests/section-release*
+packages/ingest/tests/fixtures/**
+
 # CI, this list, and the checks that read it
 .github/**
 tools/repo-rules/**

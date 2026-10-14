@@ -31,7 +31,7 @@ Some package tests import frontend modules by path. Moving one of these means up
 | `calendar-feeds/types.ts` | `packages/core/tests/occurrences/fixtures.ts`, `packages/core/tests/frontend-shapes.test.ts` |
 | `sections/config.ts` | `packages/ingest/tests/source-policies.test.ts` |
 
-Don't move `sections/model.ts` or `calendar-feeds/types.ts` until the filter-predicates and calendar-occurrences tasks have landed, so no open task's fixtures shift under it.
+The lane fixtures under `packages/core/tests/` are lead-owned (`.github/lead-owned-paths.txt`), so a move that changes their imports needs Sam's `sam-approved` label, and agents never add it. Don't move `sections/model.ts` or `calendar-feeds/types.ts` until the filter-predicates and calendar-occurrences tasks have landed; then ask the lead to update those import lines in your PR.
 
 ## Movable now, in this order
 

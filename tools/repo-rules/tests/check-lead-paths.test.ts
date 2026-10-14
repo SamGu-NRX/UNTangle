@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import {
   LEAD_OWNED_PATHS,
@@ -56,6 +56,44 @@ describe("the repository's lead-owned paths", () => {
     "docs/design/surfaces.md",
     "data/plans/cs-2026.json",
   ])("leave %s to agents", (filePath) => {
+    expect(leadOwnedPathsTouched(realPatterns, [modified(filePath)])).toEqual([]);
+  });
+});
+
+/** Every file under `dir` (from the repo root), as repo-root paths. */
+function filesUnder(dir: string): string[] {
+  return readdirSync(path.join(repoRoot, dir), { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.relative(repoRoot, path.join(entry.parentPath, entry.name)).split(path.sep).join("/"));
+}
+
+describe("the step-1 lane acceptance tests and their fixtures", () => {
+  const laneFiles = [
+    ...["filters", "importance", "instructor-tiebreak", "occurrences"].flatMap((lane) => filesUnder(`packages/core/tests/${lane}`)),
+    ...filesUnder("packages/ingest/tests").filter((file) => !file.endsWith("/source-policies.test.ts")),
+  ];
+
+  test("exist, so the globs below are checked against real files", () => {
+    expect(laneFiles).toContain("packages/core/tests/filters/fixtures.ts");
+    expect(laneFiles).toContain("packages/core/tests/occurrences/campus-feed.ics");
+    expect(laneFiles).toContain("packages/ingest/tests/fixtures/vsb-spring-2027.json");
+    expect(laneFiles).toContain("packages/ingest/tests/section-release.test.ts");
+  });
+
+  test("are all lead-owned, so an agent PR that edits a test or fixture fails Path ownership", () => {
+    const unclaimed = laneFiles.filter((file) => leadOwnedPathsTouched(realPatterns, [modified(file)]).length === 0);
+    expect(unclaimed).toEqual([]);
+  });
+
+  test.each([
+    "packages/core/src/filters.ts",
+    "packages/core/src/occurrences.ts",
+    "packages/core/src/filters/meetings.ts",
+    "packages/core/tests/no-dom.test.ts",
+    "packages/core/tests/frontend-shapes.test.ts",
+    "packages/ingest/src/section-release.ts",
+    "packages/ingest/tests/source-policies.test.ts",
+  ])("leave %s, which the lanes change or which isn't a lane test, to agents", (filePath) => {
     expect(leadOwnedPathsTouched(realPatterns, [modified(filePath)])).toEqual([]);
   });
 });

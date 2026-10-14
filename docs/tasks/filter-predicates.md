@@ -8,6 +8,8 @@ Build `evaluateFilter` and `evaluateFilters` in `packages/core/src/filters.ts`. 
 - `frontend/src/lib/sections/model.ts` and `frontend/src/lib/sections/INTEGRATION.md`: what a parsed section holds, and what async, TBA and unassigned mean.
 - `frontend/src/lib/planner-sections.ts`: `hasOpenSeats` and `otherSiteOf` are today's seat and site rules. The new rules are stricter where data is missing.
 
+The instructor filter matches the displayed name (`instructor.display`), ignoring case and spacing, with each co-teacher counted. That is a stopgap: names aren't identities. Once the instructor matcher from #69 (`frontend/src/lib/instructors/`) moves into core, a later task switches this filter to matched identities.
+
 An earlier attempt lives on the `edge` branch in `frontend/src/lib/smart-filters/` (PRs #78 and #83). Read it for names if you like, but don't port it. It lets TBA meetings pass day and time filters, treats an empty day list as "no constraint", and answers true or false where it should say unknown. The tests here fail on all three.
 
 ## The tests you make pass
@@ -21,7 +23,7 @@ An earlier attempt lives on the `edge` branch in `frontend/src/lib/smart-filters
 
 ## Constraints
 
-- Don't change the test file or its fixtures. The Task rule check fails a PR that edits a listed test.
+- Don't change the test file or its fixtures. They are lead-owned, so the Path ownership check fails a PR that touches them, and the Task rule check fails one that edits a listed test.
 - Core is pure: no imports from frontend, other workspace packages, Node, Bun, the DOM or data files. Lint and core's tsconfig enforce this.
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). If you need a contract change, propose it in your PR description.
 - Leave the planner alone. Wiring these filters into Auto and the Week view is a later task.
