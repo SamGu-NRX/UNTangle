@@ -103,6 +103,16 @@ export type StartPlace = { name: string; point: MapRoutePoint };
 /** The fromKey of the walk from the starting point. */
 export const START_KEY = "start";
 
+/**
+ * The day's walking, in minutes: the walk from the starting point and every
+ * walk between classes with a known time. Shuttle rides aren't walking, and
+ * a straight-line estimate has no time to add.
+ */
+export function dayWalkMinutes(itinerary: Itinerary): number {
+  const legs = itinerary.start ? [itinerary.start.leg, ...itinerary.legs] : itinerary.legs;
+  return legs.reduce((total, leg) => total + (leg.route.kind === "walk" ? (leg.walkMinutes ?? 0) : 0), 0);
+}
+
 export type Itinerary = {
   /** The starting point and the walk from it to the first class; null with no starting point or no classes. */
   start: { place: StartPlace; leg: ItineraryLeg } | null;
@@ -126,16 +136,6 @@ export function fromMinutes(total: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-/** "13:05" -> "1:05 PM". */
-export function formatClock(value: string): string {
-  const total = toMinutes(value);
-  const hours = Math.floor(total / 60);
-  const minutes = total % 60;
-  const suffix = hours >= 12 ? "PM" : "AM";
-  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
-}
-
 const metersPerMile = 1609.344;
 const feetPerMeter = 3.28084;
 
@@ -149,13 +149,20 @@ export function formatDistance(meters: number): string {
 }
 
 /**
- * Minutes after midnight as Day writes a time: "8:49", "1:05", with no AM
- * or PM, as the Day mockups do. The day's order gives the half of the day.
+ * Minutes after midnight on a 12-hour clock, and its half of the day:
+ * { clock: "8:49", half: "AM" }. Day always shows the half, because an
+ * evening class makes a bare "8:00" ambiguous.
  */
-export function formatTime(total: number): string {
+export function clockParts(total: number): { clock: string; half: "AM" | "PM" } {
   const wrapped = ((total % 1440) + 1440) % 1440;
-  const hours = Math.floor(wrapped / 60) % 12;
-  return `${hours === 0 ? 12 : hours}:${String(wrapped % 60).padStart(2, "0")}`;
+  const hours = Math.floor(wrapped / 60);
+  return { clock: `${hours % 12 === 0 ? 12 : hours % 12}:${String(wrapped % 60).padStart(2, "0")}`, half: hours < 12 ? "AM" : "PM" };
+}
+
+/** "8:49 AM", "1:05 PM". */
+export function formatTime(total: number): string {
+  const { clock, half } = clockParts(total);
+  return `${clock} ${half}`;
 }
 
 /** Whole minutes, rounded up; the campus-wide rule in lib/campus/speeds.ts. */

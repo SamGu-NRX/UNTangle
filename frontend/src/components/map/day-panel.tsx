@@ -9,6 +9,7 @@ import { Plate } from "@/components/ui/Plate";
 import { SearchPalette, type SearchSection } from "@/components/ui/SearchPalette";
 import type { Hero } from "@/lib/leave-by";
 import {
+  clockParts,
   formatDistance,
   formatTime,
   formatWalkMinutes,
@@ -82,9 +83,20 @@ export function DayStepper({
 
 /* ---------- hero ---------- */
 
+/** A time with its AM or PM, which CSS can set lighter than the digits. */
+function Clock({ minutes }: { minutes: number }) {
+  const { clock, half } = clockParts(minutes);
+  return (
+    <>
+      {clock}
+      <span className="mv-half"> {half}</span>
+    </>
+  );
+}
+
 type HeroCopy = {
   label: string;
-  big: string;
+  big: ReactNode;
   now?: boolean;
   chip?: { text: string; tight: boolean };
   sub: ReactNode;
@@ -143,7 +155,7 @@ function heroCopy(
       const label = `Leave ${fromName(hero.index)} by`;
       return {
         label: on ? `On ${on}, ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label,
-        big: formatTime(hero.leave),
+        big: <Clock minutes={hero.leave} />,
         chip:
           hero.minutesUntil === null
             ? undefined
@@ -168,7 +180,7 @@ function heroCopy(
       const { stop } = itinerary.stops[hero.index];
       return {
         label: on ? `On ${on}, the first class is at` : "Next class at",
-        big: formatTime(toMinutes(stop.start)),
+        big: <Clock minutes={toMinutes(stop.start)} />,
         chip: hero.minutesUntil === null ? undefined : { text: `in ${formatWalkMinutes(hero.minutesUntil)}`, tight: false },
         sub: `${stop.courseCode} in ${stop.location}.`,
       };
@@ -178,7 +190,7 @@ function heroCopy(
       const previous = itinerary.stops[hero.index - 1].stop;
       return {
         label: `${stop.courseCode} overlaps ${previous.courseCode}`,
-        big: formatTime(toMinutes(stop.start)),
+        big: <Clock minutes={toMinutes(stop.start)} />,
         sub: (
           <>
             It starts before {previous.courseCode} ends at {formatTime(toMinutes(previous.end))}.{" "}
@@ -410,7 +422,9 @@ function StopRow({
         ) : placement.kind === "unresolved" ? (
           <span className="mv-stop__off">Not on map</span>
         ) : null}
-        <span className="mv-stop__time">{formatTime(toMinutes(stop.start))}</span>
+        <span className="mv-stop__time">
+          <Clock minutes={toMinutes(stop.start)} />
+        </span>
       </button>
       {/* Printed for every class; on screen only when selected. */}
       <div className={selected ? "mv-more" : "mv-more mv-more--print"}>

@@ -521,9 +521,23 @@ button.mv-leg__row {
 }
 
 .mv-stop__time {
-  min-width: 40px;
+  min-width: 64px;
   font-size: 14px;
   text-align: right;
+  white-space: nowrap;
+}
+
+/* AM and PM: the same weight and color as the time; smaller beside the hero's big figure. */
+.mv-hero__big .mv-half {
+  font-size: 0.4em;
+  letter-spacing: 0.02em;
+}
+
+/* The day's total walking, one line at the end of the itinerary. */
+.mv-walk-total {
+  margin: 12px 0 0 44px;
+  font-size: 13px;
+  color: var(--mv-ink-2);
 }
 
 .mv-stop[data-placement="resolving"] .mv-stop__time {

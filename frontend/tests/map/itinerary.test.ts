@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildItinerary,
-  formatClock,
+  clockParts,
+  dayWalkMinutes,
   formatDistance,
   formatTime,
   lookupKey,
@@ -86,17 +87,15 @@ describe("formatting", () => {
     expect(formatDistance(100)).toBe("330 ft");
     expect(formatDistance(482.8)).toBe("0.3 mi");
   });
-  test("Day's times: 12-hour, no AM or PM", () => {
-    expect(formatTime(8 * 60 + 49)).toBe("8:49");
-    expect(formatTime(12 * 60)).toBe("12:00");
-    expect(formatTime(13 * 60 + 5)).toBe("1:05");
-    expect(formatTime(0)).toBe("12:00");
+  test("Day's times: 12-hour, with the half of the day", () => {
+    expect(formatTime(8 * 60 + 49)).toBe("8:49 AM");
+    expect(formatTime(11 * 60 + 59)).toBe("11:59 AM");
+    expect(formatTime(12 * 60)).toBe("12:00 PM");
+    expect(formatTime(20 * 60)).toBe("8:00 PM");
+    expect(formatTime(0)).toBe("12:00 AM");
+    expect(clockParts(13 * 60 + 5)).toEqual({ clock: "1:05", half: "PM" });
   });
-  test("12-hour clock", () => {
-    expect(formatClock("09:05")).toBe("9:05 AM");
-    expect(formatClock("12:00")).toBe("12:00 PM");
-    expect(formatClock("13:50")).toBe("1:50 PM");
-  });
+
 });
 
 describe("buildItinerary", () => {
@@ -252,6 +251,27 @@ describe("the walk from the starting point", () => {
       [pointKey(kerr.point), key(gab, "gab")],
       [key(gab, "gab"), key(blb, "blb")],
     ]);
+  });
+});
+
+describe("dayWalkMinutes", () => {
+  const kerr = { name: "Kerr Hall", point: { lat: 33.2077, lng: -97.1468 } };
+  test("the starting walk and every timed walk; no shuttle, no straight line", () => {
+    const stops = [
+      stop("A 1", "09:00", "09:50", { id: "gab", point: gab }),
+      stop("B 1", "10:00", "10:50", { id: "blb", point: blb }),
+      stop("C 1", "11:00", "11:50", { id: "wh", point: wh }),
+      stop("D 1", "13:00", "13:50", { id: "ntdp" }),
+    ];
+    const fallback: PairAnswer = { fromIndex: 0, toIndex: 1, source: "fallback", geometry: [blb, wh], distanceMeters: 300, durationSeconds: null };
+    const answers = new Map<string, PairAnswer>([
+      [pairKey(pointKey(kerr.point), key(gab, "gab")), walkLeg(500, 640, kerr.point, gab)],
+      [pairKey(key(gab, "gab"), key(blb, "blb")), walkLeg(240, 300)],
+      [pairKey(key(blb, "blb"), key(wh, "wh")), fallback],
+    ]);
+    // 9 from the starting point, 4 between GAB and BLB; the straight line and the shuttle add nothing.
+    expect(dayWalkMinutes(buildItinerary(stops, new Map(), answers, kerr))).toBe(13);
+    expect(dayWalkMinutes(buildItinerary(stops, new Map(), answers))).toBe(4);
   });
 });
 

@@ -17,10 +17,10 @@ import { usePageState } from "@/components/shell/shell-context";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { activeCampus, campusById } from "@/lib/campus/config";
 import { dayHero, type HeroClass } from "@/lib/leave-by";
-import { toMinutes, type StartPlace } from "@/lib/map-itinerary";
+import { dayWalkMinutes, formatWalkMinutes, toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
 import { DayHero, DayItinerary, DayStepper, StartPicker, type NextClass } from "@/components/map/day-panel";
-import { campusNow, meetsOn, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
+import { campusNow, dayNames, meetsOn, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { MapSelection } from "@/components/map/selection";
@@ -252,6 +252,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
       }
     : { top: CLEAR.top, right: CLEAR.controls, bottom: CLEAR.attribution, left: area.panelRight + CLEAR.edge };
 
+  const walked = dayWalkMinutes(itinerary);
   const openPicker = () => setPickerOpen(true);
   // Picking a starting point replaces the control that opened the search, so
   // focus goes to whatever now starts the day.
@@ -286,6 +287,11 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
           onChangeStart={openPicker}
           registerRow={registerRow}
         />
+        {walked > 0 ? (
+          <p className="mv-walk-total">
+            {formatWalkMinutes(walked)} walking {isToday ? "today" : `on ${dayNames[day]}`}
+          </p>
+        ) : null}
       </>
     ) : null;
   // Where the sections come from, said once, and printing the day.

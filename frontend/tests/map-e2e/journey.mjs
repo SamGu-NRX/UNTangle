@@ -215,6 +215,9 @@ async function desktop(browser) {
   const hero = (await page.locator(".mv-hero").first().textContent()) ?? "";
   check("desktop: the hero says when to leave the starting point", /Leave Kerr Hall by\s*\d{1,2}:\d{2}/.test(hero) && /in \d+ min/.test(hero) && /ANTH 3700 starts at 9:30/.test(hero), hero);
   check("desktop: Day opens on today", ((await page.locator(".mv-stepper__day").textContent()) ?? "") === "Today");
+  check("desktop: times carry AM or PM", /\d{1,2}:\d{2}\s*AM/.test(hero) && /12:00\s*PM/.test((await page.locator(".mv-stop").nth(1).textContent()) ?? ""));
+  const walkTotal = (await page.locator(".mv-walk-total").textContent().catch(() => "")) ?? "";
+  check("desktop: the day's walking total ends the itinerary", /^\d+ min walking today$/.test(walkTotal.trim()), walkTotal);
 
   const walks = await page.locator('.mv-leg[data-route="walk"]').evaluateAll((els) => els.map((el) => el.textContent));
   check(
