@@ -53,6 +53,9 @@ describe("a forbidden import fails lint", () => {
     ["packages/ingest/src/a.ts", 'import { tokens } from "@untangle/tokens";\nexport const t = tokens;', restricted],
     ["packages/ingest/src/a.ts", 'import { push } from "@untangle/sync";\nexport const p = push;', restricted],
     ["packages/ingest/src/a.ts", 'import { useState } from "react";\nexport const hook = useState;', restricted],
+    ["packages/ingest/src/a.ts", 'export const lazy = () => import("@untangle/sync");', "no-restricted-syntax"],
+    ["packages/ingest/src/a.ts", 'export const lazy = (name: string) => import(name);', "no-restricted-syntax"],
+    ["packages/ingest/src/a.ts", 'export const lazy = () => import("../../sync/src/engine");', escapes],
   ])("%s: %s", async (file, code, rule) => {
     expect(await problems(file, code)).toEqual([rule]);
   });

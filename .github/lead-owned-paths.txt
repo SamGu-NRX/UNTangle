@@ -29,6 +29,13 @@ packages/tokens/**
 frontend/drizzle/**
 frontend/drizzle.config.ts
 frontend/src/lib/db/**
+frontend/src/server/db/**
+
+# The server mutation path: today's planner save, and the sync route after it
+frontend/src/app/api/planner/**
+frontend/src/lib/persistence.ts
+frontend/src/app/api/v1/sync/**
+frontend/src/server/handlers/sync/**
 
 # Auth
 frontend/src/lib/auth*.ts

@@ -171,8 +171,8 @@ export default defineConfig([
     },
   })),
   {
-    // A computed import() would slip past both rules above. Only ingest,
-    // which runs as a job, may load modules lazily.
+    // no-restricted-imports doesn't see import(), so a lazy load would slip
+    // past it. The libraries never load lazily.
     files: ["packages/{core,contracts,sync,tokens}/src/**/*.{ts,tsx,mts}"],
     rules: {
       "no-restricted-syntax": [
@@ -180,6 +180,20 @@ export default defineConfig([
         {
           selector: "ImportExpression",
           message: "Use a static import, so the import boundary rules can see it.",
+        },
+      ],
+    },
+  },
+  {
+    // ingest, which runs as a job, may load its own modules lazily, by a
+    // relative path stay-in-package can check, and nothing else.
+    files: ["packages/ingest/src/**/*.{ts,tsx,mts}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportExpression:not([source.type='Literal'][source.value=/^\\./])",
+          message: "Lazy-load only ingest's own modules, by relative path. Import anything else statically.",
         },
       ],
     },
