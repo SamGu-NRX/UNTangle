@@ -325,14 +325,14 @@ Obvious agents build bounded pieces against frozen contracts:
 How it works:
 - A line in the list is a test file's path from the repo root, which skips the file, or `path::name`, which skips one test by the full name Bun prints.
 - Every package's `test` script runs `tools/repo-rules/src/run-tests.ts`. It gives `bun test` the package's test files minus the listed ones. A file with listed test names runs on its own, with a name pattern that leaves those tests out. A listed path that doesn't exist, or that no package's tests cover, fails the run.
-- The Task rule job (`.github/workflows/pr-rules.yml`) runs from the base branch through `pull_request_target`, so a PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line to it.
+- The Task rule job (`.github/workflows/pr-rules.yml`) runs through `pull_request_target`, so its workflow comes from the default branch and its script and list from the PR's base commit. A PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line to it.
 - The lead lists a new acceptance test with the test and its line in one PR, labeled `lead-approved`, which lifts the check.
 
 Where a task family repeats, the lead writes one harness that covers every member instead of one test per task. For example, a degree-plan validator checks every file in `plans/`, so each new plan is a data-only PR.
 
 **Contract changes:**
 - If an agent needs a contract change, it proposes one in its PR description; it doesn't work around the boundary.
-- A CI path check fails any agent PR that touches a lead-owned path. It is the Path ownership job in `.github/workflows/pr-rules.yml`: it applies to PRs from `obv/*` branches, reads the globs in `.github/lead-owned-paths.txt` from the base branch, and is lifted by the `lead-approved` label.
+- A CI path check fails any agent PR that touches a lead-owned path. It is the Path ownership job in `.github/workflows/pr-rules.yml`: it applies to PRs from `obv/*` branches, reads the globs in `.github/lead-owned-paths.txt` from the PR's base commit, and is lifted by the `lead-approved` label.
 - Briefs forbid adding dependencies.
 
 UI work by agents follows `docs/design/`, starting with its README. A UI task gets a filled recipe (`docs/design/recipe-template.md`), approved by the lead before code. A UI PR shows real app screenshots at 390 and 1440, and those screenshots pass the visual QA checklist (`docs/design/visual-qa.md`). Mobile screens are lead- or specialist-built until agents have a working iOS simulator.

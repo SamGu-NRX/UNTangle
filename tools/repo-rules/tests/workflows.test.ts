@@ -45,12 +45,22 @@ describe("pr-rules.yml", () => {
     expect(permissions).toEqual({ contents: "read" });
   });
 
+  test("reads the lists from the PR's base, not the default branch", async () => {
+    const { jobs } = await workflow("pr-rules.yml");
+    for (const job of Object.values(jobs)) {
+      const check = job.steps.find((step) => step.run?.startsWith("bun "));
+      expect(check?.env?.BASE_SHA).toBe("${{ github.event.pull_request.base.sha }}");
+    }
+  });
+
   // pull_request_target has the base branch's access, so running the PR's code here would hand it that access.
   test("never checks out or runs the PR's code", async () => {
     const { jobs } = await workflow("pr-rules.yml");
     for (const job of Object.values(jobs)) {
       for (const step of job.steps) {
-        expect(step.with?.ref).toBeUndefined();
+        if (step.uses?.startsWith("actions/checkout@")) {
+          expect(step.with?.ref).toBe("${{ github.event.pull_request.base.sha }}");
+        }
         if (step.run !== undefined) {
           expect(step.run).toMatch(/^(git fetch --no-tags origin "\+refs\/pull\/\$\{PR_NUMBER\}\/head:refs\/remotes\/pr\/head"|bun --no-env-file tools\/repo-rules\/src\/check-[a-z-]+\.ts)$/);
         }
