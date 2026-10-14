@@ -18,12 +18,12 @@
   padding: var(--safe-t) max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--line);
 }
+/* The wordmark never shrinks or clips; the search field gives way, and on phones the wordmark scales with the width. */
 .brand {
   display: inline-flex;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+  flex: none;
   align-items: center;
+  white-space: nowrap;
   gap: 8px;
   font: 800 22px/1 var(--font-mark);
   color: var(--ink);
@@ -42,7 +42,7 @@
 }
 .search {
   flex: 1 1 440px;
-  min-width: 200px;
+  min-width: 160px;
   max-width: 440px;
 }
 .right {
@@ -91,10 +91,10 @@
     padding: var(--safe-t) max(12px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   }
   .brand {
-    font-size: 16px;
+    font-size: clamp(13px, 4vw, 16px);
   }
   .plate {
-    font-size: 10px;
+    font-size: 11px;
   }
   .switcher {
     height: 36px;

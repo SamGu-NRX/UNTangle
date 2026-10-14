@@ -99,7 +99,8 @@ describe("Week", () => {
   test("the answer line names the tight walk once, with a fix that runs Auto", async () => {
     const { value, optimizer } = host([course(csce), course(math), course(phys)]);
     const view = await render(value);
-    expect(view.container.textContent).toContain("The walk to PHYS 2220 on Monday and Wednesday is tight.");
+    // Course codes are joined by a no-break space so they never split across lines.
+    expect(view.container.textContent).toContain("The walk to PHYS\u00a02220 on Monday and Wednesday is tight.");
     await click(buttons(view.container, /^Show a fix$/)[0]);
     expect(optimizer.run).toHaveBeenCalledTimes(1);
     await view.unmount();

@@ -36,6 +36,9 @@ type Strip =
 
 const isWeekDay = (day: Day): day is WeekDay => day !== "Sat" && day !== "Sun";
 
+/** A course code never breaks across lines ("PHYS 2220", not "PHYS" over "2220"). */
+const keepCodesWhole = (text: string) => text.replace(/\b([A-Z]{3,4}) (\d{4}[A-Z]?)\b/g, "$1\u00a0$2");
+
 const FINE = "(hover: hover) and (pointer: fine)";
 /**
  * Week's main region: 960px, narrower from 1200px wide when the page plus the
@@ -361,7 +364,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       return (
         <OptionsStrip
           count={running ? "Updating" : `${strip.index + 1} of ${strip.shown.length}`}
-          sentence={sentence}
+          sentence={keepCodesWhole(sentence)}
           searching={running || feed.status === "refining"}
           better={strip.better}
           instant={instant}
@@ -412,7 +415,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         ) : (
           <AlertGlyph size={18} className={styles.answerGlyph} />
         )}
-        <span>{answer.text}</span>
+        <span>{keepCodesWhole(answer.text)}</span>
         {answer.action === "fix" ? (
           <Button variant="secondary" size="sm" onClick={(event) => auto(event.detail === 0)}>
             Show a fix

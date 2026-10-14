@@ -347,6 +347,21 @@
     text-overflow: ellipsis;
   }
 }
+/*
+ * A clash lane on a phone is about 25px wide: too narrow for a word across.
+ * The code runs up the block instead, read bottom to top like a chart label,
+ * on one line that ends in an ellipsis rather than a cut glyph.
+ */
+@container (max-width: 30px) {
+  .event .eventCode {
+    /* In vertical writing the line runs along the height, so the height bounds the ellipsis. */
+    max-height: 100cqh;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
 .eventTime {
   font-size: 12px;
   color: var(--ink-2);
@@ -1001,7 +1016,7 @@
   }
   .gutter span {
     right: 4px;
-    font-size: 10px;
+    font-size: 11px;
   }
   /* 8px from the block's edge on the left (5px clear of the bar), 5px at the top, 4px on the right. */
   .event {
@@ -1015,9 +1030,9 @@
     max-height: round(down, 100cqh, 13px);
   }
   .walkChip {
-    height: 16px;
+    height: 17px;
     padding: 0 5px 0 3px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .walkWords,
   .tag {

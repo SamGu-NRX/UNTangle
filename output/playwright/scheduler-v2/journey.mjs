@@ -142,10 +142,10 @@ for (const vp of [
   await prefs.getByRole("radio", { name: "9 AM" }).click();
   await prefs.getByRole("group", { name: "Days off" }).getByRole("button", { name: "Thu" }).click();
   await prefs.getByRole("button", { name: "Add a busy time" }).click();
-  await prefs.getByLabel("Name").fill("Work");
+  await prefs.getByLabel("Name", { exact: true }).fill("Work");
   await prefs.getByRole("group", { name: "Days", exact: true }).getByRole("button", { name: "Tue" }).click();
-  await prefs.getByLabel("From").fill("13:00");
-  const to = prefs.getByLabel("To");
+  await prefs.getByLabel("From", { exact: true }).fill("13:00");
+  const to = prefs.getByLabel("To", { exact: true });
   await to.fill("12:00");
   await prefs.getByRole("button", { name: "Add", exact: true }).click();
   check(
