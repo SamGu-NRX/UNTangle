@@ -1,62 +1,93 @@
 /**
- * Deterministic, rule-based parsing of plain-language schedule preferences.
+ * Plain-language schedule preferences, parsed into a `PreferenceIntent`.
  *
- * Architecture, per the #53 review:
+ * A student writes "no classes before 10, Fridays off if possible, I work
+ * Tue/Thu 3-5". The parser returns the intent and two lists of spans over
+ * the original text, what it understood and what it did not, so a UI can
+ * show both and the student can correct either.
  *
- * 1. normalize the input (length-preserving, so spans line up with the
- *    original text a UI would highlight),
- * 2. tokenize day groups and times (`parseDayGroup`, `parseTime` - both
- *    exported and pinned by table-driven tests),
- * 3. split into clauses on punctuation and on "and"/"but" between full
- *    constraints (never inside a day list, time range or credit phrase),
- * 4. extract per clause from a small table of {pattern, field, value} rows
- *    with clause-level negation scope. No single-phrase rules.
+ * Precision comes first. A wrong fact silently builds the wrong schedule; a
+ * missed one stays visible. So an ambiguous request becomes a tagged
+ * not-understood span, never a guessed fact:
  *
- * Precision first: when something is ambiguous the parser emits an
- * unsupported or assumed span, never a guessed fact. The ambiguous cases,
- * pinned by tests:
+ * - a bare hour with no am/pm ("nothing after 5") is `ambiguousTime`;
+ * - a day with a time ("no Monday classes before 10") is `dayWithTime`,
+ *   because the planner has no per-day start or end;
+ * - a hard constraint the student hedged ("Fridays off if possible") is
+ *   `hedgedConstraint`, carrying the field and value so the UI can ask
+ *   whether it is a must;
+ * - Saturday and Sunday are `weekend`: the planner schedules Monday to Friday.
  *
- * - a bare hour with no am/pm ("nothing after 5", "9 to 5", "I work 7-1")
- *   is tagged `ambiguousTime`, never read as am or pm;
- * - a day with a time qualifier ("no Monday classes before 10") is tagged
- *   `dayWithTime`, never turned into a whole day off - the planner has no
- *   per-day start;
- * - "free on X" is tagged `freeOnDay` (availability, not a day off);
- * - vague "early"/"morning"/"evening" complaints map to the `mornings` and
- *   `evenings` soft weights, not a hard noon;
- * - hours are credits only when the words "credit"/"credit hours" appear,
- *   never bare "hours";
- * - "<time> is too early" is an exclusive boundary the planner cannot hold
- *   exactly: it maps to the next minute (`earliestStart = T + 1`), and the
- *   reverse for "too late" (`latestEnd = T - 1`), so the named time itself
- *   is excluded - the old mapping still allowed it;
- * - in a range, the end's am/pm does apply to a bare start ("8-10pm" is
- *   8pm-10pm); a range with no explicit meridiem anywhere ("I work 7-1")
- *   stays ambiguous and is tagged, never adjusted.
+ * Two readings are assumed rather than asked, and the span says so with
+ * `assumed`: a bare range whose start is at or after its end reads AM to PM
+ * ("I work 7-1" is 7am to 1pm, "9-5" is 9am to 5pm), and the bare side of a
+ * range takes the opposite meridiem when copying the written one would
+ * invert it ("11-1pm" is 11am to 1pm). A bare range starting at 12 ("12-1")
+ * stays ambiguous, since 12 can be noon or midnight.
  *
- * Not-understood spans are the clause text no understood span covers, minus
- * filler words, so a UI can highlight exactly what to ask about.
+ * How it works:
  *
- * No network, no model, no dependencies: every rule is a regular
- * expression plus plain code, and the same input always produces the same
- * result. The contract of every field lives in `schema.ts`.
+ * 1. `normalize` lowercases and folds punctuation without changing length,
+ *    so every offset indexes the original text.
+ * 2. `tokenize` finds day groups with `parseDayGroup` and times with
+ *    `parseTime`; `mask` then writes each token as "D___" or "T___" in a copy
+ *    of the text. Rows match a token by its kind, so no row describes what a
+ *    day or a time looks like.
+ * 3. `splitClauses` splits on punctuation and on "and"/"but", never inside a
+ *    token, a credit phrase or a course list.
+ * 4. Each row is a pattern and a reader. Readers decide polarity with
+ *    `governor`, the one negation rule: a negating word ("no", "don't",
+ *    "avoid", "hate", "anyone but") reaches back across a closed set of
+ *    function words and scheduling verbs to the phrase it governs.
+ * 5. `hedges` decides, in one place, which clauses are hedged.
+ * 6. Overlapping candidates resolve longest first; the rest apply in text
+ *    order, so a repeated bound keeps its last mention.
+ *
+ * No network, no model, no clock: the same input always gives the same
+ * result. Field contracts live in `schema.ts`.
  */
 
-import { emptyIntent, type PreferenceIntent, type SoftKey, type Strength } from "./schema";
 import { weekDays, type WeekDay } from "../types";
+import {
+  emptyIntent,
+  type CampusScope,
+  type ClassMode,
+  type PrefBlockedTime,
+  type PreferenceIntent,
+  type SoftKey,
+  type Strength,
+} from "./schema";
+
+// ---------------------------------------------------------------------------
+// Result types
+// ---------------------------------------------------------------------------
 
 /** A quoted slice of the input. `start` is inclusive, `end` exclusive. */
 export type Span = { start: number; end: number; text: string };
 
-/** Input the parser used: the field it set and the value it gave it. */
-export type UnderstoodSpan = Span & { field: string; value: unknown };
-
-/** Why a slice of input was not used. */
-export type NotUnderstoodSpan = Span & {
-  reason: "unsupported" | "unparseable";
-  /** For "unsupported": which family of unexpressible request this is. */
-  tag?: string;
+/** Input the parser used. */
+export type UnderstoodSpan = Span & {
+  /** `hard.<field>` or `soft.<key>`; `hard.credits` when one phrase set both credit bounds. */
+  field: string;
+  /** The value set: minutes, days, blocks, a credit count or `{ min, max }`, or `{ strength, positive }` for a soft key. */
+  value: unknown;
+  /** True when the parser chose a reading the student did not write, such as 7am-1pm for "7-1". */
+  assumed: boolean;
 };
+
+/** Input the parser did not turn into a fact, and why. */
+export type NotUnderstoodSpan = Span &
+  (
+    | { reason: "unparseable" }
+    | {
+        reason: "unsupported";
+        /** The family of request, such as `ambiguousTime`, `weekend` or `hedgedConstraint`. */
+        tag: string;
+        /** Set on `hedgedConstraint` only: the fact the parser would apply if the student confirms it is a must. */
+        field?: string;
+        value?: unknown;
+      }
+  );
 
 export type ParseResult = {
   intent: PreferenceIntent;
@@ -64,9 +95,9 @@ export type ParseResult = {
   notUnderstood: NotUnderstoodSpan[];
 };
 
-// ---------------------------------------------------------------------------
-// Normalization (length-preserving, so spans align with the original text)
-// ---------------------------------------------------------------------------
+type Interval = { start: number; end: number };
+
+const overlaps = (a: Interval, b: Interval): boolean => a.start < b.end && b.start < a.end;
 
 function normalize(text: string): string {
   return text
@@ -75,1258 +106,861 @@ function normalize(text: string): string {
     .replace(/[–—]/g, "-")
     .replace(/a\.m\./g, "am  ")
     .replace(/p\.m\./g, "pm  ")
-    // Defuse abbreviations whose period would otherwise split clauses
-    // mid-name ("avoid Dr. Lee"). Length-preserving: "." becomes " ".
+    // The period in "Dr. Lee" is not a clause boundary.
     .replace(/\bdr\./g, "dr ")
     .replace(/\bprof\./g, "prof ");
 }
 
 // ---------------------------------------------------------------------------
-// Time tokens
+// Times
 // ---------------------------------------------------------------------------
 
-type ParsedTime = {
-  /** Hour as written. */
-  h: number;
-  min: number;
-  /** The meridiem as written, or null when the token did not say one. */
-  meridiem: "am" | "pm" | null;
+type Meridiem = "am" | "pm";
+
+export type ParsedTime = {
+  /** Minutes after midnight. A bare hour holds its am reading (5 is 300) until a range resolves it. */
   minutes: number;
-  /** True when the token fully specifies the time (am/pm, noon, midnight, or an unambiguous 24-hour hour). */
+  /** As written; null for a bare hour or a 24-hour time. */
+  meridiem: Meridiem | null;
+  /** False only for a bare 1 to 12 with no am/pm, which is never read as one or the other. */
   explicit: boolean;
 };
 
-function parseTimeToken(raw: string): ParsedTime | null {
-  const t = raw
-    .trim()
-    .toLowerCase()
-    .replace(/o'?clock/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (t === "noon") return { h: 12, min: 0, meridiem: "pm", minutes: 720, explicit: true };
-  if (t === "midnight") return { h: 0, min: 0, meridiem: "am", minutes: 0, explicit: true };
-  const m = /^(\d{1,2})(?::(\d{2})|\.(\d{2}))?(?:\s*(am|pm))?$/.exec(t);
+/**
+ * Parse one time: "9am", "9:30 pm", "9.30", "noon", "midnight", "12 AM",
+ * "13:30", "9 o'clock", and plurals such as "8ams".
+ */
+export function parseTime(raw: string): ParsedTime | null {
+  const t = raw.trim().toLowerCase().replace(/\s+/g, " ").replace(/ ?o'?clock$/, "");
+  if (t === "noon") return { minutes: 720, meridiem: "pm", explicit: true };
+  if (t === "midnight") return { minutes: 0, meridiem: "am", explicit: true };
+  const m = /^(\d{1,2})(?:[:.](\d{2}))?(?: ?([ap]m)s?)?$/.exec(t);
   if (!m) return null;
   const h = Number(m[1]);
-  const min = Number(m[2] ?? m[3] ?? 0);
-  if (h > 24 || min > 59) return null;
-  if (h === 24 && min !== 0) return null;
-  const mer = (m[4] ?? null) as "am" | "pm" | null;
-  let minutes: number;
-  let explicit: boolean;
-  if (mer === "am") {
-    minutes = (h % 12) * 60 + min;
-    explicit = true;
-  } else if (mer === "pm") {
-    minutes = ((h % 12) + 12) * 60 + min;
-    explicit = true;
-  } else if (h > 12) {
-    // An hour above 12 can only be a 24-hour time.
-    minutes = h * 60 + min;
-    explicit = true;
-  } else {
-    // Bare hour: genuinely ambiguous, never guessed.
-    minutes = h * 60 + min;
-    explicit = false;
+  const min = Number(m[2] ?? 0);
+  const meridiem = m[3] === "am" || m[3] === "pm" ? m[3] : null;
+  if (min > 59) return null;
+  if (meridiem) {
+    if (h < 1 || h > 12) return null;
+    return { minutes: (h % 12) * 60 + min + (meridiem === "pm" ? 720 : 0), meridiem, explicit: true };
   }
-  if (minutes > 24 * 60) return null;
-  return { h, min, meridiem: mer, minutes, explicit };
+  if (h > 24 || (h === 24 && min > 0)) return null;
+  // 0 and 13 to 24 can only be 24-hour times.
+  return { minutes: h * 60 + min, meridiem: null, explicit: h === 0 || h > 12 };
+}
+
+type Range = { start: number; end: number; assumed: boolean };
+
+function atMeridiem(bare: ParsedTime, meridiem: Meridiem): number {
+  return (bare.minutes % 720) + (meridiem === "pm" ? 720 : 0);
 }
 
 /**
- * Parse one time token: am/pm, noon, midnight, 12 AM/PM, 24-hour, 9.30 and
- * 9:30 forms. Returns minutes after midnight and whether the token fully
- * specified the time. A bare hour is returned with `explicit: false` and is
- * never promoted to am or pm by this function.
+ * Resolve a range [a, b), or null when it cannot be resolved.
+ *
+ * - Both explicit: as written; midnight as the end means 24:00.
+ * - One bare: it copies the other side's meridiem ("8-10pm" is 8pm-10pm).
+ *   When that would invert the range it takes the opposite one ("11-1pm"),
+ *   flagged assumed.
+ * - Both bare: AM to PM only when the start is at or after the end ("7-1"),
+ *   flagged assumed. A start of 12 could be noon or midnight, and a start
+ *   before the end ("1-3", "10-12") has two sane readings: both stay null.
  */
-export function parseTime(raw: string): { minutes: number; explicit: boolean } | null {
-  const p = parseTimeToken(raw);
-  return p ? { minutes: p.minutes, explicit: p.explicit } : null;
-}
-
-function withMeridiem(t: ParsedTime, mer: "am" | "pm"): number {
-  return (t.h % 12) * 60 + (mer === "pm" ? 720 : 0) + t.min;
-}
-
-function inferredMeridiem(t: ParsedTime): "am" | "pm" {
-  return t.h % 12 === 0 || t.h >= 12 ? "pm" : "am";
-}
-
-/**
- * Resolve a range [a, b). The end's explicit meridiem applies to a bare
- * start; the start's applies to a bare end. Two bare times stay ambiguous.
- * Returns null when the range cannot be resolved or is inverted.
- */
-function resolveRange(a: ParsedTime, b: ParsedTime): { start: number; end: number } | null {
+function resolveRange(a: ParsedTime, b: ParsedTime): Range | null {
   if (a.explicit && b.explicit) {
-    // "10pm to midnight": midnight written as an end means 24:00, not 00:00.
-    const end = b.h === 0 && b.min === 0 && a.minutes > 0 ? 24 * 60 : b.minutes;
-    return a.minutes < end ? { start: a.minutes, end } : null;
+    const end = b.minutes === 0 && a.minutes > 0 ? 1440 : b.minutes;
+    return a.minutes < end ? { start: a.minutes, end, assumed: false } : null;
   }
-  if (!a.explicit && b.explicit) {
-    const first = b.meridiem ?? inferredMeridiem(b);
-    // Annotated: an unannotated array literal widens union literals to string[].
-    const mers: Array<"am" | "pm"> = [first, first === "am" ? "pm" : "am"];
-    for (const mer of mers) {
-      const start = withMeridiem(a, mer);
-      if (start < b.minutes) return { start, end: b.minutes };
+  if (a.explicit || b.explicit) {
+    const known = a.explicit ? a : b;
+    const bare = a.explicit ? b : a;
+    const same: Meridiem = known.meridiem ?? (known.minutes >= 720 ? "pm" : "am");
+    const flipped: Meridiem = same === "am" ? "pm" : "am";
+    for (const meridiem of [same, flipped]) {
+      const v = atMeridiem(bare, meridiem);
+      const [start, end] = a.explicit ? [a.minutes, v] : [v, b.minutes];
+      if (start < end) return { start, end, assumed: meridiem !== known.meridiem };
     }
     return null;
   }
-  if (a.explicit && !b.explicit) {
-    const first = a.meridiem ?? inferredMeridiem(a);
-    const mers: Array<"am" | "pm"> = [first, first === "am" ? "pm" : "am"];
-    for (const mer of mers) {
-      const end = withMeridiem(b, mer);
-      if (a.minutes < end) return { start: a.minutes, end };
-    }
-    return null;
-  }
-  // Both bare: resolve only through the cross-noon arithmetic ("11 to 1" →
-  // 11am-1pm, "12-1" → noon-1pm, "9-5" → 9am-5pm). A bare pair where the
-  // start hour is below the end hour ("1-3") has several sane readings, so
-  // it stays ambiguous - never guessed.
-  if (!a.explicit && !b.explicit && a.minutes >= b.minutes && b.minutes + 720 > a.minutes) {
-    return { start: a.minutes, end: b.minutes + 720 };
-  }
+  if (a.minutes >= b.minutes && a.minutes < 720) return { start: a.minutes, end: b.minutes + 720, assumed: true };
   return null;
 }
 
 // ---------------------------------------------------------------------------
-// Day tokens
+// Days
 // ---------------------------------------------------------------------------
 
-/** Any day name the parser understands, including weekend days it must tag. */
-type AnyDay = WeekDay | "Sat" | "Sun";
+/** Any day a student can name, including the weekend days the planner does not schedule. */
+export type AnyDay = WeekDay | "Sat" | "Sun";
 
 const ALL_DAYS: readonly AnyDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const WEEKDAY_DAYS: readonly WeekDay[] = weekDays;
 
-const DAY_WORD = String.raw`(?:mon(?:day)?|tues?(?:day)?|weds?(?:nesday)?|thur?s?(?:day)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)s?`;
+const isWeekday = (d: AnyDay): d is WeekDay => d !== "Sat" && d !== "Sun";
 
-function dayFromWord(word: string): AnyDay | null {
-  const s = word.toLowerCase();
-  if (/^m/.test(s)) return "Mon";
-  if (/^tu/.test(s)) return "Tue";
-  if (/^th/.test(s)) return "Thu";
-  if (/^w/.test(s)) return "Wed";
-  if (/^f/.test(s)) return "Fri";
-  if (/^sa/.test(s)) return "Sat";
-  if (/^su/.test(s)) return "Sun";
-  return null;
-}
+/**
+ * One written day: a name or abbreviation, or a course-schedule letter code.
+ * A lone "S" is not a day, because Saturday or Sunday would be a guess, and
+ * "sat" and "sun" are not either: in "I sat in on a class" they are English.
+ */
+const DAY_ATOMS: ReadonlyArray<readonly [RegExp, readonly AnyDay[]]> = [
+  [/^mon(?:day)?s?$/, ["Mon"]],
+  [/^tu(?:e|es|esday)?s?$/, ["Tue"]],
+  [/^wed(?:s|nesday)?s?$/, ["Wed"]],
+  [/^th(?:u|ur|urs|ursday)?s?$/, ["Thu"]],
+  [/^fri(?:day)?s?$/, ["Fri"]],
+  [/^saturdays?$/, ["Sat"]],
+  [/^sundays?$/, ["Sun"]],
+  [/^mwf$/, ["Mon", "Wed", "Fri"]],
+  [/^mw$/, ["Mon", "Wed"]],
+  [/^(?:tth|tr|tt)$/, ["Tue", "Thu"]],
+  [/^m$/, ["Mon"]],
+  [/^t$/, ["Tue"]],
+  [/^w$/, ["Wed"]],
+  [/^r$/, ["Thu"]],
+  [/^f$/, ["Fri"]],
+];
 
-function daysFromAtom(atom: string): AnyDay[] | null {
-  const a = atom.toLowerCase();
-  if (/^mwf$/.test(a)) return ["Mon", "Wed", "Fri"];
-  if (/^mw$/.test(a)) return ["Mon", "Wed"];
-  if (/^tth$|^tt$|^tr$/.test(a)) return ["Tue", "Thu"];
-  if (/^tu$/.test(a)) return ["Tue"];
-  if (/^th$/.test(a)) return ["Thu"];
-  if (/^[mtwrfs]$/.test(a)) {
-    // Single-letter atoms ("M T W R F" lists): M/T/W/R/F are unambiguous
-    // course-schedule letters. A lone "S" is left unparsed on purpose -
-    // Saturday vs Sunday is a guess, and guessing contradicts the contract.
-    const letter = a === "r" ? "thu" : { m: "mon", t: "tue", w: "wed", f: "fri" }[a];
-    const d = letter ? dayFromWord(letter) : null;
-    return d ? [d] : null;
-  }
-  if (new RegExp(`^${DAY_WORD}$`).test(a)) {
-    const d = dayFromWord(a);
-    return d ? [d] : null;
-  }
-  return null;
-}
-
-function sortDays<D extends AnyDay>(days: D[]): D[] {
-  return [...days].sort((a, b) => ALL_DAYS.indexOf(a) - ALL_DAYS.indexOf(b));
+function atomDays(atom: string): readonly AnyDay[] | null {
+  return DAY_ATOMS.find(([re]) => re.test(atom))?.[1] ?? null;
 }
 
 /**
- * Parse a day-group fragment into days: full names, abbreviations
- * (Mon/Tue/Tues/Wed/Thu/Thur/Thurs/...), letter codes and lists (M T W R F,
- * M/W/F, T/Th, TR, MWF), "weekdays", "weekends", and ranges ("Monday
- * through Wednesday"). Returns null when the fragment is not a day group.
+ * Parse a day group: names and abbreviations (Tu, Tue, Tues, Th, Thur,
+ * Thurs, ...), letter codes and lists (M T W R F, M/W/F, T/Th, TR, MWF),
+ * "weekdays", "weekends", "every day", and ranges ("Monday through
+ * Wednesday"). Null when the fragment is not a day group.
  */
 export function parseDayGroup(fragment: string): AnyDay[] | null {
-  const s = fragment
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/^ (?:the )?/, "")
-    .replace(/^(?:every|each)\s+/, "")
-    .trim();
-  if (!s) return null;
-  if (/^week ?days?$/.test(s)) return [...WEEKDAY_DAYS];
+  const s = fragment.toLowerCase().trim().replace(/\s+/g, " ");
+  if (/^(?:(?:every|each) )?week ?days?$|^daily$|^(?:every|each) day$/.test(s)) return [...weekDays];
   if (/^weekends?$/.test(s)) return ["Sat", "Sun"];
-  if (/^(?:daily|every day|each day)$/.test(s)) return [...WEEKDAY_DAYS];
-  const range = new RegExp(`^(?:every |each )?(${DAY_WORD})\\s*(?:-|to|until|till|through|thru)\\s*(${DAY_WORD})$`).exec(s);
+  const body = s.replace(/^(?:every|each) /, "");
+  const range = /^([a-z]+) ?(?:-|to|until|till|through|thru) ?([a-z]+)$/.exec(body);
   if (range) {
-    const a = dayFromWord(range[1]);
-    const b = dayFromWord(range[2]);
-    if (!a || !b) return null;
+    const from = atomDays(range[1]);
+    const to = atomDays(range[2]);
+    if (from?.length !== 1 || to?.length !== 1) return null;
     const out: AnyDay[] = [];
-    for (let i = ALL_DAYS.indexOf(a); ; i = (i + 1) % ALL_DAYS.length) {
+    for (let i = ALL_DAYS.indexOf(from[0]); ; i = (i + 1) % ALL_DAYS.length) {
       out.push(ALL_DAYS[i]);
-      if (ALL_DAYS[i] === b || out.length > 7) break;
+      if (ALL_DAYS[i] === to[0]) return out;
     }
-    return out;
   }
-  const parts = s.split(/\s*(?:\/|,|&|\band\b|\bor\b)\s*|\s+/).filter((p) => p.length > 0);
-  const out: AnyDay[] = [];
-  for (const part of parts) {
-    const days = daysFromAtom(part);
-    if (!days) return null;
-    for (const d of days) if (!out.includes(d)) out.push(d);
+  // A list never starts or ends on a joiner: "Monday and" is not a group.
+  if (/^(?:[/,&]|(?:and|or)\b)|(?:[/,&]|\b(?:and|or))$/.test(body)) return null;
+  const days = new Set<AnyDay>();
+  for (const part of body.split(/ ?(?:[/,&]|\band\b|\bor\b) ?| /)) {
+    if (!part) continue;
+    const found = atomDays(part);
+    if (!found) return null;
+    for (const d of found) days.add(d);
   }
-  return out.length > 0 ? sortDays(out) : null;
+  return days.size > 0 ? ALL_DAYS.filter((d) => days.has(d)) : null;
 }
 
-/** The day-group pattern used inside row patterns. */
-const DAYGROUP = String.raw`(?:\b(?:every|each)\s+)?\b(?:week ?days?|weekends?|daily|every day|each day|${DAY_WORD}(?:(?:\s*,\s*(?:and\s+|or\s+)?|\s*(?:,|and|&|or|/|to|until|till|through|thru)\s*|\s+)${DAY_WORD})*|[mtwrfs](?:\s*[/,]?\s*[mtwrfs])+)\b`;
-
 // ---------------------------------------------------------------------------
-// Clause splitting
+// Tokens
 // ---------------------------------------------------------------------------
 
-const TIME_TOKEN_RE =
-  /\b(?:noon|midnight)\b|\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:am|pm))?\b|\b\d{1,2}\.\d{2}(?:\s*(?:am|pm))?\b|\b\d{1,2}\s*(?:am|pm)\b|\b\d{1,2}\b/g;
-const CREDIT_PHRASE_RE = /\b\d{1,2}(?:\s*(?:-|to|and)\s*\d{1,2})?\s*(?:credit\s*hours?|credit\s*hrs?|credits?)\b/g;
+type DayToken = Interval & { kind: "day"; days: AnyDay[] };
+type TimeToken = Interval & { kind: "time"; time: ParsedTime; plural: boolean };
+type Token = DayToken | TimeToken;
 
-type Interval = { start: number; end: number };
+/** Where a time may be. `parseTime` decides whether it is one; "3.0" is a number, not 3 o'clock. */
+const TIME_SHAPE = /\b(?:noon|midnight|\d{1,2}(?:[:.]\d{2})?(?: ?[ap]ms?)?(?: ?o'?clock)?)\b(?![.:]\d)/g;
 
-function collectMatches(text: string, re: RegExp): Interval[] {
-  const out: Interval[] = [];
-  for (const m of text.matchAll(re)) out.push({ start: m.index, end: m.index + m[0].length });
-  return out;
+/** After a bare number, words that make it a count rather than a time: credits, hours, a level, a per-day or per-week count. */
+const COUNT_AFTER =
+  /^(?:\s*(?:-|to|and|or)\s*(?:\d{1,2}|more|fewer|less))?\s*-?\s*(?:credit|hours?\b|hrs?\b|level\b|gpa\b|(?:classes|courses|sections)\s+(?:a|per)\s+day|days?\b|times?\b)/;
+
+function tokenize(text: string): Token[] {
+  const tokens: Token[] = [];
+  for (const m of text.matchAll(TIME_SHAPE)) {
+    const time = parseTime(m[0]);
+    const end = m.index + m[0].length;
+    if (!time || (/^\d{1,2}$/.test(m[0]) && COUNT_AFTER.test(text.slice(end)))) continue;
+    tokens.push({ kind: "time", start: m.index, end, time, plural: /[ap]ms$/.test(m[0]) });
+  }
+  const words = [...text.matchAll(/[a-z0-9']+/g)]
+    .map((w) => ({ start: w.index, end: w.index + w[0].length, word: w[0] }))
+    .filter((w) => !tokens.some((t) => overlaps(t, w)));
+  for (let i = 0; i < words.length; ) {
+    let best: DayToken | null = null;
+    for (let j = i; j < Math.min(words.length, i + 8); j++) {
+      if (j > i && !/^[\s,/&-]*$/.test(text.slice(words[j - 1].end, words[j].start))) break;
+      const days = parseDayGroup(text.slice(words[i].start, words[j].end));
+      if (days) best = { kind: "day", start: words[i].start, end: words[j].end, days };
+    }
+    // "w/" means "with": a lone letter before a slash is not a day.
+    const lone = best && best.end === words[i].end && words[i].word.length === 1 && text[best.end] === "/";
+    if (best && !lone) {
+      tokens.push(best);
+      while (i < words.length && words[i].start < best.end) i++;
+    } else i++;
+  }
+  return tokens.sort((a, b) => a.start - b.start);
 }
+
+/** The text with each token written as its kind ("D___", "T___"), same length, so row patterns match tokens by kind. */
+function mask(text: string, tokens: readonly Token[]): string {
+  let out = "";
+  let at = 0;
+  for (const t of tokens) {
+    out += text.slice(at, t.start) + (t.kind === "day" ? "D" : "T").padEnd(t.end - t.start, "_");
+    at = t.end;
+  }
+  return out + text.slice(at);
+}
+
+const DAY = String.raw`D_*`;
+const TIME = String.raw`T_*`;
+const NOUN = String.raw`(?:classes|class|sections|section|courses|course)`;
+
+const isDay = (t: Token): t is DayToken => t.kind === "day";
+const isTime = (t: Token): t is TimeToken => t.kind === "time";
+const hasWeekend = (d: DayToken): boolean => !d.days.every(isWeekday);
+const isWholeWeek = (d: DayToken): boolean => d.days.length === weekDays.length && d.days.every(isWeekday);
+
+// ---------------------------------------------------------------------------
+// Clauses
+// ---------------------------------------------------------------------------
+
+type Clause = Interval & {
+  /** Masked clause text. */
+  text: string;
+  tokens: Token[];
+  /** The clause opened with "but", as in "no classes before 10, but 9 is okay". */
+  afterBut: boolean;
+};
+
+const CREDIT = String.raw`(?:credit\s*hours?|credit\s*hrs?|credits?)`;
 
 /**
- * Split into clauses on punctuation and on "and"/"but" between full
- * constraints. Day lists ("Tuesday and Thursday"), time tokens ("9:30",
- * "9.30") and credit phrases ("12 and 15 credits") are protected, so their
- * internal conjunctions and separators never split a clause.
+ * Split on punctuation and on "and"/"but". Masked tokens hold no
+ * punctuation or conjunctions, so a day list or "9:30" never splits; credit
+ * phrases ("12 and 15 credits"), decimals and course lists are protected
+ * explicitly.
  */
-function splitClauses(text: string): Interval[] {
-  const prot: Interval[] = [
-    ...collectMatches(text, TIME_TOKEN_RE),
-    ...collectMatches(text, CREDIT_PHRASE_RE),
-    ...collectMatches(text, new RegExp(DAYGROUP, "g")),
-    // Decimal numbers ("a 3.0 GPA"): the period inside a decimal is a digit
-    // separator, never a clause boundary.
-    ...collectMatches(text, /\b\d+\.\d+\b/g),
-  ];
-  const straddles = (i: number) => prot.some((p) => p.start < i && i < p.end);
-  const SPLIT = /[.,;:!?]|\band\b|\bbut\b/g;
-  const bounds: number[] = [0];
-  for (const m of text.matchAll(SPLIT)) {
-    if (straddles(m.index)) continue;
-    // A course list is one statement: "avoid BIOL 2041 and CHEM 2370" keeps
-    // its cue scope instead of splitting off a clause with no cue.
-    if (m[0] === "and" && /\b[a-z]{2,4}\s?\d{4}\s*$/.test(text.slice(0, m.index))) continue;
-    bounds.push(m.index);
+function splitClauses(masked: string, tokens: readonly Token[]): Clause[] {
+  const protect = [
+    ...masked.matchAll(new RegExp(String.raw`\b\d{1,2}(?:\s*(?:-|to|and)\s*\d{1,2})?\s*${CREDIT}\b`, "g")),
+    ...masked.matchAll(new RegExp(String.raw`\bbetween\s+${TIME}\s+and\s+${TIME}`, "g")),
+    ...masked.matchAll(/\b\d+\.\d+\b/g),
+  ].map((m) => ({ start: m.index, end: m.index + m[0].length }));
+  const cuts: Array<{ at: number; length: number; but: boolean }> = [];
+  for (const m of masked.matchAll(/[.,;:!?]|\band\b|\bbut\b/g)) {
+    if (protect.some((p) => p.start < m.index && m.index < p.end)) continue;
+    const before = masked.slice(0, m.index);
+    const after = masked.slice(m.index + m[0].length);
+    // A course or instructor list is one request ("avoid Professor Lee and Dr Kim").
+    const joins = (item: string) => new RegExp(`${item}\\s*$`).test(before) && new RegExp(`^\\s*${item}`).test(after);
+    if (/^(?:,|and|or)$/.test(m[0]) && (joins(COURSE) || joins(INSTRUCTOR))) continue;
+    // "anyone but Dr. Lee" names who to avoid; it is not a second clause.
+    if (m[0] === "but" && /\b(?:any|every)(?:one|body|thing)\s*$/.test(before)) continue;
+    cuts.push({ at: m.index, length: m[0].length, but: m[0] === "but" });
   }
-  bounds.push(text.length);
-  const clauses: Interval[] = [];
-  for (let k = 0; k < bounds.length - 1; k++) {
-    let s = bounds[k];
-    let e = bounds[k + 1];
-    // Skip the conjunction itself and trim whitespace at the edges.
-    const lead = /^(?:and|but)\b\s*/.exec(text.slice(s, e));
-    if (lead) s += lead[0].length;
-    while (s < e && /\s/.test(text[s])) s += 1;
-    while (e > s && /\s/.test(text[e - 1])) e -= 1;
-    if (s < e) clauses.push({ start: s, end: e });
+  cuts.push({ at: masked.length, length: 0, but: false });
+  const clauses: Clause[] = [];
+  let from = 0;
+  let afterBut = false;
+  for (const cut of cuts) {
+    let start = from;
+    let end = cut.at;
+    while (start < end && /\s/.test(masked[start])) start++;
+    while (end > start && /\s/.test(masked[end - 1])) end--;
+    if (start < end) {
+      const inside = tokens.filter((t) => t.start >= start && t.end <= end);
+      clauses.push({ start, end, text: masked.slice(start, end), tokens: inside, afterBut });
+      afterBut = false;
+    }
+    from = cut.at + cut.length;
+    afterBut ||= cut.but;
   }
   return clauses;
 }
 
 // ---------------------------------------------------------------------------
-// Candidates and extraction rows
+// Polarity: the one negation rule
 // ---------------------------------------------------------------------------
 
-type Cand =
-  | {
-      kind: "match";
-      priority: number;
-      start: number;
-      end: number;
-      field: string;
-      value: unknown;
-      apply: (intent: PreferenceIntent) => void;
-    }
-  | { kind: "unsupported"; priority: number; start: number; end: number; tag: string }
-  | { kind: "unparseable"; priority: number; start: number; end: number };
+const NEGATORS = new Set(
+  "no not never don't dont can't cant cannot won't wont shouldn't without avoid avoiding skip skipping nothing none hate dislike dread except unavailable".split(
+    " ",
+  ),
+);
 
-type MatchContext = {
-  /** Clause text. */
-  text: string;
-  /** Absolute offset of the clause in the input. */
-  offset: number;
+/** Words that say the student wants what follows ("I prefer morning classes"). */
+const CUES = new Set("want wants like love prefer prefers enjoy".split(" "));
+
+/**
+ * Words a negation or a cue reaches across: "don't [let me go] over 15
+ * credits", "no [classes on] Fridays", "no [classes after 4pm or] before
+ * 9am". Any other word ends the reach, so "I don't mind Fridays" and "I
+ * don't work Fridays" negate nothing.
+ */
+const REACH = new Set(
+  (
+    "a an the any my me them it i i'm that which to be is are have has having get getting let lets make need needs " +
+    "take taking do doing schedule book attend attending start starts starting begin begins beginning end ends ending " +
+    "run runs running go goes going last stay staying show pick suggest choose use give send put class classes course " +
+    "courses section sections anything on during in at with w from by taught or long really even ever out of early " +
+    "campus come coming there free available " +
+    "morning mornings evening evenings night late before after past earlier later than until till would should will"
+  ).split(" "),
+);
+
+type Governor = { negated: boolean; cue: boolean; at: number };
+
+/**
+ * What governs the phrase starting at `at` in a masked clause: read back at
+ * most six words, across `REACH` words and tokens, to a negator or the first
+ * word outside the reach. A cue on the way is noted and passed over.
+ * `at` comes back as where the governing phrase starts.
+ */
+function governor(text: string, at: number): Governor {
+  const words = [...text.slice(0, at).matchAll(/[\w']+/g)];
+  let cue: number | null = null;
+  for (let i = words.length - 1; i >= Math.max(0, words.length - 6); i--) {
+    const w = words[i][0];
+    if (NEGATORS.has(w)) return { negated: true, cue: cue !== null, at: words[i].index };
+    const anyone = /^(?:any|every)(?:one|body|thing)$/.test(words[i - 1]?.[0] ?? "");
+    if (w === "but" && anyone) return { negated: true, cue: cue !== null, at: words[i - 1].index };
+    if (CUES.has(w)) cue = words[i].index;
+    else if (!REACH.has(w) && !/^[DT]_*$/.test(w)) break;
+  }
+  return { negated: false, cue: cue !== null, at: cue ?? at };
+}
+
+// ---------------------------------------------------------------------------
+// Candidates
+// ---------------------------------------------------------------------------
+
+/** One hard fact, typed by the field it sets. */
+type HardFact =
+  | { field: "earliestStart" | "latestEnd" | "creditMin" | "creditMax"; value: number }
+  | { field: "credits"; value: { min: number; max: number } }
+  | { field: "daysOff"; value: WeekDay[] }
+  | { field: "blockedTimes"; value: PrefBlockedTime[] }
+  | { field: "openSeatsOnly"; value: true }
+  | { field: "campusScope"; value: CampusScope }
+  | { field: "mode"; value: ClassMode };
+
+type Body =
+  | { kind: "hard"; fact: HardFact; assumed: boolean }
+  | { kind: "soft"; key: SoftKey; positive: boolean }
+  | { kind: "tag"; tag: string; fact?: HardFact }
+  | { kind: "unparseable" };
+
+/** A reading of part of a clause. Overlap is judged on [start, end); [reach, end) is reported. */
+type Found = Interval & { reach: number } & Body;
+
+type Match = Interval & {
+  clause: Clause;
   m: RegExpExecArray;
+  gov: Governor;
+  reach: number;
+  days: DayToken[];
+  times: TimeToken[];
 };
 
-function mkMatch(
-  priority: number,
-  ctx: MatchContext,
-  field: string,
-  value: unknown,
-  apply: (intent: PreferenceIntent) => void,
-): Cand {
+function matchOf(clause: Clause, m: RegExpExecArray): Match {
+  const start = clause.start + m.index;
+  const end = start + m[0].length;
+  const gov = governor(clause.text, m.index);
+  const inside = clause.tokens.filter((t) => t.start >= start && t.end <= end);
   return {
-    kind: "match",
-    priority,
-    start: ctx.offset + ctx.m.index,
-    end: ctx.offset + ctx.m.index + ctx.m[0].length,
-    field,
-    value,
-    apply,
+    start,
+    end,
+    clause,
+    m,
+    gov,
+    reach: gov.negated || gov.cue ? clause.start + gov.at : start,
+    days: inside.filter(isDay),
+    times: inside.filter(isTime),
   };
 }
 
-function mkUnsupported(priority: number, ctx: MatchContext, tag: string): Cand {
-  return {
-    kind: "unsupported",
-    priority,
-    start: ctx.offset + ctx.m.index,
-    end: ctx.offset + ctx.m.index + ctx.m[0].length,
-    tag,
-  };
+const found = (x: Interval & { reach: number }, body: Body): Found => ({
+  start: x.start,
+  end: x.end,
+  reach: x.reach,
+  ...body,
+});
+const hard = (x: Match, fact: HardFact, assumed = false): Found => found(x, { kind: "hard", fact, assumed });
+const soft = (x: Match, key: SoftKey, positive = true): Found => found(x, { kind: "soft", key, positive });
+const tag = (x: Interval & { reach: number }, name: string): Found => found(x, { kind: "tag", tag: name });
+const wholeClause = (c: Clause, name: string): Found => tag({ ...c, reach: c.start }, name);
+
+const TIME_OF_DAY = /\b(?:mornings?|afternoons?|evenings?|nights?|early|late)\b/;
+const hasTime = (c: Clause): boolean => c.tokens.some(isTime) || TIME_OF_DAY.test(c.text);
+/** A day the planner cannot scope a time to: any group but the whole week. */
+const hasScopedDay = (c: Clause): boolean => c.tokens.some((t) => isDay(t) && !isWholeWeek(t));
+
+// ---------------------------------------------------------------------------
+// Readers
+// ---------------------------------------------------------------------------
+
+/** A day off is a whole day: with a time in the clause it is left to the dayWithTime fallback. */
+function daysOff(x: Match, days: readonly AnyDay[]): Found | null {
+  if (hasTime(x.clause)) return null;
+  if (!days.every(isWeekday)) return tag(x, "weekend");
+  return days.length > 0 ? hard(x, { field: "daysOff", value: days.filter(isWeekday) }) : null;
 }
 
-function mkUnparseable(priority: number, ctx: MatchContext): Cand {
-  return {
-    kind: "unparseable",
-    priority,
-    start: ctx.offset + ctx.m.index,
-    end: ctx.offset + ctx.m.index + ctx.m[0].length,
-  };
+/** "only Tuesdays and Thursdays": every other weekday is off. */
+function onlyDays(x: Match): Found | null {
+  const named = x.days[0].days;
+  if (!named.every(isWeekday)) return hasTime(x.clause) ? null : tag(x, "weekend");
+  return daysOff(x, weekDays.filter((d) => !named.includes(d)));
 }
 
-function overlaps(a: Interval, b: Interval): boolean {
-  return a.start < b.end && b.start < a.end;
+function bound(x: Match, field: "earliestStart" | "latestEnd", delta = 0): Found {
+  // The planner holds one start and end for the whole week, so "on weekdays" is part of the bound.
+  if (hasScopedDay(x.clause)) return wholeClause(x.clause, "dayWithTime");
+  const week = x.clause.tokens.find(isDay);
+  const span = week ? { start: Math.min(x.start, week.start), end: Math.max(x.end, week.end), reach: Math.min(x.reach, week.start) } : x;
+  const t = x.times[0].time;
+  return t.explicit
+    ? found(span, { kind: "hard", fact: { field, value: t.minutes + delta }, assumed: false })
+    : tag(span, "ambiguousTime");
 }
 
-function setSoft(intent: PreferenceIntent, key: SoftKey, strength: Strength, positive = true): void {
-  const existing = intent.soft.find((s) => s.key === key);
-  if (existing) {
-    existing.strength = strength;
-    existing.positive = positive;
-  } else intent.soft.push({ key, strength, positive });
-}
-
-/** Words that soften an ask to mild strength. */
-const SOFTENER =
-  /\b(?:if possible|if you can|if you'?re able|when possible|i'?d prefer|do prefer|prefer|prefers|preferably|i'?d rather|would rather|i'?d like|hopefully|ideally|somewhat|kinda|sorta|maybe|slightly|if need be)\b/i;
-
-/** How strongly the student asked, from the words before the match and the phrase itself. */
-function strengthFor(ctx: MatchContext, phrase: string): Strength {
-  if (/\bas\s+possible\b/i.test(phrase)) return "strong";
-  // Softeners count before the match ("I prefer smaller classes"), inside
-  // it ("prefer morning classes"), or trailing it ("skip mornings if you
-  // can").
-  const before = ctx.text.slice(Math.max(0, ctx.m.index - 60), ctx.m.index);
-  const after = ctx.text.slice(ctx.m.index + ctx.m[0].length, ctx.m.index + ctx.m[0].length + 40);
-  return SOFTENER.test(before) || SOFTENER.test(phrase) || SOFTENER.test(after) ? "mild" : "strong";
-}
-
-const NEG_WORDS = String.raw`(?:no|not|never|don'?t|do\s+not|can'?t|cannot|can\s?not|without|avoid|avoiding|skip|skipping|nothing)`;
+const COMMITMENT =
+  /\b(?:lab\s+rotation|work|works|working|shifts?|practices?|training|trains?|rehears(?:e|al|als)|volunteer(?:s|ing)?|babysit(?:s|ting)?|intern(?:s|ing)?|jobs?|clinicals?|labs?|meetings?)\b/;
+const KEEP = /\b(?:keep|block|set\s+aside|reserve)\b/;
 
 /**
- * A negative marker in the few tokens before `idx`? Scans the window from
- * the end: a negation within three tokens of the course/instructor wins
- * ("I'm not taking CSCE 3110" is avoided, despite the positive "taking").
+ * A weekly block from a time range. The clause must say it is a commitment
+ * ("I work 9-5"), a keep ("keep 12pm-1pm free"), a ban ("no classes
+ * between 12pm and 1pm"), or name its days; a range alone ("9-5") is not a
+ * block.
  */
-function negatedBefore(text: string, idx: number): boolean {
-  const window = text.slice(Math.max(0, idx - 60), idx).trim();
-  if (!window) return false;
-  const tokens = window.split(/\s+/);
-  for (let i = tokens.length - 1; i >= 0 && tokens.length - 1 - i <= 3; i--) {
-    const tok = tokens[i].replace(/[^a-z']/g, "");
-    if (
-      /^(?:no|not|never|don'?t|cannot|can'?t|without|avoid|avoiding|skip|skipping|nothing)$/.test(
-        tok,
-      )
-    ) {
-      return true;
-    }
+function blockedRange(x: Match): Found | null {
+  const c = x.clause;
+  const at = (m: RegExpExecArray | null): Interval[] =>
+    m ? [{ start: c.start + m.index, end: c.start + m.index + m[0].length }] : [];
+  const commitment = COMMITMENT.exec(c.text);
+  const keep = KEEP.exec(c.text);
+  const kept = /\s(?:free|open|clear|blocked)\b/.test(x.m[0]);
+  const day = c.tokens
+    .filter(isDay)
+    .sort((a, b) => Math.abs(a.start - x.start) - Math.abs(b.start - x.start))[0];
+  if (!commitment && !keep && !day && !kept && !x.gov.negated) return null;
+  const parts: Interval[] = [x, ...at(commitment), ...at(keep), ...(day ? [day] : [])];
+  const start = Math.min(x.reach, ...parts.map((p) => p.start));
+  const span = { start, end: Math.max(...parts.map((p) => p.end)), reach: start };
+  const [a, b] = x.times;
+  const range = resolveRange(a.time, b.time);
+  if (!range) return a.time.explicit && b.time.explicit ? found(span, { kind: "unparseable" }) : tag(span, "ambiguousTime");
+  if (day && hasWeekend(day)) return tag(span, "weekend");
+  const purpose = /\bfor\s+(?:my\s+|our\s+|the\s+)?(?!(?:me|us|now)\b)([a-z]+)/.exec(c.text.slice(x.end - c.start));
+  const label = purpose?.[1] ?? commitment?.[0].replace(/\s+/g, " ");
+  const value = (day?.days ?? weekDays).filter(isWeekday).map((d) => ({
+    day: d,
+    start: range.start,
+    end: range.end,
+    ...(label ? { label } : {}),
+  }));
+  return found(span, { kind: "hard", fact: { field: "blockedTimes", value }, assumed: range.assumed });
+}
+
+/** "no 8am classes", "no Monday 8ams": the hour after that time is blocked. */
+function hourBan(x: Match): Found | null {
+  const time = x.times[0];
+  const afterBoundWord = /\b(?:before|after|past|than|until|till|by|at|from|to)\s*$|-\s*$/.test(
+    x.clause.text.slice(0, x.m.index),
+  );
+  if (!x.gov.negated || afterBoundWord || !(x.m[1] || time.plural)) return null;
+  if (!time.time.explicit) return tag(x, "ambiguousTime");
+  const day = x.days[0];
+  if (day && hasWeekend(day)) return tag(x, "weekend");
+  const start = time.time.minutes;
+  const value = (day?.days ?? weekDays).filter(isWeekday).map((d) => ({ day: d, start, end: Math.min(start + 60, 1440) }));
+  return hard(x, { field: "blockedTimes", value });
+}
+
+/** Credit comparators, by what they make the number: a floor, a ceiling, both, or a strict bound. */
+function creditShape(words: string): "min" | "max" | "exact" | "above" | "below" | null {
+  const w = words.replace(/\s+/g, " ");
+  if (/^exactly/.test(w)) return "exact";
+  if (/^(?:more than|over|above)/.test(w)) return "above";
+  if (/^(?:fewer than|less than|under|below)/.test(w)) return "below";
+  if (/^(?:at least|min|need|must|have|taking|take|more|or more)/.test(w)) return "min";
+  if (/^(?:at most|max|up to|cap|fewer|less|or fewer|or less)/.test(w)) return "max";
+  return null;
+}
+
+/**
+ * Credits need the word "credit": bare "hours" never count. A number with
+ * no comparator ("about 15 credits") sets nothing.
+ */
+function credits(x: Match): Found | null {
+  const [, before, lo, hi, orAfter, suffix] = x.m;
+  const n = Number(lo);
+  if (hi !== undefined) {
+    const top = Number(hi);
+    return n <= top ? hard(x, { field: "credits", value: { min: n, max: top } }) : found(x, { kind: "unparseable" });
   }
-  return false;
+  const shape = creditShape(before ?? orAfter ?? suffix ?? "");
+  if (x.gov.negated) {
+    // "no more than 15" is at most 15; "no fewer than 12" is at least 12.
+    if (shape === "above") return hard(x, { field: "creditMax", value: n });
+    if (shape === "below") return hard(x, { field: "creditMin", value: n });
+    return null;
+  }
+  if (shape === "exact") return hard(x, { field: "credits", value: { min: n, max: n } });
+  if (shape === "above") return hard(x, { field: "creditMin", value: n + 1 });
+  if (shape === "below") return hard(x, { field: "creditMax", value: n - 1 });
+  if (shape === "min") return hard(x, { field: "creditMin", value: n });
+  if (shape === "max") return hard(x, { field: "creditMax", value: n });
+  return null;
 }
 
-/** Weekend days inside a parsed group are tagged, never silently dropped. */
-function splitWeekend(days: AnyDay[], ctx: MatchContext): { weekdays: WeekDay[]; weekendTag: Cand | null } {
-  const weekdays = days.filter((d): d is WeekDay => (WEEKDAY_DAYS as readonly string[]).includes(d));
-  const hasWeekend = days.length > weekdays.length;
-  return { weekdays, weekendTag: hasWeekend ? mkUnsupported(2, ctx, "weekend") : null };
+/** Frisco and other sites: refused, too far, or accepted. A bare mention sets nothing. */
+function otherSites(x: Match): Found | null {
+  const before = x.clause.text.slice(0, x.m.index);
+  if (x.gov.negated || /too\s+far$/.test(x.m[0])) return hard(x, { field: "campusScope", value: "dentonOnly" });
+  const accepted =
+    /(?:fine|ok|okay|alright|good|works?)$/.test(x.m[0]) ||
+    /\b(?:(?:can|could)\s+(?:go|drive|commute)\s+to|open\s+to|don'?t\s+mind)\s+$/.test(before);
+  return accepted ? hard(x, { field: "campusScope", value: "otherSitesOk" }) : null;
+}
+
+const modeOf = (word: string): ClassMode => (word === "online" ? "online" : "inPerson");
+
+/** Morning or evening leanings: away when negated, toward only with a cue. A day right before ("Tuesday mornings") is dayWithTime. */
+function lean(key: "mornings" | "evenings") {
+  return (x: Match): Found | null => {
+    const prior = x.clause.tokens.filter((t) => t.end <= x.start).at(-1);
+    const gap = prior ? x.clause.text.slice(prior.end - x.clause.start, x.m.index) : "";
+    if (prior && isDay(prior) && !isWholeWeek(prior) && /^\s*$/.test(gap)) return null;
+    if (x.gov.negated) return soft(x, key, false);
+    return x.gov.cue ? soft(x, key, true) : null;
+  };
+}
+
+const COURSE = String.raw`\b[a-z]{2,4}\s?\d{4}\b(?!-?\s*level)`;
+const INSTRUCTOR = String.raw`\b(?:professor|prof|dr|instructor)\s+(?!(?:for|across|in|to|and|or|but|except|who|that|with|is|are|was|twice)\b)[a-z][a-z'-]*`;
+/** "BIOL 2041 and CHEM 2370", "Professor Lee and Dr Kim": one request, so the list does not split into clauses. */
+const listOf = (item: string): string => String.raw`${item}(?:\s*(?:,|and|or)\s*${item})*`;
+
+/** Each item of a list is its own tag, all taking the list's polarity. */
+function listTags(item: string, avoided: string, wanted: string) {
+  return (x: Match): Found[] =>
+    [...x.m[0].matchAll(new RegExp(item, "g"))].map((m, i) => {
+      const start = x.start + m.index;
+      return tag({ start, end: start + m[0].length, reach: i === 0 ? x.reach : start }, x.gov.negated ? avoided : wanted);
+    });
 }
 
 // ---------------------------------------------------------------------------
-// Row table
+// Rows
 // ---------------------------------------------------------------------------
 
-const T = String.raw`(?:noon|midnight|\d{1,2}:\d{2}(?:\s*(?:am|pm))?|\d{1,2}\.\d{2}(?:\s*(?:am|pm))?|\d{1,2}\s*(?:am|pm)|\d{1,2})`;
-const SEP = String.raw`(?:-|to|until|till|through|thru)`;
-const VERB = String.raw`(?:work|works|shift|shifts|practice|practices|training|train|rehearsal|rehearse|rehearsals|volunteer|volunteering|volunteers|babysit|babysits|babysitting|intern|interning|interns|job|jobs|clinical|clinicals|lab\s+rotation|lab|labs|meeting|meetings)`;
-const CREDITS = String.raw`(?:credit\s*hours?|credit\s*hrs?|credits?)`;
-const NOUNS = String.raw`(?:classes|sections|courses|class|anything|anything else)`;
+type Row = { re: RegExp; read: (x: Match) => Found | Found[] | null };
 
-/**
- * Scheduling verbs that may sit between a negation and its time word
- * ("can't take classes before 8am", "don't start classes before 9:30am",
- * "don't let classes run past 6pm"). One shared closed class used by both
- * bound rows; adding a verb here is a mechanism change, not a per-phrase rule.
- */
-const NEG_BOUND_VERBS = String.raw`(?:(?:want|wants|need|needs|take|taking|start|starting|begin|beginning|run|runs|running|let|lets|end|ends|ending|go|goes|get|getting|have|has)\s+(?:to\s+)?|wanna\s+)?`;
+const row = (pattern: string | RegExp, read: Row["read"]): Row => ({
+  re: typeof pattern === "string" ? new RegExp(pattern, "g") : pattern,
+  read,
+});
 
-function parseGroup(m: RegExpExecArray, g: number): { days: AnyDay[]; fragment: string } | null {
-  const fragment = m[g];
-  if (!fragment) return null;
-  const days = parseDayGroup(fragment);
-  return days ? { days, fragment } : null;
-}
+const IN_PERSON = String.raw`in[ -]?person|face[ -]to[ -]face|in\s+(?:a\s+)?classroom`;
 
-type Row = {
-  name: string;
-  priority: number;
-  re: RegExp;
-  handle: (ctx: MatchContext) => Cand | Cand[] | null;
-};
+const ROWS: Row[] = [
+  // Blocked times.
+  row(
+    String.raw`(?:\bbetween\s+${TIME}\s+and|\b${TIME}\s*(?:-|to|until|till|through|thru))\s*${TIME}(?:\s+(?:free|open|clear|blocked))?`,
+    blockedRange,
+  ),
+  row(String.raw`(?:\b${DAY}\s+)?\b${TIME}(\s+${NOUN})?(?:\s+(?:on\s+)?${DAY})?`, hourBan),
 
-// Blocked-time rows: a commitment range the student must keep free.
-const BLOCKED_ROWS: Row[] = [
-  {
-    name: "keep-range",
-    priority: 1,
-    re: new RegExp(
-      String.raw`\b(?:keep|block|set aside|reserve)\s+(${T})\s*(?:${SEP})\s*(${T})(?:\s*(?:free|open|clear|blocked))?(?:\s+for\s+(?:my\s+|our\s+|the\s+)?([a-z]+))?(?:\s+(?:on\s+)?(${DAYGROUP}))?(?:\s+for\s+(?:my\s+|our\s+|the\s+)?([a-z]+))?\b`,
-      "gi",
-    ),
-    handle: (ctx) => blockedFromGroups(ctx, 1, 2, 4, [3, 5], null),
-  },
-  {
-    name: "days-verb-range",
-    priority: 1,
-    re: new RegExp(
-      String.raw`\b(?:on\s+)?(${DAYGROUP})\b[^.,;!?]{0,40}?\b(?:i\s+)?(${VERB})\b[^.,;!?]{0,40}?\b(${T})\s*(?:${SEP})\s*(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => blockedFromGroups(ctx, 3, 4, 1, [], 2),
-  },
-  {
-    name: "verb-days-range",
-    priority: 1,
-    re: new RegExp(
-      String.raw`\b(?:i\s+)?(${VERB})\b[^.,;!?]{0,40}?\b(?:on\s+)?(${DAYGROUP})\b[^.,;!?]{0,40}?\b(${T})\s*(?:${SEP})\s*(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => blockedFromGroups(ctx, 3, 4, 2, [], 1),
-  },
-  {
-    name: "days-range",
-    priority: 1,
-    re: new RegExp(
-      String.raw`\b(?:on\s+)?(${DAYGROUP})\b(?:\s+from\s+|\s+)?(${T})\s*(?:${SEP})\s*(${T})(?:\s*(?:free|open|clear|blocked))?(?:\s+for\s+(?:my\s+|our\s+|the\s+)?([a-z]+))?\b`,
-      "gi",
-    ),
-    handle: (ctx) => blockedFromGroups(ctx, 2, 3, 1, [4], null),
-  },
-  {
-    name: "verb-range",
-    priority: 1,
-    re: new RegExp(
-      // The verb-to-time gap must not cross a day-group token: "I train
-      // Saturdays 10-2" is a day-scoped range, not a weekday-default range
-      // with "saturdays" eaten as filler.
-      String.raw`\b(?:i\s+)?(${VERB})\b(?:(?!\b(?:on\s+)?(?:${DAYGROUP})\b)[^.,;!?]){0,30}?\b(${T})\s*(?:${SEP})\s*(${T})\b(?:\s+(?:on\s+)?(${DAYGROUP})\b)?`,
-      "gi",
-    ),
-    handle: (ctx) => blockedFromGroups(ctx, 2, 3, 4, [], 1),
-  },
-  {
-    name: "hour-ban",
-    priority: 1,
-    re: new RegExp(String.raw`\bno\s+(${T})(s)?\s+(?:classes|sections|courses)\b(?:\s+(?:on\s+)?(${DAYGROUP}))?`, "gi"),
-    handle: (ctx) => {
-      const t = parseTimeToken(ctx.m[1]);
-      if (!t) return null;
-      if (!t.explicit) return mkUnsupported(2, ctx, "ambiguousTime");
-      // A single-hour ban, not a range: group 2 is the plural "s", never a time.
-      const daysGroup = ctx.m[3] ? 3 : null;
-      const days = daysGroup != null ? parseGroup(ctx.m, daysGroup) : null;
-      if (daysGroup != null && !days) return null;
-      const { weekdays, weekendTag } = splitWeekend(days ? days.days : [...WEEKDAY_DAYS], ctx);
-      const cands: Cand[] = [];
-      if (weekendTag) cands.push(weekendTag);
-      if (weekdays.length > 0) {
-        cands.push(blockedMatch(ctx, weekdays, t.minutes, t.minutes + 60, undefined));
-      }
-      return cands;
-    },
-  },
+  // Days off.
+  row(String.raw`\b${DAY}(?:\s+${NOUN})?`, (x) => (x.gov.negated ? daysOff(x, x.days[0].days) : null)),
+  row(String.raw`\b${DAY}\s+(?:(?:are|is)\s+)?off\b`, (x) => daysOff(x, x.days[0].days)),
+  row(
+    String.raw`\b(?:keep|keeping|leave|leaving)\s+(?:my\s+)?${DAY}(?:\s+(?:completely|totally|entirely|fully))?\s+(?:free|open|clear)\b`,
+    (x) => daysOff(x, x.days[0].days),
+  ),
+  row(
+    String.raw`\bonly\s+(?:(?:show|give|pick|suggest|come|be|do|have|take)\s+)?(?:me\s+)?(?:${NOUN}\s+)?(?:on\s+)?${DAY}|\b${DAY}\s+only\b`,
+    onlyDays,
+  ),
+
+  // Earliest start and latest end.
+  row(String.raw`\b(?:before|earlier\s+than)\s+${TIME}`, (x) => (x.gov.negated ? bound(x, "earliestStart") : null)),
+  row(String.raw`\b(?:until|till)\s+${TIME}`, (x) =>
+    // "can't start until 10am" is a start; "can't stay until 5pm" is not.
+    x.gov.negated && /\b(?:start|starts|begin|begins|first)\b/.test(x.clause.text.slice(0, x.m.index))
+      ? bound(x, "earliestStart")
+      : null,
+  ),
+  row(
+    String.raw`\bearliest\b(?:\s+(?:i|i'd|can|could|would|want|like|to|be|on|campus|start|begin|time|class|is|at))*\s+${TIME}`,
+    (x) => bound(x, "earliestStart"),
+  ),
+  // "8am is too early" excludes 8am itself, so the bound is the next minute.
+  row(String.raw`\b${TIME}\s+(?:is|are)\s+too\s+early\b`, (x) => bound(x, "earliestStart", 1)),
+  row(String.raw`\b(?:after|past|later\s+than)\s+${TIME}`, (x) => (x.gov.negated ? bound(x, "latestEnd") : null)),
+  row(
+    String.raw`\b(?:done|finish(?:ed)?|out|over|gone|leave|leaving|end|ends|ending|lets?\s+out)(?:\s+with\s+${NOUN})?\s+(?:by|before)\s+${TIME}`,
+    (x) => (x.gov.negated ? null : bound(x, "latestEnd")),
+  ),
+  row(
+    String.raw`\blatest\b(?:\s+(?:i|can|could|class|course|section|should|end|ends|go|let|out|is|at|by|till|until|time))*\s+${TIME}`,
+    (x) => bound(x, "latestEnd"),
+  ),
+  row(String.raw`\b${TIME}\s+(?:is|are)\s+too\s+late\b`, (x) => bound(x, "latestEnd", -1)),
+
+  // Credits.
+  row(
+    String.raw`(?:\b(at\s+least|minimum(?:\s+of)?|min(?:\s+of)?|at\s+most|max(?:imum)?(?:\s+of)?|up\s+to|cap(?:ped)?\s+(?:it\s+)?at|exactly|more\s+than|over|above|fewer\s+than|less\s+than|under|below|needs?|must\s+take|have\s+to\s+(?:take|have)|taking|take)\s+)?\b(?:between\s+)?(\d{1,2})(?:\s*(?:-|to|and)\s*(\d{1,2}))?(?:\s+or\s+(more|fewer|less))?\s*${CREDIT}\b(?:\s+(max(?:imum)?|min(?:imum)?|or\s+(?:more|fewer|less)))?`,
+    credits,
+  ),
+
+  // Seat filter.
+  row(/\bopen\s+seats?\b|\bonly\b[^,;]{0,40}?\bseats?\b/g, (x) =>
+    x.gov.negated ? null : hard(x, { field: "openSeatsOnly", value: true }),
+  ),
+  row(String.raw`\b(?:closed|full)\s+${NOUN}\b|\b(?:waitlisted|wait-listed)\b`, (x) =>
+    x.gov.negated ? hard(x, { field: "openSeatsOnly", value: true }) : null,
+  ),
+
+  // Campus.
+  row(
+    /\b(?:denton|main)\s+campus(?:es)?\s+only\b|\bonly\s+(?:the\s+)?(?:denton|main)\s+campus\b|\bdenton\s+only\b|\b(?:keep|stay)\s+(?:me\s+)?(?:at|on)\s+(?:the\s+)?(?:main|denton)\s+campus\b/g,
+    (x) => hard(x, { field: "campusScope", value: "dentonOnly" }),
+  ),
+  row(
+    /\b(?:frisco|other\s+(?:campuses|sites)|campuses\s+outside\s+denton)\b(?:\s+(?:is|are)\s+(?:too\s+far|fine|ok|okay|alright|good)|\s+works?)?/g,
+    otherSites,
+  ),
+
+  // Mode.
+  row(
+    String.raw`\b(online|${IN_PERSON})(?:\s+${NOUN})?\s+only\b|\bonly\s+(online|${IN_PERSON})\b|\b(?:all|every|each|everything)\b[^,;]{0,30}?\b(online|${IN_PERSON})\b`,
+    (x) => (x.gov.negated ? null : hard(x, { field: "mode", value: modeOf(x.m[1] ?? x.m[2] ?? x.m[3]) })),
+  ),
+  row(String.raw`\b(online|${IN_PERSON})\s+${NOUN}`, (x) =>
+    // "no online classes" means in person, and the reverse.
+    x.gov.negated ? hard(x, { field: "mode", value: modeOf(x.m[1]) === "online" ? "inPerson" : "online" }) : null,
+  ),
+
+  // Soft preferences. Negating one of a pair gives the other.
+  row(/\bcompact\b|\bback[ -]to[ -]back\b|\btight\s+schedule\b|\bclump(?:ed)?\b|\b(?:pack|packed|bunch|bunched)\s+(?:\w+\s+){0,2}together\b|\b(?:fewer|minimal|minimi[sz]e)\s+gaps\b/g, (x) =>
+    soft(x, x.gov.negated ? "spreadOut" : "compact"),
+  ),
+  row(
+    /\b(?:spread|space)\s+(?:it\s+|them\s+|my\s+classes\s+|everything\s+)?out\b|\b(?:gaps?|breaks?)\s+between\b|\b(?:long\s+)?gaps\b/g,
+    (x) => soft(x, x.gov.negated ? "compact" : "spreadOut"),
+  ),
+  row(
+    /\bfewer\s+(?:days(?:\s+on\s+campus)?|trips(?:\s+to\s+campus)?)\b|\bless\s+days\b|\bfewest\s+days\b|\bas\s+few\s+(?:days|trips)(?:\s+(?:on|to)\s+campus)?\s+as\s+possible\b|\bminimi[sz]e\s+(?:my\s+)?days\s+on\s+campus\b/g,
+    (x) => (x.gov.negated ? null : soft(x, "fewerDays")),
+  ),
+  row(
+    /\bas\s+little\s+walking\s+as\s+possible\b|\bwalk\s+as\s+little\s+as\s+possible\b|\b(?:minimal|less|little)\s+walking\b|\bwalking\s+to\s+a\s+minimum\b|\bminimi[sz]e\s+walking\b|\bshort\s+walks?(?:\s+between(?:\s+(?:my\s+)?classes)?)?/g,
+    (x) => (x.gov.negated ? null : soft(x, "minimalWalking")),
+  ),
+  row(/\bwalk(?:ing)?\s+(?:far|a\s+lot|much|across\s+campus)\b|\blong\s+walks?\b/g, (x) =>
+    x.gov.negated ? soft(x, "minimalWalking") : null,
+  ),
+  row(String.raw`\b(?:early|mornings?)\b(?:\s+${NOUN})?`, lean("mornings")),
+  row(String.raw`\b(?:evenings?|nights?|late)\b(?:\s+${NOUN})?`, lean("evenings")),
+  row(/\beas(?:y|ier)\s+graders?\b|\beasy\s+(?:a'?s|grading|professors?)\b|\blenient\s+grad(?:ers?|ing)\b|\bgrades?\s+easily\b/g, (x) =>
+    x.gov.negated ? null : soft(x, "easierGraders"),
+  ),
+
+  // Requests the planner cannot hold, tagged so the UI can say so.
+  row(String.raw`\bafternoons?\b(?:\s+${NOUN})?`, (x) => (x.gov.negated && !hasScopedDay(x.clause) ? tag(x, "timeOfDayBan") : null)),
+  row(listOf(INSTRUCTOR), listTags(INSTRUCTOR, "avoidInstructor", "instructor")),
+  row(
+    /\bsame\s+(?:professor|instructor|teacher)\b(?:\s+(?:across|in|for)\s+(?:all\s+|both\s+)?(?:my\s+)?(?:sections?|classes|courses?)|\s+twice|\s+two\s+times)?/g,
+    (x) => tag(x, "sameInstructor"),
+  ),
+  row(listOf(COURSE), listTags(COURSE, "avoidedCourse", "wantedCourse")),
+  // "free on Fridays" says when the student can come, not a day off; "not free on Fridays" is one.
+  row(String.raw`\b(?:i'?m\s+|i\s+am\s+)?free\s+(?:on\s+)?${DAY}`, (x) =>
+    x.gov.negated ? daysOff(x, x.days[0].days) : tag(x, "freeOnDay"),
+  ),
+  row(
+    /\b(?:no\s+more\s+than\s+|at\s+most\s+|max(?:imum)?\s+of\s+)?\d+\s*(?:classes|courses|sections)\s*(?:a|per)\s+day\b(?:\s+max\b)?/g,
+    (x) => tag(x, "maxClassesPerDay"),
+  ),
+  row(
+    /\b(?:only\s+)?(?:come|be)\s+(?:(?:on|to)\s+(?:the\s+)?campus\s+)?(?:once|twice|three\s+times|four\s+times|five\s+times|\d+|one|two|three|four|five)\s*(?:days?)?\s*(?:a|per)\s+week\b|\b\d+\s+days\s+(?:a|per)\s+week\b/g,
+    (x) => tag(x, "exactDaysPerWeek"),
+  ),
+  row(/\b(?:only\s+)?(?:1000|2000|3000|4000)[ -]?level(?:\s+(?:courses|classes|sections))?\b|\b(?:upper|lower)[ -]?level\b/g, (x) =>
+    tag(x, "courseLevel"),
+  ),
+  row(/\b(?:meet|meets)\s+(?:only\s+)?once\s+(?:a|per)\s+week\b|\bonly\s+once\s+a\s+week\b/g, (x) => tag(x, "meetingsPerWeek")),
+  row(/\b(?:2|3|two|three)[ -]?hours?\s+(?:classes|blocks|labs)\b(?:\s+are\s+too\s+long\b)?/g, (x) => tag(x, "classDuration")),
+  row(/\bdiscovery\s+park\b/g, (x) => tag(x, "discoveryPark")),
+  row(/\bhybrid\b/g, (x) => tag(x, "hybridMode")),
+  row(/\bsmall\s+(?:classes|sections)\b|\bclass\s+size\b/g, (x) => tag(x, "classSize")),
+  row(/\b(?:minimum|at\s+least|above|over)\s+(?:a\s+)?\d(?:\.\d)?\s*(?:average\s+)?gpa\b/g, (x) => tag(x, "gpaThreshold")),
+  row(/\bas\s+much\s+online\s+as\s+possible\b/g, (x) => tag(x, "onlinePreference")),
+  row(/\bparking\b/g, (x) => tag(x, "parking")),
 ];
 
 /**
- * Build the blocked-time candidate (or its honest tags) from a matched
- * row. `t1`/`t2` are the range group numbers, `daysGroup` the day group (or
- * null for every weekday), `labelGroup` a "for X" label, `verbGroup` a
- * capture whose text is used as the label when no explicit one exists.
+ * What a clause says when no row read it: a weekend day, a day with a time,
+ * or a bare hour after a time word ("or by 3"). Each covers the clause.
  */
-function blockedFromGroups(
-  ctx: MatchContext,
-  t1g: number,
-  t2g: number,
-  daysGroup: number | null,
-  labelGroups: number[],
-  verbGroup: number | null,
-): Cand | Cand[] | null {
-  const a = parseTimeToken(ctx.m[t1g]);
-  const b = parseTimeToken(ctx.m[t2g]);
-  if (!a || !b) return null;
-  const range = resolveRange(a, b);
-  if (!range) {
-    return a.explicit && b.explicit ? mkUnparseable(1, ctx) : mkUnsupported(2, ctx, "ambiguousTime");
-  }
-  const days = daysGroup != null ? parseGroup(ctx.m, daysGroup) : null;
-  // Bail only when a day group participated but did not parse; an optional
-  // group that is simply absent (no trailing days) means "every weekday".
-  if (daysGroup != null && ctx.m[daysGroup] && !days) return null;
-  const all = days ? days.days : [...WEEKDAY_DAYS];
-  const { weekdays, weekendTag } = splitWeekend(all, ctx);
-  const labelWord = labelGroups.map((g) => ctx.m[g]).find((s) => s) ?? null;
-  const verbWord = verbGroup != null ? ctx.m[verbGroup] : null;
-  const label = (labelWord ?? verbWord)?.toLowerCase().replace(/^i\s+/, "") || undefined;
-  const cands: Cand[] = [];
-  if (weekendTag) cands.push(weekendTag);
-  if (weekdays.length > 0) {
-    cands.push(blockedMatch(ctx, weekdays, range.start, range.end, label));
-  }
-  return cands;
+function fallback(c: Clause): Found | null {
+  if (c.tokens.some((t) => isDay(t) && hasWeekend(t))) return wholeClause(c, "weekend");
+  if (hasScopedDay(c) && hasTime(c)) return wholeClause(c, "dayWithTime");
+  const bareAfterTimeWord = c.tokens.some(
+    (t) =>
+      isTime(t) &&
+      !t.time.explicit &&
+      /\b(?:by|before|after|at|until|till|past|from)\s+$/.test(c.text.slice(0, t.start - c.start)),
+  );
+  return bareAfterTimeWord ? wholeClause(c, "ambiguousTime") : null;
 }
 
-function blockedMatch(
-  ctx: MatchContext,
-  days: readonly WeekDay[],
-  start: number,
-  end: number,
-  label: string | undefined,
-): Cand {
-  const items = days.map((day) => ({ day, start, end, ...(label ? { label } : {}) }));
-  return mkMatch(1, ctx, "hard.blockedTimes", items, (intent) => {
-    for (const item of items) {
-      const dup = intent.hard.blockedTimes.some(
-        (b) => b.day === item.day && b.start === item.start && b.end === item.end,
-      );
-      if (!dup) intent.hard.blockedTimes.push(item);
+function readClause(c: Clause): Found[] {
+  const out: Found[] = [];
+  for (const { re, read } of ROWS) {
+    for (const m of c.text.matchAll(re)) {
+      const got = read(matchOf(c, m));
+      if (Array.isArray(got)) out.push(...got);
+      else if (got) out.push(got);
     }
+  }
+  const rest = out.length === 0 ? fallback(c) : null;
+  return rest ? [rest] : out;
+}
+
+// ---------------------------------------------------------------------------
+// Hedges and strength
+// ---------------------------------------------------------------------------
+
+const HEDGE_SOURCE = String.raw`\b(?:if\s+(?:at\s+all\s+)?possible|if\s+you\s+can|if\s+i\s+can(?:\s+help\s+it)?|when(?:ever)?\s+possible|ideally|preferabl[ey]|i'?d\s+prefer|prefer(?:red|s)?|i'?d\s+rather|(?:i\s+)?would\s+rather|i'?d\s+like|i\s+would\s+like|i'?d\s+love|i\s+would\s+love|would\s+be\s+(?:nice|great|ideal)|(?:not\s+a|no)\s+big\s+deal|(?:if|unless)\s+(?:really\s+|absolutely\s+)?necessary|if\s+need(?:\s+be|ed)|try\s+to|hopefully|maybe|kinda|sorta|kind\s+of|sort\s+of|somewhat|slightly)\b`;
+const HEDGE = new RegExp(HEDGE_SOURCE);
+const HEDGES = new RegExp(HEDGE_SOURCE, "g");
+const INTENSIFIER = /\b(?:really|must|needs?|ha(?:ve|s)\s+to|absolutely|very\s+important|can'?t|cannot|can\s+not)\b/;
+/** A concession after "but": "no classes before 10, but 9am is okay". */
+const OKAY = /\b(?:is|are|'s|would\s+be)\s+(?:ok(?:ay)?|fine|alright|acceptable)\b/;
+const NECESSARY = /\b(?:if|unless)\s+(?:really\s+|absolutely\s+)?necessary\b/;
+
+/** Words with no content, trimmed from the edges of what was not understood. Hedge words are not here: the hedge pass reads them. */
+const FILLER =
+  /^(?:hey|hi|thanks|thank|please|pls|so|well|ok|okay|um|uh|oh|i|i'm|me|my|we|our|you|your|it|its|it's|this|that|these|those|there|just|really|also|too|very|and|or|but|the|a|an|to|of|for|on|in|at|by|with|as|is|are|am|was|were|be|been|being|do|does|did|don't|have|has|had|want|wanted|wants|need|needs|needed|like|would|could|can|should|will|i'd|i'll|make|sure|things|stuff|something|everything|all|them|they|though|tho|take|taking|get|got|classes|class|courses|sections|basically|actually|scheduling)$/;
+
+const hedgeWordsOf = (c: Clause): Interval[] =>
+  [...c.text.matchAll(HEDGES)].map((m) => ({ start: c.start + m.index, end: c.start + m.index + m[0].length }));
+
+/** Only hedge words and filler. A masked token ("T___" in "9am if necessary") is content, so that clause is not. */
+const isHedgeOnly = (text: string): boolean =>
+  HEDGE.test(text) &&
+  text
+    .replace(HEDGES, " ")
+    .split(/[^\w']+/)
+    .every((w) => w === "" || FILLER.test(w));
+
+/**
+ * Which clauses are hedged, decided in one place:
+ *
+ * - a clause with a hedge word is hedged ("Fridays off if possible");
+ * - a clause that is only a hedge ("if possible", "ideally", "but not a big
+ *   deal") hedges the clause before it, or the one after when it opens the
+ *   sentence ("Ideally, no classes before 10am");
+ * - a concession that states nothing itself ("but 9am is okay", "9am if
+ *   necessary") hedges the clause before it.
+ *
+ * Also returns the hedge words that were read, so they are not reported as
+ * not understood.
+ */
+function hedges(clauses: readonly Clause[], read: readonly Found[][]): { hedged: boolean[]; used: Interval[] } {
+  const hedged = clauses.map((c) => HEDGE.test(c.text));
+  const only = clauses.map((c) => isHedgeOnly(c.text));
+  const used: Interval[] = [];
+  const nearest = (from: number, step: number): number => {
+    let i = from;
+    while (i >= 0 && i < clauses.length && only[i]) i += step;
+    return i >= 0 && i < clauses.length ? i : -1;
+  };
+  clauses.forEach((c, i) => {
+    const concession =
+      read[i].length === 0 && ((c.afterBut && OKAY.test(c.text)) || NECESSARY.test(c.text));
+    if (!only[i] && !concession) return;
+    let target = nearest(i - 1, -1);
+    if (target < 0 && only[i]) target = nearest(i + 1, 1);
+    if (target < 0) return;
+    hedged[target] = true;
+    used.push(...(only[i] ? [c] : hedgeWordsOf(c)));
   });
+  clauses.forEach((c, i) => {
+    if (read[i].length > 0) used.push(...hedgeWordsOf(c));
+  });
+  return { hedged, used };
 }
 
-// Days-off rows.
-const DAY_OFF_ROWS: Row[] = [
-  {
-    name: "neg-day",
-    priority: 2,
-    re: new RegExp(
-      String.raw`\b${NEG_WORDS}\s+(?:(?:want\s+|wanting\s+|do\s+|want\s+to\s+|wanna\s+|have\s+|schedule\s+|book\s+|take\s+|taking\s+|attend\s+|attending\s+)\s*)?(?:${NOUNS}\s*)?(?:on|during|over|in)?\s*(${DAYGROUP})(?:\s+${NOUNS}\b)?`,
-      "gi",
-    ),
-    handle: (ctx) => dayOffCandidate(ctx),
-  },
-  {
-    name: "day-off",
-    priority: 2,
-    re: new RegExp(String.raw`\b(${DAYGROUP})(?:\s+(?:are|is))?\s+off\b`, "gi"),
-    handle: (ctx) => dayOffCandidate(ctx),
-  },
-  {
-    name: "keep-free",
-    priority: 2,
-    re: new RegExp(String.raw`\b(?:keep|keeping|leave|leaving)\s+(?:my\s+)?(${DAYGROUP})(?:\s+(?:completely|totally|entirely|fully))?\s+(?:free|open)\b`, "gi"),
-    handle: (ctx) => dayOffCandidate(ctx),
-  },
-  {
-    name: "nothing-on",
-    priority: 2,
-    re: new RegExp(String.raw`\bnothing\s+(?:on|during)\s+(${DAYGROUP})\b`, "gi"),
-    handle: (ctx) => dayOffCandidate(ctx),
-  },
-  {
-    name: "only-days",
-    priority: 6,
-    re: new RegExp(String.raw`\bonly\s+(?:show\s+|give\s+|pick\s+|suggest\s+)?(?:me\s+)?(?:on\s+)?(${DAYGROUP})\b|\b(${DAYGROUP})\s+only\b`, "gi"),
-    handle: (ctx) => {
-      const fragment = ctx.m[1] ?? ctx.m[2] ?? "";
-      const named = parseDayGroup(fragment);
-      if (!named) return null;
-      // "only show classes with open seats" is a seat filter, not days off;
-      // seat/mode rows run first and claim the span, so reaching here means
-      // no other row wanted it. Weekend-only attendance is not expressible.
-      const { weekdays, weekendTag } = splitWeekend(named, ctx);
-      if (weekdays.length === 0) return weekendTag;
-      const complement = WEEKDAY_DAYS.filter((d) => !weekdays.includes(d));
-      if (complement.length === 0) return weekendTag;
-      const cands: Cand[] = [];
-      if (weekendTag) cands.push(weekendTag);
-      cands.push(
-        mkMatch(6, ctx, "hard.daysOff", complement, (intent) => {
-          for (const d of complement) if (!intent.hard.daysOff.includes(d)) intent.hard.daysOff.push(d);
-          intent.hard.daysOff = sortDays(intent.hard.daysOff);
-        }),
-      );
-      return cands;
-    },
-  },
-];
+// ---------------------------------------------------------------------------
+// Applying facts
+// ---------------------------------------------------------------------------
 
-/**
- * Shared days-off builder. A day with a time qualifier ("no Monday classes
- * before 10") is not a day off - the planner has no per-day start - so a
- * time-ish word right after the match skips the row (the clause is tagged
- * `dayWithTime` later). A softened ask ("Friday off if possible") is tagged
- * `softDayOff`, never turned into a hard day off.
- */
-function dayOffCandidate(ctx: MatchContext): Cand | Cand[] | null {
-  const after = ctx.text.slice(ctx.m.index + ctx.m[0].length, ctx.m.index + ctx.m[0].length + 40);
-  // TIME_TOKEN_RE rather than a bare \d{1,2}\b: "10am" has no word boundary
-  // between the digits and the meridiem, so the digit alternative must be
-  // meridiem-aware or "no Friday classes before 10am" reads as a whole day off.
-  if (new RegExp(`${TIME_TOKEN_RE.source}|\\b(?:morning|afternoon|evening|early|late)s?\\b`, "i").test(after)) return null;
-  const clauseWindow = ctx.text.slice(0, ctx.m.index) + ctx.text.slice(ctx.m.index + ctx.m[0].length);
-  if (SOFTENER.test(clauseWindow)) return mkUnsupported(2, ctx, "softDayOff");
-  const group = parseGroup(ctx.m, 1);
-  if (!group) return null;
-  const { weekdays, weekendTag } = splitWeekend(group.days, ctx);
-  const cands: Cand[] = [];
-  if (weekendTag) cands.push(weekendTag);
-  if (weekdays.length > 0) {
-    cands.push(
-      mkMatch(2, ctx, "hard.daysOff", weekdays, (intent) => {
-        for (const d of weekdays) if (!intent.hard.daysOff.includes(d)) intent.hard.daysOff.push(d);
-        intent.hard.daysOff = sortDays(intent.hard.daysOff);
-      }),
+function applyFact(intent: PreferenceIntent, fact: HardFact): void {
+  const h = intent.hard;
+  switch (fact.field) {
+    case "daysOff":
+      h.daysOff = weekDays.filter((d) => h.daysOff.includes(d) || fact.value.includes(d));
+      return;
+    case "blockedTimes":
+      for (const b of fact.value) {
+        if (!h.blockedTimes.some((x) => x.day === b.day && x.start === b.start && x.end === b.end)) h.blockedTimes.push(b);
+      }
+      return;
+    case "credits":
+      h.creditMin = fact.value.min;
+      h.creditMax = fact.value.max;
+      return;
+    case "openSeatsOnly":
+      h.openSeatsOnly = fact.value;
+      return;
+    case "campusScope":
+      h.campusScope = fact.value;
+      return;
+    case "mode":
+      h.mode = fact.value;
+      return;
+    default:
+      h[fact.field] = fact.value;
+  }
+}
+
+/** The last mention of a soft key wins, and moves it last, so later leanings override earlier ones. */
+function setSoft(intent: PreferenceIntent, key: SoftKey, strength: Strength, positive: boolean): void {
+  intent.soft = [...intent.soft.filter((s) => s.key !== key), { key, strength, positive }];
+}
+
+function uncovered(span: Interval, covered: readonly Interval[]): Interval[] {
+  let parts = [span];
+  for (const c of covered) {
+    parts = parts.flatMap((p) =>
+      overlaps(p, c)
+        ? [
+            { start: p.start, end: c.start },
+            { start: c.end, end: p.end },
+          ].filter((q) => q.end > q.start)
+        : [p],
     );
   }
-  return cands.length > 0 ? cands : null;
+  return parts;
 }
 
-// Earliest-start rows.
-const EARLIEST_ROWS: Row[] = [
-  {
-    name: "es-neg-before",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b${NEG_WORDS}\s+${NEG_BOUND_VERBS}(?:${NOUNS}\s*)?(?:that\s+|which\s+)?(?:start|starts|starting|begin|begins|beginning)?\s*(?:any\s+)?(?:earlier\s+than|before)\s+(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-  {
-    name: "es-not-until",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:don'?t|do\s+not|can'?t|cannot|can\s?not)\s+(?:start|begin)\s+(?:until|till)\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-  {
-    name: "es-first-class",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b(?:first|earliest)\s+(?:class|course|section)\s+(?:can'?t|cannot|can\s?not|shouldn'?t|should\s+not|won'?t)\s+(?:be\s+|start\s+|begin\s+)?(?:until|till|before)\s+(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-  {
-    name: "es-earliest-can",
-    priority: 3,
-    re: new RegExp(String.raw`\bearliest\s+(?:i\s+)?(?:can|could)?\s*(?:start|begin)\s+(?:is\s+|at\s+)?(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-  {
-    name: "es-too-early",
-    priority: 3,
-    re: new RegExp(String.raw`\b(${T})(s)?\s+(?:are|is)\s+too\s+early\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart", 1),
-  },
-  {
-    name: "es-or-before",
-    priority: 3,
-    re: new RegExp(String.raw`\bor\s+before\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-  {
-    name: "es-t-or-before",
-    priority: 3,
-    re: new RegExp(String.raw`\b(${T})\s+or\s+(?:before|earlier)\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-];
-
-// Latest-end rows.
-const LATEST_ROWS: Row[] = [
-  {
-    name: "lat-neg-after",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b${NEG_WORDS}\s+${NEG_BOUND_VERBS}(?:${NOUNS}|me|them|it\s*)?\s*(?:that\s+|which\s+)?(?:end|ends|ending|run|runs|running|go|goes|going|last|lasting|let|lets|stay|stays|staying|get|getting)?\s*(?:out\s+)?(?:any\s+)?(?:later\s+than|after|past)\s+(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-not-later",
-    priority: 3,
-    re: new RegExp(String.raw`\bnot\s+(?:any\s+)?later\s+than\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-done-by",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b(?:done|finished|over|out)\s+(?:with\s+(?:class|classes|courses|sections)\s+)?(?:by|before)\s+(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-end-by",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:end|ends|ending|let\s+out|lets\s+out)\s+by\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-need-done",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b(?:i\s+)?(?:need|have)\s+to\s+(?:be\s+)?(?:done|out|gone|off|leave|leaving)\s+(?:by|at|before)\s+(${T})\b`,
-      "gi",
-    ),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-latest-end",
-    priority: 3,
-    re: new RegExp(String.raw`\blatest\s+(?:class|course|section)?\s*(?:can\s+|should\s+)?(?:end|ends|go|let\s+out)\s+(?:at|by|till|until)?\s*(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-too-late",
-    priority: 3,
-    re: new RegExp(String.raw`\b(${T})(s)?\s+(?:are|is)\s+too\s+late\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd", -1),
-  },
-  {
-    name: "lat-or-after",
-    priority: 3,
-    re: new RegExp(String.raw`\bor\s+after\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-t-or-after",
-    priority: 3,
-    re: new RegExp(String.raw`\b(${T})\s+or\s+(?:after|later)\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "lat-home-by",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:be\s+)?home\s+by\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  // Elliptical coordinate bounds: "done by noon, or by 3" - the second clause
-  // carries the bound verb over from the first. A bare coordinate time is
-  // ambiguous and is tagged, never guessed.
-  {
-    name: "lat-or-by",
-    priority: 3,
-    re: new RegExp(String.raw`\bor\s+by\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "latestEnd"),
-  },
-  {
-    name: "es-or-before",
-    priority: 3,
-    re: new RegExp(String.raw`\bor\s+before\s+(${T})\b`, "gi"),
-    handle: (ctx) => boundCandidate(ctx, 1, "earliestStart"),
-  },
-];
-
-/**
- * Build a time-bound candidate. A bare hour is tagged `ambiguousTime`,
- * never read as am or pm. An explicit "too early"/"too late" boundary is
- * exclusive: the named minute itself must also be excluded, so the bound
- * moves by `delta` (earliest start gets T+1, latest end gets T-1).
- */
-function boundCandidate(
-  ctx: MatchContext,
-  g: number,
-  field: "earliestStart" | "latestEnd",
-  delta = 0,
-): Cand | Cand[] | null {
-  // The planner holds these bounds globally. A bound scoped to a subset of
-  // days ("no classes after 5pm on Thursdays") is not expressible: tag the
-  // clause instead of inventing a global bound. An all-weekdays scope ("on
-  // weekdays") is the whole planner week, so the bound still applies.
-  for (const dm of ctx.text.matchAll(new RegExp(DAYGROUP, "gi"))) {
-    const scoped = parseDayGroup(dm[0]);
-    if (scoped && (scoped.length !== WEEKDAY_DAYS.length || !scoped.every((d) => (WEEKDAY_DAYS as readonly string[]).includes(d)))) {
-      return mkUnsupported(2, ctx, "dayWithTime");
-    }
-  }
-  const t = parseTimeToken(ctx.m[g]);
-  if (!t) return null;
-  if (!t.explicit) return mkUnsupported(2, ctx, "ambiguousTime");
-  const value = t.minutes + delta;
-  const applied = (intent: PreferenceIntent) => {
-    intent.hard[field] = value;
-  };
-  // A coordinate alternative with a bare time ("done by noon, or by 3")
-  // keeps the resolved bound but reports the ambiguity: the user gave two
-  // bounds and one of them cannot be resolved.
-  const afterMatch = ctx.text.slice(ctx.m.index + ctx.m[0].length);
-  const alt = new RegExp(`^\\s*,\\s*or\\s+(?:by\\s+)?(${T})\\b`, "i").exec(afterMatch);
-  if (alt) {
-    const altTime = parseTimeToken(alt[1]);
-    if (altTime && !altTime.explicit) {
-      const matchStart = ctx.offset + ctx.m.index;
-      const matchEnd = matchStart + ctx.m[0].length;
-      const tagStart = matchEnd + (alt.index ?? 0);
-      const tag: Cand = {
-        kind: "unsupported",
-        priority: 2,
-        start: tagStart,
-        end: tagStart + alt[0].length,
-        tag: "ambiguousTime",
-      };
-      return [mkMatch(3, ctx, `hard.${field}`, value, applied), tag];
-    }
-  }
-  return mkMatch(3, ctx, `hard.${field}`, value, applied);
-}
-
-// Credit rows: "credit"/"credit hours" wording is required, bare "hours"
-// never count as credits.
-const CREDIT_ROWS: Row[] = [
-  {
-    name: "cr-max",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b(?:no\s+more\s+than|don'?t\s+let\s+me\s+go\s+over|do\s+not\s+let\s+me\s+go\s+over|not\s+go\s+over|max(?:imum)?(?:\s+of)?|at\s+most|up\s+to|cap(?:ped)?\s+(?:it\s+)?at)\s+(\d{1,2})\s*${CREDITS}\b`,
-      "gi",
-    ),
-    handle: (ctx) => creditCandidate(ctx, 1, "max"),
-  },
-  {
-    name: "cr-max-strict",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:fewer\s+than|less\s+than|under)\s+(\d{1,2})\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => {
-      // "no fewer than 12 credits" is a minimum, not a maximum.
-      if (negatedBefore(ctx.text, ctx.m.index)) return creditCandidate(ctx, 1, "min");
-      return creditCandidate(ctx, 1, "maxStrict");
-    },
-  },
-  {
-    name: "cr-min",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:at\s+least|minimum(?:\s+of)?|min\s+of|no\s+fewer\s+than)\s+(\d{1,2})\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "min"),
-  },
-  {
-    name: "cr-min-strict",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:more\s+than|over)\s+(\d{1,2})\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => {
-      // "don't want more than 15 credits" is a maximum, not a minimum.
-      if (negatedBefore(ctx.text, ctx.m.index)) return creditCandidate(ctx, 1, "max");
-      return creditCandidate(ctx, 1, "minStrict");
-    },
-  },
-  {
-    name: "cr-exact",
-    priority: 3,
-    re: new RegExp(String.raw`\bexactly\s+(\d{1,2})\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "exact"),
-  },
-  {
-    name: "cr-range",
-    priority: 3,
-    re: new RegExp(String.raw`\b(?:between\s+)?(\d{1,2})\s*(?:-|to|and)\s*(\d{1,2})\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "range", 2),
-  },
-  {
-    name: "cr-suffix-max",
-    priority: 3,
-    re: new RegExp(String.raw`\b(\d{1,2})\s*${CREDITS}\s+(?:max|or\s+(?:fewer|less))\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "max"),
-  },
-  {
-    name: "cr-suffix-min",
-    priority: 3,
-    re: new RegExp(String.raw`\b(\d{1,2})\s*${CREDITS}\s+(?:or\s+more|minimum)\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "min"),
-  },
-  {
-    name: "cr-or-fewer",
-    priority: 3,
-    re: new RegExp(String.raw`\b(\d{1,2})\s+or\s+(?:fewer|less)\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "max"),
-  },
-  {
-    name: "cr-or-more",
-    priority: 3,
-    re: new RegExp(String.raw`\b(\d{1,2})\s+or\s+more\s*${CREDITS}\b`, "gi"),
-    handle: (ctx) => creditCandidate(ctx, 1, "min"),
-  },
-  {
-    name: "cr-need",
-    priority: 3,
-    re: new RegExp(
-      String.raw`\b(?:i\s+)?(?:need|needs|must\s+take|have\s+to\s+(?:take|have)|taking|take)\s+(\d{1,2})\s*${CREDITS}\b`,
-      "gi",
-    ),
-    handle: (ctx) => {
-      if (negatedBefore(ctx.text, ctx.m.index)) return null;
-      return creditCandidate(ctx, 1, "min");
-    },
-  },
-];
-
-function creditCandidate(
-  ctx: MatchContext,
-  g: number,
-  shape: "max" | "maxStrict" | "min" | "minStrict" | "exact" | "range",
-  g2?: number,
-): Cand | null {
-  const v = Number.parseInt(ctx.m[g], 10);
-  if (Number.isNaN(v)) return null;
-  let creditMin: number | null = null;
-  let creditMax: number | null = null;
-  if (shape === "max") creditMax = v;
-  if (shape === "maxStrict") creditMax = v - 1;
-  if (shape === "min") creditMin = v;
-  if (shape === "minStrict") creditMin = v + 1;
-  if (shape === "exact") {
-    creditMin = v;
-    creditMax = v;
-  }
-  if (shape === "range" && g2 != null) {
-    const hi = Number.parseInt(ctx.m[g2], 10);
-    if (Number.isNaN(hi) || v > hi) return mkUnparseable(3, ctx);
-    creditMin = v;
-    creditMax = hi;
-  }
-  return mkMatch(3, ctx, "hard.creditMin", creditMin, (intent) => {
-    if (creditMin !== null) intent.hard.creditMin = creditMin;
-    if (creditMax !== null) intent.hard.creditMax = creditMax;
-  });
-}
-
-// Seat-filter rows: a filter on suggestions, not a builder requirement.
-const SEAT_ROWS: Row[] = [
-  {
-    name: "seat-only-show",
-    priority: 4,
-    re: /\bonly\s+(?:show|pick|suggest|list|give)(?:\s+me)?\b[^.,;!?]{0,40}?\bseats?\b/gi,
-    handle: (ctx) => seatMatch(ctx),
-  },
-  {
-    name: "seat-open-only",
-    priority: 4,
-    re: /\bopen\s+seats?\s+only\b|\bonly\s+(?:the\s+)?(?:ones|classes|sections|courses)?\s*(?:with|that\s+have|that\s+still\s+have)\s+open\s+seats?\b/gi,
-    handle: (ctx) => seatMatch(ctx),
-  },
-  {
-    name: "seat-no-full",
-    priority: 4,
-    re: /\bno\s+(?:closed|full|waitlisted|wait-listed)\s+(?:classes|sections|courses)\b|\bdon'?t\s+(?:pick|choose|suggest|show|use|give)\s+(?:me\s+)?(?:any\s+)?(?:closed|full|waitlisted|wait-listed)\b|\bnothing\s+(?:that\s+is\s+)?(?:closed|full|waitlisted|wait-listed)\b|\bmake\s+sure\s+(?:they|it)\s+(?:have|has)\s+open\s+seats?\b/gi,
-    handle: (ctx) => seatMatch(ctx),
-  },
-];
-
-function seatMatch(ctx: MatchContext): Cand {
-  return mkMatch(4, ctx, "hard.openSeatsOnly", true, (intent) => {
-    intent.hard.openSeatsOnly = true;
-  });
-}
-
-// Campus rows: a filter on suggestions, not a builder requirement.
-const CAMPUS_ROWS: Row[] = [
-  {
-    name: "campus-denton",
-    priority: 4,
-    re: /\b(?:denton|main)\s+campus\s+only\b|\bonly\s+(?:the\s+)?(?:denton|main)\s+campus\b|\bdenton\s+only\b|\bno\s+(?:frisco|other\s+(?:campuses|sites))\b|\bno\s+campuses?\s+outside\b|\bdon'?t\s+(?:send|put|schedule)\s+me\s+(?:in|at|to)\s+frisco\b|\b(?:frisco|other\s+(?:campuses|sites))\s+(?:is|are)\s+too\s+far\b|\bkeep\s+me\s+(?:at|on)\s+(?:the\s+)?(?:main|denton)\s+campus\b|\bkeep\s+me\s+off\s+(?:the\s+)?frisco\b/gi,
-    handle: (ctx) =>
-      mkMatch(4, ctx, "hard.campusScope", "dentonOnly", (intent) => {
-        intent.hard.campusScope = "dentonOnly";
-      }),
-  },
-  {
-    name: "campus-other",
-    priority: 4,
-    re: /\b(?:frisco|other\s+(?:campuses|sites))\s+(?:is|are)\s+(?:fine|ok|okay|alright|good)\b|\b(?:i\s+)?(?:can|could)\s+(?:go|drive)\s+to\s+(?:frisco|other\s+(?:campuses|sites))\b|\bdon'?t\s+mind\b[^.,;!?]{0,20}?\bfrisco\b|\bopen\s+to\s+(?:frisco|other\s+(?:campuses|sites))\b|\bother\s+(?:campuses|sites)\s+work\b|\bfrisco\s+works\b/gi,
-    handle: (ctx) =>
-      mkMatch(4, ctx, "hard.campusScope", "otherSitesOk", (intent) => {
-        intent.hard.campusScope = "otherSitesOk";
-      }),
-  },
-];
-
-// Mode rows.
-const MODE_ROWS: Row[] = [
-  {
-    name: "mode-online",
-    priority: 4,
-    re: /\b(?:all|everything)\s+online\b|\bonline\s+only\b|\bonly\s+online\s+(?:classes|sections|courses)\b|\bno\s+(?:in[ -]?person|campus)\s+(?:classes|sections|courses)\b|\b(?:every|each)\s+class\s+(?:has|have|must)\s+(?:to\s+)?be\s+online\b|\ball\s+(?:my\s+)?classes?\s+(?:should\s+be\s+|must\s+be\s+)?online\b/gi,
-    handle: (ctx) =>
-      mkMatch(4, ctx, "hard.mode", "online", (intent) => {
-        intent.hard.mode = "online";
-      }),
-  },
-  {
-    name: "mode-inperson",
-    priority: 4,
-    re: /\bin[ -]?person\s+only\b|\bonly\s+in[ -]?person\b|\bno\s+online\s+(?:classes|sections|courses)\b|\bface[ -]to[ -]face\s+only\b|\b(?:want|need)\s+to\s+be\s+in\s+(?:a\s+)?classroom\b|\bevery\s+class\s+(?:has|must)\s+(?:to\s+)?be\s+(?:in\s+(?:a\s+)?classroom|in\s+person)\b|\b(?:all|every)\s+(?:my\s+)?(?:classes|sections|courses)\s+(?:should\s+be\s+|must\s+be\s+)?in[ -]?person\b/gi,
-    handle: (ctx) =>
-      mkMatch(4, ctx, "hard.mode", "inPerson", (intent) => {
-        intent.hard.mode = "inPerson";
-      }),
-  },
-];
-
-// Soft-preference rows: leanings with a strength, mapped by applyIntent.
-const SOFT_ROWS: Row[] = [
-  {
-    name: "soft-spread",
-    priority: 5,
-    re: /\b(?:don'?t|do\s+not|no|avoid|never)\s+(?:want\s+)?(?:them\s+)?back[ -]to[ -]back\b|\b(?:spread|space)\s+(?:it|them|my\s+classes|everything|out)\b|\bgaps?\s+between\b|\bbreaks?\s+between\s+(?:my\s+)?classes\b/gi,
-    handle: (ctx) =>
-      // Directional soft preferences flip under negation: "no gaps between
-      // classes" is a compact ask, not a spread-out one.
-      negatedBefore(ctx.text, ctx.m.index) ? softMatch(ctx, "compact") : softMatch(ctx, "spreadOut"),
-  },
-  {
-    name: "soft-compact",
-    priority: 4,
-    re: /\bcompact\b|\bback[ -]to[ -]back\b|\btight\s+schedule\b|\bclump(?:ed)?\b|\bno\s+(?:long\s+)?gaps\b|\bfewer\s+gaps\b|\bminimal\s+gaps\b|\bget\s+(?:(?:it|them|everything|this|these|all|classes|courses|my\s+classes|my\s+courses)\s+)?(?:all\s+)?over\s+with\b|\bknock(?:ed)?\s+(?:it|them)\s+out\b/gi,
-    handle: (ctx) => softMatch(ctx, "compact"),
-  },
-  {
-    name: "soft-fewer-days",
-    priority: 5,
-    re: /\bfewer\s+(?:days(?:\s+on\s+campus)?|trips(?:\s+to\s+campus)?)\b|\bless\s+days\b|\bfewest\s+days\b|\bas\s+few\s+(?:days(?:\s+on\s+campus)?|trips(?:\s+to\s+campus)?)\s+as\s+possible\b|\bminimi[sz]e\s+(?:my\s+)?days\s+on\s+campus\b/gi,
-    handle: (ctx) => softMatch(ctx, "fewerDays"),
-  },
-  {
-    name: "soft-walking",
-    priority: 5,
-    re: /\bminimal\s+walking\b|\b(?:as\s+little\s+walking|walk\s+as\s+little)\s+as\s+possible\b|\bshort\s+walks?\s+between\b|\bdon'?t\s+want\s+to\s+walk\s+(?:far|a\s+lot|much|across\s+campus)\b|\bdon'?t\s+make\s+me\s+walk\s+(?:far|a\s+lot|much|across\s+campus)\b|\bno\s+long\s+walks\b|\bless\s+walking\b/gi,
-    handle: (ctx) => softMatch(ctx, "minimalWalking"),
-  },
-  {
-    name: "soft-morning-person",
-    priority: 5,
-    re: /\b(?:i'?m|am|i\s+am)\s+a\s+morning\s+person\b/gi,
-    handle: (ctx) => softMatch(ctx, "mornings", true),
-  },
-  {
-    name: "soft-not-morning-person",
-    priority: 5,
-    re: /\bnot\s+a\s+morning\s+person\b/gi,
-    handle: (ctx) => softMatch(ctx, "mornings", false),
-  },
-  {
-    name: "soft-night-person-pos",
-    priority: 5,
-    re: /\b(?:i'?m|am|i\s+am)\s+an?\s+(?:night|evening)\s+person\b/gi,
-    handle: (ctx) => softMatch(ctx, "evenings", true),
-  },
-  {
-    name: "soft-mornings-neg",
-    priority: 5,
-    // A negation within two words of a vague time-of-day word ("no morning
-    // classes", "no weekday morning classes", "hate early classes", "not
-    // have morning classes").
-    re: /\b(?:no|not|avoid|skip|without|hate|dislike|dread)\s+(?:\w+\s+){0,2}?(?:early|morning)(?:\s+(?:classes|sections|courses))?\b/gi,
-    handle: (ctx) => softMatch(ctx, "mornings", false),
-  },
-  {
-    name: "soft-mornings-pos",
-    priority: 5,
-    re: /\b(?:prefer|like|love)\s+(?:early|morning)(?:\s+(?:classes|sections|courses))?\b/gi,
-    handle: (ctx) => softMatch(ctx, "mornings", true),
-  },
-  {
-    name: "soft-night-person-neg",
-    priority: 5,
-    re: /\bnot\s+a\s+(?:night|evening)\s+person\b/gi,
-    handle: (ctx) => softMatch(ctx, "evenings", false),
-  },
-  {
-    name: "soft-evenings-neg",
-    priority: 5,
-    re: /\b(?:no|not|avoid|skip|without|hate|dislike|dread)\s+(?:\w+\s+){0,2}?(?:evening|late|night)(?:\s+(?:classes|sections|courses))?\b/gi,
-    handle: (ctx) => softMatch(ctx, "evenings", false),
-  },
-  {
-    name: "soft-evenings-pos",
-    priority: 5,
-    re: /\b(?:prefer|like|love)\s+(?:evening|late|night)(?:\s+(?:classes|sections|courses))?\b/gi,
-    handle: (ctx) => softMatch(ctx, "evenings", true),
-  },
-  {
-    name: "soft-graders",
-    priority: 5,
-    re: /\beas(?:y|ier)\s+graders?\b|\beasy\s+(?:a'?s?|grading|professors?)\b|\blenient\s+grad(?:ers?|ing)\b|\bgrades?\s+easily\b/gi,
-    handle: (ctx) => softMatch(ctx, "easierGraders"),
-  },
-];
-
-function softMatch(ctx: MatchContext, key: SoftKey, positive = true): Cand {
-  const strength = strengthFor(ctx, ctx.m[0]);
-  return mkMatch(5, ctx, `soft.${key}`, strength, (intent) => {
-    setSoft(intent, key, strength, positive);
-  });
-}
-
-// Recognized-but-unexpressible families, tagged with exact spans.
-const UNSUPPORTED_ROWS: Row[] = [
-  {
-    name: "tag-avoid-instructor",
-    priority: 2,
-    re: /\b(?:avoid|skipping|skip|not|no|don'?t\s+want)\s+(?:any\s+|a\s+|the\s+)?(?:class(?:es)?\s+(?:(?:with|from|by|taught\s+by)\s+))?(?:professor|prof\.?|dr\.?)\s+[a-z][a-z'-]*/gi,
-    handle: (ctx) => mkUnsupported(2, ctx, "avoidInstructor"),
-  },
-  {
-    name: "tag-max-classes",
-    priority: 2,
-    re: /\b(?:no\s+more\s+than\s+|at\s+most\s+|max(?:imum)?\s+of\s+)?\d+\s*(?:classes|courses|sections)\s*(?:a|per)\s+day\b|\b\d+\s*(?:classes|courses)\s*(?:a|per)\s+day\s+max\b/gi,
-    handle: (ctx) => mkUnsupported(2, ctx, "maxClassesPerDay"),
-  },
-  {
-    name: "tag-days-per-week",
-    priority: 2,
-    re: /\b(?:only\s+)?(?:come|be)\s+(?:(?:on|to)\s+(?:the\s+)?campus\s+)?(?:once|twice|three\s+times|four\s+times|five\s+times|\d+|one|two|three|four|five)\s*(?:days?)?\s*(?:a|per)\s+week\b|\b\d+\s+days\s+(?:a|per)\s+week\b/gi,
-    handle: (ctx) => mkUnsupported(2, ctx, "exactDaysPerWeek"),
-  },
-  {
-    name: "tag-afternoon",
-    priority: 5,
-    re: /\bno\s+afternoon\s+(?:classes|sections|courses)\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "timeOfDayBan"),
-  },
-  {
-    name: "tag-free-on-day",
-    priority: 6,
-    re: new RegExp(String.raw`\b(?:i'?m|am|i\s+am)?\s*free\s+(?:on\s+)?(${DAYGROUP})\b`, "gi"),
-    handle: (ctx) => mkUnsupported(6, ctx, "freeOnDay"),
-  },
-  {
-    name: "tag-same-instructor",
-    priority: 4,
-    // Claim the whole scope phrase ("same instructor across sections",
-    // "same professor twice") so the bare instructor row cannot win the span.
-    re: /\bsame\s+(?:professor|instructor|teacher)\b(?:\s+(?:across|in|for)\s+(?:all\s+|both\s+|my\s+)?(?:sections?|classes|courses?)|\s+twice|\s+two\s+times)?/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "sameInstructor"),
-  },
-  {
-    name: "tag-parking",
-    priority: 5,
-    re: /\bparking\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "parking"),
-  },
-  {
-    name: "tag-course-level",
-    priority: 2,
-    re: /\b(?:only\s+)?(?:1000|2000|3000|4000)[ -]?level(?:\s+(?:courses|classes|sections))?\b|\bupper[ -]?level\b|\blower[ -]?level\b/gi,
-    handle: (ctx) => mkUnsupported(2, ctx, "courseLevel"),
-  },
-  {
-    name: "tag-meetings-per-week",
-    priority: 5,
-    re: /\b(?:meet|meets)\s+(?:only\s+)?once\s+(?:a|per)\s+week\b|\bonly\s+once\s+a\s+week\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "meetingsPerWeek"),
-  },
-  {
-    name: "tag-duration",
-    priority: 5,
-    re: /\bno\s+(?:long\s+)?(?:2|3|two|three)[ -]?hour\s+(?:classes|blocks|labs)\b|\b(?:2|3)[ -]?hour\s+(?:classes|labs)\s+are\s+too\s+long\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "classDuration"),
-  },
-  {
-    name: "tag-discovery-park",
-    priority: 5,
-    re: /\b(?:no|skip|avoid)\s+(?:discovery\s+park)\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "discoveryPark"),
-  },
-  {
-    name: "tag-hybrid",
-    priority: 5,
-    re: /\bhybrid\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "hybridMode"),
-  },
-  {
-    name: "tag-class-size",
-    priority: 5,
-    re: /\bsmall\s+(?:classes|sections)\b|\bclass\s+size\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "classSize"),
-  },
-  {
-    name: "tag-gpa",
-    priority: 5,
-    re: /\b(?:minimum|at\s+least|above|over)\s+(?:a\s+)?\d(?:\.\d)?\s*(?:average\s+)?gpa\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "gpaThreshold"),
-  },
-  {
-    name: "tag-online-preference",
-    priority: 5,
-    re: /\bas\s+much\s+online\s+as\s+possible\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "onlinePreference"),
-  },
-  {
-    name: "tag-weekend",
-    priority: 5,
-    // Weekend asks the planner cannot hold: either an acceptance ("weekend
-    // classes are fine") or a weekend commitment ("work Sunday morning").
-    re: /\b(?:weekend|saturday|sunday)s?\s+(?:classes?|sections?|courses?|work|shifts?|training|practice|clinicals?|volunteering)\b|\b(?:work|works|working|shift|shifts|training|practice|volunteer|volunteering|clinicals?)\b[^.,;!?]{0,30}?\b(?:on\s+)?(?:weekends?|saturday|sunday)s?\b/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, "weekend"),
-  },
-  {
-    name: "tag-instructor",
-    priority: 5,
-    re: /\b(?:professor|prof\.?|dr\.?|instructor)\s+([a-z][a-z'-]*)/gi,
-    handle: (ctx) => mkUnsupported(5, ctx, negatedBefore(ctx.text, ctx.m.index) ? "avoidInstructor" : "instructor"),
-  },
-  {
-    name: "tag-course-code",
-    priority: 5,
-    re: /\b([a-z]{2,4})\s?(\d{4})\b/gi,
-    handle: (ctx) =>
-      mkUnsupported(5, ctx, negatedBefore(ctx.text, ctx.m.index) ? "avoidedCourse" : "wantedCourse"),
-  },
-];
-
-const ALL_ROWS: Row[] = [...BLOCKED_ROWS, ...DAY_OFF_ROWS, ...EARLIEST_ROWS, ...LATEST_ROWS, ...CREDIT_ROWS, ...SEAT_ROWS, ...CAMPUS_ROWS, ...MODE_ROWS, ...SOFT_ROWS, ...UNSUPPORTED_ROWS];
-
-/** Words with no semantic content, trimmed from not-understood run edges. */
-const FILLER =
-  /^(?:hey|hi|hello|yo|thanks|thank|please|pls|so|well|ok|okay|um|uh|oh|i|me|my|we|our|you|your|it|its|it's|this|that|these|those|there|just|really|also|too|very|and|or|but|the|a|an|to|of|for|on|in|at|by|with|as|is|are|am|was|were|be|been|being|do|does|did|have|has|had|want|wanted|wants|need|needs|needed|like|would|could|can|should|will|i'd|i'll|if|possible|ideally|preferably|prefer|scheduling|make|sure|things|stuff|something|everything|them|they|though|tho|kinda|sorta|take|taking|get|got)$/;
-
-/** Trim filler words from both ends of a text run. */
-function trimFiller(text: string): { start: number; end: number } {
-  let start = 0;
-  let end = text.length;
-  for (;;) {
-    const m = /^\s*\S+\s*/.exec(text.slice(start, end));
-    const tok = m?.[0].trim();
-    if (m && tok && FILLER.test(tok)) start += m[0].length;
-    else break;
-  }
-  for (;;) {
-    const m = /\s*\S+\s*$/.exec(text.slice(start, end));
-    const tok = m?.[0].trim();
-    if (m && tok && FILLER.test(tok)) end -= m[0].length;
-    else break;
-  }
-  return { start, end };
+/** The part of `span` left after trimming filler words from both ends, or null when only filler remains. */
+function trimFiller(text: string, span: Interval): Interval | null {
+  const words = [...text.slice(span.start, span.end).matchAll(/[a-z0-9']+/g)];
+  let i = 0;
+  let j = words.length;
+  while (i < j && FILLER.test(words[i][0])) i++;
+  while (j > i && FILLER.test(words[j - 1][0])) j--;
+  if (i >= j) return null;
+  const last = words[j - 1];
+  return { start: span.start + words[i].index, end: span.start + last.index + last[0].length };
 }
 
 // ---------------------------------------------------------------------------
@@ -1334,99 +968,71 @@ function trimFiller(text: string): { start: number; end: number } {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse one sentence of plain-language schedule preferences.
+ * Parse one message of plain-language schedule preferences.
  * Pure and deterministic: no network, no model, no clock, no randomness.
  */
 export function parseIntent(text: string): ParseResult {
   const norm = normalize(text);
-  const intent = emptyIntent();
-  const clauses = splitClauses(norm);
+  const tokens = tokenize(norm);
+  const clauses = splitClauses(mask(norm, tokens), tokens);
+  const read = clauses.map(readClause);
+  const { hedged, used } = hedges(clauses, read);
 
-  const cands: Cand[] = [];
-  for (const clause of clauses) {
-    const clauseText = norm.slice(clause.start, clause.end);
-    const ctxBase = { text: clauseText, offset: clause.start };
-    for (const row of ALL_ROWS) {
-      row.re.lastIndex = 0;
-      for (const m of clauseText.matchAll(row.re)) {
-        const ctx: MatchContext = { ...ctxBase, m };
-        const out = row.handle(ctx);
-        if (Array.isArray(out)) cands.push(...out.flat());
-        else if (out) cands.push(out);
-      }
-    }
-    // Post-pass: a day bound to a time ("Monday before 10") with no row
-    // claiming the clause - the planner has no per-day start, so tag it.
-    const hasDay = new RegExp(DAYGROUP, "i").test(clauseText);
-    const hasTime =
-      new RegExp(`${TIME_TOKEN_RE.source}|\\b(?:mornings?|afternoons?|evenings?)\\b`, "i").test(clauseText);
-    if (hasDay && hasTime && !cands.some((c) => c.kind === "match" && overlaps(c, clause))) {
-      cands.push({ kind: "unsupported", priority: 7, start: clause.start, end: clause.end, tag: "dayWithTime" });
-    }
-  }
-
-  // Longest, highest-priority candidate claims its span first.
-  cands.sort(
-    (a, b) => a.priority - b.priority || b.end - b.start - (a.end - a.start) || a.start - b.start,
+  // Plain statements are mild; an intensifier makes them strong; a hedge keeps them mild.
+  const strength = clauses.map((c, i): Strength => (!hedged[i] && INTENSIFIER.test(c.text) ? "strong" : "mild"));
+  const cands = read.flatMap((fs, i) =>
+    fs.map((f) => ({
+      clause: i,
+      ...(hedged[i] && f.kind === "hard"
+        ? { start: f.start, end: f.end, reach: f.reach, kind: "tag" as const, tag: "hedgedConstraint", fact: f.fact }
+        : f),
+    })),
   );
-  const accepted: Cand[] = [];
-  for (const c of cands) {
-    if (accepted.some((a) => overlaps(a, c))) continue;
-    accepted.push(c);
+
+  const accepted: typeof cands = [];
+  for (const c of [...cands].sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start)) {
+    if (!accepted.some((a) => overlaps(a, c))) accepted.push(c);
   }
   accepted.sort((a, b) => a.start - b.start);
-
+  // A negation belongs to the first phrase it governs: in "no classes after
+  // 4pm or before 9am", "no" is reported with the first bound only.
+  let previousEnd = 0;
   for (const c of accepted) {
-    if (c.kind === "match") c.apply(intent);
+    c.reach = Math.max(c.reach, previousEnd);
+    while (c.reach < c.start && /[\s,]/.test(norm[c.reach])) c.reach++;
+    previousEnd = c.end;
   }
 
-  const understood: UnderstoodSpan[] = accepted
-    .filter((c): c is Extract<Cand, { kind: "match" }> => c.kind === "match")
-    .map((c) => ({
-      start: c.start,
-      end: c.end,
-      text: text.slice(c.start, c.end),
-      field: c.field,
-      value: c.value,
-    }));
-
-  const notUnderstood: NotUnderstoodSpan[] = accepted
-    .filter((c) => c.kind !== "match")
-    .map((c) =>
-      c.kind === "unsupported"
-        ? { start: c.start, end: c.end, text: text.slice(c.start, c.end), reason: "unsupported" as const, tag: c.tag }
-        : { start: c.start, end: c.end, text: text.slice(c.start, c.end), reason: "unparseable" as const },
-    );
-
-  // Not-understood residual: clause text no understood span covers, minus
-  // filler words, so a UI can highlight what to ask about.
-  for (const clause of clauses) {
-    let uncovered: Interval[] = [{ ...clause }];
-    for (const c of accepted) {
-      if (!overlaps(c, clause)) continue;
-      const next: Interval[] = [];
-      for (const u of uncovered) {
-        if (!overlaps(c, u)) {
-          next.push(u);
-          continue;
-        }
-        if (c.start > u.start) next.push({ start: u.start, end: c.start });
-        if (c.end < u.end) next.push({ start: c.end, end: u.end });
-      }
-      uncovered = next;
+  const intent = emptyIntent();
+  const understood: UnderstoodSpan[] = [];
+  const notUnderstood: NotUnderstoodSpan[] = [];
+  for (const c of accepted) {
+    const span = { start: c.reach, end: c.end, text: text.slice(c.reach, c.end) };
+    if (c.kind === "hard") {
+      applyFact(intent, c.fact);
+      understood.push({ ...span, field: `hard.${c.fact.field}`, value: c.fact.value, assumed: c.assumed });
+    } else if (c.kind === "soft") {
+      setSoft(intent, c.key, strength[c.clause], c.positive);
+      const value = { strength: strength[c.clause], positive: c.positive };
+      understood.push({ ...span, field: `soft.${c.key}`, value, assumed: false });
+    } else if (c.kind === "tag") {
+      const fact = c.fact ? { field: `hard.${c.fact.field}`, value: c.fact.value } : {};
+      notUnderstood.push({ ...span, reason: "unsupported", tag: c.tag, ...fact });
+    } else {
+      notUnderstood.push({ ...span, reason: "unparseable" });
     }
-    for (const u of uncovered) {
-      const trimmed = trimFiller(norm.slice(u.start, u.end));
-      const residualStart = u.start + trimmed.start;
-      const residualEnd = u.start + trimmed.end;
-      if (residualEnd - residualStart >= 3) {
-        notUnderstood.push({
-          start: residualStart,
-          end: residualEnd,
-          text: text.slice(residualStart, residualEnd),
-          reason: "unparseable",
-        });
-      }
+  }
+
+  // Report what nothing read, minus filler. A single leftover word is noise
+  // ("don't", "classes") unless it is a day or a time, which carry facts.
+  const covered = [...accepted.map((c) => ({ start: c.reach, end: c.end })), ...used];
+  for (const clause of clauses) {
+    for (const part of uncovered(clause, covered)) {
+      const r = trimFiller(norm, part);
+      if (!r) continue;
+      const oneWord = !/[^a-z0-9']/.test(norm.slice(r.start, r.end));
+      if (oneWord && !tokens.some((t) => t.start === r.start && t.end === r.end)) continue;
+      notUnderstood.push({ ...r, text: text.slice(r.start, r.end), reason: "unparseable" });
     }
   }
 

@@ -29,7 +29,13 @@ export type CorpusExpectation = {
   unparseable?: number;
 };
 
-export type CorpusEntry = { id: string; input: string; expect: CorpusExpectation };
+export type CorpusEntry = {
+  id: string;
+  input: string;
+  expect: CorpusExpectation;
+  /** Set when the parser is known to get this wrong: why. The label stays the correct answer. */
+  miss?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Expectation helpers
@@ -65,6 +71,12 @@ const s = (key: SoftPreference["key"], strength: SoftPreference["strength"], pos
 });
 
 const e = (id: string, input: string, expect: CorpusExpectation): CorpusEntry => ({ id, input, expect });
+
+/** Marks an entry the parser is known to get wrong; the label stays the right answer. */
+const miss = (entry: CorpusEntry, why: string): CorpusEntry => ({ ...entry, miss: why });
+
+/** A hard fact the student hedged: reported, carrying its value, never applied. */
+const hedgedTag = { unsupportedTags: ["hedgedConstraint"] };
 
 // ---------------------------------------------------------------------------
 // Family helpers — each pins the phrasings one behavior must accept
@@ -108,9 +120,12 @@ export const BLOCKED: CorpusEntry[] = [
   block("work Mondays 9 to 5", onDays(["Mon"], 540, 1020, "work")),
   block("I have shift on Friday 6am to 2pm", onDays(["Fri"], 360, 840, "shift")),
   block("shifts on Saturday are out of scope for me", [], { unsupportedTags: ["weekend"] }),
-  block("keep 12-1 free on weekdays for lunch", wd(720, 780, "lunch")),
-  block("keep 12 to 1 free on weekdays for lunch", wd(720, 780, "lunch")),
-  block("keep 12-1 free for lunch on weekdays", wd(720, 780, "lunch")),
+  // A bare range starting at 12 could be noon or midnight.
+  tagged("keep 12-1 free on weekdays for lunch", ["ambiguousTime"]),
+  tagged("keep 12 to 1 free on weekdays for lunch", ["ambiguousTime"]),
+  tagged("keep 12-1 free for lunch on weekdays", ["ambiguousTime"]),
+  block("keep 12pm-1pm free on weekdays for lunch", wd(720, 780, "lunch")),
+  block("keep noon to 1 free for lunch", wd(720, 780, "lunch")),
   block("block 2pm to 4pm for practice", wd(840, 960, "practice")),
   block("set aside 5pm to 7pm for dinner", wd(1020, 1140, "dinner")),
   block("reserve 10am to 11am for office hours", wd(600, 660, "office")),
@@ -146,7 +161,8 @@ export const BLOCKED: CorpusEntry[] = [
   block("training Saturday 9 to 11", [], { unsupportedTags: ["ambiguousTime"] }),
   block("block 1pm to 2pm for lunch meetings", wd(780, 840, "lunch")),
   block("I have work 9am to 6pm on Wednesday", onDays(["Wed"], 540, 1080, "work")),
-  block("keep my Fridays 12 to 2 free for errands", onDays(["Fri"], 720, 840, "errands")),
+  tagged("keep my Fridays 12 to 2 free for errands", ["ambiguousTime"]),
+  block("keep my Fridays 12 to 2pm free for errands", onDays(["Fri"], 720, 840, "errands")),
   block("set aside Tuesday and Thursday 7pm to 9pm for class rehearsal", onDays(["Tue", "Thu"], 1140, 1260, "class")),
   block("no 10am classes on Fridays", onDays(["Fri"], 600, 660)),
   block("no 9am classes", wd(540, 600)),
@@ -184,8 +200,8 @@ export const DAYS_OFF: CorpusEntry[] = [
   tagged("no classes on Tuesday mornings", ["dayWithTime"]),
   tagged("no Friday classes before 10am", ["dayWithTime"]),
   dayOff("Mondays and Wednesdays are off", ["Mon", "Wed"]),
-  tagged("I'd like to keep Tuesdays free", ["softDayOff"]),
-  tagged("I would rather keep Thursdays free", ["softDayOff"]),
+  tagged("I'd like to keep Tuesdays free", ["hedgedConstraint"]),
+  tagged("I would rather keep Thursdays free", ["hedgedConstraint"]),
   dayOff("no Thursday classes", ["Thu"]),
   dayOff("I can't do classes on Mondays", ["Mon"]),
   dayOff("leave Fridays open", ["Fri"]),
@@ -238,7 +254,7 @@ export const EARLIEST: CorpusEntry[] = [
   earliest("earliest I can begin is 10am", 600),
   earliest("8am is too early", 481),
   earliest("9am is too early for me", 541),
-  earliest("10am or before", 600),
+  miss(earliest("10am or before", 600), "a fragment with no negation; the 'or before' row was cut"),
   earliest("no classes before 10:30am", 630),
   earliest("nothing before 11am on weekdays", 660),
   earliest("can't take classes before 8am", 480),
@@ -280,8 +296,8 @@ export const LATEST: CorpusEntry[] = [
   latest("no classes after 4pm, please", 960),
   latest("I need to be out by 6pm", 1080),
   latest("I have to be gone by 5pm", 1020),
-  latest("be home by 6pm", 1080),
-  latest("home by 5pm", 1020),
+  miss(latest("be home by 6pm", 1080), "single-phrase 'home by' rule cut"),
+  miss(latest("home by 5pm", 1020), "single-phrase 'home by' rule cut"),
   latest("nothing past noon", 720),
   latest("can't stay past 3pm", 900),
   latest("no classes after 4pm or before 9am", 960, { hard: { earliestStart: 540 } }),
@@ -397,7 +413,7 @@ export const FILTERS: CorpusEntry[] = [
   mode("no online classes", "inPerson"),
   mode("face to face only", "inPerson"),
   mode("face-to-face only", "inPerson"),
-  mode("I want to be in a classroom", "inPerson"),
+  miss(mode("I want to be in a classroom", "inPerson"), "single-phrase 'be in a classroom' rule cut"),
   mode("every class has to be in person", "inPerson"),
   mode("every class must be in a classroom", "inPerson"),
   mode("all sections in person", "inPerson"),
@@ -408,82 +424,82 @@ export const FILTERS: CorpusEntry[] = [
 // ---------------------------------------------------------------------------
 
 export const SOFT_CASES: CorpusEntry[] = [
-  soft("I don't want back-to-back classes", [s("spreadOut", "strong")]),
-  soft("don't want back to back classes", [s("spreadOut", "strong")]),
-  soft("no back-to-back classes", [s("spreadOut", "strong")]),
-  soft("avoid back-to-back sections", [s("spreadOut", "strong")]),
-  soft("never back-to-back classes", [s("spreadOut", "strong")]),
-  soft("space my classes out", [s("spreadOut", "strong")]),
-  soft("space them out", [s("spreadOut", "strong")]),
-  soft("spread my classes out", [s("spreadOut", "strong")]),
+  soft("I don't want back-to-back classes", [s("spreadOut", "mild")]),
+  soft("don't want back to back classes", [s("spreadOut", "mild")]),
+  soft("no back-to-back classes", [s("spreadOut", "mild")]),
+  soft("avoid back-to-back sections", [s("spreadOut", "mild")]),
+  soft("never back-to-back classes", [s("spreadOut", "mild")]),
+  soft("space my classes out", [s("spreadOut", "mild")]),
+  soft("space them out", [s("spreadOut", "mild")]),
+  soft("spread my classes out", [s("spreadOut", "mild")]),
   soft("I'd prefer gaps between classes", [s("spreadOut", "mild")]),
-  soft("gaps between my classes please", [s("spreadOut", "strong")]),
-  soft("breaks between my classes", [s("spreadOut", "strong")]),
-  soft("compact schedule please", [s("compact", "strong")]),
-  soft("a compact schedule", [s("compact", "strong")]),
-  soft("back-to-back classes are fine", [s("compact", "strong")]),
-  soft("I like a tight schedule", [s("compact", "strong")]),
-  soft("no gaps between classes", [s("compact", "strong")]),
-  soft("fewer gaps please", [s("compact", "strong")]),
-  soft("minimal gaps", [s("compact", "strong")]),
-  soft("get it all over with", [s("compact", "strong")]),
-  soft("get them over with", [s("compact", "strong")]),
-  soft("get everything over with", [s("compact", "strong")]),
-  soft("knock them out", [s("compact", "strong")]),
-  soft("knock it out", [s("compact", "strong")]),
-  soft("clump my classes together", [s("compact", "strong")]),
-  soft("clumped classes", [s("compact", "strong")]),
+  soft("gaps between my classes please", [s("spreadOut", "mild")]),
+  soft("breaks between my classes", [s("spreadOut", "mild")]),
+  soft("compact schedule please", [s("compact", "mild")]),
+  soft("a compact schedule", [s("compact", "mild")]),
+  soft("back-to-back classes are fine", [s("compact", "mild")]),
+  soft("I like a tight schedule", [s("compact", "mild")]),
+  soft("no gaps between classes", [s("compact", "mild")]),
+  soft("fewer gaps please", [s("compact", "mild")]),
+  soft("minimal gaps", [s("compact", "mild")]),
+  miss(soft("get it all over with", [s("compact", "mild")]), "single-phrase compact idiom cut"),
+  miss(soft("get them over with", [s("compact", "mild")]), "single-phrase compact idiom cut"),
+  miss(soft("get everything over with", [s("compact", "mild")]), "single-phrase compact idiom cut"),
+  miss(soft("knock them out", [s("compact", "mild")]), "single-phrase compact idiom cut"),
+  miss(soft("knock it out", [s("compact", "mild")]), "single-phrase compact idiom cut"),
+  soft("clump my classes together", [s("compact", "mild")]),
+  soft("clumped classes", [s("compact", "mild")]),
   soft("I'd like gaps between classes if possible", [s("spreadOut", "mild")]),
-  soft("fewer days on campus", [s("fewerDays", "strong")]),
-  soft("fewer days on campus please", [s("fewerDays", "strong")]),
-  soft("fewer trips to campus", [s("fewerDays", "strong")]),
-  soft("less days on campus", [s("fewerDays", "strong")]),
-  soft("as few days on campus as possible", [s("fewerDays", "strong")]),
-  soft("as few trips as possible", [s("fewerDays", "strong")]),
-  soft("fewest days on campus", [s("fewerDays", "strong")]),
-  soft("minimize my days on campus", [s("fewerDays", "strong")]),
+  soft("fewer days on campus", [s("fewerDays", "mild")]),
+  soft("fewer days on campus please", [s("fewerDays", "mild")]),
+  soft("fewer trips to campus", [s("fewerDays", "mild")]),
+  soft("less days on campus", [s("fewerDays", "mild")]),
+  soft("as few days on campus as possible", [s("fewerDays", "mild")]),
+  soft("as few trips as possible", [s("fewerDays", "mild")]),
+  soft("fewest days on campus", [s("fewerDays", "mild")]),
+  soft("minimize my days on campus", [s("fewerDays", "mild")]),
   soft("I'd rather have fewer days on campus", [s("fewerDays", "mild")]),
-  soft("minimal walking", [s("minimalWalking", "strong")]),
-  soft("as little walking as possible", [s("minimalWalking", "strong")]),
-  soft("I want to walk as little as possible", [s("minimalWalking", "strong")]),
-  soft("short walks between classes", [s("minimalWalking", "strong")]),
-  soft("I don't want to walk across campus", [s("minimalWalking", "strong")]),
-  soft("no long walks", [s("minimalWalking", "strong")]),
-  soft("less walking please", [s("minimalWalking", "strong")]),
-  soft("don't make me walk a lot", [s("minimalWalking", "strong")]),
-  soft("easy graders", [s("easierGraders", "strong")]),
-  soft("easy grading", [s("easierGraders", "strong")]),
-  soft("lenient graders", [s("easierGraders", "strong")]),
-  soft("lenient grading", [s("easierGraders", "strong")]),
-  soft("I'm a morning person", [s("mornings", "strong")]),
-  soft("I am a morning person", [s("mornings", "strong")]),
-  soft("I love morning classes", [s("mornings", "strong")]),
-  soft("I like early classes", [s("mornings", "strong")]),
+  soft("minimal walking", [s("minimalWalking", "mild")]),
+  soft("as little walking as possible", [s("minimalWalking", "mild")]),
+  soft("I want to walk as little as possible", [s("minimalWalking", "mild")]),
+  soft("short walks between classes", [s("minimalWalking", "mild")]),
+  soft("I don't want to walk across campus", [s("minimalWalking", "mild")]),
+  soft("no long walks", [s("minimalWalking", "mild")]),
+  soft("less walking please", [s("minimalWalking", "mild")]),
+  soft("don't make me walk a lot", [s("minimalWalking", "mild")]),
+  soft("easy graders", [s("easierGraders", "mild")]),
+  soft("easy grading", [s("easierGraders", "mild")]),
+  soft("lenient graders", [s("easierGraders", "mild")]),
+  soft("lenient grading", [s("easierGraders", "mild")]),
+  miss(soft("I'm a morning person", [s("mornings", "mild")]), "single-phrase 'morning person' rule cut; the negated form still works"),
+  miss(soft("I am a morning person", [s("mornings", "mild")]), "single-phrase 'morning person' rule cut; the negated form still works"),
+  soft("I love morning classes", [s("mornings", "mild")]),
+  soft("I like early classes", [s("mornings", "mild")]),
   soft("I prefer morning classes", [s("mornings", "mild")]),
   soft("I prefer early classes if possible", [s("mornings", "mild")]),
-  soft("I'm not a morning person", [s("mornings", "strong", false)]),
-  soft("no morning classes", [s("mornings", "strong", false)]),
-  soft("no early classes", [s("mornings", "strong", false)]),
-  soft("avoid morning classes", [s("mornings", "strong", false)]),
-  soft("avoid early classes", [s("mornings", "strong", false)]),
-  soft("no weekday morning classes", [s("mornings", "strong", false)]),
-  soft("I hate morning classes", [s("mornings", "strong", false)]),
-  soft("I hate early classes", [s("mornings", "strong", false)]),
-  soft("I dislike early classes", [s("mornings", "strong", false)]),
+  soft("I'm not a morning person", [s("mornings", "mild", false)]),
+  soft("no morning classes", [s("mornings", "mild", false)]),
+  soft("no early classes", [s("mornings", "mild", false)]),
+  soft("avoid morning classes", [s("mornings", "mild", false)]),
+  soft("avoid early classes", [s("mornings", "mild", false)]),
+  soft("no weekday morning classes", [s("mornings", "mild", false)]),
+  soft("I hate morning classes", [s("mornings", "mild", false)]),
+  soft("I hate early classes", [s("mornings", "mild", false)]),
+  soft("I dislike early classes", [s("mornings", "mild", false)]),
   soft("I'd rather avoid morning classes", [s("mornings", "mild", false)]),
   soft("skip morning classes if you can", [s("mornings", "mild", false)]),
-  soft("I'm a night person", [s("evenings", "strong")]),
-  soft("I'm an evening person", [s("evenings", "strong")]),
-  soft("I love evening classes", [s("evenings", "strong")]),
+  miss(soft("I'm a night person", [s("evenings", "mild")]), "single-phrase 'night person' rule cut; the negated form still works"),
+  miss(soft("I'm an evening person", [s("evenings", "mild")]), "single-phrase 'night person' rule cut; the negated form still works"),
+  soft("I love evening classes", [s("evenings", "mild")]),
   soft("I prefer evening classes", [s("evenings", "mild")]),
   soft("I prefer late classes", [s("evenings", "mild")]),
-  soft("I'm not a night person", [s("evenings", "strong", false)]),
-  soft("I'm not an evening person", [s("evenings", "strong", false)]),
-  soft("no evening classes", [s("evenings", "strong", false)]),
-  soft("no late classes", [s("evenings", "strong", false)]),
-  soft("no night classes", [s("evenings", "strong", false)]),
-  soft("avoid evening classes", [s("evenings", "strong", false)]),
-  soft("I hate late classes", [s("evenings", "strong", false)]),
+  soft("I'm not a night person", [s("evenings", "mild", false)]),
+  soft("I'm not an evening person", [s("evenings", "mild", false)]),
+  soft("no evening classes", [s("evenings", "mild", false)]),
+  soft("no late classes", [s("evenings", "mild", false)]),
+  soft("no night classes", [s("evenings", "mild", false)]),
+  soft("avoid evening classes", [s("evenings", "mild", false)]),
+  soft("I hate late classes", [s("evenings", "mild", false)]),
   soft("I'd rather avoid evening classes", [s("evenings", "mild", false)]),
   soft("I'd rather not have evening classes if possible", [s("evenings", "mild", false)]),
 ];
@@ -516,7 +532,7 @@ export const TAGS: CorpusEntry[] = [
   tagged("only come to campus twice a week", ["exactDaysPerWeek"]),
   tagged("I want to be on campus 3 days a week", ["exactDaysPerWeek"]),
   tagged("no afternoon classes", ["timeOfDayBan"]),
-  tagged("no morning classes before 8am", []),
+  earliest("no morning classes before 8am", 480, { soft: [s("mornings", "mild", false)] }),
   tagged("I'm free on Fridays", ["freeOnDay"]),
   tagged("I'm free Wednesdays", ["freeOnDay"]),
   tagged("same professor for all my classes", ["sameInstructor"]),
@@ -604,17 +620,18 @@ export const MULTI: CorpusEntry[] = [
   e(
     "multi/soft-and-hard",
     "compact schedule and no Friday classes",
-    { hard: { daysOff: ["Fri"] }, soft: [s("compact", "strong")] },
+    { hard: { daysOff: ["Fri"] }, soft: [s("compact", "mild")] },
   ),
   e(
     "multi/soft-and-soft",
     "I'm not a morning person and I'd rather have fewer days on campus",
-    { soft: [s("mornings", "strong", false), s("fewerDays", "mild")] },
+    { soft: [s("mornings", "mild", false), s("fewerDays", "mild")] },
   ),
-  e(
-    "multi/mode-and-campus",
-    "online only and keep me off the Frisco campus",
-    { hard: { mode: "online", campusScope: "dentonOnly" } },
+  miss(
+    e("multi/mode-and-campus", "online only and keep me off the Frisco campus", {
+      hard: { mode: "online", campusScope: "dentonOnly" },
+    }),
+    "single-phrase 'keep me off the Frisco' rule cut",
   ),
   e(
     "multi/block-and-dayoff",
@@ -629,7 +646,7 @@ export const MULTI: CorpusEntry[] = [
   e(
     "multi/three-soft",
     "I'd like gaps between classes, minimal walking, and easy graders",
-    { soft: [s("spreadOut", "mild"), s("minimalWalking", "strong"), s("easierGraders", "strong")] },
+    { soft: [s("spreadOut", "mild"), s("minimalWalking", "mild"), s("easierGraders", "mild")] },
   ),
   e(
     "multi/fillers",
@@ -649,7 +666,7 @@ export const MULTI: CorpusEntry[] = [
   e(
     "multi/soft-mornings-and-bounds",
     "I'm not a morning person, no classes before 10am",
-    { hard: { earliestStart: 600 }, soft: [s("mornings", "strong", false)] },
+    { hard: { earliestStart: 600 }, soft: [s("mornings", "mild", false)] },
   ),
   e(
     "multi/practice-and-latest",
@@ -669,7 +686,7 @@ export const MULTI: CorpusEntry[] = [
   e(
     "multi/credits-range-and-soft",
     "between 12 and 15 credits, compact schedule please",
-    { hard: { creditMin: 12, creditMax: 15 }, soft: [s("compact", "strong")] },
+    { hard: { creditMin: 12, creditMax: 15 }, soft: [s("compact", "mild")] },
   ),
   e(
     "multi/weekend-and-block",
@@ -684,8 +701,86 @@ export const MULTI: CorpusEntry[] = [
   e(
     "multi/long-story",
     "hey! I have work 8am to 4:30pm on Mondays and Wednesdays, I'm not a morning person, and I'd rather avoid evening classes if possible",
-    { hard: { blockedTimes: onDays(["Mon", "Wed"], 480, 990, "work") }, soft: [s("mornings", "strong", false), s("evenings", "mild", false)] },
+    { hard: { blockedTimes: onDays(["Mon", "Wed"], 480, 990, "work") }, soft: [s("mornings", "mild", false), s("evenings", "mild", false)] },
   ),
+];
+
+// ---------------------------------------------------------------------------
+// 13. Hedges: a hedged hard constraint is reported, never applied
+// ---------------------------------------------------------------------------
+
+export const HEDGES: CorpusEntry[] = [
+  e("hedge/dayoff", "Fridays off if possible", hedgedTag),
+  e("hedge/dayoff", "Fridays off, if possible", hedgedTag),
+  e("hedge/dayoff", "If possible, Fridays off", hedgedTag),
+  e("hedge/dayoff", "no classes on Fridays, ideally", hedgedTag),
+  e("hedge/dayoff", "Fridays off would be nice", hedgedTag),
+  e("hedge/dayoff", "Fridays off, but not a big deal", hedgedTag),
+  e("hedge/dayoff", "try to keep Fridays free", hedgedTag),
+  e("hedge/dayoff", "I'd love Mondays off", hedgedTag),
+  e("hedge/earliest", "ideally no classes before 10am", hedgedTag),
+  e("hedge/earliest", "Ideally, no classes before 10am", hedgedTag),
+  e("hedge/earliest", "no classes before 10am, but 9am is okay", hedgedTag),
+  e("hedge/earliest", "no classes before 10am, 9am if necessary", hedgedTag),
+  e("hedge/latest", "preferably nothing after 5pm", hedgedTag),
+  e("hedge/latest", "kinda want to be done by 3pm", hedgedTag),
+  e("hedge/credits", "I'd prefer 12 to 15 credits", hedgedTag),
+  e("hedge/credits", "no more than 15 credits if I can help it", hedgedTag),
+  e("hedge/blocked", "keep 12pm-1pm free for lunch if possible", hedgedTag),
+  e("hedge/blocked", "no 8am classes if I can help it", hedgedTag),
+  e("hedge/filters", "Denton only if possible", hedgedTag),
+  e("hedge/filters", "online only, preferably", hedgedTag),
+  e("hedge/filters", "open seats only if you can", hedgedTag),
+  // The hedge reaches only its own clause, or the one before it.
+  e("hedge/scope", "no Friday classes, and ideally nothing before 10am", {
+    hard: { daysOff: ["Fri"] },
+    unsupportedTags: ["hedgedConstraint"],
+  }),
+  e("hedge/scope", "nothing before 10am, Fridays off if possible", {
+    hard: { earliestStart: 600 },
+    unsupportedTags: ["hedgedConstraint"],
+  }),
+  // A clause with its own fact is not a concession.
+  e("hedge/scope", "no classes on Fridays, but Frisco is fine", {
+    hard: { daysOff: ["Fri"], campusScope: "otherSitesOk" },
+  }),
+  soft("fewer days on campus if possible", [s("fewerDays", "mild")]),
+  soft("I really want fewer days on campus", [s("fewerDays", "strong")]),
+  soft("I really want fewer days on campus, if possible", [s("fewerDays", "mild")]),
+  soft("I absolutely need a compact schedule", [s("compact", "strong")]),
+  soft("I can't do morning classes", [s("mornings", "strong", false)]),
+  miss(soft("evening classes would be nice", [s("evenings", "mild")]), "a leaning stated after the noun has no cue word before it"),
+];
+
+// ---------------------------------------------------------------------------
+// 14. Token layer, polarity and range readings end to end
+// ---------------------------------------------------------------------------
+
+export const TOKENS: CorpusEntry[] = [
+  dayOff("no classes on Tu/Th", ["Tue", "Thu"]),
+  dayOff("no classes on T/Th", ["Tue", "Thu"]),
+  dayOff("no classes on Th", ["Thu"]),
+  dayOff("no classes on R", ["Thu"]),
+  dayOff("skip Tues and Thurs", ["Tue", "Thu"]),
+  dayOff("no classes Wed", ["Wed"]),
+  block("I work Tu/Th 3pm-5pm", onDays(["Tue", "Thu"], 900, 1020, "work")),
+  block("no Monday 8ams", onDays(["Mon"], 480, 540)),
+  block("no 8ams", wd(480, 540)),
+  tagged("avoid classes w/ Dr. Lee", ["avoidInstructor"]),
+  // Read AM to PM, flagged assumed on the span.
+  block("I work 9-5", wd(540, 1020, "work")),
+  block("I work 10-2 on Fridays", onDays(["Fri"], 600, 840, "work")),
+  tagged("I work 12-1", ["ambiguousTime"]),
+  tagged("I work 2-4", ["ambiguousTime"]),
+  soft("I hate back-to-back classes", [s("spreadOut", "mild")]),
+  soft("I don't want a compact schedule", [s("spreadOut", "mild")]),
+  tagged("anyone but Dr. Lee", ["avoidInstructor"]),
+  tagged("any professor except Dr. Lee", ["avoidInstructor"]),
+  credits("don't let me go over 15 credits", null, 15),
+  credits("no fewer than 12 credits", 12, null),
+  e("polarity/mind", "I don't mind Frisco", { hard: { campusScope: "otherSitesOk" } }),
+  e("polarity/reach", "I don't work Fridays", {}),
+  e("polarity/reach", "I don't care about Fridays", {}),
 ];
 
 // ---------------------------------------------------------------------------
@@ -704,4 +799,6 @@ export const CORPUS: CorpusEntry[] = [
   ...AMBIGUOUS,
   ...NOISE,
   ...MULTI,
+  ...HEDGES,
+  ...TOKENS,
 ];

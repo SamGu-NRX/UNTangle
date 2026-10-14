@@ -25,20 +25,29 @@
  * `parseSchedulePreferences`.
  */
 
-import { uniqueBlockId } from "../../components/schedule/constraint-logic";
-import { weekDays } from "../types";
+import { uniqueBlockId } from "@/components/schedule/constraint-logic";
+import { weekDays } from "@/lib/types";
 import type {
   BlockedTime,
   PreferenceWeights,
   ScheduleConstraints,
   SchedulePreferences,
   WeekDay,
-} from "../types";
+} from "@/lib/types";
 
-/** How much a soft preference matters when the planner prices trade-offs. */
+/**
+ * How much a soft preference matters. Plain statements are mild; an
+ * intensifier ("really", "must", "need", "can't") makes one strong; a hedge
+ * keeps it mild.
+ */
 export type Strength = "strong" | "mild";
 
-/** The weight each strength maps to, matching the preset scale in optimizer/presets.ts (main term 4, light term 2). */
+/**
+ * Planner weight per strength. Strong is 4, the value a preference chip and
+ * a goal preset give their main term (`applyChoice`, optimizer/presets.ts).
+ * Mild is 2, half of that; no run has tested 2 against other values, it is
+ * only the midpoint of the 0..4 scale.
+ */
 export const STRENGTH_WEIGHT: Record<Strength, number> = { strong: 4, mild: 2 };
 
 /**
@@ -170,7 +179,13 @@ const MAX_MAPPABLE_CREDITS = 40;
  *   no "classes are fine on X" statement, so there is nothing that could
  *   un-set a day.
  * - Blocked times are appended with ids from `uniqueBlockId`, so an intent
- *   can never collide with an existing block's id.
+ *   can never collide with an existing block's id. A block with the same
+ *   day, start and end as one already saved is skipped, so applying the
+ *   same sentence twice does not stack copies.
+ * - Mornings and evenings are one lean, as in `applyChoice` and
+ *   `choicesFromWeights`: leaning into one sets its weight and zeroes the
+ *   other, so a mild morning ask on a preset with evenings at 4 reads as
+ *   "earlier", not "later". Leaning away zeroes only its own weight.
  * - The output always passes `parseSchedulePreferences`: days are planner
  *   days, blocked ranges satisfy `end > start` (the parser guarantees it),
  *   and an out-of-range credit max is clamped to 0..40 because the planner
@@ -190,6 +205,9 @@ const MAX_MAPPABLE_CREDITS = 40;
  * - `soft` `easierGraders`: the closest knob is the `rating` weight, but
  *   that ranks student star ratings (0..5), not historical average GPA.
  *   Left unmapped rather than silently substituting a different number.
+ * - `walkingBufferMinutes`: no intent field sets it. "Minimal walking" is a
+ *   leaning and maps to the walking weight; the buffer is a hard minimum
+ *   the student sets in the planner.
  */
 export function applyIntent(current: SchedulePreferences, intent: PreferenceIntent): SchedulePreferences {
   const constraints: ScheduleConstraints = {
@@ -205,6 +223,7 @@ export function applyIntent(current: SchedulePreferences, intent: PreferenceInte
   }
 
   for (const b of intent.hard.blockedTimes) {
+    if (constraints.blocked.some((x) => x.day === b.day && x.start === b.start && x.end === b.end)) continue;
     const block: BlockedTime = {
       id: uniqueBlockId(constraints.blocked, "pref-block"),
       label: b.label ?? "kept free",
@@ -223,24 +242,22 @@ export function applyIntent(current: SchedulePreferences, intent: PreferenceInte
   if (intent.hard.openSeatsOnly !== null) constraints.openSeatsOnly = intent.hard.openSeatsOnly;
   if (intent.hard.campusScope !== null) constraints.otherSites = intent.hard.campusScope === "otherSitesOk";
 
-  // A control owns only its own weight (the same rule applyChoice follows
-  // in components/schedule/constraint-logic.ts): an unmentioned soft key
-  // leaves its weight exactly as the student last set it.
+  // An unmentioned soft key leaves its weight exactly as the student last
+  // set it. Preferences apply in order, so a later leaning wins.
   const weights: PreferenceWeights = { ...current.weights };
-  const weightFor = (key: SoftKey, target: keyof PreferenceWeights): void => {
-    const pref = intent.soft.find((s) => s.key === key);
-    if (!pref) return;
-    // A lean-away morning/evening ask sets the weight to 0 (the planner has
-    // no negative weights); a lean-in ask uses the strength scale.
-    weights[target] = pref.positive === false ? 0 : STRENGTH_WEIGHT[pref.strength];
-  };
-  weightFor("compact", "compact");
-  weightFor("fewerDays", "fewerDays");
-  weightFor("mornings", "mornings");
-  weightFor("evenings", "evenings");
-  weightFor("minimalWalking", "walking");
-  // spreadOut and easierGraders: recognized soft keys with no planner
-  // weight to own; the mapping notes above list them as unsupported.
+  for (const pref of intent.soft) {
+    const weight = STRENGTH_WEIGHT[pref.strength];
+    if (pref.key === "compact") weights.compact = weight;
+    else if (pref.key === "fewerDays") weights.fewerDays = weight;
+    else if (pref.key === "minimalWalking") weights.walking = weight;
+    else if (pref.key === "mornings" || pref.key === "evenings") {
+      const other = pref.key === "mornings" ? "evenings" : "mornings";
+      // The planner has no negative weights: leaning away is 0.
+      weights[pref.key] = pref.positive === false ? 0 : weight;
+      if (pref.positive !== false) weights[other] = 0;
+    }
+    // spreadOut and easierGraders have no planner weight; see the notes above.
+  }
 
   // Preserve every top-level field the intent does not touch
   // (walkingBufferMinutes, excludedSections, and any field added later):
