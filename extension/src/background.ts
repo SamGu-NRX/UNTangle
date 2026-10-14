@@ -36,9 +36,12 @@ function chromeSessionCache(): SessionCache {
 }
 
 const cache = chromeSessionCache();
-const plannerClient = new PlannerClient(fetch, UNTANGLE_ORIGIN, cache);
-const sectionsClient = new SectionsClient(fetch, UNTANGLE_ORIGIN, cache);
-const gradesClient = new GradesClient(fetch, UNTANGLE_ORIGIN, cache);
+// fetch rejects with "Illegal invocation" when called as a method of the
+// client; bind it to the worker's global object once.
+const boundFetch = fetch.bind(globalThis);
+const plannerClient = new PlannerClient(boundFetch, UNTANGLE_ORIGIN, cache);
+const sectionsClient = new SectionsClient(boundFetch, UNTANGLE_ORIGIN, cache);
+const gradesClient = new GradesClient(boundFetch, UNTANGLE_ORIGIN, cache);
 
 const SESSION_CACHE_KEY = "planner:session";
 const ORIGIN_CACHE_KEY = "untangle:origin";

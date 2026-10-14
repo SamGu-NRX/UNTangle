@@ -54,8 +54,9 @@ export class GradesClient {
     Promise<{ kind: "envelope"; result: HistoryResult<T> } | { kind: "error"; verdict: GradesVerdict }> {
     let response: Response;
     try {
-      response = await this.fetchImpl(`${this.base}${path}`, { credentials: "include", cache: "no-store" });
-    } catch {
+      response = await this.fetchImpl(`${this.base}${path}`, { credentials: "include" });
+    } catch (error) {
+      console.warn(`grades fetch failed:`, error);
       return { kind: "error", verdict: { kind: "unavailable", message: "UNTangle could not reach the grade history service." } };
     }
     const retryAfter = response.headers.get("Retry-After");

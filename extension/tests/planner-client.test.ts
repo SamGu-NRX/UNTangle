@@ -60,7 +60,10 @@ describe("PlannerClient.load", () => {
     });
     const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
     const result = await client.load();
-    expect(result).toEqual({ ok: false, status: 0 });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected the load to fail");
+    expect(result.status).toBe(0);
+    expect(result.error).toContain("connection refused");
   });
 });
 

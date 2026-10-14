@@ -28,9 +28,10 @@ export class SectionsClient {
     try {
       response = await this.fetchImpl(
         `${this.base}/api/sections/${encodeURIComponent(term)}/${encodeURIComponent(subject)}/${encodeURIComponent(number)}`,
-        { credentials: "include", cache: "no-store" },
+        { credentials: "include" },
       );
-    } catch {
+    } catch (error) {
+      console.warn(`sections fetch failed:`, error);
       return { ok: false, status: 0 };
     }
     if (!response.ok) return { ok: false, status: response.status };

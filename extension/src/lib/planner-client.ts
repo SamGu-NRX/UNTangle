@@ -59,14 +59,15 @@ export class PlannerClient {
   ) {}
 
   /** The student's planner snapshot, from cache when this session already loaded it. */
-  async load(): Promise<{ ok: true; snapshot: PlannerSnapshot } | { ok: false; status: number }> {
+  async load(): Promise<{ ok: true; snapshot: PlannerSnapshot } | { ok: false; status: number; error?: string }> {
     const cached = await readSnapshot(this.cache);
     if (cached) return { ok: true, snapshot: cached };
     let response: Response;
     try {
-      response = await this.fetchImpl(`${this.base}/api/planner`, { credentials: "include", cache: "no-store" });
-    } catch {
-      return { ok: false, status: 0 };
+      response = await this.fetchImpl(`${this.base}/api/planner`, { credentials: "include" });
+    } catch (error) {
+      console.warn(`planner load failed:`, error);
+      return { ok: false, status: 0, error: String(error) };
     }
     if (response.status === 401) return { ok: false, status: 401 };
     if (!response.ok) return { ok: false, status: response.status };
