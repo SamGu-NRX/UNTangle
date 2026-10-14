@@ -4,9 +4,9 @@ Each task moves one module from `frontend/src/lib/`, or one small group that imp
 
 This page lists every module in `frontend/src/lib` as of 2026-10-14, says which can move now, which need their I/O or data passed in first, and which stay. Take the "Movable now" groups in the order given; a module can only move after everything it imports has.
 
-## Before the first move (lead)
+## The frontend already depends on core
 
-`frontend/package.json` has no dependency on `@untangle/core`, so the frontend can't import it yet. The lead adds `"@untangle/core": "workspace:*"`, updates `bun.lock`, and checks that `bun run build` in `frontend/` compiles core's TypeScript (Next may need `transpilePackages`). Both files are lead-owned. No move task opens until that lands.
+`frontend/package.json` lists `"@untangle/core": "workspace:*"`, and `frontend/next.config.ts` has `transpilePackages: ["@untangle/core"]` because core ships TypeScript source. A move changes neither file.
 
 ## What one move looks like
 
