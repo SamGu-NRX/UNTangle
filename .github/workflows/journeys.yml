@@ -95,8 +95,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/journey-browsers
     strategy:
       fail-fast: false
       # All five use synthetic or guest data. No journey needs a real UNT account.
@@ -141,6 +139,7 @@ jobs:
         run: tar -xzf "$RUNNER_TEMP/journey-app.tar.gz"
       - name: Install isolated browser tools
         run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/journey-browsers" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/journey-tools"
           cd "$RUNNER_TEMP/journey-tools"
           bun --no-env-file add --exact playwright@1.58.2 axe-core@4.10.3
