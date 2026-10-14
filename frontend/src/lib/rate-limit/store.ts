@@ -9,12 +9,24 @@ export interface RateLimitStore {
    * `window` is `floor(now / windowMs)` for the route's own window length.
    */
   hit(route: string, caller: string, window: number, windowMs: number): Promise<number>;
+  /** Atomically counts attempts until a full window passes without a request. */
+  hitLastRequest(route: string, caller: string, time: number, windowMs: number): Promise<{ count: number; expiresAt: number }>;
 }
 
 /** Process-local counts for development and tests. Spent counts are retained for one minute for in-flight hits. */
 export function memoryStore(): RateLimitStore {
   const counts = new Map<string, { count: number; expiresAt: number }>();
   return {
+    async hitLastRequest(route, caller, time, windowMs) {
+      const key = `${route} ${caller} -1`;
+      const previous = counts.get(key);
+      const entry = {
+        count: previous && previous.expiresAt > time ? previous.count + 1 : 1,
+        expiresAt: Math.max(previous?.expiresAt ?? 0, time + windowMs),
+      };
+      counts.set(key, entry);
+      return entry;
+    },
     async hit(route, caller, window, windowMs) {
       const start = window * windowMs;
       for (const [key, entry] of counts) if (entry.expiresAt < start - defaultWindowMs) counts.delete(key);
@@ -31,6 +43,21 @@ export function memoryStore(): RateLimitStore {
 export function postgresStore(db: Pick<NodePgDatabase, "insert" | "delete">): RateLimitStore {
   let swept = -Infinity;
   return {
+    async hitLastRequest(route, caller, time, windowMs) {
+      // -1 separates last-request counters from epoch windows in the existing table.
+      // expires_at advances under the same row lock as count, even for denied attempts.
+      const [row] = await db.insert(apiRateLimits)
+        .values({ windowIndex: -1, route, caller, count: 1, expiresAt: time + windowMs })
+        .onConflictDoUpdate({
+          target: [apiRateLimits.windowIndex, apiRateLimits.route, apiRateLimits.caller],
+          set: {
+            count: sql`CASE WHEN ${apiRateLimits.expiresAt} <= ${time} THEN 1 ELSE ${apiRateLimits.count} + 1 END`,
+            expiresAt: sql`GREATEST(${apiRateLimits.expiresAt}, ${time + windowMs})`,
+          },
+        })
+        .returning({ count: apiRateLimits.count, expiresAt: apiRateLimits.expiresAt });
+      return row;
+    },
     async hit(route, caller, window, windowMs) {
       const start = window * windowMs;
       if (start >= swept + defaultWindowMs) {

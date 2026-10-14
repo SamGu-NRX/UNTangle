@@ -375,6 +375,10 @@ test("session GETs leave the shared auth bucket untouched, even when verificatio
   const hits: string[] = [];
   const GET = authGetHandler(toNextJsHandler(t.auth).GET, createRateLimitWrapper({
     store: {
+      hitLastRequest: (route, ...args) => {
+        hits.push(route);
+        return store.hitLastRequest(route, ...args);
+      },
       hit: (route, ...args) => {
         hits.push(route);
         return store.hit(route, ...args);

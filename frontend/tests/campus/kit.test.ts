@@ -8,7 +8,7 @@ import { checkDataset } from "@/lib/campus/contract/check";
 import { createDatasetGraph, routeBetweenPoints } from "@/lib/campus/graph";
 import { buildingAnchor, getWalkingSeconds, matrixBuildingIds } from "@/lib/campus/walking-times";
 import { campusById, campusResolver, utAustin, untDenton } from "@/lib/campus/config";
-import { createCampusResolver } from "@/lib/campus-locations";
+import { createCampusResolver, resolveCampusBuilding } from "@/lib/campus-locations";
 import { POST as routePOST } from "@/app/api/map/route/route";
 import { POST as resolvePOST } from "@/app/api/map/resolve/route";
 import utData from "@/lib/campus/data/ut-austin/campus-map.json";
@@ -445,7 +445,6 @@ test("campus definition errors identify the boundary before extraction", () => {
   } finally { rmSync(temporary, {recursive: true, force: true}); }
 });
 
-
 test("global conditional pedestrian access fails closed", () => {
   for (const key of ["access:conditional", "foot:conditional"]) {
     expect(() => pedestrianDirections({ [key]: "no @ (Mo-Fr)" }, 10)).toThrow(`OSM way 10: unsupported pedestrian direction tag ${key}`);
@@ -477,4 +476,23 @@ test("a rejected primary fetch reaches the mirror and caches its snapshot", asyn
     expect(endpoints).toEqual(["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]);
     expect(JSON.parse(readFileSync(join(rawDir, "fixture-campus-pedestrian.json"), "utf8"))).toEqual({ elements: [{ type: "node", id: 1 }] });
   } finally { console.error = errors; rmSync(rawDir, { recursive: true, force: true }); }
+});
+
+test("buildingId still accepts UNT mnemonics after exact canonical lookup", () => {
+  expect(resolveCampusBuilding("Room 252", "HKRY")?.id).toBe("hick");
+});
+
+test.each(["access:conditional", "foot:conditional", "foot:backward:conditional"])("UNT reciprocal extraction rejects %s", key => {
+  const temporary = mkdtempSync(join(tmpdir(), "campus-kit-unt-conditional-"));
+  try {
+    const definition = join(import.meta.dir, "../../../tools/campus-geodata/campuses/unt-denton.json");
+    const snapshot = { elements: [{ type: "way", id: 10, tags: { highway: "footway", [key]: "no @ (Mo-Fr)" }, geometry: [
+      { lat: 33.211, lon: -97.147 }, { lat: 33.212, lon: -97.147 },
+    ] }] };
+    writeFileSync(join(temporary, "overpass-pedestrian-snapshot.json"), JSON.stringify(snapshot));
+    writeFileSync(join(temporary, "overpass-buildings-snapshot.json"), JSON.stringify({ elements: [] }));
+    expect(() => buildCampus(definition, join(temporary, "out"), temporary)).toThrow(`OSM way 10: unsupported pedestrian direction tag ${key}`);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 });

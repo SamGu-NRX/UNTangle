@@ -582,7 +582,10 @@ export function createCampusResolver(buildings: readonly CampusBuilding[], bound
       return idMatch;
     }
     return (
-      baseLocationKeys(location, cleanupWords)
+      [
+        ...(buildingId && !/^osm-\d+$/i.test(buildingId) ? baseLocationKeys(buildingId, cleanupWords) : []),
+        ...baseLocationKeys(location, cleanupWords),
+      ]
         .map((key) => aliasMap.get(key))
         .find(Boolean) ?? null
     );

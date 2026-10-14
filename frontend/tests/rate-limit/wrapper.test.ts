@@ -56,7 +56,7 @@ test("a failing store answers 503 and never runs the handler", async () => {
   console.error = () => {};
   let ran = false;
   try {
-    const route = limiter({ hit: () => Promise.reject(new Error("table missing")) })("grades", () => ((ran = true), ok()));
+    const route = limiter({ ...memoryStore(), hit: () => Promise.reject(new Error("table missing")) })("grades", () => ((ran = true), ok()));
     const response = await route(request("203.0.113.1"));
     expect([response.status, response.headers.get("Retry-After"), ran]).toEqual([503, "60", false]);
   } finally {
@@ -67,8 +67,8 @@ test("a failing store answers 503 and never runs the handler", async () => {
 
 test.each([
   ["/sign-in/email", 3, "10"], ["/sign-up/email", 3, "10"],
-  ["/request-password-reset", 3, "30"], ["/send-verification-email", 3, "30"],
-  ["/sign-in/magic-link", 5, "30"],
+  ["/request-password-reset", 3, "60"], ["/send-verification-email", 3, "60"],
+  ["/sign-in/magic-link", 5, "60"],
 ])("concurrent %s requests stop before excess handlers run", async (path, limit, retry) => {
   let ran = 0;
   const route = limiter()("auth", async () => { ran++; await Bun.sleep(1); return ok(); });
@@ -76,4 +76,33 @@ test.each([
   const responses = await Promise.all(Array.from({ length: 12 }, () => route(req())));
   expect(responses.filter(r => r.status === 200)).toHaveLength(limit);
   expect([ran, responses.find(r => r.status === 429)?.headers.get("Retry-After")]).toEqual([limit, retry]);
+});
+
+test("sensitive bursts stay limited across epoch boundaries while handlers are in flight", async () => {
+  let time = 9_999;
+  let entered = 0;
+  const release = Promise.withResolvers<void>();
+  const firstEntered = Promise.withResolvers<void>();
+  const route = createRateLimitWrapper({ store: memoryStore(), secret: "test", now: () => time, session: async () => null })("auth", async () => {
+    if (++entered === 3) firstEntered.resolve();
+    await release.promise;
+    return ok();
+  });
+  const req = () => new Request("http://localhost/api/auth/sign-in/email", { headers: { "x-real-ip": "203.0.113.1" } });
+  const first = Array.from({ length: 3 }, () => route(req()));
+  try {
+    await firstEntered.promise;
+    time = 10_000;
+    const denied = await Promise.all(Array.from({ length: 3 }, () => route(req())));
+    expect(denied.map(response => response.status)).toEqual([429, 429, 429]);
+    expect(denied[0].headers.get("Retry-After")).toBe("10");
+    expect(entered).toBe(3);
+    time = 19_999;
+    expect((await route(req())).status).toBe(429);
+  } finally {
+    release.resolve();
+  }
+  expect((await Promise.all(first)).map(response => response.status)).toEqual([200, 200, 200]);
+  time = 29_999;
+  expect((await route(req())).status).toBe(200);
 });

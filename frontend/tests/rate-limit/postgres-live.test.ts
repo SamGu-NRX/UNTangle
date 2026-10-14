@@ -2,10 +2,14 @@ import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
+import { trustRealIp } from "./route-fixtures";
 import { postgresStore } from "@/lib/rate-limit/store";
 
 // Opt-in: point RATE_LIMIT_TEST_DATABASE_URL at a local database. The test works in a schema it creates and drops,
-// with migrations 0006-0008 applied (the store writes 0008's expires_at).
+// with the rate-store migrations applied, including the auth cleanup index.
+trustRealIp();
+
 const url = process.env.RATE_LIMIT_TEST_DATABASE_URL;
 test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, and sweeps spent rows", async () => {
   expect(new URL(url!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);
@@ -18,6 +22,32 @@ test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, 
     }
     const db = drizzle(pool);
     const instances = Array.from({ length: 4 }, () => postgresStore(db));
+    let time = 9_999;
+    let entered = 0;
+    const release = Promise.withResolvers<void>();
+    const firstEntered = Promise.withResolvers<void>();
+    const routes = instances.map(store => createRateLimitWrapper({ store, secret: "test", now: () => time, session: async () => null })("auth", async () => {
+      if (++entered === 3) firstEntered.resolve();
+      await release.promise;
+      return new Response("ok");
+    }));
+    const req = () => new Request("http://localhost/api/auth/sign-in/email", { headers: { "x-real-ip": "203.0.113.1" } });
+    const first = routes.slice(0, 3).map(route => route(req()));
+    try {
+      await firstEntered.promise;
+      time = 10_000;
+      const denied = await Promise.all(routes.map(route => route(req())));
+      expect(denied.map(response => response.status)).toEqual([429, 429, 429, 429]);
+      expect(entered).toBe(3);
+      const delayed = await instances[0].hitLastRequest("auth:/sign-in/email", "delayed", 10_000, 10_000);
+      expect(delayed).toEqual({ count: 1, expiresAt: 20_000 });
+      expect(await instances[1].hitLastRequest("auth:/sign-in/email", "delayed", 9_999, 10_000)).toEqual({ count: 2, expiresAt: 20_000 });
+      expect(await instances[2].hitLastRequest("auth:/sign-in/email", "delayed", 20_000, 10_000)).toEqual({ count: 1, expiresAt: 30_000 });
+    } finally {
+      release.resolve();
+    }
+    expect((await Promise.all(first)).map(response => response.status)).toEqual([200, 200, 200]);
+    await pool.query("DELETE FROM api_rate_limit");
     const counts = await Promise.all(Array.from({ length: 40 }, (_, i) => instances[i % 4].hit("grades", "caller", 100, 60_000)));
     expect(counts.sort((a, b) => a - b)).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
 
