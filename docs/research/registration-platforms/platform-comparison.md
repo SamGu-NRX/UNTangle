@@ -12,16 +12,18 @@ Evidence rules for this document:
 
 Officially verified figures (each from the university's own page or an official university-system page):
 
-| School | Enrollment | Term | Official source |
+| School | Enrollment | Term | Official source (all retrieved October 13, 2026) |
 |---|---:|---|---|
-| Ohio State | 67,255 | Autumn 2025 census | news.osu.edu enrollment release |
-| UT Austin | 55,000 | Fall 2025, 12th class day | news.utexas.edu enrollment release |
-| University of Houston | 48,972 | Fall 2025 | uh.edu enrollment release |
-| Texas State | 44,250 | Fall 2025 (THECB data) | tamus.edu system data page |
-| UNT | 43,567 | Fall 2025 | institutionalresearch.unt.edu Fall 2025 fact sheet |
-| UTRGV | 35,812 | Fall 2025 first-day count (not yet official at 12th class day per the page's own note) | utrgv.edu newsroom |
-| UC Berkeley | 33,122 undergraduates | Fall 2025 | opa.berkeley.edu Quick Facts |
-| Arizona State | 78,000+ projected campus enrollment, excludes ASU Online | Fall 2025 projection | news.asu.edu enrollment release |
+| Ohio State | 67,255 | Autumn 2025 census | https://news.osu.edu/ohio-state-enrollment-data-highlights-success-at-all-levels-of-student-population/ |
+| UT Austin | 55,000 | Fall 2025, 12th class day | https://news.utexas.edu/2025/09/18/ut-sets-all-time-highs-for-enrollment-and-student-performance/ |
+| University of Houston | 48,972 | Fall 2025 | https://www.uh.edu/news-events/stories/2025/september/09232025-record-enrollment.php |
+| Texas State | 44,250 | Fall 2025 (THECB data) | https://www.tamus.edu/data-science/2025/12/01/enrollment-growth-trend-continues-across-texas-public-higher-education-institutions-in-fall-2025/ |
+| UNT | 43,567 | Fall 2025 | https://institutionalresearch.unt.edu/fact-book/factsheetnew2025_final.pdf |
+| UTRGV | 35,812 | Fall 2025 first-day count (not yet official at 12th class day per the page's own note) | https://www.utrgv.edu/newsroom/2025/09/2/utrgv-opens-fall-2025-with-another-record-enrollment.htm |
+| UC Berkeley | 33,122 undergraduates | Fall 2025 | https://opa.berkeley.edu/campus-data/uc-berkeley-quick-facts |
+| Arizona State | 78,000+ projected campus enrollment, excludes ASU Online | Fall 2025 projection | https://news.asu.edu/20250811-university-news-asu-record-enrollment-fall-2025 |
+
+Every URL above returned HTTP 200 on the retrieval date shown. These were previously cited by site name only; the exact pages were re-found on October 13, 2026. A bare registrar.osu.edu citation from the first draft of the survey is retained only as a root URL and supports no claim; the official Ohio State enrollment-report pages live at eari.osu.edu.
 
 Not verified this session (no official figure surfaced; secondary estimates exist but are not used here): Texas A&M College Station, Texas Tech, UT Arlington, UT El Paso, Florida, UIUC, Rutgers, UCLA, Minnesota, UCSD, Washington, UCF, Penn State, Michigan, Arizona. Any student totals below that would depend on these schools are therefore stated as floors, not totals.
 
@@ -37,15 +39,15 @@ Not verified this session (no official figure surfaced; secondary estimates exis
 
 ### Oracle PeopleSoft Campus Solutions family
 
-- Verified in scope: Ohio State (official IT pages name the SIS and My Buckeye Link; PeopleSoft vendor label itself is secondary-only, downgraded in the citation audit) and Florida (official pages verify ONE.UF and the public Schedule of Courses; same vendor-label downgrade).
+- Verified in scope: UNT (the official UNT Enterprise Systems page names PeopleSoft Campus Solutions as the system it supports for UNT) and UCF (guest class-search page live-probed at a PeopleSoft COMMUNITY_ACCESS.CLASS_SEARCH.GBL URL); plus Ohio State and Florida, whose official IT pages verify their SIS portals and public search surfaces while their PeopleSoft vendor labels remain secondary-only (downgraded in the citation audit).
 - Public no-login access: verified at both flagship members, with a caveat at each: Florida's robots.txt disallows /soc to crawlers, and Ohio State's public search lives at classes.osu.edu while enrollment tasks are login-only.
-- Reported, unverified members: UNT, University of Houston, Penn State, Michigan, Arizona, UCF, UMass.
-- Coverage math: verified-floor students at the two verified members cannot be stated as a family total without vendor labels: Ohio State 67,255 is verified enrollment at a school whose PeopleSoft label is not. Florida's enrollment figure was not found this session. UNT (43,567) and Houston (48,972) are verified enrollments at schools whose PeopleSoft labels are reported only.
+- Reported, unverified members: University of Houston, Penn State, Michigan, Arizona, UMass.
+- Coverage math: UNT (43,567) is now a verified enrollment at a verified PeopleSoft Campus Solutions school, making it the family's verified in-scope floor; Ohio State (67,255) remains verified enrollment at a school whose vendor label is not confirmed; Florida's enrollment figure was not found this session; Houston (48,972) is verified enrollment at a school whose PeopleSoft label is reported only.
 - Extension risk profile: medium. Component-style pages (`CLASS_SEARCH.GBL` patterns) are internally consistent but the branded portals wrap them differently per school, and the survey found Penn State's public path hard to locate and Michigan behind a challenge.
 
 ### Custom public class-search applications
 
-- Verified members: UT Austin (registrar-hosted public schedule), UIUC (Course Explorer plus the CISAPI public API, verified live returning unauthenticated XML), Berkeley, UCSD, Minnesota, UCLA, Rutgers, Ohio State's classes.osu.edu.
+- Verified members: UT Austin (registrar-hosted schedule pages; the interactive schedule app requires a free guest EID), UIUC (Course Explorer plus the CISAPI public API, verified live returning unauthenticated XML), Berkeley, UCSD, Minnesota, UCLA, Rutgers (classes.rutgers.edu/soc, where sis.rutgers.edu/soc now redirects), Ohio State's classes.osu.edu.
 - Coverage math: UT Austin 55,000 plus Berkeley 33,122 gives a verified floor of 88,122 across just two of the eight members.
 - Extension risk profile: highest per school. Each app is bespoke, so each school is its own adapter with no family reuse; the compensation is data quality, and UIUC's documented public API is the best surface found anywhere in the survey. Note that two of these (UCLA, Rutgers) sit on PeopleSoft-family institutions per secondary sources, so "custom app" here means the public front end, not the underlying SIS.
 
@@ -72,8 +74,8 @@ First adapter: a UNT-specific adapter for myUNT's class-search surface, built st
 Why first, despite this document ranking families by reach:
 
 1. The product's first audience is UNT students (the repo's existing UNT-facing integrations, such as the Visual Schedule Builder work, point the same way), so the first adapter must serve UNT regardless of what any family ranking says. UNT's enrollment is verified at 43,567 for Fall 2025, the third-largest verified figure among Texas publics in scope.
-2. UNT's SIS label (PeopleSoft) is reported, unverified, which is exactly why it cannot be the first instance of a PeopleSoft family adapter. Building it standalone avoids betting family leverage on an unverified label.
-3. One narrow, out-of-band task follows from this and is recorded as next work: verify UNT's underlying registration platform from an official source, since it decides whether the second adapter is a PeopleSoft family adapter or something else.
+2. UNT's SIS is PeopleSoft Campus Solutions, verified on October 13, 2026 from the official UNT Enterprise Systems page, which names PeopleSoft Campus Solutions as the system it supports for UNT. The UNT adapter is therefore the first instance of the PeopleSoft Campus Solutions family as well as the home-school adapter; it is still built school-first, with family generalization as a follow-on rather than a bet.
+3. The next-work item from the first pass of this document is settled: UNT's registration platform is verified as PeopleSoft Campus Solutions from the official page cited above, so the reversal condition tied to UNT's platform did not trigger and the second adapter remains the Banner SSB family. The next verification worth doing is myUNT's public no-login class search, followed by checking whether UNT's PeopleSoft class-search surface matches the guest PeopleSoft pattern documented in `section-row-anatomy.md`.
 
 Second adapter: the Banner SSB family adapter, using the UTRGV surface as the reference implementation.
 
@@ -94,7 +96,8 @@ Every load-bearing claim in this document and its evidence class:
 - Texas State, Lamar, Tarleton run Banner: verified (official registrar or faculty pages).
 - TWU runs Colleague: verified (official service-center page).
 - Ohio State and Florida SIS portals and public search surfaces: verified (official IT pages plus live probes); their PeopleSoft vendor labels: reported, unverified (downgraded during the citation audit).
-- Banner labels at Texas A&M, Texas Tech, UT Arlington, UTSA, Sam Houston, Angelo State, Prairie View A&M, Midwestern; PeopleSoft labels at UNT, Houston, Penn State, Michigan, Arizona, UCF; custom SIS labels at UW, Georgia State: reported, unverified (secondary sources).
+- Banner labels at Texas A&M, Texas Tech, UT Arlington, UTSA, Sam Houston, Angelo State, Prairie View A&M, Midwestern; PeopleSoft labels at Houston, Penn State, Michigan, Arizona; custom SIS labels at UW, Georgia State: reported, unverified (secondary sources). UNT (PeopleSoft Campus Solutions) is verified via the official UNT Enterprise Systems page, and UCF (PeopleSoft Campus Solutions) by live probe of its guest class-search page, both on October 13, 2026.
 - Workday Student go-lives outside scope: verified to vendor and institution announcements (Workday newsroom, lsu.edu, miamioh.edu); none in scope today.
 - All enrollment figures in section 1: verified to the cited official sources; all other schools' enrollments: not verified, not used.
 - DOM stability expectations and the family-versus-school distinction in sections 2 and 3: analysis based on the verified probes, labeled as analysis, not sourced fact.
+- Section-row structure per platform (what identifies a section row, stable versus generated elements, and what could not be verified) is documented in `section-row-anatomy.md` in this directory, written October 13, 2026 from the same probe session.

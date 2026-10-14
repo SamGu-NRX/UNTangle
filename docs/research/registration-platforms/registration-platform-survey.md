@@ -26,14 +26,14 @@ Nineteen large Texas publics were checked. Portal names in parentheses.
 
 | University (portal) | SIS | Public class search without login | Verification |
 |---|---|---|---|
-| UT Austin | Custom in-house (no vendor identified) | Yes: public Course Schedule at registrar.utexas.edu/schedules with per-term listings | Verified: official registrar pages; live site reachable |
+| UT Austin | Custom in-house (no vendor identified) | Partially: registrar schedule pages are public; the interactive Course Schedule app (utdirect.utexas.edu/apps/registrar/course_schedule/{term}) requires a UT EID, with free guest EIDs offered; the SAML redirect was observed on probe | Verified: official registrar pages [S1]; EID gate observed by live probe [S31] |
 | Texas A&M College Station (Howdy) | Banner reported, not stated on cited registrar page | Yes: registrar page directs to Howdy portal's public class search; direct SSB host served a Cloudflare challenge to our probe | Verified for Howdy as public access point; SIS vendor reported, unverified |
 | Texas Tech (Raiderlink) | Banner (reported) | Not confirmed | Reported, unverified |
 | University of Houston (myUH) | PeopleSoft Campus Solutions (reported) | Not confirmed | Reported, unverified |
 | UT San Antonio (ASAP) | Banner (reported) | Not confirmed | Reported, unverified |
 | UT Dallas (Orion) | Banner (reported) | Not confirmed; probe of a candidate host failed to connect | Reported, unverified |
 | UT Arlington (MyMav) | Banner (reported) | Not confirmed | Reported, unverified |
-| University of North Texas (myUNT) | PeopleSoft (reported) | Not confirmed | Reported, unverified |
+| University of North Texas (myUNT) | PeopleSoft Campus Solutions | Not confirmed | Verified: official UNT Enterprise Systems page names PeopleSoft Campus Solutions for UNT [S20]; public no-login class search unconfirmed |
 | Texas State (Catsweb) | Banner, Self-Service Banner at ssb.txstate.edu | SSB host is login-oriented for registration; class-search availability without login not confirmed | Verified: faculty guide names SSB explicitly |
 | UT El Paso (myUTEP) | Not established | Yes: catalog.utep.edu/course-search serves a public course search (catalog-level, no meeting times confirmed) | Verified: live probe, HTTP 200 |
 | UT Rio Grande Valley (ASSIST) | Banner, Student Registration SSB | Yes: assist.utrgv.edu/StudentRegistrationSsb/ssb/term/termSelection?mode=courseSearch is public; classSearch page returns HTTP 200 with Banner and Ellucian markers; no robots.txt | Verified: registrar instructions plus live probe |
@@ -46,7 +46,7 @@ Nineteen large Texas publics were checked. Portal names in parentheses.
 | Texas Woman's (Portal) | Ellucian Colleague | Not confirmed | Verified: TWU service center names Colleague |
 | Midwestern State (MustangsHUB) | Banner (reported) | Not confirmed | Reported, unverified |
 
-Texas pattern: the state is overwhelmingly Banner territory, with PeopleSoft at Houston and North Texas and a custom public schedule at UT Austin. Verified public, no-login class search among Texas publics is thinner than the national set; UTRGV's public Banner SSB endpoint and UTEP's catalog search are the two confirmed wins, and UT Austin's registrar-hosted schedule is fully public.
+Texas pattern: the state is overwhelmingly Banner territory, with PeopleSoft now verified at Houston's neighbor North Texas and a custom public schedule at UT Austin. Verified public, no-login class search among Texas publics is thinner than the national set; UTRGV's public Banner SSB endpoint and UTEP's catalog search are the two confirmed wins, while UT Austin's schedule pages are public but its interactive Course Schedule app requires a UT EID (free guest EIDs available).
 
 ## 3. Large national publics
 
@@ -57,10 +57,10 @@ Twelve large publics outside Texas. All class-search access statuses below come 
 | Arizona State | PeopleSoft under My ASU (reported) | Yes (reported): ASU Class Search | Not live-probed |
 | Ohio State (My Buckeye Link) | SIS and My Buckeye Link verified via official OSU IT pages; PeopleSoft vendor label reported, unverified | Partially: classes.osu.edu serves a public "Class Search" (HTTP 200); enrollment itself is login-only via Buckeye Link | Verified: official IT docs and live probe; vendor label unverified |
 | University of Florida (ONE.UF) | ONE.UF portal verified via official UF pages; PeopleSoft vendor label reported, unverified | Yes: one.uf.edu/schedule is public (HTTP 200); robots.txt disallows /soc to crawlers | Verified: official UF pages and live probe; vendor label unverified |
-| University of Central Florida (myUCF) | PeopleSoft (reported) | Yes (reported): UCF Class Search | Not live-probed |
+| University of Central Florida (myUCF) | PeopleSoft Campus Solutions | Partially: the guest class search (COMMUNITY_ACCESS.CLASS_SEARCH.GBL) serves a public entry page (HTTP 200 after a cookie handshake); results page not reached by plain probes | Verified: live probe of the PeopleSoft guest page [S31] |
 | University of Michigan (Wolverine Access) | PeopleSoft-based student administration (reported) | LSA Course Guide is public but sits behind a bot challenge (HTTP 403 to probe) | Verified challenge; SIS reported, unverified |
 | University of Washington (MyPlan) | Custom UW SIS (reported) | MyPlan reachable without login (HTTP 200); legacy Time Schedule URL returned 404, current path unconfirmed | Live-probed root only |
-| Rutgers (myRutgers) | PeopleSoft (reported) | Yes: sis.rutgers.edu/soc public (HTTP 200) | Live probe |
+| Rutgers (myRutgers) | PeopleSoft (reported) | Yes: the SOC moved to classes.rutgers.edu/soc (sis.rutgers.edu/soc now redirects there); public (HTTP 200) | Live probe; SIS reported, unverified |
 | UCLA (MyUCLA) | PeopleSoft-based (reported) | Yes: sa.ucla.edu/ro/public/soc public (HTTP 200); no robots.txt | Live probe; SIS reported, unverified |
 | UIUC | Custom enterprise system | Yes, best-in-class: courses.illinois.edu plus CISAPI, a documented, unauthenticated public API (verified HTTP 200 XML); robots.txt disallows /cisapp/ and /search/ to crawlers | Verified |
 | University of Arizona (UAccess) | PeopleSoft (reported) | Yes (reported): Schedule of Classes | Not live-probed |
@@ -88,37 +88,54 @@ Findings from robots.txt and probe behavior:
 
 ## 6. What this means for the extension platform decision
 
-- Highest-confidence support targets: schools with public, stable, no-login class search, verified this session: UTRGV (Banner SSB), UT Austin (registrar schedule), UTEP (catalog search), Ohio State (classes.osu.edu), UF (one.uf.edu/schedule), Rutgers (sis.rutgers.edu/soc), UCLA (sa.ucla.edu/ro/public/soc), Berkeley, UCSD, Minnesota, UIUC (plus a real API).
-- Login-gated or unconfirmed: most Texas Banner schools (class search likely exists publicly but was not confirmed), Penn State's public path, and everything marked "reported, unverified" in the tables. These need one more verification pass before being promised to users.
+- Highest-confidence support targets: schools with public, stable, no-login class search, verified this session: UTRGV (Banner SSB), UTEP (catalog search), Ohio State (classes.osu.edu), UF (one.uf.edu/schedule), Rutgers (classes.rutgers.edu/soc), UCLA (sa.ucla.edu/ro/public/soc), Berkeley, UCSD, Minnesota, UIUC (plus a real API).
+- Login-gated or unconfirmed: UT Austin's interactive Course Schedule (requires a UT EID; free guest EIDs available), most Texas Banner schools (class search likely exists publicly but was not confirmed), Penn State's public path, and everything marked "reported, unverified" in the tables. These need one more verification pass before being promised to users.
 - Bot-wall schools: Michigan and Texas A&M challenged lightweight probes. In-browser extension traffic may still work, but this is a per-school question to settle with real browser testing, not a blocker to assume away.
 - Architecture implication: plan for per-school adapters rather than a universal parser. Banner SSB schools share URL shapes, so one adapter family covers many Texas publics; PeopleSoft schools share component patterns; custom apps (Berkeley, UCSD, Minnesota, UCLA, Ohio State) each need their own. UIUC shows the ideal end state: when an official public API exists, use it instead of the DOM.
 - Forward risk: Workday Student migrations (LSU, Iowa State, Arkansas, Wisconsin systems already live) will steadily change the DOM landscape. An adapter design with a small per-school test fixture set will age better than hand-written selectors.
 
 ## 7. Source index
 
-Official pages consulted (all accessed October 13, 2026):
+All sources were re-verified by HTTP status on October 13, 2026; every URL below returned HTTP 200 on that date except where noted. Bracketed numbers [S1] to [S32] are referenced from the claims in sections 1 to 6 and 8.
 
-- registrar.utexas.edu/schedules/269/using (UT Austin Course Schedule usage)
-- registrar.tamu.edu/registration-scheduling-and-analytics/index.html (Howdy public class search)
-- docs.gato.txst.edu/140208/Quick-Steps--Faculty-Self-Service.pdf (Texas State SSB)
-- tarleton.edu/registrar/employee/banner-info/ (Tarleton Banner)
-- utrgv.edu/online/degree-and-courses/online-hybrid-courses/course-search/index.htm and assist.utrgv.edu (UTRGV ASSIST, Banner SSB)
-- lamar.edu/students/registrar/registration/course-schedules.html (Lamar Self-Service Banner)
-- servicecenter.twu.edu/TDClient/1956/Portal/KB/Category/27806/Colleague (TWU Colleague)
-- catalog.utep.edu/course-search/ (UTEP public course search)
-- it.osu.edu/student-information-system-sis/sis-my-buckeye-link-reference-guide and registrar.osu.edu (Ohio State PeopleSoft, Buckeye Link)
-- it.ufl.edu/services/122 and dcp.ufl.edu/admissions/advising/ (UF ONE.UF, Schedule of Courses)
-- catalog.ufl.edu/UGRD/academic-regulations/grades-grading-policies/ (UF grading policy, not distribution data)
-- courses.illinois.edu, answers.uillinois.edu/uic/88215, courses.illinois.edu/cisdocs/api (UIUC Course Explorer and CISAPI)
-- newsroom.workday.com/2024-10-24-28-Higher-Education-Institutions-Go-Live-with-Workday-Student-in-2024, investor.workday.com 2025 press release, lsu.edu/workdaystudent/updates.php, miamioh.edu/workday-info/faqs.html (Workday Student adoption)
-- Enrollment sources: news.osu.edu Ohio State autumn 2025 enrollment release (67,255); news.utexas.edu September 18, 2025 release (55,000); uh.edu September 23, 2025 release (48,972); tamus.edu data-science Texas publics Fall 2025 summary (Texas State 44,250); institutionalresearch.unt.edu Fall 2025 fact sheet PDF (43,567); utrgv.edu newsroom September 2, 2025 release (35,812 first-day); opa.berkeley.edu Quick Facts (33,122 undergraduates); news.asu.edu August 11, 2025 release (78,000-plus projected campus enrollment)
-- Live probes this session: assist.utrgv.edu (SSB classSearch), classes.osu.edu, sa.ucla.edu/ro/public/soc, sis.rutgers.edu/soc, one.uf.edu/schedule, classes.berkeley.edu, act.ucsd.edu/scheduleOfClasses, schedulebuilder.umn.edu, courses.illinois.edu/cisapp/explorer/catalog/2024.xml, catalog.utep.edu, myplan.uw.edu, public.lionpath.psu.edu, selfservice.mypurdue.purdue.edu, www.reg.uga.edu, catalog.gsu.edu, my.ucdavis.edu, plus robots.txt for the hosts listed in section 5
-- Schools whose SIS classifications rest on secondary web results only, flagged "reported, unverified" above: Texas Tech, University of Houston, UTSA, UT Dallas, UT Arlington, UNT, Sam Houston State, Stephen F. Austin, Angelo State, Prairie View A&M, Midwestern State, ASU, UCF, Michigan, UW, Rutgers (SIS only), UCLA (SIS only), Arizona, UGA, Georgia State, Purdue (probe inconclusive)
+- [S1] UT Austin Course Schedule usage guide: https://registrar.utexas.edu/schedules/269/using
+- [S2] Texas A&M registrar, Howdy public class search: https://registrar.tamu.edu/registration-scheduling-and-analytics/index.html
+- [S3] Texas State faculty Self-Service Banner quick steps (PDF): https://docs.gato.txst.edu/140208/Quick-Steps--Faculty-Self-Service.pdf
+- [S4] Tarleton State registrar Banner information: https://www.tarleton.edu/registrar/employee/banner-info/
+- [S5] UTRGV official course-search instructions: https://www.utrgv.edu/online/degree-and-courses/online-hybrid-courses/course-search/index.htm
+- [S6] Lamar registrar course schedules (Self-Service Banner): https://www.lamar.edu/students/registrar/registration/course-schedules.html
+- [S7] TWU service center Colleague category: https://servicecenter.twu.edu/TDClient/1956/Portal/KB/Category/27806/Colleague
+- [S8] UTEP public course search: https://catalog.utep.edu/course-search/
+- [S9] Ohio State IT, SIS and My Buckeye Link reference guide: https://it.osu.edu/student-information-system-sis/sis-my-buckeye-link-reference-guide
+- [S10] Ohio State Enrollment Analytics, student enrollment reports: https://eari.osu.edu/student_enrollment.aspx (added October 13, 2026; the first draft cited registrar.osu.edu as a bare domain with no page path. The root https://registrar.osu.edu/ still returns HTTP 200 but supports no specific claim, so the official enrollment-report pages above carry that load instead)
+- [S11] UF IT, ONE.UF service page: https://it.ufl.edu/services/122
+- [S12] UF Division of Student Life advising page: https://dcp.ufl.edu/admissions/advising/
+- [S13] UF catalog grading policy: https://catalog.ufl.edu/UGRD/academic-regulations/grades-grading-policies/
+- [S14] UIUC Course Explorer: https://courses.illinois.edu/ (the former documentation page https://courses.illinois.edu/cisdocs/api is no longer available; the API documentation moved to https://courses.illinois.edu/cisapp/ with its OpenAPI spec at https://courses.illinois.edu/cisapp/cisapi.yaml, both verified October 13, 2026)
+- [S15] UIUC answers page, public API access: https://answers.uillinois.edu/uic/88215
+- [S16] Workday newsroom, 28 higher education institutions go live with Workday Student in 2024: https://newsroom.workday.com/2024-10-24-28-Higher-Education-Institutions-Go-Live-with-Workday-Student-in-2024
+- [S17] Workday investor release on higher education momentum, October 15, 2025: https://investor.workday.com/news-and-events/press-releases/news-details/2025/Workdays-Higher-Education-Momentum-Accelerates-as-Over-650-Institutions-Worldwide-Turn-to-AI-to-Navigate-Uncertainty-and-Transform-the-Student-Experience-10-15-2025/default.aspx (recovered October 13, 2026; the first draft named this source only by title)
+- [S18] LSU Workday Student updates: https://www.lsu.edu/workdaystudent/updates.php
+- [S19] Miami University Workday FAQs: https://miamioh.edu/workday-info/faqs.html
+- [S20] UNT Enterprise Systems, naming PeopleSoft Campus Solutions for UNT: https://enterprisesystems.unt.edu/index.html (added October 13, 2026)
+- [S21] UNT myUNT Students page, naming the EIS Campus Solutions Student Information System at my.unt.edu: https://www.unt.edu/myunt/myunt-students.html (added October 13, 2026)
+- [S22] Ohio State enrollment release, autumn 2025 (67,255): https://news.osu.edu/ohio-state-enrollment-data-highlights-success-at-all-levels-of-student-population/
+- [S23] UT Austin enrollment release, September 18, 2025 (55,000): https://news.utexas.edu/2025/09/18/ut-sets-all-time-highs-for-enrollment-and-student-performance/
+- [S24] University of Houston enrollment release, September 23, 2025 (48,972): https://www.uh.edu/news-events/stories/2025/september/09232025-record-enrollment.php
+- [S25] Texas A&M System Data Science, Texas publics Fall 2025 enrollment summary (Texas State 44,250): https://www.tamus.edu/data-science/2025/12/01/enrollment-growth-trend-continues-across-texas-public-higher-education-institutions-in-fall-2025/
+- [S26] UNT institutional research Fall 2025 fact sheet (43,567): https://institutionalresearch.unt.edu/fact-book/factsheetnew2025_final.pdf
+- [S27] UTRGV newsroom, Fall 2025 first-day enrollment (35,812): https://www.utrgv.edu/newsroom/2025/09/2/utrgv-opens-fall-2025-with-another-record-enrollment.htm
+- [S28] UC Berkeley Office of Planning and Analysis Quick Facts (33,122 undergraduates): https://opa.berkeley.edu/campus-data/uc-berkeley-quick-facts
+- [S29] Arizona State enrollment release, August 11, 2025 (78,000-plus projected campus enrollment): https://news.asu.edu/20250811-university-news-asu-record-enrollment-fall-2025
+- [S30] UF institutional research enrollment facts page: https://ir.aa.ufl.edu/facts/enrollment/ (page verified October 13, 2026; it renders data dynamically and yielded no figure on that fetch, so no UF enrollment figure is used anywhere in these documents)
+- [S31] Live probes, October 13, 2026, single unauthenticated requests with a generic browser user agent: https://assist.utrgv.edu/robots.txt (HTTP 404, no robots.txt); https://assist.utrgv.edu/StudentRegistrationSsb/ssb/classSearch/getTerms (JSON term list observed); https://assist.utrgv.edu/StudentRegistrationSsb/ssb/searchResults/searchResults (JSON envelope observed, zero rows on every probed term); https://csprod-ss.net.ucf.edu/psc/CSPROD/EMPLOYEE/SA/c/COMMUNITY_ACCESS.CLASS_SEARCH.GBL?Action=U&Page=SSR_CLSRCH_ENTRY&TargetFrameName=None (PeopleSoft guest entry page, HTTP 200 after a cookie handshake); https://utdirect.utexas.edu/apps/registrar/course_schedule/20269 (HTTP 302 to the enterprise.login.utexas.edu SAML sign-on); https://sis.rutgers.edu/soc/ (HTTP 302 to https://classes.rutgers.edu//soc/); https://classes.rutgers.edu/soc/ (HTTP 200); https://courses.illinois.edu/cisapp/explorer/catalog/2024.xml, .../schedule/2025/fall/CS.xml, .../schedule/2025/fall/CS/101.xml, and .../schedule/2025/fall/CS/101/35879.xml (HTTP 200 XML, section element observed). Earlier-session probes, also October 13, 2026: assist.utrgv.edu/StudentRegistrationSsb/ssb/term/termSelection?mode=courseSearch, classes.osu.edu, sa.ucla.edu/ro/public/soc, one.uf.edu/schedule, classes.berkeley.edu, act.ucsd.edu/scheduleOfClasses, schedulebuilder.umn.edu, catalog.utep.edu, myplan.uw.edu, public.lionpath.psu.edu, selfservice.mypurdue.purdue.edu, www.reg.uga.edu, catalog.gsu.edu, my.ucdavis.edu, plus the robots.txt files listed in section 5.
+- [S32] Schools whose SIS classifications rest on secondary web results only, flagged "reported, unverified" in the tables: Texas Tech, University of Houston, UTSA, UT Dallas, UT Arlington, Sam Houston State, Stephen F. Austin, Angelo State, Prairie View A&M, Midwestern State, ASU, Michigan, UW, Rutgers (SIS only), UCLA (SIS only), Arizona, UGA, Georgia State, Purdue (probe inconclusive). Removed from this list on October 13, 2026: UNT, verified via [S20]; UCF, verified via live probe [S31].
 
 ## 8. Citation audit (follow-up pass, October 13, 2026)
 
 A citation audit of this document re-checked every factual claim against its cited source class. Findings:
 
 - Two claims corrected: the Ohio State and Florida rows previously stated "PeopleSoft Campus Solutions" as if verified by the cited official pages. The official pages verify each school's SIS portal (My Buckeye Link, ONE.UF) and public search surface; the PeopleSoft vendor naming came from secondary sources only. Both rows now carry "reported, unverified" vendor labels, and the section 1 PeopleSoft bullet was annotated to match.
-- Claims register, by evidence class: (a) verified via official pages: platform labels for Lamar, TWU, Texas State, Tarleton, UTRGV (also live-probed), Texas A&M's Howdy access point, Ohio State's SIS portal, Florida's ONE.UF; (b) verified via live probe this session: all public-access statuses and robots.txt findings in sections 3 and 5; (c) verified via vendor or institution announcements: Workday Student go-lives in section 1 (none in scope); (d) reported, unverified: every SIS label tagged as such in sections 2 and 3, including all ten secondary-sourced Texas schools; (e) not verified and therefore unused: grade-distribution datasets (section 4 states none was confirmed), and enrollment figures for any school outside the list in section 7's enrollment sources.
+- Claims register, by evidence class: (a) verified via official pages: platform labels for Lamar, TWU, Texas State, Tarleton, UNT (PeopleSoft Campus Solutions, [S20]), UTRGV (also live-probed), Texas A&M's Howdy access point, Ohio State's SIS portal, Florida's ONE.UF; UCF's PeopleSoft Campus Solutions label verified by live probe of its guest class-search page [S31]; (b) verified via live probe this session: all public-access statuses and robots.txt findings in sections 3 and 5, including the UT Austin EID gate and the Rutgers host move; (c) verified via vendor or institution announcements: Workday Student go-lives in section 1 (none in scope); (d) reported, unverified: every SIS label tagged as such in sections 2 and 3, including nine secondary-sourced Texas schools; (e) not verified and therefore unused: grade-distribution datasets (section 4 states none was confirmed), and enrollment figures for any school outside [S22] to [S30].
 - Verification status of every school is carried in the tables themselves, so no claim in this document lacks an evidence tag. The platform-by-platform comparison, adapter recommendation, and enrollment evidence built on this survey are in `platform-comparison.md` in this directory.
+- Second pass, same date (URLs and section-row anatomy): every source in this index was re-verified by HTTP status and given an exact URL and a retrieval date, numbered [S1] to [S32]. Corrections and upgrades from that pass: UT Austin's public-access rating moved from "Yes" to "Partially" after a probe observed the interactive Course Schedule app redirect to SAML sign-on (guest EIDs are free); UCF's PeopleSoft Campus Solutions classification was upgraded to verified by live probe of its guest class-search page; UNT's PeopleSoft Campus Solutions classification was verified from the official UNT Enterprise Systems page [S20]; the UIUC API documentation citation moved from the retired /cisdocs/api page to the live /cisapp documentation [S14]; and the bare registrar.osu.edu citation is retained only as a root URL supporting no specific claim, with the official enrollment-report pages at eari.osu.edu added in its place [S10]. Section-row DOM documentation built on these probes, including what could not be verified, is in `section-row-anatomy.md` in this directory.
