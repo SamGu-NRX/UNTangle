@@ -59,6 +59,13 @@ export type OptSection = {
   rating: number | null;
   /** How a student refers to the section, such as "002"; defaults to the id. */
   label?: string;
+  /**
+   * Mean grade points (0 to 4 scale) of the section's instructor's past
+   * students in this course, from grade history. Null or absent when there
+   * is no confident instructor match or no history. Missing data is neutral
+   * and must never penalize a section.
+   */
+  instructorGpa?: number | null;
 };
 
 export type OptCourse = {

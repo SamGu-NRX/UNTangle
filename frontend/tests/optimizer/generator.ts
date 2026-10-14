@@ -134,6 +134,12 @@ function termDates(rng: Rng): OptDateRange | null {
 
 export function generateInstance(seed: number, shape: InstanceShape): OptimizeRequest {
   const rng = mulberry32(seed);
+  // Instructor evidence on its own stream: drawing from the main rng would
+  // shift every later draw and with it the pinned byte hash of the fixture
+  // suite. About 30 percent of sections have none; the rest spread over the
+  // 1 to 4 grade-point range.
+  const gpaRng = mulberry32(seed ^ 0x1f2e3d4c);
+  const instructorGpa = (): number | null => (chance(gpaRng, 0.3) ? null : Math.round((1 + gpaRng() * 3) * 10) / 10);
   const building = () => (chance(rng, 0.1) ? pick(rng, UNKNOWN_BUILDINGS) : pick(rng, KNOWN_BUILDINGS));
   const courses: OptCourse[] = [];
   for (let c = 0; c < shape.courses; c += 1) {
@@ -145,6 +151,7 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
     for (let s = 0; s < count; s += 1) {
       const id = `${code.replace(" ", "-").toLowerCase()}-${String(s + 1).padStart(3, "0")}`;
       const rating = chance(rng, 0.15) ? null : Math.round((1 + rng() * 4) * 10) / 10;
+      const gpa = instructorGpa();
       const previous = sections[sections.length - 1];
       if (previous && chance(rng, 0.08)) {
         // A twin: same meetings and rooms, another instructor.
@@ -154,7 +161,7 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
           const dates = termDates(rng);
           for (const meeting of meetings) meeting.dates = dates;
         }
-        sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings });
+        sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings, instructorGpa: gpa });
         continue;
       }
       const pattern = shape.style === "realistic" ? realisticPattern(rng) : irregularPattern(rng);
@@ -188,7 +195,7 @@ export function generateInstance(seed: number, shape: InstanceShape): OptimizeRe
           meeting.dates = index > 0 && chance(rng, 0.1) ? termDates(rng) : dates;
         });
       }
-      sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings });
+      sections.push({ id, courseCode: code, rating, label: id.slice(-3), meetings, instructorGpa: gpa });
     }
     courses.push({ code, credits: pick(rng, [3, 3, 3, 4, 4, 1]), sections });
   }

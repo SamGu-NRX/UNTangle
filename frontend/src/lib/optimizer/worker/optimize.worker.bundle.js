@@ -135,6 +135,8 @@ var UNKNOWN_WALK_SECONDS = 600;
 var MORNING_ANCHOR = 7 * 60;
 var EVENING_ANCHOR = 22 * 60;
 var DEFAULT_RATING_TENTHS = 30;
+var INSTRUCTOR_TIE_BREAK_TOLERANCE = 0.5;
+var NEUTRAL_INSTRUCTOR_GPA = 3;
 function ratingTenths(rating) {
   if (rating === null || !Number.isFinite(rating))
     return null;
@@ -312,6 +314,11 @@ function validateRequest(request, checkDeadline = () => {}) {
         validateDates(dates, `section ${section.id} meeting`);
         if (request.term === undefined)
           throw new OptimizerInputError("term is required when any meeting has dates");
+      }
+      if (section.instructorGpa !== undefined && section.instructorGpa !== null) {
+        if (!Number.isFinite(section.instructorGpa) || section.instructorGpa < 0 || section.instructorGpa > 4) {
+          throw new OptimizerInputError(`section ${section.id} has invalid instructorGpa ${section.instructorGpa}; expected a grade-point number 0..4 or null`);
+        }
       }
     }
   }
@@ -661,10 +668,11 @@ function incompatible(a, b, tightPair) {
 }
 function dropTwins(candidates, walkingMatters) {
   const best = new Map;
+  const evidenceOf = (candidate) => candidate.section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
   for (const candidate of candidates) {
     const key = walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings);
     const current = best.get(key);
-    if (!current || candidate.self < current.self || candidate.self === current.self && compareIds(candidate.section.id, current.section.id) < 0) {
+    if (!current || candidate.self < current.self || candidate.self === current.self && (evidenceOf(candidate) > evidenceOf(current) || evidenceOf(candidate) === evidenceOf(current) && compareIds(candidate.section.id, current.section.id) < 0)) {
       best.set(key, candidate);
     }
   }
@@ -687,7 +695,14 @@ function compareKeys(a, b) {
   return 0;
 }
 function leafBefore(a, b) {
-  return a.cost < b.cost || a.cost === b.cost && compareKeys(a.key, b.key) < 0;
+  if (Math.abs(a.cost - b.cost) > INSTRUCTOR_TIE_BREAK_TOLERANCE)
+    return a.cost < b.cost;
+  if (a.evidence !== b.evidence)
+    return a.evidence > b.evidence;
+  return compareKeys(a.key, b.key) < 0;
+}
+function evidenceOf(section) {
+  return section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
 }
 function popcount(value) {
   let v = value - (value >>> 1 & 1431655765);
@@ -718,6 +733,14 @@ function search(prepared, budget, options) {
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
+  let evidenceSum = 0;
+  const maxEvidenceByCourse = new Array(n).fill(NEUTRAL_INSTRUCTOR_GPA);
+  for (const candidate of prepared.candidates) {
+    const gpa = candidate.section.instructorGpa;
+    if (gpa !== undefined && gpa !== null && gpa > maxEvidenceByCourse[candidate.course]) {
+      maxEvidenceByCourse[candidate.course] = gpa;
+    }
+  }
   let assignedCount = 0;
   const previous = options.previous;
   const same = new Int32Array(previous.length);
@@ -965,7 +988,18 @@ function search(prepared, budget, options) {
     return bound;
   }
   function canWinTie(candidate) {
-    const target = best.key;
+    const target = best;
+    let numerator = evidenceSum + evidenceOf(candidate.section);
+    for (let u = 0;u < n; u += 1) {
+      if (u === candidate.course || assigned[u] !== null)
+        continue;
+      numerator += maxEvidenceByCourse[u];
+    }
+    const evidenceBound = numerator / n;
+    if (evidenceBound > target.evidence)
+      return true;
+    if (evidenceBound < target.evidence)
+      return false;
     for (let u = 0;u < n; u += 1) {
       let lowest;
       if (u === candidate.course)
@@ -986,8 +1020,8 @@ function search(prepared, budget, options) {
           }
         }
       }
-      if (lowest !== target[u])
-        return lowest < target[u];
+      if (lowest !== target.key[u])
+        return lowest < target.key[u];
     }
     return false;
   }
@@ -997,7 +1031,8 @@ function search(prepared, budget, options) {
     if (pairs < 0)
       return;
     const cost = selfSum + weights.fewerDays * COST_PER_DAY * popcount(daysUsed) + pairs;
-    const leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id) };
+    const evidence = n > 0 ? picks.reduce((sum, pick) => sum + evidenceOf(pick.section), 0) / n : NEUTRAL_INSTRUCTOR_GPA;
+    const leaf = { picks: [...picks], cost, evidence, key: picks.map((pick) => pick.section.id) };
     options.onLeaf?.(leaf);
     if (options.stopAtFirst) {
       best = leaf;
@@ -1361,6 +1396,7 @@ function search(prepared, budget, options) {
         next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
+      evidenceSum += evidenceOf(candidate.section);
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -1378,6 +1414,7 @@ function search(prepared, budget, options) {
       removeMeetings(candidate);
       daysUsed = previousDays;
       selfSum -= candidate.self;
+      evidenceSum -= evidenceOf(candidate.section);
       assigned[candidate.course] = null;
     }
   }

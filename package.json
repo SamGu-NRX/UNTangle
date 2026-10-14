@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "frontend",
-    "extension"
+    "extension",
+    "mobile"
   ],
   "scripts": {
     "setup": "node scripts/dev.mjs --setup-only",

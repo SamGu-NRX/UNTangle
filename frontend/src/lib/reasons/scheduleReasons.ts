@@ -31,6 +31,7 @@ import {
   COST_PER_WALK_SECOND,
   EVENING_ANCHOR,
   MORNING_ANCHOR,
+  NEUTRAL_INSTRUCTOR_GPA,
   neutralRatingTenths,
   ratingTenths,
   type CostTerms,
@@ -244,6 +245,32 @@ function seatWarning(section: OptSection, catalog: Pick<Section, "status" | "com
 
 const aThroughF = (g: GradeData) => g.gradeA + g.gradeB + g.gradeC + g.gradeD + g.gradeF;
 
+const hasKnownGpa = (section: OptSection): section is OptSection & { instructorGpa: number } =>
+  section.instructorGpa !== undefined && section.instructorGpa !== null;
+
+/**
+ * An option's instructor evidence, the value the engine's tie-break ranks
+ * by: the mean over its sections of each section's known instructorGpa,
+ * with NEUTRAL_INSTRUCTOR_GPA standing in for the missing ones (imported
+ * from the engine so the two modules cannot drift). `knownMean` is what a
+ * sentence may quote, the mean over the sections with a known gpa only, or
+ * null when there is none: the optimizer's stand-ins are never quoted.
+ */
+function instructorEvidenceOf(sections: OptSection[]): { filled: number; knownMean: number | null; knownCount: number } {
+  if (sections.length === 0) return { filled: NEUTRAL_INSTRUCTOR_GPA, knownMean: null, knownCount: 0 };
+  let sum = 0;
+  let knownSum = 0;
+  let knownCount = 0;
+  for (const section of sections) {
+    sum += section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
+    if (hasKnownGpa(section)) {
+      knownSum += section.instructorGpa;
+      knownCount += 1;
+    }
+  }
+  return { filled: sum / sections.length, knownMean: knownCount > 0 ? knownSum / knownCount : null, knownCount };
+}
+
 function gradeReason(section: OptSection, history: CourseHistory): Reason | null {
   const code = `${history.course.subject} ${history.course.number}`;
   if (code !== section.courseCode) throw new Error(`reasons: grade history for ${code} was given for section ${section.id} of ${section.courseCode}`);
@@ -339,6 +366,37 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
     // Met only when no option could do better, so an unknown never counts as best.
     const best = options.every((option) => (preference.comparable?.(mine, option) ?? true) && range.hi <= preference.range(option).lo);
     facts.push({ ...fact, kind: best ? "preference-met" : "fact", preference: key });
+  }
+  // The engine's Auto tie-break: at equal cost, higher instructor evidence
+  // (the mean-with-neutral value the optimizer ranks by) wins. Worth 0, so
+  // stated-preference comparisons come first, and the maxReasons slice
+  // below applies as usual. The sentence quotes only real evidence: the
+  // mean over the sections with a known gpa, never the neutral stand-ins.
+  if (next && alternatives[input.index].cost === alternatives[input.index + 1].cost) {
+    const mineEvidence = instructorEvidenceOf(mine.sections);
+    const nextEvidence = instructorEvidenceOf(next.sections);
+    if (mineEvidence.filled > nextEvidence.filled && mineEvidence.knownMean !== null) {
+      const subject = mineEvidence.knownCount === 1 ? "this instructor's sections" : "these instructors' sections";
+      const quoted = (Math.round(mineEvidence.knownMean * 10) / 10).toFixed(1);
+      comparisons.push({
+        worth: 0,
+        reason: {
+          sentence: `Students in ${subject} averaged a ${quoted}.`,
+          kind: "grade-history",
+          preference: null,
+          evidence: {
+            numbers: [
+              { label: "average grade points of sections with grade history", value: Number(quoted) },
+              { label: "sections with grade history", value: mineEvidence.knownCount },
+              ...mine.sections.filter(hasKnownGpa).map((section) => ({
+                label: `grade points of section ${section.label ?? section.id}`,
+                value: section.instructorGpa,
+              })),
+            ],
+          },
+        },
+      });
+    }
   }
   comparisons.sort((a, b) => b.worth - a.worth);
 

@@ -26,6 +26,10 @@ export const budgets = {
   sections: { user: 60, ip: 180 },
   // Setting a password is rare: a few tries per signed-in user per 10 minutes.
   setPassword: { user: 5, ip: 10, windowSeconds: 600 },
+  // One request filters a whole term and may read grade history for several
+  // courses behind the shared untgrades limiter, so it is rarer than a plain
+  // section read. Unmeasured starting value.
+  smartFilters: { user: 20, ip: 60 },
 } satisfies Record<string, Budget>;
 export type RouteClass = keyof typeof budgets;
 

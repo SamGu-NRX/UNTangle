@@ -157,6 +157,13 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
     check: agreement,
   },
   {
+    name: "the evidence tie-break is reversed",
+    file: "search.ts",
+    from: "if (a.evidence !== b.evidence) return a.evidence > b.evidence;",
+    to: "if (a.evidence !== b.evidence) return a.evidence < b.evidence;",
+    check: agreement,
+  },
+  {
     name: "the dearer twin is kept",
     file: "prepare.ts",
     from: "candidate.self < current.self ||",

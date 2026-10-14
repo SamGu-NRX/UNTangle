@@ -10,7 +10,7 @@ import {
   ttlMs,
   vsbUrl,
 } from "./config";
-import type { CourseSections, Diagnostic } from "./model";
+import type { CourseSections, Diagnostic, RealProvenance, Section } from "./model";
 import { sampleResult } from "./sample";
 import { courseResult, parseTerm, type VsbFile, type VsbTerm } from "./vsb";
 
@@ -61,6 +61,17 @@ async function readJson(response: Response): Promise<unknown> {
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
+
+/** Every parsed course in a term file, for whole-term consumers. */
+export type TermSections =
+  | {
+      status: "ok" | "stale";
+      checkedAt: string;
+      provenance: RealProvenance;
+      diagnostic: Diagnostic | null;
+      courses: { courseCode: string; sections: Section[] }[];
+    }
+  | { status: "unavailable"; diagnostic: Diagnostic | null };
 
 /**
  * Serves per-course slices of vsb's files from memory, with stale-while-revalidate.
@@ -136,6 +147,31 @@ export class SectionsProxy {
     }
     const hit = index.get(number);
     return hit ? { term, classNumber: number, courseCode: hit.courseCode, sectionId: hit.sectionId } : null;
+  }
+
+  /**
+   * Every parsed course in the term file, for whole-term consumers. A course
+   * whose record failed to parse (a diagnostic, not a section list) and an
+   * empty course are left out: there are no sections to filter.
+   */
+  async getTermSections(term: string): Promise<TermSections> {
+    if (!supportedTerms.some((supported) => supported.id === term)) {
+      return { status: "unavailable", diagnostic: { code: "upstream_error", message: `No vsb source for ${term}` } };
+    }
+    const whole = await this.load(term);
+    if (!whole.data) return { status: "unavailable", diagnostic: whole.diagnostic };
+    const courses: { courseCode: string; sections: Section[] }[] = [];
+    for (const [courseCode, record] of whole.data.courses) {
+      if (!Array.isArray(record) || record.length === 0) continue;
+      courses.push({ courseCode, sections: record });
+    }
+    return {
+      status: whole.status,
+      checkedAt: whole.checkedAt,
+      provenance: whole.data.provenance,
+      diagnostic: whole.diagnostic,
+      courses,
+    };
   }
 
   async getCourseSections(term: string, courseCode: string): Promise<CourseSections> {

@@ -50,6 +50,9 @@ jobs:
       - name: Typecheck extension
         run: bun --no-env-file x tsc --noEmit
         working-directory: extension
+      - name: Typecheck (mobile)
+        run: bun --no-env-file x tsc --noEmit
+        working-directory: mobile
 
   lint:
     name: Lint
@@ -97,6 +100,9 @@ jobs:
       - name: Extension unit tests
         run: bun --no-env-file test --isolate --timeout=20000
         working-directory: extension
+      - name: Unit tests (mobile)
+        run: bun --no-env-file run test
+        working-directory: mobile
 
   build:
     name: Build
@@ -130,6 +136,10 @@ jobs:
       - name: Build extension
         run: bun --no-env-file run build
         working-directory: extension
+      # The mobile build bundles the Expo app for web; it needs no secrets.
+      - name: Build (mobile)
+        run: bun --no-env-file x expo export --platform web
+        working-directory: mobile
 
   extension-e2e:
     name: Extension journey
