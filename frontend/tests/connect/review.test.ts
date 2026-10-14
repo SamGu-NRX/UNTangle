@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkReason, creditLine, decisionOf, importSelection, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
+import { checkReason, creditLine, decisionOf, importSaveOutcome, importSelection, missingApprovedRecords, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
 import type { TranscriptCourseRecord } from "../../src/lib/types";
 
 function record(code: string, term: string, extra: Partial<TranscriptCourseRecord> = {}): TranscriptCourseRecord {
@@ -71,6 +71,20 @@ describe("what Looks right saves", () => {
     expect(importSelection(records, { [withdrawn.id]: "inProgress" }).find((r) => r.code === "HIST 2610")?.appliedStatus).toBe("inProgress");
   });
 
+  test("a row to check that the student counts is saved as settled, even when its status already matched", () => {
+    // A D grade reads as completed but is flagged; choosing Done must clear the flag.
+    const dGrade = record("MATH 1710", "2025 Fall", {
+      grade: "D",
+      appliedStatus: "completed",
+      reviewRequired: true,
+      rationale: "D can count as completed credit, but may not satisfy C-or-better prerequisites.",
+    });
+    const [saved] = importSelection([dGrade], { [dGrade.id]: "completed" });
+    expect(saved).toMatchObject({ appliedStatus: "completed", reviewRequired: false });
+    const [taking] = importSelection([unknown], { [unknown.id]: "inProgress" });
+    expect(taking).toMatchObject({ appliedStatus: "inProgress", reviewRequired: false });
+  });
+
   test("a settled row can be corrected: skipped, or saved with another status", () => {
     const settled = records[0];
     expect(importSelection([settled], { [settled.id]: "ignored" })).toEqual([]);
@@ -130,5 +144,35 @@ describe("one fact per row", () => {
     expect(termLabel("2025 Fall")).toBe("Fall 2025");
     expect(termLabel("2026 SPRING")).toBe("Spring 2026");
     expect(termLabel("Needs review")).toBe("Needs review");
+  });
+});
+
+describe("after Looks right", () => {
+  const approved = [records[0], records[2]];
+  const outcome = (status: Parameters<typeof importSaveOutcome>[0]["status"], current = approved, conflict = false) =>
+    importSaveOutcome({ approved, current, status, conflict });
+
+  test("success only once the plan holds the courses and is stored", () => {
+    expect(outcome("saved")).toBe("saved");
+    expect(outcome("pending")).toBe("waiting");
+    expect(outcome("saving")).toBe("waiting");
+  });
+
+  test("a failed, refused or signed-out save is not success", () => {
+    expect(outcome("failed")).toBe("unsaved");
+    expect(outcome("not-saved")).toBe("unsaved");
+    expect(outcome("signed-out")).toBe("unsaved");
+  });
+
+  test("a newer version from another tab wins first as a conflict, then as dropped courses", () => {
+    expect(outcome("saved", approved, true)).toBe("conflict");
+    expect(outcome("saved", [records[0]])).toBe("dropped");
+    // The record is there but no longer approved as it was.
+    expect(outcome("saved", [records[0], { ...records[2], appliedStatus: "ignored" }])).toBe("dropped");
+  });
+
+  test("the missing records are the ones to add again", () => {
+    expect(missingApprovedRecords(approved, [records[0]]).map((r) => r.code)).toEqual(["MATH 1710"]);
+    expect(missingApprovedRecords(approved, approved)).toEqual([]);
   });
 });

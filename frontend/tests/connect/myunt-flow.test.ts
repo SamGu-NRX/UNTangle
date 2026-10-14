@@ -8,7 +8,7 @@ import {
   type Trip,
 } from "../../src/components/connect/myunt-trip";
 import { filePicker, pickPdf, PDF_PICKER_OPTIONS } from "../../src/components/connect/pick-pdf";
-import { dragLooksLikePdf, handOverDrop, isFileDrag, readDrop, takeHandedDrop } from "../../src/components/connect/pdf-drop";
+import { dragLooksLikePdf, handOverDrop, isFileDrag, readDrop, routeDrop, takeHandedDrop } from "../../src/components/connect/pdf-drop";
 import { clearTripFlag, readTripFlag, setTripFlag, TRIP_KEY } from "../../src/components/connect/trip-flag";
 
 const geometry = {
@@ -194,6 +194,17 @@ describe("dropping a PDF anywhere", () => {
     expect(takeHandedDrop()).toBeNull();
     handOverDrop({ kind: "file", file: pdf });
     expect(takeHandedDrop()).toEqual({ kind: "file", file: pdf });
+    expect(takeHandedDrop()).toBeNull();
+  });
+
+  test("a drop while the session loads is held for the flow, not lost; once ready it is taken at once", () => {
+    const pdf = file("a.pdf", "application/pdf");
+    const taken: unknown[] = [];
+    routeDrop({ kind: "file", file: pdf }, false, (r) => taken.push(r));
+    expect(taken).toEqual([]);
+    expect(takeHandedDrop()).toEqual({ kind: "file", file: pdf });
+    routeDrop({ kind: "file", file: pdf }, true, (r) => taken.push(r));
+    expect(taken).toEqual([{ kind: "file", file: pdf }]);
     expect(takeHandedDrop()).toBeNull();
   });
 

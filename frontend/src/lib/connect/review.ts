@@ -49,7 +49,11 @@ export function importSelection(
   return records.flatMap((record) => {
     const decision = decisions[record.id];
     if (decision === "ignored") return [];
-    if (decision === "completed" || decision === "inProgress") return [effectiveTranscriptRecord(record, decision)];
+    if (decision === "completed" || decision === "inProgress") {
+      // The student settled this row. effectiveTranscriptRecord keeps a record whose
+      // status already matched, flag and all, and a flagged record counts as no evidence.
+      return [{ ...effectiveTranscriptRecord(record, decision), reviewRequired: false }];
+    }
     return settled(record) ? [record] : [];
   });
 }
@@ -118,4 +122,46 @@ const CHECK_REASONS: Record<string, (record: TranscriptCourseRecord) => string> 
 
 export function checkReason(record: TranscriptCourseRecord): string {
   return CHECK_REASONS[record.rationale]?.(record) ?? record.rationale;
+}
+
+/** Approved records the plan no longer holds as approved: a newer saved version replaced them. */
+export function missingApprovedRecords(
+  approved: readonly TranscriptCourseRecord[],
+  current: readonly TranscriptCourseRecord[],
+): TranscriptCourseRecord[] {
+  const byId = new Map(current.map((record) => [record.id, record]));
+  return approved.filter((record) => byId.get(record.id)?.appliedStatus !== record.appliedStatus);
+}
+
+/** The planner's save states (planner-provider's PlannerSaveStatus). */
+export type SaveStatus = "saving" | "saved" | "pending" | "not-saved" | "failed" | "signed-out";
+
+/**
+ * Where an import stands after "Looks right" (#37's honest-save rule: never
+ * report success before the save has):
+ * - `saved`: the approved courses are in the plan and the plan is stored;
+ * - `waiting`: they are in the plan and the save is still on its way;
+ * - `conflict`: another tab or device saved a newer version first, and the
+ *   student has to choose one before anything saves;
+ * - `dropped`: a newer version was adopted without some approved courses;
+ * - `unsaved`: the save failed, storage refused it, or the session ended.
+ */
+export type ImportSaveOutcome = "saved" | "waiting" | "conflict" | "dropped" | "unsaved";
+
+export function importSaveOutcome({
+  approved,
+  current,
+  status,
+  conflict,
+}: {
+  approved: readonly TranscriptCourseRecord[];
+  current: readonly TranscriptCourseRecord[];
+  status: SaveStatus;
+  conflict: boolean;
+}): ImportSaveOutcome {
+  if (conflict) return "conflict";
+  if (missingApprovedRecords(approved, current).length) return "dropped";
+  if (status === "saved") return "saved";
+  if (status === "saving" || status === "pending") return "waiting";
+  return "unsaved";
 }

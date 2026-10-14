@@ -59,6 +59,17 @@ export function takeHandedDrop(): DropResult | null {
 }
 
 /**
+ * A drop on the import page: taken now, or, while the session is still
+ * loading (nothing can be read for an unknown identity), held the same way a
+ * drop from another page is, for the flow to take once it knows who is
+ * signed in. A drop never disappears without a word.
+ */
+export function routeDrop(result: DropResult, ready: boolean, take: (result: DropResult) => void) {
+  if (ready) take(result);
+  else handOverDrop(result);
+}
+
+/**
  * dragover repeats every few hundred milliseconds while a drag is over the
  * window, even when the pointer is still, so this long a gap means the drag
  * ended somewhere the leave event didn't reach (e.g. it was cancelled).

@@ -14,12 +14,13 @@ import { toast, useIsClient } from "@/components/ui/Toast";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { authClient } from "@/lib/auth-client";
 import { ImportProblem, parseConnectTranscript, type ParseStage } from "@/lib/connect/import";
-import { importSelection, type CheckDecision } from "@/lib/connect/review";
+import { importSaveOutcome, importSelection, missingApprovedRecords, type CheckDecision } from "@/lib/connect/review";
 import type { TranscriptReconcileResult } from "@/lib/transcript-import";
+import type { TranscriptCourseRecord } from "@/lib/types";
 import { AlertGlyph, FileGlyph, HiddenPdfInput, WindowGlyph } from "./connect-parts";
 import { ImportReview } from "./import-review";
 import { MYUNT_URL, useMyUntTrip, type Trip } from "./myunt-trip";
-import { PdfDropTarget, takeHandedDrop, type DropResult } from "./pdf-drop";
+import { PdfDropTarget, routeDrop, takeHandedDrop, type DropResult } from "./pdf-drop";
 import { filePicker, pickPdf, type PickerHost } from "./pick-pdf";
 import { Thesis } from "./thesis";
 import { clearTripFlag, readTripFlag, setTripFlag } from "./trip-flag";
@@ -32,7 +33,12 @@ const MYUNT_PATH = "Academic Records, then Unofficial Transcript";
 const SHOW_READING_AFTER_MS = 400;
 
 type Problem = { kind: ImportProblem["kind"]; message: string; document: ImportProblem["document"] };
-type Settled = { phase: "start" } | { phase: "problem"; problem: Problem } | { phase: "review"; result: TranscriptReconcileResult };
+type Settled =
+  | { phase: "start" }
+  | { phase: "problem"; problem: Problem }
+  | { phase: "review"; result: TranscriptReconcileResult }
+  /** "Looks right" was pressed: the approved courses are in the plan, waiting for the save to settle. */
+  | { phase: "saving"; records: TranscriptCourseRecord[] };
 /** `run` numbers the read, so the delay before showing its steps belongs to it alone. */
 type Phase = Settled | { phase: "reading"; run: number; stage: ParseStage; behind: Settled };
 
@@ -85,7 +91,7 @@ function ImportSession({ identity, identityReady }: { identity: string; identity
 function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; restoredTrip: boolean }) {
   const router = useRouter();
   const phone = useMediaQuery(PHONE_QUERY);
-  const { applyTranscriptRecords, hydrated, conflict } = usePlanner();
+  const { applyTranscriptRecords, hydrated, conflict, saveState, plannerState } = usePlanner();
   const [phase, setPhase] = useState<Phase>({ phase: "start" });
   // The read whose steps are showing: set once it has taken SHOW_READING_AFTER_MS.
   const [slowRun, setSlowRun] = useState(0);
@@ -189,9 +195,20 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
     const selected = importSelection(result.records, decisions);
     if (!selected.length || !identityReady || !hydrated || conflict) return;
     applyTranscriptRecords(selected);
-    toast(`Added ${selected.length} ${selected.length === 1 ? "course" : "courses"} from your transcript`);
-    router.push("/courses");
+    setPhase({ phase: "saving", records: selected });
   }
+
+  // Success is said, and the page left, only once the save has landed (#37's honest-save rule).
+  const outcome =
+    phase.phase === "saving"
+      ? importSaveOutcome({ approved: phase.records, current: plannerState.transcriptRecords, status: saveState.status, conflict: Boolean(conflict) })
+      : null;
+  const savedCount = phase.phase === "saving" ? phase.records.length : 0;
+  useEffect(() => {
+    if (outcome !== "saved") return;
+    toast(`Added ${savedCount} ${savedCount === 1 ? "course" : "courses"} from your transcript`);
+    router.push("/courses");
+  }, [outcome, savedCount, router]);
 
   const openMyUnt = (label: string, variant: "primary" | "secondary" | "quiet", size?: "lg") => (
     <a
@@ -252,6 +269,40 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
             Cancel
           </Button>
         </div>
+      </>
+    );
+  } else if (shown.phase === "saving") {
+    const missing = missingApprovedRecords(shown.records, plannerState.transcriptRecords);
+    const settling = outcome === "waiting" || outcome === "saved";
+    body = (
+      <>
+        <h1 className={styles.h2} ref={heading} tabIndex={-1}>
+          {settling ? "Saving your courses" : outcome === "dropped" ? "Some courses weren't kept" : "Your courses aren't saved yet"}
+        </h1>
+        <p className={styles.lede} role="status">
+          {settling
+            ? "One moment."
+            : outcome === "dropped"
+              ? `A newer version from another tab or device replaced ${missing.length === 1 ? "1 course" : `${missing.length} courses`} you approved.`
+              : outcome === "conflict"
+                ? "Another tab or device saved a newer version. Choose which one to keep."
+                : saveState.detail ?? "The save didn't go through."}
+        </p>
+        {settling ? null : (
+          <>
+            <PlannerPersistencePanel />
+            <div className={styles.actions}>
+              {outcome === "dropped" ? (
+                <Button disabled={!identityReady || !hydrated || Boolean(conflict)} onClick={() => applyTranscriptRecords(missing)}>
+                  Add them again
+                </Button>
+              ) : null}
+              <Link href="/courses" className="ui-btn ui-btn--quiet" data-ui="">
+                Go to Courses
+              </Link>
+            </div>
+          </>
+        )}
       </>
     );
   } else if (shown.phase === "review") {
@@ -413,7 +464,7 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
 
   return (
     <main className={styles.welcome}>
-      <PdfDropTarget onDrop={takeDrop} />
+      <PdfDropTarget onDrop={(result) => routeDrop(result, identityReady, takeDrop)} />
       <HiddenPdfInput ref={fileInput} onFile={(file) => void read(file)} />
       <Stage key={screen}>{body}</Stage>
       {screen === "start-idle" ? <Thesis /> : null}
