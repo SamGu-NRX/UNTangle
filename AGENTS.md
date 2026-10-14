@@ -21,4 +21,16 @@ PR titles and bodies follow `.obvious/skills/pr-writing` and `.github/pull_reque
 - [`pstack-typescript-best-practices`](.obvious/skills/pstack-typescript-best-practices/SKILL.md): TypeScript best practices
 - [`pstack-unslop`](.obvious/skills/pstack-unslop/SKILL.md): Cut AI tells from any writing
 - [`pstack-benchmark-checklist`](.obvious/skills/pstack-benchmark-checklist/SKILL.md): Vet a perf measurement (limiter, tuning, limits, errors, repeatability, relevance, and whether the work happened) before you report or act on it *(needed by `pstack/principle-explain-the-number`)*
+- [`frontend-design`](.obvious/skills/frontend-design/SKILL.md): Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one
+- [`emil-design-eng`](.obvious/skills/emil-design-eng/SKILL.md): This skill encodes Emil Kowalski's philosophy on UI polish, component design, animation decisions, and the invisible details that make software feel great
+- [`holistic-ux`](.obvious/skills/holistic-ux/SKILL.md): Design holistic user experiences using systems thinking, service design, and psychological principles
+- [`animate`](.obvious/skills/animate/SKILL.md): Build an animation from scratch, making the decisions in the order that determines whether it feels right — should it animate at all, what purpose, which tool, which properties, which curve and duration, how it interrupts, how it exits
+- [`animate-expo`](.obvious/skills/animate-expo/SKILL.md): Build animations in React Native and Expo, making the decisions in the order that determines whether they feel right — should it animate, which thread it runs on, which properties, spring or timing, how the gesture hands off, how it degrades
+- [`prep-for-prod`](.obvious/skills/prep-for-prod/SKILL.md): Final check before a web UI change ships
+- [`review-animations`](.obvious/skills/review-animations/SKILL.md): Reviews animation and motion code against a high craft bar derived from Emil Kowalski's design engineering philosophy
+- [`improve-animations`](.obvious/skills/improve-animations/SKILL.md): Survey a codebase's animation and motion code as a senior motion advisor, then produce a prioritized audit and self-contained implementation plans for other agents (or cheaper models) to execute
+- [`find-animation-opportunities`](.obvious/skills/find-animation-opportunities/SKILL.md): Search a codebase or UI for places that don't animate but should, and reject everything that shouldn't
+- [`mobile-native`](.obvious/skills/mobile-native/SKILL.md): Make a web app feel native on a phone — the small CSS and meta-tag fixes that separate "a website in a browser" from something that feels installed
+- [`pick-ui-library`](.obvious/skills/pick-ui-library/SKILL.md): Pick the right library for a given frontend task from a curated, opinionated list — numbers, OTP inputs, charts, command menus, virtualization, drag and drop, toasts, state, styling, and more
+- [`break-ui`](.obvious/skills/break-ui/SKILL.md): Try to break a piece of UI by feeding it worst-case data — long names, unbreakable emails, one-letter names, missing fields, huge counts, zero items, long labels, non-Latin text, emoji, extreme numbers — then render it behind a "Demo data / Worst case" toggle and report everything that broke, with the fix for each
 <!-- agent-skills:end -->
