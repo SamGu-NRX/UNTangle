@@ -94,10 +94,14 @@ export function ForgotPasswordClient({ token, error }: { token: string | null; e
               setFieldError(null);
             }}
             placeholder="eagleid@my.unt.edu"
-            autoComplete="email"
+            // DESIGN.md §4.6: the account's username, as on the sign-in form.
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             error={fieldError}
           />
-          <Button type="submit" className="auth__submit" loading={isPending} loadingLabel="Sending…">
+          <Button type="submit" size="lg" className="auth__submit" loading={isPending} loadingLabel="Sending…">
             Send reset link
           </Button>
         </form>
@@ -116,7 +120,7 @@ export function ForgotPasswordClient({ token, error }: { token: string | null; e
             help="At least 8 characters."
             error={fieldError}
           />
-          <Button type="submit" className="auth__submit" loading={isPending} loadingLabel="Updating…">
+          <Button type="submit" size="lg" className="auth__submit" loading={isPending} loadingLabel="Updating…">
             Update password
           </Button>
         </form>
@@ -129,9 +133,9 @@ export function ForgotPasswordClient({ token, error }: { token: string | null; e
         {status}
       </p>
 
-      <p className="auth__foot">
+      <p className="auth__links">
         <Link href="/auth">Back to sign in</Link>
-        <Link href="/" className="auth__foot-quiet">
+        <Link href="/" className="auth__links-quiet">
           Home
         </Link>
       </p>
