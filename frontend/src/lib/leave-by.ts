@@ -38,7 +38,10 @@ export function isTight(leave: number, previousEnd: number): boolean {
   return leave <= previousEnd;
 }
 
-/** One class on the day, with the walk that reaches it (null when that walk's time is unknown). */
+/**
+ * One class on the day, with the walk that reaches it: null when that walk's
+ * time is unknown, 0 when the class is in the building you're already in.
+ */
 export type HeroClass = { start: number; end: number; walkMin: number | null };
 
 /**
@@ -47,7 +50,10 @@ export type HeroClass = { start: number; end: number; walkMin: number | null };
  *   null on a day other than today. `leave` is never before the previous
  *   class ends; `tight` says that is the moment to go.
  * - `leave-now`: today, with a minute or less to spare (or already past it).
- * - `next-class`: the next class when its walk time is unknown.
+ * - `next-class`: the next class when there's no departure to time: its
+ *   walk time is unknown, or it's in the same building.
+ * - `overlap`: the next class starts before the previous one ends, so no
+ *   departure time works.
  * - `last-class`: in class, with no class left to start today. With
  *   overlapping classes it is the one that ends last.
  * - `done`: today's classes are over.
@@ -57,17 +63,19 @@ export type Hero =
   | { kind: "leave"; index: number; leave: number; minutesUntil: number | null; tight: boolean }
   | { kind: "leave-now"; index: number; tight: boolean }
   | { kind: "next-class"; index: number; minutesUntil: number | null }
+  | { kind: "overlap"; index: number }
   | { kind: "last-class"; index: number }
   | { kind: "done" }
   | { kind: "no-classes" };
 
 function forClass(classes: readonly HeroClass[], index: number, now: number | null): Hero {
   const { start, walkMin } = classes[index];
-  if (walkMin === null) {
+  const previousEnd = index > 0 ? classes[index - 1].end : null;
+  if (previousEnd !== null && previousEnd > start) return { kind: "overlap", index };
+  if (walkMin === null || walkMin === 0) {
     return { kind: "next-class", index, minutesUntil: now === null ? null : start - now };
   }
   const latest = leaveBy(start, walkMin);
-  const previousEnd = index > 0 ? classes[index - 1].end : null;
   const tight = previousEnd !== null && isTight(latest, previousEnd);
   const leave = previousEnd !== null ? Math.max(latest, previousEnd) : latest;
   if (now === null) return { kind: "leave", index, leave, minutesUntil: null, tight };

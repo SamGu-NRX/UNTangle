@@ -236,6 +236,11 @@ describe("the walk from the starting point", () => {
     expect(start?.leg.route).toEqual({ kind: "no-route" });
   });
 
+  test("is the shuttle when the first class is at Discovery Park", () => {
+    const { start } = buildItinerary([stop("ART 4720", "11:00", "12:50", { id: "ntdp" })], new Map(), new Map(), kerr);
+    expect(start?.leg).toMatchObject({ route: { kind: "shuttle", seconds: 1200 }, walkMinutes: 20, leaveAt: 10 * 60 + 38 });
+  });
+
   test("doesn't exist without a starting point or without classes", () => {
     expect(buildItinerary(day, new Map(), new Map()).start).toBeNull();
     expect(buildItinerary([], new Map(), new Map(), kerr).start).toBeNull();

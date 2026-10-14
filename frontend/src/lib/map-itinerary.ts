@@ -22,7 +22,7 @@ import { haversineMetersBetween } from "@/lib/campus/geo";
 import { stopIdentity } from "@/lib/campus/route-legs";
 import { walkingMinutes } from "@/lib/campus/speeds";
 import { isTight, leaveBy } from "@/lib/leave-by";
-import { meetTogether, rangeLabel } from "@/lib/planner-sections";
+import { DISCOVERY_PARK_ID, meetTogether, rangeLabel } from "@/lib/planner-sections";
 import { isShuttleLeg, SHUTTLE_SECONDS } from "@/lib/planner-walking";
 import type { MapResolvedLocation, MapRouteLeg, MapRoutePoint, MapStop } from "@/lib/types";
 
@@ -342,12 +342,16 @@ function routeMinutes(route: LegRoute): number | null {
 
 function startLeg(start: StartPlace, first: ItineraryStop, answers: ReadonlyMap<string, PairAnswer>): ItineraryLeg {
   const { placement } = first;
+  // Starting points are on main campus (they're limited to the routing
+  // bounds), so a first class at Discovery Park is the shuttle ride.
   const route: LegRoute =
-    placement.kind === "mapped"
-      ? routeBetween(startPoint(start), { key: placementKey(placement), point: placement.point }, answers)
-      : placement.kind === "resolving"
-        ? { kind: "loading" }
-        : { kind: "no-route" };
+    first.stop.buildingId === DISCOVERY_PARK_ID
+      ? { kind: "shuttle", seconds: SHUTTLE_SECONDS }
+      : placement.kind === "mapped"
+        ? routeBetween(startPoint(start), { key: placementKey(placement), point: placement.point }, answers)
+        : placement.kind === "resolving"
+          ? { kind: "loading" }
+          : { kind: "no-route" };
   const walkMinutes = routeMinutes(route);
   return {
     key: `${START_KEY}>${first.key}`,

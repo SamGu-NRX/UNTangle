@@ -173,6 +173,20 @@ function heroCopy(
         sub: `${stop.courseCode} in ${stop.location}.`,
       };
     }
+    case "overlap": {
+      const { stop } = itinerary.stops[hero.index];
+      const previous = itinerary.stops[hero.index - 1].stop;
+      return {
+        label: `${stop.courseCode} overlaps ${previous.courseCode}`,
+        big: formatTime(toMinutes(stop.start)),
+        sub: (
+          <>
+            It starts before {previous.courseCode} ends at {formatTime(toMinutes(previous.end))}.{" "}
+            <Link href="/schedule">Change one in Week</Link>
+          </>
+        ),
+      };
+    }
     case "last-class": {
       const { stop } = itinerary.stops[hero.index];
       return { label: `In ${stop.courseCode} until ${formatTime(toMinutes(stop.end))}`, big: "Last one", sub: "Nothing after this today." };

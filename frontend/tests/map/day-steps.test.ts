@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classDayOf, isoDateOf, meetsOn, minuteOf, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
+import { campusNow, meetsOn, nextClassDay, nextClassFrom, sessionOf, stepperDays } from "@/components/map/day-steps";
 import type { ClassDay, MapStop } from "@/lib/types";
 
 const none: Record<ClassDay, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
@@ -33,13 +33,12 @@ describe("nextClassDay", () => {
   });
 });
 
-describe("clock", () => {
-  test("local day, minute and date", () => {
-    const tuesday = new Date(2026, 9, 13, 8, 37);
-    expect(classDayOf(tuesday)).toBe("Tue");
-    expect(classDayOf(new Date(2026, 9, 18, 12))).toBe("Sun");
-    expect(minuteOf(tuesday)).toBe(8 * 60 + 37);
-    expect(isoDateOf(new Date(2027, 0, 5, 23, 59))).toBe("2027-01-05");
+describe("campusNow", () => {
+  test("reads the date, weekday and minute in campus time, whatever the device's zone", () => {
+    // 04:30 UTC on Tuesday is 23:30 Monday in Denton (CDT, UTC-5).
+    expect(campusNow(new Date(Date.UTC(2026, 9, 13, 4, 30)))).toEqual({ iso: "2026-10-12", day: "Mon", minute: 23 * 60 + 30 });
+    // In January Denton is on CST, UTC-6.
+    expect(campusNow(new Date(Date.UTC(2027, 0, 19, 14, 37)))).toEqual({ iso: "2027-01-19", day: "Tue", minute: 8 * 60 + 37 });
   });
 });
 
@@ -57,18 +56,38 @@ const meeting = (courseCode: string, day: ClassDay, dates: MapStop["dates"]): Ma
   dates,
 });
 
-describe("meetsOn", () => {
-  const firstHalf = meeting("A 1", "Mon", { start: "2027-01-19", end: "2027-03-12" });
-  test("inside the session's dates, ends included", () => {
-    expect(meetsOn(firstHalf, "2027-01-19")).toBe(true);
-    expect(meetsOn(firstHalf, "2027-03-12")).toBe(true);
+describe("sessionOf", () => {
+  test("matches a meeting's dates to its calendar session", () => {
+    expect(sessionOf({ start: "2027-01-11", end: "2027-05-07" })).toBe("2027-spring-full");
+    expect(sessionOf({ start: "2027-03-15", end: "2027-05-07" })).toBe("2027-spring-8w2");
+    expect(sessionOf({ start: "2027-01-19", end: "2027-03-12" })).toBeUndefined();
+    expect(sessionOf(null)).toBeUndefined();
   });
-  test("outside them", () => {
-    expect(meetsOn(firstHalf, "2027-01-18")).toBe(false);
+});
+
+describe("meetsOn", () => {
+  const springFull = meeting("F 1", "Fri", { start: "2027-01-11", end: "2027-05-07" });
+  const secondHalf = meeting("S 2", "Fri", { start: "2027-03-15", end: "2027-05-07" });
+  test("not on its session's reading day, though another session still meets", () => {
+    expect(meetsOn(springFull, "2027-04-30")).toBe(false);
+    expect(meetsOn(secondHalf, "2027-04-30")).toBe(true);
+  });
+  test("not during finals", () => {
+    expect(meetsOn(springFull, "2027-05-07")).toBe(false);
+    expect(meetsOn(secondHalf, "2027-05-07")).toBe(false);
+  });
+  const firstHalf = meeting("A 1", "Mon", { start: "2027-01-11", end: "2027-03-05" });
+  test("from its first class day to its last", () => {
+    expect(meetsOn(firstHalf, "2027-01-11")).toBe(true);
+    expect(meetsOn(firstHalf, "2027-03-04")).toBe(true);
+  });
+  test("not outside its dates", () => {
+    expect(meetsOn(firstHalf, "2027-01-08")).toBe(false);
     expect(meetsOn(firstHalf, "2027-03-15")).toBe(false);
   });
-  test("unknown dates meet every week", () => {
+  test("unknown dates meet on every class day, but not on a holiday", () => {
     expect(meetsOn(meeting("S 1", "Mon", null), "2026-10-12")).toBe(true);
+    expect(meetsOn(meeting("S 1", "Thu", null), "2026-11-26")).toBe(false);
   });
 });
 
@@ -76,19 +95,19 @@ describe("nextClassFrom", () => {
   const empty: Record<ClassDay, MapStop[]> = { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: [] };
   test("tomorrow's first class that meets on tomorrow's date", () => {
     const week = { ...empty, Wed: [meeting("OLD 1", "Wed", { start: "2026-08-24", end: "2026-10-09" }), meeting("NEW 1", "Wed", null)] };
-    expect(nextClassFrom(week, new Date(2026, 9, 13, 18))).toEqual({ day: "Wed", ahead: 1, stop: week.Wed[1] });
+    expect(nextClassFrom(week, "2026-10-13")).toEqual({ day: "Wed", ahead: 1, stop: week.Wed[1] });
   });
   test("a term that hasn't started has no next class this week", () => {
     const spring = { ...empty, Mon: [meeting("A 1", "Mon", { start: "2027-01-19", end: "2027-05-07" })] };
-    expect(nextClassFrom(spring, new Date(2026, 9, 13))).toBeNull();
+    expect(nextClassFrom(spring, "2026-10-13")).toBeNull();
   });
   test("skips a holiday: Thanksgiving's Thursday class isn't next", () => {
     const thursdays = { ...empty, Thu: [meeting("T 1", "Thu", null)] };
-    expect(nextClassFrom(thursdays, new Date(2026, 10, 18))).toMatchObject({ day: "Thu", ahead: 1 });
-    expect(nextClassFrom(thursdays, new Date(2026, 10, 25))).toBeNull();
+    expect(nextClassFrom(thursdays, "2026-11-18")).toMatchObject({ day: "Thu", ahead: 1 });
+    expect(nextClassFrom(thursdays, "2026-11-25")).toBeNull();
   });
   test("looks a full week ahead, to the same weekday", () => {
     const tuesdays = { ...empty, Tue: [meeting("T 1", "Tue", null)] };
-    expect(nextClassFrom(tuesdays, new Date(2026, 9, 13))).toMatchObject({ day: "Tue", ahead: 7 });
+    expect(nextClassFrom(tuesdays, "2026-10-13")).toMatchObject({ day: "Tue", ahead: 7 });
   });
 });

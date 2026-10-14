@@ -63,6 +63,19 @@ describe("dayHero", () => {
     expect(dayHero(monday, at(23, 59))).toEqual({ kind: "done" });
   });
 
+  test("a class that starts before the previous one ends has no departure time", () => {
+    const overlap = [
+      { start: at(9), end: at(12), walkMin: 5 },
+      { start: at(10), end: at(10, 50), walkMin: 4 },
+    ];
+    expect(dayHero(overlap, at(9, 30))).toEqual({ kind: "overlap", index: 1 });
+  });
+
+  test("the same building needs no departure: the hero names the class", () => {
+    const sameBuilding = [monday[0], { start: at(10), end: at(10, 50), walkMin: 0 }];
+    expect(dayHero(sameBuilding, at(9, 30))).toEqual({ kind: "next-class", index: 1, minutesUntil: 30 });
+  });
+
   test("overlapping classes: the day isn't done while the longer one runs", () => {
     const overlap = [
       { start: at(9), end: at(12), walkMin: 5 },

@@ -20,7 +20,7 @@ import { dayHero, type HeroClass } from "@/lib/leave-by";
 import { toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
 import { DayHero, DayItinerary, DayStepper, StartPicker, type NextClass } from "@/components/map/day-panel";
-import { classDayOf, classesRunOn, isoDateOf, meetsOn, minuteOf, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
+import { campusNow, meetsOn, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { MapSelection } from "@/components/map/selection";
@@ -46,9 +46,9 @@ function tick() {
   clockTimer = setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50);
 }
 
-/** The current minute, re-rendering when it turns; null on the server. */
-function useClock(): Date | null {
-  const minute = useSyncExternalStore(
+/** Minutes since the epoch, re-rendering when the minute turns; null on the server. */
+function useClockMinute(): number | null {
+  return useSyncExternalStore(
     (onChange) => {
       clockListeners.add(onChange);
       if (clockListeners.size === 1) tick();
@@ -60,7 +60,6 @@ function useClock(): Date | null {
     () => clockMinute || Math.floor(Date.now() / 60_000),
     () => null,
   );
-  return minute === null ? null : new Date(minute * 60_000);
 }
 
 /* ---------- layout ---------- */
@@ -111,13 +110,14 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     sectionPlan.courses.some((course) => course.section?.term === null),
   );
 
-  const clock = useClock();
-  const today = clock ? classDayOf(clock) : null;
+  const clockMinute = useClockMinute();
+  const campusTime = useMemo(() => (clockMinute === null ? null : campusNow(new Date(clockMinute * 60_000))), [clockMinute]);
+  const today = campusTime?.day ?? null;
   // Today comes first; the stepper reaches the rest. Kept while the student visits other lenses.
   const [pickedDay, setPickedDay] = usePageState<ClassDay | null>("day", null);
   const day = pickedDay ?? today ?? "Mon";
   const isToday = day === today;
-  const now = isToday && clock ? minuteOf(clock) : null;
+  const now = isToday && campusTime ? campusTime.minute : null;
 
   const counts = useMemo(
     () => Object.fromEntries(classDays.map((d) => [d, onCampus ? (routeStops[d]?.length ?? 0) : 0])) as Record<ClassDay, number>,
@@ -126,11 +126,10 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   const days = stepperDays(counts, today ?? day);
   // Today counts only the meetings whose session runs today, and none on a
   // holiday or break; another day shows the weekday's plan.
-  const todayDate = isToday && clock ? isoDateOf(clock) : null;
+  const todayDate = isToday && campusTime ? campusTime.iso : null;
   const stops = useMemo(() => {
     const all = onCampus ? (routeStops[day] ?? []) : [];
-    if (!todayDate) return all;
-    return classesRunOn(todayDate) ? all.filter((stop) => meetsOn(stop, todayDate)) : [];
+    return todayDate ? all.filter((stop) => meetsOn(stop, todayDate)) : all;
   }, [day, routeStops, onCampus, todayDate]);
   const start = useStartingPoint();
   const itinerary = useItinerary(stops, start);
@@ -146,8 +145,8 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   const following = nextClassDay(counts, day);
   const next: NextClass = !onCampus
     ? null
-    : isToday && clock
-      ? nextClassFrom(routeStops, clock)
+    : isToday && campusTime
+      ? nextClassFrom(routeStops, campusTime.iso)
       : following && { ...following, stop: routeStops[following.day][0] };
 
   const isPhone = useMediaQuery(PHONE_QUERY);
