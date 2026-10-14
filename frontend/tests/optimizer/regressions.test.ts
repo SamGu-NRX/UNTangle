@@ -411,3 +411,33 @@ describe("explanations name dates when the sessions differ", () => {
     expect(createHash("sha256").update(JSON.stringify(sentences)).digest("hex")).toBe("f6e26ab58f4c1de7c15d632f6c622b43bb2f85aa40981c8ebc048089be5d4e22");
   });
 });
+
+describe("instructor gpa validation", () => {
+  const single = (instructorGpa: number): OptimizeRequest => ({
+    courses: [
+      {
+        code: "C0",
+        credits: 3,
+        sections: [{ id: "c0-0", courseCode: "C0", rating: null, meetings: [{ day: "Mon", start: 480, end: 530, buildingId: "b" }], instructorGpa }],
+      },
+    ],
+    locks: {},
+    excluded: [],
+    constraints: { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null },
+    weights: { fewerDays: 0, compact: 1, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+    walkingTime: () => ({ seconds: 60, source: "straight-line" }),
+  });
+
+  test("an instructorGpa above 4 throws OptimizerInputError", () => {
+    expect(() => optimize(single(4.5))).toThrow(OptimizerInputError);
+  });
+
+  test("an instructorGpa below 0 throws OptimizerInputError", () => {
+    expect(() => optimize(single(-0.5))).toThrow(OptimizerInputError);
+  });
+
+  test("a non-finite instructorGpa throws OptimizerInputError", () => {
+    expect(() => optimize(single(Number.NaN))).toThrow(OptimizerInputError);
+    expect(() => optimize(single(Number.POSITIVE_INFINITY))).toThrow(OptimizerInputError);
+  });
+});

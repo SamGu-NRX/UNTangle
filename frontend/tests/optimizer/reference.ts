@@ -14,9 +14,13 @@
  */
 
 import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
+import { leafBefore } from "@/lib/optimizer/search";
 
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const UNKNOWN_WALK = 600;
+// The engine's NEUTRAL_INSTRUCTOR_GPA, written out on purpose: a changed
+// constant in the engine is a disagreement here.
+const NEUTRAL_INSTRUCTOR_GPA = 3.0;
 
 function runsOn(request: OptimizeRequest, meeting: OptMeeting, date: string): boolean {
   const range = meeting.dates ?? request.term;
@@ -83,6 +87,8 @@ export type RefSchedule = {
   sections: OptSection[];
   byCourse: Record<string, string>;
   cost: number;
+  /** The engine's tie-break evidence: the mean of known gpas, neutral for the missing ones. */
+  evidence: number;
   key: string[];
   breakdown: {
     daysOnCampus: number;
@@ -221,11 +227,6 @@ export function referenceMinDifferent(request: OptimizeRequest): number {
   return Math.max(1, Math.min(2, variable));
 }
 
-function compareKey(a: string[], b: string[]): number {
-  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
-  return 0;
-}
-
 /** Every valid schedule, best first. */
 export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
   const courses = [...request.courses].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
@@ -235,10 +236,13 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
     if (index === courses.length) {
       if (violations(request, current).length > 0) return;
       const { cost, breakdown } = referenceCost(request, current);
+      // The engine's mean-with-neutral evidence, written from the contract.
+      const evidence = current.reduce((sum, s) => sum + (s.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA), 0) / current.length;
       out.push({
         sections: [...current],
         byCourse: Object.fromEntries(current.map((s) => [s.courseCode, s.id])),
         cost,
+        evidence,
         key: current.map((s) => s.id),
         breakdown,
       });
@@ -251,7 +255,7 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
     }
   };
   walk(0);
-  return out.sort((a, b) => a.cost - b.cost || compareKey(a.key, b.key));
+  return out.sort((a, b) => (leafBefore(a, b) ? -1 : leafBefore(b, a) ? 1 : 0));
 }
 
 /** Top k under the contract: best first, each next the best that differs enough from all picked. */

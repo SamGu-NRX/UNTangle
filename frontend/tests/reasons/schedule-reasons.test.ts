@@ -464,3 +464,83 @@ describe("scheduleReasons", () => {
     });
   });
 });
+
+describe("instructor evidence tie-break", () => {
+  const evidenceSection = (id: string, courseCode: string, meetings: Meeting[], gpa: number | null | undefined): Course["sections"][number] => ({
+    id,
+    courseCode,
+    rating: null,
+    meetings,
+    ...(gpa === undefined ? {} : { instructorGpa: gpa }),
+  });
+
+  // The engine's tie grid: both cheap plans cost 200 (10 lean minutes at
+  // weight 1), and the winner's ECON instructor averaged 3.9 against 2.9
+  // for the runner-up's. Sections at different times are never twins.
+  const tied = (mathGpa: number | null | undefined = null) =>
+    request(
+      [
+        course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], 3.9), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], 2.9)]),
+        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], mathGpa), evidenceSection("math-002", "MATH 1650", [at("Mon", 670, 720)], null)]),
+      ],
+      { compact: 1 },
+    );
+
+  test("an equal-cost tie won on grade history says so in plain words", () => {
+    const req = tied();
+    const alternatives = optimal(req);
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
+    const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
+    expect(tie?.sentence).toBe("Students in this instructor's sections averaged a 3.9.");
+    expect(tie?.evidence.numbers).toContainEqual({ label: "average grade points of sections with grade history", value: 3.9 });
+    expect(tie?.evidence.numbers).toContainEqual({ label: "sections with grade history", value: 1 });
+    for (const reason of reasons) check(req, alternatives, 0, reason);
+  });
+
+  test("two sections with grade history say these instructors' sections", () => {
+    const req = tied(3.5);
+    const alternatives = optimal(req);
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
+    const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
+    // (3.9 + 3.5) / 2 over the two known sections.
+    expect(tie?.sentence).toBe("Students in these instructors' sections averaged a 3.7.");
+    expect(tie?.evidence.numbers).toContainEqual({ label: "sections with grade history", value: 2 });
+    for (const reason of reasons) check(req, alternatives, 0, reason);
+  });
+
+  test("no tie sentence when the winner has no known evidence", () => {
+    // Every section's gpa is null or absent: no plan has any known
+    // evidence, so there is nothing real to quote and the sentence stays
+    // silent. Both spellings of "missing" are covered.
+    const req = request(
+      [
+        course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], null), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], undefined)]),
+        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], undefined), evidenceSection("math-002", "MATH 1650", [at("Mon", 670, 720)], null)]),
+      ],
+      { compact: 1 },
+    );
+    const alternatives = optimal(req);
+    for (const schedule of alternatives.slice(0, 2)) {
+      for (const entry of req.courses) {
+        const picked = entry.sections.find((s) => s.id === schedule.byCourse[entry.code]);
+        expect(picked?.instructorGpa === undefined || picked?.instructorGpa === null).toBe(true);
+      }
+    }
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
+    expect(reasons.some((reason) => reason.kind === "grade-history" && reason.preference === null)).toBe(false);
+  });
+
+  test("no tie sentence when the costs differ", () => {
+    const req = request(
+      [
+        course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], 3.9), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], 2.9)]),
+        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], null), evidenceSection("math-002", "MATH 1650", [at("Mon", 690, 740)], null)]),
+      ],
+      { compact: 1 },
+    );
+    const alternatives = optimal(req);
+    expect(alternatives[0]!.cost).not.toBe(alternatives[1]!.cost);
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
+    expect(reasons.some((reason) => reason.kind === "grade-history" && reason.preference === null)).toBe(false);
+  });
+});

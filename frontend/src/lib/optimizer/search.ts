@@ -8,7 +8,8 @@
  *
  * Each branch gets a lower bound on the cost of any schedule that completes
  * it (`evaluate`). A branch whose bound is above the best schedule found so
- * far, or equal to it but unable to win the id tie-break, is skipped. The
+ * far is skipped; at an equal bound, a branch that cannot win the evidence
+ * and id tie-break is skipped too (`canWinTie`). The
  * bound adds up:
  * - the chosen sections' own costs (time-of-day lean and rating), plus the
  *   cheapest section still possible for every unassigned course;
@@ -32,9 +33,23 @@
  * Independently, fixed pairs retain their exact costs across all segments;
  * combine that bound with the segment bound by maximum. The union-of-days
  * bound remains independent of dates.
+ *
+ * The schedule order is three tiers: lower cost first; within
+ * INSTRUCTOR_TIE_BREAK_TOLERANCE of an equal cost the two plans count as
+ * tied and higher instructor evidence wins; then the lower tie-break key
+ * (section ids in course-code order). With integer costs the tolerance band
+ * is exactly equality, so a preference is never traded for instructor
+ * score.
  */
 
-import { COST_PER_DAY, COST_PER_GAP_MINUTE, COST_PER_WALK_SECOND, UNKNOWN_WALK_SECONDS } from "./score";
+import {
+  COST_PER_DAY,
+  COST_PER_GAP_MINUTE,
+  COST_PER_WALK_SECOND,
+  INSTRUCTOR_TIE_BREAK_TOLERANCE,
+  NEUTRAL_INSTRUCTOR_GPA,
+  UNKNOWN_WALK_SECONDS,
+} from "./score";
 import { OPT_DAYS } from "./types";
 import type { Candidate, Prepared, PreparedMeeting } from "./prepare";
 
@@ -51,6 +66,12 @@ export type Budget = {
 export type Leaf = {
   picks: Candidate[];
   cost: number;
+  /**
+   * Mean instructor evidence over the leaf's sections: each contributes its
+   * section's instructorGpa when known, else NEUTRAL_INSTRUCTOR_GPA.
+   * Higher wins the tie-break; missing data neither helps nor hurts.
+   */
+  evidence: number;
   /** Section ids in course-code order: the tie-break key. */
   key: string[];
 };
@@ -66,9 +87,21 @@ export function compareKeys(a: readonly string[], b: readonly string[]): number 
   return 0;
 }
 
-/** Strict order: lower cost first, then the lower tie-break key. */
-export function leafBefore(a: Pick<Leaf, "cost" | "key">, b: Pick<Leaf, "cost" | "key">): boolean {
-  return a.cost < b.cost || (a.cost === b.cost && compareKeys(a.key, b.key) < 0);
+/**
+ * Strict schedule order, three tiers: lower cost first; when two costs are
+ * within INSTRUCTOR_TIE_BREAK_TOLERANCE they count as tied and higher
+ * instructor evidence wins; then the lower tie-break key. With integer
+ * costs the tolerance band is exactly equality.
+ */
+export function leafBefore(a: Pick<Leaf, "cost" | "evidence" | "key">, b: Pick<Leaf, "cost" | "evidence" | "key">): boolean {
+  if (Math.abs(a.cost - b.cost) > INSTRUCTOR_TIE_BREAK_TOLERANCE) return a.cost < b.cost;
+  if (a.evidence !== b.evidence) return a.evidence > b.evidence;
+  return compareKeys(a.key, b.key) < 0;
+}
+
+/** A section's evidence contribution: its known instructorGpa, else the neutral stand-in. */
+function evidenceOf(section: Candidate["section"]): number {
+  return section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
 }
 
 function popcount(value: number): number {
@@ -116,6 +149,19 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
+  // Evidence contributed by the assigned sections, tracked alongside selfSum
+  // so a node's completions can be bounded without re-walking the picks.
+  let evidenceSum = 0;
+  // Per course, the most evidence any of its candidates contributes. A
+  // static upper bound on what an unassigned course can add; the alive mask
+  // would tighten it but correctness needs only an over-estimate.
+  const maxEvidenceByCourse: number[] = new Array(n).fill(NEUTRAL_INSTRUCTOR_GPA);
+  for (const candidate of prepared.candidates) {
+    const gpa = candidate.section.instructorGpa;
+    if (gpa !== undefined && gpa !== null && gpa > maxEvidenceByCourse[candidate.course]) {
+      maxEvidenceByCourse[candidate.course] = gpa;
+    }
+  }
   let assignedCount = 0;
   const previous = options.previous;
   const same = new Int32Array(previous.length);
@@ -374,9 +420,26 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     return bound;
   }
 
-  /** At equal cost, can some completion still have a lower tie-break key than `best`? */
+  /**
+   * At bound === best.cost: can some completion still beat `best` under the
+   * evidence and key tiers? A completion's evidence is bounded from above by
+   * the evidence assigned so far plus, for each remaining course, the most
+   * any of its candidates contributes (a static per-course max). Prune on
+   * evidence only when that bound is strictly worse than best.evidence;
+   * when the bound can at best tie, fall back to the key comparison below,
+   * which is exact because equal evidence makes the key the deciding tier.
+   * When in doubt, do not prune.
+   */
   function canWinTie(candidate: Candidate): boolean {
-    const target = best!.key;
+    const target = best!;
+    let numerator = evidenceSum + evidenceOf(candidate.section);
+    for (let u = 0; u < n; u += 1) {
+      if (u === candidate.course || assigned[u] !== null) continue;
+      numerator += maxEvidenceByCourse[u];
+    }
+    const evidenceBound = numerator / n;
+    if (evidenceBound > target.evidence) return true;
+    if (evidenceBound < target.evidence) return false;
     for (let u = 0; u < n; u += 1) {
       let lowest: string;
       if (u === candidate.course) lowest = candidate.section.id;
@@ -394,7 +457,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           }
         }
       }
-      if (lowest !== target[u]) return lowest < target[u];
+      if (lowest !== target.key[u]) return lowest < target.key[u];
     }
     return false;
   }
@@ -404,7 +467,12 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     const pairs = completeCost();
     if (pairs < 0) return;
     const cost = selfSum + weights.fewerDays * COST_PER_DAY * popcount(daysUsed) + pairs;
-    const leaf: Leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id) };
+    // Mean-with-neutral evidence over the leaf's sections: each contributes
+    // its known gpa, else the neutral stand-in, so missing data neither
+    // penalizes nor invents. n > 0 whenever a leaf exists; an empty request
+    // scores exactly the neutral value.
+    const evidence = n > 0 ? picks.reduce((sum, pick) => sum + evidenceOf(pick.section), 0) / n : NEUTRAL_INSTRUCTOR_GPA;
+    const leaf: Leaf = { picks: [...picks], cost, evidence, key: picks.map((pick) => pick.section.id) };
     options.onLeaf?.(leaf);
     if (options.stopAtFirst) {
       best = leaf;
@@ -748,6 +816,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       for (let w = 0; w < words; w += 1) next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
+      evidenceSum += evidenceOf(candidate.section);
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -765,6 +834,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       removeMeetings(candidate);
       daysUsed = previousDays;
       selfSum -= candidate.self;
+      evidenceSum -= evidenceOf(candidate.section);
       assigned[candidate.course] = null;
     }
   }
