@@ -30,7 +30,6 @@ export async function drawWeekPng(input: { title: string; events: readonly GridE
   ctx.scale(SCALE, SCALE);
 
   const ui = getComputedStyle(document.body).fontFamily;
-  const mark = cssVar("--font-mark") || ui;
   const ink = cssVar("--ink");
   const ink2 = cssVar("--ink-2");
   const line = cssVar("--line");
@@ -78,7 +77,8 @@ export async function drawWeekPng(input: { title: string; events: readonly GridE
     ctx.fillStyle = cssVar(`--c${hue}`);
     ctx.fillRect(x, y + 4, 3, h - 8);
     ctx.fillStyle = ink;
-    ctx.font = `700 13px ${mark}`;
+    // DM Sans like the grid; Syne belongs to the wordmark alone.
+    ctx.font = `600 13px ${ui}`;
     ctx.fillText(event.courseCode, x + 10, y + 18);
     if (h > 36) {
       ctx.fillStyle = ink2;

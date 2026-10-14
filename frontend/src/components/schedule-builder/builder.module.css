@@ -46,7 +46,8 @@
   color: var(--ink-2);
 }
 .code {
-  font: 700 13px/1.2 var(--font-mark);
+  font: 600 13px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 .actions {
@@ -390,7 +391,8 @@
   border: 1.5px dashed var(--c);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.55);
-  font: 700 11px/1 var(--font-mark);
+  font: 600 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
   color: var(--c);
   cursor: pointer;
   transition: background-color var(--t-hover) ease;
@@ -418,7 +420,8 @@
   border: 1.5px dashed var(--brand-2);
   border-radius: 8px;
   background: rgba(0, 122, 64, 0.07);
-  font: 700 11px/1.2 var(--font-mark);
+  font: 600 11px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
   color: var(--brand-2);
   pointer-events: none;
   opacity: 1;
@@ -717,7 +720,8 @@
 }
 .sectionCode {
   margin-right: 6px;
-  font: 700 11.5px var(--font-mark);
+  font: 600 11.5px var(--font-ui);
+  font-variant-numeric: tabular-nums;
   color: var(--ink-2);
 }
 .clash {
