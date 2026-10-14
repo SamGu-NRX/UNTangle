@@ -1,0 +1,46 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Football
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161940Z
+UID:tag:localist.com\,2008:EventInstance_52016747015534
+DTSTART:20260919T160000Z
+DTEND:20260919T190000Z
+DESCRIPTION:UNT Football at Texas State. Go Mean Green!\n\nSeason play sche
+ dule available here.
+LOCATION:San Marcos\, TX
+SUMMARY:UNT Football at Texas State
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-foot
+ ball-at-texas-state
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161940Z
+UID:tag:localist.com\,2008:EventInstance_52016747027827
+DTSTART:20260926T233000Z
+DTEND:20260927T023000Z
+DESCRIPTION:UNT Football vs Houston Christian University. Go Mean Green!\n\
+ nTickets available here.\n\nSeason play schedule available here.
+GEO:33.204063;-97.160158
+LOCATION:DATCU Stadium
+SUMMARY:UNT Football vs Houston Christian
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-foot
+ ball-vs-houston-christian
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161940Z
+UID:tag:localist.com\,2008:EventInstance_52206597402918
+DTSTART:20261002T010000Z
+DTEND:20261002T040000Z
+DESCRIPTION:University of North Texas Football at Tulsa.
+LOCATION:Tulsa\, OK
+SUMMARY:UNT Football at Tulsa
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-foot
+ ball-at-tulsa
+CATEGORIES:Athletics
+END:VEVENT
+END:VCALENDAR

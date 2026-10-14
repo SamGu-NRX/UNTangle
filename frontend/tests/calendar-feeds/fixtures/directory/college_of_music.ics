@@ -1,0 +1,59 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Music
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161734Z
+UID:tag:localist.com\,2008:EventInstance_52214435405795
+DTSTART:20260915T010000Z
+DTEND:20260915T020000Z
+DESCRIPTION:Performing works composed by Joseph Klein and Douglas Knehans\,
+  et al\n\n \n\nImportant Links and Information \n\n \n\nProgram  \n\nPleas
+ e note\, this program is subject to change. Final program will be availabl
+ e by the day of the performance. \n\n \n\nLivestream is not available for 
+ this event.  \n\n \n\nThis event is free and open to the public with gener
+ al seating.
+GEO:33.210622;-97.150127
+LOCATION:Paul Voertman Concert Hall at the Music Building
+SUMMARY:Faculty and Guest Recital: Liudmila Georgievskaya and Victor Diaz\,
+  piano
+URL;VALUE=URI:https://calendar.unt.edu/event/faculty-and-guest-recital-geor
+ gievskaya-and-klein
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161734Z
+UID:tag:localist.com\,2008:EventInstance_52214436903925
+DTSTART:20260916T010000Z
+DTEND:20260916T020000Z
+DESCRIPTION:Important Links and Information \n\n \n\nProgram\n\nPlease note
+ \, this program is subject to change. Final program will be available by t
+ he day of the performance. \n\n \n\nLivestream is not available for this e
+ vent.  \n\n \n\nThis event is free and open to the public with general sea
+ ting.
+GEO:33.210622;-97.150127
+LOCATION:Paul Voertman Concert Hall at the Music Building
+SUMMARY:Guest Artist Recital: Victor Diaz\, piano
+URL;VALUE=URI:https://calendar.unt.edu/event/guest-artist-recital-victor-di
+ az-piano
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161734Z
+UID:tag:localist.com\,2008:EventInstance_53428507857076
+DTSTART:20260916T203000Z
+DTEND:20260916T213000Z
+DESCRIPTION:Important Links and Information \n\n \n\nProgram  \n\nPlease no
+ te\, this program is subject to change. Final program will be available by
+  the day of the performance. \n\n \n\nLivestream is not available for this
+  event.  \n\n \n\nThis event is free and open to the public with general s
+ eating.
+GEO:33.210622;-97.150127
+LOCATION:Paul Voertman Concert Hall at the Music Building
+SUMMARY:UpFront! Fall 2026 Concert 1
+URL;VALUE=URI:https://calendar.unt.edu/event/upfront-fall-2026-concert-1
+CATEGORIES:Social & Entertainment
+END:VEVENT
+END:VCALENDAR
