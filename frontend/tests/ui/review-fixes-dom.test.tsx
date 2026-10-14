@@ -256,24 +256,67 @@ describe("BottomSheet", () => {
 });
 
 describe("saved-plan library notifications", () => {
-  test("a write in this tab notifies subscribers; other keys' storage events do not", async () => {
-    const { createSavedPlanStore, subscribeSavedPlans, SAVED_PLANS_STORE_KEY } = await import("@/lib/saved-plans/store");
-    const { getInitialPlannerState } = await import("@/lib/planner");
+  for (const userId of [null, "notifications-a"]) {
+    test(`a ${userId === null ? "guest" : "user"} library notifies for writes and its own storage key`, async () => {
+      const { createSavedPlanStore, subscribeSavedPlans, savedPlansKey, setSavedPlanIdentity, LEGACY_SAVED_PLANS_STORE_KEY } = await import("@/lib/saved-plans/store");
+      const { getInitialPlannerState } = await import("@/lib/planner");
+      localStorage.clear();
+      setSavedPlanIdentity(userId);
+      let calls = 0;
+      const unsubscribe = subscribeSavedPlans(() => (calls += 1));
+      try {
+        const saved = createSavedPlanStore().savePlan({ state: getInitialPlannerState(), name: "Copy" });
+        expect(saved.ok).toBe(true);
+        const read = createSavedPlanStore(localStorage, userId).list();
+        if (!read.ok) throw new Error(read.failure.message);
+        expect(read.doc.plans.map((plan) => plan.name)).toEqual(["Copy"]);
+        expect(calls).toBe(1);
+
+        const otherIdentity = userId === null ? "notifications-a" : null;
+        for (const key of ["something-else", LEGACY_SAVED_PLANS_STORE_KEY, savedPlansKey(otherIdentity), savedPlansKey("notifications-b")]) {
+          window.dispatchEvent(new StorageEvent("storage", { key }));
+          expect(calls).toBe(1);
+        }
+        window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey(userId) }));
+        expect(calls).toBe(2);
+
+        unsubscribe();
+        const again = createSavedPlanStore().savePlan({ state: getInitialPlannerState(), name: "Again" });
+        expect(again.ok).toBe(true);
+        window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey(userId) }));
+        expect(calls).toBe(2);
+      } finally {
+        unsubscribe();
+        setSavedPlanIdentity(undefined);
+        localStorage.clear();
+      }
+    });
+  }
+
+  test("an existing subscription follows the active identity after sign-in", async () => {
+    const { subscribeSavedPlans, savedPlansKey, setSavedPlanIdentity } = await import("@/lib/saved-plans/store");
     localStorage.clear();
+    setSavedPlanIdentity(null);
     let calls = 0;
     const unsubscribe = subscribeSavedPlans(() => (calls += 1));
-    const saved = createSavedPlanStore(localStorage).savePlan({ state: getInitialPlannerState(), name: "Copy" });
-    expect(saved.ok).toBe(true);
-    expect(calls).toBe(1);
+    try {
+      window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey(null) }));
+      expect(calls).toBe(1);
+      window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey("notifications-a") }));
+      expect(calls).toBe(1);
 
-    window.dispatchEvent(new StorageEvent("storage", { key: "something-else" }));
-    expect(calls).toBe(1);
-    window.dispatchEvent(new StorageEvent("storage", { key: SAVED_PLANS_STORE_KEY }));
-    expect(calls).toBe(2);
-
-    unsubscribe();
-    createSavedPlanStore(localStorage).savePlan({ state: getInitialPlannerState(), name: "Again" });
-    expect(calls).toBe(2);
-    localStorage.clear();
+      setSavedPlanIdentity("notifications-a");
+      expect(calls).toBe(2);
+      window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey(null) }));
+      expect(calls).toBe(2);
+      window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey("notifications-a") }));
+      expect(calls).toBe(3);
+      window.dispatchEvent(new StorageEvent("storage", { key: savedPlansKey("notifications-b") }));
+      expect(calls).toBe(3);
+    } finally {
+      unsubscribe();
+      setSavedPlanIdentity(undefined);
+      localStorage.clear();
+    }
   });
 });
