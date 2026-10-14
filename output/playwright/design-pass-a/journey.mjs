@@ -321,12 +321,16 @@ async function connectPhone(page, size) {
   await shot(page, size, "connect-done");
 }
 
-/** The import adds transcript records, not statuses: mark a course as credit so the library has a difference. */
+/**
+ * Mark a course the transcript doesn't have as credit, so the library has a
+ * course-level difference. (The import now saves MATH 1650 as done, and a done
+ * course has no "I have credit for this".)
+ */
 async function markACourseDone(page) {
   // "load", not "networkidle": since #39, the test server has a database URL it
   // can't reach, and this page's network didn't go idle within 30 s.
-  await page.goto(`${base}/courses/math/1650`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Status options for MATH 1650" }).first().click();
+  await page.goto(`${base}/courses/math/1710`, { waitUntil: "load" });
+  await page.getByRole("button", { name: "Status options for MATH 1710" }).first().click();
   await page.getByRole("menuitem", { name: "I have credit for this" }).click();
   await page.waitForTimeout(400);
 }
@@ -358,7 +362,7 @@ async function plansCompareRestore(page, size) {
   // The import and the claimed credit differ: #37's field-level comparison sits one step away.
   await page.getByRole("button", { name: /^More differences/ }).click();
   const more = await page.locator("section", { has: page.getByRole("button", { name: /^More differences/ }) }).locator("li").allInnerTexts();
-  check(size, "library: More differences lists what else differs, such as claimed credit", more.some((line) => /MATH 1650/.test(line)), JSON.stringify(more));
+  check(size, "library: More differences lists what else differs, such as claimed credit", more.some((line) => /MATH 1710 is marked as credit/.test(line)), JSON.stringify(more));
   await page.waitForTimeout(300);
   await shot(page, size, "plans-compare");
   await axe(page, size, "Library comparing two schedules");
