@@ -148,6 +148,8 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
   let firstNameContradicted = false;
   for (const person of people) {
     for (const candidate of byId.values()) {
+      // Unsupported letters can tokenize as false initials, so they provide no evidence.
+      if (candidate.unsupported) continue;
       const outcome = scorePair(person, candidate);
       if (outcome.kind === "surname-mismatch") continue;
       surnameMatched = true;
@@ -184,5 +186,8 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
     : winner.confidence >= EXACT_MULTI_CONFIDENCE
       ? "matched on surname and full first name"
       : "matched on surname and first name";
-  return { candidateId: winner.candidate.id, confidence: winner.confidence, reason };
+  const listedReason = people.length > 1
+    ? `one of ${people.length} listed instructors; ${reason}`
+    : reason;
+  return { candidateId: winner.candidate.id, confidence: winner.confidence, reason: listedReason };
 }

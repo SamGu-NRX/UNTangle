@@ -54,14 +54,15 @@ export function foldName(text: string): string {
 }
 
 /**
- * True when the folded text still contains a letter the fold map does not
- * cover. Such a form must abstain rather than match: tokenizing would either
+ * True when the folded text still contains an unmapped letter or an unstripped
+ * combining mark. Such a form must abstain rather than match: tokenizing would either
  * drop the letter (inventing a false initial) or split on it (inventing
  * tokens), and both lose information the threshold promises to weigh.
  */
 export function hasUnmappedLetters(folded: string): boolean {
   for (const ch of folded) {
-    if (/\p{L}/u.test(ch) && !/[a-z]/.test(ch)) return true;
+    // Marks outside the stripped range also split tokens and invent initials.
+    if (/[\p{L}\p{M}]/u.test(ch) && !/[a-z]/.test(ch)) return true;
   }
   return false;
 }

@@ -9,10 +9,19 @@ describe("the labeled evaluation runs inside the test suite", () => {
     expect(gates.unknownFamilyCount).toBe(0);
     expect(gates.pairs).toBeGreaterThanOrEqual(150);
     expect(gates.hardCases).toBeGreaterThanOrEqual(40);
-    expect(gates.precision).toBeDefined();
+    expect(Number.isFinite(gates.precision)).toBe(true);
     expect(gates.precision).toBeGreaterThanOrEqual(0.98);
     expect(gates.failures).toEqual([]);
     expect(gates.pass).toBe(true);
+  });
+
+  test("too few labeled pairs and scenarios fail even with perfect precision", () => {
+    const positive = SCENARIOS.find(scenario => scenario.expected !== null)!;
+    const gates = evaluate([positive]);
+    expect(gates.precision).toBe(1);
+    expect(gates.pass).toBe(false);
+    expect(gates.failures.some(failure => failure.includes("150-pair floor"))).toBe(true);
+    expect(gates.failures.some(failure => failure.includes("40 floor"))).toBe(true);
   });
 
   test("every returned match clears the exported threshold and names an in-scope candidate", () => {
@@ -77,6 +86,45 @@ describe("review hard cases", () => {
     expect(display.candidateId).toBe(FERNANDO.id);
     expect(raw.candidateId).toBe(FERNANDO.id);
     expect(display.candidateId).toBe(raw.candidateId);
+  });
+
+  test("compound surnames also match within semicolon-separated display fields", () => {
+    const result = matchInstructor("Fernando Mosquera Ferrandiz; Jane Smith", [FERNANDO]);
+    expect(result.candidateId).toBe(FERNANDO.id);
+    expect(result.reason).toBe("one of 2 listed instructors; matched on surname and first name");
+  });
+
+  test("one matching instructor preserves the co-teaching count in raw and display forms", () => {
+    for (const field of [
+      "Mosquera Ferrandiz,Fernando,Smith,Jane,Jones,John",
+      "Fernando Mosquera Ferrandiz; Jane Smith; John Jones",
+    ]) {
+      const result = matchInstructor(field, [FERNANDO]);
+      expect(result.candidateId).toBe(FERNANDO.id);
+      expect(result.confidence).toBe(0.95);
+      expect(result.reason).toBe("one of 3 listed instructors; matched on surname and first name");
+    }
+  });
+
+  test("unsupported candidate letters cannot invent a matching first-name initial", () => {
+    const result = matchInstructor("Smith,Sam", [
+      { id: "sirri", name: "Sırrı Smith", firstName: "Sırrı", lastName: "Smith" },
+    ]);
+    expect(result).toEqual({
+      candidateId: null,
+      confidence: 0,
+      reason: "no candidate shares the section surname",
+    });
+  });
+
+  test("unstripped combining marks cannot invent a matching first-name initial", () => {
+    const ian: Candidate = { id: "ian", name: "Ian Smith", firstName: "Ian", lastName: "Smith" };
+    const result = matchInstructor("Smith,I᪰pek", [ian]);
+    expect(result).toEqual({
+      candidateId: null,
+      confidence: 0,
+      reason: "section instructor name has unsupported characters",
+    });
   });
 
   test("the display form still matches a plain single-token surname candidate", () => {
