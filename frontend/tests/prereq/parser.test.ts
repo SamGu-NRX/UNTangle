@@ -82,8 +82,7 @@ test("all 656 bundled sources produce engine assessments with current parse cove
     }
   }
   expect(sources.size).toBe(656);
-  // The corpus report predates concurrent-note handling and remains historical.
-  expect(counts).toEqual({ full: 434, partial: 164, unknown: 58 });
+  expect(counts).toEqual(coverage.counts);
   const unknownWithCodes = catalogEntries.filter(entry => parseUntPrerequisite(entry.prerequisites).coverage === "unknown" && /\b[A-Z]{2,5}\s*\d{4}[A-Z]?\b/i.test(entry.prerequisites)).length;
   expect(unknownWithCodes).toBe(coverage.unknownWithCourseCodes);
   expect(unknownWithCodes).toBeLessThan(40);
