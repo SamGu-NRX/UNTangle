@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { CalendarFetchError } from "@/lib/calendar-feeds/errors";
-import { fetchCalendarIcs, type FetchDeps } from "@/lib/calendar-feeds/fetch";
+import { defaultFetchDeps, fetchCalendarIcs, type FetchDeps } from "@/lib/calendar-feeds/fetch";
+import { httpsFixture } from "./https-fixture";
 import { isBlockedAddress, validateCalendarUrl } from "@/lib/calendar-feeds/ssrf";
 
 const ICS_BODY = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n";
@@ -8,6 +9,7 @@ const ICS_BODY = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n";
 function stubDeps(overrides: Partial<FetchDeps> = {}): { deps: FetchDeps; calls: string[] } {
   const calls: string[] = [];
   const deps: FetchDeps = {
+    requestHttps: httpsFixture(() => new Response(ICS_BODY)),
     resolveDns: async (hostname) => {
       calls.push(`dns:${hostname}`);
       return [{ address: "93.184.216.34", family: 4 }];
@@ -23,6 +25,71 @@ function stubDeps(overrides: Partial<FetchDeps> = {}): { deps: FetchDeps; calls:
   };
   return { deps, calls };
 }
+
+test("the HTTPS transport retains content checks, byte caps, stream errors and the shared deadline", async () => {
+  const cases: Array<{ kind: CalendarFetchError["kind"]; body: () => Response }> = [
+    { kind: "invalid", body: () => response(200, { "content-type": "text/html" }, "html") },
+    { kind: "invalid", body: () => response(200, { "content-type": "text/calendar", "content-length": "2048" }, ICS_BODY) },
+    { kind: "invalid", body: () => response(200, { "content-type": "text/calendar" }, "A".repeat(2048)) },
+    { kind: "unreachable", body: () => response(200, { "content-type": "text/calendar" }, new ReadableStream({
+      start(controller) { controller.error(new Error("connection dropped")); },
+    })) },
+    { kind: "timeout", body: () => response(200, { "content-type": "text/calendar" }, new ReadableStream({
+      pull: () => new Promise(() => {}),
+    })) },
+  ];
+  for (const { kind, body } of cases) {
+    const { deps } = stubDeps({
+      doFetch: defaultFetchDeps.doFetch,
+      requestHttps: httpsFixture(body),
+      maxBytes: 1024,
+      timeoutMs: 50,
+    });
+    await expectFetchError(kind, fetchCalendarIcs("https://calendar.example.com/feed.ics", deps));
+  }
+});
+
+test("the HTTPS connection is pinned when a second system lookup would rebind to loopback", async () => {
+  const connected: string[] = [];
+  let systemLookups = 0;
+  const requestHttps = httpsFixture(
+    () => response(200, { "content-type": "text/calendar" }, ICS_BODY),
+    (address) => connected.push(address),
+    () => { systemLookups += 1; return "127.0.0.1"; },
+  );
+  const { deps } = stubDeps({
+    doFetch: defaultFetchDeps.doFetch,
+    requestHttps: (url, options, onResponse) => {
+      expect(options.servername).toBe("calendar.example.com");
+      expect(options.headers).toEqual({ Host: "calendar.example.com" });
+      expect(options.rejectUnauthorized).toBe(true);
+      expect(options.agent).toBe(false);
+      return requestHttps(url, options, onResponse);
+    },
+  });
+  await expect(fetchCalendarIcs("https://calendar.example.com/feed.ics", deps)).resolves.toBe(ICS_BODY);
+  expect(connected).toEqual(["93.184.216.34"]);
+  expect(systemLookups).toBe(0);
+});
+
+test("a redirect hostname resolving private is refused before a second connection", async () => {
+  const connected: string[] = [];
+  const hosts: string[] = [];
+  const { deps } = stubDeps({
+    resolveDns: async (hostname) => {
+      hosts.push(hostname);
+      return [{ address: hostname === "calendar.example.com" ? "93.184.216.34" : "127.0.0.1", family: 4 }];
+    },
+    doFetch: defaultFetchDeps.doFetch,
+    requestHttps: httpsFixture(
+      () => response(302, { location: "https://rebound.example.com/feed.ics" }),
+      (address) => connected.push(address),
+    ),
+  });
+  await expectFetchError("blocked", fetchCalendarIcs("https://calendar.example.com/feed.ics", deps));
+  expect(hosts).toEqual(["calendar.example.com", "rebound.example.com"]);
+  expect(connected).toEqual(["93.184.216.34"]);
+});
 
 function response(status: number, headers: Record<string, string>, body: BodyInit | null = null): Response {
   return new Response(body, { status, headers });

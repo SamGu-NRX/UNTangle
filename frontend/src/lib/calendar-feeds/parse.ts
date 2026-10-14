@@ -70,7 +70,7 @@ export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParse
       skipped.push({ uid: event.uid, reason: "occurrence budget exceeded" });
       continue;
     }
-    const outcome = expandEvent(event, rangeStartMs, rangeEndMs, budget);
+    const outcome = expandEvent(event, rangeStartMs, rangeEndMs, budget, MAX_PARSE_OCCURRENCES - occurrences.length);
     if (outcome.ok) {
       occurrences.push(...outcome.occurrences);
       weeklyBusyBlocks.push(...outcome.busyBlocks);
@@ -212,7 +212,7 @@ function skipEvent(uid: string | null, reason: string): EventOutcome {
 }
 
 /** Expands one raw event into occurrences (and busy blocks for WEEKLY rules), or a skip reason. */
-function expandEvent(event: RawEvent, rangeStartMs: number, rangeEndMs: number, budget: ExpansionBudget): EventOutcome {
+function expandEvent(event: RawEvent, rangeStartMs: number, rangeEndMs: number, budget: ExpansionBudget, occurrenceAllowance: number): EventOutcome {
   if (event.status === "CANCELLED") {
     // A canceled event produces no occurrences and no busy time; omission is
     // the correct reading, so it is not reported as a skip anomaly.
@@ -246,13 +246,14 @@ function expandEvent(event: RawEvent, rangeStartMs: number, rangeEndMs: number, 
   }
 
   const busyBlocks =
-    rule !== null && rule.freq === "WEEKLY" ? weeklyBusyBlocksFor(event, start, durationMs, rule) : [];
+    rule !== null && rule.freq === "WEEKLY" ? weeklyBusyBlocksFor(event, start, durationMs, rule, budget) : [];
+  if (budget.exhausted) return skipEvent(event.uid, "recurrence expansion budget exceeded");
 
   const exclusions = resolveExdates(event, start);
   const outcome =
     rule === null
       ? singleOccurrences(event, start, durationMs, isAllDay, exclusions, rangeStartMs, rangeEndMs)
-      : expandOccurrences(event, start, durationMs, rule, exclusions, rangeStartMs, rangeEndMs, budget);
+      : expandOccurrences(event, start, durationMs, rule, exclusions, rangeStartMs, rangeEndMs, budget, occurrenceAllowance);
   if (!outcome.ok) return outcome;
   return { ok: true, occurrences: outcome.occurrences, busyBlocks };
 }
@@ -308,6 +309,7 @@ function expandOccurrences(
   rangeStartMs: number,
   rangeEndMs: number,
   budget: ExpansionBudget,
+  occurrenceAllowance: number,
 ): EventOutcome {
   const isAllDay = start.kind === "date";
   const zone = start.kind === "timed" ? start.zone : undefined;
@@ -339,9 +341,6 @@ function expandOccurrences(
 
   const occurrences: CalendarOccurrence[] = [];
   for (const candidateDate of candidates) {
-    if (occurrences.length >= MAX_PARSE_OCCURRENCES) {
-      return skipEvent(event.uid, "occurrence budget exceeded");
-    }
     const candidateMs = isAllDay
       ? calendarDateToUtcMs(candidateDate)
       : resolveZonedWallTime(
@@ -353,6 +352,7 @@ function expandOccurrences(
     if (candidateMs >= rangeEndMs) break; // later candidates start even further out
     if (isExcluded(exclusions, candidateMs, candidateDate, isAllDay)) continue;
     if (!overlapsRange(candidateMs, candidateMs + durationMs, rangeStartMs, rangeEndMs)) continue;
+    if (occurrences.length >= occurrenceAllowance) return skipEvent(event.uid, "occurrence budget exceeded");
     occurrences.push(makeOccurrence(event, candidateMs, candidateMs + durationMs, isAllDay));
   }
   return { ok: true, occurrences, busyBlocks: [] };
@@ -424,13 +424,20 @@ function weeklyBusyBlocksFor(
   start: TimedStart | DateStart,
   durationMs: number,
   rule: Rrule,
+  budget: ExpansionBudget,
 ): WeeklyBusyBlock[] {
   const summary = event.summary ?? "";
   const uid = event.uid ?? "";
   const byDays = [...new Set(rule.byDay ?? [])].sort((a, b) => a - b);
   if (start.kind === "date") {
-    const days = byDays.length > 0 ? byDays : [weekdayOfDate(start.date)];
-    return days.map((weekday) => ({
+    const anchors = byDays.length > 0 ? byDays : [weekdayOfDate(start.date)];
+    const days = new Set<number>();
+    // DTEND is exclusive. Beyond seven days the same weekdays repeat.
+    const span = Math.min(7, Math.ceil(durationMs / 86_400_000));
+    for (const anchor of anchors) {
+      for (let offset = 0; offset < span; offset += 1) days.add((anchor + offset) % 7);
+    }
+    return [...days].map((weekday) => ({
       uid,
       summary,
       weekday,
@@ -454,6 +461,12 @@ function weeklyBusyBlocksFor(
   const seen = new Set<string>();
   for (const anchorWeekday of anchorDays) {
     for (let offset = 0; offset <= spanDays; offset += 1) {
+      // Busy-block generation spends the same per-parse allowance as recurrence expansion.
+      if (budget.workRemaining <= 0) {
+        budget.exhausted = true;
+        return [];
+      }
+      budget.workRemaining -= 1;
       const segmentStart = offset === 0 ? startMinutes : 0;
       const segmentEnd = offset === spanDays ? endMinutes : 1440;
       if (segmentEnd <= segmentStart) continue; // an end exactly at midnight leaves no empty segment

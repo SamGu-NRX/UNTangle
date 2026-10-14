@@ -125,8 +125,11 @@ might reach includes the server's own intranet.
   { all: true, verbatim: true })` before each fetch. If ANY resolved address
   is blocked the fetch is refused, and resolution failure fails closed. The
   resolver is injectable (`FetchDeps.resolveDns`); tests never touch the
-  network.
-- **Redirects**: fetched with `redirect: "manual"`, at most 3 hops; every
+  network. Each `node:https` request uses a fresh socket and a custom lookup
+  that returns only the first validated address, without resolving again.
+  The original hostname remains the TLS server name and HTTP Host header;
+  certificate verification stays enabled.
+- **Redirects**: followed manually, at most 3 hops; every
   hop URL passes the full validation and DNS check before it is fetched. A
   3xx without a usable `Location` is an error; so is a fourth redirect.
 - **Limits**: one overall 10-second deadline shared across the whole chain
@@ -141,16 +144,3 @@ might reach includes the server's own intranet.
   as `unreachable`); none of them surface as a raw exception the route
   would answer with a 500. A rejected response cancels its body, so the
   transfer actually stops instead of draining until the deadline.
-
-### Known limitation: DNS-rebinding TOCTOU
-
-The fetcher resolves the hostname, checks the addresses, and only then
-fetches - so there is a window between check and use. A DNS rebinding
-attack rotates the name to an internal address between this check and the
-connection the HTTP client actually opens. The per-hop revalidation narrows
-the window but cannot close it, because the transport layer does its own
-DNS lookup that this code never sees. Closing it for good requires pinning
-the connection to the validated addresses (a custom `Agent` /
-`undici.Dispatcher` with `connect.lookup` overridden to return the already
-validated set), which is the natural next hardening step if this route ever
-faces untrusted traffic at scale.

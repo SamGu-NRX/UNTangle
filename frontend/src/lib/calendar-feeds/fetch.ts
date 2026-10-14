@@ -5,15 +5,28 @@
  * server tells the truth about its size.
  */
 
+import * as https from "node:https";
+import type { ClientRequest, IncomingMessage } from "node:http";
+import type { LookupFunction } from "node:net";
+import { Readable } from "node:stream";
 import { CalendarFetchError } from "./errors";
 import { ipLiteralHost, isBlockedAddress, validateCalendarUrl } from "./ssrf";
 
 export type DnsEntry = { address: string; family: 4 | 6 };
 
+type RequestHttps = (url: URL, options: https.RequestOptions, onResponse: (res: IncomingMessage) => void) => ClientRequest;
+type PinnedRequest = {
+  redirect: "manual";
+  signal: AbortSignal;
+  address: DnsEntry;
+  requestHttps: RequestHttps;
+};
+
 /** Everything a test needs to replace in order to keep fetchCalendarIcs off the network. */
 export type FetchDeps = {
   resolveDns: (hostname: string) => Promise<DnsEntry[]>;
-  doFetch: (url: string, init: { redirect: "manual"; signal: AbortSignal }) => Promise<Response>;
+  requestHttps: RequestHttps;
+  doFetch: (url: string, init: PinnedRequest) => Promise<Response>;
   timeoutMs: number;
   maxBytes: number;
   maxRedirects: number;
@@ -30,7 +43,8 @@ export const defaultFetchDeps: FetchDeps = {
     const entries = await dns.lookup(hostname, { all: true, verbatim: true });
     return entries.map((entry) => ({ address: entry.address, family: entry.family === 6 ? 6 : 4 }));
   },
-  doFetch: (url, init) => globalThis.fetch(url, init),
+  requestHttps: (url, options, onResponse) => https.request(url, options, onResponse),
+  doFetch: requestPinned,
   timeoutMs: 10_000,
   maxBytes: CALENDAR_MAX_BYTES,
   maxRedirects: 3,
@@ -50,10 +64,12 @@ export async function fetchCalendarIcs(rawUrl: string, deps: Partial<FetchDeps> 
   for (let hop = 0; ; hop += 1) {
     const check = validateCalendarUrl(currentUrl);
     if (!check.ok) throw new CalendarFetchError("invalid", check.reason);
-    await assertResolvable(check.url, resolved, deadline);
+    const address = await assertResolvable(check.url, resolved, deadline);
     let response: Response;
     try {
-      response = await resolved.doFetch(check.url.toString(), { redirect: "manual", signal });
+      response = await resolved.doFetch(check.url.toString(), {
+        redirect: "manual", signal, address, requestHttps: resolved.requestHttps,
+      });
     } catch (error) {
       throw fetchErrorFromCause(error);
     }
@@ -86,8 +102,9 @@ export async function fetchCalendarIcs(rawUrl: string, deps: Partial<FetchDeps> 
  * literal was already judged by validateCalendarUrl. Resolution failure fails
  * closed, and a hostname that resolves to no address is treated as a failure.
  */
-async function assertResolvable(url: URL, deps: FetchDeps, deadline: number): Promise<void> {
-  if (ipLiteralHost(url.hostname.toLowerCase()) !== null) return;
+async function assertResolvable(url: URL, deps: FetchDeps, deadline: number): Promise<DnsEntry> {
+  const literal = ipLiteralHost(url.hostname.toLowerCase());
+  if (literal !== null) return { address: literal, family: literal.includes(":") ? 6 : 4 };
   let entries: DnsEntry[];
   try {
     entries = await raceDeadline(deps.resolveDns(url.hostname), deadline);
@@ -103,6 +120,44 @@ async function assertResolvable(url: URL, deps: FetchDeps, deadline: number): Pr
       throw new CalendarFetchError("blocked", "the feed host resolves to a blocked address");
     }
   }
+  return entries[0]!;
+}
+
+/** Each hop gets a fresh socket, so neither DNS nor a pooled connection can bypass validation. */
+function requestPinned(rawUrl: string, init: PinnedRequest): Promise<Response> {
+  const url = new URL(rawUrl);
+  const hostname = ipLiteralHost(url.hostname) ?? url.hostname;
+  const lookup: LookupFunction = (_hostname, options, callback) => {
+    if (options.all) callback(null, [init.address]);
+    else callback(null, init.address.address, init.address.family);
+  };
+  return new Promise((resolve, reject) => {
+    const request = init.requestHttps(url, {
+      agent: false,
+      lookup,
+      servername: ipLiteralHost(url.hostname) === null ? hostname : undefined,
+      rejectUnauthorized: true,
+      headers: { Host: url.host },
+      signal: init.signal,
+    }, (incoming) => {
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
+      }
+      const status = incoming.statusCode ?? 502;
+      // Response forbids a body for these statuses. Discard their stream now.
+      if (status === 204 || status === 205 || status === 304) {
+        incoming.destroy();
+        resolve(new Response(null, { status, headers }));
+        return;
+      }
+      // SAFETY: IncomingMessage emits byte buffers; Node and DOM declare separate web-stream types.
+      const body = Readable.toWeb(incoming) as unknown as ReadableStream<Uint8Array>;
+      resolve(new Response(body, { status, headers }));
+    });
+    request.on("error", reject);
+    request.end();
+  });
 }
 
 /**

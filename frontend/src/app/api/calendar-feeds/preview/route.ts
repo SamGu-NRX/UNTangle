@@ -84,4 +84,4 @@ function resolveRange(rangeStart: unknown, rangeEnd: unknown): ParseRange | null
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
 }
 
-export const POST = withRateLimit("calendarFeedsPreview", previewHandler);
+export const POST = withRateLimit("calendarFeedPreview", previewHandler);

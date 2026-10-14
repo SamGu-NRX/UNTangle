@@ -116,6 +116,7 @@ export function expandRuleDates(
     const step0 = firstDailyStep(rule, dtstartDate, skipToDate);
     const priorAccepted = dailyPriorOccurrences(rule, dtstartDate, step0);
     let accepted = priorAccepted;
+    if (rule.count !== null && accepted >= rule.count) return dates;
     for (let step = step0; step - step0 < MAX_EXPANSION_ITERATIONS; step += 1) {
       if (budget.workRemaining <= 0) {
         budget.exhausted = true;
@@ -142,6 +143,7 @@ export function expandRuleDates(
   const anchor = addDaysToDate(dtstartDate, -weekOffset(weekdayOfDate(dtstartDate), rule.wkst));
   const week0 = firstWeeklyWeek(rule, anchor, skipToDate);
   let accepted = weeklyPriorOccurrences(rule, anchor, dtstartDate, weekDays, week0);
+  if (rule.count !== null && accepted >= rule.count) return dates;
   for (let week = week0; week - week0 < MAX_EXPANSION_ITERATIONS; week += 1) {
     const weekBase = addDaysToDate(anchor, week * rule.interval * 7);
     if (!candidateIsUsable(weekBase)) return dates;
