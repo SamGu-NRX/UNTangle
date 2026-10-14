@@ -34,6 +34,13 @@ export function SignInLinkForm() {
           Sign in
         </button>
       </form>
+      {/* The mobile app's handoff: the same unclaimed token, still only in the
+      fragment, handed to the app's deep link. Nothing here verifies it - the
+      token stays unused until the app posts it to the verify endpoint. */}
+      <p className="auth__lede">
+        On a phone?{" "}
+        <a href={`untangle://auth/callback${hash}`}>Open this link in the UNTangle app</a> instead.
+      </p>
     </>
   );
 }
