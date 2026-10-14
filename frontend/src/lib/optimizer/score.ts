@@ -191,3 +191,74 @@ export function scoreSchedule(input: ScoreInput): { cost: number; breakdown: Sch
   }
   return { cost, breakdown };
 }
+
+
+/**
+ * The optimizer's per-preference numbers for one schedule: exactly the terms
+ * `scoreSchedule`'s cost is a weighted sum of. Purely additive - nothing in
+ * scoring changes, and no existing export is touched. It exists so consumers
+ * (the reasons module) can compare schedules in the optimizer's own numbers
+ * instead of re-deriving them from the breakdown.
+ */
+export type CostTerms = {
+  /** Distinct days with a class. */
+  daysOnCampus: number;
+  /** Idle minutes between back-to-back classes, each pair counted once. */
+  gapMinutes: number;
+  /** Known travel seconds between back-to-back classes, plus UNKNOWN_WALK_SECONDS for each leg with no estimate. */
+  travelSeconds: number;
+  /**
+   * Back-to-back classes in different buildings with no travel estimate. Not
+   * a cost term by itself: `travelSeconds` already counts
+   * UNKNOWN_WALK_SECONDS for each one.
+   */
+  unknownWalks: number;
+  /** Mornings lean: each section's mean start after MORNING_ANCHOR, summed over sections. */
+  morningLeanMinutes: number;
+  /** Evenings lean: each section's mean end before EVENING_ANCHOR, summed over sections. */
+  eveningLeanMinutes: number;
+  /** Rating shortfall: each section's 50 minus its tenths (the course mean fills in when unrated), summed over sections. */
+  ratingShortfallTenths: number;
+};
+
+/** The per-preference numbers behind `scoreSchedule`'s cost, for the same input. */
+export function costTerms(input: ScoreInput): CostTerms {
+  const { sections, walkingTime } = input;
+  const byDay = meetingsByDay(sections, input.term);
+  let gapMinutes = 0;
+  let knownTravel = 0;
+  let unknownWalks = 0;
+  for (const day of OPT_DAYS) {
+    const list = byDay.get(day);
+    if (!list) continue;
+    someBackToBack(list, (prev, next) => {
+      gapMinutes += Math.max(0, next.start - prev.end);
+      if (sameBuilding(prev.buildingId, next.buildingId)) return false;
+      const walk = walkSeconds(walkingTime, prev.buildingId, next.buildingId);
+      if (walk === null) unknownWalks += 1;
+      else knownTravel += walk;
+      return false;
+    });
+  }
+  let morningLeanMinutes = 0;
+  let eveningLeanMinutes = 0;
+  let ratingShortfallTenths = 0;
+  for (const section of sections) {
+    const count = section.meetings.length;
+    const meanStart = Math.round(section.meetings.reduce((sum, m) => sum + m.start, 0) / count);
+    const meanEnd = Math.round(section.meetings.reduce((sum, m) => sum + m.end, 0) / count);
+    morningLeanMinutes += Math.max(0, meanStart - MORNING_ANCHOR);
+    eveningLeanMinutes += Math.max(0, EVENING_ANCHOR - meanEnd);
+    const tenths = ratingTenths(section.rating) ?? input.neutralRatingByCourse[section.courseCode] ?? DEFAULT_RATING_TENTHS;
+    ratingShortfallTenths += 50 - tenths;
+  }
+  return {
+    daysOnCampus: byDay.size,
+    gapMinutes,
+    travelSeconds: knownTravel + UNKNOWN_WALK_SECONDS * unknownWalks,
+    unknownWalks,
+    morningLeanMinutes,
+    eveningLeanMinutes,
+    ratingShortfallTenths,
+  };
+}

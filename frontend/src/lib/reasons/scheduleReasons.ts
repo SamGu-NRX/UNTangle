@@ -1,32 +1,53 @@
 /**
  * Why this schedule, in sentences a student can check.
  *
- * Every reason carries evidence: the exact optimizer numbers (or grade
- * history, or seat counts) it rests on. Comparisons are relative to the
- * optimizer's actual alternatives, never a hypothetical. Trade-offs are
- * stated as plainly as wins. Grade history describes the past and never
- * predicts a grade.
+ * Every number a reason quotes comes from the optimizer's own cost terms
+ * (`costTerms` in optimizer/score.ts) or from data the caller supplies.
+ * Comparisons and trade-offs are relative to the next alternative the
+ * optimizer actually returned, never a hypothetical, and options are named
+ * the way the UI names them (Option A, Option B). Trade-offs are stated as
+ * plainly as wins. Unknown travel time is never stated as a fact: when this
+ * schedule's own walks are unknown, the comparison is dropped and the
+ * assumption is labeled; when only the other schedule has unknowns and this
+ * one is lower, the difference is stated as "at least".
  *
- * This module imports from the optimizer's own modules (types, score,
- * explain) so its numbers are the optimizer's numbers. It changes nothing
- * in the optimizer or in grades-history.
+ * The optimizer's travel term counts every back-to-back transfer it routed,
+ * including shuttle rides, so sentences say "travel time", not "walking".
+ * Days on campus counts distinct days, not days in a week (part-of-term
+ * sessions make "a week" false), so no reason claims one. Grade history
+ * describes the past on an A through F denominator and never predicts a
+ * grade. This module imports from the optimizer's own modules; it changes
+ * nothing in the optimizer.
  */
 
-import { UNKNOWN_WALK_SECONDS } from "@/lib/optimizer/score";
+import {
+  costTerms,
+  COST_PER_DAY,
+  COST_PER_GAP_MINUTE,
+  COST_PER_LEAN_MINUTE,
+  COST_PER_RATING_TENTH,
+  COST_PER_WALK_SECOND,
+  EVENING_ANCHOR,
+  MORNING_ANCHOR,
+  neutralRatingTenths,
+  ratingTenths,
+  UNKNOWN_WALK_SECONDS,
+  type CostTerms,
+} from "@/lib/optimizer/score";
 import { formatClock } from "@/lib/optimizer/explain";
-import { MAX_WEIGHT, type OptWeights, type RankedSchedule, type ScheduleBreakdown } from "@/lib/optimizer/types";
-import type { CourseHistory } from "@/lib/grades-history/types";
+import type { OptSection, OptWeights, OptimizeRequest, ScheduleBreakdown } from "@/lib/optimizer/types";
+import type { GradeTotals } from "@/lib/grades-history/types";
 import type { Reason, ReasonEvidence, ScheduleReasonsInput, StatedPreference } from "./types";
 
 /** Most reasons returned by default. */
 export const DEFAULT_MAX_REASONS = 3;
 
 /**
- * Grade-history reasons need at least this many past sections of a course.
- * 10 is a starting value with no evidence behind it: it was never measured
- * against real grade distributions.
+ * Grade-history reasons need at least this many graded students (A through F)
+ * behind the instructor's totals. 10 is a starting value with no evidence
+ * behind it: it was never measured against real grade distributions.
  */
-export const MIN_GRADE_HISTORY_SECTIONS = 10;
+export const MIN_GRADE_SAMPLE = 10;
 
 /**
  * A section with at most this share of its seats open counts as filling up.
@@ -34,36 +55,10 @@ export const MIN_GRADE_HISTORY_SECTIONS = 10;
  */
 const TIGHT_SEAT_SHARE = 0.25;
 
-type Dim = {
-  key: StatedPreference;
-  /** True when a lower number is better for the student. */
-  lowerIsBetter: boolean;
-  stat: (breakdown: ScheduleBreakdown) => number | null;
-  statLabel: string;
-};
-
-const DIMS: Dim[] = [
-  { key: "fewerDays", lowerIsBetter: true, stat: (b) => b.daysOnCampus, statLabel: "days on campus" },
-  { key: "compact", lowerIsBetter: true, stat: (b) => b.gapMinutes, statLabel: "idle minutes" },
-  { key: "mornings", lowerIsBetter: true, stat: (b) => b.earliestStart, statLabel: "earliest start (minutes)" },
-  { key: "evenings", lowerIsBetter: false, stat: (b) => b.latestEnd, statLabel: "latest end (minutes)" },
-  {
-    key: "walking",
-    lowerIsBetter: true,
-    // The optimizer's own walking term: known seconds, each unknown walk as 600 s.
-    stat: (b) => b.walkSeconds + UNKNOWN_WALK_SECONDS * b.unknownWalks,
-    statLabel: `walking seconds (each unknown walk counted as ${UNKNOWN_WALK_SECONDS})`,
-  },
-  {
-    key: "rating",
-    lowerIsBetter: false,
-    stat: (b) => (b.averageRating === null ? null : Math.round(b.averageRating * 10)),
-    statLabel: "average instructor rating (tenths)",
-  },
-];
-
-function strengthForWeight(weight: number): number {
-  return Math.min(1, 0.4 + (0.15 * weight) / MAX_WEIGHT);
+/** How the UI names options: letters by rank. */
+function optionLetter(rank: number): string {
+  if (rank < 0 || rank >= 26) throw new Error(`reasons: cannot name alternative ${rank}`);
+  return String.fromCharCode(65 + rank);
 }
 
 function minutes(n: number): string {
@@ -74,289 +69,413 @@ function days(n: number): string {
   return `${n} ${n === 1 ? "day" : "days"}`;
 }
 
-/** "16 minutes" or "960 seconds": never a rounded walk. */
-function walkAmount(seconds: number): string {
-  return seconds % 60 === 0 ? `${seconds / 60} ${seconds === 60 ? "minute" : "minutes"}` : `${seconds} seconds`;
+/** Travel times rounded to minutes, as the UI shows them. */
+function travelMinutes(seconds: number): string {
+  const rounded = Math.max(1, Math.round(seconds / 60));
+  return minutes(rounded);
 }
 
-function ratingPoints(tenths: number): string {
+function points(tenths: number): string {
   return String(Math.round(tenths) / 10);
 }
 
-/** A relative phrase against the next option, for one dimension and a signed diff. */
-function diffSentence(key: StatedPreference, magnitude: number, worse: boolean): string {
-  switch (key) {
-    case "fewerDays":
-      return worse
-        ? `It costs ${magnitude} more ${magnitude === 1 ? "day" : "days"} on campus each week than the next option.`
-        : `It means ${magnitude} fewer ${magnitude === 1 ? "day" : "days"} on campus each week than the next option.`;
-    case "compact":
-      return worse
-        ? `It means ${minutes(magnitude)} more of idle time between classes than the next option.`
-        : `It means ${minutes(magnitude)} less of idle time between classes than the next option.`;
-    case "mornings":
-      return worse
-        ? `It starts ${minutes(magnitude)} later than the next option.`
-        : `It starts ${minutes(magnitude)} earlier than the next option.`;
-    case "evenings":
-      return worse
-        ? `It ends ${minutes(magnitude)} earlier than the next option.`
-        : `It ends ${minutes(magnitude)} later than the next option.`;
-    case "walking":
-      return worse
-        ? `It means ${walkAmount(magnitude)} more of walking a week than the next option.`
-        : `It means ${walkAmount(magnitude)} less of walking a week than the next option.`;
-    case "rating":
-      return worse
-        ? `Its instructors average ${ratingPoints(magnitude)} points lower than the next option's.`
-        : `Its instructors average ${ratingPoints(magnitude)} points higher than the next option's.`;
-  }
+function pointWord(tenths: number): string {
+  return Math.round(tenths) === 10 ? "point" : "points";
 }
 
-function evidenceForDiff(mine: number, theirs: number, dim: Dim): ReasonEvidence {
+function pairs(n: number): string {
+  return `${n} back-to-back ${n === 1 ? "pair" : "pairs"}`;
+}
+
+type FactContext = {
+  terms: CostTerms;
+  breakdown: ScheduleBreakdown;
+  chosen: readonly OptSection[];
+  request: OptimizeRequest;
+};
+
+type Dim = {
+  key: StatedPreference;
+  /** The optimizer's exchange rate: cost seconds per unit of the stat, at weight 1. */
+  costPerUnit: number;
+  /** This schedule's number on this dimension. Lower is always better: every stat is a cost term. */
+  stat: (terms: CostTerms) => number;
+  /**
+   * When a comparison against the next option must not be stated at all.
+   * Walking: never when this schedule's own travel is unknown, and only as a
+   * lower bound when the other schedule alone has unknowns.
+   */
+  mayCompare?: (mine: CostTerms, next: CostTerms) => boolean;
+  comparison: (mine: CostTerms, next: CostTerms, myLetter: string, theirLetter: string) => { sentence: string; kind: "comparison" | "trade-off"; evidence: ReasonEvidence };
+  /** This schedule alone. Null when there is nothing to say. */
+  fact: (ctx: FactContext) => { sentence: string; evidence: ReasonEvidence } | null;
+};
+
+function diffEvidence(dimLabel: string, myLetter: string, theirLetter: string, mine: number, theirs: number, extra: ReasonEvidence["numbers"] = []): ReasonEvidence {
   return {
     numbers: [
-      { label: `this schedule: ${dim.statLabel}`, value: mine },
-      { label: `next option: ${dim.statLabel}`, value: theirs },
-      { label: "difference", value: mine - theirs },
+      { label: `Option ${myLetter}: ${dimLabel}`, value: mine },
+      { label: `Option ${theirLetter}: ${dimLabel}`, value: theirs },
+      { label: "difference (this option minus the next)", value: mine - theirs },
+      { label: "difference magnitude", value: Math.abs(mine - theirs) },
+      ...extra,
     ],
-    facts: ["optimizer breakdowns of both schedules, as returned by the search"],
   };
 }
 
-/** Comparisons (favorable) and trade-offs (unfavorable) against the next option the optimizer returned. */
-function pushComparisons(out: Reason[], mine: ScheduleBreakdown, theirs: ScheduleBreakdown, weights: OptWeights): void {
-  for (const dim of DIMS) {
-    const weight = weights[dim.key];
-    if (weight <= 0) continue;
-    const a = dim.stat(mine);
-    const b = dim.stat(theirs);
-    if (a === null || b === null || a === b) continue;
-    const worse = dim.lowerIsBetter ? a > b : a < b;
-    out.push({
-      sentence: diffSentence(dim.key, Math.abs(a - b), worse),
-      kind: worse ? "trade-off" : "comparison",
-      preference: dim.key,
-      strength: strengthForWeight(weight),
-      evidence: evidenceForDiff(a, b, dim),
-    });
-  }
-}
-
-/** Facts about this schedule alone, tied to the stated preferences. */
-function pushPreferenceMet(out: Reason[], breakdown: ScheduleBreakdown, weights: OptWeights): void {
-  if (weights.fewerDays > 0) {
-    out.push({
-      sentence: `It keeps you on campus ${days(breakdown.daysOnCampus)} a week.`,
-      kind: "preference-met",
-      preference: "fewerDays",
-      strength: strengthForWeight(weights.fewerDays),
-      evidence: {
-        numbers: [
-          { label: "days on campus", value: breakdown.daysOnCampus },
-          { label: "fewerDays weight", value: weights.fewerDays },
-        ],
-        facts: ["optimizer breakdown.daysOnCampus"],
-      },
-    });
-  }
-  if (weights.compact > 0) {
-    out.push({
-      sentence:
-        breakdown.gapMinutes === 0
-          ? "There is no idle time between classes."
-          : `Idle time between classes adds up to ${minutes(breakdown.gapMinutes)} a week.`,
-      kind: "preference-met",
-      preference: "compact",
-      strength: strengthForWeight(weights.compact),
-      evidence: {
-        numbers: [
-          { label: "idle minutes", value: breakdown.gapMinutes },
-          { label: "compact weight", value: weights.compact },
-        ],
-        facts: ["optimizer breakdown.gapMinutes"],
-      },
-    });
-  }
-  if (weights.mornings > 0 && breakdown.earliestStart !== null) {
-    out.push({
-      sentence: `Your earliest class starts at ${formatClock(breakdown.earliestStart)}.`,
-      kind: "preference-met",
-      preference: "mornings",
-      strength: strengthForWeight(weights.mornings),
-      evidence: {
-        numbers: [
-          { label: "earliest start (minutes)", value: breakdown.earliestStart },
-          { label: "mornings weight", value: weights.mornings },
-        ],
-        facts: ["optimizer breakdown.earliestStart"],
-      },
-    });
-  }
-  if (weights.evenings > 0 && breakdown.latestEnd !== null) {
-    out.push({
-      sentence: `Your latest class ends at ${formatClock(breakdown.latestEnd)}.`,
-      kind: "preference-met",
-      preference: "evenings",
-      strength: strengthForWeight(weights.evenings),
-      evidence: {
-        numbers: [
-          { label: "latest end (minutes)", value: breakdown.latestEnd },
-          { label: "evenings weight", value: weights.evenings },
-        ],
-        facts: ["optimizer breakdown.latestEnd"],
-      },
-    });
-  }
-  if (weights.rating > 0 && breakdown.averageRating !== null) {
-    out.push({
-      sentence: `Your sections' instructors average ${breakdown.averageRating.toFixed(1)} of 5.`,
-      kind: "preference-met",
-      preference: "rating",
-      strength: strengthForWeight(weights.rating),
-      evidence: {
-        numbers: [
-          { label: "average instructor rating", value: breakdown.averageRating },
-          { label: "rating weight", value: weights.rating },
-        ],
-        facts: ["optimizer breakdown.averageRating"],
-      },
-    });
-  }
-}
-
-/** Walking facts, with unknown walks kept unknown instead of quietly assumed away. */
-function pushWalking(out: Reason[], breakdown: ScheduleBreakdown, weights: OptWeights): void {
-  if (breakdown.walkSeconds === 0 && breakdown.unknownWalks === 0) return;
-  const hasUnknown = breakdown.unknownWalks > 0;
-  const knownPart =
-    breakdown.walkSeconds > 0 ? `Walking between back-to-back classes adds up to ${walkAmount(breakdown.walkSeconds)} a week` : null;
-  const unknownPart = hasUnknown
-    ? `walk time is unknown for ${breakdown.unknownWalks} back-to-back ${breakdown.unknownWalks === 1 ? "pair" : "pairs"}, and the estimate assumes ${walkAmount(UNKNOWN_WALK_SECONDS)} for ${breakdown.unknownWalks === 1 ? "it" : "each"}`
-    : null;
-  const sentence = [knownPart, unknownPart].filter((part): part is string => part !== null).join("; ") + ".";
-  const numbers: ReasonEvidence["numbers"] = [
-    { label: "known walking seconds", value: breakdown.walkSeconds },
-    { label: "unknown walks", value: breakdown.unknownWalks },
-  ];
-  if (hasUnknown) numbers.push({ label: "assumed seconds per unknown walk", value: UNKNOWN_WALK_SECONDS });
-  out.push({
-    sentence,
-    kind: "walking",
-    preference: weights.walking > 0 ? "walking" : null,
-    strength: weights.walking > 0 ? strengthForWeight(weights.walking) : 0.35,
-    evidence: {
-      numbers,
-      facts: [
-        "optimizer breakdown.walkSeconds (known walks, whole seconds)",
-        "optimizer breakdown.unknownWalks",
-        "assumption UNKNOWN_WALK_SECONDS = 600 seconds from optimizer/score.ts, not a measurement",
-      ],
+const DIMS: Dim[] = [
+  {
+    key: "fewerDays",
+    costPerUnit: COST_PER_DAY,
+    stat: (terms) => terms.daysOnCampus,
+    comparison: (mine, next, myLetter, theirLetter) => {
+      const diff = mine.daysOnCampus - next.daysOnCampus;
+      const worse = diff > 0;
+      return {
+        sentence: worse
+          ? `It costs ${days(diff)} more on campus than Option ${theirLetter}.`
+          : `It means ${days(-diff)} fewer on campus than Option ${theirLetter}.`,
+        kind: worse ? "trade-off" : "comparison",
+        evidence: diffEvidence("days on campus", myLetter, theirLetter, mine.daysOnCampus, next.daysOnCampus),
+      };
     },
-  });
+    fact: ({ breakdown }) => ({
+      sentence: `It keeps you on campus ${days(breakdown.daysOnCampus)}.`,
+      evidence: { numbers: [{ label: "days on campus", value: breakdown.daysOnCampus }] },
+    }),
+  },
+  {
+    key: "compact",
+    costPerUnit: COST_PER_GAP_MINUTE,
+    stat: (terms) => terms.gapMinutes,
+    comparison: (mine, next, myLetter, theirLetter) => {
+      const diff = mine.gapMinutes - next.gapMinutes;
+      const worse = diff > 0;
+      return {
+        sentence: worse
+          ? `Time between classes runs ${minutes(diff)} longer than Option ${theirLetter}'s.`
+          : `Time between classes runs ${minutes(-diff)} shorter than Option ${theirLetter}'s.`,
+        kind: worse ? "trade-off" : "comparison",
+        evidence: diffEvidence("time between classes (minutes)", myLetter, theirLetter, mine.gapMinutes, next.gapMinutes),
+      };
+    },
+    fact: ({ breakdown }) =>
+      breakdown.gapMinutes === 0
+        ? { sentence: "There is no time between classes.", evidence: { numbers: [{ label: "time between classes (minutes)", value: 0 }] } }
+        : {
+            sentence: `Time between classes adds up to ${minutes(breakdown.gapMinutes)}.`,
+            evidence: { numbers: [{ label: "time between classes (minutes)", value: breakdown.gapMinutes }] },
+          },
+  },
+  {
+    key: "mornings",
+    costPerUnit: COST_PER_LEAN_MINUTE,
+    stat: (terms) => terms.morningLeanMinutes,
+    comparison: (mine, next, myLetter, theirLetter) => {
+      const diff = mine.morningLeanMinutes - next.morningLeanMinutes;
+      const worse = diff > 0;
+      return {
+        sentence: worse
+          ? `Its classes start a combined ${minutes(diff)} later (counted after ${formatClock(MORNING_ANCHOR)}) than Option ${theirLetter}'s.`
+          : `Its classes start a combined ${minutes(-diff)} earlier (counted after ${formatClock(MORNING_ANCHOR)}) than Option ${theirLetter}'s.`,
+        kind: worse ? "trade-off" : "comparison",
+        evidence: diffEvidence(`morning lean (minutes after ${formatClock(MORNING_ANCHOR)})`, myLetter, theirLetter, mine.morningLeanMinutes, next.morningLeanMinutes, [
+          { label: "lean counts minutes after", value: formatClock(MORNING_ANCHOR) },
+        ]),
+      };
+    },
+    fact: ({ breakdown }) =>
+      breakdown.earliestStart === null
+        ? null
+        : {
+            sentence: `Your earliest class starts at ${formatClock(breakdown.earliestStart)}.`,
+            evidence: {
+              numbers: [
+                { label: "earliest start", value: formatClock(breakdown.earliestStart) },
+                { label: "earliest start (minutes after midnight)", value: breakdown.earliestStart },
+              ],
+            },
+          },
+  },
+  {
+    key: "evenings",
+    costPerUnit: COST_PER_LEAN_MINUTE,
+    stat: (terms) => terms.eveningLeanMinutes,
+    comparison: (mine, next, myLetter, theirLetter) => {
+      const diff = mine.eveningLeanMinutes - next.eveningLeanMinutes;
+      // A smaller evenings lean means the classes end later in the day.
+      const worse = diff < 0;
+      return {
+        sentence: worse
+          ? `Its classes end a combined ${minutes(-diff)} earlier (counted before ${formatClock(EVENING_ANCHOR)}) than Option ${theirLetter}'s.`
+          : `Its classes end a combined ${minutes(diff)} later (counted before ${formatClock(EVENING_ANCHOR)}) than Option ${theirLetter}'s.`,
+        kind: worse ? "trade-off" : "comparison",
+        evidence: diffEvidence(`evenings lean (minutes before ${formatClock(EVENING_ANCHOR)})`, myLetter, theirLetter, mine.eveningLeanMinutes, next.eveningLeanMinutes, [
+          { label: "lean counts minutes before", value: formatClock(EVENING_ANCHOR) },
+        ]),
+      };
+    },
+    fact: ({ breakdown }) =>
+      breakdown.latestEnd === null
+        ? null
+        : {
+            sentence: `Your latest class ends at ${formatClock(breakdown.latestEnd)}.`,
+            evidence: {
+              numbers: [
+                { label: "latest end", value: formatClock(breakdown.latestEnd) },
+                { label: "latest end (minutes after midnight)", value: breakdown.latestEnd },
+              ],
+            },
+          },
+  },
+  {
+    key: "walking",
+    costPerUnit: COST_PER_WALK_SECOND,
+    stat: (terms) => terms.travelSeconds,
+    mayCompare: (mine, next) =>
+      // An unknown walk is assumed 600 seconds, so a comparison that crosses
+      // one would state the assumption as a fact. State it only as a lower
+      // bound, and only when the unknowns are all on the other side.
+      mine.unknownWalks === 0 && (next.unknownWalks === 0 || mine.travelSeconds < next.travelSeconds),
+    comparison: (mine, next, myLetter, theirLetter) => {
+      const diff = mine.travelSeconds - next.travelSeconds;
+      const worse = diff > 0;
+      const atLeast = next.unknownWalks > 0;
+      const label = "travel seconds (each unknown walk counted as 600)";
+      return {
+        sentence: worse
+          ? `It means ${travelMinutes(diff)} more travel time between classes than Option ${theirLetter}.`
+          : `It means ${atLeast ? "at least " : ""}${travelMinutes(-diff)} less travel time between classes than Option ${theirLetter}.`,
+        kind: worse ? "trade-off" : "comparison",
+        evidence: diffEvidence(label, myLetter, theirLetter, mine.travelSeconds, next.travelSeconds, [
+          { label: "difference (minutes)", value: Math.round(Math.abs(diff) / 60) },
+          ...(atLeast ? [{ label: "at least: each of the other option's unknown walks could take longer than 600 seconds", value: next.unknownWalks } as const] : []),
+        ]),
+      };
+    },
+    fact: ({ terms }) =>
+      terms.travelSeconds === 0
+        ? { sentence: "There is no travel time between back-to-back classes.", evidence: { numbers: [{ label: "travel seconds", value: 0 }] } }
+        : {
+            sentence: `Travel time between back-to-back classes adds up to ${travelMinutes(terms.travelSeconds)}.`,
+            evidence: {
+              numbers: [
+                { label: "travel seconds (each unknown walk counted as 600)", value: terms.travelSeconds },
+                { label: "travel minutes", value: Math.max(1, Math.round(terms.travelSeconds / 60)) },
+              ],
+            },
+          },
+  },
+  {
+    key: "rating",
+    costPerUnit: COST_PER_RATING_TENTH,
+    stat: (terms) => terms.ratingShortfallTenths,
+    comparison: (mine, next, myLetter, theirLetter) => {
+      const diff = mine.ratingShortfallTenths - next.ratingShortfallTenths;
+      // A smaller shortfall means the instructors average higher.
+      const worse = diff > 0;
+      const label = "rating shortfall (tenths; the course mean fills in for unrated sections)";
+      return {
+        sentence: worse
+          ? `Its instructors average ${points(diff)} ${pointWord(diff)} lower than Option ${theirLetter}'s.`
+          : `Its instructors average ${points(-diff)} ${pointWord(-diff)} higher than Option ${theirLetter}'s.`,
+        kind: worse ? "trade-off" : "comparison",
+        evidence: diffEvidence(label, myLetter, theirLetter, mine.ratingShortfallTenths, next.ratingShortfallTenths, [
+          { label: "difference (points)", value: Math.abs(Math.round(diff)) / 10 },
+        ]),
+      };
+    },
+    fact: ({ terms, breakdown, chosen }) => {
+      const rated = chosen.filter((section) => ratingTenths(section.rating) !== null).length;
+      if (rated === 0) {
+        return {
+          sentence: "No section of this schedule has a rating.",
+          evidence: {
+            numbers: [
+              { label: "rated sections", value: 0 },
+              { label: "rating shortfall (tenths; the course mean fills in for unrated sections)", value: terms.ratingShortfallTenths },
+            ],
+          },
+        };
+      }
+      return {
+        sentence: `Instructors average ${breakdown.averageRating} of 5 across the ${rated} rated ${rated === 1 ? "section" : "sections"}.`,
+        evidence: {
+          numbers: [
+            { label: "average instructor rating (rated sections only)", value: breakdown.averageRating! },
+            { label: "rated sections", value: rated },
+            { label: "rating scale maximum", value: 5 },
+          ],
+        },
+      };
+    },
+  },
+];
+
+/** Travel time the optimizer could only assume, stated as an assumption. */
+function travelUnknownReason(terms: CostTerms, weight: number): { reason: Reason; weight: number } {
+  const n = terms.unknownWalks;
+  return {
+    reason: {
+      sentence: `Travel time is unknown for ${pairs(n)} across buildings, and the estimate counts ${travelMinutes(UNKNOWN_WALK_SECONDS)} for ${n === 1 ? "it" : "each"}.`,
+      kind: "travel-unknown",
+      preference: weight > 0 ? "walking" : null,
+      evidence: {
+        numbers: [
+          { label: "unknown walks", value: n },
+          { label: "assumed seconds per unknown walk", value: UNKNOWN_WALK_SECONDS },
+          { label: "assumed minutes per unknown walk", value: UNKNOWN_WALK_SECONDS / 60 },
+        ],
+      },
+    },
+    weight,
+  };
 }
 
 /** Seat counts come from the caller; unknowns never become numbers. */
-function pushSeats(
-  out: Reason[],
-  input: ScheduleReasonsInput,
-  schedule: RankedSchedule,
-): void {
-  if (!input.seats) return;
-  for (const course of input.request.courses) {
-    const sectionId = schedule.byCourse[course.code];
-    if (sectionId === undefined) continue;
-    const section = course.sections.find((candidate) => candidate.id === sectionId);
-    const seats = input.seats[sectionId];
-    if (!section || !seats || seats.open === null) continue;
+function seatReasons(input: ScheduleReasonsInput, chosen: readonly OptSection[]): Array<{ reason: Reason; weight: number }> {
+  const out: Array<{ reason: Reason; weight: number }> = [];
+  if (!input.seats) return out;
+  for (const section of chosen) {
+    const seats = input.seats[section.id];
+    if (!seats || seats.open === null) continue;
     const isClosed = seats.open === 0;
-    const isTight = isClosed || (seats.total !== null && seats.open / seats.total <= TIGHT_SEAT_SHARE);
+    const isTight = isClosed || (seats.total !== null && seats.total > 0 && seats.open / seats.total <= TIGHT_SEAT_SHARE);
     if (!isTight) continue;
     const label = section.label ?? section.id;
     out.push({
-      sentence: isClosed
-        ? `Section ${label} of ${course.code} has no open seats left.`
-        : `Section ${label} of ${course.code} has ${seats.open} of ${seats.total} seats open.`,
-      kind: "seats",
-      preference: null,
-      strength: isClosed ? 0.9 : 0.45,
-      evidence: {
-        numbers: [
-          { label: "open seats", value: seats.open },
-          ...(seats.total !== null ? [{ label: "total seats", value: seats.total }] : []),
-        ],
-        facts: ["seat counts supplied by the caller for this section"],
+      reason: {
+        sentence: isClosed
+          ? `Section ${label} of ${section.courseCode} has no open seats left.`
+          : `Section ${label} of ${section.courseCode} has ${seats.open} of ${seats.total} seats open.`,
+        kind: "seats",
+        preference: null,
+        evidence: {
+          numbers: [
+            { label: "open seats", value: seats.open },
+            ...(seats.total !== null ? [{ label: "total seats", value: seats.total }] : []),
+          ],
+        },
       },
+      weight: 0,
     });
   }
+  return out;
 }
 
 /**
- * Descriptive grade history from untgrades.app, only for courses with enough
- * past sections. It never predicts a grade and never claims that a section
- * causes one.
+ * Descriptive grade history from untgrades.app for the chosen instructor,
+ * on an A through F denominator. It never predicts a grade and never claims
+ * that a section causes one.
  */
-function pushGradeHistory(
-  out: Reason[],
-  input: ScheduleReasonsInput,
-  schedule: RankedSchedule,
-): void {
-  if (!input.gradeHistory) return;
-  for (const course of input.request.courses) {
-    const sectionId = schedule.byCourse[course.code];
-    if (sectionId === undefined) continue;
-    const history: CourseHistory | undefined = input.gradeHistory[course.code];
-    if (!history || history.sectionCount < MIN_GRADE_HISTORY_SECTIONS) continue;
-    const total = history.total;
-    const aOrB = history.grades.gradeA + history.grades.gradeB;
-    if (total <= 0) continue;
-    const share = Math.round((aOrB / total) * 100);
-    const gpa = history.gpa !== null ? ` (GPA ${history.gpa.toFixed(2)})` : "";
+function gradeReasons(input: ScheduleReasonsInput, chosen: readonly OptSection[]): Array<{ reason: Reason; weight: number }> {
+  const out: Array<{ reason: Reason; weight: number }> = [];
+  if (!input.instructorGradeHistory) return out;
+  for (const section of chosen) {
+    const totals: GradeTotals | undefined = input.instructorGradeHistory[section.id];
+    if (!totals) continue;
+    const g = totals.grades;
+    const aThroughF = g.gradeA + g.gradeB + g.gradeC + g.gradeD + g.gradeF;
+    if (aThroughF < MIN_GRADE_SAMPLE) continue;
+    const aOrB = g.gradeA + g.gradeB;
+    const share = Math.round((aOrB / aThroughF) * 100);
     out.push({
-      sentence: `Across ${history.sectionCount} past sections of ${course.code}, ${share}% of recorded grades were an A or B${gpa}.`,
-      kind: "grade-history",
-      preference: null,
-      strength: 0.2,
-      evidence: {
-        numbers: [
-          { label: "past sections", value: history.sectionCount },
-          { label: "share of A or B grades (%)", value: share },
-          { label: "recorded grades", value: total },
-          ...(history.gpa !== null ? [{ label: "GPA", value: history.gpa }] : []),
-        ],
-        facts: [
-          "grade history from untgrades.app via lib/grades-history",
-          "descriptive only: past grades of other students say nothing about any future grade",
-        ],
+      reason: {
+        sentence: `Across past sections taught by this section's instructor, ${share}% of ${aThroughF} graded students earned an A or B in ${section.courseCode}.`,
+        kind: "grade-history",
+        preference: null,
+        evidence: {
+          numbers: [
+            { label: "graded students (A through F)", value: aThroughF },
+            { label: "share of A or B grades (%)", value: share },
+            { label: "A grades", value: g.gradeA },
+            { label: "B grades", value: g.gradeB },
+          ],
+        },
       },
+      weight: 0,
     });
   }
+  return out;
 }
 
 /**
- * Why this schedule, ranked by the student's stated preferences.
- *
- * Returns at most `maxReasons` (default 3), strongest first. Comparisons and
- * trade-offs are relative to the next option the optimizer actually returned;
- * with no next option there are none. Every reason carries evidence; none is
- * emitted without it.
+ * Why this schedule, ranked by how much each difference is worth to the
+ * optimizer: the weight times the cost per unit times the difference, one
+ * reason per preference. Facts that compare nothing come after, in a fixed
+ * order. Returns at most `maxReasons` (default 3), strongest first. Every
+ * reason carries evidence; none is emitted without it.
  */
 export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
-  const rank = input.alternatives.findIndex((alternative) => alternative === input.schedule);
-  if (rank < 0) throw new Error("reasons: schedule must be one of the alternatives");
-  if (input.maxReasons !== undefined && input.maxReasons < 0) {
-    throw new Error("reasons: maxReasons must not be negative");
+  const { alternatives, request } = input;
+  if (!Number.isInteger(input.index) || input.index < 0 || input.index >= alternatives.length) {
+    throw new Error("reasons: index must point at one of the alternatives");
   }
-  const next = input.alternatives[rank + 1] ?? null;
-  const reasons: Reason[] = [];
-  if (next) pushComparisons(reasons, input.schedule.breakdown, next.breakdown, input.request.weights);
-  pushPreferenceMet(reasons, input.schedule.breakdown, input.request.weights);
-  pushWalking(reasons, input.schedule.breakdown, input.request.weights);
-  pushSeats(reasons, input, input.schedule);
-  pushGradeHistory(reasons, input, input.schedule);
-  return reasons
-    .map((reason, index) => ({ reason, index }))
-    .sort((a, b) => b.reason.strength - a.reason.strength || a.index - b.index)
+  if (input.maxReasons !== undefined && (!Number.isFinite(input.maxReasons) || input.maxReasons < 0)) {
+    throw new Error("reasons: maxReasons must be a non-negative number");
+  }
+  const neutralRatingByCourse: Record<string, number> = {};
+  const creditsByCourse: Record<string, number> = {};
+  for (const course of request.courses) {
+    neutralRatingByCourse[course.code] = neutralRatingTenths(course.sections);
+    creditsByCourse[course.code] = course.credits;
+  }
+  const chosenIn = (rank: number): OptSection[] => {
+    const schedule = alternatives[rank];
+    return request.courses.map((course) => {
+      const sectionId = schedule.byCourse[course.code];
+      const section = course.sections.find((candidate) => candidate.id === sectionId);
+      if (!section) throw new Error(`reasons: alternatives[${rank}] does not choose a section of ${course.code}`);
+      return section;
+    });
+  };
+  const termsIn = (rank: number): CostTerms =>
+    costTerms({
+      sections: chosenIn(rank),
+      term: request.term,
+      creditsByCourse,
+      neutralRatingByCourse,
+      weights: request.weights,
+      walkingTime: request.walkingTime,
+    });
+  const allTerms = alternatives.map((_, rank) => termsIn(rank));
+  const mine = allTerms[input.index];
+  const next = input.index + 1 < alternatives.length ? allTerms[input.index + 1] : null;
+  const myLetter = optionLetter(input.index);
+  const theirLetter = next !== null ? optionLetter(input.index + 1) : null;
+  const weights: OptWeights = request.weights;
+
+  const tagged: Array<{ reason: Reason; priority: number; weight: number }> = [];
+  const push = (reason: Reason, priority: number, weight: number) => tagged.push({ reason, priority, weight });
+
+  for (const dim of DIMS) {
+    const weight = weights[dim.key];
+    if (weight <= 0) continue;
+    const mineStat = dim.stat(mine);
+    const comparable = next !== null && (dim.mayCompare ? dim.mayCompare(mine, next) : true);
+    if (comparable && dim.stat(next) !== mineStat) {
+      const built = dim.comparison(mine, next, myLetter, theirLetter!);
+      push({ ...built, preference: dim.key }, weight * dim.costPerUnit * Math.abs(mineStat - dim.stat(next)), weight);
+    } else {
+      const built = dim.fact({ terms: mine, breakdown: alternatives[input.index].breakdown, chosen: chosenIn(input.index), request });
+      if (built) {
+        const best = allTerms.every((terms) => dim.stat(terms) >= mineStat);
+        push({ sentence: built.sentence, kind: best ? "preference-met" : "fact", preference: dim.key, evidence: built.evidence }, 0, weight);
+      }
+    }
+  }
+
+  if (mine.unknownWalks > 0) {
+    const built = travelUnknownReason(mine, weights.walking);
+    push(built.reason, 0, built.weight);
+  }
+  for (const entry of [...seatReasons(input, chosenIn(input.index)), ...gradeReasons(input, chosenIn(input.index))]) {
+    push(entry.reason, 0, entry.weight);
+  }
+
+  return tagged
+    .map((entry, order) => ({ ...entry, order }))
+    .sort((a, b) => b.priority - a.priority || b.weight - a.weight || a.order - b.order)
     .slice(0, input.maxReasons ?? DEFAULT_MAX_REASONS)
     .map((entry) => entry.reason);
 }
