@@ -1,11 +1,11 @@
 name: CI
 
 on:
-  # main is listed so a ruleset on main can require these checks on PRs into it.
+  # main is listed so a ruleset on main can require these checks; edge is the unreviewed integration branch.
   pull_request:
-    branches: [alpha, main]
+    branches: [alpha, main, edge]
   push:
-    branches: [alpha, main]
+    branches: [alpha, main, edge]
   workflow_dispatch:
     inputs:
       run_live_postgres:
