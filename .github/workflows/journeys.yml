@@ -150,14 +150,23 @@ jobs:
           echo "UNTANGLE_E2E_MODULES=$PWD/node_modules" >> "$GITHUB_ENV"
           echo "PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
           echo "AXE_PATH=$PWD/node_modules/axe-core/axe.min.js" >> "$GITHUB_ENV"
-      - name: Cache Chromium
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore Chromium cache
+        id: chromium-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ runner.temp }}/journey-browsers
           key: journey-chromium-${{ runner.os }}-${{ runner.arch }}-1.58.2
       # System libraries are installed on cache hits too.
       - name: Install Chromium and system dependencies
         run: node "$UNTANGLE_E2E_MODULES/playwright/cli.js" install --with-deps chromium
+      # Save before ownership changes make private browser metadata unreadable to
+      # the runner. A later assertion failure should still keep this download.
+      - name: Save Chromium cache
+        if: steps.chromium-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/journey-browsers
+          key: journey-chromium-${{ runner.os }}-${{ runner.arch }}-1.58.2
       - name: Generate throwaway configuration and migrate Postgres
         run: |
           for name in BETTER_AUTH_SECRET RESEND_API_KEY ORS_API_KEY; do
