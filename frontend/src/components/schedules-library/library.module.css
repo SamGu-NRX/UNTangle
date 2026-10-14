@@ -287,8 +287,8 @@
   position: relative;
   display: grid;
   grid-template-columns: 34px repeat(var(--days), 1fr);
-  /* 36px an hour: a 50-minute class is tall enough for its code's two lines. */
-  height: 324px;
+  /* 40px an hour: a 50-minute block (31px) holds its code's two 11px lines and padding. */
+  height: calc(var(--hours) * 40px);
   border-top: 1px solid var(--line);
 }
 .gutter {
@@ -314,30 +314,46 @@
   position: absolute;
   inset: 0 0 0 34px;
 }
-/* The code sits 4px clear of the 3px color bar and 3px clear of the right edge, on two lines. */
+/* The color bar is its own straight 3px pill, 2px in from the block's edge, so it
+   never curls at the rounded corners. The code sits 6px clear of it and 5px clear
+   of the right edge, on two lines (data-short: one, see week-grid.tsx). */
 .event {
   position: absolute;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 3px 3px 3px 7px;
+  padding: 3px 5px 3px 11px;
   border-radius: 6px;
   background: var(--ct);
-  box-shadow: inset 3px 0 0 var(--c);
-  font: 600 10.5px / 1.15 var(--font-ui);
-  letter-spacing: 0.01em;
+  font: 600 11px / 1.15 var(--font-ui);
   white-space: nowrap;
   color: var(--ink);
 }
+.event::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--c);
+}
 .event[data-variant="dashed"] {
   background: rgba(255, 255, 255, 0.5);
-  box-shadow: none;
   outline: 1.5px dashed var(--c);
   outline-offset: -1.5px;
   color: var(--ink);
 }
+.event[data-variant="dashed"]::before {
+  display: none;
+}
+/* Faded: the fill and bar pale toward paper; the code keeps full ink. */
 .event[data-variant="faded"] {
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--ct) 45%, var(--paper));
+}
+.event[data-variant="faded"]::before {
+  background: color-mix(in srgb, var(--c) 40%, var(--paper));
 }
 .legend {
   display: flex;
@@ -365,7 +381,8 @@
   outline-offset: -1.5px;
 }
 .legend i[data-variant="faded"] {
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--c3t) 45%, var(--paper));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c3) 40%, var(--paper));
 }
 
 .history {
@@ -518,15 +535,11 @@
 }
 @media (max-width: 759px) {
   .page {
-    padding: 12px 12px 32px;
+    /* Clears the tab bar, so the last row is never under it. */
+    padding: 12px 12px calc(var(--tabbar-h) + 32px + var(--safe-b));
   }
   .title {
     font-size: 20px;
-  }
-  .event {
-    padding: 3px 2px 3px 6px;
-    font-size: 10px;
-    letter-spacing: 0;
   }
   .pushList {
     transition:

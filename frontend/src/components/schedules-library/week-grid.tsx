@@ -153,7 +153,7 @@ export function WeekGrid({
                   height: `calc(${((item.end - item.start) / span) * 100}% - 2px)`,
                 }}
               >
-                <CodeLabel code={item.code} />
+                <CodeLabel code={item.code} oneLine={item.end - item.start < TWO_LINE_MINUTES} />
               </span>
             ))}
           </div>
@@ -165,15 +165,23 @@ export function WeekGrid({
 }
 
 /** "MATH" over "2700": a narrow block shows the whole code on two lines instead of cutting it. */
-function CodeLabel({ code }: { code: string }) {
+function CodeLabel({ code, oneLine }: { code: string; oneLine: boolean }) {
   const [department, number] = code.split(" ");
   return (
     <>
       <span>{department}</span>
-      {number ? <span>{number}</span> : null}
+      {/* A block too short for two lines drops the number rather than cutting both. */}
+      {number && !oneLine ? <span>{number}</span> : null}
     </>
   );
 }
+
+/**
+ * Shortest block, in minutes, with room for the code's two lines at 40px an
+ * hour (library.module.css .gridBody): 2 × 11px × 1.15 plus 6px of padding
+ * and the 2px gap is 33px, which is 50 minutes.
+ */
+const TWO_LINE_MINUTES = 50;
 
 const DAY_NAMES: Record<ClassDay, string> = {
   Mon: "Monday",
