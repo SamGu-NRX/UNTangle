@@ -20,7 +20,7 @@ import { dayHero, type HeroClass } from "@/lib/leave-by";
 import { toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
 import { DayHero, DayItinerary, DayStepper, StartPicker, type NextClass } from "@/components/map/day-panel";
-import { classDayOf, isoDateOf, meetsOn, minuteOf, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
+import { classDayOf, classesRunOn, isoDateOf, meetsOn, minuteOf, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { MapSelection } from "@/components/map/selection";
@@ -124,11 +124,13 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     [routeStops, onCampus],
   );
   const days = stepperDays(counts, today ?? day);
-  // Today counts only the meetings whose session runs today; another day shows the weekday's plan.
+  // Today counts only the meetings whose session runs today, and none on a
+  // holiday or break; another day shows the weekday's plan.
   const todayDate = isToday && clock ? isoDateOf(clock) : null;
   const stops = useMemo(() => {
     const all = onCampus ? (routeStops[day] ?? []) : [];
-    return todayDate ? all.filter((stop) => meetsOn(stop, todayDate)) : all;
+    if (!todayDate) return all;
+    return classesRunOn(todayDate) ? all.filter((stop) => meetsOn(stop, todayDate)) : [];
   }, [day, routeStops, onCampus, todayDate]);
   const start = useStartingPoint();
   const itinerary = useItinerary(stops, start);

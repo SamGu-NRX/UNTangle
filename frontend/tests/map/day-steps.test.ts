@@ -82,6 +82,11 @@ describe("nextClassFrom", () => {
     const spring = { ...empty, Mon: [meeting("A 1", "Mon", { start: "2027-01-19", end: "2027-05-07" })] };
     expect(nextClassFrom(spring, new Date(2026, 9, 13))).toBeNull();
   });
+  test("skips a holiday: Thanksgiving's Thursday class isn't next", () => {
+    const thursdays = { ...empty, Thu: [meeting("T 1", "Thu", null)] };
+    expect(nextClassFrom(thursdays, new Date(2026, 10, 18))).toMatchObject({ day: "Thu", ahead: 1 });
+    expect(nextClassFrom(thursdays, new Date(2026, 10, 25))).toBeNull();
+  });
   test("looks a full week ahead, to the same weekday", () => {
     const tuesdays = { ...empty, Tue: [meeting("T 1", "Tue", null)] };
     expect(nextClassFrom(tuesdays, new Date(2026, 9, 13))).toMatchObject({ day: "Tue", ahead: 7 });

@@ -1,3 +1,4 @@
+import { classDayStatus } from "@/lib/terms/terms";
 import { classDays, weekDays, type ClassDay, type MapStop } from "@/lib/types";
 
 export const dayNames: Record<ClassDay, string> = {
@@ -34,6 +35,15 @@ export function meetsOn(stop: Pick<MapStop, "dates">, isoDate: string): boolean 
 }
 
 /**
+ * Whether UNT holds classes on this date: false on a published holiday or
+ * break, or outside every term. An unpublished date ("unknown") counts as a
+ * class day, so the student's own meetings decide.
+ */
+export function classesRunOn(isoDate: string): boolean {
+  return classDayStatus(isoDate) !== "no-class";
+}
+
+/**
  * The first class in the coming week, by real date: tomorrow first, up to a
  * week ahead, skipping meetings whose session isn't running then. Null when
  * nothing meets in that week (between terms, or before one starts).
@@ -45,7 +55,8 @@ export function nextClassFrom(
   for (let ahead = 1; ahead <= 7; ahead += 1) {
     const date = new Date(from.getFullYear(), from.getMonth(), from.getDate() + ahead);
     const day = classDayOf(date);
-    const stop = stopsByDay[day]?.find((candidate) => meetsOn(candidate, isoDateOf(date)));
+    const iso = isoDateOf(date);
+    const stop = classesRunOn(iso) ? stopsByDay[day]?.find((candidate) => meetsOn(candidate, iso)) : undefined;
     if (stop) return { day, ahead, stop };
   }
   return null;
