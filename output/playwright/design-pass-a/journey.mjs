@@ -125,6 +125,12 @@ async function drag(page, phase, files) {
   );
 }
 const overlay = (page) => page.locator('[data-testid="pdf-drop-overlay"]');
+/**
+ * The visible toast's message. The Toaster also copies each message into a
+ * visually hidden live region, which is what a screen reader announces (once);
+ * the visible toast has no live role. A bare getByText matches both copies.
+ */
+const toastText = (page, text) => page.locator(".ui-toast__message").filter({ hasText: text });
 const flagSet = (page) => page.evaluate((key) => sessionStorage.getItem(key) === "1", TRIP_KEY);
 
 // Desktop: popup window -> close -> "Use the downloaded PDF" (stubbed picker)
@@ -184,7 +190,7 @@ async function connectPopup(page, size) {
 
   await stage.getByRole("button", { name: "Looks right" }).click();
   await page.waitForURL(/\/courses$/);
-  await page.getByText(/^Added \d+ courses? from your transcript$/).first().waitFor();
+  await toastText(page, /^Added \d+ courses? from your transcript$/).waitFor();
   check(size, "connect: 'Looks right' saves and lands on Courses", page.url().endsWith("/courses"));
   await shot(page, size, "connect-done");
 }
@@ -316,7 +322,7 @@ async function connectPhone(page, size) {
   await again.getByRole("radiogroup", { name: "How to count HIST 9999" }).getByRole("radio", { name: "Skip" }).click();
   await again.getByRole("button", { name: "Looks right" }).click();
   await page.waitForURL(/\/courses$/);
-  await page.getByText(/^Added \d+ courses? from your transcript$/).first().waitFor();
+  await toastText(page, /^Added \d+ courses? from your transcript$/).waitFor();
   check(size, "connect: 'Looks right' saves and lands on Courses", true);
   await shot(page, size, "connect-done");
 }
@@ -385,13 +391,17 @@ async function plansCompareRestore(page, size) {
   };
   const before = await mainNow();
   await use.click();
-  await page.getByText("Main now uses Before import").waitFor();
+  await toastText(page, "Main now uses Before import").waitFor();
+  const announcers = await page.evaluate(() =>
+    [...document.querySelectorAll("[aria-live], [role=status], [role=alert]")].filter((el) => el.textContent?.includes("Main now uses Before import")).length,
+  );
+  check(size, "library: the result is announced once, by the toast's live region", announcers === 1, `${announcers} live regions`);
   check(size, "library: using a copy keeps you in the library and offers Undo", page.url().endsWith("/schedules") && (await page.getByRole("button", { name: "Undo" }).count()) === 1);
   const adopted = await mainNow();
   check(size, "library: using the copy changed Main", adopted !== before);
   await page.getByRole("button", { name: "Undo" }).click();
   const undone = await mainNow();
-  check(size, "library: Undo puts Main back as it was", undone === before && (await page.getByText("Main has changed since").count()) === 0, undone === before ? "" : `${before.slice(0, 120)} vs ${undone.slice(0, 120)}`);
+  check(size, "library: Undo puts Main back as it was", undone === before && (await toastText(page, "Main has changed since").count()) === 0, undone === before ? "" : `${before.slice(0, 120)} vs ${undone.slice(0, 120)}`);
 }
 
 // The emailed link's landing page: mail scanners may open it, so loading it must not use the
