@@ -39,7 +39,7 @@ describe("time bounds", () => {
 
   test("one negation covers both bounds of a coordinated pair", () => {
     const { intent } = parseIntent("no classes after 4pm or before 9am");
-    expect([intent.hard.earliestStart, intent.hard.latestEnd]).toEqual([541, 960]);
+    expect([intent.hard.earliestStart, intent.hard.latestEnd]).toEqual([540, 960]);
   });
 
   test("a bare hour is tagged, never read as am or pm", () => {
