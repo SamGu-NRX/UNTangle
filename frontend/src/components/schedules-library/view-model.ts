@@ -1,4 +1,5 @@
 import { normalizePlannerState } from "@/lib/planner";
+import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
@@ -59,4 +60,18 @@ export function versionTime(iso: string, now: Date): string {
 export function hasSavedCopy(working: PlannerState, plans: readonly SavedPlanSnapshot[]): boolean {
   const mine = workingStateFingerprint(normalizePlannerState(working));
   return plans.some((plan) => workingStateFingerprint(normalizePlannerState(plan.state)) === mine);
+}
+
+/**
+ * What "Use in Main" does with each saved section it can't keep, one line per
+ * course, said by what happens (lib/plan-library/snapshot.ts classifies them):
+ * a section no longer offered is replaced, one for a course not planned this
+ * term is not used, and a course the catalog doesn't know leaves the schedule.
+ */
+export function skippedSectionLines(report: SectionReferenceReport): string[] {
+  return [
+    ...report.stale.map((finding) => `${finding.courseCode}: its saved section is no longer offered, so Week picks another.`),
+    ...report.inactive.map((finding) => `${finding.courseCode}: not planned this term, so its saved section isn't used.`),
+    ...report.unknownCourses.map((finding) => `${finding.courseCode}: not in this catalog, so it leaves the schedule.`),
+  ];
 }

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { clockText, compareRows, overlayBlocks, sectionChanges, weekBlocks, weekStats } from "@/lib/plan-library/week";
+import { clockText, compareRows, gridDays, overlayBlocks, plannedSections, sectionChanges, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
+import { getInitialPlannerState } from "@/lib/planner";
+import { sampleCatalog } from "@/lib/planner-sections";
 import type { WalkingTime } from "@/lib/planner-walking";
 import type { ClassDay, ScheduleEvent } from "@/lib/types";
 
@@ -35,6 +37,15 @@ const travel = (from: string, to: string): WalkingTime => {
   const seconds = WALK_SECONDS[`${from}>${to}`];
   return seconds === undefined ? { seconds: null, source: "unknown" } : { seconds, source: "campus-network" };
 };
+
+/** The sections a week's blocks belong to, as plannedSections reports them. */
+function sectionsOf(events: ScheduleEvent[]): PlannedSection[] {
+  const blocks = weekBlocks(events);
+  return [...new Set(blocks.map((b) => b.code))].map((code) => {
+    const own = blocks.filter((b) => b.code === code);
+    return { code, sectionId: own[0].sectionId, blocks: own };
+  });
+}
 
 const main = [
   ...meets("CSCE 2110", "001", ["Mon", "Wed", "Fri"], "09:00", "09:50", "GAB"),
@@ -96,7 +107,7 @@ describe("comparing Main (A) with Fridays off (B)", () => {
   });
 
   test("sections that change, and the courses both share", () => {
-    expect(sectionChanges(weekBlocks(main), weekBlocks(fridaysOff))).toEqual({
+    expect(sectionChanges(sectionsOf(main), sectionsOf(fridaysOff))).toEqual({
       changes: [
         { code: "CSCE 2110", from: "MWF 9:00", to: "TR 9:30" },
         { code: "MATH 2700", from: "MWF 10:00", to: "MW 3:30" },
@@ -107,7 +118,24 @@ describe("comparing Main (A) with Fridays off (B)", () => {
 
   test("a course only one schedule has shows as added or dropped", () => {
     const extra = [...main, ...meets("TECM 2700", "900", ["Fri"], "13:00", "13:50", "GAB")];
-    expect(sectionChanges(weekBlocks(extra), weekBlocks(main)).changes).toEqual([{ code: "TECM 2700", from: "F 1:00", to: null }]);
+    expect(sectionChanges(sectionsOf(extra), sectionsOf(main)).changes).toEqual([{ code: "TECM 2700", from: "F 1:00", to: null }]);
+  });
+
+  test("an online or TBA section that changes still shows, as No set time", () => {
+    const online = (sectionId: string): PlannedSection => ({ code: "TECM 2700", sectionId, blocks: [] });
+    expect(sectionChanges([...sectionsOf(main), online("900")], [...sectionsOf(main), online("901")]).changes).toEqual([
+      { code: "TECM 2700", from: "No set time", to: "No set time" },
+    ]);
+    expect(sectionChanges([...sectionsOf(main), online("900")], sectionsOf(main)).changes).toEqual([
+      { code: "TECM 2700", from: "No set time", to: null },
+    ]);
+  });
+
+  test("planned sections come from the plan, every scheduled course with its section", () => {
+    const base = getInitialPlannerState();
+    const state = { ...base, courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress" as const }, selectedSections: { "ANTH 1010": "anth-1010-002" } };
+    const sections = plannedSections(state, sampleCatalog);
+    expect(sections.map((s) => [s.code, s.sectionId, s.blocks.length])).toEqual([["ANTH 1010", "anth-1010-002", 3]]);
   });
 });
 
@@ -155,5 +183,15 @@ describe("one week drawn over another", () => {
       ["faded", 590],
       ["dashed", 650],
     ]);
+  });
+});
+
+describe("the grid's days", () => {
+  test("are Monday to Friday, with Saturday and Sunday only when a class meets then", () => {
+    expect(gridDays(weekBlocks(main))).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+    const sunday = weekBlocks([...main, ...meets("MUEN 1000", "001", ["Sun"], "14:00", "15:50", "MU")]);
+    expect(gridDays(sunday)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sun"]);
+    const both = weekBlocks([...main, ...meets("MUEN 1000", "001", ["Sat", "Sun"], "14:00", "15:50", "MU")]);
+    expect(gridDays(both)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
   });
 });

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { ChevronRight } from "@/components/ui/icons";
 import { Segmented } from "@/components/ui/Segmented";
 import type { Hue } from "@/lib/course-colors";
-import { describeOtherDifferences, diffPlannerStates } from "@/lib/plan-library/diff";
-import { compareRows, eventsOf, overlayBlocks, sectionChanges, weekStats, type PlacedBlock } from "@/lib/plan-library/week";
+import { describeOtherDifferences, diffLibraryPlans } from "@/lib/plan-library/diff";
+import { compareRows, eventsOf, overlayBlocks, plannedSections, sectionChanges, weekStats, type PlacedBlock } from "@/lib/plan-library/week";
 import type { ScheduleEvent } from "@/lib/types";
 import type { Entry } from "./schedules-client";
 import { Legend } from "./schedule-detail";
@@ -47,9 +47,10 @@ export function CompareView({
   const [a, b] = sides;
   const events = (side: CompareSide): ScheduleEvent[] => (side.active ? scheduleEvents : eventsOf(side.state, sectionCatalog));
   const rows = compareRows(weekStats(events(a)), weekStats(events(b)));
-  const { changes, same } = sectionChanges(a.blocks, b.blocks);
+  // From the plans, not the drawn blocks, so an online or TBA section's change still shows.
+  const { changes, same } = sectionChanges(plannedSections(a.state, sectionCatalog), plannedSections(b.state, sectionCatalog));
   // Statuses, claimed credit, Auto, locks, goal and major: one step away, behind "More differences".
-  const more = describeOtherDifferences(diffPlannerStates(a.state, b.state, sectionCatalog), a.name, b.name);
+  const more = describeOtherDifferences(diffLibraryPlans(a.state, b.state, sectionCatalog), a.name, b.name);
   // Both: A solid, and B dashed where it differs (A's own classes are not faded here).
   const items: PlacedBlock[] =
     view === "both"

@@ -6,11 +6,12 @@
   margin: 0 auto;
   padding: 28px 24px 64px;
 }
+/* Headings line up with the rows' content, which sits 8px inside each row's tint. */
 .head {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0 4px 16px;
+  margin: 0 0 16px 8px;
 }
 .title {
   margin: 0;
@@ -32,7 +33,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 4px 6px;
+  margin: 0 8px 6px;
   font: 650 var(--text-meta) / var(--lh-meta) var(--font-ui);
   color: var(--ink-2);
 }
@@ -65,7 +66,8 @@
   grid-template-columns: 88px minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  padding: 10px 6px 10px 8px;
+  /* Even on both sides, so the selected and hover tints sit evenly around the row. */
+  padding: 10px 8px;
   border-radius: var(--r-md);
   transition: background-color var(--t-hover) ease;
 }
@@ -102,8 +104,12 @@
   pointer-events: auto;
 }
 /* The A and B badges sit on the row's corner, outside the grid. */
+/* The A and B badges sit on the thumbnail's top-left corner, above it: this
+   outranks `.row > :not(.hit)`, which would otherwise put them at the
+   thumbnail's level and under it. */
 .row > .pick {
   position: absolute;
+  z-index: 3;
 }
 @media (hover: hover) and (pointer: fine) {
   .row:not([data-selected]):hover {
@@ -160,23 +166,23 @@
 }
 .pick {
   position: absolute;
-  top: 4px;
-  left: -4px;
-  z-index: 2;
+  top: 2px;
+  left: 0;
   display: grid;
   place-items: center;
   width: 24px;
   height: 24px;
   border-radius: 50%;
   background: var(--brand);
-  box-shadow: 0 0 0 2px var(--ground);
+  /* A white ring reads on the plain row and on the selected tint alike. */
+  box-shadow: 0 0 0 2px var(--paper), var(--shadow-1);
   color: #fff;
   font: 700 11px / 1 var(--font-mark);
 }
 
 .thumb {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(var(--days, 5), 1fr);
   gap: 2px;
   height: 56px;
   padding: 4px;
@@ -198,7 +204,7 @@
 }
 
 .quiet {
-  margin: 8px 4px;
+  margin: 8px;
   font-size: var(--text-meta);
   line-height: var(--lh-meta);
   color: var(--ink-2);
@@ -236,6 +242,16 @@
 }
 .warn {
   margin: -4px 0 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--attention);
+}
+.warnList {
+  display: grid;
+  gap: 4px;
+  margin: -4px 0 0;
+  padding: 0;
+  list-style: none;
   font-size: var(--text-meta);
   line-height: var(--lh-meta);
   color: var(--attention);

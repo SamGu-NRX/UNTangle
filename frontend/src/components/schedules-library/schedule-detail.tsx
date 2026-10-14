@@ -10,10 +10,9 @@ import type { Hue } from "@/lib/course-colors";
 import { beforeAuto } from "@/lib/plan-library/versions";
 import { eventsOf, overlayBlocks, weekBlocks, type PlacedBlock } from "@/lib/plan-library/week";
 import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
-import { describeSkippedReferences } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
 import type { Entry } from "./schedules-client";
-import { versionTime } from "./view-model";
+import { skippedSectionLines, versionTime } from "./view-model";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -52,7 +51,7 @@ export function ScheduleDetail({
   const shownVersion = before ? version : "now";
   const versionBlocks = shownVersion === "before-auto" && before ? weekBlocks(eventsOf(before.state, sectionCatalog)) : null;
   const items = overlayBlocks(entry.blocks, versionBlocks);
-  const skipped = entry.snapshot ? describeSkippedReferences(resolveSectionReferences(entry.snapshot.state, sectionCatalog)) : [];
+  const skipped = entry.snapshot ? skippedSectionLines(resolveSectionReferences(entry.snapshot.state, sectionCatalog)) : [];
 
   return (
     <div className={styles.detail}>
@@ -86,10 +85,11 @@ export function ScheduleDetail({
         </p>
       ) : null}
       {skipped.length ? (
-        <p className={styles.warn}>
-          {skipped.length === 1 ? "1 saved section is" : `${skipped.length} saved sections are`} no longer offered. Week picks
-          new ones.
-        </p>
+        <ul className={styles.warnList} aria-label="Saved sections Use in Main can't keep">
+          {skipped.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
       ) : null}
 
       <WeekGrid items={items} colors={colors} layout={shownVersion} animate={false} labels={versionBlocks ? VERSION_LABELS : undefined} />

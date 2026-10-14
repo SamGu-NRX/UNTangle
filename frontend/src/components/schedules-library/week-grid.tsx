@@ -2,12 +2,11 @@
 
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import type { Hue } from "@/lib/course-colors";
-import { clockText, type PlacedBlock, type WeekBlock } from "@/lib/plan-library/week";
+import { clockText, gridDays, type PlacedBlock, type WeekBlock } from "@/lib/plan-library/week";
 import type { ClassDay } from "@/lib/types";
 import styles from "./library.module.css";
 
 
-const WEEKDAYS: ClassDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 /** Hours shown: at least 8 to 5, widened to whole hours around any class outside that. */
 function hourRange(items: readonly WeekBlock[]): [number, number] {
@@ -16,9 +15,6 @@ function hourRange(items: readonly WeekBlock[]): [number, number] {
   return [Math.floor(first / 60), Math.ceil(last / 60)];
 }
 
-function daysOf(items: readonly WeekBlock[]): ClassDay[] {
-  return items.some((item) => item.day === "Sat") ? [...WEEKDAYS, "Sat"] : WEEKDAYS;
-}
 
 const hueStyle = (hue: Hue | undefined): CSSProperties =>
   ({ "--c": `var(--c${hue ?? 1})`, "--ct": `var(--c${hue ?? 1}t)` }) as CSSProperties;
@@ -28,8 +24,8 @@ export function WeekThumb({ blocks, colors }: { blocks: readonly WeekBlock[]; co
   const [from, to] = hourRange(blocks);
   const span = (to - from) * 60;
   return (
-    <div className={styles.thumb} aria-hidden="true">
-      {WEEKDAYS.map((day) => (
+    <div className={styles.thumb} aria-hidden="true" style={{ "--days": gridDays(blocks).length } as CSSProperties}>
+      {gridDays(blocks).map((day) => (
         <div key={day}>
           {blocks
             .filter((block) => block.day === day)
@@ -75,7 +71,7 @@ export function WeekGrid({
 }) {
   const [from, to] = hourRange(items);
   const span = (to - from) * 60;
-  const days = daysOf(items);
+  const days = gridDays(items);
   const layer = useRef<HTMLDivElement | null>(null);
   const last = useRef<{ layout: string; slots: Map<string, { x: number; y: number }> } | null>(null);
 
@@ -122,7 +118,6 @@ export function WeekGrid({
     }
   }, [items, layout, animate]);
 
-  const shown = items.filter((item) => days.includes(item.day));
   return (
     <div className={styles.grid}>
       <div aria-hidden="true">
@@ -144,7 +139,7 @@ export function WeekGrid({
             <div key={day} className={styles.col} />
           ))}
           <div ref={layer} className={styles.events}>
-            {shown.map((item) => (
+            {items.map((item) => (
               <span
                 key={item.id}
                 data-id={item.id}
@@ -164,7 +159,7 @@ export function WeekGrid({
           </div>
         </div>
       </div>
-      <MeetingList items={shown} labels={labels} />
+      <MeetingList items={items} labels={labels} />
     </div>
   );
 }

@@ -238,3 +238,14 @@ describe("other differences between two schedules, in words", () => {
     expect(describeOtherDifferences(diffPlannerStates(stateWith({}), stateWith({})), "A", "B")).toEqual([]);
   });
 });
+
+describe("comparing two library schedules", () => {
+  it("reads a status the planner doesn't know the way loading would, never as undefined", async () => {
+    const { describeOtherDifferences, diffLibraryPlans } = await import("@/lib/plan-library/diff");
+    const imported = stateWith({ courseStatuses: { "ANTH 1010": "bogus" as never } });
+    const working = stateWith({ courseStatuses: { "ANTH 1010": "completed" } });
+    const lines = describeOtherDifferences(diffLibraryPlans(imported, working), "Imported", "Main");
+    expect(lines).toContain("ANTH 1010 is not taken in Imported and done in Main.");
+    expect(lines.join(" ")).not.toContain("undefined");
+  });
+});

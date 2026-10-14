@@ -55,3 +55,30 @@ describe("schedules library view model", () => {
     expect(hasSavedCopy(working, [])).toBe(false);
   });
 });
+
+describe("what Use in Main does with sections it can't keep", () => {
+  it("says, per course, whether the section is replaced, unused, or the course leaves", async () => {
+    const { skippedSectionLines } = await import("@/components/schedules-library/view-model");
+    const { resolveSectionReferences } = await import("@/lib/plan-library/snapshot");
+    const base = normalizePlannerState(defaultPlannerState);
+    const state: PlannerState = {
+      ...base,
+      // ANTH 1010 is planned but its section is gone; ANTH 1150 isn't planned; ZZZZ 9999 isn't in the catalog.
+      courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress" },
+      selectedSections: { "ANTH 1010": "anth-1010-999", "ANTH 1150": "anth-1150-001", "ZZZZ 9999": "zzzz-9999-001" },
+    };
+    expect(skippedSectionLines(resolveSectionReferences(state))).toEqual([
+      "ANTH 1010: its saved section is no longer offered, so Week picks another.",
+      "ANTH 1150: not planned this term, so its saved section isn't used.",
+      "ZZZZ 9999: not in this catalog, so it leaves the schedule.",
+    ]);
+  });
+
+  it("says nothing when every saved section carries over", async () => {
+    const { skippedSectionLines } = await import("@/components/schedules-library/view-model");
+    const { resolveSectionReferences } = await import("@/lib/plan-library/snapshot");
+    const base = normalizePlannerState(defaultPlannerState);
+    const state = { ...base, courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress" as const }, selectedSections: { "ANTH 1010": "anth-1010-001" } };
+    expect(skippedSectionLines(resolveSectionReferences(state))).toEqual([]);
+  });
+});

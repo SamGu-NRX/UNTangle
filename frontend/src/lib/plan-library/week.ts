@@ -1,7 +1,7 @@
 import { assignColors, type Hue } from "@/lib/course-colors";
 import { transferFit } from "@/lib/map-itinerary";
 import { buildScheduleEvents, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
-import { backToBackPairs, type SectionCatalog } from "@/lib/planner-sections";
+import { backToBackPairs, scheduleEventsOf, type SectionCatalog } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import type { ClassDay, PlannerState, ScheduleEvent } from "@/lib/types";
 
@@ -161,23 +161,48 @@ function meetsText(blocks: readonly WeekBlock[]): string {
 
 export type SectionChange = { code: string; from: string | null; to: string | null };
 
+/** A planned course's chosen section and its timed meetings (none for an online or TBA section). */
+export type PlannedSection = { code: string; sectionId: string; blocks: WeekBlock[] };
+
+/**
+ * Every course a plan schedules, with the section it uses: saved picks, and
+ * the goal's recommendation for the rest, as the lenses show it. Sections
+ * with no set time are included, so a change to one still counts.
+ */
+export function plannedSections(state: PlannerState, catalog: SectionCatalog): PlannedSection[] {
+  return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course) =>
+    course.section ? [{ code: course.code, sectionId: course.section.id, blocks: weekBlocks(scheduleEventsOf(course.section)) }] : [],
+  );
+}
+
+/** "MWF 9:00", or "No set time" for an online or TBA section. */
+function sectionText(section: PlannedSection): string {
+  return section.blocks.length ? meetsText(section.blocks) : "No set time";
+}
+
 /** Courses whose section differs, or that only one schedule has; and the courses both share exactly. */
-export function sectionChanges(a: readonly WeekBlock[], b: readonly WeekBlock[]): { changes: SectionChange[]; same: string[] } {
-  const byCode = (blocks: readonly WeekBlock[]) => {
-    const map = new Map<string, WeekBlock[]>();
-    for (const block of blocks) map.set(block.code, [...(map.get(block.code) ?? []), block]);
-    return map;
-  };
-  const left = byCode(a);
-  const right = byCode(b);
+export function sectionChanges(
+  a: readonly PlannedSection[],
+  b: readonly PlannedSection[],
+): { changes: SectionChange[]; same: string[] } {
+  const left = new Map(a.map((section) => [section.code, section]));
+  const right = new Map(b.map((section) => [section.code, section]));
   const codes = [...new Set([...left.keys(), ...right.keys()])].sort((x, y) => x.localeCompare(y));
   const changes: SectionChange[] = [];
   const same: string[] = [];
   for (const code of codes) {
     const x = left.get(code);
     const y = right.get(code);
-    if (x && y && x[0].sectionId === y[0].sectionId) same.push(code);
-    else changes.push({ code, from: x ? meetsText(x) : null, to: y ? meetsText(y) : null });
+    if (x && y && x.sectionId === y.sectionId) same.push(code);
+    else changes.push({ code, from: x ? sectionText(x) : null, to: y ? sectionText(y) : null });
   }
   return { changes, same };
+}
+
+const WEEKDAYS: readonly ClassDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+/** The columns a week needs: Monday to Friday, plus Saturday and Sunday when a class meets then. */
+export function gridDays(blocks: readonly WeekBlock[]): ClassDay[] {
+  const weekend = (["Sat", "Sun"] as const).filter((day) => blocks.some((block) => block.day === day));
+  return [...WEEKDAYS, ...weekend];
 }

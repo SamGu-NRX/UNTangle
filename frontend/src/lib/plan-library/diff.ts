@@ -1,4 +1,5 @@
 import { findOption, isTimed, optionIdLabel, sampleCatalog, sectionRef, type SectionCatalog } from "@/lib/planner-sections";
+import { normalizePlannerState } from "@/lib/planner";
 import { courses } from "@/lib/seed-data";
 import type { Section } from "@/lib/sections";
 import type { Course, CourseStatus, PlannerState } from "@/lib/types";
@@ -147,6 +148,16 @@ export function diffSavedPlanAgainstWorking(
   catalog: SectionCatalog = sampleCatalog,
 ): PlanDiff {
   return diffPlannerStates(savedPlan.state, workingState, catalog);
+}
+
+/**
+ * Two library schedules compared as the planner would load them. A saved or
+ * imported file can carry values the planner doesn't know (any string passes
+ * as a status on import); normalizing first reads those the way loading
+ * would, so no sentence names an unknown status.
+ */
+export function diffLibraryPlans(a: PlannerState, b: PlannerState, catalog: SectionCatalog = sampleCatalog): PlanDiff {
+  return diffPlannerStates(normalizePlannerState(a), normalizePlannerState(b), catalog);
 }
 
 /** The same comparison between any two plans: `savedState` plays the saved plan's side. */
