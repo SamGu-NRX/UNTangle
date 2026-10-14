@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildItinerary,
   formatClock,
-  formatDistance,
+  formatTime,
   lookupKey,
   pairKey,
   pointKey,
@@ -81,9 +81,11 @@ describe("formatting", () => {
     expect(walkMinutesFromSeconds(60)).toBe(1);
     expect(walkMinutesFromSeconds(61)).toBe(2);
   });
-  test("distance in feet under a tenth of a mile, then miles", () => {
-    expect(formatDistance(100)).toBe("330 ft");
-    expect(formatDistance(482.8)).toBe("0.3 mi");
+  test("Day's times: 12-hour, no AM or PM", () => {
+    expect(formatTime(8 * 60 + 49)).toBe("8:49");
+    expect(formatTime(12 * 60)).toBe("12:00");
+    expect(formatTime(13 * 60 + 5)).toBe("1:05");
+    expect(formatTime(0)).toBe("12:00");
   });
   test("12-hour clock", () => {
     expect(formatClock("09:05")).toBe("9:05 AM");
@@ -93,42 +95,43 @@ describe("formatting", () => {
 });
 
 describe("buildItinerary", () => {
-  test("a walkway leg gets minutes, a leave-by time and the late flag when the walk beats the break", () => {
+  test("a walkway leg gets minutes and the late flag when the walk beats the break; it leaves as the class ends", () => {
     const stops = [stop("CSCE 1030", "09:00", "09:50", { id: "gab", point: gab }), stop("MATH 1710", "10:00", "10:50", { id: "blb", point: blb })];
     const answers = new Map<string, PairAnswer>([[pairKey(key(gab, "gab"), key(blb, "blb")), walkLeg(631, 820)]]);
-    const { legs, summary } = buildItinerary(stops, new Map(), answers);
+    const { legs } = buildItinerary(stops, new Map(), answers);
     expect(legs).toHaveLength(1);
     const [leg] = legs;
     expect(leg.gapMinutes).toBe(10);
     expect(leg.walkMinutes).toBe(11);
-    expect(leg.leaveBy).toBe("09:49");
+    expect(leg.leaveAt).toBe(9 * 60 + 50);
     expect(leg.transfer).toBe("late");
-    // A late transfer is its own count, not a tight one.
-    expect(summary.lateTransfers).toBe(1);
-    expect(summary.tightTransfers).toBe(0);
-    expect(summary.walkMinutes).toBe(11);
+  });
+
+  test("a walk with time to spare leaves two minutes earlier than the walk needs", () => {
+    const stops = [stop("A 1", "09:00", "09:50", { id: "gab", point: gab }), stop("B 1", "10:30", "11:20", { id: "blb", point: blb })];
+    const answers = new Map<string, PairAnswer>([[pairKey(key(gab, "gab"), key(blb, "blb")), walkLeg(300, 400)]]);
+    const [leg] = buildItinerary(stops, new Map(), answers).legs;
+    expect([leg.walkMinutes, leg.leaveAt, leg.transfer]).toEqual([5, 10 * 60 + 23, "ok"]);
   });
 
   test("a walk that fits with two minutes or less to spare counts as tight, not late", () => {
     const stops = [stop("A 1", "09:00", "09:50", { id: "gab", point: gab }), stop("B 1", "10:00", "10:50", { id: "blb", point: blb })];
     // 481 s rounds up to 9 min against a 10 min break.
     const answers = new Map<string, PairAnswer>([[pairKey(key(gab, "gab"), key(blb, "blb")), walkLeg(481, 700)]]);
-    const { legs, summary } = buildItinerary(stops, new Map(), answers);
+    const { legs } = buildItinerary(stops, new Map(), answers);
     expect(legs[0].transfer).toBe("tight");
-    expect([summary.tightTransfers, summary.lateTransfers]).toEqual([1, 0]);
+    expect(legs[0].leaveAt).toBe(9 * 60 + 50);
   });
 
-  test("a straight-line answer shows distance only: no minutes, no leave-by, no transfer verdict", () => {
+  test("a straight-line answer has no minutes, no leave-by and no transfer verdict", () => {
     const stops = [stop("A 1", "09:00", "09:50", { id: "gab", point: gab }), stop("B 1", "10:00", "10:50", { id: "blb", point: blb })];
     const fallback: PairAnswer = { fromIndex: 0, toIndex: 1, source: "fallback", geometry: [gab, blb], distanceMeters: 482, durationSeconds: null };
     const answers = new Map<string, PairAnswer>([[pairKey(key(gab, "gab"), key(blb, "blb")), fallback]]);
-    const { legs, summary } = buildItinerary(stops, new Map(), answers);
+    const { legs } = buildItinerary(stops, new Map(), answers);
     expect(legs[0].route).toEqual({ kind: "straight-line", meters: 482, geometry: [gab, blb] });
     expect(legs[0].walkMinutes).toBeNull();
-    expect(legs[0].leaveBy).toBeNull();
+    expect(legs[0].leaveAt).toBeNull();
     expect(legs[0].transfer).toBe("unknown");
-    expect(summary.estimatedLegs).toBe(1);
-    expect(summary.walkMeters).toBe(0);
   });
 
   test("a routing request that failed falls back to a client-side straight line", () => {
@@ -162,7 +165,7 @@ describe("buildItinerary", () => {
         },
       ],
     ]);
-    const { stops: entries, legs, summary } = buildItinerary(stops, lookups, new Map());
+    const { stops: entries, legs } = buildItinerary(stops, lookups, new Map());
     expect(entries.map((entry) => entry.number)).toEqual([1, 2, 3]);
     expect(entries[1].placement).toEqual({
       kind: "unresolved",
@@ -172,8 +175,6 @@ describe("buildItinerary", () => {
     // Main campus <-> Discovery Park is the shuttle's fixed estimate, never routed on foot.
     expect(legs.map((leg) => leg.route.kind)).toEqual(["shuttle", "shuttle"]);
     expect(legs.map((leg) => leg.walkMinutes)).toEqual([20, 20]);
-    expect(summary.unresolved).toBe(1);
-    expect(summary.mapped).toBe(2);
   });
 
   test("a building the registry doesn't know is unresolved as unknown", () => {
@@ -193,10 +194,9 @@ describe("buildItinerary", () => {
 
   test("a stop still being looked up is pending, and so are its legs", () => {
     const stops = [stop("A 1", "09:00", "09:50", { id: "gab", point: gab }), stop("B 1", "10:00", "10:50", { id: "new" })];
-    const { stops: entries, legs, summary } = buildItinerary(stops, new Map(), new Map());
+    const { stops: entries, legs } = buildItinerary(stops, new Map(), new Map());
     expect(entries[1].placement.kind).toBe("resolving");
     expect(legs[0].route.kind).toBe("loading");
-    expect(summary.loading).toBe(true);
   });
 
   test("two classes in one building are a zero-minute leg with no leave-by", () => {
@@ -204,8 +204,44 @@ describe("buildItinerary", () => {
     const [leg] = buildItinerary(stops, new Map(), new Map()).legs;
     expect(leg.route.kind).toBe("same-building");
     expect(leg.walkMinutes).toBe(0);
-    expect(leg.leaveBy).toBeNull();
+    expect(leg.leaveAt).toBeNull();
     expect(leg.transfer).toBe("ok");
+  });
+});
+
+describe("the walk from the starting point", () => {
+  const kerr = { name: "Kerr Hall", point: { lat: 33.2077, lng: -97.1468 } };
+  const day = [stop("CSCE 2110", "09:00", "09:50", { id: "gab", point: gab }), stop("MATH 2700", "10:00", "10:50", { id: "blb", point: blb })];
+
+  test("is the day's first leg, leaving at class start minus the walk minus two minutes", () => {
+    const answers = new Map<string, PairAnswer>([[pairKey(pointKey(kerr.point), key(gab, "gab")), walkLeg(500, 640, kerr.point, gab)]]);
+    const { start } = buildItinerary(day, new Map(), answers, kerr);
+    expect(start?.place).toEqual(kerr);
+    expect(start?.leg).toMatchObject({ fromKey: "start", toKey: "Mon-0-CSCE 2110-09:00", gapMinutes: null, walkMinutes: 9, leaveAt: 8 * 60 + 49, transfer: "ok" });
+  });
+
+  test("is loading until routing answers, and has no leave time", () => {
+    const { start } = buildItinerary(day, new Map(), new Map(), kerr);
+    expect(start?.leg).toMatchObject({ route: { kind: "loading" }, walkMinutes: null, leaveAt: null });
+  });
+
+  test("has no route when the first class isn't on the map", () => {
+    const lookups = new Map<string, StopLookup>([[lookupKey("NOWHERE", "nowhere"), { kind: "failed" }]]);
+    const { start } = buildItinerary([stop("A 1", "09:00", "09:50", { id: "nowhere" })], lookups, new Map(), kerr);
+    expect(start?.leg.route).toEqual({ kind: "no-route" });
+  });
+
+  test("doesn't exist without a starting point or without classes", () => {
+    expect(buildItinerary(day, new Map(), new Map()).start).toBeNull();
+    expect(buildItinerary([], new Map(), new Map(), kerr).start).toBeNull();
+  });
+
+  test("is routed as its own request, ahead of the class runs", () => {
+    const runs = routeRuns(buildItinerary(day, new Map(), new Map(), kerr).stops, kerr);
+    expect(runs.map((run) => run.map((point) => point.key))).toEqual([
+      [pointKey(kerr.point), key(gab, "gab")],
+      [key(gab, "gab"), key(blb, "blb")],
+    ]);
   });
 });
 
