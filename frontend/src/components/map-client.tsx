@@ -203,6 +203,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
         key={campus.id}
         campus={campus}
         itinerary={itinerary}
+        day={activeDay}
         courseOrder={getPlanningTermCourseCodes(plannerState)}
         selection={selection}
         onSelect={select}
