@@ -285,6 +285,11 @@
   }
 }
 
+/*
+ * The color bar is a straight ::before clipped by the block's own rounded
+ * corner; an inset shadow inside a radius curls into a bracket. The block is
+ * a size container, so its code can size itself to the room it has.
+ */
 .event {
   position: absolute;
   z-index: 2;
@@ -292,10 +297,10 @@
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
-  padding: 6px 8px;
+  container-type: size;
+  padding: 6px 8px 6px 10px;
   border-radius: 8px;
   background: var(--ct);
-  box-shadow: inset 3px 0 0 var(--c);
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
@@ -310,9 +315,36 @@
     background: color-mix(in srgb, var(--ct) 92%, var(--c));
   }
 }
+.event::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--c);
+}
+/*
+ * Event codes are DM Sans, not Syne (Syne is the wordmark's). The code wraps
+ * at its space, subject over number; only whole lines show, so nothing is cut
+ * mid-glyph, and a word too wide for a narrow lane breaks rather than clips.
+ */
 .eventCode {
-  font: 700 12px/1.25 var(--font-mark);
+  max-height: round(down, 100cqh, 1.25em);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font: 600 12px/1.25 var(--font-ui);
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
+}
+/* Too short for two lines: subject and number on one line at 11px, ended with an ellipsis if it still can't fit. */
+@container (max-height: 25px) {
+  .event .eventCode {
+    max-height: none;
+    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
 }
 .eventTime {
   font-size: 12px;
@@ -327,15 +359,18 @@
 }
 .event[aria-pressed="true"] {
   z-index: 4;
-  box-shadow: inset 3px 0 0 var(--c), 0 0 0 2px var(--c), var(--shadow-2);
+  box-shadow: 0 0 0 2px var(--c), var(--shadow-2);
 }
 .event[data-conflict] {
   background: var(--danger-soft);
-  box-shadow: inset 3px 0 0 var(--danger), 0 0 0 1.5px var(--danger);
+  box-shadow: 0 0 0 1.5px var(--danger);
+}
+.event[data-conflict]::before {
+  background: var(--danger);
 }
 .event[data-dragging] {
   z-index: 6;
-  box-shadow: inset 3px 0 0 var(--c), var(--shadow-3);
+  box-shadow: var(--shadow-3);
   cursor: grabbing;
 }
 .event:focus-visible,
@@ -964,13 +999,16 @@
     right: 4px;
     font-size: 10px;
   }
+  /* 8px from the block's edge on the left (5px clear of the bar), 5px at the top, 4px on the right. */
   .event {
-    padding: 4px;
+    padding: 5px 4px 4px 8px;
     border-radius: 6px;
   }
+  /* 11px is the smallest type on a phone (visual QA checklist). */
   .eventCode {
-    font-size: 10.5px;
-    line-height: 12px;
+    font-size: 11px;
+    line-height: 13px;
+    max-height: round(down, 100cqh, 13px);
   }
   .walkChip {
     height: 16px;
