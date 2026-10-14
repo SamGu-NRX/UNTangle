@@ -1,0 +1,238 @@
+UNTangle pathing report for Computer Science, BS (major cs)
+Catalog rows: 656; unparseable rows: 0
+Universe courses: 225; remaining critical path: 8
+Warnings: none
+
+Next-term recommendation (credit target 15):
+  1. CSCE 1010 | prerequisite | eligible | 3 cr | direct 2 | transitive 39 | chain 7 | reasons: Unlocks 39 courses
+  2. ENGL 1310 | advanced | eligible | 3 cr | direct 2 | transitive 28 | chain 4 | reasons: Unlocks 28 courses
+  3. TECM 1700 | advanced | eligible | 3 cr | direct 1 | transitive 26 | chain 4 | reasons: Unlocks 26 courses
+  4. MATH 2700 | advanced | eligible | 3 cr | direct 8 | transitive 19 | chain 6 | reasons: Unlocks 19 courses
+  5. PSYC 1630 | advanced | eligible | 3 cr | direct 9 | transitive 19 | chain 3 | reasons: Unlocks 19 courses
+
+Universe analysis (sorted by course id):
+  BIOL 3080 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  BIOL 3800 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  BIOL 4505 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  BMEN 1400 | advanced | locked | 3 cr | direct 1 | transitive 2 | chain 3
+  BMEN 2210 | advanced | eligible | 3 cr | direct 1 | transitive 2 | chain 3 | reasons: Unlocks 2 courses
+  BMEN 2320 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  BMEN 3312 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  BMEN 3321 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  BMEN 4320 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CHEM 1410 | advanced | unknown | 3 cr | direct 4 | transitive 12 | chain 5
+  CHEM 3510 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  CHEM 3520 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 1160 | advanced | eligible | 3 cr | direct 1 | transitive 10 | chain 5 | reasons: Unlocks 10 courses
+  CNET 2180 | advanced | locked | 3 cr | direct 7 | transitive 9 | chain 4
+  CNET 3160 | advanced | locked | 3 cr | direct 1 | transitive 2 | chain 3
+  CNET 3190 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 3460 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 3465 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 4170 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  CNET 4180 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 4190 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 4230 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CNET 4630 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 1010 | prerequisite | eligible | 3 cr | direct 2 | transitive 39 | chain 7 | reasons: Unlocks 39 courses
+  CSCE 1030 | core | done | 3 cr | direct 2 | transitive 41 | chain 0
+  CSCE 1035 | prerequisite | unknown | 3 cr | direct 1 | transitive 37 | chain 6
+  CSCE 1040 | core | done | 3 cr | direct 1 | transitive 36 | chain 0
+  CSCE 1045 | prerequisite | locked | 3 cr | direct 1 | transitive 36 | chain 5
+  CSCE 2100 | core | done | 3 cr | direct 10 | transitive 23 | chain 0
+  CSCE 2110 | advanced | unknown | 3 cr | direct 18 | transitive 31 | chain 4
+  CSCE 2210 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 2610 | advanced | unknown | 3 cr | direct 3 | transitive 3 | chain 3
+  CSCE 3055 | advanced | eligible | 3 cr | direct 1 | transitive 2 | chain 3 | reasons: Unlocks 2 courses
+  CSCE 3201 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 3214 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 3220 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 3420 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 3444 | advanced | locked | 3 cr | direct 2 | transitive 4 | chain 3
+  CSCE 3530 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  CSCE 3550 | advanced | eligible | 3 cr | direct 2 | transitive 2 | chain 2 | reasons: Unlocks 2 courses
+  CSCE 3560 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 3600 | advanced | locked | 3 cr | direct 8 | transitive 9 | chain 3
+  CSCE 3605 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 3610 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  CSCE 3612 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4010 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4050 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4110 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4160 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4201 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4205 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4240 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4290 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4300 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4350 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  CSCE 4355 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4380 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4430 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4460 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4535 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4555 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4560 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4565 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4600 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4610 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4650 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4901 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  CSCE 4902 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  CSCE 4905 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  CSCE 4925 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 1100 | advanced | eligible | 3 cr | direct 10 | transitive 15 | chain 4 | reasons: Unlocks 15 courses
+  ECON 1110 | advanced | eligible | 3 cr | direct 6 | transitive 6 | chain 2 | reasons: Unlocks 6 courses
+  ECON 3050 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 3550 | advanced | locked | 3 cr | direct 3 | transitive 3 | chain 2
+  ECON 3560 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4020 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4030 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4140 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4290 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4420 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4440 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4550 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4630 | advanced | locked | 3 cr | direct 2 | transitive 3 | chain 3
+  ECON 4650 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4850 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  ECON 4870 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  ECON 4875 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  EENG 1910 | advanced | unknown | 3 cr | direct 1 | transitive 5 | chain 5
+  EENG 2610 | advanced | unknown | 3 cr | direct 5 | transitive 15 | chain 6
+  EENG 2620 | advanced | unknown | 3 cr | direct 3 | transitive 6 | chain 4
+  EENG 2710 | advanced | unknown | 3 cr | direct 4 | transitive 8 | chain 5
+  EENG 2905 | advanced | unknown | 3 cr | direct 1 | transitive 3 | chain 4
+  EENG 2920 | advanced | unknown | 3 cr | direct 2 | transitive 4 | chain 4
+  EENG 3410 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  EENG 3510 | advanced | unknown | 3 cr | direct 2 | transitive 6 | chain 5
+  EENG 3520 | advanced | unknown | 3 cr | direct 1 | transitive 3 | chain 4
+  EENG 3710 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  EENG 3810 | advanced | unknown | 3 cr | direct 2 | transitive 3 | chain 3
+  EENG 3910 | advanced | unknown | 3 cr | direct 1 | transitive 2 | chain 3
+  EENG 3920 | advanced | unknown | 3 cr | direct 1 | transitive 2 | chain 3
+  EENG 4110 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  EENG 4310 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  EENG 4760 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  EENG 4810 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  EENG 4910 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  EENG 4990 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  ENGL 1310 | advanced | eligible | 3 cr | direct 2 | transitive 28 | chain 4 | reasons: Unlocks 28 courses
+  ENGL 1320 | advanced | unknown | 3 cr | direct 3 | transitive 13 | chain 3
+  ENGL 3110 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  ENGR 1304 | advanced | eligible | 3 cr | direct 1 | transitive 3 | chain 4 | reasons: Unlocks 3 courses
+  ENGR 2301 | advanced | unknown | 3 cr | direct 3 | transitive 13 | chain 6
+  ENGR 2302 | advanced | locked | 3 cr | direct 2 | transitive 4 | chain 4
+  ENGR 2304 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  ENGR 2332 | advanced | locked | 3 cr | direct 6 | transitive 9 | chain 5
+  ENGR 3450 | advanced | locked | 4 cr | direct 2 | transitive 4 | chain 4
+  GEOG 2110 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  GEOG 4185 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  GEOG 4800 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  JOUR 2310 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  JOUR 3300 | advanced | eligible | 3 cr | direct 1 | transitive 1 | chain 2 | reasons: Unlocks 1 course
+  JOUR 3323 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 1100 | prerequisite | unknown | 3 cr | direct 7 | transitive 138 | chain 8
+  MATH 1180 | advanced | unknown | 3 cr | direct 2 | transitive 11 | chain 4
+  MATH 1190 | advanced | unknown | 3 cr | direct 4 | transitive 8 | chain 3
+  MATH 1650 | prerequisite | unknown | 5 cr | direct 5 | transitive 130 | chain 7
+  MATH 1680 | advanced | unknown | 3 cr | direct 3 | transitive 13 | chain 4
+  MATH 1710 | core | done | 3 cr | direct 13 | transitive 127 | chain 0
+  MATH 1720 | core | done | 3 cr | direct 13 | transitive 58 | chain 0
+  MATH 1780 | advanced | eligible | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 2000 | advanced | unknown | 3 cr | direct 1 | transitive 3 | chain 3
+  MATH 2700 | advanced | eligible | 3 cr | direct 8 | transitive 19 | chain 6 | reasons: Unlocks 19 courses
+  MATH 2730 | advanced | eligible | 3 cr | direct 5 | transitive 11 | chain 5 | reasons: Unlocks 11 courses
+  MATH 3000 | advanced | unknown | 3 cr | direct 2 | transitive 2 | chain 2
+  MATH 3180 | advanced | locked | 3 cr | direct 1 | transitive 4 | chain 4
+  MATH 3350 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 3410 | advanced | unknown | 3 cr | direct 8 | transitive 13 | chain 5
+  MATH 3420 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 3510 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 3680 | advanced | unknown | 3 cr | direct 5 | transitive 6 | chain 3
+  MATH 3740 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 3860 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 4060 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 4450 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MATH 4610 | advanced | unknown | 3 cr | direct 1 | transitive 1 | chain 2
+  MATH 4650 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  MEEN 1000 | advanced | unknown | 2 cr | direct 3 | transitive 12 | chain 6
+  MEEN 2110 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  MEEN 2210 | advanced | locked | 3 cr | direct 2 | transitive 8 | chain 5
+  MEEN 2240 | advanced | locked | 3 cr | direct 1 | transitive 6 | chain 5
+  MEEN 3100 | advanced | locked | 3 cr | direct 2 | transitive 2 | chain 3
+  MEEN 3110 | advanced | locked | 3 cr | direct 4 | transitive 6 | chain 4
+  MEEN 3120 | advanced | unknown | 3 cr | direct 2 | transitive 5 | chain 4
+  MEEN 3130 | advanced | locked | 3 cr | direct 1 | transitive 2 | chain 3
+  MEEN 3210 | advanced | locked | 3 cr | direct 3 | transitive 4 | chain 3
+  MEEN 3230 | advanced | locked | 3 cr | direct 1 | transitive 2 | chain 3
+  MEEN 3240 | advanced | locked | 2 cr | direct 0 | transitive 0 | chain 1
+  MEEN 3250 | advanced | locked | 3 cr | direct 1 | transitive 5 | chain 4
+  MEEN 4110 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MEEN 4140 | advanced | locked | 2 cr | direct 0 | transitive 0 | chain 1
+  MEEN 4150 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  MEEN 4151 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MEEN 4250 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  MEEN 4315 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MEEN 4332 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MEEN 4730 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MTSE 3000 | advanced | locked | 3 cr | direct 4 | transitive 4 | chain 2
+  MTSE 3001 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MTSE 3070 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MTSE 4040 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MTSE 4050 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MTSE 4070 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  MTSE 4900 | advanced | unknown | 1 cr | direct 0 | transitive 0 | chain 1
+  PHYS 1270 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  PHYS 1410 | advanced | eligible | 3 cr | direct 2 | transitive 12 | chain 5 | reasons: Unlocks 12 courses
+  PHYS 1420 | advanced | unknown | 3 cr | direct 1 | transitive 9 | chain 4
+  PHYS 1510 | advanced | unknown | 3 cr | direct 3 | transitive 12 | chain 4
+  PHYS 1520 | advanced | unknown | 3 cr | direct 3 | transitive 8 | chain 3
+  PHYS 1710 | advanced | unknown | 3 cr | direct 7 | transitive 35 | chain 7
+  PHYS 2220 | advanced | unknown | 3 cr | direct 3 | transitive 8 | chain 3
+  PHYS 3010 | advanced | unknown | 3 cr | direct 5 | transitive 5 | chain 2
+  PHYS 3420 | advanced | unknown | 4 cr | direct 0 | transitive 0 | chain 1
+  PHYS 3510 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PHYS 4110 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PHYS 4150 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PHYS 4310 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PHYS 4500 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PHYS 4520 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 1630 | advanced | eligible | 3 cr | direct 9 | transitive 19 | chain 3 | reasons: Unlocks 19 courses
+  PSYC 1650 | advanced | eligible | 3 cr | direct 5 | transitive 6 | chain 3 | reasons: Unlocks 6 courses
+  PSYC 2317 | advanced | locked | 3 cr | direct 2 | transitive 10 | chain 3
+  PSYC 2480 | advanced | eligible | 3 cr | direct 1 | transitive 1 | chain 2 | reasons: Unlocks 1 course
+  PSYC 3000 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 3100 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  PSYC 3300 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 3490 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 3520 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 3530 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 3620 | advanced | locked | 3 cr | direct 1 | transitive 1 | chain 2
+  PSYC 3640 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 3650 | advanced | locked | 4 cr | direct 9 | transitive 9 | chain 2
+  PSYC 4030 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4520 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4600 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4610 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4640 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4690 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4820 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4830 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4850 | advanced | unknown | 1 cr | direct 0 | transitive 0 | chain 1
+  PSYC 4950 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 1700 | advanced | eligible | 3 cr | direct 1 | transitive 26 | chain 4 | reasons: Unlocks 26 courses
+  TECM 2700 | advanced | unknown | 3 cr | direct 11 | transitive 25 | chain 3
+  TECM 3010 | advanced | locked | 3 cr | direct 4 | transitive 4 | chain 2
+  TECM 3100 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 3500 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 3550 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4010 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4100 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4180 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4190 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4200 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4250 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4500 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4700 | advanced | locked | 3 cr | direct 0 | transitive 0 | chain 1
+  TECM 4920 | advanced | unknown | 3 cr | direct 0 | transitive 0 | chain 1
