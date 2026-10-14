@@ -101,6 +101,10 @@
 .row > .more {
   pointer-events: auto;
 }
+/* The A and B badges sit on the row's corner, outside the grid. */
+.row > .pick {
+  position: absolute;
+}
 @media (hover: hover) and (pointer: fine) {
   .row:not([data-selected]):hover {
     background: rgba(26, 46, 26, 0.04);
@@ -305,6 +309,7 @@
   background: var(--ct);
   box-shadow: inset 3px 0 0 var(--c);
   font: 700 10.5px / 1.2 var(--font-mark);
+  white-space: nowrap;
   color: var(--ink);
 }
 .event[data-variant="dashed"] {
@@ -448,6 +453,7 @@
   text-decoration-color: var(--ink-4);
 }
 .arrow {
+  display: inline-block;
   margin: 0 4px;
   vertical-align: -2px;
   color: var(--ink-3);
@@ -488,6 +494,11 @@
   }
   .title {
     font-size: 20px;
+  }
+  .event {
+    padding: 3px 3px;
+    font-size: 9px;
+    letter-spacing: 0;
   }
   .pushList {
     transition:

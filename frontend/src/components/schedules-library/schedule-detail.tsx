@@ -17,7 +17,7 @@ import { versionTime } from "./view-model";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
 
-const VERSION_LABELS = { faded: "only now", dashed: "only before Auto" } as const;
+const VERSION_LABELS = { faded: "Only now", dashed: "Only before Auto" } as const;
 
 /**
  * One schedule in the panel (DESIGN.md §4.5 Detail): what to do with it,
@@ -79,7 +79,7 @@ export function ScheduleDetail({
       </div>
       {!entry.active && !mainSaved ? (
         <p className={styles.warn}>
-          Main isn&apos;t saved as a copy, so after Undo it&apos;s gone.{" "}
+          Main has no saved copy yet.{" "}
           <button type="button" className={styles.inline} onClick={onSaveMain}>
             Save a copy first
           </button>

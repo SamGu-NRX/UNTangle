@@ -174,8 +174,9 @@
   color: var(--danger);
 }
 
-/* The path line on the page's ground: its casing is the ground, not paper. */
-.steps {
+/* The path line on the page's ground: its casing is the ground, not paper.
+   ol.steps outranks ui.css's .ui-path margin and gap. */
+ol.steps {
   --path-gap: 22px;
   margin-top: 28px;
 }
@@ -314,24 +315,26 @@
   padding: 0;
   list-style: none;
 }
-/* The line runs from the first disc's centre to the last one's. */
-.thesisList::before {
-  content: "";
-  position: absolute;
-  left: 21px;
-  top: 30px;
-  bottom: 30px;
-  width: 4px;
-  border-radius: 2px;
-  background: var(--brand-2);
-  box-shadow: 0 0 0 3px var(--ground);
-}
+/* Each disc sits level with its card's caption, 21px down, and the line runs
+   from one disc's centre to the next one's: exactly to the last disc, whatever
+   the cards' heights. */
 .thesisList > li {
   position: relative;
   display: grid;
   grid-template-columns: 46px 1fr;
-  align-items: center;
+  align-items: start;
   gap: 12px;
+}
+.thesisList > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 21px;
+  bottom: calc(-18px - 21px);
+  width: 4px;
+  border-radius: 2px;
+  background: var(--brand-2);
+  box-shadow: 0 0 0 3px var(--ground);
 }
 .thesisStop {
   position: relative;
@@ -339,7 +342,8 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  margin-left: 8px;
+  margin: 6px 0 0 8px;
+  z-index: 1;
   border-radius: 50%;
   background: var(--brand);
   color: #fff;

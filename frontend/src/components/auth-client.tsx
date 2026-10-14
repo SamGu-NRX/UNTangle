@@ -61,12 +61,10 @@ export function AuthClient({ emailInServerLog, linkFailed }: { emailInServerLog:
       <AuthPanel
         api={liveApi}
         onContinue={() => router.push(AFTER_SIGN_IN)}
+        onGuest={() => router.push(AFTER_SIGN_IN)}
         emailInServerLog={emailInServerLog}
         linkFailed={linkFailed}
       />
-      <Button variant="quiet" className="auth__guest" onClick={() => router.push(AFTER_SIGN_IN)}>
-        Continue as guest
-      </Button>
     </AuthShell>
   );
 }
@@ -90,10 +88,13 @@ export function AuthPanel({
   headingLevel = 1,
   headingId,
   emailInputRef,
+  onGuest,
 }: {
   api: AuthApi;
   /** After a password sign-in succeeds. */
   onContinue: () => void;
+  /** On the /auth page, "Continue as guest" leaves for the plan; over a page, closing the form does that. */
+  onGuest?: () => void;
   /** Development without an email provider: the link is in the server log, and the form says so. */
   emailInServerLog: boolean;
   /** Came back from a sign-in link that had expired or was already used. */
@@ -327,7 +328,14 @@ export function AuthPanel({
       <p className="sr-only-v2" aria-live="assertive" aria-atomic="true">
         {fieldError.announcement}
       </p>
-      <p className="auth__foot">You can use UNTangle without an account.</p>
+      <div className="auth__foot">
+        <p>You can use UNTangle without an account.</p>
+        {onGuest ? (
+          <Button variant="quiet" size="sm" onClick={onGuest}>
+            Continue as guest
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

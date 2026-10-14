@@ -184,7 +184,7 @@ async function connectPopup(page, size) {
 
   await stage.getByRole("button", { name: "Looks right" }).click();
   await page.waitForURL(/\/courses$/);
-  await page.getByText(/^Added \d+ courses? from your transcript$/).waitFor();
+  await page.getByText(/^Added \d+ courses? from your transcript$/).first().waitFor();
   check(size, "connect: 'Looks right' saves and lands on Courses", page.url().endsWith("/courses"));
   await shot(page, size, "connect-done");
 }
@@ -307,7 +307,7 @@ async function connectPhone(page, size) {
   await again.getByRole("radiogroup", { name: "How to count HIST 9999" }).getByRole("radio", { name: "Skip" }).click();
   await again.getByRole("button", { name: "Looks right" }).click();
   await page.waitForURL(/\/courses$/);
-  await page.getByText(/^Added \d+ courses? from your transcript$/).waitFor();
+  await page.getByText(/^Added \d+ courses? from your transcript$/).first().waitFor();
   check(size, "connect: 'Looks right' saves and lands on Courses", true);
   await shot(page, size, "connect-done");
 }

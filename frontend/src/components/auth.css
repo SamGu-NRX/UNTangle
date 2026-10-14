@@ -76,9 +76,11 @@
   justify-content: center;
   gap: 4px 12px;
 }
-.auth__alt,
-.auth__guest {
+.auth__alt {
   justify-self: center;
+}
+.auth__foot p {
+  margin: 0;
 }
 .auth__aside {
   border-radius: 4px;
@@ -118,6 +120,9 @@
   }
 }
 .auth__foot {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
   margin: 0;
   padding-top: 14px;
   border-top: 1px solid var(--line);
