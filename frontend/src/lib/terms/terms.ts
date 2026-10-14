@@ -561,14 +561,17 @@ function sessionDayStatus(session: Session, date: IsoDate): ClassDayStatus {
   ) {
     return "finals";
   }
+  // A published holiday answers even when the session's class dates are not
+  // published yet (Labor Day, Spring Break in future terms).
+  const cancelled = (getTermCalendar(session.term)?.holidays ?? []).some((holiday) =>
+    holidayCancelsSession(holiday, session, date),
+  );
+  if (cancelled) return "no-class";
   // Class dates the registrar has not published stay unknown.
   if (session.classesEnd === null) return "unknown";
   // After the last regular class meeting, before finals: the reading-day gap.
   if (daysBetween(date, session.classesEnd) < 0) return "no-class";
-  const cancelled = (getTermCalendar(session.term)?.holidays ?? []).some((holiday) =>
-    holidayCancelsSession(holiday, session, date),
-  );
-  return cancelled ? "no-class" : "class";
+  return "class";
 }
 
 /**

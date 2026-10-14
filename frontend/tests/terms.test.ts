@@ -464,3 +464,15 @@ describe("Spring 2027 reconciliation against the official calendar", () => {
     }
   });
 });
+
+describe("published holidays answer before unpublished class dates", () => {
+  test("returns no-class for Labor Day 2027 in the full Fall 2027 term", () => {
+    expect(classDayStatus("2027-09-06", "2027-fall-full")).toBe("no-class");
+  });
+  test("returns no-class for Spring Break 2028 in the full Spring 2028 semester", () => {
+    expect(classDayStatus("2028-03-08", "2028-spring-full")).toBe("no-class");
+  });
+  test("still returns unknown for an unpublished ordinary date", () => {
+    expect(classDayStatus("2027-10-15", "2027-fall-full")).toBe("unknown");
+  });
+});
