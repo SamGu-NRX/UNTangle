@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { optimize } from "@/lib/optimizer/optimize";
-import { INSTRUCTOR_TIE_BREAK_TOLERANCE, NEUTRAL_INSTRUCTOR_GPA } from "@/lib/optimizer/score";
+import { INSTRUCTOR_TIE_BREAK_TOLERANCE } from "@/lib/optimizer/score";
 import type { OptCourse, OptDay, OptMeeting, OptSection, OptimizeRequest, RankedSchedule } from "@/lib/optimizer/types";
 import { scheduleReasons } from "@/lib/reasons";
 import {
@@ -160,8 +160,17 @@ describe("instructor evidence tie-break", () => {
   const chosen = (req: OptimizeRequest, schedule: RankedSchedule): OptSection[] =>
     req.courses.map((course) => course.sections.find((section) => section.id === schedule.byCourse[course.code])!);
   const meanEvidence = (req: OptimizeRequest, schedule: RankedSchedule): number => {
-    const sections = chosen(req, schedule);
-    return sections.reduce((sum, section) => sum + (section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA), 0) / sections.length;
+    // The engine's omit-per-course rule, written from the contract: a
+    // course contributes only when every one of its options has a known
+    // gpa; the mean runs over the picks in contributing courses.
+    const picked = chosen(req, schedule);
+    const eligibleCodes = new Set(
+      req.courses
+        .filter((course) => course.sections.every((section) => section.instructorGpa !== undefined && section.instructorGpa !== null))
+        .map((course) => course.code),
+    );
+    const contributing = picked.filter((section) => eligibleCodes.has(section.courseCode));
+    return contributing.reduce((sum, section) => sum + (section.instructorGpa ?? 0), 0) / contributing.length;
   };
 
   // One 50-minute section per slot, every building KLCE, weight 1 on idle
@@ -194,8 +203,8 @@ describe("instructor evidence tie-break", () => {
 
   test("a tie is broken by grade history, with the average sentence", () => {
     // Both cheap plans cost 200; the winner's ECON instructor averaged 3.9
-    // against 2.9 for the runner-up's. The MATH sections carry no evidence,
-    // so the neutral stand-in fills them and the tie still breaks.
+    // against 2.9 for the runner-up's. The MATH course has no evidence, so
+    // it is omitted for every plan and the ECON course decides the tie.
     const req = tieRequest(tiedGrid());
     const result = optimize(req);
     expect(result.status).toBe("optimal");
@@ -209,39 +218,45 @@ describe("instructor evidence tie-break", () => {
     expect(tie?.evidence.numbers).toContainEqual({ label: "sections with grade history", value: 1 });
   });
 
-  test("a missing match is neutral, not a penalty", () => {
-    // (a) The plan whose second section has no evidence (the neutral 3.0
-    // stands in) must beat the plan whose second section's instructor
-    // averaged 2.0: (3.8 + 3.0) / 2 beats (3.8 + 2.0) / 2 at equal cost.
-    const econA = gpaSection("econ-a", "ECON 1110", [at(480), at(480, "Tue")], 3.8);
+  test("a course with one unevidenced option is omitted for every option", () => {
+    // (a) One course, three sections at different times, all plans cost 0:
+    // because x-003 has no gpa, the whole course is left out of the
+    // evidence tier, so neither the weak 2.8 (x-001) nor the strong 3.2
+    // (x-002) moves the order and the section-id key decides.
     const req = tieRequest([
-      one("ECON 1110", [econA]),
-      one("MATH 1650", [gpaSection("math-001", "MATH 1650", [at(540)]), gpaSection("math-002", "MATH 1650", [at(540, "Tue")], 2.0)]),
+      one("ECON 1110", [
+        gpaSection("x-001", "ECON 1110", [at(480)], 2.8),
+        gpaSection("x-002", "ECON 1110", [at(540)], 3.2),
+        gpaSection("x-003", "ECON 1110", [at(610)]),
+      ]),
     ]);
     const result = optimize(req);
-    expect(result.schedules[0]?.byCourse).toEqual({ "ECON 1110": "econ-a", "MATH 1650": "math-001" });
+    expect(result.schedules.map((schedule) => schedule.byCourse["ECON 1110"])).toEqual(["x-001", "x-002", "x-003"]);
     expect(result.schedules[0]?.cost).toBe(result.schedules[1]?.cost);
-    expect(meanEvidence(req, result.schedules[0]!)).toBeGreaterThan(meanEvidence(req, result.schedules[1]!));
   });
 
-  test("a plan with no evidence at all beats one whose only evidence is poor", () => {
-    // (b) The all-neutral plan's evidence is exactly the neutral stand-in,
-    // and it outranks a plan whose only known instructor averaged 2.5.
-    const econA = gpaSection("econ-a", "ECON 1110", [at(480), at(480, "Tue")]);
+  test("a fully evidenced course decides the tie even when another course is partially evidenced", () => {
+    // (b) Both cheap plans cost 200. MATH has one option without a gpa, so
+    // it contributes nothing for either plan; the tie is decided by the
+    // fully evidenced ECON course, 3.9 against 2.9. Under neutral
+    // imputation these plans would have tied at (3.9+3.0)/2 versus
+    // (2.9+4.0)/2 and the key would have decided instead.
     const req = tieRequest([
-      one("ECON 1110", [econA]),
-      one("MATH 1650", [gpaSection("math-001", "MATH 1650", [at(540)]), gpaSection("math-002", "MATH 1650", [at(540, "Tue")], 2.5)]),
+      one("ECON 1110", [gpaSection("econ-a", "ECON 1110", [at(480)], 3.9), gpaSection("econ-b", "ECON 1110", [at(610)], 2.9)]),
+      one("MATH 1650", [gpaSection("math-001", "MATH 1650", [at(540)]), gpaSection("math-002", "MATH 1650", [at(670)], 4.0)]),
     ]);
     const result = optimize(req);
+    expect(result.status).toBe("optimal");
     expect(result.schedules[0]?.byCourse).toEqual({ "ECON 1110": "econ-a", "MATH 1650": "math-001" });
+    expect(result.schedules[1]?.byCourse).toEqual({ "ECON 1110": "econ-b", "MATH 1650": "math-002" });
     expect(result.schedules[0]?.cost).toBe(result.schedules[1]?.cost);
-    expect(meanEvidence(req, result.schedules[0]!)).toBe(NEUTRAL_INSTRUCTOR_GPA);
-    expect(meanEvidence(req, result.schedules[1]!)).toBe((NEUTRAL_INSTRUCTOR_GPA + 2.5) / 2);
   });
 
   test("with no evidence anywhere the order is the section-id key order", () => {
-    // (c) All-neutral plans behave exactly as before this tier existed;
-    // the 400-seed agreement tests pin the same property across shapes.
+    // (c) A course with no evidence anywhere is omitted (here, the only
+    // course), so the evidence tier is empty and plans behave exactly as
+    // before this tier existed; the 400-seed agreement tests pin the same
+    // property across shapes.
     const result = optimize(tieRequest([one("ECON 1110", [gpaSection("econ-a", "ECON 1110", [at(480)]), gpaSection("econ-b", "ECON 1110", [at(540)])])]));
     expect(result.schedules.map((schedule) => schedule.byCourse["ECON 1110"])).toEqual(["econ-a", "econ-b"]);
     expect(result.schedules[0]?.cost).toBe(result.schedules[1]?.cost);

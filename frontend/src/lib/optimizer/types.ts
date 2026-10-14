@@ -62,8 +62,11 @@ export type OptSection = {
   /**
    * Mean grade points (0 to 4 scale) of the section's instructor's past
    * students in this course, from grade history. Null or absent when there
-   * is no confident instructor match or no history. Missing data is neutral
-   * and must never penalize a section.
+   * is no confident instructor match or no history. Missing data is never
+   * treated as evidence: if any option of a course lacks this value, the
+   * course contributes no evidence for any plan (the omit-per-course rule,
+   * see `courseEvidenceEligible`), so the value can neither penalize nor
+   * reward a plan on its own.
    */
   instructorGpa?: number | null;
 };

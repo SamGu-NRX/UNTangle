@@ -18,9 +18,11 @@ import { leafBefore } from "@/lib/optimizer/search";
 
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const UNKNOWN_WALK = 600;
-// The engine's NEUTRAL_INSTRUCTOR_GPA, written out on purpose: a changed
-// constant in the engine is a disagreement here.
-const NEUTRAL_INSTRUCTOR_GPA = 3.0;
+
+// A known instructor gpa, written out on purpose rather than imported: a
+// changed rule in the engine is a disagreement here.
+const knownGpa = (section: OptSection): section is OptSection & { instructorGpa: number } =>
+  section.instructorGpa !== undefined && section.instructorGpa !== null;
 
 function runsOn(request: OptimizeRequest, meeting: OptMeeting, date: string): boolean {
   const range = meeting.dates ?? request.term;
@@ -87,7 +89,7 @@ export type RefSchedule = {
   sections: OptSection[];
   byCourse: Record<string, string>;
   cost: number;
-  /** The engine's tie-break evidence: the mean of known gpas, neutral for the missing ones. */
+  /** The engine's tie-break evidence: the omit-per-course mean of known gpas. */
   evidence: number;
   key: string[];
   breakdown: {
@@ -236,8 +238,16 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
     if (index === courses.length) {
       if (violations(request, current).length > 0) return;
       const { cost, breakdown } = referenceCost(request, current);
-      // The engine's mean-with-neutral evidence, written from the contract.
-      const evidence = current.reduce((sum, s) => sum + (s.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA), 0) / current.length;
+      // The engine's omit-per-course evidence, written from the contract:
+      // a course contributes only when every one of its options has a
+      // known gpa; with no contributing course the evidence is 0.
+      const eligible = courses.map((course) => course.sections.every(knownGpa));
+      const contributing: Array<OptSection & { instructorGpa: number }> = [];
+      current.forEach((section, index) => {
+        if (eligible[index] && knownGpa(section)) contributing.push(section);
+      });
+      const evidence =
+        contributing.length > 0 ? contributing.reduce((sum, section) => sum + section.instructorGpa, 0) / contributing.length : 0;
       out.push({
         sections: [...current],
         byCourse: Object.fromEntries(current.map((s) => [s.courseCode, s.id])),

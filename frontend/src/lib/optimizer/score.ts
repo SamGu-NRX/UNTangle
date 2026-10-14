@@ -9,6 +9,7 @@
 import {
   OptimizerInputError,
   OPT_DAYS,
+  type OptCourse,
   type OptDateRange,
   type OptDay,
   type OptMeeting,
@@ -63,12 +64,28 @@ export const DEFAULT_RATING_TENTHS = 30;
 export const INSTRUCTOR_TIE_BREAK_TOLERANCE = 0.5;
 
 /**
- * The instructor evidence a section contributes when its instructor's past
- * grades are unknown (no confident match, or no history). It mirrors
- * DEFAULT_RATING_TENTHS above, the fallback used for a missing rating, and
- * has no measurement behind it either.
+ * A course may contribute instructor evidence to the tie-break only when
+ * EVERY one of its options has a known instructorGpa; when some options in
+ * a course lack accepted evidence, that course's grade term is left out for
+ * every option (docs/architecture/README.md, "Feature rules that follow
+ * from evidence"). Imputing a stand-in value instead would treat missing
+ * data as evidence. Exported because the reasons module must derive
+ * eligibility from the same request: two computations of the rule could
+ * drift apart; one shared function cannot.
  */
-export const NEUTRAL_INSTRUCTOR_GPA = 3.0;
+export function courseEvidenceEligible(course: Pick<OptCourse, "sections">): boolean {
+  return course.sections.every((section) => section.instructorGpa !== undefined && section.instructorGpa !== null);
+}
+
+/**
+ * The evidence a section contributes when its course is evidence-eligible:
+ * its known instructorGpa. Never null on an eligible course, by
+ * `courseEvidenceEligible`; an ineligible course contributes 0 for every
+ * option, which is exact arithmetic rather than a stand-in measurement.
+ */
+export function sectionEvidence(section: OptSection, eligible: boolean): number {
+  return eligible && section.instructorGpa !== undefined && section.instructorGpa !== null ? section.instructorGpa : 0;
+}
 
 export function ratingTenths(rating: number | null): number | null {
   if (rating === null || !Number.isFinite(rating)) return null;
