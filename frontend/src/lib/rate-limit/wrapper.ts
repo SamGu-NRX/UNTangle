@@ -41,9 +41,9 @@ export function createRateLimitWrapper({ store, session, secret, now = Date.now 
         if (allowed && sensitive) {
           const sensitiveTime = now();
           const sensitiveMs = budgetWindowMs(sensitive);
-          const counter = await store.hitLastRequest(`auth:${path}`, hash(caller), sensitiveTime, sensitiveMs);
+          const counter = await store.hitLastRequest(`auth:${path}`, hash(caller), sensitiveTime, sensitiveMs, sensitive.ip);
           retryAfter = Math.ceil((counter.expiresAt - sensitiveTime) / 1000);
-          allowed = counter.count <= sensitive.ip;
+          allowed = counter.allowed;
         }
       } catch (error) {
         console.error("Rate limiting unavailable", error);

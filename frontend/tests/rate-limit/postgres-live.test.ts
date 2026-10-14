@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
+import { assertSensitiveWindowParity } from "./sensitive-parity";
 import { trustRealIp } from "./route-fixtures";
 import { postgresStore } from "@/lib/rate-limit/store";
 
@@ -36,17 +37,20 @@ test.skipIf(!url)("Postgres counts concurrent hits from many instances exactly, 
     try {
       await firstEntered.promise;
       time = 10_000;
-      const denied = await Promise.all(routes.map(route => route(req())));
+      const second = routes.map(route => route(req()));
+      release.resolve();
+      const denied = await Promise.all(second);
       expect(denied.map(response => response.status)).toEqual([429, 429, 429, 429]);
       expect(entered).toBe(3);
-      const delayed = await instances[0].hitLastRequest("auth:/sign-in/email", "delayed", 10_000, 10_000);
-      expect(delayed).toEqual({ count: 1, expiresAt: 20_000 });
-      expect(await instances[1].hitLastRequest("auth:/sign-in/email", "delayed", 9_999, 10_000)).toEqual({ count: 2, expiresAt: 20_000 });
-      expect(await instances[2].hitLastRequest("auth:/sign-in/email", "delayed", 20_000, 10_000)).toEqual({ count: 1, expiresAt: 30_000 });
+      const delayed = await instances[0].hitLastRequest("auth:/sign-in/email", "delayed", 10_000, 10_000, 3);
+      expect(delayed).toEqual({ allowed: true, expiresAt: 20_000 });
+      expect(await instances[1].hitLastRequest("auth:/sign-in/email", "delayed", 9_999, 10_000, 3)).toEqual({ allowed: true, expiresAt: 20_000 });
+      expect(await instances[2].hitLastRequest("auth:/sign-in/email", "delayed", 20_000, 10_000, 3)).toEqual({ allowed: true, expiresAt: 30_000 });
     } finally {
       release.resolve();
     }
     expect((await Promise.all(first)).map(response => response.status)).toEqual([200, 200, 200]);
+    await assertSensitiveWindowParity(instances[0]);
     await pool.query("DELETE FROM api_rate_limit");
     const counts = await Promise.all(Array.from({ length: 40 }, (_, i) => instances[i % 4].hit("grades", "caller", 100, 60_000)));
     expect(counts.sort((a, b) => a - b)).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));

@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { budgets } from "@/lib/rate-limit/config";
 import { createRateLimitWrapper } from "@/lib/rate-limit/server";
 import { memoryStore, type RateLimitStore } from "@/lib/rate-limit/store";
+import { assertSensitiveWindowParity } from "./sensitive-parity";
 import { trustRealIp } from "./route-fixtures";
 
 trustRealIp();
@@ -93,16 +94,22 @@ test("sensitive bursts stay limited across epoch boundaries while handlers are i
   try {
     await firstEntered.promise;
     time = 10_000;
-    const denied = await Promise.all(Array.from({ length: 3 }, () => route(req())));
+    const second = Array.from({ length: 3 }, () => route(req()));
+    release.resolve();
+    const denied = await Promise.all(second);
     expect(denied.map(response => response.status)).toEqual([429, 429, 429]);
     expect(denied[0].headers.get("Retry-After")).toBe("10");
     expect(entered).toBe(3);
-    time = 19_999;
+    time = 19_998;
     expect((await route(req())).status).toBe(429);
   } finally {
     release.resolve();
   }
   expect((await Promise.all(first)).map(response => response.status)).toEqual([200, 200, 200]);
-  time = 29_999;
+  time = 19_999;
   expect((await route(req())).status).toBe(200);
+});
+
+test("denied retries preserve Better Auth's last admitted window", async () => {
+  await assertSensitiveWindowParity(memoryStore());
 });
