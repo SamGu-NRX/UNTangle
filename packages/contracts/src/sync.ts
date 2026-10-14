@@ -31,10 +31,14 @@ export const ReceiptSchema = z.strictObject({
   committedRevision: z.int().min(1),
 });
 
-/** One line of the pull list. A deleted document keeps its line, with the revision of the delete. */
+/**
+ * One line of the pull list. A deleted document keeps its line, with the
+ * revision of the delete. Versions are append-only and listed separately,
+ * by id and paged, so they never appear here.
+ */
 export const PullEntrySchema = z.strictObject({
   documentId: DocumentIdSchema,
-  kind: DocumentKindSchema,
+  kind: DocumentKindSchema.exclude(["version"]),
   revision: z.int().min(1),
   deleted: z.boolean(),
 });

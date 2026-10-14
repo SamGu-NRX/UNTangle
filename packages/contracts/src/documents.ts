@@ -126,14 +126,25 @@ export const PreferenceWeightsSchema = z.strictObject({
 // Document bodies. Each carries its institution.
 
 /** One per user and institution. */
-export const AcademicRecordBodySchema = z.strictObject({
-  institutionId: InstitutionIdSchema,
-  courseStatuses: z.record(CourseCodeSchema, CourseStatusSchema),
-  transcriptRecords: z.array(TranscriptCourseRecordSchema),
-  /** Courses the student says they have credit for, whatever the transcript shows. */
-  manualCredit: z.array(CourseCodeSchema),
-  major: MajorIdSchema.nullable(),
-});
+export const AcademicRecordBodySchema = z
+  .strictObject({
+    institutionId: InstitutionIdSchema,
+    courseStatuses: z.record(CourseCodeSchema, CourseStatusSchema),
+    transcriptRecords: z.array(TranscriptCourseRecordSchema),
+    /** Courses the student says they have credit for, whatever the transcript shows. */
+    manualCredit: z.array(CourseCodeSchema),
+    major: MajorIdSchema.nullable(),
+  })
+  .superRefine((record, ctx) => {
+    // The planner keys transcript rows by id when it merges imports.
+    requireUnique(
+      record.transcriptRecords.map((row) => row.id),
+      ctx,
+      "transcriptRecords",
+      "Transcript row id",
+    );
+    requireUnique(record.manualCredit, ctx, "manualCredit", "Course");
+  });
 
 /** One per user, institution and term; a student may keep several. */
 export const ScheduleBodySchema = z

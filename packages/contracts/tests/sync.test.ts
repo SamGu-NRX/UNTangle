@@ -87,6 +87,10 @@ describe("pull list", () => {
     ]);
   });
 
+  test("rejects a version, which is listed separately and paged", () => {
+    expect(rejections(PullListSchema, [{ ...list[0], kind: "version" }])).toHaveLength(1);
+  });
+
   test("rejects a kind that doesn't exist", () => {
     expect(rejections(PullListSchema, [{ ...list[0], kind: "roadmap" }])).toHaveLength(1);
   });

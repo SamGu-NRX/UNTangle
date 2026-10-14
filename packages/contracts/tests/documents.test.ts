@@ -80,6 +80,13 @@ describe("document bodies reject what the app could not have written", () => {
     ]);
   });
 
+  test("two transcript rows with one id", () => {
+    const transcriptRecords = [...academicRecord.transcriptRecords, { ...academicRecord.transcriptRecords[0], grade: "B" }];
+    expect(rejections(AcademicRecordBodySchema, { ...academicRecord, transcriptRecords })).toEqual([
+      'transcriptRecords: Transcript row id "row-1" appears twice.',
+    ]);
+  });
+
   test("a status the planner doesn't have", () => {
     const courseStatuses = { ...academicRecord.courseStatuses, "CSCE 1030": "passed" };
     expect(rejections(AcademicRecordBodySchema, { ...academicRecord, courseStatuses })).toHaveLength(1);
