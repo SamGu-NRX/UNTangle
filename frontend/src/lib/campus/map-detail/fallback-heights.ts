@@ -1,8 +1,7 @@
 /**
  * Floor counts for UNT buildings, each checked against a UNT source. An entry
- * fills in where OpenStreetMap has no height or levels, and outranks
- * Overture's ML estimate (heights.ts); where OSM has its own levels, OSM still
- * wins.
+ * outranks OSM `building:levels` and Overture's ML estimate, and yields only
+ * to a mapped OSM `height` in metres (heights.ts).
  *
  * Source: UNT Risk Management's 2025 building emergency action plans, whose
  * labelled floor maps give the floors above ground (basements excluded).
@@ -11,8 +10,8 @@
  * Discovery Park (NTRP) is outside the map and has no entry; the Coliseum and
  * DATCU Stadium have no confirmed count above ground and are left out.
  *
- * A better fix for a building still missing here is building:levels in
- * OpenStreetMap: it corrects every map at once.
+ * For a building with no entry here, adding building:levels in OpenStreetMap
+ * corrects every map at once.
  */
 import type { FallbackHeight } from "@/lib/campus/map-detail/heights";
 

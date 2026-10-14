@@ -6,11 +6,15 @@
  * outlines. Each outline's height comes from the first source that has one:
  *
  * 1. OSM `height` (metres; `min_height` lifts the base);
- * 2. OSM `building:levels`, at METRES_PER_LEVEL each (`building:min_level`
+ * 2. UNT's own floor count (fallback-heights.ts), at METRES_PER_LEVEL each;
+ * 3. OSM `building:levels`, at METRES_PER_LEVEL each (`building:min_level`
  *    lifts the base);
- * 3. the fallback table (fallback-heights.ts), whose entries cite a source;
  * 4. Overture Maps' height, which here comes from Microsoft's ML building
- *    heights: a model estimate from imagery, so a cited table entry beats it.
+ *    heights: a model estimate from imagery.
+ *
+ * UNT's count comes before OSM levels because UNT's emergency-plan floor maps
+ * count floors above ground, while OSM levels can include basements or
+ * rooftop structures.
  *
  * A building none of these cover is drawn flat. Its height is unknown, and a
  * guessed box would look as certain as a measured one.
@@ -88,6 +92,14 @@ export function resolveHeight({ tags, osm, fallback, overtureMetres }: HeightInp
     if (base >= height) throw new Error(`${osm}: min_height ${base} m is not below height ${height} m`);
     return { source: "osm-height", height: rounded(height), base: rounded(base) };
   }
+  // UNT's floors above ground beat OSM levels, which can count basements or rooftop structures.
+  const entry = fallback.get(osm);
+  if (entry) {
+    if (!Number.isInteger(entry.floors) || entry.floors < 1) {
+      throw new Error(`${osm}: the fallback table's floors must be a whole number of at least 1, not ${entry.floors}`);
+    }
+    return { source: "fallback-table", height: rounded(entry.floors * METRES_PER_LEVEL), base: 0 };
+  }
   if (tags["building:levels"] !== undefined) {
     const levels = parseOsmLevels(tags["building:levels"], osm, "building:levels");
     const minLevel = tags["building:min_level"] !== undefined
@@ -96,13 +108,6 @@ export function resolveHeight({ tags, osm, fallback, overtureMetres }: HeightInp
     if (levels === 0) return { source: "none" };
     if (minLevel >= levels) throw new Error(`${osm}: building:min_level ${minLevel} is not below building:levels ${levels}`);
     return { source: "osm-levels", height: rounded(levels * METRES_PER_LEVEL), base: rounded(minLevel * METRES_PER_LEVEL) };
-  }
-  const entry = fallback.get(osm);
-  if (entry) {
-    if (!Number.isInteger(entry.floors) || entry.floors < 1) {
-      throw new Error(`${osm}: the fallback table's floors must be a whole number of at least 1, not ${entry.floors}`);
-    }
-    return { source: "fallback-table", height: rounded(entry.floors * METRES_PER_LEVEL), base: 0 };
   }
   if (overtureMetres !== undefined) {
     if (!(overtureMetres > 0)) throw new Error(`${osm}: Overture height ${overtureMetres} is not a positive number of metres`);

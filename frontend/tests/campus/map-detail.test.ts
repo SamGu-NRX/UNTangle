@@ -42,6 +42,14 @@ describe("resolveHeight", () => {
     });
   });
 
+  test("UNT's floor count beats conflicting OSM levels, but not a mapped OSM height", () => {
+    // Sage Hall: OSM says 4 levels, UNT's emergency plan shows 3 floors above ground.
+    const sage: FallbackHeight = { ...dath, osm: "way/256787053", name: "Sage Hall (SAGE)", floors: 3 };
+    const fallback = new Map([[sage.osm, sage]]);
+    expect(resolveHeight({ tags: { "building:levels": "4" }, osm: sage.osm, fallback })).toEqual({ source: "fallback-table", height: 11, base: 0 });
+    expect(resolveHeight({ tags: { height: "16", "building:levels": "4" }, osm: sage.osm, fallback })).toEqual({ source: "osm-height", height: 16, base: 0 });
+  });
+
   test("a cited table entry beats Overture's ML estimate", () => {
     expect(resolveHeight({ tags: {}, osm: dath.osm, fallback: table, overtureMetres: 4.2 })).toEqual({
       source: "fallback-table",
