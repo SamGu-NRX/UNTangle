@@ -31,7 +31,15 @@ export type SourcePolicy = {
   policyCheckedAt: string | null;
 };
 
-export const SOURCE_POLICIES: readonly SourcePolicy[] = [
+/** A policy as the table hands it out: frozen, down to its URL list. */
+export type ReviewedSourcePolicy = Readonly<Omit<SourcePolicy, "allowedUrlPrefixes">> & { readonly allowedUrlPrefixes: readonly string[] };
+
+/** Freezes each policy and its URL list, so no caller can loosen a reviewed record for the rest of the process. */
+function reviewed(policies: SourcePolicy[]): readonly ReviewedSourcePolicy[] {
+  return Object.freeze(policies.map((policy) => Object.freeze({ ...policy, allowedUrlPrefixes: Object.freeze([...policy.allowedUrlPrefixes]) })));
+}
+
+export const SOURCE_POLICIES: readonly ReviewedSourcePolicy[] = reviewed([
   {
     sourceId: "vsb-untgrades",
     description:
@@ -54,10 +62,10 @@ export const SOURCE_POLICIES: readonly SourcePolicy[] = [
     policyEvidenceUrl: null,
     policyCheckedAt: null,
   },
-];
+]);
 
 /** The policy for `sourceId`. Throws when the table has none, so a job can't fetch from an unreviewed source. */
-export function sourcePolicy(sourceId: string): SourcePolicy {
+export function sourcePolicy(sourceId: string): ReviewedSourcePolicy {
   const policy = SOURCE_POLICIES.find((entry) => entry.sourceId === sourceId);
   if (!policy) throw new Error(`No source policy for "${sourceId}". Add one to packages/ingest/src/source-policies.ts and have it reviewed.`);
   return policy;
