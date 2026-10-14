@@ -60,3 +60,7 @@ frontend/src/app/globals.css
 # CI, this list, and the checks that read it
 .github/**
 tools/repo-rules/**
+# The surfaces where taste matters most (docs/architecture/README.md, "Who builds what").
+frontend/src/components/map/map-canvas.tsx
+frontend/src/components/schedule/WeekGrid.tsx
+frontend/src/components/schedule-builder/WeekGrid.tsx

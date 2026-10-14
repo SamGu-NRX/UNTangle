@@ -54,7 +54,8 @@ export const TranscriptCourseRecordSchema = z.strictObject({
   reviewRequired: z.boolean(),
 });
 
-export const AutoTransactionSchema = z.strictObject({
+export const AutoTransactionSchema = z
+  .strictObject({
   id: z.string(),
   at: z.string(),
   major: MajorIdSchema.nullable(),
@@ -63,7 +64,13 @@ export const AutoTransactionSchema = z.strictObject({
   summary: z.string(),
   needsCheck: z.array(CourseCodeSchema),
   invalidatedBy: CourseCodeSchema.optional(),
-});
+  })
+  // Each list names a course at most once; a repeat would double an undo or a check.
+  .superRefine((auto, ctx) => {
+    requireUnique(auto.changes.map((change) => change.code), ctx, "changes", "Changed course");
+    requireUnique(auto.autoPlannedBefore, ctx, "autoPlannedBefore", "Auto-planned course");
+    requireUnique(auto.needsCheck, ctx, "needsCheck", "Course to check");
+  });
 
 /** Minutes after midnight. */
 const minute = z.int().min(0).max(24 * 60);

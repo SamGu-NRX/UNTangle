@@ -107,12 +107,14 @@ The planner blob becomes separate documents. Each has its own revision:
 
 Roadmaps and calendar or notification subscriptions get documents when their features are built, not before.
 
+Each fact lives in exactly one document. Planned courses for a term belong to that term's schedule. The academic record holds only facts about the student's history: completed courses, courses in progress now, transfer and exam credit. Today `PlannerState` marks a planned course `inProgress`, and the migration moves those courses into the schedule. A write carries its document's `kind`, so the server can check the body of a document's first write; on later writes the kind must match the stored document.
+
 Some state never syncs and stays on each device: the active tab, the selected day, scroll and sheet position, the schedule being viewed. Another device shouldn't move the screen you're reading.
 
 **Writes are whole-document compare-and-set,** as `persistence.ts` does today, plus a receipt:
 
 ```ts
-interface Write { operationId: string; documentId: string; baseRevision: number; schemaVersion: 1; body: unknown | null /* null deletes */ }
+interface Write { operationId: string; documentId: string; kind: DocumentKind; baseRevision: number; schemaVersion: 1; body: unknown | null /* null deletes */ }
 interface Receipt { userId: string; operationId: string; bodySha256: string; committedRevision: number }
 ```
 

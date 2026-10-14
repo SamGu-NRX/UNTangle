@@ -133,15 +133,20 @@ const stayInPackage = {
     const [top, name] = path.relative(repoRoot, context.filename).split(path.sep);
     if (top !== "packages" || !name) return {};
     const packageDir = path.join(repoRoot, top, name);
+    // Shipped code under src/ may import only src/, so a test helper can't
+    // become a route around the boundary rules.
+    const srcDir = path.join(packageDir, "src");
+    const inSrc = context.filename.startsWith(srcDir + path.sep);
     const check = (sourceNode) => {
       const source = sourceNode?.value;
       if (typeof source !== "string" || !(source.startsWith(".") || source.startsWith("/"))) return;
       const target = path.resolve(path.dirname(context.filename), source);
-      if (target !== packageDir && !target.startsWith(packageDir + path.sep)) {
+      const allowedDir = inSrc ? srcDir : packageDir;
+      if (target !== allowedDir && !target.startsWith(allowedDir + path.sep)) {
         context.report({
           node: sourceNode,
           messageId: "escapes",
-          data: { source, packageDir: path.relative(repoRoot, packageDir) },
+          data: { source, packageDir: path.relative(repoRoot, allowedDir) },
         });
       }
     };

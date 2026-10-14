@@ -35,6 +35,8 @@ describe("a forbidden import fails lint", () => {
     // Relative paths out of the package are caught too.
     ["packages/core/src/deep/a.ts", 'import type { PlannerState } from "../../../../frontend/src/lib/types";\nexport type S = PlannerState;', escapes],
     ["packages/core/src/a.ts", 'import { ids } from "../../contracts/src/ids";\nexport const i = ids;', escapes],
+    // Shipped code may not reach into its own package's tests, so a test helper can't route around the rules.
+    ["packages/core/src/a.ts", 'export { a } from "../tests/helpers";', escapes],
     // Lazy and CommonJS loading can't dodge the rules.
     ["packages/core/src/a.ts", 'export const lazy = () => import("react");', "no-restricted-syntax"],
     ["packages/core/src/a.ts", 'export const fs = require("fs");', "@typescript-eslint/no-require-imports"],
@@ -66,7 +68,6 @@ describe("an allowed import passes lint", () => {
   test.each([
     ["packages/core/src/planner/a.ts", 'import { model } from "../sections/model";\nexport const m = model;'],
     // A relative path may climb as long as it stays inside the package.
-    ["packages/core/src/a.ts", 'export { a } from "../tests/helpers";'],
     // Built-in names are matched exactly, so a local module called fs is fine.
     ["packages/core/src/a.ts", 'import { open } from "./fs";\nexport const o = open;'],
     ["packages/contracts/src/a.ts", 'import { z } from "zod";\nimport { plan } from "@untangle/core/planner";\nexport const s = [z, plan];'],

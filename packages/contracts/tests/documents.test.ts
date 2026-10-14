@@ -197,3 +197,14 @@ describe("bodies keep the planner's types", () => {
     expectTypeOf<Pick<PreferencesBody, "constraints" | "weights">>().toEqualTypeOf<SchedulePreferences>();
   });
 });
+
+describe("Auto's saved run names each course once", () => {
+  const run = schedule.lastAuto!;
+  test.each([
+    ["changes", { changes: [...run.changes, run.changes[0]] }],
+    ["autoPlannedBefore", { autoPlannedBefore: [...run.autoPlannedBefore, "CSCE 1030", "CSCE 1030"] }],
+    ["needsCheck", { needsCheck: ["CSCE 2110", "CSCE 2110"] }],
+  ])("rejects a repeat in %s", (_field, patch) => {
+    expect(rejections(AutoTransactionSchema, { ...run, ...patch }).length).toBeGreaterThan(0);
+  });
+});

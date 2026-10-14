@@ -10,6 +10,7 @@ function sha256Hex(text: string): string {
 const write = {
   operationId: "0b6b5c1e-8f0a-4c4e-9d43-3f1b0f9a2c11",
   documentId: "schedule-main",
+  kind: "schedule",
   baseRevision: 4,
   schemaVersion: 1,
   body: schedule,
@@ -28,6 +29,10 @@ describe("Write", () => {
     expect(decoded(WriteSchema, { ...write, baseRevision: 0 })).toEqual({ ...write, baseRevision: 0 });
   });
 
+  test("rejects a write with no kind, so a first write can be checked against its body schema", () => {
+    expect(rejections(WriteSchema, without(write, "kind"))).toHaveLength(1);
+  });
+
   test("rejects a write with no body, so a delete is always explicit", () => {
     expect(rejections(WriteSchema, without(write, "body"))).toHaveLength(1);
   });
@@ -37,7 +42,8 @@ describe("Write", () => {
     ["a fractional base revision", { baseRevision: 1.5 }],
     ["a schema version this client doesn't speak", { schemaVersion: 2 }],
     ["an operation id with a slash", { operationId: "op/1" }],
-    ["an unknown field", { kind: "schedule" }],
+    ["an unknown field", { note: "extra" }],
+    ["an unknown document kind", { kind: "roadmap" }],
   ])("rejects %s", (_case, change) => {
     expect(rejections(WriteSchema, { ...write, ...change })).toHaveLength(1);
   });

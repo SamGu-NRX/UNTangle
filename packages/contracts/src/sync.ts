@@ -9,12 +9,14 @@ import { DocumentIdSchema, OperationIdSchema } from "./ids";
 
 /**
  * One write to one document. A retry sends the same operationId and the same
- * body. The body is any JSON value, or null to delete. It is checked against
- * its kind's schema (documentBodySchemas) once the server knows the kind.
+ * body. The body is any JSON value, or null to delete. `kind` says which body
+ * schema applies, so the server can check a document's first write; on later
+ * writes it must equal the stored document's kind, or the write is rejected.
  */
 export const WriteSchema = z.strictObject({
   operationId: OperationIdSchema,
   documentId: DocumentIdSchema,
+  kind: DocumentKindSchema,
   /** The revision the client last saw; 0 when it saw no document. */
   baseRevision: z.int().min(0),
   schemaVersion: z.literal(1),
