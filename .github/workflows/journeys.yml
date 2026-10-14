@@ -229,6 +229,9 @@ jobs:
           done
           cat "$UNTANGLE_OUT/mock-myunt.log"
           exit 1
+      - name: Capture course route diagnostics
+        if: matrix.name == 'courses-v2'
+        run: sudo --preserve-env -u journey "$(command -v node)" .github/scripts/journey-route-diagnostics.mjs
       - name: Run browser journey
         env:
           JOURNEY: ${{ matrix.name }}
