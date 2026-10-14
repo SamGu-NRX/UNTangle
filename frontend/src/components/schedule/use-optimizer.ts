@@ -18,7 +18,11 @@ export function useOptimizerRuns() {
     dispatch({ type: "start", id, inputKey });
   }, []);
 
-  const close = useCallback(() => dispatch({ type: "close" }), []);
+  // Closing the results also stops a search still refining them; nobody will see its answer.
+  const close = useCallback(() => {
+    client.current?.cancel();
+    dispatch({ type: "close" });
+  }, []);
 
   return { state, run, close };
 }
