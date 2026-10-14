@@ -24,7 +24,7 @@ visible without hiding new failures.
 ## Last run (2026-10-13)
 
 ```
-corpus: 451/466 pass, 15 known misses, 0 failures      (exit 0)
+corpus: 457/472 pass, 15 known misses, 0 failures      (exit 0)
 
   field                precision  recall   (correct / set, correct / labeled)
   hard.blockedTimes    100%       100%     (50/50, 50/50)
@@ -36,13 +36,13 @@ corpus: 451/466 pass, 15 known misses, 0 failures      (exit 0)
   hard.latestEnd       100%        95%     (35/35, 35/37)
   hard.mode            100%        94%     (16/16, 16/17)
   hard.openSeatsOnly   100%       100%     (15/15, 15/15)
-  soft                 100%        90%     (88/88, 88/98)
+  soft                 100%        91%     (97/97, 97/107)
   tags                 100%       100%     (108/108, 108/108)
   facts (hard + soft)  100%        96%
 ```
 
-`preferences.test.ts`: 141 pass, 0 fail. Full `bun --no-env-file test` in
-`frontend/`: 1502 pass, 4 skip, 0 fail. `tsc --noEmit`: clean.
+`preferences.test.ts`: 156 pass, 0 fail. Full `bun --no-env-file test` in
+`frontend/`: 1517 pass, 4 skip, 0 fail. `tsc --noEmit`: clean.
 
 A field the parser set counts as a prediction; a field the label sets counts
 as a fact; a prediction is correct only when its value equals the label's.
@@ -59,9 +59,14 @@ puts the leaning after the noun, where no cue word reaches it.
 
 ## Label changes in this revision
 
-- Plain soft statements are mild; only an intensifier ("really", "must",
-  "need", "have to", "absolutely", "very important", "can't") makes one
-  strong. Every plain soft label moved from strong to mild.
+- Plain soft statements are mild; an intensifier makes one strong. That
+  covers words before the leaning ("really", "strongly prefer", "would much
+  rather") and phrases after it ("matters a lot to me", "is important", "is
+  a must"). A clause's own intensifier beats a hedge in the same clause, so
+  "I really want fewer days on campus, if possible" is strong. A clause
+  joined by "and" or a comma with no subject of its own inherits the
+  intensifier before it, unless it has its own hedge. Every plain soft label
+  moved from strong to mild.
 - A bare range starting at 12 ("keep 12-1 free") is `ambiguousTime`, since
   12 can be noon or midnight. Each such entry gained a twin with am/pm
   written, which still blocks the time.

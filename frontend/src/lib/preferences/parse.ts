@@ -332,6 +332,11 @@ type Clause = Interval & {
   tokens: Token[];
   /** The clause opened with "but", as in "no classes before 10, but 9 is okay". */
   afterBut: boolean;
+  /**
+   * The clause carries on the one before it: joined only by "and" or a
+   * comma, with no subject of its own ("I really want X and Y").
+   */
+  continues: boolean;
 };
 
 const CREDIT = String.raw`(?:credit\s*hours?|credit\s*hrs?|credits?)`;
@@ -348,7 +353,7 @@ function splitClauses(masked: string, tokens: readonly Token[]): Clause[] {
     ...masked.matchAll(new RegExp(String.raw`\bbetween\s+${TIME}\s+and\s+${TIME}`, "g")),
     ...masked.matchAll(/\b\d+\.\d+\b/g),
   ].map((m) => ({ start: m.index, end: m.index + m[0].length }));
-  const cuts: Array<{ at: number; length: number; but: boolean }> = [];
+  const cuts: Array<{ at: number; word: string }> = [];
   for (const m of masked.matchAll(/[.,;:!?]|\band\b|\bbut\b/g)) {
     if (protect.some((p) => p.start < m.index && m.index < p.end)) continue;
     const before = masked.slice(0, m.index);
@@ -358,24 +363,29 @@ function splitClauses(masked: string, tokens: readonly Token[]): Clause[] {
     if (/^(?:,|and|or)$/.test(m[0]) && (joins(COURSE) || joins(INSTRUCTOR))) continue;
     // "anyone but Dr. Lee" names who to avoid; it is not a second clause.
     if (m[0] === "but" && /\b(?:any|every)(?:one|body|thing)\s*$/.test(before)) continue;
-    cuts.push({ at: m.index, length: m[0].length, but: m[0] === "but" });
+    cuts.push({ at: m.index, word: m[0] });
   }
-  cuts.push({ at: masked.length, length: 0, but: false });
+  cuts.push({ at: masked.length, word: "" });
   const clauses: Clause[] = [];
   let from = 0;
-  let afterBut = false;
+  let opener: string[] = [];
   for (const cut of cuts) {
     let start = from;
     let end = cut.at;
     while (start < end && /\s/.test(masked[start])) start++;
     while (end > start && /\s/.test(masked[end - 1])) end--;
     if (start < end) {
+      const text = masked.slice(start, end);
+      const continues =
+        clauses.length > 0 &&
+        opener.every((w) => w === "," || w === "and") &&
+        !/^(?:i|i'm|i'd|i'll|we|my|it|it's|this|that|they|also)\b/.test(text);
       const inside = tokens.filter((t) => t.start >= start && t.end <= end);
-      clauses.push({ start, end, text: masked.slice(start, end), tokens: inside, afterBut });
-      afterBut = false;
+      clauses.push({ start, end, text, tokens: inside, afterBut: opener.includes("but"), continues });
+      opener = [];
     }
-    from = cut.at + cut.length;
-    afterBut ||= cut.but;
+    from = cut.at + cut.word.length;
+    if (cut.word) opener.push(cut.word);
   }
   return clauses;
 }
@@ -747,19 +757,19 @@ const ROWS: Row[] = [
   ),
 
   // Soft preferences. Negating one of a pair gives the other.
-  row(/\bcompact\b|\bback[ -]to[ -]back\b|\btight\s+schedule\b|\bclump(?:ed)?\b|\b(?:pack|packed|bunch|bunched)\s+(?:\w+\s+){0,2}together\b|\b(?:fewer|minimal|minimi[sz]e)\s+gaps\b/g, (x) =>
+  row(/\bcompact\b|\bback[ -]to[ -]back\b|\btight\s+schedule\b|\bclump(?:ed)?\b|\b(?:pack|packed|bunch|bunched)\s+(?:\w+\s+){0,2}together\b|\b(?:fewer|minimal|minimi[sz]e|short|shorter|small|smaller|less)\s+(?:gaps|breaks)\b/g, (x) =>
     soft(x, x.gov.negated ? "spreadOut" : "compact"),
   ),
   row(
-    /\b(?:spread|space)\s+(?:it\s+|them\s+|my\s+classes\s+|everything\s+)?out\b|\b(?:gaps?|breaks?)\s+between\b|\b(?:long\s+)?gaps\b/g,
+    /\b(?:spread|space)\s+(?:it\s+|them\s+|my\s+classes\s+|everything\s+)?out\b|\b(?:gaps?|breaks?)\s+between\b|\b(?:(?:long|longer|big|bigger|more)\s+)?(?:gaps|breaks)\b/g,
     (x) => soft(x, x.gov.negated ? "compact" : "spreadOut"),
   ),
   row(
-    /\bfewer\s+(?:days(?:\s+on\s+campus)?|trips(?:\s+to\s+campus)?)\b|\bless\s+days\b|\bfewest\s+days\b|\bas\s+few\s+(?:days|trips)(?:\s+(?:on|to)\s+campus)?\s+as\s+possible\b|\bminimi[sz]e\s+(?:my\s+)?days\s+on\s+campus\b/g,
+    /\bfewer\s+(?:days(?:\s+on\s+campus)?|trips(?:\s+to\s+campus)?)\b|\b(?:less|fewer|fewest)\s+(?:campus\s+)?days\b|\bas\s+few\s+(?:days|trips)(?:\s+(?:on|to)\s+campus)?\s+as\s+possible\b|\bminimi[sz]e\s+(?:my\s+)?days\s+on\s+campus\b/g,
     (x) => (x.gov.negated ? null : soft(x, "fewerDays")),
   ),
   row(
-    /\bas\s+little\s+walking\s+as\s+possible\b|\bwalk\s+as\s+little\s+as\s+possible\b|\b(?:minimal|less|little)\s+walking\b|\bwalking\s+to\s+a\s+minimum\b|\bminimi[sz]e\s+walking\b|\bshort\s+walks?(?:\s+between(?:\s+(?:my\s+)?classes)?)?/g,
+    /(?:\bas\s+little\s+walking\s+as\s+possible|\bwalk\s+as\s+little\s+as\s+possible|\b(?:minimal|less|little)\s+walking|\bwalking\s+to\s+a\s+minimum|\bminimi[sz]e\s+walking|\b(?:short|shorter|shortest|fewer|less|brief)\s+walks?)\b(?:\s+between(?:\s+(?:my\s+)?(?:classes|buildings))?)?/g,
     (x) => (x.gov.negated ? null : soft(x, "minimalWalking")),
   ),
   row(/\bwalk(?:ing)?\s+(?:far|a\s+lot|much|across\s+campus)\b|\blong\s+walks?\b/g, (x) =>
@@ -838,9 +848,14 @@ function readClause(c: Clause): Found[] {
 // ---------------------------------------------------------------------------
 
 const HEDGE_SOURCE = String.raw`\b(?:if\s+(?:at\s+all\s+)?possible|if\s+you\s+can|if\s+i\s+can(?:\s+help\s+it)?|when(?:ever)?\s+possible|ideally|preferabl[ey]|i'?d\s+prefer|prefer(?:red|s)?|i'?d\s+rather|(?:i\s+)?would\s+rather|i'?d\s+like|i\s+would\s+like|i'?d\s+love|i\s+would\s+love|would\s+be\s+(?:nice|great|ideal)|(?:not\s+a|no)\s+big\s+deal|(?:if|unless)\s+(?:really\s+|absolutely\s+)?necessary|if\s+need(?:\s+be|ed)|try\s+to|hopefully|maybe|kinda|sorta|kind\s+of|sort\s+of|somewhat|slightly)\b`;
-const HEDGE = new RegExp(HEDGE_SOURCE);
 const HEDGES = new RegExp(HEDGE_SOURCE, "g");
-const INTENSIFIER = /\b(?:really|must|needs?|ha(?:ve|s)\s+to|absolutely|very\s+important|can'?t|cannot|can\s+not)\b/;
+/**
+ * Words that make a leaning strong, before it ("really", "strongly prefer",
+ * "would much rather") or after it ("matters a lot to me", "is important",
+ * "is a must", "is a big deal").
+ */
+const INTENSIFIER_SOURCE = String.raw`\b(?:really|truly|definitely|strongly|absolutely|must|needs?|ha(?:ve|s)\s+to|can'?t|cannot|can\s+not|much\s+(?:prefer|rather)|very\s+important|(?:matters?|counts?)\s+(?:a\s+lot|so\s+much|a\s+great\s+deal|(?:the\s+)?most)|(?:is|are|'s|'re)\s+(?:really\s+|very\s+|super\s+|so\s+|extremely\s+)?(?:important|essential|crucial|critical|key|a\s+must|a\s+(?:top\s+)?priority|a\s+(?:big|huge)\s+deal|non-?negotiable))\b`;
+const INTENSIFIERS = new RegExp(INTENSIFIER_SOURCE, "g");
 /** A concession after "but": "no classes before 10, but 9am is okay". */
 const OKAY = /\b(?:is|are|'s|would\s+be)\s+(?:ok(?:ay)?|fine|alright|acceptable)\b/;
 const NECESSARY = /\b(?:if|unless)\s+(?:really\s+|absolutely\s+)?necessary\b/;
@@ -849,16 +864,25 @@ const NECESSARY = /\b(?:if|unless)\s+(?:really\s+|absolutely\s+)?necessary\b/;
 const FILLER =
   /^(?:hey|hi|thanks|thank|please|pls|so|well|ok|okay|um|uh|oh|i|i'm|me|my|we|our|you|your|it|its|it's|this|that|these|those|there|just|really|also|too|very|and|or|but|the|a|an|to|of|for|on|in|at|by|with|as|is|are|am|was|were|be|been|being|do|does|did|don't|have|has|had|want|wanted|wants|need|needs|needed|like|would|could|can|should|will|i'd|i'll|make|sure|things|stuff|something|everything|all|them|they|though|tho|take|taking|get|got|classes|class|courses|sections|basically|actually|scheduling)$/;
 
-const hedgeWordsOf = (c: Clause): Interval[] =>
-  [...c.text.matchAll(HEDGES)].map((m) => ({ start: c.start + m.index, end: c.start + m.index + m[0].length }));
+const has = (phrases: RegExp, text: string): boolean => new RegExp(phrases.source).test(text);
 
-/** Only hedge words and filler. A masked token ("T___" in "9am if necessary") is content, so that clause is not. */
-const isHedgeOnly = (text: string): boolean =>
-  HEDGE.test(text) &&
+const phrasesIn = (phrases: RegExp, c: Clause): Interval[] =>
+  [...c.text.matchAll(phrases)].map((m) => ({ start: c.start + m.index, end: c.start + m.index + m[0].length }));
+
+/** Only these phrases and filler. A masked token ("T___" in "9am if necessary") is content, so that clause is not. */
+const isOnly = (phrases: RegExp, text: string): boolean =>
+  has(phrases, text) &&
   text
-    .replace(HEDGES, " ")
+    .replace(phrases, " ")
     .split(/[^\w']+/)
     .every((w) => w === "" || FILLER.test(w));
+
+/** The nearest clause from `from`, stepping by `step`, that is not in `skip`; -1 when there is none. */
+function nearest(skip: readonly boolean[], from: number, step: number): number {
+  let i = from;
+  while (i >= 0 && i < skip.length && skip[i]) i += step;
+  return i >= 0 && i < skip.length ? i : -1;
+}
 
 /**
  * Which clauses are hedged, decided in one place:
@@ -874,28 +898,59 @@ const isHedgeOnly = (text: string): boolean =>
  * not understood.
  */
 function hedges(clauses: readonly Clause[], read: readonly Found[][]): { hedged: boolean[]; used: Interval[] } {
-  const hedged = clauses.map((c) => HEDGE.test(c.text));
-  const only = clauses.map((c) => isHedgeOnly(c.text));
+  const hedged = clauses.map((c) => has(HEDGES, c.text));
+  const only = clauses.map((c) => isOnly(HEDGES, c.text));
   const used: Interval[] = [];
-  const nearest = (from: number, step: number): number => {
-    let i = from;
-    while (i >= 0 && i < clauses.length && only[i]) i += step;
-    return i >= 0 && i < clauses.length ? i : -1;
-  };
   clauses.forEach((c, i) => {
     const concession =
       read[i].length === 0 && ((c.afterBut && OKAY.test(c.text)) || NECESSARY.test(c.text));
     if (!only[i] && !concession) return;
-    let target = nearest(i - 1, -1);
-    if (target < 0 && only[i]) target = nearest(i + 1, 1);
+    let target = nearest(only, i - 1, -1);
+    if (target < 0 && only[i]) target = nearest(only, i + 1, 1);
     if (target < 0) return;
     hedged[target] = true;
-    used.push(...(only[i] ? [c] : hedgeWordsOf(c)));
+    used.push(...(only[i] ? [c] : phrasesIn(HEDGES, c)));
   });
   clauses.forEach((c, i) => {
-    if (read[i].length > 0) used.push(...hedgeWordsOf(c));
+    if (read[i].length > 0) used.push(...phrasesIn(HEDGES, c));
   });
   return { hedged, used };
+}
+
+/**
+ * How strongly each clause's leanings were stated. Plain statements are
+ * mild. A clause's own intensifier makes it strong, even over a hedge in the
+ * same clause ("strongly prefer"); a clause that is only an intensifier
+ * ("that matters a lot to me") lends it to the clause before. A clause that
+ * carries on the one before ("I really want X and Y") inherits its
+ * intensifier, unless it has a hedge of its own ("... and Y if possible").
+ *
+ * Also returns the intensifier phrases that were read.
+ */
+function strengths(
+  clauses: readonly Clause[],
+  read: readonly Found[][],
+  hedged: readonly boolean[],
+): { strength: Strength[]; used: Interval[] } {
+  const own = clauses.map((c) => has(INTENSIFIERS, c.text));
+  const only = clauses.map((c) => isOnly(INTENSIFIERS, c.text));
+  const used: Interval[] = [];
+  clauses.forEach((c, i) => {
+    if (!only[i]) return;
+    const target = nearest(only, i - 1, -1);
+    if (target < 0) return;
+    own[target] = true;
+    used.push(c);
+  });
+  clauses.forEach((c, i) => {
+    if (read[i].length > 0) used.push(...phrasesIn(INTENSIFIERS, c));
+  });
+  let inherited = false;
+  const strength = clauses.map((c, i): Strength => {
+    inherited = c.continues && (inherited || own[i - 1]);
+    return own[i] || (inherited && !hedged[i]) ? "strong" : "mild";
+  });
+  return { strength, used };
 }
 
 // ---------------------------------------------------------------------------
@@ -976,10 +1031,8 @@ export function parseIntent(text: string): ParseResult {
   const tokens = tokenize(norm);
   const clauses = splitClauses(mask(norm, tokens), tokens);
   const read = clauses.map(readClause);
-  const { hedged, used } = hedges(clauses, read);
-
-  // Plain statements are mild; an intensifier makes them strong; a hedge keeps them mild.
-  const strength = clauses.map((c, i): Strength => (!hedged[i] && INTENSIFIER.test(c.text) ? "strong" : "mild"));
+  const { hedged, used: hedgeWords } = hedges(clauses, read);
+  const { strength, used: intensifierWords } = strengths(clauses, read, hedged);
   const cands = read.flatMap((fs, i) =>
     fs.map((f) => ({
       clause: i,
@@ -1025,7 +1078,7 @@ export function parseIntent(text: string): ParseResult {
 
   // Report what nothing read, minus filler. A single leftover word is noise
   // ("don't", "classes") unless it is a day or a time, which carry facts.
-  const covered = [...accepted.map((c) => ({ start: c.reach, end: c.end })), ...used];
+  const covered = [...accepted.map((c) => ({ start: c.reach, end: c.end })), ...hedgeWords, ...intensifierWords];
   for (const clause of clauses) {
     for (const part of uncovered(clause, covered)) {
       const r = trimFiller(norm, part);

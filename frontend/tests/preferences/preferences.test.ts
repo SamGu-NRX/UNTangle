@@ -217,9 +217,68 @@ describe("soft preferences and strength", () => {
     ["I really want fewer days on campus", "fewerDays", "strong"],
     ["I need fewer days on campus", "fewerDays", "strong"],
     ["fewer days on campus is very important", "fewerDays", "strong"],
-    ["I really want fewer days on campus, if possible", "fewerDays", "mild"],
+    // The comma hedge joins the clause that holds "really", and a clause's own intensifier wins.
+    ["I really want fewer days on campus, if possible", "fewerDays", "strong"],
   ] as const)("%s is %s %s", (text, key, strength) => {
     expect(parseIntent(text).intent.soft).toEqual([{ key, strength, positive: true }]);
+  });
+
+  const strengthOf = (text: string) => parseIntent(text).intent.soft.map((p) => `${p.key} ${p.strength}`);
+
+  test.each([
+    ["I'd strongly prefer a tight schedule", "compact strong"],
+    ["I truly prefer late classes", "evenings strong"],
+    ["I would much rather have fewer trips to campus", "fewerDays strong"],
+  ])("an intensifier on the hedge verb wins: %s", (text, expected) => {
+    expect(strengthOf(text)).toEqual([expected]);
+  });
+
+  test("an intensified hedge still keeps a hard request a question", () => {
+    const r = parseIntent("I strongly prefer no Monday classes");
+    expect(r.intent.hard.daysOff).toEqual([]);
+    expect(hedged(r)).toEqual([{ field: "hard.daysOff", value: ["Mon"] }]);
+  });
+
+  test.each([
+    ["lenient grading is essential for me", "easierGraders strong"],
+    ["less walking counts the most for me", "minimalWalking strong"],
+    ["spreading things out, breaks between classes are a top priority", "spreadOut strong"],
+    // A sentence that is only an intensifier lends it to the sentence before, as a lone hedge does.
+    ["a tight schedule. That is non-negotiable", "compact strong"],
+    ["fewer days on campus is not a big deal", "fewerDays mild"],
+  ])("an intensifier after the leaning counts: %s", (text, expected) => {
+    expect(strengthOf(text)).toEqual([expected]);
+  });
+
+  test("an intensifier covers every leaning joined after it", () => {
+    expect(strengthOf("I absolutely need fewer trips to campus, lenient grading and short walks")).toEqual([
+      "fewerDays strong",
+      "easierGraders strong",
+      "minimalWalking strong",
+    ]);
+  });
+
+  test("a hedge on a later leaning narrows only that one", () => {
+    expect(strengthOf("I really need a tight schedule and lenient grading if you can")).toEqual([
+      "compact strong",
+      "easierGraders mild",
+    ]);
+  });
+
+  test("a new sentence or a new subject does not inherit the intensifier", () => {
+    expect(strengthOf("I really need a tight schedule. Lenient grading too")).toEqual(["compact strong", "easierGraders mild"]);
+    expect(strengthOf("I really need a tight schedule and I like lenient grading")).toEqual([
+      "compact strong",
+      "easierGraders mild",
+    ]);
+  });
+
+  test.each<[string, SoftKey[]]>([
+    ["longer gaps and shorter walks", ["spreadOut", "minimalWalking"]],
+    ["fewest campus days plus brief walks", ["fewerDays", "minimalWalking"]],
+    ["smaller breaks and less walking between buildings", ["compact", "minimalWalking"]],
+  ])("both leanings in '%s' are found", (text, keys) => {
+    expect(parseIntent(text).intent.soft.map((p) => p.key)).toEqual(keys);
   });
 
   test("'can't' negates and intensifies", () => {
