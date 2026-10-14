@@ -128,6 +128,21 @@ export const authRateLimits = pgTable("auth_rate_limit", {
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
+export const gradesHistoryCache = pgTable("grades_history_cache", {
+  key: text("key").primaryKey(),
+  // The envelope holds JSON null for confirmed absence without using SQL NULL.
+  record: jsonb("record").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+// Every untgrades caller locks the same row before checking or spending the budget.
+export const gradesHistoryBudget = pgTable("grades_history_budget", {
+  source: text("source").primaryKey(),
+  nextPermitAt: timestamp("next_permit_at", { withTimezone: true }).notNull(),
+  cooldownUntil: timestamp("cooldown_until", { withTimezone: true }).notNull(),
+  sentAt: bigint("sent_at", { mode: "number" }).array().notNull(),
+});
+
 export const schema = {
   users,
   sessions,
@@ -137,4 +152,6 @@ export const schema = {
   plannerStates,
   apiRateLimits,
   authRateLimits,
+  gradesHistoryCache,
+  gradesHistoryBudget,
 };
