@@ -20,8 +20,9 @@ frontend/package.json
 frontend/tsconfig.json
 frontend/eslint.config.mjs
 
-# Contracts and design tokens
+# Contracts, the sync engine and design tokens
 packages/contracts/**
+packages/sync/**
 packages/tokens/**
 
 # Database migrations and schema
