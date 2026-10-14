@@ -41,6 +41,12 @@ export const TermIdSchema = z
   .max(64)
   .refine(isTermId, 'A term id is lowercase words joined by hyphens, like "spring-2027".');
 
+/** A campus site inside an institution, such as "unt-denton" or "unt-frisco". Buildings belong to sites. */
+export const CampusSiteIdSchema = z
+  .string()
+  .max(64)
+  .regex(slug, 'A campus site id is lowercase words joined by hyphens, like "unt-denton".');
+
 /** A catalog year, such as "unt-2026-27". Degree requirements depend on it. */
 export const CatalogIdSchema = z
   .string()
