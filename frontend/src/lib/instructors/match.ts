@@ -9,7 +9,7 @@
  * and abstains for every weak or ambiguous case. No edit distance, no
  * phonetics, no nickname dictionary.
  */
-import { foldName, stripSuffixTokens, tokenize } from "./fold";
+import { foldName, hasUnmappedLetters, stripSuffixTokens, tokenize } from "./fold";
 import { parseSectionField, type PersonName } from "./parse";
 
 /** A grade-history identity, as untgrades reports it. */
@@ -41,7 +41,7 @@ const EXACT_SINGLE_CONFIDENCE = 0.95;
 /** Surname plus two or more compared full first-name tokens. */
 const EXACT_MULTI_CONFIDENCE = 1;
 
-type FoldedCandidate = { id: string; lastTokens: string[]; firstTokens: string[] };
+type FoldedCandidate = { id: string; lastTokens: string[]; firstTokens: string[]; unsupported: boolean };
 
 type ComboOutcome =
   | { kind: "surname-mismatch" }
@@ -54,9 +54,12 @@ function personKey(person: PersonName): string {
 }
 
 function foldCandidate(candidate: Candidate): FoldedCandidate {
-  const last = stripSuffixTokens(tokenize(foldName(typeof candidate.lastName === "string" ? candidate.lastName : "")));
-  const first = stripSuffixTokens(tokenize(foldName(typeof candidate.firstName === "string" ? candidate.firstName : "")));
-  return { id: candidate.id, lastTokens: last.tokens, firstTokens: first.tokens };
+  const foldedFirst = foldName(typeof candidate.firstName === "string" ? candidate.firstName : "");
+  const foldedLast = foldName(typeof candidate.lastName === "string" ? candidate.lastName : "");
+  const last = stripSuffixTokens(tokenize(foldedLast));
+  const first = stripSuffixTokens(tokenize(foldedFirst));
+  const unsupported = hasUnmappedLetters(foldedFirst) || hasUnmappedLetters(foldedLast);
+  return { id: candidate.id, lastTokens: last.tokens, firstTokens: first.tokens, unsupported };
 }
 
 function sameTokens(a: readonly string[], b: readonly string[]): boolean {
@@ -74,25 +77,39 @@ function sameTokens(a: readonly string[], b: readonly string[]): boolean {
  * present on only one side is unknown, not a contradiction.
  */
 function scorePair(person: PersonName, candidate: FoldedCandidate): ComboOutcome {
-  if (!sameTokens(person.surnameTokens, candidate.lastTokens)) return { kind: "surname-mismatch" };
-  const compared = Math.min(person.firstTokens.length, candidate.firstTokens.length);
-  if (compared === 0) return { kind: "insufficient-first" };
-  let initial = false;
-  for (let i = 0; i < compared; i++) {
-    const a = person.firstTokens[i] ?? "";
-    const b = candidate.firstTokens[i] ?? "";
-    if (a === b) {
-      if (a.length === 1) initial = true;
-      continue;
+  const partitions = [
+    { surnameTokens: person.surnameTokens, firstTokens: person.firstTokens },
+    ...(person.surnameOptions ?? []),
+  ];
+  let surnameMatched = false;
+  let anyContradicted = false;
+  for (const partition of partitions) {
+    if (!sameTokens(partition.surnameTokens, candidate.lastTokens)) continue;
+    surnameMatched = true;
+    const compared = Math.min(partition.firstTokens.length, candidate.firstTokens.length);
+    if (compared === 0) continue;
+    let initial = false;
+    let contradicted = false;
+    for (let i = 0; i < compared; i++) {
+      const a = partition.firstTokens[i] ?? "";
+      const b = candidate.firstTokens[i] ?? "";
+      if (a === b) {
+        if (a.length === 1) initial = true;
+        continue;
+      }
+      if (a.length === 1 && b.startsWith(a)) { initial = true; continue; }
+      if (b.length === 1 && a.startsWith(b)) { initial = true; continue; }
+      contradicted = true;
+      break;
     }
-    if (a.length === 1 && b.startsWith(a)) { initial = true; continue; }
-    if (b.length === 1 && a.startsWith(b)) { initial = true; continue; }
-    return { kind: "first-contradiction" };
+    if (contradicted) { anyContradicted = true; continue; }
+    const confidence = initial
+      ? INITIAL_CONFIDENCE
+      : compared > 1 ? EXACT_MULTI_CONFIDENCE : EXACT_SINGLE_CONFIDENCE;
+    return { kind: "qualified", confidence, initial };
   }
-  const confidence = initial
-    ? INITIAL_CONFIDENCE
-    : compared > 1 ? EXACT_MULTI_CONFIDENCE : EXACT_SINGLE_CONFIDENCE;
-  return { kind: "qualified", confidence, initial };
+  if (surnameMatched) return anyContradicted ? { kind: "first-contradiction" } : { kind: "insufficient-first" };
+  return { kind: "surname-mismatch" };
 }
 
 function abstain(reason: string): MatchResult {
@@ -110,6 +127,7 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
   const parsed = parseSectionField(typeof sectionName === "string" ? sectionName : "");
   if (parsed.kind === "unusable") return abstain(`section instructor is ${parsed.word}`);
   if (parsed.kind === "unparseable") return abstain("section instructor field is unparseable");
+  if (parsed.kind === "unsupported") return abstain("section instructor name has unsupported characters");
   if (candidates.length === 0) return abstain("no candidates provided");
 
   // The same real person can appear twice in one team-taught field; dedupe.
@@ -135,7 +153,9 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
       surnameMatched = true;
       if (outcome.kind === "insufficient-first") continue;
       if (outcome.kind === "first-contradiction") { firstNameContradicted = true; continue; }
-      qualified.push({ person, candidate, initial: outcome.initial, confidence: outcome.confidence });
+      if (outcome.confidence >= CONFIDENCE_THRESHOLD) {
+        qualified.push({ person, candidate, initial: outcome.initial, confidence: outcome.confidence });
+      }
     }
   }
 

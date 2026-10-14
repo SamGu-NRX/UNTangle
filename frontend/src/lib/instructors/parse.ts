@@ -1,4 +1,4 @@
-import { foldName, stripSuffixTokens, tokenize } from "./fold";
+import { foldName, hasUnmappedLetters, stripSuffixTokens, tokenize } from "./fold";
 
 /** One person parsed out of a section's instructor field, folded and tokenized. */
 export type PersonName = {
@@ -8,19 +8,47 @@ export type PersonName = {
   firstTokens: string[];
   /** Trailing suffix (Jr, Sr, II, III, IV) stripped from either slot, or null. */
   suffix: string | null;
+  /**
+   * Alternative surname partitions for comma-less segments. A display name
+   * like "Fernando Mosquera Ferrandiz" cannot say where a compound surname
+   * starts, so every trailing token block (shortest first, at least one token
+   * left over for the given name) is a candidate surname; the raw "Last,First"
+   * form needs none of this and leaves the field empty.
+   */
+  surnameOptions?: { surnameTokens: string[]; firstTokens: string[] }[];
 };
 
 /** What the section's instructor field parses into. */
 export type SectionPeople =
   | { kind: "unusable"; word: "tba" | "staff" | "closed" | "none" | "blank" }
   | { kind: "unparseable"; folded: string }
+  | { kind: "unsupported"; folded: string }
   | { kind: "people"; people: PersonName[] };
 
 const PLACEHOLDER_WORDS = new Set(["tba", "staff", "closed"]);
 const NONE_WORD = "none";
 
-function personOf(surnameTokens: string[], firstTokens: string[], suffix: string | null): PersonName {
-  return { surnameTokens, firstTokens, suffix };
+function personOf(
+  surnameTokens: string[],
+  firstTokens: string[],
+  suffix: string | null,
+  surnameOptions?: { surnameTokens: string[]; firstTokens: string[] }[],
+): PersonName {
+  return surnameOptions ? { surnameTokens, firstTokens, suffix, surnameOptions } : { surnameTokens, firstTokens, suffix };
+}
+
+/**
+ * For a comma-less segment of n tokens, every trailing token block is a
+ * possible surname (with the tokens before it the given name), so the matcher
+ * can pair "Fernando Mosquera Ferrandiz" with the compound-surname candidate
+ * "Fernando" + "Mosquera Ferrandiz" just as the raw pair form already does.
+ */
+function surnamePartitions(tokens: string[]): { surnameTokens: string[]; firstTokens: string[] }[] {
+  const options: { surnameTokens: string[]; firstTokens: string[] }[] = [];
+  for (let k = 2; k < tokens.length; k++) {
+    options.push({ surnameTokens: tokens.slice(tokens.length - k), firstTokens: tokens.slice(0, tokens.length - k) });
+  }
+  return options;
 }
 
 /** Parses a whole display-form field ("First Last" segments joined by "; "). */
@@ -35,7 +63,7 @@ function parseDisplayField(folded: string): SectionPeople {
       people.push(personOf(kept, [], suffix));
       continue;
     }
-    people.push(personOf([kept[kept.length - 1] ?? ""], kept.slice(0, -1), suffix));
+    people.push(personOf([kept[kept.length - 1] ?? ""], kept.slice(0, -1), suffix, surnamePartitions(kept)));
   }
   if (people.length === 0) return { kind: "unusable", word: "blank" };
   return { kind: "people", people };
@@ -68,7 +96,10 @@ function parseRawField(folded: string): SectionPeople {
     }
     const { tokens: kept, suffix } = stripSuffixTokens(tokens);
     if (kept.length === 1) return { kind: "people", people: [personOf(kept, [], suffix)] };
-    return { kind: "people", people: [personOf([kept[kept.length - 1] ?? ""], kept.slice(0, -1), suffix)] };
+    return {
+      kind: "people",
+      people: [personOf([kept[kept.length - 1] ?? ""], kept.slice(0, -1), suffix, surnamePartitions(kept))],
+    };
   }
   if (parts.length % 2 === 1) return { kind: "unparseable", folded };
   const people: PersonName[] = [];
@@ -94,6 +125,7 @@ export function parseSectionField(sectionName: string): SectionPeople {
   if (PLACEHOLDER_WORDS.has(folded)) {
     return { kind: "unusable", word: folded as "tba" | "staff" | "closed" };
   }
+  if (hasUnmappedLetters(folded)) return { kind: "unsupported", folded };
   if (folded.includes(";")) return parseDisplayField(folded);
   return parseRawField(folded);
 }

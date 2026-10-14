@@ -34,19 +34,36 @@ export function foldAccents(text: string): string {
 }
 
 /**
- * Folds a name field for comparison: lowercase, accents folded, apostrophes
- * and periods removed, hyphens widened to spaces, whitespace collapsed.
+ * Folds a name field for comparison: lowercase, accents folded, combining
+ * marks stripped (the lowercase of a dotted capital I decomposes into a base
+ * letter plus one), apostrophes and periods widened to spaces (adjacent
+ * initials like "M.T." stay separate initials), hyphens widened to spaces,
+ * whitespace collapsed.
  * Commas and semicolons survive: they are structural separators, handled by
  * the section-field parser, so this must only be applied to whole fields or
  * to structured candidate names, never relied on to keep them.
  */
 export function foldName(text: string): string {
   return foldAccents(text.toLowerCase())
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/['\u2018\u2019\u02BC`]/g, "")
-    .replace(/\./g, "")
+    .replace(/\./g, " ")
     .replace(/[\u00AD\u2013\u2014\u2212-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * True when the folded text still contains a letter the fold map does not
+ * cover. Such a form must abstain rather than match: tokenizing would either
+ * drop the letter (inventing a false initial) or split on it (inventing
+ * tokens), and both lose information the threshold promises to weigh.
+ */
+export function hasUnmappedLetters(folded: string): boolean {
+  for (const ch of folded) {
+    if (/\p{L}/u.test(ch) && !/[a-z]/.test(ch)) return true;
+  }
+  return false;
 }
 
 /** Splits a folded string into lowercase alphanumeric tokens. */
