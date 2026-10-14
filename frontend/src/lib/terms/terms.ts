@@ -57,6 +57,13 @@ export interface Holiday {
   /** Inclusive no-class range; single days have begin === end. */
   begin: IsoDate;
   end: IsoDate;
+  /**
+   * Session ids this no-class day applies to. Omit when the day cancels class
+   * for every session of the term whose class dates contain it. Reading days
+   * are scoped: the registrar lists them only in the full-term column (N/A
+   * for the 8-week sessions), so they must not cancel 8-week classes.
+   */
+  appliesTo?: readonly string[];
   notes?: string;
 }
 
@@ -125,6 +132,16 @@ const FALL_2026: TermCalendar = {
       begin: "2026-11-23",
       end: "2026-11-29",
       notes: "No classes.",
+    },
+    {
+      term: "Fall 2026",
+      name: "Reading Day - No Classes",
+      begin: "2026-12-04",
+      end: "2026-12-04",
+      // The registrar lists the reading day only in the Full Term column
+      // (N/A for 8 Week I and II), so it must not cancel 8W2 classes.
+      appliesTo: ["2026-fall-full"],
+      notes: "Reading day between the last regular class meeting and final exams.",
     },
   ],
   source: {
@@ -199,6 +216,15 @@ const SPRING_2027: TermCalendar = {
       begin: "2027-03-08",
       end: "2027-03-14",
       notes: "No classes.",
+    },
+    {
+      term: "Spring 2027",
+      name: "Reading Day - No Classes",
+      begin: "2027-04-30",
+      end: "2027-04-30",
+      // Listed only in the Full Semester column on the registrar's page.
+      appliesTo: ["2027-spring-full"],
+      notes: "Reading day between the last regular class meeting and final exams.",
     },
   ],
   source: {
@@ -510,4 +536,68 @@ export function findOverlappingDisjointSessions(term: TermCalendar): [Session, S
     }
   }
   return overlapping;
+}
+
+/** What the calendar says a session does on a date. */
+export type ClassDayStatus = "class" | "no-class" | "finals" | "unknown";
+
+/** True when a no-class day covers a date for a given session. */
+function holidayCancelsSession(holiday: Holiday, session: Session, date: IsoDate): boolean {
+  if (holiday.appliesTo !== undefined && !holiday.appliesTo.includes(session.id)) {
+    return false;
+  }
+  return rangesOverlap(date, date, holiday.begin, holiday.end);
+}
+
+/** The status of one date for one session. */
+function sessionDayStatus(session: Session, date: IsoDate): ClassDayStatus {
+  const inSpan =
+    daysBetween(session.classesBegin, date) >= 0 &&
+    daysBetween(date, session.sessionEnd) >= 0;
+  if (!inSpan) return "no-class";
+  if (
+    session.finalExams !== null &&
+    rangesOverlap(date, date, session.finalExams.begin, session.finalExams.end)
+  ) {
+    return "finals";
+  }
+  // Class dates the registrar has not published stay unknown.
+  if (session.classesEnd === null) return "unknown";
+  // After the last regular class meeting, before finals: the reading-day gap.
+  if (daysBetween(date, session.classesEnd) < 0) return "no-class";
+  const cancelled = (getTermCalendar(session.term)?.holidays ?? []).some((holiday) =>
+    holidayCancelsSession(holiday, session, date),
+  );
+  return cancelled ? "no-class" : "class";
+}
+
+/**
+ * Whether a date is a class day, a no-class day, or a final-exam day.
+ *
+ * Dates are plain calendar dates in the America/Chicago time zone, the time
+ * zone all UNT campuses schedule in. The query compares YYYY-MM-DD strings
+ * only; no timestamps are involved.
+ *
+ * With a session id, the answer is for that session alone; a date outside the
+ * session's span is "no-class" (the session does not meet). Without one, the
+ * answer unions every covered session: the most specific published answer
+ * wins in the order class, finals, unknown, no-class, so a full-term reading
+ * day that falls inside an 8-week session's class dates still reads "class".
+ *
+ * "unknown" means the calendar cannot answer without guessing: the date is
+ * not a valid ISO date, the session id is not covered, or the session's class
+ * dates or finals are not yet published (null fields).
+ */
+export function classDayStatus(date: IsoDate, sessionId?: string): ClassDayStatus {
+  if (!isIsoDate(date)) return "unknown";
+  const sessions =
+    sessionId === undefined
+      ? allSessions()
+      : allSessions().filter((session) => session.id === sessionId);
+  if (sessions.length === 0) return "unknown";
+  const statuses = sessions.map((session) => sessionDayStatus(session, date));
+  for (const status of ["class", "finals", "unknown", "no-class"] as const) {
+    if (statuses.includes(status)) return status;
+  }
+  return "no-class";
 }
