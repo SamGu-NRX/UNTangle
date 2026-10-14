@@ -272,3 +272,80 @@ test("a hanging body stream also hits the shared deadline", async () => {
   });
   await expectFetchError("timeout", fetchCalendarIcs("https://calendar.example.com/feed.ics", deps));
 });
+
+test("a connection dropped mid-read maps to a fetch error, not a raw stream error", async () => {
+  const { deps } = stubDeps({
+    doFetch: async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("BEGIN:VCALENDAR\r\n"));
+            controller.error(new TypeError("connection dropped"));
+          },
+        }),
+        { status: 200, headers: { "content-type": "text/calendar" } },
+      ),
+  });
+  await expectFetchError("unreachable", fetchCalendarIcs("https://calendar.example.com/feed.ics", deps));
+});
+
+test("a body exceeding the size limit mid-stream is canceled", async () => {
+  let canceled = false;
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(2048).fill(65));
+    },
+    cancel() {
+      canceled = true;
+    },
+  });
+  const { deps } = stubDeps({
+    maxBytes: 1024,
+    doFetch: async () => new Response(body, { status: 200, headers: { "content-type": "text/calendar" } }),
+  });
+  await expectFetchError("invalid", fetchCalendarIcs("https://calendar.example.com/feed.ics", deps));
+  expect(canceled).toBe(true);
+});
+
+test("a non-calendar content type response has its body canceled", async () => {
+  let canceled = false;
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("<html></html>"));
+    },
+    cancel() {
+      canceled = true;
+    },
+  });
+  const { deps } = stubDeps({
+    doFetch: async () => new Response(body, { status: 200, headers: { "content-type": "text/html" } }),
+  });
+  await expectFetchError("invalid", fetchCalendarIcs("https://calendar.example.com/feed.ics", deps));
+  expect(canceled).toBe(true);
+});
+
+test("a redirect response body is canceled before following the hop", async () => {
+  let canceled = false;
+  const redirect = new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("moved"));
+      },
+      cancel() {
+        canceled = true;
+      },
+    }),
+    { status: 302, headers: { location: "https://calendar.example.com/feed.ics" } },
+  );
+  let fetchCount = 0;
+  const { deps } = stubDeps({
+    doFetch: async () => {
+      fetchCount += 1;
+      if (fetchCount === 1) return redirect;
+      return new Response(ICS_BODY, { status: 200, headers: { "content-type": "text/calendar" } });
+    },
+  });
+  await expect(fetchCalendarIcs("https://calendar.example.com/redirect", deps)).resolves.toBe(ICS_BODY);
+  expect(canceled).toBe(true);
+  expect(fetchCount).toBe(2);
+});

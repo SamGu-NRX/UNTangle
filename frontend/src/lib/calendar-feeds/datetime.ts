@@ -88,21 +88,49 @@ export function zoneOffsetMs(epochMs: number, timeZone: string): number {
  * times converge on the first pass. Ambiguous fall-back times take the earlier
  * offset. Nonexistent spring-forward times resolve to the transition instant
  * itself, just after the gap. An undefined zone is the process local zone.
+ *
+ * The candidate set method: every instant that prints this wall time differs
+ * from the naive reading by some zone offset, so probe the offsets observable
+ * around the wall time, map each back to a candidate instant, and keep the
+ * candidates that are self-consistent (their own offset matches and they print
+ * the requested wall time). Probing the offset at the naive instant alone is
+ * not enough: for zones east of UTC that probe can already see the
+ * post-transition offset, which silently picks the later fall-back candidate.
  */
 export function resolveZonedWallTime(wall: ZoneWallTime, timeZone: string | undefined): number {
   if (timeZone === undefined) {
     return new Date(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second).getTime();
   }
   const naive = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second);
-  const firstOffset = zoneOffsetMs(naive, timeZone);
-  const firstGuess = naive - firstOffset;
-  const secondOffset = zoneOffsetMs(firstGuess, timeZone);
-  if (secondOffset === firstOffset) return firstGuess;
-  const secondGuess = naive - secondOffset;
-  if (zoneOffsetMs(secondGuess, timeZone) === secondOffset) return secondGuess;
-  // The wall time does not exist (spring forward): the two guesses bracket the
-  // transition, one on each side. Bisect to the transition instant itself.
-  return transitionInstant(secondGuess, firstGuess, secondOffset, timeZone);
+  const probeHours = [-48, -24, 0, 24, 48];
+  const offsets = new Set(probeHours.map((hours) => zoneOffsetMs(naive + hours * 3_600_000, timeZone)));
+  const candidates: number[] = [];
+  for (const offset of offsets) {
+    const candidate = naive - offset;
+    if (zoneOffsetMs(candidate, timeZone) !== offset) continue;
+    const printed = zoneWallTime(candidate, timeZone);
+    if (
+      printed.year === wall.year &&
+      printed.month === wall.month &&
+      printed.day === wall.day &&
+      printed.hour === wall.hour &&
+      printed.minute === wall.minute &&
+      printed.second === wall.second
+    ) {
+      candidates.push(candidate);
+    }
+  }
+  if (candidates.length > 0) return Math.min(...candidates); // ambiguous: the earlier offset
+  // The wall time does not exist (spring forward): bisect between the first
+  // adjacent probes that disagree on the offset, which bracket the transition.
+  for (let index = 1; index < probeHours.length; index += 1) {
+    const before = naive + probeHours[index - 1] * 3_600_000;
+    const after = naive + probeHours[index] * 3_600_000;
+    const offsetBefore = zoneOffsetMs(before, timeZone);
+    const offsetAfter = zoneOffsetMs(after, timeZone);
+    if (offsetBefore !== offsetAfter) return transitionInstant(before, after, offsetAfter, timeZone);
+  }
+  return naive; // No offset change anywhere in the bracket: trust the naive reading.
 }
 
 /** Smallest instant with the post-transition offset, inside [before, after]. */
@@ -134,6 +162,11 @@ export function addDaysToDate(date: CalendarDate, days: number): CalendarDate {
 /** Lexicographic date comparison; negative when a is before b. */
 export function compareDates(a: CalendarDate, b: CalendarDate): number {
   return a.year * 10000 + a.month * 100 + a.day - (b.year * 10000 + b.month * 100 + b.day);
+}
+
+/** Whole days from a to b (b minus a); negative when b is before a. */
+export function daysBetween(a: CalendarDate, b: CalendarDate): number {
+  return Math.round((calendarDateToUtcMs(b) - calendarDateToUtcMs(a)) / 86_400_000);
 }
 
 /** False only for impossible dates such as February 30. */

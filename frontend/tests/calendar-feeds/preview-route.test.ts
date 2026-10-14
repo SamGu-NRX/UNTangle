@@ -1,24 +1,35 @@
-import { beforeAll, expect, mock, test, type Mock } from "bun:test";
+import { afterAll, beforeAll, expect, mock, test, type Mock } from "bun:test";
 import { budgets } from "@/lib/rate-limit/config";
 import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
 import { memoryStore } from "@/lib/rate-limit/store";
 import { pinClockMidWindow, trustRealIp } from "../rate-limit/route-fixtures";
-import { CalendarFetchError } from "@/lib/calendar-feeds/errors";
 
 mock.module("server-only", () => ({}));
 trustRealIp();
 
 type SessionFn = () => Promise<{ user: { id: string } } | null>;
 type SessionMock = Mock<SessionFn>;
-type FetchFn = (url: string) => Promise<string>;
+type DnsLookupFn = (hostname: string) => Promise<Array<{ address: string; family: number }>>;
 
 const getServerSession = mock<SessionFn>(async () => null);
-const fetchCalendarIcs = mock<FetchFn>(async () => {
-  throw new Error("the fetcher mock must be configured per test");
-});
+const dnsLookup = mock<DnsLookupFn>(async () => [{ address: "93.184.216.34", family: 4 }]);
 
 mock.module("@/lib/auth-server", () => ({ getServerSession }));
-mock.module("@/lib/calendar-feeds/fetch", () => ({ fetchCalendarIcs }));
+// The route exercises the production fetcher defaults: DNS through the dns
+// module (resolved lazily per call) and HTTP through globalThis. Stubbing
+// those seams instead of re-registering the fetcher module keeps these mocks
+// out of the other calendar-feeds test files, which import the real fetcher
+// with injected deps.
+mock.module("node:dns/promises", () => ({ lookup: dnsLookup }));
+const realFetch = globalThis.fetch;
+// Bun's typeof fetch carries a preconnect property; the stub only needs the
+// callable surface.
+type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+const fetchStub = mock<FetchFn>(async () => tinyResponse());
+globalThis.fetch = fetchStub as unknown as typeof globalThis.fetch;
+afterAll(() => {
+  globalThis.fetch = realFetch;
+});
 
 // The shared rate-limit wrapper captured whatever session instance was live
 // when server.ts was first instantiated, which in a full run is another test
@@ -70,20 +81,22 @@ const VALID_BODY = {
   rangeEnd: "2026-03-01T00:00:00Z",
 };
 
+/** A fresh 200 response carrying the tiny feed. */
+function tinyResponse(): Response {
+  return new Response(TINY_ICS, { status: 200, headers: { "content-type": "text/calendar" } });
+}
+
 test("answers 401 without a session", async () => {
   setSession(null);
-  fetchCalendarIcs.mockImplementation(async () => {
-    throw new Error("must not be reached");
-  });
   const response = await POST(previewRequest(VALID_BODY));
   expect(response.status).toBe(401);
   expect(await response.json()).toEqual({ error: "Unauthorized" });
-  expect(fetchCalendarIcs).toHaveBeenCalledTimes(0);
+  expect(dnsLookup).toHaveBeenCalledTimes(0);
+  expect(fetchStub).toHaveBeenCalledTimes(0);
 });
 
 test("answers 400 on a malformed body", async () => {
   setSession({ user: { id: "user-malformed" } });
-  fetchCalendarIcs.mockImplementation(async () => TINY_ICS);
   for (const body of ["not json", null, {}, { url: 42 }, { url: "" }]) {
     const request =
       body === "not json"
@@ -100,19 +113,15 @@ test("answers 400 on a malformed body", async () => {
 
 test("answers 400 on a URL that fails validation", async () => {
   setSession({ user: { id: "user-badurl" } });
-  fetchCalendarIcs.mockImplementation(async () => {
-    throw new Error("must not be reached");
-  });
   for (const url of ["http://calendar.example.com/feed.ics", "https://127.0.0.1/feed.ics", "not a url"]) {
     const response = await POST(previewRequest({ ...VALID_BODY, url }));
     expect(response.status).toBe(400);
   }
-  expect(fetchCalendarIcs).toHaveBeenCalledTimes(0);
+  expect(dnsLookup).toHaveBeenCalledTimes(0);
 });
 
 test("answers 200 with the parsed shape on success", async () => {
   setSession({ user: { id: "user-success" } });
-  fetchCalendarIcs.mockImplementation(async () => TINY_ICS);
   const response = await POST(previewRequest(VALID_BODY, "192.0.2.78"));
   expect(response.status).toBe(200);
   const payload = await response.json();
@@ -132,13 +141,12 @@ test("answers 200 with the parsed shape on success", async () => {
   ]);
   expect(payload.weeklyBusyBlocks).toEqual([]);
   expect(payload.skipped).toEqual([]);
-  expect(fetchCalendarIcs).toHaveBeenCalledTimes(1);
-  expect(fetchCalendarIcs.mock.calls[0]?.[0]).toBe("https://calendar.example.com/feed.ics");
+  expect(fetchStub).toHaveBeenCalledTimes(1);
+  expect(fetchStub.mock.calls[0]?.[0]).toBe("https://calendar.example.com/feed.ics");
 });
 
 test("a default range of now through now plus 60 days is used when none is given", async () => {
   setSession({ user: { id: "user-range" } });
-  fetchCalendarIcs.mockImplementation(async () => TINY_ICS);
   const before = Date.now();
   const response = await POST(previewRequest({ url: VALID_BODY.url }, "192.0.2.79"));
   const after = Date.now();
@@ -152,16 +160,19 @@ test("a default range of now through now plus 60 days is used when none is given
 
 test("a feed blocked by SSRF rules answers 400 and an unreachable feed answers 502", async () => {
   setSession({ user: { id: "user-fetch-errors" } });
-  fetchCalendarIcs.mockImplementation(async () => {
-    throw new CalendarFetchError("blocked", "blocked address");
-  });
+  // Private DNS answer: the real fetcher throws a blocked error (route 400).
+  dnsLookup.mockImplementation(async () => [{ address: "10.1.2.3", family: 4 }]);
   expect((await POST(previewRequest(VALID_BODY, "192.0.2.80"))).status).toBe(400);
-  fetchCalendarIcs.mockImplementation(async () => {
-    throw new CalendarFetchError("timeout", "timed out");
+  // DNS failure: the fetcher fails closed with an unreachable error (502).
+  dnsLookup.mockImplementation(async () => {
+    throw new Error("ENOTFOUND: DNS lookup failed");
   });
   expect((await POST(previewRequest(VALID_BODY, "192.0.2.81"))).status).toBe(502);
-  fetchCalendarIcs.mockImplementation(async () => {
-    throw new CalendarFetchError("unreachable", "no route");
+  // Public DNS but a refusing connection: also unreachable (502). The timeout
+  // kind follows the same switch and is covered by the fetcher unit tests.
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  fetchStub.mockImplementation(async () => {
+    throw new TypeError("fetch failed: connection refused");
   });
   expect((await POST(previewRequest(VALID_BODY, "192.0.2.82"))).status).toBe(502);
 });
@@ -169,9 +180,9 @@ test("a feed blocked by SSRF rules answers 400 and an unreachable feed answers 5
 test(`answers 429 once an anonymous caller passes the ${budgets.calendarFeedsPreview.ip} request IP budget`, async () => {
   pinClockMidWindow();
   setSession(null);
-  fetchCalendarIcs.mockImplementation(async () => {
-    throw new Error("must not be reached");
-  });
+  // Reset the network stubs: these calls answer 401 before any fetch happens.
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  fetchStub.mockImplementation(async () => tinyResponse());
   // Anonymous calls answer 401 (no session) - but the wrapper still counts them.
   const call = () => POST(previewRequest(VALID_BODY, "192.0.2.83"));
   for (let i = 0; i < budgets.calendarFeedsPreview.ip; i++) {
