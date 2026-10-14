@@ -3,7 +3,7 @@
 Sam keeps finding UI defects in captures we published: text touching the color bar on Week blocks, clipped "MATH 270c", A and B badges hidden under the thumbnails in the schedules library. Nobody should be relying on him to catch these. Every time you take screenshots, whether for a PR, a journey or a check, you also look at them for defects and fix what you find before you publish.
 
 How:
-- After each capture set, give the PNG paths to a cheap read-only child, `theo-haiku-context-scout`, with the checklist below. Ask it to report each defect with file, region and what's wrong. It reads the images with the Read tool and writes nothing.
+- After each capture set, give the PNG paths to a cheap read-only reviewer that can see images, with the checklist below (in Claude Code, `theo-haiku-context-scout`). Ask it to report each defect with file, region and what's wrong. It writes nothing. If your host has no reviewer that can see images, say in the PR that this check didn't run.
 - Check what it reports against the running app. Fix the real defects in your own files, recapture, and run the pass again until it's clean. List what you fixed in the PR, with before and after captures.
 - Defects in files you don't own go to the lead.
 

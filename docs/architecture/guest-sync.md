@@ -2,16 +2,16 @@
 
 Readers: the implementer of the follow-up to #62 and the lead. This note answers two questions Sam raised on Oct 14: what happens to guest work when someone signs in, and what replaces #37's "re-apply imported courses" step.
 
-### Guest work on sign-in
+## Guest work on sign-in
 
-A guest's work is kept in this browser under a guest identity: planner state, preferences and library entries, each in its own store. The guest id lives in a session cookie, so it ends when the browser closes; the architecture README ("Guests") covers the shared-computer guards. Every tab in the browser session shares the stores, including the tab the emailed sign-in link opens, so a new tab sees the same work. A signed-in student's local copies are kept under their own user id, never under the guest identity, and signing out deletes them from the browser (see the architecture README, "Local data belongs to one identity").
+A guest's work is kept in this browser under a guest identity: planner state, preferences and library entries, each in its own store. The guest id lives in a session cookie, so it ends when the browser closes; the architecture README ("Guests") covers the shared-computer guards. Every tab in the browser session shares the stores, including the tab the emailed sign-in link opens, so a new tab sees the same work. A signed-in student's local copies are kept under their own user id, never under the guest identity, and signing out deletes them from the browser (see the architecture README, "Local data belongs to one identity"). Reconciliation can only run in the browser that holds the guest stores. If the emailed link opens in another browser or an in-app mail browser, that browser signs in with no guest work to see. So the sign-in email also carries a six-digit code, and the original tab asks for it, which lets the student finish signing in where their work is. A student who finishes in another browser keeps their guest work in the original one, and it is reconciled the next time they sign in there, while it is still within guest expiry.
 
 Signing in compares each part of the guest's work with the matching account data, and each part gets its own outcome before its guest key is cleared:
 - **The plan** (planned courses, picks, locks, Auto's last run) against the schedule "Main", by the table below.
 - **The academic record** (course statuses for completed and in-progress work, transcript rows, manual credit, major) against the account's record. The guest's planner state holds both, so it is split first, the same way the migration splits a legacy row:
   - If the account has no record, save the guest's, with Undo, like the second table row.
   - If the guest's matches or is empty, load the account's.
-  - Otherwise settle it per course. A course only one side has takes that side's value. Transcript rows join by id. Manual credit is the union. A course both sides have with different values, or a different major, goes to the student in the same sheet, one line each, defaulting to the account's value. Nothing is discarded without that choice.
+  - Otherwise settle it per course. A course only one side has takes that side's value. Transcript rows join by id. Manual credit is the union. A course both sides have with different values, or a different major, goes to the student in the same sheet, one line each, defaulting to the account's value. Whenever any guest value isn't chosen, the guest's whole planner state is first saved to the account's library as "From this browser, <date>", so the unchosen values are kept and can be restored.
 - **Preferences** follow the table's rows, comparing field groups.
 - **Library entries** are moved whole. Each `SavedPlanSnapshot` keeps its planner state, name, archive state, source, catalog fingerprint and restore assumptions, and is added to the account's library unless an identical entry is already there. Today the library holds that same type, so the move is lossless. When the library becomes synced documents (step 3a), that step defines a document shape that holds every one of these fields before any guest library is converted. Until it exists, guest library entries are moved, never converted to a narrower shape.
 
@@ -32,7 +32,7 @@ Escape and the scrim choose "Keep my saved schedule", so nothing is ever lost.
 
 After every store has its outcome, the guest stores are cleared. Signing out never copies account data into the guest key. The next guest session starts fresh.
 
-### Imports during a save conflict (replaces "re-apply imported courses")
+## Imports during a save conflict (replaces "re-apply imported courses")
 
 #37 had a special step. When another tab saved a newer schedule that dropped courses just imported, it offered to re-apply them. It goes away; the shared conflict flow covers the case:
 - A save conflict anywhere shows the same notice: "This schedule changed in another tab", with "Load latest".
@@ -45,7 +45,7 @@ After every store has its outcome, the guest stores are cleared. Signing out nev
 
 This removes the import-only code path: the import page, Week and the library all use the one conflict component and the same retry.
 
-### Tests
+## Tests
 - one strict test for each row of the sign-in table, with Undo on the auto-save;
 - a guest who only imported a transcript, with Main untouched, keeps that record: it is saved, merged or asked about, never cleared unseen;
 - a guest library entry arrives in the account with every `SavedPlanSnapshot` field intact;

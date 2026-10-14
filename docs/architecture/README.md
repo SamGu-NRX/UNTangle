@@ -246,7 +246,7 @@ Expo with native navigation and native sheets. Documents and the outbox live in 
 
 **Auto** runs through a `ComputeRuntime` interface: a web worker on web, and on native a resumable search that yields between bounded work units. Measure on a real device before adding a native threading dependency. Walking times cross the boundary as data (a precomputed matrix), not as functions.
 
-**Over-the-air updates** use EAS Update with the fingerprint runtime policy, separate preview and production channels, and staged rollouts. An update applies only at a safe moment, never while the student is reviewing an import, resolving a conflict or approving Auto. A production `eas update` is blocked when its fingerprint matches no binary in the stores. Apple rule 2.5.2 still limits what an update can add. EAS costs beyond the free tier need Sam's approval.
+**Over-the-air updates** use EAS Update with the fingerprint runtime policy, separate preview and production channels, and staged rollouts. An update applies only at a safe moment, never while the student is reviewing an import, resolving a conflict or approving Auto. The production release workflow must refuse to publish an update whose fingerprint matches no production binary in the stores. `eas update` doesn't check this itself, so the workflow does, before it publishes. Apple rule 2.5.2 still limits what an update can add. EAS costs beyond the free tier need Sam's approval.
 
 PDF import stays in the browser flow at first.
 

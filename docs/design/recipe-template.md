@@ -188,10 +188,11 @@ Reduced motion: the chip color change stays; the segmented pill jumps. Keyboard:
 - Escape on desktop closes the whole panel (`ContextPanel` owns Escape), and focus returns to the search trigger.
 
 ### Screenshots for the PR
-Each at 1440x900 and 390x844, from the real app with sample sections, each passing [visual-qa.md](visual-qa.md):
+Each at 1440x900 and 390x844, from the real app with a section fixture that has seat counts (the offline Spring 2027 fixture the CI journeys use), each passing [visual-qa.md](visual-qa.md):
 1. Search panel at the defaults, with the hidden-count line.
 2. Filters view at the defaults.
 3. Filters view with four groups changed, and the summary it produces (overflowing on phone).
+4. Search panel with sample sections, which have no seat counts: Open seats starts off and the summary says "Seat counts aren't available for this term".
 4. No sections match.
 5. Every section is full.
 6. The grade records error.
