@@ -1,0 +1,11 @@
+{
+  // Source runs on the server, the web and native alike, so it gets the
+  // ES2023 library and nothing else: no DOM, Node or Bun globals. `window`,
+  // `localStorage` and `fetch` fail to compile here.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src"]
+}
