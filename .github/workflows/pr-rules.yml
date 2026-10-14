@@ -1,162 +1,49 @@
 name: PR rules
 
-# pull_request_target runs this file as it is on the default branch, so a PR
-# can't edit the jobs that judge it.
+# Two repository rules, reported as commit statuses on the PR's head commit:
+# "Task rule" and "Path ownership". The alpha and main rulesets require both
+# (.github/rulesets/). Sam's approving review of the head commit lifts them.
 #
-# Approval decides from the GitHub API alone whether Sam approved the PR's
-# current commit, posts a "Sam approved (<base branch>)" commit status on that
-# commit, and hands its answer to the other two jobs. Those check out the PR's base commit
-# to run the scripts and read the lists from there. Nothing from the PR is
-# checked out or run: its commits are fetched only so git can diff them.
-# Label changes re-run the jobs, since sam-approved lifts the checks.
+# The check jobs check out the PR's base commit and run the scripts and read
+# the lists from there, so a PR can't edit the checks that judge it. Nothing
+# from the PR is checked out or run: its commits are fetched only so git can
+# diff them. They run with read access only, and with no approval input, so a
+# base with older scripts runs them as strictly as a new one.
 #
-# A status belongs to a commit, not a PR, and two PRs can share a head: one
-# into edge and one into alpha, say. Naming the base branch in the status keeps
-# an approval for one from counting for the other. The alpha ruleset requires
-# "Sam approved (alpha)" from GitHub Actions and the main ruleset "Sam approved
-# (main)" (.github/rulesets/). No ruleset requires "Sam approved (edge)": it is
-# informational, and agents land on edge without Sam's approval.
+# Report reads Sam's reviews, applies the lift, and posts both statuses. A
+# status is posted explicitly because the jobs' own checks attach to the
+# default branch's commit (GITHUB_SHA for pull_request_target), not the PR's.
+#
+# pull_request_target runs this file as it is on the default branch.
+# pull_request_review runs the copy in the PR's merge commit instead, which
+# for a PR that doesn't edit this file is the base branch's copy. A PR that
+# edits it changes only what runs on its own reviews, and merging still needs
+# Sam's approving review, which lifts these checks anyway.
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    # edited covers a change of base branch; a title edit re-runs harmlessly.
+    types: [opened, synchronize, reopened, edited]
     branches: [alpha, main, edge]
+  pull_request_review:
+    types: [submitted, dismissed]
 
 permissions:
   contents: read
 
+# The newest event wins. Every run reads the reviews when it reports, so the
+# run that survives decides from the latest state.
+concurrency:
+  group: pr-rules-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
-  approval:
-    name: Approval
-    runs-on: ubuntu-latest
-    # The only job that writes: it strips sam-approved on a push, says so in a
-    # PR comment, and posts the approval status.
-    permissions:
-      statuses: write
-      pull-requests: write
-    # Runs queue rather than cancel each other, so a label event can't cancel
-    # the run that is stripping the label after a push. queue: max keeps every
-    # waiting run too; the default replaces a waiting run with a newer one.
-    # GitHub doesn't promise the order, so the script doesn't rely on it.
-    concurrency:
-      group: pr-rules-approval-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
-      queue: max
-    outputs:
-      approved: ${{ steps.decide.outputs.approved }}
-    steps:
-      - name: Decide whether Sam approved this commit
-        id: decide
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          # Read from the default branch, so a PR can't add itself to it.
-          APPROVERS: '["SamGu-NRX"]'
-          APPROVAL_LABEL: sam-approved
-        with:
-          # The script lives here, not in a file, so the job needs no checkout
-          # and no permissions beyond the two above.
-          # tools/repo-rules/tests/approval.test.ts runs this exact text.
-          script: |
-            const label = process.env.APPROVAL_LABEL;
-            if (!label) throw new Error("Set APPROVAL_LABEL.");
-            let approvers;
-            try {
-              approvers = JSON.parse(process.env.APPROVERS ?? "");
-            } catch {
-              approvers = undefined;
-            }
-            if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
-              throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
-            }
-            const pr = context.payload.pull_request;
-            if (!pr?.base?.ref || !pr.head?.sha) throw new Error("The event carries no pull request with a base branch and a head commit.");
-            const STATUS_CONTEXT = `Sam approved (${pr.base.ref})`;
-            const ACTIONS_BOT = "github-actions[bot]";
-            const { owner, repo } = context.repo;
-            const issue = { owner, repo, issue_number: pr.number };
-            // The REST API documents no order for events or statuses. created_at has
-            // one-second steps, so ids break ties.
-            const newest = (items) =>
-              items.toSorted((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id).at(-1);
-
-            // Approved when all of these hold:
-            // - the PR has the label now;
-            // - an approver added it last, acting as themselves rather than through an app;
-            // - it was added while the PR's head was this commit. Either this run is that
-            //   label event, or an earlier run for it already marked this commit with a
-            //   success status for this base branch. A push strips the label (below), and
-            //   a status belongs to one commit, so approval never carries over to a new
-            //   commit.
-            function decide({ labels, events, trigger, headStatus }) {
-              if (!labels.includes(label)) {
-                return { approved: false, reason: `The PR doesn't have the ${label} label.` };
-              }
-              const added = newest(events.filter((event) => event.event === "labeled" && event.label?.name === label));
-              if (added === undefined) {
-                return { approved: false, reason: `The PR has ${label}, but GitHub reports no event adding it.` };
-              }
-              const by = added.actor?.login;
-              if (!approvers.includes(by) || added.performed_via_github_app) {
-                const via = added.performed_via_github_app ? ` through the ${added.performed_via_github_app.slug} app` : "";
-                return { approved: false, reason: `${by ?? "an unknown account"} added ${label} last${via}. Only ${approvers.join(", ")} can approve, directly.` };
-              }
-              if (trigger.action === "labeled" && trigger.label === label && trigger.sender === by) {
-                return { approved: true, reason: `${by} added ${label} while this commit was the PR's head.` };
-              }
-              if (headStatus?.state === "success" && headStatus.creator?.login === ACTIONS_BOT) {
-                return { approved: true, reason: `${by} approved this commit earlier.` };
-              }
-              return { approved: false, reason: `${label} was added before this commit was pushed. Remove it and add it again to approve this commit.` };
-            }
-
-            // The strip removes whatever label is there when this step runs, so it also
-            // removes one Sam added after the push but before this run reached it. Only
-            // removing a label older than the push would need the push's time, and the
-            // API has none to compare against: the payload records no push time, the
-            // PR's updated_at also moves when a label is added, and event times step
-            // by whole seconds. So a removal is always announced in a comment, and an
-            // approval lost this way is visible rather than silent.
-            if (context.payload.action === "synchronize") {
-              let removed = false;
-              try {
-                await github.rest.issues.removeLabel({ ...issue, name: label });
-                removed = true;
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
-              if (removed) {
-                await github.rest.issues.createComment({ ...issue, body: `Approval removed by a new push; add ${label} again.` });
-                core.info(`Removed ${label}: a push needs a new approval.`);
-              }
-            }
-
-            const labels = (await github.paginate(github.rest.issues.listLabelsOnIssue, { ...issue, per_page: 100 })).map((item) => item.name);
-            const events = await github.paginate(github.rest.issues.listEvents, { ...issue, per_page: 100 });
-            const statuses = await github.paginate(github.rest.repos.listCommitStatusesForRef, { owner, repo, ref: pr.head.sha, per_page: 100 });
-            const headStatus = newest(statuses.filter((status) => status.context === STATUS_CONTEXT));
-            const trigger = { action: context.payload.action, label: context.payload.label?.name, sender: context.payload.sender?.login };
-            const { approved, reason } = decide({ labels, events, trigger, headStatus });
-
-            await github.rest.repos.createCommitStatus({
-              owner,
-              repo,
-              sha: pr.head.sha,
-              context: STATUS_CONTEXT,
-              state: approved ? "success" : "pending",
-              description: approved ? "Sam approved this commit" : "Waiting for Sam's approval",
-            });
-            core.notice(reason, { title: approved ? "Approved" : "Not approved" });
-            core.setOutput("approved", String(approved));
-
   task-rule:
-    name: Task rule
-    needs: approval
-    # Runs when Approval fails too, treating the PR as unapproved, so a broken
-    # Approval job can't turn this check into a skip.
-    if: ${{ !cancelled() }}
+    name: Check the task rule
+    # pull_request_review has no branch filter.
+    if: contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref)
     runs-on: ubuntu-latest
-    concurrency:
-      group: pr-rules-task-rule-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
+    outputs:
+      checked: ${{ steps.tools.outputs.present }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -188,18 +75,14 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          APPROVED: ${{ needs.approval.result == 'success' && needs.approval.outputs.approved || 'false' }}
 
   path-ownership:
-    name: Path ownership
-    needs: approval
-    # Runs when Approval fails too, treating the PR as unapproved, so a broken
-    # Approval job can't turn this check into a skip.
-    if: ${{ !cancelled() }}
+    name: Check path ownership
+    # pull_request_review has no branch filter.
+    if: contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref)
     runs-on: ubuntu-latest
-    concurrency:
-      group: pr-rules-path-ownership-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
+    outputs:
+      checked: ${{ steps.tools.outputs.present }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -232,4 +115,91 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          APPROVED: ${{ needs.approval.result == 'success' && needs.approval.outputs.approved || 'false' }}
+
+  report:
+    name: Report
+    needs: [task-rule, path-ownership]
+    # Reports a failed or skipped check too, so it never leaves a stale status.
+    if: ${{ !cancelled() && contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref) }}
+    runs-on: ubuntu-latest
+    # The only job that writes, and it runs nothing from the PR or its base.
+    permissions:
+      statuses: write
+      pull-requests: read
+    steps:
+      - name: Post each rule's status on the head commit
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Read from this file, so a PR into alpha or main can't add to it.
+          APPROVERS: '["SamGu-NRX"]'
+          TASK_RULE_RESULT: ${{ needs.task-rule.result }}
+          TASK_RULE_CHECKED: ${{ needs.task-rule.outputs.checked }}
+          PATH_OWNERSHIP_RESULT: ${{ needs.path-ownership.result }}
+          PATH_OWNERSHIP_CHECKED: ${{ needs.path-ownership.outputs.checked }}
+        with:
+          # The script lives here, not in a file, so the job needs no checkout.
+          # tools/repo-rules/tests/report.test.ts runs this exact text.
+          script: |
+            let approvers;
+            try {
+              approvers = JSON.parse(process.env.APPROVERS ?? "");
+            } catch {
+              approvers = undefined;
+            }
+            if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
+              throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
+            }
+            const pr = context.payload.pull_request;
+            if (!pr?.number || !pr.head?.sha) throw new Error("The event carries no pull request with a head commit.");
+            const { owner, repo } = context.repo;
+
+            // The REST API documents no order for reviews. submitted_at has one-second
+            // steps, so ids break ties.
+            const newest = (items) =>
+              items.toSorted((a, b) => a.submitted_at.localeCompare(b.submitted_at) || a.id - b.id).at(-1);
+
+            // Sam approved this commit when his latest review that approves or blocks is
+            // an approval of the PR's head. A later request for changes replaces it, and
+            // a dismissed approval reads as DISMISSED. A comment-only review changes
+            // nothing, as on GitHub. Reviews belong to one PR, so another PR with the
+            // same head is judged on its own reviews.
+            function samApproval(reviews) {
+              const latest = newest(
+                reviews.filter((review) => approvers.includes(review.user?.login) && ["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(review.state)),
+              );
+              if (latest === undefined) return { approved: false, reason: "Sam hasn't reviewed this PR." };
+              if (latest.state === "CHANGES_REQUESTED") return { approved: false, reason: "Sam's latest review requests changes." };
+              if (latest.state === "DISMISSED") return { approved: false, reason: "Sam's latest review was dismissed." };
+              if (latest.commit_id !== pr.head.sha) return { approved: false, reason: "Sam approved an earlier commit." };
+              return { approved: true, reason: "Sam approved this commit." };
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 });
+            const approval = samApproval(reviews);
+            core.notice(approval.reason, { title: approval.approved ? "Approved" : "Not approved" });
+
+            const RESULTS = ["success", "failure", "cancelled", "skipped"];
+            const rules = [
+              { context: "Task rule", result: process.env.TASK_RULE_RESULT, checked: process.env.TASK_RULE_CHECKED },
+              { context: "Path ownership", result: process.env.PATH_OWNERSHIP_RESULT, checked: process.env.PATH_OWNERSHIP_CHECKED },
+            ];
+            const target_url = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            for (const rule of rules) {
+              if (!RESULTS.includes(rule.result)) throw new Error(`${rule.context}: unknown job result ${JSON.stringify(rule.result)}.`);
+              let state;
+              let description;
+              if (rule.result === "success") {
+                if (rule.checked !== "true" && rule.checked !== "false") {
+                  throw new Error(`${rule.context}: the job passed without saying whether it ran the check (${JSON.stringify(rule.checked)}).`);
+                }
+                state = "success";
+                description = rule.checked === "true" ? "Passed." : "The base commit has no check to run.";
+              } else if (approval.approved) {
+                state = "success";
+                description = "Sam approved this commit, which lifts this check.";
+              } else {
+                state = "failure";
+                description = rule.result === "failure" ? "Fails. Only Sam's approving review of this commit lifts it." : `The check didn't finish (${rule.result}).`;
+              }
+              await github.rest.repos.createCommitStatus({ owner, repo, sha: pr.head.sha, context: rule.context, state, description, target_url });
+            }

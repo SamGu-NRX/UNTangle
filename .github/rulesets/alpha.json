@@ -1,5 +1,5 @@
 {
-  "name": "alpha: Sam-approved PRs with green CI",
+  "name": "alpha: PRs Sam approved, with green CI",
   "target": "branch",
   "enforcement": "active",
   "conditions": {
@@ -22,10 +22,11 @@
       "type": "pull_request",
       "parameters": {
         "allowed_merge_methods": ["merge", "squash", "rebase"],
-        "dismiss_stale_reviews_on_push": false,
-        "require_code_owner_review": false,
-        "require_last_push_approval": false,
-        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": true,
+        "require_extra_approval_for_unattributed_changes": true,
+        "require_last_push_approval": true,
+        "required_approving_review_count": 1,
         "required_review_thread_resolution": false,
         "required_reviewers": []
       }
@@ -34,15 +35,14 @@
       "type": "required_status_checks",
       "parameters": {
         "do_not_enforce_on_create": false,
-        "strict_required_status_checks_policy": false,
+        "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "Typecheck", "integration_id": 15368 },
           { "context": "Lint", "integration_id": 15368 },
           { "context": "Test", "integration_id": 15368 },
           { "context": "Build", "integration_id": 15368 },
           { "context": "Task rule", "integration_id": 15368 },
-          { "context": "Path ownership", "integration_id": 15368 },
-          { "context": "Sam approved (alpha)", "integration_id": 15368 }
+          { "context": "Path ownership", "integration_id": 15368 }
         ]
       }
     }

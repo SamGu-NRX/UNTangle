@@ -12,7 +12,7 @@ type Step = {
 };
 type Job = {
   name: string;
-  needs?: string;
+  needs?: string | string[];
   if?: string;
   permissions?: unknown;
   concurrency?: { group: string; "cancel-in-progress": boolean; queue?: string };
@@ -50,76 +50,79 @@ describe("ci.yml", () => {
 });
 
 describe("pr-rules.yml", () => {
-  test("runs from the base branch, on every change that could change its answer", async () => {
+  const BASES = "contains(fromJSON('[\"alpha\", \"main\", \"edge\"]'), github.event.pull_request.base.ref)";
+
+  test("runs from the default branch on PR changes, and again on each review", async () => {
     const { on, permissions } = await workflow("pr-rules.yml");
-    expect(Object.keys(on)).toEqual(["pull_request_target"]);
-    expect(on.pull_request_target).toEqual({
-      types: ["opened", "synchronize", "reopened", "edited", "labeled", "unlabeled"],
-      branches: ["alpha", "main", "edge"],
+    expect(on).toEqual({
+      pull_request_target: { types: ["opened", "synchronize", "reopened", "edited"], branches: ["alpha", "main", "edge"] },
+      pull_request_review: { types: ["submitted", "dismissed"] },
     });
     expect(permissions).toEqual({ contents: "read" });
   });
 
-  test("runs Approval first and the two checks after it", async () => {
+  // Each run reads the reviews when it reports, so the newest run has the latest answer.
+  test("lets the newest event's run replace older ones", async () => {
+    const { concurrency } = await workflow("pr-rules.yml");
+    expect(concurrency).toEqual({ group: "pr-rules-${{ github.event.pull_request.number }}", "cancel-in-progress": true });
+  });
+
+  test("runs both checks, then Report, for PRs into alpha, main and edge", async () => {
     const { jobs } = await workflow("pr-rules.yml");
-    expect(Object.entries(jobs).map(([id, job]) => [id, job.name, job.needs])).toEqual([
-      ["approval", "Approval", undefined],
-      ["task-rule", "Task rule", "approval"],
-      ["path-ownership", "Path ownership", "approval"],
+    expect(Object.entries(jobs).map(([id, job]) => [id, job.name, job.needs, job.if])).toEqual([
+      ["task-rule", "Check the task rule", undefined, BASES],
+      ["path-ownership", "Check path ownership", undefined, BASES],
+      ["report", "Report", ["task-rule", "path-ownership"], `\${{ !cancelled() && ${BASES} }}`],
     ]);
   });
 
-  test("gives write access to Approval alone, and only to statuses and pull requests", async () => {
+  // A job's own check is named after the job, so no job may share a name with a status the rulesets require.
+  test("names no job after a status it reports", async () => {
     const { jobs } = await workflow("pr-rules.yml");
-    expect(jobs.approval.permissions).toEqual({ statuses: "write", "pull-requests": "write" });
+    const names = Object.values(jobs).map((job) => job.name);
+    expect(names).not.toContain("Task rule");
+    expect(names).not.toContain("Path ownership");
+  });
+
+  test("gives write access to Report alone, and only to statuses", async () => {
+    const { jobs } = await workflow("pr-rules.yml");
+    expect(jobs.report.permissions).toEqual({ statuses: "write", "pull-requests": "read" });
     expect(jobs["task-rule"].permissions).toBeUndefined();
     expect(jobs["path-ownership"].permissions).toBeUndefined();
   });
 
-  // A cancelled Approval run could be the one stripping sam-approved after a push.
-  test("never cancels an Approval run in progress", async () => {
-    const { concurrency, jobs } = await workflow("pr-rules.yml");
-    expect(concurrency).toBeUndefined();
-    expect(jobs.approval.concurrency).toEqual({
-      group: "pr-rules-approval-${{ github.event.pull_request.number }}",
-      "cancel-in-progress": false,
-      queue: "max",
+  // The base's scripts get nothing that could lift them, old or new: before this change they lifted on PR_LABELS.
+  test("runs the base's checks with no approval input", async () => {
+    const { jobs } = await workflow("pr-rules.yml");
+    const envOf = (id: string) => Object.keys(jobs[id].steps.find((step) => step.run?.startsWith("bun "))?.env ?? {});
+    expect(envOf("task-rule")).toEqual(["BASE_SHA", "HEAD_SHA"]);
+    expect(envOf("path-ownership")).toEqual(["BASE_SHA", "HEAD_SHA", "HEAD_REF"]);
+  });
+
+  test("hands each check's result and whether it ran to Report", async () => {
+    const { jobs } = await workflow("pr-rules.yml");
+    expect(jobs["task-rule"].outputs).toEqual({ checked: "${{ steps.tools.outputs.present }}" });
+    expect(jobs["path-ownership"].outputs).toEqual({ checked: "${{ steps.tools.outputs.present }}" });
+    expect(jobs.report.steps).toHaveLength(1);
+    const [post] = jobs.report.steps;
+    expect(post.uses).toMatch(/^actions\/github-script@[0-9a-f]{40}$/);
+    expect(post.env).toEqual({
+      APPROVERS: '["SamGu-NRX"]',
+      TASK_RULE_RESULT: "${{ needs.task-rule.result }}",
+      TASK_RULE_CHECKED: "${{ needs.task-rule.outputs.checked }}",
+      PATH_OWNERSHIP_RESULT: "${{ needs.path-ownership.result }}",
+      PATH_OWNERSHIP_CHECKED: "${{ needs.path-ownership.outputs.checked }}",
     });
   });
 
-  test("decides with a pinned github-script, from an approver list written in the workflow", async () => {
-    const { jobs } = await workflow("pr-rules.yml");
-    expect(jobs.approval.steps).toHaveLength(1);
-    const [decide] = jobs.approval.steps;
-    expect(decide.id).toBe("decide");
-    expect(decide.uses).toMatch(/^actions\/github-script@[0-9a-f]{40}$/);
-    expect(JSON.parse(decide.env?.APPROVERS ?? "null")).toEqual(["SamGu-NRX"]);
-    expect(decide.env?.APPROVAL_LABEL).toBe("sam-approved");
-    expect(jobs.approval.outputs).toEqual({ approved: "${{ steps.decide.outputs.approved }}" });
-  });
-
-  test("passes Approval's answer to both checks, as unapproved when Approval didn't succeed", async () => {
-    const { jobs } = await workflow("pr-rules.yml");
-    for (const id of ["task-rule", "path-ownership"]) {
-      // A skipped job counts as passing a required check, so the checks run even when Approval fails.
-      expect(jobs[id].if).toBe("${{ !cancelled() }}");
-      const check = jobs[id].steps.find((step) => step.run?.startsWith("bun "));
-      expect(check?.env?.APPROVED).toBe(
-        "${{ needs.approval.result == 'success' && needs.approval.outputs.approved || 'false' }}",
-      );
-    }
-  });
-
-  test("reads no labels outside Approval, and never names the old label", async () => {
-    const text = await Bun.file(path.join(repoRoot, ".github/workflows/pr-rules.yml")).text();
-    expect(text).not.toContain("PR_LABELS");
-    expect(text).not.toContain("labels.*");
+  test("leaves no approval label anywhere in the repository", () => {
     // Split so this file doesn't match its own search.
-    const oldLabel = ["lead", "approved"].join("-");
-    const found = Bun.spawnSync(["git", "grep", "--untracked", "-l", "-F", oldLabel], { cwd: repoRoot });
-    expect(found.stdout.toString()).toBe("");
-    // git grep exits 1 for no match, and 128 for an error that would also print nothing.
-    expect(found.exitCode).toBe(1);
+    for (const label of [["lead", "approved"].join("-"), ["sam", "approved"].join("-")]) {
+      const found = Bun.spawnSync(["git", "grep", "--untracked", "-l", "-F", label], { cwd: repoRoot });
+      expect(found.stdout.toString()).toBe("");
+      // git grep exits 1 for no match, and 128 for an error that would also print nothing.
+      expect(found.exitCode).toBe(1);
+    }
   });
 
   test("reads the lists from the PR's base, not the default branch", async () => {
@@ -133,7 +136,7 @@ describe("pr-rules.yml", () => {
   // pull_request_target has the base branch's access, so running the PR's code here would hand it that access.
   test("never checks out or runs the PR's code", async () => {
     const { jobs } = await workflow("pr-rules.yml");
-    expect(jobs.approval.steps.every((step) => step.run === undefined && !step.uses?.startsWith("actions/checkout@"))).toBe(true);
+    expect(jobs.report.steps.every((step) => step.run === undefined && !step.uses?.startsWith("actions/checkout@"))).toBe(true);
     for (const id of ["task-rule", "path-ownership"]) {
       const [checkout, presence, ...rest] = jobs[id].steps;
       expect(checkout.uses).toStartWith("actions/checkout@");
@@ -189,7 +192,7 @@ type Ruleset = {
   name: string;
   conditions: { ref_name: { include: string[]; exclude: string[] } };
   bypass_actors: Array<{ actor_id: number; actor_type: string; bypass_mode: string }>;
-  rules: Array<{ type: string; parameters?: { required_status_checks?: Array<{ context: string; integration_id?: number }> } }>;
+  rules: Array<{ type: string; parameters?: Record<string, unknown> }>;
 };
 
 async function ruleset(branch: string): Promise<Ruleset> {
@@ -197,38 +200,53 @@ async function ruleset(branch: string): Promise<Ruleset> {
   return (await Bun.file(path.join(repoRoot, ".github/rulesets", `${branch}.json`)).json()) as Ruleset;
 }
 
+const rule = (body: Ruleset, type: string) => body.rules.find((candidate) => candidate.type === type)?.parameters;
+
 describe("the alpha and main rulesets", () => {
   const GITHUB_ACTIONS_APP = 15368;
 
-  test("differ only in name, branch and the approval status each requires", async () => {
+  test("differ only in name and branch", async () => {
     const alpha = await ruleset("alpha");
     const main = await ruleset("main");
     expect(alpha.conditions.ref_name).toEqual({ include: ["refs/heads/alpha"], exclude: [] });
     expect(main.conditions.ref_name).toEqual({ include: ["refs/heads/main"], exclude: [] });
-    const asAlpha = JSON.parse(JSON.stringify(main).replaceAll('"Sam approved (main)"', '"Sam approved (alpha)"'));
-    expect({ ...asAlpha, name: alpha.name, conditions: alpha.conditions }).toEqual(alpha);
+    expect({ ...main, name: alpha.name, conditions: alpha.conditions }).toEqual(alpha);
   });
-
-  test.each(["alpha", "main"])(
-    "%s requires every CI job, both PR checks and Sam's approval for that branch, each from GitHub Actions",
-    async (branch) => {
-      const ci = await workflow("ci.yml");
-      const prRules = await workflow("pr-rules.yml");
-      const expected = [
-        // Live Postgres tests run only when asked for, so they can't be required.
-        ...Object.values(ci.jobs).map((job) => job.name).filter((name) => name !== "Live Postgres tests"),
-        ...Object.values(prRules.jobs).map((job) => job.name).filter((name) => name !== "Approval"),
-        `Sam approved (${branch})`,
-      ];
-      const { rules } = await ruleset(branch);
-      const checks = rules.find((rule) => rule.type === "required_status_checks")?.parameters?.required_status_checks;
-      expect(checks).toEqual(expected.map((context) => ({ context, integration_id: GITHUB_ACTIONS_APP })));
-    },
-  );
 
   test("require a PR and forbid force-pushes and deletion", async () => {
     const { rules } = await ruleset("alpha");
-    expect(rules.map((rule) => rule.type)).toEqual(["deletion", "non_fast_forward", "pull_request", "required_status_checks"]);
+    expect(rules.map((candidate) => candidate.type)).toEqual(["deletion", "non_fast_forward", "pull_request", "required_status_checks"]);
+  });
+
+  // .github/CODEOWNERS names Sam for every path, so the one approval must be his, and on the last push.
+  test("require Sam's approving review of the PR's latest push", async () => {
+    expect(rule(await ruleset("alpha"), "pull_request")).toEqual({
+      allowed_merge_methods: ["merge", "squash", "rebase"],
+      dismiss_stale_reviews_on_push: true,
+      require_code_owner_review: true,
+      require_extra_approval_for_unattributed_changes: true,
+      require_last_push_approval: true,
+      required_approving_review_count: 1,
+      required_review_thread_resolution: false,
+      required_reviewers: [],
+    });
+    expect(await Bun.file(path.join(repoRoot, ".github/CODEOWNERS")).text()).toEndWith("\n* @SamGu-NRX\n");
+  });
+
+  test("require every CI job and both PR rules, each from GitHub Actions, on a branch up to date with its base", async () => {
+    const ci = await workflow("ci.yml");
+    const expected = [
+      // Live Postgres tests run only when asked for, so they can't be required.
+      ...Object.values(ci.jobs).map((job) => job.name).filter((name) => name !== "Live Postgres tests"),
+      // The statuses pr-rules.yml's Report job posts on the head commit (tests/report.test.ts).
+      "Task rule",
+      "Path ownership",
+    ];
+    expect(rule(await ruleset("alpha"), "required_status_checks")).toEqual({
+      do_not_enforce_on_create: false,
+      strict_required_status_checks_policy: true,
+      required_status_checks: expected.map((context) => ({ context, integration_id: GITHUB_ACTIONS_APP })),
+    });
   });
 
   test("let admins bypass only when merging a PR, never by pushing", async () => {

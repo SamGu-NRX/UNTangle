@@ -59,16 +59,5 @@ export function requireEnv(name: string): string {
   return value;
 }
 
-/**
- * The Approval job's answer (.github/workflows/pr-rules.yml), from the
- * APPROVED variable. Anything but "true" or "false" is a wiring mistake, so
- * it throws rather than reading as either.
- */
-export function approvedFromEnv(value: string | undefined): boolean {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  throw new Error(`APPROVED must be "true" or "false", from the Approval job. Got ${JSON.stringify(value)}.`);
-}
-
-/** The label Sam adds to approve a PR's current commit, which lifts both PR checks. Only Sam adds it. */
-export const SAM_APPROVED = "sam-approved";
+/** What a failed PR check prints last: who can lift it, and how. */
+export const LIFTED_BY = "Only Sam's approving review of the PR's current commit lifts this check.";

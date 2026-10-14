@@ -8,12 +8,15 @@ gh api -X PUT repos/SamGu-NRX/UNTangle/rulesets/<id> --input .github/rulesets/al
 gh api -X PUT repos/SamGu-NRX/UNTangle/rulesets/<id> --input .github/rulesets/main.json
 ```
 
-Apply them only once `.github/workflows/pr-rules.yml` with the Approval job is on the default branch. `pull_request_target` runs the default branch's copy, so until then nothing reports the Task rule, Path ownership or `Sam approved (<branch>)` checks, and every PR into these branches waits on them.
+Each ruleset requires a PR with one approving review from a code owner on its latest push. `.github/CODEOWNERS` names Sam for every path, so that review has to be his. A push dismisses it.
 
-Each ruleset requires its own approval status, `Sam approved (alpha)` or `Sam approved (main)`, because a status belongs to a commit that PRs into other branches can share. Nothing requires `Sam approved (edge)`.
+Apply them only once these are in place:
+- `.github/CODEOWNERS` on `alpha` and `main`. GitHub reads it from the PR's base branch, so without it no review counts as a code owner's.
+- `.github/workflows/pr-rules.yml` with the Report job on the default branch (`main`), which `pull_request_target` runs. Until then nothing posts the `Task rule` and `Path ownership` statuses, and every PR waits on them.
+- The same file on `alpha`. A review event runs the copy in the PR's merge commit, which for a PR into `alpha` is `alpha`'s copy.
 
-Each required check names `integration_id` 15368, the GitHub Actions app (`gh api /apps/github-actions`), so a status posted with a person's token doesn't count.
+The required checks name `integration_id` 15368, the GitHub Actions app (`gh api /apps/github-actions`), so a status posted with a person's token doesn't count. The PR must be up to date with its base before it merges. Updating it is a push, so both rules run again against the new base and Sam approves again.
 
-Admins keep a bypass in `pull_request` mode: they can't push to these branches directly, but they can still merge a PR without its checks.
+Admins keep a bypass in `pull_request` mode: they can't push to these branches directly, but they can merge a PR without its review or checks. Sam needs it to merge a PR opened with his own account, since GitHub doesn't let him approve his own PR.
 
-The live `main` ruleset also sets `require_extra_approval_for_unattributed_changes: true`, which the public REST schema doesn't list. These files leave it out, so check whether a `PUT` keeps it.
+The pull_request rule keeps `require_extra_approval_for_unattributed_changes: true` from the live `main` ruleset. The public REST schema doesn't list it, so after a `PUT`, read the ruleset back and check that it's still set.

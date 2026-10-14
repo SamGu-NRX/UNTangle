@@ -25,8 +25,9 @@ PR titles and bodies follow `.obvious/skills/pr-writing` and `.github/pull_reque
 
 ## Approval
 
-A PR lands on `alpha` or `main` only after Sam approves its current commit with the `sam-approved` label. A push removes the label, so each new commit needs a new approval. PRs into `edge` don't need it. The rule, and how CI enforces it, is under "Sam's approval" in `docs/architecture/README.md`.
+A PR lands on `alpha` or `main` only after Sam approves it in a PR review, on its latest commit. A push dismisses the approval, so each new commit needs a new one. PRs into `edge` don't need it. The rule, and how GitHub enforces it, is under "Sam's approval" in `docs/architecture/README.md`.
 
-- Agents never add or remove `sam-approved`, and never merge into alpha or main. Only Sam approves.
-- Agents running on Sam's machine use his GitHub token, so GitHub can't tell them apart from him. Nothing on GitHub stops such an agent from approving or merging as Sam; only this rule does.
-- TODO(Sam): give agents their own GitHub identity, without his permissions.
+- Agents never submit PR reviews, never merge into alpha or main, and never use `gh pr merge --admin`. Only Sam approves.
+- Agents running on Sam's machine use his GitHub token, so GitHub can't tell them apart from him. Nothing on GitHub stops such an agent from merging as Sam with `--admin`; only this rule does.
+- A PR opened with Sam's account, which is every PR a local agent opens, can't get his approval: GitHub doesn't let anyone approve their own PR. Until agents have their own GitHub identity, those PRs merge only when Sam merges them himself.
+- TODO(Sam): give agents their own GitHub identity, a machine user or a GitHub App, without his permissions.

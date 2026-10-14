@@ -1,15 +1,14 @@
 /**
  * The Path ownership check: a PR from an agent branch (obv/*) may not touch
  * a path the lead owns, as listed in .github/lead-owned-paths.txt, unless
- * Sam approved the PR's current commit (the sam-approved label, judged by the
- * Approval job and passed in as APPROVED).
+ * Sam approved the PR's current commit in a review. The workflow applies that
+ * lift (.github/workflows/pr-rules.yml); this script always checks.
  *
  * CI runs this from the base branch (pull_request_target) and reads the list
  * from the base commit, so a PR can't shorten the list that judges it.
  */
 import {
-  SAM_APPROVED,
-  approvedFromEnv,
+  LIFTED_BY,
   changedFiles,
   mergeBase,
   readAt,
@@ -54,14 +53,9 @@ export function leadOwnedPathsTouched(patterns: string[], changes: FileChange[])
 
 if (import.meta.main) {
   const repoDir = process.cwd();
-  const approved = approvedFromEnv(process.env.APPROVED);
   const headRef = requireEnv("HEAD_REF");
   if (!isAgentBranch(headRef)) {
     console.log(`Skipped: ${headRef} is not an agent branch (obv/*).`);
-    process.exit(0);
-  }
-  if (approved) {
-    console.log("Skipped: Sam approved this commit.");
     process.exit(0);
   }
   const base = resolveCommit(repoDir, process.env.BASE_SHA ?? "HEAD");
@@ -76,7 +70,7 @@ if (import.meta.main) {
   console.error(`This agent PR touches paths the lead owns (${LEAD_OWNED_PATHS}):`);
   for (const { path, pattern } of touched) console.error(`  ${path} (${pattern})`);
   console.error(
-    `Propose the change in the PR description instead. Only Sam can approve it, with the ${SAM_APPROVED} label.`,
+    `Propose the change in the PR description instead. ${LIFTED_BY}`,
   );
   process.exit(1);
 }
