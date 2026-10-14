@@ -44,6 +44,13 @@ export interface SourcedThreshold {
   readonly sourceQuote: string;
   /** ISO date (YYYY-MM-DD) the source page was retrieved. */
   readonly retrievedAt: string;
+  /**
+   * Enrollment condition the source attaches to this number, such as a
+   * GPA bound, or null when the sentence states none. Zone names describe
+   * load bands, not permission: `heavy` does not mean every student may
+   * enroll at that load, only that no approval tier applies to it.
+   */
+  readonly condition: string | null;
 }
 
 /**
@@ -86,11 +93,13 @@ const sourced = (
   value: number,
   sourceUrl: string,
   sourceQuote: string,
+  condition: string | null = null,
 ): SourcedThreshold => ({
   value,
   sourceUrl,
   sourceQuote,
   retrievedAt: RETRIEVED_AT,
+  condition,
 });
 
 // Fall and spring share one rulebook: every catalog sentence covers
@@ -111,6 +120,7 @@ const fallSpringProfile: TermProfile = {
     19,
     STUDENT_LOAD_URL,
     "During the fall/spring terms, a full-time undergraduate student with a GPA of less than 3.000 may select multiple sessions for a maximum of 19 semester hours.",
+    "GPA of less than 3.000; at 3.000 or above the approval path allows up to 21",
   ),
   approvalCeiling: {
     kind: "with-approval",
@@ -118,6 +128,7 @@ const fallSpringProfile: TermProfile = {
       21,
       STUDENT_LOAD_URL,
       "An undergraduate student with a GPA of at least 3.000 may enroll for a maximum of 21 hours for the fall or spring term/semester by meeting the following conditions",
+      "GPA of at least 3.000, plus the three conditions the catalog lists after this sentence",
     ),
   },
 };
@@ -137,6 +148,7 @@ const summerProfile: TermProfile = {
     18,
     STUDENT_LOAD_URL,
     "During the summer term/semester, a full-time undergraduate student with a GPA of more than 3.000 may select multiple sessions for a maximum of 18 semester hours.",
+    "GPA of more than 3.000",
   ),
   approvalCeiling: {
     kind: "none-in-catalog",
@@ -191,6 +203,12 @@ export const GRADUATE: GraduateProfile = {
  * Boundaries derive from the sourced thresholds above, never literals.
  * Total over every `Term`; throws on hours that are not a non-negative
  * finite number rather than silently clamping them into a zone.
+ *
+ * Zones are load bands, not enrollment permission: the catalog conditions
+ * the 19, 18, and 21 hour ceilings on GPA, and this function takes no
+ * GPA, so callers must not read `heavy` or `needs-approval` as permitted
+ * for every student. The per-threshold `condition` field carries the
+ * eligibility wording for UI that needs it.
  */
 export function zoneFor(hours: number, term: Term): CreditLoadZone {
   if (!Number.isFinite(hours) || hours < 0) {
