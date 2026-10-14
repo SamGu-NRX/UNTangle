@@ -12,7 +12,7 @@ import { Grades, slicesByInstructor, useGradeHistory } from "./Grades";
 import type { CourseModel, CourseRowModel } from "./model/course-model";
 import { instructorKey } from "./model/grades";
 import { rowFact } from "./model/groups";
-import { isMet, pathStops, type StopState } from "./model/path";
+import { isMet, pathStops, ruleVerdict, withoutSentence, type StopState } from "./model/path";
 import { splitUnparsed } from "./model/rules";
 import type { SchoolProfile } from "./school";
 import { SectionList, type PlacedSection } from "./SectionList";
@@ -182,8 +182,8 @@ function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; mod
   const listed = dependents.slice(drawn, drawn + 4);
   const uncounted = dependents.length - drawn - listed.length;
   const { readable, unparsed } = splitUnparsed(row.rule);
-  const engine = row.assessment?.status;
-  const meets = engine === "eligible" || engine === "done" || engine === "taking";
+  // From the assessed prerequisite outcome, never from whether the student is enrolled (model/path.ts).
+  const verdict = ruleVerdict(row, model);
   const proof = requirements.flatMap((stop) => {
     const id = stop.kind === "course" ? stop.id : stop.chosen;
     const need = id ? model.rows.get(id) : undefined;
@@ -244,15 +244,19 @@ function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; mod
                 .{" "}
               </>
             ) : null}
-            {row.coveredBy ? (
+            {verdict.kind === "covered" ? (
               <>
-                You passed <CourseLink id={row.coveredBy} />, which requires this course, so it counts toward prerequisites but adds no credit.
+                You passed <CourseLink id={verdict.by} />, which requires this course, so it counts toward prerequisites but adds no credit.
               </>
-            ) : meets ? (
+            ) : verdict.kind === "meets" ? (
               <>
                 <span className={styles.ok}>You meet it</span>
                 {proof.length > 0 ? ` with ${proof.join(" and ")}` : ""}.
               </>
+            ) : verdict.kind === "without" ? (
+              withoutSentence(verdict)
+            ) : verdict.kind === "credit" ? (
+              "You have credit for it."
             ) : unparsed.length > 0 ? (
               <>
                 UNTangle can&apos;t read <q>{unparsed[0]}</q>, so check it with an advisor.

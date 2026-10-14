@@ -144,28 +144,31 @@ function term(node: RuleNode): string | null {
 const isGroup = (node: RuleNode) => node.kind === "all" || node.kind === "any";
 
 /**
- * "Needs CSCE 2110", "Needs MATH 1650 or instructor consent", "Take with
- * BIOL 1710", "Needs junior standing". Null when nothing in the rule can be
- * named, so the caller says something general instead.
+ * What is missing, in a row's words: "CSCE 2110", "MATH 1650 or instructor
+ * consent", "junior standing". Null when nothing in the rule can be named.
  */
-function needsPhrase(node: RuleNode | null): string | null {
+export function missingText(node: RuleNode | null): string | null {
   if (!node) return null;
-  if (node.kind === "course" && node.together) return `Take with ${node.id}`;
-  if (node.kind !== "all" && node.kind !== "any") {
-    const name = term(node);
-    return name ? `Needs ${name}` : null;
-  }
+  if (node.kind === "course") return node.id;
+  if (node.kind !== "all" && node.kind !== "any") return term(node);
   const named = node.items.flatMap((item) => term(item) ?? []);
   if (named.length === 0) return null;
   if (node.kind === "all") {
     // A required consent is the step the student takes first.
     const consent = node.items.find((item) => (item.kind === "consent" || item.kind === "unparsed") && term(item));
-    if (consent) return `Needs ${term(consent)}`;
+    if (consent) return term(consent);
     // Unreadable text in an AND is left to the detail; a nested group is still one more requirement.
-    return `Needs ${listTerms(named, "and", node.items.filter(isGroup).length)}`;
+    return listTerms(named, "and", node.items.filter(isGroup).length);
   }
   // An alternative is never dropped: one without a name counts as another.
-  return `Needs ${listTerms(named, "or", node.items.length - named.length)}`;
+  return listTerms(named, "or", node.items.length - named.length);
+}
+
+/** "Needs CSCE 2110", "Needs MATH 1650 or instructor consent", "Take with BIOL 1710". */
+function needsPhrase(node: RuleNode | null): string | null {
+  if (node?.kind === "course" && node.together) return `Take with ${node.id}`;
+  const missing = missingText(node);
+  return missing ? `Needs ${missing}` : null;
 }
 
 /**

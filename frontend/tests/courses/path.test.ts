@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { RowStatus } from "@/components/courses/model/course-model";
-import { isMet, pathStops } from "@/components/courses/model/path";
+import { buildCourseModel } from "@/components/courses/model/course-model";
+import { isMet, pathStops, ruleVerdict, withoutSentence } from "@/components/courses/model/path";
+import { sampleTranscript } from "@/components/courses/model/sample-transcript";
+import { untProfile } from "@/components/courses/school";
+import type { TranscriptCourseRecord } from "@/lib/types";
 import type { RuleNode } from "@/components/courses/model/rules";
 
 const course = (id: string, grade?: string): RuleNode => ({ kind: "course", id, ...(grade ? { grade } : {}) });
@@ -47,5 +51,45 @@ describe("pathStops", () => {
       { kind: "choice", ids: ["B 2", "C 3"], options: 2, chosen: "C 3", state: "done" },
     ]);
     expect(pathStops(null, rows({}))).toEqual([]);
+  });
+});
+
+describe("the catalog-rule line and the path agree", () => {
+  const profile = untProfile();
+  const record = (code: string, status: "completed" | "inProgress", grade: string): TranscriptCourseRecord => ({
+    ...sampleTranscript[0],
+    id: `rec-${code}`,
+    code,
+    grade,
+    appliedStatus: status,
+    sourceKind: status === "inProgress" ? "current" : "unt",
+  });
+  const modelOf = (records: TranscriptCourseRecord[]) =>
+    buildCourseModel(profile, { statuses: {}, transcript: records, planned: new Set(), manualCredit: new Set(), autoPlanned: new Set() });
+
+  test("taking a course without its prerequisites: the line says so and no path stop is met", () => {
+    const model = modelOf([record("CSCE 1040", "inProgress", "IP")]);
+    const row = model.rows.get("CSCE 1040")!;
+    expect(row.status).toBe("taking");
+    const verdict = ruleVerdict(row, model);
+    expect(verdict).toEqual({ kind: "without", missing: "CSCE 1030 and 1 more" });
+    if (verdict.kind !== "without") throw new Error(verdict.kind);
+    expect(withoutSentence(verdict)).toBe("You're taking it without CSCE 1030 and 1 more on record.");
+    expect(pathStops(row.rule, model.rows).map((stop) => isMet(stop.state))).toEqual([false, false]);
+  });
+
+  test("taking a course whose prerequisites are on record: the line says it's met and every stop is met", () => {
+    const model = modelOf([record("CSCE 1030", "completed", "B"), record("MATH 1710", "completed", "B"), record("CSCE 1040", "inProgress", "IP")]);
+    const row = model.rows.get("CSCE 1040")!;
+    expect(ruleVerdict(row, model)).toEqual({ kind: "meets" });
+    expect(pathStops(row.rule, model.rows).every((stop) => isMet(stop.state))).toBe(true);
+  });
+
+  test("credit makes no claim about the rule, since passing it covers some of its own prerequisites", () => {
+    const model = modelOf([record("CSCE 1040", "completed", "A")]);
+    const row = model.rows.get("CSCE 1040")!;
+    expect(ruleVerdict(row, model)).toEqual({ kind: "credit" });
+    // CSCE 1030 is proven by passing CSCE 1040, so a "without CSCE 1030" line would contradict this stop.
+    expect(pathStops(row.rule, model.rows)[0]).toEqual({ kind: "course", id: "CSCE 1030", state: "covered" });
   });
 });

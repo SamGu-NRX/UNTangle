@@ -56,6 +56,12 @@ export type CourseModel = {
   rows: ReadonlyMap<string, CourseRowModel>;
   inference: InferenceResult;
   hasTranscript: boolean;
+  /**
+   * The course's prerequisites assessed as if the student had no record of
+   * the course itself. The engine stops at "taking" or "done" for a course
+   * on the record, so this is how the detail says whether the rule was met.
+   */
+  assessWithoutRecord: (id: string) => CourseAssessment | undefined;
 };
 
 export const statusLabels: Record<RowStatus, string> = {
@@ -164,5 +170,21 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
       onTranscript: onTranscript.has(entry.id),
     });
   }
-  return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded) };
+  // Lazy and cached: one extra inference per course the detail asks about.
+  const withoutRecord = new Map<string, CourseAssessment | undefined>();
+  const assessWithoutRecord = (id: string) => {
+    if (!withoutRecord.has(id)) {
+      const overrides = new Map(evidence.overrides);
+      overrides.delete(id);
+      const without: Evidence = {
+        ...evidence,
+        transcript: evidence.transcript?.filter((completion) => completion.courseId !== id),
+        inProgress: evidence.inProgress?.filter((code) => code !== id),
+        overrides,
+      };
+      withoutRecord.set(id, inferStatuses(profile.catalog, without, profile.adapter).statuses.get(id));
+    }
+    return withoutRecord.get(id);
+  };
+  return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded), assessWithoutRecord };
 }
