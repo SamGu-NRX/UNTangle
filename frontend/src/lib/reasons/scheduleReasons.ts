@@ -39,6 +39,7 @@ import { formatClock } from "@/lib/optimizer/explain";
 import { OPT_DAYS, type OptDay, type OptSection, type ScheduleBreakdown } from "@/lib/optimizer/types";
 import type { GradeData } from "@/lib/grades";
 import type { CourseHistory } from "@/lib/grades-history/types";
+import { hasOpenSeats } from "@/lib/planner-sections";
 import type { Section } from "@/lib/sections/model";
 import type { Reason, ReasonEvidence, ScheduleReasonsInput, StatedPreference } from "./types";
 
@@ -69,7 +70,8 @@ function optionLetter(rank: number): string {
   return String.fromCharCode(65 + rank);
 }
 
-type Option = { terms: CostTerms; sections: OptSection[]; breakdown: ScheduleBreakdown };
+/** `sessions` lists the date ranges the option's meetings run on, as one comparable key. */
+type Option = { terms: CostTerms; sections: OptSection[]; breakdown: ScheduleBreakdown; sessions: string };
 
 /** Where a cost term's true value lies. Equal ends mean it is known exactly. */
 type Range = { lo: number; hi: number };
@@ -85,13 +87,14 @@ type Preference = {
   range: (option: Option) => Range;
   /** A difference in the term's units, as the number the sentence quotes. 0 means too small to state. */
   shown: (difference: number, exact: boolean, courses: number) => number;
-  /** The quoted number's unit, singular. */
-  unit: string;
+  /** When two options can be compared on this term at all. Default: always. */
+  comparable?: (mine: Option, theirs: Option) => boolean;
   /** The direction word when this option is better, then when it is worse. */
   words: [better: string, worse: string];
-  say: (amount: string, word: string, other: string) => string;
+  /** `atLeast` is "at least " when the number is a bound, else empty. */
+  say: (shown: number, atLeast: string, word: string, other: string) => string;
   /** This option alone; null when there is nothing to say. */
-  fact: (option: Option) => Fact | null;
+  fact: (option: Option, options: readonly Option[]) => Fact | null;
 };
 
 function travelFact({ knownTravelSeconds: known, unknownWalks: unknown }: CostTerms): Fact {
@@ -118,19 +121,23 @@ const perClass = (minutes: number, _exact: boolean, courses: number) => Math.rou
 const PREFERENCES: Record<StatedPreference, Preference> = {
   fewerDays: {
     costPerUnit: COST_PER_DAY,
-    label: "days on campus",
+    label: "weekdays with a class",
     range: ({ terms }) => exactly(terms.daysOnCampus),
+    // Weekdays count across the whole term. Across different sessions (a
+    // Monday in the first half and a Wednesday in the second, against a
+    // Monday all term) a weekday difference is not a difference in days on
+    // campus each week, so the options are compared only on the same dates.
+    comparable: (mine, theirs) => mine.sessions === theirs.sessions,
     shown: identity,
-    unit: "day",
-    words: ["less", "more"],
-    say: (amount, word, other) => `You are on campus ${amount} ${word} than with Option ${other}.`,
+    words: ["fewer", "more"],
+    say: (n, atLeast, word, other) => `Your classes fall on ${atLeast}${n} ${word} ${n === 1 ? "weekday" : "weekdays"} than in Option ${other}.`,
     fact: ({ terms, sections }) => {
       const days = OPT_DAYS.filter((day) => sections.some((section) => section.meetings.some((m) => m.day === day)));
       if (days.length === 0) return null;
       const names = joinList(days.map((day) => DAY_NAMES[day]));
       return {
         sentence: `Your classes fall on ${names}.`,
-        evidence: { numbers: [{ label: "days on campus", value: terms.daysOnCampus }, { label: "days with a class", value: names }] },
+        evidence: { numbers: [{ label: "weekdays with a class", value: terms.daysOnCampus }, { label: "weekdays", value: names }] },
       };
     },
   },
@@ -139,9 +146,8 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     label: "minutes between classes",
     range: ({ terms }) => exactly(terms.gapMinutes),
     shown: identity,
-    unit: "minute",
     words: ["shorter", "longer"],
-    say: (amount, word, other) => `Time between classes is ${amount} ${word} than in Option ${other}.`,
+    say: (n, atLeast, word, other) => `Time between classes is ${atLeast}${minutes(n)} ${word} than in Option ${other}.`,
     fact: ({ terms }) => ({
       sentence: terms.gapMinutes === 0 ? "There is no time between classes." : `Time between classes adds up to ${minutes(terms.gapMinutes)}.`,
       evidence: { numbers: [{ label: "minutes between classes", value: terms.gapMinutes }] },
@@ -152,9 +158,8 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     label: `minutes after ${formatClock(MORNING_ANCHOR)} of each course's average start, summed`,
     range: ({ terms }) => (terms.clampedMornings > 0 ? UNKNOWN : exactly(terms.morningLeanMinutes)),
     shown: perClass,
-    unit: "minute",
     words: ["earlier", "later"],
-    say: (amount, word, other) => `On average its classes start ${amount} ${word} than Option ${other}'s.`,
+    say: (n, atLeast, word, other) => `On average its classes start ${atLeast}${minutes(n)} ${word} than Option ${other}'s.`,
     fact: ({ breakdown }) =>
       breakdown.earliestStart === null
         ? null
@@ -168,9 +173,8 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     label: `minutes before ${formatClock(EVENING_ANCHOR)} of each course's average end, summed`,
     range: ({ terms }) => (terms.clampedEvenings > 0 ? UNKNOWN : exactly(terms.eveningLeanMinutes)),
     shown: perClass,
-    unit: "minute",
     words: ["later", "earlier"],
-    say: (amount, word, other) => `On average its classes end ${amount} ${word} than Option ${other}'s.`,
+    say: (n, atLeast, word, other) => `On average its classes end ${atLeast}${minutes(n)} ${word} than Option ${other}'s.`,
     fact: ({ breakdown }) =>
       breakdown.latestEnd === null
         ? null
@@ -185,9 +189,8 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     range: ({ terms }) => ({ lo: terms.knownTravelSeconds, hi: terms.unknownWalks > 0 ? Infinity : terms.knownTravelSeconds }),
     // A bound rounds down, so "at least" stays true.
     shown: (seconds, exact) => (exact ? Math.round(seconds / 60) : Math.floor(seconds / 60)),
-    unit: "minute",
     words: ["less", "more"],
-    say: (amount, word, other) => `Travel between back-to-back classes takes ${amount} ${word} than in Option ${other}.`,
+    say: (n, atLeast, word, other) => `Travel between back-to-back classes takes ${atLeast}${minutes(n)} ${word} than in Option ${other}.`,
     fact: ({ terms }) => travelFact(terms),
   },
   rating: {
@@ -197,10 +200,11 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
       sections.some((section) => ratingTenths(section.rating) === null) ? UNKNOWN : exactly(terms.ratingShortfallTenths),
     // The term sums over courses; the sentence quotes the average per course.
     shown: (tenths, _exact, courses) => Math.round(tenths / courses) / 10,
-    unit: "point",
     words: ["higher", "lower"],
-    say: (amount, word, other) => `Its instructors' ratings average ${amount} ${word} than Option ${other}'s.`,
-    fact: ({ sections, breakdown }) => {
+    say: (n, atLeast, word, other) => `Its instructors' ratings average ${atLeast}${count(n, "point")} ${word} than Option ${other}'s.`,
+    fact: ({ sections, breakdown }, options) => {
+      // Only sample sections carry ratings; when no option has one, saying so tells the student nothing.
+      if (options.every((option) => option.breakdown.averageRating === null)) return null;
       const rated = sections.filter((section) => ratingTenths(section.rating) !== null).length;
       if (breakdown.averageRating === null) {
         return { sentence: "No section of this schedule has a rating.", evidence: { numbers: [{ label: "rated sections", value: 0 }] } };
@@ -226,20 +230,14 @@ function compare(mine: Range, theirs: Range): { better: boolean; amount: number;
   return null;
 }
 
-/** Closed, wait-listed or full: the student can act on it, so it is never ranked away. */
+const SEAT_STATUS: Partial<Record<Section["status"], string>> = { closed: "is closed", waitlist: "is wait-listed", cancelled: "is cancelled" };
+
+/** A section the planner does not count as open (`hasOpenSeats`). The student can act on it, so it is never ranked away. */
 function seatWarning(section: OptSection, catalog: Pick<Section, "status" | "components">): Reason | null {
+  if (hasOpenSeats(catalog)) return null;
   const label = section.label ?? section.id;
-  const name = `Section ${label} of ${section.courseCode}`;
   const full = catalog.components.find((component) => component.seats.open === 0);
-  const sentence =
-    catalog.status === "closed"
-      ? `${name} is closed.`
-      : catalog.status === "waitlist"
-        ? `${name} is wait-listed.`
-        : full
-          ? `${name} has no open seats.`
-          : null;
-  if (sentence === null) return null;
+  const sentence = `Section ${label} of ${section.courseCode} ${SEAT_STATUS[catalog.status] ?? "has no open seats"}.`;
   const numbers = [
     { label: "section", value: label },
     { label: "status", value: catalog.status },
@@ -258,7 +256,7 @@ function gradeReason(section: OptSection, history: CourseHistory): Reason | null
   const students = aThroughF(history.grades);
   const share = Math.round(((history.grades.gradeA + history.grades.gradeB) / students) * 100);
   return {
-    sentence: `Section ${section.label ?? section.id}'s instructor gave an A or B to ${share}% of students graded A through F in ${count(graded, "past section")} of ${code}.`,
+    sentence: `Section ${section.label ?? section.id}'s instructor gave an A or B to ${share}% of graded students in ${count(graded, "past section")} of ${code}.`,
     kind: "grade-history",
     preference: null,
     evidence: {
@@ -280,6 +278,10 @@ function gradeReason(section: OptSection, history: CourseHistory): Reason | null
  * the next option, ranked by what the difference is worth to the optimizer
  * (weight times cost per unit times the difference); facts about this
  * option, by preference weight; and grade history.
+ *
+ * `request` must be the exact `OptimizeRequest` the alternatives came from,
+ * `walkingTime` included: the reasons recompute the optimizer's cost terms
+ * from it. Store it beside the results; a rebuilt request can differ.
  */
 export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
   const { alternatives, request } = input;
@@ -298,7 +300,8 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
       return section;
     });
     const terms = costTerms({ sections, term: request.term, creditsByCourse, neutralRatingByCourse, weights: request.weights, walkingTime: request.walkingTime });
-    return { terms, sections, breakdown: schedule.breakdown };
+    const ranges = sections.flatMap((section) => section.meetings.map((m) => m.dates ?? request.term).map((r) => (r ? `${r.start}..${r.end}` : "term")));
+    return { terms, sections, breakdown: schedule.breakdown, sessions: [...new Set(ranges)].sort().join(" ") };
   });
   const mine = options[input.index];
   const next: Option | undefined = options[input.index + 1];
@@ -311,7 +314,7 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
   for (const key of stated) {
     const preference = PREFERENCES[key];
     const range = preference.range(mine);
-    const theirs = next ? preference.range(next) : null;
+    const theirs = next && (preference.comparable?.(mine, next) ?? true) ? preference.range(next) : null;
     const difference = theirs ? compare(range, theirs) : null;
     const shown = difference ? preference.shown(difference.amount, difference.exact, mine.sections.length) : 0;
     if (theirs && difference && shown > 0) {
@@ -320,7 +323,7 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
       comparisons.push({
         worth: weights[key] * preference.costPerUnit * difference.amount,
         reason: {
-          sentence: preference.say(`${difference.exact ? "" : "at least "}${count(shown, preference.unit)}`, preference.words[difference.better ? 0 : 1], other),
+          sentence: preference.say(shown, difference.exact ? "" : "at least ", preference.words[difference.better ? 0 : 1], other),
           kind: difference.better ? "comparison" : "trade-off",
           preference: key,
           evidence: {
@@ -334,10 +337,10 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
       });
       continue;
     }
-    const fact = preference.fact(mine);
+    const fact = preference.fact(mine, options);
     if (!fact) continue;
     // Met only when no option could do better, so an unknown never counts as best.
-    const best = options.every((option) => range.hi <= preference.range(option).lo);
+    const best = options.every((option) => (preference.comparable?.(mine, option) ?? true) && range.hi <= preference.range(option).lo);
     facts.push({ ...fact, kind: best ? "preference-met" : "fact", preference: key });
   }
   comparisons.sort((a, b) => b.worth - a.worth);

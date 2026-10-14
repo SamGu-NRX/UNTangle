@@ -82,7 +82,7 @@ const COST_TERM: Record<StatedPreference, (t: CostTerms) => number> = {
 
 /** The word a sentence must use when this option's term is lower (better), then higher (worse). */
 const DIRECTION: Record<StatedPreference, [string, string]> = {
-  fewerDays: ["less", "more"],
+  fewerDays: ["fewer", "more"],
   compact: ["shorter", "longer"],
   mornings: ["earlier", "later"],
   evenings: ["later", "earlier"],
@@ -174,7 +174,7 @@ describe("scheduleReasons", () => {
 
   test("a ranked-first schedule still names what it gives up", () => {
     const [first] = reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }));
-    expect(sentences(first)).toEqual(["You are on campus 1 day less than with Option B.", "Time between classes is 120 minutes longer than in Option B."]);
+    expect(sentences(first)).toEqual(["Your classes fall on 1 fewer weekday than in Option B.", "Time between classes is 120 minutes longer than in Option B."]);
     expect(first.map((reason) => reason.kind)).toEqual(["comparison", "trade-off"]);
   });
 
@@ -202,6 +202,23 @@ describe("scheduleReasons", () => {
     expect(sentences(only)).toEqual(["Your classes fall on Monday and Wednesday."]);
   });
 
+  test("weekdays are not compared across different sessions", () => {
+    // Option B meets Monday in the first half and Wednesday in the second:
+    // two weekdays, but one day a week, like Option A's Monday all term.
+    const req = request(
+      [
+        course("MATH 1650", [
+          section("s0", "MATH 1650", [dated("Mon", 540, 600, FIRST_HALF), dated("Wed", 540, 600, SECOND_HALF)]),
+          section("s1", "MATH 1650", [at("Mon", 600, 660)]),
+        ]),
+      ],
+      { fewerDays: 1 },
+      { term: { start: "2027-01-11", end: "2027-05-07" } },
+    );
+    const [first] = reasonsFor(req);
+    expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["Your classes fall on Monday.", "fact"]]);
+  });
+
   test("at most three reasons by default, and maxReasons is honored or rejected", () => {
     const req = fourFactsRequest();
     const base = { alternatives: optimal(req), request: req, index: 0 };
@@ -227,13 +244,13 @@ describe("scheduleReasons", () => {
   describe("unknown travel", () => {
     // MATH meets Mon to Wed in LANG; CHEM's c0 follows it in SCI (300 s),
     // c1 follows it in LAB (960 s) and in a building with no route.
-    const atLeastRequest = (c1: Meeting[]) =>
+    const atLeastRequest = (c1: Meeting[], c0: Meeting[] = [at("Mon", 600, 660, "SCI")], weights: Partial<OptWeights> = { walking: 2 }) =>
       request(
         [
           course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600), at("Tue", 540, 600), at("Wed", 540, 600)])]),
-          course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "SCI")]), section("c1", "CHEM 2370", c1)]),
+          course("CHEM 2370", [section("c0", "CHEM 2370", c0), section("c1", "CHEM 2370", c1)]),
         ],
-        { walking: 2 },
+        weights,
         { walkingTime: legs({ "LANG>SCI": 300, "LANG>LAB": 960 }) },
       );
 
@@ -251,6 +268,23 @@ describe("scheduleReasons", () => {
       const [first, second] = reasonsFor(atLeastRequest([at("Tue", 600, 660, "GHOST")]));
       expect(about(first, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([["Travel between back-to-back classes adds up to 5 minutes.", "fact"]]);
       expect(sentences(about(second, "walking"))).toEqual(["1 walk between back-to-back classes has no known time."]);
+    });
+
+    test("no claim when both options have unknown walks", () => {
+      const [first, second] = reasonsFor(atLeastRequest([at("Tue", 600, 660, "LAB"), at("Wed", 600, 660, "GHOST")], [at("Mon", 600, 660, "GHOST")]));
+      expect(about(first, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([["1 walk between back-to-back classes has no known time.", "fact"]]);
+      expect(about(second, "walking").map((reason) => reason.kind)).toEqual(["fact"]);
+    });
+
+    test("this option's known travel above the other's exact travel is at least that much more", () => {
+      // Option A wins on weekdays (3 against Option B's 4, which adds
+      // Thursday). Its 960 known seconds plus an unknown walk, against Option
+      // B's 300, is at least 11 minutes more.
+      const req = atLeastRequest([at("Mon", 600, 660, "SCI"), at("Thu", 600, 660)], [at("Mon", 600, 660, "LAB"), at("Tue", 600, 660, "GHOST")], { fewerDays: 4, walking: 1 });
+      const [first] = reasonsFor(req);
+      expect(about(first, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([
+        ["Travel between back-to-back classes takes at least 11 minutes more than in Option B.", "trade-off"],
+      ]);
     });
 
     test("an option with only unknown walks is never the best for walking", () => {
@@ -286,7 +320,7 @@ describe("scheduleReasons", () => {
       );
       const [first] = reasonsFor(req);
       expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([
-        ["You are on campus 1 day less than with Option B.", "comparison"],
+        ["Your classes fall on 1 fewer weekday than in Option B.", "comparison"],
         ["On average its classes end 240 minutes earlier than Option B's.", "trade-off"],
       ]);
     });
@@ -340,6 +374,13 @@ describe("scheduleReasons", () => {
       expect(sentences(second)).toEqual(["Its instructors average a rating of 4 across 2 rated sections."]);
     });
 
+    test("nothing about ratings when no option has one", () => {
+      const req = request([course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600)], null), section("s1", "MATH 1650", [at("Tue", 540, 600)], null)])], {
+        rating: 1,
+      });
+      expect(reasonsFor(req)).toEqual([[], []]);
+    });
+
     test("no comparison against an option that relies on a fill-in rating", () => {
       // c0 is unrated; the course mean (4) fills in for it in the optimizer.
       const [first, second] = reasonsFor(ratingRequest(null));
@@ -361,8 +402,9 @@ describe("scheduleReasons", () => {
       return reasons;
     };
 
-    test("closed, wait-listed and full sections always appear, outside the top three", () => {
+    test("closed, wait-listed, cancelled and full sections always appear, outside the top three", () => {
       expect(sentences(warn(catalog("closed", null, null)))[0]).toBe("Section 002 of MATH 1650 is closed.");
+      expect(sentences(warn(catalog("cancelled", null, null)))[0]).toBe("Section 002 of MATH 1650 is cancelled.");
       expect(sentences(warn(catalog("waitlist", 0, 30)))[0]).toBe("Section 002 of MATH 1650 is wait-listed.");
       const full = warn(catalog("open", 0, 30));
       expect(full[0].sentence).toBe("Section 002 of MATH 1650 has no open seats.");
@@ -394,7 +436,7 @@ describe("scheduleReasons", () => {
     test("three sections graded A through F describe the past, on an A through F denominator", () => {
       const reasons = gradeReasons(history([{ A: 30, B: 10, C: 5, D: 3, F: 2, W: 20 }, { A: 20, B: 12, C: 10, D: 4, F: 4 }, { A: 1, B: 0, C: 0, D: 0, F: 0 }]));
       // (51 A + 22 B) of 101 graded A through F; the 20 withdrawals are not in it.
-      expect(sentences(reasons)).toEqual(["Section 001's instructor gave an A or B to 72% of students graded A through F in 3 past sections of BIOL 2040."]);
+      expect(sentences(reasons)).toEqual(["Section 001's instructor gave an A or B to 72% of graded students in 3 past sections of BIOL 2040."]);
     });
 
     test("fewer than three sections graded A through F say nothing, however many students", () => {

@@ -8,7 +8,7 @@ import type { Section } from "@/lib/sections/model";
  * - preference-met: no option does better on a stated preference.
  * - fact: this option alone, on a stated preference.
  * - grade-history: the chosen instructor's past grades.
- * - seats: a chosen section is closed, wait-listed or full.
+ * - seats: a chosen section is closed, wait-listed, cancelled or full.
  */
 export type ReasonKind = "comparison" | "trade-off" | "preference-met" | "fact" | "grade-history" | "seats";
 
@@ -36,7 +36,7 @@ export type ScheduleReasonsInput = {
   alternatives: readonly RankedSchedule[];
   /** Which of the alternatives is being explained. */
   index: number;
-  /** The request the schedules came from: courses, sections, and the student's weights. */
+  /** The exact request the alternatives came from, `walkingTime` included. Store it with the results; do not rebuild it. */
   request: OptimizeRequest;
   /** Section id -> the catalog section's status and seats. Sections without an entry get no seat warning. */
   seats?: Readonly<Record<string, Pick<Section, "status" | "components">>>;
