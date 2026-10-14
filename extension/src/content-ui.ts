@@ -11,6 +11,7 @@ export const ANNOTATION_ATTRIBUTE = "data-unt-row";
 export const BADGE_ATTRIBUTE = "data-unt-badge";
 export const GRADES_ATTRIBUTE = "data-unt-grades";
 export const ADD_ATTRIBUTE = "data-unt-add";
+export const RETRY_ATTRIBUTE = "data-unt-retry";
 
 function text(tag: string, value: string, className: string): HTMLElement {
   const element = document.createElement(tag);
@@ -98,13 +99,9 @@ export function buildAnnotationRow(row: ParsedSectionRow): HTMLTableRowElement {
   const cell = document.createElement("td");
   cell.colSpan = 8;
 
-  const conflict = conflictCopy({
-    kind: "unknown",
-    reason: "schedule-unavailable",
-  } satisfies ConflictVerdict);
-  const badge = text("span", conflict.label, "unt-badge");
-  badge.setAttribute(BADGE_ATTRIBUTE, conflict.state);
-  badge.title = conflict.detail ?? "";
+  const badge = text("span", `Checking against ${SCHEDULE_NAME}...`, "unt-badge");
+  badge.setAttribute(BADGE_ATTRIBUTE, "pending");
+  badge.title = "";
   cell.appendChild(badge);
 
   const grades = text("span", "Grade history: checking", "unt-grades");
@@ -124,6 +121,7 @@ export function buildAnnotationRow(row: ParsedSectionRow): HTMLTableRowElement {
 
 /** Applies a facts result to the row's annotation. DOM-facing, thin. */
 export function applyFacts(annotation: HTMLTableRowElement, conflict: ConflictVerdict, grades: GradesVerdict): void {
+  annotation.querySelector(`[${RETRY_ATTRIBUTE}]`)?.remove();
   const badge = annotation.querySelector<HTMLElement>(`[${BADGE_ATTRIBUTE}]`);
   if (badge) {
     const copy = conflictCopy(conflict);
@@ -147,4 +145,36 @@ export function applyAdd(annotation: HTMLTableRowElement, outcome: AddOutcome): 
   button.setAttribute(ADD_ATTRIBUTE, copy.state);
   button.textContent = copy.label;
   button.disabled = outcome === "added" || outcome === "already-scheduled";
+}
+
+/**
+ * An honest, retryable error state for a facts round-trip that died (a
+ * sleeping worker, a closed port): the pending copies never pass for a
+ * verdict, and the Retry button re-requests rather than faking one.
+ */
+export function applyFactsError(annotation: HTMLTableRowElement, retry: () => void): void {
+  const gradesElement = annotation.querySelector<HTMLElement>(`[${GRADES_ATTRIBUTE}]`);
+  if (gradesElement) {
+    gradesElement.setAttribute(GRADES_ATTRIBUTE, "error");
+    gradesElement.textContent = "Grade history: could not load; try again";
+  }
+  const existing = annotation.querySelector<HTMLButtonElement>(`[${RETRY_ATTRIBUTE}]`);
+  const retryButton = existing ?? createRetryButton(retry);
+  retryButton.textContent = "Retry facts";
+  retryButton.disabled = false;
+  if (!existing) annotation.querySelector("td")?.appendChild(retryButton);
+}
+
+function createRetryButton(retry: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "unt-add";
+  button.setAttribute(RETRY_ATTRIBUTE, "");
+  button.addEventListener("click", event => {
+    // Same trust rule as the Add button: page scripts cannot drive it.
+    if (!event.isTrusted) return;
+    button.disabled = true;
+    retry();
+  });
+  return button;
 }

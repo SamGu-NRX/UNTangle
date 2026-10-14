@@ -185,10 +185,22 @@ async function main() {
       check(lastWrite.body?.selectedSections?.["ENGL 1310"] === SECTION_ENGL, "the stub observed ENGL 1310 added") &&
       check(lastWrite.body?.selectedSections?.["CSCE 1040"] === "vsb:spring-2027:CSCE 1040:10001", "the write preserved the existing Main schedule");
 
+    // The add changed the schedule: the other rows' annotations rebuild and
+    // re-request their facts. Wait for the settled badges so the screenshot
+    // shows final verdicts, and prove the refresh actually recomputed them.
+    const conflictRefreshedOk = check(
+      await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R1"] [data-unt-badge="conflict"]', "row 1's refreshed conflict badge"),
+      "row 1 still conflicts with the new Main schedule after the add",
+    );
+    const unknownRefreshedOk = check(
+      await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R3"] [data-unt-badge="unknown"]', "row 3's refreshed cannot-check badge"),
+      "row 3 still cannot be checked against Main after the add",
+    );
+
     await page.screenshot({ path: path.join(artifactsDir, "02-added-to-main.png"), fullPage: true });
     step("screenshot 02 written");
 
-    const allOk = conflictOk && clearOk && unknownOk && gradesOk && noHistoryOk && addedOk && writeOk;
+    const allOk = conflictOk && clearOk && unknownOk && gradesOk && noHistoryOk && addedOk && writeOk && conflictRefreshedOk && unknownRefreshedOk;
     if (!allOk) fail("one or more journey assertions did not hold");
     else console.log("journey: ALL ASSERTIONS PASSED");
   } catch (error) {

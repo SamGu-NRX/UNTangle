@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { PlannerClient } from "../src/lib/planner-client";
 import type { ClassNumberMatch, PlannerState } from "../src/shared/api-types";
-import { fakeFetch, jsonResponse, MemoryCache, rowFixture } from "./helpers";
+import { fakeFetch, jsonResponse, rowFixture } from "./helpers";
 
 const seededSections = { "CSCE 1040": "vsb:spring-2027:CSCE 1040:10001" };
 
@@ -33,9 +33,12 @@ const match: ClassNumberMatch = {
 };
 
 describe("PlannerClient.load", () => {
-  test("caches the snapshot for the session", async () => {
+  test("re-reads the planner on every load", async () => {
+    // The snapshot is never reused across flows: the session cache cannot
+    // tell which account the cookie belongs to, so a stale read could merge
+    // one account's plan into another's session.
     const { fetchImpl, requests } = fakeFetch(() => jsonResponse(plannerBody(1)));
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
 
     const first = await client.load();
     const second = await client.load();
@@ -43,13 +46,13 @@ describe("PlannerClient.load", () => {
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(true);
     if (first.ok) expect(first.snapshot.revision).toBe(1);
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.init?.credentials).toBe("include");
+    expect(requests).toHaveLength(2);
+    expect(requests.every(request => request.init?.credentials === "include")).toBe(true);
   });
 
   test("reports signed-out on 401", async () => {
     const { fetchImpl } = fakeFetch(() => jsonResponse({ error: "Unauthorized" }, 401));
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
     const result = await client.load();
     expect(result).toEqual({ ok: false, status: 401 });
   });
@@ -58,7 +61,7 @@ describe("PlannerClient.load", () => {
     const { fetchImpl } = fakeFetch(() => {
       throw new Error("connection refused");
     });
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
     const result = await client.load();
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected the load to fail");
@@ -74,7 +77,7 @@ describe("PlannerClient.addToMain", () => {
       if (index === 1) return jsonResponse(plannerBody(1));
       return jsonResponse(plannerBody(2, { ...seededSections, "CSCE 1030": match.sectionId }));
     });
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
 
     const outcome = await client.addToMain(rowFixture());
 
@@ -91,12 +94,54 @@ describe("PlannerClient.addToMain", () => {
     expect(body.selectedSections["CSCE 1040"]).toBe("vsb:spring-2027:CSCE 1040:10001");
   });
 
+  test("marks the course in progress so the server keeps the pick", async () => {
+    // The server's normalizePlannerState drops a section pick whose course is
+    // not planned as inProgress, so the add has to plan the course too.
+    const seeded = plannerBody(1);
+    seeded.state.courseStatuses = { "CSCE 1040": "inProgress" };
+    const { fetchImpl, requests } = fakeFetch(index => {
+      if (index === 0) return jsonResponse(match);
+      if (index === 1) return jsonResponse(seeded);
+      return jsonResponse(plannerBody(2, { ...seededSections, "CSCE 1030": match.sectionId }));
+    });
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
+
+    expect(await client.addToMain(rowFixture())).toBe("added");
+
+    const body = JSON.parse(String(requests[2]?.init?.body)) as PlannerState;
+    expect(body.courseStatuses["CSCE 1030"]).toBe("inProgress");
+    expect(body.courseStatuses["CSCE 1040"]).toBe("inProgress");
+  });
+
+  test("does not claim added when the deployment stores nothing", async () => {
+    const { fetchImpl } = fakeFetch(index => {
+      if (index === 0) return jsonResponse(match);
+      if (index === 1) return jsonResponse(plannerBody(1));
+      // The route answers ok with state null and persistent false when the
+      // deployment has no database: nothing was stored.
+      return jsonResponse({ state: null, persistent: false });
+    });
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
+    expect(await client.addToMain(rowFixture())).toBe("failed");
+  });
+
+  test("does not claim added when the saved plan drops the pick", async () => {
+    const { fetchImpl } = fakeFetch(index => {
+      if (index === 0) return jsonResponse(match);
+      if (index === 1) return jsonResponse(plannerBody(1));
+      // The echoed state no longer names the requested section.
+      return jsonResponse(plannerBody(2, seededSections));
+    });
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
+    expect(await client.addToMain(rowFixture())).toBe("failed");
+  });
+
   test("reports already-scheduled without writing", async () => {
     const { fetchImpl, requests } = fakeFetch(index => {
       if (index === 0) return jsonResponse({ ...match, courseCode: "CSCE 1040", sectionId: seededSections["CSCE 1040"] });
       return jsonResponse(plannerBody(1));
     });
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
 
     const outcome = await client.addToMain(rowFixture());
 
@@ -116,7 +161,7 @@ describe("PlannerClient.addToMain", () => {
       if (index === 4) return jsonResponse(plannerBody(2, { ...seededSections, "CSCE 1030": match.sectionId }));
       return jsonResponse(plannerBody(1));
     });
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
 
     const outcome = await client.addToMain(rowFixture());
 
@@ -135,7 +180,7 @@ describe("PlannerClient.addToMain", () => {
         return jsonResponse({ error: "conflict", state: plannerBody(1).state, revision: 1 }, 409);
       return jsonResponse(plannerBody(1));
     });
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
 
     const outcome = await client.addToMain(rowFixture());
 
@@ -148,20 +193,20 @@ describe("PlannerClient.addToMain", () => {
       if (index === 0) return jsonResponse(match);
       return jsonResponse({ error: "Unauthorized" }, 401);
     });
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
     expect(await client.addToMain(rowFixture())).toBe("signed-out");
   });
 
   test("reports not-found when the class number does not resolve", async () => {
     const { fetchImpl, requests } = fakeFetch(() => jsonResponse({ error: "Not found" }, 404));
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
     expect(await client.addToMain(rowFixture())).toBe("not-found");
     expect(requests).toHaveLength(1);
   });
 
   test("short-circuits an invalid term or class number without fetching", async () => {
     const { fetchImpl, requests } = fakeFetch(() => jsonResponse(match));
-    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const client = new PlannerClient(fetchImpl, "http://127.0.0.1:3217");
     expect(await client.addToMain(rowFixture({ term: "not-a-term" }))).toBe("not-found");
     expect(await client.addToMain(rowFixture({ classNumber: "abc" }))).toBe("not-found");
     expect(requests).toHaveLength(0);

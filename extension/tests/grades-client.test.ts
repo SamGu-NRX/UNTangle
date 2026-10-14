@@ -145,4 +145,34 @@ describe("GradesClient.historyForInstructor", () => {
     const verdict = historyForCourse(historyBody(), "CSCE", "2100");
     expect(verdict).toEqual({ kind: "no-history", detail: "no-course-history" });
   });
+
+  test("keeps the history route's unavailable state instead of claiming no history", async () => {
+    const { fetchImpl } = fakeFetch((_index, request) =>
+      request.url.includes("/api/grades/search")
+        ? jsonResponse({ status: "ok", source: "untgrades.app", data: { courses: [], instructors: [smith] } })
+        : jsonResponse({
+            status: "unavailable",
+            source: "untgrades.app",
+            data: null,
+            error: { reason: "throttled", message: "Too many requests", retryAfterSeconds: 5 },
+          }),
+    );
+    const client = new GradesClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    expect(await client.historyForInstructor("Smith, John R.", "CSCE", "1030")).toEqual({
+      kind: "unavailable",
+      message: "Too many requests",
+      retryAfterSeconds: 5,
+    });
+  });
+
+  test("a failed history request reads as unavailable, not as missing history", async () => {
+    const { fetchImpl } = fakeFetch((_index, request) =>
+      request.url.includes("/api/grades/search")
+        ? jsonResponse({ status: "ok", source: "untgrades.app", data: { courses: [], instructors: [smith] } })
+        : new Response("down", { status: 503 }),
+    );
+    const client = new GradesClient(fetchImpl, "http://127.0.0.1:3217", new MemoryCache());
+    const verdict = await client.historyForInstructor("Smith, John R.", "CSCE", "1030");
+    expect(verdict.kind).toBe("unavailable");
+  });
 });

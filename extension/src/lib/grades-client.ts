@@ -33,21 +33,18 @@ export class GradesClient {
 
     const cacheKey = `grades:${match.candidateId}`;
     const cached = await this.cache.get(cacheKey);
-    const history: InstructorHistory | null = isInstructorHistory(cached)
-      ? cached
-      : await this.fetchInstructorHistory(match.candidateId);
-    if (history === null) return { kind: "no-history", detail: "no-instructor-history" };
-    if (!cached) await this.cache.set(cacheKey, history);
-    return historyForCourse(history, subject, number);
-  }
+    if (isInstructorHistory(cached)) return historyForCourse(cached, subject, number);
 
-  private async fetchInstructorHistory(candidateId: string): Promise<InstructorHistory | null> {
+    // The history route's failure states are preserved, not flattened into
+    // "no grade history": an outage or a throttle is not evidence of absence.
     const fetched = await this.fetchEnvelope<InstructorHistory>(
-      `/api/grades/instructors/${encodeURIComponent(candidateId)}`,
+      `/api/grades/instructors/${encodeURIComponent(match.candidateId)}`,
     );
-    if (fetched.kind !== "envelope") return null;
-    if (fetched.result.status !== "ok") return null;
-    return fetched.result.data;
+    if (fetched.kind !== "envelope") return fetched.verdict;
+    if (fetched.result.status === "unavailable") return unavailable(fetched.result);
+    if (fetched.result.status !== "ok") return { kind: "no-history", detail: "no-instructor-history" };
+    await this.cache.set(cacheKey, fetched.result.data);
+    return historyForCourse(fetched.result.data, subject, number);
   }
 
   private async fetchEnvelope<T>(path: string):

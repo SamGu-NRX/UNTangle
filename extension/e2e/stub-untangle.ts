@@ -100,6 +100,27 @@ const csce1040Sections = {
   ],
 };
 
+// The journey adds ENGL 1310 to Main; afterwards the remaining rows' conflict
+// checks need its meetings, so the per-course route must serve this course.
+const engl1310Sections = {
+  term: "spring-2027",
+  courseCode: "ENGL 1310",
+  courseTitle: "Writing and Rhetoric I",
+  sections: [
+    {
+      id: "vsb:spring-2027:ENGL 1310:005",
+      meetings: ["Mon", "Wed", "Fri"].map(day => ({
+        day,
+        startMinutes: 780,
+        endMinutes: 830,
+        dates: { start: "2027-01-19", end: "2027-05-07" },
+        async: false,
+        tba: false,
+      })),
+    },
+  ],
+};
+
 Bun.serve({
   port: PORT,
   async fetch(request): Promise<Response> {
@@ -155,6 +176,7 @@ Bun.serve({
     const sectionsMatch = pathname.match(/^\/api\/sections\/(spring|summer|fall)-\d{4}\/([A-Z]{2,4})\/(\d{4})$/);
     if (sectionsMatch && request.method === "GET") {
       if (sectionsMatch[2] === "CSCE" && sectionsMatch[3] === "1040") return json(csce1040Sections);
+      if (sectionsMatch[2] === "ENGL" && sectionsMatch[3] === "1310") return json(engl1310Sections);
       return json({ error: "Not found" }, 404);
     }
 

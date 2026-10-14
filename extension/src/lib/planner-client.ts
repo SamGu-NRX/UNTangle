@@ -25,8 +25,6 @@ export interface SessionCache {
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
-export const PLANNER_CACHE_KEY = "planner:snapshot";
-
 /** Structural read of the planner payload; mirrors the route's own echo discipline. */
 export function parseSnapshot(raw: unknown): PlannerSnapshot | null {
   if (typeof raw !== "object" || raw === null) return null;
@@ -46,22 +44,19 @@ function isSectionMap(value: unknown): value is Record<string, string> {
   return typeof value === "object" && value !== null && Object.values(value).every(entry => typeof entry === "string");
 }
 
-async function readSnapshot(cache: SessionCache): Promise<PlannerSnapshot | null> {
-  const cached = await cache.get(PLANNER_CACHE_KEY);
-  return cached ? parseSnapshot(cached) : null;
-}
-
 export class PlannerClient {
   constructor(
     private readonly fetchImpl: FetchLike,
     private readonly base: string = UNTANGLE_ORIGIN,
-    private readonly cache: SessionCache,
   ) {}
 
-  /** The student's planner snapshot, from cache when this session already loaded it. */
+  /**
+   * The student's planner snapshot, always read fresh. The session cache
+   * cannot tell which account the cookie now belongs to, so reusing a
+   * snapshot across flows could merge one account's plan into another
+   * account's session; every flow re-reads live state instead.
+   */
   async load(): Promise<{ ok: true; snapshot: PlannerSnapshot } | { ok: false; status: number; error?: string }> {
-    const cached = await readSnapshot(this.cache);
-    if (cached) return { ok: true, snapshot: cached };
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.base}/api/planner`, { credentials: "include" });
@@ -73,7 +68,6 @@ export class PlannerClient {
     if (!response.ok) return { ok: false, status: response.status };
     const snapshot = parseSnapshot(await response.json());
     if (!snapshot) return { ok: false, status: response.status };
-    await this.cache.set(PLANNER_CACHE_KEY, snapshot);
     return { ok: true, snapshot };
   }
 
@@ -95,8 +89,16 @@ export class PlannerClient {
       if (current.state?.selectedSections[match.courseCode] === match.sectionId) return "already-scheduled";
 
       const state: PlannerState = current.state ?? emptyState();
+      // The server keeps a section pick only for a course planned as
+      // inProgress (normalizePlannerState drops the rest), so picking a
+      // section marks the course in progress, exactly as the app's own
+      // section picker does.
       const next: PlannerState = {
         ...state,
+        courseStatuses: {
+          ...state.courseStatuses,
+          [match.courseCode]: "inProgress",
+        },
         selectedSections: { ...state.selectedSections, [match.courseCode]: match.sectionId },
       };
       let response: Response;
@@ -116,13 +118,15 @@ export class PlannerClient {
         return "failed";
       }
       if (response.ok) {
+        // Success means the server kept the pick: a deployment with no
+        // storage answers ok with `state: null, persistent: false`, and
+        // normalization can still drop the pick. Neither may read as added.
         const saved = parseSnapshot(await response.json());
-        if (saved) await this.cache.set(PLANNER_CACHE_KEY, saved);
-        return "added";
+        if (saved && saved.persistent && saved.state?.selectedSections[match.courseCode] === match.sectionId) {
+          return "added";
+        }
+        return "failed";
       }
-      // A failed write must not leave the losing snapshot cached: the retry
-      // has to re-read the server's current state, not replay this one.
-      await this.cache.set(PLANNER_CACHE_KEY, undefined);
       if (response.status === 409) continue; // another write won; re-read and re-merge
       if (response.status === 401) return "signed-out";
       return "failed";

@@ -39,7 +39,7 @@ const cache = chromeSessionCache();
 // fetch rejects with "Illegal invocation" when called as a method of the
 // client; bind it to the worker's global object once.
 const boundFetch = fetch.bind(globalThis);
-const plannerClient = new PlannerClient(boundFetch, UNTANGLE_ORIGIN, cache);
+const plannerClient = new PlannerClient(boundFetch, UNTANGLE_ORIGIN);
 const sectionsClient = new SectionsClient(boundFetch, UNTANGLE_ORIGIN, cache);
 const gradesClient = new GradesClient(boundFetch, UNTANGLE_ORIGIN, cache);
 
@@ -61,11 +61,10 @@ async function conflictVerdict(row: ParsedSectionRow): Promise<ConflictVerdict> 
   await rememberSession("signed-in");
 
   const selectedSections: Record<string, string> = loaded.snapshot.state?.selectedSections ?? {};
-  const selected = Object.entries(selectedSections);
-  if (selected.length === 0) return { kind: "clear" };
-
+  // No empty-plan shortcut here: a row with no usable meeting times must
+  // answer "cannot check" even when nothing is scheduled, never a clean bill.
   const scheduled: ScheduledMeeting[] = [];
-  for (const [courseCode, sectionId] of selected) {
+  for (const [courseCode, sectionId] of Object.entries(selectedSections)) {
     const outcome: CourseSectionsOutcome = await sectionsClient.forCourse(row.term, courseCode);
     if (!outcome.ok) return { kind: "unknown", reason: "schedule-unavailable" };
     const extracted = extractScheduled(outcome.result, sectionId);
@@ -88,7 +87,16 @@ async function handleFacts(row: ParsedSectionRow): Promise<FactsResult> {
 
 async function handleAdd(row: ParsedSectionRow): Promise<AddResult> {
   const outcome = await plannerClient.addToMain(row);
-  await cache.set(SESSION_CACHE_KEY, outcome === "signed-out" ? "signed-out" : "signed-in");
+  // Session state updates only from outcomes that observed an authenticated
+  // planner response: not-found and failed never reached one and must not
+  // overwrite a known signed-out or unreachable state.
+  const observed: SessionState | null =
+    outcome === "signed-out"
+      ? "signed-out"
+      : outcome === "added" || outcome === "already-scheduled" || outcome === "conflict-write"
+        ? "signed-in"
+        : null;
+  if (observed !== null) await cache.set(SESSION_CACHE_KEY, observed);
   return { type: "add/result", rowId: row.rowId, outcome };
 }
 
