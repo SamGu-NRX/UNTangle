@@ -605,3 +605,108 @@ test("StrictMode replay restarts bootstrap and ignores the retired first load", 
   expect(server.posts).toEqual([]);
   expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
 });
+
+for (const status of [0, 500]) {
+  test(`a cold session ${status} error renders guest work without accessing user storage`, async () => {
+    const React = await import("react");
+    const { PlannerPersistencePanel } = await import("@/components/planner-persistence-panel");
+    const guest = { ...getInitialPlannerState(), activeDay: "Thu" as const };
+    createPlannerStateStore(window.localStorage, null).writeMirror(guest);
+    createPlannerStateStore(window.localStorage, userA.id).writeMirror(privateState());
+    expect(library(null).savePlan({ state: guest, name: "Guest work" }).ok).toBe(true);
+    expect(library(userA.id).savePlan({ state: privateState(), name: "A private" }).ok).toBe(true);
+    const userBackup = window.localStorage.getItem(plannerStateKey(userA.id));
+    const userLibrary = window.localStorage.getItem(savedPlansKey(userA.id));
+    // A module snapshot is not proof of a session after the provider remounts.
+    setSavedPlanIdentity(status === 0 ? undefined : userA.id);
+    failSessionLookup(status);
+    const storage = window.localStorage;
+    const original = Object.getOwnPropertyDescriptor(window, "localStorage");
+    const reads: string[] = [];
+    const writes: string[] = [];
+    const removals: string[] = [];
+    const observedStorage: Storage = {
+      get length() { return storage.length; },
+      key: (index) => storage.key(index),
+      clear: () => storage.clear(),
+      getItem(key) { reads.push(key); return storage.getItem(key); },
+      setItem(key, value) { writes.push(key); storage.setItem(key, value); },
+      removeItem(key) { removals.push(key); storage.removeItem(key); },
+    };
+    Object.defineProperty(window, "localStorage", { configurable: true, value: observedStorage });
+    try {
+      const planner = await mount(() => React.createElement(PlannerPersistencePanel));
+      expect(planner.get().planStamp.identity).toBe("guest");
+      expect(planner.get().plannerState.activeDay).toBe("Thu");
+      expect(planner.get().plannerState.transcriptRecords).toEqual([]);
+      expect(plans(createSavedPlanStore()).map((plan) => plan.name)).toEqual(["Guest work"]);
+      expect(planner.container.querySelector('[aria-label="Save state"]')?.textContent).toContain("Not saved");
+      expect(planner.get().saveState.detail).toContain("not synced");
+      await planner.run((p) => p.setActiveDay("Fri"));
+      await flushSaves();
+      await planner.run((p) => p.retrySave());
+      expect(planner.get().saveState.status).toBe("not-saved");
+      expect(readPlanner(null).state?.activeDay).toBe("Fri");
+      expect(server.gets).toBe(0);
+      expect(server.posts).toEqual([]);
+      expect(reads).toContain(plannerStateKey(null));
+      expect(writes).toContain(plannerStateKey(null));
+      expect(reads.some((key) => key.includes(":user:"))).toBe(false);
+      expect(writes.some((key) => key.includes(":user:"))).toBe(false);
+      expect(removals.some((key) => key.includes(":user:"))).toBe(false);
+    } finally {
+      if (original) Object.defineProperty(window, "localStorage", original);
+      else Reflect.deleteProperty(window, "localStorage");
+    }
+    expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBe(userBackup);
+    expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBe(userLibrary);
+  });
+}
+
+for (const stored of [false, true]) {
+  test(`a recovered session uses ${stored ? "the account's server plan" : "an empty account"} without silently adopting unknown-session guest work`, async () => {
+    const React = await import("react");
+    const { usePlanner } = await import("@/components/planner-provider");
+    const userFrames: string[][] = [];
+    function ObserveAccount() {
+      const planner = usePlanner();
+      if (planner.planStamp.identity === `user:${userB.id}`) {
+        userFrames.push(planner.plannerState.transcriptRecords.map((record) => record.id));
+      }
+      return null;
+    }
+    const guest: PlannerState = { ...privateState(), activeDay: "Thu" };
+    createPlannerStateStore(window.localStorage, null).writeMirror(guest);
+    expect(library(null).savePlan({ state: guest, name: "Guest work" }).ok).toBe(true);
+    const guestLibrary = window.localStorage.getItem(savedPlansKey(null));
+    setSavedPlanIdentity(undefined);
+    failSessionLookup(0);
+    const planner = await mount(() => React.createElement(ObserveAccount));
+    expect(planner.get().planStamp.identity).toBe("guest");
+    expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
+    await planner.run((p) => p.setActiveDay("Fri"));
+    await flushSaves();
+    const guestBackup = window.localStorage.getItem(plannerStateKey(null));
+    if (stored) server.writeElsewhere({ ...getInitialPlannerState(), activeDay: "Mon", optimization: "compact" });
+    await planner.run(() => setSession(userB));
+    await waitFor(() => planner.get().planStamp.identity === `user:${userB.id}` && planner.get().hydrated, "confirmed account loaded");
+    await flushSaves();
+    expect(planner.get().plannerState.transcriptRecords).toEqual([]);
+    expect(planner.get().plannerState.activeDay).toBe(stored ? "Mon" : getInitialPlannerState().activeDay);
+    expect(planner.get().conflict).toBeNull();
+    expect(server.posts).toEqual([]);
+    expect(window.localStorage.getItem(plannerStateKey(userB.id))).toBeNull();
+    expect(plans(createSavedPlanStore())).toEqual([]);
+    expect(window.localStorage.getItem(savedPlansKey(userB.id))).toBeNull();
+    await planner.run((p) => p.setActiveDay("Tue"));
+    await waitFor(() => planner.get().saveState.label === "Saved", "account edit saved");
+    expect(server.row?.state.activeDay).toBe("Tue");
+    expect(server.row?.state.transcriptRecords).toEqual([]);
+    expect(readPlanner(userB.id).state?.activeDay).toBe("Tue");
+    expect(readPlanner(userB.id).state?.transcriptRecords).toEqual([]);
+    expect(userFrames.length).toBeGreaterThan(0);
+    for (const frame of userFrames) expect(frame).toEqual([]);
+    expect(window.localStorage.getItem(plannerStateKey(null))).toBe(guestBackup);
+    expect(window.localStorage.getItem(savedPlansKey(null))).toBe(guestLibrary);
+  });
+}

@@ -263,27 +263,29 @@ type PlannerSession = ReturnType<typeof authClient.useSession>["data"];
 export function PlannerProvider(props: PlannerProviderProps) {
   const sessionResult = authClient.useSession();
   const sessionValue = sessionResult.error?.status === 401 ? null : sessionResult.data;
-  const [confirmedSession, setConfirmedSession] = useState(sessionValue);
   const sessionKnown = !sessionResult.isPending && (!sessionResult.error || sessionResult.error.status === 401);
+  const [confirmedSession, setConfirmedSession] = useState(sessionKnown ? sessionValue : null);
   if (sessionKnown && confirmedSession !== sessionValue) {
     setConfirmedSession(sessionValue);
   }
   // A failed or pending lookup is not a sign-out; a server 401 confirms the session ended.
   const sessionData = sessionKnown ? sessionValue : confirmedSession;
+  // Without a confirmed account, guest storage keeps the app usable without granting access to user data.
+  const sessionUnknown = !sessionKnown && !confirmedSession;
   const userId = sessionData?.user?.id ?? null;
   const identity = userId === null ? "guest" : `user:${userId}`;
   const preparedUser = useSyncExternalStore(subscribeSavedPlans, getSavedPlanIdentity, () => undefined);
   useLayoutEffect(() => {
-    if (!sessionKnown || preparedUser === userId) return;
+    if ((!sessionKnown && !sessionUnknown) || preparedUser === userId) return;
     // The old subtree retires before storage is prepared for any new consumer render.
-    if (preparedUser !== undefined && preparedUser !== null) {
+    if (sessionKnown && preparedUser !== undefined && preparedUser !== null) {
       clearPlannerIdentity(preparedUser);
       clearSavedPlansIdentity(preparedUser);
       clearPlannerIdentity(null);
       clearSavedPlansIdentity(null);
     }
     setSavedPlanIdentity(userId);
-  }, [preparedUser, sessionKnown, userId]);
+  }, [preparedUser, sessionKnown, sessionUnknown, userId]);
 
   if (preparedUser !== userId) return null;
   return (
@@ -292,6 +294,7 @@ export function PlannerProvider(props: PlannerProviderProps) {
       key={identity}
       sessionData={sessionData}
       sessionKnown={sessionKnown}
+      sessionUnknown={sessionUnknown}
       sessionPending={sessionResult.isPending}
     />
   );
@@ -302,8 +305,9 @@ function IdentityPlannerProvider({
   sectionStore = browserSectionStore,
   sessionData,
   sessionKnown,
+  sessionUnknown,
   sessionPending,
-}: PlannerProviderProps & { sessionData: PlannerSession; sessionKnown: boolean; sessionPending: boolean }) {
+}: PlannerProviderProps & { sessionData: PlannerSession; sessionKnown: boolean; sessionUnknown: boolean; sessionPending: boolean }) {
   const instanceActive = useRef(true);
   // The plan lives in a reducer (lib/planner-transaction.ts) so transactions are checked and acknowledged in
   // state. Its dispatch takes everything setState did, so every existing setPlannerState call is unchanged.
@@ -726,7 +730,7 @@ function IdentityPlannerProvider({
   // else. Each run gets a new generation; any response that arrives after a
   // newer run started belongs to the previous identity and is dropped.
   useEffect(() => {
-    if (!instanceActive.current || !sessionKnown) {
+    if (!instanceActive.current || (!sessionKnown && !sessionUnknown)) {
       return;
     }
     const userId = sessionData?.user?.id ?? null;
@@ -871,7 +875,7 @@ function IdentityPlannerProvider({
       hydrationWaiters.current.forEach((resolve) => resolve());
       hydrationWaiters.current = [];
     });
-  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionData, sessionKnown, setPlannerState]);
+  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionData, sessionKnown, sessionUnknown, setPlannerState]);
 
   // Local bridge until #19 lands: a new session for the same signed-in user
   // (signing in again in this tab) counts as a restore. Idempotent, so #19's
@@ -1156,8 +1160,9 @@ function IdentityPlannerProvider({
     );
     // `Saved` describes one exact state. If the state on screen has moved on
     // since the acknowledgement, its save is still ahead of it.
-    const shownSaveState =
-      saveState.status === "saved" && savedFingerprint !== workingStateFingerprint(plannerState)
+    const shownSaveState = sessionUnknown
+      ? saveStateOf("not-saved", "Your session has not been confirmed. This plan is not synced to an account.", "session")
+      : saveState.status === "saved" && savedFingerprint !== workingStateFingerprint(plannerState)
         ? SAVING
         : saveState;
     return {
@@ -1449,6 +1454,7 @@ function IdentityPlannerProvider({
     serverPersistent,
     setSchedulePreferences,
     sessionPending,
+    sessionUnknown,
     storeNotices,
     tookNewerVersion,
   ]);
