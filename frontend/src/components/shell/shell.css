@@ -1,13 +1,15 @@
 /*
- * App shell (DESIGN.md §2, §4 AppShell; mockup courses.html).
- * Desktop: one 56px bar. Phone (< 720px): a 48px bar and bottom tabs, so the
- * view starts right under the bar instead of under two rows of navigation.
+ * App shell (DESIGN.md §3.3, §3.4, §8.1; mockups 02 and 07).
+ * Desktop: one 56px frosted top bar, the only navigation. Phone (< 760px,
+ * the breakpoint every current view uses): a 52px frosted header and a
+ * frosted tab bar, with the header hidden on Day. Nothing here animates:
+ * lens switches are instant.
  */
 
 .shell {
-  /* The bars' real heights (top bar border included), for views that size
+  /* The bars' real heights including safe areas, for views that size
      themselves against the chrome: see ShellFullBleed. */
-  --shell-top-h: calc(var(--topbar-h) + 1px + env(safe-area-inset-top));
+  --shell-top-h: calc(var(--topbar-h) + var(--safe-t));
   --shell-bottom-h: 0px;
   display: flex;
   flex-direction: column;
@@ -20,10 +22,10 @@
   left: 8px;
   z-index: 200;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background: var(--ink);
   color: #fff;
-  font: 600 13px/1 var(--font-body);
+  font: 600 13px/1 var(--font-ui);
   transform: translateY(-200%);
 }
 .shell-skip:focus-visible {
@@ -32,109 +34,119 @@
   outline-offset: 2px;
 }
 
-/* ───────── Top bar ───────── */
-
-.shell-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  flex: none;
-  padding-top: env(safe-area-inset-top);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-}
-.shell-topbar__row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  height: var(--topbar-h);
-  padding: 0 max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
-}
 .shell-wordmark {
   flex: none;
   border-radius: 6px;
-  font: 800 var(--wordmark) / 1 var(--font-display);
+  font: 800 22px/1 var(--font-mark);
   letter-spacing: -0.01em;
   color: var(--brand);
   white-space: nowrap;
 }
-.shell-switcher {
+.shell-wordmark:focus-visible,
+.shell-pill:focus-visible,
+.shell-avatar:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+
+/* ───────── Desktop top bar ───────── */
+
+.shell-topbar {
+  --glass-fill: rgba(255, 255, 255, 0.92);
+  --glass-blur: 16px;
+  --glass-saturate: 1.6;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: none;
+  height: calc(var(--topbar-h) + var(--safe-t));
+  padding: var(--safe-t) max(20px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+  box-shadow: 0 1px 0 var(--line);
+}
+.shell-viewtabs {
   flex: none;
 }
-.shell-switcher .ui-seg__item {
-  min-width: 72px;
+.shell-viewtabs .ui-seg__item {
+  min-width: 96px;
   text-decoration: none;
 }
 .shell-search {
-  flex: 0 1 280px;
+  flex: 0 1 360px;
 }
 .shell-spacer {
   flex: 1;
 }
 
-/* Plan chip */
-.shell-planchip {
+/* Schedule pill: term in ink, schedule name quieter, set apart by the gap. */
+.shell-pill-group {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  max-width: 320px;
+}
+.shell-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   height: 36px;
-  padding: 0 10px 0 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--surface);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line-2);
   color: var(--ink);
-  font: 600 13px/1 var(--font-body);
+  font: 600 13px/1 var(--font-ui);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  transition:
-    background-color var(--t-hover) ease,
-    border-color var(--t-hover) ease;
+  touch-action: manipulation;
+  transition: background-color var(--t-hover) ease;
 }
-.shell-planchip__dot {
+.shell-pill__dot {
   flex: none;
   width: 8px;
   height: 8px;
+  margin-right: 2px;
   border-radius: 50%;
   background: var(--accent);
 }
-.shell-planchip[data-tone="saving"] .shell-planchip__dot {
+.shell-pill[data-tone="saving"] .shell-pill__dot {
   background: var(--ink-4);
 }
-.shell-planchip[data-tone="error"] .shell-planchip__dot {
+.shell-pill[data-tone="error"] .shell-pill__dot {
   background: var(--danger);
 }
-.shell-planchip__name {
+/* The term is set lighter before the name; the gap separates them, no glyph. */
+.shell-pill__term {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.shell-planchip__status {
-  font-weight: 500;
+  font-weight: 450;
   color: var(--ink-2);
 }
-.shell-planchip[data-tone="error"] .shell-planchip__status {
-  color: var(--danger);
+.shell-pill__name {
+  font-weight: 650;
 }
-.shell-planchip__caret {
+.shell-pill__chevron {
   flex: none;
+  margin-right: -2px;
   color: var(--ink-3);
 }
-.shell-planchip[aria-expanded="true"] {
-  border-color: var(--brand);
-}
-.shell-planchip:focus-visible,
-.shell-avatar:focus-visible,
-.shell-wordmark:focus-visible {
-  outline: 2px solid transparent;
-  box-shadow: var(--focus);
+.shell-pill-error {
+  font-size: var(--text-meta);
+  font-weight: 600;
+  color: var(--danger);
+  white-space: nowrap;
 }
 @media (hover: hover) and (pointer: fine) {
-  .shell-planchip:hover {
-    background: var(--surface-2);
+  .shell-pill:hover {
+    background: var(--paper-2);
   }
 }
 
@@ -150,11 +162,11 @@
   border-radius: 50%;
   background: var(--brand-soft);
   color: var(--brand);
-  font: 700 12px/1 var(--font-body);
+  font: 700 12px/1 var(--font-mark);
   cursor: pointer;
 }
 .shell-avatar--placeholder {
-  background: var(--surface-2);
+  background: var(--paper-2);
   cursor: default;
 }
 .shell-account-email {
@@ -164,21 +176,100 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .shell-planchip {
-    transition:
-      transform var(--t-press) var(--ease-out),
-      background-color var(--t-hover) ease,
-      border-color var(--t-hover) ease;
+@media (pointer: coarse) {
+  /* 44px targets: the wordmark is a link home, the pill is 36px drawn. */
+  .shell-wordmark {
+    position: relative;
   }
-  .shell-planchip:active,
-  .shell-avatar:active {
-    transform: scale(0.97);
+  .shell-wordmark::after,
+  .shell-topbar .shell-pill::after {
+    content: "";
+    position: absolute;
+    inset: -12px -4px;
+  }
+  .shell-topbar .shell-pill::after {
+    inset: -4px 0;
   }
   .shell-avatar {
-    transition: transform var(--t-press) var(--ease-out);
+    position: relative;
   }
+  .shell-avatar::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell-pill,
+  .shell-avatar {
+    transition:
+      transform var(--t-press) var(--ease-out),
+      background-color var(--t-hover) ease;
+  }
+  .shell-pill:active:not(:focus-visible),
+  .shell-avatar:active:not(:focus-visible) {
+    transform: scale(0.97);
+  }
+}
+
+/* Narrow desktop and tablet: search folds to its icon. */
+@media (max-width: 1023px) {
+  .shell-topbar {
+    gap: 12px;
+  }
+  .shell-viewtabs .ui-seg__item {
+    min-width: 72px;
+  }
+  .shell-search {
+    flex: none;
+    width: 40px;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    color: var(--ink-2);
+  }
+  .shell-search .ui-search-trigger__visible {
+    display: none;
+  }
+}
+
+/*
+ * A lens with a ContextPanel: from 1200px, opening it slides the page left by
+ * half the panel and its gap, so the selection stays in view beside the panel.
+ * Transform only; a keyboard open is instant. Under reduced motion the page
+ * holds the open position, so opening never moves it and only the panel fades.
+ */
+@media (min-width: 1200px) {
+  .shell-main[data-context-host] {
+    --context-shift: calc((var(--context-w) + var(--context-gap)) / -2);
+  }
+  .shell-main[data-context-open] {
+    transform: translateX(var(--context-shift));
+  }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+  .shell-main[data-context-host] {
+    transition: transform var(--t-exit) var(--ease-out);
+  }
+  .shell-main[data-context-open] {
+    transition-duration: var(--t-enter);
+  }
+  .shell-main[data-context-instant] {
+    transition: none;
+  }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) {
+  .shell-main[data-context-host] {
+    transform: translateX(var(--context-shift));
+  }
+}
+
+/* ───────── Phone header and tab bar ───────── */
+
+.shell-pheader,
+.shell-tabbar {
+  display: none;
 }
 
 /* ───────── Main ───────── */
@@ -193,71 +284,65 @@
   overflow-x: clip;
 }
 
-/* ───────── Bottom tabs (phone only) ───────── */
-
-.shell-tabs {
-  display: none;
-}
-
-/* Narrow desktop and tablet: the search trigger folds to its icon. */
-@media (max-width: 1023px) {
-  .shell-search {
-    flex: none;
-    width: 36px;
-    justify-content: center;
-    padding: 0;
-    background: transparent;
-    color: var(--ink-2);
-  }
-  .shell-search .ui-search-trigger__visible {
-    display: none;
-  }
-  .shell-planchip__status {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-  .shell-planchip[data-tone="error"] .shell-planchip__status {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip: auto;
-  }
-}
-
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .shell {
-    --shell-top-h: calc(48px + 1px + env(safe-area-inset-top));
-    --shell-bottom-h: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    --shell-top-h: calc(var(--header-h) + var(--safe-t));
+    --shell-bottom-h: calc(var(--tabbar-h) + var(--safe-b));
   }
-  .shell-topbar__row {
-    gap: 10px;
-    height: 48px;
-    padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
-  }
-  .shell-wordmark {
-    font-size: 20px;
-  }
-  /* Guests sign in from the plan menu or the home card; the bar keeps the
-     wordmark and the plan (mockup courses.html) so the plan name fits. */
-  .shell-switcher,
-  .shell-search,
-  .shell-signin {
+  .shell-topbar {
     display: none;
   }
-  .shell-planchip {
+  .shell-pheader {
+    --glass-fill: rgba(244, 246, 243, 0.9);
+    --glass-blur: 16px;
+    --glass-saturate: 1.6;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: calc(var(--header-h) + var(--safe-t));
+    padding: var(--safe-t) max(8px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+  }
+  .shell-pheader .shell-wordmark {
+    margin-right: auto;
+    font-size: 19px;
+  }
+  .shell-pheader .shell-pill {
     height: 32px;
-    padding: 0 8px 0 10px;
-    font-size: 12.5px;
+    padding: 0 10px;
+  }
+  /* 44px targets in a 52px header. */
+  .shell-pheader .shell-pill::after {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+  }
+  .shell-pheader .shell-pill__dot {
+    display: none;
+  }
+  .shell-pheader .shell-pill[data-tone="error"] .shell-pill__dot,
+  .shell-pheader .shell-pill[data-tone="saving"] .shell-pill__dot {
+    display: block;
+  }
+  .shell-pheader .shell-avatar {
+    margin: 0 6px;
+  }
+  /* Day: the map runs to the top edge. */
+  .shell[data-lens="day"] {
+    --shell-top-h: var(--safe-t);
+  }
+  .shell[data-lens="day"] .shell-pheader {
+    display: none;
   }
   .shell-main {
-    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    padding-bottom: var(--shell-bottom-h);
   }
-  .shell-tabs {
+  .shell-tabbar {
+    --glass-fill: rgba(255, 255, 255, 0.88);
+    --glass-blur: 20px;
+    --glass-saturate: 1.8;
     position: fixed;
     left: 0;
     right: 0;
@@ -265,25 +350,22 @@
     z-index: 40;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    border-top: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.92);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    backdrop-filter: blur(16px) saturate(1.4);
+    height: calc(var(--tabbar-h) + var(--safe-b));
+    padding: 0 env(safe-area-inset-right) var(--safe-b) env(safe-area-inset-left);
+    box-shadow: 0 -1px 0 rgba(26, 46, 26, 0.08);
   }
   .shell-tab {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
     color: var(--ink-2);
-    font: 500 11px/1 var(--font-body);
+    font: 600 11px/14px var(--font-ui);
     text-decoration: none;
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
+    touch-action: manipulation;
   }
   .shell-tab[aria-current="page"] {
     color: var(--brand);
@@ -291,21 +373,82 @@
   .shell-tab:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 2px var(--accent);
-    border-radius: 10px;
+    border-radius: var(--r-md);
   }
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .shell-tabs {
-    background: var(--surface);
-  }
+/* ───────── Schedule sheet (phone) ───────── */
+
+.shell-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 4px;
 }
-@media (prefers-reduced-transparency: reduce) {
-  .shell-tabs {
-    background: var(--surface);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+.shell-sheet-title {
+  margin: 0;
+  font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
+  letter-spacing: -0.005em;
+}
+.shell-schedules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.shell-schedule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 56px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.shell-schedule__name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.shell-schedule__status {
+  grid-column: 1;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.shell-schedule__status[data-tone="error"] {
+  color: var(--danger);
+}
+.shell-schedule__check {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--brand);
+}
+.shell-sheet-error {
+  display: grid;
+  gap: 8px;
+  padding: 12px 6px 0;
+}
+.shell-sheet-error p {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.shell-sheet-link {
+  width: 100%;
+  margin-top: 16px;
+  text-decoration: none;
+}
+.shell-sheet-foot {
+  margin: 16px 6px 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.shell-sheet-foot a {
+  font-weight: 600;
+  color: var(--brand-2);
 }
 
 /* ───────── Full-bleed view bodies (ShellFullBleed) ───────── */
@@ -323,7 +466,7 @@
   height: calc(100dvh - var(--shell-top-h) - var(--shell-bottom-h));
   overflow: hidden;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   /* The phone tabs are fixed, so the body ends where they begin. */
   .shell-main:has([data-shell-body="full-bleed"]) {
     padding-bottom: var(--shell-bottom-h);
@@ -352,15 +495,15 @@
 }
 .view-header__title {
   margin: 0;
-  font: 600 var(--text-lg) / var(--lh-lg) var(--font-body);
+  font: 600 var(--text-lg) / var(--lh-lg) var(--font-ui);
   color: var(--ink);
 }
 .view-header__meta {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
 .view-header__actions {
@@ -377,7 +520,7 @@
   margin: 0 auto;
   padding: 24px 32px 48px;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .shell-content {
     padding: 16px 16px 32px;
   }
@@ -395,7 +538,7 @@
 }
 .home-card__title {
   margin: 0 0 12px;
-  font: 600 var(--text-lg) / var(--lh-lg) var(--font-body);
+  font: 600 var(--text-lg) / var(--lh-lg) var(--font-ui);
   color: var(--ink);
 }
 .home-options {
@@ -405,7 +548,7 @@
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: var(--surface);
+  background: var(--paper);
   list-style: none;
 }
 .home-option + .home-option {
@@ -432,12 +575,12 @@
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 .home-option__title {
-  font: 600 var(--text-md) / var(--lh-md) var(--font-body);
+  font: 600 var(--text-body) / var(--lh-body) var(--font-ui);
 }
 .home-option__meta {
   grid-column: 1;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
 .home-option__chevron {
@@ -453,7 +596,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .home-option__link:hover {
-    background: var(--surface-2);
+    background: var(--paper-2);
   }
   .home-option--primary .home-option__link:hover {
     background: #d9eadf;
@@ -464,29 +607,31 @@
   flex-wrap: wrap;
   gap: 4px 16px;
   margin-top: 16px;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
 .home-foot a {
   color: var(--brand);
   font-weight: 600;
 }
-.home-foot a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .home-foot a:hover {
+    text-decoration: underline;
+  }
 }
 .home-install-hint {
   display: none;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .home {
     padding: 24px 16px 32px;
   }
   .home-install-hint {
     display: block;
     margin-top: 12px;
-    font-size: var(--text-sm);
-    line-height: var(--lh-sm);
+    font-size: var(--text-meta);
+    line-height: var(--lh-meta);
     color: var(--ink-2);
   }
 }
@@ -506,7 +651,7 @@
 }
 .about h1 {
   margin: 0 0 12px;
-  font: 600 22px/30px var(--font-body);
+  font: 600 22px/30px var(--font-ui);
   letter-spacing: -0.01em;
   color: var(--ink);
 }
@@ -527,16 +672,16 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: var(--surface);
+  background: var(--paper);
 }
 .about-list strong {
   display: block;
-  font-size: var(--text-md);
+  font-size: var(--text-body);
   color: var(--ink);
 }
 .about-list span {
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
 .about-actions {
@@ -544,7 +689,7 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .about {
     padding: 32px 16px 48px;
   }
@@ -553,7 +698,7 @@
 /* The one-line intro in a small shell dialog (Set a password). */
 .shell-dialog-lede {
   margin: 0 0 12px;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }

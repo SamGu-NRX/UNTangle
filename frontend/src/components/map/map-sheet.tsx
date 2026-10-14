@@ -228,6 +228,7 @@ export function MapSheet({
       <div
         ref={bodyRef}
         className="mv-sheet__body"
+        data-lens-scroll=""
         data-scrollable={detent === "full" ? "true" : "false"}
         inert={detent === "peek"}
       >

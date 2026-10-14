@@ -70,7 +70,7 @@ Both designs reached the same structure on their own: three lenses over one plan
 
 ## What comes from Fable
 
-1. **The walk is drawn.** One 2px green line is the route on the map, the connector between stops in Day, and the connector between consecutive classes in Week, with the minutes chip sitting on it. It turns red as "late" when the walk is longer than the break, and amber as "tight" within two minutes. Walking time is what no other UNT planner has, so it is the visual that repeats ([Fable DESIGN, H2](untangle-v3/DESIGN.md)).
+1. **The walk is drawn.** One 2px green line is the route on the map, the connector between stops in Day, and the connector between consecutive classes in Week, with the minutes chip sitting on it. It turns red as "late" when the walk is longer than the break, and amber as "tight" within two minutes. Walking time is what no other UNT planner has, so it is the visual that repeats (Fable DESIGN: [WalkRibbon](untangle-v3/DESIGN.md#schedulegrid-scheduleevent-walkribbon-nosettimestrip) for Week, [LegRow](untangle-v3/DESIGN.md#daypanel-stopcard-legrow-mappin-upnext) for Day).
 2. **One app, branded by host.** `brand.ts` picks the name and defaults by hostname. On vsb.untgrades.app it is "UNT Schedule Builder" with no account, the Find column open, a term picker and the data-freshness line. On untangleapp.vercel.app it is UNTangle.
 3. **The best-so-far upgrade animates in place.** When the optimizer improves a figure, it crossfades through a 2px blur with no reflow. Opus's rule also holds: never swap the grid while the student is previewing an option. Offer "A better week is ready" with a Show button instead.
 
@@ -99,6 +99,7 @@ Both systems share the same four curves, so use the Opus [MOTION](untangle-v3-op
 | Day | A previous/next stepper replaces the five-day control. Online classes with no set time show only in Week. The labeled capture of the live map stands until the map pass lands. |
 | Panel push (1200px and wider) | Opening the panel moves the page left by `transform` only, never by reflowing, using `--t-enter`/`--t-exit` with `--ease-out`. Opening from the keyboard is instant. Under reduced motion the page doesn't move and only the panel fades. The selected item stays visible after the shift. |
 | Readings of rules 2, 3 and 5 | Day's itinerary is Day's main region, and a selected stop expands in place. A section is kept from the selected event's panel. The alternative strip also carries Details and a close button. |
+| Mid dots | Rows carry one fact, and a separator glyph is a sign a screen is doing too much (Sam). Where facts were joined, keep the one the student needs at that spot and move the rest to the detail panel or drop it; a comma list of facts is the same clutter. A phrase stays joined only when it reads as one idea ("Leave Kerr Hall by 8:49"). `frontend/tests/no-mid-dots.test.ts` fails on a mid dot anywhere in `frontend/src`, as a tripwire. |
 
 ## Placeholders with no data behind them
 

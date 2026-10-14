@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import {
   FakePlannerServer,
+  advanceTime,
   flushSaves,
   installDom,
   mountPlanner,
@@ -83,6 +84,17 @@ describe("rule 1: a save shown as Saved survives a reload", () => {
     expect(second.get().plannerState.optimization).toBe("compact");
     expect(server.row?.state.optimization).toBe("compact");
   });
+});
+
+test("guest save waits for the full 350 ms debounce, independent of React settling", async () => {
+  const planner = await mount();
+  await planner.run((p) => p.setOptimization("compact"));
+  await advanceTime(349);
+  expect(window.localStorage.getItem(PLANNER_STATE_STORE_KEY)).toBeNull();
+  expect(planner.get().saveState.label).not.toBe("Saved");
+  await advanceTime(1);
+  expect(planner.get().saveState.label).toBe("Saved");
+  expect(JSON.parse(window.localStorage.getItem(PLANNER_STATE_STORE_KEY)!).state.optimization).toBe("compact");
 });
 
 describe("rule 1: an edit is not lost when the page goes away before its save", () => {

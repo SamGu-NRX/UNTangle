@@ -357,7 +357,7 @@ ul.notice.statusList {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
-@media (max-width: 760px) {
+@media (max-width: 759px) {
   .altGrid {
     grid-auto-flow: column;
     grid-template-columns: none;
@@ -654,7 +654,7 @@ ul.notice.statusList {
   display: none;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 759px) {
   .eventStart {
     display: block;
     font-size: 9px;

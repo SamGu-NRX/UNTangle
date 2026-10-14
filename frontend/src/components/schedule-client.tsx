@@ -63,7 +63,7 @@ import type { Section } from "@/lib/sections";
 import { classDays } from "@/lib/types";
 
 /** The shell's phone breakpoint (shell.css). */
-const PHONE = "(max-width: 719px)";
+const PHONE = "(max-width: 759px)";
 
 function overlapping(selected: Section[]): Set<string> {
   const ids = new Set<string>();

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { UserGlyph } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
+import { SCHEDULES_HREF } from "./routes";
 import { SetPasswordDialog } from "./SetPasswordDialog";
 
 function initials(name: string | null | undefined, email: string): string {
@@ -14,8 +16,11 @@ function initials(name: string | null | undefined, email: string): string {
   return letters.toUpperCase();
 }
 
-/** Signed in: an initials avatar with a menu. Signed out: "Sign in". */
-export function AccountMenu() {
+/**
+ * Signed in: an initials avatar with a menu. Signed out: "Sign in", as text
+ * on desktop and as a person glyph in the phone header.
+ */
+export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const { data, isPending } = authClient.useSession();
   const router = useRouter();
   const [settingPassword, setSettingPassword] = useState(false);
@@ -26,7 +31,11 @@ export function AccountMenu() {
     return <span className="shell-avatar shell-avatar--placeholder" aria-hidden="true" />;
   }
   if (!user) {
-    return (
+    return compact ? (
+      <Link href="/auth" className="ui-btn ui-btn--ink ui-btn--icon shell-signin" aria-label="Sign in" data-ui="">
+        <UserGlyph size={22} />
+      </Link>
+    ) : (
       <Link href="/auth" className="ui-btn ui-btn--quiet ui-btn--sm shell-signin" data-ui="">
         Sign in
       </Link>
@@ -39,7 +48,7 @@ export function AccountMenu() {
         align="end"
         header={<span className="shell-account-email">{user.email}</span>}
         items={[
-          { id: "library", label: "Plan library", href: "/plans" },
+          { id: "schedules", label: "Schedules", href: SCHEDULES_HREF },
           { id: "set-password", label: "Set a password", onSelect: () => setSettingPassword(true) },
           {
             id: "sign-out",

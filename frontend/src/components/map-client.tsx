@@ -19,6 +19,7 @@ import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { CameraInsets } from "@/components/map/map-canvas";
 import type { MapSelection } from "@/components/map/selection";
 import { useItinerary } from "@/components/map/use-itinerary";
+import { usePageState } from "@/components/shell/shell-context";
 import { classDays, weekDays, type ClassDay } from "@/lib/types";
 import "@/components/map/map.css";
 
@@ -75,14 +76,12 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   const stops = useMemo(() => campus.id === activeCampus.id ? routeStops[activeDay] ?? [] : [], [activeDay, routeStops, campus.id]);
   const itinerary = useItinerary(stops);
 
-  // The shell's phone layout (bottom tabs, which carry the home-indicator
-  // inset the sheet relies on) is below 720px; matching it keeps the sheet
-  // from appearing at exactly 720px without that clearance.
-  const isPhone = useMediaQuery("(max-width: 719px)");
+  const isPhone = useMediaQuery("(max-width: 759px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   const [selection, setSelection] = useState<MapSelection>(null);
-  const [detent, setDetent] = useState<SheetDetent>("half");
+  // Kept while the student visits other lenses: each tab keeps its own sheet.
+  const [detent, setDetent] = usePageState<SheetDetent>("sheet-detent", "half");
   const [sheetVisible, setSheetVisible] = useState(0);
   const [areaHeight, setAreaHeight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -129,7 +128,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
       // At peek the chosen row is hidden; at full the map is. Half shows both.
       if (next && isPhone && detent !== "half") setDetent("half");
     },
-    [detent, isPhone],
+    [detent, isPhone, setDetent],
   );
 
   // The matching row comes into view whichever side the selection came from.
@@ -227,7 +226,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
       ) : (
         <aside className="mv-panel" aria-label="Itinerary">
           {header}
-          <div ref={scrollRef} className="mv-panel__body">
+          <div ref={scrollRef} className="mv-panel__body" data-lens-scroll="">
             {body}
           </div>
         </aside>

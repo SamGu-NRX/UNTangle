@@ -6,8 +6,12 @@ import { useEffect } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import { openConnect } from "@/components/connect/open-connect";
 import { ChevronRight } from "@/components/ui/icons";
+import { PHONE_QUERY } from "@/components/ui/use-media-query";
 import { getInitialPlannerState } from "@/lib/planner";
-import { hasStartedPlan } from "./home-entry";
+import { PLANNING_TERM } from "@/lib/terms";
+import { hasStartedPlan, landing, readClock } from "./home-entry";
+import { readLastLens } from "./lens-memory";
+import { LENS_HREF } from "./routes";
 
 const OPTIONS = [
   {
@@ -34,19 +38,34 @@ const OPTIONS = [
 ];
 
 /**
- * `/`: the guest Courses entry (DESIGN.md §2 Landing). A first visit gets
- * a calm three-way start; a student who has already begun goes straight
- * to Courses. Nothing renders until the stored plan has loaded, so a
- * returning student never sees the welcome flash before the redirect.
+ * `/`, where the app opens. A first visit gets the calm three-way start; a
+ * returning student goes where the landing rule says (home-entry.ts). Nothing
+ * renders until the stored plan has loaded, so a returning student never
+ * sees the welcome flash before the redirect.
  */
 export function HomeEntry() {
-  const { hydrated, plannerState } = usePlanner();
+  const { hydrated, plannerState, scheduleEvents, sectionPlan } = usePlanner();
   const router = useRouter();
   const started = hydrated && hasStartedPlan(plannerState, getInitialPlannerState());
 
+  const sectionsLoading = sectionPlan.courses.some((course) => course.state === "loading");
+
   useEffect(() => {
-    if (started) router.replace("/courses");
-  }, [started, router]);
+    if (!started) return;
+    const phone = window.matchMedia(PHONE_QUERY).matches;
+    const target = landing({
+      started,
+      phone,
+      lastLens: readLastLens(),
+      clock: readClock(new Date()),
+      term: PLANNING_TERM,
+      meetings: scheduleEvents,
+    });
+    // Sections arrive after the plan. Until they have, a phone could still
+    // turn out to have a class ahead today, so only Day is certain.
+    if (target === "import" || (phone && sectionsLoading && target !== "day")) return;
+    router.replace(LENS_HREF[target]);
+  }, [started, scheduleEvents, sectionsLoading, router]);
 
   if (!hydrated || started) {
     return <div className="home" aria-busy="true" />;
