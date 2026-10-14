@@ -32,5 +32,5 @@ export const activeDataset: DatasetDescriptor = {
   source:
     "catalog.unt.edu course text in courses/*.json; sections derived from compD.csv in sunnyD1000/UNT-Schedule-Optimizer (synthetic, 15 buildings, no term)",
   retrievedAt: null,
-  bundleSha256: "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
+  bundleSha256: "67f325f3ae9d0c592625fc962b0dc1b56d59e5f0c2a87a7c58bcefd365dcbcf5",
 };

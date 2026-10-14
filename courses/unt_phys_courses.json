@@ -1,5 +1,27 @@
 [
     {
+        "course_number": "PHYS1430",
+        "title": "General Physics Laboratory I  (PHYS 1101)",
+        "number_of_hours": "1 hour (0;3)",
+        "description": "Laboratory to accompany PHYS 1410.",
+        "prerequisites": "PHYS 1410 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "PHYS1410"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=193050"
+    },
+    {
+        "course_number": "PHYS1440",
+        "title": "General Physics Laboratory II  (PHYS 1102)",
+        "number_of_hours": "1 hour (0;3)",
+        "description": "Laboratory to accompany PHYS 1420.",
+        "prerequisites": "PHYS 1420 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "PHYS1420"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=193051"
+    },
+    {
         "course_number": "PHYS1510",
         "title": "General Physics I with Calculus",
         "number_of_hours": "(3;0;1)",
@@ -34,6 +56,28 @@
             "MATH1100"
         ],
         "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=172363"
+    },
+    {
+        "course_number": "PHYS1730",
+        "title": "Laboratory in Mechanics  (PHYS 2125)",
+        "number_of_hours": "1 hour (0;3)",
+        "description": "Laboratory to accompany PHYS 1710.",
+        "prerequisites": "PHYS 1710 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "PHYS1710"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=193057"
+    },
+    {
+        "course_number": "PHYS2240",
+        "title": "Laboratory in Electricity and Magnetism  (PHYS 2126)",
+        "number_of_hours": "1 hour (0;3)",
+        "description": "Laboratory to accompany PHYS 2220.",
+        "prerequisites": "PHYS 2220 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "PHYS2220"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=193059"
     },
     {
         "course_number": "PHYS4955",

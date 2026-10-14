@@ -1,12 +1,12 @@
 {
-  "corpusSha256": "7b1f6cfd71b19c44e5fab4b12dc1d7457a329933c9c76a9645ae0dde7bd20af7",
-  "total": 656,
+  "corpusSha256": "964ae522b14ed26b687ccb634b4316e6fbbd1aa73b6dba35bc465e1d04dd37d8",
+  "total": 669,
   "counts": {
-    "full": 430,
-    "partial": 168,
+    "full": 441,
+    "partial": 170,
     "unknown": 58
   },
-  "empty": 202,
+  "empty": 203,
   "unknownWithCourseCodes": 38,
   "courses": [
     {
@@ -460,6 +460,11 @@
       "source": "C or better in MATH 1100 or equivalent. Corequisite(s): CHEM 1430 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences"
     },
     {
+      "courseId": "CHEM 1415",
+      "coverage": "partial",
+      "source": "C or better in MATH 1650 or equivalent. Corequisite(s): CHEM 1435. *This hour is a problem-solving session."
+    },
+    {
       "courseId": "CHEM 1420",
       "coverage": "partial",
       "source": "C or better in CHEM 1410 , CHEM 1412 or CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences"
@@ -473,6 +478,21 @@
       "courseId": "CHEM 1423",
       "coverage": "partial",
       "source": "C or better in CHEM 1413 or consent of department. Corequisite(s): CHEM 1440 . *This hour is a problem-solving session. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "CHEM 1430",
+      "coverage": "full",
+      "source": "CHEM 1410 or CHEM 1412 or CHEM 1413."
+    },
+    {
+      "courseId": "CHEM 1435",
+      "coverage": "full",
+      "source": "CHEM 1415 (may be taken concurrently)."
+    },
+    {
+      "courseId": "CHEM 1440",
+      "coverage": "full",
+      "source": "C or better in CHEM 1430. Corequisite(s): CHEM 1420 or CHEM 1422 or CHEM 1423."
     },
     {
       "courseId": "CHEM 2370",
@@ -805,6 +825,11 @@
       "source": ""
     },
     {
+      "courseId": "CSCE 1015",
+      "coverage": "full",
+      "source": "CSCE 1030 or CSCE 1035."
+    },
+    {
       "courseId": "CSCE 1030",
       "coverage": "unknown",
       "source": "CSCE 1010 (for CSE majors only) with a grade of C or better and MATH 1100 , or MATH 1650 or MATH 1710 with a C or better. Corequisite(s): CSCE 1015 (for CSE majors only)."
@@ -940,6 +965,11 @@
       "source": "CSCE 2110 with a C or better."
     },
     {
+      "courseId": "CSCE 4115",
+      "coverage": "full",
+      "source": "CSCE 2100 and CSCE 2110, each with a grade of C or better."
+    },
+    {
       "courseId": "CSCE 4160",
       "coverage": "full",
       "source": "CSCE 3600 with a grade of C or better."
@@ -955,9 +985,19 @@
       "source": "CSCE 2110 with a grade of C or better. Non-CSE majors must have Instructor consent by email. As well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Please upload the instructor’s consent in the form."
     },
     {
+      "courseId": "CSCE 4210",
+      "coverage": "full",
+      "source": "CSCE 2110 with a grade of C or better."
+    },
+    {
       "courseId": "CSCE 4220",
       "coverage": "full",
       "source": "CSCE 4210 , CSCE 4255 , each with a grade of C or better."
+    },
+    {
+      "courseId": "CSCE 4230",
+      "coverage": "partial",
+      "source": "CSCE 2100, CSCE 2110, MATH 2700, each with a grade of a C or better."
     },
     {
       "courseId": "CSCE 4240",
@@ -1758,6 +1798,11 @@
       "courseId": "GEOG 4920",
       "coverage": "partial",
       "source": "Geography majors only. A minimum of 12 hours completed in the major, a 3.0 GPA in the major and consent of the department. May apply toward any Earth Science, Human Geography or Techniques group requirement at discretion of the department. May be repeated for credit."
+    },
+    {
+      "courseId": "GEOL 1610",
+      "coverage": "full",
+      "source": ""
     },
     {
       "courseId": "GERM 1010",
@@ -2605,6 +2650,16 @@
       "source": "PHYS 1410 or consent of department. Corequisite(s): PHYS 1440 . Non-calculus based physics sequence suitable for life sciences majors and preprofessional students. Core Category: Life and Physical Sciences"
     },
     {
+      "courseId": "PHYS 1430",
+      "coverage": "full",
+      "source": "PHYS 1410 (may be taken concurrently)."
+    },
+    {
+      "courseId": "PHYS 1440",
+      "coverage": "full",
+      "source": "PHYS 1420 (may be taken concurrently)."
+    },
+    {
       "courseId": "PHYS 1510",
       "coverage": "partial",
       "source": "MATH 1710 or MATH 1810 (may be taken concurrently). Corequisite(s): PHYS 1530 . Calculus-based physics sequence suitable for physics majors, bio-chemistry, math majors, chemistry majors, future science teachers, and for pre-medicine and other health-related preprofessional students. Core Category: Life and Physical Sciences"
@@ -2620,9 +2675,19 @@
       "source": "MATH 1710 with a grade of C or better or MATH 1820 (may be taken concurrently). Corequisite(s): PHYS 1730 . Calculus-based, suitable for engineering, and computer science. Core Category: Life and Physical Sciences"
     },
     {
+      "courseId": "PHYS 1730",
+      "coverage": "full",
+      "source": "PHYS 1710 (may be taken concurrently)."
+    },
+    {
       "courseId": "PHYS 2220",
       "coverage": "partial",
       "source": "PHYS 1420 or PHYS 1710 each with a grade of C or better; or PHYS 1510 . MATH 1720 or MATH 1830 (either may be taken concurrently). Corequisite(s): PHYS 2240 . Calculus-based, suitable for engineering, computer science majors. Core Category: Life and Physical Sciences"
+    },
+    {
+      "courseId": "PHYS 2240",
+      "coverage": "full",
+      "source": "PHYS 2220 (may be taken concurrently)."
     },
     {
       "courseId": "PHYS 2900",

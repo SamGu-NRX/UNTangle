@@ -107,6 +107,15 @@
     }
   ],
   "courses": [
+{
+    "code": "GEOL 1610",
+    "title": "Introduction to Geology  (GEOL 1403 or GEOL 1103/GEOL 1303)",
+    "department": "GEOL",
+    "creditHours": 3,
+    "description": "Systematic exploration of your home planet, including processes that have shaped it over geologic time and continue today. Topics include plate tectonics, mountain building, and rock cycles; origins and distribution of energy, mineral and soil resources; geologic hazards including earthquakes, volcanoes, floods and coastal storms. Core Category: Life and Physical Sciences",
+    "prerequisites": [],
+    "planned": false
+  },
     {
       "code": "ANTH 1010",
       "title": "Introduction to Anthropology  (ANTH 2346)",
@@ -1053,6 +1062,18 @@
       ],
       "planned": false
     },
+{
+    "code": "CHEM 1415",
+    "title": "General Chemistry for Engineering Majors",
+    "department": "CHEM",
+    "creditHours": 3,
+    "description": "Fundamental concepts, atomic structure, periodic table, stoichiometry, states of matter, chemical bonding, new materials, solutions, thermodynamics, reaction rates, equilibrium, electrochemistry, polymers and nuclear reactions.",
+    "prerequisites": [
+      "MATH 1650",
+      "CHEM 1435"
+    ],
+    "planned": false
+  },
     {
       "code": "CHEM 1420",
       "title": "General Chemistry II for Science Majors  (CHEM 1312)",
@@ -1094,6 +1115,44 @@
       ],
       "planned": false
     },
+{
+    "code": "CHEM 1430",
+    "title": "Laboratory Sequence for General Chemistry I  (CHEM 1111)",
+    "department": "CHEM",
+    "creditHours": 1,
+    "description": "Laboratory techniques, weighing, errors and significant figures, identification and purification of substances, and elementary quantitative analysis.",
+    "prerequisites": [
+      "CHEM 1410",
+      "CHEM 1412",
+      "CHEM 1413"
+    ],
+    "planned": false
+  },
+{
+    "code": "CHEM 1435",
+    "title": "General Chemistry Laboratory for Engineering Majors",
+    "department": "CHEM",
+    "creditHours": 1,
+    "description": "Laboratory techniques; application of statistical methods to laboratory data; chemical and physical property measurements; stoichiometric analysis; measurement of thermodynamic, electrochemical and kinetic data.",
+    "prerequisites": [
+      "CHEM 1415"
+    ],
+    "planned": false
+  },
+{
+    "code": "CHEM 1440",
+    "title": "Laboratory Sequence for General Chemistry II  (CHEM 1112)",
+    "department": "CHEM",
+    "creditHours": 1,
+    "description": "Quantitative, gravimetric and volumetric analyses; coordination compounds.",
+    "prerequisites": [
+      "CHEM 1430",
+      "CHEM 1420",
+      "CHEM 1422",
+      "CHEM 1423"
+    ],
+    "planned": false
+  },
     {
       "code": "CHEM 2370",
       "title": "Organic Chemistry I  (CHEM 2323)",
@@ -1841,6 +1900,18 @@
       "prerequisites": [],
       "planned": false
     },
+{
+    "code": "CSCE 1015",
+    "title": "Computing Tools and Techniques Laboratory",
+    "department": "CSCE",
+    "creditHours": 1,
+    "description": "Fills in the \u201cmissing\u201d information needed to become a successful, working computer scientist/engineer. A hands-on introduction to the tools, techniques, and procedures needed to be successful in future courses and careers. Topics include Linux, containerization/virtualization, version control with Git, IDEs (Integrated Development Environments), testing/debugging/profiling code, secure coding practices, PKI (public key infrastructure) cryptography, tool automation, basic networking.",
+    "prerequisites": [
+      "CSCE 1030",
+      "CSCE 1035"
+    ],
+    "planned": false
+  },
     {
       "code": "CSCE 1030",
       "title": "Computer Science I  (COSC 1336 or COSC 1436)",
@@ -2165,6 +2236,18 @@
       ],
       "planned": false
     },
+{
+    "code": "CSCE 4115",
+    "title": "Formal Languages, Automata and Computability",
+    "department": "CSCE",
+    "creditHours": 3,
+    "description": "Introduces students to the formal language theory that underlies modern computer science. Topics include different representational forms for regular languages, context-free grammars, pushdown automata, pumping lemmas for regular and context-free languages, and Chomsky\u2019s hierarchy.",
+    "prerequisites": [
+      "CSCE 2100",
+      "CSCE 2110"
+    ],
+    "planned": false
+  },
     {
       "code": "CSCE 4160",
       "title": "Parallel Programming",
@@ -2198,6 +2281,17 @@
       ],
       "planned": false
     },
+{
+    "code": "CSCE 4210",
+    "title": "Game Programming I",
+    "department": "CSCE",
+    "creditHours": 3,
+    "description": "Introduction to game programming, including real-time, event-driven, and multimedia programming techniques. Graphics, sound and input programming. Students learn how to program a billboard game in 3D with constrained camera motion.",
+    "prerequisites": [
+      "CSCE 2110"
+    ],
+    "planned": false
+  },
     {
       "code": "CSCE 4220",
       "title": "Game Programming II",
@@ -2210,6 +2304,19 @@
       ],
       "planned": false
     },
+{
+    "code": "CSCE 4230",
+    "title": "Introduction to Computer Graphics",
+    "department": "CSCE",
+    "creditHours": 3,
+    "description": "Basic Euclidian geometry and linear algebra, computer graphics algorithms and data structures, OpenGL and its inner workings.",
+    "prerequisites": [
+      "CSCE 2100",
+      "CSCE 2110",
+      "MATH 2700"
+    ],
+    "planned": false
+  },
     {
       "code": "CSCE 4240",
       "title": "Introduction to Digital Image Processing",
@@ -5811,6 +5918,28 @@
       ],
       "planned": false
     },
+{
+    "code": "PHYS 1430",
+    "title": "General Physics Laboratory I  (PHYS 1101)",
+    "department": "PHYS",
+    "creditHours": 1,
+    "description": "Laboratory to accompany PHYS 1410.",
+    "prerequisites": [
+      "PHYS 1410"
+    ],
+    "planned": false
+  },
+{
+    "code": "PHYS 1440",
+    "title": "General Physics Laboratory II  (PHYS 1102)",
+    "department": "PHYS",
+    "creditHours": 1,
+    "description": "Laboratory to accompany PHYS 1420.",
+    "prerequisites": [
+      "PHYS 1420"
+    ],
+    "planned": false
+  },
     {
       "code": "PHYS 1510",
       "title": "General Physics I with Calculus",
@@ -5851,6 +5980,17 @@
       ],
       "planned": false
     },
+{
+    "code": "PHYS 1730",
+    "title": "Laboratory in Mechanics  (PHYS 2125)",
+    "department": "PHYS",
+    "creditHours": 1,
+    "description": "Laboratory to accompany PHYS 1710.",
+    "prerequisites": [
+      "PHYS 1710"
+    ],
+    "planned": false
+  },
     {
       "code": "PHYS 2220",
       "title": "Electricity and Magnetism  (PHYS 2326)",
@@ -5867,6 +6007,17 @@
       ],
       "planned": false
     },
+{
+    "code": "PHYS 2240",
+    "title": "Laboratory in Electricity and Magnetism  (PHYS 2126)",
+    "department": "PHYS",
+    "creditHours": 1,
+    "description": "Laboratory to accompany PHYS 2220.",
+    "prerequisites": [
+      "PHYS 2220"
+    ],
+    "planned": false
+  },
     {
       "code": "PHYS 2900",
       "title": "Special Problems",
