@@ -61,6 +61,7 @@ jobs:
       - name: Create isolated app user
         run: |
           sudo useradd --create-home --shell /bin/bash journey
+          sudo install -m 755 "$(command -v bun)" /usr/local/bin/journey-bun
           sudo chown -R journey:journey "$GITHUB_WORKSPACE"
       # Fonts and catalog data are bundled; the build needs no external traffic.
       - name: Block external network
@@ -68,7 +69,7 @@ jobs:
           sudo iptables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d 127.0.0.0/8 -j REJECT
           sudo ip6tables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d ::1/128 -j REJECT
       - name: Build production app once
-        run: sudo --preserve-env -u journey "$(command -v bun)" --no-env-file x next build
+        run: sudo --preserve-env -u journey /usr/local/bin/journey-bun --no-env-file x next build
         working-directory: frontend
       - name: Restore Actions network access
         if: always()
@@ -177,6 +178,7 @@ jobs:
       - name: Create isolated app user
         run: |
           sudo useradd --create-home --shell /bin/bash journey
+          sudo install -m 755 "$(command -v bun)" /usr/local/bin/journey-bun
           sudo chown -R journey:journey "$GITHUB_WORKSPACE" "$RUNNER_TEMP/journey-tools" "$PLAYWRIGHT_BROWSERS_PATH" "$UNTANGLE_OUT"
       # Blocks both server and browser egress, including email, ORS and UNT.
       # Design pass A fulfills my.unt.edu requests from the local mock itself.
@@ -187,7 +189,7 @@ jobs:
       - name: Start production server
         run: |
           cd frontend
-          sudo --preserve-env -u journey "$(command -v bun)" --no-env-file x next start --hostname 127.0.0.1 --port 3000 > "$UNTANGLE_OUT/server.log" 2>&1 &
+          sudo --preserve-env -u journey /usr/local/bin/journey-bun --no-env-file x next start --hostname 127.0.0.1 --port 3000 > "$UNTANGLE_OUT/server.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/journey-server.pid"
           for attempt in {1..60}; do
             if curl --fail --silent "$UNTANGLE_BASE_URL/schedule" > /dev/null; then exit 0; fi
@@ -202,7 +204,7 @@ jobs:
       - name: Start synthetic myUNT server
         if: matrix.name == 'design-pass-a'
         run: |
-          sudo --preserve-env -u journey "$(command -v bun)" --no-env-file tools/mock-myunt/server.ts > "$UNTANGLE_OUT/mock-myunt.log" 2>&1 &
+          sudo --preserve-env -u journey /usr/local/bin/journey-bun --no-env-file tools/mock-myunt/server.ts > "$UNTANGLE_OUT/mock-myunt.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/journey-mock.pid"
           for attempt in {1..30}; do
             if curl --fail --silent http://localhost:4317/health > /dev/null; then exit 0; fi
