@@ -78,12 +78,15 @@ describe("planTests", () => {
     );
   });
 
-  test("fails on a listed file that no package's tests would ever run", () => {
-    writeFiles(dir, { "tests/feature.test.ts": "" });
-    expect(() => planTests(dir, path.join(dir, "pkg"), "tests/feature.test.ts", tested)).toThrow(
-      "line 1: tests/feature.test.ts is in no workspace whose test script CI runs",
-    );
-  });
+  test.each(["tests/feature.test.ts", "pkg/.acceptance/feature.test.ts", "pkg/node_modules/dep/feature.test.ts"])(
+    "fails on a listed file no package's tests would ever run: %s",
+    (listed) => {
+      writeFiles(dir, { [listed]: "" });
+      expect(() => planTests(dir, path.join(dir, "pkg"), listed, tested)).toThrow(
+        `line 1: ${listed} isn't a test file any workspace's test script runs`,
+      );
+    },
+  );
 
   test("fails on a malformed list", () => {
     expect(() => planTests(dir, path.join(dir, "pkg"), "pkg/tests/a.ts", tested)).toThrow("is not a test file name");

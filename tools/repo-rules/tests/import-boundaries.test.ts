@@ -26,6 +26,7 @@ describe("a forbidden import fails lint", () => {
     ["packages/core/src/a.ts", 'import path from "path";\nexport const join = path.join;', restricted],
     ["packages/core/src/a.ts", 'import { file } from "bun";\nexport const open = file;', restricted],
     ["packages/core/src/a.ts", 'import { courses } from "@/lib/seed-data";\nexport const all = courses;', restricted],
+    ["packages/sync/src/a.ts", 'import type { PlannerState } from "frontend/src/lib/types";\nexport type S = PlannerState;', restricted],
     ["packages/core/src/a.ts", 'import catalog from "./catalog.json";\nexport const data = catalog;', restricted],
     ["packages/core/src/a.ts", 'import { WriteSchema } from "@untangle/contracts";\nexport const schema = WriteSchema;', restricted],
     ["packages/core/src/a.ts", 'export * from "@untangle/sync/engine";', restricted],

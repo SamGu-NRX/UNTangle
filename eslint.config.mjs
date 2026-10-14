@@ -42,8 +42,8 @@ const bun = {
   message: "Bun built-ins aren't available on every platform this runs on. Take I/O as an argument.",
 };
 const frontendAlias = {
-  regex: "^@/",
-  message: "@/ is frontend's alias. A package never imports from frontend/.",
+  regex: "^(@/|frontend(/|$))",
+  message: "A package never imports from frontend/, by its @/ alias or its workspace name.",
 };
 const bundledData = {
   regex: "\\.(json|geojson)$",

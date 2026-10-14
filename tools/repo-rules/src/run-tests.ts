@@ -58,10 +58,18 @@ export type TestPlan = {
  */
 export function planTests(repoRoot: string, packageDir: string, listText: string, testedDirs: string[]): TestPlan {
   const entries = parsePendingList(listText);
+  const discovered = new Map<string, Set<string>>();
+  const testFilesOf = (dir: string) => {
+    if (!discovered.has(dir)) discovered.set(dir, new Set(findTestFiles(path.join(repoRoot, dir))));
+    return discovered.get(dir) ?? new Set<string>();
+  };
   const problems = entries.flatMap((entry) => {
     if (!isFile(path.join(repoRoot, entry.path))) return [`line ${entry.line}: ${entry.path} doesn't exist`];
-    if (!testedDirs.some((dir) => entry.path.startsWith(`${dir}/`))) {
-      return [`line ${entry.line}: ${entry.path} is in no workspace whose test script CI runs`];
+    const dir = testedDirs.find((candidate) => entry.path.startsWith(`${candidate}/`));
+    // A file in a skipped folder (node_modules, or one whose name starts with
+    // ".") is never run either, so listing it would hide it for good.
+    if (dir === undefined || !testFilesOf(dir).has(entry.path.slice(dir.length + 1))) {
+      return [`line ${entry.line}: ${entry.path} isn't a test file any workspace's test script runs`];
     }
     return [];
   });
