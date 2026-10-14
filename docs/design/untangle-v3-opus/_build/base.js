@@ -170,24 +170,26 @@ class Sheet {
   yFor(i) { const h = typeof this.detents[i] === "function" ? this.detents[i]() : this.detents[i]; return this.H() - h - this.bottomInset(); }
   closedY() { return this.H() + 40; }
   setY(y) { this.y = y; this.el.style.transform = `translateY(${y}px)`; if (this.body) this.body.style.overflowY = this.index === this.detents.length - 1 ? "auto" : "hidden"; }
-  animateTo(y, v = 0, flick = false, done) {
+  animateTo(y, v = 0, flick = false, done, instant = false) {
     this.cancel && this.cancel();
+    if (instant) { this.setY(y); done && done(); return; }
     if (reduced()) { this.el.animate([{ opacity: 0.6 }, { opacity: 1 }], { duration: 140 }); this.setY(y); done && done(); return; }
     const from = this.y ?? this.closedY();
     this.cancel = spring(from, y, v, { response: 0.34, damping: flick ? 0.86 : 1 }, (x) => this.setY(x), done);
   }
-  open(i = 0) {
+  /* instant: no motion, for state a tab switch restores (tab switches never animate). */
+  open(i = 0, { instant = false } = {}) {
     if (this.y === null) this.setY(this.closedY());
-    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i)); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
+    const wasClosed = this.index < 0; this.index = i; this.animateTo(this.yFor(i), 0, false, null, instant); this.el.setAttribute("aria-hidden", "false"); this.el.inert = false;
     if (this.modal && wasClosed) { this.el.setAttribute("role", "dialog"); this.el.setAttribute("aria-modal", "true"); modalOpen(this.el); }
     if (this.scrim) this.scrim.classList.add("on");
     this.onDetent && this.onDetent(i);
   }
   snap(i, v = 0, flick = false) { this.index = i; this.animateTo(this.yFor(i), v, flick); this.onDetent && this.onDetent(i); }
-  close(v = 0) {
+  close(v = 0, { instant = false } = {}) {
     this.index = -1; if (this.scrim) this.scrim.classList.remove("on");
     if (this.modal) modalClose(this.el);
-    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; });
+    this.animateTo(this.closedY(), v, false, () => { this.el.setAttribute("aria-hidden", "true"); this.el.inert = true; }, instant);
     this.onDetent && this.onDetent(-1);
   }
   bindDrag() {
@@ -256,13 +258,21 @@ function swap(el, render) {
   out.onfinish = () => { render(); el.animate([{ opacity: 0, filter: "blur(2px)", transform: "translateY(4px)" }, { opacity: 1, filter: "blur(0)", transform: "none" }], { duration: 200, easing: EASE.out }); };
 }
 
+/* A toast with an action (Undo, Show) stays until the student uses it or dismisses it: a fixed
+   window would take the recovery away from anyone slower to reach it. A plain notice leaves after 5s. */
 let toastTimer;
 function toast(msg, action, fn) {
   let t = $(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
-  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button">${action}</button>` : ""}`;
-  if (action) t.querySelector("button").onclick = () => { t.classList.remove("on"); fn && fn(); };
+  const hide = () => { t.classList.remove("on"); t.inert = true; };
+  t.inert = false;
+  t.innerHTML = `<span>${msg}</span>${action ? `<button type="button" data-act>${action}</button><button type="button" class="toast-x" aria-label="Dismiss">${icon("close")}</button>` : ""}`;
+  if (action) {
+    t.querySelector("[data-act]").onclick = () => { hide(); fn && fn(); };
+    t.querySelector(".toast-x").onclick = hide;
+  }
   requestAnimationFrame(() => t.classList.add("on"));
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 5000);
+  clearTimeout(toastTimer);
+  if (!action) toastTimer = setTimeout(hide, 5000);
 }
 
 hydrateIcons();

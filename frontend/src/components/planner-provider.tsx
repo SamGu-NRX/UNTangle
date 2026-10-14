@@ -153,6 +153,8 @@ type PlannerContextValue = {
    * every saved pick plus the goal's recommendation for each unpicked course.
    */
   plannerState: PlannerState;
+  /** The student's stored section picks, without recommendations for unpicked courses. */
+  sectionPicks: PlannerState["selectedSections"];
   /** Each planned course's option against the sections loaded so far. */
   sectionPlan: SectionPlan;
   /** Loaded options by course; `loading` until a view asks with `loadSections`. */
@@ -1078,6 +1080,7 @@ export function PlannerProvider({
       isRegistered,
       isAuthPending: sessionResult.isPending,
       plannerState: { ...normalized, selectedSections: sectionPlan.selections },
+      sectionPicks: plannerState.selectedSections,
       sectionPlan,
       sectionCatalog: sectionStore.catalog,
       catalogVersion,

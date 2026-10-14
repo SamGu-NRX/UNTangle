@@ -16,6 +16,8 @@ export function budgetWindowMs(budget: { windowSeconds?: number }): number {
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Each preview fetches an outside URL; this is an unmeasured starting value.
+  calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },

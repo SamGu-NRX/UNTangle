@@ -39,6 +39,7 @@ Before slice 3, the lead decides DESIGN.md §12 items 1 to 3 (landing on Day, th
 - TopBar with ViewTabs, SearchTrigger (which matches 5-digit class numbers), SchedulePill and Account. **Changed by rule 2:** the top bar is the only navigation. SchedulePill shows the term in a lighter weight and then the name, with no separator glyph, and opens a switcher (a popover on desktop, a sheet on phone) listing the term's schedules, New schedule, All schedules and compare, and Clear. No lens has its own schedule tabs. PhoneHeader (hidden on Day). TabBar with Courses, Week and Day.
 - Landing rule (DESIGN.md §3.2) in `home-entry.ts` / `routes.ts`. It is pure logic with one correct answer, so it gets strict tests for: in session with a class still ahead, in session with the day over, a weekend, no in-session schedule, and a first visit with no transcript.
 - Per-tab scroll and sheet state survive tab switches; re-tapping the current tab scrolls to the top.
+- #52 shipped slices 1–3 without `lib/brand.ts`; the shell does not read it yet. Slice 6 owns the host branding module, as the first slice that needs it for `BuilderHost`.
 
 **Accept:** `07-phone-navigation.html` behavior on a phone: instant tabs, preserved scroll, schedule sheet, back closes the sheet first. The desktop bar matches `screens/02-*-desk.png`. The tests pass.
 
@@ -72,13 +73,13 @@ Before slice 3, the lead decides DESIGN.md §12 items 1 to 3 (landing on Day, th
 
 **Accept:**
 - The 02 screens at both sizes. **Changed by rules 2, 4, 8 and 9:** compare against the new captures, not `screens/before/`.
-- The Auto reveal timeline matches `screens/02-auto-midflight-*.png` at about 830ms, with the counter rising per landing; Undo returns every row to its original place.
+- The Auto reveal timeline matches `screens/02-auto-midflight-desk.png` and `-phone.png` (captured about 830ms after pressing Auto), with the counter rising per landing; Undo returns every row to its original place.
 - ↑/↓ moves the detail without re-animating; Enter on `+` adds and never opens the detail.
 - Reduced motion produces a crossfade only.
 
 ## 6. Schedule builder (both hosts)
 
-**Owns:** new `components/schedule-builder/**`, `app/schedule/page.tsx`, `app/schedule/print/page.tsx`, `lib/planner-ics.ts`, new `lib/export/class-numbers.ts`. It replaces `schedule-client.tsx`, `schedule-section-locks.tsx`, `planner-export-panel.tsx` and `schedule-print-view.tsx`. The standalone vsb entry is a separate app; it imports this folder and supplies its own `BuilderHost` (DESIGN.md §8.4). Where that app lives is a lead decision.
+**Owns:** new `components/schedule-builder/**`, `app/schedule/page.tsx`, `app/schedule/print/page.tsx`, `lib/planner-ics.ts`, new `lib/export/class-numbers.ts`, new `lib/brand.ts`. It replaces `schedule-client.tsx`, `schedule-section-locks.tsx`, `planner-export-panel.tsx` and `schedule-print-view.tsx`. **Changed by the decision page:** there is no separate vsb app. Both hosts are this one deployment; `app/schedule/page.tsx` builds the `BuilderHost` (DESIGN.md §8.4) from this slice's `lib/brand.ts`, with the local schedule store on vsb and the account-backed one on UNTangle. The branding module reads the hostname once and returns `untangle` for untangleapp.vercel.app and the default, or `vsb` for vsb.untgrades.app. It is the only place that branches on hostname; strict tests cover both hostnames, an unknown host and localhost. The shell can then read its name, account control and term picker from the same module.
 
 - Nothing in `components/schedule-builder/**` imports UNTangle stores, the prereq engine or shell components. A lint rule or import test enforces it.
 - WeekGrid: events by department color, overlap groups side by side, walk chips (`walkMinutes` prop), busy blocks (drag to create), the No set time strip, dotted section options and drag-to-snap on fine pointers only, and a ghost preview from search. **Changed by rule 4:** events show the code and the time only (no building plate); the walk chip sits on a 2px line between the two classes, amber when tight and red when late.
@@ -122,19 +123,21 @@ Before slice 3, the lead decides DESIGN.md §12 items 1 to 3 (landing on Day, th
 
 **Owns:** `components/auth-shell.tsx`, `components/auth-client.tsx`, `components/forgot-password-client.tsx`, `app/auth/page.tsx`, `app/forgot-password/page.tsx`.
 
-- A dialog on desktop and a sheet on phone over the current route (`/auth` stays as a deep link). One form; the create-account switch happens in place; errors sit under the field; no magic-link button.
+- A dialog on desktop and a sheet on phone over the current route (`/auth` stays as a deep link). **Changed by the decision page (magic link first, password second):** the views are link, sent and password as in DESIGN.md §4.6, which is what `/auth` already ships (`components/auth-client.tsx`, `components/sign-in-link-form.tsx`). This slice moves that flow into the dialog and sheet; it does not rebuild it. There is no create-account mode; the first link creates the account. Errors sit under the field and are tied to it with `aria-describedby`.
 - Merging the guest's schedules into the account on first sign-in is stated in the copy, so it has to be true. Confirm the persistence layer does it before shipping.
 
-**Accept:** the 06 screens; `autocomplete` values as in DESIGN.md §4.6; Esc closes and focus returns to the Sign in trigger; the closed dialog is not tabbable.
+**Accept:** the 06 screens (link, sent and password, redrawn for this decision); `autocomplete=email` for the UNT email in both views and `current-password` for the password, as in the shipped `/auth`; a view change moves focus to its heading; Esc closes and focus returns to the Sign in trigger; the closed dialog is not tabbable.
 
-## 10. Motion and ship check
+## 10. Motion, agents and ship check
 
-**Owns:** nothing new. Fixes go back to the owning slice.
+**Owns:** `lib/webmcp/**` and `components/webmcp/**` (the WebMCP tools, already on alpha from #41). Other fixes go back to the owning slice.
+
+- WebMCP: the tools (`search_courses`, `get_course`, `check_eligibility`, `get_schedule`, `get_day`, `build_schedule`, `export_class_numbers`, `apply_alternative`, `add_section`, `remove_course`, `set_busy_times`) read and write the plan through the planner, not through the views, so they should survive slices 4 to 9. Re-point any tool whose reply names a v2 view or route (`/plans`, `/map`) at its v3 name, and keep every write behind the in-page confirmation (`confirm` in `lib/webmcp/tools.ts`) with Undo afterwards.
 
 - Run prep-for-prod on the integrated app, with a fresh reviewer on the code and a runtime pass at 390 and 1440, with reduced motion on, plus a keyboard-only pass.
 - Real-device checks that emulation can't settle (MOTION.md §12): sheet drag next to the iOS back swipe, momentum feel, the input zoom, the keyboard over the sign-in sheet, map camera frame rate on an older iPhone and a mid-range Android.
 
-**Accept:** no blocking findings; the device checks are recorded with the device and OS.
+**Accept:** no blocking findings; the device checks are recorded with the device and OS; `tests/webmcp/**` passes, and in the integrated app each write tool asks the student in the page, does nothing when they decline, and offers Undo when they accept.
 
 ## Working on the mockups
 
@@ -143,5 +146,5 @@ The HTML files in this folder are built: `_build/pages/*.html` plus the shared `
 ## Verification already done on the mockups
 
 - Captures: every state in `_build/shots.mjs` at 1440x900 and 390x844, including mid-animation frames (`02-auto-midflight`, `03-untangle-next`) and reduced-motion runs (`02-auto-reduced`, `03-untangle-options-reduced`). The Day camera frames (`04-day-flight`, `04-day-reduced`) were dropped with the drawn map; the map pass re-captures them.
-- After the simplification pass, axe-core 4 (WCAG 2.1 A/AA) is clean on eleven page states at both sizes, including Week's options and Preferences states, Day with a stop selected, and the library with nothing selected. Before that pass it was clean on eight page variants. The keyboard pass found focus indicators everywhere; the inputs use a box-shadow ring, which the script's outline check doesn't count.
+- After the simplification pass, axe-core 4 (WCAG 2.1 A/AA) is clean on eleven page states at both sizes, including Week's options and Preferences states, Day with a stop selected, and the library with nothing selected. Before that pass it was clean on eight page variants. The keyboard pass found focus indicators everywhere. The script counts an outline, or a box-shadow, outline or background that focus changes on the element or a near ancestor, so the inputs' box-shadow ring and the search field's `:focus-within` ring pass.
 - A fresh read-only code review against the prep-for-prod checks returned "Block". Every item it raised was fixed (nested interactive rows, keyboard activation, the modal focus lifecycle, flex-grow animation, keyboard-triggered animation, reduced-motion presses and spinners, hit areas, labels, touch-action) and axe was rerun. Lighthouse was not run.

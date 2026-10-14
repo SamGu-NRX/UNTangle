@@ -72,6 +72,9 @@ export function locksKey(locks: Record<string, string>): string {
   return JSON.stringify(Object.entries(locks).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
+/** A section map as a string that ignores key order, for comparing two plans' picks. */
+export const sectionsKey = locksKey;
+
 export function isStale(state: RunState, currentKey: string): boolean {
   return state.result !== null && state.resultKey !== currentKey;
 }
@@ -152,14 +155,30 @@ export type UndoSnapshot = {
   epoch: number;
   /** The locks right after the pick. */
   locks: string;
+  /** `sectionsKey` of the plan's picks right after the pick. */
+  after: string;
 };
+
+export function undoSnapshotForPick(before: Omit<UndoSnapshot, "after">, byCourse: Record<string, string>): UndoSnapshot {
+  return {
+    ...before,
+    sections: { ...before.sections },
+    after: sectionsKey({ ...before.sections, ...byCourse }),
+  };
+}
 
 /**
  * Undo is offered only while the plan is still the one the pick changed:
  * replacing the plan (a restore, a conflict resolution, a reset, another
- * tab's version) or changing a lock since then makes it unsafe to put the
- * old sections back.
+ * tab's version), changing a lock, or picking a section by hand since then
+ * makes it unsafe to put the old sections back, because restoring replaces
+ * the whole section map and would silently drop the later edit.
  */
-export function undoAvailable(undo: UndoSnapshot | null, epoch: number, currentLocks: string): undo is UndoSnapshot {
-  return undo !== null && undo.epoch === epoch && undo.locks === currentLocks;
+export function undoAvailable(
+  undo: UndoSnapshot | null,
+  epoch: number,
+  currentLocks: string,
+  currentSections: string,
+): undo is UndoSnapshot {
+  return undo !== null && undo.epoch === epoch && undo.locks === currentLocks && undo.after === currentSections;
 }
