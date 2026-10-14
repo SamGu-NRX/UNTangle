@@ -35,12 +35,18 @@ no calibration evidence yet and will be revised with a reason when the first sco
 | Suite | What it measures | Proposed bar |
 |---|---|---|
 | journey | Both personas complete the full journey through normal routes at 1440x900 and 390x844 | every case passes |
-| persistence-faults | The five durability rules in the planner and evals tasks: acknowledged saves survive reload and re-sign-in; a failed save is never shown as Saved; denied storage keeps edits in memory with a warning and an export; corrupt bytes are quarantined intact; a cross-tab conflict is shown, never silently overwritten | each rule holds in every injected case |
+| persistence-faults | The five durability rules in the planner and evals tasks: acknowledged saves survive reload and re-sign-in; a failed save is never shown as Saved; denied storage keeps edits in memory with a warning and an export; corrupt bytes are quarantined intact; a cross-tab conflict is shown, never silently overwritten; the same account in a fresh isolated browser context loads the acknowledged server revision without sharing local storage | each rule holds in every injected case |
 | honesty | A straight line shown as walking time, an outage shown as a missing course, unlabeled sample data | 0 violations |
-| routing | Building coverage for the bundled and compD data; distance error on at least 15 hand-measured routes; p95 latency for 12 stops | 100% coverage; median error ≤10% and max ≤20%; p95 ≤200 ms |
-| optimizer | Hard-constraint violations; optimality gap and top-k agreement against brute force; irreducible infeasible subsets verified (the subset is infeasible, and every one-member removal is feasible); p95 latency | 0 violations; gap 0 on enumerable instances; p95 ≤500 ms at 8 courses |
-| a11y-polish | axe, keyboard-only journey, reduced motion, layout shift, overflow with long names | 0 serious or critical; journey completes; no clipping |
-| data | Exact catalog certification counts; a real-term bundle present | exact; present, or the survey is blocked with evidence |
+| routing | Building coverage for the bundled and compD data; distance error on at least 15 hand-measured routes; p95 latency for 12 stops | 100% coverage; median error ≤10% and max ≤20%; p95 ≤200 ms; every supported routable campus-building pair returns campus-network or ORS geometry; report fallback and unknown pairs separately, with off-campus exclusions named |
+| optimizer | Hard-constraint violations; optimality gap and top-k agreement against brute force; irreducible infeasible subsets verified (the subset is infeasible, and every one-member removal is feasible); p95 latency | 0 violations; gap 0 on enumerable instances; p95 ≤500 ms at 8 courses; every returned alternative is feasible and agrees with the exact reference rank cost under the same diversity rule; equal-cost alternatives may differ in identity; every reported infeasible subset is infeasible and each one-course removal is feasible |
+| a11y-polish | axe, keyboard-only and screen-reader journeys, reduced motion, layout shift, overflow with long names | 0 serious or critical; both journeys complete; every control announces its name, role, state and relevant error; no clipping |
+| data | Exact catalog certification counts; a real-term bundle present; grade-history and instructor-rating source integrity | exact; present, or the survey is blocked with evidence; attributed captured fixtures retain grade totals, A-F GPA, instructor-course joins and per-term counts; every displayed rating has an identified source and retrieval date, and missing ratings stay missing |
+
+### Latency protocol
+
+Use the same pinned input set and exact accepted SHA for each candidate. Record machine, OS, runtime, available memory, competing load, timeout and limiter settings. Run only one benchmark job at a time. Declare cache state before timing: routing measures the warmed offline graph; optimizer runs a fresh search for every input, with no reused result cache. Record preparation separately from search so neither disappears from total latency.
+
+The proposed sampling protocol is 20 untimed warm-up calls followed by 100 timed calls in each of three repetitions. It gives the nearest-rank p95 an explicit 95th observation and repeats the run to expose spread; no run has established that this sample count is sufficient. Commit all durations, not just the percentile. Report each repetition's p95 and min/max across repetitions. Count timeouts, errors and skipped work separately and never award a passing scorecard with any such calls omitted. Each measured call must validate returned routes or schedules and their requested work before its latency can count as a successful completion.
 
 UI polish is also judged by a council critique of the running `alpha` app (Fable for taste, Astra for
 adversarial cases, Sol for correctness, Opus for integration).
@@ -66,7 +72,7 @@ adversarial cases, Sol for correctness, Opus for integration).
     Times and rooms stay labeled samples until an official registrar export (Sam, 18:10Z).
   - `untangle-degree-plan-f1`: multi-term degree planning from published catalog.unt.edu requirements, rebuilt
     from #5's experiment with an independent exact reference.
-  - `untangle-today-pwa-f1`: a Today view (next class and the walk to it) and an installable app that works offline.
+  - `untangle-today-pwa-f1`: a Today view (next class and the walk to it) and an installable app that works offline. Acceptance checks the manifest and icons, service-worker installation and control, then primes Today online, closes the app, blocks the network and reopens it in the same browser context. The cached Today view must render the saved itinerary and label unavailable network services; edits made offline must not be reported as saved to the server.
   - Variant rounds: `untangle-optimizer-round1-f1` (branch-and-bound, MIP, and propagation with large-neighborhood
     search; these directions, ranked alternatives and infeasibility explanations are the lead's proposal, not Sam's
     request; today's `recommendSections` is an exhaustive depth-first enumeration with a conflict check) and `untangle-ux-directions-round1-f1` (week grid with map, day-first itinerary, and a mobile bottom
@@ -82,7 +88,7 @@ adversarial cases, Sol for correctness, Opus for integration).
 - **R1 join.** `untangle-integration-f1` merges the exact accepted SHAs into a branch off `alpha`, wires the winning
   optimizer and the walking times, makes one test command cover every inherited suite, and scores the integrated
   app with the harness.
-- **Council 1.** Run `alpha` in the T3 browser preview, under the Mac's one-heavy-job lease. Pick the UX winner,
+- **Council 1.** Run the exact accepted R1 integration SHA in the T3 browser preview, under the Mac's one-heavy-job lease. Pick the UX winner,
   list the gaps by suite, and write R2.
 - **R2 and later.** Port the winning UX direction into production pages. Adopt real-term data if the survey found a
   source. Then fix the failing eval cases, one task per gap with its own files, and polish from the council's

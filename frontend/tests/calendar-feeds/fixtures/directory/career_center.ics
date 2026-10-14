@@ -1,0 +1,63 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Career Center
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161957Z
+UID:tag:localist.com\,2008:EventInstance_53684578052079
+DTSTART:20260915T190000Z
+DTEND:20260915T203000Z
+DESCRIPTION:Need help on your resume or cover letter? Come join the Discove
+ ry Park Career Coaches to discuss resume and cover letter best practices a
+ nd get your resume and cover letter reviewed!\n\n \n\nThis event will be i
+ n G165 (the Agora) in the Learning Technologies department and online via 
+ Zoom.\n\n \n\nIf you require reasonable accommodations\, please contact th
+ e Discovery Park Career Coaches at DPCareerCenter@unt.edu.
+GEO:33.253134;-97.148579
+LOCATION:Discovery Park Building\, G165
+SUMMARY:Resume & Cover Letter Workshop — Discovery Park
+URL;VALUE=URI:https://calendar.unt.edu/event/resume-cover-letter-workshop-l
+ aunch-your-career-workshop-series-discovery-park-3251
+CATEGORIES:Workshops & Training
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161957Z
+UID:tag:localist.com\,2008:EventInstance_53853081697494
+DTSTART:20260916T180000Z
+DTEND:20260916T200000Z
+DESCRIPTION:Stop by the Hickory Hall Dean's Office (254) to attend drop-ins
+  with the College of Science Career Coaches. Please wait inside the Dean's
+  Office\, and a COS Career Coach will come by and take you to our offices.
+  \n\nBelow are the dates for drop-ins:\n\n9/2/26\, 1pm-3pm9/16/26\, 1pm-3p
+ m9/30/26\, 1pm-3pm10/7/26\, 1pm-3pm10/21/26\, 1pm-3pm10/28/26\, 1pm-3pm11/
+ 4/26\, 1pm-3pm11/11/26\, 1pm-3pm11/18/26\, 1pm-3pm12/2/26\, 1pm-3pmIf you 
+ have any questions please send an email to Brittney.Sosa@unt.edu.
+GEO:33.214191;-97.147942
+LOCATION:Hickory Hall\, 254
+SUMMARY:College of Science Career Coaches Drop-ins
+URL;VALUE=URI:https://calendar.unt.edu/event/college-of-science-career-coac
+ hes-drop-ins
+CATEGORIES:Conferences & Meetings
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161957Z
+UID:tag:localist.com\,2008:EventInstance_53744659035157
+DTSTART:20260917T160000Z
+DTEND:20260917T190000Z
+DESCRIPTION:Prepare for Spring Registration through a guided station-based 
+ experience. Students will choose their route and make three pit stops to c
+ onnect with advising offices and key campus resources\, including the One 
+ Stop\, Career Center\, and much more!\n\n \n\nAlong the way\, learn how to
+  run a degree audit\, check for holds\, and ask quick questions. Staff wil
+ l be available to offer general guidance and support\, but not individuali
+ zed advising that will remove holds. Complete your pit stops and fuel up w
+ ith pizza at the finish.
+GEO:33.212077;-97.146729
+LOCATION:Sage Hall\, Sage Lawn
+SUMMARY:Road Trip to Registration
+URL;VALUE=URI:https://calendar.unt.edu/event/road-trip-to-registration-920
+CATEGORIES:Student Life
+END:VEVENT
+END:VCALENDAR

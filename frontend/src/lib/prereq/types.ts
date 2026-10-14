@@ -11,7 +11,8 @@ export type Prerequisite = {
   | { kind: "standing"; minimum: string }
   | { kind: "corequisite"; requirement: Prerequisite }
   | { kind: "minGrade"; grade: string; requirement: Prerequisite }
-  | { kind: "unknown"; detail: string }
+  // A major condition cannot waive independent clauses or supply closure facts.
+  | { kind: "unknown"; detail: string; scope?: "clause" }
 );
 
 export type ParseResult = {

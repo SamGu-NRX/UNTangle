@@ -1,10 +1,11 @@
 name: CI
 
 on:
+  # main is listed so a ruleset on main can require these checks on PRs into it.
   pull_request:
-    branches: [alpha]
+    branches: [alpha, main]
   push:
-    branches: [alpha]
+    branches: [alpha, main]
   workflow_dispatch:
     inputs:
       run_live_postgres:

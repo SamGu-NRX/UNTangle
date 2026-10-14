@@ -1,0 +1,59 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Student Organizations
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161655Z
+UID:tag:localist.com\,2008:EventInstance_53940685079114
+DTSTART:20260914T210000Z
+DTEND:20260914T223000Z
+DESCRIPTION:Join The Dialogue Society for our first General Body Meeting of
+  the Fall 2026 semester! Students will have the opportunity to learn about
+  the organization\, meet other UNT students\, participate in icebreaker an
+ d social activities\, and hear about our upcoming events and opportunities
+  to get involved. The meeting is open to all UNT students\, and no prior m
+ embership is required.
+GEO:33.210932;-97.147274
+LOCATION:University Union\, 401
+SUMMARY:The Dialogue Society – General Body Meeting #1
+URL;VALUE=URI:https://calendar.unt.edu/event/the-dialogue-society-general-b
+ ody-meeting-1
+CATEGORIES:Student Life
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161655Z
+UID:tag:localist.com\,2008:EventInstance_53812688246020
+DTSTART:20260914T220000Z
+DTEND:20260914T230000Z
+DESCRIPTION:Regular meetings for Fall Semester! Come by\, meet candidates\,
+  participate in fun activities and get ready for the road to Election Day!
+GEO:33.210029;-97.145579
+LOCATION:Wooten Hall\, 121
+SUMMARY:College Democrats Regular Meeting
+URL;VALUE=URI:https://calendar.unt.edu/event/college-democrats-regular-meet
+ ing-1618
+CATEGORIES:Student Life
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161655Z
+UID:tag:localist.com\,2008:EventInstance_53927775255118
+DTSTART:20260914T220000Z
+DTEND:20260914T230000Z
+DESCRIPTION:Our mission is to build a stronger human firewall by empowering
+  students of every background and skill level with the knowledge\, skills\
+ , and confidence to thrive in cybersecurity. As a club within the Informat
+ ion Technology and Decision Sciences department\, we bridge the technical 
+ and the strategic\, preparing students not only to defend systems but also
+  to understand the risks\, decisions\, and business impact behind them. He
+ re\, every member learns by doing and leaves ready to shape the future of 
+ cybersecurity.
+GEO:33.208929;-97.147668
+LOCATION:Business Leadership Building\, 245
+SUMMARY:ITDS Cybersecurity Club: General Body Meeting
+URL;VALUE=URI:https://calendar.unt.edu/event/itds-cybersecurity-club-genera
+ l-body-meeting
+CATEGORIES:Student Life
+END:VEVENT
+END:VCALENDAR

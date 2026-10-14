@@ -193,6 +193,7 @@ export function PlansClient() {
   };
 
   const importPlan = async (file: File) => {
+    const identityToken = store.captureIdentity();
     setImportError(null);
     let parsed: unknown;
     try {
@@ -201,7 +202,7 @@ export function PlansClient() {
       setImportError("The file is not valid JSON.");
       return;
     }
-    const result = store.importPlan(parsed);
+    const result = store.importPlan(parsed, undefined, identityToken);
     if (!result.ok) {
       setImportError(result.failure.message);
       return;

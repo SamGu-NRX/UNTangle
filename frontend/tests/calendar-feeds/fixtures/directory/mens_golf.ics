@@ -1,0 +1,44 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Men's Golf
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T162217Z
+UID:tag:localist.com\,2008:EventInstance_53556076980183
+DTSTART;VALUE=DATE:20260927
+DESCRIPTION:UNT Men's Golf vs Argent Financial Classic in Choudrant\, Louis
+ iana. Go Mean Green!\n\nGolf schedule available here.
+LOCATION:Squire Creek CC / Choudrant\, LA
+SUMMARY:UNT Men's Golf vs Argent Financial Classic
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-mens
+ -golf-vs-argent-financial-classic-2523
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162217Z
+UID:tag:localist.com\,2008:EventInstance_53556076989402
+DTSTART;VALUE=DATE:20260928
+DESCRIPTION:UNT Men's Golf vs Argent Financial Classic in Choudrant\, Louis
+ iana. Go Mean Green!\n\nGolf schedule available here.
+LOCATION:Squire Creek CC / Choudrant\, LA
+SUMMARY:UNT Men's Golf vs Argent Financial Classic
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-mens
+ -golf-vs-argent-financial-classic-2523
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162217Z
+UID:tag:localist.com\,2008:EventInstance_53556077009885
+DTSTART;VALUE=DATE:20261003
+DESCRIPTION:UNT Men's Golf vs Blessings Collegiate Invitational in Fayettev
+ ille\, Arkansas. Go Mean Green!\n\nGolf schedule available here.
+GEO:36.132244;-94.201753
+LOCATION:The Blessings Golf Club
+SUMMARY:UNT Men's Golf at Blessings Collegiate Invitational
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-mens
+ -golf-vs-blessings-collegiate-invitational
+CATEGORIES:Athletics
+END:VEVENT
+END:VCALENDAR

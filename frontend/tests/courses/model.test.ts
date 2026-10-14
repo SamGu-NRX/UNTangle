@@ -92,7 +92,7 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     expect(get("CSCE 1030")).toMatchObject({ status: "covered", coveredBy: "CSCE 1040", meta: { kind: "via", id: "CSCE 1040" } });
     expect(get("ENGL 1320")).toMatchObject({ status: "taking", inPlan: false, meta: { kind: "text", text: "This term" } });
     expect(get("MATH 1720").status).toBe("available");
-    expect(get("CSCE 2100").status).toBe("check");
+    expect(get("CSCE 2100").status).toBe("available");
     expect(model.hasTranscript).toBe(true);
   });
 
@@ -126,11 +126,14 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     const statuses = sampleStatuses();
     const model = buildCourseModel(profile, plan(statuses));
     const outcome = computeAuto(model, statuses, csCore, 15);
-    expect(outcome.planned).toEqual(["MATH 1720"]);
-    expect(outcome.needsCheck).toEqual(["CSCE 2100"]);
+    expect(outcome.planned).toEqual(["MATH 1720", "CSCE 2100"]);
+    expect(outcome.needsCheck).toEqual([]);
     expect(outcome.filled).toEqual({ done: 3, taking: 1, covered: 1 });
-    expect(outcome.changes).toEqual([{ code: "MATH 1720", from: "notTaken", to: "inProgress" }]);
-    expect(describeAuto(outcome, true, "Spring 2027")).toBe("Filled 5 courses from your transcript, 1 through prerequisites. Planned 1 for Spring 2027.");
+    expect(outcome.changes).toEqual([
+      { code: "MATH 1720", from: "notTaken", to: "inProgress" },
+      { code: "CSCE 2100", from: "notTaken", to: "inProgress" },
+    ]);
+    expect(describeAuto(outcome, true, "Spring 2027")).toBe("Filled 5 courses from your transcript, 1 through prerequisites. Planned 2 for Spring 2027.");
   });
 
   test("Auto never unplans a course the student is taking now", () => {

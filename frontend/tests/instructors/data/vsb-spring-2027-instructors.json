@@ -1,0 +1,8991 @@
+{
+ "endpoint": "https://vsb.untgrades.app/data/spring-2027.json",
+ "method": "GET",
+ "fetchedAt": "2026-10-14",
+ "responseBytes": 15991878,
+ "responseSha256": "32e1e0adf4d64147252ea9768bd65790fc9298d1ea3c1193a7a0465359cc13ec",
+ "note": "Cached from one GET of public vsb.untgrades.app term data for spring 2027. The full 16 MB term response is not committed; this file retains the complete inventory of distinct raw instructor strings with one example course code each and the count of course rows carrying each string. The sha256 and byte size pin the exact response the inventory was extracted from. No other requests were made. Tests read this file and never touch the network.",
+ "distinctInstructorStrings": 1796,
+ "instructors": [
+  {
+   "raw": "Abbott,Matthew Ryan",
+   "exampleCourse": "PHYS 1270",
+   "courseCount": 5
+  },
+  {
+   "raw": "Abbott,Shannon Marie",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Abercrombie,Ben",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Abeyta,Michelle L, Palcich,Jennifer Anne",
+   "exampleCourse": "UCRS 4600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Abilova,Dariga",
+   "exampleCourse": "INST 4850",
+   "courseCount": 5
+  },
+  {
+   "raw": "Abude-Aribo,Juliana Ohumaegholem",
+   "exampleCourse": "AGER 2250",
+   "courseCount": 1
+  },
+  {
+   "raw": "Abutayyem,Mohammed Abdulrahman",
+   "exampleCourse": "CSCE 1015",
+   "courseCount": 1
+  },
+  {
+   "raw": "Acar,Selcuk",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Acevedo,Miguel F",
+   "exampleCourse": "EENG 2920",
+   "courseCount": 4
+  },
+  {
+   "raw": "Acker,Jodi Danea",
+   "exampleCourse": "MATH 340",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ackermann,Steven",
+   "exampleCourse": "JOUR 3340",
+   "courseCount": 4
+  },
+  {
+   "raw": "Acree Jr,Bill Eugene",
+   "exampleCourse": "CHEM 1423",
+   "courseCount": 5
+  },
+  {
+   "raw": "Afflerbach,Ann Marie",
+   "exampleCourse": "NUTR 2460",
+   "courseCount": 2
+  },
+  {
+   "raw": "Afosah,Daniel",
+   "exampleCourse": "CHEM 1420",
+   "courseCount": 3
+  },
+  {
+   "raw": "Afshari,Atoosa",
+   "exampleCourse": "PHIL 1900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Agawu,Dionne",
+   "exampleCourse": "GERM 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ahmadi,Azadeh",
+   "exampleCourse": "COUN 6125",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ahmed,Iftekhar",
+   "exampleCourse": "COMM 3325",
+   "courseCount": 7
+  },
+  {
+   "raw": "Ahmed,Osama",
+   "exampleCourse": "PADM 4050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ahmed,Waquar",
+   "exampleCourse": "GEOG 3010",
+   "courseCount": 6
+  },
+  {
+   "raw": "Ahn,Hyojin",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 2
+  },
+  {
+   "raw": "Akbari,Hesam",
+   "exampleCourse": "DTSC 3020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Akl,Robert",
+   "exampleCourse": "CSCE 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ala'I-Rosales,Shahla S",
+   "exampleCourse": "BEHV 5815",
+   "courseCount": 2
+  },
+  {
+   "raw": "Alam,Syeda",
+   "exampleCourse": "BIOL 2041",
+   "courseCount": 3
+  },
+  {
+   "raw": "Alam,Zinat Shaila",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 1
+  },
+  {
+   "raw": "Albert,Mark Vincent",
+   "exampleCourse": "CSCE 5934",
+   "courseCount": 3
+  },
+  {
+   "raw": "Alberts,Arland Dulcey",
+   "exampleCourse": "BIOC 4580",
+   "courseCount": 4
+  },
+  {
+   "raw": "Aledhari,Mohammed",
+   "exampleCourse": "DTSC 5505",
+   "courseCount": 7
+  },
+  {
+   "raw": "Alemneh,Daniel Gelaw",
+   "exampleCourse": "INFO 4203",
+   "courseCount": 1
+  },
+  {
+   "raw": "Alfano,Peter",
+   "exampleCourse": "MRTS 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ali,Sahara",
+   "exampleCourse": "DTSC 3020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Alimirzaei,Athena",
+   "exampleCourse": "DSCI 2710",
+   "courseCount": 4
+  },
+  {
+   "raw": "Allaart,Pieter",
+   "exampleCourse": "MATH 3000",
+   "courseCount": 2
+  },
+  {
+   "raw": "Allen,Carrie Denise",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Allen,Jeff M",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 3
+  },
+  {
+   "raw": "Alonso,Ana paula",
+   "exampleCourse": "BIOC 5950",
+   "courseCount": 7
+  },
+  {
+   "raw": "Alorwoyie,Gideon Foli",
+   "exampleCourse": "MUCM 3617",
+   "courseCount": 3
+  },
+  {
+   "raw": "Aloysius,Attah",
+   "exampleCourse": "CNET 2180",
+   "courseCount": 3
+  },
+  {
+   "raw": "Alpizar,Juan Jose",
+   "exampleCourse": "MUAG 1107",
+   "courseCount": 1
+  },
+  {
+   "raw": "Alsop,Katherine Cordelia",
+   "exampleCourse": "ASLP 6060",
+   "courseCount": 2
+  },
+  {
+   "raw": "Altema,Natasha Ernst",
+   "exampleCourse": "PSCI 4100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Altiok,Ozlem",
+   "exampleCourse": "WGST 2100",
+   "courseCount": 5
+  },
+  {
+   "raw": "Alvarado,Angela Marie",
+   "exampleCourse": "INFO 5636",
+   "courseCount": 1
+  },
+  {
+   "raw": "Amin,Saadiya",
+   "exampleCourse": "PHIL 1400",
+   "courseCount": 1
+  },
+  {
+   "raw": "Amini salehi,Mohsen",
+   "exampleCourse": "CSCE 3444",
+   "courseCount": 6
+  },
+  {
+   "raw": "An,Sensong",
+   "exampleCourse": "EENG 2611",
+   "courseCount": 4
+  },
+  {
+   "raw": "An,Yunjo",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Anderson,Amy",
+   "exampleCourse": "EPSY 5123",
+   "courseCount": 6
+  },
+  {
+   "raw": "Anderson,Brian",
+   "exampleCourse": "MUMH 1610",
+   "courseCount": 4
+  },
+  {
+   "raw": "Anderson,Karen Ann",
+   "exampleCourse": "COMM 1010",
+   "courseCount": 8
+  },
+  {
+   "raw": "Anderson,Thorne",
+   "exampleCourse": "JOUR 3700",
+   "courseCount": 4
+  },
+  {
+   "raw": "Anderton Chavez,Irais Del Valle",
+   "exampleCourse": "PSYC 3100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Andrew,Simon",
+   "exampleCourse": "PADM 6940",
+   "courseCount": 2
+  },
+  {
+   "raw": "Angermann,Asaf",
+   "exampleCourse": "PHIL 3150",
+   "courseCount": 1
+  },
+  {
+   "raw": "Anokhin,Dmitry",
+   "exampleCourse": "DSCI 5180",
+   "courseCount": 1
+  },
+  {
+   "raw": "Antunes,Mauricio Schusterschitz",
+   "exampleCourse": "BIOL 4005",
+   "courseCount": 3
+  },
+  {
+   "raw": "Aouadi,Samir M",
+   "exampleCourse": "MTSE 3110",
+   "courseCount": 6
+  },
+  {
+   "raw": "Aoyama,Katsura",
+   "exampleCourse": "ASLP 2020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Aponte,Jose M",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 10
+  },
+  {
+   "raw": "Arakelyan,Aram",
+   "exampleCourse": "MUAM 5534",
+   "courseCount": 2
+  },
+  {
+   "raw": "Aranki,Madeline Lee",
+   "exampleCourse": "MUAC 1509",
+   "courseCount": 4
+  },
+  {
+   "raw": "Arif,Muhammad Jalil",
+   "exampleCourse": "PHIL 1050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Armintor,Deborah Needleman",
+   "exampleCourse": "ENGL 2321",
+   "courseCount": 3
+  },
+  {
+   "raw": "Armintor,Marshall N",
+   "exampleCourse": "ENGL 3225",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ashrafi Dehkordi,Roya",
+   "exampleCourse": "BCIS 2610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ashutosh,Ashutosh",
+   "exampleCourse": "MUET 3030",
+   "courseCount": 1
+  },
+  {
+   "raw": "Assaf,Christopher Todd",
+   "exampleCourse": "JOUR 4730",
+   "courseCount": 1
+  },
+  {
+   "raw": "Atkinson,Molly Brianne",
+   "exampleCourse": "CHEM 1410",
+   "courseCount": 6
+  },
+  {
+   "raw": "Atwater,Hank",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Au,Eliza Hang yee",
+   "exampleCourse": "ASTU 5020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Autrey,Nathan Ivan",
+   "exampleCourse": "THEA 3100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Aviles-Diz,Jorge",
+   "exampleCourse": "SPAN 3004",
+   "courseCount": 1
+  },
+  {
+   "raw": "Awumee,Ferdinand Senam, Jackson,Jake Neil, Cunningham,Bruce Vincent, Wolfe,Trae Colton, Thomas,Chance",
+   "exampleCourse": "MILS 3342",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ayeh,Eric Koudjo Senyo",
+   "exampleCourse": "EENG 1910",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ayre,Brian G",
+   "exampleCourse": "BIOC 4900",
+   "courseCount": 9
+  },
+  {
+   "raw": "Azad,Rajeev Kumar",
+   "exampleCourse": "BIOL 4815",
+   "courseCount": 12
+  },
+  {
+   "raw": "Baba,Asif Iqbal",
+   "exampleCourse": "CSCE 3530",
+   "courseCount": 4
+  },
+  {
+   "raw": "Bachmann,Mikaela Jo",
+   "exampleCourse": "ART 5900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bae,Sohee",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bagcal,Orlando Raza",
+   "exampleCourse": "CNET 1160",
+   "courseCount": 5
+  },
+  {
+   "raw": "Bailey,Colleen Paige",
+   "exampleCourse": "EENG 2905",
+   "courseCount": 5
+  },
+  {
+   "raw": "Bailey,Kyndell Brianna",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Baker,Cassidy Ann",
+   "exampleCourse": "SOWK 4000",
+   "courseCount": 3
+  },
+  {
+   "raw": "Baker,Jeff",
+   "exampleCourse": "MUAC 1519",
+   "courseCount": 7
+  },
+  {
+   "raw": "Baker,Rose Marie",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Baker,Tony E",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 11
+  },
+  {
+   "raw": "Balakrishnan,Rohan",
+   "exampleCourse": "BIOL 4801",
+   "courseCount": 3
+  },
+  {
+   "raw": "Baldwin,Veronica Jones",
+   "exampleCourse": "EDHE 6540",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bambacaro,Livia",
+   "exampleCourse": "SPAN 1020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bandla,Madhuri",
+   "exampleCourse": "ACCT 2020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Banerjee,Raj",
+   "exampleCourse": "MTSE 6300",
+   "courseCount": 3
+  },
+  {
+   "raw": "Barahona,Elba Elena",
+   "exampleCourse": "EDBE 5570",
+   "courseCount": 3
+  },
+  {
+   "raw": "Baranski,Mackenzie",
+   "exampleCourse": "PSYC 5430",
+   "courseCount": 1
+  },
+  {
+   "raw": "Barber,Mary Ann",
+   "exampleCourse": "MATH 1190",
+   "courseCount": 2
+  },
+  {
+   "raw": "Barnes,Jennifer Shelton",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Barnes,Travis Stephen",
+   "exampleCourse": "MRTS 3400",
+   "courseCount": 1
+  },
+  {
+   "raw": "Barnett,Emily",
+   "exampleCourse": "ASLP 6680",
+   "courseCount": 1
+  },
+  {
+   "raw": "Barnett,Michael David",
+   "exampleCourse": "PSYC 4640",
+   "courseCount": 4
+  },
+  {
+   "raw": "Barnwell,Clay Chandler",
+   "exampleCourse": "MRTS 2210",
+   "courseCount": 1
+  },
+  {
+   "raw": "Barr,Alexander",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 2
+  },
+  {
+   "raw": "Barr,Alexander, Naciri,Alia Grace",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Barr,Alexander, Zhou,Hanquan",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bass,Gregory Vaughn",
+   "exampleCourse": "PRCH 4845",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bassir,Ametis Kristen",
+   "exampleCourse": "COUN 5590",
+   "courseCount": 4
+  },
+  {
+   "raw": "Baxter-Slye,Jaime Lee",
+   "exampleCourse": "BIOL 2141",
+   "courseCount": 4
+  },
+  {
+   "raw": "Baylock,Alan",
+   "exampleCourse": "MUJS 3800",
+   "courseCount": 2
+  },
+  {
+   "raw": "Baysden,Matthew Fleming",
+   "exampleCourse": "PSYC 1630",
+   "courseCount": 3
+  },
+  {
+   "raw": "Beasley,Kathryn R",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Becker,April",
+   "exampleCourse": "BEHV 3440",
+   "courseCount": 3
+  },
+  {
+   "raw": "Beckman Jr,Bradley",
+   "exampleCourse": "MUAG 6900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bednarz,James Cary",
+   "exampleCourse": "BIOL 2140",
+   "courseCount": 7
+  },
+  {
+   "raw": "Bedoy Solorzano,Francisco I",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 3
+  },
+  {
+   "raw": "Beebe,Kathryne Elizabeth",
+   "exampleCourse": "HIST 3000",
+   "courseCount": 3
+  },
+  {
+   "raw": "Bellisario,Jeannie",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ben othmane,Lotfi",
+   "exampleCourse": "CSCE 3201",
+   "courseCount": 6
+  },
+  {
+   "raw": "Benton,Kim La'chaunne",
+   "exampleCourse": "MKTG 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Beretta,Alicia",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bergestuen,Trond",
+   "exampleCourse": "MKTG 4280",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bergmann,Sam",
+   "exampleCourse": "BEHV 4900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Berhe,Seare Ahferom",
+   "exampleCourse": "CHEM 2380",
+   "courseCount": 1
+  },
+  {
+   "raw": "Berman,Diana",
+   "exampleCourse": "MTSE 3003",
+   "courseCount": 9
+  },
+  {
+   "raw": "Bernard,Natalie",
+   "exampleCourse": "MGMT 5520",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bernardoni,Jeremy Michael",
+   "exampleCourse": "ADES 3555",
+   "courseCount": 2
+  },
+  {
+   "raw": "Berrios,Laura Elaine",
+   "exampleCourse": "THEA 1280",
+   "courseCount": 6
+  },
+  {
+   "raw": "Bezusko,Adriane Michelle",
+   "exampleCourse": "ENGL 3450",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bhowmick,Sanjukta",
+   "exampleCourse": "CSCE 4890",
+   "courseCount": 6
+  },
+  {
+   "raw": "Bian,Xun",
+   "exampleCourse": "REAL 2100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Biglaiser,Glen",
+   "exampleCourse": "PSCI 3704",
+   "courseCount": 3
+  },
+  {
+   "raw": "Bigodza,Emmanuel Kems",
+   "exampleCourse": "PADM 2200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Birlew,Payton",
+   "exampleCourse": "EPSY 5033",
+   "courseCount": 7
+  },
+  {
+   "raw": "Bissett,Lynn Elizabeth",
+   "exampleCourse": "TECM 4190",
+   "courseCount": 1
+  },
+  {
+   "raw": "Black,Jordan",
+   "exampleCourse": "ASTU 3201",
+   "courseCount": 1
+  },
+  {
+   "raw": "Black,Rachel D",
+   "exampleCourse": "ART 1700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Blakeman,Jake Pierce",
+   "exampleCourse": "THEA 2051",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bland,Dorothy Mae",
+   "exampleCourse": "JOUR 2310",
+   "courseCount": 3
+  },
+  {
+   "raw": "Blankenship,Sara Kathryn",
+   "exampleCourse": "JOUR 3200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Blankson,Charles",
+   "exampleCourse": "DBAS 6950",
+   "courseCount": 5
+  },
+  {
+   "raw": "Blough,Jeremiah Charles",
+   "exampleCourse": "HLTH 3150",
+   "courseCount": 1
+  },
+  {
+   "raw": "Blumenthal,Heidemarie",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Boals,Adriel",
+   "exampleCourse": "PSYC 3650",
+   "courseCount": 5
+  },
+  {
+   "raw": "Boesch,Miriam Chacon",
+   "exampleCourse": "EDSP 5310",
+   "courseCount": 6
+  },
+  {
+   "raw": "Boettger,Ryan K",
+   "exampleCourse": "TECM 1600",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bohenek,Jason",
+   "exampleCourse": "BIOL 4005",
+   "courseCount": 5
+  },
+  {
+   "raw": "Bond,Bruce Cline",
+   "exampleCourse": "ENGL 3150",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bonnett,Aaron",
+   "exampleCourse": "DSCI 2710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Booker,Dana",
+   "exampleCourse": "EPSY 5033",
+   "courseCount": 9
+  },
+  {
+   "raw": "Boomer,Whitney Lynn",
+   "exampleCourse": "DANC 2800",
+   "courseCount": 4
+  },
+  {
+   "raw": "Booth,Shelby",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Borge Flores,Rubenia Borge",
+   "exampleCourse": "CSCE 1010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bose,Damini",
+   "exampleCourse": "MKTG 4330",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bostanci,Huseyin",
+   "exampleCourse": "MEEN 5890",
+   "courseCount": 6
+  },
+  {
+   "raw": "Bottoms,Carroll Weaver, Brooks,Geoffrey Lance",
+   "exampleCourse": "BIOL 3520",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bougher,Grace",
+   "exampleCourse": "ASTU 2300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bourbon,Matthew",
+   "exampleCourse": "ASTU 4200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Boyd,Natalie",
+   "exampleCourse": "BUSI 3200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Boydstun,Shelli Kay",
+   "exampleCourse": "MKTG 3700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Boyer,Brett Michael",
+   "exampleCourse": "MUAG 1225",
+   "courseCount": 1
+  },
+  {
+   "raw": "Boyer,Kristin Nicole",
+   "exampleCourse": "ASTU 2601",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bozdag,Serdar",
+   "exampleCourse": "CSCE 2900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Bradetich,Jeffrey D",
+   "exampleCourse": "MUAC 1507",
+   "courseCount": 10
+  },
+  {
+   "raw": "Bradley,Darin C",
+   "exampleCourse": "ENGL 4140",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bradley,Susan Virginia",
+   "exampleCourse": "ACCT 3405",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bradshaw,Lexy Kilgore",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 4
+  },
+  {
+   "raw": "Brandon,Bettye Lynn",
+   "exampleCourse": "FADM 2380",
+   "courseCount": 4
+  },
+  {
+   "raw": "Bravenec,Hannah Mae",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Breuning,Marijke",
+   "exampleCourse": "PSCI 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bridges,Walter",
+   "exampleCourse": "MATH 4060",
+   "courseCount": 2
+  },
+  {
+   "raw": "Brindle,Thomas",
+   "exampleCourse": "INDS 3030",
+   "courseCount": 3
+  },
+  {
+   "raw": "Brinker,Julie E",
+   "exampleCourse": "THEA 1050",
+   "courseCount": 3
+  },
+  {
+   "raw": "Brinkley,Francheska",
+   "exampleCourse": "CJUS 2400",
+   "courseCount": 3
+  },
+  {
+   "raw": "Britain,Jeff Konrad",
+   "exampleCourse": "HMGT 2280",
+   "courseCount": 4
+  },
+  {
+   "raw": "Brock,Christopher C",
+   "exampleCourse": "MRTS 3220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Brooks,Geoffrey Lance",
+   "exampleCourse": "BIOC 3622",
+   "courseCount": 2
+  },
+  {
+   "raw": "Brown,Bree'ya Nadia",
+   "exampleCourse": "INFO 5371",
+   "courseCount": 2
+  },
+  {
+   "raw": "Brown,Jennifer",
+   "exampleCourse": "NUTR 2460",
+   "courseCount": 1
+  },
+  {
+   "raw": "Browning,Charles Lee",
+   "exampleCourse": "CHEM 3210",
+   "courseCount": 2
+  },
+  {
+   "raw": "Brozovic,Douglas Paul",
+   "exampleCourse": "MATH 1710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bruder,Kristina Louise",
+   "exampleCourse": "MDSE 2350",
+   "courseCount": 4
+  },
+  {
+   "raw": "Brunett,Kaitlin Marguerite",
+   "exampleCourse": "PSYC 3100",
+   "courseCount": 3
+  },
+  {
+   "raw": "Bruno,Flora",
+   "exampleCourse": "FREN 1010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Bruton,Oren",
+   "exampleCourse": "TECM 4190",
+   "courseCount": 1
+  },
+  {
+   "raw": "Bryant,Joshua",
+   "exampleCourse": "ASTU 3000",
+   "courseCount": 2
+  },
+  {
+   "raw": "Bryce,Renee Cathryn",
+   "exampleCourse": "CSCE 5430",
+   "courseCount": 4
+  },
+  {
+   "raw": "Bubeck,Daniel Lawrence",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Buongiorno Nardelli,Marco",
+   "exampleCourse": "MUAC 1540",
+   "courseCount": 6
+  },
+  {
+   "raw": "Burgess,Amy Elaine figgins",
+   "exampleCourse": "MKTG 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burggren,Warren W",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Burke,Colin Jacob",
+   "exampleCourse": "PHYS 3950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burke,Mary",
+   "exampleCourse": "INFO 5223",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burkert,Tiffany Coker",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burleson,Mark",
+   "exampleCourse": "BIOL 3030",
+   "courseCount": 2
+  },
+  {
+   "raw": "Burnham,Jakob Douglas",
+   "exampleCourse": "HIST 6477",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burroughs,Triana",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burtet,Leticia Pereira",
+   "exampleCourse": "MUET 3030",
+   "courseCount": 1
+  },
+  {
+   "raw": "Burton,James D",
+   "exampleCourse": "ASTU 2202",
+   "courseCount": 3
+  },
+  {
+   "raw": "Bushkova,Julia",
+   "exampleCourse": "MUAC 1504",
+   "courseCount": 8
+  },
+  {
+   "raw": "Byers,Lori Ann",
+   "exampleCourse": "COMM 2020",
+   "courseCount": 6
+  },
+  {
+   "raw": "Byrd,Robyn M",
+   "exampleCourse": "MUAG 1102",
+   "courseCount": 1
+  },
+  {
+   "raw": "Byun,Bokyung",
+   "exampleCourse": "MUAC 1527",
+   "courseCount": 11
+  },
+  {
+   "raw": "Byun,Bokyung, Alpizar,Juan Jose",
+   "exampleCourse": "MUEN 5621",
+   "courseCount": 2
+  },
+  {
+   "raw": "Byun,Mimi Kyung",
+   "exampleCourse": "INFO 4730",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cager,Sharon Kennete",
+   "exampleCourse": "ADDS 4075",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cai,Yingqi",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Callahan,Jennifer Lynn",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Callicott,Brady C",
+   "exampleCourse": "MUAC 1519",
+   "courseCount": 4
+  },
+  {
+   "raw": "Camarillo,Eric Christopher",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Campbell,Brian Scott",
+   "exampleCourse": "ASTU 4200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Campbell,Kim Sydow",
+   "exampleCourse": "TECM 4910",
+   "courseCount": 3
+  },
+  {
+   "raw": "Campbell,Nathan Bennion",
+   "exampleCourse": "MUJS 1013",
+   "courseCount": 1
+  },
+  {
+   "raw": "Campbell,Timothy S",
+   "exampleCourse": "MRTS 3260",
+   "courseCount": 1
+  },
+  {
+   "raw": "Campise,Matthew",
+   "exampleCourse": "AERO 4320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cantu,Magaly",
+   "exampleCourse": "ASTU 3605",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cao,Yiting",
+   "exampleCourse": "ACCT 4430",
+   "courseCount": 1
+  },
+  {
+   "raw": "Capparelli gerling,Daphne Cristina",
+   "exampleCourse": "MUAC 1505",
+   "courseCount": 9
+  },
+  {
+   "raw": "Cardon,Teresa Amber",
+   "exampleCourse": "EDSP 3210",
+   "courseCount": 4
+  },
+  {
+   "raw": "Carlson,Matt",
+   "exampleCourse": "MUAG 3800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Carmona,Javier",
+   "exampleCourse": "MRTS 2210",
+   "courseCount": 3
+  },
+  {
+   "raw": "Carne,Sally",
+   "exampleCourse": "FIPL 2770",
+   "courseCount": 1
+  },
+  {
+   "raw": "Carpio Manickam,Maria",
+   "exampleCourse": "SPAN 2050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Carrigan,Kayla Whitney",
+   "exampleCourse": "KINE 5185",
+   "courseCount": 4
+  },
+  {
+   "raw": "Carrillo jara,Daniel Andres",
+   "exampleCourse": "SPAN 3002",
+   "courseCount": 2
+  },
+  {
+   "raw": "Carrington,Jara",
+   "exampleCourse": "ANTH 2300",
+   "courseCount": 7
+  },
+  {
+   "raw": "Cartwright,Angie",
+   "exampleCourse": "COUN 6900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Casagrande,Lucas",
+   "exampleCourse": "MUAC 1506",
+   "courseCount": 4
+  },
+  {
+   "raw": "Casolari,Anthony James",
+   "exampleCourse": "MUAC 3538",
+   "courseCount": 1
+  },
+  {
+   "raw": "Castro,Ella",
+   "exampleCourse": "MUAG 3800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cawley,Meredith",
+   "exampleCourse": "ART 1600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cazier,Richard Arnold",
+   "exampleCourse": "ACCT 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Chaguinian,Christophe",
+   "exampleCourse": "FREN 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Chakrabarti,Shomik",
+   "exampleCourse": "INSD 5110",
+   "courseCount": 4
+  },
+  {
+   "raw": "Chakraborty,Swagata",
+   "exampleCourse": "CMHT 3950",
+   "courseCount": 4
+  },
+  {
+   "raw": "Chamberlin,Adam H",
+   "exampleCourse": "THEA 1030",
+   "courseCount": 2
+  },
+  {
+   "raw": "Champlin,Sara",
+   "exampleCourse": "ADVG 1000",
+   "courseCount": 5
+  },
+  {
+   "raw": "Chan,Tsz yan clement",
+   "exampleCourse": "BMEN 2900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Chanana,Poonam",
+   "exampleCourse": "MATH 1710",
+   "courseCount": 3
+  },
+  {
+   "raw": "Chandler,Cynthia",
+   "exampleCourse": "COUN 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Chang,Hsia-Ching",
+   "exampleCourse": "DTSC 4430",
+   "courseCount": 8
+  },
+  {
+   "raw": "Chapman,Kent D",
+   "exampleCourse": "BIOC 5950",
+   "courseCount": 7
+  },
+  {
+   "raw": "Chatterjee,Ipsita",
+   "exampleCourse": "GEOG 2170",
+   "courseCount": 5
+  },
+  {
+   "raw": "Chatterjee,Sourav",
+   "exampleCourse": "BCIS 5800",
+   "courseCount": 4
+  },
+  {
+   "raw": "Chemhaka,Garikayi Bernard",
+   "exampleCourse": "AGER 2000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Chen,Bojun",
+   "exampleCourse": "BIOL 3510",
+   "courseCount": 5
+  },
+  {
+   "raw": "Chen,Chanjuan",
+   "exampleCourse": "ART 4450",
+   "courseCount": 3
+  },
+  {
+   "raw": "Chen,Haihua",
+   "exampleCourse": "DTSC 6903",
+   "courseCount": 7
+  },
+  {
+   "raw": "Chen,Linxiao",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Chen,Qi",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Cheruvu,Ranita",
+   "exampleCourse": "EDCI 5130",
+   "courseCount": 1
+  },
+  {
+   "raw": "Chiang,Jason",
+   "exampleCourse": "EPSY 5033",
+   "courseCount": 4
+  },
+  {
+   "raw": "Childs,David Richard peter",
+   "exampleCourse": "MUEN 2602",
+   "courseCount": 2
+  },
+  {
+   "raw": "Choi,Hoon seok",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Choi,Jung",
+   "exampleCourse": "MUAC 1509",
+   "courseCount": 9
+  },
+  {
+   "raw": "Choi,Taeyul",
+   "exampleCourse": "MEEN 2210",
+   "courseCount": 7
+  },
+  {
+   "raw": "Choi,Wonbong",
+   "exampleCourse": "MEEN 5950",
+   "courseCount": 8
+  },
+  {
+   "raw": "Chou,Chien",
+   "exampleCourse": "MUAC 1504",
+   "courseCount": 4
+  },
+  {
+   "raw": "Chou,Wei Chien",
+   "exampleCourse": "MUAC 1518",
+   "courseCount": 4
+  },
+  {
+   "raw": "Chowdhury,Dalia",
+   "exampleCourse": "ADDS 4275",
+   "courseCount": 2
+  },
+  {
+   "raw": "Chowdhury,Jhinuk",
+   "exampleCourse": "MKTG 3650",
+   "courseCount": 3
+  },
+  {
+   "raw": "Chung,Andrew Jay",
+   "exampleCourse": "MUMH 5010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Chyan,Oliver M R",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Cicco,Ian Thomas",
+   "exampleCourse": "MUED 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cicero,David Colin",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 11
+  },
+  {
+   "raw": "Cieslikowski,Craig Alan",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 2
+  },
+  {
+   "raw": "Citati,Andrea",
+   "exampleCourse": "PHYS 1410",
+   "courseCount": 4
+  },
+  {
+   "raw": "Civit,Selinay",
+   "exampleCourse": "MGMT 3721",
+   "courseCount": 1
+  },
+  {
+   "raw": "Clampit,Jack A",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 3
+  },
+  {
+   "raw": "Clardy,MaryKaren",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 9
+  },
+  {
+   "raw": "Clayton,Krisstal Dawn",
+   "exampleCourse": "PSYC 1630",
+   "courseCount": 3
+  },
+  {
+   "raw": "Clendening,John",
+   "exampleCourse": "ADVG 3220",
+   "courseCount": 4
+  },
+  {
+   "raw": "Cleveland,Ana",
+   "exampleCourse": "HINF 5637",
+   "courseCount": 6
+  },
+  {
+   "raw": "Cleveland,Ana, Evans,Sarah Amber",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cleveland,Taylor A",
+   "exampleCourse": "MRTS 4755",
+   "courseCount": 1
+  },
+  {
+   "raw": "Closed",
+   "exampleCourse": "ADES 5510",
+   "courseCount": 3
+  },
+  {
+   "raw": "Coad,Daryl L",
+   "exampleCourse": "MUAC 1511",
+   "courseCount": 10
+  },
+  {
+   "raw": "Cockerham,Deborah",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Coffelt,Robin",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 4
+  },
+  {
+   "raw": "Cohen,Jonathan Steven",
+   "exampleCourse": "MATH 1720",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cole,Kimberly Susan",
+   "exampleCourse": "MUAC 1511",
+   "courseCount": 8
+  },
+  {
+   "raw": "Coleman,Raquel",
+   "exampleCourse": "MUAC 1522",
+   "courseCount": 5
+  },
+  {
+   "raw": "Coleman,Raquel, Haefner,Jaymee J",
+   "exampleCourse": "MULB 1805",
+   "courseCount": 1
+  },
+  {
+   "raw": "Collini,Melissa Anne",
+   "exampleCourse": "CHEM 2370",
+   "courseCount": 2
+  },
+  {
+   "raw": "Collins,Brian K.",
+   "exampleCourse": "PADM 3020",
+   "courseCount": 4
+  },
+  {
+   "raw": "Collins,Jacob",
+   "exampleCourse": "MUMH 1610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Colombo-dougovito,Andrew Mark",
+   "exampleCourse": "HLTH 2200",
+   "courseCount": 6
+  },
+  {
+   "raw": "Combs,Lisa Delacruz",
+   "exampleCourse": "EDHE 5120",
+   "courseCount": 2
+  },
+  {
+   "raw": "Compson,Zacchaeus Greg",
+   "exampleCourse": "BIOL 4800",
+   "courseCount": 10
+  },
+  {
+   "raw": "Conn,Bryan Mark",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 3
+  },
+  {
+   "raw": "Connors,Priscilla Lynn",
+   "exampleCourse": "NUTR 1450",
+   "courseCount": 2
+  },
+  {
+   "raw": "Conrad,Leah Marie",
+   "exampleCourse": "ACCT 2020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Contractor,Ateka Akbar",
+   "exampleCourse": "PSYC 1630",
+   "courseCount": 5
+  },
+  {
+   "raw": "Contreras espinoza,Horacio",
+   "exampleCourse": "MUAC 1506",
+   "courseCount": 7
+  },
+  {
+   "raw": "Cook,Alexis",
+   "exampleCourse": "MKTG 3881",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cooper,Danielle",
+   "exampleCourse": "MGMT 5140",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cooper,Danielle, Hancock,Julie",
+   "exampleCourse": "DBAS 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Cooper,Justin Lyle",
+   "exampleCourse": "MUAG 4350",
+   "courseCount": 2
+  },
+  {
+   "raw": "Coppersmith,Syd",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cory,Kenneth Douglas",
+   "exampleCourse": "MGMT 4940",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cosgrove,Samantha Jo",
+   "exampleCourse": "TECM 3100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Courtright,Jack",
+   "exampleCourse": "MUAS 3517",
+   "courseCount": 1
+  },
+  {
+   "raw": "Couturiaux,Clay James",
+   "exampleCourse": "MUAG 3870",
+   "courseCount": 4
+  },
+  {
+   "raw": "Covarrubias,Guillermo",
+   "exampleCourse": "ECON 3560",
+   "courseCount": 4
+  },
+  {
+   "raw": "Coyle,Constance A",
+   "exampleCourse": "INFO 4400",
+   "courseCount": 2
+  },
+  {
+   "raw": "Craig,Jessica M",
+   "exampleCourse": "CJUS 3900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Crawford,Michael",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 5
+  },
+  {
+   "raw": "Croall,Cheryl Anne Loar",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Crockett Jr,James Bryan",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 2
+  },
+  {
+   "raw": "Crossley II,Dane Alan",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Crutsinger,Christy Ann",
+   "exampleCourse": "CMHT 4801",
+   "courseCount": 4
+  },
+  {
+   "raw": "Cubero,Diego Enrique",
+   "exampleCourse": "MUTH 2500",
+   "courseCount": 4
+  },
+  {
+   "raw": "Cui,Jingbiao",
+   "exampleCourse": "PHYS 4950",
+   "courseCount": 4
+  },
+  {
+   "raw": "Cui,Xin",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Cui,Xinrui",
+   "exampleCourse": "CSCE 4201",
+   "courseCount": 5
+  },
+  {
+   "raw": "Cundari,Thomas Richard",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Cunningham,Bruce Vincent, Wolfe,Trae Colton, Jackson,Jake Neil, Pieluszczak,Scott L, Thomas,Chance",
+   "exampleCourse": "MILS 1141",
+   "courseCount": 1
+  },
+  {
+   "raw": "Curran Jr,Anthony A",
+   "exampleCourse": "BIOL 2311",
+   "courseCount": 4
+  },
+  {
+   "raw": "Curran Jr,Anthony A, Peterson,Nathaniel Charles, Bottoms,Carroll Weaver",
+   "exampleCourse": "BIOL 2312",
+   "courseCount": 1
+  },
+  {
+   "raw": "Curtis,John Harper",
+   "exampleCourse": "KINE 4300",
+   "courseCount": 3
+  },
+  {
+   "raw": "Cutelli,Nicholas Charles",
+   "exampleCourse": "THEA 2340",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cyr,Amy Diane",
+   "exampleCourse": "FINA 4310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Cziner,Jonathan Louis",
+   "exampleCourse": "MUCP 2200",
+   "courseCount": 4
+  },
+  {
+   "raw": "Czyzyk,Brian Joseph Nickerson",
+   "exampleCourse": "ENGL 3150",
+   "courseCount": 1
+  },
+  {
+   "raw": "D'andrilli,Juliana",
+   "exampleCourse": "BIOL 1132",
+   "courseCount": 3
+  },
+  {
+   "raw": "D'souza,Francis",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Dafoe,Eric",
+   "exampleCourse": "COUN 2600",
+   "courseCount": 6
+  },
+  {
+   "raw": "Dahotre,Narendra B",
+   "exampleCourse": "MTSE 5800",
+   "courseCount": 5
+  },
+  {
+   "raw": "Dantu,Ram",
+   "exampleCourse": "CSCE 5900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Dardaman,Sam",
+   "exampleCourse": "KINE 2010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Das,Shaily",
+   "exampleCourse": "ACCT 2020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Datta,Arunima",
+   "exampleCourse": "HIST 4100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Dattalo,Lidia",
+   "exampleCourse": "MATH 1190",
+   "courseCount": 2
+  },
+  {
+   "raw": "Davis Hanna,Allegra",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Davis,Andrew Greer",
+   "exampleCourse": "COMM 2140",
+   "courseCount": 4
+  },
+  {
+   "raw": "Davis,Jacqueline",
+   "exampleCourse": "MRTS 4740",
+   "courseCount": 1
+  },
+  {
+   "raw": "Davis,Morgan Rashelle",
+   "exampleCourse": "INFO 5375",
+   "courseCount": 1
+  },
+  {
+   "raw": "Davis,Quincy Gerard",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 15
+  },
+  {
+   "raw": "Davis,Terry Kolb",
+   "exampleCourse": "ART 1900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Davis-McElligatt,Joanna Christine",
+   "exampleCourse": "ENGL 5950",
+   "courseCount": 3
+  },
+  {
+   "raw": "De Borba Vasconcelos Neto,Aecio",
+   "exampleCourse": "BEHV 3400",
+   "courseCount": 3
+  },
+  {
+   "raw": "De La Rosa,Lauren",
+   "exampleCourse": "MATH 1100",
+   "courseCount": 1
+  },
+  {
+   "raw": "De Wolff,Kim",
+   "exampleCourse": "PHIL 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "De almeida,Rodrigo Camargo",
+   "exampleCourse": "KINE 3250",
+   "courseCount": 1
+  },
+  {
+   "raw": "DeRosa,Richard J",
+   "exampleCourse": "MUAC 3539",
+   "courseCount": 10
+  },
+  {
+   "raw": "Dean,Sarah Elizabeth",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Decaen,Andrew John",
+   "exampleCourse": "ART 5450",
+   "courseCount": 4
+  },
+  {
+   "raw": "Dedecker,Paige Elizabeth",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 4
+  },
+  {
+   "raw": "Deemer,Sarah Elizabeth",
+   "exampleCourse": "KINE 3030",
+   "courseCount": 7
+  },
+  {
+   "raw": "Demeritt,Jacqueline H. R.",
+   "exampleCourse": "PSCI 5940",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dennis,Maryellen",
+   "exampleCourse": "HLSV 5450",
+   "courseCount": 2
+  },
+  {
+   "raw": "Derdeyn,LeeAnn",
+   "exampleCourse": "BAAS 3000",
+   "courseCount": 3
+  },
+  {
+   "raw": "Derryberry,Roy Thomas",
+   "exampleCourse": "EENG 2610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Devine,Lisa Marie",
+   "exampleCourse": "THEA 4390",
+   "courseCount": 2
+  },
+  {
+   "raw": "Diamond,James Tullos",
+   "exampleCourse": "LGAV 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dicke,Lisa",
+   "exampleCourse": "PADM 5030",
+   "courseCount": 4
+  },
+  {
+   "raw": "Dickenson,Hank H",
+   "exampleCourse": "MRTS 3340",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dickson,Bryan",
+   "exampleCourse": "ECON 1110",
+   "courseCount": 2
+  },
+  {
+   "raw": "Dietlinger,Barbara Elisabeth",
+   "exampleCourse": "MUMH 3500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Dietz,Tracy L.",
+   "exampleCourse": "MGMT 3880",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dillman,Dalena Leeann",
+   "exampleCourse": "COUN 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ding,Junhua",
+   "exampleCourse": "INFO 5737",
+   "courseCount": 5
+  },
+  {
+   "raw": "Dixon,Andrekus Jamaal",
+   "exampleCourse": "CJUS 2100",
+   "courseCount": 3
+  },
+  {
+   "raw": "Dizack,Philip",
+   "exampleCourse": "MUAC 3536",
+   "courseCount": 6
+  },
+  {
+   "raw": "Do,Hyunsook",
+   "exampleCourse": "CSCE 5932",
+   "courseCount": 5
+  },
+  {
+   "raw": "Doherty,Dornith",
+   "exampleCourse": "ASTU 2502",
+   "courseCount": 1
+  },
+  {
+   "raw": "Donaldson,Christina",
+   "exampleCourse": "ART 4620",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dong,Pinliang",
+   "exampleCourse": "BIOL 5950",
+   "courseCount": 8
+  },
+  {
+   "raw": "Donoghue,Courtney Brannon",
+   "exampleCourse": "MRTS 4445",
+   "courseCount": 5
+  },
+  {
+   "raw": "Doran,Jonathon",
+   "exampleCourse": "CSCE 3444",
+   "courseCount": 7
+  },
+  {
+   "raw": "Doty,Chris",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 4
+  },
+  {
+   "raw": "Doty,Jeffrey Steven",
+   "exampleCourse": "ENGL 4440",
+   "courseCount": 5
+  },
+  {
+   "raw": "Dougherty,Donald Michael",
+   "exampleCourse": "PSYC 6610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Dracobly,Joe",
+   "exampleCourse": "BEHV 5815",
+   "courseCount": 3
+  },
+  {
+   "raw": "Drader,Nicole Anne",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Drayden,Craig Morgan",
+   "exampleCourse": "HINF 5637",
+   "courseCount": 1
+  },
+  {
+   "raw": "Du,Jincheng",
+   "exampleCourse": "MTSE 4040",
+   "courseCount": 10
+  },
+  {
+   "raw": "Du,Yunfei",
+   "exampleCourse": "INFO 4900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Dubois,Susan L",
+   "exampleCourse": "MUAC 1505",
+   "courseCount": 7
+  },
+  {
+   "raw": "Dubrow,Jehanne Irene",
+   "exampleCourse": "ENGL 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Duckworth,Jonathan",
+   "exampleCourse": "ENGL 3500",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dulin,Eric George",
+   "exampleCourse": "PRCH 4835",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dulock,Matthew",
+   "exampleCourse": "MATH 3410",
+   "courseCount": 2
+  },
+  {
+   "raw": "Dumaine,Danielle Lynne",
+   "exampleCourse": "AMDS 3230",
+   "courseCount": 4
+  },
+  {
+   "raw": "Duncan,William",
+   "exampleCourse": "EDLE 5330",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dunn,Lindsay Meehan",
+   "exampleCourse": "ART 1300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Duplanty,Anthony Adam",
+   "exampleCourse": "HLTH 3085",
+   "courseCount": 3
+  },
+  {
+   "raw": "Durrett,Leta Lynne",
+   "exampleCourse": "HMGT 4300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Dyer,Abigail",
+   "exampleCourse": "UNIV 2300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Dzialowski,Ed Michael",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Eaves,Tresia Dianne",
+   "exampleCourse": "BCIS 5150",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ebnenasir,Ghazaleh",
+   "exampleCourse": "SOCI 3280",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ebo,Ken",
+   "exampleCourse": "MUJS 2370",
+   "courseCount": 5
+  },
+  {
+   "raw": "Ebrahimi,Nima",
+   "exampleCourse": "FINA 4200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ecker,Melanie Jennifer susanne mary-jane",
+   "exampleCourse": "BMEN 2900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Eckert,Rosana C",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 8
+  },
+  {
+   "raw": "Edwards,Wesley Logan",
+   "exampleCourse": "EDLE 6600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Egbert,Lisalee",
+   "exampleCourse": "SGNL 1020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Eggert,Alicia",
+   "exampleCourse": "ASTU 4800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ehrgott,Bailey Anna",
+   "exampleCourse": "MUJS 3400",
+   "courseCount": 1
+  },
+  {
+   "raw": "Elbahrawy,Mai Mohamed Ahmed",
+   "exampleCourse": "PADM 4220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Eldow,Moawia",
+   "exampleCourse": "CSCE 4010",
+   "courseCount": 4
+  },
+  {
+   "raw": "Elliott,Julie",
+   "exampleCourse": "EADP 1010",
+   "courseCount": 4
+  },
+  {
+   "raw": "Elwood,Helen Joy",
+   "exampleCourse": "MATH 1710",
+   "courseCount": 2
+  },
+  {
+   "raw": "Emam,Hoda",
+   "exampleCourse": "JOUR 3343",
+   "courseCount": 2
+  },
+  {
+   "raw": "Enck,Suzanne Marie",
+   "exampleCourse": "COMM 4545",
+   "courseCount": 7
+  },
+  {
+   "raw": "English,Ashley Erin",
+   "exampleCourse": "PSCI 2306",
+   "courseCount": 2
+  },
+  {
+   "raw": "Enoch,Lawrence M",
+   "exampleCourse": "INFO 4615",
+   "courseCount": 3
+  },
+  {
+   "raw": "Enoch,Lawrence M, Hoski,Valli",
+   "exampleCourse": "INFO 5200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Enoire,Kate",
+   "exampleCourse": "ART 1800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Enterline,Andrew J",
+   "exampleCourse": "PSCI 2305",
+   "courseCount": 4
+  },
+  {
+   "raw": "Eraky,Ahmed Elsayed",
+   "exampleCourse": "PADM 4000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Eshbaugh-Soha,Matthew Joseph",
+   "exampleCourse": "PSCI 2306",
+   "courseCount": 3
+  },
+  {
+   "raw": "Eshbaugh-Soha,Michelle Ann",
+   "exampleCourse": "ENGL 4431",
+   "courseCount": 1
+  },
+  {
+   "raw": "Esmailie,Fateme",
+   "exampleCourse": "BMEN 2200",
+   "courseCount": 7
+  },
+  {
+   "raw": "Estades Perdomo,Christian Andres",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 4
+  },
+  {
+   "raw": "Estes,Marla V",
+   "exampleCourse": "SPAN 2040",
+   "courseCount": 2
+  },
+  {
+   "raw": "Etter,Ian Saul",
+   "exampleCourse": "ART 1700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Eutsler,Jared Alan",
+   "exampleCourse": "ACCT 4400",
+   "courseCount": 2
+  },
+  {
+   "raw": "Eutsler,Lauren Marie",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Evans,Laura Elizabeth",
+   "exampleCourse": "ART 5450",
+   "courseCount": 2
+  },
+  {
+   "raw": "Evans,Sarah Amber",
+   "exampleCourse": "INFO 5410",
+   "courseCount": 6
+  },
+  {
+   "raw": "Evers,Mark Aaron lee",
+   "exampleCourse": "FIPL 2770",
+   "courseCount": 5
+  },
+  {
+   "raw": "Faber,Toby",
+   "exampleCourse": "INFO 5300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fabian,Deborah U",
+   "exampleCourse": "MUAC 1511",
+   "courseCount": 10
+  },
+  {
+   "raw": "Faizullah,Tarfia",
+   "exampleCourse": "ENGL 4110",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fan,Heng",
+   "exampleCourse": "CSCE 2900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Fard,Amirhossein",
+   "exampleCourse": "FINA 4300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fard,Amirhossein, Saxena,Ayush",
+   "exampleCourse": "FINA 4300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fard,Fariba",
+   "exampleCourse": "INFO 5500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Farooqui,Nuzhat Nasim",
+   "exampleCourse": "BIOL 2041",
+   "courseCount": 2
+  },
+  {
+   "raw": "Farrier,Abigayle Anne",
+   "exampleCourse": "ENGL 3450",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fathi,Michel",
+   "exampleCourse": "BCIS 4900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Fee,Thomas Baxter",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 5
+  },
+  {
+   "raw": "Fein,Marc Alan",
+   "exampleCourse": "MRTS 3300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Feng,Guohua",
+   "exampleCourse": "ECON 4630",
+   "courseCount": 2
+  },
+  {
+   "raw": "Feng,Yunhe",
+   "exampleCourse": "CSCE 3201",
+   "courseCount": 6
+  },
+  {
+   "raw": "Ferman,Amy Elizabeth",
+   "exampleCourse": "BUSI 3200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fernandez,Alex",
+   "exampleCourse": "HLTH 1100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ferreira de souza,Leticia",
+   "exampleCourse": "ART 4660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ferring,David",
+   "exampleCourse": "GEOG 1000",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ferris,Stephen Paul",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fewell,Keith",
+   "exampleCourse": "CMHT 2560",
+   "courseCount": 1
+  },
+  {
+   "raw": "Filbeck,Tracey Meinzer",
+   "exampleCourse": "ADES 2630",
+   "courseCount": 3
+  },
+  {
+   "raw": "Fillmore,Molly Anne",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Finegan,Matthew Wayne",
+   "exampleCourse": "LING 2050",
+   "courseCount": 2
+  },
+  {
+   "raw": "Finger,Leslie Kundar",
+   "exampleCourse": "PSCI 2316",
+   "courseCount": 2
+  },
+  {
+   "raw": "Finzer,Nick",
+   "exampleCourse": "MUAC 3537",
+   "courseCount": 7
+  },
+  {
+   "raw": "Fishman,Lior",
+   "exampleCourse": "MATH 2730",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fite,Jonathon T",
+   "exampleCourse": "LSCM 3960",
+   "courseCount": 3
+  },
+  {
+   "raw": "Flewelen,Timothy C",
+   "exampleCourse": "BIOC 3621",
+   "courseCount": 2
+  },
+  {
+   "raw": "Floyd,Tiffany Renee",
+   "exampleCourse": "ART 4900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Foertsch,Jacqueline Marie",
+   "exampleCourse": "ENGL 4245",
+   "courseCount": 2
+  },
+  {
+   "raw": "Foltz,Amanda Rae",
+   "exampleCourse": "UNIV 2300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fonash,Stephen",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fontenot,Kenzie",
+   "exampleCourse": "MATH 1710",
+   "courseCount": 3
+  },
+  {
+   "raw": "Forst,Michael Louis",
+   "exampleCourse": "HNRS 2900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fout,Adam Wayne Rodewald",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fowler,Matt Cody",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 4
+  },
+  {
+   "raw": "Frawley,Caitlin Mary",
+   "exampleCourse": "COUN 5700",
+   "courseCount": 3
+  },
+  {
+   "raw": "Frazier,Bre",
+   "exampleCourse": "MGMT 3880",
+   "courseCount": 1
+  },
+  {
+   "raw": "Freddy,Imelda",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Freedle II,James Edward",
+   "exampleCourse": "CSCE 3055",
+   "courseCount": 4
+  },
+  {
+   "raw": "Friedson,Steven M",
+   "exampleCourse": "MUET 3030",
+   "courseCount": 3
+  },
+  {
+   "raw": "Friess,Erin",
+   "exampleCourse": "TECM 5280",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fritsch,Eric J",
+   "exampleCourse": "CJUS 2300",
+   "courseCount": 4
+  },
+  {
+   "raw": "Fu,Shengli",
+   "exampleCourse": "EENG 2611",
+   "courseCount": 4
+  },
+  {
+   "raw": "Fu,Song",
+   "exampleCourse": "CSCE 2900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Fuchs,Jannon Lou",
+   "exampleCourse": "BIOL 4752",
+   "courseCount": 6
+  },
+  {
+   "raw": "Fuentes,Eric Lynn",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fugazzi,Britton Paul",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 4
+  },
+  {
+   "raw": "Fuller,Lauren Nicole",
+   "exampleCourse": "BIOL 1720",
+   "courseCount": 3
+  },
+  {
+   "raw": "Fuller,Tony Floyd",
+   "exampleCourse": "BUSI 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Fullerton,Samuel Curtis",
+   "exampleCourse": "HIST 3101",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fulton,Kara Ann",
+   "exampleCourse": "ARCH 2800",
+   "courseCount": 2
+  },
+  {
+   "raw": "Furuya,Kaori",
+   "exampleCourse": "JAPN 3042",
+   "courseCount": 2
+  },
+  {
+   "raw": "Fuse,Koji",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 5
+  },
+  {
+   "raw": "Gaa,Melissa Michelle",
+   "exampleCourse": "RHAB 4300",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gaa,Steven Matthew",
+   "exampleCourse": "OPSM 3830",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gaesser,Brandon Michael",
+   "exampleCourse": "MRTS 5180",
+   "courseCount": 5
+  },
+  {
+   "raw": "Gallo,Michael Paul",
+   "exampleCourse": "BLAW 3430",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gam,Hae Jin",
+   "exampleCourse": "ADES 3590",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ganesh,Gopala",
+   "exampleCourse": "MKTG 3700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Garcia,Cecilia",
+   "exampleCourse": "SPAN 1020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Garcia,Hope Francine",
+   "exampleCourse": "SPDA 2012",
+   "courseCount": 3
+  },
+  {
+   "raw": "Garcia,Vincent D",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Garcia-McIntire,Natalie Rose",
+   "exampleCourse": "ART 5900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Garcia-bender,Nevin Miguel",
+   "exampleCourse": "MUAG 1221",
+   "courseCount": 2
+  },
+  {
+   "raw": "Garg,Suyash",
+   "exampleCourse": "MGMT 5710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Garland,Paula H",
+   "exampleCourse": "ADDS 4175",
+   "courseCount": 3
+  },
+  {
+   "raw": "Garlick,Ryan M",
+   "exampleCourse": "CSCE 3214",
+   "courseCount": 4
+  },
+  {
+   "raw": "Garner,Alisa Renee",
+   "exampleCourse": "PSYC 3300",
+   "courseCount": 3
+  },
+  {
+   "raw": "Garrett,Marques L. A.",
+   "exampleCourse": "MUAG 3820",
+   "courseCount": 4
+  },
+  {
+   "raw": "Gary Furdge,Cherly Dianne",
+   "exampleCourse": "CJUS 3500",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gavrilova Aguilar,Mariya",
+   "exampleCourse": "MGMT 3860",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ge,Ling",
+   "exampleCourse": "BCIS 5110",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ge,Xun",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gearman,Todd",
+   "exampleCourse": "CJUS 4360",
+   "courseCount": 2
+  },
+  {
+   "raw": "Geisler,Sarah Ann",
+   "exampleCourse": "MKTG 3651",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gentzel,Cynthia R",
+   "exampleCourse": "ADES 1560",
+   "courseCount": 2
+  },
+  {
+   "raw": "Geoffroy-Schwinden,Rebecca Dowd",
+   "exampleCourse": "MUMH 5510",
+   "courseCount": 1
+  },
+  {
+   "raw": "George,Laurie Williams",
+   "exampleCourse": "EDSP 4360",
+   "courseCount": 1
+  },
+  {
+   "raw": "Georgievskaya,Liudmila",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 8
+  },
+  {
+   "raw": "Gerrard,Crystal",
+   "exampleCourse": "MUED 4109",
+   "courseCount": 1
+  },
+  {
+   "raw": "Geyer Jr,Wayne",
+   "exampleCourse": "ADES 3545",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ghioto,Gary Norman",
+   "exampleCourse": "JOUR 2310",
+   "courseCount": 5
+  },
+  {
+   "raw": "Giardino,Dominic Gregory",
+   "exampleCourse": "MUAG 4900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gibson,Michael Robert",
+   "exampleCourse": "ADES 1543",
+   "courseCount": 4
+  },
+  {
+   "raw": "Giddens,Laurie Genette",
+   "exampleCourse": "BCIS 4690",
+   "courseCount": 5
+  },
+  {
+   "raw": "Gifford,Margaret Rachel",
+   "exampleCourse": "BEHV 4300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Gilbert,Josh",
+   "exampleCourse": "MRTS 4465",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gilbert,Nora Samantha",
+   "exampleCourse": "ENGL 6941",
+   "courseCount": 2
+  },
+  {
+   "raw": "Giles,Lewis Michael",
+   "exampleCourse": "INFO 4300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Gillan,Stuart Leigh",
+   "exampleCourse": "FINA 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Glading,Katie",
+   "exampleCourse": "MUAG 1202",
+   "courseCount": 1
+  },
+  {
+   "raw": "Glass,Gary Alan",
+   "exampleCourse": "PHYS 5930",
+   "courseCount": 3
+  },
+  {
+   "raw": "Glenn,Donna Maria",
+   "exampleCourse": "BCIS 2610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Glenn,Jessica",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Gnau,Jennifer Leigh",
+   "exampleCourse": "BIOL 1132",
+   "courseCount": 1
+  },
+  {
+   "raw": "Golden,Teresa D",
+   "exampleCourse": "CHEM 4631",
+   "courseCount": 6
+  },
+  {
+   "raw": "Goldmann,Kerry Lauren",
+   "exampleCourse": "HIST 2610",
+   "courseCount": 4
+  },
+  {
+   "raw": "Gollo,Simon",
+   "exampleCourse": "MUAC 1504",
+   "courseCount": 7
+  },
+  {
+   "raw": "Gomes Ferreira,Adriano",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gomez menjivar,Jennifer",
+   "exampleCourse": "MRTS 4350",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gomez,Rodolfo",
+   "exampleCourse": "COS 2300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gonzales,Marisa Chavez",
+   "exampleCourse": "SOCI 3240",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gonzalez Jr.,Eddie J",
+   "exampleCourse": "MUAC 1519",
+   "courseCount": 4
+  },
+  {
+   "raw": "Gonzalez Villarreal,Claudia",
+   "exampleCourse": "BIOL 1112",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gonzalez,Clarissa Andrea",
+   "exampleCourse": "ASTU 2602",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gonzalez,Stephanie",
+   "exampleCourse": "BEHV 3000",
+   "courseCount": 5
+  },
+  {
+   "raw": "Gonzalez-Carriedo,Ricardo",
+   "exampleCourse": "EDBE 5600",
+   "courseCount": 2
+  },
+  {
+   "raw": "Good,Matthew",
+   "exampleCourse": "MUAC 1519",
+   "courseCount": 7
+  },
+  {
+   "raw": "Gooranorimi,Hadiseh",
+   "exampleCourse": "CSCE 1030",
+   "courseCount": 5
+  },
+  {
+   "raw": "Gopal,Kamakshi V",
+   "exampleCourse": "ASLP 6990",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gordon,Benita Marrell",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gorman,Kori",
+   "exampleCourse": "ADDS 4881",
+   "courseCount": 1
+  },
+  {
+   "raw": "Goudy,Leah Suzanne",
+   "exampleCourse": "KINE 2050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Goven III,Arthur J",
+   "exampleCourse": "BIOL 1720",
+   "courseCount": 5
+  },
+  {
+   "raw": "Grace,Jessica Catherine",
+   "exampleCourse": "SOWK 3870",
+   "courseCount": 2
+  },
+  {
+   "raw": "Graf,Benjamin",
+   "exampleCourse": "MUTH 1500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Grajales II,Manuel Antonio",
+   "exampleCourse": "HIST 2620",
+   "courseCount": 3
+  },
+  {
+   "raw": "Granthon Boy,Carlos Enmanuel",
+   "exampleCourse": "MULB 1813",
+   "courseCount": 1
+  },
+  {
+   "raw": "Graves,Mackenzie",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gray,Jennifer Millspaugh",
+   "exampleCourse": "COMM 2020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Greer,Louanne",
+   "exampleCourse": "MUAG 1221",
+   "courseCount": 2
+  },
+  {
+   "raw": "Gregg,Karen Monique",
+   "exampleCourse": "SOCI 1510",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gregory,Andrew John",
+   "exampleCourse": "BIOL 4005",
+   "courseCount": 10
+  },
+  {
+   "raw": "Gregory,Andrew John, Cave,Kaley Autumn",
+   "exampleCourse": "BIOL 4261",
+   "courseCount": 2
+  },
+  {
+   "raw": "Gregory,Andrew John, Neville,Reilly E.",
+   "exampleCourse": "BIOL 4261",
+   "courseCount": 2
+  },
+  {
+   "raw": "Grether,Marc William",
+   "exampleCourse": "MATH 1180",
+   "courseCount": 2
+  },
+  {
+   "raw": "Grey,Kimberly",
+   "exampleCourse": "ENGL 5162",
+   "courseCount": 2
+  },
+  {
+   "raw": "Grieser,Anne",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Griffin,John Frank",
+   "exampleCourse": "MUAG 1125",
+   "courseCount": 1
+  },
+  {
+   "raw": "Griffin,Kara Beth",
+   "exampleCourse": "ANTH 3710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Griffin,Sean Thomas",
+   "exampleCourse": "MATH 4450",
+   "courseCount": 3
+  },
+  {
+   "raw": "Griffiths,John Benjamin",
+   "exampleCourse": "MKTG 3660",
+   "courseCount": 2
+  },
+  {
+   "raw": "Grigolini,Paolo",
+   "exampleCourse": "PHYS 4310",
+   "courseCount": 5
+  },
+  {
+   "raw": "Grohman,Magdalena Grazyna",
+   "exampleCourse": "BAAS 3020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Gross,Hunter Garrett",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 5
+  },
+  {
+   "raw": "Gu,Feng",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Gu,Feng, Compson,Zacchaeus Greg",
+   "exampleCourse": "BIOL 1720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Guerra,Jessica",
+   "exampleCourse": "AERO 2040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Guillot,Casey",
+   "exampleCourse": "PSYC 4520",
+   "courseCount": 5
+  },
+  {
+   "raw": "Guillot,Casey, Niemann,Yolanda Flores",
+   "exampleCourse": "PSYC 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Gunnels,Kerry Paul",
+   "exampleCourse": "JOUR 3321",
+   "courseCount": 2
+  },
+  {
+   "raw": "Guo,Xuan",
+   "exampleCourse": "CSCE 4890",
+   "courseCount": 3
+  },
+  {
+   "raw": "Guo,Zhiling",
+   "exampleCourse": "BUSI 6240",
+   "courseCount": 1
+  },
+  {
+   "raw": "Guturu,Parthasarathy",
+   "exampleCourse": "EENG 4810",
+   "courseCount": 6
+  },
+  {
+   "raw": "Guzman,Francisco",
+   "exampleCourse": "MKTG 4330",
+   "courseCount": 2
+  },
+  {
+   "raw": "Guzman,Francisco, Purnell,Dexter Lamar",
+   "exampleCourse": "DBAS 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Habibi,Neda",
+   "exampleCourse": "BMEN 4915",
+   "courseCount": 6
+  },
+  {
+   "raw": "Haddox,Jefferson Lee",
+   "exampleCourse": "CMHT 4750",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hadwick,Richard Neil",
+   "exampleCourse": "KINE 2240",
+   "courseCount": 2
+  },
+  {
+   "raw": "Haefner,Jaymee J",
+   "exampleCourse": "MUAC 1522",
+   "courseCount": 9
+  },
+  {
+   "raw": "Haefner,Jaymee J, Gonzales,Victoria",
+   "exampleCourse": "MUCM 3630",
+   "courseCount": 1
+  },
+  {
+   "raw": "Haefner,Jaymee J, Matthews,Malcolm Ross",
+   "exampleCourse": "MUAM 5522",
+   "courseCount": 1
+  },
+  {
+   "raw": "Haidar,Md Ziad",
+   "exampleCourse": "MGMT 3850",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hale,Darrel Tracy",
+   "exampleCourse": "MUAC 1513",
+   "courseCount": 8
+  },
+  {
+   "raw": "Hale,LaJuana Lynn",
+   "exampleCourse": "JOUR 5720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Haley,Parker Scott Hendrix",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hall,Dave Porter",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 11
+  },
+  {
+   "raw": "Hall,Delandrea S",
+   "exampleCourse": "EDCI 6230",
+   "courseCount": 1
+  },
+  {
+   "raw": "Haltinner,Cory Jay",
+   "exampleCourse": "GMSD 4300",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hamel,Brian Thomas",
+   "exampleCourse": "PSCI 4020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hamidi,Armita",
+   "exampleCourse": "ENGR 2302",
+   "courseCount": 3
+  },
+  {
+   "raw": "Hamilton,Lisa Anne",
+   "exampleCourse": "ASTU 2402",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hamilton,Scott James",
+   "exampleCourse": "BCIS 4900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Han,Daeun",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Han,Pulip",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 3
+  },
+  {
+   "raw": "Han,Yanxiao",
+   "exampleCourse": "BIOL 4005",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hancock,Julie",
+   "exampleCourse": "MGMT 5120",
+   "courseCount": 3
+  },
+  {
+   "raw": "Hanebeck,Hanns-Christian L",
+   "exampleCourse": "LSCM 4360",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hanifiafshar,Sharmin",
+   "exampleCourse": "DSCI 3710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hannon teal,Kimberly Dawn",
+   "exampleCourse": "MUJS 3070",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hao,Wei",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hardy,Le Roy",
+   "exampleCourse": "BCIS 3630",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hariharan,Jamini",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 2
+  },
+  {
+   "raw": "Harold,Jill Suzanne",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Harris,Angela Renee",
+   "exampleCourse": "JAPN 1020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Harris,Kerri",
+   "exampleCourse": "INFO 5208",
+   "courseCount": 1
+  },
+  {
+   "raw": "Harris,Sophia Nduta",
+   "exampleCourse": "CHEM 1310",
+   "courseCount": 3
+  },
+  {
+   "raw": "Hart,Benjamin Steven",
+   "exampleCourse": "FINA 4800",
+   "courseCount": 7
+  },
+  {
+   "raw": "Hartmann,Frederik",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hashemi hosseinabad,Hedieh",
+   "exampleCourse": "ASLP 3030",
+   "courseCount": 3
+  },
+  {
+   "raw": "Hauge,Janice A",
+   "exampleCourse": "ECON 3300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hawamdeh,Suliman M",
+   "exampleCourse": "INFO 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hawkins,Dana Dawn",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hawkins,Justin Blake",
+   "exampleCourse": "MGMT 3660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hawkins,Tim",
+   "exampleCourse": "LSCM 6950",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hayes,Marissa",
+   "exampleCourse": "CJUS 3630",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hayes,Marjorie",
+   "exampleCourse": "THEA 5910",
+   "courseCount": 1
+  },
+  {
+   "raw": "He,Jingfei",
+   "exampleCourse": "EPSY 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "He,Linlang",
+   "exampleCourse": "PADM 4450",
+   "courseCount": 3
+  },
+  {
+   "raw": "He,Yanyan",
+   "exampleCourse": "CSCE 5230",
+   "courseCount": 3
+  },
+  {
+   "raw": "Head,Chandlar N",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 2
+  },
+  {
+   "raw": "Heard,Matthew",
+   "exampleCourse": "COMM 4040",
+   "courseCount": 6
+  },
+  {
+   "raw": "Heck,Julia Elizabeth",
+   "exampleCourse": "HLSC 6760",
+   "courseCount": 1
+  },
+  {
+   "raw": "Heder,Alex",
+   "exampleCourse": "THEA 1043",
+   "courseCount": 5
+  },
+  {
+   "raw": "Hedrich,Mara",
+   "exampleCourse": "GEOG 4800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Heere,Bob",
+   "exampleCourse": "SENM 3600",
+   "courseCount": 2
+  },
+  {
+   "raw": "Heidari,Marjan",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Heidlberger,Frank M",
+   "exampleCourse": "MUTH 6670",
+   "courseCount": 1
+  },
+  {
+   "raw": "Helbing,Stockton T",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 8
+  },
+  {
+   "raw": "Helmuth,Allison Suppan",
+   "exampleCourse": "SOCI 3200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Hempstead,Patricia Ann",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Henard,Calvin",
+   "exampleCourse": "BIOC 3996",
+   "courseCount": 9
+  },
+  {
+   "raw": "Henry,Doug D",
+   "exampleCourse": "ANTH 4900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Henry,Lisa Renee",
+   "exampleCourse": "ANTH 3300",
+   "courseCount": 6
+  },
+  {
+   "raw": "Hensch,Laura Nicole",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hensel,Paul R.",
+   "exampleCourse": "PSCI 6830",
+   "courseCount": 2
+  },
+  {
+   "raw": "Henson,Robin K",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Hepker,Jeffrey",
+   "exampleCourse": "MUAE 3200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Herchen,Julia Lynn",
+   "exampleCourse": "MGMT 3721",
+   "courseCount": 3
+  },
+  {
+   "raw": "Heringer-Luckemeier,Natalia",
+   "exampleCourse": "SOCI 4750",
+   "courseCount": 1
+  },
+  {
+   "raw": "Herrera-pacheco,Natali",
+   "exampleCourse": "SPAN 1020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Herridge,Michelle",
+   "exampleCourse": "CHEM 1410",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hershey,Lori Ann",
+   "exampleCourse": "MRTS 4435",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hess,Robert Anthony",
+   "exampleCourse": "THEA 3700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hewitt,Lisa Weber",
+   "exampleCourse": "MRTS 3500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hiatt,Brian",
+   "exampleCourse": "OPSM 4850",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hickman,M.T.",
+   "exampleCourse": "EDEM 3700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hicks,Emily Michelle",
+   "exampleCourse": "MUMH 2050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hidalgo Trejo,Victor Manuel",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hightower,Allen Ross",
+   "exampleCourse": "MUAM 5533",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hill,David Wilfred",
+   "exampleCourse": "KINE 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hill-Kleespie,Austin Henry",
+   "exampleCourse": "FINA 4200",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hines,Krista Marie",
+   "exampleCourse": "MATH 1580",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hitt,Eric",
+   "exampleCourse": "MUJS 1132",
+   "courseCount": 8
+  },
+  {
+   "raw": "Hlatky,Roman",
+   "exampleCourse": "PSCI 4700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hochstetler,Jacob",
+   "exampleCourse": "CSCE 3600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hochstetler,Lauren Ashley",
+   "exampleCourse": "CSCE 3550",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hodges,Harlan Mark",
+   "exampleCourse": "MUAE 3100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hodges,Jaret William",
+   "exampleCourse": "EPSY 5050",
+   "courseCount": 6
+  },
+  {
+   "raw": "Hoeinghaus,Ana Paula Ferrari",
+   "exampleCourse": "BIOL 2251",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hoeinghaus,David Joseph",
+   "exampleCourse": "BIOL 4052",
+   "courseCount": 7
+  },
+  {
+   "raw": "Hoeinghaus,David Joseph, Hoeinghaus,Ana Paula Ferrari",
+   "exampleCourse": "BIOL 4051",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hoffman,Mark Desmond",
+   "exampleCourse": "CSCE 4555",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hogge,Ingrid",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Holeman,Erica Lee",
+   "exampleCourse": "ADES 2510",
+   "courseCount": 3
+  },
+  {
+   "raw": "Holliday,Denise Schuler",
+   "exampleCourse": "BMEN 5150",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hollinger,Lisa G",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Holloway,Shaun Brandan",
+   "exampleCourse": "UCRS 3600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hong,Lingzi",
+   "exampleCourse": "INFO 4707",
+   "courseCount": 5
+  },
+  {
+   "raw": "Hong,Lingzi, Ding,Junhua",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hong,Seock",
+   "exampleCourse": "LGAV 3130",
+   "courseCount": 3
+  },
+  {
+   "raw": "Hood,Autumn",
+   "exampleCourse": "TECM 1500",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hook,Joshua Nord",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Hord,Caitlyn Nicole",
+   "exampleCourse": "PSYC 1630",
+   "courseCount": 4
+  },
+  {
+   "raw": "Horn,Patrick Jacob",
+   "exampleCourse": "BIOC 4900",
+   "courseCount": 9
+  },
+  {
+   "raw": "Hossain,Gahangir",
+   "exampleCourse": "DTSC 4420",
+   "courseCount": 6
+  },
+  {
+   "raw": "Hossain,Gahangir, Hawamdeh,Suliman M",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hossain,Tozammel",
+   "exampleCourse": "DTSC 4050",
+   "courseCount": 7
+  },
+  {
+   "raw": "Hossen,Md Akter",
+   "exampleCourse": "SOCI 3540",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hou,Tao",
+   "exampleCourse": "CSCE 5550",
+   "courseCount": 3
+  },
+  {
+   "raw": "Houghtaling,Esther Joy",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hovanec,Caeley",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 4
+  },
+  {
+   "raw": "Howe,Ally Hocking",
+   "exampleCourse": "MUAE 3100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hsieh,Ming-Wei",
+   "exampleCourse": "MUAC 1504",
+   "courseCount": 4
+  },
+  {
+   "raw": "Huang,Yan",
+   "exampleCourse": "CSCE 5218",
+   "courseCount": 6
+  },
+  {
+   "raw": "Huang,Yidan",
+   "exampleCourse": "CMHT 5400",
+   "courseCount": 3
+  },
+  {
+   "raw": "Huang,Zhenhua",
+   "exampleCourse": "CNET 3190",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hubbard,Elizabeth Ann",
+   "exampleCourse": "FIPL 2770",
+   "courseCount": 1
+  },
+  {
+   "raw": "Huckaby,Letitia",
+   "exampleCourse": "ASTU 4500",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hudak,Paul F",
+   "exampleCourse": "GEOG 2180",
+   "courseCount": 6
+  },
+  {
+   "raw": "Hudson Jr.,John Henry",
+   "exampleCourse": "MUAG 4072",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hudson,Johnetta",
+   "exampleCourse": "EDLE 5330",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hufford,Anthony Charles",
+   "exampleCourse": "TNTX 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hughes,Carla",
+   "exampleCourse": "ASTU 3000",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hughes,Lee",
+   "exampleCourse": "BIOC 6940",
+   "courseCount": 9
+  },
+  {
+   "raw": "Hull,Darrell",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Hunt Von Herbing,Ione V",
+   "exampleCourse": "BIOL 4330",
+   "courseCount": 5
+  },
+  {
+   "raw": "Hunter,Chelsea Erin",
+   "exampleCourse": "ANTH 4011",
+   "courseCount": 5
+  },
+  {
+   "raw": "Hutchison,Paul D",
+   "exampleCourse": "ACCT 3120",
+   "courseCount": 1
+  },
+  {
+   "raw": "Hwang,Gee yun",
+   "exampleCourse": "ADES 2555",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hwang,Junyoung",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Hyun,Jonghan",
+   "exampleCourse": "CMHT 5200",
+   "courseCount": 4
+  },
+  {
+   "raw": "Iaia,Joseph A",
+   "exampleCourse": "MATH 1710",
+   "courseCount": 2
+  },
+  {
+   "raw": "Illari,Bernardo E",
+   "exampleCourse": "MUMH 5020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Irby,Cameron",
+   "exampleCourse": "MRTS 3620",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ishiyama,John T.",
+   "exampleCourse": "PSCI 5610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Itkin,David",
+   "exampleCourse": "MUAG 5850",
+   "courseCount": 2
+  },
+  {
+   "raw": "Iwundu,Chisom Nmesoma",
+   "exampleCourse": "PUBH 3040",
+   "courseCount": 2
+  },
+  {
+   "raw": "Iyer,Govind S",
+   "exampleCourse": "ACCT 5310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Jackson,Jake Neil, Wolfe,Trae Colton, Cunningham,Bruce Vincent, Pieluszczak,Scott L, Thomas,Chance",
+   "exampleCourse": "MILS 3341",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jackson,Jake Neil, Wolfe,Trae Colton, Pieluszczak,Scott L, Cunningham,Bruce Vincent, Thomas,Chance",
+   "exampleCourse": "MILS 3342",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jackson,Stephen Craig",
+   "exampleCourse": "MATH 5320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jackson,Su",
+   "exampleCourse": "ASTU 2401",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jackson,Timothy L",
+   "exampleCourse": "MUTH 3420",
+   "courseCount": 4
+  },
+  {
+   "raw": "Jafari,Amir",
+   "exampleCourse": "BMEN 2900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Jagadeeswaran,Pudur",
+   "exampleCourse": "BIOC 6940",
+   "courseCount": 8
+  },
+  {
+   "raw": "Jagadeeswaran,Pudur, Compson,Zacchaeus Greg",
+   "exampleCourse": "BIOL 1722",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jagadeeswaran,Pudur, Shah,Jyoti",
+   "exampleCourse": "BIOL 1722",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jain,Vidhi Harish",
+   "exampleCourse": "MGMT 4100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jakob,Hannes Valentin",
+   "exampleCourse": "MATH 4500",
+   "courseCount": 2
+  },
+  {
+   "raw": "James,Kenneth",
+   "exampleCourse": "AERO 1040",
+   "courseCount": 4
+  },
+  {
+   "raw": "Jang,Hee Soun",
+   "exampleCourse": "PADM 3420",
+   "courseCount": 5
+  },
+  {
+   "raw": "January,Emily",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jaskulske,Brenda Kay",
+   "exampleCourse": "MRTS 2210",
+   "courseCount": 3
+  },
+  {
+   "raw": "Jenkins,Katherine Anne",
+   "exampleCourse": "UCRS 2100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jenkins,Sharon Rae",
+   "exampleCourse": "PSYC 4030",
+   "courseCount": 6
+  },
+  {
+   "raw": "Jestratijevic,Iva",
+   "exampleCourse": "MDSE 3900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Jia,Ronnie",
+   "exampleCourse": "BCIS 3615",
+   "courseCount": 2
+  },
+  {
+   "raw": "Jiang,Beilei",
+   "exampleCourse": "CSCE 2610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Jiang,Hanchen",
+   "exampleCourse": "ECON 3550",
+   "courseCount": 4
+  },
+  {
+   "raw": "Jiang,Yan",
+   "exampleCourse": "PHYS 3030",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jikong,Benedict K",
+   "exampleCourse": "HLSV 5500",
+   "courseCount": 3
+  },
+  {
+   "raw": "Jimenez,Jaime Enrique",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Jimenez,Jaime Enrique, Ogden Jr,Samuel J",
+   "exampleCourse": "BIOL 1132",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jimenez,Peggy Denise",
+   "exampleCourse": "ACCT 4320",
+   "courseCount": 2
+  },
+  {
+   "raw": "Jin,Wei",
+   "exampleCourse": "CSCE 5200",
+   "courseCount": 2
+  },
+  {
+   "raw": "John,Kuruvilla",
+   "exampleCourse": "MEEN 4330",
+   "courseCount": 5
+  },
+  {
+   "raw": "Johnson III,Lowell Howard",
+   "exampleCourse": "PADM 4000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Johnson,Anna Leigh",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 4
+  },
+  {
+   "raw": "Johnson,Jamie Kathleen",
+   "exampleCourse": "ANTH 1010",
+   "courseCount": 10
+  },
+  {
+   "raw": "Johnson,Jerraco Leontae",
+   "exampleCourse": "KINE 3500",
+   "courseCount": 3
+  },
+  {
+   "raw": "Johnson,Karen",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Johnson,Ross",
+   "exampleCourse": "MKTG 3650",
+   "courseCount": 2
+  },
+  {
+   "raw": "Johnson,Vess",
+   "exampleCourse": "BCIS 5760",
+   "courseCount": 3
+  },
+  {
+   "raw": "Johnston,Noel H",
+   "exampleCourse": "MUJS 5530",
+   "courseCount": 1
+  },
+  {
+   "raw": "Joiner,Steve Stephen",
+   "exampleCourse": "LGAV 3100",
+   "courseCount": 3
+  },
+  {
+   "raw": "Joines,Raina J.",
+   "exampleCourse": "ENGL 3160",
+   "courseCount": 1
+  },
+  {
+   "raw": "Joines,Richard E.",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Jones,Ahveance Shenelle",
+   "exampleCourse": "EDCI 4108",
+   "courseCount": 23
+  },
+  {
+   "raw": "Jones,Brian Thomas",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 5
+  },
+  {
+   "raw": "Jones,Leslie DeAnn",
+   "exampleCourse": "COUN 5100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Jones,Martinque",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Jones,Mason Alexander",
+   "exampleCourse": "INFO 5371",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jones,Natacha Ndabahagamye",
+   "exampleCourse": "EDEC 6800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Jordan,Samantha Louise",
+   "exampleCourse": "MGMT 5140",
+   "courseCount": 1
+  },
+  {
+   "raw": "Joshi,Sameehan Shrikant",
+   "exampleCourse": "MTSE 4100",
+   "courseCount": 3
+  },
+  {
+   "raw": "Joykutty,Nancy",
+   "exampleCourse": "TNTX 1300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Joyner,William Henry",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Juarez,Alessa Suzette",
+   "exampleCourse": "CJUS 3600",
+   "courseCount": 2
+  },
+  {
+   "raw": "Jung,Jihoon",
+   "exampleCourse": "GEOG 3120",
+   "courseCount": 4
+  },
+  {
+   "raw": "Jung,Myungjin",
+   "exampleCourse": "KINE 5150",
+   "courseCount": 3
+  },
+  {
+   "raw": "Junker,James",
+   "exampleCourse": "BIOL 4440",
+   "courseCount": 3
+  },
+  {
+   "raw": "Jurecka,Angelia Charlene",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kabashi,Artemida",
+   "exampleCourse": "INFO 5600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kaczmarick,Kyle Joseph",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kalin,Nadine",
+   "exampleCourse": "ART 4900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Kalmanson,Leah Ellen",
+   "exampleCourse": "PHIL 3620",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kamalzadeh,Hossein",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kaminski,Patricia Lynn",
+   "exampleCourse": "PSYC 4600",
+   "courseCount": 5
+  },
+  {
+   "raw": "Kang,Heejung",
+   "exampleCourse": "MUAG 3270",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kapetangianni,Konstantia",
+   "exampleCourse": "LING 3050",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kaplan rakowski,Regina",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kaplan,David M.",
+   "exampleCourse": "PHIL 3330",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kargozari,Kate",
+   "exampleCourse": "INFO 4709",
+   "courseCount": 2
+  },
+  {
+   "raw": "Karki,Joshna",
+   "exampleCourse": "EPSY 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kaul,Anupama Bhat",
+   "exampleCourse": "EENG 4450",
+   "courseCount": 16
+  },
+  {
+   "raw": "Kaur,Kawalpreet",
+   "exampleCourse": "CMGT 2200",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kaur,Manjinder",
+   "exampleCourse": "BUSI 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kawamura,Kiko",
+   "exampleCourse": "MATH 2730",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kaz-Onyeakazi,Ijay",
+   "exampleCourse": "INFO 4670",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kc,Birendra",
+   "exampleCourse": "HMGT 2810",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kc,Birendra, Zhang,Xingyi",
+   "exampleCourse": "HMGT 4900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ke,Laiyang",
+   "exampleCourse": "PADM 3410",
+   "courseCount": 2
+  },
+  {
+   "raw": "Keathly,David Mark",
+   "exampleCourse": "CSCE 4890",
+   "courseCount": 4
+  },
+  {
+   "raw": "Keifert,Teo Danielle",
+   "exampleCourse": "EPSY 2010",
+   "courseCount": 6
+  },
+  {
+   "raw": "Kelber,Jeffry A",
+   "exampleCourse": "CHEM 4530",
+   "courseCount": 5
+  },
+  {
+   "raw": "Keller,Joshua Lee",
+   "exampleCourse": "KINE 5860",
+   "courseCount": 5
+  },
+  {
+   "raw": "Keller,Marian Jean",
+   "exampleCourse": "RESM 2150",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kelley,Jamey",
+   "exampleCourse": "MUED 3200",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kelly,Kimberly S",
+   "exampleCourse": "PSYC 1650",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kelly,Lauren Nicole",
+   "exampleCourse": "EPSY 5033",
+   "courseCount": 6
+  },
+  {
+   "raw": "Kennedy,Claire",
+   "exampleCourse": "ART 4614",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kennon,Lisa Renee",
+   "exampleCourse": "CMHT 5350",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kenyon-cordero,Alyssa Ann",
+   "exampleCourse": "BLAW 2000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Keyes,Laura Marie",
+   "exampleCourse": "PADM 4250",
+   "courseCount": 3
+  },
+  {
+   "raw": "Khader,Deama",
+   "exampleCourse": "INFO 5375",
+   "courseCount": 1
+  },
+  {
+   "raw": "Khader,Malak",
+   "exampleCourse": "INFO 4306",
+   "courseCount": 1
+  },
+  {
+   "raw": "Khalaf,Tania",
+   "exampleCourse": "MRTS 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Khalil,Saqib",
+   "exampleCourse": "CSCE 2610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Khalsa,Guru Bahadur singh",
+   "exampleCourse": "PHYS 2900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Khan,Ambreen",
+   "exampleCourse": "ADES 1560",
+   "courseCount": 1
+  },
+  {
+   "raw": "Khan,Hammad",
+   "exampleCourse": "INFO 5000",
+   "courseCount": 2
+  },
+  {
+   "raw": "Khan,Nazia",
+   "exampleCourse": "EDCI 5020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Khan,Shafeena",
+   "exampleCourse": "MATH 1100",
+   "courseCount": 3
+  },
+  {
+   "raw": "Khatami,Maryam",
+   "exampleCourse": "BCIS 6900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Khatami,Maryam, Alimirzaei,Athena",
+   "exampleCourse": "DSCI 3870",
+   "courseCount": 1
+  },
+  {
+   "raw": "Khular,Sumshot",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kidwell,Blair Leroy",
+   "exampleCourse": "MKTG 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kidwell,Virginie Nadia",
+   "exampleCourse": "DBAS 6950",
+   "courseCount": 2
+  },
+  {
+   "raw": "Killough,Doug",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kilpatrick,Stevie Andrew",
+   "exampleCourse": "TECM 1700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kim,Dan J.",
+   "exampleCourse": "BCIS 4740",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kim,Haejung",
+   "exampleCourse": "CMHT 5700",
+   "courseCount": 6
+  },
+  {
+   "raw": "Kim,Heejun",
+   "exampleCourse": "HINF 5771",
+   "courseCount": 7
+  },
+  {
+   "raw": "Kim,Heejun, Albert,Mark Vincent",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kim,Hojun",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kim,Hyojun",
+   "exampleCourse": "PADM 2000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kim,Jeonghyun",
+   "exampleCourse": "INFO 5740",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kim,JiYoung",
+   "exampleCourse": "MDSE 4900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kim,Jintak",
+   "exampleCourse": "PADM 3220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kim,Jungkwun",
+   "exampleCourse": "EENG 3511",
+   "courseCount": 7
+  },
+  {
+   "raw": "Kim,Minhong",
+   "exampleCourse": "RESM 4100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kim,Minso",
+   "exampleCourse": "ART 2020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kim,Myungsup",
+   "exampleCourse": "ECON 4870",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kim,Sanghoon",
+   "exampleCourse": "PSCI 3300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kim,Wonjeong",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kincaid,Timothy Sullins",
+   "exampleCourse": "LGAV 3140",
+   "courseCount": 1
+  },
+  {
+   "raw": "King,Chad Michael",
+   "exampleCourse": "PSCI 2306",
+   "courseCount": 2
+  },
+  {
+   "raw": "King,Kimberly",
+   "exampleCourse": "COUN 5650",
+   "courseCount": 3
+  },
+  {
+   "raw": "King,Kimi Lynn",
+   "exampleCourse": "PSCI 2306",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kinley,Tammy R",
+   "exampleCourse": "MDSE 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kinshuk,Kinshuk",
+   "exampleCourse": "LTEC 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kipp,Peter Christopher",
+   "exampleCourse": "ACCT 4100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Klaver,Irene J",
+   "exampleCourse": "PHIL 3475",
+   "courseCount": 3
+  },
+  {
+   "raw": "Klein,Heidi M",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Klein,Joseph Paul",
+   "exampleCourse": "MUCP 1190",
+   "courseCount": 2
+  },
+  {
+   "raw": "Klein,Katherine Elaine",
+   "exampleCourse": "INFO 5420",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kleiner,Kevin Allen",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Knapp-Grosz,Tamara Suzanne",
+   "exampleCourse": "RHAB 3900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kneen,Melanie Anne",
+   "exampleCourse": "BIOL 1132",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kneen,Melanie Anne, Peterson,Nathaniel Charles, Gnau,Jennifer Leigh",
+   "exampleCourse": "BIOL 1132",
+   "courseCount": 1
+  },
+  {
+   "raw": "Knezek,Gerald",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Knight,Debbie",
+   "exampleCourse": "INFO 5405",
+   "courseCount": 1
+  },
+  {
+   "raw": "Knight,Laetitia",
+   "exampleCourse": "FREN 1020",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ko,Hsin-Yu",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Koenig,Adam",
+   "exampleCourse": "MKTG 3650",
+   "courseCount": 4
+  },
+  {
+   "raw": "Koepke,Danielle Marie",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Koh,Chang E",
+   "exampleCourse": "BCIS 4610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Kohanski,Peter",
+   "exampleCourse": "MUMH 3510",
+   "courseCount": 1
+  },
+  {
+   "raw": "Korani,Wael",
+   "exampleCourse": "DTSC 5501",
+   "courseCount": 4
+  },
+  {
+   "raw": "Korns,Megan E",
+   "exampleCourse": "MGMT 3660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kotrla,Danielle",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kougianos,Elias",
+   "exampleCourse": "EENG 2711",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kraemer,Jennifer Dawson",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 4
+  },
+  {
+   "raw": "Krahmer,Ana Jean",
+   "exampleCourse": "HNRS 3996",
+   "courseCount": 2
+  },
+  {
+   "raw": "Krajewski,Elizabeth Ann",
+   "exampleCourse": "ASLP 4035",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kralik,Bradley",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kreider,Ally",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 4
+  },
+  {
+   "raw": "Krokhin,Arkadii",
+   "exampleCourse": "PHYS 5910",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ku,Chih-Hao",
+   "exampleCourse": "BCIS 5170",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kuban,Michael Alan",
+   "exampleCourse": "MGMT 4940",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kucera,Bobby",
+   "exampleCourse": "DCAS 5361",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kumari,Neelu",
+   "exampleCourse": "PHIL 1400",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kuon,Tricia Annette",
+   "exampleCourse": "INFO 5001",
+   "courseCount": 6
+  },
+  {
+   "raw": "Kushwaha,Satya Kumar",
+   "exampleCourse": "PHYS 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Kuykendall,April A",
+   "exampleCourse": "BUSI 3200",
+   "courseCount": 4
+  },
+  {
+   "raw": "Kwon,Jiyoung",
+   "exampleCourse": "ECON 3550",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kwon,Ronald Chul",
+   "exampleCourse": "SOCI 4900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Kwon,Suk Rahn",
+   "exampleCourse": "MUAG 6270",
+   "courseCount": 1
+  },
+  {
+   "raw": "La Marca,Joseph",
+   "exampleCourse": "MUAC 1507",
+   "courseCount": 4
+  },
+  {
+   "raw": "Labue,Amanda Marie",
+   "exampleCourse": "ASLP 6010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lafferty,Lauren Elyse",
+   "exampleCourse": "MULB 1803",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lahiri,Ipsita",
+   "exampleCourse": "BIOL 1760",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lain,Brian A",
+   "exampleCourse": "COMM 2140",
+   "courseCount": 8
+  },
+  {
+   "raw": "Lam,Chris Yan ho",
+   "exampleCourse": "TECM 4400",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lam,Pak wing jacky",
+   "exampleCourse": "ASLP 4040",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lamb,Heather",
+   "exampleCourse": "INFO 5345",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lambert,Jessica Rudd",
+   "exampleCourse": "PSCI 2305",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lambert,Nancy Jo Ann",
+   "exampleCourse": "INFO 4306",
+   "courseCount": 5
+  },
+  {
+   "raw": "Lampert,Matthew Craig",
+   "exampleCourse": "PHIL 2050",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lancaster,Stephen Mathew",
+   "exampleCourse": "INFO 4710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Landay,Karen Michelle",
+   "exampleCourse": "MGMT 5120",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lane,Jennifer",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 9
+  },
+  {
+   "raw": "Larsen,London Powell",
+   "exampleCourse": "SOCI 2050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Laske,Matthew Michael",
+   "exampleCourse": "BEHV 5900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lavacek,Justin Christopher",
+   "exampleCourse": "MUTH 2500",
+   "courseCount": 3
+  },
+  {
+   "raw": "Leali,Bradford C",
+   "exampleCourse": "MUAC 3532",
+   "courseCount": 5
+  },
+  {
+   "raw": "Lee,Annie Seong",
+   "exampleCourse": "PADM 4170",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lee,Donguk",
+   "exampleCourse": "ASLP 6670",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lee,Harold Sang kwon",
+   "exampleCourse": "HMGT 1500",
+   "courseCount": 4
+  },
+  {
+   "raw": "Lee,Hyanghee",
+   "exampleCourse": "EPSY 5453",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lee,Jiho",
+   "exampleCourse": "MEEN 4180",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lee,Jihyun",
+   "exampleCourse": "EPSY 5210",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lee,Jongsoo",
+   "exampleCourse": "SPAN 3050",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lee,June",
+   "exampleCourse": "MUAC 1532",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lee,Kelsey Erin",
+   "exampleCourse": "ANTH 1010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lee,Moo-yeal David",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Lee,Tae hee",
+   "exampleCourse": "INFO 5080",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lee,Yejin",
+   "exampleCourse": "MUAG 1224",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lee,Youngjin",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lemons,Justin",
+   "exampleCourse": "INFO 5297",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lester,Nicholas Andrew",
+   "exampleCourse": "LING 2050",
+   "courseCount": 2
+  },
+  {
+   "raw": "Leung,Xi Yu",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 2
+  },
+  {
+   "raw": "Leventhal,Julie Erin",
+   "exampleCourse": "HDFS 2313",
+   "courseCount": 4
+  },
+  {
+   "raw": "Levin-aspenson,Holly",
+   "exampleCourse": "PSYC 5430",
+   "courseCount": 4
+  },
+  {
+   "raw": "Lewis,Marjorie Ann",
+   "exampleCourse": "MRTS 3365",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lewis,Paula Ann",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lewis,Philip J",
+   "exampleCourse": "MUAC 1504",
+   "courseCount": 7
+  },
+  {
+   "raw": "Lewis,Rhonda Lasha",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lewis,Tyson Edward",
+   "exampleCourse": "ART 5900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Li,Jinkai",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 4
+  },
+  {
+   "raw": "Li,Jiyuan",
+   "exampleCourse": "DTSC 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Li,Lin",
+   "exampleCourse": "BMEN 2900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Li,Ruoou",
+   "exampleCourse": "MKTG 3710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Li,Xiao",
+   "exampleCourse": "MTSE 4050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Li,Xinrong",
+   "exampleCourse": "EENG 5890",
+   "courseCount": 4
+  },
+  {
+   "raw": "Li,Yuan",
+   "exampleCourse": "CSCE 2100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Li,Yuting",
+   "exampleCourse": "GEOG 1710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lichtenberg,Elinor Mermey",
+   "exampleCourse": "BIOL 4005",
+   "courseCount": 5
+  },
+  {
+   "raw": "Lim,Aprille amparo Rae kapuno",
+   "exampleCourse": "BUSI 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lin,Rosie",
+   "exampleCourse": "EMDS 5800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lin,Tianrong",
+   "exampleCourse": "PHIL 2600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lin,Yuankun",
+   "exampleCourse": "PHYS 1710",
+   "courseCount": 5
+  },
+  {
+   "raw": "Lindo,Natalya Ann",
+   "exampleCourse": "COUN 5470",
+   "courseCount": 4
+  },
+  {
+   "raw": "Lineros,Jose",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Liu,Jianguo",
+   "exampleCourse": "MATH 3410",
+   "courseCount": 1
+  },
+  {
+   "raw": "Liu,Shuang",
+   "exampleCourse": "MATH 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Liu,Stephanie",
+   "exampleCourse": "CHEM 1420",
+   "courseCount": 1
+  },
+  {
+   "raw": "Liu,Yichun",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 3
+  },
+  {
+   "raw": "Liu,Yingchun",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 3
+  },
+  {
+   "raw": "Liu,Zhuqing",
+   "exampleCourse": "CSCE 6940",
+   "courseCount": 1
+  },
+  {
+   "raw": "Livingston,Jo Ann",
+   "exampleCourse": "INFO 4230",
+   "courseCount": 2
+  },
+  {
+   "raw": "Llach,Federico",
+   "exampleCourse": "MUCO 1200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Loch-Test,Sarah",
+   "exampleCourse": "ASTU 3402",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lochhead,Bryan Douglas",
+   "exampleCourse": "JOUR 3300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lochhead,Bryan Douglas, Emam,Hoda",
+   "exampleCourse": "JOUR 3300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Locke,Joseph Lee",
+   "exampleCourse": "HIST 3700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Loftis,Randy",
+   "exampleCourse": "JOUR 4810",
+   "courseCount": 6
+  },
+  {
+   "raw": "Long,Kathleen Elizabeth",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Looknauth,Megan Alexis",
+   "exampleCourse": "MUMH 2060",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lopez,Ana",
+   "exampleCourse": "ASTU 3000",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lopez,Joshua",
+   "exampleCourse": "HIST 2620",
+   "courseCount": 3
+  },
+  {
+   "raw": "Lopez,Zandra Ivon",
+   "exampleCourse": "INFO 5845",
+   "courseCount": 1
+  },
+  {
+   "raw": "Louis-Jacques,Tatyana",
+   "exampleCourse": "MUED 2310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Love,Bradford",
+   "exampleCourse": "BCIS 2610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lovelace,Bryan Scott",
+   "exampleCourse": "BEHV 3200",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lovett,Loke Vance",
+   "exampleCourse": "MUAC 1518",
+   "courseCount": 4
+  },
+  {
+   "raw": "Loyd,Zak",
+   "exampleCourse": "ASTU 2702",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ludi,Stephanie Ann",
+   "exampleCourse": "CSCE 4902",
+   "courseCount": 8
+  },
+  {
+   "raw": "Lukic-Zrnic,Reiko",
+   "exampleCourse": "PHYS 1420",
+   "courseCount": 2
+  },
+  {
+   "raw": "Luna,Russell",
+   "exampleCourse": "JOUR 4350",
+   "courseCount": 2
+  },
+  {
+   "raw": "Lund,Amie Kathleen",
+   "exampleCourse": "BIOC 6900",
+   "courseCount": 9
+  },
+  {
+   "raw": "Lund,Brady D",
+   "exampleCourse": "INFO 1700",
+   "courseCount": 5
+  },
+  {
+   "raw": "Lupkin,Paula Rachel",
+   "exampleCourse": "ART 5900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Luyen,Hung Thanh",
+   "exampleCourse": "EENG 2900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Lyke,Patrice Phelan",
+   "exampleCourse": "ENGL 3450",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lyles,Jennifer Balke, Tummalapalli,Rohith",
+   "exampleCourse": "BUSI 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lynch-voris,Nicholas Cameron",
+   "exampleCourse": "THEA 2380",
+   "courseCount": 1
+  },
+  {
+   "raw": "Lyons,Ashley",
+   "exampleCourse": "MRTS 3410",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ma,Shengqian",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Ma,Yu-luen",
+   "exampleCourse": "RMIN 2500",
+   "courseCount": 3
+  },
+  {
+   "raw": "Maccharles,Jeffrey",
+   "exampleCourse": "SENM 4310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Macchioni,Oscar Ernesto",
+   "exampleCourse": "MUAG 5001",
+   "courseCount": 2
+  },
+  {
+   "raw": "Macias,Vanessa Michelle",
+   "exampleCourse": "BIOC 5950",
+   "courseCount": 7
+  },
+  {
+   "raw": "Macintyre,Hannah Elizabeth",
+   "exampleCourse": "ANTH 5032",
+   "courseCount": 1
+  },
+  {
+   "raw": "Maddox,Melisande",
+   "exampleCourse": "LATI 1020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Maeda,Ko",
+   "exampleCourse": "PSCI 2306",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mager,Edward Michael",
+   "exampleCourse": "BIOL 1720",
+   "courseCount": 6
+  },
+  {
+   "raw": "Magliocco,Amos Albert",
+   "exampleCourse": "ENGL 4120",
+   "courseCount": 2
+  },
+  {
+   "raw": "Maharjan,Amar",
+   "exampleCourse": "CSCE 1040",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mahbub,Maliha",
+   "exampleCourse": "SOCI 3300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Major,Rafael M",
+   "exampleCourse": "PSCI 2315",
+   "courseCount": 2
+  },
+  {
+   "raw": "Majstorovic,Vojin",
+   "exampleCourse": "HIST 4390",
+   "courseCount": 1
+  },
+  {
+   "raw": "Majumder,Arindam",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Malarvizhi kumar,Priyan",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 3
+  },
+  {
+   "raw": "Malaspina,Paola",
+   "exampleCourse": "ITAL 1020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Malave,Rosa Amelia",
+   "exampleCourse": "INFO 4230",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mallett,Gregg Steven",
+   "exampleCourse": "KINE 2105",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mandal,Shilpi",
+   "exampleCourse": "MATH 1720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mandiberg,Stephen Jonathan",
+   "exampleCourse": "GMSD 3800",
+   "courseCount": 3
+  },
+  {
+   "raw": "Manfredi,Adam Samuel",
+   "exampleCourse": "JAPN 4030",
+   "courseCount": 2
+  },
+  {
+   "raw": "Manickam,Samuel",
+   "exampleCourse": "SPAN 3040",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mann,Allen",
+   "exampleCourse": "MATH 1680",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mann,Paho",
+   "exampleCourse": "ASTU 2501",
+   "courseCount": 1
+  },
+  {
+   "raw": "Manriquez,Lisa",
+   "exampleCourse": "PSYC 1630",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mantecon,Tomas",
+   "exampleCourse": "FINA 6017",
+   "courseCount": 1
+  },
+  {
+   "raw": "Manuj,Ila",
+   "exampleCourse": "LSCM 3960",
+   "courseCount": 3
+  },
+  {
+   "raw": "Manzo,Maurizio",
+   "exampleCourse": "MEEN 1000",
+   "courseCount": 6
+  },
+  {
+   "raw": "Marks,Corey D",
+   "exampleCourse": "ENGL 5420",
+   "courseCount": 3
+  },
+  {
+   "raw": "Marquet,Donna",
+   "exampleCourse": "THEA 1701",
+   "courseCount": 2
+  },
+  {
+   "raw": "Marshall,Paul",
+   "exampleCourse": "CHEM 1422",
+   "courseCount": 6
+  },
+  {
+   "raw": "Martin,John",
+   "exampleCourse": "ENGL 5510",
+   "courseCount": 1
+  },
+  {
+   "raw": "Martin,Johnathan",
+   "exampleCourse": "MRTS 3540",
+   "courseCount": 6
+  },
+  {
+   "raw": "Martin,Scott B",
+   "exampleCourse": "EPSY 6900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Martinez,Austin",
+   "exampleCourse": "MUAE 2100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Martinez,Connie",
+   "exampleCourse": "SPAN 2040",
+   "courseCount": 2
+  },
+  {
+   "raw": "Martinez-Ebers,Valerie Jane",
+   "exampleCourse": "PSCI 3101",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mathews,Lauren Haskins",
+   "exampleCourse": "ASLP 2015",
+   "courseCount": 2
+  },
+  {
+   "raw": "Matkin,Katelyn",
+   "exampleCourse": "RHAB 3100",
+   "courseCount": 3
+  },
+  {
+   "raw": "Matous,Brandi Karen",
+   "exampleCourse": "NUTR 2460",
+   "courseCount": 1
+  },
+  {
+   "raw": "Matsushita,Emi Louise",
+   "exampleCourse": "DANC 1100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Matthews,Malcolm Ross",
+   "exampleCourse": "MUAC 1502",
+   "courseCount": 20
+  },
+  {
+   "raw": "Matthys,Taylor Alayne",
+   "exampleCourse": "ECON 4440",
+   "courseCount": 1
+  },
+  {
+   "raw": "Maxwell,Ladaniel Deman",
+   "exampleCourse": "MRTS 2210",
+   "courseCount": 1
+  },
+  {
+   "raw": "May,Andrew",
+   "exampleCourse": "MUAC 1540",
+   "courseCount": 4
+  },
+  {
+   "raw": "McClellan,Megan Brooke",
+   "exampleCourse": "NUTR 2460",
+   "courseCount": 1
+  },
+  {
+   "raw": "McDaniel,Mark L",
+   "exampleCourse": "PADM 4260",
+   "courseCount": 4
+  },
+  {
+   "raw": "McFarland,Chelsey",
+   "exampleCourse": "ASLP 3025",
+   "courseCount": 1
+  },
+  {
+   "raw": "McGarry,Roisin Carrie",
+   "exampleCourse": "BIOL 4005",
+   "courseCount": 3
+  },
+  {
+   "raw": "McGeorge,Ryan Hughett",
+   "exampleCourse": "MUAC 1518",
+   "courseCount": 8
+  },
+  {
+   "raw": "McGhee,Jeremiah Thomas",
+   "exampleCourse": "MGMT 4235",
+   "courseCount": 1
+  },
+  {
+   "raw": "McGlynn III,Joseph",
+   "exampleCourse": "COMM 4520",
+   "courseCount": 6
+  },
+  {
+   "raw": "McKay,Melissa M",
+   "exampleCourse": "PSCI 2305",
+   "courseCount": 2
+  },
+  {
+   "raw": "McLain,Chinami, Enoch,Lawrence M",
+   "exampleCourse": "INFO 5200",
+   "courseCount": 1
+  },
+  {
+   "raw": "McLeod,Allison Mayling",
+   "exampleCourse": "ACCT 5200",
+   "courseCount": 1
+  },
+  {
+   "raw": "McMahan,Fred",
+   "exampleCourse": "LTEC 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "McMillan,Tyson, Muwanguzi,Samuel",
+   "exampleCourse": "INFO 5737",
+   "courseCount": 2
+  },
+  {
+   "raw": "McNutt,Elizabeth Brooke",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 10
+  },
+  {
+   "raw": "McPhate,David Christian",
+   "exampleCourse": "JOUR 3322",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mcbain,Katherine Carothers",
+   "exampleCourse": "MUAC 1514",
+   "courseCount": 9
+  },
+  {
+   "raw": "Mcbain,Katherine Carothers, Menard,Steven Michael",
+   "exampleCourse": "MUAG 4360",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mcbain,Katherine Carothers, Mickens,Stacie Renee",
+   "exampleCourse": "MUEN 2602",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mccaffree,Kevin John",
+   "exampleCourse": "SOCI 3700",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mcconahay,Elizabeth Anne",
+   "exampleCourse": "MKTG 3651",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mcdaniels,Bradley Wayne",
+   "exampleCourse": "RHAB 5811",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mcelroy,Brittany Pieper",
+   "exampleCourse": "JOUR 3315",
+   "courseCount": 6
+  },
+  {
+   "raw": "Mcfarlin,Brian Keith",
+   "exampleCourse": "BIOL 3080",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mcferrin,Neville Glynne",
+   "exampleCourse": "ART 5900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mckinney,Matthew Carson",
+   "exampleCourse": "THEA 1046",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mcminn,Richard",
+   "exampleCourse": "THEA 2051",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mcneil,James Frank",
+   "exampleCourse": "RHAB 4200",
+   "courseCount": 2
+  },
+  {
+   "raw": "Meckes,Brian Richard",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Meda-Lambru,Denise",
+   "exampleCourse": "PHIL 4150",
+   "courseCount": 2
+  },
+  {
+   "raw": "Meder,Dave",
+   "exampleCourse": "MUAC 1532",
+   "courseCount": 4
+  },
+  {
+   "raw": "Medtia,Jayshree Gurudattsingh",
+   "exampleCourse": "MATH 1180",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mehta,Gayatri",
+   "exampleCourse": "EENG 4760",
+   "courseCount": 8
+  },
+  {
+   "raw": "Mei,Yuxin",
+   "exampleCourse": "MUEN 2621",
+   "courseCount": 2
+  },
+  {
+   "raw": "Meier,Naomi",
+   "exampleCourse": "PUBH 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Melton,Elizabeth Michael",
+   "exampleCourse": "COMM 2060",
+   "courseCount": 7
+  },
+  {
+   "raw": "Menard,Steven Michael",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 8
+  },
+  {
+   "raw": "Menard,Steven Michael, Owner,Timothy",
+   "exampleCourse": "MUGC 4890",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mendiola Garcia,Sandra Celia",
+   "exampleCourse": "HIST 3173",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mendonca,Henson Royston",
+   "exampleCourse": "MKTG 4520",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mendoza,Alex",
+   "exampleCourse": "HIST 4641",
+   "courseCount": 3
+  },
+  {
+   "raw": "Menefee,Doricka La'shae",
+   "exampleCourse": "EDLL 6060",
+   "courseCount": 1
+  },
+  {
+   "raw": "Meng,Fanju",
+   "exampleCourse": "BIOL 3451",
+   "courseCount": 2
+  },
+  {
+   "raw": "Meng,Sitong",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mensa,Marta",
+   "exampleCourse": "ADVG 2100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Merlo,Tereza Raquel",
+   "exampleCourse": "INFO 4307",
+   "courseCount": 1
+  },
+  {
+   "raw": "Messman,Brett",
+   "exampleCourse": "PSYC 2317",
+   "courseCount": 2
+  },
+  {
+   "raw": "Metcalf,Lance Brandon",
+   "exampleCourse": "BLAW 3430",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mete,Mutlu",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mete,Mutlu, Cleveland,Ana",
+   "exampleCourse": "HINF 5955",
+   "courseCount": 1
+  },
+  {
+   "raw": "Metzger,Paul",
+   "exampleCourse": "MUJS 5530",
+   "courseCount": 1
+  },
+  {
+   "raw": "Meyers,Kenneth Robert",
+   "exampleCourse": "MGMT 3860",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mhlanga,Luwis A",
+   "exampleCourse": "CMHT 4750",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mickens,Stacie Renee",
+   "exampleCourse": "MUAC 1514",
+   "courseCount": 9
+  },
+  {
+   "raw": "Middlemiss,Wendy",
+   "exampleCourse": "EPSY 5550",
+   "courseCount": 5
+  },
+  {
+   "raw": "Mierzejewski,Alfred C",
+   "exampleCourse": "HIST 1060",
+   "courseCount": 2
+  },
+  {
+   "raw": "Miksa,Shawne D",
+   "exampleCourse": "INFO 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Mikuls-Alloy,Misty Laine",
+   "exampleCourse": "ANTH 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Milano,Omar",
+   "exampleCourse": "MRTS 4210",
+   "courseCount": 2
+  },
+  {
+   "raw": "Miller,Natalie Kay",
+   "exampleCourse": "MUAC 1514",
+   "courseCount": 4
+  },
+  {
+   "raw": "Miller,Sharon Elizabeth",
+   "exampleCourse": "ASLP 6690",
+   "courseCount": 3
+  },
+  {
+   "raw": "Millirons,Heather Ann",
+   "exampleCourse": "SGNL 2050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mills,Kaho",
+   "exampleCourse": "MUAC 1518",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mills-gertken,Mary Elizabeth",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Mims,TINA",
+   "exampleCourse": "MKTG 3650",
+   "courseCount": 3
+  },
+  {
+   "raw": "Min,Jihye",
+   "exampleCourse": "HMGT 4480",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mirshams,Reza A",
+   "exampleCourse": "MEEN 5890",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mishra,Rajiv Sharan",
+   "exampleCourse": "MTSE 5800",
+   "courseCount": 6
+  },
+  {
+   "raw": "Mitchell,Amy E",
+   "exampleCourse": "MUCE 4040",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mitchell,Christopher Jr.",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mitchell,Kelly Ann",
+   "exampleCourse": "BUSI 1200",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mitchell,Yolanda Twanette",
+   "exampleCourse": "PSYC 4040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mitchener,Donald K",
+   "exampleCourse": "HIST 2610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mitra,Madhuparna",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mizaeinia,Amir",
+   "exampleCourse": "CSCE 2130",
+   "courseCount": 5
+  },
+  {
+   "raw": "Modi,Kiran Rajat",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 2
+  },
+  {
+   "raw": "Moffitt,Marcus McKee",
+   "exampleCourse": "REAL 2100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mokarram dorri,Bahareh",
+   "exampleCourse": "CSCE 2110",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mondragon,Reyna",
+   "exampleCourse": "DANC 4070",
+   "courseCount": 4
+  },
+  {
+   "raw": "Montemayor,Mark Andrew",
+   "exampleCourse": "MUED 4209",
+   "courseCount": 2
+  },
+  {
+   "raw": "Montes Lara,Mario",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 2
+  },
+  {
+   "raw": "Montgomery,Cameron Hunter",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 3
+  },
+  {
+   "raw": "Montoya,Amy A",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Moon,Alena Christine",
+   "exampleCourse": "CHEM 1410",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mooney,Davy",
+   "exampleCourse": "MUAC 1526",
+   "courseCount": 6
+  },
+  {
+   "raw": "Moore,Ami R",
+   "exampleCourse": "AARS 6800",
+   "courseCount": 2
+  },
+  {
+   "raw": "Moore,Jessica Lynne",
+   "exampleCourse": "BIOL 3451",
+   "courseCount": 2
+  },
+  {
+   "raw": "Moore,Olivia S",
+   "exampleCourse": "DCAS 5000",
+   "courseCount": 4
+  },
+  {
+   "raw": "Moradi,Leo",
+   "exampleCourse": "PSCI 3310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Morin,Tesa B",
+   "exampleCourse": "ART 3030",
+   "courseCount": 3
+  },
+  {
+   "raw": "Morozov,Kirill",
+   "exampleCourse": "CSCE 4890",
+   "courseCount": 6
+  },
+  {
+   "raw": "Morrison,Matthew",
+   "exampleCourse": "MULB 1815",
+   "courseCount": 1
+  },
+  {
+   "raw": "Morrissey,Megan Elizabeth",
+   "exampleCourse": "COMM 4540",
+   "courseCount": 9
+  },
+  {
+   "raw": "Morrissey,Natalie Noel",
+   "exampleCourse": "ANTH 3101",
+   "courseCount": 1
+  },
+  {
+   "raw": "Morrow,Jackson Salvatore",
+   "exampleCourse": "MATH 6610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Morscheck,Stephen Mark",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 10
+  },
+  {
+   "raw": "Moseley,Mark Richard",
+   "exampleCourse": "MRTS 4850",
+   "courseCount": 2
+  },
+  {
+   "raw": "Moseley,Mark Richard, Hewitt,Lisa Weber, Ackermann,Steven",
+   "exampleCourse": "MRTS 4850",
+   "courseCount": 1
+  },
+  {
+   "raw": "Mosquera Ferrandiz,Fernando",
+   "exampleCourse": "CSCE 3020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Moss,Austen",
+   "exampleCourse": "CHEM 2370",
+   "courseCount": 1
+  },
+  {
+   "raw": "Moss,Samantha",
+   "exampleCourse": "KINE 3090",
+   "courseCount": 3
+  },
+  {
+   "raw": "Moye,Todd",
+   "exampleCourse": "HIST 3800",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mpofu,Elias",
+   "exampleCourse": "AARS 6820",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mueller,James E",
+   "exampleCourse": "JOUR 5900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mukherjee,Debasish",
+   "exampleCourse": "APMG 3220",
+   "courseCount": 4
+  },
+  {
+   "raw": "Mukherjee,Sundeep",
+   "exampleCourse": "MTSE 3050",
+   "courseCount": 7
+  },
+  {
+   "raw": "Mulcahy,Staci Kay",
+   "exampleCourse": "SOWK 1450",
+   "courseCount": 3
+  },
+  {
+   "raw": "Mumah,Jenny",
+   "exampleCourse": "INFO 5440",
+   "courseCount": 2
+  },
+  {
+   "raw": "Mun,Rachel",
+   "exampleCourse": "EPSY 5110",
+   "courseCount": 6
+  },
+  {
+   "raw": "Muniz,Jessica Marie",
+   "exampleCourse": "MUCE 4030",
+   "courseCount": 6
+  },
+  {
+   "raw": "Munoz-coreas,Edgard Ennio",
+   "exampleCourse": "EENG 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Muns,Karan",
+   "exampleCourse": "MKTG 4120",
+   "courseCount": 1
+  },
+  {
+   "raw": "Murali,Beddhu",
+   "exampleCourse": "CSCE 3214",
+   "courseCount": 3
+  },
+  {
+   "raw": "Myers,Anna Marie",
+   "exampleCourse": "PHIL 1050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Myles,Auriana",
+   "exampleCourse": "TECM 1700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Naciri,Alia Grace",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nadeem,Rida",
+   "exampleCourse": "BIOL 1500",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nagaoka,Lisa A",
+   "exampleCourse": "GEOG 3420",
+   "courseCount": 2
+  },
+  {
+   "raw": "Najour,Caroline A",
+   "exampleCourse": "ARBC 1020",
+   "courseCount": 4
+  },
+  {
+   "raw": "Namuduri,Kamesh",
+   "exampleCourse": "EENG 3810",
+   "courseCount": 7
+  },
+  {
+   "raw": "Napoles,Jessica",
+   "exampleCourse": "MULB 1802",
+   "courseCount": 1
+  },
+  {
+   "raw": "Narahara,Karine",
+   "exampleCourse": "ANTH 3200",
+   "courseCount": 7
+  },
+  {
+   "raw": "Narayanan,Arunachalam",
+   "exampleCourse": "DSCI 4510",
+   "courseCount": 3
+  },
+  {
+   "raw": "Naresh,Nirmala",
+   "exampleCourse": "MATH 1720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nasco Jr.,Dennis George",
+   "exampleCourse": "BUSI 4800",
+   "courseCount": 3
+  },
+  {
+   "raw": "Nasrazadani,Seifollah",
+   "exampleCourse": "ENGR 2301",
+   "courseCount": 3
+  },
+  {
+   "raw": "Nasser,Jad",
+   "exampleCourse": "ADVG 3200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nazir Jr.,Cassini",
+   "exampleCourse": "ADES 4528",
+   "courseCount": 1
+  },
+  {
+   "raw": "Neel,Michael",
+   "exampleCourse": "ACCT 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nelan,Mary Margaret",
+   "exampleCourse": "EADP 3010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Nelson,Andrew Stephen",
+   "exampleCourse": "ANTH 4500",
+   "courseCount": 9
+  },
+  {
+   "raw": "Nelson,Melissa Alejandra",
+   "exampleCourse": "ANTH 1150",
+   "courseCount": 5
+  },
+  {
+   "raw": "Nero,Asa Emmanuel",
+   "exampleCourse": "MUAS 1521",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nestler,Eric M",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 8
+  },
+  {
+   "raw": "Nestler,Eric M, Peterson,Mikayla Lisa, Li,Jinkai, Montgomery,Cameron Hunter, Wang,Xuanzhou",
+   "exampleCourse": "MUCM 3520",
+   "courseCount": 2
+  },
+  {
+   "raw": "Neu,Jens Eirc",
+   "exampleCourse": "PHYS 3420",
+   "courseCount": 8
+  },
+  {
+   "raw": "Neumann,Craig S",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Neumeyer,Danielle",
+   "exampleCourse": "MGMT 3850",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nguyen,Nga Quynh",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 2
+  },
+  {
+   "raw": "Nguyen,Thuan Luong",
+   "exampleCourse": "ADTA 5770",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nguyen,Thuy D",
+   "exampleCourse": "MKTG 3710",
+   "courseCount": 2
+  },
+  {
+   "raw": "Nieberding,Megan Nicole",
+   "exampleCourse": "PHYS 1052",
+   "courseCount": 3
+  },
+  {
+   "raw": "Niemann,Yolanda Flores",
+   "exampleCourse": "PSYC 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nimmo II,John Paul",
+   "exampleCourse": "CHEM 1430",
+   "courseCount": 1
+  },
+  {
+   "raw": "Niranjan,Suman",
+   "exampleCourse": "LSCM 3960",
+   "courseCount": 3
+  },
+  {
+   "raw": "Nisbett,Gwendelyn Sylesha",
+   "exampleCourse": "JOUR 4270",
+   "courseCount": 4
+  },
+  {
+   "raw": "Nishikawa,Takeshi",
+   "exampleCourse": "FINA 6018",
+   "courseCount": 1
+  },
+  {
+   "raw": "None",
+   "exampleCourse": "ACCT 4100",
+   "courseCount": 902
+  },
+  {
+   "raw": "None Cunningham,Bruce Vincent, Wolfe,Trae Colton, Jackson,Jake Neil, Pieluszczak,Scott L, Thomas,Chance",
+   "exampleCourse": "MILS 1180",
+   "courseCount": 1
+  },
+  {
+   "raw": "None Wolfe,Trae Colton, Jackson,Jake Neil, Cunningham,Bruce Vincent, Pieluszczak,Scott L, Thomas,Chance None",
+   "exampleCourse": "MILS 1180",
+   "courseCount": 1
+  },
+  {
+   "raw": "None, Lee,Annie Seong",
+   "exampleCourse": "PADM 4180",
+   "courseCount": 1
+  },
+  {
+   "raw": "Novak II,Richard Albert",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 7
+  },
+  {
+   "raw": "Nowicki,David Richard",
+   "exampleCourse": "LSCM 5860",
+   "courseCount": 1
+  },
+  {
+   "raw": "Nunez-Janes,Mariela E",
+   "exampleCourse": "ANTH 3140",
+   "courseCount": 10
+  },
+  {
+   "raw": "Nunnelee,Stacy",
+   "exampleCourse": "ASLP 4050",
+   "courseCount": 2
+  },
+  {
+   "raw": "O'Connor,Brian Clark",
+   "exampleCourse": "INFO 6910",
+   "courseCount": 1
+  },
+  {
+   "raw": "O'Connor,Brian Clark, Roeschley,Ana",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "O'Neill,Liam",
+   "exampleCourse": "HLSV 5400",
+   "courseCount": 2
+  },
+  {
+   "raw": "O'connor,Erin Ann",
+   "exampleCourse": "COMM 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "O'donnell,Joseph T",
+   "exampleCourse": "EDEM 1600",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ogbanufe,Obi",
+   "exampleCourse": "BCIS 4660",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ogbechi,Joy Nkechi",
+   "exampleCourse": "BIOL 1500",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ogden Jr,Samuel J, Crossley II,Dane Alan",
+   "exampleCourse": "BIOL 1720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ogden Jr,Samuel J, Gu,Feng",
+   "exampleCourse": "BIOL 1720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ogden Jr,Samuel J, Jimenez,Jaime Enrique",
+   "exampleCourse": "BIOL 1132",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ogden,Jeffrey A",
+   "exampleCourse": "PRCH 4810",
+   "courseCount": 1
+  },
+  {
+   "raw": "Oh,Junghwan",
+   "exampleCourse": "CSCE 5390",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ojha,Divesh",
+   "exampleCourse": "LSCM 6950",
+   "courseCount": 3
+  },
+  {
+   "raw": "Okundaye,Gabriela Cirenia",
+   "exampleCourse": "INST 2100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Okundaye,Gabriela Cirenia, Stanaland,Leslie Shaun",
+   "exampleCourse": "INST 4800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Oldenburg,Greg Blanchard",
+   "exampleCourse": "MRTS 4411",
+   "courseCount": 1
+  },
+  {
+   "raw": "Oliver,Brooks Bowman",
+   "exampleCourse": "ASTU 3101",
+   "courseCount": 3
+  },
+  {
+   "raw": "Oliver,Elisha",
+   "exampleCourse": "WGST 2100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Oliverio,Jennifer",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 8
+  },
+  {
+   "raw": "Oliverio,Jennifer, Rodriquez,Raquel",
+   "exampleCourse": "MULB 1810",
+   "courseCount": 1
+  },
+  {
+   "raw": "Olson,Ryan Lee",
+   "exampleCourse": "KINE 2050",
+   "courseCount": 6
+  },
+  {
+   "raw": "Oluwadare,Oluwatosin Emmanuel",
+   "exampleCourse": "CSCE 3850",
+   "courseCount": 3
+  },
+  {
+   "raw": "Omary,Mohammad A",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Oppong,Joseph R",
+   "exampleCourse": "BIOL 6940",
+   "courseCount": 7
+  },
+  {
+   "raw": "Ordonez,Carlos A",
+   "exampleCourse": "PHYS 5910",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ortiz,Zoe Roxanne",
+   "exampleCourse": "HIST 3620",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ortu,Daniele",
+   "exampleCourse": "BEHV 5020",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ovi,Pretom roy",
+   "exampleCourse": "DTSC 3010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Owen,Lisa Nadine",
+   "exampleCourse": "ARTH 5824",
+   "courseCount": 1
+  },
+  {
+   "raw": "Owens,Keith M",
+   "exampleCourse": "ADES 2518",
+   "courseCount": 2
+  },
+  {
+   "raw": "Owner,Timothy",
+   "exampleCourse": "MUAC 1517",
+   "courseCount": 8
+  },
+  {
+   "raw": "Oyesanya,Regina Adenike",
+   "exampleCourse": "BIOL 1710",
+   "courseCount": 2
+  },
+  {
+   "raw": "Padilla,Pamela A",
+   "exampleCourse": "BIOC 6950",
+   "courseCount": 6
+  },
+  {
+   "raw": "Paglialonga,Phillip Orr",
+   "exampleCourse": "MUAC 1511",
+   "courseCount": 8
+  },
+  {
+   "raw": "Paglialonga,Phillip Orr, Cole,Kimberly Susan",
+   "exampleCourse": "MUAG 6360",
+   "courseCount": 1
+  },
+  {
+   "raw": "Painter II,Matthew Alexander",
+   "exampleCourse": "SOCI 1510",
+   "courseCount": 5
+  },
+  {
+   "raw": "Palao Mendizabal,Agustin",
+   "exampleCourse": "DSCI 2710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pan,Feifei",
+   "exampleCourse": "BIOL 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Park,Hyusim",
+   "exampleCourse": "EENG 5890",
+   "courseCount": 2
+  },
+  {
+   "raw": "Park,Jin Gyu",
+   "exampleCourse": "ADES 3640",
+   "courseCount": 2
+  },
+  {
+   "raw": "Park,Sara",
+   "exampleCourse": "RHAB 5741",
+   "courseCount": 1
+  },
+  {
+   "raw": "Park,Soona",
+   "exampleCourse": "CMHT 5460",
+   "courseCount": 2
+  },
+  {
+   "raw": "Parker,Adam",
+   "exampleCourse": "KINE 3080",
+   "courseCount": 2
+  },
+  {
+   "raw": "Parker,Alison Dawn",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 4
+  },
+  {
+   "raw": "Parrish,James Leslie",
+   "exampleCourse": "BCIS 4620",
+   "courseCount": 3
+  },
+  {
+   "raw": "Parton Jr.,Robert Thomas",
+   "exampleCourse": "MUAS 5516",
+   "courseCount": 4
+  },
+  {
+   "raw": "Paschal,Carla Kathryn Foote",
+   "exampleCourse": "ANTH 3101",
+   "courseCount": 1
+  },
+  {
+   "raw": "Paswan,Audhesh K",
+   "exampleCourse": "DBAS 6950",
+   "courseCount": 2
+  },
+  {
+   "raw": "Pathak,Jogen Kanubhai",
+   "exampleCourse": "BCIS 2610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Pathan,Masood Aly khan",
+   "exampleCourse": "BCIS 2610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Patterson,Rita M",
+   "exampleCourse": "BMEN 3312",
+   "courseCount": 1
+  },
+  {
+   "raw": "Paul,Newly",
+   "exampleCourse": "JOUR 1210",
+   "courseCount": 3
+  },
+  {
+   "raw": "Paul,Pamela Mia",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 7
+  },
+  {
+   "raw": "Pavel,Catalin Gabriel",
+   "exampleCourse": "MGMT 4940",
+   "courseCount": 2
+  },
+  {
+   "raw": "Pavur,Robert J",
+   "exampleCourse": "BCIS 6950",
+   "courseCount": 4
+  },
+  {
+   "raw": "Pawlowicz,Elaine Mary",
+   "exampleCourse": "ASTU 2201",
+   "courseCount": 2
+  },
+  {
+   "raw": "Payne,Jonah",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 6
+  },
+  {
+   "raw": "Pazey,Barbara Lynn",
+   "exampleCourse": "EDLE 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Peak,Pamela K",
+   "exampleCourse": "EDSP 5540",
+   "courseCount": 4
+  },
+  {
+   "raw": "Pearcy,Agnes Goz",
+   "exampleCourse": "INFO 4080",
+   "courseCount": 2
+  },
+  {
+   "raw": "Pears,Russel Lawrence",
+   "exampleCourse": "CSCE 4205",
+   "courseCount": 7
+  },
+  {
+   "raw": "Pearson,Chad",
+   "exampleCourse": "HIST 2620",
+   "courseCount": 2
+  },
+  {
+   "raw": "Peavy,Chris Diane",
+   "exampleCourse": "LSCM 4800",
+   "courseCount": 2
+  },
+  {
+   "raw": "Pedram,Mahdi",
+   "exampleCourse": "CSCE 3612",
+   "courseCount": 4
+  },
+  {
+   "raw": "Pellegrini,Mason Trevor dalin",
+   "exampleCourse": "TECM 4200",
+   "courseCount": 2
+  },
+  {
+   "raw": "Pelton,Lou E",
+   "exampleCourse": "MKTG 2650",
+   "courseCount": 4
+  },
+  {
+   "raw": "Pena,Daniel",
+   "exampleCourse": "ENGL 4130",
+   "courseCount": 6
+  },
+  {
+   "raw": "Peng,Pin-Hsuan",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Penkov,Miroslav Nikolaev",
+   "exampleCourse": "ENGL 3140",
+   "courseCount": 3
+  },
+  {
+   "raw": "Penney,Christopher Robert",
+   "exampleCourse": "MGMT 5190",
+   "courseCount": 2
+  },
+  {
+   "raw": "Perez,Jose",
+   "exampleCourse": "PHYS 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Perez,Justin Michael",
+   "exampleCourse": "AERO 1040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Perez,Kelly Lynn",
+   "exampleCourse": "HLTH 1900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Perez,Kelly Lynn, Jenkins,Emily Faith",
+   "exampleCourse": "HLTH 1900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Perkins,Frances Yount",
+   "exampleCourse": "MRTS 3525",
+   "courseCount": 4
+  },
+  {
+   "raw": "Peterson,Mikayla Lisa",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 8
+  },
+  {
+   "raw": "Peterson,Nathaniel Charles",
+   "exampleCourse": "CHEM 1430",
+   "courseCount": 2
+  },
+  {
+   "raw": "Peterson,Nathaniel Charles, Alberts,Arland Dulcey",
+   "exampleCourse": "BIOL 4202",
+   "courseCount": 1
+  },
+  {
+   "raw": "Peterson,Nathaniel Charles, Curran Jr,Anthony A",
+   "exampleCourse": "BIOL 4510",
+   "courseCount": 1
+  },
+  {
+   "raw": "Peterson,Nathaniel Charles, Curran Jr,Anthony A, Bottoms,Carroll Weaver",
+   "exampleCourse": "BIOL 2312",
+   "courseCount": 1
+  },
+  {
+   "raw": "Peterson,Nathaniel Charles, Lahiri,Ipsita, Inupakutika,Madhuri Annapurna",
+   "exampleCourse": "BIOL 1760",
+   "courseCount": 1
+  },
+  {
+   "raw": "Peterson,Rosa",
+   "exampleCourse": "HMGT 1470",
+   "courseCount": 2
+  },
+  {
+   "raw": "Peterson,Ted Charles",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Petika,Brentt Patrick",
+   "exampleCourse": "UCRS 4800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Petrie,Trent A",
+   "exampleCourse": "PSYC 5850",
+   "courseCount": 7
+  },
+  {
+   "raw": "Petros,Amy Kathryn",
+   "exampleCourse": "CHEM 1420",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pezzulli,Kate",
+   "exampleCourse": "JOUR 2310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Philipose,Usha",
+   "exampleCourse": "PHYS 4520",
+   "courseCount": 8
+  },
+  {
+   "raw": "Phillips,Mark Edward",
+   "exampleCourse": "INFO 5843",
+   "courseCount": 1
+  },
+  {
+   "raw": "Philpot,Denise",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pieluszczak,Scott L, Wolfe,Trae Colton, Jackson,Jake Neil, Cunningham,Bruce Vincent, Thomas,Chance",
+   "exampleCourse": "MILS 2251",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pipes,John",
+   "exampleCourse": "PADM 4050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pohlen,Terrance",
+   "exampleCourse": "LSCM 4560",
+   "courseCount": 1
+  },
+  {
+   "raw": "Polgar,Eva",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 7
+  },
+  {
+   "raw": "Polson,John Thomas",
+   "exampleCourse": "EENG 2710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pope,Cynthia Marie",
+   "exampleCourse": "TECM 4180",
+   "courseCount": 1
+  },
+  {
+   "raw": "Pope,Nat",
+   "exampleCourse": "RMIN 2500",
+   "courseCount": 3
+  },
+  {
+   "raw": "Potts,Helen Frances",
+   "exampleCourse": "SOCI 1510",
+   "courseCount": 4
+  },
+  {
+   "raw": "Powell,Larry",
+   "exampleCourse": "ADVG 1100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Powell,Sean Robert",
+   "exampleCourse": "MUED 5890",
+   "courseCount": 2
+  },
+  {
+   "raw": "Powers,Evan Noah",
+   "exampleCourse": "MUED 2310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Poynter,Rebecca Noah",
+   "exampleCourse": "JOUR 3220",
+   "courseCount": 5
+  },
+  {
+   "raw": "Prasad,Vish",
+   "exampleCourse": "MEEN 4810",
+   "courseCount": 8
+  },
+  {
+   "raw": "Pravin,Dipakkumar Pravinkant",
+   "exampleCourse": "BCIS 4680",
+   "courseCount": 5
+  },
+  {
+   "raw": "Presa,Cecilia",
+   "exampleCourse": "MUMH 3510",
+   "courseCount": 1
+  },
+  {
+   "raw": "Presley,Shannon Renee",
+   "exampleCourse": "ASLP 5060",
+   "courseCount": 3
+  },
+  {
+   "raw": "Price,Ann Marie",
+   "exampleCourse": "BIOL 1710",
+   "courseCount": 2
+  },
+  {
+   "raw": "Prince,April Laine",
+   "exampleCourse": "MUCS 3000",
+   "courseCount": 4
+  },
+  {
+   "raw": "Proell,Chad Allen",
+   "exampleCourse": "ACCT 5170",
+   "courseCount": 3
+  },
+  {
+   "raw": "Prokaj,Rudolf Daniel",
+   "exampleCourse": "MATH 4610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Prybutok,Victor R",
+   "exampleCourse": "DSCI 4700",
+   "courseCount": 6
+  },
+  {
+   "raw": "Puccinelli,Elvia P",
+   "exampleCourse": "MUAC 5534",
+   "courseCount": 4
+  },
+  {
+   "raw": "Pudavov,Kirill",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 6
+  },
+  {
+   "raw": "Puentes,Yunet",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Pupo,Jhon Alex",
+   "exampleCourse": "CJUS 3340",
+   "courseCount": 4
+  },
+  {
+   "raw": "Purnell,Dexter Lamar",
+   "exampleCourse": "DBAS 6010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Purvis,Kaylee",
+   "exampleCourse": "EDSP 4340",
+   "courseCount": 1
+  },
+  {
+   "raw": "Purvis,Rebekah Minnel",
+   "exampleCourse": "PHYS 1410",
+   "courseCount": 10
+  },
+  {
+   "raw": "Qandil,Hassan",
+   "exampleCourse": "ENGR 2332",
+   "courseCount": 8
+  },
+  {
+   "raw": "Qi,Yuchen",
+   "exampleCourse": "FINA 4210",
+   "courseCount": 1
+  },
+  {
+   "raw": "Qiu,Chenxi",
+   "exampleCourse": "CSCE 5580",
+   "courseCount": 3
+  },
+  {
+   "raw": "Queen,Sabrina Nicole",
+   "exampleCourse": "KINE 4250",
+   "courseCount": 1
+  },
+  {
+   "raw": "Quevedo,Ubaldo",
+   "exampleCourse": "CSCE 4010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Quint,Peter Michael",
+   "exampleCourse": "SGNL 2050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Quintanilla,John Anthony",
+   "exampleCourse": "MATH 1810",
+   "courseCount": 2
+  },
+  {
+   "raw": "Quintanilla,Sandra J",
+   "exampleCourse": "PHYS 5510",
+   "courseCount": 3
+  },
+  {
+   "raw": "Quraishi,Kamal Ayub",
+   "exampleCourse": "MKTG 3651",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rabah,Diana",
+   "exampleCourse": "CSCE 1010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rabbani,Md Golam",
+   "exampleCourse": "INFO 4080",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ragan,David Ashley",
+   "exampleCourse": "FIPL 2770",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ragland,Catherine Ann",
+   "exampleCourse": "MUET 3060",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rahimian,Saba",
+   "exampleCourse": "MGMT 3721",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rahman,Mashrur",
+   "exampleCourse": "PADM 2120",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rahmani,Paria",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rahmlow,Kurt Edward",
+   "exampleCourse": "ART 2370",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rajagopal,Priyali",
+   "exampleCourse": "MKTG 5200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rajendiran,Karthikraj",
+   "exampleCourse": "CHEM 4351",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ramey,Edithann",
+   "exampleCourse": "ADVG 2100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ramirez,Vanessa",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 2
+  },
+  {
+   "raw": "Randall,Wesley Spencer",
+   "exampleCourse": "LSCM 3960",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rani,Momna",
+   "exampleCourse": "SOCI 1510",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ranieri,Elizabeth Nogan",
+   "exampleCourse": "BAAS 3000",
+   "courseCount": 2
+  },
+  {
+   "raw": "Raschen,Gudrun Elisabeth",
+   "exampleCourse": "MUAC 1507",
+   "courseCount": 8
+  },
+  {
+   "raw": "Rashid,Azim",
+   "exampleCourse": "MUCE 4010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rashidyan,Saman",
+   "exampleCourse": "CMGT 3445",
+   "courseCount": 6
+  },
+  {
+   "raw": "Ratnam,Malini",
+   "exampleCourse": "DBUS 2050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Rattani,Ajita",
+   "exampleCourse": "CSCE 5934",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rauch,Susan Therese",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ray choudhury,Sagnik",
+   "exampleCourse": "CSCE 5934",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ray,Dee C",
+   "exampleCourse": "COUN 6900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ray,Janet Lynn",
+   "exampleCourse": "BIOL 1112",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rayle,James Allen",
+   "exampleCourse": "MUAG 4350",
+   "courseCount": 2
+  },
+  {
+   "raw": "Raymond-Kolker,Louis",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 5
+  },
+  {
+   "raw": "Re Cruz,Alicia",
+   "exampleCourse": "ANTH 4900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Rea,Elizabeth Ashley",
+   "exampleCourse": "TECM 4950",
+   "courseCount": 2
+  },
+  {
+   "raw": "Redmond,Ryan Charles",
+   "exampleCourse": "JAPN 1020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Reed,Katharine K",
+   "exampleCourse": "MUAG 3870",
+   "courseCount": 3
+  },
+  {
+   "raw": "Reed,Stella",
+   "exampleCourse": "SPAN 2040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rege,Rajshree",
+   "exampleCourse": "GEOG 4550",
+   "courseCount": 6
+  },
+  {
+   "raw": "Reger,Rhonda Kay",
+   "exampleCourse": "DBAS 6014",
+   "courseCount": 2
+  },
+  {
+   "raw": "Register,Walker Vazquez",
+   "exampleCourse": "MRTS 2300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Reidy III,Rick F",
+   "exampleCourse": "MTSE 3080",
+   "courseCount": 6
+  },
+  {
+   "raw": "Reinhard,Diana",
+   "exampleCourse": "HIST 2610",
+   "courseCount": 4
+  },
+  {
+   "raw": "Renker,Cindy K",
+   "exampleCourse": "GERM 1010",
+   "courseCount": 5
+  },
+  {
+   "raw": "Rennick,Paul Joseph",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 11
+  },
+  {
+   "raw": "Rennick,Sandi",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 8
+  },
+  {
+   "raw": "Rentner,Elizabeth Ann",
+   "exampleCourse": "SGNL 1020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rex galindo,David",
+   "exampleCourse": "HIST 2610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Reyes,Marcela",
+   "exampleCourse": "ART 1800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Reyes,Richmond",
+   "exampleCourse": "MKTG 4120",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rhodes,Meredith",
+   "exampleCourse": "FINA 5240",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rice,Murray D",
+   "exampleCourse": "GEOG 5900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rich,Alexandrea Nicole",
+   "exampleCourse": "SOWK 3610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Richardson,Aaron, Neu,Jens Eirc",
+   "exampleCourse": "PHYS 3420",
+   "courseCount": 1
+  },
+  {
+   "raw": "Richardson,Brian K",
+   "exampleCourse": "COMM 3320",
+   "courseCount": 7
+  },
+  {
+   "raw": "Richter,Olav K",
+   "exampleCourse": "MATH 3400",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ridings,Hayden Christopher",
+   "exampleCourse": "PHIL 1050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rief,Rachael Marie",
+   "exampleCourse": "CJUS 2300",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rinn,Anne Nicole",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ritter,Katherine Matilda",
+   "exampleCourse": "WGST 4100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Rivero,Arlene Jean",
+   "exampleCourse": "PSYC 6820",
+   "courseCount": 1
+  },
+  {
+   "raw": "Roberts,Aaron P",
+   "exampleCourse": "BIOL 6940",
+   "courseCount": 2
+  },
+  {
+   "raw": "Roberts,Jessica",
+   "exampleCourse": "CJUS 3630",
+   "courseCount": 1
+  },
+  {
+   "raw": "Roberts,Walter Eugene",
+   "exampleCourse": "HIST 1050",
+   "courseCount": 3
+  },
+  {
+   "raw": "Robertson,Gillian Elizabeth",
+   "exampleCourse": "MUTH 1400",
+   "courseCount": 2
+  },
+  {
+   "raw": "Robertson,Jesse C.",
+   "exampleCourse": "ACCT 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Robinson,Katelyn Hunter",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 3
+  },
+  {
+   "raw": "Robinson,Steven Kile",
+   "exampleCourse": "MUAC 1511",
+   "courseCount": 4
+  },
+  {
+   "raw": "Rodrigue,Daniel T",
+   "exampleCourse": "JOUR 3300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rodriguez,Jaime Javier",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rodriquez,Raquel",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 8
+  },
+  {
+   "raw": "Roehrs,Dorian",
+   "exampleCourse": "LING 4055",
+   "courseCount": 4
+  },
+  {
+   "raw": "Roeschley,Ana",
+   "exampleCourse": "INFO 5900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Rogener,Lauren J",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rogers,Kevin",
+   "exampleCourse": "EDLE 6033",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rogers,Richard",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Rohani,Shahram D",
+   "exampleCourse": "EENG 2610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rohwer,Debbie Ann",
+   "exampleCourse": "MUED 6910",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rojo,Megan",
+   "exampleCourse": "EDSP 5730",
+   "courseCount": 5
+  },
+  {
+   "raw": "Root,Douglas Donald",
+   "exampleCourse": "BIOC 4550",
+   "courseCount": 10
+  },
+  {
+   "raw": "Rosales-Ruiz,Jesus",
+   "exampleCourse": "BEHV 4900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ross,Christina Lynne",
+   "exampleCourse": "BAAS 3000",
+   "courseCount": 4
+  },
+  {
+   "raw": "Rostami,Melika",
+   "exampleCourse": "INFO 4707",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rostovtsev,Yuri",
+   "exampleCourse": "PHYS 4950",
+   "courseCount": 7
+  },
+  {
+   "raw": "Rout,Bibhudutta",
+   "exampleCourse": "PHYS 1410",
+   "courseCount": 5
+  },
+  {
+   "raw": "Rowe,Terra Trichelle schwerin",
+   "exampleCourse": "PHIL 3660",
+   "courseCount": 3
+  },
+  {
+   "raw": "Rozell,Sarah Burks",
+   "exampleCourse": "NUTR 2460",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rozelle,Robyn Leigh",
+   "exampleCourse": "ASTU 2601",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rozzi,Ricardo",
+   "exampleCourse": "PHIL 4700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Rubio Herrero,Javier",
+   "exampleCourse": "DSCI 3710",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ruderman,Richard S",
+   "exampleCourse": "PSCI 3320",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ruggero,Camilo",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ruiz,Suzanne Helena",
+   "exampleCourse": "MRTS 4430",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rush,Whitney Holden",
+   "exampleCourse": "ADES 1540",
+   "courseCount": 1
+  },
+  {
+   "raw": "Russell,Jordan Marie",
+   "exampleCourse": "CJUS 2500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Russell,Stephanie, Hudson Jr.,John Henry, Lavery,Sharon Ruth",
+   "exampleCourse": "MUEN 3040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Russell,Stephanie, Hudson Jr.,John Henry, Lavery,Sharon Ruth None None None None",
+   "exampleCourse": "MUEN 5040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Rutan,Sarah Louise",
+   "exampleCourse": "THEA 3050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Ruud,Melissa C",
+   "exampleCourse": "UCRS 4800",
+   "courseCount": 2
+  },
+  {
+   "raw": "Ruzevic,Nikola Nino",
+   "exampleCourse": "MUAC 1506",
+   "courseCount": 9
+  },
+  {
+   "raw": "Ryals,Anthony Joseph",
+   "exampleCourse": "PSYC 4600",
+   "courseCount": 9
+  },
+  {
+   "raw": "Ryan,Caitlyn Jane",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ryan,Sarah Elizabeth",
+   "exampleCourse": "INFO 5900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Ryan,Sarah Elizabeth, Hong,Lingzi",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ryan,Sarah Elizabeth, Hossain,Tozammel",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Ryon,James Martin",
+   "exampleCourse": "MUCM 3520",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sacharidou,Anastasia",
+   "exampleCourse": "BIOL 4300",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sadat,Hamid",
+   "exampleCourse": "MEEN 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Saeed,Kashif",
+   "exampleCourse": "BCIS 5610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Saeidi,Rebwar",
+   "exampleCourse": "MGMT 3820",
+   "courseCount": 1
+  },
+  {
+   "raw": "Safdarianghomsheh,Niloufar",
+   "exampleCourse": "MGMT 3850",
+   "courseCount": 1
+  },
+  {
+   "raw": "Saide,Anondah Rose",
+   "exampleCourse": "EPSY 6030",
+   "courseCount": 6
+  },
+  {
+   "raw": "Sajjadi,Seyed reza",
+   "exampleCourse": "DSCI 3710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Salazar,Isaiah",
+   "exampleCourse": "BEHV 3300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Salazar,Monica Rocio",
+   "exampleCourse": "ART 2360",
+   "courseCount": 2
+  },
+  {
+   "raw": "Salimath,Manjula S",
+   "exampleCourse": "MGMT 4335",
+   "courseCount": 3
+  },
+  {
+   "raw": "Salmon,William N",
+   "exampleCourse": "LING 2080",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sanchez-Couto,Esther",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Sanders Jr.,Kevin Dewayne",
+   "exampleCourse": "BUSI 3300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Sanders,Brian Thomas",
+   "exampleCourse": "MUGC 4890",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sanders,Fredrick Eugene",
+   "exampleCourse": "MUAC 1532",
+   "courseCount": 3
+  },
+  {
+   "raw": "Sangana,Vikas Kumar Reddy",
+   "exampleCourse": "LSCM 3960",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sankofa,Nicole Leigh Leach",
+   "exampleCourse": "EDCI 6280",
+   "courseCount": 8
+  },
+  {
+   "raw": "Sapkota,Pradeep",
+   "exampleCourse": "ACCT 4300",
+   "courseCount": 2
+  },
+  {
+   "raw": "Sarder,Uma",
+   "exampleCourse": "HINF 5771",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sari,Bunyamin",
+   "exampleCourse": "MATH 3410",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sarkar,Ritu",
+   "exampleCourse": "MKTG 3660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sarkar,Subharag",
+   "exampleCourse": "CSCE 2210",
+   "courseCount": 3
+  },
+  {
+   "raw": "Sarker,Bishnu",
+   "exampleCourse": "HINF 5639",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sauser,Brian Joseph",
+   "exampleCourse": "BUSI 3200",
+   "courseCount": 5
+  },
+  {
+   "raw": "Savoie,Michael",
+   "exampleCourse": "OPSM 3830",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sawko,Jackson",
+   "exampleCourse": "RESM 4080",
+   "courseCount": 1
+  },
+  {
+   "raw": "Scarborough III,William Joslyn",
+   "exampleCourse": "SOCI 5200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Scarlott,Troy Brian",
+   "exampleCourse": "ADVG 1100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Schafer,Erin Cheri",
+   "exampleCourse": "ASLP 5900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Schaffer,Eva Jane",
+   "exampleCourse": "ECON 1100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Scharf,Thomas W",
+   "exampleCourse": "MTSE 3100",
+   "courseCount": 4
+  },
+  {
+   "raw": "Scheffler,Bernie",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Schimpf,Jocelyn",
+   "exampleCourse": "DANC 1200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Schmidt,Ralf",
+   "exampleCourse": "MATH 6510",
+   "courseCount": 1
+  },
+  {
+   "raw": "Schneider,Katherine",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Schnurr,Drew",
+   "exampleCourse": "MUCP 4325",
+   "courseCount": 2
+  },
+  {
+   "raw": "Schoolfield,Anne Catherine",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 2
+  },
+  {
+   "raw": "Schumann,Ronald",
+   "exampleCourse": "EADP 3035",
+   "courseCount": 2
+  },
+  {
+   "raw": "Schwab,Nicholey Elizabeth",
+   "exampleCourse": "SPAN 1020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Schwaighofer,Benjamin Aaron",
+   "exampleCourse": "MATH 1680",
+   "courseCount": 2
+  },
+  {
+   "raw": "Schwartz,Jennifer Lori",
+   "exampleCourse": "PSYC 6830",
+   "courseCount": 1
+  },
+  {
+   "raw": "Schwarz,David B",
+   "exampleCourse": "MUAG 4200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Scott,Lauren Aubert",
+   "exampleCourse": "DSCI 3710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Scott-Bracey,Pamela Kay",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 2
+  },
+  {
+   "raw": "Scroggins,Connor Bruce",
+   "exampleCourse": "MULB 1822",
+   "courseCount": 1
+  },
+  {
+   "raw": "Seckin,Gul",
+   "exampleCourse": "SOCI 3120",
+   "courseCount": 4
+  },
+  {
+   "raw": "Seetharaman,Ananth",
+   "exampleCourse": "ACCT 5780",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sella,Tamar",
+   "exampleCourse": "MUET 5500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Sendejo,Audrey Ann",
+   "exampleCourse": "SGNL 1020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sengupta,Aparajita",
+   "exampleCourse": "PADM 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Settle,Zoe Michelle",
+   "exampleCourse": "THEA 1050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sha,Kewei",
+   "exampleCourse": "DTSC 5502",
+   "courseCount": 4
+  },
+  {
+   "raw": "Shah,Jyoti",
+   "exampleCourse": "BIOC 6940",
+   "courseCount": 4
+  },
+  {
+   "raw": "Shah,Jyoti, Hoeinghaus,David Joseph",
+   "exampleCourse": "BIOL 6910",
+   "courseCount": 1
+  },
+  {
+   "raw": "Shah,Sayed Khushal",
+   "exampleCourse": "CSCE 1040",
+   "courseCount": 8
+  },
+  {
+   "raw": "Shahrokhi Kahnooj,Hadis",
+   "exampleCourse": "ASLP 4045",
+   "courseCount": 1
+  },
+  {
+   "raw": "Shamroukh,Sameh Subhi",
+   "exampleCourse": "DSCI 4330",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sharma,Himanshu",
+   "exampleCourse": "CSCE 1015",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sharma,Kinshuk",
+   "exampleCourse": "MGMT 5140",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sharma,Nikki",
+   "exampleCourse": "ACCT 3110",
+   "courseCount": 3
+  },
+  {
+   "raw": "Sharma,Sharad",
+   "exampleCourse": "DTSC 4777",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sharp,Lucinda",
+   "exampleCourse": "INFO 5600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Shastri,Supreeth",
+   "exampleCourse": "CSCE 3530",
+   "courseCount": 3
+  },
+  {
+   "raw": "Shay,Andrew Robert",
+   "exampleCourse": "RMIN 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Shemmer,Ohad",
+   "exampleCourse": "PHYS 4950",
+   "courseCount": 5
+  },
+  {
+   "raw": "Shen,Huei-wern",
+   "exampleCourse": "SOWK 5400",
+   "courseCount": 2
+  },
+  {
+   "raw": "Shepherd,Nigel Dexter",
+   "exampleCourse": "MTSE 3070",
+   "courseCount": 4
+  },
+  {
+   "raw": "Shepler,Anne V",
+   "exampleCourse": "MATH 2000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sheppard,Elissa L",
+   "exampleCourse": "ASTU 3704",
+   "courseCount": 2
+  },
+  {
+   "raw": "Sheppard,Steven Jay",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Sherard,Maximilan Kolbe",
+   "exampleCourse": "EPSY 2010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Shi,Sheldon Qiang",
+   "exampleCourse": "MEEN 2900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Shi,Weishi",
+   "exampleCourse": "CSCE 4290",
+   "courseCount": 7
+  },
+  {
+   "raw": "Shi,Xiaodan",
+   "exampleCourse": "BMEN 1400",
+   "courseCount": 6
+  },
+  {
+   "raw": "Shi,Yu",
+   "exampleCourse": "PADM 4130",
+   "courseCount": 5
+  },
+  {
+   "raw": "Shiner,David C",
+   "exampleCourse": "PHYS 1270",
+   "courseCount": 3
+  },
+  {
+   "raw": "Shippee,Kelsey C.",
+   "exampleCourse": "MUAC 1505",
+   "courseCount": 4
+  },
+  {
+   "raw": "Shrestha,Binod",
+   "exampleCourse": "ART 4614",
+   "courseCount": 2
+  },
+  {
+   "raw": "Shrestha,Pradhumna Lal",
+   "exampleCourse": "CSCE 1030",
+   "courseCount": 3
+  },
+  {
+   "raw": "Shu,Tong",
+   "exampleCourse": "CSCE 4160",
+   "courseCount": 5
+  },
+  {
+   "raw": "Shulaev,Vladimir",
+   "exampleCourse": "BIOC 5950",
+   "courseCount": 5
+  },
+  {
+   "raw": "Sidorova,Anna",
+   "exampleCourse": "BCIS 5140",
+   "courseCount": 2
+  },
+  {
+   "raw": "Siebeneck,Laura Kathryn",
+   "exampleCourse": "EMDS 5120",
+   "courseCount": 1
+  },
+  {
+   "raw": "Siller,Hector",
+   "exampleCourse": "MEEN 5890",
+   "courseCount": 4
+  },
+  {
+   "raw": "Siller,Michael Johannes",
+   "exampleCourse": "EPSY 6020",
+   "courseCount": 4
+  },
+  {
+   "raw": "Silveus,Sarah Alexis",
+   "exampleCourse": "COUN 5490",
+   "courseCount": 2
+  },
+  {
+   "raw": "Simon,Samuel Anthony",
+   "exampleCourse": "CJUS 2100",
+   "courseCount": 6
+  },
+  {
+   "raw": "Sims,Calvin Matthew",
+   "exampleCourse": "PSYC 1630",
+   "courseCount": 5
+  },
+  {
+   "raw": "Singer,Mara Faith",
+   "exampleCourse": "MGMT 3660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Singh,Jace",
+   "exampleCourse": "PHYS 1410",
+   "courseCount": 2
+  },
+  {
+   "raw": "Singh,Sarvjeet",
+   "exampleCourse": "DSCI 4700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sittel,Robbie",
+   "exampleCourse": "INFO 5600",
+   "courseCount": 1
+  },
+  {
+   "raw": "Siu,King man",
+   "exampleCourse": "EENG 2611",
+   "courseCount": 7
+  },
+  {
+   "raw": "Skellam,Elizabeth Julia",
+   "exampleCourse": "BIOC 6900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Slaton,Kelcie",
+   "exampleCourse": "MDSE 2790",
+   "courseCount": 4
+  },
+  {
+   "raw": "Slaughter III,LeGrande Mancel",
+   "exampleCourse": "CHEM 4930",
+   "courseCount": 4
+  },
+  {
+   "raw": "Slavish,Danica Christine",
+   "exampleCourse": "PSYC 5710",
+   "courseCount": 6
+  },
+  {
+   "raw": "Slocum,Phyllis Rose",
+   "exampleCourse": "MRTS 3482",
+   "courseCount": 4
+  },
+  {
+   "raw": "Slottow,Stephen Paul",
+   "exampleCourse": "MUTH 2500",
+   "courseCount": 4
+  },
+  {
+   "raw": "Smith,Arlo",
+   "exampleCourse": "PHIL 2500",
+   "courseCount": 1
+  },
+  {
+   "raw": "Smith,Daniella LaShaun",
+   "exampleCourse": "INFO 5340",
+   "courseCount": 8
+  },
+  {
+   "raw": "Smith,Daniella LaShaun, Evans,Sarah Amber",
+   "exampleCourse": "INFO 6900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Smith,David Roland",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 1
+  },
+  {
+   "raw": "Smith,Edward L",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 9
+  },
+  {
+   "raw": "Smith,Kane",
+   "exampleCourse": "BCIS 4610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Smith,Scott Lindsey",
+   "exampleCourse": "BLAW 3430",
+   "courseCount": 1
+  },
+  {
+   "raw": "Smith,Timothy Wayne",
+   "exampleCourse": "MKTG 3010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Smith,Victoria Davis",
+   "exampleCourse": "EDCI 5850",
+   "courseCount": 1
+  },
+  {
+   "raw": "Smrcka,Kristy",
+   "exampleCourse": "INFO 5421",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sobering,Katherine Elizabeth",
+   "exampleCourse": "SOCI 4900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Sobrino,Mario David",
+   "exampleCourse": "COUN 5480",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sohal,Ikjot Singh",
+   "exampleCourse": "BIOC 4570",
+   "courseCount": 6
+  },
+  {
+   "raw": "Son,Myeongjin",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Song,Kai-Sheng",
+   "exampleCourse": "MATH 3370",
+   "courseCount": 1
+  },
+  {
+   "raw": "Soulen,Brianne Kiester",
+   "exampleCourse": "BIOL 4380",
+   "courseCount": 2
+  },
+  {
+   "raw": "South,John Randolph",
+   "exampleCourse": "GEOG 2110",
+   "courseCount": 5
+  },
+  {
+   "raw": "Soveranes,Erika Jean",
+   "exampleCourse": "MUEN 2626",
+   "courseCount": 2
+  },
+  {
+   "raw": "Spears,Daniel L.",
+   "exampleCourse": "HMGT 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Spears,Daniel L., Farmer,Thelma S",
+   "exampleCourse": "HMGT 4860",
+   "courseCount": 1
+  },
+  {
+   "raw": "Spence,James Michael",
+   "exampleCourse": "INFO 4637",
+   "courseCount": 1
+  },
+  {
+   "raw": "Spencer,Samuel David",
+   "exampleCourse": "PSYC 2900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sprick,Justin",
+   "exampleCourse": "KINE 5250",
+   "courseCount": 5
+  },
+  {
+   "raw": "Squires,Susan Elaine",
+   "exampleCourse": "ANTH 4900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Sriji,Poovalur",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 9
+  },
+  {
+   "raw": "Sriram,Shyamkumar",
+   "exampleCourse": "PUBH 3020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Srivilliputhur,Srinivasan G.",
+   "exampleCourse": "MTSE 2900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Stalega,Melissa",
+   "exampleCourse": "EDSP 4350",
+   "courseCount": 2
+  },
+  {
+   "raw": "Stanaland,Leslie Shaun",
+   "exampleCourse": "BAAS 3020",
+   "courseCount": 4
+  },
+  {
+   "raw": "Stark,Johnnie Kay",
+   "exampleCourse": "ADES 4640",
+   "courseCount": 2
+  },
+  {
+   "raw": "Steele,Allan Gregory zimmerman ramsay",
+   "exampleCourse": "MUGC 4890",
+   "courseCount": 2
+  },
+  {
+   "raw": "Steele,Mariah Louisa",
+   "exampleCourse": "ENGL 1325",
+   "courseCount": 1
+  },
+  {
+   "raw": "Steen,Heather Dawn",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stephens,Timothy",
+   "exampleCourse": "CHEM 1440",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stevens,Hannah Leigh",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stevens,James Don",
+   "exampleCourse": "ENGL 1325",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stevens,Savannah Paige",
+   "exampleCourse": "PHIL 1050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stevenson,Valerie Felicia",
+   "exampleCourse": "HLTH 2200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stockdale,Nancy L",
+   "exampleCourse": "HIST 4241",
+   "courseCount": 1
+  },
+  {
+   "raw": "Storm,Matthew Carsten",
+   "exampleCourse": "MKTG 4280",
+   "courseCount": 1
+  },
+  {
+   "raw": "Stovall,Olin Scott",
+   "exampleCourse": "ACCT 3270",
+   "courseCount": 2
+  },
+  {
+   "raw": "Strayer,Chelsea L",
+   "exampleCourse": "MUAC 1507",
+   "courseCount": 4
+  },
+  {
+   "raw": "Strutton,David",
+   "exampleCourse": "MKTG 3650",
+   "courseCount": 3
+  },
+  {
+   "raw": "Suber,Terrence Lynn",
+   "exampleCourse": "MKTG 3010",
+   "courseCount": 4
+  },
+  {
+   "raw": "Sullivan,Brian Keith",
+   "exampleCourse": "ADES 3548",
+   "courseCount": 2
+  },
+  {
+   "raw": "Summerbell,Samantha Dodd",
+   "exampleCourse": "INFO 5240",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sun,Hua",
+   "exampleCourse": "EENG 2621",
+   "courseCount": 6
+  },
+  {
+   "raw": "Sun,Lili",
+   "exampleCourse": "ACCT 3120",
+   "courseCount": 3
+  },
+  {
+   "raw": "Sundberg,Terri",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 8
+  },
+  {
+   "raw": "Sundt,Jody Lynn",
+   "exampleCourse": "CJUS 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Sung,Yu-hsien",
+   "exampleCourse": "PSCI 2316",
+   "courseCount": 2
+  },
+  {
+   "raw": "Susser,Carly",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 3
+  },
+  {
+   "raw": "Sutton,Travis J",
+   "exampleCourse": "MRTS 3475",
+   "courseCount": 3
+  },
+  {
+   "raw": "Swain,Greta Katherine",
+   "exampleCourse": "HUMA 4920",
+   "courseCount": 1
+  },
+  {
+   "raw": "Swanagon,David Michael",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 2
+  },
+  {
+   "raw": "Tait,John Alexander",
+   "exampleCourse": "ENGL 3140",
+   "courseCount": 3
+  },
+  {
+   "raw": "Takeuchi,Yayoi",
+   "exampleCourse": "JAPN 1010",
+   "courseCount": 5
+  },
+  {
+   "raw": "Tam,Nicoladie D",
+   "exampleCourse": "BIOL 4220",
+   "courseCount": 4
+  },
+  {
+   "raw": "Tamrakar,Chanchal Bahadur",
+   "exampleCourse": "MKTG 4280",
+   "courseCount": 3
+  },
+  {
+   "raw": "Tan,Xu",
+   "exampleCourse": "PHIL 2070",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tang,Xiaolei",
+   "exampleCourse": "RHAB 5730",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tanzillo,Angela M",
+   "exampleCourse": "BIOL 3331",
+   "courseCount": 3
+  },
+  {
+   "raw": "Tapia II,Luis Adolfo",
+   "exampleCourse": "EADP 4040",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tarakci,Hakan",
+   "exampleCourse": "DSCI 3710",
+   "courseCount": 3
+  },
+  {
+   "raw": "Tariq,Zeenat",
+   "exampleCourse": "CSCE 4300",
+   "courseCount": 5
+  },
+  {
+   "raw": "Taylor,Barrett Jay",
+   "exampleCourse": "EDHE 6710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Taylor,Don",
+   "exampleCourse": "MUED 5150",
+   "courseCount": 2
+  },
+  {
+   "raw": "Tazware,Shaquer",
+   "exampleCourse": "ECON 1100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tekarli,Sammer",
+   "exampleCourse": "CHEM 1410",
+   "courseCount": 2
+  },
+  {
+   "raw": "Tempesta,Mark Francis",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 10
+  },
+  {
+   "raw": "Thomas,Cassie, Labue,Amanda Marie",
+   "exampleCourse": "ASLP 6090",
+   "courseCount": 1
+  },
+  {
+   "raw": "Thomas,Chance",
+   "exampleCourse": "MILS 2291",
+   "courseCount": 2
+  },
+  {
+   "raw": "Thomas,Natalie",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Thompson,Julie",
+   "exampleCourse": "MATH 1100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Thompson,Kenneth Neil",
+   "exampleCourse": "MKTG 3650",
+   "courseCount": 1
+  },
+  {
+   "raw": "Thompson,Michelle Ann-marie",
+   "exampleCourse": "MATH 1180",
+   "courseCount": 3
+  },
+  {
+   "raw": "Thompson,Ruthanne",
+   "exampleCourse": "BIOL 6940",
+   "courseCount": 2
+  },
+  {
+   "raw": "Thorburn,John Edward",
+   "exampleCourse": "LATI 2050",
+   "courseCount": 2
+  },
+  {
+   "raw": "Thurman,Emily Renee",
+   "exampleCourse": "SPAN 2040",
+   "courseCount": 3
+  },
+  {
+   "raw": "Tierra chica,Giordano",
+   "exampleCourse": "MATH 3350",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tieslau,Margie A",
+   "exampleCourse": "ECON 4875",
+   "courseCount": 4
+  },
+  {
+   "raw": "Timmons,Ronald Patrick",
+   "exampleCourse": "EADP 4065",
+   "courseCount": 4
+  },
+  {
+   "raw": "Timothy,Elizabeth Kathini",
+   "exampleCourse": "PADM 2100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tinsman,Corey",
+   "exampleCourse": "CJUS 4870",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tixier,Scott Soleil platon",
+   "exampleCourse": "MUAC 1504",
+   "courseCount": 7
+  },
+  {
+   "raw": "Todd,Christopher Patrick",
+   "exampleCourse": "HIST 2620",
+   "courseCount": 2
+  },
+  {
+   "raw": "Torget,Andrew Jonathan",
+   "exampleCourse": "HIST 4261",
+   "courseCount": 2
+  },
+  {
+   "raw": "Torres,Marta Maria",
+   "exampleCourse": "ART 4940",
+   "courseCount": 1
+  },
+  {
+   "raw": "Torres,Russell",
+   "exampleCourse": "BCIS 6950",
+   "courseCount": 2
+  },
+  {
+   "raw": "Toussaint,Karen Ann",
+   "exampleCourse": "BEHV 4680",
+   "courseCount": 5
+  },
+  {
+   "raw": "Townsend,Liz Wood",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 1
+  },
+  {
+   "raw": "Toye,Afolabi Olaleye",
+   "exampleCourse": "PSCI 3810",
+   "courseCount": 1
+  },
+  {
+   "raw": "Trachsel,Andrew",
+   "exampleCourse": "MUAG 4050",
+   "courseCount": 5
+  },
+  {
+   "raw": "Trahan IV,Joseph Van",
+   "exampleCourse": "JOUR 4355",
+   "courseCount": 1
+  },
+  {
+   "raw": "Trahan,Adam",
+   "exampleCourse": "CJUS 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tran,Hau Cong",
+   "exampleCourse": "FINA 4310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tran,Khoi",
+   "exampleCourse": "SOCI 1520",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tran,Uyen",
+   "exampleCourse": "EDHE 5100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Trang,Nam Duc",
+   "exampleCourse": "MATH 5620",
+   "courseCount": 1
+  },
+  {
+   "raw": "Traylor,Andrea Renee",
+   "exampleCourse": "PUBH 3020",
+   "courseCount": 3
+  },
+  {
+   "raw": "Treadway,Heather",
+   "exampleCourse": "BAAS 3020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Trevino,Gilbert",
+   "exampleCourse": "MUAC 1514",
+   "courseCount": 4
+  },
+  {
+   "raw": "Tripathy,Niranjan",
+   "exampleCourse": "FINA 4500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Trippeer,Barbara",
+   "exampleCourse": "ADES 4555",
+   "courseCount": 2
+  },
+  {
+   "raw": "Trivedi,Bhaskar Chandra",
+   "exampleCourse": "CSCE 3600",
+   "courseCount": 2
+  },
+  {
+   "raw": "Trlak,Chris S",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 6
+  },
+  {
+   "raw": "Trudeau,Justin",
+   "exampleCourse": "COMM 2060",
+   "courseCount": 7
+  },
+  {
+   "raw": "Trulson,Chad Richard",
+   "exampleCourse": "CJUS 3710",
+   "courseCount": 4
+  },
+  {
+   "raw": "Trussell,Maureen",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tu,Fengjiao",
+   "exampleCourse": "INFO 4670",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tullos,Jennifer Nicole",
+   "exampleCourse": "ENGL 1320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tunc,Cihan",
+   "exampleCourse": "CSCE 3560",
+   "courseCount": 6
+  },
+  {
+   "raw": "Turkel,Stephanie",
+   "exampleCourse": "NUTR 2460",
+   "courseCount": 1
+  },
+  {
+   "raw": "Turner,Philip M",
+   "exampleCourse": "INFO 5080",
+   "courseCount": 1
+  },
+  {
+   "raw": "Tyler-Wood,Tandra L",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Tymoshchuk,Pavlo",
+   "exampleCourse": "CSCE 4430",
+   "courseCount": 5
+  },
+  {
+   "raw": "Tyrrell,Susan M",
+   "exampleCourse": "BAAS 3020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Uanhoro,James Ohisei",
+   "exampleCourse": "EPSY 5900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Uddin,Shahriar",
+   "exampleCourse": "MKTG 4120",
+   "courseCount": 1
+  },
+  {
+   "raw": "Uglow,Todd Anthony",
+   "exampleCourse": "CMHT 4790",
+   "courseCount": 4
+  },
+  {
+   "raw": "Upchurch,Karen C",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Updegrove,Alexander Hodge",
+   "exampleCourse": "CJUS 4600",
+   "courseCount": 3
+  },
+  {
+   "raw": "Urbanski,Mariusz",
+   "exampleCourse": "MATH 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Vahle,Sally Margaret",
+   "exampleCourse": "THEA 4051",
+   "courseCount": 2
+  },
+  {
+   "raw": "Vaidyanathan,Vijay V",
+   "exampleCourse": "BMEN 2320",
+   "courseCount": 10
+  },
+  {
+   "raw": "Vail,Jeannine Shara",
+   "exampleCourse": "ADES 3645",
+   "courseCount": 1
+  },
+  {
+   "raw": "Valsson,Omar",
+   "exampleCourse": "CHEM 4680",
+   "courseCount": 5
+  },
+  {
+   "raw": "Van Leeuwen,Chris",
+   "exampleCourse": "MUJS 5536",
+   "courseCount": 1
+  },
+  {
+   "raw": "Van Schalkwyk,Willem",
+   "exampleCourse": "MUAM 5534",
+   "courseCount": 3
+  },
+  {
+   "raw": "Van der leest,Tammy Lynn",
+   "exampleCourse": "MGMT 3660",
+   "courseCount": 2
+  },
+  {
+   "raw": "Varnon,Christopher A",
+   "exampleCourse": "BEHV 2300",
+   "courseCount": 4
+  },
+  {
+   "raw": "Vashishath,Yashu",
+   "exampleCourse": "CSCE 1015",
+   "courseCount": 1
+  },
+  {
+   "raw": "Vasquez,Arthur Gregory",
+   "exampleCourse": "CJUS 5800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Vassilieva,Elena",
+   "exampleCourse": "INFO 4685",
+   "courseCount": 4
+  },
+  {
+   "raw": "Vastine,Stephanie",
+   "exampleCourse": "ENGL 5760",
+   "courseCount": 2
+  },
+  {
+   "raw": "Vasudevan,Vijay Krishnaswami",
+   "exampleCourse": "MTSE 3000",
+   "courseCount": 6
+  },
+  {
+   "raw": "Vaughn,Holley A",
+   "exampleCourse": "COMM 2060",
+   "courseCount": 7
+  },
+  {
+   "raw": "Vaziri bozorg,Hoda",
+   "exampleCourse": "MGMT 5870",
+   "courseCount": 2
+  },
+  {
+   "raw": "Velikanova,Olga Valentinovna",
+   "exampleCourse": "HIST 1060",
+   "courseCount": 2
+  },
+  {
+   "raw": "Verghese,Anto",
+   "exampleCourse": "DSCI 5180",
+   "courseCount": 1
+  },
+  {
+   "raw": "Vernon,Emily Jane",
+   "exampleCourse": "JOUR 2310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Virani,Vivek",
+   "exampleCourse": "MUET 2000",
+   "courseCount": 2
+  },
+  {
+   "raw": "Voevodin,Andrey",
+   "exampleCourse": "MTSE 3001",
+   "courseCount": 5
+  },
+  {
+   "raw": "Volturo,Rita",
+   "exampleCourse": "EDSP 4110",
+   "courseCount": 1
+  },
+  {
+   "raw": "Vu,Laura Michelle",
+   "exampleCourse": "INDS 4010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Waddell,Stephen",
+   "exampleCourse": "EDLE 6520",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wagner,Natalie Grace",
+   "exampleCourse": "MUAC 3512",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wahlberg,Bryan Dean",
+   "exampleCourse": "LGAV 3150",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wahlert,Andrew James",
+   "exampleCourse": "SPAN 1010",
+   "courseCount": 3
+  },
+  {
+   "raw": "Walker,Brian Mathew",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 8
+  },
+  {
+   "raw": "Walker,Joseph",
+   "exampleCourse": "RESM 3050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Walker,Rick Nelson",
+   "exampleCourse": "MRTS 4320",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wallach,Jennifer Jensen",
+   "exampleCourse": "HIST 6000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wang,Chi",
+   "exampleCourse": "FINA 4200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wang,Chiachih",
+   "exampleCourse": "PSYC 5900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Wang,Guonan",
+   "exampleCourse": "INFO 5709",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wang,Haili",
+   "exampleCourse": "CSCE 4240",
+   "courseCount": 6
+  },
+  {
+   "raw": "Wang,Hillary Grace",
+   "exampleCourse": "ACCT 2020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wang,Hong",
+   "exampleCourse": "CHEM 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Wang,Qingwei",
+   "exampleCourse": "PSYC 2317",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wang,Ruocun",
+   "exampleCourse": "MTSE 5800",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wang,Shuping",
+   "exampleCourse": "EENG 3520",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wang,Tao",
+   "exampleCourse": "CSCE 5934",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wang,Ting",
+   "exampleCourse": "INFO 4100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wang,Xiaoqiang",
+   "exampleCourse": "BIOC 5950",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wang,Xin",
+   "exampleCourse": "INFO 4745",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wang,Xuanzhou",
+   "exampleCourse": "MUAC 1512",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wang,Yuanxi",
+   "exampleCourse": "PHYS 3510",
+   "courseCount": 5
+  },
+  {
+   "raw": "Wang,Zuoming",
+   "exampleCourse": "COMM 3420",
+   "courseCount": 8
+  },
+  {
+   "raw": "Ware,Megan Elizabeth",
+   "exampleCourse": "HLTH 1100",
+   "courseCount": 6
+  },
+  {
+   "raw": "Warren,Scott Joseph",
+   "exampleCourse": "LTEC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Washburn,Adrianne Jones",
+   "exampleCourse": "INFO 5303",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wasikowski,Mark Edward",
+   "exampleCourse": "MEEN 3230",
+   "courseCount": 4
+  },
+  {
+   "raw": "Wasson,Christina",
+   "exampleCourse": "ANTH 4110",
+   "courseCount": 7
+  },
+  {
+   "raw": "Watkins Jr,Clifton Edward",
+   "exampleCourse": "PSYC 6900",
+   "courseCount": 2
+  },
+  {
+   "raw": "Watson Jr.,Joe Allan",
+   "exampleCourse": "PHYS 1710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Watson,Jennifer Lynn",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 2
+  },
+  {
+   "raw": "Watson,Susan Elizabeth",
+   "exampleCourse": "BAAS 4100",
+   "courseCount": 2
+  },
+  {
+   "raw": "Watts,Justin",
+   "exampleCourse": "COUN 6130",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wawro,Geoffrey",
+   "exampleCourse": "HIST 4074",
+   "courseCount": 2
+  },
+  {
+   "raw": "Way,Jennifer",
+   "exampleCourse": "ART 5900",
+   "courseCount": 3
+  },
+  {
+   "raw": "Weatherholt,Daniel T",
+   "exampleCourse": "MUAG 1101",
+   "courseCount": 1
+  },
+  {
+   "raw": "Weathers,Duncan Lee",
+   "exampleCourse": "PHYS 4610",
+   "courseCount": 8
+  },
+  {
+   "raw": "Webb,Gary R",
+   "exampleCourse": "EADP 3045",
+   "courseCount": 3
+  },
+  {
+   "raw": "Webb,Jae",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 4
+  },
+  {
+   "raw": "Weber,Rebecca J",
+   "exampleCourse": "CHEM 1410",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wei,Yusheng",
+   "exampleCourse": "EENG 2611",
+   "courseCount": 6
+  },
+  {
+   "raw": "Weiller-Abels,Karen H",
+   "exampleCourse": "KINE 2050",
+   "courseCount": 1
+  },
+  {
+   "raw": "Welch,Erin Elizabeth",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 3
+  },
+  {
+   "raw": "Welch,Lisa Renea",
+   "exampleCourse": "BIOL 2302",
+   "courseCount": 2
+  },
+  {
+   "raw": "Welch,Martha Courtney",
+   "exampleCourse": "HIST 2610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wells,Jennifer",
+   "exampleCourse": "ASLP 5755",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wen,Han",
+   "exampleCourse": "HMGT 5280",
+   "courseCount": 1
+  },
+  {
+   "raw": "West,Ruth",
+   "exampleCourse": "ART 5900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Weston,Ann-Marie Pence",
+   "exampleCourse": "ASLP 5850",
+   "courseCount": 1
+  },
+  {
+   "raw": "White,John Christopher",
+   "exampleCourse": "LSCM 4540",
+   "courseCount": 3
+  },
+  {
+   "raw": "White,Melody N",
+   "exampleCourse": "BCIS 4720",
+   "courseCount": 2
+  },
+  {
+   "raw": "Whitten,Adam",
+   "exampleCourse": "BLAW 3430",
+   "courseCount": 3
+  },
+  {
+   "raw": "Whittington,Jane Elizabeth",
+   "exampleCourse": "PSYC 3530",
+   "courseCount": 4
+  },
+  {
+   "raw": "Whittington,Lillia Danielle",
+   "exampleCourse": "ADES 2555",
+   "courseCount": 1
+  },
+  {
+   "raw": "Whitworth,Clifford",
+   "exampleCourse": "DTSC 5082",
+   "courseCount": 6
+  },
+  {
+   "raw": "Whitworth,Kayla Renae",
+   "exampleCourse": "SOWK 3525",
+   "courseCount": 4
+  },
+  {
+   "raw": "Widmer,Steven Benjamin",
+   "exampleCourse": "MATH 1600",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wigdor,Ariel Benjamin donovan",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wiggins,Kathleen",
+   "exampleCourse": "HLSV 5710",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wilcox,Ross Elliott",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Williams,Brittany Shanice",
+   "exampleCourse": "COUN 5640",
+   "courseCount": 3
+  },
+  {
+   "raw": "Williams,Charlie",
+   "exampleCourse": "BIOL 4900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Williams,Connor",
+   "exampleCourse": "MUAC 1516",
+   "courseCount": 6
+  },
+  {
+   "raw": "Williams,Curtis",
+   "exampleCourse": "LSCM 3960",
+   "courseCount": 2
+  },
+  {
+   "raw": "Williams,Damoine Tevaur",
+   "exampleCourse": "CJUS 3340",
+   "courseCount": 1
+  },
+  {
+   "raw": "Williams,Eric Louis",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 2
+  },
+  {
+   "raw": "Williams,Harry F L",
+   "exampleCourse": "GEOG 3050",
+   "courseCount": 4
+  },
+  {
+   "raw": "Williams,Kim Howard",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 1
+  },
+  {
+   "raw": "Williams,Lawrence",
+   "exampleCourse": "WLLC 3020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Williams,Lee Tyler",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Williams,Miranda",
+   "exampleCourse": "BAAS 3000",
+   "courseCount": 4
+  },
+  {
+   "raw": "Williams,Thomas Christopher",
+   "exampleCourse": "FINA 4500",
+   "courseCount": 2
+  },
+  {
+   "raw": "Williams,Whitney Anne",
+   "exampleCourse": "ANTH 3101",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wilner,Neil Alan",
+   "exampleCourse": "ACCT 3270",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wilson,Carol Sue",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 6
+  },
+  {
+   "raw": "Wilson,Kelly Sevin",
+   "exampleCourse": "ADDS 3975",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wingate,Raedeen Ann",
+   "exampleCourse": "ASLP 4900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Winner,Tammy Sue",
+   "exampleCourse": "TECM 2700",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wodnicki,Adam J",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 7
+  },
+  {
+   "raw": "Wolfe,Marcus",
+   "exampleCourse": "MGMT 6880",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wolfe,Trae Colton, Cunningham,Bruce Vincent, Jackson,Jake Neil, Pieluszczak,Scott L, Thomas,Chance",
+   "exampleCourse": "MILS 4342",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wolfe,Trae Colton, Cunningham,Bruce Vincent, Jackson,Jake Neil, Tallman,Tanner, Pieluszczak,Scott L, Thomas,Chance",
+   "exampleCourse": "MILS 1142",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wolfe,Trae Colton, Cunningham,Bruce Vincent, Jackson,Jake Neil, Thomas,Chance",
+   "exampleCourse": "MILS 4391",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wolfe,Trae Colton, Jackson,Jake Neil, Cunningham,Bruce Vincent, Pieluszczak,Scott L, Thomas,Chance",
+   "exampleCourse": "MILS 2252",
+   "courseCount": 1
+  },
+  {
+   "raw": "Wolske,David Michael",
+   "exampleCourse": "ADES 2510",
+   "courseCount": 3
+  },
+  {
+   "raw": "Wolverton,Steven John",
+   "exampleCourse": "BIOL 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Won,Misun",
+   "exampleCourse": "SENM 4020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Won,Youngwook",
+   "exampleCourse": "BMEN 4326",
+   "courseCount": 5
+  },
+  {
+   "raw": "Wong,Lok-sze",
+   "exampleCourse": "EDLE 5330",
+   "courseCount": 1
+  },
+  {
+   "raw": "Woods,Annie J",
+   "exampleCourse": "ENGL 1310",
+   "courseCount": 1
+  },
+  {
+   "raw": "Woods,Jessica A",
+   "exampleCourse": "PADM 4300",
+   "courseCount": 3
+  },
+  {
+   "raw": "Woody,Amy Lynn",
+   "exampleCourse": "MUAG 3870",
+   "courseCount": 4
+  },
+  {
+   "raw": "Word,Jeffrey Benton",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 3
+  },
+  {
+   "raw": "Worley,Madalyn Leigh",
+   "exampleCourse": "SOWK 1450",
+   "courseCount": 5
+  },
+  {
+   "raw": "Wren,Kimberly Tenese",
+   "exampleCourse": "ANTH 4720",
+   "courseCount": 6
+  },
+  {
+   "raw": "Wright,Brian Francis",
+   "exampleCourse": "MUMH 2060",
+   "courseCount": 2
+  },
+  {
+   "raw": "Wu,Andy",
+   "exampleCourse": "BCIS 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Xiao,Ming",
+   "exampleCourse": "BCIS 3610",
+   "courseCount": 1
+  },
+  {
+   "raw": "Xiao,Ting",
+   "exampleCourse": "CSCE 4890",
+   "courseCount": 11
+  },
+  {
+   "raw": "Xiao,Ting, Chen,Haihua",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 2
+  },
+  {
+   "raw": "Xiao,Xinyi",
+   "exampleCourse": "MEEN 5030",
+   "courseCount": 4
+  },
+  {
+   "raw": "Xiao,Yuzhe",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 8
+  },
+  {
+   "raw": "Xu,Bugao",
+   "exampleCourse": "DBUS 2080",
+   "courseCount": 5
+  },
+  {
+   "raw": "Xu,Jianren",
+   "exampleCourse": "FINA 3770",
+   "courseCount": 3
+  },
+  {
+   "raw": "Xu,Lidan",
+   "exampleCourse": "MKTG 4120",
+   "courseCount": 4
+  },
+  {
+   "raw": "Xu,Yunwei",
+   "exampleCourse": "MEEN 2240",
+   "courseCount": 3
+  },
+  {
+   "raw": "Yaffe,Martin David",
+   "exampleCourse": "PHIL 3200",
+   "courseCount": 3
+  },
+  {
+   "raw": "Yaghi,Majed",
+   "exampleCourse": "DBAS 6025",
+   "courseCount": 3
+  },
+  {
+   "raw": "Yaghi,Majed, Kidwell,Virginie Nadia",
+   "exampleCourse": "DBAS 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yalamanchili,Rattaya Chowdhury",
+   "exampleCourse": "MEEN 5130",
+   "courseCount": 7
+  },
+  {
+   "raw": "Yan,Hao",
+   "exampleCourse": "CHEM 4900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Yang,Huaxiao",
+   "exampleCourse": "BMEN 2900",
+   "courseCount": 8
+  },
+  {
+   "raw": "Yang,Jian",
+   "exampleCourse": "INFO 4709",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yang,Kiseol",
+   "exampleCourse": "INFO 6660",
+   "courseCount": 3
+  },
+  {
+   "raw": "Yang,Meige",
+   "exampleCourse": "MUAC 1508",
+   "courseCount": 4
+  },
+  {
+   "raw": "Yang,Ming",
+   "exampleCourse": "MUAC 1521",
+   "courseCount": 4
+  },
+  {
+   "raw": "Yang,NaYeon",
+   "exampleCourse": "PSYC 4020",
+   "courseCount": 2
+  },
+  {
+   "raw": "Yang,Qing",
+   "exampleCourse": "CSCE 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Yang,Xi",
+   "exampleCourse": "ECON 3150",
+   "courseCount": 2
+  },
+  {
+   "raw": "Yang,Yong",
+   "exampleCourse": "BMEN 2900",
+   "courseCount": 7
+  },
+  {
+   "raw": "Yeatts,Dale",
+   "exampleCourse": "SOCI 4170",
+   "courseCount": 5
+  },
+  {
+   "raw": "Yim,Haeun",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Yin,Yihua",
+   "exampleCourse": "HLTH 2200",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yoon,Bongmin",
+   "exampleCourse": "MUJS 1014",
+   "courseCount": 2
+  },
+  {
+   "raw": "Yoon,Ha young",
+   "exampleCourse": "ACCT 2010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yoon,Jiyoung",
+   "exampleCourse": "SPAN 3003",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yoon,Sukyung",
+   "exampleCourse": "SOWK 4880",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yoshimura,Ayako",
+   "exampleCourse": "JAPN 1010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Young,Marcus Lynn",
+   "exampleCourse": "MTSE 5800",
+   "courseCount": 6
+  },
+  {
+   "raw": "Young,Melissa Roth",
+   "exampleCourse": "MUED 2310",
+   "courseCount": 2
+  },
+  {
+   "raw": "Yousef,Dina",
+   "exampleCourse": "COUN 5000",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yousuf,Mohammad Saad",
+   "exampleCourse": "JOUR 2300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yu,Cheng",
+   "exampleCourse": "CNET 4620",
+   "courseCount": 4
+  },
+  {
+   "raw": "Yu,Cheng, Bagcal,Orlando Raza",
+   "exampleCourse": "CNET 4920",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yu,Ji hyun",
+   "exampleCourse": "INFO 6900",
+   "courseCount": 1
+  },
+  {
+   "raw": "Yuan,Jing",
+   "exampleCourse": "CSCE 5900",
+   "courseCount": 4
+  },
+  {
+   "raw": "Yuan,Xiaohui",
+   "exampleCourse": "CSCE 2900",
+   "courseCount": 6
+  },
+  {
+   "raw": "Zafirovski,Milan Z",
+   "exampleCourse": "SOCI 3330",
+   "courseCount": 3
+  },
+  {
+   "raw": "Zahn,Amy Lee",
+   "exampleCourse": "ASLP 6020",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zaidi,Nabila",
+   "exampleCourse": "MGMT 3720",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zant,Olivia Montou",
+   "exampleCourse": "ASLP 6730",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zarafshani,Ali",
+   "exampleCourse": "CSCE 3550",
+   "courseCount": 4
+  },
+  {
+   "raw": "Zaruba,Gergely",
+   "exampleCourse": "CSCE 6950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zavalina,Oksana Lvivna",
+   "exampleCourse": "INFO 4223",
+   "courseCount": 5
+  },
+  {
+   "raw": "Zavar,Elyse Marie",
+   "exampleCourse": "EMDS 5950",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zettler,Haley",
+   "exampleCourse": "CJUS 3630",
+   "courseCount": 4
+  },
+  {
+   "raw": "Zhan,Lei",
+   "exampleCourse": "EENG 2710",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhang,Haifeng",
+   "exampleCourse": "MEEN 5140",
+   "courseCount": 3
+  },
+  {
+   "raw": "Zhang,Jiaxin",
+   "exampleCourse": "TECM 3550",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zhang,Jing",
+   "exampleCourse": "MATH 5010",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhang,Rong",
+   "exampleCourse": "CHEM 1410",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhang,Ruiqian",
+   "exampleCourse": "MUAM 3512",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhang,Stephen",
+   "exampleCourse": "ADES 2520",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zhang,Tao",
+   "exampleCourse": "EPSY 6900",
+   "courseCount": 5
+  },
+  {
+   "raw": "Zhang,Xian",
+   "exampleCourse": "INFO 6950",
+   "courseCount": 5
+  },
+  {
+   "raw": "Zhang,Xiaoqun",
+   "exampleCourse": "DCAS 5251",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zhang,Xingyi",
+   "exampleCourse": "EDEM 2510",
+   "courseCount": 4
+  },
+  {
+   "raw": "Zhang,Yang",
+   "exampleCourse": "DTSC 4501",
+   "courseCount": 4
+  },
+  {
+   "raw": "Zhang,Zihao",
+   "exampleCourse": "MEEN 3210",
+   "courseCount": 5
+  },
+  {
+   "raw": "Zhao,Hui",
+   "exampleCourse": "CSCE 4610",
+   "courseCount": 7
+  },
+  {
+   "raw": "Zhao,Xiaodan",
+   "exampleCourse": "ECON 1100",
+   "courseCount": 5
+  },
+  {
+   "raw": "Zhao,Yingren",
+   "exampleCourse": "MUET 3030",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhao,Yuxuan",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zheng,Yanyan",
+   "exampleCourse": "EDEM 3600",
+   "courseCount": 3
+  },
+  {
+   "raw": "Zheng,Yi",
+   "exampleCourse": "MKTG 3010",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zheng,Yufeng",
+   "exampleCourse": "MTSE 3060",
+   "courseCount": 6
+  },
+  {
+   "raw": "Zhou,Hanquan",
+   "exampleCourse": "PHYS 2220",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhou,Kaiqi",
+   "exampleCourse": "HLSC 6520",
+   "courseCount": 2
+  },
+  {
+   "raw": "Zhou,Yang",
+   "exampleCourse": "ECON 4550",
+   "courseCount": 4
+  },
+  {
+   "raw": "Zhu,Lanlan",
+   "exampleCourse": "BUSI 3100",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zhu,Yuehong",
+   "exampleCourse": "MUAC 1501",
+   "courseCount": 3
+  },
+  {
+   "raw": "Ziehm,Taryn Denise",
+   "exampleCourse": "HLTH 3300",
+   "courseCount": 1
+  },
+  {
+   "raw": "Zorola,Marissa S",
+   "exampleCourse": "CMHT 3950",
+   "courseCount": 4
+  },
+  {
+   "raw": "Zuk,Tanya Dolores",
+   "exampleCourse": "MRTS 1330",
+   "courseCount": 4
+  },
+  {
+   "raw": "de Oliveira,Daniele Cristine Silva",
+   "exampleCourse": "MUAC 1503",
+   "courseCount": 2
+  },
+  {
+   "raw": "del Aguila Vargas,Vanessa Barbarella",
+   "exampleCourse": "BEHV 3660",
+   "courseCount": 1
+  }
+ ]
+}

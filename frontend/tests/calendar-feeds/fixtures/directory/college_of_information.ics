@@ -1,0 +1,60 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Information
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161815Z
+UID:tag:localist.com\,2008:EventInstance_53684578052079
+DTSTART:20260915T190000Z
+DTEND:20260915T203000Z
+DESCRIPTION:Need help on your resume or cover letter? Come join the Discove
+ ry Park Career Coaches to discuss resume and cover letter best practices a
+ nd get your resume and cover letter reviewed!\n\n \n\nThis event will be i
+ n G165 (the Agora) in the Learning Technologies department and online via 
+ Zoom.\n\n \n\nIf you require reasonable accommodations\, please contact th
+ e Discovery Park Career Coaches at DPCareerCenter@unt.edu.
+GEO:33.253134;-97.148579
+LOCATION:Discovery Park Building\, G165
+SUMMARY:Resume & Cover Letter Workshop — Discovery Park
+URL;VALUE=URI:https://calendar.unt.edu/event/resume-cover-letter-workshop-l
+ aunch-your-career-workshop-series-discovery-park-3251
+CATEGORIES:Workshops & Training
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161815Z
+UID:tag:localist.com\,2008:EventInstance_53880284360458
+DTSTART:20260916T193000Z
+DTEND:20260916T203000Z
+DESCRIPTION:Grab your favorite tea and join Dean Kinshuk for a virtual conv
+ ersation about the College of Information.\n\n\nThis is an opportunity for
+  current students\, prospective students and COI supporters to connect\, a
+ sk questions and hear directly from the dean about our programs\, students
+ \, and the future of the College.\n\n\nSeptember 16\n\n2:30 p.m.\n\nRegist
+ er via Zoom\n\nhttps://unt.zoom.us/meeting/register/salHW1HGSIuQ8zHWthjl3g
+LOCATION:
+SUMMARY:Tea with Dean Kinshuk
+URL;VALUE=URI:https://calendar.unt.edu/event/tea-with-dean-kinshuk
+CATEGORIES:Lectures & Speakers
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161815Z
+UID:tag:localist.com\,2008:EventInstance_53684605446327
+DTSTART:20260917T180000Z
+DTEND:20260917T200000Z
+DESCRIPTION:Are you eager to confidently engage with recruiters and make a 
+ lasting impression at the STEM Career Fair? Join the Discovery Park Career
+  Coaches for an interactive workshop that will help you propel your profes
+ sional journey.\n\n \n\nThis event will be in G165 (the Agora) in the Lear
+ ning Technologies department and online via Zoom.\n\n \n\nIf you require r
+ easonable accommodations\, please contact the Discovery Park Career Coache
+ s at DPCareerCenter@unt.edu.
+GEO:33.253134;-97.148579
+LOCATION:Discovery Park Building\, G165
+SUMMARY:Mastering Career Fair Networking — Discovery Park
+URL;VALUE=URI:https://calendar.unt.edu/event/mastering-career-fair-networki
+ ng-launch-your-career-workshop-series-discovery-park-8593
+CATEGORIES:Workshops & Training
+END:VEVENT
+END:VCALENDAR

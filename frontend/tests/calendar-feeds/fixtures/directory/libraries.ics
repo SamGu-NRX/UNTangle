@@ -1,0 +1,88 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Libraries
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161922Z
+UID:tag:localist.com\,2008:EventInstance_53880403742027
+DTSTART:20260914T150000Z
+DTEND:20260914T160000Z
+DESCRIPTION:What is TinkerCAD and what can you do with it?\n\nTinkerCAD is 
+ a browser-based software that allows you to create\, composite\, and edit 
+ 3D files using existing 3D files or drawing from a library of customizable
+  shapes. \n\n \n\nCourse Description\n\nThis course will take students thr
+ ough an overview of TinkerCAD using Makerspace lab computers. Students wil
+ l be able to follow along with Makerspace Staff to create 3D assets. Befor
+ e the course\, students should create a free account here: https://www.tin
+ kercad.com/\n\n \n\nCourse Goals and Objectives\n\nThe goal of the course 
+ is to have students develop and enrich their understanding of TinkerCAD to
+  be able to create 3D files for use in 3D printing or design. At the end o
+ f the course\, students will be able to:\n\nCreate and open TinkerCAD proj
+ ects\,Design and Manipulate 3D assets in the editor\,Explore tools and fun
+ ctionalities within the software\,Understand Isometric angles and export a
+ ppropriately framed snapshots.
+GEO:33.210068;-97.148954
+LOCATION:Willis Library\, The Spark Makerspace Willis Library
+SUMMARY:TinkerCAD Workshop
+URL;VALUE=URI:https://calendar.unt.edu/event/tinkercad-workshop
+CATEGORIES:Workshops & Training
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161922Z
+UID:tag:localist.com\,2008:EventInstance_53880780648422
+DTSTART:20260914T230000Z
+DTEND:20260915T000000Z
+DESCRIPTION:What is SketchUp and what can you do with it?\n\nSketchUp is a 
+ 3D design application designed for use in architecture and 3D asset design
+ .\n\n \n\nCourse Description\n\nThis course will take students through an 
+ overview of SketchUp using the Makerspace lab computers. Students will nee
+ d to create a free account with SketchUp before the workshop using this li
+ nk: https://id.trimble.com/ui/sign_in.html \n\n \n\nCourse Goals and Objec
+ tives\n\nThe goal of the course is to have students develop and enrich the
+ ir understanding of SketchUp to be able to create 3D models and sketches. 
+ At the end of the course\, students will be able to:\n\nCreate and open Sk
+ etchUp projects\,Design and Manipulate 3D assets in the SketchUp editor\,E
+ xplore tools and functionalities within the software\,Understand Isometric
+  angles and export appropriately framed snapshots.
+GEO:33.210068;-97.148954
+LOCATION:Willis Library\, The Spark Makerspace Willis Library
+SUMMARY: Sketchup Workshop
+URL;VALUE=URI:https://calendar.unt.edu/event/sketchup-workshop
+CATEGORIES:Workshops & Training
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161922Z
+UID:tag:localist.com\,2008:EventInstance_53880998296365
+DTSTART:20260915T150000Z
+DTEND:20260915T160000Z
+DESCRIPTION:What is Adobe Illustrator and what can you do with it?\n\nAdobe
+  Illustrator is an industry-standard graphic design software that allows u
+ sers to create drawings\, illustrations\, and artwork. Adobe Illustrator o
+ ffers a wide range of tools that enable designers to create shapes\, graph
+ ics\, illustrations\, compositions\, and mock-ups with ease. Designers can
+  trace shapes from existing images\, manipulate text in fun and exciting w
+ ays\, re-color or apply filters or effects to images\, or make eye-catchin
+ g product displays and mock-ups.\n\nIn addition\, Adobe Illustrator enable
+ s designers to create vector graphics\, which allow for the image or objec
+ t to be resized without loss of quality. This provides advantages for desi
+ gners interested in large prints\, marketing graphics\, or laser cuts and 
+ engraves.\n\n \n\nCourse Description\n\nThis course\, led by student staff
+  at The Spark\, will demonstrate various applications and techniques for u
+ sing Adobe Illustrator for beginners. Students will be able to follow alon
+ g on our workspace computers and ask questions.\n\n \n\nCourse Goals and O
+ bjectives\n\nThe goal of the course is to have students develop and enrich
+  their understanding of Adobe Illustrator to be able to use the software f
+ or a variety of graphic applications. By the end of the course\, students 
+ will be able to:\n\nCreate and open Adobe Illustrator projects\,Import ima
+ ge files into Adobe Illustrator\,Manipulate existing or imported image fil
+ es on a basic level\,Manipulate text in the Illustrator workspace\, andExp
+ ort finished Adobe Illustrator projects into useable image files.
+GEO:33.210068;-97.148954
+LOCATION:Willis Library\, The Spark Makerspace Willis Library
+SUMMARY:Adobe Illustrator Workshop
+URL;VALUE=URI:https://calendar.unt.edu/event/adobe-illustrator-workshop
+CATEGORIES:Workshops & Training
+END:VEVENT
+END:VCALENDAR
