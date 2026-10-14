@@ -429,6 +429,9 @@ export function createDatasetGraph(input: unknown): WalkwayGraph {
 
 let untDentonGraph: WalkwayGraph | undefined;
 function untGraph(): WalkwayGraph {
+  // Loaded on first use so modules that import this file don't pay for the
+  // walking graph until they route; an `import()` would make every route async.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   return untDentonGraph ??= createDatasetGraph(require("./data/campus-map.json"));
 }
 
