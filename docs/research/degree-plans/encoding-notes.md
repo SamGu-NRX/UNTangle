@@ -297,3 +297,16 @@ fixed in the follow-up commit and recorded here.
   test-only constants, and new tests run the engine's analysis over completed
   courses to confirm the BBA communication choice and accounting's international
   one-of evaluate correctly.
+- **Government pairing (round 2) — conceded and encoded one-from-each-pair.** Greptile
+  followed up on the rejection with the decisive page text: the Government area states Texas
+  law requires the 6 hours "to include consideration of the constitutions of the United
+  States and Texas", and the transfer paragraph confirms the pair structure ("completed both
+  GOVT 2305 and 2306 or their equivalents have satisfied this requirement"). The bare "choose
+  two courses from the following list" sentence is the ambiguous part; treating it as
+  unrestricted two-of-four would let PSCI 2305+2315 — two Political Behavior courses, no
+  constitutions — satisfy the area, violating the statutory condition the same page states.
+  All 15 plans now encode the area as one choose-one from PSCI 2305/2315 plus one choose-one
+  from PSCI 2306/2316 (requirement comments quote the statute and the transfer paragraph), and
+  a test pins the semantics: 2305+2315 must not complete the area; one course from each pair
+  must. Advanced standing exams, ROTC credit, and transfer-course satisfaction stay
+  advisor-checked in each plan's notChecked list.

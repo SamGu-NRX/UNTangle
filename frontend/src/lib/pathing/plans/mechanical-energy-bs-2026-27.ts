@@ -91,12 +91,27 @@ export const mechanicalEnergyBs2026: RequirementSet = {
         "HIST 2610", "HIST 2620", "HIST 2675", "HIST 2685",
       ],
     },
+          // The Government area states Texas law requires the 6 hours "to include consideration of
+      // the constitutions of the United States and Texas", while its list sentence says "choose
+      // two" across four options (2305/2315 behavior, 2306/2316 constitutions). Encoded as one
+      // from each pair: the statute, the transfer paragraph ("completed both GOVT 2305 and 2306
+      // or their equivalents have satisfied this requirement"), and every major's four-year
+      // sample plan all pair them. Advanced standing exams, ROTC credit, and transfer
+      // satisfaction stay advisor-checked (see notChecked).
     {
       kind: "choose",
-      name: "UCC Government/Political Science, 6 hours",
-      count: 2,
+      name: "UCC Government/Political Science: US Political Behavior, 3 hours",
+      count: 1,
       options: [
-        "PSCI 2305", "PSCI 2315", "PSCI 2306", "PSCI 2316",
+        "PSCI 2305", "PSCI 2315",
+      ],
+    },
+    {
+      kind: "choose",
+      name: "UCC Government/Political Science: Constitutions of the United States and Texas, 3 hours",
+      count: 1,
+      options: [
+        "PSCI 2306", "PSCI 2316",
       ],
     },
     {

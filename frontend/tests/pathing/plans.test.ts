@@ -109,7 +109,8 @@ test("every plan carries the nine UCC component areas totaling 42 hours", () => 
     ["UCC Language, Philosophy and Culture", 3],
     ["UCC Creative Arts", 3],
     ["UCC American History, 6 hours", 6],
-    ["UCC Government/Political Science, 6 hours", 6],
+    ["UCC Government/Political Science: US Political Behavior, 3 hours", 3],
+    ["UCC Government/Political Science: Constitutions of the United States and Texas, 3 hours", 3],
     ["UCC Social and Behavioral Sciences", 3],
   ];
   // The CS plan predates the shared-requirement convention (PR #70) and does not
@@ -201,4 +202,32 @@ test("integrative studies encodes three student-chosen 12-hour fields as pools",
     expect(field.kind).toBe("pool");
     if (field.kind === "pool") expect(field.hours).toBe(12);
   }
+});
+
+test("the government area requires one course from each pair, per the statute", () => {
+  // PSCI 2305 and PSCI 2315 are both US Political Behavior courses; the statutory
+  // constitutions condition is unmet, so this pair must not complete the area.
+  const government = ["PSCI 2305", "PSCI 2315", "PSCI 2306", "PSCI 2316"];
+  const catalog: CatalogCourse[] = government.map((id) => row(id, and()));
+  const behaviorName = "UCC Government/Political Science: US Political Behavior, 3 hours";
+  const constitutionsName = "UCC Government/Political Science: Constitutions of the United States and Texas, 3 hours";
+
+  const samePair = unlockAnalysis(
+    accountingBba2026,
+    assess(catalog, { transcript: [pass("PSCI 2305"), pass("PSCI 2315")] }),
+  );
+  const behavior = samePair.requirements.find((requirement) => requirement.name === behaviorName);
+  const constitutions = samePair.requirements.find((requirement) => requirement.name === constitutionsName);
+  expect(behavior?.met).toBe(true);
+  expect(constitutions?.met).toBe(false);
+
+  const split = unlockAnalysis(
+    accountingBba2026,
+    assess(catalog, { transcript: [pass("PSCI 2305"), pass("PSCI 2306")] }),
+  );
+  const governmentParts = split.requirements.filter(
+    (requirement) => requirement.name === behaviorName || requirement.name === constitutionsName,
+  );
+  expect(governmentParts).toHaveLength(2);
+  expect(governmentParts.every((requirement) => requirement.met)).toBe(true);
 });
