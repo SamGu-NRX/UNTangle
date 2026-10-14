@@ -4,7 +4,7 @@ Color Contrast Ratio Calculator
 WCAG 2.1 compliance checker for color combinations
 
 Usage:
-    python contrast-check.py "#000000" "#ffffff"
+    python contrast-check.py #000000 #ffffff
     python contrast-check.py 000000 ffffff
     python contrast-check.py "#333" "#fff"
 """
@@ -172,7 +172,7 @@ def main():
         print("\nUsage:")
         print("  python contrast-check.py <foreground> <background>")
         print("\nExamples:")
-        print("  python contrast-check.py \"#000000\" \"#ffffff\"")
+        print("  python contrast-check.py #000000 #ffffff")
         print("  python contrast-check.py 333 fff")
         print("  python contrast-check.py \"#1a1a1a\" \"#f5f5f5\"")
         print("\nNote: Both 3-digit and 6-digit hex codes are supported.")

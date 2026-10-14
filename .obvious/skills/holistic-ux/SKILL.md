@@ -396,7 +396,7 @@ Before delivering any output, verify:
 
 **Check colour contrast:**
 ```bash
-python ~/.agents/skills/holistic-ux/scripts/contrast-check.py "#333333" "#ffffff"
+python ~/.agents/skills/holistic-ux/scripts/contrast-check.py #333333 #ffffff
 ```
 
 **Deep dives:**
