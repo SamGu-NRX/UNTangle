@@ -27,7 +27,7 @@ Build `meetingOccurrences` and `feedOccurrences` in `packages/core/src/occurrenc
 - Core is pure: no imports from frontend, Node, Bun, the DOM or data files, and no ambient clock. `Intl.DateTimeFormat` is available; there is no bundled time zone database.
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). Propose contract changes in your PR description.
 - Don't wire this into Auto or the calendar UI. That's a later task.
-- The PR that listed this test is approved by Sam (`sam-approved`). Never add or remove that label, and never merge.
+- The PR that listed this test was approved by Sam's approving review on the PR's head commit. Never submit a review, never merge and never use `--admin`.
 
 ## Done means
 

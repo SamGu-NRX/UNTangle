@@ -23,7 +23,7 @@ Build `weightsFromImportance` in `packages/core/src/importance.ts`. Onboarding a
 - Core can't import the frontend, so copy the five preset weights into core. Moving `presets.ts` itself belongs to `docs/tasks/core-moves.md`, in its own PR.
 - A bad answer throws. Never clamp or round it into a valid one.
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). Propose contract changes in your PR description.
-- The PR that listed this test is approved by Sam (`sam-approved`). Never add or remove that label, and never merge.
+- The PR that listed this test was approved by Sam's approving review on the PR's head commit. Never submit a review, never merge and never use `--admin`.
 
 ## Done means
 

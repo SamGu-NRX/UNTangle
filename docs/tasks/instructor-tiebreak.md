@@ -25,7 +25,7 @@ The rule from docs/architecture/README.md: when some options in a course lack ac
 - Don't touch the optimizer. Using this comparator in the search, with a pruning bound that respects it, happens after the optimizer moves into core.
 - Grade history never feeds the optimizer's `rating` weight.
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). Propose contract changes in your PR description.
-- The PR that listed this test is approved by Sam (`sam-approved`). Never add or remove that label, and never merge.
+- The PR that listed this test was approved by Sam's approving review on the PR's head commit. Never submit a review, never merge and never use `--admin`.
 
 ## Done means
 

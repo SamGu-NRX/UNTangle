@@ -27,7 +27,7 @@ This is steps 2 and 4 of "Reference data: published releases" in docs/architectu
 - No network, disk or clock in this function. `node:crypto` is fine; ingest runs in Bun.
 - Don't edit `source-policies.ts`. It is a reviewed table; propose changes in your PR description.
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). Propose contract changes in your PR description.
-- The PR that listed this test is approved by Sam (`sam-approved`). Never add or remove that label, and never merge.
+- The PR that listed this test was approved by Sam's approving review on the PR's head commit. Never submit a review, never merge and never use `--admin`.
 
 ## Done means
 

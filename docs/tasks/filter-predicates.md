@@ -27,7 +27,7 @@ An earlier attempt lives on the `edge` branch in `frontend/src/lib/smart-filters
 - Core is pure: no imports from frontend, other workspace packages, Node, Bun, the DOM or data files. Lint and core's tsconfig enforce this.
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). If you need a contract change, propose it in your PR description.
 - Leave the planner alone. Wiring these filters into Auto and the Week view is a later task.
-- The PR that listed this test is approved by Sam (`sam-approved`). Never add or remove that label, and never merge.
+- The PR that listed this test was approved by Sam's approving review on the PR's head commit. Never submit a review, never merge and never use `--admin`.
 
 ## Done means
 

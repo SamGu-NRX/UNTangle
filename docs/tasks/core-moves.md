@@ -31,7 +31,7 @@ Some package tests import frontend modules by path. Moving one of these means up
 | `calendar-feeds/types.ts` | `packages/core/tests/occurrences/fixtures.ts`, `packages/core/tests/frontend-shapes.test.ts` |
 | `sections/config.ts` | `packages/ingest/tests/source-policies.test.ts` |
 
-The lane fixtures under `packages/core/tests/` are lead-owned (`.github/lead-owned-paths.txt`), so a move that changes their imports needs Sam's `sam-approved` label, and agents never add it. Don't move `sections/model.ts` or `calendar-feeds/types.ts` until the filter-predicates and calendar-occurrences tasks have landed; then ask the lead to update those import lines in your PR.
+The lane fixtures under `packages/core/tests/` are lead-owned (`.github/lead-owned-paths.txt`), so a move that changes their imports needs Sam's approving review on the PR's head commit. Don't move `sections/model.ts` or `calendar-feeds/types.ts` until the filter-predicates and calendar-occurrences tasks have landed; then ask the lead to update those import lines in your PR.
 
 ## Movable now, in this order
 
@@ -48,14 +48,14 @@ Each line is one PR unless it says "group". "Leaf" means it imports nothing else
    - `sections/model.ts` (see the table above)
 2. Groups that import each other:
    - `prereq/types.ts`, `prereq/ast.ts`, `prereq/engine.ts`, `prereq/suggestions.ts` (group). `prereq/index.ts` re-exports `prereq/unt.ts`, which stays (see below), so update its importers to the module paths instead of moving the index.
-   - `campus/contract/*` (group), then `campus/graph.ts`, then `campus/engine.ts`.
-   - `calendar-feeds/{types,errors,ics-text,datetime,rrule,parse,preview}.ts` (group). `fetch.ts` and `ssrf.ts` stay with the server; `index.ts` re-exports `fetch.ts`, so it stays too and its importers that only need parsing switch to core paths.
+   - `campus/contract/*` (group). `campus/graph.ts` and `campus/engine.ts` load campus data, so they need a split first (see below).
+   - `calendar-feeds/{types,errors,ics-text,datetime,rrule,parse}.ts` (group). `fetch.ts` and `ssrf.ts` stay with the server; `preview.ts` needs a refactor first (see below); `index.ts` re-exports `fetch.ts`, so it stays too and its importers that only need parsing switch to core paths.
    - `grades-history/types.ts` and `grades-history/errors.ts` (group), after `grades.ts`.
    - `pathing/{types,graph,requirements,analysis,scorer,index}.ts` (group), after `prereq`. `pathing/plans/` is a degree plan, which is data; it goes to `data/`, not core.
-   - `optimizer/types.ts`, then `weeks.ts`, `score.ts`, `presets.ts`, `prepare.ts`, `search.ts`, `explain.ts`, `optimize.ts`, one per PR in that order. `optimizer/worker/protocol.ts` follows `prepare.ts`; `worker/client.ts` and `optimize.worker.ts` stay (they create a Worker).
+   - `optimizer/types.ts`, `weeks.ts`, `score.ts`, `presets.ts`, `prepare.ts`, `search.ts`, `explain.ts`, `optimize.ts`, one per PR in that order, after the optimizer's clock becomes required (see below). `optimizer/worker/protocol.ts` follows `prepare.ts`; `worker/client.ts` and `optimize.worker.ts` stay (they create a Worker).
    - `reasons/types.ts`, after the optimizer, grades-history and sections types it names.
 3. After `types.ts` moves (lead):
-   - `connect/import-confirmation.ts`, `plan-library/snapshot-types.ts`, `campus/route-legs.ts` (after `campus/engine.ts`)
+   - `connect/import-confirmation.ts`, `plan-library/snapshot-types.ts`, `campus/route-legs.ts` (after the generic half of `campus/engine.ts`)
    - `components/schedule/constraint-logic.ts`, which `preferences/` needs (see below)
 
 ## Needs its I/O or data passed in first
@@ -66,6 +66,9 @@ Each of these is a refactor PR in `frontend/` first (take the data, clock or fet
 |---|---|
 | `terms/terms.ts` | the registrar calendar table it defines. Split the table (data) from `classDayStatus` and the date helpers (take the table as an argument). |
 | `planner-ics.ts` | `new Date()` as a default argument. Make `now` required. |
+| `optimizer/types.ts`, `prepare.ts`, `optimize.ts` | `performance.now()`: `optimize` falls back to it when the request has no `now`, and `prepare` takes an optional `now` with the same fallback. Make `OptimizeRequest.now` and `prepare`'s `now` required, with callers in the frontend passing `performance.now`, before any optimizer module that holds the fallback moves. |
+| `calendar-feeds/preview.ts` | Node's `Buffer.byteLength`. Count UTF-8 bytes without it (for example with `TextEncoder`, passed in or kept in the server), or leave the serializer with the preview route. |
+| `campus/graph.ts`, `campus/engine.ts` | campus data. `graph.ts` ends with UNT Denton wrappers that `require` `./data/campus-map.json`; `engine.ts` builds the UNT and UT engines from campus JSON and `campus/walking-times.ts`. Split each: the generic graph and `createCampusEngineRegistry` move to core, while the configured UNT and UT engines stay in the frontend (later `packages/campus`) and pass their data in. |
 | `map-cache.ts` | `Date.now` when the caller passes no `now`. Make `now` required, so core never reads an ambient clock. |
 | `policy/credit-load.ts` | UNT's catalog thresholds, source URLs, retrieval date and quoted policy text, which are institution data. Split them out to `data/` or the future `packages/campus`, and have `zoneFor` and the other functions take the thresholds as an argument. Only the calculation moves to core. |
 | `sections/vsb.ts`, `sections/buildings.ts` | the campus building table, through `campus-locations.ts`. |
@@ -95,5 +98,5 @@ Each of these is a refactor PR in `frontend/` first (take the data, clock or fet
 
 - Add no dependencies, and touch no lead-owned path (`.github/lead-owned-paths.txt`). That includes `packages/*/package.json`, so a move never edits an export map.
 - Never edit a test listed in `tests/pending-acceptance.txt`.
-- The PR that listed a lane's acceptance test is approved by Sam (`sam-approved`). Never add or remove that label, and never merge.
+- Sam approves lead-owned changes, including the PR that listed a lane's acceptance test, with his approving review on the PR's head commit. Agents never submit reviews, never merge and never use `--admin`.
 - One module or one group per PR, from an `obv/core-move-<module>` branch into `alpha`.
