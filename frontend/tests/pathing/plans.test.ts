@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
+import { unlockAnalysis } from "../../src/lib/pathing";
 import { listCourses } from "../../src/lib/pathing/requirements";
 import type { Requirement, RequirementSet } from "../../src/lib/pathing/types";
 import type { CatalogCourse, CourseId } from "../../src/lib/prereq";
-import { and, row } from "./fixtures";
+import { and, assess, pass, row } from "./fixtures";
 import { accountingBba2026 } from "../../src/lib/pathing/plans/accounting-bba-2026-27";
 import { bioBsBio2026 } from "../../src/lib/pathing/plans/biology-bsbio-2026-27";
 import { communicationStudiesBa2026 } from "../../src/lib/pathing/plans/communication-studies-ba-2026-27";
@@ -59,6 +60,17 @@ function collectAll(plan: RequirementSet): CourseId[] {
   return plan.requirements.flatMap(collectCourses);
 }
 
+/** Every requirement in the tree, depth-first, including choice branch requirements. */
+function collectRequirements(requirement: Requirement): Requirement[] {
+  if (requirement.kind === "choice") {
+    return [
+      requirement,
+      ...requirement.branches.flatMap((branch) => branch.requirements.flatMap(collectRequirements)),
+    ];
+  }
+  return [requirement];
+}
+
 test("every plan records a name, source, unchecked rules, and requirements", () => {
   for (const plan of plans) {
     expect(plan.name.trim().length).toBeGreaterThan(0);
@@ -87,35 +99,99 @@ test("every plan passes the engine's own validation (no course counts twice)", (
 });
 
 test("every plan carries the nine UCC component areas totaling 42 hours", () => {
-  // The UCC page's own per-area hour totals, keyed by the plans' top-level names.
-  const areas: ReadonlyArray<[string, number, number]> = [
-    ["UCC Communication, Group 1", 1, 3],
-    ["UCC Communication, Group 2", 1, 3],
-    ["UCC Mathematics", 1, 3],
-    ["UCC Life and Physical Sciences, 6 hours", 2, 6],
-    ["UCC Language, Philosophy and Culture", 1, 3],
-    ["UCC Creative Arts", 1, 3],
-    ["UCC American History, 6 hours", 2, 6],
-    ["UCC Government/Political Science, 6 hours", 2, 6],
-    ["UCC Social and Behavioral Sciences", 1, 3],
+  // Per-area hour totals from the UCC page; each listed component course is 3 hours,
+  // so a selection group's hour target is its own course count times 3.
+  const areas: ReadonlyArray<[string, number]> = [
+    ["UCC Communication, Group 1", 3],
+    ["UCC Communication, Group 2", 3],
+    ["UCC Mathematics", 3],
+    ["UCC Life and Physical Sciences, 6 hours", 6],
+    ["UCC Language, Philosophy and Culture", 3],
+    ["UCC Creative Arts", 3],
+    ["UCC American History, 6 hours", 6],
+    ["UCC Government/Political Science, 6 hours", 6],
+    ["UCC Social and Behavioral Sciences", 3],
   ];
   // The CS plan predates the shared-requirement convention (PR #70) and does not
   // carry UCC groups; the 15 plans copied from hyperlinked catalog pages do.
   for (const plan of plans.filter((candidate) => candidate !== csBs2026)) {
     const byName = new Map(plan.requirements.map((requirement) => [requirement.name, requirement]));
     let total = 0;
-    for (const [name, count, hours] of areas) {
+    for (const [name, hours] of areas) {
       const requirement = byName.get(name);
-      expect(requirement?.kind).toBe("choose");
-      expect(requirement, `${plan.name} misses ${name}`).toBeDefined();
-      if (requirement?.kind === "choose") expect(requirement.count, `${plan.name}: ${name}`).toBe(count);
+      expect(requirement?.kind, `${plan.name} misses ${name}`).toBe("choose");
+      if (requirement?.kind === "choose") {
+        expect(requirement.count * 3, `${plan.name}: ${name} hour target`).toBe(hours);
+      }
       total += hours;
     }
     const componentOption = byName.get("UCC Component Area Option, 6 hours");
     expect(componentOption?.kind, `${plan.name} misses the Component Area Option`).toBe("choice");
+    if (componentOption?.kind === "choice") {
+      expect(componentOption.branches.length).toBe(2);
+      // Each catalog alternative must itself reach 6 hours, read from the plan's own
+      // branch requirements rather than from the choice's display name.
+      for (const branch of componentOption.branches) {
+        const branchHours = branch.requirements.reduce(
+          (sum, requirement) => sum + (requirement.kind === "hours" ? requirement.hours : 0),
+          0,
+        );
+        expect(branchHours, `${plan.name}: ${branch.name}`).toBe(6);
+      }
+    }
     total += 6;
     expect(total).toBe(42);
   }
+});
+
+test("two-level rule pools stay advisor-checked instead of matching one level band", () => {
+  // The engine's pool pattern covers a single 1000-band; catalog rules spanning
+  // 3000 and 4000 levels cannot be expressed as a half-match, so these pools carry
+  // no match and rely on advisor confirmation (encoding-notes.md).
+  const advisorChecked: ReadonlyArray<[RequirementSet, string]> = [
+    [managementBba2026, "Supporting field courses, 12 hours"],
+    [marketingBba2026, "Approved supporting field courses, 9 hours"],
+    [kinesiologyBs2026, "General interest area, 15 hours"],
+    [communicationStudiesBa2026, "COMM 3000-4000 level courses, 12 hours"],
+    [communicationStudiesBa2026, "COMM 3000-4000 level courses, 6 hours"],
+  ];
+  for (const [plan, name] of advisorChecked) {
+    const requirement = plan.requirements.flatMap(collectRequirements).find((candidate) => candidate.name === name);
+    expect(requirement?.kind, `${plan.name} misses ${name}`).toBe("pool");
+    if (requirement?.kind === "pool") {
+      expect(requirement.match, `${plan.name}: ${name} should stay advisor-checked`).toBeUndefined();
+    }
+  }
+});
+
+test("a completed international course meets accounting's one-of in the engine's analysis", () => {
+  // FINA 4500 is one of the four catalog options for the international block;
+  // passing it alone satisfies that requirement and nothing else.
+  const international = ["BCIS 4730", "FINA 4500", "MGMT 4660", "MKTG 4280"];
+  const communication = ["ENGL 1310", "ENGL 1320", "TECM 2700", "COMM 1010"];
+  const catalog: CatalogCourse[] = [...international, ...communication].map((id) => row(id, and()));
+  const analysis = unlockAnalysis(accountingBba2026, assess(catalog, { transcript: [pass("FINA 4500")] }));
+  const internationalProgress = analysis.requirements.find(
+    (requirement) => requirement.name === "International business course, 3 hours",
+  );
+  expect(internationalProgress?.met).toBe(true);
+  const communicationProgress = analysis.requirements.find(
+    (requirement) => requirement.name === "BBA communication requirements, 9 hours",
+  );
+  expect(communicationProgress?.met).toBe(false);
+});
+
+test("the BBA communication choice is met through Combination B", () => {
+  const communication = ["ENGL 1310", "ENGL 1320", "TECM 2700", "COMM 1010"];
+  const catalog: CatalogCourse[] = communication.map((id) => row(id, and()));
+  const analysis = unlockAnalysis(
+    accountingBba2026,
+    assess(catalog, { transcript: [pass("ENGL 1310"), pass("ENGL 1320"), pass("TECM 2700")] }),
+  );
+  const communicationProgress = analysis.requirements.find(
+    (requirement) => requirement.name === "BBA communication requirements, 9 hours",
+  );
+  expect(communicationProgress?.met).toBe(true);
 });
 
 test("integrative studies encodes three student-chosen 12-hour fields as pools", () => {

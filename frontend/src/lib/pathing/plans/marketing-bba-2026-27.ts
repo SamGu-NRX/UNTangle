@@ -159,6 +159,45 @@ export const marketingBba2026: RequirementSet = {
         },
       ],
     },
+    {
+      kind: "choice",
+      name: "BBA communication requirements, 9 hours",
+      branches: [
+        {
+          name: "Combination A",
+          requirements: [
+              {
+                kind: "all",
+                name: "Required courses",
+                courses: [
+                  "ENGL 1310", "COMM 1010",
+                ],
+              },
+              {
+                kind: "choose",
+                name: "Second writing course",
+                count: 1,
+                options: [
+                  "ENGL 1320", "TECM 2700",
+                ],
+              },
+          ],
+        },
+        {
+          name: "Combination B",
+          requirements: [
+              {
+                kind: "all",
+                name: "Required courses",
+                courses: [
+                  "ENGL 1310", "ENGL 1320", "TECM 2700",
+                ],
+              },
+          ],
+        },
+      ],
+    }
+,
                     // "Pre-business requirements, 21 hours" on the BBA page; the final 3 hours are the
                 // one-of mathematics course below. The catalog marks DSCI 2710, ECON 1100, ECON 1110 and
                 // the mathematics one-of as usable toward University Core areas, so the UCC lists here
@@ -209,14 +248,12 @@ export const marketingBba2026: RequirementSet = {
       ],
     }
 ,
-          // "Nine hours of 3000- or 4000-level marketing courses." The pattern excludes the named MKTG
-      // courses automatically; the supporting field can be varied to meet specialized career
-      // objectives.
+          // "Nine hours of 3000- or 4000-level marketing courses." The rule spans two level bands
+      // and a pool pattern matches one, so the pool stays advisor-checked.
     {
       kind: "pool",
       name: "Approved supporting field courses, 9 hours",
       hours: 9,
-      match: { subject: "MKTG", level: 3000 },
     },
   ],
 };

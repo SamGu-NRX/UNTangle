@@ -160,6 +160,45 @@ export const managementBba2026: RequirementSet = {
         },
       ],
     },
+    {
+      kind: "choice",
+      name: "BBA communication requirements, 9 hours",
+      branches: [
+        {
+          name: "Combination A",
+          requirements: [
+              {
+                kind: "all",
+                name: "Required courses",
+                courses: [
+                  "ENGL 1310", "COMM 1010",
+                ],
+              },
+              {
+                kind: "choose",
+                name: "Second writing course",
+                count: 1,
+                options: [
+                  "ENGL 1320", "TECM 2700",
+                ],
+              },
+          ],
+        },
+        {
+          name: "Combination B",
+          requirements: [
+              {
+                kind: "all",
+                name: "Required courses",
+                courses: [
+                  "ENGL 1310", "ENGL 1320", "TECM 2700",
+                ],
+              },
+          ],
+        },
+      ],
+    }
+,
                     // "Pre-business requirements, 21 hours" on the BBA page; the final 3 hours are the
                 // one-of mathematics course below. The catalog marks DSCI 2710, ECON 1100, ECON 1110 and
                 // the mathematics one-of as usable toward University Core areas, so the UCC lists here
@@ -210,13 +249,12 @@ export const managementBba2026: RequirementSet = {
     }
 ,
           // "Select 4 courses from MGMT 3000 and 4000-level courses. The following courses are
-      // recommended: MGMT 3880, MGMT 4150, MGMT 4210, MGMT 4270, MGMT 4335." The pattern excludes
-      // the named MGMT courses automatically; the recommended list is advisory, not exhaustive.
+      // recommended: MGMT 3880, MGMT 4150, MGMT 4210, MGMT 4270, MGMT 4335." The rule spans
+      // two level bands and a pool pattern matches one, so the pool stays advisor-checked.
     {
       kind: "pool",
       name: "Supporting field courses, 12 hours",
       hours: 12,
-      match: { subject: "MGMT", level: 3000 },
     },
   ],
 };

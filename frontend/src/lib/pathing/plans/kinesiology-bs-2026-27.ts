@@ -15,7 +15,7 @@ export const kinesiologyBs2026: RequirementSet = {
   notChecked: [
     "the university-wide 120-hour minimum, advanced-hour minimum, residence, and overall GPA rules of the Degree and Program Requirements section (navoid=4689), which the major page requires.",
     "upper-division KINE courses require each pre-theory core course with a minimum grade of C and a 2.5 overall GPA or higher.",
-    "KINE 2240 (Coaching Soccer) may be selected as part of the 15-hour general interest area; the 3000/4000-level pattern cannot see it.",
+    "KINE 2240 (Coaching Soccer) may be selected as part of the 15-hour general interest area; the advisor-checked pool cannot see it, so confirm it with an advisor.",
     "the minor's 18 hours must come from an area other than kinesiology, 6 of them advanced; the area is student-chosen.",
     "students are encouraged to see their academic or faculty advisor each term.",
     "the College of Public Affairs and Health Sciences requirements page is not hyperlinked from the kinesiology page, so no college groups are carried.",
@@ -215,13 +215,12 @@ export const kinesiologyBs2026: RequirementSet = {
     }
 ,
           // "Students select 15 hours from any KINE 3000/4000-level courses not already required for
-      // program." The pattern excludes the named KINE courses automatically. KINE 2240 (Coaching
-      // Soccer) may also be selected; see notChecked.
+      // program." The rule spans two level bands and adds KINE 2240 (Coaching Soccer) as an
+      // exception; a pool pattern matches one band, so the pool stays advisor-checked.
     {
       kind: "pool",
       name: "General interest area, 15 hours",
       hours: 15,
-      match: { subject: "KINE", level: 3000 },
     }
 ,
           // "Minimum of 18 hours from area other than kinesiology, 6 of which must be advanced." The

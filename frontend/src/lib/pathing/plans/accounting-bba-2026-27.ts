@@ -158,6 +158,45 @@ export const accountingBba2026: RequirementSet = {
         },
       ],
     },
+    {
+      kind: "choice",
+      name: "BBA communication requirements, 9 hours",
+      branches: [
+        {
+          name: "Combination A",
+          requirements: [
+              {
+                kind: "all",
+                name: "Required courses",
+                courses: [
+                  "ENGL 1310", "COMM 1010",
+                ],
+              },
+              {
+                kind: "choose",
+                name: "Second writing course",
+                count: 1,
+                options: [
+                  "ENGL 1320", "TECM 2700",
+                ],
+              },
+          ],
+        },
+        {
+          name: "Combination B",
+          requirements: [
+              {
+                kind: "all",
+                name: "Required courses",
+                courses: [
+                  "ENGL 1310", "ENGL 1320", "TECM 2700",
+                ],
+              },
+          ],
+        },
+      ],
+    }
+,
                     // "Pre-business requirements, 21 hours" on the BBA page; the final 3 hours are the
                 // one-of mathematics course below. The catalog marks DSCI 2710, ECON 1100, ECON 1110 and
                 // the mathematics one-of as usable toward University Core areas, so the UCC lists here
@@ -208,12 +247,15 @@ export const accountingBba2026: RequirementSet = {
       ],
     }
 ,
-          // "Approved supporting courses, 9 hours ... include one 3 hour course from each group"; the
-      // three groups follow as three top-level requirements.
+          // The accounting page reads "International business course, 3 hours" — "Choose one
+      // from the following" (BCIS 4730, FINA 4500, MGMT 4660, MKTG 4280). The BBA-wide page
+      // carries the same list plus SENM 4230 for sport-industry majors; the major page's
+      // four-course list is the one encoded.
     {
-      kind: "all",
-      name: "Approved supporting courses, 9 hours: international business course",
-      courses: [
+      kind: "choose",
+      name: "International business course, 3 hours",
+      count: 1,
+      options: [
         "BCIS 4730", "FINA 4500", "MGMT 4660", "MKTG 4280",
       ],
     }

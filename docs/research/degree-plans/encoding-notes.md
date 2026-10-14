@@ -261,3 +261,39 @@ C-or-better grade rules, residency and advanced-hour minimums, advisor
 approvals (approved substitutes, counselor-approved fields), and conditional
 reuse rules (communication studies' Methods/Theory; english's extra 4000-level
 course).
+
+
+## Round-1 review corrections (2026-10-14)
+
+Greptile's review of PR #86 found real defects in the first encoding pass; each is
+fixed in the follow-up commit and recorded here.
+
+- **BBA communication combinations were missing entirely.** The four BBA plans
+  trimmed ENGL 1310, COMM 1010, ENGL 1320, and TECM 2700 from their UCC lists for
+  single ownership, but the BBA page's owning block — "Communication requirements,
+  9 hours" with Combination A (ENGL 1310; ENGL 1320 or TECM 2700; COMM 1010) or
+  Combination B (ENGL 1310; ENGL 1320; TECM 2700) — was never emitted. Each BBA
+  plan now carries that block as a choice named "BBA communication requirements,
+  9 hours" with the page's two named branches.
+- **Accounting's international course was encoded as a 9-hour all-group.** The
+  accounting page reads "International business course, 3 hours — Choose one from
+  the following" (BCIS 4730, FINA 4500, MGMT 4660, MKTG 4280); it is now a
+  choose-one. The BBA-wide page adds SENM 4230 for sport-industry majors, which
+  the accounting page does not list; the four-course major-page list is encoded.
+- **Five level pools now stay advisor-checked instead of matching one band.** A
+  pool's pattern matches a single 1000-band, so a 3000-match silently omits every
+  eligible 4000-level course. The rules span two bands on their pages: management
+  ("MGMT 3000 and 4000-level courses"), marketing ("3000- or 4000-level marketing
+  courses"), kinesiology ("KINE 3000/4000-level"), and communication studies' two
+  additional-requirement pools (12-hour and 6-hour). All five dropped their
+  `match` and rely on advisor confirmation.
+- **Government pairing rule rejected.** The review proposed modeling government
+  as pairs (2305+2306, 2315+2316). The UCC page's instruction is "choose two
+  courses from the following list" with no pairing language, so the two-of-four
+  selection stands as transcribed.
+- **Tests read the plans' own targets.** The 42-hour test now derives hour targets
+  from each plan's data — selection counts for the nine areas and each Component
+  Area Option branch's own hour requirements — instead of comparing against
+  test-only constants, and new tests run the engine's analysis over completed
+  courses to confirm the BBA communication choice and accounting's international
+  one-of evaluate correctly.
