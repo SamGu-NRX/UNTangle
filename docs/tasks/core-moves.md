@@ -39,15 +39,13 @@ Each line is one PR unless it says "group". "Leaf" means it imports nothing else
 
 1. Leaves:
    - `course-colors.ts`
-   - `policy/credit-load.ts`
    - `schedule-oracle.ts` (move it with its test; it's the planner's independent check and must keep sharing no code with the planner)
    - `term-chronology.ts`
    - `grades.ts`
    - `webmcp/schema.ts`
-   - `map-cache.ts` (its clock already defaults through an injectable `now`)
    - `campus/geo.ts`, `campus/speeds.ts`
    - `instructors/fold.ts`, then `instructors/parse.ts`, then `instructors/match.ts`
-   - `sections/model.ts`, then `sections/config.ts` (see the table above)
+   - `sections/model.ts` (see the table above)
 2. Groups that import each other:
    - `prereq/types.ts`, `prereq/ast.ts`, `prereq/engine.ts`, `prereq/suggestions.ts` (group). `prereq/index.ts` re-exports `prereq/unt.ts`, which stays (see below), so update its importers to the module paths instead of moving the index.
    - `campus/contract/*` (group), then `campus/graph.ts`, then `campus/engine.ts`.
@@ -68,6 +66,8 @@ Each of these is a refactor PR in `frontend/` first (take the data, clock or fet
 |---|---|
 | `terms/terms.ts` | the registrar calendar table it defines. Split the table (data) from `classDayStatus` and the date helpers (take the table as an argument). |
 | `planner-ics.ts` | `new Date()` as a default argument. Make `now` required. |
+| `map-cache.ts` | `Date.now` when the caller passes no `now`. Make `now` required, so core never reads an ambient clock. |
+| `policy/credit-load.ts` | UNT's catalog thresholds, source URLs, retrieval date and quoted policy text, which are institution data. Split them out to `data/` or the future `packages/campus`, and have `zoneFor` and the other functions take the thresholds as an argument. Only the calculation moves to core. |
 | `sections/vsb.ts`, `sections/buildings.ts` | the campus building table, through `campus-locations.ts`. |
 | `sections/sample.ts` | seed data and the building table. |
 | `planner-sections.ts` | seed data (sample sections, course titles). |
@@ -83,6 +83,7 @@ Each of these is a refactor PR in `frontend/` first (take the data, clock or fet
 ## Stays where it is
 
 - Lead-owned: `auth*.ts`, `account-password.ts`, `magic-link-*.ts`, `unt-auth.ts`, `db/**`, `persistence.ts`.
+- Source configuration: `sections/config.ts` holds the vsb URLs, the supported-term list and the proxy's fetch timings. It belongs with the server or `packages/ingest`, not core.
 - Server, Node or Next: `email.ts`, `email-budget.ts`, `rate-limit/*`, `grades-history/{cache,server,service,http,index}.ts`, `sections/{client,server,index}.ts`, `campus/resolve-handler.ts`, `calendar-feeds/{fetch,ssrf,index}.ts`, `course-catalog/build.ts`, `course-history.ts`.
 - Browser: `planner-store.ts`, `saved-plans/store.ts`, `webmcp/register.ts`, `optimizer/worker/{client,optimize.worker}.ts`. These go to `frontend/src/platform/` later.
 - Data: `campus-locations.ts`, `seed-data.ts`, `generated/`, `data-provenance.ts`, `campus/config.ts`, `campus/walking-times.ts`, `campus/data/`, `course-catalog/prerequisites.json`, `terms.ts` (one constant). Core never imports data; the caller passes it in.
