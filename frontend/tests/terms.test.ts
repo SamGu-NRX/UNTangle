@@ -3,6 +3,7 @@ import {
   TERMS,
   allHolidays,
   allSessions,
+  classDayStatus,
   daysBetween,
   findOverlappingDisjointSessions,
   formatIsoDate,
@@ -40,6 +41,49 @@ function enumerateDays(begin: string, end: string): string[] {
   return days;
 }
 
+/** Sessions whose published last class day touches or crosses their finals begin. */
+function classesFinalsBoundaryViolations(terms: readonly TermCalendar[]): string[] {
+  const violations: string[] = [];
+  for (const term of terms) {
+    for (const session of term.sessions) {
+      if (session.classesEnd !== null && session.finalExams !== null) {
+        if (daysBetween(session.classesEnd, session.finalExams.begin) < 1) {
+          violations.push(
+            `${session.id}: last class ${session.classesEnd} shares a boundary with finals ${session.finalExams.begin}`,
+          );
+        }
+      }
+    }
+  }
+  return violations;
+}
+
+/** Winter intersessions that end on or after their full semester's first class day. */
+function winterFullSemesterGaps(terms: readonly TermCalendar[]): string[] {
+  const ids: string[] = [];
+  for (const term of terms) {
+    const winter = term.sessions.find((session) => session.kind === "3w1");
+    const full = term.sessions.find((session) => session.kind === "full");
+    if (winter && full && daysBetween(winter.sessionEnd, full.classesBegin) < 1) {
+      ids.push(winter.id);
+    }
+  }
+  return ids;
+}
+
+/** Term pairs where the later term begins on or before the earlier term ends. */
+function termLeakViolations(terms: readonly TermCalendar[]): string[] {
+  const violations: string[] = [];
+  for (let i = 0; i < terms.length - 1; i++) {
+    const earlierEnd = terms[i].sessions.map((s) => s.sessionEnd).sort().at(-1) as string;
+    const laterBegin = terms[i + 1].sessions.map((s) => s.classesBegin).sort().at(0) as string;
+    if (daysBetween(earlierEnd, laterBegin) < 1) {
+      violations.push(`${terms[i].term} -> ${terms[i + 1].term}: ${earlierEnd} -> ${laterBegin}`);
+    }
+  }
+  return violations;
+}
+
 describe("term calendar integrity", () => {
   test("covers exactly the five assigned terms in chronological order", () => {
     expect(TERMS.map((term) => term.term)).toEqual(EXPECTED_TERMS);
@@ -69,8 +113,27 @@ describe("term calendar integrity", () => {
       if (session.finalExams !== null) {
         expect(daysBetween(session.finalExams.begin, session.finalExams.end)).toBeGreaterThanOrEqual(0);
         expect(daysBetween(session.finalExams.end, session.sessionEnd)).toBe(0);
+        if (session.classesEnd !== null) {
+          // Inclusive ranges never share a boundary day: the last regular
+          // class meeting is strictly before finals begin.
+          expect(daysBetween(session.classesEnd, session.finalExams.begin)).toBeGreaterThanOrEqual(1);
+        }
       }
     }
+  });
+
+  test("negative: a last class day sharing a boundary with finals is rejected", () => {
+    expect(classesFinalsBoundaryViolations(TERMS as TermCalendar[])).toEqual([]);
+    // Fall 2026 8W1 finals moved onto the last class day, Oct 8.
+    const fall = getTermCalendar("Fall 2026") as TermCalendar;
+    const moved = fall.sessions.map((session) =>
+      session.id === "2026-fall-8w1"
+        ? { ...session, finalExams: { begin: "2026-10-08", end: "2026-10-09" } }
+        : session,
+    );
+    const violations = classesFinalsBoundaryViolations([{ ...fall, sessions: moved }]);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("2026-fall-8w1");
   });
 
   test("class days and final-exam windows are weekday-sane", () => {
@@ -90,6 +153,9 @@ describe("term calendar integrity", () => {
         expect(daysBetween(session.classesBegin, session.finalExams.begin)).toBeGreaterThanOrEqual(0);
         expect(daysBetween(session.finalExams.begin, session.sessionEnd)).toBeGreaterThanOrEqual(0);
         expect(daysBetween(session.finalExams.begin, session.finalExams.end)).toBeLessThanOrEqual(7);
+        if (session.classesEnd !== null) {
+          expect(daysBetween(session.classesEnd, session.finalExams.begin)).toBeGreaterThanOrEqual(1);
+        }
         const endDay = dayOfWeek(session.finalExams.end);
         expect(endDay).toBeGreaterThanOrEqual(1);
         expect(endDay).toBeLessThanOrEqual(5);
@@ -114,13 +180,18 @@ describe("session overlap rules", () => {
   });
 
   test("winter intersessions end before their full semester begins", () => {
-    for (const term of TERMS) {
-      const winter = term.sessions.find((session) => session.kind === "3w1");
-      const full = term.sessions.find((session) => session.kind === "full");
-      if (winter && full) {
-        expect(daysBetween(winter.sessionEnd, full.classesBegin)).toBeGreaterThanOrEqual(0);
-      }
-    }
+    // Strictly before: inclusive ranges never share a boundary day.
+    expect(winterFullSemesterGaps(TERMS as TermCalendar[])).toEqual([]);
+  });
+
+  test("negative: a winter session touching the full semester's first class day is rejected", () => {
+    const spring = getTermCalendar("Spring 2027") as TermCalendar;
+    const touching = spring.sessions.map((session) =>
+      session.id === "2026-winter-3w1" ? { ...session, sessionEnd: "2027-01-11" } : session,
+    );
+    expect(winterFullSemesterGaps([{ ...spring, sessions: touching }])).toEqual([
+      "2026-winter-3w1",
+    ]);
   });
 
   test("summer sessions overlap by design; everything else does not", () => {
@@ -152,22 +223,26 @@ describe("session overlap rules", () => {
   });
 
   test("terms do not leak into each other", () => {
-    // Within one academic year the terms are sequential; the only intentional
-    // cross-boundary session is the winter intersession, which belongs to the
-    // spring term and starts after the prior fall term ends.
-    for (let i = 0; i < TERMS.length - 1; i++) {
-      const earlier = TERMS[i];
-      const later = TERMS[i + 1];
-      const earlierEnd = earlier.sessions
-        .map((session) => session.sessionEnd)
-        .sort()
-        .at(-1) as string;
-      const laterBegin = later.sessions
-        .map((session) => session.classesBegin)
-        .sort()
-        .at(0) as string;
-      expect(daysBetween(earlierEnd, laterBegin)).toBeGreaterThanOrEqual(0);
-    }
+    // Within one academic year the terms are sequential, and inclusive
+    // ranges never share a boundary day: the next term begins strictly after
+    // the prior term's last session day. The only intentional cross-boundary
+    // session is the winter intersession, which belongs to the spring term
+    // and starts after the prior fall term ends.
+    expect(termLeakViolations(TERMS as TermCalendar[])).toEqual([]);
+  });
+
+  test("negative: a term beginning on the prior term's last day is rejected", () => {
+    // The Spring 2027 winter session moved up to the day Fall 2026 ends.
+    const later = getTermCalendar("Spring 2027") as TermCalendar;
+    const touching = later.sessions.map((session) =>
+      session.id === "2026-winter-3w1" ? { ...session, classesBegin: "2026-12-11" } : session,
+    );
+    const violations = termLeakViolations([
+      TERMS[0] as TermCalendar,
+      { ...later, sessions: touching },
+    ]);
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toContain("Fall 2026 -> Spring 2027");
   });
 });
 
@@ -182,15 +257,47 @@ describe("holidays and breaks", () => {
     }
   });
 
-  test("every break falls inside the span of at least one session of its term", () => {
+  test("every break falls entirely inside the class dates of a session of its term", () => {
     for (const term of TERMS as TermCalendar[]) {
       for (const holiday of term.holidays) {
-        const covered = term.sessions.some((session) =>
-          rangesOverlap(holiday.begin, holiday.end, session.classesBegin, session.sessionEnd),
-        );
-        expect(covered).toBe(true);
+        // Both endpoints must sit inside the same session. Class dates when
+        // published; otherwise the session span, since the registrar has not
+        // yet posted last class days for future terms.
+        const containing = term.sessions.filter((session) => {
+          const end = session.classesEnd ?? session.sessionEnd;
+          return (
+            daysBetween(session.classesBegin, holiday.begin) >= 0 &&
+            daysBetween(holiday.end, end) >= 0
+          );
+        });
+        expect(containing.length).toBeGreaterThanOrEqual(1);
       }
     }
+  });
+
+  test("negative: a break straddling a class-span boundary is rejected", () => {
+    // Begins on 8W2's last class day (Dec 10) and ends on its finals day
+    // (Dec 11): no single session's class dates contain both endpoints. The
+    // old rangesOverlap check against the session span passed this, because
+    // 8W2's session span runs through Dec 11.
+    const fall = getTermCalendar("Fall 2026") as TermCalendar;
+    const straddling: Holiday = {
+      term: "Fall 2026",
+      name: "Fabricated Straddling Break",
+      begin: "2026-12-10",
+      end: "2026-12-11",
+    };
+    const uncovered = ({ ...fall, holidays: [...fall.holidays, straddling] }).holidays.filter(
+      (holiday) =>
+        !fall.sessions.some((session) => {
+          const end = session.classesEnd ?? session.sessionEnd;
+          return (
+            daysBetween(session.classesBegin, holiday.begin) >= 0 &&
+            daysBetween(holiday.end, end) >= 0
+          );
+        }),
+    );
+    expect(uncovered).toEqual([straddling]);
   });
 
   test("holidays never fall on a first or last class day", () => {
@@ -227,6 +334,60 @@ describe("holidays and breaks", () => {
     const winterBreak = named(byTerm("Spring 2027"), "Winter Break") as Holiday;
     expect(winterBreak.begin.endsWith("-12-24")).toBe(true);
     expect(winterBreak.end.endsWith("-01-01")).toBe(true);
+  });
+});
+
+describe("class day queries", () => {
+  // Dates are plain calendar dates in America/Chicago; the query compares
+  // YYYY-MM-DD strings only and touches no timestamps.
+
+  test("a regular class day reads class for the term and its sessions", () => {
+    expect(classDayStatus("2026-09-09", "2026-fall-full")).toBe("class");
+    expect(classDayStatus("2026-09-09", "2026-fall-8w1")).toBe("class");
+    expect(classDayStatus("2026-09-09")).toBe("class");
+  });
+
+  test("a holiday reads no-class for the sessions it cancels", () => {
+    // Labor Day 2026: full and 8W1 are on break; 8W2 has not started.
+    expect(classDayStatus("2026-09-07", "2026-fall-full")).toBe("no-class");
+    expect(classDayStatus("2026-09-07", "2026-fall-8w1")).toBe("no-class");
+    expect(classDayStatus("2026-09-07")).toBe("no-class");
+  });
+
+  test("every day of the Spring 2027 break week reads no-class", () => {
+    for (const day of enumerateDays("2027-03-08", "2027-03-14")) {
+      expect(classDayStatus(day, "2027-spring-full")).toBe("no-class");
+      expect(classDayStatus(day)).toBe("no-class");
+    }
+  });
+
+  test("the reading day cancels full-term classes but not 8W2 classes", () => {
+    // The registrar lists the reading day only in the full-term column
+    // (N/A for the 8-week sessions), so Dec 4 stays a class day for 8W2.
+    expect(classDayStatus("2026-12-04", "2026-fall-full")).toBe("no-class");
+    expect(classDayStatus("2026-12-04", "2026-fall-8w2")).toBe("class");
+    expect(classDayStatus("2027-04-30", "2027-spring-full")).toBe("no-class");
+    expect(classDayStatus("2027-04-30", "2027-spring-8w2")).toBe("class");
+    // The union reads class: 8W2 still meets on the full term's reading day.
+    expect(classDayStatus("2026-12-04")).toBe("class");
+  });
+
+  test("final-exam days read finals", () => {
+    expect(classDayStatus("2026-12-09", "2026-fall-full")).toBe("finals");
+    expect(classDayStatus("2026-12-11", "2026-fall-8w2")).toBe("finals");
+    // 8W2 classes run through Dec 10; Dec 9 is still a class day for it.
+    expect(classDayStatus("2026-12-09", "2026-fall-8w2")).toBe("class");
+  });
+
+  test("unpublished future dates read unknown, never a guess", () => {
+    expect(classDayStatus("2027-10-15", "2027-fall-full")).toBe("unknown");
+    expect(classDayStatus("2027-10-15")).toBe("unknown");
+    expect(classDayStatus("2028-02-15", "2028-spring-full")).toBe("unknown");
+  });
+
+  test("invalid dates and uncovered session ids read unknown", () => {
+    expect(classDayStatus("2026-13-45", "2026-fall-full")).toBe("unknown");
+    expect(classDayStatus("2026-09-09", "2025-fall-full")).toBe("unknown");
   });
 });
 
