@@ -4,7 +4,9 @@ Readers: the implementer of the follow-up to #62 and the lead. This note answers
 
 ### Guest work on sign-in
 
-A guest's plan is kept in this browser's local storage under one guest key. Every tab on the origin shares it, including the tab the emailed sign-in link opens, so a new tab sees the same work. Signing in compares that local plan with the account's saved plan:
+A guest's work is kept in this browser under a guest identity: planner state, preferences and library entries, each in its own store. Every tab on the origin shares them, including the tab the emailed sign-in link opens, so a new tab sees the same work. A signed-in student's local copies are kept under their own user id, never under the guest identity, and signing out deletes them from the browser (see the architecture README, "Local data belongs to one identity").
+
+Signing in compares each guest store with the matching account document: the plan with the schedule "Main", preferences with preferences, and library entries with versions.
 
 | Guest plan | Account plan | What happens |
 |---|---|---|
@@ -21,7 +23,7 @@ The sheet:
 
 Escape and the scrim choose "Keep my saved schedule", so nothing is ever lost.
 
-After the choice, the guest key is cleared. Signing out never copies account data into the guest key. The next guest session starts fresh.
+After the choice, the guest stores are cleared. Signing out never copies account data into the guest key. The next guest session starts fresh.
 
 ### Imports during a save conflict (replaces "re-apply imported courses")
 
