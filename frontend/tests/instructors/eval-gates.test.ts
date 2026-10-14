@@ -24,6 +24,24 @@ describe("the labeled evaluation runs inside the test suite", () => {
     expect(gates.failures.some(failure => failure.includes("40 floor"))).toBe(true);
   });
 
+  test("every family is required even when aggregate gates would pass", () => {
+    const families = [...new Set(SCENARIOS.map(scenario => scenario.family))];
+    expect(families).toHaveLength(9);
+    for (const family of families) {
+      const remaining = SCENARIOS.filter(scenario => scenario.family !== family);
+      const gates = evaluate(remaining);
+      expect(gates.pairs).toBeGreaterThanOrEqual(150);
+      expect(gates.hardCases).toBeGreaterThanOrEqual(40);
+      expect(gates.precision).toBe(1);
+      expect(gates.pass).toBe(false);
+      expect(gates.failures).toEqual([`missing hard-case family: ${family}`]);
+    }
+    const positive = SCENARIOS.find(scenario => scenario.expected !== null && scenario.family === "surnames")!;
+    const repeated = evaluate(Array(150).fill(positive));
+    expect(repeated.pass).toBe(false);
+    expect(repeated.failures).toHaveLength(8);
+  });
+
   test("every returned match clears the exported threshold and names an in-scope candidate", () => {
     for (const scenario of SCENARIOS) {
       const result = matchInstructor(scenario.sectionName, scenario.candidates);
@@ -104,6 +122,29 @@ describe("review hard cases", () => {
       expect(result.confidence).toBe(0.95);
       expect(result.reason).toBe("one of 3 listed instructors; matched on surname and first name");
     }
+  });
+
+  test("mixed raw and display separators never reverse identities", () => {
+    const reversed: Candidate = { id: "reversed", name: "Smith John", firstName: "Smith", lastName: "John" };
+    const john: Candidate = { id: "john", name: "John Smith", firstName: "John", lastName: "Smith" };
+    expect(matchInstructor("Smith,John; Doe,Jane", [reversed, john])).toEqual({
+      candidateId: null, confidence: 0, reason: "section instructor field is unparseable",
+    });
+    expect(matchInstructor("Smith,John", [john]).candidateId).toBe("john");
+    expect(matchInstructor("John Smith; Jane Doe", [john]).candidateId).toBe("john");
+  });
+
+  test("conflicting suffixes within section and candidate identities abstain", () => {
+    const junior: Candidate = { id: "junior", name: "John Smith Jr", firstName: "John", lastName: "Smith Jr" };
+    for (const field of ["Smith Jr,John Sr", "Smith Sr,John Jr"]) {
+      expect(matchInstructor(field, [junior])).toEqual({
+        candidateId: null, confidence: 0, reason: "section instructor field is unparseable",
+      });
+    }
+    const conflicting: Candidate = { ...junior, firstName: "John Sr" };
+    expect(matchInstructor("Smith Jr,John", [conflicting]).candidateId).toBeNull();
+    expect(matchInstructor("Smith Jr,John Jr", [junior]).candidateId).toBe("junior");
+    expect(matchInstructor("Smith Jr,John", [{ ...junior, firstName: "John Jr" }]).candidateId).toBe("junior");
   });
 
   test("candidate slots reject field separators without rejecting raw section pairs", () => {

@@ -107,6 +107,9 @@ function parseRawField(folded: string): SectionPeople {
   for (let i = 0; i < parts.length; i += 2) {
     const surname = stripSuffixTokens(tokenize(parts[i] ?? ""));
     const first = stripSuffixTokens(tokenize(parts[i + 1] ?? ""));
+    if (surname.suffix && first.suffix && surname.suffix !== first.suffix) {
+      return { kind: "unparseable", folded };
+    }
     if (surname.tokens.length === 0 && first.tokens.length === 0) continue;
     people.push(personOf(surname.tokens, first.tokens, surname.suffix ?? first.suffix));
   }
@@ -127,6 +130,8 @@ export function parseSectionField(sectionName: string): SectionPeople {
     return { kind: "unusable", word: folded as "tba" | "staff" | "closed" };
   }
   if (hasUnsupportedCharacters(folded)) return { kind: "unsupported", folded };
+  // Mixing raw pairs with display separators can reverse first and last names.
+  if (folded.includes(";") && folded.includes(",")) return { kind: "unparseable", folded };
   if (folded.includes(";")) return parseDisplayField(folded);
   return parseRawField(folded);
 }

@@ -14,8 +14,8 @@
  *   bun --no-env-file tests/instructors/eval.ts
  *
  * Exits 1 when pairs fall below 150, hard-case scenarios fall below 40,
- * precision falls below 0.98, or any scenario names a family outside the
- * spec's table. Recall is printed honestly and is not gated: the matcher is
+ * precision falls below 0.98, a hard-case family has no scenarios, or any
+ * scenario names a family outside the spec's table. Recall is printed honestly and is not gated: the matcher is
  * allowed to lose recall to stay precise.
  */
 
@@ -96,6 +96,12 @@ export function evaluate(scenarios: readonly Scenario[] = SCENARIOS): Gates & { 
   const recallDenominator = counts.tp + counts.fn;
   const recall = recallDenominator === 0 ? undefined : counts.tp / recallDenominator;
   const failures: string[] = [];
+  // Aggregate floors alone allow one repeated family to replace hard-case coverage.
+  for (const family of HARD_FAMILIES) {
+    if (!scenarios.some(scenario => scenario.family === family)) {
+      failures.push(`missing hard-case family: ${family}`);
+    }
+  }
   if (unknownFamilies.length > 0) {
     failures.push(`${unknownFamilies.length} scenarios name families outside the spec table`);
   }
@@ -155,7 +161,7 @@ function main(): number {
   const gates = evaluate(SCENARIOS);
   for (const failure of gates.failures) console.error(`fail: ${failure}`);
   if (!gates.pass) return 1;
-  console.log("gates: pairs >= 150, hard cases >= 40, precision >= 0.98 -- all pass");
+  console.log("gates: pairs >= 150, hard cases >= 40, every family present, precision >= 0.98 -- all pass");
   return 0;
 }
 

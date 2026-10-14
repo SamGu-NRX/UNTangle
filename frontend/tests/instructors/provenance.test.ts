@@ -4,7 +4,7 @@ import { HISTORY_UNIVERSE } from "./data/identities";
 import cache from "./data/vsb-spring-2027-instructors.json";
 import { SCENARIOS } from "./data/scenarios";
 
-type CacheEntry = { raw: string; count: number; exampleCourse: string };
+type CacheEntry = { raw: string; courseCount: number; exampleCourse: string };
 type Cache = {
   endpoint: string;
   method: string;
@@ -15,7 +15,7 @@ type Cache = {
   distinctInstructorStrings: number;
   instructors: CacheEntry[];
 };
-const inventory = cache as unknown as Cache;
+const inventory: Cache = cache;
 const foldedRaw = new Set(inventory.instructors.map(entry => foldName(entry.raw)));
 
 /** Placeholder words the feed itself uses; they are not people, so the
@@ -23,6 +23,15 @@ const foldedRaw = new Set(inventory.instructors.map(entry => foldName(entry.raw)
 const PLACEHOLDER_FOLDS = new Set(["staff", "tba", "closed", "none", "none none", "blank", ""]);
 
 describe("cached vsb inventory", () => {
+  test("retains positive integer course frequencies from the JSON schema", () => {
+    const first: CacheEntry = inventory.instructors[0]!;
+    expect(first.courseCount).toBe(5);
+    for (const entry of inventory.instructors) {
+      expect(Number.isInteger(entry.courseCount)).toBe(true);
+      expect(entry.courseCount).toBeGreaterThan(0);
+    }
+  });
+
   test("carries its provenance: endpoint, fetch date, response size and sha256", () => {
     expect(inventory.endpoint).toBe("https://vsb.untgrades.app/data/spring-2027.json");
     expect(inventory.method).toBe("GET");

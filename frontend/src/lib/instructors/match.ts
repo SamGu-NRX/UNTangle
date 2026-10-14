@@ -61,7 +61,8 @@ function foldCandidate(candidate: Candidate): FoldedCandidate {
   const first = stripSuffixTokens(tokenize(foldedFirst));
   // Structured candidate slots cannot contain section-field separators.
   const unsupported = hasUnsupportedCharacters(foldedFirst) || hasUnsupportedCharacters(foldedLast)
-    || /[,;]/.test(foldedFirst + foldedLast);
+    || /[,;]/.test(foldedFirst + foldedLast)
+    || Boolean(last.suffix && first.suffix && last.suffix !== first.suffix);
   return { id: candidate.id, lastTokens: last.tokens, firstTokens: first.tokens, suffix: last.suffix ?? first.suffix, unsupported };
 }
 
