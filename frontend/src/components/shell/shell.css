@@ -451,6 +451,30 @@
   color: var(--brand-2);
 }
 
+/* ───────── A page with its own header ───────── */
+
+/*
+ * The standalone UNT Schedule Builder (lib/brand.ts) draws its own bar and
+ * has no lenses to switch, so a page marked data-shell-chrome="own" hides
+ * the shell's top bar, phone header and tab bar.
+ */
+.shell:has([data-shell-chrome="own"]) {
+  --shell-top-h: calc(var(--topbar-h) + var(--safe-t));
+  --shell-bottom-h: 0px;
+}
+.shell:has([data-shell-chrome="own"]) :is(.shell-topbar, .shell-pheader, .shell-tabbar) {
+  display: none;
+}
+/* Its bar is fixed, outside <main>; <main> starts below it. */
+.shell:has([data-shell-chrome="own"]) .shell-main {
+  padding-top: var(--shell-top-h);
+}
+@media (max-width: 759px) {
+  .shell:has([data-shell-chrome="own"]) {
+    --shell-top-h: calc(var(--header-h) + var(--safe-t));
+  }
+}
+
 /* ───────── Full-bleed view bodies (ShellFullBleed) ───────── */
 
 /* The page stops scrolling; the marked body owns the space between bars. */

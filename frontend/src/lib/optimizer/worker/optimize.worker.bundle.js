@@ -1682,6 +1682,10 @@ function explainSentence(request, members) {
     const onlyB = onlySection(b);
     if (conditions.length === 0) {
       if (onlyA && onlyB) {
+        if (locked.has(a) || locked.has(b)) {
+          const named = (code, only) => locked.has(code) ? describe(code) : `${code} (${pattern(only)})`;
+          return `${named(a, onlyA)} and ${named(b, onlyB)} overlap.`.replace(/^./, (s) => s.toUpperCase());
+        }
         const datesA = dated ? datesOf(onlyA) : null;
         const datesB = dated ? datesOf(onlyB) : null;
         const both = datesA && datesB ? `: ${describePattern(onlyA)} (${datesA}) and ${describePattern(onlyB)} (${datesB})` : ` (${describePattern(onlyA)} and ${describePattern(onlyB)})`;
