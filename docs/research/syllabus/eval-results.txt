@@ -1,0 +1,272 @@
+scored 50 labeled syllabi from /home/user/work/UNTangle/docs/research/syllabus/labels.json
+
+fact type                       precision   recall      f1        (tp/fp/fn)
+attendance policy                  37.0%    100.0%     54.0%   (17/29/0)
+exam count                         54.5%     63.2%     58.5%   (12/10/7)
+grading weights (doc level)          n/a      0.0%       n/a   (0/0/36)
+grading weights (component level)      0.0%      0.0%       n/a   (0/2/179)
+
+misclassifications:
+  - 0211309a attendance: extracted wrong sentence: "university excused absence (UNT Policy number 06.309)."
+  - 0211309a weights: missed labeled component Online Engagement Assignments 35%
+  - 0211309a weights: missed labeled component Two Exams (taken at testing center) 25%
+  - 0211309a weights: missed labeled component In-person Class (recitation) Assignments 40%
+  - 0211309a weights: found no weight block for labeled grading table
+  - 048f9f0d attendance: extracted wrong sentence: "Attendance Policy and Participation"
+  - 048f9f0d examCount: extracted 16, label 2: "16 Final Exam"
+  - 048f9f0d weights: missed labeled component Homework 40%
+  - 048f9f0d weights: missed labeled component Quizzes 40%
+  - 048f9f0d weights: missed labeled component Midterm 10%
+  - 048f9f0d weights: missed labeled component Final Exam 10%
+  - 048f9f0d weights: found no weight block for labeled grading table
+  - 0b53402c examCount: missed labeled count 2: "Midterm Exam 60 15% Final Exam 75 15%"
+  - 0b53402c weights: missed labeled component Homework 35%
+  - 0b53402c weights: missed labeled component Discussions 15%
+  - 0b53402c weights: missed labeled component Quizzes 20%
+  - 0b53402c weights: missed labeled component Midterm Exam 15%
+  - 0b53402c weights: missed labeled component Final Exam 15%
+  - 0b53402c weights: found no weight block for labeled grading table
+  - 0dc4d48d attendance: extracted policy where none stated: "absence (Links to an external site.) and provides documentation within 48 hours of the"
+  - 0dc4d48d examCount: extracted 20, label 3: "October 09, 2026 Midterm Exam—covers Chapters after"
+  - 12ecdeb5 attendance: extracted policy where none stated: "• Attendance Policy: Visit the UNT Attendance Policy (https://policy.unt.edu/policy/06-039) to learn"
+  - 12ecdeb5 examCount: missed labeled count 3: "Grading Policy: Homework: 15% Quiz: 20% Midterm Exam 1: 20% Midterm Exam 2: 20% Final Exam: 25%"
+  - 12ecdeb5 weights: missed labeled component Homework 15%
+  - 12ecdeb5 weights: missed labeled component Quiz 20%
+  - 12ecdeb5 weights: missed labeled component Midterm Exam 1 20%
+  - 12ecdeb5 weights: missed labeled component Midterm Exam 2 20%
+  - 12ecdeb5 weights: missed labeled component Final Exam 25%
+  - 12ecdeb5 weights: found no weight block for labeled grading table
+  - 1373561b examCount: missed labeled count 4: "Examinations: Four (noncumulative) exams are required."
+  - 1373561b weights: missed labeled component Each exam 15%
+  - 1373561b weights: missed labeled component Assignments 20%
+  - 1373561b weights: found no weight block for labeled grading table
+  - 153a2c62 attendance: extracted wrong sentence: "excuse – then your final grade will be impacted with a 5-point penalty for each absence."
+  - 222d3dfe attendance: extracted policy where none stated: "completing crime victim’s compensation applications, contacting professors for absences related"
+  - 222d3dfe examCount: extracted 15, label 2: "Week 15 FINAL EXAM 12/8 at 11:59 PM"
+  - 222d3dfe weights: missed labeled component Webtext Chapters 30%
+  - 222d3dfe weights: missed labeled component Chapter/Module Quizzes 30%
+  - 222d3dfe weights: missed labeled component Syllabus Quiz 10%
+  - 222d3dfe weights: missed labeled component Midterm Exam 15%
+  - 222d3dfe weights: missed labeled component Final Exam 15%
+  - 222d3dfe weights: extra component usual scale ( 90%
+  - 2757d8f1 weights: missed labeled component Midterm exam 30%
+  - 2757d8f1 weights: missed labeled component Final exam 30%
+  - 2757d8f1 weights: missed labeled component Term paper 25%
+  - 2757d8f1 weights: missed labeled component Reading quizzes 15%
+  - 2757d8f1 weights: found no weight block for labeled grading table
+  - 2c9683ed weights: missed labeled component Editorial Analysis 10%
+  - 2c9683ed weights: missed labeled component Refutation Speech 10%
+  - 2c9683ed weights: missed labeled component Debate Case 10%
+  - 2c9683ed weights: missed labeled component Student Debate Speech 15%
+  - 2c9683ed weights: missed labeled component Recitation 20%
+  - 2c9683ed weights: missed labeled component Weekly Quizzes 15%
+  - 2c9683ed weights: missed labeled component Journal 10%
+  - 2c9683ed weights: missed labeled component iClicker 10%
+  - 2c9683ed weights: found no weight block for labeled grading table
+  - 300ca07c attendance: extracted wrong sentence: "university-excused absence, documentation will be required."
+  - 300ca07c examCount: missed labeled count 4: "Pre-class homework 4% Post-class homework 6% In-Class Graded Work and Quizzes 15% In-Class Essay 5% Exam 1 15%"
+  - 300ca07c weights: missed labeled component Pre-class homework 4%
+  - 300ca07c weights: missed labeled component Post-class homework 6%
+  - 300ca07c weights: missed labeled component In-Class Graded Work and Quizzes 15%
+  - 300ca07c weights: missed labeled component In-Class Essay 5%
+  - 300ca07c weights: missed labeled component Exam 1 15%
+  - 300ca07c weights: missed labeled component Exam 2 15%
+  - 300ca07c weights: missed labeled component Exam 3 15%
+  - 300ca07c weights: missed labeled component Comprehensive Final Exam 25%
+  - 300ca07c weights: found no weight block for labeled grading table
+  - 35d398f5 attendance: extracted policy where none stated: "• Attendance Policy: Visit the UNT Attendance Policy (https://policy.unt.edu/policy/06-039) to learn"
+  - 35d398f5 examCount: missed labeled count 3: "Grading Policy: Homework: 15% Quiz: 20% Midterm Exam 1: 20% Midterm Exam 2: 20% Final Exam: 25%"
+  - 35d398f5 weights: missed labeled component Homework 15%
+  - 35d398f5 weights: missed labeled component Quiz 20%
+  - 35d398f5 weights: missed labeled component Midterm Exam 1 20%
+  - 35d398f5 weights: missed labeled component Midterm Exam 2 20%
+  - 35d398f5 weights: missed labeled component Final Exam 25%
+  - 35d398f5 weights: found no weight block for labeled grading table
+  - 39ca3519 attendance: extracted policy where none stated: "absence (Links to an external site.) and provides documentation within 48 hours of the"
+  - 39ca3519 examCount: extracted 20, label 3: "October 09, 2026 Midterm Exam—covers Chapters after"
+  - 3b36d995 weights: missed labeled component Participation 10%
+  - 3b36d995 weights: missed labeled component VHL Homework 20%
+  - 3b36d995 weights: missed labeled component Oral Tasks 30%
+  - 3b36d995 weights: missed labeled component Podcast 01 10%
+  - 3b36d995 weights: missed labeled component Podcast 02 30%
+  - 3b36d995 weights: found no weight block for labeled grading table
+  - 420d6d0d attendance: extracted wrong sentence: "a university-excused absence (Links to an external site.) and provides documentation with 48 hours of the miss"
+  - 420d6d0d examCount: extracted 5, label 1: "will submit your 10 blog posts through Canvas on two occasions: 5 posts at midterm and 5 posts on the final da"
+  - 420d6d0d weights: missed labeled component Your individual blog (10 posts) 20%
+  - 420d6d0d weights: missed labeled component Online quizzes 10%
+  - 420d6d0d weights: missed labeled component Diversity style guide essay 10%
+  - 420d6d0d weights: missed labeled component Project I, Individual Media Analysis 20%
+  - 420d6d0d weights: missed labeled component Concepts/Methods Exam 20%
+  - 420d6d0d weights: missed labeled component Project II, Group or Individual Community Service Project 20%
+  - 420d6d0d weights: found no weight block for labeled grading table
+  - 454201d6 weights: missed labeled component Editorial Analysis 10%
+  - 454201d6 weights: missed labeled component Refutation Speech 10%
+  - 454201d6 weights: missed labeled component Debate Case 10%
+  - 454201d6 weights: missed labeled component Student Debate Speech 15%
+  - 454201d6 weights: missed labeled component Recitation 20%
+  - 454201d6 weights: missed labeled component Weekly Quizzes 15%
+  - 454201d6 weights: missed labeled component Journal 10%
+  - 454201d6 weights: missed labeled component iClicker 10%
+  - 454201d6 weights: found no weight block for labeled grading table
+  - 4556bf9b attendance: extracted policy where none stated: "completing crime victim’s compensation applications, contacting professors for absences related"
+  - 4556bf9b examCount: extracted 15, label 1: "Week 15 FINAL EXAM 12/8 at 11:59 PM"
+  - 4556bf9b weights: missed labeled component Webtext Chapters 40%
+  - 4556bf9b weights: missed labeled component Chapter/Module Quizzes 30%
+  - 4556bf9b weights: missed labeled component Syllabus Quiz 15%
+  - 4556bf9b weights: missed labeled component Final Exam 15%
+  - 4556bf9b weights: extra component usual scale ( 90%
+  - 4b20269a examCount: extracted 10, label 5: "There will be five exams this semester: four unit exams and one comprehensive final exam."
+  - 4b20269a weights: missed labeled component Your four highest-scored exams 80%
+  - 4b20269a weights: missed labeled component Assignments 20%
+  - 4b20269a weights: found no weight block for labeled grading table
+  - 4befc376 attendance: extracted wrong sentence: "university excused absence (UNT Policy number 06.309)."
+  - 4befc376 weights: missed labeled component Online Engagement Assignments 35%
+  - 4befc376 weights: missed labeled component Two Exams (taken at testing center) 25%
+  - 4befc376 weights: missed labeled component In-person Class (recitation) Assignments 40%
+  - 4befc376 weights: found no weight block for labeled grading table
+  - 560b5bd5 attendance: extracted wrong sentence: "excuse – then your final grade will be impacted with a 5-point penalty for each absence."
+  - 56671627 attendance: extracted wrong sentence: "Based on Policy 06- 039 (see link below), an absence may be excused for the following reasons:"
+  - 56671627 weights: missed labeled component MINDTAP Activities 30%
+  - 56671627 weights: missed labeled component UNIT Activities 20%
+  - 56671627 weights: missed labeled component In class quizzes 35%
+  - 56671627 weights: missed labeled component Presentation 7.5%
+  - 56671627 weights: missed labeled component Final - Recording 7.5%
+  - 56671627 weights: found no weight block for labeled grading table
+  - 5a91ecc8 attendance: extracted wrong sentence: "If you miss a lecture exam due to an unexcused absence or"
+  - 5a91ecc8 examCount: missed labeled count 4: "you have the option to take a 50 point cumulative final after completion of exam 4"
+  - 5a91ecc8 weights: missed labeled component Exams 40%
+  - 5a91ecc8 weights: missed labeled component Online assignments 15%
+  - 5a91ecc8 weights: missed labeled component Quizzes 15%
+  - 5a91ecc8 weights: missed labeled component Lab 30%
+  - 5a91ecc8 weights: found no weight block for labeled grading table
+  - 5dc1e897 attendance: extracted wrong sentence: "Based on Policy 06- 039 (see link below), an absence may be excused for the following reasons:"
+  - 5dc1e897 weights: missed labeled component MINDTAP Activities 30%
+  - 5dc1e897 weights: missed labeled component UNIT Activities 20%
+  - 5dc1e897 weights: missed labeled component In class quizzes 35%
+  - 5dc1e897 weights: missed labeled component Presentation 7.5%
+  - 5dc1e897 weights: missed labeled component Final - Recording 7.5%
+  - 5dc1e897 weights: found no weight block for labeled grading table
+  - 67549316 attendance: extracted wrong sentence: "*Please contact me by email beforehand in case of excused absences"
+  - 67549316 weights: missed labeled component Class Participation 20%
+  - 67549316 weights: missed labeled component Homework 15%
+  - 67549316 weights: missed labeled component Conversation Table 5%
+  - 67549316 weights: missed labeled component Vocab Quiz 5%
+  - 67549316 weights: missed labeled component Kanji Quiz 5%
+  - 67549316 weights: missed labeled component Speaking Activities 15%
+  - 67549316 weights: missed labeled component Chapter Tests 20%
+  - 67549316 weights: missed labeled component Final Exam 20%
+  - 67549316 weights: found no weight block for labeled grading table
+  - 6f7e6c98 attendance: extracted wrong sentence: "o Excused absence: 30 points if the in-class exercise is completed by the"
+  - 6f7e6c98 weights: missed labeled component Weekly attendance and in-class exercises 45%
+  - 6f7e6c98 weights: missed labeled component Deadline story 20%
+  - 6f7e6c98 weights: missed labeled component Semester story 35%
+  - 6f7e6c98 weights: found no weight block for labeled grading table
+  - 72b50fa8 examCount: extracted 16, label 2: "Week 16 Final Exam"
+  - 72b50fa8 weights: missed labeled component Quizzes 40%
+  - 72b50fa8 weights: missed labeled component Assignments 40%
+  - 72b50fa8 weights: missed labeled component Exams 20%
+  - 72b50fa8 weights: found no weight block for labeled grading table
+  - 73f8f431 attendance: extracted wrong sentence: "If you miss a lecture exam due to an unexcused absence or have a very low score, you have the"
+  - 73f8f431 examCount: missed labeled count 4: "you have the option to take a 50 point cumulative final after completion of exam 4"
+  - 73f8f431 weights: missed labeled component Exams 40%
+  - 73f8f431 weights: missed labeled component Online assignments 15%
+  - 73f8f431 weights: missed labeled component Quizzes 15%
+  - 73f8f431 weights: missed labeled component Lab 30%
+  - 73f8f431 weights: found no weight block for labeled grading table
+  - 74deeedc attendance: extracted wrong sentence: "*Please contact me by email beforehand in case of excused absences"
+  - 74deeedc weights: missed labeled component Class Participation 20%
+  - 74deeedc weights: missed labeled component Homework 15%
+  - 74deeedc weights: missed labeled component Conversation Table 5%
+  - 74deeedc weights: missed labeled component Vocab Quiz 5%
+  - 74deeedc weights: missed labeled component Kanji Quiz 5%
+  - 74deeedc weights: missed labeled component Speaking Activities 15%
+  - 74deeedc weights: missed labeled component Chapter Tests 20%
+  - 74deeedc weights: missed labeled component Final Exam 20%
+  - 74deeedc weights: found no weight block for labeled grading table
+  - 79e5b49a attendance: extracted wrong sentence: "university excused absence (UNT Policy number 06.309)."
+  - 79e5b49a weights: missed labeled component Online Engagement Assignments 35%
+  - 79e5b49a weights: missed labeled component Two Exams (taken at testing center) 25%
+  - 79e5b49a weights: missed labeled component In-person Class (recitation) Assignments 40%
+  - 79e5b49a weights: found no weight block for labeled grading table
+  - 79ea149e examCount: extracted 16, label 3: "16 Final Exam"
+  - 79ea149e weights: missed labeled component Homework Assignments 40%
+  - 79ea149e weights: missed labeled component Mid-term Exams 20%
+  - 79ea149e weights: missed labeled component Final Exam 20%
+  - 79ea149e weights: found no weight block for labeled grading table
+  - 7c1dac40 attendance: extracted policy where none stated: "applications, contacting professors for absences related to an assault, working with"
+  - 7c1dac40 weights: missed labeled component Online reading and assignments 35%
+  - 7c1dac40 weights: missed labeled component In-class activities 40%
+  - 7c1dac40 weights: missed labeled component Two exams 25%
+  - 7c1dac40 weights: found no weight block for labeled grading table
+  - 7cc0267c attendance: extracted wrong sentence: "More than one unexcused absence from Slash will result in a"
+  - 81ff7e51 weights: missed labeled component Exams 40%
+  - 81ff7e51 weights: missed labeled component Online assignments 15%
+  - 81ff7e51 weights: missed labeled component Quizzes 15%
+  - 81ff7e51 weights: missed labeled component Lab 30%
+  - 81ff7e51 weights: found no weight block for labeled grading table
+  - 856da2fd attendance: extracted wrong sentence: "Absences due to illness will be excused if a health provider’s note or similar"
+  - 856da2fd weights: missed labeled component Exams 60%
+  - 856da2fd weights: missed labeled component in-class participation 10%
+  - 856da2fd weights: missed labeled component assignment 30%
+  - 856da2fd weights: found no weight block for labeled grading table
+  - 93e26795 attendance: extracted policy where none stated: "applications, contacting professors for absences related to an assault, working with"
+  - 93e26795 weights: missed labeled component Online reading and assignments 35%
+  - 93e26795 weights: missed labeled component In-class activities 40%
+  - 93e26795 weights: missed labeled component Two exams 25%
+  - 93e26795 weights: found no weight block for labeled grading table
+  - a1f7871a attendance: extracted wrong sentence: "missing an exam must have a university excused absence."
+  - a1f7871a weights: missed labeled component Exam I 30%
+  - a1f7871a weights: missed labeled component Exam II 30%
+  - a1f7871a weights: missed labeled component Paper and discussion 15%
+  - a1f7871a weights: missed labeled component Final Exam 25%
+  - a1f7871a weights: found no weight block for labeled grading table
+  - abe70772 weights: missed labeled component Reading & Preparation 15%
+  - abe70772 weights: missed labeled component In-Class Activities & Discussions 15%
+  - abe70772 weights: missed labeled component Midterm Policy Memo 15%
+  - abe70772 weights: missed labeled component Reacting to the Past Simulation 20%
+  - abe70772 weights: missed labeled component Country Assessment & Policy Analysis 35%
+  - abe70772 weights: found no weight block for labeled grading table
+  - ac2e4902 attendance: extracted wrong sentence: "other excused absence as described in the syllabus), contact your professor to approve"
+  - ac2e4902 weights: missed labeled component Active Class Participation 20%
+  - ac2e4902 weights: missed labeled component Listening and Reading Comprehension 10%
+  - ac2e4902 weights: missed labeled component Oral Communication 20%
+  - ac2e4902 weights: missed labeled component Writing Communication 20%
+  - ac2e4902 weights: missed labeled component Quizzes 10%
+  - ac2e4902 weights: missed labeled component Service to the Community 20%
+  - ac2e4902 weights: found no weight block for labeled grading table
+  - afae6d64 weights: missed labeled component Editorial Analysis 10%
+  - afae6d64 weights: missed labeled component Refutation Speech 10%
+  - afae6d64 weights: missed labeled component Debate Case 10%
+  - afae6d64 weights: missed labeled component Student Debate Speech 15%
+  - afae6d64 weights: missed labeled component Recitation 20%
+  - afae6d64 weights: missed labeled component Weekly Quizzes 15%
+  - afae6d64 weights: missed labeled component Journal 10%
+  - afae6d64 weights: missed labeled component iClicker 10%
+  - afae6d64 weights: found no weight block for labeled grading table
+  - b4c71421 examCount: extracted 3, label 2: "Dec 3 Final Exam"
+  - b4c71421 weights: missed labeled component mid-term examination 25%
+  - b4c71421 weights: missed labeled component End-term examination 25%
+  - b4c71421 weights: missed labeled component op-ed piece 25%
+  - b4c71421 weights: missed labeled component participation in classroom discussions 10%
+  - b4c71421 weights: missed labeled component attendance 15%
+  - b4c71421 weights: found no weight block for labeled grading table
+  - bcc2542f weights: missed labeled component Participation 10%
+  - bcc2542f weights: missed labeled component VHL Homework 20%
+  - bcc2542f weights: missed labeled component Oral Tasks 30%
+  - bcc2542f weights: missed labeled component Podcast 01 10%
+  - bcc2542f weights: missed labeled component Podcast 02 30%
+  - bcc2542f weights: found no weight block for labeled grading table
+  - bf3264fa attendance: extracted wrong sentence: "1) regular attendance (in-person classes) [Note: deductions (3%) to be applied to the final"
+  - bf3264fa weights: missed labeled component Homework 20%
+  - bf3264fa weights: missed labeled component Exam 1 20%
+  - bf3264fa weights: missed labeled component Subjunctive Project in class (in lieu of exam 2) or Exam 2 10%
+  - bf3264fa weights: missed labeled component Participation / Preparation / Punctuality 28%
+  - bf3264fa weights: missed labeled component Composition activities 5%
+  - bf3264fa weights: missed labeled component Final 17%
+  - bf3264fa weights: found no weight block for labeled grading table
+  - c31ab645 weights: missed labeled component Exams 30%
+  - c31ab645 weights: missed labeled component Laboratory Grade 30%
+  - c31ab645 weights: missed labeled component Assignments 30%
+  - c31ab645 weights: missed labeled component iClicker Participation Points 10%
+  - c31ab645 weights: found no weight block for labeled grading table
+  - c4628fff attendance: extracted wrong sentence: "class to take or make phone calls) will count as absences with reductions in final grade."

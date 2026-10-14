@@ -38,7 +38,7 @@ import { extractSyllabusFacts, normalizeForComparison } from "../../src/lib/syll
 
 // import.meta.url (not Bun's import.meta.dir) so the script typechecks with
 // plain TypeScript types as well as Bun's.
-const REPO_ROOT = path.join(fileURLToPath(new URL("../../../..", import.meta.url)), "");
+const REPO_ROOT = path.join(fileURLToPath(new URL("../../..", import.meta.url)), "");
 const DEFAULT_LABELS = path.join(REPO_ROOT, "docs/research/syllabus/labels.json");
 const CACHE_TEXT = path.join(REPO_ROOT, "tools/syllabus/.cache/text");
 
