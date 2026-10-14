@@ -4,7 +4,7 @@
  * alternatives strip that never moves a previewed grid on its own, and
  * Keep this section.
  */
-import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
 import type { BuilderHost, OptionsFeed, WeekCourse } from "@/components/schedule-builder/host";
 import type { Section } from "@/lib/sections";
 import type { SchedulePreferences } from "@/lib/types";
@@ -13,6 +13,11 @@ import { meeting, section } from "./fixtures";
 
 beforeAll(() => {
   installDom();
+});
+// Toasts with an action stay until dismissed, in a module-level store other test files share.
+afterEach(async () => {
+  const { dismissToast } = await import("@/components/ui/Toast");
+  dismissToast();
 });
 afterAll(() => {
   removeDom();
