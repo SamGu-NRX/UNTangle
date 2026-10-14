@@ -34,8 +34,7 @@
   color: var(--danger);
 }
 .ui-code {
-  /* Syne is for the wordmark only (Sam, Oct 14). */
-  font: 600 13px / 1 var(--font-ui);
+  font: 700 13px / 1 var(--font-mark);
   letter-spacing: 0.01em;
   font-variant-numeric: lining-nums tabular-nums;
   color: var(--ink);
@@ -1405,7 +1404,7 @@
   border-radius: var(--r-xs);
   background: var(--brand);
   color: #fff;
-  font: 700 10px/1 var(--font-ui);
+  font: 700 10px/1 var(--font-mark);
   letter-spacing: 0.05em;
   text-decoration: none;
 }

@@ -764,6 +764,7 @@
 .sectionBody {
   display: block;
   min-width: 0;
+  overflow-wrap: anywhere;
   padding: 2px 0;
   border-radius: 6px;
   color: var(--ink);
@@ -774,10 +775,12 @@
   box-shadow: var(--focus);
 }
 
+/* The time wraps under the section number when a lab adds a second pattern, instead of running off a phone sheet. */
 .sectionWhen {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  column-gap: 8px;
   font-size: 14px;
   font-weight: 550;
 }
@@ -810,11 +813,13 @@
   font-size: 13px;
   color: var(--danger);
 }
+/* Seats or a raw status from UNT: short, but wraps rather than pushing past the sheet's edge. */
 .seats {
+  max-width: 7.5em;
   font-size: 12px;
   color: var(--ink-2);
   text-align: right;
-  white-space: nowrap;
+  text-wrap: balance;
 }
 .seats[data-full] {
   color: var(--attention);
