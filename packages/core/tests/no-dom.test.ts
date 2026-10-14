@@ -4,7 +4,12 @@ import ts from "typescript";
 
 const coreDir = path.resolve(import.meta.dir, "..");
 
-/** Compiles one fixture with exactly the options core's tsconfig.json gives its source. */
+/**
+ * Compiles one fixture together with core's real source, under exactly the
+ * options core's tsconfig.json gives it. Including the source means a file
+ * there that pulls in the DOM library (a `/// <reference lib="dom" />`, say)
+ * would let the fixtures compile and fail these tests.
+ */
 function diagnosticsUnderCoreConfig(fixture: string) {
   const configPath = path.join(coreDir, "tsconfig.json");
   const read = ts.readConfigFile(configPath, ts.sys.readFile);
@@ -14,7 +19,7 @@ function diagnosticsUnderCoreConfig(fixture: string) {
     throw new Error(parsed.errors.map((error) => ts.flattenDiagnosticMessageText(error.messageText, "\n")).join("\n"));
   }
   const file = path.join(import.meta.dir, "fixtures", fixture);
-  const program = ts.createProgram({ rootNames: [file], options: parsed.options });
+  const program = ts.createProgram({ rootNames: [...parsed.fileNames, file], options: parsed.options });
   return ts.getPreEmitDiagnostics(program).map((diagnostic) => ({
     file: diagnostic.file ? path.relative(coreDir, diagnostic.file.fileName) : null,
     code: diagnostic.code,

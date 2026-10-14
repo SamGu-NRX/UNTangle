@@ -56,16 +56,25 @@ export const CourseCodeSchema = z
   .max(32)
   .regex(courseCode, 'A course code is written as the institution writes it, like "CSCE 1030".');
 
+/** A synced document. */
+export type DocumentId = Id<"document">;
 /**
- * A document or operation id: up to 128 letters, digits, "-" or "_", so a
- * UUID fits and the id is safe in a URL path.
+ * One write, kept across its retries. Branded apart from DocumentId: a
+ * document id reused as an operation id would make every later save look
+ * like a retry of the first and fail its receipt's hash check.
  */
+export type OperationId = Id<"operation">;
+
+/** Up to 128 letters, digits, "-" or "_", so a UUID fits and the id is safe in a URL path. */
 const opaqueId = /^[A-Za-z0-9_-]{1,128}$/;
+
+const isDocumentId = (value: string): value is DocumentId => opaqueId.test(value);
+const isOperationId = (value: string): value is OperationId => opaqueId.test(value);
 
 export const DocumentIdSchema = z
   .string()
-  .regex(opaqueId, "A document id is 1 to 128 letters, digits, hyphens or underscores.");
+  .refine(isDocumentId, "A document id is 1 to 128 letters, digits, hyphens or underscores.");
 
 export const OperationIdSchema = z
   .string()
-  .regex(opaqueId, "An operation id is 1 to 128 letters, digits, hyphens or underscores.");
+  .refine(isOperationId, "An operation id is 1 to 128 letters, digits, hyphens or underscores.");

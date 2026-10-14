@@ -6,7 +6,9 @@ import {
   OperationIdSchema,
   TermIdSchema,
   type CourseId,
+  type DocumentId,
   type InstitutionId,
+  type OperationId,
   type TermId,
 } from "../src/ids";
 
@@ -54,6 +56,15 @@ describe("parsed ids keep their kind in the type system", () => {
     expectTypeOf(InstitutionIdSchema.parse("unt")).toEqualTypeOf<InstitutionId>();
     expectTypeOf(TermIdSchema.parse("spring-2027")).toEqualTypeOf<TermId>();
     expectTypeOf(CourseIdSchema.parse("CSCE 1030")).toEqualTypeOf<CourseId>();
+    expectTypeOf(DocumentIdSchema.parse("schedule-main")).toEqualTypeOf<DocumentId>();
+    expectTypeOf(OperationIdSchema.parse("op-1")).toEqualTypeOf<OperationId>();
+  });
+
+  test("a document id can't be used as an operation id", () => {
+    const documentId = DocumentIdSchema.parse("schedule-main");
+    // @ts-expect-error A write's operation id is not its document id.
+    const operationId: OperationId = documentId;
+    expect<string>(operationId).toBe("schedule-main");
   });
 
   test("one kind of id can't stand in for another, or for a bare string", () => {
