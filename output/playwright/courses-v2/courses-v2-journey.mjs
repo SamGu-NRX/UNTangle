@@ -150,11 +150,11 @@ async function journey(browser, viewport) {
   const noteText = await noteBox.innerText();
   check(`${tag}: the AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 1 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
   check(`${tag}: CSCE 1030 covered through CSCE 1040`, (await rowStatus(page, "CSCE 1030")) === "Covered" && (await rowMeta(page, "CSCE 1030")).includes("Via CSCE 1040"));
-  check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Spring 2026 · A"));
-  check(`${tag}: MATH 1720 planned by Auto`, (await rowStatus(page, "MATH 1720")) === "Planned" && (await rowMeta(page, "MATH 1720")).includes("Spring 2027 · auto"));
+  check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Grade A"));
+  check(`${tag}: MATH 1720 planned by Auto`, (await rowStatus(page, "MATH 1720")) === "Planned" && (await rowMeta(page, "MATH 1720")).includes("Spring 2027"));
   check(`${tag}: CSCE 2100 left for an advisor`, (await rowStatus(page, "CSCE 2100")) === "Check");
   const coreHeader = await page.locator("#group-core").innerText();
-  check(`${tag}: Covered is counted apart from done`, /2 of 5 done · 1 covered/.test(coreHeader), coreHeader.replace(/\s+/g, " "));
+  check(`${tag}: the group header carries one fact, how much is done`, /2 of 5 done/.test(coreHeader) && !/covered/.test(coreHeader), coreHeader.replace(/\s+/g, " "));
   const rowHeight = await rowOf(page, "CSCE 1030").evaluate((el) => el.getBoundingClientRect().height);
   check(`${tag}: row height`, phone ? rowHeight >= 52 : Math.round(rowHeight) === 44, `${rowHeight}px`);
   if (!phone) {
@@ -337,19 +337,20 @@ async function journey(browser, viewport) {
   }
   check(`${tag}: MATH 1720 planned through search`, (await rowStatus(page, "MATH 1720")) === "Planned");
 
-  // Pin MATH 1720 to §010 (MWF 8:00); CSCE 1030 §001 meets MWF 8:00 too, so it must show a conflict.
+  // Pin MATH 1720 to §501 (MW 1:00-3:20 PM in UNT's Spring 2027 schedule); CSCE 1030 §400 + 301 has a
+  // Monday 10:40 AM-1:30 PM lab, so it must show a conflict. Real sections replaced the samples here.
   await tap(page.locator('[data-row-open="MATH 1720"]'));
   const mathPanel = panelFor("MATH 1720");
   await tap(mathPanel.getByRole("button", { name: /Show all \d+ sections/ }));
-  await tap(mathPanel.locator("label", { hasText: "§010" }));
-  check(`${tag}: choosing a section radio updates the plan`, await mathPanel.locator("label", { hasText: "§010" }).locator("input").isChecked());
+  await tap(mathPanel.locator("label", { hasText: "§501" }));
+  check(`${tag}: choosing a section radio updates the plan`, await mathPanel.locator("label", { hasText: "§501" }).locator("input").isChecked());
   if (phone) {
     await page.getByRole("button", { name: "Close MATH 1720 details" }).tap();
     await mathPanel.waitFor({ state: "detached" });
   }
   await tap(page.locator('[data-row-open="CSCE 1030"]'));
   const csPanel = panelFor("CSCE 1030");
-  const clash = csPanel.locator("label", { hasText: "§001" }).locator("[data-conflict=true]");
+  const clash = csPanel.locator("label", { hasText: "§400 + 301" }).locator("[data-conflict=true]");
   await clash.waitFor();
   const clashText = await clash.innerText();
   // --c-danger is the shell's --danger when it exists, else DESIGN.md's #b3261e.
@@ -361,7 +362,7 @@ async function journey(browser, viewport) {
     probe.remove();
     return [getComputedStyle(el).color, resolved];
   });
-  check(`${tag}: a clashing section says so in --danger`, clashText.includes("conflicts with MATH 1720") && clashColor === dangerColor && clashColor !== "rgb(88, 110, 88)", `${clashText} · ${clashColor}`);
+  check(`${tag}: a clashing section says so in --danger`, clashText.includes("conflicts with MATH 1720") && clashColor === dangerColor && clashColor !== "rgb(88, 110, 88)", `${clashText}, ${clashColor}`);
   await page.waitForTimeout(300);
   await shoot(page, `${tag}-05-planned`);
 

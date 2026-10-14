@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f6f3">
-<title>UNTangle v3 · Phone navigation model</title>
+<title>UNTangle v3: Phone navigation</title>
 <!--BASE_CSS-->
 <style>
   /* desktop: the model board */
@@ -29,15 +29,19 @@
   .tab.on { display: block; }
   #tab-day { height: 100dvh; }
   .pad { padding: 4px 12px 0; }
-  .tray { background: var(--paper); border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1); padding: 14px 14px 12px 16px; margin: 6px 0 18px; }
+  .tray { background: var(--paper); border-radius: 16px; box-shadow: var(--shadow-1); padding: 14px 14px 12px 16px; margin: 10px 0 14px; }
   .tray h2 { font-size: 17px; font-weight: 650; } .tray .row1 { display: flex; align-items: center; gap: 10px; }
   .tray .row1 .btn { margin-left: auto; }
   .chips5 { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
   .chips5 span { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 7px; background: var(--ct); box-shadow: inset 3px 0 0 var(--c); font: 700 11px/1 var(--font-mark); }
-  .gh { display: flex; align-items: center; gap: 8px; margin: 0 4px 6px; } .gh h3 { font-size: 15px; font-weight: 650; } .gh .meta { margin-left: 2px; }
-  .rows { background: var(--paper); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; margin-bottom: 18px; }
-  .r { display: grid; grid-template-columns: 18px 1fr 40px; gap: 12px; align-items: center; min-height: 58px; padding: 6px 6px 6px 12px; border-top: 1px solid var(--line); width: 100%; text-align: left; }
-  .r:first-child { border-top: 0; }
+  .gh { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 4px 2px; } .gh h3 { font-size: 15px; font-weight: 650; } .gh .meta { margin-left: 2px; } .gh .chev { margin-left: auto; color: var(--ink-3); transform: rotate(-90deg); display: grid; }
+  .deg { display: flex; align-items: baseline; gap: 8px; margin: 10px 4px 0; font-size: 14px; font-weight: 650; } .deg .meta { margin-left: auto; font-weight: 400; }
+  .prefline { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 6px; color: var(--ink-2); font-size: 14px; text-align: left; }
+  .prefline span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .verdict { display: flex; align-items: center; gap: 8px; padding: 2px 6px 6px; font-size: 13.5px; color: var(--attention); }
+  .rows { margin-bottom: 14px; }
+  .r { position: relative; display: grid; grid-template-columns: 18px 1fr 40px; gap: 12px; align-items: center; min-height: 58px; padding: 6px 4px 6px 10px; width: 100%; text-align: left; border-radius: 10px; }
+  .r + .r::before { content: ""; position: absolute; left: 40px; right: 8px; top: 0; height: 1px; background: var(--line); }
   .r .code { font-size: 13px; display: block; } .r .t { font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .r .act { width: 40px; height: 40px; display: grid; place-items: center; color: var(--brand-2); border-radius: 10px; }
   .r .m { font-size: 12.5px; color: var(--ink-2); }
@@ -46,7 +50,7 @@
   .search-layer.on { display: block; }
   .search-layer .top { display: flex; gap: 8px; align-items: center; }
   .search-layer .top .searchfield { flex: 1; }
-  .wk { margin: 8px 8px 0; background: var(--paper); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+  .wk { margin: 0 8px; background: var(--paper); border-radius: 14px; box-shadow: var(--shadow-1); overflow: hidden; }
   .wk .hd { display: grid; grid-template-columns: 26px repeat(5, 1fr); height: 30px; align-items: center; font-size: 11px; font-weight: 650; color: var(--ink-2); text-align: center; border-bottom: 1px solid var(--line); }
   .wk .bd { position: relative; display: grid; grid-template-columns: 26px repeat(5, 1fr); height: 470px; }
   .wk .col { position: relative; border-left: 1px solid var(--line); background-image: linear-gradient(var(--line) 1px, transparent 1px); background-size: 100% 52px; }
@@ -54,8 +58,7 @@
   .wk .e.hl { box-shadow: inset 3px 0 0 var(--c), 0 0 0 2px var(--c); }
   .wbar { position: fixed; left: 8px; right: 8px; bottom: calc(var(--tabbar-h) + 8px + var(--safe-b)); z-index: 35; display: flex; gap: 8px; padding: 8px; border-radius: 16px; }
   .wbar .btn { flex: 1; height: 44px; }
-  .mapbg { position: fixed; inset: 0; background: #eeede9; }
-  .mapbg svg { width: 100%; height: 100%; }
+  .mapbg { position: fixed; inset: 0; background: #eceee8 url("assets/live-map.jpg") 30% 30% / cover no-repeat; }
   .hero { padding: 0 18px; }
   .hero .k { font-size: 13px; font-weight: 600; color: var(--ink-2); } .hero .big { font: 700 44px/1 var(--font-mark); letter-spacing: -.02em; margin-top: 4px; } .hero .sub { font-size: 14px; color: var(--ink-2); margin-top: 8px; }
   .sched-list button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 0 6px; border-top: 1px solid var(--line); text-align: left; font-size: 15px; font-weight: 600; }
@@ -75,7 +78,7 @@
     <div class="zoom"><div><b>Courses</b><span>the whole degree</span></div><div><b>Week</b><span>one term</span></div><div><b>Day</b><span>today, on foot</span></div></div>
     <div class="rule"><h2>Three tabs, three spans of time</h2><p>Courses, Week and Day show the same plan at different zoom. Switching tabs is instant and keeps each tab's scroll position and open sheet.</p></div>
     <div class="rule"><h2>Where you land <span class="hyp">Hypothesis</span></h2><p>During term, if a class is still ahead today, the app opens on Day with the leave-by time. Otherwise it reopens the last tab you used.</p></div>
-    <div class="rule"><h2>One switcher</h2><p>The schedule pill in the header opens a sheet of named schedules for that term. Picking one never leaves the tab you're on.</p></div>
+    <div class="rule"><h2>One switcher</h2><p>The schedule pill in the header opens a sheet of named schedules for that term. Picking one never leaves the tab you're on. No tab carries its own schedule tabs.</p></div>
     <div class="ctl-row"><button class="btn btn-secondary btn-sm" data-go="courses">Courses</button><button class="btn btn-secondary btn-sm" data-go="week">Week</button><button class="btn btn-secondary btn-sm" data-go="day">Day</button><button class="btn btn-secondary btn-sm" data-go="sched">Schedule sheet</button><button class="btn btn-secondary btn-sm" data-go="detail">Course sheet</button></div>
   </section>
   <div class="device"><iframe id="frame" title="UNTangle on a phone" src="07-phone-navigation.html?embed=1"></iframe></div>
@@ -84,41 +87,43 @@
     <div class="rule"><h2>One sheet deep</h2><p>A second sheet replaces the first one's content instead of stacking. Swipe down, tap the dimmed area, press Esc or the system back gesture to close it.</p></div>
     <div class="rule"><h2>Back means close</h2><p>Tabs are not history. Back closes the top sheet, then leaves a pushed screen (schedule detail slides in from the right and slides back out). It never jumps between tabs.</p></div>
     <div class="rule"><h2>Search is a layer</h2><p>Tapping search covers the screen with the keyboard up and no animation. Cancel returns you to exactly where you were.</p></div>
-    <div class="rule"><h2>Thumb reach</h2><p>Auto, Add, Build and the sheet handles sit in the bottom third. Remove and delete stay one level down, in the sheet or the ⋯ menu.</p></div>
+    <div class="rule"><h2>Thumb reach</h2><p>Add, Auto or Build, and the sheet handles sit in the bottom third. Remove and delete stay one level down, in the sheet or the ⋯ menu.</p></div>
+    <div class="rule"><h2>One fact per row</h2><p>A row is a name and the one fact you act on in that tab. Sections, instructors and rooms wait in the sheet.</p></div>
   </section>
 </div>
 
 <!-- phone: the app -->
 <div class="app">
-  <header class="pheader"><span class="wordmark">UNTangle</span><button class="sched-pill" data-open="sched">Spring 27 <span class="meta">· Main</span></button><a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a></header>
+  <header class="pheader"><span class="wordmark">UNTangle</span><button class="sched-pill" data-open="sched" aria-label="Schedule: Spring 2027, Main. Switch schedule"><span class="when">Spring 27</span>Main</button><a class="avatar" href="06-sign-in.html" aria-label="Account">SG</a></header>
   <main>
     <section class="tab on" id="tab-courses" aria-label="Courses">
       <div class="pad">
         <button class="searchfield" style="width:100%" data-open="search" data-i="search"><span style="color:var(--ink-2);font-size:15px">Search courses or class numbers</span></button>
-        <div class="tray"><div class="row1"><div><h2>Spring 2027</h2><div class="meta">Main · 15 credits</div></div><button class="btn btn-secondary btn-sm" data-go="week">Open in Week</button></div>
+        <div class="deg"><span>Computer Science, BS</span><span class="meta">54 of 120 credits</span></div>
+        <div class="tray"><div class="row1"><div><h2>Spring 2027</h2><div class="meta">15 credits</div></div><button class="btn btn-secondary btn-sm" data-go="week">Open in Week</button></div>
           <div class="chips5"><span data-c="3">CSCE 2110</span><span data-c="6">CSCE 2610</span><span data-c="1">MATH 2700</span><span data-c="4">PHYS 2220</span><span data-c="5">TECM 2700</span></div></div>
-        <div class="gh"><h3>To check</h3><span class="meta">2</span></div>
+        <div class="gh"><h3>To check</h3></div>
         <div class="rows"><button class="r" data-open="detail">${sgc}<span><span class="code">CSCE 2900</span><span class="t">Special Problems</span></span><span></span></button><button class="r" data-open="detail">${sgc}<span><span class="code">CSCE 3010</span><span class="t">Signals and Systems</span></span><span></span></button></div>
-        <div class="gh"><h3>You can take</h3><span class="meta">6</span></div>
+        <div class="gh"><h3>You can take</h3></div>
         <div class="rows" id="cantake"></div>
-        <div class="gh"><h3>Later</h3><span class="meta">29</span></div>
-        <div class="gh"><h3>Done</h3><span class="meta">11</span></div>
+        <div class="gh"><h3>Later</h3><span class="meta">29</span><span class="chev" aria-hidden="true">${chev}</span></div>
+        <div class="gh"><h3>Done</h3><span class="meta">11</span><span class="chev" aria-hidden="true">${chev}</span></div>
       </div>
     </section>
     <section class="tab" id="tab-week" aria-label="Week">
-      <div class="pad" style="display:flex;gap:6px;align-items:center"><span class="btn btn-secondary btn-sm" style="box-shadow:inset 0 0 0 1px var(--line-2)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent)"></span>Main</span><span class="btn btn-ink btn-sm">Fridays off</span><span class="meta" style="margin-left:auto">15 cr · 28 min walking</span></div>
+      <div class="pad"><button class="prefline" data-open="prefs" data-i="sliders" aria-label="Preferences: Nothing before 9 AM, work Tue and Thu 3:00–5:00"><span>Nothing before 9 AM, work Tue and Thu 3:00–5:00</span></button><p class="verdict">${sgw}The walk to PHYS 2220 on Monday and Wednesday is tight.</p></div>
       <div class="wk"><div class="hd"><span></span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div><div class="bd" id="wkbd"></div></div>
-      <div class="wbar glass-panel"><button class="btn btn-secondary" data-open="search" data-i="search">Add</button><button class="btn btn-secondary" data-i="sliders">Prefer</button><button class="btn btn-primary" data-i="trayin">Auto</button></div>
+      <div class="wbar glass-panel"><button class="btn btn-secondary" data-open="search" data-i="search">Add</button><button class="btn btn-primary" data-i="trayin">Auto</button></div>
     </section>
     <section class="tab" id="tab-day" aria-label="Day">
-      <div class="mapbg"><svg viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="390" height="844" fill="#eeede9"/><g stroke="#fff" stroke-width="12" stroke-linecap="round"><path d="M-20 120H420M-20 300H420M-20 470H420M80 -20V860M260 -20V860"/></g><path d="M300 360h70v40h-70zM40 520h80v50H40zM180 180h70v40h-70zM200 330h50v40h-50z" fill="#f7f6f2" stroke="#e1e0d9"/><path d="M80 545 L80 470 L260 470 L260 300 L215 220" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M80 545 L80 470 L260 470 L260 300 L215 220" fill="none" stroke="#00512b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="80" cy="545" r="9" fill="#fff" stroke="#46564b" stroke-width="3"/><circle cx="215" cy="215" r="14" fill="#00512b" stroke="#fff" stroke-width="3"/><text x="215" y="219" fill="#fff" font-size="12" font-weight="700" text-anchor="middle" font-family="Syne">1</text></svg></div>
+      <div class="mapbg" role="img" aria-label="Campus map with today's walking route"></div>
     </section>
   </main>
   <nav class="tabbar" aria-label="Views"><a href="#" data-go="courses" aria-current="page" data-i="courses">Courses</a><a href="#" data-go="week" data-i="week">Week</a><a href="#" data-go="day" data-i="day">Day</a></nav>
   <div class="scrim" id="scrim"></div>
   <section class="sheet" id="sheet" aria-hidden="true"><div class="grabber"></div><div class="sheet-body" id="sbody"></div></section>
-  <section class="sheet glass" id="daysheet" aria-label="Your day"><div class="grabber"></div><div class="sheet-body"><div class="hero"><div class="k">Leave Kerr Hall by</div><div class="big">8:49</div><div class="sub">CSCE 2110 at 9:00 · GAB 535 · 9 min walk</div></div><p class="meta" style="padding:14px 18px">3 classes · 1.0 mi · 21 min walking. The full itinerary is in 04-day-map.html.</p></div></section>
-  <div class="search-layer" id="search"><div class="top"><label class="searchfield" data-i="search"><input placeholder="Search courses or class numbers" aria-label="Search courses" id="sq"></label><button class="btn btn-quiet" data-close-search>Cancel</button></div><p class="meta" style="padding:16px 4px">Recent: CSCE 2110 · Patel · 23419</p></div>
+  <section class="sheet glass" id="daysheet" aria-label="Your day"><div class="grabber"></div><div class="sheet-body"><div class="hero"><div class="k">Leave Kerr Hall by</div><div class="big">8:49</div><div class="sub">CSCE 2110 starts at 9:00 in GAB 535.</div></div><p class="meta" style="padding:14px 18px">The full itinerary is in 04-day-map.html.</p></div></section>
+  <div class="search-layer" id="search"><div class="top"><label class="searchfield" data-i="search"><input placeholder="Search courses or class numbers" aria-label="Search courses" id="sq"></label><button class="btn btn-quiet" data-close-search>Cancel</button></div><p class="label" style="padding:16px 4px 8px">Recent</p><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="chip">CSCE 2110</button><button class="chip">Patel</button><button class="chip">23419</button></div></div>
 </div>
 
 <!--BASE_JS-->
@@ -126,7 +131,7 @@
 const embed = Q.get("embed") === "1";
 const asPhone = embed || PHONE.matches;
 document.body.classList.toggle("embed", embed); document.body.classList.toggle("phone", !embed && PHONE.matches);
-$$(".app").forEach((a) => (a.innerHTML = a.innerHTML.replaceAll("${sgc}", sg("check", "Check with an advisor"))));
+$$(".app").forEach((a) => (a.innerHTML = a.innerHTML.replaceAll("${sgc}", sg("check", "Check with an advisor")).replaceAll("${chev}", icon("chevD", "sm")).replaceAll("${sgw}", sg("check", "Needs attention"))));
 hydrateIcons();
 if (!asPhone) {
   $$("[data-go]").forEach((b) => (b.onclick = () => $("#frame").contentWindow.postMessage({ go: b.dataset.go }, "*")));
@@ -149,8 +154,10 @@ if (!asPhone) {
     current = t;
   }
   function openSheet(kind) {
-    const html = kind === "sched"
-      ? `<div class="dsheet-h"><h2 class="title">Spring 2027 schedules</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><div class="sched-list"><button><span>Main</span><span class="meta">5 days · 28 min walking</span><span class="ck">${icon("check")}</span></button><button><span>Fridays off</span><span class="meta">4 days · 16 min</span></button><button><span>Short walks</span><span class="meta">5 days · 22 min</span></button><button style="color:var(--brand-2)">${icon("plus")}New schedule</button></div><a class="btn btn-secondary" style="width:100%;margin-top:12px" href="05-schedules-library.html">All schedules and compare</a>`
+    const html = kind === "prefs"
+      ? `<div class="dsheet-h"><h2 class="title">Preferences</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><p class="meta" style="margin-bottom:12px">Auto follows these. Most weeks need none. The full panel is in 03-schedule-builder.html.</p><div class="label" style="margin-bottom:6px">Start after</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><button class="chip">Any time</button><button class="chip" aria-pressed="true">9 AM</button><button class="chip">10 AM</button><button class="chip">11 AM</button></div><div class="label" style="margin-bottom:6px">Busy times</div><p style="font-size:14px">Work, Tue and Thu 3:00–5:00</p>`
+      : kind === "sched"
+      ? `<div class="dsheet-h"><h2 class="title">Spring 2027 schedules</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><div class="sched-list"><button aria-current="true"><span>Main</span><span class="meta">Mon to Fri</span><span class="ck">${icon("check")}</span></button><button><span>Fridays off</span><span class="meta">Mon to Thu</span></button><button><span>Short walks</span><span class="meta">Mon to Fri</span></button><button style="color:var(--brand-2)">${icon("plus")}New schedule</button></div><a class="btn btn-secondary" style="width:100%;margin-top:12px" href="05-schedules-library.html">All schedules and compare</a>`
       : `<div class="dsheet-h"><span class="code">MATH 3680</span><span class="tag">3 credits</span><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><h2 class="title">Applied Statistics</h2><p class="meta" style="margin:4px 0 14px">You can take this. Full detail is in 02-courses.html.</p><button class="btn btn-primary" style="width:100%">${icon("plus")}Add to Spring 2027</button><button class="btn btn-quiet" style="width:100%;margin-top:6px" data-go="week">See it in Week</button>`;
     $("#sbody").innerHTML = html; $("[data-sclose]", $("#sbody")).onclick = () => sheet.close();
     if (sheet.index >= 0) swap($("#sbody"), () => {}); else sheet.open(0);

@@ -50,7 +50,7 @@ if (pdf.toString("latin1") === mockPdf) throw new Error("the mock transcript cha
 const file = { name: "transcript.pdf", mimeType: "application/pdf", buffer: pdf };
 
 async function plansSave(page, size) {
-  await page.goto(`${base}/plans`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/schedules`, { waitUntil: "networkidle" });
   await page.getByLabel("Plan name (optional)").fill("Before import");
   await page.getByRole("button", { name: "Save current schedule" }).click();
   await page.getByText("Before import", { exact: true }).waitFor();
@@ -90,9 +90,11 @@ async function toCourses(page) {
   }
 }
 
-async function openFromPlanMenu(page) {
-  await page.locator(".shell-planchip").click();
-  await page.getByRole("menuitem", { name: "Import courses from myUNT" }).click();
+// v3 foundation: the shell's plan menu is gone (the schedule pill opens the
+// library), so Connect opens from the Courses view's own Auto-fill menu.
+async function openConnectFromCourses(page) {
+  await page.getByRole("button", { name: "More Auto-fill options" }).filter({ visible: true }).first().click();
+  await page.getByRole("menuitem", { name: "Import a transcript" }).click();
   const sheet = page.getByRole("region", { name: SHEET });
   await sheet.waitFor();
   await page.waitForTimeout(350);
@@ -125,8 +127,8 @@ const flagSet = (page) => page.evaluate((key) => sessionStorage.getItem(key) ===
 // -> review with a flagged row -> breakpoint crossed after approving -> save.
 async function connectPopup(page, size) {
   await toCourses(page);
-  const sheet = await openFromPlanMenu(page);
-  check(size, "connect: the plan menu opens the sheet over Courses at /connect", page.url().endsWith("/connect"), page.url());
+  const sheet = await openConnectFromCourses(page);
+  check(size, "connect: the Courses menu opens the sheet over Courses at /connect", page.url().endsWith("/connect"), page.url());
   const text = await sheet.innerText();
   check(size, "connect: the start lists Reads / Removes / Keeps", /Reads/.test(text) && /Removes/.test(text) && /Keeps/.test(text));
   check(size, "connect: no extension anywhere in the flow", !/extension/i.test(text));
@@ -169,7 +171,7 @@ async function connectPopup(page, size) {
   await shot(page, size, "connect-review");
   await axe(page, size, "Connect review");
 
-  // Crossing 719px (rotation, zoom) must not remount the sheet and drop approvals.
+  // Crossing the phone breakpoint (rotation, zoom) must not remount the sheet and drop approvals.
   const include = page.getByRole("checkbox", { name: "Include CSCE 1030", exact: true });
   await include.check();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -242,7 +244,7 @@ async function connectBlocked(browser, size) {
   const page = await ctx.newPage();
   try {
     await toCourses(page);
-    const sheet = await openFromPlanMenu(page);
+    const sheet = await openConnectFromCourses(page);
     const [tab] = await Promise.all([ctx.waitForEvent("page"), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
     await tab.waitForURL(/^https:\/\/my\.unt\.edu\//);
     check(size, "blocked: with popups blocked, myUNT opens in a new tab", tab.url().startsWith("https://my.unt.edu/"), tab.url());
@@ -265,7 +267,7 @@ async function connectBlocked(browser, size) {
 // chooser; the trip survives a reload at /connect.
 async function connectPhone(page, size) {
   await toCourses(page);
-  const sheet = await openFromPlanMenu(page);
+  const sheet = await openConnectFromCourses(page);
   await shot(page, size, "connect-start");
   await axe(page, size, "Connect start");
   const [popup] = await Promise.all([page.waitForEvent("popup"), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
@@ -314,22 +316,18 @@ async function markACourseDone(page) {
 // reopens, closing then still returns to the view; focus returns to the
 // opener; a cold /courses/import load opens the sheet over Courses.
 async function connectHistory(page, size) {
-  await page.goto(`${base}/plans`, { waitUntil: "networkidle" });
-  const chip = page.locator(".shell-planchip");
-  await chip.click();
-  await page.getByRole("menuitem", { name: "Import courses from myUNT" }).click();
-  const sheet = page.getByRole("region", { name: SHEET });
+  await toCourses(page);
+  const sheet = await openConnectFromCourses(page);
   await sheet.waitFor();
   await page.goBack();
   await sheet.waitFor({ state: "detached" });
-  check(size, "connect: Back closes the sheet and stays on Plans", page.url().endsWith("/plans"), page.url());
+  check(size, "connect: Back closes the sheet and stays on Courses", page.url().endsWith("/courses"), page.url());
   await page.goForward();
   await sheet.waitFor();
   await page.getByRole("button", { name: "Not now" }).click();
   await sheet.waitFor({ state: "detached" });
-  check(size, "connect: after Back/Forward, closing still returns to Plans", page.url().endsWith("/plans"), page.url());
-  await chip.click();
-  await page.getByRole("menuitem", { name: "Import courses from myUNT" }).click();
+  check(size, "connect: after Back/Forward, closing still returns to Courses", page.url().endsWith("/courses"), page.url());
+  await openConnectFromCourses(page);
   await sheet.waitFor();
   await page.waitForTimeout(300);
   await page.keyboard.press("Escape");
@@ -337,9 +335,9 @@ async function connectHistory(page, size) {
   await page.waitForTimeout(300);
   const focused = await page.evaluate(() => {
     const el = document.activeElement;
-    return el && el !== document.body ? el.className || el.tagName : "body";
+    return el && el !== document.body ? el.getAttribute("aria-label") || el.className || el.tagName : "body";
   });
-  check(size, "connect: closing returns focus to the plan menu button", /shell-planchip/.test(focused), focused);
+  check(size, "connect: closing returns focus to the menu button that opened it", focused === "More Auto-fill options", focused);
   await page.goto(`${base}/courses/import`, { waitUntil: "networkidle" });
   await sheet.waitFor();
   check(size, "connect: a cold /courses/import opens the sheet at /connect", page.url().endsWith("/connect"), page.url());
@@ -349,7 +347,7 @@ async function connectHistory(page, size) {
 }
 
 async function plansCompareRestore(page, size) {
-  await page.goto(`${base}/plans`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/schedules`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "More actions for Before import" }).click();
   await page.getByRole("menuitem", { name: "Compare with working schedule" }).click();
   const diff = page.locator(".plans-diff");

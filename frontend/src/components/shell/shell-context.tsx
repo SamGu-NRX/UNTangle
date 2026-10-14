@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { SearchItem, SearchSection } from "@/components/ui/SearchPalette";
 
 /**
@@ -22,6 +23,8 @@ export type ShellApi = {
   openSearch: () => void;
   /** Registers the current view's search; `null` restores the shell's own. */
   setSearchProvider: (provider: ShellSearchProvider | null) => void;
+  /** Backing store for usePageState, kept for as long as the shell is mounted. */
+  pageState: Map<string, unknown>;
 };
 
 export const ShellContext = createContext<ShellApi | null>(null);
@@ -47,4 +50,25 @@ export function useShellSearch(provider: ShellSearchProvider) {
     setSearchProvider(provider);
   }, [provider, setSearchProvider]);
   useEffect(() => () => setSearchProvider(null), [setSearchProvider]);
+}
+
+/**
+ * useState that survives leaving the page for another lens and coming back
+ * in the same visit, such as the Day sheet's detent (DESIGN.md §3.4: each tab
+ * keeps its own sheet). Keyed by route and `key`. Outside the shell it is
+ * plain useState.
+ */
+export function usePageState<T>(key: string, initial: T): [T, (next: T) => void] {
+  const api = useContext(ShellContext);
+  const storeKey = `${usePathname() ?? ""}#${key}`;
+  // Only this hook writes under storeKey, always with a T.
+  const [value, setValue] = useState<T>(() => (api?.pageState.has(storeKey) ? (api.pageState.get(storeKey) as T) : initial));
+  const set = useCallback(
+    (next: T) => {
+      api?.pageState.set(storeKey, next);
+      setValue(next);
+    },
+    [api, storeKey],
+  );
+  return [value, set];
 }

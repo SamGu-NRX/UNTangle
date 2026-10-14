@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/Select";
 import { toast } from "@/components/ui/Toast";
 import { usePresence } from "@/components/ui/use-presence";
 import { getMajorById, getPlanningTermCourseCodes } from "@/lib/planner";
+import { optionIdLabel, optionLabel } from "@/lib/planner-sections";
 import { majors } from "@/lib/seed-data";
 import type { CoursePlan, CourseStatus, MajorId } from "@/lib/types";
 import styles from "./courses.module.css";
@@ -57,7 +58,7 @@ function rowSummary(row: CourseRowModel | undefined): string {
   const label = statusLabels[row.status];
   if (row.status === "locked" || row.status === "check") {
     const needs = ruleCourseIds(onlyCheckable(row.unmet));
-    return needs.length > 0 ? `${label} · needs ${needs.slice(0, 2).join(", ")}` : label;
+    return needs.length > 0 ? `${label}, needs ${needs.slice(0, 2).join(" and ")}` : label;
   }
   return label;
 }
@@ -70,8 +71,18 @@ export function CoursesView({
   initialInstructor?: string | null;
 }) {
   const profile = useMemo(() => untProfile(), []);
-  const { hydrated, plannerState, scheduleEvents, setSelectedMajor, applyTranscriptRecords, setSection, updateCoursePlan } =
-    usePlanner();
+  const {
+    hydrated,
+    plannerState,
+    sectionPlan,
+    sectionCatalog,
+    catalogVersion,
+    loadSections,
+    setSelectedMajor,
+    applyTranscriptRecords,
+    setSection,
+    updateCoursePlan,
+  } = usePlanner();
   const { openSearch } = useShell();
   const router = useRouter();
   const importTranscript = () => openConnect((href) => router.push(href));
@@ -118,7 +129,19 @@ export function CoursesView({
   const coreCovered = coreIds.filter((id) => model.rows.get(id)?.status === "covered").length;
 
   const searchCourses = useMemo(() => [...model.rows.values()].map((row) => ({ id: row.id, title: row.title })), [model]);
-  const instructors = useMemo(() => instructorIndex(profile.catalog.flatMap((course) => profile.sections(course.id))), [profile]);
+  // Instructors of every course whose options have loaded: real ones, or the samples a fallback course shows.
+  const instructors = useMemo(
+    () =>
+      instructorIndex(
+        profile.catalog.flatMap((course) => {
+          const options = sectionCatalog(course.id);
+          return options.status === "ready" ? options.result.sections : [];
+        }),
+      ),
+    // catalogVersion is how the catalog says it has more loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, sectionCatalog, catalogVersion],
+  );
 
   const untouched =
     !model.hasTranscript && Object.values(plannerState.courseStatuses).every((status) => status === "notTaken");
@@ -196,7 +219,9 @@ export function CoursesView({
       // Picking a section is a hand edit to that course, even when it is already planned.
       edit(model.rows.get(id)?.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }), [id]);
       setSection(id, sectionId);
-      say(`Using section ${sectionId.split("-").at(-1)} of ${id}.`);
+      const option = sectionCatalog(id);
+      const section = option.status === "ready" ? option.result.sections.find((entry) => entry.id === sectionId) : undefined;
+      say(`Using section ${section ? optionLabel(section) : optionIdLabel(sectionId)} of ${id}.`);
     },
     close: closePanel,
   };
@@ -285,7 +310,7 @@ export function CoursesView({
             items: results.instructors.map((instructor): SearchItem => ({
               id: `${INSTRUCTOR_ITEM}${instructor.name}`,
               title: instructor.name,
-              meta: instructor.courseIds.slice(0, 3).join(" · "),
+              meta: instructor.courseIds.slice(0, 3).join(", "),
             })),
           },
         ];
@@ -325,6 +350,10 @@ export function CoursesView({
 
   // selectedId is never cleared, so the panel keeps its course while it slides out.
   const panelRow = selectedId ? model.rows.get(selectedId) : undefined;
+  useEffect(() => {
+    if (selectedId && panelOpen) loadSections([selectedId]);
+  }, [loadSections, panelOpen, selectedId]);
+  const planSections = sectionPlan.courses.flatMap((course) => (course.section ? [course.section] : []));
   const desktopPresence = usePresence(panelOpen && !isPhone && panelRow !== undefined, 150);
 
   const instructorForPanel =
@@ -341,7 +370,8 @@ export function CoursesView({
       profile={profile}
       inCore={coreSet.has(row.id)}
       selectedSectionId={plannerState.selectedSections[row.id]}
-      scheduleEvents={scheduleEvents}
+      sectionOptions={sectionCatalog(row.id)}
+      planSections={planSections}
       initialInstructor={instructorForPanel}
       actions={panelActions}
       showClose
@@ -397,7 +427,7 @@ export function CoursesView({
             <span className={styles.headMeta}>
               <span className={styles.meta}>
                 {coreDone} of {coreIds.length} core done
-                {coreCovered > 0 ? ` · ${coreCovered} covered` : ""}
+                {coreCovered > 0 ? `, ${coreCovered} covered` : ""}
               </span>
               <span className={styles.progress} aria-hidden="true">
                 <i style={{ transform: `scaleX(${pct})` }} />
@@ -430,9 +460,8 @@ export function CoursesView({
               {lastAuto.needsCheck.length > 0 && model.rows.has(lastAuto.needsCheck[0]) ? (
                 <button type="button" className={styles.link} onClick={() => openCourse(lastAuto.needsCheck[0])}>
                   {lastAuto.needsCheck.length === 1
-                    ? "1 core course needs an advisor"
-                    : `${lastAuto.needsCheck.length} core courses need an advisor`}{" "}
-                  · Review
+                    ? "Review the core course that needs an advisor"
+                    : `Review the ${lastAuto.needsCheck.length} core courses that need an advisor`}
                 </button>
               ) : null}
               {undoBlocked ? (

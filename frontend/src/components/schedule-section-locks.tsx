@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import { sectionNumber } from "@/lib/planner";
+import { optionIdLabel, optionLabel } from "@/lib/planner-sections";
 
 function LockGlyph({ locked }: { locked: boolean }) {
   return (
@@ -41,7 +41,7 @@ const VISUALLY_HIDDEN: CSSProperties = {
  * the closed padlock.
  */
 export function SectionLockButton({ courseCode, sectionId }: { courseCode: string; sectionId: string }) {
-  const { plannerState, setSectionLock } = usePlanner();
+  const { plannerState, sectionPlan, setSectionLock } = usePlanner();
   const locked = plannerState.lockedSections?.[courseCode] === sectionId;
   return (
     <button
@@ -52,13 +52,19 @@ export function SectionLockButton({ courseCode, sectionId }: { courseCode: strin
       onClick={() => setSectionLock(courseCode, !locked)}
     >
       <LockGlyph locked={locked} />
-      Lock<span style={VISUALLY_HIDDEN}> {courseCode} section {sectionNumber(sectionId)}</span>
+      Lock<span style={VISUALLY_HIDDEN}> {courseCode} section {labelOf(sectionPlan, courseCode, sectionId)}</span>
     </button>
   );
 }
 
+/** The section's name: vsb's section code once loaded, else what its id says. */
+function labelOf(plan: ReturnType<typeof usePlanner>["sectionPlan"], courseCode: string, sectionId: string): string {
+  const section = plan.courses.find((course) => course.code === courseCode)?.section;
+  return section?.id === sectionId ? optionLabel(section) : optionIdLabel(sectionId);
+}
+
 export function ScheduleSectionLocks() {
-  const { plannerState } = usePlanner();
+  const { plannerState, sectionPlan } = usePlanner();
   const scheduled = Object.entries(plannerState.selectedSections).sort(([a], [b]) => a.localeCompare(b));
   if (scheduled.length === 0) {
     return null;
@@ -69,7 +75,7 @@ export function ScheduleSectionLocks() {
         <li key={courseCode} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <span style={{ fontSize: "0.84rem", minWidth: 0 }}>
             <strong>{courseCode}</strong>{" "}
-            <span style={{ color: "var(--copy)", fontVariantNumeric: "tabular-nums" }}>§{sectionNumber(sectionId)}</span>
+            <span style={{ color: "var(--copy)", fontVariantNumeric: "tabular-nums" }}>§{labelOf(sectionPlan, courseCode, sectionId)}</span>
           </span>
           <SectionLockButton courseCode={courseCode} sectionId={sectionId} />
         </li>

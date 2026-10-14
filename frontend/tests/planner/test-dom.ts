@@ -15,7 +15,9 @@
  */
 import { mock } from "bun:test";
 import { Window } from "happy-dom";
-import { useSyncExternalStore } from "react";
+import { act, useSyncExternalStore } from "react";
+import { TestClock } from "./test-clock";
+import type { SectionStore } from "@/lib/section-store";
 import type { PlannerState } from "@/lib/types";
 
 type TestUser = { id: string; email: string; name: string };
@@ -76,6 +78,20 @@ const DOM_KEYS = [
 ] as const;
 
 let installed: { win: Window; previous: Map<string, unknown> } | null = null;
+const clock = new TestClock();
+let clockInstalled = false;
+
+async function settle(action: () => void = () => {}) {
+  const scope = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previous = scope.IS_REACT_ACT_ENVIRONMENT;
+  scope.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    await act(async () => { action(); });
+  } finally {
+    if (previous === undefined) delete scope.IS_REACT_ACT_ENVIRONMENT;
+    else scope.IS_REACT_ACT_ENVIRONMENT = previous;
+  }
+}
 
 export function installDom(): Window {
   if (installed) {
@@ -106,20 +122,37 @@ export function removeDom() {
     }
   }
   installed.win.close();
+  if (clockInstalled) {
+    clock.restore();
+    clockInstalled = false;
+  }
   installed = null;
 }
 
+// The WebMCP transition-ordering tests mount their own roots without act.
+// Keep their real scheduler and sleeps; only mountPlanner installs the clock.
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export const advanceTime = (ms: number) => {
+  if (!clockInstalled) throw new Error("advanceTime requires mountPlanner's test clock");
+  return clock.advance(ms, settle);
+};
+
 export async function waitFor(predicate: () => boolean, label: string, timeoutMs = 4000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (predicate()) {
-      return;
+  if (!clockInstalled) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) return;
+      await sleep(20);
     }
-    await sleep(20);
+    throw new Error(`timed out waiting for: ${label}`);
   }
-  throw new Error(`timed out waiting for: ${label}`);
+  await settle();
+  for (let elapsed = 0; elapsed <= timeoutMs; elapsed += 20) {
+    if (predicate()) return;
+    if (elapsed < timeoutMs) await advanceTime(Math.min(20, timeoutMs - elapsed));
+  }
+  throw new Error(`timed out waiting for: ${label} after ${timeoutMs} ms of test time`);
 }
 
 /* ---------- fake /api/planner ---------- */
@@ -249,12 +282,17 @@ type PlannerModule = typeof import("@/components/planner-provider");
 export type PlannerValue = ReturnType<PlannerModule["usePlanner"]>;
 
 /**
- * Renders without `act`: the provider's state changes arrive from fetch
- * promises and timers, so tests poll the live value with `waitFor` instead.
+ * Flushes React work with `act` without advancing the debounce clock.
+ * `waitFor` advances test time only when React and fetch promises have settled.
  * `extra` renders additional UI (e.g. the persistence panel) inside the provider.
  */
-export async function mountPlanner(extra?: () => React.ReactNode) {
+export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore) {
+  if (!clockInstalled) {
+    clock.install();
+    clockInstalled = true;
+  }
   const mod = await import("@/components/planner-provider");
+  const sectionStore = store ?? (await import("@/lib/section-store")).sampleSectionStore;
   const React = await import("react");
   const { createRoot } = await import("react-dom/client");
 
@@ -267,13 +305,14 @@ export async function mountPlanner(extra?: () => React.ReactNode) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  root.render(
+  await settle(() => root.render(
     React.createElement(
       mod.PlannerProvider,
-      null,
+      // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
+      { sectionStore },
       React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
     ),
-  );
+  ));
   await waitFor(() => latest !== null, "first render");
 
   const get = (): PlannerValue => {
@@ -285,18 +324,16 @@ export async function mountPlanner(extra?: () => React.ReactNode) {
 
   /** Runs a planner action against the current value and lets React render it. */
   const run = async (action: (planner: PlannerValue) => void) => {
-    action(get());
-    await sleep(10);
+    await settle(() => action(get()));
   };
 
   const unmount = async () => {
-    root.unmount();
+    await settle(() => root.unmount());
     container.remove();
-    await sleep(10);
   };
 
   return { get, run, unmount, container };
 }
 
 /** Lets the debounced save (350 ms) fire and any resulting request settle. */
-export const flushSaves = (ms = 500) => sleep(ms);
+export const flushSaves = (ms = 500) => advanceTime(ms);

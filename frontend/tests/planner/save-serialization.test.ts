@@ -5,7 +5,7 @@ import {
   mountPlanner,
   removeDom,
   setSession,
-  sleep,
+  advanceTime,
   waitFor,
 } from "./test-dom";
 
@@ -46,11 +46,13 @@ describe("serialized server saves", () => {
     await planner.run((p) => p.setOptimization("compact"));
     await waitFor(() => server.posts.length === 0 && planner.get().saveState.label === "Saving…", "A in flight");
     // Let the debounce fire so request A is actually waiting at the gate.
-    await sleep(450);
+    await advanceTime(350);
+    expect(server.postsStarted).toBe(1);
 
     await planner.run((p) => p.setActiveDay("Wed"));
     // B's debounce fires while A is still in flight: B is queued, not sent.
-    await sleep(450);
+    await advanceTime(350);
+    expect(server.postsStarted).toBe(1);
     expect(server.posts).toHaveLength(0);
 
     // Hold B at the server too, so the moment between "A acknowledged" and

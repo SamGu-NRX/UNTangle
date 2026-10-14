@@ -396,6 +396,49 @@ export const campusBuildings: CampusBuilding[] = [
     // the walkway graph: excluded from route resolution.
     isOffCampus: true,
   },
+  // Added 2026-10-13 for rooms in vsb's Spring 2027 file (MGYM, WSC2, PACX,
+  // SPHS) that mapped to no building. Names and pins are the OSM building
+  // outlines in the campus kit's Overpass snapshot (tools/campus-geodata/raw),
+  // pin = outline centroid; way ids are noted. No UNT Facilities building
+  // number was checked for these.
+  {
+    id: "mgym",
+    name: "Ken Bahnsen Gym",
+    shortName: "MGYM",
+    lat: 33.209963,
+    lng: -97.153642,
+    // OSM way 141910348.
+    aliases: ["mgym", "bahnsen gym", "ken bahnsen gym", "mens gym"],
+  },
+  {
+    id: "wsc2",
+    name: "Welch Street Complex 2",
+    shortName: "WSC2",
+    address: address("425 S. Welch St."),
+    lat: 33.210719,
+    lng: -97.143987,
+    // OSM way 518920094.
+    aliases: ["wsc2", "welch street complex 2"],
+  },
+  {
+    id: "pacx",
+    name: "Performing Arts Center Annex",
+    shortName: "PACX",
+    lat: 33.206496,
+    lng: -97.155783,
+    // OSM way 293803909.
+    aliases: ["pacx", "performing arts center annex"],
+  },
+  {
+    id: "sphs",
+    name: "Speech & Hearing Clinic",
+    shortName: "SPHS",
+    address: address("907 W. Sycamore St."),
+    lat: 33.212294,
+    lng: -97.142003,
+    // OSM way 293804600.
+    aliases: ["sphs", "speech and hearing clinic"],
+  },
 ];
 
 function unique(values: string[]) {

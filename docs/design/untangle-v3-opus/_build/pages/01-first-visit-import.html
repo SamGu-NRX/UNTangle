@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f6f3">
-<title>UNTangle v3 · First visit and import</title>
+<title>UNTangle v3: First visit and import</title>
 <!--BASE_CSS-->
 <style>
   body { min-height: 100dvh; }
@@ -120,7 +120,7 @@
     <ol>
       <li><span class="stop">1</span><div class="art"><div class="cap">Your transcript</div><div class="art-file" data-i="file"><span>unofficial-transcript.pdf</span><span class="meta" style="margin-left:auto">stays on this device</span></div></div></li>
       <li><span class="stop">2</span><div class="art art-rows"><div class="cap">What you can take</div>
-        <div><svg class="sg"><use href="#s-done"/></svg><span class="code">MATH 1720</span>Calculus II<span class="meta">Done · B</span></div>
+        <div><svg class="sg"><use href="#s-done"/></svg><span class="code">MATH 1720</span>Calculus II<span class="meta">Grade B</span></div>
         <div><svg class="sg"><use href="#s-available"/></svg><span class="code">CSCE 2110</span>Data Structures<span class="meta">Can take</span></div>
         <div><svg class="sg"><use href="#s-locked"/></svg><span class="code">CSCE 3110</span>Algorithms<span class="meta">Needs 2110</span></div></div></li>
       <li><span class="stop">3</span><div class="art"><div class="cap">Next term's week</div>
@@ -147,7 +147,7 @@
     <div class="pdf">Transcript preview</div>
     <button type="button" id="fwdl">Download PDF</button>
   </div>
-  <div class="fw-dl" id="fwdlbar">✓ unofficial-transcript.pdf · saved to Downloads</div>
+  <div class="fw-dl" id="fwdlbar">✓ unofficial-transcript.pdf saved to Downloads</div>
 </div>
 
 <div class="drop" id="drop" aria-hidden="true">
@@ -166,7 +166,7 @@ let campus = "unt", state = Q.get("state") || "first";
 const stage = $("#stage");
 
 const TRANSCRIPT = [
-  { term: "To check", rows: [["SPAN 1010", "Transfer · Collin College", "fix"]] },
+  { term: "To check", rows: [["SPAN 1010", "Transfer from Collin College", "fix"]] },
   { term: "Fall 2025", rows: [["CSCE 1040", "Computer Science II", "A"], ["MATH 1710", "Calculus I", "B"], ["ENGL 1310", "College Writing I", "A"], ["HIST 2610", "U.S. History to 1865", "A"], ["PSCI 2305", "U.S. Political Behavior", "A"]] },
   { term: "Spring 2026", rows: [["MATH 1720", "Calculus II", "B"], ["HIST 2620", "U.S. History since 1865", "B"], ["COMM 1010", "Intro to Communication", "A"], ["PSCI 2306", "U.S. and Texas Government", "A"], ["PHIL 1050", "Introduction to Philosophy", "A"]] },
   { term: "Fall 2026", rows: [["CSCE 2100", "Foundations of Computing", "now"], ["ENGL 1320", "College Writing II", "now"], ["PHYS 1710", "Mechanics", "now"]] },
@@ -204,7 +204,7 @@ const views = {
       <button class="btn btn-primary btn-lg wide" id="usepdf" data-act="pick" data-i="file">Use the downloaded PDF</button>
       <p class="meta">${PHONE.matches ? "Look in Files › Downloads." : "Opens your Downloads folder."}</p>
     </div>
-    <p class="alt"><button class="btn btn-quiet" data-act="open">Open ${CAMPUS[campus].portal} again</button><span class="only-desk">· or drop the PDF here</span></p>`,
+    <p class="alt"><button class="btn btn-quiet" data-act="open">Open ${CAMPUS[campus].portal} again</button><span class="only-desk">or drop the PDF here</span></p>`,
 
   reading: () => `
     <h1 class="h2">Reading your transcript</h1>

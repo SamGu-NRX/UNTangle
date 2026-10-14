@@ -13,12 +13,14 @@ import {
   type CSSProperties,
 } from "react";
 import { usePlanner } from "@/components/planner-provider";
+import { provenanceSource, provenanceText, summarizeProvenance } from "@/components/sections-provenance";
 import { DaySummary, DaySwitcher, EmptyDay, Timeline } from "@/components/map/map-itinerary";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { CameraInsets } from "@/components/map/map-canvas";
 import type { MapSelection } from "@/components/map/selection";
 import { useItinerary } from "@/components/map/use-itinerary";
-import { weekDays, type WeekDay } from "@/lib/types";
+import { usePageState } from "@/components/shell/shell-context";
+import { classDays, weekDays, type ClassDay } from "@/lib/types";
 import "@/components/map/map.css";
 import { getPlanningTermCourseCodes } from "@/lib/planner";
 
@@ -64,16 +66,23 @@ function revealRow(container: HTMLElement | null, row: HTMLElement | undefined, 
 
 export function MapClient({ campusId = activeCampus.id }: { campusId?: string }) {
   const campus = campusById(campusId);
-  const { plannerState, routeStops, setActiveDay, hydrated } = usePlanner();
+  const { plannerState, routeStops, setActiveDay, hydrated, sectionPlan } = usePlanner();
+  const sectionsLoading = sectionPlan.courses.some((course) => course.state === "loading");
+  const provenance = summarizeProvenance(
+    sectionPlan.courses.flatMap((course) => (course.result ? [course.result] : [])),
+    sectionPlan.courses.some((course) => course.section?.term === null),
+  );
+  const source = provenance ? { text: provenanceText(provenance, true), title: provenanceSource(provenance) } : null;
   const activeDay = plannerState.activeDay;
   const stops = useMemo(() => campus.id === activeCampus.id ? routeStops[activeDay] ?? [] : [], [activeDay, routeStops, campus.id]);
   const itinerary = useItinerary(stops);
 
-  const isPhone = useMediaQuery("(max-width: 720px)");
+  const isPhone = useMediaQuery("(max-width: 759px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   const [selection, setSelection] = useState<MapSelection>(null);
-  const [detent, setDetent] = useState<SheetDetent>("half");
+  // Kept while the student visits other lenses: each tab keeps its own sheet.
+  const [detent, setDetent] = usePageState<SheetDetent>("sheet-detent", "half");
   const [sheetVisible, setSheetVisible] = useState(0);
   const [areaHeight, setAreaHeight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -81,21 +90,23 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
   const rows = useRef(new Map<string, HTMLElement>());
 
   const counts = useMemo(
-    () => Object.fromEntries(weekDays.map((day) => [day, (campus.id === activeCampus.id ? routeStops[day] ?? [] : []).length])) as Record<WeekDay, number>,
+    () => Object.fromEntries(classDays.map((day) => [day, (campus.id === activeCampus.id ? routeStops[day] ?? [] : []).length])) as Record<ClassDay, number>,
     [routeStops, campus.id],
   );
-  const firstDayWithClasses = weekDays.find((day) => counts[day] > 0);
+  const days = classDays.filter((day) => (weekDays as readonly ClassDay[]).includes(day) || counts[day] > 0 || day === activeDay);
+  const firstDayWithClasses = days.find((day) => counts[day] > 0);
 
-  // Open on a day that has classes, unless the student picked one.
+  // Open on a day that has classes, unless the student picked one. While
+  // sections load, an empty day may only be empty for now.
   const pickedDay = useRef(false);
   useEffect(() => {
-    if (hydrated && !pickedDay.current && counts[activeDay] === 0 && firstDayWithClasses) {
+    if (hydrated && !sectionsLoading && !pickedDay.current && counts[activeDay] === 0 && firstDayWithClasses) {
       setActiveDay(firstDayWithClasses);
     }
-  }, [activeDay, counts, firstDayWithClasses, hydrated, setActiveDay]);
+  }, [activeDay, counts, firstDayWithClasses, hydrated, sectionsLoading, setActiveDay]);
 
   const changeDay = useCallback(
-    (day: WeekDay) => {
+    (day: ClassDay) => {
       pickedDay.current = true;
       setSelection(null);
       setActiveDay(day);
@@ -118,7 +129,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
       // At peek the chosen row is hidden; at full the map is. Half shows both.
       if (next && isPhone && detent !== "half") setDetent("half");
     },
-    [detent, isPhone],
+    [detent, isPhone, setDetent],
   );
 
   // The matching row comes into view whichever side the selection came from.
@@ -152,8 +163,8 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
 
   const header = (
     <div className="mv-panel__header">
-      <DaySwitcher activeDay={activeDay} counts={counts} onChange={changeDay} />
-      <DaySummary day={activeDay} itinerary={itinerary} />
+      <DaySwitcher days={days} activeDay={activeDay} counts={counts} onChange={changeDay} />
+      <DaySummary day={activeDay} itinerary={itinerary} source={source} />
     </div>
   );
 
@@ -215,7 +226,7 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
       ) : (
         <aside className="mv-panel" aria-label="Itinerary">
           {header}
-          <div ref={scrollRef} className="mv-panel__body">
+          <div ref={scrollRef} className="mv-panel__body" data-lens-scroll="">
             {body}
           </div>
         </aside>

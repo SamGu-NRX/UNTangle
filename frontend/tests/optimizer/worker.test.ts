@@ -24,6 +24,7 @@ import { buildOptimizeRequest, defaultSchedulePreferences, getInitialPlannerStat
 import type { PlannerState } from "@/lib/types";
 import { buildWorkerBundle, committedWorkerBundle, WORKER_BUNDLE } from "./build-worker";
 import { generateInstance } from "./generator";
+import { regressionCases } from "./checks";
 
 const FIVE = ["ANTH 1010", "BIOL 1710", "ENGL 1310", "MATH 1710", "PSYC 1630"];
 
@@ -109,6 +110,20 @@ describe("the plain request", () => {
     }
   });
 
+  test("the explicit term survives cloning and both worker phases", () => {
+    const request = regressionCases().find((c) => c.name.startsWith("full-term Monday bridge"))!.request;
+    const cloned = structuredClone(toPlainRequest(request));
+    expect(cloned.term).toEqual(request.term);
+    expect(fromPlainRequest(cloned, 60_000).term).toEqual(request.term);
+    const received: OptimizeRequest["term"][] = [];
+    runJob({ id: 8, request: cloned }, {
+      optimize: (r) => { received.push(r.term); return received.length === 1 ? results.timeout : results.optimal; },
+      post: () => {},
+    });
+    expect(received).toEqual([request.term, request.term]);
+    expect(optimize(fromPlainRequest(cloned, 60_000)).schedules).toEqual(optimize(request).schedules);
+  });
+
   test("a pair outside the table is unknown, never 0", () => {
     const walk = walkingFromTable({ ids: ["a"], legs: [{ seconds: 0, source: "campus-network" }] });
     expect(walk("a", "zzz")).toEqual({ seconds: null, source: "unknown" });
@@ -122,6 +137,23 @@ describe("the committed worker bundle", () => {
 
   test("imports nothing, so the browser can load it as one file", () => {
     expect(committedWorkerBundle()).not.toMatch(/^\s*import\s/m);
+  });
+
+  test("the real Worker keeps the explicit term in the Monday bridge repro", async () => {
+    const repro = regressionCases().find((c) => c.name.startsWith("full-term Monday bridge"))!;
+    const worker = new Worker(pathToFileURL(WORKER_BUNDLE).href, { type: "module" });
+    try {
+      const done = new Promise<OptimizeReply>((resolve, reject) => {
+        worker.onmessage = (event: MessageEvent<OptimizeReply>) => resolve(event.data);
+        worker.onerror = (event) => reject(new Error(event.message));
+      });
+      worker.postMessage({ id: 2, request: toPlainRequest(repro.request) } satisfies OptimizeJob);
+      const reply = await done;
+      if (reply.phase === "error") throw new Error(reply.message);
+      expect(repro.verify(reply.result)).toBeNull();
+    } finally {
+      worker.terminate();
+    }
   });
 
   test("runs a job in a real Worker: first answer within its budget, proven", async () => {

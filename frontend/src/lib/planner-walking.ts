@@ -1,3 +1,6 @@
+import { getWalkingSeconds } from "@/lib/campus/walking-times";
+import { resolveCampusBuilding } from "@/lib/campus-locations";
+import { backToBackPairs, DISCOVERY_PARK_ID } from "@/lib/planner-sections";
 import { buildings } from "@/lib/seed-data";
 import type { CampusBuilding, ScheduleEvent } from "@/lib/types";
 
@@ -56,12 +59,39 @@ export function createStraightLineWalkingTime(
 /** Default estimate over the bundled building list. */
 export const defaultWalkingTime: WalkingTimeFn = createStraightLineWalkingTime(buildings);
 
+/**
+ * A trip between main campus and Discovery Park, in seconds. It is a
+ * shuttle ride, not a walk. This is a starting value with no measured data
+ * behind it (UNT shuttle timing); replace it when there is some.
+ */
+export const SHUTTLE_SECONDS = 20 * 60;
+
+/** True for a trip between Discovery Park and a main-campus building: a shuttle ride, never routed on foot. */
+export function isShuttleLeg(from: string | null | undefined, to: string | null | undefined): boolean {
+  const a = from ? resolveCampusBuilding(from) : null;
+  const b = to ? resolveCampusBuilding(to) : null;
+  if (!a || !b || (a.id === DISCOVERY_PARK_ID) === (b.id === DISCOVERY_PARK_ID)) return false;
+  return !(a.id === DISCOVERY_PARK_ID ? b : a).isOffCampus;
+}
+
+/**
+ * The travel time the planner gives the optimizer: campus walkways, and the
+ * shuttle's fixed time between main campus and Discovery Park, so classes
+ * back to back across them read as tight or late like a long walk. The
+ * optimizer's type has no shuttle source and reads only the seconds, so a
+ * shuttle leg goes in as an estimate ("straight-line").
+ */
+export const plannerTravelTime: WalkingTimeFn = (from, to) =>
+  isShuttleLeg(from, to) ? { seconds: SHUTTLE_SECONDS, source: "straight-line" } : getWalkingSeconds(from, to);
+
 export type WalkingSummary = {
   /** Sum of every leg with an estimate, in seconds. */
   knownSeconds: number;
   knownLegs: number;
   /** Legs between back-to-back classes where a building is unknown. */
   unknownLegs: number;
+  /** Trips between main campus and Discovery Park: shuttle rides, not counted as walking. */
+  shuttleLegs: number;
   /** True when any known leg is a straight-line estimate. */
   estimated: boolean;
 };
@@ -71,30 +101,34 @@ function toMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
-/** Walking between consecutive classes on each day of the week. */
+type WalkEvent = Pick<ScheduleEvent, "day" | "start" | "buildingId"> & Partial<Pick<ScheduleEvent, "dates">>;
+
+/**
+ * Walking between back-to-back classes (`backToBackPairs`): two classes that
+ * never meet on the same date are not a walk, and a class followed by
+ * different classes in different weeks has a walk to each.
+ */
 export function summarizeWeeklyWalking(
-  events: ReadonlyArray<Pick<ScheduleEvent, "day" | "start" | "buildingId">>,
+  events: ReadonlyArray<WalkEvent>,
   walkingTime: WalkingTimeFn = defaultWalkingTime,
 ): WalkingSummary {
-  const summary: WalkingSummary = { knownSeconds: 0, knownLegs: 0, unknownLegs: 0, estimated: false };
-  const byDay = new Map<string, Array<Pick<ScheduleEvent, "day" | "start" | "buildingId">>>();
-  events.forEach((event) => {
-    byDay.set(event.day, [...(byDay.get(event.day) ?? []), event]);
-  });
-  byDay.forEach((dayEvents) => {
-    const ordered = [...dayEvents].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-    for (let index = 1; index < ordered.length; index += 1) {
-      const leg = walkingTime(ordered[index - 1].buildingId ?? "", ordered[index].buildingId ?? "");
-      if (leg.source === "unknown") {
-        summary.unknownLegs += 1;
-        continue;
-      }
-      summary.knownSeconds += leg.seconds;
-      summary.knownLegs += 1;
-      if (leg.source === "straight-line") {
-        summary.estimated = true;
-      }
+  const summary: WalkingSummary = { knownSeconds: 0, knownLegs: 0, unknownLegs: 0, shuttleLegs: 0, estimated: false };
+  const timed = events.map((event) => ({ ...event, start: toMinutes(event.start) }));
+  for (const [from, to] of backToBackPairs(timed)) {
+    if (isShuttleLeg(from.buildingId, to.buildingId)) {
+      summary.shuttleLegs += 1;
+      continue;
     }
-  });
+    const leg = walkingTime(from.buildingId ?? "", to.buildingId ?? "");
+    if (leg.source === "unknown") {
+      summary.unknownLegs += 1;
+      continue;
+    }
+    summary.knownSeconds += leg.seconds;
+    summary.knownLegs += 1;
+    if (leg.source === "straight-line") {
+      summary.estimated = true;
+    }
+  }
   return summary;
 }

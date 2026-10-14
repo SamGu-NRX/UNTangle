@@ -7,8 +7,8 @@
  * on screen for reference, but nothing in it can be applied.
  */
 import type { OptimizeReply } from "@/lib/optimizer/worker/protocol";
-import type { OptimizeResult, RankedSchedule } from "@/lib/optimizer/types";
-import type { OptimizationKey, SchedulePreferences } from "@/lib/types";
+import type { OptimizeRequest, OptimizeResult, RankedSchedule } from "@/lib/optimizer/types";
+import type { OptimizationKey } from "@/lib/types";
 
 export type RunState = {
   /** Newest job; replies to any other id are ignored. null after Close. */
@@ -46,14 +46,26 @@ export function runReducer(state: RunState, action: RunAction): RunState {
   }
 }
 
-/** Everything a run depends on besides the catalog. Lock order does not matter. */
-export function optimizerInputKey(
-  preferences: SchedulePreferences,
-  locks: Record<string, string>,
-  courseCodes: readonly string[],
-): string {
-  const sortedLocks = Object.entries(locks).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return JSON.stringify([preferences, sortedLocks, [...courseCodes]]);
+const byKey = <T>(entries: Array<[string, T]>) => entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+/**
+ * What a run depends on: the request the optimizer receives, without its
+ * walking function and budgets. Keyed on the request rather than the
+ * settings, so anything that changes the search (a pick that moves a course
+ * in or out of it, options that load, a lock, a preference) makes a shown
+ * result stale. Lock order does not matter.
+ */
+export function requestKey(request: OptimizeRequest): string {
+  return JSON.stringify([
+    request.courses.map((course) => [course.code, course.credits, course.sections.map((section) => section.id)]),
+    byKey(Object.entries(request.locks)),
+    [...request.excluded].sort(),
+    request.constraints,
+    request.weights,
+    request.k ?? 3,
+    request.term ?? null,
+    request.fixedCredits ?? 0,
+  ]);
 }
 
 export function locksKey(locks: Record<string, string>): string {
@@ -73,6 +85,13 @@ export function canApply(
   currentKey: string,
   schedule: RankedSchedule,
   locks: Record<string, string>,
+  /**
+   * The plan's picks after applying the option, checked once more for a
+   * clash (two course codes that would overlap), in case the search could
+   * not see a section. Null when nothing clashes.
+   */
+  clashAfter: (merged: Record<string, string>) => [string, string] | null = () => null,
+  current: Record<string, string> = {},
 ): { ok: true } | { ok: false; reason: string } {
   if (state.result === null || isStale(state, currentKey)) {
     return { ok: false, reason: "Your settings changed after these were found. Optimize again to get options for them." };
@@ -81,6 +100,10 @@ export function canApply(
     if (code in schedule.byCourse && schedule.byCourse[code] !== sectionId) {
       return { ok: false, reason: `This option moves your locked ${code}. Optimize again to keep it.` };
     }
+  }
+  const clash = clashAfter({ ...current, ...schedule.byCourse });
+  if (clash) {
+    return { ok: false, reason: `This option would make ${clash[0]} and ${clash[1]} overlap. Optimize again, or pick a section by hand.` };
   }
   return { ok: true };
 }

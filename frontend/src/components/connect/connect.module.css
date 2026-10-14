@@ -158,7 +158,7 @@
 }
 /* Phones: actions fill the row (two share it when they fit), so the primary
    is a full-width thumb target instead of a button pushed to the right. */
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .foot > * {
     flex: 1 1 auto;
   }
@@ -252,7 +252,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
-@media (max-width: 719px) {
+@media (max-width: 759px) {
   .records {
     max-height: none;
   }

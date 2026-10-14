@@ -141,6 +141,7 @@ function stop(key: string, courseCode: string, placement: ItineraryStop["placeme
     key,
     number: 1,
     placement,
+    ownDates: null,
     stop: {
       courseCode,
       title: "t",

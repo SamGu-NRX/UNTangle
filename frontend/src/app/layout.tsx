@@ -35,7 +35,8 @@ const dmSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "UNTangle", template: "%s · UNTangle" },
+  // Page titles stand alone ("Day", "CSCE 2110"); the tab's icon carries the app.
+  title: { default: "UNTangle", template: "%s" },
   description: "Plan a UNT semester: the courses you need, a week that fits, and the walk between classes.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "UNTangle", statusBarStyle: "default" },
@@ -44,12 +45,13 @@ export const metadata: Metadata = {
   other: { "apple-mobile-web-app-capable": "yes" },
 };
 
-// No maximum-scale: readers must be able to zoom.
+// No maximum-scale: readers must be able to zoom. The theme color is
+// --ground; the Day route overrides it with the map's land color.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#f4f6f4",
+  themeColor: "#f4f6f3",
 };
 
 export default function RootLayout({

@@ -10,29 +10,34 @@ import {
   type ItineraryLeg,
   type ItineraryStop,
 } from "@/lib/map-itinerary";
-import { weekDays, type WeekDay } from "@/lib/types";
+import type { ClassDay } from "@/lib/types";
 import { fromKeyboard, type MapSelection } from "@/components/map/selection";
 
-const dayNames: Record<WeekDay, string> = {
+const dayNames: Record<ClassDay, string> = {
   Mon: "Monday",
   Tue: "Tuesday",
   Wed: "Wednesday",
   Thu: "Thursday",
   Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
 };
 
 /* ---------- day switcher ---------- */
 
 export function DaySwitcher({
+  days,
   activeDay,
   counts,
   onChange,
 }: {
-  activeDay: WeekDay;
-  counts: Record<WeekDay, number>;
-  onChange: (day: WeekDay) => void;
+  /** Mon-Fri, plus a weekend day when the plan meets on it. */
+  days: readonly ClassDay[];
+  activeDay: ClassDay;
+  counts: Record<ClassDay, number>;
+  onChange: (day: ClassDay) => void;
 }) {
-  const refs = useRef<Partial<Record<WeekDay, HTMLButtonElement | null>>>({});
+  const refs = useRef<Partial<Record<ClassDay, HTMLButtonElement | null>>>({});
   const [pill, setPill] = useState<{ x: number; width: number } | null>(null);
   // The pill slides when a day is clicked and snaps for arrow keys and resizes.
   const [slide, setSlide] = useState(false);
@@ -49,13 +54,13 @@ export function DaySwitcher({
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [activeDay]);
+  }, [activeDay, days]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
     if (!step) return;
     event.preventDefault();
-    const next = weekDays[(weekDays.indexOf(activeDay) + step + weekDays.length) % weekDays.length];
+    const next = days[(days.indexOf(activeDay) + step + days.length) % days.length];
     setSlide(false);
     onChange(next);
     refs.current[next]?.focus();
@@ -71,7 +76,7 @@ export function DaySwitcher({
           style={{ width: pill.width, transform: `translateX(${pill.x}px)` }}
         />
       ) : null}
-      {weekDays.map((day) => {
+      {days.map((day) => {
         const active = day === activeDay;
         return (
           <button
@@ -110,39 +115,49 @@ function Tag({ children, title }: { children: string; title: string }) {
   );
 }
 
-export function DaySummary({ day, itinerary }: { day: WeekDay; itinerary: Itinerary }) {
+export function DaySummary({
+  day,
+  itinerary,
+  source,
+}: {
+  day: ClassDay;
+  itinerary: Itinerary;
+  /** Where the day's sections come from ("Real, updated Oct 4", "Sample"); null before any loads. */
+  source: { text: string; title: string } | null;
+}) {
   const { summary } = itinerary;
-  const parts: string[] = [];
-  if (summary.classes === 0) {
-    parts.push("No classes");
-  } else {
-    parts.push(`${summary.classes} ${summary.classes === 1 ? "class" : "classes"}`);
-    if (summary.walkMinutes > 0) {
-      parts.push(formatDistance(summary.walkMeters), `${formatWalkMinutes(summary.walkMinutes)} walking`);
-    }
-  }
+  // One fact: how much walking the day holds, or how many classes when there is none.
+  const fact =
+    summary.classes === 0
+      ? "No classes"
+      : summary.walkMinutes > 0
+        ? `${formatWalkMinutes(summary.walkMinutes)} walking`
+        : `${summary.classes} ${summary.classes === 1 ? "class" : "classes"}`;
   return (
     <div className="mv-summary">
       <h2 className="mv-summary__day">{dayNames[day]}</h2>
       <p className="mv-summary__line" aria-live="polite">
-        <strong>{parts[0]}</strong>
-        {parts.slice(1).map((part) => (
-          <span key={part}> · {part}</span>
-        ))}
-        {summary.loading && summary.classes > 0 ? <span className="mv-summary__muted"> · finding routes</span> : null}
+        <strong>{fact}</strong>
+        {summary.loading && summary.classes > 0 ? <span className="mv-summary__muted">, finding routes</span> : null}
         {summary.lateTransfers > 0 ? (
           <span className="mv-summary__warn">
             {" "}
-            · {summary.lateTransfers} late {summary.lateTransfers === 1 ? "transfer" : "transfers"}
+            , {summary.lateTransfers} late {summary.lateTransfers === 1 ? "transfer" : "transfers"}
           </span>
         ) : null}
         {summary.tightTransfers > 0 ? (
           <span className="mv-summary__warn">
             {" "}
-            · {summary.tightTransfers} tight {summary.tightTransfers === 1 ? "transfer" : "transfers"}
+            , {summary.tightTransfers} tight {summary.tightTransfers === 1 ? "transfer" : "transfers"}
           </span>
         ) : null}
-        {summary.unresolved > 0 ? <span className="mv-summary__muted"> · {summary.unresolved} not on map</span> : null}
+        {summary.unresolved > 0 ? <span className="mv-summary__muted">, {summary.unresolved} not on map</span> : null}
+        {summary.shuttleLegs > 0 ? (
+          <span className="mv-summary__muted">
+            {" "}
+            , {summary.shuttleLegs} shuttle {summary.shuttleLegs === 1 ? "ride" : "rides"}
+          </span>
+        ) : null}
       </p>
       <span className="mv-summary__tags">
         {summary.estimatedLegs > 0 ? (
@@ -150,9 +165,7 @@ export function DaySummary({ day, itinerary }: { day: WeekDay; itinerary: Itiner
             Approx.
           </Tag>
         ) : null}
-        <Tag title="Sections, meeting times and rooms are synthetic, not UNT's class schedule. Check the official schedule before you register.">
-          Sample
-        </Tag>
+        {source ? <Tag title={source.title}>{source.text}</Tag> : null}
       </span>
     </div>
   );
@@ -199,7 +212,8 @@ function StopCard({
           <span className="mv-stop__title">{stop.title}</span>
         </span>
         <span className="mv-stop__meta">
-          {timeRange(entry)} · {stop.location}
+          {timeRange(entry)} in {stop.location}
+          {entry.ownDates ? `, ${entry.ownDates}` : ""}
         </span>
         {placement.kind === "unresolved" ? (
           <span className="mv-stop__problem">
@@ -236,9 +250,17 @@ function legText(leg: ItineraryLeg): LegText {
     case "loading":
       return { main: "Finding the walking route…", source: null, detail: null };
     case "same-building":
-      return { main: `Same building · ${gap}`, source: null, detail: null };
+      return { main: `Same building, ${gap}`, source: null, detail: null };
     case "no-route":
       return { main: "No walking route", source: null, detail: "One end of this walk isn't on the map." };
+    case "other-weeks":
+      return { main: "No walk", source: null, detail: "These classes meet in different weeks of the term." };
+    case "shuttle":
+      return {
+        main: `${Math.round(leg.route.seconds / 60)} min shuttle`,
+        source: null,
+        detail: `Discovery Park is a shuttle ride from main campus. ${Math.round(leg.route.seconds / 60)} minutes is an estimate. ${gap}.`,
+      };
     case "straight-line":
       return {
         main: `~${formatDistance(leg.route.meters)}`,
@@ -247,7 +269,7 @@ function legText(leg: ItineraryLeg): LegText {
       };
     case "walk":
       return {
-        main: `${formatWalkMinutes(leg.walkMinutes ?? 0)} · ${formatDistance(leg.route.meters)}`,
+        main: `${formatWalkMinutes(leg.walkMinutes ?? 0)} walk`,
         source: sourceLabel[leg.route.source],
         detail: null,
       };
@@ -279,7 +301,7 @@ function LegCard({
       {detail ? <span className="mv-leg__detail">{detail}</span> : null}
       {leg.leaveBy ? (
         <span className="mv-leg__detail">
-          Leave by <strong>{formatClock(leg.leaveBy)}</strong> · {leg.gapMinutes} min break
+          Leave by <strong>{formatClock(leg.leaveBy)}</strong> for a {leg.gapMinutes} min break
         </span>
       ) : null}
       {flagged ? (
@@ -352,7 +374,7 @@ export function Timeline({
   );
 }
 
-export function EmptyDay({ day, firstDayWithClasses, onPickDay }: { day: WeekDay; firstDayWithClasses: WeekDay | undefined; onPickDay: (day: WeekDay) => void }) {
+export function EmptyDay({ day, firstDayWithClasses, onPickDay }: { day: ClassDay; firstDayWithClasses: ClassDay | undefined; onPickDay: (day: ClassDay) => void }) {
   return (
     <div className="mv-empty">
       {firstDayWithClasses ? (

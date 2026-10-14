@@ -154,7 +154,7 @@ export function DatePicker(props: PickerProps) {
       <div className="ui-datepicker__head">
         <button
           type="button"
-          className="ui-btn ui-btn--quiet ui-btn--icon ui-datepicker__nav"
+          className="ui-btn ui-btn--ink ui-btn--icon ui-datepicker__nav"
           aria-label="Previous month"
           onClick={() => setFocused(addMonths(focused, -1))}
         >
@@ -165,7 +165,7 @@ export function DatePicker(props: PickerProps) {
         </span>
         <button
           type="button"
-          className="ui-btn ui-btn--quiet ui-btn--icon ui-datepicker__nav"
+          className="ui-btn ui-btn--ink ui-btn--icon ui-datepicker__nav"
           aria-label="Next month"
           onClick={() => setFocused(addMonths(focused, 1))}
         >

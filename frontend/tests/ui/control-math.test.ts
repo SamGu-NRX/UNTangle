@@ -3,11 +3,18 @@ import { placeFloating } from "@/components/ui/anchored";
 import { firstEnabled, lastEnabled, stepEnabled, typeaheadMatch } from "@/components/ui/listbox-nav";
 import { nextEnabledWrapping } from "@/components/ui/Segmented";
 import {
-  dampedOffset,
+  EXIT,
+  FLICK,
+  SETTLE,
   detentHeight,
   detentOffsets,
+  projectedOffset,
   releaseTarget,
   releaseVelocity,
+  rubberBand,
+  springSettled,
+  springStep,
+  type Spring,
 } from "@/components/ui/sheet-physics";
 import { moveRangeThumb, nearestThumb, snap, valueForKey, valueFromRatio } from "@/components/ui/slider-math";
 
@@ -104,33 +111,83 @@ describe("bottom sheet physics", () => {
   const vh = 844;
   const heights = [112, "50%", "92%"].map((d) => detentHeight(d as 112 | `${number}%`, vh));
   const { max, offsets } = detentOffsets(heights);
+  const [peek, half, top] = offsets;
+  const release = (offset: number, velocity: number, dismissible = true) => releaseTarget({ offset, velocity, offsets, dismissible });
 
   test("detents resolve against the viewport", () => {
     expect(heights).toEqual([112, 422, 776.48]);
     expect(max).toBe(776.48);
-    expect(offsets[2]).toBe(0);
+    expect(offsets).toEqual([664.48, 354.48, 0]);
   });
 
-  test("dragging above the top detent is damped by 0.3", () => {
-    expect(dampedOffset(-100)).toBeCloseTo(-30);
-    expect(dampedOffset(40)).toBe(40);
+  test("past the top detent the sheet rubber-bands as o * d * 0.55 / (d + 0.55 * |o|)", () => {
+    expect(rubberBand(0, vh)).toBe(0);
+    expect(rubberBand(100, vh)).toBeCloseTo((100 * vh * 0.55) / (vh + 55), 10);
+    // It never stops dead, and however far the pull, it stays under one viewport.
+    expect(rubberBand(400, vh)).toBeGreaterThan(rubberBand(200, vh));
+    expect(rubberBand(1e6, vh)).toBeLessThan(vh);
   });
 
-  test("a downward flick drops one detent, and from the lowest dismisses", () => {
-    expect(releaseTarget({ offset: offsets[2] + 20, velocity: 0.5, offsets, max, dismissible: true })).toBe(1);
-    expect(releaseTarget({ offset: offsets[0] + 5, velocity: 0.2, offsets, max, dismissible: true })).toBe("dismiss");
-    expect(releaseTarget({ offset: offsets[0] + 5, velocity: 0.2, offsets, max, dismissible: false })).toBe(0);
+  test("a release projects v * 0.995 / 0.005, about 199ms of travel", () => {
+    expect(projectedOffset(100, 0.5)).toBeCloseTo(199.5, 10);
+    expect(projectedOffset(100, -0.5)).toBeCloseTo(0.5, 10);
   });
 
-  test("an upward flick rises one detent", () => {
-    expect(releaseTarget({ offset: offsets[1] - 10, velocity: -0.3, offsets, max, dismissible: true })).toBe(2);
-    expect(releaseTarget({ offset: offsets[0] - 10, velocity: -0.3, offsets, max, dismissible: true })).toBe(1);
+  test("a slow release settles on the detent nearest the projection", () => {
+    expect(release(half + 30, 0)).toBe(1);
+    expect(release(half - 140, 0)).toBe(1);
+    expect(release(half - 200, 0)).toBe(2);
   });
 
-  test("a slow release settles on the nearest place, including closed", () => {
-    expect(releaseTarget({ offset: offsets[1] + 30, velocity: 0.05, offsets, max, dismissible: true })).toBe(1);
-    expect(releaseTarget({ offset: max - 20, velocity: 0, offsets, max, dismissible: true })).toBe("dismiss");
-    expect(releaseTarget({ offset: max - 20, velocity: 0, offsets, max, dismissible: false })).toBe(0);
+  test("momentum picks the detent: a fast flick from the top carries past half", () => {
+    expect(release(top + 10, 2)).toBe(1); // projected 408, nearest half
+    expect(release(top + 10, 3.5)).toBe(0); // projected 706.5, nearest peek
+  });
+
+  test("a flick moves at least one detent past where the sheet is", () => {
+    expect(release(top + 20, 0.2)).toBe(1); // projection alone would stay at the top
+    expect(release(half - 10, -0.3)).toBe(2);
+    expect(release(peek - 10, -0.12)).toBe(1);
+  });
+
+  test("a dismissible sheet closes 80px past the lowest detent, or on a flick down from it", () => {
+    expect(release(peek + 70, 0.1)).toBe("dismiss"); // projected 754.4 > 744.48
+    expect(release(peek + 70, 0)).toBe(0); // 734.48 stays short of the line
+    expect(release(peek + 5, 0.2)).toBe("dismiss");
+    expect(release(peek + 5, 0.2, false)).toBe(0);
+    expect(release(peek + 200, 0, false)).toBe(0);
+  });
+
+  const run = (spring: Spring, from: number, to: number, v0 = 0) => {
+    let state = { x: from, v: v0 };
+    let peak = from;
+    for (let frame = 1; frame <= 120; frame += 1) {
+      state = springStep(state, to, 1 / 60, spring);
+      peak = Math.max(peak, state.x);
+      if (springSettled(state, to)) return { frames: frame, peak };
+    }
+    return { frames: Infinity, peak };
+  };
+
+  test("the settle spring is critically damped: it never passes its target", () => {
+    const { frames, peak } = run(SETTLE, 0, 300);
+    expect(peak).toBeLessThanOrEqual(300.5);
+    expect(frames).toBeLessThan(60); // under a second
+  });
+
+  test("the flick spring keeps a small bounce and still settles", () => {
+    const { frames, peak } = run(FLICK, 0, 300, 1500);
+    expect(peak).toBeGreaterThan(300);
+    expect(peak).toBeLessThan(330);
+    expect(frames).toBeLessThan(60);
+  });
+
+  test("the exit spring settles faster than the settle spring", () => {
+    expect(run(EXIT, 0, 300).frames).toBeLessThan(run(SETTLE, 0, 300).frames);
+  });
+
+  test("a long frame is clamped to 32ms, so a hitch cannot destabilise the spring", () => {
+    expect(springStep({ x: 0, v: 0 }, 100, 1, SETTLE)).toEqual(springStep({ x: 0, v: 0 }, 100, 0.032, SETTLE));
   });
 
   test("velocity reads the last 100ms, so a pause before release is no flick", () => {

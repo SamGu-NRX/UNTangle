@@ -60,7 +60,9 @@ The mockup's rAF spring (`base.js` `spring()`) uses Apple's response and damping
 | Chip, switch, checkbox | Color, knob | background 120ms; knob transform 200ms `--ease-out` |
 | Button press | Yes | scale .97, `--t-press`, `--ease-out`; feedback on pointer-down; off under reduced motion (the color change stays) |
 | Hover (fine pointers only) | Color | background 160ms `ease` |
-| Course detail panel (desktop) | Yes | in: translateX(24px)→0 + opacity, 220ms `--ease-out`; out: 150ms; the list margin changes instantly |
+| Contextual panel (desktop: course detail, Week's search, section and Preferences panels, schedule detail) | Yes, from a pointer | in: translateX(24px)→0 + opacity, 220ms `--ease-out`, while the page moves left by half the panel's width in the same 220ms (from 1200px wide); out by the × button: the same path, 150ms. Opened from the keyboard or closed with Esc: instant, because it repeats often. Purpose: shows where the panel came from and why the page moved. The page moves by `transform` only, never by reflowing, and the selected row stays on screen. Reduced motion: the page keeps the open position at all times, so it never moves, and the panel fades in 120ms |
+| Week: Next alternative | Yes, from a pointer | the sentence leaves in 110ms (opacity to 0, translateX −4px, 2px blur) and the next one enters in 160ms `--ease-out` (from translateX 8px and 2px blur); events FLIP to their new slots in 300ms. A second press cancels the running animation and starts from the new text. From the keyboard both change at once. Reduced motion: the sentence fades in over 120ms and events jump |
+| Schedule switcher popover | Yes, from a pointer | scale .97→1 + opacity, 180ms `--ease-out`, origin at the pill (top right); out 150ms; instant from the keyboard |
 | Detail subject change while open | **No** | Content swap only |
 | Sheets (phone) | Yes | spring, §5 |
 | Dialog (major picker, export, sign-in) | Yes | in: scale .96→1 + opacity 220ms `--ease-out`, origin center; out: 150ms |
@@ -75,11 +77,11 @@ The mockup's rAF spring (`base.js` `spring()`) uses Apple's response and damping
 | Week: drag an event | Direct | follows the pointer 1:1; release snaps through a 300ms FLIP or springs back 260ms `--ease-out` |
 | Walk chips, conflict rings, stats line | **No** | Recomputed in place |
 | Undo from the keyboard (⌘Z / Ctrl+Z) | **No** | Grid and lists update instantly |
-| Compare A · Both · B | Yes | events FLIP between layouts, 300ms |
-| Map stop or leg selection | Camera | §6 |
+| Compare views (A, Both, B) | Yes | events FLIP between layouts, 300ms |
+| Map stop or leg selection | Camera | §6. In the itinerary the selected stop expands in place with no animation |
 | Map day switch | Route + camera | route opacity out 150ms, in 180ms; camera fits the day in 500ms |
 | Library push (phone) | Yes | detail translateX(100%)→0, 260ms in and 200ms out, `--ease-sheet`; list shifts −24% and dims to .6 |
-| Optimizer upgrade arriving | Text only | status text crossfades; thumbnails and the grid never move under a preview (§9) |
+| Optimizer upgrade arriving | Text only | the option sentence updates in place; the grid never moves under a preview (§9) |
 | First render of any list | **No** | No stagger. Lists run to 100+ rows and are seen often. |
 | Thesis artifacts on the first-visit page | Yes, once | rise 8px + fade, 420ms `--ease-out`, 60ms stagger; it is the only stagger in the product |
 
@@ -101,9 +103,9 @@ The mockup implementation is `class Sheet` in `_build/base.js`; production keeps
 | Detents (Day) | 206px, max(320px, 50%), 86%; bottom inset = tab bar; not dismissible | Peek shows the hero and summary |
 | Drag start hysteresis | 8px | A tap on a row inside the sheet stays a tap |
 | Tracking | 1:1 with `setPointerCapture`; a second pointer is ignored | Apple: touch and content move together |
-| Past the top detent | rubber band `(o·d·0.55)/(d+0.55·|o|)`, d = viewport height | Resistance instead of a wall |
+| Past the top detent | rubber band `(o×d×0.55)/(d+0.55×|o|)`, d = viewport height | Resistance instead of a wall |
 | Release velocity | slope of pointer samples in the last 100ms (px/ms) | A pause before letting go reads as slow |
-| Projection | `y + v · d/(1−d)`, d = 0.995 (≈ v·199ms) | Momentum picks the detent, not only the release point |
+| Projection | `y + v × d/(1−d)`, d = 0.995 (≈ v × 199ms) | Momentum picks the detent, not only the release point |
 | Flick rule | \|v\| > 0.11 px/ms moves at least one detent in that direction | Matches the existing `FLICK_VELOCITY` |
 | Dismiss | projected point > lowest detent + 80px, or a flick down from the lowest detent | |
 | Settle | spring, response 0.34s, damping 1.0; damping 0.86 when \|v\| > 0.5 px/ms; the release velocity is handed to the spring | No seam between drag and animation |
@@ -131,7 +133,7 @@ Follows `../apple-maps-web/camera.md`; these are the motion rules on top.
 - `map.stop()` before every new request. A later selection wins at once; a user drag cancels a flight and any pending correction.
 - Selecting from the sheet at its full detent first snaps the sheet to half, then flies 60ms later, so the target lands in visible map.
 - Routes never animate dashes or arrows. Past legs turn `#9fb09f` and the next leg darkens to `#00512b` at 7.5px; these are paint changes with no movement.
-- Zoom interpolates in log space (`z = z0 · (z1/z0)^e`) so zooming in and out feel the same speed (`04-day-map.html` `flyTo`).
+- Zoom interpolates in log space (`z = z0 × (z1/z0)^e`) so zooming in and out feel the same speed (the map pass's `flyTo`; the Day mockup now shows a capture of the live map, so it no longer runs a camera).
 
 ## 7. List reorder
 
@@ -150,9 +152,9 @@ Auto runs a few times a term, so it gets the one choreographed moment. The purpo
 | 0 to ~450 | The engine runs (the mockup waits 450ms). Nothing else moves. |
 | 450 | Picked rows in "You can take" tint brand-soft (background 120ms). |
 | 610 | State commits. Tray rows exist but are hidden; the tray's new height takes effect while every row and header below moves into its new place by FLIP (320ms `--ease-in-out`). |
-| 690 + 55·i | Clone of picked row i flies from its list position to its tray slot: translate only, 420ms `--ease-in-out`, a level 2 shadow while moving. Rows starting below the viewport start from its bottom edge. |
+| 690 + 55 × i | Clone of picked row i flies from its list position to its tray slot: translate only, 420ms `--ease-in-out`, a level 2 shadow while moving. Rows starting below the viewport start from its bottom edge. |
 | each landing | The real tray row appears and the tray's credit count rises by that course's credits (0 → 3 → 6 … → 15). |
-| ~1330 | Result line "Planned 5 courses · Undo" fades in, 200ms. |
+| ~1330 | Result line "Planned 5 courses" with Undo fades in, 200ms. |
 
 **Undo** reverses it: rows FLIP back to their list positions in 260ms with no stagger (exits are faster), and the toast says "Spring 2027 is back to how it was".
 
@@ -161,8 +163,8 @@ Auto runs a few times a term, so it gets the one choreographed moment. The purpo
 ## 9. The optimizer upgrading in place
 
 - The best result so far arrives within 300ms. The OptionsBar shows "Best so far" with an accent dot, and option A previews on the grid (an event FLIP).
-- When the worker finds better options, the status text crossfades to "Best found · checked 1,240 weeks" and the A · B · C deltas update in place.
-- If the student is previewing the option that improved, **don't swap the grid.** Show "A better option B is ready · Show". Swapping the grid under someone mid-decision breaks principle 6. (This rule is specified here but not mocked; the mockup shows only the status-text upgrade.)
+- When the worker finds better options, the strip's pulsing dot goes away and the option sentences update in place. (Rule 5 removed the "checked N weeks" count.)
+- If the student is previewing the option that improved, **don't swap the grid.** Show "A better week is ready" with a Show button. Swapping the grid under someone mid-decision breaks principle 6. (This rule is specified here but not mocked; the mockup shows only the status-text upgrade.)
 - Changing a preference while the bar is open shows "Updating" and repeats the same flow; the grid keeps the current preview until the new best arrives.
 
 ## 10. Reduced motion
@@ -199,5 +201,5 @@ Auto runs a few times a term, so it gets the one choreographed moment. The purpo
 
 ## 12. Checked and not checked
 
-- **Checked here:** every mockup at 1440x900 and 390x844 in Playwright Chromium 1.64. Mid-animation frames confirm the Auto flight (830ms) and a map flight (170ms into `flyTo`). The reduced-motion pass is in `screens/*-reduced-*.png` (see HANDOFF.md).
+- **Checked here:** every mockup at 1440x900 and 390x844 in Playwright Chromium 1.64. Mid-animation frames confirm the Auto flight (830ms) and the Next crossfade (`03-untangle-next`, 150ms in). The map flight frame left with the drawn map; the map pass re-captures it on the real map. The reduced-motion pass is in `screens/*-reduced-*.png` (see HANDOFF.md).
 - **Not checked:** real-device feel (sheet drag versus iOS edge swipe, momentum, tap delay), 60fps under load, MapLibre camera timing with real tiles, and screen-reader announcement order. Those are acceptance items in HANDOFF.md.

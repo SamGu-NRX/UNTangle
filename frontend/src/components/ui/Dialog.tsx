@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { cx } from "./cx";
 import { Close } from "./icons";
 import { useModalLayer } from "./modal-layer";
+import { keyboardFocused } from "./input-source";
 import { usePresence } from "./use-presence";
 
 const EXIT_MS = 150;
@@ -32,7 +33,7 @@ export type DialogProps = {
 
 /**
  * Centred modal. Not anchored to a trigger, so it scales from its own
- * centre (.96 → 1 with opacity, 200ms in, 150ms out). The scrim is flat
+ * centre (.96 → 1 with opacity, 220ms in, 150ms out). The scrim is flat
  * --overlay with no blur. The page behind is inert while open, and focus
  * returns to the opener on close.
  */
@@ -50,13 +51,22 @@ export function Dialog({
   initialFocus,
   className,
 }: DialogProps) {
-  const { mounted, state } = usePresence(open, EXIT_MS);
+  // Opened or closed from the keyboard (an opener with a focus ring, Escape,
+  // Enter on Close), the dialog appears and leaves at once.
+  const [instant, setInstant] = useState(false);
+  const { mounted, state } = usePresence(open, instant ? 0 : EXIT_MS);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
   // Keep the last title through the exit so the closing dialog stays named.
   const [shownTitle, setShownTitle] = useState(title);
   if (title && title !== shownTitle) setShownTitle(title);
+
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    setInstant(keyboardFocused());
+  }
 
   useModalLayer(open, rootRef, {
     onEscape: dismissible ? () => onOpenChange(false) : undefined,
@@ -67,7 +77,7 @@ export function Dialog({
   const heading = title ?? shownTitle;
 
   return createPortal(
-    <div ref={rootRef} className="ui-dialog-layer" data-state={state} data-ui="" tabIndex={-1}>
+    <div ref={rootRef} className="ui-dialog-layer" data-state={state} data-instant={instant ? "" : undefined} data-ui="" tabIndex={-1}>
       <div
         className="ui-dialog-scrim"
         data-state={state}
@@ -103,7 +113,7 @@ export function Dialog({
               <span />
             )}
             {dismissible ? (
-              <button type="button" className="ui-btn ui-btn--quiet ui-btn--icon ui-btn--sm" aria-label="Close" onClick={() => onOpenChange(false)}>
+              <button type="button" className="ui-btn ui-btn--ink ui-btn--icon ui-btn--sm" aria-label="Close" onClick={() => onOpenChange(false)}>
                 <Close />
               </button>
             ) : null}

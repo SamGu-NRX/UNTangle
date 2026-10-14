@@ -111,7 +111,9 @@ function toRanked(request: OptimizeRequest, prepared: ReturnType<typeof prepare>
   const sections = leaf.picks.map((pick) => pick.section);
   const { cost, breakdown } = scoreSchedule({
     sections,
+    term: request.term,
     creditsByCourse: prepared.creditsByCourse,
+    fixedCredits: request.fixedCredits,
     neutralRatingByCourse: prepared.neutralRatingByCourse,
     weights: request.weights,
     walkingTime: request.walkingTime,

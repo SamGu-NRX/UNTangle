@@ -4,8 +4,8 @@
  * Every assertion describes behavior that exists in the CURRENT implementation
  * and must keep holding through the hardening work — this file is the
  * regression contract. All courses/sections come from the real seed data;
- * the only derived fixtures are adjacency probes (see the sectionConflicts
- * suite) built from real sections by shifting meeting times.
+ * the only derived fixtures are adjacency probes (see the optionsConflict
+ * suite) built from seed sections by shifting meeting times.
  */
 import { describe, expect, it } from "bun:test";
 import { Window } from "happy-dom";
@@ -18,7 +18,7 @@ import {
   normalizePlannerState,
   readPlannerStateFromSessionStorage,
   recommendSections,
-  sectionConflicts,
+  resolveSectionPlan,
   summarizeCompletedCourses,
   summarizeCredits,
   summarizeInProgressCourses,
@@ -26,6 +26,7 @@ import {
   summarizeNotTakenCourses,
   writePlannerStateToSessionStorage,
 } from "@/lib/planner";
+import { optionsConflict, sampleOption } from "@/lib/planner-sections";
 import { courses, defaultPlannerState, majors, sections } from "@/lib/seed-data";
 import type { PlannerState, TranscriptCourseRecord } from "@/lib/types";
 
@@ -109,31 +110,39 @@ describe("normalizePlannerState", () => {
     expect(selected["NOPE 0001"]).toBeUndefined();
   });
 
-  it("drops selections whose section id does not exist and refills the slot with a same-course recommendation", () => {
-    const selected = normalizePlannerState(
+  // A pick that no longer resolves is kept and flagged, never swapped for a recommendation.
+  it("keeps a pick whose section id does not exist; the plan marks it needs-review", () => {
+    const state = normalizePlannerState(
       stateWith({
         courseStatuses: { "MATH 1710": "inProgress" },
         selectedSections: { "MATH 1710": "math-1710-999" },
       }),
-    ).selectedSections;
-    expect(selected["MATH 1710"]).not.toBe("math-1710-999");
-    const recommended = selected["MATH 1710"];
-    expect(
-      sections.some((s) => s.id === recommended && s.courseCode === "MATH 1710"),
-    ).toBe(true);
+    );
+    expect(state.selectedSections["MATH 1710"]).toBe("math-1710-999");
+    const plan = resolveSectionPlan(state);
+    expect(plan.selections["MATH 1710"]).toBe("math-1710-999");
+    expect(plan.courses.find((course) => course.code === "MATH 1710")).toMatchObject({ state: "needs-review", section: null });
   });
 
-  it("drops selections whose section id belongs to a different course and refills the slot", () => {
-    const selected = normalizePlannerState(
-      stateWith({
-        courseStatuses: { "MATH 1710": "inProgress" },
-        selectedSections: { "MATH 1710": "csce-1030-001" }, // real section, wrong course
-      }),
-    ).selectedSections;
-    expect(selected["MATH 1710"]).not.toBe("csce-1030-001");
-    expect(
-      sections.some((s) => s.id === selected["MATH 1710"] && s.courseCode === "MATH 1710"),
-    ).toBe(true);
+  it("keeps a pick whose section id belongs to a different course; the plan marks it needs-review", () => {
+    const plan = resolveSectionPlan(
+      normalizePlannerState(
+        stateWith({
+          courseStatuses: { "MATH 1710": "inProgress" },
+          selectedSections: { "MATH 1710": "csce-1030-001" }, // real section, wrong course
+        }),
+      ),
+    );
+    expect(plan.selections["MATH 1710"]).toBe("csce-1030-001");
+    expect(plan.courses.find((course) => course.code === "MATH 1710")?.state).toBe("needs-review");
+  });
+
+  it("recommends a section for a planned course without a pick, without saving it as a pick", () => {
+    const state = normalizePlannerState(stateWith({ courseStatuses: { "MATH 1710": "inProgress" } }));
+    expect(state.selectedSections).toEqual({});
+    const course = resolveSectionPlan(state).courses.find((entry) => entry.code === "MATH 1710");
+    expect(course?.state).toBe("recommended");
+    expect(course?.section?.courseCode).toBe("MATH 1710");
   });
 
   it("coerces an invalid selectedMajor to null and keeps a valid one", () => {
@@ -191,20 +200,26 @@ describe("recommendSections", () => {
   });
 });
 
-describe("sectionConflicts", () => {
+describe("optionsConflict", () => {
+  const option = (id: string) => {
+    const found = sampleOption(id);
+    if (!found) throw new Error(`seed data is missing section ${id}`);
+    return found;
+  };
+
   it("detects identical-time same-day meetings", () => {
     // CSCE 1030-001 and CSCE 1040-004 both meet MWF 08:00–08:50.
-    expect(sectionConflicts(sectionById("csce-1030-001"), [sectionById("csce-1040-004")])).toBe(true);
+    expect(optionsConflict(option("csce-1030-001"), option("csce-1040-004"))).toBe(true);
   });
 
   it("detects partial same-day overlaps", () => {
     // CSCE 1030-002: MWF 13:30–14:50 vs CSCE 1040-001: MWF 14:00–14:50.
-    expect(sectionConflicts(sectionById("csce-1030-002"), [sectionById("csce-1040-001")])).toBe(true);
+    expect(optionsConflict(option("csce-1030-002"), option("csce-1040-001"))).toBe(true);
   });
 
   it("never conflicts across different days", () => {
     // CSCE 1030-001 meets Mon/Wed/Fri; CSCE 1040-006 meets Tue/Thu.
-    expect(sectionConflicts(sectionById("csce-1030-001"), [sectionById("csce-1040-006")])).toBe(false);
+    expect(optionsConflict(option("csce-1030-001"), option("csce-1040-006"))).toBe(false);
   });
 
   // The seed catalog has no adjacent meeting pair (back-to-back sections keep a
@@ -212,20 +227,14 @@ describe("sectionConflicts", () => {
   // the meeting start/end. It pins the strict-inequality boundary of the
   // overlap predicate: end === start must NOT count as a conflict.
   it("treats adjacent (end == start) meetings as non-conflicting", () => {
-    const base = sectionById("csce-1030-001"); // MWF 08:00–08:50
-    const later = sectionById("csce-1040-005"); // MWF 12:00–12:50
-
-    const adjacent = {
+    const base = option("csce-1030-001"); // MWF 08:00–08:50
+    const later = option("csce-1040-005"); // MWF 12:00–12:50
+    const shifted = (start: number) => ({
       ...later,
-      meetings: later.meetings.map((m) => ({ ...m, start: "08:50", end: "09:40" })),
-    };
-    expect(sectionConflicts(base, [adjacent])).toBe(false);
-
-    const oneMinuteEarlier = {
-      ...later,
-      meetings: later.meetings.map((m) => ({ ...m, start: "08:49", end: "09:39" })),
-    };
-    expect(sectionConflicts(base, [oneMinuteEarlier])).toBe(true);
+      meetings: later.meetings.map((m) => ({ ...m, startMinutes: start, endMinutes: start + 50 })),
+    });
+    expect(optionsConflict(base, shifted(8 * 60 + 50))).toBe(false);
+    expect(optionsConflict(base, shifted(8 * 60 + 49))).toBe(true);
   });
 });
 

@@ -3,6 +3,7 @@
  * findings (Sol 1-10, Astra 7) and the campus walking provider. Each
  * describe names the finding it pins.
  */
+import { plannerTravelTime } from "@/lib/planner-walking";
 import { describe, expect, test } from "bun:test";
 import {
   applyChoice,
@@ -26,7 +27,7 @@ import {
   IDLE,
   isStale,
   locksKey,
-  optimizerInputKey,
+  requestKey,
   resultStanding,
   runReducer,
   undoAvailable,
@@ -266,9 +267,9 @@ describe("Sol 9: browser-local preferences, per identity, never silently overwri
 
 describe("Sol 1: a stale result cannot be applied", () => {
   const prefs = defaultSchedulePreferences("compact");
-  const keyBefore = optimizerInputKey(prefs, {}, FIVE);
+  const keyBefore = requestKey(buildOptimizeRequest(planWith(FIVE), prefs));
   const locked = { "ANTH 1010": "anth-1010-003" };
-  const keyAfterLock = optimizerInputKey(prefs, locked, FIVE);
+  const keyAfterLock = requestKey(buildOptimizeRequest(planWith(FIVE, { selectedSections: locked, lockedSections: locked }), prefs));
   const shown: RunState = runReducer(runReducer(IDLE, { type: "start", id: 1, inputKey: keyBefore }), {
     type: "reply",
     reply: { id: 1, phase: "first", result: optimal([schedule({ "ANTH 1010": "anth-1010-001" })]), settled: true },
@@ -291,9 +292,10 @@ describe("Sol 1: a stale result cannot be applied", () => {
   });
 
   test("the input key ignores lock order and changes with any preference", () => {
-    expect(optimizerInputKey(prefs, { A: "1", B: "2" }, FIVE)).toBe(optimizerInputKey(prefs, { B: "2", A: "1" }, FIVE));
-    expect(optimizerInputKey({ ...prefs, weights: { ...prefs.weights, walking: 1 } }, {}, FIVE)).not.toBe(keyBefore);
-    expect(optimizerInputKey(prefs, {}, FIVE.slice(1))).not.toBe(keyBefore);
+    const request = buildOptimizeRequest(planWith(FIVE), prefs);
+    expect(requestKey({ ...request, locks: { A: "1", B: "2" } })).toBe(requestKey({ ...request, locks: { B: "2", A: "1" } }));
+    expect(requestKey(buildOptimizeRequest(planWith(FIVE), { ...prefs, weights: { ...prefs.weights, walking: 1 } }))).not.toBe(keyBefore);
+    expect(requestKey(buildOptimizeRequest(planWith(FIVE.slice(1)), prefs))).not.toBe(keyBefore);
   });
 });
 
@@ -371,9 +373,10 @@ describe("Astra 7: the one-course fallback is disclosed", () => {
 });
 
 describe("Walking: the optimizer request uses the campus walkway matrix", () => {
-  test("getWalkingSeconds is the default provider, fractional seconds included", () => {
+  test("the walkway matrix (plus the Discovery Park shuttle) is the default provider, fractional seconds included", () => {
     const request = buildOptimizeRequest(planWith(FIVE), defaultSchedulePreferences("minimizeDistance"));
-    expect(request.walkingTime).toBe(getWalkingSeconds);
+    expect(request.walkingTime).toBe(plannerTravelTime);
+    expect(request.walkingTime("gab", "blb")).toEqual(getWalkingSeconds("gab", "blb"));
     const leg = getWalkingSeconds("gab", "blb");
     expect(leg.source).toBe("campus-network");
     const fractional = ["life", "aud", "gab", "chem", "blb", "lang", "wh"]

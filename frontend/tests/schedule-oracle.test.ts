@@ -2,7 +2,7 @@
  * Independent schedule oracle tests.
  *
  * Compares the brute-force oracle in src/lib/schedule-oracle.ts against the
- * planner's own outputs (sectionConflicts / summarizeCredits) on the real
+ * planner's own outputs (optionsConflict / summarizeCredits) on the real
  * seed catalog. The oracle is the reference; disagreements are recorded, not
  * "fixed" — planner behavior is intentionally left as-is here.
  */
@@ -13,7 +13,9 @@ import {
   oracleTotalCredits,
   type OracleSection,
 } from "../src/lib/schedule-oracle";
-import { sectionConflicts, summarizeCredits } from "../src/lib/planner";
+import { summarizeCredits } from "../src/lib/planner";
+import { optionsConflict } from "../src/lib/planner-sections";
+import type { Meeting } from "../src/lib/sections";
 import { courses, defaultPlannerState, majors, sections } from "../src/lib/seed-data";
 import type { CourseSection, CourseStatus, PlannerState } from "../src/lib/types";
 
@@ -45,6 +47,31 @@ function record(agree: boolean, label: string, oracleValue: unknown, plannerValu
     tally.disagreements += 1;
     tally.disagreements_detail.push(`${label}: oracle=${String(oracleValue)} planner=${String(plannerValue)}`);
   }
+}
+
+/** The planner's conflict check on a seed section, through the meeting shape real sections use. */
+function sectionConflicts(left: CourseSection, others: CourseSection[]): boolean {
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  const asOption = (section: CourseSection) => ({
+    meetings: section.meetings.map(
+      (meeting): Meeting => ({
+        room: meeting.location,
+        buildingCode: null,
+        buildingId: meeting.buildingId ?? null,
+        buildingName: meeting.location,
+        kind: "building",
+        offCampus: false,
+        day: meeting.day,
+        startMinutes: minutes(meeting.start),
+        endMinutes: minutes(meeting.end),
+        dates: { start: null, end: null, raw: "" },
+        instructor: { display: section.professor, raw: section.professor },
+        async: false,
+        tba: false,
+      }),
+    ),
+  });
+  return others.some((other) => optionsConflict(asOption(left), asOption(other)));
 }
 
 function toOracleSection(section: CourseSection): OracleSection {

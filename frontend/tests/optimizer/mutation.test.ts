@@ -10,7 +10,15 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkAgainstReference, checkBudgets, checkExplanations, checkLargeInstancesValid, checkRegressions, type OptimizeFn } from "./checks";
+import {
+  checkAgainstReference,
+  checkBudgets,
+  checkExplanations,
+  checkLargeInstancesValid,
+  checkRegressions,
+  termInstance,
+  type OptimizeFn,
+} from "./checks";
 
 const SOURCE = join(import.meta.dir, "../../src/lib/optimizer");
 const created: string[] = [];
@@ -31,15 +39,59 @@ async function mutant(file: string, from: string, to: string): Promise<OptimizeF
 
 const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
 const agreement = (fn: OptimizeFn) => checkAgainstReference(fn, SEEDS);
+const TERM_SEEDS = Array.from({ length: 300 }, (_, i) => 7001 + i);
+const datedAgreement = (fn: OptimizeFn) => checkAgainstReference(fn, TERM_SEEDS, (seed) => termInstance(seed, true));
 const explanations = (fn: OptimizeFn) => checkExplanations(fn, [...SEEDS, ...Array.from({ length: 150 }, (_, i) => 401 + i)]).failures;
 
 const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; check: (fn: OptimizeFn) => string[] }> = [
   {
+    name: "segment bounds are summed and double-count pairs across dates",
+    file: "search.ts",
+    from: "bound = Math.max(bound, cost);",
+    to: "bound += cost;",
+    check: datedAgreement,
+  },
+  {
+    name: "undated meetings are active in bits outside the term",
+    file: "weeks.ts",
+    from: "return masks[OPT_DAYS.indexOf(meeting.day)][range.id];",
+    to: "return meeting.dates ? masks[OPT_DAYS.indexOf(meeting.day)][range.id] : -1;",
+    check: checkRegressions,
+  },
+  {
+    name: "activity starts on the range boundary instead of the first weekday occurrence",
+    file: "weeks.ts",
+    from: "const first = range.start + ((weekday - ((range.start + 3) % 7) + 7) % 7);",
+    to: "const first = range.start;",
+    check: checkRegressions,
+  },
+  {
     name: "classes that only touch count as overlapping",
     file: "prepare.ts",
-    from: "return a.day === b.day && a.start < b.end && b.start < a.end;",
-    to: "return a.day === b.day && a.start <= b.end && b.start <= a.end;",
+    from: "return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;",
+    to: "return a.day === b.day && a.start <= b.end && b.start <= a.end && (a.weeks & b.weeks) !== 0;",
     check: agreement,
+  },
+  {
+    name: "meetings in different weeks conflict when their times overlap",
+    file: "prepare.ts",
+    from: " && (a.weeks & b.weeks) !== 0;",
+    to: ";",
+    check: datedAgreement,
+  },
+  {
+    name: "the search treats every consecutive pair in a day as back to back, whatever the dates",
+    file: "search.ts",
+    from: "const backToBack = (prev.weeks & next.weeks & ~between) !== 0;",
+    to: "const backToBack = j === i + 1;",
+    check: datedAgreement,
+  },
+  {
+    name: "the scorer and the pairwise checks treat every consecutive pair as back to back, whatever the dates",
+    file: "weeks.ts",
+    from: "if ((prev.weeks & next.weeks & ~between) !== 0 && test(prev, next)) return true;",
+    to: "if (j === i + 1 && test(prev, next)) return true;",
+    check: datedAgreement,
   },
   {
     name: "a section's own meetings are not checked for overlap",

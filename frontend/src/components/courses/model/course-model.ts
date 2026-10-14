@@ -131,7 +131,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
       status = "planned";
       // Planned while the engine has not cleared it: the student's call.
       override = engine !== "eligible" && !coveredBy;
-      meta = { kind: "text", text: plan.autoPlanned.has(entry.id) ? `${profile.planningTerm} · auto` : profile.planningTerm };
+      meta = { kind: "text", text: profile.planningTerm };
     } else if (coveredBy) {
       status = "covered";
       meta = { kind: "via", id: coveredBy };

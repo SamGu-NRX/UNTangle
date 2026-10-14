@@ -5,7 +5,6 @@ import {
   mountPlanner,
   removeDom,
   setSession,
-  sleep,
   waitFor,
 } from "./test-dom";
 import {
@@ -13,8 +12,8 @@ import {
   getInitialPlannerState,
   normalizePlannerState,
   recommendSections,
-  sectionNumber,
 } from "@/lib/planner";
+import { optionIdLabel } from "@/lib/planner-sections";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
 import { oracleConflictingPairs } from "@/lib/schedule-oracle";
 import { sections } from "@/lib/seed-data";
@@ -91,7 +90,7 @@ describe("lockedSections in planner state", () => {
   });
 
   test("sectionNumber is the last dash-separated token", () => {
-    expect(sectionNumber("csce-2100-002")).toBe("002");
+    expect(optionIdLabel("csce-2100-002")).toBe("002");
   });
 });
 
@@ -161,7 +160,7 @@ describe("lock control in the planner", () => {
     await takeCourses(planner);
     const sectionId = planner.get().plannerState.selectedSections["MATH 1710"];
     const toggle = button(planner.container, "MATH 1710");
-    expect(toggle.textContent).toBe(`Lock MATH 1710 section ${sectionNumber(sectionId)}`);
+    expect(toggle.textContent).toBe(`Lock MATH 1710 section ${optionIdLabel(sectionId)}`);
     expect(toggle.hasAttribute("aria-label")).toBe(false);
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     toggle.click();
@@ -225,7 +224,6 @@ describe("lock control in the planner", () => {
     await first.run((p) => p.setSectionLock("MATH 1710", true));
     const locked = first.get().plannerState.selectedSections["MATH 1710"];
     await waitFor(() => first.get().saveState.label === "Saved", "saved");
-    await sleep(50);
     expect(server.row?.state.lockedSections).toEqual({ "MATH 1710": locked });
     await first.unmount();
     mounted.splice(mounted.indexOf(first.unmount), 1);

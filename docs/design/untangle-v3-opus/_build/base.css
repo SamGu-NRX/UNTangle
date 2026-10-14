@@ -75,7 +75,7 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .btn .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: 1; } }
-@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn-sm { min-height: 36px; } .btn-icon, .btn-icon.btn-sm { min-width: 44px; min-height: 44px; }
   .btn-sm::after, .chip::after, .seg > button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover { background: var(--brand-2); }
@@ -129,9 +129,11 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .topbar .search { justify-self: start; display: flex; align-items: center; gap: 10px; width: min(360px, 100%); height: 36px; padding: 0 10px 0 12px; border-radius: 10px; background: var(--paper-2); color: var(--ink-3); font-size: 14px; }
 .topbar .search span { flex: 1; text-align: left; color: var(--ink-2); }
 .kbd { font: 600 11px/18px var(--font-ui); padding: 0 5px; border-radius: 4px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
-.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
+.sched-pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 650; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); background: var(--paper); }
 .sched-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-.sched-pill .meta { font-weight: 500; }
+/* term and schedule name are told apart by weight and color, never by a separator glyph */
+.sched-pill .when { font-weight: 500; color: var(--ink-2); }
+.sched-pill .i { width: 16px; height: 16px; color: var(--ink-3); margin-right: -4px; }
 .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font: 700 12px/1 var(--font-mark); }
 
 /* phone header + tab bar */
@@ -195,6 +197,47 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 [data-c="3"] { --c: var(--c3); --ct: var(--c3t); } [data-c="4"] { --c: var(--c4); --ct: var(--c4t); }
 [data-c="5"] { --c: var(--c5); --ct: var(--c5t); } [data-c="6"] { --c: var(--c6); --ct: var(--c6t); }
 .cdot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
+
+/* One main region plus one contextual panel (simplification rule 2). From 1200px the main region
+   sits centered while nothing is selected; opening the panel slides the page left by half the
+   panel's width as the panel comes in, so the two never overlap and the selected row stays on
+   screen. The page moves by transform only. Under reduced motion the page keeps the open
+   position all the time, so it never moves and only the panel fades. Below 1200px the panel
+   slides over the right edge. Phones use sheets instead. */
+body { overflow-x: clip; }
+.pair { display: grid; grid-template-columns: minmax(0, var(--main-max, 720px)) var(--panel-w, 440px); gap: 32px; justify-content: center; align-items: start; padding: 0 24px; }
+@media (min-width: 1200px) {
+  .pair { transform: translateX(calc((var(--panel-w, 440px) + 32px) / 2)); transition: transform var(--t-exit) var(--ease-out); }
+  body.panel-open .pair { transform: none; transition-duration: var(--t-enter); }
+  body.panel-instant .pair { transition: none; }
+}
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) { .pair, body.panel-open .pair { transform: none; transition: none; } }
+.cpanel { position: sticky; top: calc(var(--topbar-h) + 16px); max-height: calc(100dvh - var(--topbar-h) - 32px); display: flex; flex-direction: column; background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden;
+  opacity: 0; transform: translateX(24px); visibility: hidden;
+  transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out), visibility 0s linear var(--t-exit); }
+.cpanel.on { opacity: 1; transform: none; visibility: visible; transition: opacity var(--t-enter) var(--ease-out), transform var(--t-enter) var(--ease-out), visibility 0s; }
+.cpanel.instant, .cpanel.instant.on { transition: none; }
+.cpanel .pscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.phd { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 16px 12px 12px 20px; background: var(--paper); }
+.phd h2 { font-size: 18px; line-height: 24px; font-weight: 620; letter-spacing: -.005em; }
+.phd .close { margin-left: auto; }
+@media (max-width: 1199px) {
+  .pair { grid-template-columns: minmax(0, var(--main-max, 720px)); }
+  .cpanel { position: fixed; z-index: 25; top: var(--topbar-h); right: 0; bottom: 0; width: min(var(--panel-w, 440px), 100vw); max-height: none; border-radius: 0; box-shadow: var(--shadow-3); }
+}
+@media (max-width: 759px) { .pair { display: block; padding: 0; } .cpanel { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cpanel { transform: none; transition: opacity 120ms ease, visibility 0s linear 120ms; }
+  .cpanel.on { transform: none; transition: opacity 120ms ease, visibility 0s; }
+}
+
+/* collapsible group header: a plain row, weight and spacing instead of a box */
+.ghdr { display: flex; align-items: center; gap: 8px; width: 100%; height: 44px; padding: 0 8px 0 4px; border-radius: 10px; text-align: left; transition: background-color var(--t-hover) ease; }
+.ghdr h3 { font-size: 15px; font-weight: 650; }
+.ghdr .count { font-size: 13px; color: var(--ink-2); }
+.ghdr .chev { margin-left: auto; color: var(--ink-3); }
+.ghdr[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+@media (hover: hover) and (pointer: fine) { .ghdr:hover { background: rgba(26,46,26,.04); } }
 
 /* mockup-only furniture */
 .mock-note { position: fixed; left: 12px; bottom: 12px; z-index: 5; font-size: 11px; color: var(--ink-3); pointer-events: none; }

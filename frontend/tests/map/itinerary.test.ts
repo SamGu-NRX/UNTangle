@@ -139,7 +139,7 @@ describe("buildItinerary", () => {
     expect(leg.walkMinutes).toBeNull();
   });
 
-  test("an off-campus stop stays in the list with its reason and breaks the walks on both sides", () => {
+  test("Discovery Park stays in the list, off the map, with a shuttle ride on both sides instead of a walk", () => {
     const stops = [
       stop("A 1", "09:00", "09:50", { id: "gab", point: gab }),
       stop("ART 4720", "11:00", "12:50", { id: "ntdp" }),
@@ -169,7 +169,9 @@ describe("buildItinerary", () => {
       reason: "off-campus",
       message: "Discovery Park is off the main campus, so there's no walking route to it.",
     });
-    expect(legs.map((leg) => leg.route.kind)).toEqual(["no-route", "no-route"]);
+    // Main campus <-> Discovery Park is the shuttle's fixed estimate, never routed on foot.
+    expect(legs.map((leg) => leg.route.kind)).toEqual(["shuttle", "shuttle"]);
+    expect(legs.map((leg) => leg.walkMinutes)).toEqual([20, 20]);
     expect(summary.unresolved).toBe(1);
     expect(summary.mapped).toBe(2);
   });
