@@ -4,8 +4,8 @@
  * A test listed in tests/pending-acceptance.txt is an acceptance test the
  * lead wrote for a task. A PR may make it pass, but may not edit, move or
  * delete it. Its only allowed edit to the list is deleting lines. It may add
- * a line only for a test file the PR itself creates, so an existing test
- * can't be hidden from CI by listing it. The lead-approved label lifts the
+ * a line only for a test file the PR itself creates, not one it renamed or
+ * copied, so an existing test can't be hidden from CI by listing it. The lead-approved label lifts the
  * rule, for the lead's own changes to an acceptance test.
  *
  * CI runs this from the base branch (pull_request_target), so a PR can't
@@ -67,9 +67,18 @@ export function taskRuleViolations(input: TaskRuleInput): string[] {
     return problems;
   }
   const before = new Set(forkEntries.map((entry) => entry.text));
+  // A renamed or copied file is an existing test under a new name.
+  const derived = new Map(
+    input.changes.flatMap((change) => (change.previousPath === undefined ? [] : [[change.path, change.previousPath]])),
+  );
   for (const entry of entriesOf(input.headList, "this PR", problems)) {
     if (before.has(entry.text)) continue;
-    if (input.existedAtFork(entry.path)) {
+    const source = derived.get(entry.path);
+    if (source !== undefined) {
+      problems.push(
+        `${PENDING_LIST} line ${entry.line} adds ${entry.path}, which this PR made from ${source}. Listing an existing test hides it from CI.`,
+      );
+    } else if (input.existedAtFork(entry.path)) {
       problems.push(
         `${PENDING_LIST} line ${entry.line} adds ${entry.path}, which already exists. Listing an existing test hides it from CI.`,
       );

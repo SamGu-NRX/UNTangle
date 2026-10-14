@@ -21,6 +21,7 @@ describe("the repository's lead-owned paths", () => {
     "packages/core/package.json",
     "packages/core/tsconfig.json",
     "packages/contracts/src/ids.ts",
+    "packages/sync/src/engine.ts",
     "packages/tokens/src/index.ts",
     "frontend/drizzle/0010_documents.sql",
     "frontend/src/lib/auth-config.ts",

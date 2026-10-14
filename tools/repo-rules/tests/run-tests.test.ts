@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { bunTestArgs, findTestFiles, planTests } from "../src/run-tests";
-import { run, scratchDir, testFile, writeFiles } from "./helpers";
+import { bunTestArgs, findTestFiles, planTests, testedWorkspaces } from "../src/run-tests";
+import { repoRoot, run, scratchDir, testFile, writeFiles } from "./helpers";
 
 let dir: string;
 let cleanup: () => void;
@@ -34,6 +34,7 @@ describe("findTestFiles", () => {
 });
 
 describe("planTests", () => {
+  const tested = ["pkg", "other", "pkg-extra"];
   beforeEach(() =>
     writeFiles(dir, {
       "pkg/tests/a.test.ts": "",
@@ -43,58 +44,95 @@ describe("planTests", () => {
     }),
   );
 
-  test("leaves out listed files and collects listed names for this package only", () => {
+  test("leaves out listed files, and runs a file with listed names on its own", () => {
     const list = [
       "pkg/tests/a.test.ts",
       "pkg/tests/b.test.ts::group one test",
+      "pkg/tests/b.test.ts::group another test",
       "other/tests/a.test.ts",
     ].join("\n");
-    expect(planTests(dir, path.join(dir, "pkg"), list)).toEqual({
-      files: ["tests/b.test.ts", "tests/c.test.ts"],
-      skippedNames: ["group one test"],
-      skipped: ["pkg/tests/a.test.ts", "pkg/tests/b.test.ts::group one test"],
+    expect(planTests(dir, path.join(dir, "pkg"), list, tested)).toEqual({
+      runs: [
+        { files: ["tests/c.test.ts"], skippedNames: [] },
+        { files: ["tests/b.test.ts"], skippedNames: ["group one test", "group another test"] },
+      ],
+      skipped: ["pkg/tests/a.test.ts", "pkg/tests/b.test.ts::group one test", "pkg/tests/b.test.ts::group another test"],
     });
   });
 
   test("doesn't mistake a package whose name starts the same for this one", () => {
     writeFiles(dir, { "pkg-extra/tests/a.test.ts": "" });
-    expect(planTests(dir, path.join(dir, "pkg"), "pkg-extra/tests/a.test.ts").files).toEqual([
-      "tests/a.test.ts",
-      "tests/b.test.ts",
-      "tests/c.test.ts",
+    expect(planTests(dir, path.join(dir, "pkg"), "pkg-extra/tests/a.test.ts", tested).runs).toEqual([
+      { files: ["tests/a.test.ts", "tests/b.test.ts", "tests/c.test.ts"], skippedNames: [] },
     ]);
   });
 
+  test("plans no run when every file is pending", () => {
+    const list = "pkg/tests/a.test.ts\npkg/tests/b.test.ts\npkg/tests/c.test.ts";
+    expect(planTests(dir, path.join(dir, "pkg"), list, tested).runs).toEqual([]);
+  });
+
   test("fails on a listed file that doesn't exist, in any package", () => {
-    expect(() => planTests(dir, path.join(dir, "pkg"), "other/tests/gone.test.ts")).toThrow(
-      "lists files that don't exist:\n  line 1: other/tests/gone.test.ts",
+    expect(() => planTests(dir, path.join(dir, "pkg"), "other/tests/gone.test.ts", tested)).toThrow(
+      "line 1: other/tests/gone.test.ts doesn't exist",
+    );
+  });
+
+  test("fails on a listed file that no package's tests would ever run", () => {
+    writeFiles(dir, { "tests/feature.test.ts": "" });
+    expect(() => planTests(dir, path.join(dir, "pkg"), "tests/feature.test.ts", tested)).toThrow(
+      "line 1: tests/feature.test.ts is in no workspace whose test script CI runs",
     );
   });
 
   test("fails on a malformed list", () => {
-    expect(() => planTests(dir, path.join(dir, "pkg"), "pkg/tests/a.ts")).toThrow("is not a test file name");
+    expect(() => planTests(dir, path.join(dir, "pkg"), "pkg/tests/a.ts", tested)).toThrow("is not a test file name");
+  });
+});
+
+describe("testedWorkspaces", () => {
+  test("lists the workspaces whose test script runs the runner", () => {
+    writeFiles(dir, {
+      "package.json": JSON.stringify({ workspaces: ["app", "packages/*"] }),
+      "app/package.json": JSON.stringify({ scripts: { test: "bun ../run-tests.ts --isolate" } }),
+      "packages/a/package.json": JSON.stringify({ scripts: { test: "bun ../../run-tests.ts" } }),
+      "packages/b/package.json": JSON.stringify({ scripts: { test: "bun test" } }),
+      "packages/c/package.json": JSON.stringify({}),
+    });
+    expect(testedWorkspaces(dir).sort()).toEqual(["app", "packages/a"]);
+  });
+
+  test("covers every workspace in this repository", () => {
+    expect(testedWorkspaces(repoRoot).sort()).toEqual([
+      "frontend",
+      "packages/contracts",
+      "packages/core",
+      "packages/ingest",
+      "packages/sync",
+      "packages/tokens",
+      "tools/repo-rules",
+    ]);
   });
 });
 
 describe("bunTestArgs", () => {
-  test("passes the remaining files by path, after the caller's options", () => {
-    const plan = { files: ["tests/a.test.ts"], skippedNames: [], skipped: [] };
-    expect(bunTestArgs(plan, ["--isolate"])).toEqual(["--no-env-file", "test", "--isolate", "./tests/a.test.ts"]);
+  test("passes the files by path, after the caller's options", () => {
+    expect(bunTestArgs({ files: ["tests/a.test.ts"], skippedNames: [] }, ["--isolate"])).toEqual([
+      "--no-env-file",
+      "test",
+      "--isolate",
+      "./tests/a.test.ts",
+    ]);
   });
 
   test("skips listed names with a pattern that matches every other name, escaping regex characters", () => {
-    const plan = { files: ["tests/a.test.ts"], skippedNames: ["costs (in $) add up", "x"], skipped: [] };
-    expect(bunTestArgs(plan, [])).toEqual([
+    expect(bunTestArgs({ files: ["tests/a.test.ts"], skippedNames: ["costs (in $) add up", "x"] }, [])).toEqual([
       "--no-env-file",
       "test",
       "--test-name-pattern=^(?!(?:costs \\(in \\$\\) add up|x)$)",
       "--pass-with-no-tests",
       "./tests/a.test.ts",
     ]);
-  });
-
-  test("returns null when every file is pending", () => {
-    expect(bunTestArgs({ files: [], skippedNames: [], skipped: [] }, [])).toBeNull();
   });
 });
 
@@ -110,26 +148,44 @@ describe("a run with a pending list", () => {
         ],
         "filters",
       ),
+      // Same full name as the pending test in mixed.test.ts, but not pending.
+      "pkg/tests/same-name.test.ts": testFile([{ name: "not built yet (part 1)", passes: false }], "filters"),
       "pkg/tests/plain.test.ts": testFile([{ name: "passes", passes: true }]),
     }),
   );
 
+  /** Every run the plan makes, as one exit code and the combined output. */
   function runPackage(list: string) {
-    const args = bunTestArgs(planTests(dir, path.join(dir, "pkg"), list), []);
-    if (args === null) throw new Error("expected tests to run");
-    return run([process.execPath, ...args], path.join(dir, "pkg"));
+    const results = planTests(dir, path.join(dir, "pkg"), list, ["pkg"]).runs.map((testRun) =>
+      run([process.execPath, ...bunTestArgs(testRun, [])], path.join(dir, "pkg")),
+    );
+    return {
+      failed: results.some((result) => result.exitCode !== 0),
+      output: results.map((result) => result.output).join("\n"),
+    };
   }
 
   test("skips the listed file and the listed test, and runs the rest", () => {
+    const list = [
+      "pkg/tests/pending.test.ts",
+      "pkg/tests/same-name.test.ts",
+      "pkg/tests/mixed.test.ts::filters not built yet (part 1)",
+    ].join("\n");
+    const result = runPackage(list);
+    expect(result.output).not.toContain("(fail)");
+    expect(result.failed).toBe(false);
+  });
+
+  test("keeps a pending name from skipping the same name in another file", () => {
     const result = runPackage("pkg/tests/pending.test.ts\npkg/tests/mixed.test.ts::filters not built yet (part 1)");
-    expect(result.output).toContain(" 2 pass");
-    expect(result.output).toContain(" 0 fail");
-    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("(fail) filters > not built yet (part 1)");
+    expect(result.output).toContain("same-name.test.ts");
+    expect(result.failed).toBe(true);
   });
 
   test("fails once the list no longer covers a failing test", () => {
-    const result = runPackage("pkg/tests/pending.test.ts");
-    expect(result.output).toContain(" 1 fail");
-    expect(result.exitCode).not.toBe(0);
+    const result = runPackage("pkg/tests/same-name.test.ts\npkg/tests/mixed.test.ts::filters not built yet (part 1)");
+    expect(result.output).toContain("(fail) whole file pending");
+    expect(result.failed).toBe(true);
   });
 });

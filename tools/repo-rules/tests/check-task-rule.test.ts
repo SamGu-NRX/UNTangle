@@ -55,6 +55,18 @@ describe("taskRuleViolations", () => {
     ]);
   });
 
+  test("refuses listing an existing test the PR renamed", () => {
+    const renamed = "frontend/tests/a-pending.test.ts";
+    const input = pr({
+      headList: `${list}${renamed}\n`,
+      changes: [{ status: "R", previousPath: "frontend/tests/a.test.ts", path: renamed }],
+      existsAtHead: (filePath) => [accept, renamed].includes(filePath),
+    });
+    expect(taskRuleViolations(input)).toEqual([
+      `tests/pending-acceptance.txt line 3 adds ${renamed}, which this PR made from frontend/tests/a.test.ts. Listing an existing test hides it from CI.`,
+    ]);
+  });
+
   test("refuses renaming a listed test's entry, since that unlists one test and lists another", () => {
     const input = pr({ headList: `# pending\n${accept}::filters some other test\n` });
     expect(taskRuleViolations(input)).toEqual([
@@ -127,6 +139,21 @@ describe("the check, run against real commits", () => {
     git(dir, ["commit", "-qam", "weaken the test"]);
     const result = check();
     expect(result.output).toContain(`${accept} is a pending acceptance test.`);
+    expect(result.exitCode).toBe(1);
+  });
+
+  test("fails a PR that renames an existing test and lists the new name", () => {
+    const original = "frontend/tests/a.test.ts";
+    writeFiles(dir, { [original]: 'import { test } from "bun:test";\ntest("a", () => { throw new Error("broken"); });\n' });
+    git(dir, ["add", "-A"]);
+    git(dir, ["commit", "-qm", "an existing test"]);
+    git(dir, ["tag", "-f", "base"]);
+    git(dir, ["mv", original, "frontend/tests/a-pending.test.ts"]);
+    writeFiles(dir, { "tests/pending-acceptance.txt": `${list}frontend/tests/a-pending.test.ts\n` });
+    git(dir, ["add", "-A"]);
+    git(dir, ["commit", "-qm", "hide it"]);
+    const result = check();
+    expect(result.output).toContain("which this PR made from frontend/tests/a.test.ts");
     expect(result.exitCode).toBe(1);
   });
 
