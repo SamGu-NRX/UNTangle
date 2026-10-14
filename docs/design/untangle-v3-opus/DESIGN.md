@@ -345,7 +345,7 @@ Event states: default, `selected` (2px course-color ring, options visible), `con
 - **Copying UTRP's look** (burnt orange, outline buttons in three colors, a 375ms dialog with a 250ms ease-in exit, `Dialog.tsx:58-65`). The flow is taken; the look and that exit curve are not.
 - **Live constraints with no Build button.** Live updates still happen while the options bar is open. An explicit Auto / Build button is kept because vsb users already know it, and an action you trigger is easier to undo than a schedule that changes under you.
 - **Stagger-on-load for lists.** Lists run to 100+ rows and are seen dozens of times a day.
-- **3D tilt as a default.** It applies only on explicit stop or leg selection at street zoom (camera.md), never on load.
+- **3D tilt for every day.** Sam asked for the map to show the campus in 3D, so a day opens tilted to 45° when its whole route fits at street zoom with every stop in view (camera.md, "Whole itinerary"). A day too spread out for that opens flat, where stops stay comparable, and the 3D control tilts it on request.
 - **Dark mode in this pass.** The tokens are role-named so a dark set can be added; no dark palette has been designed or contrast-checked.
 
 ## 12. Decisions for the lead
