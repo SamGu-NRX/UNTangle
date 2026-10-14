@@ -90,7 +90,7 @@ describe("document scoring", () => {
     const documents = labels.entries.map((entry) => ({ entry, text: wrongText }));
     const score = scoreEntries(documents);
     for (const [key, tally, count] of [
-      ["attendance", score.attendance, 38], ["examCount", score.examCount, 29], ["gradingWeights", score.weights, 38],
+      ["attendance", score.attendance, 29], ["examCount", score.examCount, 24], ["gradingWeights", score.weights, 28],
     ] as const) {
       expect(labels.entries.filter((entry) => entry[key].present)).toHaveLength(count);
       expect(tally.tp + tally.fn).toBe(count);
@@ -133,15 +133,18 @@ test("label builder records the exact cached-text hash without committing raw te
     mkdirSync(path.join(tools, ".cache/text"), { recursive: true });
     copyFileSync(path.join(root, "tools/syllabus/build-labels.ts"), path.join(tools, "build-labels.ts"));
     const text = "Synthetic original text.\n";
-    for (const label of labels.entries) {
+    // The builder holds every hand-written label, including the 12 excluded at revalidation.
+    const all = [...labels.entries, ...((labels as { excluded?: { syllabusUrl: string; course: string }[] }).excluded ?? [])];
+    for (const label of all) {
       const key = createHash("sha1").update(label.syllabusUrl).digest("hex");
       writeFileSync(path.join(tools, ".cache/text", `${key}.txt`), text);
     }
-    writeFileSync(path.join(tools, ".cache/manifest.json"), JSON.stringify({ entries: labels.entries }));
+    writeFileSync(path.join(tools, ".cache/manifest.json"), JSON.stringify({ entries: all }));
     const result = Bun.spawnSync([process.execPath, "--no-env-file", path.join(tools, "build-labels.ts")], { cwd: root });
     expect(result.exitCode).toBe(0);
     const built = JSON.parse(readFileSync(path.join(dir, "docs/research/syllabus/labels.json"), "utf8")) as { entries: LabelEntry[] };
-    expect(built.entries).toHaveLength(labels.entries.length);
+    // The builder emits every hand-written label; the committed file keeps only revalidated ones.
+    expect(built.entries).toHaveLength(all.length);
     for (const label of built.entries) {
       expect(label.textSha256).toBe(createHash("sha256").update(text).digest("hex"));
       expect(() => verifyText(label, text)).not.toThrow();
@@ -155,14 +158,14 @@ test("TypeScript checks the hand-written label tuples", () => {
   expect(result.exitCode).toBe(0);
 });
 
-test("research README withdraws unsupported scores and documents complete replay arguments", () => {
+test("research README reports the re-dated evaluation and documents complete commands", () => {
   const report = readFileSync(path.join(root, "docs/research/syllabus/README.md"), "utf8");
-  expect(report).toContain("Results are withdrawn");
-  expect(report).toContain("wrong answer differs from an absent answer");
+  expect(report).toContain("a new evaluation dated 2026-10-14");
+  expect(report).toContain("Correct / wrong / missed");
   expect(report).toContain("--profiles=tools/syllabus/data/profile-ids.txt --term=\"Fall 2026\"");
-  expect(report).toContain('if bun --no-env-file frontend/tests/syllabus/eval.ts > "$output"; then');
+  expect(report).toContain('if bun --no-env-file frontend/tests/syllabus/eval.ts --cache-text=');
   expect(report).not.toContain("Never fires on real documents");
-  expect(readFileSync(path.join(root, "docs/research/syllabus/eval-results.txt"), "utf8")).toContain("Results withdrawn pending offline regeneration");
+  expect(readFileSync(path.join(root, "docs/research/syllabus/eval-results.txt"), "utf8")).toContain("scored 38 labeled syllabi");
 });
 
 test("documented replay publishes output only on success", () => {
