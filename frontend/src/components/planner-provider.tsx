@@ -147,6 +147,13 @@ const CONFLICT_DETAIL =
   "Another tab or device saved a newer version. Choose which version to keep to continue saving.";
 
 type PlannerContextValue = {
+  /**
+   * False until this browser's storage is prepared for the signed-in account
+   * (or the guest): on the server, during hydration, and while the first
+   * session lookup is in flight. Until then the planner refuses edits, and a
+   * view must not read or write any identity's stored data.
+   */
+  identityReady: boolean;
   hydrated: boolean;
   isRegistered: boolean;
   isAuthPending: boolean;
@@ -261,24 +268,68 @@ type PlannerProviderProps = {
 };
 
 type PlannerSession = ReturnType<typeof authClient.useSession>["data"];
+type AccountUser = NonNullable<PlannerSession>["user"];
 
+/**
+ * The account the planner has confirmed, which is the one whose data it may
+ * show. `checking` lasts until the first session lookup answers. A pending or
+ * failed lookup after that keeps the last confirmed account.
+ */
+export type ConfirmedAccount =
+  | { status: "checking" }
+  | { status: "signed-out" }
+  | { status: "signed-in"; user: AccountUser };
+
+const ConfirmedAccountContext = createContext<ConfirmedAccount | null>(null);
+
+export function useConfirmedAccount(): ConfirmedAccount {
+  const value = useContext(ConfirmedAccountContext);
+  if (!value) {
+    throw new Error("useConfirmedAccount must be used within PlannerProvider");
+  }
+  return value;
+}
+
+/**
+ * Chooses which identity's browser storage the planner may use, then mounts
+ * one planner instance for it.
+ *
+ * The instance renders its children from the first render, including the
+ * server render and hydration, because route segments must render there for
+ * Next's notFound() and redirect() to set the response. Until an identity is
+ * prepared the instance is inert: it reads and writes no storage, refuses
+ * edits, and reports `identityReady: false`. Nothing is readable then anyway,
+ * because the saved-plan store refuses every read without a prepared identity.
+ *
+ * The first identity the instance prepares keeps it, so a page load does not
+ * remount the app when the session lookup answers. A later change of identity
+ * (sign-out, another account) renders nothing until the new identity is
+ * prepared, then mounts a fresh instance and fresh children. Those children
+ * hold state of their own (a parsed transcript in Connect, Undo snapshots,
+ * the shell's per-page state), so keeping them across an account change would
+ * carry one student's data into the next student's session.
+ */
 export function PlannerProvider(props: PlannerProviderProps) {
   const sessionResult = authClient.useSession();
-  const sessionValue = sessionResult.error?.status === 401 ? null : sessionResult.data;
+  const sessionValue = sessionResult.error?.status === 401 ? null : (sessionResult.data ?? null);
   const sessionKnown = !sessionResult.isPending && (!sessionResult.error || sessionResult.error.status === 401);
-  const [confirmedSession, setConfirmedSession] = useState(sessionKnown ? sessionValue : null);
+  // Undefined until a lookup has answered once.
+  const [confirmedSession, setConfirmedSession] = useState<PlannerSession | undefined>(sessionKnown ? sessionValue : undefined);
   if (sessionKnown && confirmedSession !== sessionValue) {
     setConfirmedSession(sessionValue);
   }
   // A failed or pending lookup is not a sign-out; a server 401 confirms the session ended.
-  const sessionData = sessionKnown ? sessionValue : confirmedSession;
+  const sessionData = sessionKnown ? sessionValue : (confirmedSession ?? null);
   // Without a confirmed account, guest storage keeps the app usable without granting access to user data.
   const sessionUnknown = !sessionKnown && !confirmedSession;
+  // While the first lookup is in flight no identity is chosen, so no storage is prepared or read.
+  // Preparing the guest here quarantined a legacy planner before a signed-in load could claim it.
+  const awaitingFirstLookup = sessionResult.isPending && confirmedSession === undefined;
   const userId = sessionData?.user?.id ?? null;
   const identity = userId === null ? "guest" : `user:${userId}`;
   const preparedUser = useSyncExternalStore(subscribeSavedPlans, getSavedPlanIdentity, () => undefined);
   useLayoutEffect(() => {
-    if ((!sessionKnown && !sessionUnknown) || preparedUser === userId) return;
+    if (awaitingFirstLookup || (!sessionKnown && !sessionUnknown) || preparedUser === userId) return;
     // The old subtree retires before storage is prepared for any new consumer render.
     if (sessionKnown && preparedUser !== undefined && preparedUser !== null) {
       clearPlannerIdentity(preparedUser);
@@ -287,30 +338,64 @@ export function PlannerProvider(props: PlannerProviderProps) {
       clearSavedPlansIdentity(null);
     }
     setSavedPlanIdentity(userId);
-  }, [preparedUser, sessionKnown, sessionUnknown, userId]);
+  }, [awaitingFirstLookup, preparedUser, sessionKnown, sessionUnknown, userId]);
 
-  if (preparedUser !== userId) return null;
+  const prepared = !awaitingFirstLookup && preparedUser === userId;
+  // The identity the mounted instance has served while prepared, and the key
+  // that gives the next identity a fresh instance.
+  const [served, setServed] = useState<{ identity: string; key: number } | null>(null);
+  if (prepared && served?.identity !== identity) {
+    setServed({ identity, key: served === null ? 0 : served.key + 1 });
+  }
+  // Before any identity is prepared nothing is readable, so the first instance may render.
+  // Once another identity's storage is prepared, nothing renders until this one's is.
+  const renderable = prepared || (preparedUser === undefined && served === null);
+
+  const account = useMemo<ConfirmedAccount>(
+    () =>
+      awaitingFirstLookup
+        ? { status: "checking" }
+        : sessionData?.user
+          ? { status: "signed-in", user: sessionData.user }
+          : { status: "signed-out" },
+    [awaitingFirstLookup, sessionData],
+  );
+
   return (
-    <IdentityPlannerProvider
-      {...props}
-      key={identity}
-      sessionData={sessionData}
-      sessionKnown={sessionKnown}
-      sessionUnknown={sessionUnknown}
-      sessionPending={sessionResult.isPending}
-    />
+    <ConfirmedAccountContext.Provider value={account}>
+      {renderable ? (
+        <IdentityPlannerProvider
+          {...props}
+          key={served?.key ?? 0}
+          prepared={prepared}
+          sessionData={sessionData}
+          sessionKnown={sessionKnown}
+          sessionUnknown={sessionUnknown}
+          sessionPending={sessionResult.isPending}
+        />
+      ) : null}
+    </ConfirmedAccountContext.Provider>
   );
 }
 
 function IdentityPlannerProvider({
   children,
   sectionStore = browserSectionStore,
+  prepared,
   sessionData,
   sessionKnown,
   sessionUnknown,
   sessionPending,
-}: PlannerProviderProps & { sessionData: PlannerSession; sessionKnown: boolean; sessionUnknown: boolean; sessionPending: boolean }) {
-  const instanceActive = useRef(true);
+}: PlannerProviderProps & {
+  /** This identity's browser storage is prepared; until then the instance is inert. */
+  prepared: boolean;
+  sessionData: PlannerSession;
+  sessionKnown: boolean;
+  sessionUnknown: boolean;
+  sessionPending: boolean;
+}) {
+  // False while the identity is unprepared and after the instance retires: every storage and network path checks it.
+  const instanceActive = useRef(prepared);
   // The plan lives in a reducer (lib/planner-transaction.ts) so transactions are checked and acknowledged in
   // state. Its dispatch takes everything setState did, so every existing setPlannerState call is unchanged.
   const transactionIdentity = sessionData?.user?.id ? `user:${sessionData.user.id}` : "guest";
@@ -455,6 +540,7 @@ function IdentityPlannerProvider({
     }
   }, [planBox.receipts]);
   useLayoutEffect(() => {
+    if (!prepared) return;
     instanceActive.current = true;
     // Layout-effect replay must restart bootstrap after invalidating its first request.
     bootstrappedFor.current = null;
@@ -473,9 +559,10 @@ function IdentityPlannerProvider({
         retiredWaiters.forEach((resolve) => resolve({ status: changed ? "identity_changed" : "cancelled" }));
       });
     };
-  }, [userId]);
+  }, [prepared, userId]);
 
-  const guestStore = useMemo(() => createPlannerStateStore(undefined, userId), [userId]);
+  // Creating a store probes its key, so an unprepared instance gets one without storage.
+  const guestStore = useMemo(() => createPlannerStateStore(prepared ? undefined : null, userId), [prepared, userId]);
   const localStoreRef = useRef(guestStore);
   useEffect(() => { localStoreRef.current = guestStore; }, [guestStore]);
   const isRegistered = Boolean(sessionData?.user);
@@ -732,7 +819,7 @@ function IdentityPlannerProvider({
   // else. Each run gets a new generation; any response that arrives after a
   // newer run started belongs to the previous identity and is dropped.
   useEffect(() => {
-    if (!instanceActive.current || (!sessionKnown && !sessionUnknown)) {
+    if (!prepared || !instanceActive.current || (!sessionKnown && !sessionUnknown)) {
       return;
     }
     const userId = sessionData?.user?.id ?? null;
@@ -877,7 +964,7 @@ function IdentityPlannerProvider({
       hydrationWaiters.current.forEach((resolve) => resolve());
       hydrationWaiters.current = [];
     });
-  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionData, sessionKnown, sessionUnknown, setPlannerState]);
+  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, prepared, raiseConflict, sessionData, sessionKnown, sessionUnknown, setPlannerState]);
 
   // Local bridge until #19 lands: a new session for the same signed-in user
   // (signing in again in this tab) counts as a restore. Idempotent, so #19's
@@ -1145,6 +1232,12 @@ function IdentityPlannerProvider({
   const value = useMemo<PlannerContextValue>(() => {
     const normalized = normalizedState;
     const scheduleEvents = buildScheduleEvents(sectionPlan);
+    /** An edit before bootstrap finishes must not be overwritten by the stored plan. An inert instance drops the edit. */
+    const noteEarlyEdit = () => {
+      if (!hydrated && instanceActive.current) {
+        mutatedBeforeBootstrap.current = true;
+      }
+    };
     /** Drops picks that are unlocked and resolve, so the goal re-plans them; a pick needing review is kept. */
     const releaseResolvedPicks = (current: PlannerState) => {
       const locks = normalizePlannerState(current).lockedSections ?? {};
@@ -1162,12 +1255,14 @@ function IdentityPlannerProvider({
     );
     // `Saved` describes one exact state. If the state on screen has moved on
     // since the acknowledgement, its save is still ahead of it.
-    const shownSaveState = sessionUnknown
+    // Only a lookup that failed is "not confirmed"; one still in flight is ordinary loading.
+    const shownSaveState = sessionUnknown && !sessionPending
       ? saveStateOf("not-saved", "Your session has not been confirmed. This plan is not synced to an account.", "session")
       : saveState.status === "saved" && savedFingerprint !== workingStateFingerprint(plannerState)
         ? SAVING
         : saveState;
     return {
+      identityReady: prepared,
       hydrated,
       isRegistered,
       isAuthPending: sessionPending,
@@ -1182,9 +1277,7 @@ function IdentityPlannerProvider({
       lockedCourses,
       isLocked: (courseCode: string) => lockedCourses.has(courseCode),
       setCourseStatus: (courseCode, status) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           courseStatuses: {
@@ -1210,9 +1303,7 @@ function IdentityPlannerProvider({
         }));
       },
       updateCoursePlan: (update) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => {
           const coursePlan = current.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
           const next = update({ courseStatuses: current.courseStatuses, coursePlan });
@@ -1225,15 +1316,11 @@ function IdentityPlannerProvider({
         });
       },
       setCoursePlan: (coursePlan) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({ ...current, coursePlan, updatedAt: new Date().toISOString() }));
       },
       applyTranscriptRecords: (records) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => {
           const courseStatuses = { ...current.courseStatuses };
 
@@ -1260,9 +1347,7 @@ function IdentityPlannerProvider({
         });
       },
       setOptimization: (optimization) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           optimization,
@@ -1273,9 +1358,7 @@ function IdentityPlannerProvider({
         setSchedulePreferences((current) => withGoalWeights(current, optimization));
       },
       optimizeSchedule: () => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           selectedSections: releaseResolvedPicks(current),
@@ -1288,9 +1371,7 @@ function IdentityPlannerProvider({
       preferencesStorage,
       planEpoch,
       applySchedule: (byCourse, goal) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => {
           const locked = normalizePlannerState(current).lockedSections ?? {};
           // Never move a locked section, even if a stale option asks to; the page checks first.
@@ -1313,9 +1394,7 @@ function IdentityPlannerProvider({
         });
       },
       restoreSchedule: ({ sections: restored, goal }) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           selectedSections: { ...restored },
@@ -1324,9 +1403,7 @@ function IdentityPlannerProvider({
         }));
       },
       setSectionLock: (courseCode, locked) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => {
           const normalizedCurrent = normalizePlannerState(current);
           // The section the page shows, which may be a recommendation: locking makes it the pick.
@@ -1352,9 +1429,7 @@ function IdentityPlannerProvider({
         });
       },
       setSection: (courseCode, sectionId) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           selectedSections: {
@@ -1374,9 +1449,7 @@ function IdentityPlannerProvider({
         }));
       },
       setActiveDay: (day) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           activeDay: day,
@@ -1384,9 +1457,7 @@ function IdentityPlannerProvider({
         }));
       },
       setSelectedMajor: (id) => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState((current) => ({
           ...current,
           selectedMajor: id,
@@ -1394,9 +1465,7 @@ function IdentityPlannerProvider({
         }));
       },
       resetPlanner: () => {
-        if (!hydrated) {
-          mutatedBeforeBootstrap.current = true;
-        }
+        noteEarlyEdit();
         setPlannerState(getInitialPlannerState());
         // Weights follow the goal: a restore resets first and only re-sets a
         // goal that differs from the default, so the reset must carry the default's.
@@ -1451,6 +1520,7 @@ function IdentityPlannerProvider({
     identityTag,
     userId,
     planEpoch,
+    prepared,
     preferencesFor,
     preferencesStorage,
     schedulePreferences,
