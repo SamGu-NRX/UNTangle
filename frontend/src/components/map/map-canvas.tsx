@@ -9,6 +9,7 @@ import type { MapRoutePoint } from "@/lib/types";
 import { campusAttribution, campusMapStyle } from "@/components/map/campus-style";
 import { setBuildingHighlights } from "@/components/map/building-highlight";
 import { foldAttributionOnFirstInteraction } from "@/components/map/attribution";
+import { prewarmStreetZoom } from "@/components/map/prewarm";
 import { dayBuildingHighlights } from "@/lib/campus/map-detail/highlight";
 import { startMap } from "@/components/map/start-map";
 import {
@@ -275,6 +276,8 @@ export function MapCanvas({ campus = activeCampus, itinerary, courseOrder = NO_C
       addRouteOverlay(map);
       setStyleReady(true);
       container.dataset.ready = "true";
+      // Once the day is framed and drawn, compile the street-zoom shaders before the first flight needs them.
+      map.once("idle", () => prewarmStreetZoom(map));
     });
 
     // The camera as plain attributes: what a browser test (or a curious
