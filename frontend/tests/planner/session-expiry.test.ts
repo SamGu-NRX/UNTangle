@@ -9,7 +9,7 @@ import {
   waitFor,
 } from "./test-dom";
 import { getInitialPlannerState } from "@/lib/planner";
-import { PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
+import { plannerStateKey } from "@/lib/planner-store";
 import { notifySessionRestored, onSessionExpired } from "@/lib/session-events";
 
 // Item 5: a 401 keeps edits in memory and in the local mirror, says
@@ -48,7 +48,7 @@ afterEach(async () => {
 });
 
 function mirrorOptimization(): string | null {
-  const raw = window.localStorage.getItem(PLANNER_STATE_STORE_KEY);
+  const raw = window.localStorage.getItem(plannerStateKey(user.id));
   return raw ? (JSON.parse(raw) as { state: { optimization: string } }).state.optimization : null;
 }
 

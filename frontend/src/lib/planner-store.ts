@@ -2,7 +2,7 @@ import { normalizePlannerState } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
 
 /**
- * Guest planner-state store — localStorage durability for signed-out users.
+ * Identity-scoped planner storage for guest schedules and account backups.
  *
  * The planner's working schedule for a guest lives in localStorage (it must
  * survive a reload, which sessionStorage does not). This store implements the
@@ -23,7 +23,27 @@ import type { PlannerState } from "@/lib/types";
  * The store never throws for caller-visible failures.
  */
 
-export const PLANNER_STATE_STORE_KEY = "untangle.planner-state.v1";
+export const LEGACY_PLANNER_STATE_STORE_KEY = "untangle.planner-state.v1";
+export const PLANNER_STATE_STORE_KEY = `${LEGACY_PLANNER_STATE_STORE_KEY}:guest`;
+
+export function plannerStateKey(userId: string | null): string {
+  return userId === null ? PLANNER_STATE_STORE_KEY : `${LEGACY_PLANNER_STATE_STORE_KEY}:user:${encodeURIComponent(userId)}`;
+}
+
+export function clearPlannerIdentity(userId: string | null): void {
+  if (typeof window === "undefined") return;
+  const prefix = `${QUARANTINE_PREFIX}${userId === null ? "guest" : `user:${encodeURIComponent(userId)}`}:`;
+  try {
+    const storage = window.localStorage;
+    storage.removeItem(plannerStateKey(userId));
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(prefix)) storage.removeItem(key);
+    }
+  } catch {
+    // Cleanup cannot access storage while the browser denies it.
+  }
+}
 export const PLANNER_STATE_STORE_SCHEMA_VERSION = 1;
 const QUARANTINE_PREFIX = "untangle.planner-state.corrupt-";
 
@@ -70,6 +90,7 @@ export type PlannerStoreDocument = {
 export type PlannerStore = {
   /** True when localStorage is usable at all. */
   readonly available: boolean;
+  migrateLegacy(serverState?: PlannerState | null): void;
   read(): PlannerStoreRead;
   /**
    * Write the working state. `baseRevision` is the revision this tab last
@@ -109,7 +130,7 @@ function defaultStorage(): Storage | null {
   }
 }
 
-function quarantineKey(): string {
+function quarantineKey(prefix: string): string {
   // Date.now() alone can collide when two quarantines land in the same
   // millisecond (two corrupting tabs); the random suffix keeps every
   // quarantine intact — overwriting one would destroy stored bytes.
@@ -117,7 +138,7 @@ function quarantineKey(): string {
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-  return `${QUARANTINE_PREFIX}${Date.now()}-${unique}`;
+  return `${prefix}${Date.now()}-${unique}`;
 }
 
 function parseDocument(raw: string): {
@@ -164,12 +185,15 @@ function parseDocument(raw: string): {
   };
 }
 
-export function createPlannerStateStore(storage?: Storage | null): PlannerStore {
+export function createPlannerStateStore(storage?: Storage | null, userId: string | null = null): PlannerStore {
+  const storeKey = plannerStateKey(userId);
+  const quarantinePrefix = `${QUARANTINE_PREFIX}${userId === null ? "guest" : `user:${encodeURIComponent(userId)}`}:`;
+  let migrationNotices: PlannerStoreFailure[] = [];
   const resolvedStorage = storage === undefined ? defaultStorage() : storage;
   let available = resolvedStorage !== null;
   if (resolvedStorage) {
     try {
-      resolvedStorage.getItem(PLANNER_STATE_STORE_KEY);
+      resolvedStorage.getItem(storeKey);
     } catch {
       available = false;
     }
@@ -180,7 +204,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
       return { failed: true };
     }
     try {
-      return { failed: false, raw: resolvedStorage.getItem(PLANNER_STATE_STORE_KEY) };
+      return { failed: false, raw: resolvedStorage.getItem(storeKey) };
     } catch {
       return { failed: true };
     }
@@ -190,7 +214,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
     if (!resolvedStorage) {
       return { unpreserved: "Browser storage is unavailable, so the unreadable bytes could not be kept." };
     }
-    const key = quarantineKey();
+    const key = quarantineKey(quarantinePrefix);
     try {
       resolvedStorage.setItem(key, raw);
       return { quarantinedTo: key };
@@ -202,12 +226,36 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
     }
   }
 
+  function migrateLegacy(serverState?: PlannerState | null) {
+    if (!resolvedStorage) return;
+    try {
+      const raw = resolvedStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY);
+      if (raw === null) return;
+      const parsed = parseDocument(raw);
+      // The old document has no owner field. Only an exact server match proves ownership.
+      const owned = userId !== null && serverState && parsed.doc &&
+        JSON.stringify(parsed.doc.state) === JSON.stringify(normalizePlannerState(serverState));
+      if (owned && resolvedStorage.getItem(storeKey) === null) {
+        resolvedStorage.setItem(storeKey, raw);
+      } else {
+        const key = quarantineKey(`${QUARANTINE_PREFIX}legacy-`);
+        resolvedStorage.setItem(key, raw);
+        migrationNotices = [{ kind: "invalidDocument", message: "An older shared-browser schedule was quarantined because its owner could not be established." }];
+      }
+      resolvedStorage.removeItem(LEGACY_PLANNER_STATE_STORE_KEY);
+    } catch {
+      migrationNotices = [{ kind: "storageUnavailable", message: "The older shared-browser schedule could not be moved. It will not be loaded." }];
+    }
+  }
+
   const store: PlannerStore = {
+    migrateLegacy,
     get available() {
       return available;
     },
 
     read() {
+      migrateLegacy();
       const rawRead = readRaw();
       if (rawRead.failed) {
         return {
@@ -220,7 +268,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
       }
 
       if (rawRead.raw === null) {
-        return { ok: true, state: emptyState(), revision: 0, savedAt: null, notices: [] };
+        return { ok: true, state: emptyState(), revision: 0, savedAt: null, notices: migrationNotices };
       }
 
       const parsed = parseDocument(rawRead.raw);
@@ -252,11 +300,12 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
         state: parsed.doc.state,
         revision: parsed.doc.revision,
         savedAt: parsed.doc.savedAt,
-        notices: [],
+        notices: migrationNotices,
       };
     },
 
     write(state, baseRevision) {
+      migrateLegacy();
       if (!available) {
         return {
           ok: false,
@@ -297,7 +346,10 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
           // The document became corrupt between reads (another tab wrote bad
           // bytes): quarantine before anything can overwrite it, then write
           // fresh — the quarantined bytes stay intact either way.
-          quarantine(rawRead.raw);
+          const kept = quarantine(rawRead.raw);
+          if (!kept.quarantinedTo) {
+            return { ok: false, failure: { kind: "corruptDataUnpreserved", message: "Your schedule was not stored because the existing unreadable bytes could not be quarantined. The original bytes remain in place." } };
+          }
         } else {
           currentRevision = parsed.doc.revision;
           if (currentRevision > baseRevision) {
@@ -322,7 +374,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
         state: normalizePlannerState(state),
       };
       try {
-        storage.setItem(PLANNER_STATE_STORE_KEY, JSON.stringify(doc));
+        storage.setItem(storeKey, JSON.stringify(doc));
       } catch {
         return {
           ok: false,
@@ -337,6 +389,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
     },
 
     writeMirror(state) {
+      migrateLegacy();
       if (!resolvedStorage) {
         return;
       }
@@ -347,6 +400,8 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
           const parsed = parseDocument(rawRead.raw);
           if (parsed.doc) {
             currentRevision = parsed.doc.revision;
+          } else if (!quarantine(rawRead.raw).quarantinedTo) {
+            return;
           }
         }
         const doc: PlannerStoreDocument = {
@@ -355,7 +410,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
           savedAt: new Date().toISOString(),
           state: normalizePlannerState(state),
         };
-        resolvedStorage.setItem(PLANNER_STATE_STORE_KEY, JSON.stringify(doc));
+        resolvedStorage.setItem(storeKey, JSON.stringify(doc));
       } catch {
         // Best-effort mirror: a failure here never blocks the server save.
       }
@@ -366,7 +421,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
         return () => {};
       }
       const handler = (event: StorageEvent) => {
-        if (event.key === null || event.key === PLANNER_STATE_STORE_KEY) {
+        if (event.key === null || event.key === storeKey) {
           listener();
         }
       };
@@ -384,7 +439,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
       try {
         for (let index = 0; index < resolvedStorage.length; index += 1) {
           const key = resolvedStorage.key(index);
-          if (key && key.startsWith(QUARANTINE_PREFIX)) {
+          if (key && key.startsWith(quarantinePrefix)) {
             keys.push(key);
           }
         }
@@ -395,7 +450,7 @@ export function createPlannerStateStore(storage?: Storage | null): PlannerStore 
     },
 
     readQuarantined(key) {
-      if (!resolvedStorage || !key.startsWith(QUARANTINE_PREFIX)) {
+      if (!resolvedStorage || !key.startsWith(quarantinePrefix)) {
         return null;
       }
       try {

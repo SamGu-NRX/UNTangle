@@ -37,7 +37,8 @@ import {
   writeStoredPreferences,
   type WriteOutcome,
 } from "@/components/schedule/preferences-store";
-import { createPlannerStateStore } from "@/lib/planner-store";
+import { clearPlannerIdentity, createPlannerStateStore } from "@/lib/planner-store";
+import { clearSavedPlansIdentity, setSavedPlanIdentity } from "@/lib/saved-plans/store";
 import {
   plannerBox,
   reducePlannerBox,
@@ -405,7 +406,9 @@ export function PlannerProvider({
     };
   }, []);
 
-  const guestStore = useMemo(() => createPlannerStateStore(), []);
+  const guestStore = useMemo(() => createPlannerStateStore(undefined, userId), [userId]);
+  const localStoreRef = useRef(guestStore);
+  useEffect(() => { localStoreRef.current = guestStore; }, [guestStore]);
   const isRegistered = Boolean(sessionResult.data?.user);
   const stateRef = useRef(plannerState);
   useEffect(() => {
@@ -496,7 +499,7 @@ export function PlannerProvider({
             lastPersistedFingerprint.current = writtenFingerprint;
             // Best-effort mirror in this browser: a fallback for the next
             // visit if the server cannot be reached at load time.
-            guestStore.writeMirror(current);
+            localStoreRef.current.writeMirror(current);
             const pending = pendingServerSave.current;
             if (pending) {
               // Newer edits queued while this request was in flight: this
@@ -541,7 +544,7 @@ export function PlannerProvider({
           if (outcome.reason === "session") {
             // Keep the edits in memory and in this browser's mirror; the
             // save is retried once the session is restored.
-            guestStore.writeMirror(stateRef.current);
+            localStoreRef.current.writeMirror(stateRef.current);
             enterSignedOut(outcome.message);
             return;
           }
@@ -552,7 +555,7 @@ export function PlannerProvider({
         saveInFlight.current = false;
       }
     },
-    [enterSignedOut, guestStore, markSaved, raiseConflict],
+    [enterSignedOut, markSaved, raiseConflict],
   );
 
   /**
@@ -663,7 +666,21 @@ export function PlannerProvider({
     if (bootstrappedFor.current === needed) {
       return;
     }
+    const previousIdentity = bootstrappedFor.current;
     bootstrappedFor.current = needed;
+    setSavedPlanIdentity(undefined);
+    if (previousIdentity?.startsWith("registered:")) {
+      clearPlannerIdentity(previousIdentity.slice("registered:".length));
+      clearSavedPlansIdentity(previousIdentity.slice("registered:".length));
+      clearPlannerIdentity(null);
+      clearSavedPlansIdentity(null);
+    }
+    if (previousIdentity !== null) {
+      // An empty account must never inherit the previous identity's in-memory plan.
+      const initial = getInitialPlannerState();
+      stateRef.current = initial;
+      setPlannerState(initial);
+    }
     const generation = ++sessionGeneration.current;
     const isCurrent = () => generation === sessionGeneration.current;
     mutatedBeforeBootstrap.current = false;
@@ -699,6 +716,7 @@ export function PlannerProvider({
         if (!isCurrent()) {
           return;
         }
+        guestStore.migrateLegacy(loaded.kind === "loaded" ? loaded.state : null);
         const mutated = mutatedBeforeBootstrap.current;
         if (loaded.kind === "loaded") {
           setServerPersistent(loaded.persistent);
@@ -787,6 +805,7 @@ export function PlannerProvider({
         }
       }
 
+      setSavedPlanIdentity(userId);
       hydratedRef.current = true;
       bumpPlanEpoch();
       setHydrated(true);
@@ -836,7 +855,7 @@ export function PlannerProvider({
   );
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!hydrated || !hydratedRef.current) {
       return;
     }
 
@@ -886,6 +905,7 @@ export function PlannerProvider({
       return;
     }
     const flush = () => {
+      if (!hydratedRef.current) return;
       const state = stateRef.current;
       if (conflictRef.current || workingStateFingerprint(state) === lastPersistedFingerprint.current) {
         return;
