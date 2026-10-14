@@ -11,7 +11,7 @@ export const FALLBACK_FLOORS: Record<string, { floors: number; source: string; r
   },
   UU: {
     floors: 4,
-    source: "https://riskmanagement.unt.edu/emergency/_images/beap_university_union_2025.pdf",
+    source: "https://riskmanagement.unt.edu/emergency/preparedness/beap_university_union_2026.pdf",
     retrieved: "2026-10-13",
   },
   SAGE: {
@@ -36,7 +36,7 @@ export const FALLBACK_FLOORS: Record<string, { floors: number; source: string; r
   },
   BLB: {
     floors: 3,
-    source: "https://riskmanagement.unt.edu/emergency/_images/beap_business_leadership_building_2025.pdf",
+    source: "https://riskmanagement.unt.edu/emergency/preparedness/beap_business_leadership_building_2026.pdf",
     retrieved: "2026-10-13",
   },
   CURY: {
@@ -46,7 +46,7 @@ export const FALLBACK_FLOORS: Record<string, { floors: number; source: string; r
   },
   LANG: {
     floors: 4,
-    source: "https://riskmanagement.unt.edu/emergency/_images/beap_language_building_2025.pdf",
+    source: "https://riskmanagement.unt.edu/emergency/preparedness/beap_language_building_2026.pdf",
     retrieved: "2026-10-13",
   },
   AUDB: {
@@ -54,7 +54,17 @@ export const FALLBACK_FLOORS: Record<string, { floors: number; source: string; r
     source: "https://riskmanagement.unt.edu/emergency/_images/beap_auditorium_english_building_2025.pdf",
     retrieved: "2026-10-13",
   },
+  AUD: {
+    floors: 3,
+    source: "https://riskmanagement.unt.edu/emergency/_images/beap_auditorium_english_building_2025.pdf",
+    retrieved: "2026-10-13",
+  },
   HKRY: {
+    floors: 2,
+    source: "https://riskmanagement.unt.edu/emergency/_images/beap_hickory_hall_2025.pdf",
+    retrieved: "2026-10-13",
+  },
+  HICK: {
     floors: 2,
     source: "https://riskmanagement.unt.edu/emergency/_images/beap_hickory_hall_2025.pdf",
     retrieved: "2026-10-13",
@@ -86,7 +96,7 @@ export const FALLBACK_FLOORS: Record<string, { floors: number; source: string; r
   },
   DATH: {
     floors: 1,
-    source: "https://riskmanagement.unt.edu/emergency/_images/beap_dance_and_theater_arts_building_2025.pdf",
+    source: "https://riskmanagement.unt.edu/emergency/preparedness/beap_dance_and_theater_arts_building_2026.pdf",
     retrieved: "2026-10-13",
   },
   MUSI: {
@@ -100,6 +110,11 @@ export const FALLBACK_FLOORS: Record<string, { floors: number; source: string; r
     retrieved: "2026-10-13",
   },
   NTRP: {
+    floors: 2,
+    source: "https://riskmanagement.unt.edu/emergency/_images/beap_discovery_park_2025.pdf",
+    retrieved: "2026-10-13",
+  },
+  NTDP: {
     floors: 2,
     source: "https://riskmanagement.unt.edu/emergency/_images/beap_discovery_park_2025.pdf",
     retrieved: "2026-10-13",
