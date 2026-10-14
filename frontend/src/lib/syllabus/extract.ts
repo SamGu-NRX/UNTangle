@@ -76,8 +76,10 @@ export function splitSentences(text: string): Sentence[] {
     if (ch === "." || ch === "!" || ch === "?") {
       let j = i + 1;
       while (j < text.length && (text[j] === "." || text[j] === "!" || text[j] === "?")) j++;
-      const after = text[j + 1] ?? "";
-      const atEnd = j >= text.length;
+      let next = j;
+      while (next < text.length && /\s/.test(text[next])) next++;
+      const after = text[next] ?? "";
+      const atEnd = next >= text.length;
       const whitespaceFollowedByStarter = /\s/.test(text[j]) && /[A-Z0-9"'([]/.test(after);
       // "e.g.", "Dr.", "No. 3": a short or abbreviated token before the
       // period is not a sentence end.
@@ -172,13 +174,16 @@ function examCountPhrase(sentence: string): CountMention[] {
 const EXAM_TOPIC = /\b(exams?|midterms?|tests?|final exam|finals?)\b/i;
 const EXAM_NOISE =
   /\b(exam\s*(?:1|2|3|4|5|#\d)|study guide|review session|make-?up|exam date|exam schedule|final exam schedule)\b/i;
+// "Week 16 Final Exam" and "October 09 Midterm Exam" name positions, not totals.
+const EXAM_SCHEDULE_POSITION =
+  /\bweek\s+\d+\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b|\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/i;
 
 function examCount(sentences: Sentence[]): FactResult & { count?: number } {
   const candidates: { sentence: Sentence; total: number }[] = [];
   for (const sentence of sentences) {
     if (!EXAM_TOPIC.test(sentence.text)) continue;
     // "Exam 3 covers chapters 5-6" is a schedule entry, not a total.
-    if (EXAM_NOISE.test(sentence.text)) continue;
+    if (EXAM_NOISE.test(sentence.text) || EXAM_SCHEDULE_POSITION.test(sentence.text)) continue;
     const introducer =
       /\b(there (?:are|will be)|you (?:will |may )?(?:have|take)|we (?:will |may )?(?:have|take)|i (?:will )?(?:have|give)|will (?:have|be)|consists? of|include[sd]?|plus|and)\b/i;
     const mentions = examCountPhrase(sentence.text);

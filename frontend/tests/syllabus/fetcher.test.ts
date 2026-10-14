@@ -8,10 +8,13 @@ const dirs: string[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-function fetcher() {
+function fetcher(minDelayMs = 0) {
   const cacheDir = mkdtempSync(path.join(tmpdir(), "syllabus-fetcher-"));
   dirs.push(cacheDir);
-  return new PoliteFetcher({ cacheDir, minDelayMs: 0, timeoutMs: 10 });
+  return new PoliteFetcher({ cacheDir, minDelayMs, timeoutMs: 10 });
+}
+function mockFetch(implementation: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>) {
+  return spyOn(globalThis, "fetch").mockImplementation(Object.assign(implementation, { preconnect: fetch.preconnect }));
 }
 async function withRobots(text: string, check: (client: PoliteFetcher) => Promise<void>) {
   const mock = spyOn(globalThis, "fetch").mockResolvedValue(new Response(text));
@@ -51,6 +54,90 @@ describe("robots availability", () => {
   }
 });
 
+describe("redirect permissions", () => {
+  test("checks a same-origin destination before requesting a disallowed path", async () => {
+    const requests: string[] = [];
+    const mock = mockFetch(async (input, init) => {
+      expect(init?.redirect).toBe("manual");
+      const url = String(input);
+      requests.push(url);
+      if (url.endsWith("/robots.txt")) return new Response("User-agent: *\nDisallow: /private");
+      if (url.endsWith("/start")) return new Response(null, { status: 302, headers: { location: "/private/file.pdf" } });
+      throw new Error(`unexpected request: ${url}`);
+    });
+    try {
+      await expect(fetcher().fetch("https://example.invalid/start")).rejects.toBeInstanceOf(DisallowedByRobots);
+      expect(requests).toEqual(["https://example.invalid/robots.txt", "https://example.invalid/start"]);
+    } finally { mock.mockRestore(); }
+  });
+  test("fetches cross-origin robots before a redirected resource and stops on a block", async () => {
+    const requests: string[] = [];
+    const mock = mockFetch(async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (url === "https://source.invalid/robots.txt") return new Response("User-agent: *\n");
+      if (url === "https://source.invalid/start") return new Response(null, { status: 307, headers: { location: "https://destination.invalid/file.pdf" } });
+      if (url === "https://destination.invalid/robots.txt") return new Response("User-agent: *\nDisallow: /");
+      throw new Error(`unexpected request: ${url}`);
+    });
+    try {
+      await expect(fetcher().fetch("https://source.invalid/start")).rejects.toBeInstanceOf(DisallowedByRobots);
+      expect(requests).toEqual(["https://source.invalid/robots.txt", "https://source.invalid/start", "https://destination.invalid/robots.txt"]);
+    } finally { mock.mockRestore(); }
+  });
+  test("follows allowed redirects and caches their body under the requested URL", async () => {
+    const requests: string[] = [];
+    const mock = mockFetch(async (input, init) => {
+      expect(init?.redirect).toBe("manual");
+      const url = String(input);
+      requests.push(url);
+      if (url.endsWith("/robots.txt")) return new Response("User-agent: *\n");
+      if (url.endsWith("/start")) return new Response(null, { status: 301, headers: { location: "https://destination.invalid/path/file.pdf" } });
+      return new Response("synthetic syllabus", { headers: { "content-type": "text/plain" } });
+    });
+    try {
+      const client = fetcher();
+      const result = await client.fetch("https://source.invalid/start");
+      expect(result.body.toString()).toBe("synthetic syllabus");
+      expect(result.fromCache).toBe(false);
+      expect((await client.fetch("https://source.invalid/start")).fromCache).toBe(true);
+      expect(requests).toEqual(["https://source.invalid/robots.txt", "https://source.invalid/start", "https://destination.invalid/robots.txt", "https://destination.invalid/path/file.pdf"]);
+    } finally { mock.mockRestore(); }
+  });
+  test("robots redirects are bounded and each hop uses the shared throttle", async () => {
+    const starts: number[] = [];
+    const mock = mockFetch(async (_input, init) => {
+      expect(init?.redirect).toBe("manual");
+      starts.push(Date.now());
+      return new Response(null, { status: 302, headers: { location: "/robots-again" } });
+    });
+    try {
+      await expect(fetcher(20).assertAllowed("https://example.invalid/file.pdf")).rejects.toBeInstanceOf(DisallowedByRobots);
+      expect(starts).toHaveLength(6);
+      for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThanOrEqual(20);
+    } finally { mock.mockRestore(); }
+  });
+});
+
+test("concurrent callers and fetcher instances share a global serialized request queue", async () => {
+  const starts: number[] = [];
+  const mock = mockFetch(async () => {
+    starts.push(Date.now());
+    return new Response("User-agent: *\n");
+  });
+  try {
+    const first = fetcher(30);
+    const second = fetcher(30);
+    await first.assertAllowed("https://warm.invalid/a");
+    await Promise.all([
+      first.assertAllowed("https://one.invalid/a"), first.assertAllowed("https://two.invalid/a"),
+      second.assertAllowed("https://three.invalid/a"),
+    ]);
+    expect(starts).toHaveLength(4);
+    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThanOrEqual(30);
+  } finally { mock.mockRestore(); }
+});
+
 describe("robots groups and specificity", () => {
   test("consecutive user-agent headers share their rules", async () => {
     await withRobots("User-agent: *\nUser-agent: unrelated\nDisallow: /", async (client) => {
@@ -77,6 +164,23 @@ describe("robots groups and specificity", () => {
     await withRobots("User-agent: *\nAllow: /*\nDisallow: /private", async (client) => {
       await expect(client.assertAllowed("https://example.invalid/private/long/file.pdf")).rejects.toBeInstanceOf(DisallowedByRobots);
       await expect(client.assertAllowed("https://example.invalid/public.pdf")).resolves.toBeUndefined();
+    });
+  });
+  test("canonicalizes unreserved URI octets in both paths and rules", async () => {
+    await withRobots("User-agent: *\nDisallow: /foo/bar/baz\nDisallow: /%70rivate\nDisallow: /caf%C3%A9\nDisallow: /%F0%9F%93%9A", async (client) => {
+      for (const route of ["/foo/bar/%62%61%7A", "/foo/bar/%62%61%7a", "/private/file.pdf", "/caf%c3%a9", "/café", "/📚"]) {
+        await expect(client.assertAllowed(`https://example.invalid${route}`)).rejects.toBeInstanceOf(DisallowedByRobots);
+      }
+    });
+  });
+  test("encoded separators stay distinct and encoded literals count as one octet", async () => {
+    await withRobots("User-agent: *\nDisallow: /foo/bar\nDisallow: /foo%2fbar\nAllow: /foo%2Fbar/public\nDisallow: /encoded/%62%61%7A\nAllow: /encoded/baz", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/foo%2Fbar/private")).rejects.toBeInstanceOf(DisallowedByRobots);
+      await expect(client.assertAllowed("https://example.invalid/foo%2Fbar/public")).resolves.toBeUndefined();
+      await expect(client.assertAllowed("https://example.invalid/encoded/baz")).resolves.toBeUndefined();
+    });
+    await withRobots("User-agent: *\nDisallow: /foo/bar", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/foo%2Fbar")).resolves.toBeUndefined();
     });
   });
   test("specific allow, equal-length allow, and anchored rules retain their semantics", async () => {

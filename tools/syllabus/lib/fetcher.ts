@@ -3,8 +3,8 @@
  *
  * House rules, in one place:
  * - at most one network request per second, shared across every caller;
- * - robots.txt is fetched per origin and honored (Allow beats Disallow only
- *   when its match is longer, per the robots RFC draft);
+ * - robots.txt is fetched per origin and checked before each resource redirect;
+ *   matching uses canonical URI octets and literal rule specificity;
  * - every response body is cached on disk under `.cache/http/` keyed by the
  *   SHA-1 of the URL, so a re-run never re-requests a page it already has;
  * - transient failures (5xx, timeouts) are retried at most twice with a
@@ -94,8 +94,20 @@ class RobotsRules {
 
   private static regexCache = new Map<string, RegExp>();
 
+  private static canonicalOctets(value: string): string {
+    // Unreserved encoded ASCII equals its literal form. Encoded delimiters
+    // remain encoded so %2F cannot become a path separator.
+    return value.replace(/%[a-f0-9]{2}|[^\x00-\x7F]/giu, (octet) => {
+      if (!octet.startsWith("%")) return encodeURIComponent(octet);
+      const decoded = String.fromCharCode(parseInt(octet.slice(1), 16));
+      return /^[a-z0-9._~-]$/i.test(decoded) ? decoded : octet.toUpperCase();
+    });
+  }
+
   private static matchLength(pattern: string, path: string): number {
     if (!pattern) return 0;
+    pattern = RobotsRules.canonicalOctets(pattern);
+    path = RobotsRules.canonicalOctets(path);
     // Patterns are matched as regexes ("*" -> ".*"), not as bare prefixes:
     // "/*/media/oembed" must not match "/faculty-profile" just because both
     // start with "/". A pattern ending in "$" is anchored at the end. The
@@ -114,7 +126,7 @@ class RobotsRules {
       RobotsRules.regexCache.set(pattern, re);
     }
     // Only literal rule bytes contribute specificity, not wildcard expansion.
-    return re.test(path) ? Buffer.byteLength(pattern.replace(/\*/g, "").replace(/\$$/, ""), "utf8") : 0;
+    return re.test(path) ? Buffer.byteLength(pattern.replace(/\*/g, "").replace(/\$$/, "").replace(/%[A-F0-9]{2}/g, "x"), "utf8") : 0;
   }
 
   isAllowed(pathname: string): boolean {
@@ -136,7 +148,8 @@ export class PoliteFetcher {
   private readonly timeoutMs: number;
   private readonly cacheDir: string;
   private readonly robots = new Map<string, RobotsRules>();
-  private lastRequestAt = 0;
+  private static lastRequestAt = 0;
+  private static requestQueue: Promise<void> = Promise.resolve();
 
   constructor(options: PoliteFetcherOptions) {
     this.cacheDir = options.cacheDir;
@@ -145,10 +158,44 @@ export class PoliteFetcher {
     mkdirSync(path.join(this.cacheDir, "http"), { recursive: true });
   }
 
-  private async throttle(): Promise<void> {
-    const wait = this.lastRequestAt + this.minDelayMs - Date.now();
-    if (wait > 0) await Bun.sleep(wait);
-    this.lastRequestAt = Date.now();
+  private send(url: string): Promise<Response> {
+    // Start requests inside the global queue, not after releasing a time slot.
+    const response = PoliteFetcher.requestQueue.then(async () => {
+      const nextRequestAt = PoliteFetcher.lastRequestAt + this.minDelayMs;
+      while (Date.now() < nextRequestAt) await Bun.sleep(nextRequestAt - Date.now());
+      try {
+        return fetch(url, {
+          redirect: "manual",
+          headers: { "user-agent": USER_AGENT },
+          signal: AbortSignal.timeout(this.timeoutMs),
+        });
+      } finally {
+        PoliteFetcher.lastRequestAt = Date.now();
+      }
+    });
+    PoliteFetcher.requestQueue = response.then(() => {}, () => {});
+    return response;
+  }
+
+  private async request(url: string, checkRobots: boolean): Promise<Response> {
+    let current = url;
+    // Robots redirects retrieve the policy for the original origin. Resource
+    // redirects instead need permission at every destination before requesting it.
+    for (let hop = 0; hop <= 5; hop++) {
+      if (checkRobots) await this.assertAllowed(current);
+      const response = await this.send(current);
+      if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+      const location = response.headers.get("location");
+      await response.body?.cancel();
+      if (!location) throw new Error(`redirect missing Location: ${current}`);
+      if (hop === 5) throw new Error(`too many redirects: ${url}`);
+      const destination = new URL(location, current);
+      if (!["http:", "https:"].includes(destination.protocol)) {
+        throw new Error(`unsupported redirect protocol: ${destination.protocol}`);
+      }
+      current = destination.href;
+    }
+    throw new Error(`too many redirects: ${url}`);
   }
 
   private cachePaths(url: string): { body: string; meta: string } {
@@ -162,13 +209,8 @@ export class PoliteFetcher {
   private async robotsFor(origin: string): Promise<RobotsRules> {
     const known = this.robots.get(origin);
     if (known) return known;
-    await this.throttle();
     try {
-      const res = await fetch(new URL("/robots.txt", origin), {
-        redirect: "follow",
-        headers: { "user-agent": USER_AGENT },
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await this.request(new URL("/robots.txt", origin).href, false);
       const rules = res.status >= 200 && res.status < 300
         ? RobotsRules.parse(await res.text())
         : res.status >= 400 && res.status < 500
@@ -202,18 +244,11 @@ export class PoliteFetcher {
       return { url, status: meta.status, contentType: meta.contentType, body: readFileSync(paths.body), fromCache: true };
     }
 
-    await this.assertAllowed(url);
-
     let lastError = "";
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) await Bun.sleep(2000 * attempt);
-      await this.throttle();
       try {
-        const res = await fetch(url, {
-          redirect: "follow",
-          headers: { "user-agent": USER_AGENT },
-          signal: AbortSignal.timeout(this.timeoutMs),
-        });
+        const res = await this.request(url, true);
         // 5xx and 429 are transient; 4xx client errors are not.
         if (res.status >= 500 || res.status === 429) {
           lastError = `HTTP ${res.status}`;
@@ -230,6 +265,7 @@ export class PoliteFetcher {
         writeFileSync(paths.meta, JSON.stringify(meta, null, 2));
         return { url, status: meta.status, contentType: meta.contentType, body, fromCache: false };
       } catch (err) {
+        if (err instanceof DisallowedByRobots) throw err;
         lastError = err instanceof Error ? err.message : String(err);
       }
     }

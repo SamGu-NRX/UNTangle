@@ -22,6 +22,22 @@ describe("splitSentences", () => {
     }
   });
 
+  test("splits after multiple spaces or tabs while preserving every source", () => {
+    for (const separator of ["  ", "\t ", " \t\t "]) {
+      const text = `Attendance is required daily.${separator}There will be three exams.`;
+      const sentences = splitSentences(text);
+      expect(sentences.map((sentence) => sentence.text)).toEqual([
+        "Attendance is required daily.", "There will be three exams.",
+      ]);
+      for (const sentence of sentences) expect(text.slice(sentence.start, sentence.end)).toBe(sentence.text);
+      const facts = extractSyllabusFacts(text);
+      expect(facts.attendancePolicy.found).toBe(true);
+      expect(facts.examCount.found).toBe(true);
+      if (facts.attendancePolicy.found) expect(facts.attendancePolicy.source.quote).toBe("Attendance is required daily.");
+      if (facts.examCount.found) expect(facts.examCount.source.quote).toBe("There will be three exams.");
+    }
+  });
+
   test("does not split an abbreviation before a lowercase continuation", () => {
     const text = "The instructor, e.g. Dr. Smith, takes attendance daily.";
     const sentences = splitSentences(text);
@@ -93,6 +109,17 @@ describe("examCount", () => {
     const text = "Week 6: Exam 1 covers chapters 1 through 4.";
     const result = extractSyllabusFacts(text).examCount;
     expect(result.found).toBe(false);
+  });
+
+  test("week numbers and calendar dates are never exam totals", () => {
+    for (const text of ["Week 16 Final Exam", "Week 9 Midterm Exam", "October 09, 2026 Midterm Exam", "10/09/2026 Midterm Exam", "10-09 Final Exam"]) {
+      expect(extractSyllabusFacts(text).examCount.found).toBe(false);
+    }
+    const text = "Week 16 Final Exam\nThere will be three exams in this course.";
+    const result = extractSyllabusFacts(text).examCount;
+    expect(result.found).toBe(true);
+    expect(result.count).toBe(3);
+    if (result.found) expect(result.source.quote).toBe("There will be three exams in this course.");
   });
 
   test("no stated count stays not found", () => {

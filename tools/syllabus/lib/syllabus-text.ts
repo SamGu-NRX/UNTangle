@@ -9,6 +9,7 @@
  */
 
 import path from "node:path";
+import type { TextContent } from "../../../frontend/node_modules/pdfjs-dist/types/src/display/api";
 
 // frontend/node_modules is the only copy of pdfjs-dist in the monorepo.
 const PDFJS_PATH = path.join(import.meta.dir, "../../../frontend/node_modules/pdfjs-dist/legacy/build/pdf.mjs");
@@ -19,18 +20,27 @@ export interface SyllabusText {
   pages: number | null;
 }
 
+export function pdfItemsToText(items: TextContent["items"]): string {
+  let text = "";
+  for (const item of items) {
+    if (!("str" in item)) continue;
+    // PDF text items can be whole words without their intervening space.
+    if (text && !/\s$/.test(text) && item.str && !/^\s/.test(item.str)) text += " ";
+    text += item.str;
+    if (item.hasEOL) text += "\n";
+  }
+  return text;
+}
+
 async function pdfToText(body: Buffer): Promise<SyllabusText> {
-  const { getDocument } = (await import(PDFJS_PATH)) as typeof import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await getDocument({ data: new Uint8Array(body), useSystemFonts: true, isEvalSupported: false }).promise;
+  // SAFETY: PDFJS_PATH resolves the same installed module named by the type import.
+  const { getDocument } = (await import(PDFJS_PATH)) as typeof import("../../../frontend/node_modules/pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await getDocument({ data: new Uint8Array(body), useSystemFonts: true }).promise;
   let text = "";
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    for (const item of content.items) {
-      if (!("str" in item)) continue;
-      text += item.str;
-      if (item.hasEOL) text += "\n";
-    }
+    text += pdfItemsToText(content.items);
     text += "\n";
   }
   return { text, kind: "pdf", pages: doc.numPages };

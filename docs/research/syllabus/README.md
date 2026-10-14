@@ -27,6 +27,13 @@ report must distinguish correct answers, wrong answers on positive documents,
 spurious answers on negative documents, and absent answers on positive documents.
 There is no corrected performance verdict until the corpus is rescored.
 
+The extractor was also corrected before any replacement evaluation: week and
+calendar-date schedule positions are rejected as exam counts, sentence splitting
+scans past all intervening whitespace, and PDF text reconstruction preserves
+spaces between adjacent text items. These changes alter the evaluation target
+and reconstructed text. A fresh corpus must therefore be labeled and reported as
+a newly dated evaluation, not as recovery of the original results.
+
 ## Labels and scoring
 
 `labels.json` contains the hand-written facts, source URLs, and short identifying

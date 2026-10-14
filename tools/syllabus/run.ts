@@ -81,7 +81,11 @@ async function main(): Promise<void> {
   const term = args.get("term");
   if (!profilesFile || !term) fail("--profiles and --term are required");
   const manifestPath = args.get("manifest") ?? path.join(import.meta.dir, ".cache/manifest.json");
-  const limit = args.has("limit") ? Number(args.get("limit")) : undefined;
+  const rawLimit = args.get("limit");
+  const limit = rawLimit === undefined ? undefined : Number(rawLimit);
+  if (rawLimit !== undefined && (!/^\d+$/.test(rawLimit) || !Number.isSafeInteger(limit))) {
+    fail(`--limit must be a nonnegative safe integer, got ${JSON.stringify(rawLimit)}`);
+  }
 
   const planner = plannerCourseCodes();
   const profileIds = readFileSync(profilesFile, "utf8")

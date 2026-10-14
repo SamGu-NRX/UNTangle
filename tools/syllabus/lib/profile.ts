@@ -58,7 +58,7 @@ function rowsFromTable(html: string, profileUrl: string): TeachingRow[] {
       section: course.section,
       title,
       term,
-      syllabusUrl: plainLink ?? null,
+      syllabusUrl: plainLink ? new URL(plainLink.replace(/&amp;/g, "&"), profileUrl).href : null,
     });
   }
   return rows;
