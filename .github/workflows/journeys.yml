@@ -186,6 +186,8 @@ jobs:
             sudo chmod o+x "$directory"
           done
           sudo chown -R journey:journey "$GITHUB_WORKSPACE" "$RUNNER_TEMP/journey-tools" "$PLAYWRIGHT_BROWSERS_PATH" "$UNTANGLE_OUT"
+          sudo chgrp "$(id -gn)" "$UNTANGLE_OUT"
+          sudo chmod g+w "$UNTANGLE_OUT"
       # Blocks both server and browser egress, including email, ORS and UNT.
       # Design pass A fulfills my.unt.edu requests from the local mock itself.
       - name: Block external network
