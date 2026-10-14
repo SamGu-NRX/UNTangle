@@ -3,9 +3,12 @@ import { expect, test } from "bun:test";
 import { buildCsScenario } from "./cs-report";
 
 test("Computer Science, BS pathing report matches the committed snapshot", () => {
-  const { report, unparseableRows, analysis, recommendations } = buildCsScenario();
+  const { report, unparseableRows, prereqCoverage, analysis, recommendations } = buildCsScenario();
   // Nothing in the catalog is silently skipped: every hour cell yields a leading integer.
   expect(unparseableRows).toEqual([]);
+  // Parse fidelity is reported, not implied: 226 of 656 rows keep unparsed clauses
+  // (advisor checks, equivalents, standing rules) instead of dropping them.
+  expect(prereqCoverage).toEqual({ full: 430, partial: 168, unknown: 58 });
   expect(report).toBe(readFileSync(new URL("./cs-report.fixture.txt", import.meta.url), "utf8"));
   // Grounded data checks on the real catalog: the capstone chain never shows up as
   // takeable. CSCE 4901 is locked behind senior-standing hours and unmet CSCE 3444,

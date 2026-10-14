@@ -1,5 +1,5 @@
 UNTangle pathing report for Computer Science, BS (major cs)
-Catalog rows: 656; unparseable rows: 0
+Catalog rows: 656; unparseable rows: 0; prerequisite parse gaps: 226 (full 430, partial 168, unknown 58)
 Universe courses: 225; remaining critical path: 8
 Warnings: none
 

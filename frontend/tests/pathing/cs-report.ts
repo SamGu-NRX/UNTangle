@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { recommendNextTerm, unlockAnalysis } from "../../src/lib/pathing";
 import type { CoursePathing, PathingAnalysis, TermRecommendation } from "../../src/lib/pathing";
-import { adaptUntCatalog, evidenceFromUntTranscript, inferStatuses, normalizeUntCourseId, untAdapter } from "../../src/lib/prereq";
+import { adaptUntCatalog, evidenceFromUntTranscript, inferStatuses, normalizeUntCourseId, parseUntPrerequisite, untAdapter } from "../../src/lib/prereq";
 import type { UntCatalogEntry } from "../../src/lib/prereq";
 import type { TranscriptCourseRecord } from "../../src/lib/types";
 import { majors } from "../../src/lib/seed-data";
@@ -11,6 +11,7 @@ type CatalogRow = readonly [string, string, string];
 export type CsPathingScenario = {
   report: string;
   unparseableRows: readonly string[];
+  prereqCoverage: Readonly<Record<"full" | "partial" | "unknown", number>>;
   analysis: PathingAnalysis;
   recommendations: readonly TermRecommendation[];
 };
@@ -53,10 +54,12 @@ function render(
   recommendations: readonly TermRecommendation[],
   rowCount: number,
   unparseableRows: readonly string[],
+  prereqCoverage: Readonly<Record<"full" | "partial" | "unknown", number>>,
 ): string {
+  const gaps = prereqCoverage.partial + prereqCoverage.unknown;
   const lines = [
     "UNTangle pathing report for Computer Science, BS (major cs)",
-    `Catalog rows: ${rowCount}; unparseable rows: ${unparseableRows.length}`,
+    `Catalog rows: ${rowCount}; unparseable rows: ${unparseableRows.length}; prerequisite parse gaps: ${gaps} (full ${prereqCoverage.full}, partial ${prereqCoverage.partial}, unknown ${prereqCoverage.unknown})`,
     `Universe courses: ${analysis.universe.length}; remaining critical path: ${analysis.remainingCriticalPath}`,
     `Warnings: ${analysis.warnings.length > 0 ? analysis.warnings.join("; ") : "none"}`,
     "",
@@ -86,13 +89,16 @@ function render(
  * Real catalog, real engine, real major: the 656-row UNT catalog is adapted with a
  * leading-integer credit-hours map, and the transcript is exactly CSCE 1030, 1040,
  * 2100, MATH 1710, 1720 with grade A. Rows that cannot be parsed are reported, never
- * skipped silently.
+ * skipped silently, and prerequisite text that does not fully parse is counted as
+ * coverage, so advisor-check and equivalent-clause rows stay visible instead of
+ * being presented as fully understood.
  */
 export function buildCsScenario(): CsPathingScenario {
   const rows = catalogRows();
   const creditHours = new Map<string, number>();
   const unparseableRows: string[] = [];
-  for (const [courseNumber, hours] of rows) {
+  const coverage = { full: 0, partial: 0, unknown: 0 };
+  for (const [courseNumber, hours, prerequisites] of rows) {
     let id: string;
     try {
       id = normalizeUntCourseId(courseNumber);
@@ -106,6 +112,9 @@ export function buildCsScenario(): CsPathingScenario {
       continue;
     }
     creditHours.set(id, hoursValue);
+    // Rows failing code or hours parsing are already reported above; coverage
+    // counts only rows that actually enter the catalog.
+    coverage[parseUntPrerequisite(prerequisites).coverage]++;
   }
   const entries: readonly UntCatalogEntry[] = rows.map(([courseNumber, hours, prerequisites]) => ({
     course_number: courseNumber,
@@ -120,5 +129,11 @@ export function buildCsScenario(): CsPathingScenario {
   const result = inferStatuses(catalog, evidence, untAdapter);
   const analysis = unlockAnalysis(major, result);
   const recommendations = recommendNextTerm(major, result, { creditTarget: 15 });
-  return { report: render(analysis, recommendations, rows.length, unparseableRows), unparseableRows, analysis, recommendations };
+  return {
+    report: render(analysis, recommendations, rows.length, unparseableRows, coverage),
+    unparseableRows,
+    prereqCoverage: coverage,
+    analysis,
+    recommendations,
+  };
 }
