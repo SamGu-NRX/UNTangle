@@ -1,15 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
-import { emptyIntent, toPlannerPreferences } from "@/lib/preferences/schema";
-import { parseIntent } from "@/lib/preferences/parse";
-import type { PreferenceIntent } from "@/lib/preferences/schema";
+import { defaultSchedulePreferences, parseSchedulePreferences } from "@/lib/planner";
+import { applyIntent, emptyIntent, type PreferenceIntent } from "@/lib/preferences/schema";
+import { parseDayGroup, parseIntent, parseTime } from "@/lib/preferences/parse";
 
-// Strict tests for the preference schema, the deterministic parser, and the
-// pure planner mapping. These pin documented behavior: what parses, what is
-// honestly reported as not understood, and where values land in the planner's
-// inputs. Corpus-wide metrics live in eval.ts; these tests pin the behaviors.
+// Strict tests for the redesigned preference contract: the typed intent, the
+// deterministic parser, and what is honestly reported as not understood.
+// Corpus-wide metrics live in eval.ts; these tests pin the behaviors.
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 
 function parse(text: string) {
   return parseIntent(text);
@@ -19,8 +18,12 @@ function blockedOf(intent: PreferenceIntent) {
   return intent.hard.blockedTimes.map((b) => `${b.day} ${b.start}-${b.end}${b.label ? ` ${b.label}` : ""}`);
 }
 
+function notUnderstoodOf(result: ReturnType<typeof parse>) {
+  return result.notUnderstood;
+}
+
 describe("schema: emptyIntent", () => {
-  test("all hard fields empty, soft empty, instructor null", () => {
+  test("all hard fields unset, soft empty", () => {
     const intent = emptyIntent();
     expect(intent.hard.earliestStart).toBeNull();
     expect(intent.hard.latestEnd).toBeNull();
@@ -31,27 +34,7 @@ describe("schema: emptyIntent", () => {
     expect(intent.hard.openSeatsOnly).toBeNull();
     expect(intent.hard.campusScope).toBeNull();
     expect(intent.hard.mode).toBeNull();
-    expect(intent.hard.wantedCourses).toEqual([]);
-    expect(intent.hard.avoidedCourses).toEqual([]);
     expect(intent.soft).toEqual([]);
-    expect(intent.instructor).toBeNull();
-  });
-
-  test("empty intent maps to empty planner preferences", () => {
-    const prefs = toPlannerPreferences(emptyIntent());
-    expect(prefs.constraints.earliestStart).toBeNull();
-    expect(prefs.constraints.latestEnd).toBeNull();
-    expect(prefs.constraints.daysOff).toEqual([]);
-    expect(prefs.constraints.blocked).toEqual([]);
-    expect(prefs.constraints.maxCredits).toBeNull();
-    expect(prefs.constraints.openSeatsOnly).toBe(false);
-    expect(prefs.constraints.otherSites).toBe(false);
-    expect(prefs.weights.fewerDays).toBe(0);
-    expect(prefs.weights.compact).toBe(0);
-    expect(prefs.weights.walking).toBe(0);
-    expect(prefs.weights.mornings).toBe(0);
-    expect(prefs.weights.evenings).toBe(0);
-    expect(prefs.weights.rating).toBe(0);
   });
 });
 
@@ -66,9 +49,10 @@ describe("parser: time bounds", () => {
     expect(intent.hard.latestEnd).toBe(900);
   });
 
-  test("bare afternoon hour reads as pm when plausible", () => {
-    const { intent } = parse("nothing after 5");
-    expect(intent.hard.latestEnd).toBe(1020);
+  test("bare afternoon hour stays ambiguous under precision-first rules", () => {
+    const { intent, notUnderstood } = parse("nothing after 5");
+    expect(intent.hard.latestEnd).toBeNull();
+    expect(notUnderstood.map((n) => n.tag)).toEqual(["ambiguousTime"]);
   });
 
   test("last mention wins on repeated singleton bounds", () => {
@@ -76,8 +60,8 @@ describe("parser: time bounds", () => {
     expect(intent.hard.earliestStart).toBe(600);
   });
 
-  test("'can't take classes before' parses with the verb", () => {
-    const { intent } = parse("I can't take classes before 11");
+  test("a scheduling verb may sit between the negation and the bound", () => {
+    const { intent } = parse("I can't take classes before 11am");
     expect(intent.hard.earliestStart).toBe(660);
   });
 });
@@ -93,9 +77,9 @@ describe("parser: days off", () => {
     expect(intent.hard.daysOff).toEqual(["Tue", "Thu"]);
   });
 
-  test("MW only complements to the rest of the week", () => {
+  test("MW only complements to the remaining weekdays", () => {
     const { intent } = parse("MW only");
-    expect(intent.hard.daysOff).toEqual(["Tue", "Thu", "Fri", "Sat", "Sun"]);
+    expect(intent.hard.daysOff).toEqual(["Tue", "Thu", "Fri"]);
   });
 
   test("'don't schedule anything on' negation", () => {
@@ -105,41 +89,36 @@ describe("parser: days off", () => {
 });
 
 describe("parser: blocked times", () => {
-  test("kept-free range with no days applies to all seven", () => {
+  test("kept-free range with no days applies to the five weekdays", () => {
     const { intent } = parse("keep 12-1 free");
-    // The free-word is part of the match, not the label; no "for" phrase means no label.
-    expect(blockedOf(intent)).toEqual(DAYS.map((d) => `${d} 720-780`));
+    expect(blockedOf(intent)).toEqual(WEEKDAYS.map((d) => `${d} 720-780`));
   });
 
-  test("commitment verb + days + range keeps the verb as label", () => {
-    const { intent } = parse("I train Saturdays 10-2");
-    expect(blockedOf(intent)).toEqual(["Sat 600-840 train"]);
+  test("a weekend commitment is tagged unsupported, not a blocked time", () => {
+    const { intent, notUnderstood } = parse("I train Saturdays 10-2");
+    expect(intent.hard.blockedTimes).toEqual([]);
+    expect(notUnderstood.map((n) => n.tag)).toContain("weekend");
   });
 
-  test("times-before-days order keeps the day scope", () => {
-    const { intent } = parse("I train 10-2 on Saturdays");
-    expect(blockedOf(intent)).toEqual(["Sat 600-840 train"]);
+  test("times-before-days order keeps the weekend tag", () => {
+    const { intent, notUnderstood } = parse("I train 10-2 on Saturdays");
+    expect(intent.hard.blockedTimes).toEqual([]);
+    expect(notUnderstood.map((n) => n.tag)).toContain("weekend");
   });
 
-  test(" noon-labeled block parses without eating the label", () => {
+  test("noon-labeled block parses without eating the label", () => {
     const { intent } = parse("set aside noon to 2 for lunch");
-    expect(blockedOf(intent)).toEqual(DAYS.map((d) => `${d} 720-840 lunch`));
+    expect(blockedOf(intent)).toEqual(WEEKDAYS.map((d) => `${d} 720-840 lunch`));
   });
 
-  test("stated redundancies are preserved, not merged by interval algebra", () => {
-    // Overlap resolution works on text spans, not on the resulting blocked
-    // intervals: both clauses are distinct statements, so both land in the
-    // intent. The one-hour exclusion is redundant with the range but harmless
-    // to the planner, and dropping it would silently discard what was said.
-    const { intent } = parse("I work 8-12, no 8am classes");
-    const entries = blockedOf(intent);
-    expect(entries).toContain("Mon 480-720 work");
-    expect(entries).toContain("Mon 480-540");
-  });
-
-  test("duplicate phrasing does not duplicate entries", () => {
-    const { intent } = parse("keep 12-1 free. keep 12-1 free");
-    expect(blockedOf(intent)).toEqual(DAYS.map((d) => `${d} 720-780`));
+  test("a bare-bare range stays ambiguous even with an explicit hour ban in the same sentence", () => {
+    // Overlap resolution works on text spans: the hour ban (explicit 8am) and
+    // the work range (bare 8-12, cross-noon-guessable but never guessed) are
+    // separate claims. Only the explicit one lands in the intent; the bare
+    // range is reported as ambiguous.
+    const { intent, notUnderstood } = parse("I work 8-12, no 8am classes");
+    expect(blockedOf(intent)).toEqual(WEEKDAYS.map((d) => `${d} 480-540`));
+    expect(notUnderstood.map((n) => n.tag)).toEqual(["ambiguousTime"]);
   });
 });
 
@@ -151,9 +130,16 @@ describe("parser: credits", () => {
   });
 
   test("'no more than' is a max", () => {
-    const { intent } = parse("no more than 12hrs");
+    const { intent } = parse("no more than 12 credit hours");
     expect(intent.hard.creditMax).toBe(12);
     expect(intent.hard.creditMin).toBeNull();
+  });
+
+  test("bare hours are never credits: '12hrs' alone is unparseable", () => {
+    const { intent } = parse("no more than 12hrs");
+    expect(intent.hard.creditMax).toBeNull();
+    expect(intent.hard.creditMin).toBeNull();
+    expect(notUnderstoodOf(parse("no more than 12hrs")).every((n) => n.reason === "unparseable")).toBe(true);
   });
 
   test("'N or more credits' is a min", () => {
@@ -164,6 +150,11 @@ describe("parser: credits", () => {
   test("'N or fewer credits' is a max", () => {
     const { intent } = parse("12 or fewer credits");
     expect(intent.hard.creditMax).toBe(12);
+  });
+
+  test("'N credits minimum' is a min", () => {
+    const { intent } = parse("9 credits minimum");
+    expect(intent.hard.creditMin).toBe(9);
   });
 });
 
@@ -184,53 +175,50 @@ describe("parser: seats, campus, mode", () => {
   });
 });
 
-describe("parser: courses", () => {
-  test("wanted list with cue carry-over", () => {
-    const { intent } = parse("I need to take CSCE 4110 and MATH 1710");
-    expect(intent.hard.wantedCourses).toEqual(["CSCE 4110", "MATH 1710"]);
-  });
-
-  test("avoided list with cue carry-over", () => {
-    const { intent } = parse("avoid BIOL 2041 and CHEM 2370");
-    expect(intent.hard.avoidedCourses).toEqual(["BIOL 2041", "CHEM 2370"]);
-  });
-
-  test("a course code with no cue is neither wanted nor avoided", () => {
-    const { intent } = parse("CSCE 4110");
-    expect(intent.hard.wantedCourses).toEqual([]);
-    expect(intent.hard.avoidedCourses).toEqual([]);
-  });
-});
-
-describe("parser: instructor", () => {
-  test("named instructor keeps name and strength", () => {
-    const { intent, notUnderstood } = parse("prefer professor Smith");
-    expect(intent.instructor).toEqual({ kind: "named", name: "Smith", strength: "mild" });
-    expect(notUnderstood).toEqual([]);
-  });
-
-  test("avoiding a professor is tagged unsupported, not a named preference", () => {
-    const { intent, notUnderstood } = parse("avoid professor Boyd");
-    expect(intent.instructor).toBeNull();
-    expect(notUnderstood.map((n) => n.tag)).toEqual(["avoidInstructor"]);
-  });
-
-  test("'no class with professor Boyd' is also an avoidance", () => {
-    const { intent, notUnderstood } = parse("no class with professor Boyd");
-    expect(intent.instructor).toBeNull();
-    expect(notUnderstood.map((n) => n.tag)).toContain("avoidInstructor");
-  });
-});
-
 describe("parser: soft preferences", () => {
   test("intensifier reads as strong", () => {
     const { intent } = parse("I really want my classes spread out");
-    expect(intent.soft).toContainEqual({ key: "spreadOut", strength: "strong" });
+    expect(intent.soft).toContainEqual({ key: "spreadOut", strength: "strong", positive: true });
   });
 
   test("plain phrasing reads as mild", () => {
-    const { intent } = parse("minimal walking please");
-    expect(intent.soft).toContainEqual({ key: "minimalWalking", strength: "mild" });
+    const { intent } = parse("I'd prefer gaps between classes");
+    expect(intent.soft).toContainEqual({ key: "spreadOut", strength: "mild", positive: true });
+  });
+
+  test("negated directional preference flips to its opposite", () => {
+    const { intent } = parse("no gaps between classes");
+    expect(intent.soft).toEqual([{ key: "compact", strength: "strong", positive: true }]);
+  });
+
+  test("not a morning person leans away with strong strength", () => {
+    const { intent } = parse("I'm not a morning person");
+    expect(intent.soft).toContainEqual({ key: "mornings", strength: "strong", positive: false });
+  });
+});
+
+describe("parser: unsupported preference tags", () => {
+  test("a wanted course list is tagged, not stored as planner data", () => {
+    const { intent, notUnderstood } = parse("I need to take CSCE 4110 and MATH 1710");
+    expect(intent.hard.daysOff).toEqual([]);
+    expect(notUnderstood.filter((n) => n.tag).map((n) => n.tag)).toEqual(["wantedCourse", "wantedCourse"]);
+  });
+
+  test("an avoided course list carries the avoid cue across the conjunction", () => {
+    const { notUnderstood } = parse("avoid BIOL 2041 and CHEM 2370");
+    expect(notUnderstood.filter((n) => n.tag).map((n) => n.tag)).toEqual(["avoidedCourse", "avoidedCourse"]);
+  });
+
+  test("preferring a professor is reported, not mapped", () => {
+    const { intent, notUnderstood } = parse("prefer professor Smith");
+    expect(intent.soft).toEqual([]);
+    expect(notUnderstood.filter((n) => n.tag).map((n) => n.tag)).toContain("instructor");
+  });
+
+  test("avoiding a professor is an avoidance tag", () => {
+    const { intent, notUnderstood } = parse("avoid professor Boyd");
+    expect(intent.soft).toEqual([]);
+    expect(notUnderstood.map((n) => n.tag)).toEqual(["avoidInstructor"]);
   });
 });
 
@@ -248,98 +236,13 @@ describe("parser: not-understood spans", () => {
     const { intent, notUnderstood } = parse("I want about 15 credits");
     expect(intent.hard.creditMin).toBeNull();
     expect(intent.hard.creditMax).toBeNull();
-    expect(notUnderstood).toEqual([
-      { start: 0, end: 6, text: "I want", reason: "unparseable" },
-    ]);
+    expect(notUnderstood).toEqual([{ start: 7, end: 23, text: "about 15 credits", reason: "unparseable" }]);
   });
 
   test("chatter produces neither intent fields nor complaints", () => {
     const { intent, notUnderstood } = parse("hey there");
     expect(intent).toEqual(emptyIntent());
     expect(notUnderstood).toEqual([]);
-  });
-});
-
-describe("mapping: toPlannerPreferences", () => {
-  test("weekday constraints land; weekend constraints are dropped with a note-worthy absence", () => {
-    const intent = emptyIntent();
-    intent.hard.daysOff = ["Mon", "Sun"];
-    intent.hard.blockedTimes = [
-      { day: "Fri", start: 720, end: 780, label: "lunch" },
-      { day: "Sat", start: 720, end: 780, label: "lunch" },
-    ];
-    const prefs = toPlannerPreferences(intent);
-    expect(prefs.constraints.daysOff).toEqual(["Mon"]);
-    expect(prefs.constraints.blocked).toEqual([
-      { id: "blocked-1", label: "lunch", day: "Fri", start: 720, end: 780 },
-    ]);
-  });
-
-  test("unlabeled blocked times get the default label", () => {
-    const intent = emptyIntent();
-    intent.hard.blockedTimes = [{ day: "Tue", start: 600, end: 660 }];
-    const prefs = toPlannerPreferences(intent);
-    expect(prefs.constraints.blocked[0].label).toBe("kept free");
-  });
-
-  test("creditMax maps to maxCredits; creditMin has no planner home", () => {
-    const intent = emptyIntent();
-    intent.hard.creditMin = 12;
-    intent.hard.creditMax = 18;
-    const prefs = toPlannerPreferences(intent);
-    expect(prefs.constraints.maxCredits).toBe(18);
-    expect(Object.hasOwn(prefs.constraints, "creditMin")).toBe(false);
-  });
-
-  test("openSeatsOnly defaults to false when unset", () => {
-    const prefs = toPlannerPreferences(emptyIntent());
-    expect(prefs.constraints.openSeatsOnly).toBe(false);
-  });
-
-  test("campus scope maps onto otherSites", () => {
-    const intent = emptyIntent();
-    intent.hard.campusScope = "otherSitesOk";
-    expect(toPlannerPreferences(intent).constraints.otherSites).toBe(true);
-    intent.hard.campusScope = "dentonOnly";
-    expect(toPlannerPreferences(intent).constraints.otherSites).toBe(false);
-  });
-
-  test("soft strength maps to the documented weights", () => {
-    const intent = emptyIntent();
-    intent.soft = [
-      { key: "compact", strength: "strong" },
-      { key: "minimalWalking", strength: "mild" },
-    ];
-    const prefs = toPlannerPreferences(intent);
-    expect(prefs.weights.compact).toBe(4);
-    expect(prefs.weights.walking).toBe(2);
-    expect(prefs.weights.fewerDays).toBe(0);
-  });
-
-  test("spreadOut has no planner term and maps to nothing", () => {
-    const intent = emptyIntent();
-    intent.soft = [{ key: "spreadOut", strength: "strong" }];
-    const prefs = toPlannerPreferences(intent);
-    expect(prefs.weights).toEqual(toPlannerPreferences(emptyIntent()).weights);
-  });
-
-  test("unmapped hard fields (mode, creditMin, wantedCourses) change nothing", () => {
-    const intent = emptyIntent();
-    intent.hard.mode = "online";
-    intent.hard.creditMin = 12;
-    intent.hard.wantedCourses = ["CSCE 4110"];
-    expect(toPlannerPreferences(intent)).toEqual(toPlannerPreferences(emptyIntent()));
-  });
-
-  test("mapping is pure: same intent in, same preferences out", () => {
-    const intent = emptyIntent();
-    intent.hard.latestEnd = 900;
-    intent.hard.blockedTimes = [{ day: "Mon", start: 600, end: 660, label: "work" }];
-    const a = toPlannerPreferences(intent);
-    const b = toPlannerPreferences(intent);
-    expect(a).toEqual(b);
-    // The input intent is not mutated by mapping.
-    expect(intent.hard.blockedTimes[0]).toEqual({ day: "Mon", start: 600, end: 660, label: "work" });
   });
 });
 
@@ -356,5 +259,111 @@ describe("parser: multi-intent sentences", () => {
     const { intent, notUnderstood } = parse("nothing before 9am and at most 2 classes a day");
     expect(intent.hard.earliestStart).toBe(540);
     expect(notUnderstood.map((n) => n.tag)).toEqual(["maxClassesPerDay"]);
+  });
+});
+
+describe("mapping: applyIntent round-trips through planner validation", () => {
+  const base = () => defaultSchedulePreferences("compact");
+
+  test.each([
+    "no classes before 10am",
+    "I can't take anything on Tuesdays",
+    "I work 7-1 on weekdays",
+    "don't let me go over 15 credits",
+    "every class has to be online",
+    "Denton campuses only",
+    "I prefer mornings",
+    "no morning classes",
+    "keep my schedule compact",
+  ])("%s produces a SchedulePreferences the planner accepts", (text) => {
+    const next = applyIntent(base(), parse(text).intent);
+    expect(parseSchedulePreferences(next)).not.toBeNull();
+  });
+
+  test("an empty intent is a validated no-op", () => {
+    const before = base();
+    const next = applyIntent(before, emptyIntent());
+    expect(parseSchedulePreferences(next)).not.toBeNull();
+    expect(next).toEqual(before);
+  });
+});
+
+describe("mapping: untouched fields are preserved byte-identically", () => {
+  test("one mentioned field; everything else exactly as saved", () => {
+    const before = defaultSchedulePreferences("minimizeDistance");
+    before.constraints.earliestStart = 600;
+    before.constraints.latestEnd = 900;
+    before.constraints.otherSites = true;
+    before.constraints.blocked = [
+      { id: "saved-1", label: "work", day: "Mon", start: 540, end: 1020 },
+    ];
+    before.constraints.walkingBufferMinutes = 12;
+    before.constraints.excludedSections = ["CSCE 4110"];
+    before.weights.compact = 3;
+    before.weights.walking = 1;
+
+    const next = applyIntent(before, parse("no Friday classes").intent);
+
+    expect(next.constraints.daysOff).toEqual(["Fri"]);
+    expect(next.constraints.earliestStart).toBe(600);
+    expect(next.constraints.latestEnd).toBe(900);
+    expect(next.constraints.otherSites).toBe(true);
+    expect(next.constraints.maxCredits).toBe(before.constraints.maxCredits);
+    expect(next.constraints.walkingBufferMinutes).toBe(12);
+    expect(next.constraints.excludedSections).toEqual(["CSCE 4110"]);
+    expect(next.weights.compact).toBe(3);
+    expect(next.weights.walking).toBe(1);
+    expect(next.constraints.blocked.filter((b) => b.id === "saved-1")).toHaveLength(1);
+  });
+
+  test("appended block ids never collide with existing ids", () => {
+    const before = defaultSchedulePreferences("compact");
+    before.constraints.blocked = [
+      { id: "pref-block-1", label: "kept free", day: "Mon", start: 540, end: 600 },
+    ];
+    const next = applyIntent(before, parse("keep 12-1 free on Mondays").intent);
+    const ids = next.constraints.blocked.map((b) => b.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("parser: parseTime strict table", () => {
+  test.each([
+    ["12 AM", 0, true],
+    ["12 pm", 720, true],
+    ["noon", 720, true],
+    ["midnight", 0, true],
+    ["13:30", 810, true],
+    ["9:30", 570, false],
+    ["9.30", 570, false],
+  ])("%s -> %i minutes (explicit: %p)", (raw, minutes, explicit) => {
+    expect(parseTime(raw)).toEqual({ minutes, explicit });
+  });
+
+  test("a bare hour is a value but never explicit", () => {
+    expect(parseTime("7")).toEqual({ minutes: 420, explicit: false });
+  });
+
+  test("a range ending in pm applies its meridiem to the bare start", () => {
+    const { intent } = parse("I work 8-10pm on Monday");
+    const blocks = intent.hard.blockedTimes.filter((b) => b.day === "Mon");
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].start).toBe(1200);
+    expect(blocks[0].end).toBe(1320);
+  });
+});
+
+describe("parser: day tokenizer strict table", () => {
+  test.each([
+    ["Tu/Th", ["Tue", "Thu"]],
+    ["TR", ["Tue", "Thu"]],
+    ["R", ["Thu"]],
+    ["M/W/F", ["Mon", "Wed", "Fri"]],
+    ["M T W R F", ["Mon", "Tue", "Wed", "Thu", "Fri"]],
+    ["weekdays", ["Mon", "Tue", "Wed", "Thu", "Fri"]],
+    ["weekends", ["Sat", "Sun"]],
+    ["Monday through Wednesday", ["Mon", "Tue", "Wed"]],
+  ])("%s -> %j", (fragment, days) => {
+    expect(parseDayGroup(fragment) as unknown).toEqual(days);
   });
 });

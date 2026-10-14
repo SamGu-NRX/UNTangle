@@ -1,425 +1,707 @@
 /**
- * Labeled corpus of schedule-preference phrasings.
+ * Labeled phrase corpus for the schedule-preferences parser.
  *
- * Every entry pairs a realistic student utterance with the exact intent the
- * parser should return. Labels follow the documented rules in
- * `parse.ts` — in particular the bare-hour plausibility rule (1–7 read as
- * pm, 8–11 as am, 12 as noon), the pm-flip for unmarked ranges whose end is
- * not after their start, and the last-mention-wins rule for singleton
- * fields. Phrasings whose bare-hour reading is genuinely ambiguous on both
- * sides (e.g. "before 7" without a marker) are avoided on purpose; phrasings
- * the parser is not expected to reach are labeled exactly that way, so the
- * evaluation reports them as misses rather than hiding them.
+ * Every entry is one phrase a student might type, paired with the exact
+ * intent the parser must return: hard fields (all unspecified fields must
+ * stay at their defaults — the no-invention rule), soft preferences (exact
+ * set), unsupported tags (exact multiset), and, where the phrase leaves a
+ * residual it cannot use, the exact number of unparseable spans.
+ *
+ * This corpus was developed alongside the parser: passing it demonstrates
+ * coverage of the documented behaviors, not independence from them. The
+ * held-out scoring mode in `eval.ts` (`--file=`) exists for phrases the
+ * parser has not seen.
  */
 
-import type {
-  InstructorPreference,
-  PrefBlockedTime,
-  PrefDay,
-  SoftKey,
-} from "../../src/lib/preferences/schema";
-import { PREF_DAYS } from "../../src/lib/preferences/schema";
+import type { HardConstraints, SoftPreference } from "../../src/lib/preferences/schema";
+import type { WeekDay } from "../../src/lib/types";
+import { weekDays } from "../../src/lib/types";
 
-const ALL = PREF_DAYS as readonly PrefDay[];
-const WD: PrefDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const WE: PrefDay[] = ["Sat", "Sun"];
-
-const block = (
-  days: readonly PrefDay[],
-  start: number,
-  end: number,
-  label?: string,
-): PrefBlockedTime[] =>
-  days.map((day) => ({ day, start, end, ...(label ? { label } : {}) }));
-
-export type CorpusExpect = {
-  earliestStart?: number;
-  latestEnd?: number;
-  daysOff?: PrefDay[];
-  blockedTimes?: PrefBlockedTime[];
-  creditMin?: number;
-  creditMax?: number;
-  openSeatsOnly?: boolean;
-  campusScope?: "dentonOnly" | "otherSitesOk";
-  mode?: "online" | "inPerson";
-  wantedCourses?: string[];
-  avoidedCourses?: string[];
-  /** Soft keys present at any strength. */
-  soft?: SoftKey[];
-  /** Soft keys that must be strong. */
-  softStrong?: SoftKey[];
-  instructor?: InstructorPreference;
-};
-
-export type CorpusEntry = {
-  id: string;
-  kind:
-    | "earliestStart"
-    | "latestEnd"
-    | "daysOff"
-    | "blockedTimes"
-    | "credits"
-    | "seats"
-    | "campus"
-    | "mode"
-    | "courses"
-    | "instructor"
-    | "soft"
-    | "multi"
-    | "unsupported"
-    | "chatter";
-  text: string;
-  expect?: CorpusExpect;
+/** What one corpus entry asserts about the parser's output. */
+export type CorpusExpectation = {
+  /** Hard fields with expected values. Every hard field NOT listed here must equal its default. */
+  hard?: Partial<HardConstraints>;
+  /** Soft preferences, compared as an exact set (key, strength, polarity). */
+  soft?: SoftPreference[];
+  /** Exact multiset of `reason: "unsupported"` tags in notUnderstood. */
   unsupportedTags?: string[];
-  unparseable?: boolean;
+  /** Exact number of `reason: "unparseable"` spans. Omit to leave the residual unconstrained. */
+  unparseable?: number;
 };
 
+export type CorpusEntry = { id: string; input: string; expect: CorpusExpectation };
+
+// ---------------------------------------------------------------------------
+// Expectation helpers
+// ---------------------------------------------------------------------------
+
+/** Merge an extra expectation into a base one without dropping the base hard fields. */
+const withExtra = (
+  base: Partial<HardConstraints>,
+  extra?: CorpusExpectation,
+): CorpusExpectation => {
+  if (!extra) return { hard: base };
+  const { hard, ...rest } = extra;
+  return { ...rest, hard: { ...base, ...(hard ?? {}) } };
+};
+
+const bt = (day: WeekDay, start: number, end: number, label?: string) => ({
+  day,
+  start,
+  end,
+  ...(label ? { label } : {}),
+});
+
+/** The same block on every planner weekday. */
+const wd = (start: number, end: number, label?: string) => weekDays.map((d) => bt(d, start, end, label));
+
+const onDays = (days: WeekDay[], start: number, end: number, label?: string) =>
+  days.map((d) => bt(d, start, end, label));
+
+const s = (key: SoftPreference["key"], strength: SoftPreference["strength"], positive = true): SoftPreference => ({
+  key,
+  strength,
+  positive,
+});
+
+const e = (id: string, input: string, expect: CorpusExpectation): CorpusEntry => ({ id, input, expect });
+
+// ---------------------------------------------------------------------------
+// Family helpers — each pins the phrasings one behavior must accept
+// ---------------------------------------------------------------------------
+
+/** A weekly commitment block: exact blockedTimes, everything else default. */
+const block = (input: string, items: ReturnType<typeof bt>[], extra?: CorpusExpectation): CorpusEntry =>
+  e(`blocked/${items[0]?.start ?? 0}-${items.length}`, input, withExtra({ blockedTimes: items }, extra));
+
+/** A day-off phrase: exact daysOff, everything else default. */
+const dayOff = (input: string, days: readonly WeekDay[], extra?: CorpusExpectation): CorpusEntry =>
+  e(`daysOff/${days.join("")}`, input, withExtra({ daysOff: [...days] }, extra));
+
+/** An earliest-start bound. */
+const earliest = (input: string, minutes: number | null, extra?: CorpusExpectation): CorpusEntry =>
+  e(`earliest/${minutes}`, input, withExtra({ earliestStart: minutes }, extra));
+
+/** A latest-end bound. */
+const latest = (input: string, minutes: number | null, extra?: CorpusExpectation): CorpusEntry =>
+  e(`latest/${minutes}`, input, withExtra({ latestEnd: minutes }, extra));
+
+/** A phrase recognized as unsupported, tagged with its family. */
+const tagged = (input: string, tags: string[], extra?: CorpusExpectation): CorpusEntry =>
+  e(`tag/${tags.join("+")}`, input, withExtra({}, { unsupportedTags: tags, ...extra }));
+
+/** A phrase recognized as a soft preference. */
+const soft = (input: string, softs: SoftPreference[], extra?: CorpusExpectation): CorpusEntry =>
+  e(`soft/${softs.map((x) => x.key).join("+")}`, input, withExtra({}, { soft: softs, ...extra }));
+
+/** A phrase the parser cannot use at all: defaults in, residual out. */
+const unparseable = (input: string, count = 1): CorpusEntry =>
+  e("unparseable", input, { unparseable: count });
+
+// ---------------------------------------------------------------------------
+// 1. Weekly commitments (hard.blockedTimes)
+// ---------------------------------------------------------------------------
+
+export const BLOCKED: CorpusEntry[] = [
+  block("I have work 8am to 4:30pm on Mondays and Wednesdays", onDays(["Mon", "Wed"], 480, 990, "work")),
+  block("I work 9 to 5 on weekdays", wd(540, 1020, "work")),
+  block("work Mondays 9 to 5", onDays(["Mon"], 540, 1020, "work")),
+  block("I have shift on Friday 6am to 2pm", onDays(["Fri"], 360, 840, "shift")),
+  block("shifts on Saturday are out of scope for me", [], { unsupportedTags: ["weekend"] }),
+  block("keep 12-1 free on weekdays for lunch", wd(720, 780, "lunch")),
+  block("keep 12 to 1 free on weekdays for lunch", wd(720, 780, "lunch")),
+  block("keep 12-1 free for lunch on weekdays", wd(720, 780, "lunch")),
+  block("block 2pm to 4pm for practice", wd(840, 960, "practice")),
+  block("set aside 5pm to 7pm for dinner", wd(1020, 1140, "dinner")),
+  block("reserve 10am to 11am for office hours", wd(600, 660, "office")),
+  block("I work 7-1", wd(420, 780, "work")),
+  block("I work 11 to 1", wd(660, 780, "work")),
+  block("no 8am classes", wd(480, 540)),
+  block("no 3pm classes", wd(900, 960)),
+  block("no 8am classes on Tuesdays", onDays(["Tue"], 480, 540)),
+  block("practice Tuesdays and Thursdays 3pm to 5pm", onDays(["Tue", "Thu"], 900, 1020, "practice")),
+  block("rehearsal Wednesdays from 6pm to 9pm", onDays(["Wed"], 1080, 1260, "rehearsal")),
+  block("I have clinicals Wednesdays 8am to noon", onDays(["Wed"], 480, 720, "clinicals")),
+  block("lab rotation Thursdays from 1pm to 4pm", onDays(["Thu"], 780, 960, "lab rotation")),
+  block("volunteering Fridays 1 to 4pm", onDays(["Fri"], 780, 960, "volunteering")),
+  block("meetings Mondays 2 to 3pm", onDays(["Mon"], 840, 900, "meetings")),
+  block("training Tuesdays 7am to 8am", onDays(["Tue"], 420, 480, "training")),
+  block("my shift is 10pm to midnight on Fridays", onDays(["Fri"], 1320, 1440, "shift")),
+  block("I babysit 3 to 5 on weekdays", [], { unsupportedTags: ["ambiguousTime"] }),
+  block("keep 9am to 10am blocked for coffee chat", wd(540, 600, "coffee")),
+  block("work from 9am until 1pm on MWF", onDays(["Mon", "Wed", "Fri"], 540, 780, "work")),
+  block("practice TR 4pm through 6pm", onDays(["Tue", "Thu"], 960, 1080, "practice")),
+  block("I intern 9-5 Mondays", onDays(["Mon"], 540, 1020, "intern")),
+  block("my job is 8am to 5pm on Tuesday and Thursday", onDays(["Tue", "Thu"], 480, 1020, "job")),
+  block("I volunteer Saturdays, which the planner cannot use", [], { unsupportedTags: ["weekend"] }),
+  block("keep 6pm to 8pm free for my study group", wd(1080, 1200, "study")),
+  block("no noon classes", wd(720, 780)),
+  block("no midnight classes", wd(0, 60)),
+  tagged("no 9.30 classes", ["ambiguousTime"]),
+  block("I have practice every weekday from 6am to 7am", wd(360, 420, "practice")),
+  block("shift 4pm-11pm on Fridays", onDays(["Fri"], 960, 1380, "shift")),
+  block("work Sunday morning", [], { unsupportedTags: ["weekend"] }),
+  block("keep Monday 3pm to 6pm free for my lab", onDays(["Mon"], 900, 1080, "lab")),
+  block("I work 8:30am to 12:30pm on Mondays and Fridays", onDays(["Mon", "Fri"], 510, 750, "work")),
+  block("training Saturday 9 to 11", [], { unsupportedTags: ["ambiguousTime"] }),
+  block("block 1pm to 2pm for lunch meetings", wd(780, 840, "lunch")),
+  block("I have work 9am to 6pm on Wednesday", onDays(["Wed"], 540, 1080, "work")),
+  block("keep my Fridays 12 to 2 free for errands", onDays(["Fri"], 720, 840, "errands")),
+  block("set aside Tuesday and Thursday 7pm to 9pm for class rehearsal", onDays(["Tue", "Thu"], 1140, 1260, "class")),
+  block("no 10am classes on Fridays", onDays(["Fri"], 600, 660)),
+  block("no 9am classes", wd(540, 600)),
+];
+
+// ---------------------------------------------------------------------------
+// 2. Days off (hard.daysOff)
+// ---------------------------------------------------------------------------
+
+export const DAYS_OFF: CorpusEntry[] = [
+  dayOff("no classes on Fridays", ["Fri"]),
+  dayOff("no classes Monday", ["Mon"]),
+  dayOff("no classes on Tuesdays and Thursdays", ["Tue", "Thu"]),
+  dayOff("don't schedule anything on Mondays", ["Mon"]),
+  dayOff("don't schedule classes on Wednesdays", ["Wed"]),
+  dayOff("keep my Wednesdays free", ["Wed"]),
+  dayOff("keep Fridays free", ["Fri"]),
+  dayOff("nothing on Thursdays", ["Thu"]),
+  dayOff("nothing during Fridays", ["Fri"]),
+  dayOff("Mondays are off", ["Mon"]),
+  dayOff("Monday off", ["Mon"]),
+  dayOff("Fridays are off for me", ["Fri"]),
+  dayOff("I need Fridays off", ["Fri"]),
+  dayOff("I want Tuesdays off", ["Tue"]),
+  dayOff("skip Thursdays", ["Thu"]),
+  dayOff("skip Mondays and Wednesdays", ["Mon", "Wed"]),
+  dayOff("no classes on MWF", ["Mon", "Wed", "Fri"]),
+  dayOff("no classes on TR", ["Tue", "Thu"]),
+  dayOff("no Tuesday or Thursday classes", ["Tue", "Thu"]),
+  dayOff("I don't want Friday classes", ["Fri"]),
+  dayOff("avoid Wednesday classes", ["Wed"]),
+  dayOff("no class on Monday, Tuesday, or Wednesday", ["Mon", "Tue", "Wed"]),
+  dayOff("keep Monday free", ["Mon"]),
+  tagged("keep my Thursday afternoons free", ["dayWithTime"]),
+  tagged("no classes on Tuesday mornings", ["dayWithTime"]),
+  tagged("no Friday classes before 10am", ["dayWithTime"]),
+  dayOff("Mondays and Wednesdays are off", ["Mon", "Wed"]),
+  tagged("I'd like to keep Tuesdays free", ["softDayOff"]),
+  tagged("I would rather keep Thursdays free", ["softDayOff"]),
+  dayOff("no Thursday classes", ["Thu"]),
+  dayOff("I can't do classes on Mondays", ["Mon"]),
+  dayOff("leave Fridays open", ["Fri"]),
+  dayOff("leaving Wednesdays open", ["Wed"]),
+  dayOff("no classes on weekdays", weekDays),
+  dayOff("nothing on M T W R F", weekDays),
+  dayOff("no classes Monday through Wednesday", ["Mon", "Tue", "Wed"]),
+  dayOff("no classes Monday thru Friday", weekDays),
+  dayOff("avoid Monday and Friday classes", ["Mon", "Fri"]),
+  dayOff("I don't want classes on Tuesday", ["Tue"]),
+  dayOff("no Wednesday sections", ["Wed"]),
+  dayOff("no courses on Thursdays", ["Thu"]),
+  dayOff("don't book anything on Fridays", ["Fri"]),
+  dayOff("keep my Mondays completely free", ["Mon"]),
+  dayOff("no Tuesday classes and no Thursday classes", ["Tue", "Thu"]),
+];
+
+// ---------------------------------------------------------------------------
+// 3. Only-days (complement to daysOff)
+// ---------------------------------------------------------------------------
+
+export const ONLY_DAYS: CorpusEntry[] = [
+  dayOff("only Tuesdays and Thursdays", ["Mon", "Wed", "Fri"]),
+  dayOff("only on Mondays and Wednesdays", ["Tue", "Thu", "Fri"]),
+  dayOff("only Fridays", ["Mon", "Tue", "Wed", "Thu"]),
+  dayOff("MWF only", ["Tue", "Thu"]),
+  dayOff("TR only", ["Mon", "Wed", "Fri"]),
+  dayOff("only weekdays", []),
+  dayOff("only show me Tuesday and Thursday classes", ["Mon", "Wed", "Fri"]),
+  dayOff("only Wednesdays and Fridays", ["Mon", "Tue", "Thu"]),
+  dayOff("only on TR", ["Mon", "Wed", "Fri"]),
+  dayOff("only Monday/Wednesday/Friday", ["Tue", "Thu"]),
+];
+
+// ---------------------------------------------------------------------------
+// 4. Earliest start (hard.earliestStart)
+// ---------------------------------------------------------------------------
+
+export const EARLIEST: CorpusEntry[] = [
+  earliest("no classes before 10am", 600),
+  earliest("nothing before 9am", 540),
+  earliest("no classes before noon", 720),
+  earliest("don't start before 8am", 480),
+  earliest("don't start classes before 9:30am", 570),
+  earliest("I can't start before 9am", 540),
+  earliest("my first class can't be until noon", 720),
+  earliest("first class can't start until 11am", 660),
+  earliest("first class can't be before 10am", 600),
+  earliest("earliest I can start is 9am", 540),
+  earliest("earliest I can begin is 10am", 600),
+  earliest("8am is too early", 481),
+  earliest("9am is too early for me", 541),
+  earliest("10am or before", 600),
+  earliest("no classes before 10:30am", 630),
+  earliest("nothing before 11am on weekdays", 660),
+  earliest("can't take classes before 8am", 480),
+  earliest("no classes earlier than 9am", 540),
+  earliest("no classes earlier than noon", 720),
+  earliest("can't begin before 1pm", 780),
+  earliest("I can't start until 10am", 600),
+  earliest("don't start until 11am", 660),
+  earliest("my first class can't start until 2pm", 840),
+  earliest("no classes before 8am, please", 480),
+  earliest("nothing starts before 9am", 540),
+  earliest("first class should not be until noon", 720),
+  earliest("earliest start 9am", 540),
+  earliest("8:00am is too early", 481),
+  earliest("no classes before 9am or after 5pm", 540, { hard: { latestEnd: 1020 } }),
+];
+
+// ---------------------------------------------------------------------------
+// 5. Latest end (hard.latestEnd)
+// ---------------------------------------------------------------------------
+
+export const LATEST: CorpusEntry[] = [
+  latest("nothing after 3pm", 900),
+  latest("no classes after 5pm", 1020),
+  latest("no classes after 2:30pm", 870),
+  latest("can't take classes past 4pm", 960),
+  latest("not any later than 6pm", 1080),
+  latest("I need to be done by 2pm", 840),
+  latest("I have to be done by 3pm", 900),
+  latest("I need to leave by 5pm", 1020),
+  latest("done with class by 1pm", 780),
+  latest("finished by 4pm", 960),
+  latest("my last class must end by 4pm", 960),
+  latest("classes must end by 6pm", 1080),
+  latest("last class can't end later than 5pm", 1020),
+  latest("4pm is too late", 959),
+  latest("5pm is too late for me", 1019),
+  latest("nothing later than 3pm", 900),
+  latest("no classes after 4pm, please", 960),
+  latest("I need to be out by 6pm", 1080),
+  latest("I have to be gone by 5pm", 1020),
+  latest("be home by 6pm", 1080),
+  latest("home by 5pm", 1020),
+  latest("nothing past noon", 720),
+  latest("can't stay past 3pm", 900),
+  latest("no classes after 4pm or before 9am", 960, { hard: { earliestStart: 540 } }),
+  latest("I need to be done by noon", 720),
+  latest("classes should end by 2pm", 840),
+  latest("last class should end by 7pm", 1140),
+  latest("my last class can't go past 5pm", 1020),
+  latest("don't let classes run past 6pm", 1080),
+  latest("nothing after 3:30pm", 930),
+  latest("no classes later than 10am", 600),
+  latest("I need to be done by 2pm on weekdays", 840),
+  tagged("no classes after 5pm on Thursdays", ["dayWithTime"]),
+  latest("6pm is too late", 1079),
+];
+
+// ---------------------------------------------------------------------------
+// 6. Credit load (hard.creditMin / hard.creditMax)
+// ---------------------------------------------------------------------------
+
+const credits = (input: string, min: number | null, max: number | null, extra?: CorpusExpectation): CorpusEntry =>
+  e(`credits/${min}-${max}`, input, { hard: { creditMin: min, creditMax: max }, ...extra });
+
+export const CREDITS_CASES: CorpusEntry[] = [
+  credits("I need 12 credit hours this semester", 12, null),
+  credits("I need 12 credits", 12, null),
+  credits("I need to take 15 credits", 15, null),
+  credits("I must take 12 credit hours", 12, null),
+  credits("I have to take 15 credits", 15, null),
+  credits("taking 15 credits", 15, null),
+  credits("at least 12 credits", 12, null),
+  credits("no more than 15 credits", null, 15),
+  credits("no more than 12 credit hours", null, 12),
+  credits("at most 15 credits", null, 15),
+  credits("15 credits max", null, 15),
+  credits("15 credits or fewer", null, 15),
+  credits("15 or fewer credits", null, 15),
+  credits("12 or more credits", 12, null),
+  credits("12 credits or more", 12, null),
+  credits("exactly 15 credit hours", 15, 15),
+  credits("between 12 and 15 credits", 12, 15),
+  credits("12 to 15 credits", 12, 15),
+  credits("12-15 credits", 12, 15),
+  credits("fewer than 15 credits", null, 14),
+  credits("less than 12 credits", null, 11),
+  credits("more than 12 credits", 13, null),
+  credits("15 credit hours max", null, 15),
+  credits("9 credits minimum", 9, null),
+  credits("up to 18 credits", null, 18),
+  credits("I want exactly 12 credits", 12, 12),
+  credits("12 credit hours or fewer", null, 12),
+  credits("a minimum of 12 credits", 12, null),
+  credits("a maximum of 15 credits", null, 15),
+  credits("no more than 15 credits this semester", null, 15),
+  credits("I don't want more than 15 credits", null, 15),
+  credits("at least 12 credits and at most 18 credits", 12, 18),
+  credits("I need 6 credit hours", 6, null),
+  credits("exactly 12 credits, no more and no fewer", 12, 12),
+  credits("12-15 credit hours", 12, 15),
+  credits("between 12 and 15 credit hours", 12, 15),
+];
+
+// ---------------------------------------------------------------------------
+// 7. Seat, campus and mode filters (hard.openSeatsOnly / campusScope / mode)
+// ---------------------------------------------------------------------------
+
+const seat = (input: string, extra?: CorpusExpectation): CorpusEntry =>
+  e("seats", input, withExtra({ openSeatsOnly: true }, extra));
+
+const campus = (input: string, value: "dentonOnly" | "otherSitesOk", extra?: CorpusExpectation): CorpusEntry =>
+  e(`campus/${value}`, input, withExtra({ campusScope: value }, extra));
+
+const mode = (input: string, value: "online" | "inPerson", extra?: CorpusExpectation): CorpusEntry =>
+  e(`mode/${value}`, input, withExtra({ mode: value }, extra));
+
+export const FILTERS: CorpusEntry[] = [
+  seat("only show classes with open seats"),
+  seat("only show classes I can actually get a seat in"),
+  seat("open seats only"),
+  seat("only classes with open seats"),
+  seat("no full classes"),
+  seat("no closed sections"),
+  seat("no waitlisted courses"),
+  seat("don't pick waitlisted sections"),
+  seat("don't suggest full classes"),
+  seat("make sure they have open seats"),
+  seat("make sure it has open seats"),
+  seat("nothing that is waitlisted"),
+  seat("only the ones with open seats"),
+  seat("only sections that still have open seats"),
+  campus("Denton campus only", "dentonOnly"),
+  campus("main campus only", "dentonOnly"),
+  campus("only the Denton campus", "dentonOnly"),
+  campus("Denton only", "dentonOnly"),
+  campus("keep me at the main campus", "dentonOnly"),
+  campus("keep me on Denton campus", "dentonOnly"),
+  campus("no Frisco", "dentonOnly"),
+  campus("Frisco is too far", "dentonOnly"),
+  campus("don't schedule me in Frisco", "dentonOnly"),
+  campus("no campuses outside Denton", "dentonOnly"),
+  campus("Frisco is fine", "otherSitesOk"),
+  campus("other campuses are fine", "otherSitesOk"),
+  campus("I can drive to Frisco", "otherSitesOk"),
+  campus("open to other campuses", "otherSitesOk"),
+  campus("other sites work", "otherSitesOk"),
+  mode("online only", "online"),
+  mode("all my classes online", "online"),
+  mode("everything online", "online"),
+  mode("all classes should be online", "online"),
+  mode("only online sections", "online"),
+  mode("in-person only", "inPerson"),
+  mode("in person only", "inPerson"),
+  mode("only in-person classes", "inPerson"),
+  mode("no online classes", "inPerson"),
+  mode("face to face only", "inPerson"),
+  mode("face-to-face only", "inPerson"),
+  mode("I want to be in a classroom", "inPerson"),
+  mode("every class has to be in person", "inPerson"),
+  mode("every class must be in a classroom", "inPerson"),
+  mode("all sections in person", "inPerson"),
+];
+
+// ---------------------------------------------------------------------------
+// 8. Soft preferences (intent.soft)
+// ---------------------------------------------------------------------------
+
+export const SOFT_CASES: CorpusEntry[] = [
+  soft("I don't want back-to-back classes", [s("spreadOut", "strong")]),
+  soft("don't want back to back classes", [s("spreadOut", "strong")]),
+  soft("no back-to-back classes", [s("spreadOut", "strong")]),
+  soft("avoid back-to-back sections", [s("spreadOut", "strong")]),
+  soft("never back-to-back classes", [s("spreadOut", "strong")]),
+  soft("space my classes out", [s("spreadOut", "strong")]),
+  soft("space them out", [s("spreadOut", "strong")]),
+  soft("spread my classes out", [s("spreadOut", "strong")]),
+  soft("I'd prefer gaps between classes", [s("spreadOut", "mild")]),
+  soft("gaps between my classes please", [s("spreadOut", "strong")]),
+  soft("breaks between my classes", [s("spreadOut", "strong")]),
+  soft("compact schedule please", [s("compact", "strong")]),
+  soft("a compact schedule", [s("compact", "strong")]),
+  soft("back-to-back classes are fine", [s("compact", "strong")]),
+  soft("I like a tight schedule", [s("compact", "strong")]),
+  soft("no gaps between classes", [s("compact", "strong")]),
+  soft("fewer gaps please", [s("compact", "strong")]),
+  soft("minimal gaps", [s("compact", "strong")]),
+  soft("get it all over with", [s("compact", "strong")]),
+  soft("get them over with", [s("compact", "strong")]),
+  soft("get everything over with", [s("compact", "strong")]),
+  soft("knock them out", [s("compact", "strong")]),
+  soft("knock it out", [s("compact", "strong")]),
+  soft("clump my classes together", [s("compact", "strong")]),
+  soft("clumped classes", [s("compact", "strong")]),
+  soft("I'd like gaps between classes if possible", [s("spreadOut", "mild")]),
+  soft("fewer days on campus", [s("fewerDays", "strong")]),
+  soft("fewer days on campus please", [s("fewerDays", "strong")]),
+  soft("fewer trips to campus", [s("fewerDays", "strong")]),
+  soft("less days on campus", [s("fewerDays", "strong")]),
+  soft("as few days on campus as possible", [s("fewerDays", "strong")]),
+  soft("as few trips as possible", [s("fewerDays", "strong")]),
+  soft("fewest days on campus", [s("fewerDays", "strong")]),
+  soft("minimize my days on campus", [s("fewerDays", "strong")]),
+  soft("I'd rather have fewer days on campus", [s("fewerDays", "mild")]),
+  soft("minimal walking", [s("minimalWalking", "strong")]),
+  soft("as little walking as possible", [s("minimalWalking", "strong")]),
+  soft("I want to walk as little as possible", [s("minimalWalking", "strong")]),
+  soft("short walks between classes", [s("minimalWalking", "strong")]),
+  soft("I don't want to walk across campus", [s("minimalWalking", "strong")]),
+  soft("no long walks", [s("minimalWalking", "strong")]),
+  soft("less walking please", [s("minimalWalking", "strong")]),
+  soft("don't make me walk a lot", [s("minimalWalking", "strong")]),
+  soft("easy graders", [s("easierGraders", "strong")]),
+  soft("easy grading", [s("easierGraders", "strong")]),
+  soft("lenient graders", [s("easierGraders", "strong")]),
+  soft("lenient grading", [s("easierGraders", "strong")]),
+  soft("I'm a morning person", [s("mornings", "strong")]),
+  soft("I am a morning person", [s("mornings", "strong")]),
+  soft("I love morning classes", [s("mornings", "strong")]),
+  soft("I like early classes", [s("mornings", "strong")]),
+  soft("I prefer morning classes", [s("mornings", "mild")]),
+  soft("I prefer early classes if possible", [s("mornings", "mild")]),
+  soft("I'm not a morning person", [s("mornings", "strong", false)]),
+  soft("no morning classes", [s("mornings", "strong", false)]),
+  soft("no early classes", [s("mornings", "strong", false)]),
+  soft("avoid morning classes", [s("mornings", "strong", false)]),
+  soft("avoid early classes", [s("mornings", "strong", false)]),
+  soft("no weekday morning classes", [s("mornings", "strong", false)]),
+  soft("I hate morning classes", [s("mornings", "strong", false)]),
+  soft("I hate early classes", [s("mornings", "strong", false)]),
+  soft("I dislike early classes", [s("mornings", "strong", false)]),
+  soft("I'd rather avoid morning classes", [s("mornings", "mild", false)]),
+  soft("skip morning classes if you can", [s("mornings", "mild", false)]),
+  soft("I'm a night person", [s("evenings", "strong")]),
+  soft("I'm an evening person", [s("evenings", "strong")]),
+  soft("I love evening classes", [s("evenings", "strong")]),
+  soft("I prefer evening classes", [s("evenings", "mild")]),
+  soft("I prefer late classes", [s("evenings", "mild")]),
+  soft("I'm not a night person", [s("evenings", "strong", false)]),
+  soft("I'm not an evening person", [s("evenings", "strong", false)]),
+  soft("no evening classes", [s("evenings", "strong", false)]),
+  soft("no late classes", [s("evenings", "strong", false)]),
+  soft("no night classes", [s("evenings", "strong", false)]),
+  soft("avoid evening classes", [s("evenings", "strong", false)]),
+  soft("I hate late classes", [s("evenings", "strong", false)]),
+  soft("I'd rather avoid evening classes", [s("evenings", "mild", false)]),
+  soft("I'd rather not have evening classes if possible", [s("evenings", "mild", false)]),
+];
+
+// ---------------------------------------------------------------------------
+// 9. Recognized-but-unexpressible requests (unsupported tags)
+// ---------------------------------------------------------------------------
+
+export const TAGS: CorpusEntry[] = [
+  tagged("avoid classes with Dr. Lee", ["avoidInstructor"]),
+  tagged("skip any class taught by Professor Smith", ["avoidInstructor"]),
+  tagged("no classes with Professor Miller", ["avoidInstructor"]),
+  tagged("avoid Professor Okafor", ["avoidInstructor"]),
+  tagged("don't want classes from Dr. Patel", ["avoidInstructor"]),
+  tagged("I'm not taking CSCE 3110", ["avoidedCourse"]),
+  tagged("I don't want to take CSCE 2110", ["avoidedCourse"]),
+  tagged("avoid CSCE 4110", ["avoidedCourse"]),
+  tagged("no HIST 2100 for me", ["avoidedCourse"]),
+  tagged("I want to take CSCE 3110", ["wantedCourse"]),
+  tagged("I need CSCE 4110", ["wantedCourse"]),
+  tagged("make sure I get MATH 1720", ["wantedCourse"]),
+  tagged("sign me up for BIOL 2042", ["wantedCourse"]),
+  tagged("only 3000-level courses", ["courseLevel"]),
+  tagged("only upper-level classes", ["courseLevel"]),
+  tagged("avoid 1000-level classes", ["courseLevel"]),
+  tagged("no lower-level sections", ["courseLevel"]),
+  tagged("no more than 3 classes a day", ["maxClassesPerDay"]),
+  tagged("at most 2 classes per day", ["maxClassesPerDay"]),
+  tagged("3 classes a day max", ["maxClassesPerDay"]),
+  tagged("only come to campus twice a week", ["exactDaysPerWeek"]),
+  tagged("I want to be on campus 3 days a week", ["exactDaysPerWeek"]),
+  tagged("no afternoon classes", ["timeOfDayBan"]),
+  tagged("no morning classes before 8am", []),
+  tagged("I'm free on Fridays", ["freeOnDay"]),
+  tagged("I'm free Wednesdays", ["freeOnDay"]),
+  tagged("same professor for all my classes", ["sameInstructor"]),
+  tagged("same instructor across sections", ["sameInstructor"]),
+  tagged("parking is a nightmare", ["parking"]),
+  tagged("I need easy parking", ["parking"]),
+  tagged("classes that meet only once a week", ["meetingsPerWeek"]),
+  tagged("no 3-hour classes", ["classDuration"]),
+  tagged("2-hour classes are too long", ["classDuration"]),
+  tagged("avoid Discovery Park", ["discoveryPark"]),
+  tagged("skip Discovery Park", ["discoveryPark"]),
+  tagged("hybrid sections would be ideal", ["hybridMode"]),
+  tagged("small classes", ["classSize"]),
+  tagged("small sections if possible", ["classSize"]),
+  tagged("class size matters to me", ["classSize"]),
+  tagged("at least a 3.0 GPA", ["gpaThreshold"]),
+  tagged("minimum 2.5 GPA", ["gpaThreshold"]),
+  tagged("as much online as possible", ["onlinePreference"]),
+  tagged("Professor Kim if possible", ["instructor"]),
+  tagged("instructor Wang would be great", ["instructor"]),
+  tagged("weekend classes are fine for me", ["weekend"]),
+  tagged("Saturday classes work", ["weekend"]),
+  tagged("Sunday sections are okay", ["weekend"]),
+];
+
+// ---------------------------------------------------------------------------
+// 10. Ambiguity honesty (bare hours never guessed)
+// ---------------------------------------------------------------------------
+
+export const AMBIGUOUS: CorpusEntry[] = [
+  tagged("nothing before 9", ["ambiguousTime"]),
+  tagged("no classes before 9", ["ambiguousTime"]),
+  tagged("don't start before 8", ["ambiguousTime"]),
+  tagged("nothing after 5", ["ambiguousTime"]),
+  tagged("no classes after 6", ["ambiguousTime"]),
+  tagged("I need to be done by 3", ["ambiguousTime"]),
+  latest("done by noon, or by 3", 720, { unsupportedTags: ["ambiguousTime"] }),
+  tagged("no 9 classes", ["ambiguousTime"]),
+  tagged("keep 2-4 free", ["ambiguousTime"]),
+  tagged("I work 1-3", ["ambiguousTime"]),
+  tagged("I work 10 to 12", ["ambiguousTime"]),
+  tagged("my first class can't be until 10", ["ambiguousTime"]),
+  e(
+    "ambiguous/mixed",
+    "nothing before 10am and nothing after 5",
+    { hard: { earliestStart: 600 }, unsupportedTags: ["ambiguousTime"] },
+  ),
+];
+
+// ---------------------------------------------------------------------------
+// 11. Unparseable input stays unparseable
+// ---------------------------------------------------------------------------
+
+export const NOISE: CorpusEntry[] = [
+  unparseable("gibberish xyzzy qwerty"),
+  unparseable("asdf jkl"),
+  unparseable("hello world"),
+  unparseable("purple elephant socks"),
+  unparseable("the quick brown fox"),
+  unparseable("hmm idk tbh", 1),
+  unparseable("lorem ipsum dolor sit amet"),
+  unparseable("x y z"),
+];
+
+// ---------------------------------------------------------------------------
+// 12. Multi-clause sentences (each clause lands in its own field)
+// ---------------------------------------------------------------------------
+
+export const MULTI: CorpusEntry[] = [
+  e(
+    "multi/work-and-days",
+    "I have work 8am to 4:30pm on Mondays and Wednesdays, so no classes on Tuesdays and Thursdays",
+    { hard: { blockedTimes: onDays(["Mon", "Wed"], 480, 990, "work"), daysOff: ["Tue", "Thu"] } },
+  ),
+  e(
+    "multi/bounds",
+    "no classes before 10am or after 4pm",
+    { hard: { earliestStart: 600, latestEnd: 960 } },
+  ),
+  e(
+    "multi/credits-and-days",
+    "I need 12 credits and keep Fridays free",
+    { hard: { creditMin: 12, daysOff: ["Fri"] } },
+  ),
+  e(
+    "multi/soft-and-hard",
+    "compact schedule and no Friday classes",
+    { hard: { daysOff: ["Fri"] }, soft: [s("compact", "strong")] },
+  ),
+  e(
+    "multi/soft-and-soft",
+    "I'm not a morning person and I'd rather have fewer days on campus",
+    { soft: [s("mornings", "strong", false), s("fewerDays", "mild")] },
+  ),
+  e(
+    "multi/mode-and-campus",
+    "online only and keep me off the Frisco campus",
+    { hard: { mode: "online", campusScope: "dentonOnly" } },
+  ),
+  e(
+    "multi/block-and-dayoff",
+    "work 9 to 5 on Mondays, nothing on Tuesdays",
+    { hard: { blockedTimes: onDays(["Mon"], 540, 1020, "work"), daysOff: ["Tue"] } },
+  ),
+  e(
+    "multi/tag-and-hard",
+    "I want to take CSCE 3110 but no classes on Fridays",
+    { hard: { daysOff: ["Fri"] }, unsupportedTags: ["wantedCourse"] },
+  ),
+  e(
+    "multi/three-soft",
+    "I'd like gaps between classes, minimal walking, and easy graders",
+    { soft: [s("spreadOut", "mild"), s("minimalWalking", "strong"), s("easierGraders", "strong")] },
+  ),
+  e(
+    "multi/fillers",
+    "hey so basically I need 12 credit hours this semester and I'd prefer gaps between classes",
+    { hard: { creditMin: 12 }, soft: [s("spreadOut", "mild")] },
+  ),
+  e(
+    "multi/seat-and-dayoff",
+    "only classes with open seats, and keep my Thursdays free",
+    { hard: { openSeatsOnly: true, daysOff: ["Thu"] } },
+  ),
+  e(
+    "multi/ambiguous-and-clean",
+    "nothing before 8, and no classes on Fridays",
+    { hard: { daysOff: ["Fri"] }, unsupportedTags: ["ambiguousTime"] },
+  ),
+  e(
+    "multi/soft-mornings-and-bounds",
+    "I'm not a morning person, no classes before 10am",
+    { hard: { earliestStart: 600 }, soft: [s("mornings", "strong", false)] },
+  ),
+  e(
+    "multi/practice-and-latest",
+    "practice Tuesdays and Thursdays 3pm to 5pm and I need to be done by 6pm",
+    { hard: { blockedTimes: onDays(["Tue", "Thu"], 900, 1020, "practice"), latestEnd: 1080 } },
+  ),
+  e(
+    "multi/dayoff-and-mode",
+    "no classes on Mondays and in-person only",
+    { hard: { daysOff: ["Mon"], mode: "inPerson" } },
+  ),
+  e(
+    "multi/tag-and-tag",
+    "I want to take CSCE 3110 and avoid CSCE 2110",
+    { unsupportedTags: ["wantedCourse", "avoidedCourse"] },
+  ),
+  e(
+    "multi/credits-range-and-soft",
+    "between 12 and 15 credits, compact schedule please",
+    { hard: { creditMin: 12, creditMax: 15 }, soft: [s("compact", "strong")] },
+  ),
+  e(
+    "multi/weekend-and-block",
+    "I work 9 to 5 on weekdays but Saturday shifts are impossible",
+    { hard: { blockedTimes: wd(540, 1020, "work") }, unsupportedTags: ["weekend"] },
+  ),
+  e(
+    "multi/onlydays-and-bounds",
+    "only TR and nothing before 10am",
+    { hard: { daysOff: ["Mon", "Wed", "Fri"], earliestStart: 600 } },
+  ),
+  e(
+    "multi/long-story",
+    "hey! I have work 8am to 4:30pm on Mondays and Wednesdays, I'm not a morning person, and I'd rather avoid evening classes if possible",
+    { hard: { blockedTimes: onDays(["Mon", "Wed"], 480, 990, "work") }, soft: [s("mornings", "strong", false), s("evenings", "mild", false)] },
+  ),
+];
+
+// ---------------------------------------------------------------------------
+
+/** Every labeled phrase, in family order. */
 export const CORPUS: CorpusEntry[] = [
-  // ---------------------------------------------------------------- earliest
-  { id: "es-001", kind: "earliestStart", text: "No classes before 10am", expect: { earliestStart: 600 } },
-  { id: "es-002", kind: "earliestStart", text: "no classes before 10 a.m.", expect: { earliestStart: 600 } },
-  { id: "es-003", kind: "earliestStart", text: "nothing before 9", expect: { earliestStart: 540 } },
-  { id: "es-004", kind: "earliestStart", text: "I don't want to start before 9", expect: { earliestStart: 540 } },
-  { id: "es-005", kind: "earliestStart", text: "I can't take classes before 11", expect: { earliestStart: 660 } },
-  { id: "es-006", kind: "earliestStart", text: "nothing earlier than 8", expect: { earliestStart: 480 } },
-  { id: "es-007", kind: "earliestStart", text: "don't start before 8:30", expect: { earliestStart: 510 } },
-  { id: "es-008", kind: "earliestStart", text: "can't start until 9:30", expect: { earliestStart: 570 } },
-  { id: "es-009", kind: "earliestStart", text: "don't begin until 10am", expect: { earliestStart: 600 } },
-  { id: "es-010", kind: "earliestStart", text: "my first class can't start before 10", expect: { earliestStart: 600 } },
-  { id: "es-011", kind: "earliestStart", text: "first section shouldn't begin before 9am", expect: { earliestStart: 540 } },
-  { id: "es-012", kind: "earliestStart", text: "earliest I can start is 9:30", expect: { earliestStart: 570 } },
-  { id: "es-013", kind: "earliestStart", text: "earliest I could start 10", expect: { earliestStart: 600 } },
-  { id: "es-014", kind: "earliestStart", text: "no morning classes", expect: { earliestStart: 720 } },
-  { id: "es-015", kind: "earliestStart", text: "no early classes", expect: { earliestStart: 720 } },
-  { id: "es-016", kind: "earliestStart", text: "9am is too early", expect: { earliestStart: 540 } },
-  { id: "es-017", kind: "earliestStart", text: "8ams are too early for me", expect: { earliestStart: 480 } },
-  { id: "es-018", kind: "earliestStart", text: "I'm not a morning person, nothing before 10", expect: { earliestStart: 600 } },
-  { id: "es-019", kind: "earliestStart", text: "not before 9am", expect: { earliestStart: 540 } },
-  { id: "es-020", kind: "earliestStart", text: "nothing that starts before 8:45am", expect: { earliestStart: 525 } },
-  { id: "es-021", kind: "earliestStart", text: "no classes that begin before noon", expect: { earliestStart: 720 } },
-  { id: "es-022", kind: "earliestStart", text: "I really can't do anything before 10am", expect: { earliestStart: 600 } },
-  { id: "es-023", kind: "earliestStart", text: "no classes before 11:30", expect: { earliestStart: 690 } },
-  { id: "es-024", kind: "earliestStart", text: "don't want anything before noon", expect: { earliestStart: 720 } },
-  { id: "es-025", kind: "earliestStart", text: "no sections before 10am", expect: { earliestStart: 600 } },
-  { id: "es-026", kind: "earliestStart", text: "can't have classes before 9", expect: { earliestStart: 540 } },
-  { id: "es-027", kind: "earliestStart", text: "no classes before 7am", expect: { earliestStart: 420 } },
-  { id: "es-028", kind: "earliestStart", text: "nothing before 9:15 please", expect: { earliestStart: 555 } },
-  { id: "es-029", kind: "earliestStart", text: "nothing before noon", expect: { earliestStart: 720 } },
-  { id: "es-030", kind: "earliestStart", text: "can't start until noon", expect: { earliestStart: 720 } },
-  { id: "es-031", kind: "earliestStart", text: "I don't want classes that start before 9:30am", expect: { earliestStart: 570 } },
-  { id: "es-032", kind: "earliestStart", text: "no classes that begin before 11", expect: { earliestStart: 660 } },
-
-  // ----------------------------------------------------------------- latest
-  { id: "le-001", kind: "latestEnd", text: "No classes after 3pm", expect: { latestEnd: 900 } },
-  { id: "le-002", kind: "latestEnd", text: "no classes after 3", expect: { latestEnd: 900 } },
-  { id: "le-003", kind: "latestEnd", text: "nothing past 5", expect: { latestEnd: 1020 } },
-  { id: "le-004", kind: "latestEnd", text: "nothing after 5:30", expect: { latestEnd: 1050 } },
-  { id: "le-005", kind: "latestEnd", text: "I need to be done by 3:30", expect: { latestEnd: 930 } },
-  { id: "le-006", kind: "latestEnd", text: "I need to be done by noon", expect: { latestEnd: 720 } },
-  { id: "le-007", kind: "latestEnd", text: "out by 4", expect: { latestEnd: 960 } },
-  { id: "le-008", kind: "latestEnd", text: "done by 2:30", expect: { latestEnd: 870 } },
-  { id: "le-009", kind: "latestEnd", text: "finished by 5", expect: { latestEnd: 1020 } },
-  { id: "le-010", kind: "latestEnd", text: "can't stay past 2", expect: { latestEnd: 840 } },
-  { id: "le-011", kind: "latestEnd", text: "can't go past 6pm", expect: { latestEnd: 1080 } },
-  { id: "le-012", kind: "latestEnd", text: "no classes that end after 4", expect: { latestEnd: 960 } },
-  { id: "le-013", kind: "latestEnd", text: "no classes ending after 3:30", expect: { latestEnd: 930 } },
-  { id: "le-014", kind: "latestEnd", text: "don't want to end after 6", expect: { latestEnd: 1080 } },
-  { id: "le-015", kind: "latestEnd", text: "nothing later than 3:30pm", expect: { latestEnd: 930 } },
-  { id: "le-016", kind: "latestEnd", text: "not later than 5pm", expect: { latestEnd: 1020 } },
-  { id: "le-017", kind: "latestEnd", text: "I have to leave by 4", expect: { latestEnd: 960 } },
-  { id: "le-018", kind: "latestEnd", text: "latest class can end at 6", expect: { latestEnd: 1080 } },
-  { id: "le-019", kind: "latestEnd", text: "latest class should end by 4:30", expect: { latestEnd: 990 } },
-  { id: "le-020", kind: "latestEnd", text: "6pm is too late", expect: { latestEnd: 1080 } },
-  { id: "le-021", kind: "latestEnd", text: "5 is too late", expect: { latestEnd: 1020 } },
-  { id: "le-022", kind: "latestEnd", text: "I want to be home by 5", expect: { latestEnd: 1020 } },
-  { id: "le-023", kind: "latestEnd", text: "be home by 4:30", expect: { latestEnd: 990 } },
-  { id: "le-024", kind: "latestEnd", text: "no classes after noon", expect: { latestEnd: 720 } },
-  { id: "le-025", kind: "latestEnd", text: "over by 2:30", expect: { latestEnd: 870 } },
-  { id: "le-026", kind: "latestEnd", text: "I'd like to finish by 3", expect: { latestEnd: 900 } },
-  { id: "le-027", kind: "latestEnd", text: "no classes after 4:30", expect: { latestEnd: 990 } },
-  { id: "le-028", kind: "latestEnd", text: "don't let out after 5", expect: { latestEnd: 1020 } },
-  { id: "le-029", kind: "latestEnd", text: "nothing after 2 on Tuesdays", expect: { latestEnd: 840 } },
-  { id: "le-030", kind: "latestEnd", text: "I need to be off by 3:30", expect: { latestEnd: 930 } },
-  { id: "le-031", kind: "latestEnd", text: "nothing after 7", expect: { latestEnd: 1140 } },
-  { id: "le-032", kind: "latestEnd", text: "no classes past 1", expect: { latestEnd: 780 } },
-
-  // ---------------------------------------------------------------- days off
-  { id: "do-001", kind: "daysOff", text: "no classes on Friday", expect: { daysOff: ["Fri"] } },
-  { id: "do-002", kind: "daysOff", text: "no classes on Fridays", expect: { daysOff: ["Fri"] } },
-  { id: "do-003", kind: "daysOff", text: "no Friday classes", expect: { daysOff: ["Fri"] } },
-  { id: "do-004", kind: "daysOff", text: "I don't want Friday classes", expect: { daysOff: ["Fri"] } },
-  { id: "do-005", kind: "daysOff", text: "don't schedule anything on Tuesdays", expect: { daysOff: ["Tue"] } },
-  { id: "do-006", kind: "daysOff", text: "skip Tuesdays and Thursdays", expect: { daysOff: ["Tue", "Thu"] } },
-  { id: "do-007", kind: "daysOff", text: "no Monday or Wednesday classes", expect: { daysOff: ["Mon", "Wed"] } },
-  { id: "do-008", kind: "daysOff", text: "avoid Friday classes", expect: { daysOff: ["Fri"] } },
-  { id: "do-009", kind: "daysOff", text: "Fridays off", expect: { daysOff: ["Fri"] } },
-  { id: "do-010", kind: "daysOff", text: "weekends are off", expect: { daysOff: WE } },
-  { id: "do-011", kind: "daysOff", text: "weekends off", expect: { daysOff: WE } },
-  { id: "do-012", kind: "daysOff", text: "weekdays off", expect: { daysOff: WD } },
-  { id: "do-013", kind: "daysOff", text: "keep my weekends free", expect: { daysOff: WE } },
-  { id: "do-014", kind: "daysOff", text: "keep Fridays free", expect: { daysOff: ["Fri"] } },
-  { id: "do-015", kind: "daysOff", text: "leave my Fridays open", expect: { daysOff: ["Fri"] } },
-  { id: "do-016", kind: "daysOff", text: "I'm free on Wednesdays", expect: { daysOff: ["Wed"] } },
-  { id: "do-017", kind: "daysOff", text: "free Fridays", expect: { daysOff: ["Fri"] } },
-  { id: "do-018", kind: "daysOff", text: "Wednesdays are free", expect: { daysOff: ["Wed"] } },
-  { id: "do-019", kind: "daysOff", text: "nothing on Mondays", expect: { daysOff: ["Mon"] } },
-  { id: "do-020", kind: "daysOff", text: "I go home on Saturdays", expect: { daysOff: ["Sat"] } },
-  { id: "do-021", kind: "daysOff", text: "I go back home Fridays", expect: { daysOff: ["Fri"] } },
-  { id: "do-022", kind: "daysOff", text: "I have church on Sundays", expect: { daysOff: ["Sun"] } },
-  { id: "do-023", kind: "daysOff", text: "only MWF", expect: { daysOff: ["Tue", "Thu", "Sat", "Sun"] } },
-  { id: "do-024", kind: "daysOff", text: "only on TTH", expect: { daysOff: ["Mon", "Wed", "Fri", "Sat", "Sun"] } },
-  { id: "do-025", kind: "daysOff", text: "no classes on weekends", expect: { daysOff: WE } },
-  { id: "do-026", kind: "daysOff", text: "no saturday classes", expect: { daysOff: ["Sat"] } },
-  { id: "do-027", kind: "daysOff", text: "I'd rather not have Friday classes", expect: { daysOff: ["Fri"] } },
-  { id: "do-028", kind: "daysOff", text: "no thursday classes please", expect: { daysOff: ["Thu"] } },
-  { id: "do-029", kind: "daysOff", text: "MW only", expect: { daysOff: ["Tue", "Thu", "Fri", "Sat", "Sun"] } },
-  { id: "do-030", kind: "daysOff", text: "skip mondays", expect: { daysOff: ["Mon"] } },
-  { id: "do-031", kind: "daysOff", text: "don't want Monday or Wednesday classes", expect: { daysOff: ["Mon", "Wed"] } },
-  { id: "do-032", kind: "daysOff", text: "no classes tues or thurs", expect: { daysOff: ["Tue", "Thu"] } },
-  { id: "do-033", kind: "daysOff", text: "nothing on saturdays", expect: { daysOff: ["Sat"] } },
-  { id: "do-034", kind: "daysOff", text: "Fridays are free", expect: { daysOff: ["Fri"] } },
-
-  // ------------------------------------------------------------ blocked time
-  { id: "bt-001", kind: "blockedTimes", text: "I work MWF 9-2", expect: { blockedTimes: block(["Mon", "Wed", "Fri"], 540, 840, "work") } },
-  { id: "bt-002", kind: "blockedTimes", text: "I work Mondays 9 to 2", expect: { blockedTimes: block(["Mon"], 540, 840, "work") } },
-  { id: "bt-003", kind: "blockedTimes", text: "Mondays I work 9 to 2", expect: { blockedTimes: block(["Mon"], 540, 840, "work") } },
-  { id: "bt-004", kind: "blockedTimes", text: "keep 12-1 free", expect: { blockedTimes: block(ALL, 720, 780) } },
-  { id: "bt-005", kind: "blockedTimes", text: "keep 12 to 1 free for lunch on weekdays", expect: { blockedTimes: block(WD, 720, 780, "lunch") } },
-  { id: "bt-006", kind: "blockedTimes", text: "keep 11-1 open", expect: { blockedTimes: block(ALL, 660, 780) } },
-  { id: "bt-007", kind: "blockedTimes", text: "Tuesday and Thursday 2-5pm", expect: { blockedTimes: block(["Tue", "Thu"], 840, 1020) } },
-  { id: "bt-008", kind: "blockedTimes", text: "Tuesdays and Thursdays 2 to 5", expect: { blockedTimes: block(["Tue", "Thu"], 840, 1020) } },
-  { id: "bt-009", kind: "blockedTimes", text: "I have practice 3 to 5", expect: { blockedTimes: block(ALL, 900, 1020, "practice") } },
-  { id: "bt-010", kind: "blockedTimes", text: "I volunteer Tuesdays 1-4", expect: { blockedTimes: block(["Tue"], 780, 960, "volunteer") } },
-  { id: "bt-011", kind: "blockedTimes", text: "I babysit every weekday 2-6", expect: { blockedTimes: block(WD, 840, 1080, "babysit") } },
-  { id: "bt-012", kind: "blockedTimes", text: "no 8am classes", expect: { blockedTimes: block(ALL, 480, 540) } },
-  { id: "bt-013", kind: "blockedTimes", text: "no 3pm classes", expect: { blockedTimes: block(ALL, 900, 960) } },
-  { id: "bt-014", kind: "blockedTimes", text: "can't do 9ams", expect: { blockedTimes: block(ALL, 540, 600) } },
-  { id: "bt-015", kind: "blockedTimes", text: "I work from 8am to 4pm every day", expect: { blockedTimes: block(ALL, 480, 960, "work") } },
-  { id: "bt-016", kind: "blockedTimes", text: "daily 10 to 11:30", expect: { blockedTimes: block(ALL, 600, 690) } },
-  { id: "bt-017", kind: "blockedTimes", text: "set aside noon to 2 for lunch", expect: { blockedTimes: block(ALL, 720, 840, "lunch") } },
-  { id: "bt-018", kind: "blockedTimes", text: "reserve 2-4 for practice", expect: { blockedTimes: block(ALL, 840, 960, "practice") } },
-  { id: "bt-019", kind: "blockedTimes", text: "I have lab from 2 until 6", expect: { blockedTimes: block(ALL, 840, 1080, "lab") } },
-  { id: "bt-020", kind: "blockedTimes", text: "clinical rotations run 8 to 5", expect: { blockedTimes: block(ALL, 480, 1020, "clinical") } },
-  { id: "bt-021", kind: "blockedTimes", text: "reserve 7am to 3pm on Saturdays", expect: { blockedTimes: block(["Sat"], 420, 900) } },
-  { id: "bt-022", kind: "blockedTimes", text: "keep 5 to 6pm blocked", expect: { blockedTimes: block(ALL, 1020, 1080) } },
-  { id: "bt-023", kind: "blockedTimes", text: "keep 9:30 to 11 free", expect: { blockedTimes: block(ALL, 570, 660) } },
-  { id: "bt-024", kind: "blockedTimes", text: "I train 10-2 on Saturdays", expect: { blockedTimes: block(["Sat"], 600, 840, "train") } },
-  { id: "bt-025", kind: "blockedTimes", text: "I work Sundays 8am to noon", expect: { blockedTimes: block(["Sun"], 480, 720, "work") } },
-  { id: "bt-026", kind: "blockedTimes", text: "keep 4-5 free", expect: { blockedTimes: block(ALL, 960, 1020) } },
-  { id: "bt-027", kind: "blockedTimes", text: "practice from 1 to 3 daily", expect: { blockedTimes: block(ALL, 780, 900, "practice") } },
-  { id: "bt-028", kind: "blockedTimes", text: "no 9am classes", expect: { blockedTimes: block(ALL, 540, 600) } },
-  { id: "bt-029", kind: "blockedTimes", text: "keep 2 to 1 free", expect: { blockedTimes: block(ALL, 840, 1500) } },
-  { id: "bt-030", kind: "blockedTimes", text: "I volunteer Fridays 9 to 1", expect: { blockedTimes: block(["Fri"], 540, 780, "volunteer") } },
-
-  // ---------------------------------------------------------------- credits
-  { id: "cr-001", kind: "credits", text: "no more than 15 credit hours", expect: { creditMax: 15 } },
-  { id: "cr-002", kind: "credits", text: "no more than 15 credits", expect: { creditMax: 15 } },
-  { id: "cr-003", kind: "credits", text: "at least 12 credits", expect: { creditMin: 12 } },
-  { id: "cr-004", kind: "credits", text: "at least 12 credit hours", expect: { creditMin: 12 } },
-  { id: "cr-005", kind: "credits", text: "exactly 15 credits", expect: { creditMin: 15, creditMax: 15 } },
-  { id: "cr-006", kind: "credits", text: "between 12 and 15 credits", expect: { creditMin: 12, creditMax: 15 } },
-  { id: "cr-007", kind: "credits", text: "between 12 and 15 credit hours", expect: { creditMin: 12, creditMax: 15 } },
-  { id: "cr-008", kind: "credits", text: "12 to 15 credit hours", expect: { creditMin: 12, creditMax: 15 } },
-  { id: "cr-009", kind: "credits", text: "max 18 hours", expect: { creditMax: 18 } },
-  { id: "cr-010", kind: "credits", text: "maximum of 16 credits", expect: { creditMax: 16 } },
-  { id: "cr-011", kind: "credits", text: "15 hours max", expect: { creditMax: 15 } },
-  { id: "cr-012", kind: "credits", text: "no fewer than 12 credits", expect: { creditMin: 12 } },
-  { id: "cr-013", kind: "credits", text: "fewer than 15 credits", expect: { creditMax: 14 } },
-  { id: "cr-014", kind: "credits", text: "less than 12 hours", expect: { creditMax: 11 } },
-  { id: "cr-015", kind: "credits", text: "more than 12 credit hours", expect: { creditMin: 13 } },
-  { id: "cr-016", kind: "credits", text: "over 14 credits", expect: { creditMin: 15 } },
-  { id: "cr-017", kind: "credits", text: "up to 16 credits", expect: { creditMax: 16 } },
-  { id: "cr-018", kind: "credits", text: "I need 12 credit hours", expect: { creditMin: 12 } },
-  { id: "cr-019", kind: "credits", text: "minimum of 14 credits", expect: { creditMin: 14 } },
-  { id: "cr-020", kind: "credits", text: "12 or fewer credits", expect: { creditMax: 12 } },
-  { id: "cr-021", kind: "credits", text: "16 or more credits", expect: { creditMin: 16 } },
-  { id: "cr-022", kind: "credits", text: "at most 13 credit hours", expect: { creditMax: 13 } },
-  { id: "cr-023", kind: "credits", text: "somewhere between 13 and 16 hours", expect: { creditMin: 13, creditMax: 16 } },
-  { id: "cr-024", kind: "credits", text: "at least 9 hours", expect: { creditMin: 9 } },
-  { id: "cr-025", kind: "credits", text: "no more than 12hrs", expect: { creditMax: 12 } },
-  { id: "cr-026", kind: "credits", text: "around 15 credits is my sweet spot", expect: {} },
-  { id: "cr-027", kind: "credits", text: "I want about 15 credits", expect: {}, unparseable: true },
-  { id: "cr-028", kind: "credits", text: "no more than 18 credit hours please", expect: { creditMax: 18 } },
-
-  // ------------------------------------------------------------------ seats
-  { id: "st-001", kind: "seats", text: "only classes with open seats", expect: { openSeatsOnly: true } },
-  { id: "st-002", kind: "seats", text: "open seats only", expect: { openSeatsOnly: true } },
-  { id: "st-003", kind: "seats", text: "no waitlisted classes", expect: { openSeatsOnly: true } },
-  { id: "st-004", kind: "seats", text: "no wait-listed sections", expect: { openSeatsOnly: true } },
-  { id: "st-005", kind: "seats", text: "don't pick closed sections", expect: { openSeatsOnly: true } },
-  { id: "st-006", kind: "seats", text: "don't suggest full courses", expect: { openSeatsOnly: true } },
-  { id: "st-007", kind: "seats", text: "nothing waitlisted", expect: { openSeatsOnly: true } },
-  { id: "st-008", kind: "seats", text: "nothing closed", expect: { openSeatsOnly: true } },
-  { id: "st-009", kind: "seats", text: "make sure they have open seats", expect: { openSeatsOnly: true } },
-  { id: "st-010", kind: "seats", text: "only sections that still have open seats", expect: { openSeatsOnly: true } },
-  { id: "st-011", kind: "seats", text: "don't show me closed classes", expect: { openSeatsOnly: true } },
-
-  // ----------------------------------------------------------------- campus
-  { id: "ca-001", kind: "campus", text: "Denton campus only", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-002", kind: "campus", text: "main campus only", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-003", kind: "campus", text: "only the Denton campus", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-004", kind: "campus", text: "no Frisco", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-005", kind: "campus", text: "Frisco is too far", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-006", kind: "campus", text: "other campuses are too far", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-007", kind: "campus", text: "don't send me to Frisco", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-008", kind: "campus", text: "keep me at the main campus", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-009", kind: "campus", text: "denton only", expect: { campusScope: "dentonOnly" } },
-  { id: "ca-010", kind: "campus", text: "other campuses are fine", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-011", kind: "campus", text: "I can go to Frisco", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-012", kind: "campus", text: "I could drive to other sites", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-013", kind: "campus", text: "don't mind going to Frisco", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-014", kind: "campus", text: "open to other campuses", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-015", kind: "campus", text: "Frisco works for me", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-016", kind: "campus", text: "other campuses work too", expect: { campusScope: "otherSitesOk" } },
-  { id: "ca-017", kind: "campus", text: "no other sites", expect: { campusScope: "dentonOnly" } },
-
-  // ------------------------------------------------------------------- mode
-  { id: "mo-001", kind: "mode", text: "online only", expect: { mode: "online" } },
-  { id: "mo-002", kind: "mode", text: "all online", expect: { mode: "online" } },
-  { id: "mo-003", kind: "mode", text: "I want all online classes", expect: { mode: "online" } },
-  { id: "mo-004", kind: "mode", text: "everything online", expect: { mode: "online" } },
-  { id: "mo-005", kind: "mode", text: "no in-person classes", expect: { mode: "online" } },
-  { id: "mo-006", kind: "mode", text: "no campus classes", expect: { mode: "online" } },
-  { id: "mo-007", kind: "mode", text: "only online courses", expect: { mode: "online" } },
-  { id: "mo-008", kind: "mode", text: "in person only", expect: { mode: "inPerson" } },
-  { id: "mo-009", kind: "mode", text: "in-person only", expect: { mode: "inPerson" } },
-  { id: "mo-010", kind: "mode", text: "no online sections", expect: { mode: "inPerson" } },
-  { id: "mo-011", kind: "mode", text: "face-to-face only", expect: { mode: "inPerson" } },
-  { id: "mo-012", kind: "mode", text: "I need to be in a classroom", expect: { mode: "inPerson" } },
-  { id: "mo-013", kind: "mode", text: "as much online as possible", unsupportedTags: ["onlinePreference"] },
-
-  // ---------------------------------------------------------------- courses
-  { id: "co-001", kind: "courses", text: "I need CSCE 3110", expect: { wantedCourses: ["CSCE 3110"] } },
-  { id: "co-002", kind: "courses", text: "I have to take MATH 1710", expect: { wantedCourses: ["MATH 1710"] } },
-  { id: "co-003", kind: "courses", text: "signing up for BIOL 2041", expect: { wantedCourses: ["BIOL 2041"] } },
-  { id: "co-004", kind: "courses", text: "avoid CSCE 4110", expect: { avoidedCourses: ["CSCE 4110"] } },
-  { id: "co-005", kind: "courses", text: "I don't want to take MATH 1710", expect: { avoidedCourses: ["MATH 1710"] } },
-  { id: "co-006", kind: "courses", text: "anything but HIST 2610", expect: { avoidedCourses: ["HIST 2610"] } },
-  { id: "co-007", kind: "courses", text: "I need CSCE 3110 and MATH 1710", expect: { wantedCourses: ["CSCE 3110", "MATH 1710"] } },
-  { id: "co-008", kind: "courses", text: "take ENGL 1310 this term", expect: { wantedCourses: ["ENGL 1310"] } },
-  { id: "co-009", kind: "courses", text: "planning on PSCI 2305", expect: { wantedCourses: ["PSCI 2305"] } },
-  { id: "co-010", kind: "courses", text: "not interested in ART 1300", expect: { avoidedCourses: ["ART 1300"] } },
-  { id: "co-011", kind: "courses", text: "skip CHEM 2370", expect: { avoidedCourses: ["CHEM 2370"] } },
-  { id: "co-012", kind: "courses", text: "I want ECON 1110", expect: { wantedCourses: ["ECON 1110"] } },
-  { id: "co-013", kind: "courses", text: "hoping for MUSM 1250", expect: { wantedCourses: ["MUSM 1250"] } },
-  { id: "co-014", kind: "courses", text: "must take PHYS 2250", expect: { wantedCourses: ["PHYS 2250"] } },
-  { id: "co-015", kind: "courses", text: "I need to add KMED 3000", expect: { wantedCourses: ["KMED 3000"] } },
-  { id: "co-016", kind: "courses", text: "Transfer credit for MATH 1710 already posted", expect: {} },
-  { id: "co-017", kind: "courses", text: "avoiding ART 1300 and MUSM 1250", expect: { avoidedCourses: ["ART 1300", "MUSM 1250"] } },
-  { id: "co-018", kind: "courses", text: "I need CSCE 3110, MATH 1710, and BIOL 2041", expect: { wantedCourses: ["CSCE 3110", "MATH 1710", "BIOL 2041"] } },
-  { id: "co-019", kind: "courses", text: "require PHIL 1050", expect: { wantedCourses: ["PHIL 1050"] } },
-  { id: "co-020", kind: "courses", text: "no CSCE 4110 for me", expect: { avoidedCourses: ["CSCE 4110"] } },
-  { id: "co-021", kind: "courses", text: "I need CSCE 3110 and no MATH 1710", expect: { wantedCourses: ["CSCE 3110"], avoidedCourses: ["MATH 1710"] } },
-  { id: "co-022", kind: "courses", text: "sign up for ANTH 2350", expect: { wantedCourses: ["ANTH 2350"] } },
-  { id: "co-023", kind: "courses", text: "I'd rather take MATH 1650", expect: { wantedCourses: ["MATH 1650"] } },
-  { id: "co-024", kind: "courses", text: "I need UHST 3010", expect: { wantedCourses: ["UHST 3010"] } },
-  { id: "co-025", kind: "courses", text: "not CSCE 4110", expect: { avoidedCourses: ["CSCE 4110"] } },
-
-  // ------------------------------------------------------------- instructor
-  { id: "in-001", kind: "instructor", text: "prefer professor Miller", expect: { instructor: { kind: "named", name: "Miller", strength: "mild" } } },
-  { id: "in-002", kind: "instructor", text: "I really want professor Kim", expect: { instructor: { kind: "named", name: "Kim", strength: "strong" } } },
-  { id: "in-003", kind: "instructor", text: "want dr. Patel", expect: { instructor: { kind: "named", name: "Patel", strength: "mild" } } },
-  { id: "in-004", kind: "instructor", text: "only want a class with prof Nguyen", expect: { instructor: { kind: "named", name: "Nguyen", strength: "mild" } } },
-  { id: "in-005", kind: "instructor", text: "professor Wang if possible", expect: { instructor: { kind: "named", name: "Wang", strength: "mild" } } },
-  { id: "in-006", kind: "instructor", text: "please pick prof Adams", expect: { instructor: { kind: "named", name: "Adams", strength: "strong" } } },
-  { id: "in-007", kind: "instructor", text: "give me dr. Chen", expect: { instructor: { kind: "named", name: "Chen", strength: "mild" } } },
-  { id: "in-008", kind: "instructor", text: "looking for easier graders", expect: { instructor: { kind: "easierGraders", strength: "mild" } } },
-  { id: "in-009", kind: "instructor", text: "I need easier graders", expect: { instructor: { kind: "easierGraders", strength: "strong" } } },
-  { id: "in-010", kind: "instructor", text: "lenient grading please", expect: { instructor: { kind: "easierGraders", strength: "mild" } } },
-  { id: "in-011", kind: "instructor", text: "an easy A would be nice", expect: { instructor: { kind: "easierGraders", strength: "mild" } } },
-  { id: "in-012", kind: "instructor", text: "I really need easy graders", expect: { instructor: { kind: "easierGraders", strength: "strong" } } },
-  { id: "in-013", kind: "instructor", text: "grades easily", expect: { instructor: { kind: "easierGraders", strength: "mild" } } },
-  { id: "in-014", kind: "instructor", text: "I must have professor Ortiz", expect: { instructor: { kind: "named", name: "Ortiz", strength: "strong" } } },
-
-  // ------------------------------------------------------------------- soft
-  { id: "so-001", kind: "soft", text: "compact schedule please", expect: { soft: ["compact"] } },
-  { id: "so-002", kind: "soft", text: "I really want a compact schedule", expect: { soft: ["compact"], softStrong: ["compact"] } },
-  { id: "so-003", kind: "soft", text: "back-to-back is fine", expect: { soft: ["compact"] } },
-  { id: "so-004", kind: "soft", text: "don't want back-to-back", expect: { soft: ["spreadOut"] } },
-  { id: "so-005", kind: "soft", text: "no back-to-back classes", expect: { soft: ["spreadOut"] } },
-  { id: "so-006", kind: "soft", text: "spread my classes out", expect: { soft: ["spreadOut"] } },
-  { id: "so-007", kind: "soft", text: "please spread them out", expect: { soft: ["spreadOut"], softStrong: ["spreadOut"] } },
-  { id: "so-008", kind: "soft", text: "I need gaps between my classes", expect: { soft: ["spreadOut"], softStrong: ["spreadOut"] } },
-  { id: "so-009", kind: "soft", text: "some breaks between classes", expect: { soft: ["spreadOut"] } },
-  { id: "so-010", kind: "soft", text: "as few days on campus as possible", expect: { soft: ["fewerDays"], softStrong: ["fewerDays"] } },
-  { id: "so-011", kind: "soft", text: "fewer days on campus", expect: { soft: ["fewerDays"] } },
-  { id: "so-012", kind: "soft", text: "minimize my days on campus", expect: { soft: ["fewerDays"] } },
-  { id: "so-013", kind: "soft", text: "I want the fewest days possible", expect: { soft: ["fewerDays"] } },
-  { id: "so-014", kind: "soft", text: "minimal walking", expect: { soft: ["minimalWalking"] } },
-  { id: "so-015", kind: "soft", text: "as little walking as possible", expect: { soft: ["minimalWalking"], softStrong: ["minimalWalking"] } },
-  { id: "so-016", kind: "soft", text: "walk as little as possible", expect: { soft: ["minimalWalking"], softStrong: ["minimalWalking"] } },
-  { id: "so-017", kind: "soft", text: "don't want to walk across campus", expect: { soft: ["minimalWalking"] } },
-  { id: "so-018", kind: "soft", text: "no long walks between classes", expect: { soft: ["minimalWalking"] } },
-  { id: "so-019", kind: "soft", text: "I want to get it all over with", expect: { soft: ["compact"] } },
-  { id: "so-020", kind: "soft", text: "tight schedule please", expect: { soft: ["compact"] } },
-  { id: "so-021", kind: "soft", text: "really need a tight schedule", expect: { soft: ["compact"], softStrong: ["compact"] } },
-  { id: "so-022", kind: "soft", text: "space them out", expect: { soft: ["spreadOut"] } },
-  { id: "so-023", kind: "soft", text: "short walks between buildings", expect: { soft: ["minimalWalking"] } },
-  { id: "so-024", kind: "soft", text: "clump everything together", expect: { soft: ["compact"] } },
-  { id: "so-025", kind: "soft", text: "I hate long gaps between classes", expect: { soft: ["spreadOut"], softStrong: ["spreadOut"] } },
-  { id: "so-026", kind: "soft", text: "as few days on campus as possible please", expect: { soft: ["fewerDays"], softStrong: ["fewerDays"] } },
-
-  // ------------------------------------------------------------------ multi
-  { id: "mu-001", kind: "multi", text: "no classes before 10am or after 6pm", expect: { earliestStart: 600, latestEnd: 1080 } },
-  { id: "mu-002", kind: "multi", text: "no Friday classes and nothing before 9", expect: { daysOff: ["Fri"], earliestStart: 540 } },
-  { id: "mu-003", kind: "multi", text: "keep 12-1 free and no more than 15 credit hours", expect: { blockedTimes: block(ALL, 720, 780), creditMax: 15 } },
-  { id: "mu-004", kind: "multi", text: "online only, no classes before 9am", expect: { mode: "online", earliestStart: 540 } },
-  { id: "mu-005", kind: "multi", text: "I need CSCE 3110 and no classes on Friday", expect: { wantedCourses: ["CSCE 3110"], daysOff: ["Fri"] } },
-  { id: "mu-006", kind: "multi", text: "at least 12 credits, nothing after 5pm, compact", expect: { creditMin: 12, latestEnd: 1020, soft: ["compact"] } },
-  { id: "mu-007", kind: "multi", text: "weekends off and no classes before 9:30", expect: { daysOff: WE, earliestStart: 570 } },
-  { id: "mu-008", kind: "multi", text: "I work Tuesdays 2-6 and prefer easier graders", expect: { blockedTimes: block(["Tue"], 840, 1080, "work"), instructor: { kind: "easierGraders", strength: "mild" } } },
-  { id: "mu-009", kind: "multi", text: "Denton campus only, don't want back-to-back", expect: { campusScope: "dentonOnly", soft: ["spreadOut"] } },
-  { id: "mu-010", kind: "multi", text: "only classes with open seats and no more than 2 classes a day", expect: { openSeatsOnly: true }, unsupportedTags: ["maxClassesPerDay"] },
-  { id: "mu-011", kind: "multi", text: "no classes before 10am, don't schedule anything on Mondays", expect: { earliestStart: 600, daysOff: ["Mon"] } },
-  { id: "mu-012", kind: "multi", text: "as few days on campus as possible and nothing after 3", expect: { soft: ["fewerDays"], softStrong: ["fewerDays"], latestEnd: 900 } },
-  { id: "mu-013", kind: "multi", text: "spread them out, Frisco is fine", expect: { soft: ["spreadOut"], campusScope: "otherSitesOk" } },
-  { id: "mu-014", kind: "multi", text: "no 8am classes and no more than 15 credit hours", expect: { blockedTimes: block(ALL, 480, 540), creditMax: 15 } },
-  { id: "mu-015", kind: "multi", text: "skip Fridays, at least 12 credits, out by 4", expect: { daysOff: ["Fri"], creditMin: 12, latestEnd: 960 } },
-  { id: "mu-016", kind: "multi", text: "I work MWF 9-2 and want dr. Patel", expect: { blockedTimes: block(["Mon", "Wed", "Fri"], 540, 840, "work"), instructor: { kind: "named", name: "Patel", strength: "mild" } } },
-  { id: "mu-017", kind: "multi", text: "no classes on Tuesday or Thursday, 12 to 15 credits", expect: { daysOff: ["Tue", "Thu"], creditMin: 12, creditMax: 15 } },
-  { id: "mu-018", kind: "multi", text: "in person only and nothing before 10", expect: { mode: "inPerson", earliestStart: 600 } },
-  { id: "mu-019", kind: "multi", text: "compact please, no Friday classes", expect: { soft: ["compact"], daysOff: ["Fri"] } },
-  { id: "mu-020", kind: "multi", text: "no classes before 9am or after 3", expect: { earliestStart: 540, latestEnd: 900 } },
-  { id: "mu-021", kind: "multi", text: "at least 12 credits, avoid CSCE 4110", expect: { creditMin: 12, avoidedCourses: ["CSCE 4110"] } },
-  { id: "mu-022", kind: "multi", text: "nothing after 4pm, minimal walking", expect: { latestEnd: 960, soft: ["minimalWalking"] } },
-  { id: "mu-023", kind: "multi", text: "weekends off and online only", expect: { daysOff: WE, mode: "online" } },
-  { id: "mu-024", kind: "multi", text: "I have practice 3 to 5 and no classes on Monday", expect: { blockedTimes: block(ALL, 900, 1020, "practice"), daysOff: ["Mon"] } },
-
-  // ------------------------------------------------------------ unsupported
-  { id: "un-001", kind: "unsupported", text: "no more than 2 classes a day", unsupportedTags: ["maxClassesPerDay"] },
-  { id: "un-002", kind: "unsupported", text: "2 classes a day max", unsupportedTags: ["maxClassesPerDay"] },
-  { id: "un-003", kind: "unsupported", text: "I want to be on campus twice a week", unsupportedTags: ["exactDaysPerWeek"] },
-  { id: "un-004", kind: "unsupported", text: "I want to be on campus three times a week", unsupportedTags: ["exactDaysPerWeek"] },
-  { id: "un-005", kind: "unsupported", text: "avoid professor Smith", unsupportedTags: ["avoidInstructor"] },
-  { id: "un-006", kind: "unsupported", text: "no class with professor Boyd", unsupportedTags: ["avoidInstructor"] },
-  { id: "un-007", kind: "unsupported", text: "parking is a nightmare", unsupportedTags: ["parking"] },
-  { id: "un-008", kind: "unsupported", text: "parking near campus is impossible", unsupportedTags: ["parking"] },
-  { id: "un-009", kind: "unsupported", text: "only 3000-level courses", unsupportedTags: ["courseLevel"] },
-  { id: "un-010", kind: "unsupported", text: "upper level only", unsupportedTags: ["courseLevel"] },
-  { id: "un-011", kind: "unsupported", text: "no 4000-level courses", unsupportedTags: ["courseLevel"] },
-  { id: "un-012", kind: "unsupported", text: "sections that meet only once a week", unsupportedTags: ["meetingsPerWeek"] },
-  { id: "un-013", kind: "unsupported", text: "no three-hour blocks", unsupportedTags: ["classDuration"] },
-  { id: "un-014", kind: "unsupported", text: "3 hour classes are too long", unsupportedTags: ["classDuration"] },
-  { id: "un-015", kind: "unsupported", text: "no Discovery Park", unsupportedTags: ["discoveryPark"] },
-  { id: "un-016", kind: "unsupported", text: "avoid Discovery Park", unsupportedTags: ["discoveryPark"] },
-  { id: "un-017", kind: "unsupported", text: "hybrid would be ideal", unsupportedTags: ["hybridMode"] },
-  { id: "un-018", kind: "unsupported", text: "small classes", unsupportedTags: ["classSize"] },
-  { id: "un-019", kind: "unsupported", text: "class size matters", unsupportedTags: ["classSize"] },
-  { id: "un-020", kind: "unsupported", text: "professors with at least a 3.5 average GPA", unsupportedTags: ["gpaThreshold"] },
-  { id: "un-021", kind: "unsupported", text: "no evening classes", unsupportedTags: ["timeOfDayBan"] },
-  { id: "un-022", kind: "unsupported", text: "same professor for everything", unsupportedTags: ["sameInstructor"] },
-  { id: "un-023", kind: "unsupported", text: "I want the same instructor across courses", unsupportedTags: ["sameInstructor"] },
-  { id: "un-024", kind: "unsupported", text: "no classes that meet on Fridays only", expect: {} },
-
-  // ---------------------------------------------------------------- chatter
-  { id: "ch-001", kind: "chatter", text: "I like pizza", expect: {} },
-  { id: "ch-002", kind: "chatter", text: "hello there", expect: {} },
-  { id: "ch-003", kind: "chatter", text: "I prefer afternoons", unparseable: true },
-  { id: "ch-004", kind: "chatter", text: "I'd rather not take 8ams", unparseable: true },
-  { id: "ch-005", kind: "chatter", text: "idk whatever works", expect: {} },
-  { id: "ch-006", kind: "chatter", text: "just make it work", expect: {} },
-  { id: "ch-007", kind: "chatter", text: "I want it to feel right", unparseable: true },
-  { id: "ch-008", kind: "chatter", text: "surprise me", expect: {} },
-  { id: "ch-009", kind: "chatter", text: "classes are hard", expect: {} },
-  { id: "ch-010", kind: "chatter", text: "I dunno, something chill", unparseable: true },
+  ...BLOCKED,
+  ...DAYS_OFF,
+  ...ONLY_DAYS,
+  ...EARLIEST,
+  ...LATEST,
+  ...CREDITS_CASES,
+  ...FILTERS,
+  ...SOFT_CASES,
+  ...TAGS,
+  ...AMBIGUOUS,
+  ...NOISE,
+  ...MULTI,
 ];

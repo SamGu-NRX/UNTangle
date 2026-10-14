@@ -3,22 +3,30 @@
  *
  * A student says things like "no classes before 10 on Fridays, and I want
  * it all compact" in one breath. This module defines the shape those words
- * parse into (`PreferenceIntent`) and the pure bridge onto the planner's
- * existing inputs (`toPlannerPreferences`). The rule-based parser lives in
- * `parse.ts`; this file is only the contract and the mapping.
+ * parse into (`PreferenceIntent`) and the pure patch function onto the
+ * planner's existing inputs (`applyIntent`). The rule-based parser lives in
+ * `parse.ts`; this file is the contract, the empty intent, and the patch.
  *
  * Two families, kept apart on purpose:
  *
- * - hard constraints are all-or-nothing. A schedule that breaks one is
- *   wrong, the same way the optimizer treats `OptConstraints`.
+ * - hard constraints. A schedule that breaks one is wrong.
  * - soft preferences are leanings. Each carries a strength ("strong" or
  *   "mild") so the planner can trade them against each other.
  *
  * Time conventions match the optimizer: minutes after midnight, half-open
  * intervals `[start, end)`. A class ending at 10:00 and a commitment
  * starting at 10:00 do not conflict.
+ *
+ * Patch semantics (the contract the review pinned): `applyIntent` touches
+ * only the fields the intent sets. Every field the intent leaves null or
+ * absent is preserved byte-identically from `current` - including
+ * `walkingBufferMinutes`, `excludedSections` and every weight the intent
+ * does not mention - and the result always satisfies
+ * `parseSchedulePreferences`.
  */
 
+import { uniqueBlockId } from "../../components/schedule/constraint-logic";
+import { weekDays } from "../types";
 import type {
   BlockedTime,
   PreferenceWeights,
@@ -26,10 +34,6 @@ import type {
   SchedulePreferences,
   WeekDay,
 } from "../types";
-
-/** Every day a preference can mention. The planner's own day settings stop at Fri; see `toPlannerPreferences`. */
-export const PREF_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-export type PrefDay = (typeof PREF_DAYS)[number];
 
 /** How much a soft preference matters when the planner prices trade-offs. */
 export type Strength = "strong" | "mild";
@@ -40,17 +44,42 @@ export const STRENGTH_WEIGHT: Record<Strength, number> = { strong: 4, mild: 2 };
 /**
  * Soft preferences the schema can express. `compact` and `spreadOut` are
  * opposites; the rest stand alone. Each mention in a sentence contributes
- * one entry, so a student who asks for compactness twice simply repeats
- * the same key and the last strength wins.
+ * one entry, so a repeated key keeps its last strength.
+ *
+ * `mornings` and `evenings` map to the planner's existing weight rows;
+ * `minimalWalking` maps to the walking weight. `spreadOut` and
+ * `easierGraders` have no planner input yet and are listed as unsupported
+ * by the mapping below.
  */
-export const SOFT_KEYS = ["compact", "spreadOut", "fewerDays", "minimalWalking", "easierGraders"] as const;
+export const SOFT_KEYS = [
+  "compact",
+  "spreadOut",
+  "fewerDays",
+  "minimalWalking",
+  "mornings",
+  "evenings",
+  "easierGraders",
+] as const;
 export type SoftKey = (typeof SOFT_KEYS)[number];
 
-export type SoftPreference = { key: SoftKey; strength: Strength };
+export type SoftPreference = {
+  key: SoftKey;
+  strength: Strength;
+  /**
+   * Direction, for the keys that have one (`mornings`, `evenings`): true or
+   * omitted means the student leans INTO that time (the planner's weight
+   * rises), false means they lean away ("no morning classes", "not a
+   * morning person") and the weight is set to 0 rather than up. Without
+   * this, a vague morning complaint would push the planner TOWARD mornings
+   * - an inverted fact.
+   */
+  positive?: boolean;
+};
 
 /** A weekly commitment the student must keep, such as a job, practice or a lab rotation. */
 export type PrefBlockedTime = {
-  day: PrefDay;
+  /** Planner days only (Mon-Fri): a weekend commitment is tagged unsupported at parse time. */
+  day: WeekDay;
   /** Minutes after midnight, half-open `[start, end)`. */
   start: number;
   end: number;
@@ -58,58 +87,47 @@ export type PrefBlockedTime = {
   label?: string;
 };
 
-/**
- * Instructor preference: either a named instructor the student wants, or
- * "easier graders", meaning a higher historical average GPA. Neither has a
- * direct planner input yet; see the cannot-express list in
- * `toPlannerPreferences`.
- */
-export type InstructorPreference =
-  | { kind: "named"; name: string; strength: Strength }
-  | { kind: "easierGraders"; strength: Strength };
-
 /** Where classes may be: the Denton campus, or other UNT sites (Frisco and similar) too. Discovery Park counts as Denton. */
 export type CampusScope = "dentonOnly" | "otherSitesOk";
 
-/** How classes meet. The planner has no input for this yet; see `toPlannerPreferences`. */
+/** How classes meet. The planner has no input for this yet; see the mapping notes in `applyIntent`. */
 export type ClassMode = "online" | "inPerson";
 
 /**
- * Hard constraints. Every one is all-or-nothing. `null` means "not
- * mentioned", not "off": only the fields the student actually constrained
- * are set.
+ * Hard constraints. `null` means "not mentioned", not "off": only the
+ * fields the student actually constrained are set, and `applyIntent`
+ * preserves the rest of the student's saved preferences.
+ *
+ * Seats and campus scope are filters on which suggestions are shown, not
+ * builder requirements: the planner still picks sections that break neither
+ * the schedule nor the credit cap, and the filter narrows what it may
+ * suggest (see the field comments in `ScheduleConstraints`).
  */
 export type HardConstraints = {
   /** No class may start before this minute. */
   earliestStart: number | null;
   /** No class may end after this minute. */
   latestEnd: number | null;
-  /** No class on these days. */
-  daysOff: PrefDay[];
+  /** No class on these days (planner days, Mon-Fri). */
+  daysOff: WeekDay[];
   /** No class may overlap one of these weekly ranges. */
   blockedTimes: PrefBlockedTime[];
-  /** Total credits must reach this. */
+  /** Total credits must reach this. The planner has no minimum-credit input; see the mapping notes. */
   creditMin: number | null;
   /** Total credits may not exceed this. */
   creditMax: number | null;
-  /** Suggest only options with an open seat; closed and wait-listed ones stay unpicked. */
+  /** A filter on suggestions: only options whose every component with known seats has one open. */
   openSeatsOnly: boolean | null;
-  /** Denton only, or other UNT sites allowed too. */
+  /** A filter on suggestions: Denton only, or other UNT sites allowed too. */
   campusScope: CampusScope | null;
   /** Online only, or in person only. */
   mode: ClassMode | null;
-  /** Courses the schedule must include, as catalog codes like "CSCE 3110". */
-  wantedCourses: string[];
-  /** Courses the schedule must not include. */
-  avoidedCourses: string[];
 };
 
 /** What a preference sentence parses into. */
 export type PreferenceIntent = {
   hard: HardConstraints;
   soft: SoftPreference[];
-  /** At most one instructor preference; a later mention replaces an earlier one. */
-  instructor: InstructorPreference | null;
 };
 
 /** An intent with nothing set, the way every parse begins. */
@@ -125,102 +143,107 @@ export function emptyIntent(): PreferenceIntent {
       openSeatsOnly: null,
       campusScope: null,
       mode: null,
-      wantedCourses: [],
-      avoidedCourses: [],
     },
     soft: [],
-    instructor: null,
   };
 }
 
-const PREF_DAY_TO_WEEKDAY: Record<PrefDay, WeekDay | null> = {
-  Mon: "Mon",
-  Tue: "Tue",
-  Wed: "Wed",
-  Thu: "Thu",
-  Fri: "Fri",
-  Sat: null,
-  Sun: null,
-};
+/** The planner's day order, for canonical day lists. */
+const DAY_ORDER: readonly WeekDay[] = weekDays;
+
+/** The planner cannot hold more than 40 credits (`parseSchedulePreferences` rejects anything else). */
+const MAX_MAPPABLE_CREDITS = 40;
 
 /**
- * Map an intent onto the planner's existing inputs: `ScheduleConstraints`
- * and `PreferenceWeights` from src/lib/types.ts, the shapes the schedule
- * builder already consumes (and which the optimizer mirrors in
- * `OptConstraints`/`OptWeights`, fed by the presets in optimizer/presets.ts).
+ * Patch the planner's saved preferences with what a preference sentence
+ * expressed. Pure: same current and intent in, same preferences out,
+ * nothing read or written.
  *
- * Pure: same intent in, same preferences out, nothing read or written.
+ * Rules:
  *
- * What the planner cannot express yet (checked field by field against
- * `ScheduleConstraints`, `PreferenceWeights` and the optimizer types):
+ * - Only fields the intent sets change. `null`/absent intent fields leave
+ *   the current value byte-identical - `walkingBufferMinutes` stays as it
+ *   was (a soft walking request sets the walking weight, never the saved
+ *   buffer), `excludedSections` is never touched by an intent, and each
+ *   weight changes only when its own soft key is mentioned.
+ * - Mentioned days off are added, never removed: the intent vocabulary has
+ *   no "classes are fine on X" statement, so there is nothing that could
+ *   un-set a day.
+ * - Blocked times are appended with ids from `uniqueBlockId`, so an intent
+ *   can never collide with an existing block's id.
+ * - The output always passes `parseSchedulePreferences`: days are planner
+ *   days, blocked ranges satisfy `end > start` (the parser guarantees it),
+ *   and an out-of-range credit max is clamped to 0..40 because the planner
+ *   cannot hold anything else. The clamp is a planner limit, not a
+ *   reinterpretation of what the student said.
+ *
+ * What the intent can hold but the planner cannot express (kept in the
+ * intent, listed as unsupported here, never rounded into another field):
  *
  * - `hard.creditMin`: the planner only has `maxCredits`; there is no
  *   minimum-credit constraint.
- * - Days off or blocked times on Sat or Sun: the planner's day settings
- *   are `WeekDay` (Mon-Fri), so a weekend day off has nowhere to land.
- *   They stay in the intent and are dropped here.
- * - `soft` `spreadOut`: weights are non-negative and only push
- *   compactness up; there is no term that spreads classes apart.
- * - `hard.wantedCourses`: nothing in the planner's inputs must-include a
- *   course. Optimizer locks are per section id and live outside
- *   `SchedulePreferences`.
- * - `hard.avoidedCourses`: `excludedSections` holds section ids, not
- *   course codes.
- * - Instructor "named": locks are section ids and there is no
- *   instructor-name input, so a named instructor cannot be honored.
- * - `easierGraders`: the closest knob is the `rating` weight, but that
- *   ranks student star ratings (0..5), not historical average GPA. Left
- *   unmapped rather than silently substituting a different number.
  * - `hard.mode` online/inPerson: no online-only or in-person-only input.
  *   The optimizer only notices online sections as untimed meetings,
  *   through `fixedCredits` set by the caller.
- *
- * Dropped-on-purpose is the rule: a value the schema can express but this
- * mapping cannot place is left in the intent, never rounded into a
- * different field.
+ * - `soft` `spreadOut`: weights are non-negative and only push
+ *   compactness up; there is no term that spreads classes apart.
+ * - `soft` `easierGraders`: the closest knob is the `rating` weight, but
+ *   that ranks student star ratings (0..5), not historical average GPA.
+ *   Left unmapped rather than silently substituting a different number.
  */
-export function toPlannerPreferences(intent: PreferenceIntent): SchedulePreferences {
-  const softWeight = (key: SoftKey): number => {
-    const pref = intent.soft.find((s) => s.key === key);
-    return pref ? STRENGTH_WEIGHT[pref.strength] : 0;
+export function applyIntent(current: SchedulePreferences, intent: PreferenceIntent): SchedulePreferences {
+  const constraints: ScheduleConstraints = {
+    ...current.constraints,
+    blocked: [...current.constraints.blocked],
   };
 
-  const blocked: BlockedTime[] = [];
-  for (const b of intent.hard.blockedTimes) {
-    const day = PREF_DAY_TO_WEEKDAY[b.day];
-    if (!day) continue;
-    blocked.push({
-      id: `blocked-${blocked.length + 1}`,
-      label: b.label ?? "kept free",
-      day,
-      start: b.start,
-      end: b.end,
-    });
+  // Mentioned days off are added; nothing is removed.
+  if (intent.hard.daysOff.length > 0) {
+    const days = new Set(current.constraints.daysOff);
+    for (const d of intent.hard.daysOff) days.add(d);
+    constraints.daysOff = DAY_ORDER.filter((d) => days.has(d));
   }
 
-  const constraints: ScheduleConstraints = {
-    earliestStart: intent.hard.earliestStart,
-    latestEnd: intent.hard.latestEnd,
-    daysOff: intent.hard.daysOff.flatMap((d) => {
-      const day = PREF_DAY_TO_WEEKDAY[d];
-      return day ? [day] : [];
-    }),
-    blocked,
-    maxCredits: intent.hard.creditMax,
-    walkingBufferMinutes: null,
-    excludedSections: [],
-    openSeatsOnly: intent.hard.openSeatsOnly ?? false,
-    otherSites: intent.hard.campusScope === "otherSitesOk",
-  };
+  for (const b of intent.hard.blockedTimes) {
+    const block: BlockedTime = {
+      id: uniqueBlockId(constraints.blocked, "pref-block"),
+      label: b.label ?? "kept free",
+      day: b.day,
+      start: b.start,
+      end: b.end,
+    };
+    constraints.blocked = [...constraints.blocked, block];
+  }
 
-  const weights: PreferenceWeights = {
-    fewerDays: softWeight("fewerDays"),
-    compact: softWeight("compact"),
-    mornings: 0,
-    evenings: 0,
-    walking: softWeight("minimalWalking"),
-    rating: 0,
-  };
+  if (intent.hard.earliestStart !== null) constraints.earliestStart = intent.hard.earliestStart;
+  if (intent.hard.latestEnd !== null) constraints.latestEnd = intent.hard.latestEnd;
+  if (intent.hard.creditMax !== null) {
+    constraints.maxCredits = Math.min(Math.max(0, intent.hard.creditMax), MAX_MAPPABLE_CREDITS);
+  }
+  if (intent.hard.openSeatsOnly !== null) constraints.openSeatsOnly = intent.hard.openSeatsOnly;
+  if (intent.hard.campusScope !== null) constraints.otherSites = intent.hard.campusScope === "otherSitesOk";
 
-  return { constraints, weights };
+  // A control owns only its own weight (the same rule applyChoice follows
+  // in components/schedule/constraint-logic.ts): an unmentioned soft key
+  // leaves its weight exactly as the student last set it.
+  const weights: PreferenceWeights = { ...current.weights };
+  const weightFor = (key: SoftKey, target: keyof PreferenceWeights): void => {
+    const pref = intent.soft.find((s) => s.key === key);
+    if (!pref) return;
+    // A lean-away morning/evening ask sets the weight to 0 (the planner has
+    // no negative weights); a lean-in ask uses the strength scale.
+    weights[target] = pref.positive === false ? 0 : STRENGTH_WEIGHT[pref.strength];
+  };
+  weightFor("compact", "compact");
+  weightFor("fewerDays", "fewerDays");
+  weightFor("mornings", "mornings");
+  weightFor("evenings", "evenings");
+  weightFor("minimalWalking", "walking");
+  // spreadOut and easierGraders: recognized soft keys with no planner
+  // weight to own; the mapping notes above list them as unsupported.
+
+  // Preserve every top-level field the intent does not touch
+  // (walkingBufferMinutes, excludedSections, and any field added later):
+  // the patch contract is byte-identical preservation, not reconstruction.
+  return { ...current, constraints, weights };
 }
