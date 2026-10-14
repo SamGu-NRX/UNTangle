@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "frontend"
+    "frontend",
+    "extension"
   ],
   "scripts": {
     "setup": "node scripts/dev.mjs --setup-only",

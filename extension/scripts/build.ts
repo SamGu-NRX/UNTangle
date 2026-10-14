@@ -1,0 +1,34 @@
+/**
+ * Bundles the extension into dist/ with bun build: one entry per runtime,
+ * plus the manifest and popup page copied verbatim. The UNTangle origin is a
+ * build-time constant; it defaults to the repo's local dev origin and can be
+ * overridden with UNTANGLE_ORIGIN at build time (never through a .env file -
+ * bun runs with --no-env-file everywhere).
+ */
+import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+
+const outdir = join(import.meta.dir, "..", "dist");
+
+rmSync(outdir, { recursive: true, force: true });
+mkdirSync(outdir, { recursive: true });
+
+const origin = process.env.UNTANGLE_ORIGIN;
+
+await Bun.build({
+  entrypoints: [
+    join(import.meta.dir, "..", "src", "background.ts"),
+    join(import.meta.dir, "..", "src", "content.ts"),
+    join(import.meta.dir, "..", "src", "popup.ts"),
+  ],
+  outdir,
+  target: "browser",
+  format: "esm",
+  minify: true,
+  define: origin === undefined ? {} : { __UNTANGLE_ORIGIN__: JSON.stringify(origin) },
+});
+
+cpSync(join(import.meta.dir, "..", "manifest.json"), join(outdir, "manifest.json"));
+cpSync(join(import.meta.dir, "..", "popup.html"), join(outdir, "popup.html"));
+
+console.log(`extension built into ${outdir}`);
