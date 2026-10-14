@@ -68,7 +68,7 @@ jobs:
           sudo iptables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d 127.0.0.0/8 -j REJECT
           sudo ip6tables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d ::1/128 -j REJECT
       - name: Build production app once
-        run: sudo --preserve-env -u journey "$(command -v node)" node_modules/next/dist/bin/next build
+        run: sudo --preserve-env -u journey "$(command -v bun)" --no-env-file x next build
         working-directory: frontend
       - name: Restore Actions network access
         if: always()
@@ -187,7 +187,7 @@ jobs:
       - name: Start production server
         run: |
           cd frontend
-          sudo --preserve-env -u journey "$(command -v node)" node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 > "$UNTANGLE_OUT/server.log" 2>&1 &
+          sudo --preserve-env -u journey "$(command -v bun)" --no-env-file x next start --hostname 127.0.0.1 --port 3000 > "$UNTANGLE_OUT/server.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/journey-server.pid"
           for attempt in {1..60}; do
             if curl --fail --silent "$UNTANGLE_BASE_URL/schedule" > /dev/null; then exit 0; fi
