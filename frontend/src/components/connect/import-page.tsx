@@ -91,7 +91,7 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
   const [slowRun, setSlowRun] = useState(0);
   const [decisions, setDecisions] = useState<Record<string, CheckDecision>>({});
   // The trip survives a reload through a tab-only flag (phones reload during the trip to Safari); ImportSession read it.
-  const { trip, openFromLink, showPopup } = useMyUntTrip((): Trip => (restoredTrip ? { stage: "back" } : { stage: "idle" }), setTripFlag);
+  const { trip, openFromLink, showPopup, reset: resetTrip } = useMyUntTrip((): Trip => (restoredTrip ? { stage: "back" } : { stage: "idle" }), setTripFlag);
   const active = useRef<AbortController | null>(null);
   const run = useRef(0);
   const heading = useRef<HTMLHeadingElement | null>(null);
@@ -241,6 +241,17 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
         <p className={styles.hint} role="status">
           On this device. Nothing is uploaded.
         </p>
+        <div className={styles.actions}>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              cancel();
+              if (phase.phase === "reading") setPhase(phase.behind);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
       </>
     );
   } else if (shown.phase === "review") {
@@ -361,6 +372,19 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
           {openMyUnt("Open myUNT again", "quiet")}
           <span className={styles.fineOnly}>or drop the PDF here</span>
         </p>
+        <div className={styles.skip}>
+          <Button
+            variant="ink"
+            size="sm"
+            className={styles.skipButton}
+            onClick={() => {
+              clearTripFlag();
+              resetTrip();
+            }}
+          >
+            Start over
+          </Button>
+        </div>
       </>
     );
   } else {

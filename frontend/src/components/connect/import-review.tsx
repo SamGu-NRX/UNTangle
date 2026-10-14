@@ -1,9 +1,10 @@
-import { useId, type ReactNode, type RefObject } from "react";
+import { useId, useState, type ReactNode, type RefObject } from "react";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
 import {
   checkReason,
   creditLine,
+  decisionOf,
   importSelection,
   reviewGroups,
   rowFact,
@@ -23,8 +24,10 @@ const CHECK_OPTIONS: Array<{ value: CheckDecision; label: string }> = [
  * The review step (DESIGN.md §4.1 `review`): how many courses were found,
  * one line of credits, then the rows the student must decide ("To check")
  * and every other row under its term. A row is a code, a title and one
- * fact; the credits live only in the summary line. "Looks right" saves the
- * settled rows and every checked row counted as Done or Taking.
+ * fact; the credits live only in the summary line. Any other row opens to
+ * correct how it counts (Done, Taking or Skip), as #37's review allowed.
+ * "Looks right" saves the settled rows as corrected and every checked row
+ * counted as Done or Taking.
  */
 export function ImportReview({
   result,
@@ -51,6 +54,8 @@ export function ImportReview({
   const credits = creditLine(selection);
   const count = result.records.length;
   const ids = useId();
+  // The settled row whose correction is open; one at a time.
+  const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <>
@@ -97,13 +102,36 @@ export function ImportReview({
                 {termLabel(group.term)}
               </h2>
               <ul>
-                {group.records.map((record) => (
-                  <li key={record.id} className={styles.row}>
-                    <span className="ui-code">{record.code}</span>
-                    <span className={styles.rowTitle}>{record.title}</span>
-                    <span className={styles.rowFact}>{rowFact(record)}</span>
-                  </li>
-                ))}
+                {group.records.map((record) => {
+                  const decision = decisionOf(record, decisions);
+                  const open = editing === record.id;
+                  return (
+                    <li key={record.id} className={styles.row} data-skipped={decision === "ignored" || undefined}>
+                      {/* The row opens its correction: one step away, so the list stays one fact per row. */}
+                      <button
+                        type="button"
+                        className={styles.rowButton}
+                        aria-expanded={open}
+                        onClick={() => setEditing(open ? null : record.id)}
+                      >
+                        <span className="ui-code">{record.code}</span>
+                        <span className={styles.rowTitle}>{record.title}</span>
+                        <span className={styles.rowFact}>{rowFact(record, decision)}</span>
+                        <span className="sr-only-v2">. Change how it counts</span>
+                      </button>
+                      {open ? (
+                        <Segmented
+                          label={`How to count ${record.code}`}
+                          size="sm"
+                          options={CHECK_OPTIONS}
+                          value={decision}
+                          onValueChange={(value) => onDecide(record.id, value)}
+                          className={styles.correct}
+                        />
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ))}

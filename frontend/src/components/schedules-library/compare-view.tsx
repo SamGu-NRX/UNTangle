@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ChevronRight } from "@/components/ui/icons";
 import { Segmented } from "@/components/ui/Segmented";
 import type { Hue } from "@/lib/course-colors";
+import { describeOtherDifferences, diffPlannerStates } from "@/lib/plan-library/diff";
 import { compareRows, eventsOf, overlayBlocks, sectionChanges, weekStats, type PlacedBlock } from "@/lib/plan-library/week";
 import type { ScheduleEvent } from "@/lib/types";
 import type { Entry } from "./schedules-client";
@@ -21,7 +22,8 @@ type View = "a" | "both" | "b";
  * week, where Both draws B dashed only where it differs and the classes
  * that move glide between views. Then the figures (better in brand, worse
  * in attention, in words too), the sections that change, the ones that
- * don't, and the way to use B.
+ * don't, and the way to use B. The rest of #37's comparison (statuses,
+ * claimed credit, Auto, locks, goal and major) sits behind "More differences".
  */
 export function CompareView({
   sides,
@@ -37,6 +39,7 @@ export function CompareView({
   const { scheduleEvents, sectionCatalog } = usePlanner();
   const [view, setView] = useState<View>("both");
   const [fromPointer, setFromPointer] = useState(true);
+  const [showMore, setShowMore] = useState(false);
 
   if (sides.length < 2) {
     return <p className={styles.quiet}>Pick {sides.length ? "one more schedule" : "two schedules"} from the list.</p>;
@@ -45,6 +48,8 @@ export function CompareView({
   const events = (side: CompareSide): ScheduleEvent[] => (side.active ? scheduleEvents : eventsOf(side.state, sectionCatalog));
   const rows = compareRows(weekStats(events(a)), weekStats(events(b)));
   const { changes, same } = sectionChanges(a.blocks, b.blocks);
+  // Statuses, claimed credit, Auto, locks, goal and major: one step away, behind "More differences".
+  const more = describeOtherDifferences(diffPlannerStates(a.state, b.state, sectionCatalog), a.name, b.name);
   // Both: A solid, and B dashed where it differs (A's own classes are not faded here).
   const items: PlacedBlock[] =
     view === "both"
@@ -137,6 +142,21 @@ export function CompareView({
         <p className={styles.quiet}>Every section is the same in both.</p>
       )}
       {same.length && changes.length ? <p className={styles.quiet}>Same in both: {same.join(", ")}.</p> : null}
+      {more.length ? (
+        <section>
+          <button type="button" className={styles.groupToggle} aria-expanded={showMore} onClick={() => setShowMore((on) => !on)}>
+            More differences
+            {showMore ? null : <span className={styles.count}>{more.length}</span>}
+          </button>
+          {showMore ? (
+            <ul className={styles.moreList}>
+              {more.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

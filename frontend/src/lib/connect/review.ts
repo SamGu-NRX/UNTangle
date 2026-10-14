@@ -8,7 +8,11 @@ import type { TranscriptCourseRecord } from "../types";
  * saved selection and the credit line are tested once.
  */
 
-/** What the student chose for a row under "To check". No entry means not chosen, which saves nothing. */
+/**
+ * What the student chose for a row. Under "To check" no entry means not
+ * chosen, which saves nothing; on any other row no entry keeps the parser's
+ * reading, and a choice corrects it.
+ */
 export type CheckDecision = "completed" | "inProgress" | "ignored";
 
 export type TermGroup = { term: string; records: TranscriptCourseRecord[] };
@@ -37,17 +41,25 @@ export function reviewGroups(records: readonly TranscriptCourseRecord[]): Review
   return { toCheck, terms };
 }
 
-/** The records "Looks right" applies: every settled row, plus each checked row the student counted. */
+/** The records "Looks right" applies: settled rows as read or as corrected, plus each checked row the student counted. */
 export function importSelection(
   records: readonly TranscriptCourseRecord[],
   decisions: Readonly<Record<string, CheckDecision>>,
 ): TranscriptCourseRecord[] {
   return records.flatMap((record) => {
-    if (settled(record)) return [record];
-    const decision = record.reviewRequired ? decisions[record.id] : undefined;
-    if (decision !== "completed" && decision !== "inProgress") return [];
-    return [effectiveTranscriptRecord(record, decision)];
+    const decision = decisions[record.id];
+    if (decision === "ignored") return [];
+    if (decision === "completed" || decision === "inProgress") return [effectiveTranscriptRecord(record, decision)];
+    return settled(record) ? [record] : [];
   });
+}
+
+/** What a row will be saved as, for its fact and its choice: a correction, else the parser's reading. */
+export function decisionOf(record: TranscriptCourseRecord, decisions: Readonly<Record<string, CheckDecision>>): CheckDecision | null {
+  const chosen = decisions[record.id];
+  if (chosen) return chosen;
+  if (record.reviewRequired) return null;
+  return record.appliedStatus === "completed" || record.appliedStatus === "inProgress" ? record.appliedStatus : null;
 }
 
 /**
@@ -78,9 +90,10 @@ export function termLabel(term: string): string {
   return match ? `${match[2][0].toUpperCase()}${match[2].slice(1).toLowerCase()} ${match[1]}` : term;
 }
 
-/** A settled row's one fact: its grade, or that it's in progress. */
-export function rowFact(record: TranscriptCourseRecord): string {
-  if (record.appliedStatus === "inProgress") return "Taking";
+/** A row's one fact: its grade, that it's in progress, or that it won't be saved. */
+export function rowFact(record: TranscriptCourseRecord, decision: CheckDecision | null = decisionOf(record, {})): string {
+  if (decision === "ignored") return "Skipped";
+  if (decision === "inProgress") return "Taking";
   return record.grade ? `Grade ${record.grade}` : "Done";
 }
 

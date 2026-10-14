@@ -581,6 +581,8 @@ function LibraryNotices({
   } else if (list.phase === "unavailable") lines.push(list.message);
   if (list.phase === "ready") {
     for (const notice of list.notices) lines.push(notice.quarantinedTo ? `${notice.message} Kept at ${notice.quarantinedTo}.` : notice.message);
+    // Why each kept record can't be read, as #37's library listed them.
+    for (const entry of list.doc.unreadable) lines.push(`Unreadable: ${entry.reason}`);
   }
   if (quarantined.length) {
     lines.push(

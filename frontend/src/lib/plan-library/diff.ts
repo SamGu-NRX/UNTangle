@@ -146,7 +146,15 @@ export function diffSavedPlanAgainstWorking(
   workingState: PlannerState,
   catalog: SectionCatalog = sampleCatalog,
 ): PlanDiff {
-  const savedState = savedPlan.state;
+  return diffPlannerStates(savedPlan.state, workingState, catalog);
+}
+
+/** The same comparison between any two plans: `savedState` plays the saved plan's side. */
+export function diffPlannerStates(
+  savedState: PlannerState,
+  workingState: PlannerState,
+  catalog: SectionCatalog = sampleCatalog,
+): PlanDiff {
   const statusOf = (state: PlannerState, courseCode: string): CourseStatus =>
     state.courseStatuses[courseCode] ?? "notTaken";
 
@@ -294,4 +302,35 @@ export function describeLockChanges(changes: PlanLockChange[]): string[] {
     }
     return `${courseCode} is locked to ${workingState} in the working schedule but not in the plan`;
   });
+}
+
+const STATUS_WORDS: Record<CourseStatus, string> = { completed: "done", inProgress: "in progress", notTaken: "not taken" };
+
+/**
+ * What else differs between schedule A (the diff's saved side) and B, beyond
+ * sections and the week's figures, one sentence each: course statuses, credit
+ * the student claimed, what Auto planned, locks, and the goal and major.
+ * The library's compare shows these behind "More differences".
+ */
+export function describeOtherDifferences(diff: PlanDiff, a: string, b: string): string[] {
+  const lines: string[] = [];
+  for (const change of diff.statusChanges) {
+    lines.push(`${change.courseCode} is ${STATUS_WORDS[change.from]} in ${a} and ${STATUS_WORDS[change.to]} in ${b}.`);
+  }
+  for (const change of diff.courseFactChanges) {
+    const only = change.savedPlan ? a : b;
+    lines.push(
+      change.fact === "manualCredit"
+        ? `${change.courseCode} is marked as credit you have in ${only} only.`
+        : `${change.courseCode} was planned by Auto in ${only} only.`,
+    );
+  }
+  for (const change of diff.lockChanges) {
+    const side = (name: string, id: string | null) => (id ? `locked to ${id} in ${name}` : `not locked in ${name}`);
+    lines.push(`${change.courseCode} is ${side(a, change.savedPlan)} and ${side(b, change.workingState)}.`);
+  }
+  if (diff.optimizationChanged) lines.push(`${a} and ${b} have different schedule goals.`);
+  if (diff.majorChanged) lines.push(`${a} and ${b} are for different majors.`);
+  if (diff.transcriptRecords.changed) lines.push(`${a} and ${b} hold different transcript records.`);
+  return lines;
 }

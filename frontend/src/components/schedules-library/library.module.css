@@ -564,3 +564,13 @@
     opacity: 0;
   }
 }
+
+.moreList {
+  display: grid;
+  gap: 6px;
+  margin: 4px 4px 0;
+  padding: 0 0 0 16px;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}

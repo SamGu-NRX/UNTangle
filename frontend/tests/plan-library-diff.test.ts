@@ -207,3 +207,34 @@ describe("plan diff: section locks", () => {
     expect(none.comparedFieldCount).toBe(same.comparedFieldCount - 1);
   });
 });
+
+describe("other differences between two schedules, in words", () => {
+  it("names each status, credit, Auto, lock, goal and major difference once, A first", async () => {
+    const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
+    const a = stateWith({
+      courseStatuses: { ...defaultPlannerState.courseStatuses, "ANTH 1010": "completed" },
+      lockedSections: { "ANTH 1010": "anth-1010-001" },
+      coursePlan: { manualCredit: ["ANTH 1010"], autoPlanned: [], lastAuto: null },
+      optimization: "compact",
+    });
+    const b = stateWith({
+      courseStatuses: { ...defaultPlannerState.courseStatuses, "ANTH 1010": "inProgress" },
+      coursePlan: { manualCredit: [], autoPlanned: ["ANTH 1010"], lastAuto: null },
+      optimization: "clusterNight",
+      selectedMajor: "cs",
+    });
+    expect(describeOtherDifferences(diffPlannerStates(a, b), "Main", "Fridays off")).toEqual([
+      "ANTH 1010 is done in Main and in progress in Fridays off.",
+      "ANTH 1010 is marked as credit you have in Main only.",
+      "ANTH 1010 was planned by Auto in Fridays off only.",
+      "ANTH 1010 is locked to anth-1010-001 in Main and not locked in Fridays off.",
+      "Main and Fridays off have different schedule goals.",
+      "Main and Fridays off are for different majors.",
+    ]);
+  });
+
+  it("says nothing when the two plans agree", async () => {
+    const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
+    expect(describeOtherDifferences(diffPlannerStates(stateWith({}), stateWith({})), "A", "B")).toEqual([]);
+  });
+});

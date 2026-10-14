@@ -195,8 +195,17 @@ async function reviewChecks(page, stage, size) {
   check(size, "review: 'To check' comes first, then the terms", /to check/i.test(headings[0] ?? "") && headings.slice(1).length > 0 && headings.slice(1).every((h) => /^(fall|spring|summer|winter) \d{4}$/i.test(h.trim())), JSON.stringify(headings));
   const summary = await stage.locator("h1 + p").innerText();
   check(size, "review: total credits appear once, in one summary line", /credits? (done|in progress)/.test(summary), summary);
-  const rows = await stage.locator("li:not([data-flagged])").allInnerTexts();
+  const rows = (await stage.locator("li:not([data-flagged]) > button").allInnerTexts()).map((r) => r.replace(/\.? ?Change how it counts\s*$/, ""));
   check(size, "review: each row is a code, a title and one fact, with no credits", rows.length > 0 && rows.every((r) => /(Grade [A-Z]+|Taking|Done)\s*$/.test(r) && !/\d\.\d{3}|credit/i.test(r)), JSON.stringify(rows.slice(0, 3)));
+  // A settled row opens its correction one step away: Skip leaves it out and the credit line drops.
+  const row = stage.locator("li:not([data-flagged]) > button").first();
+  await row.click();
+  const code = (await row.locator(".ui-code").innerText()).trim();
+  await stage.getByRole("radiogroup", { name: `How to count ${code}` }).getByRole("radio", { name: "Skip" }).click();
+  const after = await stage.locator("h1 + p").innerText().catch(() => "");
+  check(size, "review: a settled row can be corrected, and skipping it lowers the credits", /Skipped/.test(await row.innerText()) && after !== summary, `${summary} -> ${after}`);
+  await stage.getByRole("radiogroup", { name: `How to count ${code}` }).getByRole("radio", { name: "Done" }).click();
+  await row.click();
   const flagged = await page.locator("li[data-flagged]").count();
   const decisions = await page.locator('li[data-flagged] [role="radiogroup"]').count();
   check(size, "review: every row to check has its reason and a Done, Taking or Skip choice, and no dropdown", flagged > 0 && decisions === flagged && (await page.locator("select:visible, [role=combobox]").count()) === 0, `${flagged} rows, ${decisions} choices`);
@@ -346,6 +355,10 @@ async function plansCompareRestore(page, size) {
   const labels = await table.locator("tbody th").allInnerTexts();
   check(size, "library: the comparison has the five figures", JSON.stringify(labels) === JSON.stringify(["Days on campus", "First class", "Last class ends", "Walking a week", "Tight walks"]), JSON.stringify(labels));
   check(size, "library: A, Both and B are one segmented control", (await page.getByRole("radiogroup", { name: "Show" }).getByRole("radio").count()) === 3);
+  // The import and the claimed credit differ: #37's field-level comparison sits one step away.
+  await page.getByRole("button", { name: /^More differences/ }).click();
+  const more = await page.locator("section", { has: page.getByRole("button", { name: /^More differences/ }) }).locator("li").allInnerTexts();
+  check(size, "library: More differences lists what else differs, such as claimed credit", more.some((line) => /MATH 1650/.test(line)), JSON.stringify(more));
   await page.waitForTimeout(300);
   await shot(page, size, "plans-compare");
   await axe(page, size, "Library comparing two schedules");

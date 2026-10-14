@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkReason, creditLine, importSelection, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
+import { checkReason, creditLine, decisionOf, importSelection, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
 import type { TranscriptCourseRecord } from "../../src/lib/types";
 
 function record(code: string, term: string, extra: Partial<TranscriptCourseRecord> = {}): TranscriptCourseRecord {
@@ -71,9 +71,11 @@ describe("what Looks right saves", () => {
     expect(importSelection(records, { [withdrawn.id]: "inProgress" }).find((r) => r.code === "HIST 2610")?.appliedStatus).toBe("inProgress");
   });
 
-  test("a decision for a settled row changes nothing", () => {
+  test("a settled row can be corrected: skipped, or saved with another status", () => {
     const settled = records[0];
-    expect(importSelection([settled], { [settled.id]: "ignored" })).toEqual([settled]);
+    expect(importSelection([settled], { [settled.id]: "ignored" })).toEqual([]);
+    expect(importSelection([settled], { [settled.id]: "inProgress" })[0].appliedStatus).toBe("inProgress");
+    expect(importSelection([settled], {})).toEqual([settled]);
   });
 });
 
@@ -103,10 +105,19 @@ describe("the credit line", () => {
 });
 
 describe("one fact per row", () => {
-  test("a settled row shows its grade, or Taking", () => {
+  test("a settled row shows its grade, or Taking, and a correction changes the fact", () => {
     expect(rowFact(records[0])).toBe("Grade A");
     expect(rowFact(records[5])).toBe("Taking");
     expect(rowFact(record("CSCE 1030", "2025 Fall", { grade: "" }))).toBe("Done");
+    expect(rowFact(records[0], "ignored")).toBe("Skipped");
+    expect(rowFact(records[0], "inProgress")).toBe("Taking");
+  });
+
+  test("a row's choice starts at the parser's reading, and none for a row to check", () => {
+    expect(decisionOf(records[0], {})).toBe("completed");
+    expect(decisionOf(records[5], {})).toBe("inProgress");
+    expect(decisionOf(unknown, {})).toBeNull();
+    expect(decisionOf(records[0], { [records[0].id]: "ignored" })).toBe("ignored");
   });
 
   test("a row to check shows its reason in a few words", () => {
