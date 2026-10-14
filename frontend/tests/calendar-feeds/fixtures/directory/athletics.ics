@@ -1,0 +1,44 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Athletics
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161635Z
+UID:tag:localist.com\,2008:EventInstance_53308284235166
+DTSTART;VALUE=DATE:20260918
+DESCRIPTION:UNT Swimming and Diving is hosting a exhibition match\, Green t
+ eam vs. White team!\n\nSeason match schedule available here.
+GEO:33.210899;-97.152806
+LOCATION:Pohl Recreation Center\, Natatorium
+SUMMARY:UNT Swimming and Diving: Green vs. White
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-swim
+ ming-and-diving-vs-green-vs-white-6523
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161635Z
+UID:tag:localist.com\,2008:EventInstance_53750741424298
+DTSTART;VALUE=DATE:20260918
+DESCRIPTION:UNT Women's Tennis at ACU Invite. Go Mean Green!\n\nSeason sche
+ dule available here.
+LOCATION:Abilene\, TX
+SUMMARY:UNT Women's Tennis at ACU Invite
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-wome
+ ns-tennis-at-acu-invite
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161635Z
+UID:tag:localist.com\,2008:EventInstance_53750741443757
+DTSTART;VALUE=DATE:20260919
+DESCRIPTION:UNT Women's Tennis at ACU Invite. Go Mean Green!\n\nSeason sche
+ dule available here.
+LOCATION:Abilene\, TX
+SUMMARY:UNT Women's Tennis at ACU Invite
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-wome
+ ns-tennis-at-acu-invite
+CATEGORIES:Athletics
+END:VEVENT
+END:VCALENDAR

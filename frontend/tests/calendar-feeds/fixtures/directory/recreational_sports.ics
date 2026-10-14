@@ -1,0 +1,69 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Recreational Sports 
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161913Z
+UID:tag:localist.com\,2008:EventInstance_53816818077515
+DTSTART;VALUE=DATE:20260914
+DESCRIPTION:Badminton Tournaments\nEntry Fee: FREE\nOffered: Fall\, Spring\
+ , and Summer Semesters\n\nJoin us for a fun and competitive badminton tour
+ nament held each semester! These free events are open to all students and 
+ offer an exciting opportunity to showcase your skills and compete for camp
+ us bragging rights.\n\nTournament Format:\nTournament structure will be de
+ termined based on the number of registered participants:\n\nWith fewer par
+ ticipants\, a single-elimination bracket will be used.\n\nWith larger part
+ icipation\, pool play will determine seeding for a single-elimination play
+ off bracket.\n\n⚠️ Important: Once registration closes\, the tournamen
+ t bracket will be finalized and locked. No additional entries will be acce
+ pted after that time.\n\nChampion Prize: The tournament winner will receiv
+ e the exclusive Intramural Champion T-shirt.\n\nFor questions or assistanc
+ e\, please contact:\nBilly Mathew\nIntramural Sports Assistant Director\n
+ 📧 BillyM@unt.edu\n📞 940-565-2954
+GEO:33.210899;-97.152806
+LOCATION:Pohl Recreation Center\, Physical Education Building
+SUMMARY:Registration Opens: Badminton Tournaments
+URL;VALUE=URI:https://calendar.unt.edu/event/registration-opens-badminton-t
+ ournaments
+CATEGORIES:Student Life
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161913Z
+UID:tag:localist.com\,2008:EventInstance_53736756546392
+DTSTART:20260917T233000Z
+DTEND:20260918T003000Z
+DESCRIPTION:Pickleball Doubles Tournament\nEntry Fee: FREE\n\nGet ready to 
+ serve\, rally\, and compete in the Intramural Pickleball Doubles Tournamen
+ t! The tournament will take place at the Pohl Rec Center Soccer Gym.\n\nRe
+ gistration Period: August 31 – September 17\, 2026\nTournament Date: Thu
+ rsday\, September 17\, 2026 at 6:30 PM\n\nPrize: Winners will receive the 
+ exclusive Intramural Champion T-shirt.\n\nImportant: Walk-in registration 
+ will not be accepted. All participants must register in advance to compete
+ .\n\nFor questions or assistance\, please contact:\nBilly Mathew\nIntramur
+ al Sports Assistant Director\n📧 BillyM@unt.edu\n📞 940-565-2954
+GEO:33.210899;-97.152806
+LOCATION:Pohl Recreation Center\, Soccer Gym
+SUMMARY:Pickleball Doubles Tournament
+URL;VALUE=URI:https://calendar.unt.edu/event/pickleball-doubles-tournament-
+ 6652
+CATEGORIES:Student Life
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161913Z
+UID:tag:localist.com\,2008:EventInstance_53790231028808
+DTSTART:20260917T233000Z
+DTEND:20260918T003000Z
+DESCRIPTION:Program Area: Intramurals\n\nGrab a partner and join a fun nigh
+ t of pickleball competition.\n\nBeginner and experienced teams are welcome
+ .
+GEO:33.210899;-97.152806
+LOCATION:Pohl Recreation Center\, Indoor Soccer Gym
+SUMMARY:Rec Connect Session 5: Pickleball Doubles Tournament
+URL;VALUE=URI:https://calendar.unt.edu/event/rec-connect-session-5-pickleba
+ ll-doubles-tournament
+CATEGORIES:Student Life
+END:VEVENT
+END:VCALENDAR

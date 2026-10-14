@@ -1,0 +1,170 @@
+[
+  {
+    "name": "UNT Events Calendar (all events)",
+    "url": "https://calendar.unt.edu/calendar.ics",
+    "category": "university-events",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 1691
+  },
+  {
+    "name": "Student Organizations Events",
+    "url": "https://calendar.unt.edu/group/student_organizations/calendar/ics",
+    "category": "student-organizations",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 755
+  },
+  {
+    "name": "Recreational Sports Events (Pohl Recreation Center)",
+    "url": "https://calendar.unt.edu/group/recreational_sports/calendar/ics",
+    "category": "recreation",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 24
+  },
+  {
+    "name": "UNT Libraries Events",
+    "url": "https://calendar.unt.edu/group/libraries/calendar/ics",
+    "category": "library",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 43
+  },
+  {
+    "name": "UNT Athletics Events (all sports)",
+    "url": "https://calendar.unt.edu/department/athletics/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 33
+  },
+  {
+    "name": "UNT Football Events",
+    "url": "https://calendar.unt.edu/group/football/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 10
+  },
+  {
+    "name": "UNT Soccer Events",
+    "url": "https://calendar.unt.edu/group/soccer/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 18
+  },
+  {
+    "name": "UNT Softball Events",
+    "url": "https://calendar.unt.edu/group/softball/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 6
+  },
+  {
+    "name": "UNT Tennis Events",
+    "url": "https://calendar.unt.edu/group/tennis/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 32
+  },
+  {
+    "name": "UNT Swimming and Diving Events",
+    "url": "https://calendar.unt.edu/group/swimming_diving/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 11
+  },
+  {
+    "name": "UNT Men's Basketball Events",
+    "url": "https://calendar.unt.edu/group/mens_basketball/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 2
+  },
+  {
+    "name": "UNT Men's Golf Events",
+    "url": "https://calendar.unt.edu/group/mens_golf/calendar/ics",
+    "category": "athletics",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 7
+  },
+  {
+    "name": "College of Music Events",
+    "url": "https://calendar.unt.edu/department/college_of_music/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 243
+  },
+  {
+    "name": "College of Engineering Events",
+    "url": "https://calendar.unt.edu/department/college_of_engineering/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 22
+  },
+  {
+    "name": "College of Education Events",
+    "url": "https://calendar.unt.edu/department/college_of_education/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 1
+  },
+  {
+    "name": "College of Health and Public Service Events",
+    "url": "https://calendar.unt.edu/department/college_of_health_and_public_service/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 1
+  },
+  {
+    "name": "College of Information Events",
+    "url": "https://calendar.unt.edu/department/college_of_information/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 9
+  },
+  {
+    "name": "College of Liberal Arts and Social Sciences Events",
+    "url": "https://calendar.unt.edu/department/college_of_liberal_arts_and_social_sciences/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 45
+  },
+  {
+    "name": "College of Merchandising, Hospitality and Tourism Events",
+    "url": "https://calendar.unt.edu/department/college_of_merchandising_hospitality_and_tourism/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 29
+  },
+  {
+    "name": "College of Science Events",
+    "url": "https://calendar.unt.edu/department/college_of_science/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 24
+  },
+  {
+    "name": "College of Visual Arts and Design Events",
+    "url": "https://calendar.unt.edu/department/college_of_visual_arts_and_design/calendar/ics",
+    "category": "academic-colleges",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 66
+  },
+  {
+    "name": "Career Center Events",
+    "url": "https://calendar.unt.edu/group/career_center/calendar/ics",
+    "category": "student-services",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 40
+  },
+  {
+    "name": "Dining Services Events",
+    "url": "https://calendar.unt.edu/group/dining_services/calendar/ics",
+    "category": "student-services",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 16
+  },
+  {
+    "name": "Admissions Events",
+    "url": "https://calendar.unt.edu/group/admissions/calendar/ics",
+    "category": "student-services",
+    "lastVerified": "2026-10-14",
+    "eventCountSeen": 6
+  }
+]

@@ -1,0 +1,78 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:University of North Texas Calendar
+X-WR-TIMEZONE:Central Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T160710Z
+UID:tag:localist.com\,2008:EventInstance_53867848867343
+DTSTART;VALUE=DATE:20260914
+DESCRIPTION:We are excited to announce that the application period for the 
+ AccoUNTable Supervisor Program 2026 Fall Cohort will open on Wednesday\, S
+ ept. 2.\n\nThis system-wide leadership development program is designed to 
+ equip supervisors with foundational skills for leading people\, building e
+ ffective relationships\, and strengthening team performance\, engagement a
+ nd retention. The program serves leaders across various stages of their le
+ adership journey\, with a values-based focus to support growth and develop
+ ment. \n\nApplications will be accepted Sept. 2 - Sept. 15.\n\nCohort sess
+ ions will take place in-person once a week on Thursdays from 9 a.m. - noon
+  from Oct. 8 - Nov. 12\, at the UNT System Business Services Center (BSC)\
+ , 1112 Dallas Dr.\, Denton\, TX 76205\, Room 4202 A/B.\n\nPlease note: Man
+ agers must receive approval from their supervisor to participate in the pr
+ ogram.\n\nTo learn more about the program and apply for enrollment\, pleas
+ e visit the program website and select the “AccoUNTable Supervisor Progr
+ am (ASP)”.
+LOCATION:
+SUMMARY:AccoUNTable Supervisor Program (ASP) Registration
+URL;VALUE=URI:https://calendar.unt.edu/event/accountable-supervisor-program
+ -asp-registration
+CATEGORIES:Workshops & Training
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T160710Z
+UID:tag:localist.com\,2008:EventInstance_53816818077515
+DTSTART;VALUE=DATE:20260914
+DESCRIPTION:Badminton Tournaments\nEntry Fee: FREE\nOffered: Fall\, Spring\
+ , and Summer Semesters\n\nJoin us for a fun and competitive badminton tour
+ nament held each semester! These free events are open to all students and 
+ offer an exciting opportunity to showcase your skills and compete for camp
+ us bragging rights.\n\nTournament Format:\nTournament structure will be de
+ termined based on the number of registered participants:\n\nWith fewer par
+ ticipants\, a single-elimination bracket will be used.\n\nWith larger part
+ icipation\, pool play will determine seeding for a single-elimination play
+ off bracket.\n\n⚠️ Important: Once registration closes\, the tournamen
+ t bracket will be finalized and locked. No additional entries will be acce
+ pted after that time.\n\nChampion Prize: The tournament winner will receiv
+ e the exclusive Intramural Champion T-shirt.\n\nFor questions or assistanc
+ e\, please contact:\nBilly Mathew\nIntramural Sports Assistant Director\n
+ 📧 BillyM@unt.edu\n📞 940-565-2954
+GEO:33.210899;-97.152806
+LOCATION:Pohl Recreation Center\, Physical Education Building
+SUMMARY:Registration Opens: Badminton Tournaments
+URL;VALUE=URI:https://calendar.unt.edu/event/registration-opens-badminton-t
+ ournaments
+CATEGORIES:Student Life
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T160710Z
+UID:tag:localist.com\,2008:EventInstance_53916295554657
+DTSTART:20260914T130000Z
+DTEND:20260915T010000Z
+DESCRIPTION:CAARI-SNEAP-WOTWISI 2026 brings together researchers\, accelera
+ tor personnel\, engineers\, students\, and industry professionals from aro
+ und the world to exchange advances in accelerator science\, accelerator ap
+ plications\, materials research\, and related technologies.\n\nThe three m
+ eetings will be held concurrently at the University of North Texas\, creat
+ ing opportunities for interdisciplinary discussion\, networking\, collabor
+ ation\, and interaction among accelerator researchers and users from a bro
+ ad range of scientific and industrial fields.
+GEO:33.210932;-97.147274
+LOCATION:Emerald Ballroom at the University Union\, 314
+SUMMARY:International Conference CAARI-SNEAP-WOTWISI 2026
+URL;VALUE=URI:https://calendar.unt.edu/event/international-conference-caari
+ -sneap-wotwisi-2026
+CATEGORIES:Conferences & Meetings
+END:VEVENT
+END:VCALENDAR
