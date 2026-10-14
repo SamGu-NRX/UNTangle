@@ -337,7 +337,6 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
     ? {
         total: major.coreCourseCodes.length,
         done: major.coreCourseCodes.filter((id) => model.rows.get(id)?.status === "done").length,
-        covered: major.coreCourseCodes.filter((id) => model.rows.get(id)?.status === "covered").length,
       }
     : null;
   const clearCredit = (id: string, event?: MouseEvent) => {

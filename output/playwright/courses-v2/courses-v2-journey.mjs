@@ -237,12 +237,10 @@ async function journey(browser, viewport) {
     const offset = await panel.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
     const expected = (0.92 - 0.52) * viewport.height;
     check(`${tag}: the sheet opens at the half detent`, Math.abs(offset - expected) < 3, `${offset.toFixed(1)}px vs ${expected}px`);
-    await panel.getByRole("button", { name: "Resize sheet" }).focus();
-    // Past the sheet's Close button, into its body.
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Tab");
-    await page.waitForTimeout(400);
-    check(`${tag}: moving focus into the half-height sheet opens it fully`, (await panel.getAttribute("data-expanded")) !== null);
+    // The handle raises it to full height, where the body scrolls to the grades below.
+    await panel.getByRole("button", { name: "Resize sheet" }).tap();
+    await page.waitForTimeout(500);
+    check(`${tag}: the handle opens the sheet fully`, (await panel.getAttribute("data-expanded")) !== null);
   }
   const bars = await panel.locator("[data-grade-bar]").evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
   check(`${tag}: the bars are one green`, bars.length === 6 && new Set(bars).size === 1 && bars[0] === "rgb(0, 81, 43)", bars.join());

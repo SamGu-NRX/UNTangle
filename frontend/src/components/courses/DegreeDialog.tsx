@@ -19,8 +19,8 @@ type Props = {
   source: "transcript" | "sample" | "none";
   onImport: () => void;
   onSample: () => void;
-  /** The major's core list against the student's record; null without a major. */
-  core: { done: number; covered: number; total: number } | null;
+  /** The major's core list against the student's record; null without a major. Covered courses show in Done. */
+  core: { done: number; total: number } | null;
 };
 
 const SOURCE_TEXT = {
@@ -81,7 +81,7 @@ export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onIm
       {core ? (
         <p className={styles.majorCore}>
           <span>
-            {core.done} of {core.total} core courses done{core.covered > 0 ? `, ${core.covered} more covered by later courses` : ""}
+            {core.done} of {core.total} core courses done
           </span>
           <ProvenanceTag source="Core lists are hand-picked samples, not UNT's official degree plan.">Sample list</ProvenanceTag>
         </p>

@@ -475,6 +475,7 @@
   margin-left: auto;
 }
 .majorCore {
+  text-wrap: pretty;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1040,12 +1041,15 @@
   .detail {
     --detail-pad: 16px;
   }
-  /* Four stops fit a 360px screen. */
+  /* Four stops fit a 360px screen: about 76px each, and a code at 11.5px is about 70px wide. */
   .path {
-    --path-gap: 10px;
+    --path-gap: 8px;
   }
   .path li {
     min-width: 0;
+  }
+  .pathCode {
+    font-size: 11.5px;
   }
   /* With a fact on two lines, the code lines up with its first line. */
   .code,
