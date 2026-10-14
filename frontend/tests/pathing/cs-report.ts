@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { recommendNextTerm, unlockAnalysis } from "../../src/lib/pathing";
-import type { CoursePathing, PathingAnalysis, TermRecommendation } from "../../src/lib/pathing";
+import type { CoursePathing, PathingAnalysis, RequirementSet, TermRecommendation } from "../../src/lib/pathing";
 import { adaptUntCatalog, evidenceFromUntTranscript, inferStatuses, normalizeUntCourseId, parseUntPrerequisite, untAdapter } from "../../src/lib/prereq";
 import type { UntCatalogEntry } from "../../src/lib/prereq";
 import type { TranscriptCourseRecord } from "../../src/lib/types";
@@ -46,7 +46,8 @@ function catalogRows(): readonly CatalogRow[] {
 
 function courseLine(course: CoursePathing, status: string): string {
   const reasons = course.reasons.length > 0 ? ` | reasons: ${course.reasons.join("; ")}` : "";
-  return `${course.courseId} | ${course.group} | ${status} | ${course.credits} cr | direct ${course.unlocksDirect.length} | transitive ${course.unlocksTransitive.length} | chain ${course.remainingChain}${reasons}`;
+  const chain = course.remainingChain === null ? "null (unresolved cycle)" : course.remainingChain;
+  return `${course.courseId} | ${course.group} | ${status} | ${course.credits} cr | direct ${course.unlocksDirect.length} | transitive ${course.unlocksTransitive.length} | chain ${chain}${reasons}`;
 }
 
 function render(
@@ -55,12 +56,17 @@ function render(
   rowCount: number,
   unparseableRows: readonly string[],
   prereqCoverage: Readonly<Record<"full" | "partial" | "unknown", number>>,
+  requirements: RequirementSet,
 ): string {
   const gaps = prereqCoverage.partial + prereqCoverage.unknown;
+  const groups = requirements.chooseNGroups ?? [];
   const lines = [
     "UNTangle pathing report for Computer Science, BS (major cs)",
     `Catalog rows: ${rowCount}; unparseable rows: ${unparseableRows.length}; prerequisite parse gaps: ${gaps} (full ${prereqCoverage.full}, partial ${prereqCoverage.partial}, unknown ${prereqCoverage.unknown})`,
-    `Universe courses: ${analysis.universe.length}; remaining critical path: ${analysis.remainingCriticalPath}`,
+    `Requirement set provenance: the CS, BS degree-plan page was unreachable this session (crawler and direct fetch both failed),`,
+    `so the required-course list is the seed-data core list from src/lib/seed-data.ts (${requirements.requiredCourseIds.join(", ")});`,
+    `choose-N groups passed: ${groups.length > 0 ? groups.map((group) => group.name).join("; ") : "none (catalog wording unverified, not invented)"}`,
+    `Universe courses: ${analysis.universe.length}; remaining critical path: ${analysis.remainingCriticalPath === null ? "null (unresolved cycle)" : analysis.remainingCriticalPath}`,
     `Warnings: ${analysis.warnings.length > 0 ? analysis.warnings.join("; ") : "none"}`,
     "",
     "Next-term recommendation (credit target 15):",
@@ -86,9 +92,11 @@ function render(
 }
 
 /**
- * Real catalog, real engine, real major: the 656-row UNT catalog is adapted with a
+ * Real catalog, real engine, real requirement set: the 656-row UNT catalog is adapted with a
  * leading-integer credit-hours map, and the transcript is exactly CSCE 1030, 1040,
- * 2100, MATH 1710, 1720 with grade A. Rows that cannot be parsed are reported, never
+ * 2100, MATH 1710, 1720 with grade A. The requirement set is the seed-data CS core
+ * (the degree-plan page was unreachable this session), so the universe is that core
+ * plus its downward prerequisite closure. Rows that cannot be parsed are reported, never
  * skipped silently, and prerequisite text that does not fully parse is counted as
  * coverage, so advisor-check and equivalent-clause rows stay visible instead of
  * being presented as fully understood.
@@ -125,12 +133,18 @@ export function buildCsScenario(): CsPathingScenario {
   const catalog = adaptUntCatalog(entries, creditHours);
   const major = majors.find((candidate) => candidate.id === "cs");
   if (!major) throw new Error("Computer Science, BS major is missing from seed data.");
+  // The seed-data core list is the requirement source of record this round; the
+  // degree-plan page could not be fetched, so no requirement is invented here.
+  const requirements: RequirementSet = {
+    requiredCourseIds: [...major.coreCourseCodes],
+    chooseNGroups: [],
+  };
   const evidence = evidenceFromUntTranscript(["CSCE1030", "CSCE1040", "CSCE2100", "MATH1710", "MATH1720"].map(record));
   const result = inferStatuses(catalog, evidence, untAdapter);
-  const analysis = unlockAnalysis(major, result);
-  const recommendations = recommendNextTerm(major, result, { creditTarget: 15 });
+  const analysis = unlockAnalysis(requirements, result);
+  const recommendations = recommendNextTerm(requirements, result, { creditTarget: 15 });
   return {
-    report: render(analysis, recommendations, rows.length, unparseableRows, coverage),
+    report: render(analysis, recommendations, rows.length, unparseableRows, coverage, requirements),
     unparseableRows,
     prereqCoverage: coverage,
     analysis,

@@ -1,95 +1,113 @@
-import { detectCycles } from "@/lib/prereq";
-import type { CourseId, InferenceResult, Major } from "@/lib/prereq";
-import { buildDependents, compareIds, majorUniverse } from "./graph";
-import type { CoursePathing, PathingAnalysis, PathingGroup, TermRecommendation } from "./types";
-
-/** All courses reachable from `start` through prerequisite-reference edges, `start` included. */
-function dependentClosure(start: CourseId, dependents: Map<CourseId, Set<CourseId>>): Set<CourseId> {
-  const visited = new Set<CourseId>([start]);
-  const queue = [start];
-  for (let index = 0; index < queue.length; index++) {
-    for (const next of dependents.get(queue[index]) ?? new Set<CourseId>()) {
-      if (visited.has(next)) continue;
-      visited.add(next);
-      queue.push(next);
-    }
-  }
-  return visited;
-}
+import type { CourseId, InferenceResult } from "@/lib/prereq";
+import { compareIds, evaluateNode, requirementUniverse } from "./graph";
+import type { Satisfaction } from "./graph";
+import type { CoursePathing, PathingAnalysis, PathingGroup, RequirementSet, TermRecommendation } from "./types";
 
 /**
- * Major-scoped unlock analysis.
+ * Requirement-scoped unlock analysis.
  *
- * The universe is every catalog course connected to a core course through
- * prerequisite-reference edges in either direction; everything else is ignored.
- * `unlocksDirect` and `unlocksTransitive` list unfinished dependents (done and
- * taking courses are excluded from the lists but still bridge traversal).
- * `remainingChain` counts 1 + the longest chain of unfinished dependents, with
- * cycle members as chain sinks so recursion always terminates. Advisor-check
- * requirements surface as status "unknown" and are never available.
+ * The universe is the requirement set's courses plus the prerequisites they
+ * need, walked downward only — never catalog connectivity. Paths are counted in
+ * terms (one pass per course per term, no credit or offering limits), following
+ * the prerequisite EXPRESSION: OR alternatives pick the cheapest viable branch,
+ * plain corequisites add no term, and grade-wrapped ones do. `unlocksDirect`
+ * lists unfinished universe courses whose cheapest viable branch needs the
+ * course; a satisfied OR alternative therefore stops unlocking anything.
+ * An unresolved prerequisite cycle surfaces as null chains and a warning, and
+ * `remainingCriticalPath` is the longest chain over unfinished required
+ * courses (null when one of them is cycle-blocked; 0 when none remain).
+ * Advisor-check requirements surface as status "unknown" and are never available.
  */
-export function unlockAnalysis(major: Major, statuses: InferenceResult): PathingAnalysis {
-  const dependents = buildDependents(statuses);
-  const { universe, warnings } = majorUniverse(major, statuses, dependents);
+export function unlockAnalysis(requirements: RequirementSet, statuses: InferenceResult): PathingAnalysis {
+  const { universe, warnings } = requirementUniverse(requirements, statuses);
   const byId = new Map(statuses.catalog.map((course) => [course.id, course]));
-  const core = new Set(major.coreCourseCodes);
-  // Cycle members are chain sinks: detectCycles is the engine's own SCC walk over the
-  // catalog, and the reported cycles are honored too, so a hand-built result cannot hide a cycle.
-  const cycleIds = new Set<CourseId>([...statuses.cycles.flat(), ...detectCycles(statuses.catalog).flat()]);
+  const required = new Set(requirements.requiredCourseIds);
   const statusOf = (id: CourseId) => statuses.statuses.get(id)?.status ?? "unknown";
   const finished = (id: CourseId) => {
     const status = statusOf(id);
     return status === "done" || status === "taking";
   };
+  const gradeFinished = (id: CourseId) => statusOf(id) === "done";
+  const satisfaction: Satisfaction = { finished, gradeFinished };
 
-  const chains = new Map<CourseId, number>();
+  // Pass one: memoized term cost per course. Re-entering a course while its own
+  // cost is still being computed is an unresolved cycle; its cheapest branch runs
+  // through itself, so no branch cost exists. Evidence that completes a cycle
+  // member short-circuits before recursion, so evidence-resolved cycles cost 0.
+  const costs = new Map<CourseId, number | null>();
   const inProgress = new Set<CourseId>();
-  const remainingChain = (id: CourseId): number => {
-    const memo = chains.get(id);
+  const courseCost = (id: CourseId): number | null => {
+    const memo = costs.get(id);
     if (memo !== undefined) return memo;
-    if (finished(id) || cycleIds.has(id)) {
-      chains.set(id, 0);
-      return 0;
-    }
-    // Guard, not behavior: the cycle sets above already name every cycle, so this
-    // re-entrancy would mean a cycle escaped detection. Fail loudly, never loop forever.
-    if (inProgress.has(id)) throw new Error(`Prerequisite cycle at ${id} escaped cycle detection.`);
+    if (inProgress.has(id)) return null;
+    const course = byId.get(id);
+    if (!course) return 0;
     inProgress.add(id);
-    let longest = 0;
-    for (const dependent of dependents.get(id) ?? new Set<CourseId>()) {
-      if (!universe.has(dependent) || finished(dependent)) continue;
-      longest = Math.max(longest, remainingChain(dependent));
-    }
+    const sub = evaluateNode(course.prerequisite, false, satisfaction, courseCost);
     inProgress.delete(id);
-    const value = 1 + longest;
-    chains.set(id, value);
+    const value = sub.cost === null ? null : 1 + sub.cost;
+    costs.set(id, value);
     return value;
+  };
+  for (const id of universe) courseCost(id);
+
+  // Pass two: the needed leaves on each course's cheapest viable branch, now
+  // that every cost is memoized. This walk never re-enters courseCost, so
+  // cycles cannot recur here.
+  const neededBy = new Map<CourseId, Set<CourseId>>();
+  for (const id of universe) {
+    const course = byId.get(id)!;
+    if (finished(id)) continue;
+    const sub = evaluateNode(course.prerequisite, false, satisfaction, courseCost);
+    for (const leaf of sub.needed) {
+      if (!universe.has(leaf)) continue;
+      const users = neededBy.get(leaf) ?? new Set<CourseId>();
+      users.add(id);
+      neededBy.set(leaf, users);
+    }
+  }
+
+  const transitiveFrom = (start: CourseId): Set<CourseId> => {
+    const closure = new Set<CourseId>();
+    const queue = [start];
+    for (let index = 0; index < queue.length; index++) {
+      for (const user of neededBy.get(queue[index]!) ?? new Set<CourseId>()) {
+        if (closure.has(user)) continue;
+        closure.add(user);
+        queue.push(user);
+      }
+    }
+    return closure;
   };
 
   const sortedUniverse = [...universe].sort(compareIds);
-  for (const id of sortedUniverse) remainingChain(id);
-  let remainingCriticalPath = 0;
-  for (const id of sortedUniverse) remainingCriticalPath = Math.max(remainingCriticalPath, remainingChain(id));
+  const unfinishedRequired = sortedUniverse.filter((id) => required.has(id) && !finished(id));
+  let cycleBlocked = false;
+  for (const id of unfinishedRequired) {
+    if (costs.get(id) === null) cycleBlocked = true;
+  }
+  const analysisWarnings = [...warnings];
+  if (cycleBlocked) {
+    const blocked = unfinishedRequired.filter((id) => costs.get(id) === null).sort(compareIds);
+    analysisWarnings.push(`Unresolved prerequisite cycle blocks: ${blocked.join(", ")}; remainingCriticalPath is null.`);
+  }
+  const criticalCandidates = unfinishedRequired
+    .map((id) => costs.get(id)!)
+    .filter((cost): cost is number => cost !== null);
+  const remainingCriticalPath = cycleBlocked ? null : Math.max(0, ...criticalCandidates);
 
   const courses = new Map<CourseId, CoursePathing>();
   for (const id of sortedUniverse) {
-    const closure = dependentClosure(id, dependents);
     const status = statusOf(id);
-    const group: PathingGroup = core.has(id)
-      ? "core"
-      : [...closure].some((reached) => core.has(reached))
-        ? "prerequisite"
-        : "advanced";
-    // Dependents of a universe course are in the universe by construction, so the
-    // unfinished filter alone shapes the direct list.
-    const unlocksDirect = [...(dependents.get(id) ?? new Set<CourseId>())].filter((dependent) => !finished(dependent)).sort(compareIds);
-    const unlocksTransitive = [...closure].filter((reached) => reached !== id && !finished(reached)).sort(compareIds);
-    const chain = chains.get(id)!;
+    const group: PathingGroup = required.has(id) ? "required" : "prerequisite";
+    const unlocksDirect = [...(neededBy.get(id) ?? new Set<CourseId>())].sort(compareIds);
+    const unlocksTransitive = [...transitiveFrom(id)].filter((user) => user !== id).sort(compareIds);
+    const chain = finished(id) ? 0 : costs.get(id)!;
     const available = status === "eligible";
     const reasons: string[] = [];
     if (available) {
       if (unlocksTransitive.length > 0) reasons.push(`Unlocks ${unlocksTransitive.length} ${unlocksTransitive.length === 1 ? "course" : "courses"}`);
-      if (chain > 0 && chain === remainingCriticalPath) reasons.push("On the longest chain to graduating");
+      if (remainingCriticalPath !== null && remainingCriticalPath > 0 && chain === remainingCriticalPath) reasons.push("On the longest chain to graduating");
     }
     courses.set(id, {
       courseId: id,
@@ -103,30 +121,42 @@ export function unlockAnalysis(major: Major, statuses: InferenceResult): Pathing
       reasons,
     });
   }
-  return { universe: sortedUniverse, courses, warnings, remainingCriticalPath };
+
+  return {
+    universe: sortedUniverse,
+    courses,
+    warnings: analysisWarnings,
+    chooseNGroups: (requirements.chooseNGroups ?? []).map((group) => ({
+      name: group.name,
+      options: [...group.options].sort(compareIds),
+      choose: group.choose,
+    })),
+    remainingCriticalPath,
+  };
 }
 
 /**
- * Greedy one-term plan from the available universe courses, ranked by transitive
- * unlocks, then remaining chain, then credits, then id. A candidate that would
- * overflow the credit target is skipped and the walk continues, mirroring
- * `suggestNext`. A zero target plans nothing.
+ * Greedy one-term plan from the available universe courses, ranked by
+ * transitive unlocks, then remaining chain (null last), then credits, then id.
+ * A candidate that would overflow the credit target is skipped and the walk
+ * continues, mirroring `suggestNext`. A zero target plans nothing.
  */
 export function recommendNextTerm(
-  major: Major,
+  requirements: RequirementSet,
   statuses: InferenceResult,
   options: { creditTarget: number },
 ): TermRecommendation[] {
   const { creditTarget } = options;
   if (!Number.isFinite(creditTarget) || creditTarget < 0) throw new Error("creditTarget must be finite and nonnegative.");
   if (creditTarget === 0) return [];
-  const analysis = unlockAnalysis(major, statuses);
+  const analysis = unlockAnalysis(requirements, statuses);
   const candidates = [...analysis.courses.values()].filter((course) => course.available);
-  // Unlock breadth first, then the longest remaining chain, then heavier courses,
-  // then id, so no ranking tie is ever left to insertion order.
+  const chainKey = (chain: number | null) => (chain === null ? -1 : chain);
+  // Unlock breadth first, then the longest remaining chain (cycle-blocked last),
+  // then heavier courses, then id, so no ranking tie is ever left to insertion order.
   candidates.sort((a, b) =>
     b.unlocksTransitive.length - a.unlocksTransitive.length ||
-    b.remainingChain - a.remainingChain ||
+    chainKey(b.remainingChain) - chainKey(a.remainingChain) ||
     b.credits - a.credits ||
     compareIds(a.courseId, b.courseId));
   const plan: TermRecommendation[] = [];

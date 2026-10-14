@@ -10,15 +10,25 @@ test("Computer Science, BS pathing report matches the committed snapshot", () =>
   // (advisor checks, equivalents, standing rules) instead of dropping them.
   expect(prereqCoverage).toEqual({ full: 430, partial: 168, unknown: 58 });
   expect(report).toBe(readFileSync(new URL("./cs-report.fixture.txt", import.meta.url), "utf8"));
-  // Grounded data checks on the real catalog: the capstone chain never shows up as
-  // takeable. CSCE 4901 is locked behind senior-standing hours and unmet CSCE 3444,
-  // and CSCE 4902 adds an advisor-checked immediate-enrollment clause.
-  expect(recommendations.some((rec) => rec.courseId === "CSCE 4901")).toBe(false);
-  expect(recommendations.some((rec) => rec.courseId === "CSCE 4902")).toBe(false);
-  // CSCE 2110's corequisite clause "This course can be taken concurrently with
-  // CSCE 2100" parses to an advisor-check requirement, so it is never available.
-  expect(analysis.courses.get("CSCE 2110")?.status).toBe("unknown");
-  expect(analysis.courses.get("CSCE 2110")?.available).toBe(false);
-  // The greedy plan respects the credit target.
+  // The requirement-scoped universe is the five seed-data core courses (all
+  // completed on the sample transcript) plus the prerequisites they name.
+  expect(analysis.universe).toHaveLength(10);
+  for (const id of ["CSCE 1030", "CSCE 1040", "CSCE 2100", "MATH 1710", "MATH 1720"]) {
+    const course = analysis.courses.get(id);
+    expect(course?.group).toBe("required");
+    expect(course?.status).toBe("done");
+    expect(course?.remainingChain).toBe(0);
+  }
+  // Every required course is done, so nothing remains on the critical path and
+  // the only recommendation is the one eligible closure course.
+  expect(analysis.remainingCriticalPath).toBe(0);
+  expect(recommendations.map((rec) => rec.courseId)).toEqual(["CSCE 1010"]);
   expect(recommendations.reduce((total, rec) => total + rec.credits, 0)).toBeLessThanOrEqual(15);
+  // Advisor-check requirements in the closure (CSCE 1035, MATH 1100, MATH 1650)
+  // are unknown, never presented as takeable.
+  for (const id of ["CSCE 1035", "MATH 1100", "MATH 1650"]) {
+    const course = analysis.courses.get(id);
+    expect(course?.status).toBe("unknown");
+    expect(course?.available).toBe(false);
+  }
 });
