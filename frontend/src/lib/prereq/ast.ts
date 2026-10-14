@@ -30,7 +30,7 @@ function canonical(node: Prerequisite): Canonical {
     case "corequisite": return [node.kind, escape, canonical(node.requirement)];
     case "standing": return [node.kind, escape, node.minimum];
     case "consent": return [node.kind, escape, node.authority];
-    case "unknown": return [node.kind, escape, node.source];
+    case "unknown": return [node.kind, escape, node.scope ?? "", node.source];
   }
 }
 
@@ -42,7 +42,7 @@ export function requirementKey(node: Prerequisite): string {
 export function requiresAdvisor(node: Prerequisite): boolean {
   switch (node.kind) {
     case "consent": return true;
-    case "unknown": return node.escape !== "equivalent";
+    case "unknown": return node.escape !== "equivalent" && node.scope !== "clause";
     case "and": case "or": return node.children.some(requiresAdvisor);
     case "corequisite": case "minGrade": return requiresAdvisor(node.requirement);
     default: return false;
@@ -58,10 +58,10 @@ export function canSupplyClosure(node: Prerequisite): boolean {
   return true;
 }
 
-/** Only an explicitly attached escape bounds unparsed text; fallback OR prose may waive the whole rule. */
+/** Explicit escapes and major conditions are bounded; other prose may waive the whole rule. */
 export function hasUnscopedEscape(node: Prerequisite): boolean {
   if (node.escape) return false;
-  if (node.kind === "unknown") return true;
+  if (node.kind === "unknown") return node.scope !== "clause";
   if (node.kind === "and" || node.kind === "or") return node.children.some(hasUnscopedEscape);
   if (node.kind === "corequisite" || node.kind === "minGrade") return hasUnscopedEscape(node.requirement);
   return false;

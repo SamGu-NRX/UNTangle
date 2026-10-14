@@ -1,10 +1,21 @@
 {
   "_about": "Written by Sam's vendor_skills.py. A refresh replaces only the skill folders and files listed here; any other folder under .obvious/skills/ belongs to this repo and is never touched.",
   "skills": [
+    "animate",
+    "animate-expo",
     "anti-ui-slop",
     "better-accessibility",
     "blast-radius",
+    "break-ui",
+    "emil-design-eng",
+    "find-animation-opportunities",
+    "frontend-design",
+    "holistic-ux",
+    "improve-animations",
+    "mobile-native",
+    "pick-ui-library",
     "pr-writing",
+    "prep-for-prod",
     "pstack-benchmark-checklist",
     "pstack-create-verification-skill",
     "pstack-principle-boundary-discipline",
@@ -14,7 +25,8 @@
     "pstack-principle-test-behavior-not-implementation",
     "pstack-principle-type-system-discipline",
     "pstack-typescript-best-practices",
-    "pstack-unslop"
+    "pstack-unslop",
+    "review-animations"
   ],
   "files": [
     "sharedrefs/host-contract.md"

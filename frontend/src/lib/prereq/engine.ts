@@ -44,8 +44,10 @@ export function detectCycles(catalog: readonly CatalogCourse[]): string[][] {
 
 function combine(kind: "and" | "or", children: readonly Reason[], source: string): Reason {
   const outcomes = children.map(child => child.outcome);
+  // A known mandatory failure decides an AND. Unscoped prose still forces
+  // course-wide review through requiresAdvisor after evaluation.
   const outcome = kind === "and"
-    ? outcomes.includes("unknown") ? "unknown" : outcomes.includes("unmet") ? "unmet" : "satisfied"
+    ? outcomes.includes("unmet") ? "unmet" : outcomes.includes("unknown") ? "unknown" : "satisfied"
     : outcomes.includes("satisfied") ? "satisfied" : outcomes.includes("unknown") ? "unknown" : "unmet";
   return { kind, outcome, source, message: kind === "and" ? "All requirements must be satisfied." : "One alternative must be satisfied.", children };
 }
