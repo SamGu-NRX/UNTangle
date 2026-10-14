@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { deepStrictEqual } from "node:assert/strict";
 import raw from "../../../output/playwright/courses-v2/fixtures/vsb-spring-2027.json";
 import responses from "../../../output/playwright/courses-v2/fixtures/spring-2027-sections.json";
 import { parseTerm } from "../../src/lib/sections/vsb";
@@ -28,6 +29,6 @@ test("the offline HTTP responses preserve the recorded options through the real 
   for (const [path, response] of Object.entries(responses.responses)) {
     const [subject, number] = path.split("/").slice(-2);
     expect(response.courseCode).toBe(`${subject} ${number}`);
-    expect(response.sections).toEqual(options(response.courseCode));
+    deepStrictEqual(response.sections, options(response.courseCode));
   }
 });
