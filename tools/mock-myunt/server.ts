@@ -1,6 +1,7 @@
 // A stand-in for myUNT's unofficial transcript page, for local journeys: the
 // page the "Open myUNT" window shows, and the synthetic PDF it links to.
 import { syntheticPdf } from "./pdf";
+import { buildClassSearchHtml } from "./class-search-fixture";
 const style =
   "<style>body{font:16px/1.5 Georgia;margin:30px;color:#222}header{background:#00512b;color:white;padding:16px}a{color:#00512b}</style>";
 function html(body: string) {
