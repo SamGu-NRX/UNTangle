@@ -122,6 +122,22 @@ describe("examCount", () => {
     if (result.found) expect(result.source.quote).toBe("There will be three exams in this course.");
   });
 
+  test("explicit totals survive a date or week suffix without changing their quote", () => {
+    for (const text of [
+      "There will be three exams on September 1, October 1, and December 1.",
+      "There will be three exams starting in Week 4.",
+      "You will have 3 exams starting on 10/09/2026.",
+    ]) {
+      const result = extractSyllabusFacts(text).examCount;
+      expect(result.found).toBe(true);
+      expect(result.count).toBe(3);
+      if (result.found) {
+        expect(result.source.quote).toBe(text);
+        expectValidSource(result.source, text);
+      }
+    }
+  });
+
   test("no stated count stays not found", () => {
     const text = "The final exam is comprehensive and closed book.";
     expect(extractSyllabusFacts(text).examCount.found).toBe(false);

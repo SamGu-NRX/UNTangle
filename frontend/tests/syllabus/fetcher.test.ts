@@ -208,6 +208,18 @@ describe("robots groups and specificity", () => {
       await expect(client.assertAllowed("https://example.invalid/public.pdf")).resolves.toBeUndefined();
     });
   });
+  test("wildcard-only disallow blocks unless an allow rule actually matches", async () => {
+    await withRobots("User-agent: *\nDisallow: *", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/file.pdf")).rejects.toBeInstanceOf(DisallowedByRobots);
+    });
+    await withRobots("User-agent: *\nDisallow: *\nAllow: /public", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/private")).rejects.toBeInstanceOf(DisallowedByRobots);
+      await expect(client.assertAllowed("https://example.invalid/public/file.pdf")).resolves.toBeUndefined();
+    });
+    await withRobots("User-agent: *\nDisallow: *\nAllow: *", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/file.pdf")).resolves.toBeUndefined();
+    });
+  });
   test("wildcard expansion does not outrank a literal disallow", async () => {
     await withRobots("User-agent: *\nAllow: /*\nDisallow: /private", async (client) => {
       await expect(client.assertAllowed("https://example.invalid/private/long/file.pdf")).rejects.toBeInstanceOf(DisallowedByRobots);

@@ -17,7 +17,13 @@ The published numbers must be regenerated from the original labeled cache by
 running this exact command from the repository root, after binding its hashes:
 
 ```sh
-bun --no-env-file frontend/tests/syllabus/eval.ts > docs/research/syllabus/eval-results.txt
+output=$(mktemp docs/research/syllabus/eval-results.txt.XXXXXX) &&
+if bun --no-env-file frontend/tests/syllabus/eval.ts > "$output"; then
+  mv "$output" docs/research/syllabus/eval-results.txt
+else
+  rm -f "$output"
+  false
+fi
 ```
 
 The old claim that grading extraction never fires was also wrong. The historical
@@ -48,7 +54,9 @@ the corresponding recall denominator.
 
 `frontend/tests/syllabus/eval.ts` compares predictions with labels:
 
-- Attendance evidence must overlap the labeled excerpt in content words.
+- Attendance evidence must overlap the labeled excerpt in content words, and
+  explicit negation markers must agree. This is a conservative sentence-level
+  check, not a semantic comparison of individual policy clauses.
 - Exam count must equal the labeled count.
 - A grading block must match every labeled component by name overlap and weight,
   one-to-one, with no extra extracted components. Component-level scores also
@@ -72,7 +80,13 @@ used for labeling, not a newer download. Only then run:
 
 ```sh
 bun --no-env-file tools/syllabus/build-labels.ts
-bun --no-env-file frontend/tests/syllabus/eval.ts > docs/research/syllabus/eval-results.txt
+output=$(mktemp docs/research/syllabus/eval-results.txt.XXXXXX) &&
+if bun --no-env-file frontend/tests/syllabus/eval.ts > "$output"; then
+  mv "$output" docs/research/syllabus/eval-results.txt
+else
+  rm -f "$output"
+  false
+fi
 ```
 
 `build-labels.ts` assembles the existing hand-written labels and computes each

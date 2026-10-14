@@ -183,12 +183,16 @@ function examCount(sentences: Sentence[]): FactResult & { count?: number } {
   for (const sentence of sentences) {
     if (!EXAM_TOPIC.test(sentence.text)) continue;
     // "Exam 3 covers chapters 5-6" is a schedule entry, not a total.
-    if (EXAM_NOISE.test(sentence.text) || EXAM_SCHEDULE_POSITION.test(sentence.text)) continue;
+    if (EXAM_NOISE.test(sentence.text)) continue;
+    // Date/week suffixes must not erase an explicit total stated before them.
+    // Schedule rows start at that position and therefore supply no count phrase.
+    const schedulePosition = sentence.text.search(EXAM_SCHEDULE_POSITION);
+    const countText = schedulePosition < 0 ? sentence.text : sentence.text.slice(0, schedulePosition);
     const introducer =
       /\b(there (?:are|will be)|you (?:will |may )?(?:have|take)|we (?:will |may )?(?:have|take)|i (?:will )?(?:have|give)|will (?:have|be)|consists? of|include[sd]?|plus|and)\b/i;
-    const mentions = examCountPhrase(sentence.text);
+    const mentions = examCountPhrase(countText);
     if (mentions.length === 0) continue;
-    const introOk = introducer.test(sentence.text) || /\bexams?\b/i.test(sentence.text);
+    const introOk = introducer.test(countText) || /\bexams?\b/i.test(countText);
     if (!introOk) continue;
     // "three exams" as one mention is the total. Multiple mentions joined in
     // one sentence ("two midterms and a final") sum when the sentence reads

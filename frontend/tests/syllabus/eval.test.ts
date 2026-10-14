@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { scoreEntries, verifyText, type LabelEntry } from "./eval";
+import { rate, scoreEntries, verifyText, type LabelEntry } from "./eval";
 
 const root = path.resolve(import.meta.dir, "../../..");
 const labels = JSON.parse(readFileSync(path.join(root, "docs/research/syllabus/labels.json"), "utf8")) as { entries: LabelEntry[] };
@@ -46,6 +46,33 @@ describe("document scoring", () => {
     const gradingWeights = { present: true, components: [{ name: "Exams", weightPct: 60 }] };
     expect(scoreEntries([document({ gradingWeights }, wrongText)]).weights).toEqual({ tp: 0, fp: 1, fn: 1 });
     expect(scoreEntries([document({ gradingWeights: { present: true, components: [{ name: "Exams", weightPct: 50 }] } }, "Grading: Exams 50%, Exams 50%.")]).weights).toEqual({ tp: 0, fp: 1, fn: 1 });
+  });
+
+  test("component assignment is complete and independent of label order", () => {
+    const components = [{ name: "Exam", weightPct: 50 }, { name: "Midterm", weightPct: 50 }];
+    for (const ordered of [components, [...components].reverse()]) {
+      const score = scoreEntries([document({ gradingWeights: { present: true, components: ordered } }, "Grading: Midterm Exam 50%, Exam 50%.")]);
+      expect(score.weights).toEqual({ tp: 1, fp: 0, fn: 0 });
+      expect(score.weightsComponents).toEqual({ tp: 2, fp: 0, fn: 0 });
+      expect(score.misses).toEqual([]);
+    }
+  });
+
+  test("attendance evidence cannot match an opposite explicit negation", () => {
+    for (const [excerpt, text] of [
+      ["Attendance is not required.", "Attendance is required and affects your grade."],
+      ["Attendance is required.", "Attendance is not required and never affects your grade."],
+    ]) {
+      expect(scoreEntries([document({ attendance: { present: true, excerpt } }, text)]).attendance).toEqual({ tp: 0, fp: 1, fn: 1 });
+    }
+    expect(scoreEntries([document({ attendance: { present: true, excerpt: "Attendance is not required." } }, "Attendance is not required and affects no grade.")]).attendance).toEqual({ tp: 1, fp: 0, fn: 0 });
+  });
+
+  test("defined zero precision and recall yield zero F1, not an unavailable metric", () => {
+    expect(rate({ tp: 0, fp: 2, fn: 3 })).toEqual({ precision: 0, recall: 0, f1: 0 });
+    expect(rate({ tp: 0, fp: 0, fn: 3 })).toEqual({ precision: null, recall: 0, f1: null });
+    expect(rate({ tp: 0, fp: 2, fn: 0 })).toEqual({ precision: 0, recall: null, f1: null });
+    expect(rate({ tp: 2, fp: 2, fn: 2 })).toEqual({ precision: 0.5, recall: 0.5, f1: 0.5 });
   });
 
   test("every committed labeled-positive entry remains in its recall denominator", () => {
@@ -123,9 +150,32 @@ test("research README withdraws unsupported scores and documents complete replay
   expect(report).toContain("Results are withdrawn");
   expect(report).toContain("wrong answer differs from an absent answer");
   expect(report).toContain("--profiles=tools/syllabus/data/profile-ids.txt --term=\"Fall 2026\"");
-  expect(report).toContain("bun --no-env-file frontend/tests/syllabus/eval.ts > docs/research/syllabus/eval-results.txt");
+  expect(report).toContain('if bun --no-env-file frontend/tests/syllabus/eval.ts > "$output"; then');
   expect(report).not.toContain("Never fires on real documents");
   expect(readFileSync(path.join(root, "docs/research/syllabus/eval-results.txt"), "utf8")).toContain("Results withdrawn pending offline regeneration");
+});
+
+test("documented replay publishes output only on success", () => {
+  const report = readFileSync(path.join(root, "docs/research/syllabus/README.md"), "utf8");
+  const command = report.match(/```sh\n([\s\S]*?)\n```/)?.[1];
+  if (!command) throw new Error("research README is missing its replay command");
+  const dir = mkdtempSync(path.join(tmpdir(), "syllabus-publish-"));
+  try {
+    const outputDir = path.join(dir, "docs/research/syllabus");
+    const bin = path.join(dir, "bin");
+    mkdirSync(outputDir, { recursive: true });
+    mkdirSync(bin);
+    // Test the documented shell control flow without reading a real corpus.
+    writeFileSync(path.join(bin, "bun"), '#!/bin/sh\nprintf "%s\\n" "synthetic evaluation"\nexit "$EVALUATOR_STATUS"\n');
+    chmodSync(path.join(bin, "bun"), 0o700);
+    for (const status of [1, 0]) {
+      writeFileSync(path.join(outputDir, "eval-results.txt"), "withdrawal notice");
+      const result = Bun.spawnSync(["/bin/sh", "-c", command], { cwd: dir, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, EVALUATOR_STATUS: String(status) } });
+      expect(result.exitCode).toBe(status);
+      expect(readFileSync(path.join(outputDir, "eval-results.txt"), "utf8")).toBe(status === 0 ? "synthetic evaluation\n" : "withdrawal notice");
+      expect(readdirSync(outputDir)).toEqual(["eval-results.txt"]);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("worksheet uses an explicit readable list, not a hidden /tmp file", () => {

@@ -112,7 +112,7 @@ class RobotsRules {
   }
 
   private static matchLength(pattern: string, path: string): number {
-    if (!pattern) return 0;
+    if (!pattern) return -1;
     pattern = RobotsRules.canonicalOctets(pattern);
     path = RobotsRules.canonicalOctets(path);
     // Patterns are matched as regexes ("*" -> ".*"), not as bare prefixes:
@@ -133,13 +133,14 @@ class RobotsRules {
       RobotsRules.regexCache.set(pattern, re);
     }
     // Only literal rule bytes contribute specificity, not wildcard expansion.
-    return re.test(path) ? Buffer.byteLength(pattern.replace(/\*/g, "").replace(/\$$/, "").replace(/%[A-F0-9]{2}/g, "x"), "utf8") : 0;
+    return re.test(path) ? Buffer.byteLength(pattern.replace(/\*/g, "").replace(/\$$/, "").replace(/%[A-F0-9]{2}/g, "x"), "utf8") : -1;
   }
 
   isAllowed(pathname: string): boolean {
     const groups = this.applicable();
-    const allow = Math.max(0, ...groups.flatMap((group) => group.allow.map((p) => RobotsRules.matchLength(p, pathname))));
-    const disallow = Math.max(0, ...groups.flatMap((group) => group.disallow.map((p) => RobotsRules.matchLength(p, pathname))));
+    // No match is -1; a wildcard-only match has specificity 0.
+    const allow = Math.max(-1, ...groups.flatMap((group) => group.allow.map((p) => RobotsRules.matchLength(p, pathname))));
+    const disallow = Math.max(-1, ...groups.flatMap((group) => group.disallow.map((p) => RobotsRules.matchLength(p, pathname))));
     return allow >= disallow;
   }
 }
