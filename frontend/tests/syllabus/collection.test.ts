@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { TextContent } from "pdfjs-dist/types/src/display/api";
@@ -51,6 +51,57 @@ describe("collection limits", () => {
       expect(manifest.entries).toEqual([]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
+});
+
+describe("collector stop-on-error flag", () => {
+  test("rejects invalid flag values before reading the profile list", () => {
+    const result = Bun.spawnSync([process.execPath, "--no-env-file", path.join(root, "tools/syllabus/run.ts"), "--profiles=/missing/profiles.txt", "--term=Fall 2026", "--stop-on-error=maybe"], { cwd: root });
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr.toString()).toContain('--stop-on-error must be true or false, got "maybe"');
+  });
+  for (const [status, stage, flag] of [[429, "syllabus", ""], [503, "syllabus", "--stop-on-error"], [500, "profile", "--stop-on-error=true"]] as const) {
+    test(`HTTP ${status} at ${stage} stops the whole CLI run and reports the URL`, () => {
+      const dir = mkdtempSync(path.join(tmpdir(), "syllabus-stop-cli-"));
+      try {
+        const tools = path.join(dir, "tools/syllabus");
+        const seedDir = path.join(dir, "frontend/src/lib/generated");
+        mkdirSync(tools, { recursive: true });
+        mkdirSync(seedDir, { recursive: true });
+        copyFileSync(path.join(root, "tools/syllabus/run.ts"), path.join(tools, "run.ts"));
+        symlinkSync(path.join(root, "tools/syllabus/lib"), path.join(tools, "lib"), "dir");
+        writeFileSync(path.join(seedDir, "seed-data.json"), JSON.stringify({ courses: [{ code: "TEST 1000" }] }));
+        writeFileSync(path.join(dir, "profiles.txt"), "123\n456\n");
+        writeFileSync(path.join(dir, "manifest.json"), "preserve existing manifest");
+        const profileHtml = '<tr><td>TEST 1000.001</td><td>Course</td><td>Fall 2026</td><td><a class="profile-syllabus" href="https://example.invalid/syllabus.pdf">Syllabus</a></td></tr>';
+        // The preload replaces every network call and advances a synthetic clock.
+        writeFileSync(path.join(dir, "preload.ts"), `
+          let now = 1700000000000;
+          Date.now = () => now;
+          Bun.sleep = async (ms) => { now += Number(ms); };
+          globalThis.fetch = async (input) => {
+            const url = String(input);
+            console.log("MOCK REQUEST " + url);
+            if (url.endsWith("/robots.txt")) return new Response("User-agent: *\\n");
+            if (url.includes("faculty-profile")) {
+              if (${JSON.stringify(stage)} === "profile") return new Response(null, { status: ${status} });
+              return new Response(${JSON.stringify(profileHtml)}, { headers: { "content-type": "text/html" } });
+            }
+            if (url === "https://example.invalid/syllabus.pdf") return new Response(null, { status: ${status} });
+            throw new Error("unexpected mocked request: " + url);
+          };
+        `);
+        const args = [process.execPath, "--no-env-file", "--preload", path.join(dir, "preload.ts"), path.join(tools, "run.ts"), `--profiles=${dir}/profiles.txt`, "--term=Fall 2026", `--manifest=${dir}/manifest.json`];
+        if (flag) args.push(flag);
+        const result = Bun.spawnSync(args, { cwd: root });
+        const stoppedUrl = stage === "profile" ? "https://facultyinfo.unt.edu/faculty-profile?profile=123" : "https://example.invalid/syllabus.pdf";
+        expect(result.exitCode).toBe(2);
+        expect(result.stderr.toString()).toContain(`run stopped: ${stoppedUrl} returned HTTP ${status}`);
+        expect(result.stdout.toString()).not.toContain("profile=456");
+        expect(result.stdout.toString().split(`MOCK REQUEST ${stoppedUrl}`).length - 1).toBe(1);
+        expect(readFileSync(path.join(dir, "manifest.json"), "utf8")).toBe("preserve existing manifest");
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    });
+  }
 });
 
 const item = (str: string, hasEOL = false): TextContent["items"][number] => ({

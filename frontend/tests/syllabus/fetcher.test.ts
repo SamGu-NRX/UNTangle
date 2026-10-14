@@ -2,16 +2,16 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { DisallowedByRobots, PoliteFetcher } from "../../../tools/syllabus/lib/fetcher";
+import { DisallowedByRobots, PoliteFetcher, StopOnHttpError } from "../../../tools/syllabus/lib/fetcher";
 
 const dirs: string[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-function fetcher(minDelayMs = 0) {
+function fetcher(minDelayMs = 0, stopOnError?: boolean) {
   const cacheDir = mkdtempSync(path.join(tmpdir(), "syllabus-fetcher-"));
   dirs.push(cacheDir);
-  return new PoliteFetcher({ cacheDir, minDelayMs, timeoutMs: 10 });
+  return new PoliteFetcher({ cacheDir, minDelayMs, timeoutMs: 10, stopOnError });
 }
 function mockFetch(implementation: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>) {
   return spyOn(globalThis, "fetch").mockImplementation(Object.assign(implementation, { preconnect: fetch.preconnect }));
@@ -52,6 +52,54 @@ describe("robots availability", () => {
       finally { mock.mockRestore(); }
     });
   }
+});
+
+describe("stop on resource refusal", () => {
+  for (const status of [429, 500, 503]) {
+    test(`HTTP ${status} stops on the first response by default and prevents later requests`, async () => {
+      const requests: string[] = [];
+      const pause = spyOn(Bun, "sleep").mockResolvedValue(undefined);
+      const mock = mockFetch(async (input) => {
+        const url = String(input);
+        requests.push(url);
+        return url.endsWith("/robots.txt") ? new Response("User-agent: *\n") : new Response("refused", { status });
+      });
+      try {
+        const client = fetcher();
+        await expect(client.fetch("https://example.invalid/syllabus.pdf")).rejects.toThrow(`run stopped: https://example.invalid/syllabus.pdf returned HTTP ${status}`);
+        await expect(client.fetch("https://other.invalid/next.pdf")).rejects.toBeInstanceOf(StopOnHttpError);
+        expect(requests).toEqual(["https://example.invalid/robots.txt", "https://example.invalid/syllabus.pdf"]);
+        expect(pause).not.toHaveBeenCalled();
+      } finally { mock.mockRestore(); pause.mockRestore(); }
+    });
+  }
+  test("reports the actual redirected URL that refused the request", async () => {
+    const mock = mockFetch(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/robots.txt")) return new Response("User-agent: *\n");
+      if (url.endsWith("/start")) return new Response(null, { status: 302, headers: { location: "/refused" } });
+      return new Response(null, { status: 503 });
+    });
+    try {
+      await expect(fetcher().fetch("https://example.invalid/start")).rejects.toThrow("run stopped: https://example.invalid/refused returned HTTP 503");
+      expect(mock).toHaveBeenCalledTimes(3);
+    } finally { mock.mockRestore(); }
+  });
+  test("explicit opt-out retries transient resource responses", async () => {
+    let attempts = 0;
+    const pause = spyOn(Bun, "sleep").mockResolvedValue(undefined);
+    const mock = mockFetch(async (input) => {
+      if (String(input).endsWith("/robots.txt")) return new Response("User-agent: *\n");
+      attempts++;
+      return attempts < 3 ? new Response(null, { status: attempts === 1 ? 429 : 503 }) : new Response("synthetic syllabus");
+    });
+    try {
+      const result = await fetcher(0, false).fetch("https://example.invalid/syllabus.pdf");
+      expect(result.body.toString()).toBe("synthetic syllabus");
+      expect(attempts).toBe(3);
+      expect(pause).toHaveBeenCalledTimes(2);
+    } finally { mock.mockRestore(); pause.mockRestore(); }
+  });
 });
 
 describe("redirect permissions", () => {

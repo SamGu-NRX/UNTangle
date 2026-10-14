@@ -14,7 +14,7 @@
  *     --profiles=tools/syllabus/data/profile-ids.txt \
  *     --term="Fall 2026" \
  *     [--manifest=tools/syllabus/.cache/manifest.json] \
- *     [--limit=N]
+ *     [--limit=N] [--stop-on-error=true|false]
  *
  * Exit codes: 0 = manifest written; 2 = usage or IO error.
  */
@@ -22,7 +22,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { PoliteFetcher, USER_AGENT } from "./lib/fetcher";
+import { PoliteFetcher, StopOnHttpError, USER_AGENT } from "./lib/fetcher";
 import { parseProfile, type TeachingRow } from "./lib/profile";
 import { extractSyllabusText } from "./lib/syllabus-text";
 
@@ -32,7 +32,7 @@ const PLANNER_SEED = path.join(REPO_ROOT, "frontend/src/lib/generated/seed-data.
 function fail(message: string): never {
   console.error(`error: ${message}`);
   console.error(
-    "usage: bun --no-env-file tools/syllabus/run.ts --profiles=<ids.txt> --term=\"Fall 2026\" [--manifest=<out.json>] [--limit=N]",
+    "usage: bun --no-env-file tools/syllabus/run.ts --profiles=<ids.txt> --term=\"Fall 2026\" [--manifest=<out.json>] [--limit=N] [--stop-on-error=true|false]",
   );
   process.exit(2);
 }
@@ -87,6 +87,12 @@ async function main(): Promise<void> {
     fail(`--limit must be a nonnegative safe integer, got ${JSON.stringify(rawLimit)}`);
   }
 
+  const rawStopOnError = args.get("stop-on-error") ?? "true";
+  if (rawStopOnError !== "true" && rawStopOnError !== "false") {
+    fail(`--stop-on-error must be true or false, got ${JSON.stringify(rawStopOnError)}`);
+  }
+  const stopOnError = rawStopOnError === "true";
+
   const planner = plannerCourseCodes();
   const profileIds = readFileSync(profilesFile, "utf8")
     .split("\n")
@@ -94,7 +100,7 @@ async function main(): Promise<void> {
     .filter((line) => line && !line.startsWith("#"));
   const ids = typeof limit === "number" ? profileIds.slice(0, limit) : profileIds;
 
-  const fetcher = new PoliteFetcher({ cacheDir: path.join(import.meta.dir, ".cache") });
+  const fetcher = new PoliteFetcher({ cacheDir: path.join(import.meta.dir, ".cache"), stopOnError });
   console.log(`user agent: ${USER_AGENT}`);
   console.log(`profiles: ${ids.length}, planner courses in catalog: ${planner.size}, target term: ${term}`);
 
@@ -115,6 +121,7 @@ async function main(): Promise<void> {
       }
       profile = parseProfile(page.body.toString("utf8"), profileUrl);
     } catch (err) {
+      if (err instanceof StopOnHttpError) fail(err.message);
       skipped.push({ profileId, courseCode: "", section: "", term: "", reason: `profile fetch: ${err instanceof Error ? err.message : String(err)}` });
       continue;
     }
@@ -139,6 +146,7 @@ async function main(): Promise<void> {
         }
         textResult = await extractSyllabusText(file.body, file.contentType);
       } catch (err) {
+        if (err instanceof StopOnHttpError) fail(err.message);
         skipped.push({ profileId, courseCode: row.courseCode, section: row.section, term, reason: `syllabus read: ${err instanceof Error ? err.message : String(err)}` });
         continue;
       }

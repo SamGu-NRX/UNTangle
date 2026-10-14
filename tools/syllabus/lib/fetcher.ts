@@ -7,8 +7,9 @@
  *   matching uses canonical URI octets and literal rule specificity;
  * - every response body is cached on disk under `.cache/http/` keyed by the
  *   SHA-1 of the URL, so a re-run never re-requests a page it already has;
- * - transient failures (5xx, timeouts) are retried at most twice with a
- *   growing pause. Nothing here retries a robots disallow or a 404.
+ * - resource 429 and 5xx responses stop the run by default; retrying them
+ *   requires stopOnError: false. Timeouts have at most two retries.
+ *   Nothing here retries a robots disallow or a 404.
  *
  * No syllabus content may be committed, so the cache directory is covered by
  * `tools/syllabus/.gitignore`.
@@ -39,6 +40,12 @@ interface CacheMeta {
 export class DisallowedByRobots extends Error {
   constructor(readonly url: string) {
     super(`blocked by robots.txt: ${url}`);
+  }
+}
+
+export class StopOnHttpError extends Error {
+  constructor(readonly url: string, readonly status: number) {
+    super(`run stopped: ${url} returned HTTP ${status}`);
   }
 }
 
@@ -141,12 +148,15 @@ export interface PoliteFetcherOptions {
   cacheDir: string;
   minDelayMs?: number;
   timeoutMs?: number;
+  stopOnError?: boolean;
 }
 
 export class PoliteFetcher {
   private readonly minDelayMs: number;
   private readonly timeoutMs: number;
   private readonly cacheDir: string;
+  private readonly stopOnError: boolean;
+  private stopped: StopOnHttpError | null = null;
   private readonly robots = new Map<string, RobotsRules>();
   private static lastRequestAt = 0;
   private static requestQueue: Promise<void> = Promise.resolve();
@@ -155,6 +165,8 @@ export class PoliteFetcher {
     this.cacheDir = options.cacheDir;
     this.minDelayMs = options.minDelayMs ?? 1100;
     this.timeoutMs = options.timeoutMs ?? 30000;
+    // A rate-limit or server refusal must stop collection, not trigger more load.
+    this.stopOnError = options.stopOnError ?? true;
     mkdirSync(path.join(this.cacheDir, "http"), { recursive: true });
   }
 
@@ -184,6 +196,11 @@ export class PoliteFetcher {
     for (let hop = 0; hop <= 5; hop++) {
       if (checkRobots) await this.assertAllowed(current);
       const response = await this.send(current);
+      if (checkRobots && this.stopOnError && (response.status === 429 || response.status >= 500)) {
+        this.stopped = new StopOnHttpError(current, response.status);
+        await response.body?.cancel();
+        throw this.stopped;
+      }
       if (![301, 302, 303, 307, 308].includes(response.status)) return response;
       const location = response.headers.get("location");
       await response.body?.cancel();
@@ -238,6 +255,7 @@ export class PoliteFetcher {
    * network, so repeated study runs stay under the same 1 rps ceiling.
    */
   async fetch(url: string): Promise<FetchedBody> {
+    if (this.stopped) throw this.stopped;
     const paths = this.cachePaths(url);
     if (existsSync(paths.body) && existsSync(paths.meta)) {
       const meta = JSON.parse(readFileSync(paths.meta, "utf8")) as CacheMeta;
@@ -251,6 +269,7 @@ export class PoliteFetcher {
         const res = await this.request(url, true);
         // 5xx and 429 are transient; 4xx client errors are not.
         if (res.status >= 500 || res.status === 429) {
+          await res.body?.cancel();
           lastError = `HTTP ${res.status}`;
           continue;
         }
@@ -265,7 +284,7 @@ export class PoliteFetcher {
         writeFileSync(paths.meta, JSON.stringify(meta, null, 2));
         return { url, status: meta.status, contentType: meta.contentType, body, fromCache: false };
       } catch (err) {
-        if (err instanceof DisallowedByRobots) throw err;
+        if (err instanceof DisallowedByRobots || err instanceof StopOnHttpError) throw err;
         lastError = err instanceof Error ? err.message : String(err);
       }
     }

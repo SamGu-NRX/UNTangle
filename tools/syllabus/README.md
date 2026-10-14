@@ -24,6 +24,11 @@ bun --no-env-file tools/syllabus/run.ts \
   --profiles=tools/syllabus/data/profile-ids.txt --term="Fall 2026"
 ```
 
+`--stop-on-error` is enabled by default. The first resource HTTP 429 or 5xx
+response stops the collector with exit code 2 and prints its URL and status.
+The collector does not retry, continue to later profiles, or replace the manifest.
+Use `--stop-on-error=false` only to explicitly select the previous retry behavior.
+
 For offline evaluation, restore the original hash-bound text cache and run:
 
 ```sh
