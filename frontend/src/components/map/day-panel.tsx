@@ -9,6 +9,7 @@ import { Plate } from "@/components/ui/Plate";
 import { SearchPalette, type SearchSection } from "@/components/ui/SearchPalette";
 import type { Hero } from "@/lib/leave-by";
 import {
+  formatDistance,
   formatTime,
   formatWalkMinutes,
   START_KEY,
@@ -81,7 +82,15 @@ export function DayStepper({
 
 /* ---------- hero ---------- */
 
-type HeroCopy = { label: string; big: string; now?: boolean; chip?: { text: string; tight: boolean }; sub: ReactNode };
+type HeroCopy = {
+  label: string;
+  big: string;
+  now?: boolean;
+  chip?: { text: string; tight: boolean };
+  sub: ReactNode;
+  /** A day to jump to: on a free day, the next one with classes. */
+  show?: ClassDay;
+};
 
 /** "GAB" for a placed building, the room text otherwise. */
 function buildingOf(entry: ItineraryStop): string {
@@ -118,6 +127,7 @@ function heroCopy(
       return {
         label: on ? `No classes on ${on}` : "No classes today",
         big: "Free",
+        show: next && next.day !== day ? next.day : undefined,
         sub:
           nextClassLine(next, isToday, "your-next") ??
           (hasClasses ? (
@@ -179,6 +189,7 @@ export function DayHero({
   isToday,
   next,
   hasClasses,
+  onShowDay,
 }: {
   hero: Hero;
   itinerary: Itinerary;
@@ -187,6 +198,7 @@ export function DayHero({
   next: NextClass;
   /** Whether the schedule has any timed class at all. */
   hasClasses: boolean;
+  onShowDay: (day: ClassDay, instant: boolean) => void;
 }) {
   const copy = heroCopy(hero, itinerary, { day, isToday, next, hasClasses });
   return (
@@ -201,6 +213,11 @@ export function DayHero({
         </span>
       ) : null}
       <p className="mv-hero__sub">{copy.sub}</p>
+      {copy.show ? (
+        <button type="button" className="mv-link mv-hero__show" onClick={(event) => onShowDay(copy.show!, fromKeyboard(event))}>
+          Show {dayNames[copy.show]}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -243,20 +260,44 @@ function legNote(leg: ItineraryLeg): string | null {
   return null;
 }
 
-/** A walk opens when it has more to say; the starting walk always does (it holds "Change starting point"). */
-const expandable = (leg: ItineraryLeg) =>
-  leg.fromKey === START_KEY || leg.route.kind === "walk" || leg.route.kind === "straight-line" || leg.route.kind === "shuttle";
+/** Every walk opens to say more, except one still being routed. */
+const expandable = (leg: ItineraryLeg) => leg.fromKey === START_KEY || leg.route.kind !== "loading";
+
+const sourceLabel = { "campus-network": "campus walkways", ors: "OpenRouteService" } as const;
+
+/** What a selected walk adds to its minutes: how far and by which route, or why it has no time. */
+function legFacts(leg: ItineraryLeg): string | null {
+  switch (leg.route.kind) {
+    case "walk":
+      return `${formatDistance(leg.route.meters)} via ${sourceLabel[leg.route.source]}`;
+    case "straight-line":
+      return `About ${formatDistance(leg.route.meters)} in a straight line. No walkway joins these buildings, so the walk time is unknown.`;
+    case "shuttle":
+      return `Discovery Park is a shuttle ride from main campus. ${leg.walkMinutes} minutes is an estimate.`;
+    case "no-route":
+      return "One end of this walk isn't on the map, so there's no route.";
+    case "other-weeks":
+      return "These classes meet in different weeks of the term, so there's no walk between them.";
+    case "same-building":
+    case "loading":
+      return null;
+  }
+}
 
 function LegDetail({ leg, start, onChangeStart }: { leg: ItineraryLeg; start: StartPlace | null; onChangeStart: () => void }) {
   const leave = leg.leaveAt === null ? null : formatTime(leg.leaveAt);
+  const facts = legFacts(leg);
+  const timing = start
+    ? leave && `Leave by ${leave} from ${start.name}`
+    : leg.gapMinutes === null || leg.route.kind === "other-weeks"
+      ? null
+      : leave
+        ? `Leave by ${leave}, ${leg.gapMinutes} min break`
+        : `${leg.gapMinutes} min break`;
   return (
     <div className="mv-more mv-more--leg">
-      {leg.route.kind === "straight-line" ? <span>No walkway joins these buildings, so the walk time is unknown.</span> : null}
-      {leg.route.kind === "shuttle" ? (
-        <span>Discovery Park is a shuttle ride from main campus. {leg.walkMinutes} minutes is an estimate.</span>
-      ) : null}
-      {leave && start ? <span>Leave by {leave} from {start.name}</span> : null}
-      {leave && !start ? <span>Leave by {leave}, {leg.gapMinutes} min break</span> : null}
+      {timing ? <span>{timing}</span> : null}
+      {facts ? <span>{facts}</span> : null}
       {start ? (
         <button type="button" className="mv-link" onClick={onChangeStart}>
           Change starting point
@@ -365,6 +406,7 @@ function StopRow({
         </span>
         {entry.ownDates ? <span>Meets {entry.ownDates}</span> : null}
         {placement.kind === "unresolved" ? <span>{placement.message}</span> : null}
+        {placement.kind === "resolving" ? <span>Looking up this building…</span> : null}
         {directions && selected ? (
           <a className="mv-link" href={directions} target="_blank" rel="noreferrer">
             Directions in Google Maps

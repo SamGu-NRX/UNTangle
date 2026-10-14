@@ -329,7 +329,11 @@ async function desktop(browser) {
     `pitch ${after.pitch}`,
   );
   const legDetail = (await page.locator(".mv-more--leg").first().textContent().catch(() => "")) ?? "";
-  check("desktop: a selected walk shows its leave-by time", /Leave by \d{1,2}:\d{2}/.test(legDetail), legDetail);
+  check(
+    "desktop: a selected walk shows its leave-by time, distance and route",
+    /Leave by \d{1,2}:\d{2}/.test(legDetail) && /\d (mi|ft) via campus walkways/.test(legDetail),
+    legDetail,
+  );
   await shoot(page, "desktop-05-leg-selected.png");
   await beat(page);
 

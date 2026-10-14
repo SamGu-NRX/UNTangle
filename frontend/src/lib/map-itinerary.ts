@@ -7,8 +7,7 @@
  * live here so they are tested once:
  * - a stop that could not be placed stays in the list with its reason;
  * - only a walkway route (or ORS) has walking minutes and a "leave by" time;
- * - a straight-line estimate has no minutes; its distance is kept for
- *   drawing only, because Day never shows distances;
+ * - a straight-line estimate has no minutes, only an approximate distance;
  * - a transfer is "late" when the walk takes longer than the break, and
  *   "tight" when leaving on time means leaving as the earlier class ends
  *   (lib/leave-by.ts). Both are flagged;
@@ -135,6 +134,18 @@ export function formatClock(value: string): string {
   const suffix = hours >= 12 ? "PM" : "AM";
   const hour12 = hours % 12 === 0 ? 12 : hours % 12;
   return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
+
+const metersPerMile = 1609.344;
+const feetPerMeter = 3.28084;
+
+/** US units, like the campus signs: feet under a tenth of a mile, then miles. */
+export function formatDistance(meters: number): string {
+  const miles = meters / metersPerMile;
+  if (miles < 0.1) {
+    return `${Math.max(10, Math.round((meters * feetPerMeter) / 10) * 10)} ft`;
+  }
+  return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
 }
 
 /**

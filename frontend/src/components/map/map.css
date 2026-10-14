@@ -605,11 +605,32 @@ button.mv-leg__row {
   }
 }
 
-.mv-source {
+.mv-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin: 14px 0 0 44px;
+}
+
+.mv-source {
+  margin: 0;
   font-size: 12px;
   color: var(--mv-ink-2);
   cursor: help;
+}
+
+.mv-hero__show {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 6px;
+}
+
+@media (pointer: coarse) {
+  .mv-foot .mv-link,
+  .mv-hero__show {
+    min-height: 44px;
+  }
 }
 
 /* ---------- links ---------- */
@@ -759,7 +780,9 @@ button.mv-leg__row {
   .mv-controls,
   .mv-sheet__handle,
   .mv-top,
-  .mv-stepper button {
+  .mv-stepper button,
+  .mv-foot .mv-link,
+  .mv-hero__show {
     display: none !important;
   }
   .mv-panel,

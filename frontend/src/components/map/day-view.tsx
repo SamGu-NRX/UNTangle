@@ -12,7 +12,7 @@ import {
   type CSSProperties,
 } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import { provenanceSource, summarizeProvenance } from "@/components/sections-provenance";
+import { provenanceSource, provenanceText, summarizeProvenance } from "@/components/sections-provenance";
 import { usePageState } from "@/components/shell/shell-context";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { activeCampus, campusById } from "@/lib/campus/config";
@@ -272,6 +272,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
       day={day}
       isToday={isToday}
       next={next}
+      onShowDay={changeDay}
       hasClasses={counts.Mon + counts.Tue + counts.Wed + counts.Thu + counts.Fri + counts.Sat + counts.Sun > 0}
     />
   );
@@ -288,13 +289,21 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
         />
       </>
     ) : null;
-  // Said once, wherever the day's advice comes from sample sections.
-  const sample =
-    ready && provenance?.kind === "sample" ? (
-      <p className="mv-source" title={provenanceSource(provenance)}>
-        Sample sections
-      </p>
-    ) : null;
+  // Where the sections come from, said once, and printing the day.
+  const footer = ready ? (
+    <div className="mv-foot">
+      {provenance ? (
+        <p className="mv-source" title={provenanceSource(provenance)}>
+          {provenanceText(provenance)}
+        </p>
+      ) : null}
+      {itinerary.stops.length > 0 ? (
+        <button type="button" className="mv-link" onClick={() => window.print()}>
+          Print this day
+        </button>
+      ) : null}
+    </div>
+  ) : null;
 
   // The root is the shell's full-bleed body: the app shell sizes it to the
   // space between the top bar and the phone tabs and stops the page scrolling.
@@ -326,7 +335,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
               bodyRef={scrollRef}
             >
               {body}
-              {sample}
+              {footer}
             </MapSheet>
           ) : null}
         </>
@@ -336,7 +345,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
             {stepper}
             {heroView}
             {body}
-            {sample}
+            {footer}
           </div>
         </aside>
       )}

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildItinerary,
   formatClock,
+  formatDistance,
   formatTime,
   lookupKey,
   pairKey,
@@ -80,6 +81,10 @@ describe("formatting", () => {
     expect(walkMinutesFromSeconds(1)).toBe(1);
     expect(walkMinutesFromSeconds(60)).toBe(1);
     expect(walkMinutesFromSeconds(61)).toBe(2);
+  });
+  test("distance in feet under a tenth of a mile, then miles", () => {
+    expect(formatDistance(100)).toBe("330 ft");
+    expect(formatDistance(482.8)).toBe("0.3 mi");
   });
   test("Day's times: 12-hour, no AM or PM", () => {
     expect(formatTime(8 * 60 + 49)).toBe("8:49");
