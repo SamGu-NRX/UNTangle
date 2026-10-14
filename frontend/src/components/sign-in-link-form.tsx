@@ -39,7 +39,8 @@ export function SignInLinkForm() {
       token stays unused until the app posts it to the verify endpoint. */}
       <p className="auth__lede">
         On a phone?{" "}
-        <a href={`untangle://auth/callback${hash}`}>Open this link in the UNTangle app</a> instead.
+        <a href={`untangle://auth/callback${hash}`}>Open this link in the UNTangle app</a> instead -
+        only on a device you trust.
       </p>
     </>
   );

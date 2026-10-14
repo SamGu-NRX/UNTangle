@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 import { API_BASE_URL } from "./api-base";
 import { getSessionCookie } from "./session";
 
@@ -21,6 +23,11 @@ export async function apiFetch(path: string, options: RequestOptions = {}): Prom
   const cookie = await getSessionCookie();
   return fetchLike(`${API_BASE_URL}${path}`, {
     method,
+    // Expo web usually serves on a different origin than the API: ask the
+    // browser to send and accept cross-origin cookies (the server must allow
+    // the web origin with credentials). Native ignores this option and
+    // replays the persisted cookie header instead.
+    ...(Platform.OS === "web" ? { credentials: "include" as const } : {}),
     headers: {
       Accept: "application/json",
       ...headers,

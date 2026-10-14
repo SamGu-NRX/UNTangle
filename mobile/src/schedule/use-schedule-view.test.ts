@@ -160,4 +160,35 @@ describe("loadScheduleView", () => {
     expect(view.note).toBe("Couldn't reach UNTangle. Showing a sample schedule.");
     expect(view.blocks.length).toBeGreaterThan(0);
   });
+
+  it("warns about incomplete data when a real saved pick cannot be resolved", async () => {
+    const state = payloadWithSelection(sampleSchedule().events[0]?.courseCode ?? "CSCE 1030");
+    const realPick = {
+      ...state,
+      selectedSections: { ...state.selectedSections, "MATH 1650": "vsb:spring-2027:MATH 1650:101" },
+    };
+    const failingRealSections = async (url: string) => {
+      if (url.endsWith("/api/planner")) return jsonResponse({ state: realPick, revision: 3, persistent: true });
+      return jsonResponse({}, 500);
+    };
+    const view = await loadScheduleView(failingRealSections);
+    expect(view.status).toBe("ready");
+    if (view.status !== "ready") return;
+    expect(view.incomplete).toBe(true);
+    expect(view.note).toBe("Some saved sections couldn't be loaded, so this schedule may be incomplete.");
+  });
+
+  it("renders a saved plan with no picks as an empty schedule, not a sample", async () => {
+    const state = payloadWithSelection(sampleSchedule().events[0]?.courseCode ?? "CSCE 1030");
+    const emptyPlan = { ...state, selectedSections: {} };
+    const view = await loadScheduleView(
+      fetchWith({ state: emptyPlan, revision: 3, persistent: true }, true),
+    );
+    expect(view.status).toBe("ready");
+    if (view.status !== "ready") return;
+    expect(view.source).toBe("your-plan");
+    expect(view.labeledSample).toBe(false);
+    expect(view.events).toEqual([]);
+    expect(view.note).toBe("No sections picked yet - pick them on the web planner.");
+  });
 });

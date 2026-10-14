@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useScheduleView } from "@/schedule/use-schedule-view";
+import { useScheduleReloadOnFocus } from "@/schedule/use-schedule-reload-on-focus";
+import { ScheduleBanner, ScheduleError } from "@/ui/schedule-status";
 import { clockText, toMinutes } from "@/lib/plan-library/week";
 import { classDays, type ClassDay, type ScheduleEvent } from "@/lib/types";
 
@@ -22,7 +24,8 @@ function DayEventRow({ event }: { event: ScheduleEvent }) {
 }
 
 export default function DayScreen() {
-  const view = useScheduleView();
+  const { view, reload, retry } = useScheduleView();
+  useScheduleReloadOnFocus(reload);
   const [day, setDay] = useState<ClassDay>("Mon");
 
   if (view.status === "loading") {
@@ -34,8 +37,8 @@ export default function DayScreen() {
   }
   if (view.status === "error") {
     return (
-      <View style={[styles.screen, styles.center]}>
-        <Text style={styles.errorText}>{view.message}</Text>
+      <View style={styles.screen}>
+        <ScheduleError message={view.message} retry={retry} />
       </View>
     );
   }
@@ -46,14 +49,14 @@ export default function DayScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {view.labeledSample ? (
-        <View style={styles.sampleBanner}>
-          <Text style={styles.sampleText}>
-            Sample schedule{view.source === "sample" ? "" : " (some sections)"}
-            {view.note ? ` - ${view.note}` : ""}
-          </Text>
-        </View>
-      ) : null}
+      {(view.labeledSample || view.note) && (
+        <ScheduleBanner
+          note={view.note}
+          labeledSample={view.labeledSample}
+          source={view.source}
+          signInHint={view.signInHint}
+        />
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.picker}>
         {classDays.map((candidate) => (
@@ -80,8 +83,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f4f6f4" },
   content: { padding: 16, paddingBottom: 32 },
   center: { alignItems: "center", justifyContent: "center" },
-  sampleBanner: { backgroundColor: "#fdf6e3", borderColor: "#e3c567", borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 12 },
-  sampleText: { color: "#6b5410", fontSize: 13 },
   picker: { flexDirection: "row", gap: 8, marginBottom: 12 },
   pill: {
     borderRadius: 999,
@@ -104,6 +105,5 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, color: "#1a2420", marginTop: 2 },
   cardLine: { fontSize: 13, color: "#3d4742", marginTop: 4 },
   cardMeta: { fontSize: 12, color: "#5b6660", marginTop: 2 },
-  errorText: { color: "#a3300f" },
   emptyText: { color: "#5b6660" },
 });

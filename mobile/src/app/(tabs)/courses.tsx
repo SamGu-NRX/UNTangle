@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { fetchCourseSections } from "@/data/sections";
 import { clockText } from "@/lib/plan-library/week";
 import { planningTerm } from "@/lib/planner-sections";
@@ -73,6 +73,10 @@ function CourseCard({ course }: { course: Course }) {
 export default function CoursesScreen() {
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<DetailState | null>(null);
+  // Monotonic id per detail request: a slow response for an older course must
+  // not overwrite a newer one, and a closed panel must not be reopened by its
+  // own in-flight request.
+  const detailRequestRef = useRef(0);
 
   const needle = query.trim().toLowerCase();
   const filtered = needle
@@ -82,25 +86,36 @@ export default function CoursesScreen() {
     : courses;
 
   const openCourse = (course: Course) => {
+    detailRequestRef.current += 1;
+    const requestId = detailRequestRef.current;
     setDetail({ code: course.code, status: "loading" });
     fetchCourseSections(planningTerm.id, course.code, fetch)
-      .then((result) => setDetail({ code: course.code, status: "ready", result }))
-      .catch((error: unknown) =>
+      .then((result) => {
+        if (detailRequestRef.current !== requestId) return;
+        setDetail({ code: course.code, status: "ready", result });
+      })
+      .catch((error: unknown) => {
+        if (detailRequestRef.current !== requestId) return;
         setDetail({
           code: course.code,
           status: "error",
           message: error instanceof Error ? error.message : "Could not load sections.",
-        }),
-      );
+        });
+      });
+  };
+
+  const closeDetail = () => {
+    detailRequestRef.current += 1;
+    setDetail(null);
   };
 
   return (
     <View style={styles.screen}>
       {detail ? (
-        <View style={styles.detail}>
+        <ScrollView style={styles.detail} contentContainerStyle={styles.detailContent}>
           <View style={styles.detailHeader}>
             <Text style={styles.detailTitle}>{detail.code}</Text>
-            <Pressable onPress={() => setDetail(null)} accessibilityLabel="Close course sections">
+            <Pressable onPress={closeDetail} accessibilityLabel="Close course sections">
               <Text style={styles.closeText}>Close</Text>
             </Pressable>
           </View>
@@ -118,7 +133,7 @@ export default function CoursesScreen() {
               )}
             </View>
           )}
-        </View>
+        </ScrollView>
       ) : null}
 
       <TextInput
@@ -173,8 +188,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 12,
+    // Bounded so a long section list scrolls inside the panel instead of
+    // pushing the search and catalog off screen.
+    maxHeight: "55%",
     padding: 14,
   },
+  detailContent: { padding: 0 },
   detailHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   detailTitle: { fontSize: 16, fontWeight: "700", color: "#1a2420" },
   closeText: { color: "#00853e", fontWeight: "600" },

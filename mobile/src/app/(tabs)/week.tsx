@@ -1,5 +1,7 @@
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useScheduleView } from "@/schedule/use-schedule-view";
+import { useScheduleReloadOnFocus } from "@/schedule/use-schedule-reload-on-focus";
+import { ScheduleBanner, ScheduleError } from "@/ui/schedule-status";
 import { clockText, gridDays, type WeekBlock } from "@/lib/plan-library/week";
 import type { Hue } from "@/lib/course-colors";
 import { hueColor } from "@/ui/hue";
@@ -28,7 +30,8 @@ function DaySection({ label, blocks, colors }: { label: string; blocks: WeekBloc
 }
 
 export default function WeekScreen() {
-  const view = useScheduleView();
+  const { view, reload, retry } = useScheduleView();
+  useScheduleReloadOnFocus(reload);
 
   if (view.status === "loading") {
     return (
@@ -39,8 +42,8 @@ export default function WeekScreen() {
   }
   if (view.status === "error") {
     return (
-      <View style={[styles.screen, styles.center]}>
-        <Text style={styles.errorText}>{view.message}</Text>
+      <View style={styles.screen}>
+        <ScheduleError message={view.message} retry={retry} />
       </View>
     );
   }
@@ -50,14 +53,14 @@ export default function WeekScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {view.labeledSample ? (
-        <View style={styles.sampleBanner}>
-          <Text style={styles.sampleText}>
-            Sample schedule{view.source === "sample" ? "" : " (some sections)"}
-            {view.note ? ` - ${view.note}` : ""}
-          </Text>
-        </View>
-      ) : null}
+      {(view.labeledSample || view.note) && (
+        <ScheduleBanner
+          note={view.note}
+          labeledSample={view.labeledSample}
+          source={view.source}
+          signInHint={view.signInHint}
+        />
+      )}
 
       {days.length ? (
         days.map((day) => (
@@ -81,8 +84,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f4f6f4" },
   content: { padding: 16, paddingBottom: 32 },
   center: { alignItems: "center", justifyContent: "center" },
-  sampleBanner: { backgroundColor: "#fdf6e3", borderColor: "#e3c567", borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 12 },
-  sampleText: { color: "#6b5410", fontSize: 13 },
   daySection: { marginBottom: 16 },
   dayLabel: { fontSize: 15, fontWeight: "700", color: "#1a2420", marginBottom: 6 },
   block: {
@@ -93,6 +94,5 @@ const styles = StyleSheet.create({
   },
   blockCode: { fontSize: 14, fontWeight: "600" },
   statsLine: { fontSize: 13, color: "#5b6660", marginTop: 4 },
-  errorText: { color: "#a3300f" },
   emptyText: { color: "#5b6660" },
 });
