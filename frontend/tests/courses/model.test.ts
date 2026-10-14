@@ -112,7 +112,7 @@ describe("course model on the UNT catalog with the sample transcript", () => {
       plan({ ...sampleStatuses(), "MATH 2700": "inProgress", "MATH 1720": "inProgress" }, { autoPlanned: ["MATH 1720"] }),
     );
     expect(model.rows.get("MATH 2700")).toMatchObject({ status: "planned", inPlan: true, override: true });
-    expect(model.rows.get("MATH 1720")).toMatchObject({ status: "planned", override: false, auto: true, meta: { kind: "text", text: "Spring 2027 · auto" } });
+    expect(model.rows.get("MATH 1720")).toMatchObject({ status: "planned", override: false, auto: true, meta: { kind: "text", text: "Spring 2027" } });
   });
 
   test("locked rows name the blocking course", () => {

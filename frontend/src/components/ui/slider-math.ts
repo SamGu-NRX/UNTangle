@@ -11,7 +11,7 @@ function decimalsOf(step: number): number {
 /**
  * Snaps to the step grid that starts at `min`, then clamps. Float-safe:
  * rounds to the finer of the step's and the minimum's decimals, since the
- * grid points are min + n·step (min 0.5, step 1 gives 0.5, 1.5, …).
+ * grid points are min + n * step (min 0.5, step 1 gives 0.5, 1.5, …).
  */
 export function snap(value: number, { min, max, step }: SliderBounds): number {
   const snapped = Math.round((value - min) / step) * step + min;

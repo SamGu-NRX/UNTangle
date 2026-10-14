@@ -4,7 +4,7 @@ import styles from "./connect.module.css";
 const STEPS = ["Open", "Import", "Review"] as const;
 
 /**
- * Open · Import · Review. 6px dots: current brand, done brand with a ring,
+ * Open, Import and Review. 6px dots: current brand, done brand with a ring,
  * pending line-strong. Fixed at the top while the content below changes.
  */
 export function StepDots({ current }: { current: 0 | 1 | 2 | 3 }) {

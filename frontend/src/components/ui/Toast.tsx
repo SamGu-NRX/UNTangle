@@ -10,7 +10,7 @@ export type ToastInput = {
   action?: { label: string; onClick: () => void };
   /** An error stays until dismissed, so its explanation cannot be missed. */
   tone?: "default" | "error";
-  /** Milliseconds before a plain toast leaves. Default 4000. */
+  /** Milliseconds before a plain toast leaves. Default 5000 (DESIGN.md §8.2). */
   duration?: number;
 };
 
@@ -57,8 +57,11 @@ export function useIsClient() {
 }
 
 /**
- * Bottom-centre toast: 44px, ink, white 13px, radius 10. Enters with 8px of
- * rise and a fade over 200ms, leaves in 150ms.
+ * Bottom-centre toast, above the tab bar on phones: 44px, ink, white 14px.
+ * Enters with 8px of rise and a fade over 220ms, leaves in 150ms. A plain
+ * toast leaves after 5s, counting only while the page is visible and the
+ * toast is neither hovered nor focused; one with an action or an error
+ * waits to be dismissed, so a keyboard user can always reach Undo.
  *
  * Two regions, both direct children of <body>. A visually hidden live
  * region holds only the message text; it stays outside a modal's inert set
@@ -94,7 +97,7 @@ export function Toaster() {
   }, [leaving]);
 
   useEffect(() => {
-    remaining.current = shown && !isPersistent(shown) ? (shown.duration ?? 4000) : Infinity;
+    remaining.current = shown && !isPersistent(shown) ? (shown.duration ?? 5000) : Infinity;
   }, [shown]);
 
   // Count down only while visible, unhovered and unfocused.

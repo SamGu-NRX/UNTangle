@@ -21,7 +21,7 @@ function pushConnect() {
   window.history.pushState({ [FROM_VIEW_KEY]: true }, "", CONNECT_PATH);
 }
 
-const PHONE_QUERY = "(max-width: 719px)";
+const PHONE_QUERY = "(max-width: 759px)";
 const subscribePhone = (onChange: () => void) => {
   const list = window.matchMedia(PHONE_QUERY);
   list.addEventListener("change", onChange);
@@ -120,6 +120,8 @@ export function ConnectHost() {
           onOpenChange={onOpenChange}
           title={TITLE}
           detents={["92%"]}
+          // Connect has its own URL (/connect), so Back already closes it.
+          closeOnBack={false}
           initialFocus={headingRef}
           className="connect-host-sheet"
         >

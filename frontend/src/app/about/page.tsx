@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "About" };
 const VIEWS = [
   { title: "Courses", copy: "What you've finished, what's open to you next, and what still needs a prerequisite." },
   { title: "Week", copy: "Sections arranged around one goal: compact days, mornings, short walks or rated instructors." },
-  { title: "Map", copy: "The walk between classes for each day, stop by stop." },
+  { title: "Day", copy: "When to leave, and the walk between classes for each day, stop by stop." },
 ];
 
 /** Public description of UNTangle, moved here from the old landing page. */

@@ -67,7 +67,6 @@ export function CourseList({ groups, rows, selectedId, collapsed, onToggleGroup,
                   <span className={styles.gname}>{group.label}</span>
                   <span className={styles.meta}>
                     {group.finished} of {group.ids.length} done
-                    {group.covered > 0 ? ` · ${group.covered} covered` : ""}
                   </span>
                 </button>
               </h2>
@@ -96,7 +95,7 @@ function RowMeta({ row }: { row: CourseRowModel }) {
     case "grade":
       return (
         <>
-          {row.meta.term} · {row.meta.grade}
+          Grade {row.meta.grade}
         </>
       );
     case "text":

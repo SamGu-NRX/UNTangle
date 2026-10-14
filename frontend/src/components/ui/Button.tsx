@@ -6,11 +6,13 @@ import { ChevronDown, Spinner } from "./icons";
 import { Menu, type MenuEntry } from "./Menu";
 
 /**
- * `secondary` is the v1 name for `ghost` and renders identically; v1's
- * borderless `ghost` look is now `quiet`.
+ * DESIGN.md §8.2: `primary`, `secondary`, `quiet` (brand text, no fill) and
+ * `ink` (ink text, no fill), plus `destructive` and `link`. `ghost` is the
+ * v2 name for `secondary` and renders identically.
  */
-export type ButtonVariant = "primary" | "ghost" | "quiet" | "destructive" | "link" | "secondary";
-export type ButtonSize = "md" | "sm";
+export type ButtonVariant = "primary" | "secondary" | "quiet" | "ink" | "destructive" | "link" | "ghost";
+/** 32, 40 and 52px tall. */
+export type ButtonSize = "sm" | "md" | "lg";
 
 export type ButtonProps = ComponentPropsWithRef<"button"> & {
   variant?: ButtonVariant;
@@ -24,15 +26,16 @@ export type ButtonProps = ComponentPropsWithRef<"button"> & {
   loading?: boolean;
   /** The verb shown while loading, e.g. "Filling…". Defaults to the label. */
   loadingLabel?: ReactNode;
-  /** Leading 16px glyph. */
+  /** Leading glyph. */
   icon?: ReactNode;
 };
 
 const variantClass: Record<ButtonVariant, string> = {
   primary: "ui-btn--primary",
-  ghost: "ui-btn--ghost",
-  secondary: "ui-btn--ghost",
+  secondary: "ui-btn--secondary",
+  ghost: "ui-btn--secondary",
   quiet: "ui-btn--quiet",
+  ink: "ui-btn--ink",
   destructive: "ui-btn--destructive",
   link: "ui-btn--link",
 };
@@ -63,7 +66,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={cx("ui-btn", variantClass[variant], size === "sm" && "ui-btn--sm", className)}
+      className={cx("ui-btn", variantClass[variant], size !== "md" && `ui-btn--${size}`, className)}
       data-ui=""
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}
@@ -93,8 +96,8 @@ export type IconButtonProps = Omit<ButtonProps, "icon" | "children" | "loadingLa
   children: ReactNode;
 };
 
-/** 36px (32px small) square button for a single glyph. Defaults to quiet. */
-export function IconButton({ label, variant = "quiet", className, children, ...rest }: IconButtonProps) {
+/** A square button for one glyph, as tall as its size. Defaults to `ink`. */
+export function IconButton({ label, variant = "ink", className, children, ...rest }: IconButtonProps) {
   return (
     <Button variant={variant} className={cx("ui-btn--icon", className)} aria-label={label} {...rest}>
       {children}
@@ -109,15 +112,15 @@ export type SplitButtonProps = {
   menuLabel: string;
   menuItems: MenuEntry[];
   icon?: ReactNode;
-  size?: ButtonSize;
+  size?: "sm" | "md";
   loading?: boolean;
   loadingLabel?: ReactNode;
   disabled?: boolean;
 };
 
 /**
- * Primary action with a 28px caret segment that opens a Menu. Two real
- * buttons, drawn as one: the group presses as a unit.
+ * @deprecated v3 has one Auto button and no split buttons (DESIGN.md §2).
+ * Kept until the Courses rebuild drops its last caller.
  */
 export function SplitButton({
   children,

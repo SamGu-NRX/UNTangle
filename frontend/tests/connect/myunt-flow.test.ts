@@ -235,7 +235,7 @@ describe("the sheet's container", () => {
 
   test("holds across the breakpoint while open, so the sheet is not remounted mid-import", () => {
     const opened = nextFrame(CLOSED_FRAME, true, false, noTrip);
-    // A phone rotating or a desktop zooming past 719px flips isPhone.
+    // A phone rotating or a desktop zooming past 759px flips isPhone.
     expect(nextFrame(opened, true, true, noTrip)).toBe(opened);
     expect(nextFrame(opened, true, false, noTrip)).toBe(opened);
   });
