@@ -48,10 +48,13 @@ export const CampusSiteIdSchema = z
   .regex(slug, 'A campus site id is lowercase words joined by hyphens, like "unt-denton".');
 
 /** A catalog year, such as "unt-2026-27". Degree requirements depend on it. */
+export type CatalogId = Id<"catalog">;
+const isCatalogId = (value: string): value is CatalogId => slug.test(value);
+
 export const CatalogIdSchema = z
   .string()
   .max(64)
-  .regex(slug, 'A catalog id is lowercase words joined by hyphens, like "unt-2026-27".');
+  .refine(isCatalogId, 'A catalog id is lowercase words joined by hyphens, like "unt-2026-27".');
 
 export const CourseIdSchema = z
   .string()
