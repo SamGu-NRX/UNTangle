@@ -1,0 +1,42 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Dining Services
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T162018Z
+UID:tag:localist.com\,2008:EventInstance_53949884570293
+DTSTART:20261008T160000Z
+DTEND:20261008T190000Z
+DESCRIPTION:It’s National Fluffernutter Day! Stop by Champs and treat you
+ rself to this sweet\, nostalgic combo of peanut butter and marshmallow flu
+ ff. Come grab a bite and celebrate!
+LOCATION:Champs Dining Hall
+SUMMARY:National Fluffernutter Day
+URL;VALUE=URI:https://calendar.unt.edu/event/national-fluffernutter-day
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162018Z
+UID:tag:localist.com\,2008:EventInstance_53949906034109
+DTSTART:20261013T160000Z
+DTEND:20261013T190000Z
+DESCRIPTION:Take a delicious journey through Puerto Rico! Discover the isla
+ nd’s vibrant culinary traditions\, iconic dishes\, and bold flavors. Com
+ e hungry and experience a taste of Puerto Rico!
+LOCATION:Kitchen West
+SUMMARY:Culinary Tour - Puerto Rico
+URL;VALUE=URI:https://calendar.unt.edu/event/hispanic-heritage-month-6805
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162018Z
+UID:tag:localist.com\,2008:EventInstance_53949990987291
+DTSTART:20261014T160000Z
+DTEND:20261014T190000Z
+DESCRIPTION:Got a sweet tooth? Today’s your day! 🍰 Celebrate National 
+ Dessert Day with a little something sweet at your dining hall.
+LOCATION:All Dining Halls
+SUMMARY:National Dessert Day
+URL;VALUE=URI:https://calendar.unt.edu/event/national-dessert-day
+END:VEVENT
+END:VCALENDAR

@@ -1,0 +1,61 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Admissions
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T162035Z
+UID:tag:localist.com\,2008:EventInstance_53373108765695
+DTSTART:20260926T140000Z
+DTEND:20260926T190000Z
+DESCRIPTION:UNT en Familia is a family-oriented college success workshop de
+ signed for prospective students\, parents and supporters to learn how to s
+ ucceed in their college search process at the University of North Texas. A
+ t this fully bilingual event in English and Spanish\, you will learn the p
+ rocesses and tips for admissions\, financial aid and scholarship success\;
+  meet the faculty and staff here to help you through your entire UNT journ
+ ey and beyond\; and hear how UNT changes lives from both current students 
+ and alumni. Whether this is your family’s first time applying for colleg
+ e or fifth\, join us for an informative day.
+LOCATION:University of North Texas\, Varies
+SUMMARY:UNT en Familia
+URL;VALUE=URI:https://calendar.unt.edu/event/unt-en-familia-4079
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162035Z
+UID:tag:localist.com\,2008:EventInstance_53373152590479
+DTSTART;VALUE=DATE:20260928
+DESCRIPTION:You’ve heard about “going to grad school\,” but what does
+  that mean? Is it right for your career goals? Join us for Exploring Grad 
+ School Week\, a week-long series of in-person and virtual events designed 
+ to help you take your first step. Programming includes sessions hosted by 
+ UNT’s top graduate programs\, graduate student panel discussions\, alumn
+ i testimonials\, tips for admissions and funding success\, exam preparatio
+ n and much more.\n\n \n\nDate: September 28 - October 2\, 2026
+LOCATION:University of North Texas\, Varies
+SUMMARY:Exploring Grad School Week
+URL;VALUE=URI:https://calendar.unt.edu/event/exploring-grad-school-week-471
+ 7
+CATEGORIES:Lectures & Speakers
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162035Z
+UID:tag:localist.com\,2008:EventInstance_54126951548720
+DTSTART:20261008T213000Z
+DTEND:20261008T230000Z
+DESCRIPTION:Thinking of exploring graduate school? \n\n \n\nJoin the First 
+ Gen Center and UNT Graduate Admissions to learn more about the opportuniti
+ es available after graduation! We will be discussing the pathways to grad 
+ school\, important deadlines to consider\, advice on the application proce
+ ss\, and more! A student panel will be available for an interactive Q&A se
+ ssion.
+GEO:33.207827;-97.147527
+LOCATION:Welcome Center\, 103
+SUMMARY:Degrees of Possibilities: Grad School Info Panel with UNT Graduate 
+ Admissions
+URL;VALUE=URI:https://calendar.unt.edu/event/degrees-of-possibilities-grad-
+ school-info-panel-with-unt-graduate-admissions
+CATEGORIES:Workshops & Training
+END:VEVENT
+END:VCALENDAR
