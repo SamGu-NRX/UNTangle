@@ -111,6 +111,24 @@ describe("document bodies reject what the app could not have written", () => {
     ]);
   });
 
+  test("a schedule whose Auto run changed a completed course, which belongs to the academic record", () => {
+    const lastAuto = { ...schedule.lastAuto!, changes: [{ code: "CSCE 1030", from: "completed", to: "notTaken" }] };
+    expect(rejections(ScheduleBodySchema, { ...schedule, lastAuto })).toEqual([
+      "lastAuto.changes.0: Auto's change to CSCE 1030 isn't between planned and not planned.",
+    ]);
+  });
+
+  test("preferences whose latest end isn't after the earliest start", () => {
+    const constraints = { ...preferences.constraints, earliestStart: 900, latestEnd: 900 };
+    expect(rejections(PreferencesBodySchema, { ...preferences, constraints })).toEqual([
+      "constraints.latestEnd: The latest end is after the earliest start.",
+    ]);
+  });
+
+  test("an academic record whose catalog id isn't a slug", () => {
+    expect(rejections(AcademicRecordBodySchema, { ...academicRecord, catalogId: "UNT 2026" })).toHaveLength(1);
+  });
+
   test("a schedule that locks a course to an option it hasn't picked", () => {
     const lockedSections = { "MATH 1720": "math-1720-001" };
     expect(rejections(ScheduleBodySchema, { ...schedule, lockedSections })).toEqual([

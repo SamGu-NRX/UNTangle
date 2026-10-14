@@ -52,7 +52,7 @@ export const ReceiptSchema = z.strictObject({
 /**
  * One line of the pull list. A deleted document keeps its line, with the
  * revision of the delete. Versions are append-only and listed separately,
- * by id and paged, so they never appear here.
+ * paged (VersionListPageSchema), so they never appear here.
  */
 export const PullEntrySchema = z.strictObject({
   documentId: DocumentIdSchema,
@@ -72,7 +72,27 @@ export const PullListSchema = z.array(PullEntrySchema).superRefine((entries, ctx
   });
 });
 
+/**
+ * One page of a student's versions, newest first, from
+ * `GET /api/v1/versions?scheduleId=&page=`. A fresh device reads these pages
+ * to rebuild the schedule library; each line is enough to list the version,
+ * and the body is fetched by id when it's opened.
+ */
+export const VersionListPageSchema = z.strictObject({
+  versions: z.array(
+    z.strictObject({
+      documentId: DocumentIdSchema,
+      scheduleId: DocumentIdSchema,
+      reason: z.enum(["before-auto", "restore-point", "import"]),
+      createdAt: z.iso.datetime(),
+    }),
+  ),
+  /** Opaque; null on the last page. */
+  nextPage: z.string().min(1).max(512).nullable(),
+});
+
 export type Write = z.output<typeof WriteSchema>;
 export type Receipt = z.output<typeof ReceiptSchema>;
 export type PullEntry = z.output<typeof PullEntrySchema>;
 export type PullList = z.output<typeof PullListSchema>;
+export type VersionListPage = z.output<typeof VersionListPageSchema>;

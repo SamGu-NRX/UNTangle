@@ -114,12 +114,20 @@ export const savedPreferences: SchedulePreferences = {
   weights: { fewerDays: 3, compact: 4, mornings: 1, evenings: 0, walking: 2, rating: 0 },
 };
 
+// The record holds history only. CSCE 1040 and MATH 1720 are planned, so
+// they live in the schedule below, as the migration moves them.
+const planned = new Set(["CSCE 1040", "MATH 1720"]);
+const historyStatuses = Object.fromEntries(
+  Object.entries(savedPlan.courseStatuses).filter(([code]) => !planned.has(code)),
+);
+
 export const academicRecord = {
   institutionId: "unt",
-  courseStatuses: savedPlan.courseStatuses,
+  courseStatuses: historyStatuses,
   transcriptRecords: savedPlan.transcriptRecords,
   manualCredit: coursePlan.manualCredit,
   major: savedPlan.selectedMajor,
+  catalogId: "unt-2026-27",
 };
 
 // The planned courses are the ones marked inProgress without an in-progress

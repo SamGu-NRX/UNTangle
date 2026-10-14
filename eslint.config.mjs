@@ -72,6 +72,18 @@ const forbidden = {
       bundledData,
     ],
   },
+  // No campus package exists yet; the rule is here so its first file is checked.
+  campus: {
+    paths: nodeBareNames,
+    patterns: [
+      packages(["campus", "contracts", "sync", "tokens", "ingest"], "campus may import core, nothing else in the workspace."),
+      react,
+      next,
+      nodePrefixed,
+      bun,
+      frontendAlias,
+    ],
+  },
   contracts: {
     paths: nodeBareNames,
     patterns: [
@@ -178,7 +190,7 @@ export default defineConfig([
   {
     // no-restricted-imports doesn't see import(), so a lazy load would slip
     // past it. The libraries never load lazily.
-    files: ["packages/{core,contracts,sync,tokens}/src/**/*.{ts,tsx,mts}"],
+    files: ["packages/{core,campus,contracts,sync,tokens}/src/**/*.{ts,tsx,mts}"],
     rules: {
       "no-restricted-syntax": [
         "error",

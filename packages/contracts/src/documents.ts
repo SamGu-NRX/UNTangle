@@ -23,7 +23,7 @@
  * the body back without that field.
  */
 import { z } from "zod";
-import { CourseCodeSchema, DocumentIdSchema, InstitutionIdSchema, TermIdSchema } from "./ids";
+import { CatalogIdSchema, CourseCodeSchema, DocumentIdSchema, InstitutionIdSchema, TermIdSchema } from "./ids";
 
 // Value types from frontend/src/lib/types.ts.
 
@@ -108,6 +108,11 @@ export const ScheduleConstraintsSchema = z
     otherSites: z.boolean(),
   })
   .superRefine((constraints, ctx) => {
+    // The optimizer applies each bound on its own, so an inverted pair would rule out every meeting.
+    const { earliestStart, latestEnd } = constraints;
+    if (earliestStart !== null && latestEnd !== null && latestEnd <= earliestStart) {
+      ctx.addIssue({ code: "custom", path: ["latestEnd"], message: "The latest end is after the earliest start." });
+    }
     requireUnique(constraints.daysOff, ctx, "daysOff", "Day off");
     requireUnique(
       constraints.blocked.map((block) => block.id),
@@ -141,6 +146,8 @@ export const AcademicRecordBodySchema = z
     /** Courses the student says they have credit for, whatever the transcript shows. */
     manualCredit: z.array(CourseCodeSchema),
     major: MajorIdSchema.nullable(),
+    /** The catalog year the student follows; null until they or an import set it. */
+    catalogId: CatalogIdSchema.nullable(),
   })
   .superRefine((record, ctx) => {
     // The planner keys transcript rows by id when it merges imports.
@@ -175,6 +182,19 @@ export const ScheduleBodySchema = z
     // The invariants normalizePlannerState keeps today: a pick belongs to a
     // planned course, and a lock pins exactly the course's pick.
     const planned = new Set(schedule.courses);
+    // Auto only plans and unplans courses for this term, which the schedule
+    // holds, so its effect and its Undo record commit together in one write.
+    // A change touching completed work would belong to the academic record.
+    for (const [index, change] of (schedule.lastAuto?.changes ?? []).entries()) {
+      const planning = new Set([change.from, change.to]);
+      if (change.from === change.to || !planning.has("inProgress") || !planning.has("notTaken")) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lastAuto", "changes", index],
+          message: `Auto's change to ${change.code} isn't between planned and not planned.`,
+        });
+      }
+    }
     // Undo and "clear Auto's picks" act on autoPlanned, so it may name only planned courses.
     for (const code of schedule.autoPlanned) {
       if (!planned.has(code)) {

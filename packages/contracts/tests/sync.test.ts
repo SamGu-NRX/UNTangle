@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { PullListSchema, ReceiptSchema, WriteSchema } from "../src/sync";
+import { PullListSchema, ReceiptSchema, VersionListPageSchema, WriteSchema } from "../src/sync";
 import { schedule, version } from "./fixtures";
 import { decoded, rejections, without } from "./helpers";
 
@@ -96,6 +96,28 @@ describe("Receipt", () => {
     ["an empty user id", { userId: "" }],
   ])("rejects %s", (_case, change) => {
     expect(rejections(ReceiptSchema, { ...receipt, ...change })).toHaveLength(1);
+  });
+});
+
+describe("version list page", () => {
+  const page = {
+    versions: [
+      { documentId: "version-2", scheduleId: "schedule-main", reason: "before-auto", createdAt: "2026-10-12T15:04:05.000Z" },
+    ],
+    nextPage: "cursor-abc",
+  };
+
+  test("round-trips a page and the last page", () => {
+    expect(decoded(VersionListPageSchema, page)).toEqual(page);
+    expect(decoded(VersionListPageSchema, { ...page, nextPage: null })).toEqual({ ...page, nextPage: null });
+  });
+
+  test.each([
+    ["an unknown reason", { versions: [{ ...page.versions[0], reason: "manual" }] }],
+    ["a date that isn't ISO", { versions: [{ ...page.versions[0], createdAt: "Oct 12" }] }],
+    ["an empty page token", { nextPage: "" }],
+  ])("rejects %s", (_case, change) => {
+    expect(rejections(VersionListPageSchema, { ...page, ...change })).toHaveLength(1);
   });
 });
 
