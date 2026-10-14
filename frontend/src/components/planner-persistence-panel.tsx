@@ -7,7 +7,7 @@ import "./planner-persistence.css";
 import { usePlanner } from "@/components/planner-provider";
 import { buildSavedPlanSnapshot } from "@/lib/plan-library/snapshot";
 import { defaultPlanName, exportPlanJson } from "@/lib/saved-plans/store";
-import { exportFileName } from "@/components/saved-plans/plans-view-model";
+import { exportFileName } from "@/components/schedules-library/view-model";
 import { getActiveCourseCodes } from "@/lib/planner";
 import type { PlannerState } from "@/lib/types";
 

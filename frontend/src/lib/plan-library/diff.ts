@@ -295,8 +295,3 @@ export function describeLockChanges(changes: PlanLockChange[]): string[] {
     return `${courseCode} is locked to ${workingState} in the working schedule but not in the plan`;
   });
 }
-
-/** Shared with the restore adapter so previews quote the same strings. */
-export function sectionMeetingsSummary(section: Section): string {
-  return meetingsSummary(section);
-}
