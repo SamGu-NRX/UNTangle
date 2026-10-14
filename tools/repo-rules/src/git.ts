@@ -53,21 +53,22 @@ export function changedFiles(repoDir: string, from: string, to: string): FileCha
   return changes;
 }
 
-/** Labels from the PR_LABELS variable, a JSON array of names. */
-export function labelsFromEnv(value: string | undefined): string[] {
-  if (value === undefined || value === "") return [];
-  const parsed: unknown = JSON.parse(value);
-  if (!Array.isArray(parsed) || !parsed.every((label): label is string => typeof label === "string")) {
-    throw new Error(`PR_LABELS must be a JSON array of strings, got ${value}`);
-  }
-  return parsed;
-}
-
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Set ${name}.`);
   return value;
 }
 
-/** The label that lifts both PR checks. Only the lead adds it. */
-export const LEAD_APPROVED = "lead-approved";
+/**
+ * The Approval job's answer (.github/workflows/pr-rules.yml), from the
+ * APPROVED variable. Anything but "true" or "false" is a wiring mistake, so
+ * it throws rather than reading as either.
+ */
+export function approvedFromEnv(value: string | undefined): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`APPROVED must be "true" or "false", from the Approval job. Got ${JSON.stringify(value)}.`);
+}
+
+/** The label Sam adds to approve a PR's current commit, which lifts both PR checks. Only Sam adds it. */
+export const SAM_APPROVED = "sam-approved";

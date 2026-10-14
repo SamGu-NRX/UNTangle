@@ -81,12 +81,12 @@ describe("the check, run against real commits", () => {
   afterEach(() => cleanup());
 
   const script = path.resolve(import.meta.dir, "../src/check-task-rule.ts");
-  function check(labels: string[] = []) {
+  function check(approved = "false") {
     const head = git(dir, ["rev-parse", "HEAD"]);
     return run([process.execPath, "--no-env-file", script], dir, {
       BASE_SHA: "base",
       HEAD_SHA: head,
-      PR_LABELS: JSON.stringify(labels),
+      APPROVED: approved,
     });
   }
 
@@ -126,11 +126,33 @@ describe("the check, run against real commits", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  test("lets the lead-approved label through", () => {
+  test("fails a PR that edits the acceptance test, and names who can lift it", () => {
+    writeFiles(dir, { [accept]: "// rewritten\n" });
+    git(dir, ["commit", "-qam", "rewrite the test"]);
+    const result = check("false");
+    expect(result.output).toContain("Only Sam can lift this check, by approving the commit with the sam-approved label.");
+    expect(result.exitCode).toBe(1);
+  });
+
+  test("lets a commit Sam approved through", () => {
     writeFiles(dir, { [accept]: "// rewritten by the lead\n" });
     git(dir, ["commit", "-qam", "lead fixes the test"]);
-    const result = check(["documentation", "lead-approved"]);
-    expect(result.output).toContain("Skipped: the PR has the lead-approved label.");
+    const result = check("true");
+    expect(result.output).toContain("Skipped: Sam approved this commit.");
     expect(result.exitCode).toBe(0);
+  });
+
+  test.each([
+    ["missing", undefined],
+    ["a label list, as the old PR_LABELS was", '["sam-approved"]'],
+    ["capitalized", "True"],
+  ])("fails loudly when APPROVED is %s", (_case, value) => {
+    const result = run([process.execPath, "--no-env-file", script], dir, {
+      BASE_SHA: "base",
+      HEAD_SHA: git(dir, ["rev-parse", "HEAD"]),
+      ...(value === undefined ? {} : { APPROVED: value }),
+    });
+    expect(result.output).toContain('APPROVED must be "true" or "false", from the Approval job.');
+    expect(result.exitCode).not.toBe(0);
   });
 });

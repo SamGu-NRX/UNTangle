@@ -1,6 +1,6 @@
 # Paths only the lead changes ("Who builds what" in docs/architecture/README.md).
 # A PR from an agent branch (obv/*) that touches one fails the Path ownership
-# check, unless the lead adds the lead-approved label.
+# check, unless Sam approves its current commit with the sam-approved label.
 #
 # One glob per line, from the repo root. * stays inside one directory and **
 # crosses directories. Lines starting with # are comments.

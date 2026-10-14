@@ -118,12 +118,12 @@ describe("the check, run against real commits", () => {
   afterEach(() => cleanup());
 
   const script = path.resolve(import.meta.dir, "../src/check-lead-paths.ts");
-  function check(headRef: string, labels: string[] = []) {
+  function check(headRef: string, approved = "false") {
     return run([process.execPath, "--no-env-file", script], dir, {
       BASE_SHA: "base",
       HEAD_SHA: git(dir, ["rev-parse", "HEAD"]),
       HEAD_REF: headRef,
-      PR_LABELS: JSON.stringify(labels),
+      APPROVED: approved,
     });
   }
   function commit(files: Record<string, string>) {
@@ -136,6 +136,7 @@ describe("the check, run against real commits", () => {
     commit({ "packages/contracts/src/ids.ts": "export const changed = 1;\n" });
     const result = check("obv/filters");
     expect(result.output).toContain("packages/contracts/src/ids.ts (packages/contracts/**)");
+    expect(result.output).toContain("Only Sam can approve it, with the sam-approved label.");
     expect(result.exitCode).toBe(1);
   });
 
@@ -153,11 +154,18 @@ describe("the check, run against real commits", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  test("lets the lead-approved label through", () => {
+  test("lets a commit Sam approved through", () => {
     commit({ "package.json": '{ "name": "x" }\n' });
-    const result = check("obv/filters", ["lead-approved"]);
-    expect(result.output).toContain("Skipped: the PR has the lead-approved label.");
+    const result = check("obv/filters", "true");
+    expect(result.output).toContain("Skipped: Sam approved this commit.");
     expect(result.exitCode).toBe(0);
+  });
+
+  // Read before the branch check, so a wiring mistake shows on every PR, not only agent PRs.
+  test.each(["", "yes", '["sam-approved"]'])("fails loudly when APPROVED is %p, even for a non-agent branch", (value) => {
+    const result = check("untangle/foundations", value);
+    expect(result.output).toContain('APPROVED must be "true" or "false", from the Approval job.');
+    expect(result.exitCode).not.toBe(0);
   });
 
   test("ignores branches that aren't agent branches", () => {

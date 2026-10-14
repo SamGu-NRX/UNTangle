@@ -1,10 +1,19 @@
 name: PR rules
 
-# pull_request_target runs this file as it is on the default branch, and each
-# job checks out the PR's base commit to run the scripts and read the lists
-# from there, so a PR can't edit the checks that judge it. Nothing from the PR
-# is checked out or run: its commits are fetched only so git can diff them.
-# Labels re-run the checks, since lead-approved lifts them.
+# pull_request_target runs this file as it is on the default branch, so a PR
+# can't edit the jobs that judge it.
+#
+# Approval decides from the GitHub API alone whether Sam approved the PR's
+# current commit, posts the "Sam approved" commit status on that commit, and
+# hands its answer to the other two jobs. Those check out the PR's base commit
+# to run the scripts and read the lists from there. Nothing from the PR is
+# checked out or run: its commits are fetched only so git can diff them.
+# Label changes re-run the jobs, since sam-approved lifts the checks.
+#
+# On alpha and main, a ruleset requires the "Sam approved" status from GitHub
+# Actions (.github/rulesets/). On edge the jobs run the same way, but nothing
+# requires the status: it is informational there, and agents land on edge
+# without Sam's approval.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
@@ -13,14 +22,125 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: pr-rules-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
+  approval:
+    name: Approval
+    runs-on: ubuntu-latest
+    # The only job that writes: it strips sam-approved on a push and posts the
+    # "Sam approved" status.
+    permissions:
+      statuses: write
+      pull-requests: write
+    # Runs queue rather than cancel each other, so a label event can't cancel
+    # the run that is stripping the label after a push. queue: max keeps every
+    # waiting run too; the default replaces a waiting run with a newer one.
+    # GitHub doesn't promise the order, so the script doesn't rely on it.
+    concurrency:
+      group: pr-rules-approval-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      approved: ${{ steps.decide.outputs.approved }}
+    steps:
+      - name: Decide whether Sam approved this commit
+        id: decide
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Read from the default branch, so a PR can't add itself to it.
+          APPROVERS: '["SamGu-NRX"]'
+          APPROVAL_LABEL: sam-approved
+        with:
+          # The script lives here, not in a file, so the job needs no checkout
+          # and no permissions beyond the two above.
+          # tools/repo-rules/tests/approval.test.ts runs this exact text.
+          script: |
+            const label = process.env.APPROVAL_LABEL;
+            if (!label) throw new Error("Set APPROVAL_LABEL.");
+            let approvers;
+            try {
+              approvers = JSON.parse(process.env.APPROVERS ?? "");
+            } catch {
+              approvers = undefined;
+            }
+            if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
+              throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
+            }
+            const STATUS_CONTEXT = "Sam approved";
+            const ACTIONS_BOT = "github-actions[bot]";
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const issue = { owner, repo, issue_number: pr.number };
+            // The REST API documents no order for events or statuses. created_at has
+            // one-second steps, so ids break ties.
+            const newest = (items) =>
+              items.toSorted((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id).at(-1);
+
+            // Approved when all of these hold:
+            // - the PR has the label now;
+            // - an approver added it last, acting as themselves rather than through an app;
+            // - it was added while the PR's head was this commit. Either this run is that
+            //   label event, or an earlier run for it already marked this commit with a
+            //   success status. A push strips the label (below), and a status belongs to
+            //   one commit, so approval never carries over to a new commit.
+            function decide({ labels, events, trigger, headStatus }) {
+              if (!labels.includes(label)) {
+                return { approved: false, reason: `The PR doesn't have the ${label} label.` };
+              }
+              const added = newest(events.filter((event) => event.event === "labeled" && event.label?.name === label));
+              if (added === undefined) {
+                return { approved: false, reason: `The PR has ${label}, but GitHub reports no event adding it.` };
+              }
+              const by = added.actor?.login;
+              if (!approvers.includes(by) || added.performed_via_github_app) {
+                const via = added.performed_via_github_app ? ` through the ${added.performed_via_github_app.slug} app` : "";
+                return { approved: false, reason: `${by ?? "an unknown account"} added ${label} last${via}. Only ${approvers.join(", ")} can approve, directly.` };
+              }
+              if (trigger.action === "labeled" && trigger.label === label && trigger.sender === by) {
+                return { approved: true, reason: `${by} added ${label} while this commit was the PR's head.` };
+              }
+              if (headStatus?.state === "success" && headStatus.creator?.login === ACTIONS_BOT) {
+                return { approved: true, reason: `${by} approved this commit earlier.` };
+              }
+              return { approved: false, reason: `${label} was added before this commit was pushed. Remove it and add it again to approve this commit.` };
+            }
+
+            if (context.payload.action === "synchronize") {
+              try {
+                await github.rest.issues.removeLabel({ ...issue, name: label });
+                core.info(`Removed ${label}: a push needs a new approval.`);
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }
+
+            const labels = (await github.paginate(github.rest.issues.listLabelsOnIssue, { ...issue, per_page: 100 })).map((item) => item.name);
+            const events = await github.paginate(github.rest.issues.listEvents, { ...issue, per_page: 100 });
+            const statuses = await github.paginate(github.rest.repos.listCommitStatusesForRef, { owner, repo, ref: pr.head.sha, per_page: 100 });
+            const headStatus = newest(statuses.filter((status) => status.context === STATUS_CONTEXT));
+            const trigger = { action: context.payload.action, label: context.payload.label?.name, sender: context.payload.sender?.login };
+            const { approved, reason } = decide({ labels, events, trigger, headStatus });
+
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: pr.head.sha,
+              context: STATUS_CONTEXT,
+              state: approved ? "success" : "pending",
+              description: approved ? "Sam approved this commit" : "Waiting for Sam's approval",
+            });
+            core.notice(reason, { title: approved ? "Approved" : "Not approved" });
+            core.setOutput("approved", String(approved));
+
   task-rule:
     name: Task rule
+    needs: approval
+    # Runs when Approval fails too, treating the PR as unapproved, so a broken
+    # Approval job can't turn this check into a skip.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: pr-rules-task-rule-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -28,23 +148,42 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Look for the check on the base commit
+        id: tools
+        run: |
+          if [ -f tools/repo-rules/src/check-task-rule.ts ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Task rule not checked::The base commit has no tools/repo-rules/src/check-task-rule.ts, so this PR passes without a check."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Fetch the PR's commits
+        if: steps.tools.outputs.present == 'true'
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.tools.outputs.present == 'true'
         with:
           bun-version-file: package.json
       - name: Check the task rule
+        if: steps.tools.outputs.present == 'true'
         run: bun --no-env-file tools/repo-rules/src/check-task-rule.ts
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          APPROVED: ${{ needs.approval.result == 'success' && needs.approval.outputs.approved || 'false' }}
 
   path-ownership:
     name: Path ownership
+    needs: approval
+    # Runs when Approval fails too, treating the PR as unapproved, so a broken
+    # Approval job can't turn this check into a skip.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: pr-rules-path-ownership-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -52,17 +191,29 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Look for the check on the base commit
+        id: tools
+        run: |
+          if [ -f tools/repo-rules/src/check-lead-paths.ts ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Path ownership not checked::The base commit has no tools/repo-rules/src/check-lead-paths.ts, so this PR passes without a check."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Fetch the PR's commits
+        if: steps.tools.outputs.present == 'true'
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.tools.outputs.present == 'true'
         with:
           bun-version-file: package.json
       - name: Check lead-owned paths
+        if: steps.tools.outputs.present == 'true'
         run: bun --no-env-file tools/repo-rules/src/check-lead-paths.ts
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          APPROVED: ${{ needs.approval.result == 'success' && needs.approval.outputs.approved || 'false' }}

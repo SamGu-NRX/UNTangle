@@ -1,15 +1,16 @@
 /**
  * The Path ownership check: a PR from an agent branch (obv/*) may not touch
  * a path the lead owns, as listed in .github/lead-owned-paths.txt, unless
- * the lead added the lead-approved label.
+ * Sam approved the PR's current commit (the sam-approved label, judged by the
+ * Approval job and passed in as APPROVED).
  *
  * CI runs this from the base branch (pull_request_target) and reads the list
  * from the base commit, so a PR can't shorten the list that judges it.
  */
 import {
-  LEAD_APPROVED,
+  SAM_APPROVED,
+  approvedFromEnv,
   changedFiles,
-  labelsFromEnv,
   mergeBase,
   readAt,
   requireEnv,
@@ -53,13 +54,14 @@ export function leadOwnedPathsTouched(patterns: string[], changes: FileChange[])
 
 if (import.meta.main) {
   const repoDir = process.cwd();
+  const approved = approvedFromEnv(process.env.APPROVED);
   const headRef = requireEnv("HEAD_REF");
   if (!isAgentBranch(headRef)) {
     console.log(`Skipped: ${headRef} is not an agent branch (obv/*).`);
     process.exit(0);
   }
-  if (labelsFromEnv(process.env.PR_LABELS).includes(LEAD_APPROVED)) {
-    console.log(`Skipped: the PR has the ${LEAD_APPROVED} label.`);
+  if (approved) {
+    console.log("Skipped: Sam approved this commit.");
     process.exit(0);
   }
   const base = resolveCommit(repoDir, process.env.BASE_SHA ?? "HEAD");
@@ -74,7 +76,7 @@ if (import.meta.main) {
   console.error(`This agent PR touches paths the lead owns (${LEAD_OWNED_PATHS}):`);
   for (const { path, pattern } of touched) console.error(`  ${path} (${pattern})`);
   console.error(
-    `Propose the change in the PR description instead. The lead can approve it with the ${LEAD_APPROVED} label.`,
+    `Propose the change in the PR description instead. Only Sam can approve it, with the ${SAM_APPROVED} label.`,
   );
   process.exit(1);
 }

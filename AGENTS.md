@@ -22,3 +22,11 @@ PR titles and bodies follow `.obvious/skills/pr-writing` and `.github/pull_reque
 - [`pstack-unslop`](.obvious/skills/pstack-unslop/SKILL.md): Cut AI tells from any writing
 - [`pstack-benchmark-checklist`](.obvious/skills/pstack-benchmark-checklist/SKILL.md): Vet a perf measurement (limiter, tuning, limits, errors, repeatability, relevance, and whether the work happened) before you report or act on it *(needed by `pstack/principle-explain-the-number`)*
 <!-- agent-skills:end -->
+
+## Approval
+
+A PR lands on `alpha` or `main` only after Sam approves its current commit with the `sam-approved` label. A push removes the label, so each new commit needs a new approval. PRs into `edge` don't need it. The rule, and how CI enforces it, is under "Sam's approval" in `docs/architecture/README.md`.
+
+- Agents never add or remove `sam-approved`, and never merge into alpha or main. Only Sam approves.
+- Agents running on Sam's machine use his GitHub token, so GitHub can't tell them apart from him. Nothing on GitHub stops such an agent from approving or merging as Sam; only this rule does.
+- TODO(Sam): give agents their own GitHub identity, without his permissions.
