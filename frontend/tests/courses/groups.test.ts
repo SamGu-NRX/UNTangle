@@ -36,7 +36,8 @@ describe("groups", () => {
   test("Done holds credit and coverage; core courses lead, in the degree plan's order", () => {
     expect(ids("done")).toEqual(["CSCE 1030", "CSCE 1040", "MATH 1710", "ENGL 1310"]);
     expect(ids("taking")).toEqual(["ENGL 1320"]);
-    expect(ids("check")[0]).toBe("CSCE 2100");
+    // CSCE 2100 is core and its course prerequisite is met, so it leads You can take.
+    expect(ids("can")[0]).toBe("CSCE 2100");
   });
 
   test("the degree scope is the department plus what the student already has", () => {
@@ -68,7 +69,12 @@ describe("groups", () => {
     const can = buildGroups(fresh, { department: "CSCE", coreCourseCodes: ["CSCE 1010"] }).find((group) => group.key === "can")!;
     expect(can.parts.map((part) => part.label)).toEqual(["In your degree plan", "More CSCE courses"]);
     expect(can.parts[0].ids).toEqual(["CSCE 1010"]);
-    expect(buildGroups(model, cs).find((group) => group.key === "can")!.parts.map((part) => part.label)).toEqual([null]);
+    const sample = buildGroups(model, cs).find((group) => group.key === "can")!;
+    expect(sample.parts.map((part) => part.label)).toEqual(["In your degree plan", "More CSCE courses"]);
+    expect(sample.parts[0].ids).toEqual(["CSCE 2100"]);
+    // With no core course to take, the group has one unlabeled part.
+    const noCore = buildGroups(model, { department: "CSCE", coreCourseCodes: [] }).find((group) => group.key === "can")!;
+    expect(noCore.parts.map((part) => part.label)).toEqual([null]);
   });
 });
 

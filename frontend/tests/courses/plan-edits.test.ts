@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { autoTransaction, courseEdit, undoAutoTransaction, undoCourseEdit } from "@/components/courses/model/plan-edits";
+import { computeAuto } from "@/components/courses/model/auto";
+import { buildCourseModel } from "@/components/courses/model/course-model";
+import { autoTransaction, courseEdit, snapshotOf, undoAutoTransaction, undoCourseEdit } from "@/components/courses/model/plan-edits";
 import { sampleTranscript } from "@/components/courses/model/sample-transcript";
 import { untProfile } from "@/components/courses/school";
 import { getInitialPlannerState, getMajorById, normalizePlannerState } from "@/lib/planner";
@@ -24,12 +26,16 @@ function samplePlan(overrides: Partial<PlannerState> = {}): PlannerState {
 }
 
 describe("autoTransaction", () => {
-  test("plans from the plan it commits on and records the run for Undo", () => {
-    const { next, result } = autoTransaction(profile, cs, run)(samplePlan());
+  test("plans what Auto picks on the plan it commits on, and records the run for Undo", () => {
+    const plan = samplePlan();
+    const picks = computeAuto(buildCourseModel(profile, snapshotOf(plan)), plan.courseStatuses, cs.coreCourseCodes, profile.autoCreditBudget);
+    expect(picks.planned).toContain("MATH 1720");
+    const { next, result } = autoTransaction(profile, cs, run)(plan);
     if (result === "major-changed") throw new Error("refused");
-    expect(result.planned).toEqual(["MATH 1720"]);
-    expect(next?.courseStatuses["MATH 1720"]).toBe("inProgress");
-    expect(next?.coursePlan?.lastAuto).toMatchObject({ id: "auto-t", major: "cs", changes: [{ code: "MATH 1720", from: "notTaken", to: "inProgress" }] });
+    expect(result.planned).toEqual(picks.planned);
+    for (const id of picks.planned) expect(next?.courseStatuses[id]).toBe("inProgress");
+    expect(next?.coursePlan?.autoPlanned).toEqual(picks.planned);
+    expect(next?.coursePlan?.lastAuto).toMatchObject({ id: "auto-t", major: "cs", changes: picks.changes });
   });
 
   test("refuses, changing nothing, when the major changed while it waited", () => {

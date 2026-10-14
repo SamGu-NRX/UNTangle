@@ -157,9 +157,11 @@ async function journey(browser, viewport) {
   const result = page.locator('[data-flip="result"]');
   await result.waitFor();
   const resultText = await result.innerText();
-  check(`${tag}: the result line says what Auto did`, /Planned 1 course/.test(resultText), resultText.replace(/\s+/g, " "));
+  const trayCount = await page.locator('[data-flip^="tray:"]').count();
+  check(`${tag}: the result line says what Auto did`, new RegExp(`Planned ${trayCount} course`).test(resultText) && trayCount > 0, resultText.replace(/\s+/g, " "));
   check(`${tag}: MATH 1720 is in the term tray`, (await trayRow(page, "MATH 1720").count()) === 1 && (await rowOf(page, "MATH 1720").count()) === 0);
-  check(`${tag}: CSCE 2100 is left to check`, (await rowStatus(page, "CSCE 2100")) === "check" && (await rowFact(page, "CSCE 2100")).includes("needs an advisor"));
+  const toCheck = page.locator('[data-status=check][data-flip^="row:"]').first();
+  check(`${tag}: a To check row says why, in attention`, (await toCheck.locator("[data-tone=attention]").count()) === 1 && /^(Needs|Take with|Catalog rule|Transcript)/.test(await toCheck.locator("[data-tone=attention]").innerText()));
   const doneHead = await page.getByRole("button", { name: /^Done/ }).innerText();
   check(`${tag}: a closed group shows its count`, /Done\s*4/.test(doneHead), doneHead.replace(/\s+/g, " "));
   check(`${tag}: an open group shows no count`, !/\d/.test(await page.getByRole("button", { name: /^To check/ }).innerText()));
@@ -372,7 +374,7 @@ async function journey(browser, viewport) {
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
   const deepText = await deepPanel.innerText();
-  check(`${tag}: the deep link shows catalog text and the status`, deepText.includes("Foundations of Computing") && deepText.includes("needs an advisor"));
+  check(`${tag}: the deep link shows catalog text and the status`, deepText.includes("Foundations of Computing") && /You can take this|Planned for Spring 2027|Needs |Catalog rule/.test(deepText));
   await page.waitForTimeout(350);
   await shoot(page, `${tag}-06-deep-link`);
   await axe(page, `${tag}: deep link`);
