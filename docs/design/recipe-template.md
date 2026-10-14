@@ -88,7 +88,7 @@ Request to the lead: a `/dev/controls` specimen for `RangeSlider`.
 | Instructor's average grade | Segmented Any, 2.5 and up, 3.0 and up, 3.5 and up | Any | "3.0 and up" |
 
 - The summary names everything that hides a section. Open seats is on by default and named anyway: unlike a Preference, a filter removes rows from view, and a student looking for a full section must be able to see why it is missing.
-- A value of unknown never passes a filter (`docs/architecture/README.md`, "Filters"). A section with unknown seats is hidden while Open seats is on. A section whose instructor has no grade records is hidden unless the grade filter is Any.
+- A value of unknown never passes a filter (`docs/architecture/README.md`, "Filters"). A section with unknown seats is hidden while Open seats is on. When the term has no live seat data at all (sample sections, or a term whose release has no seat counts), Open seats starts off instead, and the summary says "Seat counts aren't available for this term", so the default never hides every section. A section whose instructor has no grade records is hidden unless the grade filter is Any.
 - The day chips use the same "on means no classes" reading as Preferences' Days off, so the student learns one model.
 
 ### States, with exact copy

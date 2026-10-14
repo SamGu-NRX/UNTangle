@@ -8,6 +8,8 @@ A guest's work is kept in this browser under a guest identity: planner state, pr
 
 Signing in compares each guest store with the matching account document: the plan with the schedule "Main", preferences with preferences, and library entries with versions.
 
+Each guest store gets its own outcome before its guest key is cleared: the plan against Main, preferences against preferences, and each library entry against the account's versions. The table below is for the plan. Preferences follow the same rows, comparing field groups. Library entries are never discarded: each one is added to the account's library unless an identical entry is already there.
+
 | Guest plan | Account plan | What happens |
 |---|---|---|
 | empty or untouched | any | Load the account. Ask nothing. |
@@ -23,7 +25,7 @@ The sheet:
 
 Escape and the scrim choose "Keep my saved schedule", so nothing is ever lost.
 
-After the choice, the guest stores are cleared. Signing out never copies account data into the guest key. The next guest session starts fresh.
+After every store has its outcome, the guest stores are cleared. Signing out never copies account data into the guest key. The next guest session starts fresh.
 
 ### Imports during a save conflict (replaces "re-apply imported courses")
 

@@ -126,7 +126,7 @@ The server handles a write in one transaction:
 
 The hash covers the exact body bytes the client stored in its outbox, so a retry always matches.
 
-The one exception is the extension, which holds only a read-only view. It sends a single command, `add-option`, that the server applies to the latest revision. No other commands exist in v1, so an over-the-air client never sends a command the server doesn't know.
+The one exception is the extension, which holds only a read-only view. It sends a single command, `add-option`, carrying the schedule revision the student saw when they confirmed. If the schedule has moved on since then, the server rejects the command, and the extension shows a fresh preview against the latest revision before the student confirms again. Applying it anyway would merge two schedule edits silently. No other commands exist in v1, so an over-the-air client never sends a command the server doesn't know.
 
 **Pull is a list, not a change log.** A student has tens of documents. `GET /api/v1/sync` returns `(documentId, kind, revision, deleted)` for every one of them, and the client fetches whatever changed. With no cursor, there is no class of skipped-change bugs. Versions are listed by id, paged.
 
@@ -143,20 +143,28 @@ Receipts and deletion tombstones are kept for the document's lifetime in v1. Rev
 
 **Conflicts depend on the document kind:**
 - **Schedule:** never merged automatically in v1, because edits to different courses can still jointly break walking time, credits or locks. A clean client adopts the server copy. A dirty client keeps its draft and shows what differs, and the student picks one of three: use the latest, keep theirs as another schedule, or reapply chosen edits on top of the latest.
-- **Preferences:** settled field by field, the later write winning, because no rule spans two fields. Changing a preference on the phone never opens a conflict sheet on the laptop.
-- **Academic record:** its changes come from imports and status taps, which are idempotent. On conflict, the client loads the latest and runs the same change again on top.
+- **Preferences:** settled per field group, the later write winning. Fields that constrain each other form one group and move together; for example, the earliest start and latest end are one group, so a merge can never leave an end before a start. Changing a preference on the phone never opens a conflict sheet on the laptop.
+- **Academic record:** merged per course, three-way, against the base the client started from. A course only one side changed takes that side's value. A course both sides changed to different values goes to the student as one question per course. A stale offline edit can never silently overwrite a newer decision.
 
 Delete-versus-edit is a conflict. An offline device can't resurrect a deleted schedule. Restoring a version creates a new revision; it never rewinds.
 
-**Local data belongs to one identity.** Every local store (planner backup, library, preferences, outbox) is keyed by the signed-in user id or a guest id. The guest path never reads a user's keys, and signing out deletes that user's local copies from the browser. Today a single shared key leaks one student's plan and transcript to the next person on the browser; `untangle/local-identity` fixes that before anything else builds on local state.
+**Local data belongs to one identity.** Every local store (planner backup, library, preferences, outbox) is keyed by the signed-in user id or a guest id. The guest path never reads a user's keys, and signing out deletes that user's local copies from the browser. Sign-out first checks the outbox. If any write is waiting, unconfirmed or needs sign-in, it asks: "Some changes haven't synced. Sync now, or sign out and discard them?" Nothing in the outbox is deleted without that choice. Today a single shared key leaks one student's plan and transcript to the next person on the browser; `untangle/local-identity` fixes that before anything else builds on local state.
 
-**Guests.** A guest works against the same local store under a guest identity, with sync off. Signing in follows `docs/architecture/guest-sync.md`, for each document kind: empty account means save automatically, with Undo; both sides have different work means one question; whatever isn't chosen is kept as a saved copy in the account. Nothing is merged silently.
+**Guests.** A guest works against the same local store under a guest identity, with sync off. On a shared computer, the next anonymous visitor must not inherit a previous guest's plan and transcript, so:
+- guest data expires after 14 days without an edit;
+- on load, guest data last edited more than 4 hours ago shows "Continue where you left off, or start fresh?";
+- every screen offers "Clear this browser" one step away.
+
+Both durations are starting values with nothing measured behind them. Signing in follows `docs/architecture/guest-sync.md`, for each document kind: empty account means save automatically, with Undo; both sides have different work means one question; whatever isn't chosen is kept as a saved copy in the account. Nothing is merged silently.
 
 **Migration.**
 1. Deploy the document tables and readers first.
-2. Migrate each user's legacy row atomically: an academic record, plus a schedule named "Main" stamped with the current term. `PlannerState` has no term field, so the migration supplies one. Keep a migration marker.
-3. On its first run, the new client looks for that user's old local keys: the planner backup, preferences and library. Any that are newer than the migrated server copy go through the conflict sheet. Nothing local is dropped silently.
-4. After that, old `/api/planner` writes get an explicit upgrade response. The old client must show "UNTangle was updated. Reload to keep editing." It must not treat the response as a retryable error. Old writes must never overwrite documents with a full state that lacks the new fields.
+2. Migrate each user's legacy row atomically: an academic record, plus a schedule named "Main".
+   - **Term:** `PlannerState` has no term field, so stamp the term the plan was made for, taken from its sections' term. Fall back to the current term only when a plan has no sections.
+   - **Fields:** keep every field that has a home, including the optimization goal.
+   - **Marker:** record a migration marker.
+3. **Old local keys carry no owner,** and that is the leak the identity work closes, so they are never moved into an account just because someone signed in. On first run, the new client moves an old key into the signed-in account only when its contents canonically equal that account's own server copy, which is what `untangle/local-identity` does. Every other old key stays quarantined, is never offered to an account, and is deleted after 30 days.
+4. **Old clients first.** Before the server rejects old `/api/planner` writes, ship a web release whose old-API client treats an "upgrade required" response as final: it shows "UNTangle was updated. Reload to keep editing." and does no retry. Only after that release is live does the server start answering old writes with that response. Old writes must never overwrite documents with a full state that lacks the new fields.
 
 Polling on focus, on app foreground, and once a minute while visible keeps devices current. Add server-sent events only if students report stale phones.
 
@@ -180,7 +188,7 @@ Surface:
 |---|---|---|
 | Web | the existing better-auth session cookie | HttpOnly, host-only, SameSite=Lax |
 | Mobile | an opaque device token of kind `mobile`; the server stores only its hash | iOS Keychain through SecureStore |
-| Extension | an opaque device token of kind `extension` | `chrome.storage.session`, trusted extension contexts only |
+| Extension | an opaque device token of kind `extension` | `chrome.storage.local` with its access level set to trusted extension contexts, so it survives browser restarts for the grant's lifetime but is never visible to content scripts |
 
 Mobile and the extension don't use better-auth's `bearer()` plugin. In the installed 1.5.5, it rewrites a bearer token into an ordinary full session cookie, with no scopes and no rotation (`better-auth/dist/plugins/bearer/index.mjs:19-57`). Instead there's one small first-party device-grant service. It is built in step 3b, just before the mobile and extension betas; the lead owns it, and it gets an independent security review before release.
 
