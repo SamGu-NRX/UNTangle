@@ -54,6 +54,17 @@ import type { Candidate, Prepared, PreparedMeeting } from "./prepare";
 
 const DAY_COUNT = OPT_DAYS.length;
 
+/**
+ * Slack for the evidence comparisons in `canWinTie`: the bound and a leaf
+ * sum the same per-candidate values in different orders, so two plans that
+ * tie in exact arithmetic can differ in their last bits of rounding. Any
+ * value far below the smallest meaningful evidence difference (course gpas
+ * are tenths on a 0 to 4 scale) and far above double rounding error
+ * (around 1e-15 for these sums) keeps real ties together and real
+ * differences apart. Being too big only costs a little pruning.
+ */
+const EVIDENCE_ROUNDING = 1e-9;
+
 export type Budget = {
   deadline: number;
   maxNodes: number;
@@ -69,10 +80,11 @@ export type Leaf = {
    * Mean instructor evidence over the leaf's picks in evidence-eligible
    * courses (courses where every option has a known gpa; other courses
    * contribute nothing for any plan), and 0 when no course is eligible so
-   * the key decides. Higher wins the tie-break. Every sum here and in
-   * `canWinTie` runs in course order over the same per-candidate
-   * `evidence` values, so the bound and the leaf agree exactly rather
-   * than to within floating-point rounding.
+   * the key decides. Higher wins the tie-break. The bound in `canWinTie`
+   * sums the same per-candidate `evidence` values in a different order,
+   * so plans that tie in exact arithmetic may differ in their last bits
+   * of rounding; the search's comparisons allow for that with
+   * EVIDENCE_ROUNDING instead of assuming the two sums are identical.
    */
   evidence: number;
   /** Section ids in course-code order: the tie-break key. */
@@ -430,17 +442,15 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
    * by the evidence assigned so far, the candidate's contribution, and, for
    * each other unassigned course, the most any of its candidates
    * contributes (a static per-course max; ineligible courses contribute
-   * 0). The sum runs in course order over the same per-candidate values
-   * recordLeaf sums, so when every remaining maximum is the eventual pick
-   * the bound is not just an upper bound but the identical float, and the
-   * comparison below cannot misjudge a real tie by rounding (in exact
-   * arithmetic the bound dominates any pick's sum because each maximum is
-   * at least that pick, and float rounding is monotone in its summands).
-   * Prune on evidence only when that bound is strictly worse than
-   * best.evidence; when the bound can at best tie, fall back to the key
-   * comparison below, which is exact because equal evidence makes the key
-   * the deciding tier. When in doubt, do not prune. With no eligible
-   * course every plan's evidence is 0, so only the key decides.
+   * 0). The bound sums the same per-candidate values recordLeaf sums, but
+   * in a different order (this loop is course order; evidenceSum follows
+   * the search's assignment order), so two plans that would tie in exact
+   * arithmetic can differ in their last bits of floating-point rounding.
+   * The comparisons therefore keep an epsilon band around target.evidence:
+   * prune on evidence only when the bound is worse by more than
+   * EVIDENCE_ROUNDING, and treat the band as a possible win. When in
+   * doubt, do not prune. With no eligible course every plan's evidence is
+   * 0, so only the key decides.
    */
   function canWinTie(candidate: Candidate): boolean {
     const target = best!;
@@ -452,7 +462,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       }
       const evidenceBound = numerator / eligibleCount;
       if (evidenceBound > target.evidence) return true;
-      if (evidenceBound < target.evidence) return false;
+      if (evidenceBound < target.evidence - EVIDENCE_ROUNDING) return false;
+      return true;
     }
     for (let u = 0; u < n; u += 1) {
       let lowest: string;

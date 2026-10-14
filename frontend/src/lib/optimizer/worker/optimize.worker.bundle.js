@@ -688,6 +688,7 @@ function dropTwins(candidates, walkingMatters) {
 
 // src/lib/optimizer/search.ts
 var DAY_COUNT = OPT_DAYS.length;
+var EVIDENCE_ROUNDING = 0.000000001;
 
 class BudgetExhausted {
 }
@@ -1003,8 +1004,9 @@ function search(prepared, budget, options) {
       const evidenceBound = numerator / eligibleCount;
       if (evidenceBound > target.evidence)
         return true;
-      if (evidenceBound < target.evidence)
+      if (evidenceBound < target.evidence - EVIDENCE_ROUNDING)
         return false;
+      return true;
     }
     for (let u = 0;u < n; u += 1) {
       let lowest;
