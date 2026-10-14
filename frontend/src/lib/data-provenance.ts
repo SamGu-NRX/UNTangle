@@ -2,8 +2,8 @@
  * Provenance of the dataset the app ships today.
  *
  * The catalog text in `courses/*.json` is real UNT text scraped from catalog.unt.edu,
- * but every bundled section is synthetic: the schedule rows in `backend/data/compD.csv`
- * (backend submodule) describe exactly 15 campus buildings, carry no term, and are not a
+ * but every bundled section is synthetic: the schedule rows in `data/compD.csv` of the
+ * retired backend (sunnyD1000/UNT-Schedule-Optimizer) describe exactly 15 campus buildings, carry no term, and are not a
  * record of any real UNT semester. Bundled sections must be presented as samples, never
  * as a real term's offerings.
  *
@@ -30,7 +30,7 @@ export const activeDataset: DatasetDescriptor = {
   label: "UNT catalog text with synthetic sample sections (no term)",
   term: null,
   source:
-    "catalog.unt.edu course text in courses/*.json; sections derived from backend/data/compD.csv (synthetic, 15 buildings, no term)",
+    "catalog.unt.edu course text in courses/*.json; sections derived from compD.csv in sunnyD1000/UNT-Schedule-Optimizer (synthetic, 15 buildings, no term)",
   retrievedAt: null,
   bundleSha256: "d9426e8240a603ca4cd27a3d05e0a24a85dc8f04ae6c244dcf7045caefe340de",
 };

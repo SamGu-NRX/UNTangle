@@ -1,12 +1,12 @@
 # UNTangle frontend
 
-Next.js 16 (App Router) frontend for UNTangle — course catalog, schedule optimizer, campus map, transcript import, and grade pages. React 19, Tailwind CSS 4, Leaflet, Recharts, and better-auth with Drizzle ORM on PostgreSQL. Full-stack run instructions, including the backend submodule, are in the [root README](../README.md).
+Next.js 16 (App Router) frontend for UNTangle — course catalog, schedule optimizer, campus map, transcript import, and grade pages. React 19, Tailwind CSS 4, Leaflet, Recharts, and better-auth with Drizzle ORM on PostgreSQL. Run instructions for the whole repo are in the [root README](../README.md).
 
 ## Scripts
 
 | Command | What it does |
 |---|---|
-| `bun run dev` | Next.js dev server (root `bun dev` orchestrates this together with the backend) |
+| `bun run dev` | Next.js dev server (root `bun dev` wraps this with install, port and `.env` setup) |
 | `bun run build` / `bun run start` | Production build / serve |
 | `bun run lint` | ESLint (`eslint-config-next`) |
 | `bunx drizzle-kit push` | Apply the Drizzle schema (`src/lib/db/schema.ts`) to Postgres |
@@ -23,8 +23,6 @@ grep -rhoE "process\.env\.[A-Z0-9_]+" frontend/src | sort -u
 
 | Variable | Read at | Default when unset | Behavior without it |
 |---|---|---|---|
-| `BACKEND_URL` | `src/lib/backend-api.ts` | none — falls through to `NEXT_PUBLIC_BACKEND_URL`, then `localhost` candidates | Server-side grade fetches probe `localhost:3001`, `3002`, `3011`; course and instructor pages return a standard 404 (no custom error UI) if no backend answers |
-| `NEXT_PUBLIC_BACKEND_URL` | `src/lib/backend-api.ts` | none | Same degradation as `BACKEND_URL`; as a `NEXT_PUBLIC_*` value it is also inlined into client bundles |
 | `BETTER_AUTH_URL` | `src/lib/auth.ts` | `http://localhost:3000` | Used as the auth base URL and trusted origin; a wrong value breaks sign-in and reset flows when the app is not served on that origin (root `bun dev` writes this for you) |
 | `BETTER_AUTH_SECRET` | `src/lib/auth.ts` | a public development string | Without a real value, sessions are signed with a known secret — fine locally, not deployable |
 | `DATABASE_URL` | `src/lib/db/index.ts`, `drizzle.config.ts` | none | The pg Pool falls back to the discrete `PG*` variables for auth; but saved-plan sync (`/api/planner`, `src/lib/persistence.ts`) is disabled — planner state stays in `sessionStorage` per tab. Required in production, where API rate-limit counters live in Postgres |
@@ -47,7 +45,7 @@ Notes:
 
 - `NEXT_PUBLIC_*` values are inlined at compile time — restart `dev`/`build` after changing them. The others are read at runtime.
 - `drizzle.config.ts` (outside `src/`) also reads `DATABASE_URL` and the `PG*` variables for `drizzle-kit`.
-- The root `scripts/dev.mjs` rewrites `BACKEND_URL` and `BETTER_AUTH_URL` in `frontend/.env` on every `bun dev` run (any other keys you add are preserved).
+- The root `scripts/dev.mjs` rewrites `BETTER_AUTH_URL` in `frontend/.env` on every `bun dev` run (any other keys you add are preserved).
 
 ## Privacy: transcript import
 
@@ -60,6 +58,6 @@ The transcript import (the "Import from myUNT" sheet at `/connect`, also opened 
 5. **Limits.** Redaction is label-anchored: for example, `Name:` is only redacted when it is followed by `Student ID:`, and `Student Address:` only up to `Print Date:`. Since the text never leaves the browser and only approved course rows are kept, this limits what the parsed rows can carry, not what is sent.
 6. **What is kept.** The PDF and its text are discarded after parsing. Only the course rows you approve are applied to your planner; like the rest of your planner data, they sync to the server when you are signed in.
 
-Course/instructor grade data is unrelated to this flow: it is fetched from the backend API server-side.
+Course grade history is unrelated to this flow: the server fetches it from untgrades.app (`src/lib/grades-history`).
 
 Binding decisions for planner payload handling, auth secrets, term chronology, infrastructure limits, and third-party data policy live in [`docs/planner-policy.md`](../docs/planner-policy.md).

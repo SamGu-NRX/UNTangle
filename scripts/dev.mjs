@@ -6,17 +6,13 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const backendDir = path.join(rootDir, "backend");
 const frontendDir = path.join(rootDir, "frontend");
 
 const args = new Set(process.argv.slice(2));
 const setupOnly = args.has("--setup-only");
 const skipInstall = args.has("--no-install") || process.env.SKIP_INSTALL === "1";
-const skipSeed = args.has("--no-seed") || process.env.SKIP_SEED === "1";
 
 const commandName = process.platform === "win32" ? "bun.cmd" : "bun";
-const nodeName = process.platform === "win32" ? "node.exe" : "node";
-const npmName = process.platform === "win32" ? "npm.cmd" : "npm";
 
 function log(message) {
   console.log(`[dev] ${message}`);
@@ -35,20 +31,11 @@ function run(command, args, options = {}) {
   }
 }
 
-function ensureSubmodule() {
-  if (fs.existsSync(path.join(backendDir, "package.json"))) return;
-  run("git", ["submodule", "update", "--init", "--recursive"], { cwd: rootDir });
-}
-
 function ensureDependencies() {
   if (skipInstall) return;
 
   if (!fs.existsSync(path.join(rootDir, "node_modules")) || !fs.existsSync(path.join(frontendDir, "node_modules"))) {
     run(commandName, ["install", "--frozen-lockfile"], { cwd: rootDir });
-  }
-
-  if (!fs.existsSync(path.join(backendDir, "node_modules"))) {
-    run(commandName, ["install", "--frozen-lockfile"], { cwd: backendDir });
   }
 }
 
@@ -92,20 +79,6 @@ function isPortFree(port) {
   });
 }
 
-async function isUsableBackend(port) {
-  try {
-    const health = await fetch(`http://localhost:${port}/api/health`);
-    if (!health.ok) return false;
-    const body = await health.json();
-    if (body?.service !== "untangle-backend") return false;
-
-    const grades = await fetch(`http://localhost:${port}/api/grades/search?q=PSCI`);
-    return grades.ok;
-  } catch {
-    return false;
-  }
-}
-
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -124,61 +97,6 @@ async function chooseFrontendPort() {
   }
 
   throw new Error(`No available frontend port found in ${candidates.join(", ")}`);
-}
-
-async function chooseBackend(frontendPort) {
-  const requested = process.env.BACKEND_PORT ? [parsePort(process.env.BACKEND_PORT, 3001)] : [];
-  const candidates = unique([...requested, 3001, 3011, 3002, 3012, 3003, 3013]);
-
-  for (const port of candidates) {
-    if (port === frontendPort) continue;
-    if (await isUsableBackend(port)) return { port, reuse: true };
-    if (await isPortFree(port)) return { port, reuse: false };
-  }
-
-  throw new Error(`No available backend port found in ${candidates.join(", ")}`);
-}
-
-function ensureBetterSqlite() {
-  const result = spawnSync(nodeName, ["-e", "require('better-sqlite3')"], {
-    cwd: backendDir,
-    stdio: "ignore",
-  });
-
-  if (result.status === 0) return;
-  run(npmName, ["rebuild", "better-sqlite3"], { cwd: backendDir });
-}
-
-function dbNeedsSeed(dbPath) {
-  if (!fs.existsSync(dbPath)) return true;
-
-  const check = `
-    const Database = require("better-sqlite3");
-    const db = new Database(process.env.DB_PATH, { readonly: true });
-    const table = db.prepare("select name from sqlite_master where type = 'table' and name = 'grade_sections'").get();
-    if (!table) process.exit(1);
-    const row = db.prepare("select count(*) as count from grade_sections").get();
-    process.exit(row.count > 0 ? 0 : 1);
-  `;
-
-  const result = spawnSync(nodeName, ["-e", check], {
-    cwd: backendDir,
-    env: { ...process.env, DB_PATH: dbPath },
-    stdio: "ignore",
-  });
-
-  return result.status !== 0;
-}
-
-function ensureDatabase(dbPath) {
-  if (skipSeed) return;
-
-  ensureBetterSqlite();
-  if (!dbNeedsSeed(dbPath)) return;
-  run(commandName, ["run", "seed"], {
-    cwd: backendDir,
-    env: { ...process.env, DB_PATH: dbPath },
-  });
 }
 
 function ensureFrontendDevLockAvailable() {
@@ -206,52 +124,19 @@ function ensureFrontendDevLockAvailable() {
   log("removed stale frontend/.next/dev/lock");
 }
 
-function spawnServer(name, command, args, options) {
-  log(`starting ${name}: ${command} ${args.join(" ")}`);
-  const child = spawn(command, args, {
-    cwd: options.cwd,
-    env: options.env,
-    stdio: "inherit",
-  });
-  return child;
-}
-
 async function main() {
-  ensureSubmodule();
   ensureDependencies();
 
   const frontendPort = await chooseFrontendPort();
-  const backend = await chooseBackend(frontendPort);
   const frontendOrigin = `http://localhost:${frontendPort}`;
-  const backendUrl = `http://localhost:${backend.port}`;
-  const backendEnvPath = path.join(backendDir, ".env");
   const frontendEnvPath = path.join(frontendDir, ".env");
-  const dbPath = path.join(backendDir, "data", "untangle.db");
-  const corsAllowedOrigins = unique([
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    frontendOrigin,
-    `http://127.0.0.1:${frontendPort}`,
-  ]).join(",");
 
-  ensureEnvFile(backendEnvPath, path.join(backendDir, ".env.example"));
   ensureEnvFile(frontendEnvPath, path.join(frontendDir, ".env.example"));
-
-  setEnvValues(backendEnvPath, {
-    PORT: String(backend.port),
-    DB_PATH: "data/untangle.db",
-    CORS_ALLOWED_ORIGINS: corsAllowedOrigins,
-    CAS_SERVICE_URL: `${frontendOrigin}/auth/callback`,
-  });
   setEnvValues(frontendEnvPath, {
-    BACKEND_URL: backendUrl,
     BETTER_AUTH_URL: frontendOrigin,
   });
 
-  ensureDatabase(dbPath);
-
   log(`frontend: ${frontendOrigin}`);
-  log(`backend:  ${backendUrl}${backend.reuse ? " (already running)" : ""}`);
 
   if (setupOnly) {
     log("setup complete");
@@ -260,46 +145,25 @@ async function main() {
 
   ensureFrontendDevLockAvailable();
 
-  const children = [];
+  const devArgs = ["run", "dev", "--", "-p", String(frontendPort)];
+  log(`starting frontend: ${commandName} ${devArgs.join(" ")}`);
+  const frontend = spawn(commandName, devArgs, {
+    cwd: frontendDir,
+    env: {
+      ...process.env,
+      BETTER_AUTH_URL: frontendOrigin,
+    },
+    stdio: "inherit",
+  });
+
   let shuttingDown = false;
-
-  if (!backend.reuse) {
-    children.push(
-      spawnServer("backend", commandName, ["run", "dev"], {
-        cwd: backendDir,
-        env: {
-          ...process.env,
-          PORT: String(backend.port),
-          DB_PATH: "data/untangle.db",
-          CORS_ALLOWED_ORIGINS: corsAllowedOrigins,
-          CAS_SERVICE_URL: `${frontendOrigin}/auth/callback`,
-        },
-      }),
-    );
-  }
-
-  children.push(
-    spawnServer("frontend", commandName, ["run", "dev", "--", "-p", String(frontendPort)], {
-      cwd: frontendDir,
-      env: {
-        ...process.env,
-        BACKEND_URL: backendUrl,
-        BETTER_AUTH_URL: frontendOrigin,
-      },
-    }),
-  );
-
-  const shutdown = (signal = "SIGINT") => {
+  const shutdown = (signal) => {
     if (shuttingDown) return;
     shuttingDown = true;
     log(`shutting down (${signal})`);
-    for (const child of children) {
-      if (!child.killed) child.kill(signal);
-    }
+    if (!frontend.killed) frontend.kill(signal);
     setTimeout(() => {
-      for (const child of children) {
-        if (!child.killed) child.kill("SIGTERM");
-      }
+      if (!frontend.killed) frontend.kill("SIGTERM");
     }, 2500).unref();
   };
 
@@ -307,13 +171,10 @@ async function main() {
     process.on(signal, () => shutdown(signal));
   }
 
-  for (const child of children) {
-    child.on("exit", (code, signal) => {
-      if (shuttingDown) return;
-      shutdown(signal ?? "SIGTERM");
-      process.exitCode = code === 0 ? 1 : code ?? 1;
-    });
-  }
+  frontend.on("exit", (code) => {
+    if (shuttingDown) return;
+    process.exitCode = code ?? 1;
+  });
 }
 
 main().catch((error) => {
