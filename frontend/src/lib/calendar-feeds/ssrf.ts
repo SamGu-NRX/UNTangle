@@ -55,20 +55,31 @@ function isBlockedIpv4(ip: number): boolean {
 
 const LOW32 = BigInt("0xffffffff");
 
+/** The top 96 bits of the IPv6 forms that carry an IPv4 address in their low 32 bits. */
+const EMBEDDED_IPV4_PREFIXES = [
+  BigInt(0), // ::/96 IPv4-compatible (this also covers :: and ::1, whose IPv4 lands in 0.0.0.0/8)
+  BigInt("0xffff"), // ::ffff:0:0/96 IPv4-mapped
+  BigInt("0x0064ff9b0000000000000000"), // 64:ff9b::/96 NAT64 well-known prefix
+];
+
+/**
+ * An allowlist, not a blocklist: IPv6 has too many reserved and
+ * locally-routed ranges (fec0::/10 site-local is one a blocklist missed) to
+ * enumerate safely. Only global unicast 2000::/3 passes, minus its
+ * special-purpose ranges; the IPv4-carrying forms above are judged by their
+ * embedded address under the IPv4 rules. Everything else is blocked,
+ * including fec0::/10, fc00::/7, fe80::/10, ff00::/8 and ::1.
+ */
 function isBlockedIpv6(value: bigint): boolean {
-  if (value === BigInt(0) || value === BigInt(1)) return true; // :: and ::1
-  if (value >> BigInt(121) === BigInt(126)) return true; // fc00::/7 unique local
-  if (value >> BigInt(118) === BigInt(1018)) return true; // fe80::/10 link-local
-  if (value >> BigInt(120) === BigInt(255)) return true; // ff00::/8 multicast
-  if (value >> BigInt(96) === BigInt("0x20010db8")) return true; // 2001:db8::/32 documentation
-  const low32 = value & LOW32;
-  // Address forms that carry an IPv4 address inside them are judged by it:
-  // ::ffff:0:0/96 v4-mapped, 64:ff9b::/96 NAT64, ::/96 IPv4-compatible, 2002::/16 6to4.
-  if (value >> BigInt(96) === BigInt(0xffff)) return isBlockedIpv4(Number(low32));
-  if (value >> BigInt(96) === BigInt("0x64ff9b")) return isBlockedIpv4(Number(low32));
-  if (value >> BigInt(64) === BigInt(0)) return isBlockedIpv4(Number(low32));
-  if (value >> BigInt(112) === BigInt("0x2002")) return isBlockedIpv4(Number((value >> BigInt(80)) & LOW32));
-  return false;
+  const top96 = value >> BigInt(32);
+  if (EMBEDDED_IPV4_PREFIXES.some((prefix) => prefix === top96)) return isBlockedIpv4(Number(value & LOW32));
+  if (value >> BigInt(125) !== BigInt(1)) return true; // outside 2000::/3 global unicast
+  return (
+    value >> BigInt(105) === BigInt("0x100080") || // 2001::/23 IETF protocol assignments, including Teredo 2001::/32
+    value >> BigInt(96) === BigInt("0x20010db8") || // 2001:db8::/32 documentation
+    value >> BigInt(112) === BigInt("0x2002") || // 2002::/16 6to4
+    value >> BigInt(108) === BigInt("0x3fff0") // 3fff::/20 documentation (RFC 9637)
+  );
 }
 
 /**
@@ -90,7 +101,8 @@ function parseIpv6(input: string): bigint | null {
     v4Tail = parsed;
     text = text.slice(0, text.length - dotted[0].length);
     if (!text.endsWith(":")) return null;
-    text = text.slice(0, -1);
+    // Drop the separator before the IPv4 part, unless it belongs to "::" (as in ::8.8.8.8).
+    if (!text.endsWith("::")) text = text.slice(0, -1);
   }
 
   const halves = text.split("::");

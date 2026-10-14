@@ -140,6 +140,39 @@ test("isBlockedAddress blocks loopback, local, multicast, documentation, and emb
   for (const ip of blocked) expect(isBlockedAddress(ip)).toBe(true);
 });
 
+test("isBlockedAddress allows only global unicast IPv6, minus its special-purpose ranges", () => {
+  const blocked = [
+    "fec0::1", // deprecated site-local, which the old blocklist let through
+    "feff:ffff::1", // top of fec0::/10
+    "fd12:3456::1", // unique local
+    "100::1", // discard-only
+    "4000::1", // outside 2000::/3
+    "1fff:ffff::1", // just below 2000::/3
+    "2001::1", // Teredo
+    "2001:0:4136:e378:8000:63bf:3fff:fdd2", // Teredo, full form
+    "2001:2::1", // benchmarking, inside 2001::/23
+    "2001:1ff:ffff::1", // top of 2001::/23
+    "2001:db8:1::1", // documentation
+    "2002:808:808::1", // 6to4 wrapping a public IPv4 is still blocked
+    "3fff::1", // documentation, RFC 9637
+    "64:ff9b:1::808:808", // local-use NAT64 is outside 2000::/3
+    "::ffff:0:808:808", // IPv4-translated form is outside 2000::/3
+    "::10.0.0.1", // IPv4-compatible, private
+    "64:ff9b::169.254.169.254", // NAT64 to the metadata address
+  ];
+  for (const ip of blocked) expect([ip, isBlockedAddress(ip)]).toEqual([ip, true]);
+  const allowed = [
+    "2606:4700::1111",
+    "2a00:1450:4001::200e",
+    "2001:200::1", // first address past 2001::/23
+    "3ffe::1", // inside 2000::/3, outside 3fff::/20
+    "::ffff:8.8.8.8", // IPv4-mapped, public
+    "::8.8.8.8", // IPv4-compatible, public
+    "64:ff9b::808:808", // NAT64, public
+  ];
+  for (const ip of allowed) expect([ip, isBlockedAddress(ip)]).toEqual([ip, false]);
+});
+
 test("isBlockedAddress allows public addresses and fails closed on garbage", () => {
   expect(isBlockedAddress("8.8.8.8")).toBe(false);
   expect(isBlockedAddress("2606:4700::1111")).toBe(false);
