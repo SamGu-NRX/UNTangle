@@ -107,12 +107,14 @@ The planner blob becomes separate documents. Each has its own revision:
 
 Roadmaps and calendar or notification subscriptions get documents when their features are built, not before.
 
+Each fact lives in exactly one document. Planned courses for a term belong to that term's schedule. The academic record holds only facts about the student's history: completed courses, courses in progress now, transfer and exam credit. Today `PlannerState` marks a planned course `inProgress`, and the migration moves those courses into the schedule. A write carries its document's `kind`, so the server can check the body of a document's first write; on later writes the kind must match the stored document.
+
 Some state never syncs and stays on each device: the active tab, the selected day, scroll and sheet position, the schedule being viewed. Another device shouldn't move the screen you're reading.
 
 **Writes are whole-document compare-and-set,** as `persistence.ts` does today, plus a receipt:
 
 ```ts
-interface Write { operationId: string; documentId: string; baseRevision: number; schemaVersion: 1; body: unknown | null /* null deletes */ }
+interface Write { operationId: string; documentId: string; kind: DocumentKind; baseRevision: number; schemaVersion: 1; body: unknown | null /* null deletes */ }
 interface Receipt { userId: string; operationId: string; bodySha256: string; committedRevision: number }
 ```
 
@@ -322,11 +324,17 @@ Obvious agents build bounded pieces against frozen contracts:
 
 **The task rule.** A task is written only after its interface, fixtures and acceptance test are on `alpha`. `alpha`'s CI must stay green, so a new acceptance test is listed in `tests/pending-acceptance.txt`, and CI skips everything on that list. The agent makes the test pass. Its only allowed test-side edit is deleting its own line from the list, and a CI check fails any other change to an acceptance test.
 
+How it works:
+- A line in the list is a test file's path from the repo root, which skips the file, or `path::name`, which skips one test by the full name Bun prints.
+- Every package's `test` script runs `tools/repo-rules/src/run-tests.ts`. It gives `bun test` the package's test files minus the listed ones. A file with listed test names runs on its own, with a name pattern that leaves those tests out. A listed path that doesn't exist, or that no package's tests cover, fails the run.
+- The Task rule job (`.github/workflows/pr-rules.yml`) runs through `pull_request_target`, so its workflow comes from the default branch and its script and list from the PR's base commit. A PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line to it.
+- The lead lists a new acceptance test with the test and its line in one PR, labeled `lead-approved`, which lifts the check.
+
 Where a task family repeats, the lead writes one harness that covers every member instead of one test per task. For example, a degree-plan validator checks every file in `plans/`, so each new plan is a data-only PR.
 
 **Contract changes:**
 - If an agent needs a contract change, it proposes one in its PR description; it doesn't work around the boundary.
-- A CI path check fails any agent PR that touches a lead-owned path.
+- A CI path check fails any agent PR that touches a lead-owned path. It is the Path ownership job in `.github/workflows/pr-rules.yml`: it applies to PRs from `obv/*` branches, reads the globs in `.github/lead-owned-paths.txt` from the PR's base commit, and is lifted by the `lead-approved` label.
 - Briefs forbid adding dependencies.
 
 UI work by agents follows `docs/design/`, starting with its README. A UI task gets a filled recipe (`docs/design/recipe-template.md`), approved by the lead before code. A UI PR shows real app screenshots at 390 and 1440, and those screenshots pass the visual QA checklist (`docs/design/visual-qa.md`). Mobile screens are lead- or specialist-built until agents have a working iOS simulator.
