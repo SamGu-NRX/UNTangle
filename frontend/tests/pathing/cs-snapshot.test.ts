@@ -5,7 +5,7 @@ import { buildCsScenario } from "./cs-report";
 test("Computer Science, BS pathing report matches the committed snapshot", () => {
   const { report, unparseableRows, prereqCoverage, result, analysis, recommendations } = buildCsScenario();
   expect(unparseableRows).toEqual([]);
-  expect(prereqCoverage).toEqual({ full: 430, partial: 168, unknown: 58 });
+  expect(prereqCoverage).toEqual({ full: 441, partial: 170, unknown: 58 });
   expect(report).toBe(readFileSync(new URL("./cs-report.fixture.txt", import.meta.url), "utf8"));
 
   // 2110, 3444, 4901, 4902 (and ENGL 1310, TECM 2700, 4901, 4902) is the longest chain.

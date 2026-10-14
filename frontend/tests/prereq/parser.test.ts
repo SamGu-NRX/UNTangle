@@ -66,7 +66,7 @@ test("opaque ids are normalized only by the UNT boundary", () => {
   expect(() => normalizeUntCourseId("invalid")).toThrow("Invalid UNT course code");
 });
 
-test("all 656 bundled sources match the report and produce engine assessments", async () => {
+test("all bundled sources match the report and produce engine assessments", async () => {
   const directory = resolve(import.meta.dir, "../../../courses");
   const counts = { full: 0, partial: 0, unknown: 0 };
   const sources = new Map<string, string>();
@@ -81,7 +81,7 @@ test("all 656 bundled sources match the report and produce engine assessments", 
       sources.set(entry.course_number, entry.prerequisites);
     }
   }
-  expect(sources.size).toBe(656);
+  expect(sources.size).toBe(669);
   expect(counts).toEqual(coverage.counts);
   const unknownWithCodes = catalogEntries.filter(entry => parseUntPrerequisite(entry.prerequisites).coverage === "unknown" && /\b[A-Z]{2,5}\s*\d{4}[A-Z]?\b/i.test(entry.prerequisites)).length;
   expect(unknownWithCodes).toBe(coverage.unknownWithCourseCodes);
@@ -90,7 +90,7 @@ test("all 656 bundled sources match the report and produce engine assessments", 
   for (const fixture of golden) expect(sources.get(fixture.courseId)).toBe(fixture.source);
   const catalog = adaptUntCatalog(catalogEntries, new Map(seed.courses.map(course => [course.code, course.creditHours])));
   const result = inferStatuses(catalog, {}, untAdapter);
-  expect(result.statuses.size).toBe(656);
+  expect(result.statuses.size).toBe(669);
   expect([...result.statuses.values()].some(course => course.status === "done" || course.status === "taking")).toBe(false);
   for (const entry of catalogEntries) if (parseUntPrerequisite(entry.prerequisites).coverage !== "full") {
     expect(result.statuses.get(normalizeUntCourseId(entry.course_number))?.status).toBe("unknown");

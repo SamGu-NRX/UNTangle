@@ -369,7 +369,7 @@ describe("summaries", () => {
     });
     expect(summarizeCompletedCourses(state)).toBe(2);
     expect(summarizeInProgressCourses(state)).toBe(1);
-    expect(summarizeNotTakenCourses(state)).toBe(653); // 656 catalog courses minus 3 accounted for
+    expect(summarizeNotTakenCourses(state)).toBe(666); // 669 catalog courses minus 3 accounted for
     // Credits summarize in-progress work only; MATH 1710 carries 3 credit hours.
     expect(summarizeCredits(state)).toBe(3);
   });

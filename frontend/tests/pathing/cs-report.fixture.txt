@@ -1,23 +1,19 @@
 UNTangle pathing report: Computer Science, BS (2026-2027)
 Plan source: https://catalog.unt.edu/preview_program.php?catoid=37&poid=18560, copied 2026-10-14
-Catalog rows: 656; unparseable rows: 0; prerequisite parse gaps: 226 (full 430, partial 168, unknown 58)
+Catalog rows: 669; unparseable rows: 0; prerequisite parse gaps: 228 (full 441, partial 170, unknown 58)
 Transcript, all grade A: CSCE 1010, CSCE 1015, CSCE 1030, CSCE 1040, CSCE 2100, MATH 1710, MATH 1720
 Remaining critical path: 4 terms
 
 Warnings:
-  Not in the catalog, so never counted as done and left out of paths: CHEM 1415, CHEM 1430, CHEM 1435, CHEM 1440, CSCE 1015, CSCE 4115, CSCE 4210, CSCE 4230, GEOL 1610, PHYS 1430, PHYS 1440, PHYS 1730, PHYS 2240.
-  CSCE Advanced Elective Courses: the plan data has no course list for this pool, so its hours are never counted; an advisor must confirm which courses apply.
   Not checked: the major's C-or-better rule for degree completion; progress counts any passing grade the engine accepts as done.
   Not checked: the 58-hour minimum for the major.
 
 Requirements:
-  Major requirements: 4 of 12 courses done; at least 3 terms left
-  Capstone or thesis (following Software Development Capstone): 0 of 2 requirements done; at least 4 terms left
-  CSCE core, 6 hours: 0 of 6 hours done; 3 terms left
-  CSCE breadth, 6 hours: 0 of 6 hours done; 2 terms left
+  Major requirements: 5 of 12 courses done; 3 terms left
+  Capstone or thesis (following Software Development Capstone): 0 of 3 requirements done; 4 terms left
   Other required courses: 2 of 5 courses done; 2 terms left
   Probability or statistics: 0 of 1 course done; 1 term left
-  Laboratory science: 0 of 2 courses done; at least 1 term left
+  Laboratory science: 0 of 2 courses done; 1 term left
   4000-level TECM: 0 of 3 hours done; 3 terms left
 
 Recommended next term (credit target 15):
@@ -28,7 +24,7 @@ Recommended next term (credit target 15):
   5. BIOL 1132 (3 cr): Counts toward Laboratory science, 0 of 2 courses done
 
 One term away, but status unknown until an advisor clears the engine's check:
-  CSCE 2110: Required (Major requirements); unlocks CSCE 3444, CSCE 3600, CSCE 4110 and 3 more; 10 remaining courses wait on it; on the longest remaining chain (4 terms)
+  CSCE 2110: Required (Major requirements); unlocks CSCE 3444, CSCE 3600, CSCE 4110 and 4 more; 10 remaining courses wait on it; on the longest remaining chain (4 terms)
     engine: Check with advisor: This course can be taken concurrently with CSCE 2100
   CSCE 2610: Required (Major requirements)
     engine: Check with advisor: CSCI majors: EENG 2710
@@ -44,15 +40,24 @@ Remaining-path courses (id | status | chain | critical | unlocks direct/transiti
   BIOL 1710 | eligible | 1 | no | 0/0
   BIOL 1720 | eligible | 1 | no | 0/0
   BIOL 1760 | eligible | 1 | no | 0/0
-  CSCE 2110 | unknown | 1 | yes | 6/10
+  CHEM 1410 | unknown | 2 | no | 0/0
+  CHEM 1415 | unknown | 3 | no | 0/0
+  CHEM 1420 | unknown | 3 | no | 0/0
+  CHEM 1430 | unknown | 2 | no | 0/0
+  CHEM 1435 | unknown | 3 | no | 0/0
+  CHEM 1440 | unknown | 3 | no | 0/0
+  CSCE 2110 | unknown | 1 | yes | 7/10
   CSCE 2610 | unknown | 1 | no | 0/0
   CSCE 3444 | locked | 2 | yes | 1/2
   CSCE 3530 | locked | 3 | no | 0/0
   CSCE 3550 | eligible | 1 | no | 0/0
-  CSCE 3600 | locked | 2 | no | 2/2
+  CSCE 3600 | locked | 2 | no | 1/1
   CSCE 4010 | unknown | 3 | no | 0/0
   CSCE 4110 | locked | 2 | no | 0/0
+  CSCE 4115 | locked | 2 | no | 0/0
   CSCE 4201 | locked | 2 | no | 0/0
+  CSCE 4210 | locked | 2 | no | 0/0
+  CSCE 4230 | unknown | 2 | no | 0/0
   CSCE 4240 | locked | 2 | no | 0/0
   CSCE 4290 | locked | 2 | no | 0/0
   CSCE 4350 | locked | 2 | no | 0/0
@@ -66,10 +71,19 @@ Remaining-path courses (id | status | chain | critical | unlocks direct/transiti
   EENG 2710 | unknown | 1 | no | 0/0
   ENGL 1310 | eligible | 1 | yes | 1/4
   GEOG 1710 | eligible | 1 | no | 0/0
+  GEOL 1610 | eligible | 1 | no | 0/0
   MATH 1780 | eligible | 1 | no | 0/0
   MATH 2700 | eligible | 1 | no | 0/0
   MATH 3680 | unknown | 1 | no | 0/0
   PHYS 1270 | unknown | 2 | no | 0/0
+  PHYS 1410 | eligible | 1 | no | 0/0
+  PHYS 1420 | unknown | 2 | no | 0/0
+  PHYS 1430 | locked | 1 | no | 0/0
+  PHYS 1440 | unknown | 2 | no | 0/0
+  PHYS 1710 | unknown | 1 | no | 0/0
+  PHYS 1730 | unknown | 1 | no | 0/0
+  PHYS 2220 | unknown | 2 | no | 0/0
+  PHYS 2240 | unknown | 2 | no | 0/0
   TECM 1700 | eligible | 1 | yes | 1/4
   TECM 2700 | unknown | 2 | yes | 2/3
   TECM 4010 | unknown | 3 | no | 0/0
