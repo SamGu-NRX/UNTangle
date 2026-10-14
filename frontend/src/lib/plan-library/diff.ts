@@ -341,6 +341,8 @@ export function describeOtherDifferences(diff: PlanDiff, a: string, b: string): 
     lines.push(`${change.courseCode} is ${side(a, change.savedPlan)} and ${side(b, change.workingState)}.`);
   }
   if (diff.optimizationChanged) lines.push(`${a} and ${b} have different schedule goals.`);
+  // Using a copy also sets the day the Day lens opens on.
+  if (diff.activeDayChanged) lines.push(`${a} and ${b} open Day on different days.`);
   if (diff.majorChanged) lines.push(`${a} and ${b} are for different majors.`);
   if (diff.transcriptRecords.changed) lines.push(`${a} and ${b} hold different transcript records.`);
   return lines;

@@ -463,7 +463,8 @@ function ImportFlow({ identityReady, restoredTrip }: { identityReady: boolean; r
   }
 
   return (
-    <main className={styles.welcome}>
+    // id="main": where focus lands when a dialog's opener is gone (the sign-in dialog, once signed in).
+    <main id="main" tabIndex={-1} className={styles.welcome}>
       <PdfDropTarget onDrop={(result) => routeDrop(result, identityReady, takeDrop)} />
       <HiddenPdfInput ref={fileInput} onFile={(file) => void read(file)} />
       <Stage key={screen}>{body}</Stage>

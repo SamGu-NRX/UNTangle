@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { clockText, compareRows, gridDays, overlayBlocks, plannedSections, sectionChanges, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
+import { clockText, compareRows, gridDays, overlayBlocks, plannedSections, sectionChanges, usesSampleSections, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
 import { getInitialPlannerState } from "@/lib/planner";
 import { sampleCatalog } from "@/lib/planner-sections";
 import type { WalkingTime } from "@/lib/planner-walking";
@@ -129,6 +129,27 @@ describe("comparing Main (A) with Fridays off (B)", () => {
     expect(sectionChanges([...sectionsOf(main), online("900")], sectionsOf(main)).changes).toEqual([
       { code: "TECM 2700", from: "No set time", to: null },
     ]);
+  });
+
+  test("a saved pick the catalog can't place still counts, and two different ones differ", () => {
+    const base = getInitialPlannerState();
+    const plan = (sectionId: string) => ({
+      ...base,
+      courseStatuses: { ...base.courseStatuses, "ANTH 1010": "inProgress" as const },
+      selectedSections: { "ANTH 1010": sectionId },
+    });
+    // Real-looking ids that the sample catalog has never had.
+    const gone = (state: ReturnType<typeof plan>) => plannedSections(state, sampleCatalog);
+    const a = gone(plan("2027-spring:ANTH 1010:11111"));
+    const b = gone(plan("2027-spring:ANTH 1010:22222"));
+    expect(a.map((s) => [s.code, s.unresolved])).toEqual([["ANTH 1010", "gone"]]);
+    expect(sectionChanges(a, b).changes).toEqual([{ code: "ANTH 1010", from: "Not offered now", to: "Not offered now" }]);
+  });
+
+  test("meetings from the bundled samples are said once", () => {
+    expect(usesSampleSections(main)).toBe(true);
+    expect(usesSampleSections(main.map((event) => ({ ...event, provenance: "real" as const })))).toBe(false);
+    expect(usesSampleSections([])).toBe(false);
   });
 
   test("planned sections come from the plan, every scheduled course with its section", () => {

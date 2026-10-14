@@ -237,6 +237,13 @@ describe("other differences between two schedules, in words", () => {
     const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
     expect(describeOtherDifferences(diffPlannerStates(stateWith({}), stateWith({})), "A", "B")).toEqual([]);
   });
+
+  it("names a different Day, since using the copy changes the day Day opens on", async () => {
+    const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
+    expect(describeOtherDifferences(diffPlannerStates(stateWith({ activeDay: "Mon" }), stateWith({ activeDay: "Wed" })), "A", "B")).toEqual([
+      "A and B open Day on different days.",
+    ]);
+  });
 });
 
 describe("comparing two library schedules", () => {

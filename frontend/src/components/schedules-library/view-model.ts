@@ -75,3 +75,13 @@ export function skippedSectionLines(report: SectionReferenceReport): string[] {
     ...report.unknownCourses.map((finding) => `${finding.courseCode}: not in this catalog, so it leaves the schedule.`),
   ];
 }
+
+/**
+ * The compared schedule "Use in Main" applies to: the one that isn't Main,
+ * whichever order the two were picked in; B when neither is Main.
+ */
+export function adoptableSide<T extends { active: boolean }>(a: T, b: T): T | null {
+  if (!b.active) return b;
+  if (!a.active) return a;
+  return null;
+}

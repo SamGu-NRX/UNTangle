@@ -30,6 +30,10 @@
   padding: clamp(24px, 9vh, 96px) clamp(20px, 8vw, 128px) 64px;
 }
 
+.welcome:focus {
+  outline: none;
+}
+
 /* One screen of the flow. Heights snap; the new screen fades in. */
 .stage {
   max-width: 520px;

@@ -15,20 +15,24 @@ afterAll(() => {
 
 const api: AuthApi = { sendLink: async () => ({ error: null }), signIn: async () => ({ error: null }) };
 
-async function render(props: { pathname?: string; signedIn?: boolean } = {}) {
+type Props = { pathname?: string; signedIn?: boolean; link?: boolean };
+
+async function render(props: Props = {}) {
   const { SignInLayer } = await import("@/components/auth-client");
   const { openSignIn } = await import("@/components/auth-shell");
-  const ui = (p: { pathname?: string; signedIn?: boolean }) => (
+  const ui = (p: Props) => (
     <>
-      <a href="/auth" onClick={openSignIn}>
-        Sign in
-      </a>
+      {p.link === false ? null : (
+        <a href="/auth" onClick={openSignIn}>
+          Sign in
+        </a>
+      )}
       <SignInLayer api={api} pathname={p.pathname ?? "/courses"} signedIn={p.signedIn ?? false} />
     </>
   );
   const view = await mount(ui(props));
   const link = view.container.querySelector("a")!;
-  return { ...view, link, update: (next: { pathname?: string; signedIn?: boolean }) => view.rerender(ui(next)) };
+  return { ...view, link, update: (next: Props) => view.rerender(ui(next)) };
 }
 
 async function openFrom(link: HTMLAnchorElement) {
@@ -106,6 +110,22 @@ describe("Sign in over the current page", () => {
     await settle(200);
     expect(dialog() === null).toBe(true);
     await view.unmount();
+  });
+
+  test("once signed in the Sign in link is gone, so focus lands on the page's main", async () => {
+    const main = document.createElement("main");
+    main.id = "main";
+    main.tabIndex = -1;
+    document.body.appendChild(main);
+    const view = await render();
+    await openFrom(view.link);
+    // The bar swaps Sign in for the account menu as the session lands.
+    await view.update({ signedIn: true, link: false });
+    await settle(200);
+    expect(dialog() === null).toBe(true);
+    expect(`${document.activeElement?.tagName}#${document.activeElement?.id}`).toBe("MAIN#main");
+    await view.unmount();
+    main.remove();
   });
 
   test("a modified click follows the link to /auth", async () => {

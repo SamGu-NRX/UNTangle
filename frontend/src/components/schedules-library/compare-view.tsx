@@ -11,6 +11,7 @@ import { compareRows, eventsOf, overlayBlocks, plannedSections, sectionChanges, 
 import type { ScheduleEvent } from "@/lib/types";
 import type { Entry } from "./schedules-client";
 import { Legend } from "./schedule-detail";
+import { adoptableSide } from "./view-model";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -57,16 +58,17 @@ export function CompareView({
       ? overlayBlocks(a.blocks, b.blocks).map((item) => (item.variant === "faded" ? { ...item, variant: "solid" } : item))
       : (view === "a" ? a.blocks : b.blocks).map((block) => ({ ...block, id: block.key, variant: "solid" }));
 
+  const adoptable = adoptableSide(a, b);
   const bothLabels = { solid: a.name, dashed: `${b.name}, where it differs` };
 
   return (
     <div className={styles.detail}>
       <div className={styles.detailActions}>
-        {b.active ? null : (
-          <Button size="sm" onClick={() => onUse(b)}>
-            Use {b.name} in Main
+        {adoptable ? (
+          <Button size="sm" onClick={() => onUse(adoptable)}>
+            Use {adoptable.name} in Main
           </Button>
-        )}
+        ) : null}
         <Button variant="secondary" size="sm" onClick={onDone}>
           Done
         </Button>

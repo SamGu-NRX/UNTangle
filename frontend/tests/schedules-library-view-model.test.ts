@@ -82,3 +82,16 @@ describe("what Use in Main does with sections it can't keep", () => {
     expect(skippedSectionLines(resolveSectionReferences(state))).toEqual([]);
   });
 });
+
+describe("which compared schedule Use in Main applies to", () => {
+  it("is the one that isn't Main, in either order; B when neither is Main", async () => {
+    const { adoptableSide } = await import("@/components/schedules-library/view-model");
+    const main = { name: "Main", active: true };
+    const copy = { name: "Fridays off", active: false };
+    const other = { name: "Short walks", active: false };
+    expect(adoptableSide(main, copy)).toBe(copy);
+    expect(adoptableSide(copy, main)).toBe(copy);
+    expect(adoptableSide(copy, other)).toBe(other);
+    expect(adoptableSide(main, main)).toBeNull();
+  });
+});

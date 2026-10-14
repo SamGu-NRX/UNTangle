@@ -76,6 +76,11 @@ export function overlayBlocks(base: readonly WeekBlock[], other: readonly WeekBl
   return placed;
 }
 
+/** Whether any of these meetings comes from the bundled synthetic samples, which the page must say once. */
+export function usesSampleSections(events: readonly ScheduleEvent[]): boolean {
+  return events.some((event) => event.provenance === "sample");
+}
+
 /** Hues for the courses on one or more weeks, clustered by department (lib/course-colors.ts). */
 export function weekColors(...weeks: ReadonlyArray<readonly WeekBlock[]>): Map<string, Hue> {
   const codes = [...new Set(weeks.flat().map((block) => block.code))];
@@ -162,7 +167,13 @@ function meetsText(blocks: readonly WeekBlock[]): string {
 export type SectionChange = { code: string; from: string | null; to: string | null };
 
 /** A planned course's chosen section and its timed meetings (none for an online or TBA section). */
-export type PlannedSection = { code: string; sectionId: string; blocks: WeekBlock[] };
+export type PlannedSection = {
+  code: string;
+  sectionId: string;
+  blocks: WeekBlock[];
+  /** A saved pick with no section to draw: its options are still loading, or the catalog no longer has it. */
+  unresolved?: "loading" | "gone";
+};
 
 /**
  * Every course a plan schedules, with the section it uses: saved picks, and
@@ -170,13 +181,18 @@ export type PlannedSection = { code: string; sectionId: string; blocks: WeekBloc
  * with no set time are included, so a change to one still counts.
  */
 export function plannedSections(state: PlannerState, catalog: SectionCatalog): PlannedSection[] {
-  return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course) =>
-    course.section ? [{ code: course.code, sectionId: course.section.id, blocks: weekBlocks(scheduleEventsOf(course.section)) }] : [],
-  );
+  return resolveSectionPlan(normalizePlannerState(state), catalog).courses.flatMap((course): PlannedSection[] => {
+    if (course.section) return [{ code: course.code, sectionId: course.section.id, blocks: weekBlocks(scheduleEventsOf(course.section)) }];
+    // A saved pick the loaded catalog can't place still differs from another pick.
+    if (course.savedId) return [{ code: course.code, sectionId: course.savedId, blocks: [], unresolved: course.state === "loading" ? "loading" : "gone" }];
+    return [];
+  });
 }
 
-/** "MWF 9:00", or "No set time" for an online or TBA section. */
+/** "MWF 9:00", "No set time" for an online or TBA section, or why a saved pick has no times. */
 function sectionText(section: PlannedSection): string {
+  if (section.unresolved === "loading") return "Still loading";
+  if (section.unresolved === "gone") return "Not offered now";
   return section.blocks.length ? meetsText(section.blocks) : "No set time";
 }
 

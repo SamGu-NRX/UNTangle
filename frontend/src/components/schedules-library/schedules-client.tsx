@@ -9,17 +9,17 @@ import { Dialog } from "@/components/ui/Dialog";
 import { MoreGlyph, Plus } from "@/components/ui/icons";
 import { keyboardFocused } from "@/components/ui/input-source";
 import { Menu, type MenuEntry } from "@/components/ui/Menu";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { TextField } from "@/components/ui/TextField";
 import { toast } from "@/components/ui/Toast";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { replaceWith, undoReplace, type Replaced } from "@/lib/plan-library/versions";
-import { eventsOf, weekBlocks, weekColors, type WeekBlock } from "@/lib/plan-library/week";
-import { buildSavedPlanSnapshot, resolveSectionReferences } from "@/lib/plan-library/snapshot";
+import { eventsOf, usesSampleSections, weekBlocks, weekColors, type WeekBlock } from "@/lib/plan-library/week";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { PLANNING_TERM } from "@/lib/terms";
-import { dispatchRestore, workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
 import type { PlannerState } from "@/lib/types";
+import { adoptCopy, noteLanded, undoAdoption, type Adoption } from "./adopt";
 import { CompareView, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
@@ -124,6 +124,9 @@ export function SchedulesClient() {
     snapshot: plan,
   });
   const entries = { main, live: live.map(copy), archived: archived.map(copy) };
+  // Said once, on the term heading (rule 6), whenever any week drawn here uses the bundled samples.
+  const samples =
+    usesSampleSections(scheduleEvents) || plans.some((plan) => usesSampleSections(eventsOf(plan.state, sectionCatalog)));
   const all = [entries.main, ...entries.live, ...entries.archived];
   const find = (id: string | null) => all.find((entry) => entry.id === id) ?? null;
 
@@ -212,43 +215,28 @@ export function SchedulesClient() {
     });
   }
 
-  /**
-   * Fills Main from a saved copy through the planner's restore path (#37's
-   * restore-adapter: reset, then the public setters, so the goal's weights
-   * and the plan-replacement count move as they always have). Undo replays
-   * the same path with what Main held before, and only while Main is still
-   * exactly what the restore left: `landed` records that on the render after.
-   */
-  const pendingUndo = useRef<{ before: SavedPlanSnapshot; epoch: number; landed: string | null } | null>(null);
+  /** The pending "Use in Main" whose Undo is on the toast (adopt.ts). */
+  const pendingUndo = useRef<Adoption | null>(null);
   useEffect(() => {
-    const pending = pendingUndo.current;
-    if (pending && pending.landed === null && planner.planEpoch !== pending.epoch) {
-      pending.epoch = planner.planEpoch;
-      pending.landed = workingStateFingerprint(planner.plannerState);
-    }
+    if (pendingUndo.current) noteLanded(pendingUndo.current, planner);
   });
 
-  async function adoptCopy(entry: Entry) {
+  async function adoptEntry(entry: Entry) {
     const snapshot = entry.snapshot;
     if (!snapshot) return;
     await planner.afterHydration();
-    const current = plannerNow.current;
-    const before = buildSavedPlanSnapshot({ state: current.plannerState, name: SCHEDULE_NAME, source: { kind: "workingState", detail: "Main before a restore" } });
-    const pending = { before, epoch: current.planEpoch, landed: null };
-    pendingUndo.current = pending;
-    dispatchRestore(current, snapshot, resolveSectionReferences(snapshot.state, current.sectionCatalog));
+    const adoption = adoptCopy(plannerNow.current, snapshot);
+    pendingUndo.current = adoption;
     toast({
       message: `Main now uses ${entry.name}`,
       action: {
         label: "Undo",
         onClick: () => {
-          const now = plannerNow.current;
-          if (pendingUndo.current !== pending || pending.landed === null || now.planEpoch !== pending.epoch || workingStateFingerprint(now.plannerState) !== pending.landed) {
+          if (pendingUndo.current !== adoption || !undoAdoption(plannerNow.current, adoption)) {
             changedSince();
             return;
           }
           pendingUndo.current = null;
-          dispatchRestore(now, before, resolveSectionReferences(before.state, now.sectionCatalog));
         },
       },
     });
@@ -352,7 +340,7 @@ export function SchedulesClient() {
     <CompareView
       sides={sides}
       colors={colors}
-      onUse={(entry) => void adoptCopy(entry)}
+      onUse={(entry) => void adoptEntry(entry)}
       onDone={closePanel}
     />
   ) : selectedEntry ? (
@@ -362,7 +350,7 @@ export function SchedulesClient() {
       colors={colors}
       now={now}
       mainSaved={mainSaved}
-      onUse={() => void adoptCopy(selectedEntry)}
+      onUse={() => void adoptEntry(selectedEntry)}
       onSaveMain={startSaving}
       onExport={() => selectedEntry.snapshot && exportPlan(selectedEntry.snapshot)}
       onRestore={(pick, label) => void restoreVersion(pick, label)}
@@ -474,6 +462,9 @@ export function SchedulesClient() {
       <section className={styles.term} aria-labelledby="term-heading">
         <h2 id="term-heading" className={styles.termTitle}>
           {PLANNING_TERM.name}
+          {samples ? (
+            <ProvenanceTag source="These weeks use synthetic sample sections, not UNT's class schedule.">Sample sections</ProvenanceTag>
+          ) : null}
         </h2>
         <ul className={styles.rows}>{[entries.main, ...entries.live].map(row)}</ul>
         {list.phase === "loading" ? <p className={styles.quiet}>Loading saved schedules…</p> : null}
