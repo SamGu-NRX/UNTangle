@@ -251,22 +251,34 @@ describe("feedOccurrences", () => {
     expect(piecesOf(5).map((piece) => [piece.date, piece.startMinutes, piece.endMinutes])).toEqual([["2026-10-29", 1380, 1440]]);
   });
 
-  test("an event across the spring-forward gap reads its wall clock: 01:00 to 04:00 is 60 to 240", () => {
+  test("an event across the spring-forward gap splits where the clock jumps: 01:00 to 02:00 CST, then 03:00 to 04:00 CDT", () => {
     expect(piecesOf(9).map((piece) => [piece.date, piece.startMinutes, piece.endMinutes, piece.start, piece.end])).toEqual([
-      ["2027-03-14", 60, 240, "2027-03-14T07:00:00.000Z", "2027-03-14T09:00:00.000Z"],
+      ["2027-03-14", 60, 120, "2027-03-14T07:00:00.000Z", "2027-03-14T08:00:00.000Z"],
+      ["2027-03-14", 180, 240, "2027-03-14T08:00:00.000Z", "2027-03-14T09:00:00.000Z"],
     ]);
   });
 
-  test("an event across the fall-back hour reads its wall clock: 00:30 to 02:30 is 30 to 150", () => {
+  test("an event across the fall-back hour splits where the clock falls back: 00:30 to 02:00 CDT, then 01:00 to 02:30 CST", () => {
     expect(piecesOf(6).map((piece) => [piece.date, piece.startMinutes, piece.endMinutes, piece.start, piece.end])).toEqual([
-      ["2026-11-01", 30, 150, "2026-11-01T05:30:00.000Z", "2026-11-01T08:30:00.000Z"],
+      ["2026-11-01", 30, 120, "2026-11-01T05:30:00.000Z", "2026-11-01T07:00:00.000Z"],
+      ["2026-11-01", 60, 150, "2026-11-01T07:00:00.000Z", "2026-11-01T08:30:00.000Z"],
     ]);
   });
 
-  test("inside the repeated hour, a piece whose wall-clock end comes first ends at its start plus the minutes that pass", () => {
-    expect(piecesOf(7).map((piece) => [piece.date, piece.startMinutes, piece.endMinutes, piece.start, piece.end])).toEqual([
-      ["2026-11-01", 90, 135, "2026-11-01T06:30:00.000Z", "2026-11-01T07:15:00.000Z"],
+  test("inside the repeated hour, 01:30 CDT to 01:15 CST is two pieces whose instants end at 07:15Z", () => {
+    const pieces = piecesOf(7);
+    expect(pieces.map((piece) => [piece.date, piece.startMinutes, piece.endMinutes, piece.start, piece.end])).toEqual([
+      ["2026-11-01", 90, 120, "2026-11-01T06:30:00.000Z", "2026-11-01T07:00:00.000Z"],
+      ["2026-11-01", 60, 75, "2026-11-01T07:00:00.000Z", "2026-11-01T07:15:00.000Z"],
     ]);
+    // A commitment from 02:00 to 02:10 CST (08:00Z to 08:10Z) starts after every piece ends.
+    expect(pieces.every((piece) => piece.end <= "2026-11-01T08:00:00.000Z")).toBe(true);
+  });
+
+  test("every timed piece's minutes span exactly the time between its instants", () => {
+    for (const piece of feedOccurrences(campusFeed, wholeFeed, CHICAGO).filter((entry) => !entry.allDay)) {
+      expect(piece.endMinutes - piece.startMinutes).toBe((Date.parse(piece.end) - Date.parse(piece.start)) / 60_000);
+    }
   });
 
   test("pieces dated outside the range are dropped, even half of a midnight-spanning event", () => {
@@ -286,7 +298,9 @@ describe("feedOccurrences", () => {
 
   test("pieces come in start order, then event order", () => {
     const pieces = feedOccurrences(campusFeed, wholeFeed, CHICAGO);
-    expect(pieces.map((piece) => piece.eventId)).toEqual([0, 10, 11, 0, 5, 4, 4, 13, 8, 6, 7, 2, 0, 1, 3, 3, 3, 9]);
+    expect(pieces.map((piece) => piece.eventId)).toEqual([0, 10, 11, 0, 5, 4, 4, 13, 8, 6, 7, 6, 7, 2, 0, 1, 3, 3, 3, 9, 9]);
+    // The LAN party's second piece and the stargazing's second piece both start when the clock falls back.
+    expect(pieces[11].start).toBe(pieces[12].start);
     // Halloween's all-day piece starts at the same local midnight as the second half of the social.
     expect(pieces[6].start).toBe(pieces[7].start);
   });

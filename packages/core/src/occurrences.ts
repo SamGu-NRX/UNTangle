@@ -4,9 +4,11 @@
  * schedule's real date range (docs/architecture/README.md, "Auto and
  * calendars"). Weekly blocks are only an approximation of either.
  *
- * Both functions return pieces of one local day each. A piece carries the
- * local date and wall-clock minutes, which is what conflicts and the week
- * grid compare, and the exact UTC instants, which is what reminders need.
+ * Both functions return pieces. A piece carries the local date and
+ * wall-clock minutes, which the week grid draws, and its exact UTC instants.
+ * Conflicts compare the instants: on the day a fall-back repeats an hour,
+ * the same wall-clock minute happens twice, so minutes alone can't say
+ * whether two things overlap.
  */
 
 /** A calendar date, YYYY-MM-DD, read as a plain date in the campus time zone. */
@@ -47,18 +49,23 @@ export type ClassCalendar = {
 /** An inclusive range of local dates. */
 export type DateRange = { first: IsoDate; last: IsoDate };
 
-/** One piece of an occurrence, within one local day. */
+/**
+ * One piece of an occurrence. A timed piece lies within one local day and
+ * one UTC offset: it splits at each local midnight and at each DST change it
+ * crosses. So its minutes and instants always agree, and endMinutes is
+ * startMinutes plus the minutes that pass. An event from 01:30 CDT to
+ * 01:15 CST is two pieces, 90 to 120 (until the clock falls back at 02:00
+ * CDT) and 60 to 75.
+ */
 export type DatedPiece = {
   date: IsoDate;
   /**
    * Wall-clock minutes after local midnight, 0 <= startMinutes < endMinutes
-   * <= 1440; a piece that runs to the next midnight ends at 1440. In the
-   * hour a fall-back repeats, a wall-clock end can come before the start;
-   * there the piece ends at startMinutes plus the minutes that pass.
+   * <= 1440; a piece that runs to the next midnight ends at 1440.
    */
   startMinutes: number;
   endMinutes: number;
-  /** The piece's exact start and end, as Date.prototype.toISOString writes them ("2027-03-04T15:35:00.000Z"). */
+  /** The piece's exact start and end, as Date.prototype.toISOString writes them ("2027-03-04T15:35:00.000Z"). Compare these for conflicts. */
   start: string;
   end: string;
 };
@@ -118,10 +125,12 @@ export function meetingOccurrences(
  * A parsed calendar feed's occurrences as local pieces in `timeZone`, kept
  * when their date is inside `range`.
  *
- * A timed occurrence splits at each local midnight it crosses; one that ends
- * exactly at midnight adds no empty piece. An all-day occurrence gives one
- * piece per calendar date it names, each 0 to 1440, never shifted by the
- * zone's offset. An occurrence with no duration gives nothing.
+ * A timed occurrence splits at each local midnight and each DST change it
+ * crosses; one that ends exactly at midnight or at the change adds no empty
+ * piece. An all-day occurrence gives one piece per calendar date it names,
+ * each 0 to 1440 and never shifted by the zone's offset; it isn't split at a
+ * DST change, so on those two days its instants span 23 or 25 hours. An
+ * occurrence with no duration gives nothing.
  *
  * Ordered by start instant, then eventId. Throws on an invalid time zone or
  * date, a range whose last day is before its first, or an occurrence whose
