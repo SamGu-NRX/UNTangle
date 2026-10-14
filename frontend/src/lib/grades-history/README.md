@@ -19,6 +19,4 @@ One shared in-process limiter paces calls at 20/minute and enforces 300 per roll
 
 Complete validated course histories, instructor course lists, and confirmed absence are stored under the server working directory's git-ignored `.grades-history-cache/`. Each course history or instructor course list gets one atomic write and one expiry after one day. Concurrent misses share the entire lookup and load. Old v1 page cache entries are ignored. The TTL is a freshness policy for historical records, not a measurement. Unavailable responses are never cached. A missing directory is created; an unwritable or malformed cache returns `unavailable` with reason `storage`. The host needs writable disk. Expired entries are overwritten on demand; there is no disk-size eviction policy.
 
-The existing Express-backed pages remain consumers of `backend-api.ts` until the UI slice switches to this API.
-
 Offline tests use a local replay server and small captured fixtures documented under `tests/grades-history/fixtures`. Run `bun --no-env-file test tests/grades-history`. A standalone replay starts with `bun --no-env-file run tests/grades-history/fake-mcp.ts`. The opt-in smoke test is `GRADES_LIVE=1 bun --no-env-file test tests/grades-history/live.test.ts`; it makes at most three calls with no pagination or retries.
