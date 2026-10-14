@@ -1,0 +1,104 @@
+{
+  "startedAt": "2026-10-14T00:23:22.018Z",
+  "base": "http://127.0.0.1:3303",
+  "gl": "swiftshader",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "loadBytes": {
+    "other": {
+      "bytes": 159336,
+      "requests": 25
+    },
+    "javascript": {
+      "bytes": 702602,
+      "requests": 22
+    },
+    "tilejson": {
+      "bytes": 2429,
+      "requests": 1
+    },
+    "basemap tiles": {
+      "bytes": 159125,
+      "requests": 2
+    },
+    "glyphs": {
+      "bytes": 43212,
+      "requests": 1
+    }
+  },
+  "phoneFlights": [
+    {
+      "frames": 89,
+      "windowMs": 2083,
+      "p50": 16.7,
+      "p95": 66.7,
+      "max": 200,
+      "over33": 6,
+      "over50": 6
+    },
+    {
+      "frames": 97,
+      "windowMs": 2067,
+      "p50": 16.7,
+      "p95": 50,
+      "max": 216.7,
+      "over33": 5,
+      "over50": 4
+    },
+    {
+      "frames": 115,
+      "windowMs": 2017,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 66.7,
+      "over33": 1,
+      "over50": 1
+    },
+    {
+      "frames": 121,
+      "windowMs": 2050,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    },
+    {
+      "frames": 116,
+      "windowMs": 2017,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    },
+    {
+      "frames": 119,
+      "windowMs": 2017,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    }
+  ],
+  "phoneFlightsPooled": {
+    "frames": 657,
+    "windowMs": 12249,
+    "p50": 16.7,
+    "p95": 16.8,
+    "max": 216.7,
+    "over33": 12,
+    "over50": 11
+  },
+  "desktop-3d-coreCamera": {
+    "zoom": "16.80",
+    "pitch": "45.0",
+    "center": "33.213187,-97.148659"
+  },
+  "phone-3d-coreCamera": {
+    "zoom": "16.80",
+    "pitch": "45.0",
+    "center": "33.212689,-97.148148"
+  },
+  "finishedAt": "2026-10-14T00:24:01.412Z"
+}

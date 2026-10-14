@@ -57,6 +57,13 @@ export type CampusConfig = {
   geocode: GeocodeContext;
   nameCleanupWords?: readonly string[];
   allowExternalServices?: boolean;
+  /**
+   * The campus's own map detail (buildings with heights, trees, entrances,
+   * parking, labels), written by tools/campus-geodata/build-map-detail.ts
+   * and served from public/. Without it the map extrudes the basemap's
+   * merged building shapes and labels the registry's pins.
+   */
+  mapDetail?: { url: string; attribution: string };
 };
 
 export const untDenton: CampusConfig = {
@@ -78,6 +85,11 @@ export const untDenton: CampusConfig = {
   },
   geocode: untGeocodeContext,
   nameCleanupWords: untDefinition.nameCleanupWords,
+  mapDetail: {
+    url: "/map/unt-denton/detail.geojson",
+    // Overture's licence (ODbL) asks for its credit next to OpenStreetMap's.
+    attribution: 'building heights partly from <a href="https://overturemaps.org" target="_blank" rel="noreferrer">Overture Maps Foundation</a>',
+  },
 };
 
 export const utAustin: CampusConfig = {

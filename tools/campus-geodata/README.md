@@ -35,3 +35,15 @@ Pedestrian direction tags determine the allowed directed edges, including `onewa
 To inspect UT, open `/map?campus=ut-austin`. The existing map changes its bounds, center, and building labels. The UNT planner remains UNT-specific, so the UT map shows no UNT schedule stops. Test UT lookup and walking routes with `POST /api/map/resolve?campus=ut-austin` and `POST /api/map/route?campus=ut-austin`. Omit the parameter for UNT. Unsupported IDs return an error. UT disables the existing optional keyed runtime fallbacks.
 
 For contract decisions, port provenance, and data limits, read [PROVENANCE.md](PROVENANCE.md). Legacy `data/walkways.json` and `data/buildings.json` remain as historical compatibility fixtures for existing evaluation scripts. The kit does not introduce another public graph format. `build.mjs` extracts the legacy representation only as an internal conversion step; `build-matrix.ts` exports the shared anchor and matrix builder.
+
+## Day map detail
+
+The UNT Day map draws its own buildings, building parts, trees, entrances, parking lots, plazas and building labels from `frontend/public/map/unt-denton/detail.geojson`, because OpenFreeMap's tiles merge every building of one height into one shape per tile and carry no names. Rebuild it offline from the cached inputs:
+
+```sh
+bun --no-env-file tools/campus-geodata/build-map-detail.ts
+```
+
+Inputs are git-ignored files in `raw/`: `overpass-map-detail-2026-10-13.json`, the response to one Overpass query over the map's pan bounds (the query string is `QUERY` in `build-map-detail.ts` and is repeated in the output's `meta`; POST it to `https://overpass-api.de/api/interpreter` as the `data` field) and `raw/overture-heights-<release>.json`, written by `python3 -I tools/campus-geodata/fetch-overture-heights.py <release>` (needs the `duckdb` package; reads the public Overture bucket, no key). Heights come from OSM `height`, then OSM `building:levels` at 3.66 m each, then `frontend/src/lib/campus/map-detail/fallback-heights.ts`, then Overture's Microsoft ML estimate; anything else is drawn flat. The build prints the campus buildings still drawn flat. Adding `building:levels` to those in OpenStreetMap, then refetching, fixes them for every map.
+
+Both inputs are ODbL 1.0. The map's credit line names OpenStreetMap contributors and Overture Maps Foundation.
