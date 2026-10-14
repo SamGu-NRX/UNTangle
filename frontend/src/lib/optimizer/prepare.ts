@@ -21,7 +21,7 @@ import {
   type OptSection,
   type OptWeights,
 } from "./types";
-import { neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
+import { NEUTRAL_INSTRUCTOR_GPA, neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
 
 export type PreparedMeeting = {
@@ -150,6 +150,13 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
         if (dates === undefined || dates === null) continue;
         validateDates(dates, `section ${section.id} meeting`);
         if (request.term === undefined) throw new OptimizerInputError("term is required when any meeting has dates");
+      }
+      if (section.instructorGpa !== undefined && section.instructorGpa !== null) {
+        if (!Number.isFinite(section.instructorGpa) || section.instructorGpa < 0 || section.instructorGpa > 4) {
+          throw new OptimizerInputError(
+            `section ${section.id} has invalid instructorGpa ${section.instructorGpa}; expected a grade-point number 0..4 or null`,
+          );
+        }
       }
     }
   }
@@ -573,23 +580,29 @@ function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeet
 
 /**
  * Of sections with identical meetings in identical buildings, keep the one
- * with the lowest (self cost, id). Every other cost term and every hard
- * constraint depend only on meetings and buildings, and the diversity rule
- * only on meeting times, so the kept twin is at least as good in every
- * schedule and wins the id tie-break: the dropped twin can never be
- * returned at any rank. When neither the walking weight nor the walking
- * check is on, buildings affect nothing, so sections with the same times
- * are twins regardless of room.
+ * with the lowest (self cost, most instructor evidence, id). Every other
+ * cost term and every hard constraint depend only on meetings and
+ * buildings, and the diversity rule only on meeting times, so the kept twin
+ * is at least as good in every schedule and wins the tie-break: the dropped
+ * twin can never be returned at any rank. Twins share meetings, so their
+ * schedules differ only by the twin's own evidence contribution; the
+ * stronger one wins every comparison, and equal contributions fall back to
+ * the id as before. When neither the walking weight nor the walking check
+ * is on, buildings affect nothing, so sections with the same times are
+ * twins regardless of room.
  */
 function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[] {
   const best = new Map<string, Candidate>();
+  const evidenceOf = (candidate: Candidate): number => candidate.section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
   for (const candidate of candidates) {
     const key = walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings);
     const current = best.get(key);
     if (
       !current ||
       candidate.self < current.self ||
-      (candidate.self === current.self && compareIds(candidate.section.id, current.section.id) < 0)
+      (candidate.self === current.self &&
+        (evidenceOf(candidate) > evidenceOf(current) ||
+          (evidenceOf(candidate) === evidenceOf(current) && compareIds(candidate.section.id, current.section.id) < 0)))
     ) {
       best.set(key, candidate);
     }

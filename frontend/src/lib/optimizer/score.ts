@@ -52,6 +52,24 @@ export const EVENING_ANCHOR = 22 * 60;
 /** Rating used for a section with none: the course's mean, else 3.0. */
 export const DEFAULT_RATING_TENTHS = 30;
 
+/**
+ * Starting value: the cost tolerance within which two plans count as tied so
+ * instructor evidence can decide between them. It stays below the smallest
+ * cost difference two distinct integer-cost plans can have (1), so a
+ * preference is never traded for instructor score. Raise it only if the cost
+ * model ever gains terms finer than one unit, and only with tests that keep
+ * the preference tier dominant.
+ */
+export const INSTRUCTOR_TIE_BREAK_TOLERANCE = 0.5;
+
+/**
+ * The instructor evidence a section contributes when its instructor's past
+ * grades are unknown (no confident match, or no history). It mirrors
+ * DEFAULT_RATING_TENTHS above, the fallback used for a missing rating, and
+ * has no measurement behind it either.
+ */
+export const NEUTRAL_INSTRUCTOR_GPA = 3.0;
+
 export function ratingTenths(rating: number | null): number | null {
   if (rating === null || !Number.isFinite(rating)) return null;
   return Math.max(0, Math.min(50, Math.round(rating * 10)));
