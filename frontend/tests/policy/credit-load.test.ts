@@ -5,6 +5,7 @@ import {
   RETRIEVED_AT,
   UNDERGRADUATE,
   zoneFor,
+  type CreditLoadZone,
   type SourcedThreshold,
 } from "@/lib/policy/credit-load";
 
@@ -15,24 +16,47 @@ import {
 const isRecord = (x: unknown): x is Record<string, unknown> =>
   typeof x === "object" && x !== null && !Array.isArray(x);
 
-const isSourcedThreshold = (x: unknown): x is SourcedThreshold =>
-  isRecord(x) &&
-  typeof x.value === "number" &&
-  typeof x.sourceUrl === "string" &&
-  typeof x.sourceQuote === "string" &&
-  typeof x.retrievedAt === "string";
+/**
+ * Anything shaped like a threshold: a record with a numeric value. Caught
+ * even when its source fields are missing or mistyped, so an added
+ * `{ value: 24 }` fails here instead of slipping past the checks.
+ */
+const looksLikeThreshold = (x: unknown): x is Record<string, unknown> =>
+  isRecord(x) && typeof x.value === "number";
+
+function toSourced(x: Record<string, unknown>): SourcedThreshold | null {
+  if (typeof x.value !== "number") return null;
+  if (typeof x.sourceUrl !== "string") return null;
+  if (typeof x.sourceQuote !== "string") return null;
+  if (typeof x.retrievedAt !== "string") return null;
+  const condition =
+    typeof x.condition === "string" && x.condition.trim().length > 0
+      ? x.condition
+      : null;
+  return {
+    value: x.value,
+    sourceUrl: x.sourceUrl,
+    sourceQuote: x.sourceQuote,
+    retrievedAt: x.retrievedAt,
+    condition,
+  };
+}
 
 /**
- * Walk the whole exported data structure and collect every sourced
- * threshold. Written as a generic deep walk, not a hardcoded list, so a
- * future threshold added without a source still gets caught here.
+ * Walk the whole exported data structure and collect every threshold-
+ * shaped object. Written as a generic deep walk, not a hardcoded list,
+ * and keyed on the numeric value rather than the source fields, so a
+ * future threshold added without a source is still caught here.
  */
 // Fall and spring share one profile object, so dedupe by identity: the
 // count reflects distinct sourced rules, not term aliases.
 const seen = new Set<unknown>();
 
-function collectSourced(node: unknown, found: SourcedThreshold[] = []): SourcedThreshold[] {
-  if (isSourcedThreshold(node)) {
+function collectThresholds(
+  node: unknown,
+  found: Record<string, unknown>[] = [],
+): Record<string, unknown>[] {
+  if (looksLikeThreshold(node)) {
     if (!seen.has(node)) {
       seen.add(node);
       found.push(node);
@@ -40,11 +64,11 @@ function collectSourced(node: unknown, found: SourcedThreshold[] = []): SourcedT
     return found;
   }
   if (Array.isArray(node)) {
-    for (const child of node) collectSourced(child, found);
+    for (const child of node) collectThresholds(child, found);
     return found;
   }
   if (isRecord(node)) {
-    for (const value of Object.values(node)) collectSourced(value, found);
+    for (const value of Object.values(node)) collectThresholds(value, found);
   }
   return found;
 }
@@ -57,8 +81,17 @@ function isIsoDate(s: string): boolean {
 }
 
 describe("sourced-value contract", () => {
-  const undergrad = collectSourced(UNDERGRADUATE);
-  const grad = collectSourced(GRADUATE);
+  const undergrad = collectThresholds(UNDERGRADUATE);
+  const grad = collectThresholds(GRADUATE);
+  const all = [...undergrad, ...grad].map((t, i) => {
+    const sourced = toSourced(t);
+    if (!sourced) {
+      throw new Error(
+        `threshold at index ${i} (value ${t.value}) is missing its source fields (sourceUrl, sourceQuote, retrievedAt)`,
+      );
+    }
+    return sourced;
+  });
 
   test("walks every exported threshold, deduping the shared fall/spring profile", () => {
     // Fall and spring share one profile (4 distinct thresholds); summer has 3.
@@ -67,7 +100,7 @@ describe("sourced-value contract", () => {
   });
 
   test("every threshold cites an official unt.edu page", () => {
-    for (const t of [...undergrad, ...grad]) {
+    for (const t of all) {
       expect(
         t.sourceUrl.startsWith("https://catalog.unt.edu/") ||
           t.sourceUrl.startsWith("https://registrar.unt.edu/"),
@@ -76,14 +109,27 @@ describe("sourced-value contract", () => {
   });
 
   test("every threshold quotes a non-empty verbatim sentence", () => {
-    for (const t of [...undergrad, ...grad]) {
+    for (const t of all) {
       expect(t.sourceQuote.trim().length).toBeGreaterThan(0);
       expect(t.sourceQuote.split(/\s+/).length).toBeGreaterThan(3);
     }
   });
 
+  test("every GPA-conditional maximum keeps its condition wording", () => {
+    for (const term of ["fall", "spring", "summer"] as const) {
+      const max = UNDERGRADUATE[term].maximumWithoutConditions;
+      expect(max.condition).not.toBeNull();
+      expect(max.condition).toContain("3.000");
+    }
+    const ceiling = UNDERGRADUATE.fall.approvalCeiling;
+    if (ceiling.kind !== "with-approval") {
+      throw new Error("Expected fall to have a with-approval ceiling");
+    }
+    expect(ceiling.maximum.condition).toContain("3.000");
+  });
+
   test("every threshold carries the shared retrieval date as a valid ISO date", () => {
-    for (const t of [...undergrad, ...grad]) {
+    for (const t of all) {
       expect(isIsoDate(t.retrievedAt)).toBe(true);
       expect(t.retrievedAt).toBe(RETRIEVED_AT);
     }
@@ -92,14 +138,17 @@ describe("sourced-value contract", () => {
   test("summer models the missing approval path explicitly, with a source", () => {
     const ceiling = UNDERGRADUATE.summer.approvalCeiling;
     expect(ceiling.kind).toBe("none-in-catalog");
+    if (ceiling.kind !== "none-in-catalog") {
+      throw new Error("Expected summer to have no approval path");
+    }
     expect(ceiling.sourceUrl.startsWith("https://catalog.unt.edu/")).toBe(true);
-    expect(ceiling.sourceQuote.length).toBeGreaterThan(0);
+    expect(ceiling.sourceQuote.trim().length).toBeGreaterThan(0);
     expect(isIsoDate(ceiling.retrievedAt)).toBe(true);
   });
 });
 
 describe("zoneFor, fall and spring", () => {
-  test.each<[number, string]>([
+  test.each<[number, CreditLoadZone]>([
     [0, "part-time"],
     [11, "part-time"],
     [12, "full-time"],
@@ -117,7 +166,7 @@ describe("zoneFor, fall and spring", () => {
 });
 
 describe("zoneFor, summer", () => {
-  test.each<[number, string]>([
+  test.each<[number, CreditLoadZone]>([
     [0, "part-time"],
     [11, "part-time"],
     [12, "full-time"],
