@@ -55,13 +55,13 @@ import type { Candidate, Prepared, PreparedMeeting } from "./prepare";
 const DAY_COUNT = OPT_DAYS.length;
 
 /**
- * Slack for the evidence comparisons in `canWinTie`: the bound and a leaf
- * sum the same per-candidate values in different orders, so two plans that
- * tie in exact arithmetic can differ in their last bits of rounding. Any
- * value far below the smallest meaningful evidence difference (course gpas
- * are tenths on a 0 to 4 scale) and far above double rounding error
- * (around 1e-15 for these sums) keeps real ties together and real
- * differences apart. Being too big only costs a little pruning.
+ * Slack for the evidence comparisons in `canWinTie`: real evidence
+ * differences are at least a tenth of a gpa over the eligible-course
+ * count, while double rounding error for these sums is around 1e-15, so
+ * a value between the two never masks a real difference. After the
+ * course-order bound below, the band is strictly redundant insurance
+ * (each bound term dominates the eventual pick's, and float addition is
+ * monotone), but cheap: being too big only costs a little pruning.
  */
 const EVIDENCE_ROUNDING = 1e-9;
 
@@ -159,12 +159,6 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
-  // Evidence contributed by the assigned sections, tracked alongside selfSum
-  // so a node's completions can be bounded without re-walking the picks.
-  // Branches restore this by assignment, never by subtraction: with
-  // non-integer gpa values, (sum + g) - g need not equal sum, and the
-  // bound must stay exactly the sum recordLeaf would compute.
-  let evidenceSum = 0;
   // Per course, the most evidence any of its candidates contributes (0 for
   // an evidence-ineligible course, whose options all contribute 0). A
   // static upper bound on what an unassigned course can add; the alive
@@ -439,26 +433,28 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   /**
    * At bound === best.cost: can some completion still beat `best` under the
    * evidence and key tiers? A completion's evidence is bounded from above
-   * by the evidence assigned so far, the candidate's contribution, and, for
-   * each other unassigned course, the most any of its candidates
-   * contributes (a static per-course max; ineligible courses contribute
-   * 0). The bound sums the same per-candidate values recordLeaf sums, but
-   * in a different order (this loop is course order; evidenceSum follows
-   * the search's assignment order), so two plans that would tie in exact
-   * arithmetic can differ in their last bits of floating-point rounding.
-   * The comparisons therefore keep an epsilon band around target.evidence:
-   * prune on evidence only when the bound is worse by more than
-   * EVIDENCE_ROUNDING, and treat the band as a possible win. When in
-   * doubt, do not prune. With no eligible course every plan's evidence is
-   * 0, so only the key decides.
+   * by, per course in course order, the assigned section's contribution,
+   * the candidate's own on its course, and, for each unassigned course,
+   * the most any of its candidates contributes (a static per-course max;
+   * ineligible courses contribute 0 for every plan). Sourcing every term
+   * from the course index, never from a running accumulator, keeps the
+   * bound independent of the search's backtracking bookkeeping; and each
+   * term is at least the eventual pick's, so under floating-point rounding
+   * the bound is an upper bound on any completion's leaf evidence (float
+   * addition is monotone). The comparisons still keep the EVIDENCE_ROUNDING
+   * band as cheap insurance; real evidence differences are orders of
+   * magnitude above it, so it never spares a genuinely worse branch.
+   * When in doubt, do not prune. With no eligible course every plan's
+   * evidence is 0, so only the key decides.
    */
   function canWinTie(candidate: Candidate): boolean {
     const target = best!;
     if (eligibleCount > 0) {
-      let numerator = evidenceSum + candidate.evidence;
+      let numerator = 0;
       for (let u = 0; u < n; u += 1) {
-        if (u === candidate.course || assigned[u] !== null) continue;
-        numerator += maxEvidenceByCourse[u];
+        if (u === candidate.course) numerator += candidate.evidence;
+        else if (assigned[u] !== null) numerator += assigned[u]!.evidence;
+        else numerator += maxEvidenceByCourse[u];
       }
       const evidenceBound = numerator / eligibleCount;
       if (evidenceBound > target.evidence) return true;
@@ -844,7 +840,6 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       for (let w = 0; w < words; w += 1) next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
-      evidenceSum += candidate.evidence;
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -853,12 +848,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       }
       assignedCount += 1;
 
-      const evidenceSumBeforeBranch = evidenceSum;
       dfs(depth + 1);
-      // Restore, never subtract: with non-integer gpa values,
-      // (sum + g) - g need not equal sum, and the bound must stay exactly
-      // the sum recordLeaf would compute.
-      evidenceSum = evidenceSumBeforeBranch;
 
       assignedCount -= 1;
       for (let j = 0; j < previous.length; j += 1) {

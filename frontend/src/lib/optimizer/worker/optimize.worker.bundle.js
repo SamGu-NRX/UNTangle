@@ -738,7 +738,6 @@ function search(prepared, budget, options) {
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
-  let evidenceSum = 0;
   const maxEvidenceByCourse = new Array(n).fill(0);
   for (const candidate of prepared.candidates) {
     if (candidate.evidence > maxEvidenceByCourse[candidate.course]) {
@@ -995,11 +994,14 @@ function search(prepared, budget, options) {
   function canWinTie(candidate) {
     const target = best;
     if (eligibleCount > 0) {
-      let numerator = evidenceSum + candidate.evidence;
+      let numerator = 0;
       for (let u = 0;u < n; u += 1) {
-        if (u === candidate.course || assigned[u] !== null)
-          continue;
-        numerator += maxEvidenceByCourse[u];
+        if (u === candidate.course)
+          numerator += candidate.evidence;
+        else if (assigned[u] !== null)
+          numerator += assigned[u].evidence;
+        else
+          numerator += maxEvidenceByCourse[u];
       }
       const evidenceBound = numerator / eligibleCount;
       if (evidenceBound > target.evidence)
@@ -1404,7 +1406,6 @@ function search(prepared, budget, options) {
         next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
-      evidenceSum += candidate.evidence;
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -1413,9 +1414,7 @@ function search(prepared, budget, options) {
           same[j] += 1;
       }
       assignedCount += 1;
-      const evidenceSumBeforeBranch = evidenceSum;
       dfs(depth + 1);
-      evidenceSum = evidenceSumBeforeBranch;
       assignedCount -= 1;
       for (let j = 0;j < previous.length; j += 1) {
         if (previous[j].picks[candidate.course].timeSignature === candidate.timeSignature)
