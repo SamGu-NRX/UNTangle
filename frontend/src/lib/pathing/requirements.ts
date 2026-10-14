@@ -2,8 +2,8 @@ import type { CatalogCourse, CourseId } from "@/lib/prereq";
 import { compareIds } from "./graph";
 import type { CoursePattern, Requirement, RequirementSet } from "./types";
 
-/** Where a course sits in the plan: its top-level requirement, and the choice branch if any. */
-export type Listing = { group: string; position: number; branch: string | null };
+/** Where a course sits in the plan: its top-level requirement, and every choice branch that lists it. */
+export type Listing = { group: string; position: number; branches: readonly string[] };
 
 function check(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -12,6 +12,9 @@ function check(condition: boolean, message: string): void {
 function validate(requirement: Requirement): void {
   const name = requirement.name;
   check(name.trim().length > 0, "Every requirement needs a name.");
+  const own = requirement.kind === "all" ? requirement.courses : requirement.kind === "choose" || requirement.kind === "hours" ? requirement.options : [];
+  const repeated = own.find((id, index) => own.indexOf(id) !== index);
+  check(repeated === undefined, `Requirement "${name}" lists ${repeated} twice.`);
   switch (requirement.kind) {
     case "all":
       check(requirement.courses.length > 0, `Requirement "${name}" lists no courses.`);
@@ -66,9 +69,9 @@ function patterns(requirement: Requirement): CoursePattern[] {
   return [];
 }
 
-function branchOf(requirement: Requirement, find: (inner: Requirement) => boolean): string | null {
-  if (requirement.kind !== "choice") return null;
-  return requirement.branches.find((branch) => branch.requirements.some(find))?.name ?? null;
+function branchesOf(requirement: Requirement, find: (inner: Requirement) => boolean): string[] {
+  if (requirement.kind !== "choice") return [];
+  return requirement.branches.filter((branch) => branch.requirements.some(find)).map((branch) => branch.name);
 }
 
 /** Catalog courses a pattern matches, minus courses the plan lists by name. */
@@ -159,12 +162,13 @@ function fromOptions(
   // An option counts only once every course in its bundle (a lecture and its lab) is credited.
   const counted = known.filter((option) => bundle(option).every(facts.credited));
   const done = counted.reduce((total, id) => total + size(id), 0);
-  const open = known.filter((option) => !counted.includes(option));
-  const members = (option: CourseId) => bundle(option).filter((id) => facts.inCatalog(id) && !facts.credited(id));
+  // A bundle with a course the catalog lacks can never be confirmed, so it is no route at all.
+  const confirmable = (option: CourseId) => bundle(option).every(facts.inCatalog);
+  const open = known.filter((option) => !counted.includes(option) && confirmable(option));
+  const members = (option: CourseId) => bundle(option).filter((id) => !facts.credited(id));
   const unitFacts: CourseFacts = {
     ...facts,
-    // A bundle member missing from the catalog has no known prerequisites: one term.
-    terms: (option) => Math.max(0, ...bundle(option).map((id) => (facts.inCatalog(id) ? facts.terms(id) : 1))),
+    terms: (option) => Math.max(0, ...bundle(option).map(facts.terms)),
     needsAdvisor: (option) => members(option).some(facts.needsAdvisor),
   };
   const route = fill(open, target - done, size, unitFacts);
@@ -173,10 +177,11 @@ function fromOptions(
     met, done, target, unit, ...route,
     needed: [...new Set(route.needed.flatMap(members))],
     options: met ? [] : [...new Set(open.flatMap(members))],
-    progress: counted.length,
-    tracked: true,
+    // Any credited course in a bundle shows the student has started down this route.
+    progress: new Set(known.flatMap(bundle).filter(facts.credited)).size,
+    tracked: met || known.every(confirmable),
     branch: null,
-    blocked: [],
+    blocked: met || route.terms < Infinity ? [] : open.filter((option) => facts.terms(option) === Infinity),
   };
 }
 
@@ -293,7 +298,7 @@ export function listCourses(
   }
   plan.requirements.forEach((requirement, position) => {
     for (const id of listed(requirement)) {
-      if (!listings.has(id)) listings.set(id, { group: requirement.name, position, branch: branchOf(requirement, (inner) => listed(inner).includes(id)) });
+      if (!listings.has(id)) listings.set(id, { group: requirement.name, position, branches: branchesOf(requirement, (inner) => listed(inner).includes(id)) });
     }
   });
   const ruled = leaves.flatMap((leaf) => patterns(leaf.requirement).map((pattern) => ({ pattern, leaf })));
@@ -309,7 +314,7 @@ export function listCourses(
     for (const pattern of patterns(requirement)) {
       for (const id of matches(pattern)) {
         if (listings.has(id)) continue;
-        listings.set(id, { group: requirement.name, position, branch: branchOf(requirement, (inner) => patterns(inner).includes(pattern)) });
+        listings.set(id, { group: requirement.name, position, branches: branchesOf(requirement, (inner) => patterns(inner).includes(pattern)) });
       }
     }
   });

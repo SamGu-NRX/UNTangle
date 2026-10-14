@@ -171,6 +171,7 @@ test("malformed plans fail loudly", () => {
     ],
   });
   expect(unlockAnalysis(rivalBranches, result).requirements[0]!.branch).toBe("One");
+  expect(() => unlockAnalysis(plan({ kind: "choose", name: "K", count: 2, options: ["x", "x"] }), result)).toThrow('Requirement "K" lists x twice.');
 });
 
 test("an option cleared by an override needs no advisor, so its group follows it", () => {
@@ -196,6 +197,9 @@ test("a lecture counts toward its group only with its lab", () => {
   // The missing lab keeps that lecture from ever counting, and the warning says so.
   expect(lectureOnly.warnings).toEqual(["Not in the catalog, so never counted as done and left out of paths: phys lab."]);
   expect(lectureOnly.courses.get("lab")!.onRemainingPath).toBe(true);
+  // phys can never be confirmed, so it is no route and the group is only partly measurable.
+  expect(lectureOnly.courses.get("phys")!.onRemainingPath).toBe(false);
+  expect(lectureOnly.requirements[0]!.tracked).toBe(false);
   const withLab = unlockAnalysis(science, assess(catalog, { transcript: [pass("lec"), pass("lab"), pass("solo")] }));
   expect(withLab.requirements[0]!.met).toBe(true);
 });
@@ -212,4 +216,40 @@ test("two pools that match the same courses are rejected", () => {
   );
   expect(() => unlockAnalysis(twoPools, assess([row("TECM 4180")])))
     .toThrow('Pools "Upper TECM" and "More TECM" match the same TECM courses; a course counts toward one requirement.');
+});
+
+test("a shared course names the branch the analysis follows", () => {
+  const shared = plan({
+    kind: "choice",
+    name: "H",
+    branches: [
+      { name: "One", requirements: [{ kind: "all", name: "I", courses: ["x"] }] },
+      { name: "Two", requirements: [{ kind: "all", name: "J", courses: ["x", "y"] }] },
+    ],
+  });
+  const analysis = unlockAnalysis(shared, assess([row("x"), row("y")], { transcript: [pass("y")] }));
+  expect(analysis.requirements[0]!.branch).toBe("Two");
+  expect(analysis.courses.get("x")!.reason).toBe("Counts toward H (Two)");
+});
+
+test("a lecture passed without its lab marks its branch as started", () => {
+  const catalog = [row("b1"), row("lec"), row("lab", undefined, 1)];
+  const choice = plan({
+    kind: "choice",
+    name: "Either",
+    branches: [
+      { name: "Plain", requirements: [{ kind: "all", name: "Plain course", courses: ["b1"] }] },
+      { name: "Science", requirements: [{ kind: "choose", name: "Lab course", count: 1, options: ["lec"], companions: { lec: ["lab"] } }] },
+    ],
+  });
+  const result = assess(catalog, { transcript: [pass("lec")] });
+  expect(unlockAnalysis(choice, result).requirements[0]!.branch).toBe("Science");
+  expect(ids(recommendNextTerm(choice, result, { creditTarget: 15 }))).toEqual(["lab"]);
+});
+
+test("a group whose option is locked by an override reports the override, not a catalog gap", () => {
+  const result = assess([row("q")], { overrides: new Map([["q", { status: "locked" as const, reason: "Not approved" }]]) });
+  const analysis = unlockAnalysis(plan({ kind: "choose", name: "One of", count: 1, options: ["q"] }), result);
+  expect(analysis.requirements[0]!.remainingTerms).toBeNull();
+  expect(analysis.warnings).toEqual(["q is locked by an override: Not approved"]);
 });

@@ -17,7 +17,7 @@ Requirements:
   CSCE breadth, 6 hours: 0 of 6 hours done; 2 terms left
   Other required courses: 2 of 5 courses done; 2 terms left
   Probability or statistics: 0 of 1 course done; 1 term left
-  Laboratory science: 0 of 2 courses done; 1 term left
+  Laboratory science: 0 of 2 courses done; at least 1 term left
   4000-level TECM: 0 of 3 hours done; 3 terms left
 
 Recommended next term (credit target 15):
@@ -44,8 +44,6 @@ Remaining-path courses (id | status | chain | critical | unlocks direct/transiti
   BIOL 1710 | eligible | 1 | no | 0/0
   BIOL 1720 | eligible | 1 | no | 0/0
   BIOL 1760 | eligible | 1 | no | 0/0
-  CHEM 1410 | unknown | 2 | no | 0/0
-  CHEM 1420 | unknown | 1 | no | 0/0
   CSCE 2110 | unknown | 1 | yes | 6/10
   CSCE 2610 | unknown | 1 | no | 0/0
   CSCE 3444 | locked | 2 | yes | 1/2
@@ -72,10 +70,6 @@ Remaining-path courses (id | status | chain | critical | unlocks direct/transiti
   MATH 2700 | eligible | 1 | no | 0/0
   MATH 3680 | unknown | 1 | no | 0/0
   PHYS 1270 | unknown | 2 | no | 0/0
-  PHYS 1410 | eligible | 1 | no | 0/0
-  PHYS 1420 | unknown | 2 | no | 0/0
-  PHYS 1710 | unknown | 1 | no | 0/0
-  PHYS 2220 | unknown | 2 | no | 0/0
   TECM 1700 | eligible | 1 | yes | 1/4
   TECM 2700 | unknown | 2 | yes | 2/3
   TECM 4010 | unknown | 3 | no | 0/0

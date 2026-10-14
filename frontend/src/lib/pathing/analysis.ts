@@ -128,7 +128,11 @@ function analyze(plan: RequirementSet, statuses: InferenceResult, planned: Reado
   const role = (listing: Listing): string => {
     const kind = plan.requirements[listing.position]!.kind;
     if (kind === "all") return `Required (${listing.group})`;
-    if (kind === "choice") return `Counts toward ${listing.group} (${listing.branch})`;
+    if (kind === "choice") {
+      // Rival branches can share a course; name the one the analysis follows when it lists the course.
+      const followed = evaluations[listing.position]!.branch;
+      return `Counts toward ${listing.group} (${followed && listing.branches.includes(followed) ? followed : listing.branches[0]})`;
+    }
     return `Counts toward ${listing.group}, ${progressText(evaluations[listing.position]!)}`;
   };
 
