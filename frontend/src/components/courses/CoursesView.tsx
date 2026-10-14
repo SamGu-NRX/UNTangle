@@ -598,7 +598,8 @@ export function CoursesView({ initialCourseId = null, initialInstructor = null }
               pending={pending}
               // Starting value: 15 is the common four-year pace (school.ts), not a rule; no data on what students take.
               budget={profile.autoCreditBudget}
-              running={autoBusy}
+              // The spinner covers the wait (MOTION.md §8); presses are ignored until the last row lands (runAuto).
+              running={running}
               onAuto={runAuto}
               result={showResult ? { text: resultText, hidden: autoBusy, fresh: freshResult, onUndo: undoAuto } : null}
               selectedId={detailOpen ? detailId : null}
