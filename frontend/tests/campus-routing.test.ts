@@ -38,7 +38,7 @@ function postJson(url: string, body: unknown, ip = "198.51.100.10") {
   });
 }
 
-/** All 15 distinct building codes in the synthetic backend/data/compD.csv. */
+/** All 15 distinct building codes in the synthetic compD.csv from the retired backend (sunnyD1000/UNT-Schedule-Optimizer). */
 const COMPD_CODES: Array<[string, string]> = [
   ["LIFE", "life"],
   ["BLB", "blb"],

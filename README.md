@@ -8,7 +8,7 @@ UNTangle is a course-catalog and semester planner for University of North Texas 
 - **Transcript import.** "Import courses from myUNT" opens myUNT's unofficial transcript page in a separate window; you download the PDF there and choose it (or drop it on the page) back in UNTangle. The PDF (up to 12 MB) is read in your browser with pdf.js, labeled identity fields are best-effort redacted, and a local parser finds the course rows. Nothing leaves the browser, and nothing is applied until you review and approve it. Details are in the privacy note in [`frontend/README.md`](frontend/README.md).
 - **Schedule optimization.** Five one-click modes — Cluster mornings, Cluster nights, Compact days, Minimize walking, Strong professors (`frontend/src/components/schedule-client.tsx`) — pick the best conflict-free combination of bundled section meeting times (`frontend/src/lib/planner.ts`). Individual sections can be pinned, and time conflicts are flagged on the week grid.
 - **Campus map with walking routes.** Class stops for a day are resolved against a bundled UNT building database (`frontend/src/lib/campus-locations.ts`; names/addresses from UNT Facilities, coordinates checked against OSM building footprints) and drawn on a Leaflet map with OpenStreetMap tiles. With an `ORS_API_KEY`, routes between stops use OpenRouteService foot-walking directions; without one, the map still draws straight-line segments between buildings, labeled "approximate." Print the itinerary or download it as a text brief (`frontend/src/components/map-client.tsx`).
-- **Course and instructor grade pages.** Grade distributions (A–F plus pass/fail, withdrawal, incomplete, and suppressed "Hidden" buckets), average GPA, enrollment, per-term sections, and RateMyProfessors rating/difficulty/tags, served by the backend API (`frontend/src/app/courses/[subject]/[number]/page.tsx`, `frontend/src/app/instructors/[id]/page.tsx`). Catalog data is bundled at build time and grade data comes from the backend — neither is fetched live from UNT.
+- **Course grade history.** The course detail panel shows the grade distribution and GPA for the course overall and for each instructor, read server-side from untgrades.app through the `/api/grades/*` routes (`frontend/src/lib/grades-history`). Old `/instructors/{id}` links redirect to Courses. Catalog data is bundled at build time; neither source is fetched live from UNT.
 - **Accounts.** Sign-in via better-auth (`frontend/src/lib/auth.ts`): a one-time email link for UNT addresses (`@unt.edu` / `@my.unt.edu`, enforced in `frontend/src/lib/unt-auth.ts`) or email/password, with password-reset emails sent through Resend. Guests keep their planner in `sessionStorage`; signed-in users sync it to Postgres through `/api/planner` (`frontend/src/lib/persistence.ts`).
 
 ## Architecture
@@ -16,21 +16,19 @@ UNTangle is a course-catalog and semester planner for University of North Texas 
 | Piece | What it is | Where |
 |---|---|---|
 | `frontend/` | Next.js 16 App Router app — React 19, Tailwind CSS 4, Leaflet, Recharts, better-auth with Drizzle ORM on PostgreSQL | this repo |
-| `backend/` | Express API serving grade-distribution data, SQLite in development | git submodule → [sunnyD1000/UNT-Schedule-Optimizer](https://github.com/sunnyD1000/UNT-Schedule-Optimizer) |
-| `scripts/dev.mjs` | `bun setup` / `bun dev` orchestrator: submodule, installs, ports, `.env` files, seeding | this repo |
+| `scripts/dev.mjs` | `bun setup` / `bun dev` orchestrator: installs, port, `frontend/.env` | this repo |
 | `courses/` | Raw UNT course-catalog JSON per department | this repo |
 | `old/` | Static HTML design mockups from early development | this repo |
 
 ## Team
 
-Built by **Sam Gu** ([@SamGu-NRX](https://github.com/SamGu-NRX)), **Sangharsha Dhakal** ([@sunnyD1000](https://github.com/sunnyD1000)), and **vishyj** ([@vishyj](https://github.com/vishyj)) for CSCE 3444 (Software Engineering) at the University of North Texas. The backend is developed in sunnyD1000's [UNT-Schedule-Optimizer](https://github.com/sunnyD1000/UNT-Schedule-Optimizer) repository and wired in here as a git submodule.
+Built by **Sam Gu** ([@SamGu-NRX](https://github.com/SamGu-NRX)), **Sangharsha Dhakal** ([@sunnyD1000](https://github.com/sunnyD1000)), and **vishyj** ([@vishyj](https://github.com/vishyj)) for CSCE 3444 (Software Engineering) at the University of North Texas. The original Express backend lived in Sangharsha's [UNT-Schedule-Optimizer](https://github.com/sunnyD1000/UNT-Schedule-Optimizer) repository. It is retired, and [`docs/backend-legacy.md`](docs/backend-legacy.md) records what to keep from it for our own server.
 
 ## Setup
 
 ### Prerequisites
 
 - [Bun 1.3.10](https://bun.sh) (pinned as `packageManager` in `package.json`) and Node.js
-- Git access to both repositories (the backend submodule points at a separate GitHub repo)
 - A PostgreSQL database for accounts and saved plans (frontend auth + planner state)
 - Keys: `ORS_API_KEY` (optional), and `RESEND_API_KEY` plus `RESEND_FROM_EMAIL` for sign-in email (required in production; in development the sign-in link goes to the server log). [`frontend/README.md`](frontend/README.md) documents what each does.
 
@@ -42,11 +40,9 @@ bun setup
 
 `bun setup` runs `node scripts/dev.mjs --setup-only`, which performs, in order (`scripts/dev.mjs`):
 
-1. `git submodule update --init --recursive` when `backend/package.json` is missing — this needs access to the sunnyD1000 repo.
-2. `bun install --frozen-lockfile` at the workspace root and in `backend/` whenever their `node_modules` are missing.
-3. Picks ports: the frontend prefers 3000, then 3001–3004 and 3010; the backend prefers 3001, then 3011, 3002, 3012, 3003, 3013 (`FRONTEND_PORT` / `BACKEND_PORT` override). A compatible backend that answers `/api/health` with `service: "untangle-backend"` is reused instead of started.
-4. Creates `backend/.env` and `frontend/.env` from their `.env.example` files, then writes the chosen ports into them (`BACKEND_URL` and `BETTER_AUTH_URL` in `frontend/.env`; other keys you add are preserved).
-5. Seeds the backend's local SQLite database (`backend/data/untangle.db`) when it has no grade-distribution rows. Skip with `--no-seed`.
+1. `bun install --frozen-lockfile` at the workspace root whenever `node_modules` is missing.
+2. Picks a port: 3000, then 3001–3004 and 3010 (`FRONTEND_PORT` overrides).
+3. Creates `frontend/.env` from `frontend/.env.example` if it is missing, then writes `BETTER_AUTH_URL` for the chosen port (other keys you add are preserved).
 
 ### 2. Configure the frontend database
 
@@ -68,7 +64,7 @@ cd frontend && bunx drizzle-kit push
 bun dev
 ```
 
-`bun dev` repeats the same setup checks (submodule, installs, ports, `.env` sync, seeding), then starts the backend and frontend together. Run one side by itself with `bun run frontend:dev`, `bun run backend:dev`, or `bun run backend:seed`.
+`bun dev` repeats the same setup checks, then starts the frontend. `bun run frontend:dev` starts Next.js without them.
 
 ### Environment variables
 
