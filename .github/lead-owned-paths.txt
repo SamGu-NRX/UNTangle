@@ -45,9 +45,15 @@ frontend/src/lib/unt-auth.ts
 frontend/src/app/api/auth/**
 frontend/src/app/api/account/**
 frontend/src/server/auth/**
+frontend/src/app/auth/**
+frontend/src/app/forgot-password/**
+frontend/src/components/auth*
+frontend/src/components/forgot-password-client.tsx
 
-# The planner provider, UI primitives and global styles
+# The planner provider, the web shell, UI primitives and global styles
 frontend/src/components/planner-provider.tsx
+frontend/src/components/shell/**
+frontend/src/app/layout.tsx
 frontend/src/components/ui/**
 frontend/src/app/globals.css
 
