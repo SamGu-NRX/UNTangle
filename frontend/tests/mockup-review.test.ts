@@ -6,15 +6,15 @@ import { createContext, runInContext } from "node:vm";
 const windows: Window[] = [];
 afterEach(() => { for (const window of windows.splice(0)) window.close(); });
 
-function mockup(name: string, query = "") {
+function mockup(name: string, query = "", width = 1440) {
   const html = readFileSync(new URL(`../../docs/design/untangle-v3-opus/${name}.html`, import.meta.url), "utf8");
-  const window = new Window({ url: `http://mockup.local/${name}.html${query}`, width: 1440, height: 900,
+  const window = new Window({ url: `http://mockup.local/${name}.html${query}`, width, height: 900,
     settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
   windows.push(window);
   window.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, ""));
   const context = createContext({
     window, document: window.document, location: window.location, history: window.history,
-    innerWidth: 1440, innerHeight: 900,
+    innerWidth: width, innerHeight: 900,
     matchMedia: window.matchMedia.bind(window),
     addEventListener: window.addEventListener.bind(window),
     // These checks observe DOM state; browser animation frames are not advanced.
@@ -73,4 +73,12 @@ test("adding a section keeps focus on its unavailable selected control", () => {
   const content = window.document.querySelector("#panel")!.textContent;
   selected.click();
   expect(window.document.querySelector("#panel")!.textContent).toBe(content);
+});
+
+
+test.each([["04-day-map", 1440], ["07-phone-navigation", 390]] as const)("%s describes the static map capture honestly", (name, width) => {
+  const window = mockup(name, "", width);
+  expect(window.document.querySelector('#map[role="img"], .mapbg[role="img"]')?.getAttribute("aria-label")).toBe(
+    "Static UNT campus map capture from another sample day, with a green route past the General Academic Building",
+  );
 });
