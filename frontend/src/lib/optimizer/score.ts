@@ -64,8 +64,15 @@ export function neutralRatingTenths(sections: ReadonlyArray<Pick<OptSection, "ra
   return Math.round(present.reduce((sum, value) => sum + value, 0) / present.length);
 }
 
-/** A section's own terms, independent of the rest of the schedule: the time-of-day leans and the rating shortfall. */
-function sectionTerms(section: OptSection, neutralTenths: number): { morning: number; evening: number; shortfall: number } {
+/**
+ * A section's own terms, independent of the rest of the schedule: the
+ * time-of-day leans and the rating shortfall. `clampedMorning` and
+ * `clampedEvening` say when an anchor cut a lean to 0.
+ */
+function sectionTerms(
+  section: OptSection,
+  neutralTenths: number,
+): { morning: number; evening: number; shortfall: number; clampedMorning: boolean; clampedEvening: boolean } {
   // Leans use the section's mean start and end, so a course counts once
   // however many days it meets. Summing every meeting instead (as the old
   // goals did) made a twice-a-week class look earlier than a three-times-a-
@@ -77,6 +84,8 @@ function sectionTerms(section: OptSection, neutralTenths: number): { morning: nu
     morning: Math.max(0, meanStart - MORNING_ANCHOR),
     evening: Math.max(0, EVENING_ANCHOR - meanEnd),
     shortfall: 50 - (ratingTenths(section.rating) ?? neutralTenths),
+    clampedMorning: meanStart < MORNING_ANCHOR,
+    clampedEvening: meanEnd > EVENING_ANCHOR,
   };
 }
 
@@ -177,6 +186,10 @@ export type CostTerms = {
   morningLeanMinutes: number;
   /** Each section's mean end before EVENING_ANCHOR, summed over sections. */
   eveningLeanMinutes: number;
+  /** Sections whose mean start is before MORNING_ANCHOR, so their mornings lean counts 0 instead of going negative. */
+  clampedMornings: number;
+  /** Sections whose mean end is after EVENING_ANCHOR, so their evenings lean counts 0 instead of going negative. */
+  clampedEvenings: number;
   /** Each section's 50 minus its rating in tenths (the course mean fills in when unrated), summed over sections. */
   ratingShortfallTenths: number;
 };
@@ -191,6 +204,8 @@ export function costTerms(input: ScoreInput): CostTerms {
     unknownWalks: 0,
     morningLeanMinutes: 0,
     eveningLeanMinutes: 0,
+    clampedMornings: 0,
+    clampedEvenings: 0,
     ratingShortfallTenths: 0,
   };
   for (const day of OPT_DAYS) {
@@ -209,6 +224,8 @@ export function costTerms(input: ScoreInput): CostTerms {
     const own = sectionTerms(section, input.neutralRatingByCourse[section.courseCode] ?? DEFAULT_RATING_TENTHS);
     terms.morningLeanMinutes += own.morning;
     terms.eveningLeanMinutes += own.evening;
+    if (own.clampedMorning) terms.clampedMornings += 1;
+    if (own.clampedEvening) terms.clampedEvenings += 1;
     terms.ratingShortfallTenths += own.shortfall;
   }
   return terms;

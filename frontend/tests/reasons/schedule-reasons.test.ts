@@ -271,11 +271,12 @@ describe("scheduleReasons", () => {
         evenings: 2,
       });
       const [first, second] = reasonsFor(req);
-      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["Its classes end a combined 480 minutes later than Option B's.", "comparison"]]);
+      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["On average its classes end 480 minutes later than Option B's.", "comparison"]]);
       expect(sentences(second)).toEqual(["Your latest class ends at 11 AM."]);
     });
 
-    test("an earlier-ending option ranked first for fewer days names the trade-off", () => {
+    test("an earlier-ending option ranked first for fewer days names the trade-off, averaged per class", () => {
+      // MATH ends 11 AM against 7 PM; CHEM is the same in both: 480 minutes over 2 classes.
       const req = request(
         [
           course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 600, 660)]), section("s1", "MATH 1650", [at("Tue", 1080, 1140)])]),
@@ -286,7 +287,7 @@ describe("scheduleReasons", () => {
       const [first] = reasonsFor(req);
       expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([
         ["You are on campus 1 day less than with Option B.", "comparison"],
-        ["Its classes end a combined 480 minutes earlier than Option B's.", "trade-off"],
+        ["On average its classes end 240 minutes earlier than Option B's.", "trade-off"],
       ]);
     });
   });
@@ -305,7 +306,20 @@ describe("scheduleReasons", () => {
       { term: { start: "2027-01-11", end: "2027-05-07" } },
     );
     const [first] = reasonsFor(req);
-    expect(sentences(first)).toEqual(["Its classes start a combined 45 minutes earlier than Option B's."]);
+    expect(sentences(first)).toEqual(["On average its classes start 45 minutes earlier than Option B's."]);
+  });
+
+  test("no time-of-day comparison when 7 AM or 10 PM cuts a class's value to 0", () => {
+    // The optimizer counts a 6 AM start as 0 minutes after 7 AM, so the
+    // difference it scores (180) is not the one a student would count (240).
+    const lean = (weights: Partial<OptWeights>, s0: Meeting, s1: Meeting) =>
+      reasonsFor(request([course("MATH 1650", [section("s0", "MATH 1650", [s0]), section("s1", "MATH 1650", [s1])])], weights))[0];
+    expect(lean({ mornings: 1 }, at("Mon", 360, 420), at("Tue", 600, 660)).map((reason) => [reason.sentence, reason.kind])).toEqual([
+      ["Your earliest class starts at 6 AM.", "fact"],
+    ]);
+    expect(lean({ evenings: 1 }, at("Mon", 1320, 1380), at("Tue", 1080, 1140)).map((reason) => [reason.sentence, reason.kind])).toEqual([
+      ["Your latest class ends at 11 PM.", "fact"],
+    ]);
   });
 
   describe("rating", () => {

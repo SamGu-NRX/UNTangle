@@ -11,9 +11,11 @@
  * take any time, so travel is its known seconds or more, and a claim is made
  * only when the two ranges do not overlap, stated as "at least". A section
  * with no rating leaves the rating unknown, so no rating comparison is made
- * on either side of it. The optimizer's stand-ins for missing data (10
- * minutes per unknown walk, the course mean for a missing rating) are never
- * quoted.
+ * on either side of it. The same holds for a class whose average start is
+ * before 7 AM or end after 10 PM: the optimizer counts its lean as 0, so a
+ * difference quoted from that term could not be checked by hand. The
+ * optimizer's stand-ins for missing data (10 minutes per unknown walk, the
+ * course mean for a missing rating) are never quoted.
  *
  * The travel term counts every transfer the planner routed, shuttle rides
  * included, so sentences say "travel", not "walking". Grade history
@@ -109,6 +111,9 @@ function travelFact({ knownTravelSeconds: known, unknownWalks: unknown }: CostTe
 }
 
 const identity = (difference: number) => difference;
+const UNKNOWN: Range = { lo: -Infinity, hi: Infinity };
+/** The lean terms sum over courses; the sentence quotes the average per class. */
+const perClass = (minutes: number, _exact: boolean, courses: number) => Math.round(minutes / courses);
 
 const PREFERENCES: Record<StatedPreference, Preference> = {
   fewerDays: {
@@ -145,11 +150,11 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
   mornings: {
     costPerUnit: COST_PER_LEAN_MINUTE,
     label: `minutes after ${formatClock(MORNING_ANCHOR)} of each course's average start, summed`,
-    range: ({ terms }) => exactly(terms.morningLeanMinutes),
-    shown: identity,
+    range: ({ terms }) => (terms.clampedMornings > 0 ? UNKNOWN : exactly(terms.morningLeanMinutes)),
+    shown: perClass,
     unit: "minute",
     words: ["earlier", "later"],
-    say: (amount, word, other) => `Its classes start a combined ${amount} ${word} than Option ${other}'s.`,
+    say: (amount, word, other) => `On average its classes start ${amount} ${word} than Option ${other}'s.`,
     fact: ({ breakdown }) =>
       breakdown.earliestStart === null
         ? null
@@ -161,11 +166,11 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
   evenings: {
     costPerUnit: COST_PER_LEAN_MINUTE,
     label: `minutes before ${formatClock(EVENING_ANCHOR)} of each course's average end, summed`,
-    range: ({ terms }) => exactly(terms.eveningLeanMinutes),
-    shown: identity,
+    range: ({ terms }) => (terms.clampedEvenings > 0 ? UNKNOWN : exactly(terms.eveningLeanMinutes)),
+    shown: perClass,
     unit: "minute",
     words: ["later", "earlier"],
-    say: (amount, word, other) => `Its classes end a combined ${amount} ${word} than Option ${other}'s.`,
+    say: (amount, word, other) => `On average its classes end ${amount} ${word} than Option ${other}'s.`,
     fact: ({ breakdown }) =>
       breakdown.latestEnd === null
         ? null
@@ -189,7 +194,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     costPerUnit: COST_PER_RATING_TENTH,
     label: "rating shortfall from 5 in tenths, summed over courses",
     range: ({ terms, sections }) =>
-      sections.some((section) => ratingTenths(section.rating) === null) ? { lo: -Infinity, hi: Infinity } : exactly(terms.ratingShortfallTenths),
+      sections.some((section) => ratingTenths(section.rating) === null) ? UNKNOWN : exactly(terms.ratingShortfallTenths),
     // The term sums over courses; the sentence quotes the average per course.
     shown: (tenths, _exact, courses) => Math.round(tenths / courses) / 10,
     unit: "point",

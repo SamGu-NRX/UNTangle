@@ -153,7 +153,9 @@ function sectionTerms(section, neutralTenths) {
   return {
     morning: Math.max(0, meanStart - MORNING_ANCHOR),
     evening: Math.max(0, EVENING_ANCHOR - meanEnd),
-    shortfall: 50 - (ratingTenths(section.rating) ?? neutralTenths)
+    shortfall: 50 - (ratingTenths(section.rating) ?? neutralTenths),
+    clampedMorning: meanStart < MORNING_ANCHOR,
+    clampedEvening: meanEnd > EVENING_ANCHOR
   };
 }
 function selfCost(section, weights, neutralTenths) {
@@ -206,6 +208,8 @@ function costTerms(input) {
     unknownWalks: 0,
     morningLeanMinutes: 0,
     eveningLeanMinutes: 0,
+    clampedMornings: 0,
+    clampedEvenings: 0,
     ratingShortfallTenths: 0
   };
   for (const day of OPT_DAYS) {
@@ -228,6 +232,10 @@ function costTerms(input) {
     const own = sectionTerms(section, input.neutralRatingByCourse[section.courseCode] ?? DEFAULT_RATING_TENTHS);
     terms.morningLeanMinutes += own.morning;
     terms.eveningLeanMinutes += own.evening;
+    if (own.clampedMorning)
+      terms.clampedMornings += 1;
+    if (own.clampedEvening)
+      terms.clampedEvenings += 1;
     terms.ratingShortfallTenths += own.shortfall;
   }
   return terms;
