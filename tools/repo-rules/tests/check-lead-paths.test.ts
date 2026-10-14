@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import {
   LEAD_OWNED_PATHS,
@@ -70,14 +70,15 @@ function filesUnder(dir: string): string[] {
 describe("the step-1 lane acceptance tests and their fixtures", () => {
   const laneFiles = [
     ...["filters", "importance", "instructor-tiebreak", "occurrences"].flatMap((lane) => filesUnder(`packages/core/tests/${lane}`)),
-    ...filesUnder("packages/ingest/tests").filter((file) => !file.endsWith("/source-policies.test.ts")),
+    // Named one by one: other ingest lanes will add their own tests and fixtures beside these.
+    "packages/ingest/tests/section-release.test.ts",
+    "packages/ingest/tests/fixtures/vsb-spring-2027.json",
   ];
 
   test("exist, so the globs below are checked against real files", () => {
     expect(laneFiles).toContain("packages/core/tests/filters/fixtures.ts");
     expect(laneFiles).toContain("packages/core/tests/occurrences/campus-feed.ics");
-    expect(laneFiles).toContain("packages/ingest/tests/fixtures/vsb-spring-2027.json");
-    expect(laneFiles).toContain("packages/ingest/tests/section-release.test.ts");
+    for (const file of laneFiles) expect(existsSync(path.join(repoRoot, file))).toBe(true);
   });
 
   test("are all lead-owned, so an agent PR that edits a test or fixture fails Path ownership", () => {
@@ -93,7 +94,9 @@ describe("the step-1 lane acceptance tests and their fixtures", () => {
     "packages/core/tests/frontend-shapes.test.ts",
     "packages/ingest/src/section-release.ts",
     "packages/ingest/tests/source-policies.test.ts",
-  ])("leave %s, which the lanes change or which isn't a lane test, to agents", (filePath) => {
+    "packages/ingest/tests/catalog.test.ts",
+    "packages/ingest/tests/fixtures/catalog-2026-27.json",
+  ])("leave %s, which a lane changes or which belongs to no lane yet, to agents", (filePath) => {
     expect(leadOwnedPathsTouched(realPatterns, [modified(filePath)])).toEqual([]);
   });
 });

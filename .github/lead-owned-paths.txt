@@ -65,7 +65,7 @@ packages/core/tests/importance/**
 packages/core/tests/instructor-tiebreak/**
 packages/core/tests/occurrences/**
 packages/ingest/tests/section-release*
-packages/ingest/tests/fixtures/**
+packages/ingest/tests/fixtures/vsb-spring-2027.json
 
 # CI, this list, and the checks that read it
 .github/**
