@@ -1,0 +1,65 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Engineering
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161750Z
+UID:tag:localist.com\,2008:EventInstance_53916295554657
+DTSTART:20260914T130000Z
+DTEND:20260915T010000Z
+DESCRIPTION:CAARI-SNEAP-WOTWISI 2026 brings together researchers\, accelera
+ tor personnel\, engineers\, students\, and industry professionals from aro
+ und the world to exchange advances in accelerator science\, accelerator ap
+ plications\, materials research\, and related technologies.\n\nThe three m
+ eetings will be held concurrently at the University of North Texas\, creat
+ ing opportunities for interdisciplinary discussion\, networking\, collabor
+ ation\, and interaction among accelerator researchers and users from a bro
+ ad range of scientific and industrial fields.
+GEO:33.210932;-97.147274
+LOCATION:Emerald Ballroom at the University Union\, 314
+SUMMARY:International Conference CAARI-SNEAP-WOTWISI 2026
+URL;VALUE=URI:https://calendar.unt.edu/event/international-conference-caari
+ -sneap-wotwisi-2026
+CATEGORIES:Conferences & Meetings
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161750Z
+UID:tag:localist.com\,2008:EventInstance_53916295555682
+DTSTART:20260915T130000Z
+DTEND:20260916T010000Z
+DESCRIPTION:CAARI-SNEAP-WOTWISI 2026 brings together researchers\, accelera
+ tor personnel\, engineers\, students\, and industry professionals from aro
+ und the world to exchange advances in accelerator science\, accelerator ap
+ plications\, materials research\, and related technologies.\n\nThe three m
+ eetings will be held concurrently at the University of North Texas\, creat
+ ing opportunities for interdisciplinary discussion\, networking\, collabor
+ ation\, and interaction among accelerator researchers and users from a bro
+ ad range of scientific and industrial fields.
+GEO:33.210932;-97.147274
+LOCATION:Emerald Ballroom at the University Union\, 314
+SUMMARY:International Conference CAARI-SNEAP-WOTWISI 2026
+URL;VALUE=URI:https://calendar.unt.edu/event/international-conference-caari
+ -sneap-wotwisi-2026
+CATEGORIES:Conferences & Meetings
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161750Z
+UID:tag:localist.com\,2008:EventInstance_53684578052079
+DTSTART:20260915T190000Z
+DTEND:20260915T203000Z
+DESCRIPTION:Need help on your resume or cover letter? Come join the Discove
+ ry Park Career Coaches to discuss resume and cover letter best practices a
+ nd get your resume and cover letter reviewed!\n\n \n\nThis event will be i
+ n G165 (the Agora) in the Learning Technologies department and online via 
+ Zoom.\n\n \n\nIf you require reasonable accommodations\, please contact th
+ e Discovery Park Career Coaches at DPCareerCenter@unt.edu.
+GEO:33.253134;-97.148579
+LOCATION:Discovery Park Building\, G165
+SUMMARY:Resume & Cover Letter Workshop — Discovery Park
+URL;VALUE=URI:https://calendar.unt.edu/event/resume-cover-letter-workshop-l
+ aunch-your-career-workshop-series-discovery-park-3251
+CATEGORIES:Workshops & Training
+END:VEVENT
+END:VCALENDAR
