@@ -3,6 +3,7 @@ import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
+import type { SavedPlanStore, SavedPlanStoreFailure } from "@/lib/saved-plans/store";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
 
@@ -102,4 +103,25 @@ export function lockChangeLines(changes: readonly PlanLockChange[]): string[] {
       ? `${courseCode}: Use in Main locks it to ${label} instead.`
       : `${courseCode}: Use in Main locks it to ${label}.`;
   });
+}
+
+/**
+ * Opens a schedule file into this browser's library for whoever is signed in
+ * when it was chosen. The identity is captured before the file is read, so a
+ * file that finishes reading after a sign-in or sign-out is refused
+ * ("identityChanged") and lands in neither account's library (#77).
+ */
+export async function importScheduleFile(
+  store: Pick<SavedPlanStore, "captureIdentity" | "importPlan">,
+  file: Pick<File, "text">,
+): Promise<{ ok: true; name: string } | { ok: false; kind: SavedPlanStoreFailure["kind"] | "notJson"; message: string }> {
+  const identity = store.captureIdentity();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    return { ok: false, kind: "notJson", message: "That file isn't a schedule file. It has to be the .json UNTangle exports." };
+  }
+  const result = store.importPlan(parsed, undefined, identity);
+  return result.ok ? { ok: true, name: result.snapshot.name } : { ok: false, kind: result.failure.kind, message: result.failure.message };
 }

@@ -25,7 +25,7 @@ import { adoptCopy, noteLanded, undoAdoption, type Adoption } from "./adopt";
 import { CompareView, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
-import { exportFileName, hasSavedCopy, whenText } from "./view-model";
+import { exportFileName, hasSavedCopy, importScheduleFile, whenText } from "./view-model";
 import { WeekThumb } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -287,19 +287,13 @@ export function SchedulesClient() {
 
   async function importFile(file: File) {
     setImportError(null);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(await file.text());
-    } catch {
-      setImportError("That file isn't a schedule file. It has to be the .json UNTangle exports.");
-      return;
-    }
-    const result = store.importPlan(parsed);
+    const result = await importScheduleFile(store, file);
     if (!result.ok) {
-      setImportError(result.failure.message);
+      setImportError(result.message);
+      if (result.kind === "identityChanged") bump();
       return;
     }
-    toast(`Added “${result.snapshot.name}”`);
+    toast(`Added “${result.name}”`);
     bump();
   }
 

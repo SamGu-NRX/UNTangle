@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chooseDetent, projectMomentum, releaseVelocity, resistedHeight, rubberband } from "@/components/map/sheet-physics";
+import { chooseDetent, projectMomentum, releaseVelocity, resistedHeight, rubberband, sheetHeights } from "@/components/map/sheet-physics";
 
 const detents = [120, 400, 740]; // peek, half, full
 
@@ -60,5 +60,31 @@ describe("projectMomentum and releaseVelocity", () => {
     // From t=400 to t=500: 50 px in 100 ms.
     expect(releaseVelocity(samples)).toBeCloseTo(0.5, 5);
     expect(releaseVelocity([{ t: 0, y: 0 }])).toBe(0);
+  });
+});
+
+describe("sheetHeights", () => {
+  // https://github.com/SamGu-NRX/UNTangle/pull/25#discussion_r4259595855
+  test("a short map area keeps half below full", () => {
+    // The reported case: before, half was 142 and full 138.
+    const { peek, half, full } = sheetHeights(150, 112);
+    expect(full).toBe(138);
+    expect(peek).toBe(62);
+    expect(half).toBe(100);
+  });
+
+  test("detents stay ordered across short areas and tall headers", () => {
+    for (let area = 40; area <= 1000; area += 7) {
+      for (const header of [60, 112, 224, 400]) {
+        const { peek, half, full } = sheetHeights(area, header);
+        expect(peek).toBeLessThanOrEqual(half);
+        expect(half).toBeLessThanOrEqual(full);
+      }
+    }
+  });
+
+  test("a phone-sized area keeps the designed half", () => {
+    // 390x844 with the shell's bars leaves about 700px of map.
+    expect(sheetHeights(700, 112)).toEqual({ peek: 112, half: 350, full: 644 });
   });
 });

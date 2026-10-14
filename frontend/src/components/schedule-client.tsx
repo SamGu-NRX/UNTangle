@@ -15,7 +15,9 @@ import {
   isStale,
   locksKey,
   requestKey,
+  sectionsKey,
   undoAvailable,
+  undoSnapshotForPick,
   type UndoSnapshot,
 } from "@/components/schedule/run-state";
 import styles from "@/components/schedule/schedule.module.css";
@@ -105,6 +107,7 @@ function seatsNote(section: Section): string | null {
 export function ScheduleClient() {
   const {
     plannerState,
+    sectionPicks,
     sectionPlan,
     sectionCatalog,
     catalogVersion,
@@ -184,10 +187,11 @@ export function ScheduleClient() {
   );
   const inputKey = requestKey(request);
   const currentLocks = locksKey(locks);
+  const currentSections = sectionsKey(sectionPicks);
   const stale = isStale(run, inputKey);
   const dirty = run.result === null || run.resultKey !== inputKey;
   const running = run.status === "running";
-  const undoOk = undoAvailable(undo, planEpoch, currentLocks);
+  const undoOk = undoAvailable(undo, planEpoch, currentLocks, currentSections);
 
   // Keyboard actions never animate (DESIGN.md §1): a run started from the keyboard shows its result instantly.
   const [instantResult, setInstantResult] = useState(false);
@@ -234,7 +238,13 @@ export function ScheduleClient() {
       return;
     }
     const moved = movedCourses(selected, schedule.byCourse, find);
-    setUndo({ sections: { ...selected }, goal: plannerState.optimization, letter, epoch: planEpoch, locks: currentLocks });
+    setUndo(undoSnapshotForPick({
+      sections: sectionPicks,
+      goal: plannerState.optimization,
+      letter,
+      epoch: planEpoch,
+      locks: currentLocks,
+    }, schedule.byCourse));
     applySchedule(schedule.byCourse, goalForWeights(schedulePreferences.weights));
     setPreview(null);
     setPickProblem(null);
@@ -242,7 +252,7 @@ export function ScheduleClient() {
   };
 
   const undoPick = () => {
-    if (!undoAvailable(undo, planEpoch, currentLocks)) return;
+    if (!undoAvailable(undo, planEpoch, currentLocks, currentSections)) return;
     restoreSchedule(undo);
     setUndo(null);
     toast("Restored your previous schedule");
