@@ -466,6 +466,10 @@
   margin-left: auto;
 }
 .majorCore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
   margin: 14px 0 0;
   font-size: 13px;
   color: var(--ink-2);
@@ -1037,8 +1041,9 @@
   .row + .row::before {
     left: 40px;
   }
+  /* The code keeps its width; a long fact gives way and ends in an ellipsis. */
   .rowOpen {
-    grid-template-columns: 18px minmax(0, 1fr) auto;
+    grid-template-columns: 18px auto minmax(0, 1fr);
     grid-template-rows: auto auto;
     column-gap: 12px;
     row-gap: 2px;
@@ -1060,7 +1065,8 @@
   .fact {
     grid-column: 3;
     grid-row: 1;
-    max-width: 58vw;
+    justify-self: end;
+    max-width: 100%;
     overflow: hidden;
     font-size: 12.5px;
     text-overflow: ellipsis;

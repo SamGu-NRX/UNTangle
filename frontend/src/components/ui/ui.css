@@ -1911,7 +1911,7 @@
 }
 /* The same head at the top of the phone sheet, under its handle. */
 .ui-context__head--sheet {
-  padding: 0 4px 4px 12px;
+  padding: 0 0 4px;
 }
 .ui-context__body {
   flex: 1;

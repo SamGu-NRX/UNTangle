@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Check } from "@/components/ui/icons";
+import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { SearchField } from "@/components/ui/SearchField";
 import { majors } from "@/lib/seed-data";
 import type { MajorId } from "@/lib/types";
@@ -79,7 +80,10 @@ export function DegreeDialog({ open, onOpenChange, major, onChoose, source, onIm
       </div>
       {core ? (
         <p className={styles.majorCore}>
-          {core.done} of {core.total} core courses done{core.covered > 0 ? `, ${core.covered} more covered by later courses` : ""}
+          <span>
+            {core.done} of {core.total} core courses done{core.covered > 0 ? `, ${core.covered} more covered by later courses` : ""}
+          </span>
+          <ProvenanceTag source="Core lists are hand-picked samples, not UNT's official degree plan.">Sample list</ProvenanceTag>
         </p>
       ) : null}
       <div className={styles.majorSource}>
