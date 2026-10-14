@@ -5,6 +5,7 @@ import { deliverAuthEmail } from "@/lib/auth-email";
 import { recipientBudget } from "@/lib/email-budget";
 import { memoryStore } from "@/lib/rate-limit/store";
 import { createRateLimitWrapper } from "@/lib/rate-limit/wrapper";
+import { authGetHandler } from "@/lib/auth-get";
 import { SET_PASSWORD_MAX_SESSION_AGE_MS, setPasswordHandler } from "@/lib/account-password";
 
 // Attacks on the real auth flows (fixtures.ts: better-auth on an in-memory
@@ -357,10 +358,51 @@ test("concurrent GET magic-link verification requests stop at the atomic path bu
   const t = setup();
   const handler = toNextJsHandler(t.auth).GET;
   let admitted = 0;
-  const GET = createRateLimitWrapper({ store: memoryStore(), session: async () => null, secret: "test", now: () => 30_000 })(
-    "auth", (request: Request) => { admitted++; return handler(request); });
+  const GET = authGetHandler(
+    (request: Request) => { admitted++; return handler(request); },
+    createRateLimitWrapper({ store: memoryStore(), session: async () => null, secret: "test", now: () => 30_000 }),
+  );
   const replies = await Promise.all(Array.from({ length: 12 }, () => GET(new Request(`${BASE}/api/auth/magic-link/verify?token=missing&callbackURL=/courses`))));
   expect(replies.filter(r => r.status === 429)).toHaveLength(7);
   expect(replies.filter(r => r.status === 302)).toHaveLength(5);
   expect(admitted).toBe(5);
+});
+
+test("session GETs leave the shared auth bucket untouched, even when verification is exhausted", async () => {
+  const t = setup();
+  const cookie = await signInByLink(t, VICTIM);
+  const store = memoryStore();
+  const hits: string[] = [];
+  const GET = authGetHandler(toNextJsHandler(t.auth).GET, createRateLimitWrapper({
+    store: {
+      hit: (route, ...args) => {
+        hits.push(route);
+        return store.hit(route, ...args);
+      },
+    },
+    session: async () => null,
+    secret: "test",
+    now: () => 30_000,
+  }));
+  const readSession = () => GET(new Request(`${BASE}/api/auth/get-session`, { headers: { cookie } }));
+
+  // More reads than the shared 30/minute budget, all from the same IP.
+  for (let i = 0; i < 40; i++) {
+    const response = await readSession();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ user: { email: VICTIM } });
+  }
+  expect(hits).toEqual([]);
+
+  for (let i = 0; i < 6; i++) {
+    const response = await GET(new Request(`${BASE}/api/auth/magic-link/verify?token=missing&callbackURL=/courses`));
+    expect(response.status).toBe(i < 5 ? 302 : 429);
+  }
+  expect(hits.filter(route => route === "auth")).toHaveLength(6);
+  expect(hits.filter(route => route === "auth:/magic-link/verify")).toHaveLength(6);
+
+  const after = await readSession();
+  expect(after.status).toBe(200);
+  expect(await after.json()).toMatchObject({ user: { email: VICTIM } });
+  expect(hits).toHaveLength(12);
 });
