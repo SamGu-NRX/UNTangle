@@ -15,13 +15,35 @@ publicly posted Fall 2026 syllabi from facultyinfo.unt.edu.
 - `run.ts` — sweeps faculty profiles, keeps only planner-catalog courses in
   the target term, downloads and caches each syllabus's text.
 
-## Reproducing
+## Collection and offline replay
+
+Collection uses the network and is not a replay of the original labeled corpus:
 
 ```sh
 bun --no-env-file tools/syllabus/run.ts \
   --profiles=tools/syllabus/data/profile-ids.txt --term="Fall 2026"
-cd frontend && bun --no-env-file tests/syllabus/eval.ts
 ```
+
+For offline evaluation, restore the original hash-bound text cache and run:
+
+```sh
+bun --no-env-file frontend/tests/syllabus/eval.ts
+```
+
+The current labels lack text hashes because the original cache was unavailable
+at landing. Results are withdrawn. See `docs/research/syllabus/README.md` for the
+hash-binding and regeneration steps. Never rebind a changed document to old labels.
+
+The worksheet requires an explicit JSON array of readable cached text filenames:
+
+```sh
+bun --no-env-file tools/syllabus/make-worksheet.ts \
+  --readable=/path/to/readable.json --output=/tmp/worksheet.txt
+```
+
+Each filename must be `<sha1(syllabusUrl)>.txt`. `--cache=<directory>` selects a
+cache with `manifest.json` and a `text/` directory; the default is `.cache/` beside
+these tools.
 
 The fetcher cache lives in `.cache/` (gitignored): downloaded pages,
 syllabi, extracted text, and `manifest.json` mapping every cached syllabus

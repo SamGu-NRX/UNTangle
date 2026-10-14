@@ -54,6 +54,7 @@ class RobotsRules {
   static parse(text: string): RobotsRules {
     const groups: RobotGroup[] = [];
     let current: RobotGroup | null = null;
+    let hasRules = false;
     for (const rawLine of text.split(/\r?\n/)) {
       const line = rawLine.replace(/#.*$/, "").trim();
       if (!line) continue;
@@ -62,10 +63,15 @@ class RobotsRules {
       const key = line.slice(0, idx).trim().toLowerCase();
       const value = line.slice(idx + 1).trim();
       if (key === "user-agent") {
-        current = { agents: [value.toLowerCase()], allow: [], disallow: [] };
-        groups.push(current);
+        if (!current || hasRules) {
+          current = { agents: [], allow: [], disallow: [] };
+          groups.push(current);
+          hasRules = false;
+        }
+        current.agents.push(value.toLowerCase());
       } else if (key === "allow" || key === "disallow") {
-        current ??= { agents: ["*"], allow: [], disallow: [] };
+        if (!current) continue;
+        hasRules = true;
         if (value) current[key].push(value);
       }
     }
@@ -76,9 +82,14 @@ class RobotsRules {
     return new RobotsRules([{ agents: ["*"], allow: [], disallow: [] }]);
   }
 
-  private applicable(): RobotGroup | null {
-    const star = this.groups.filter((g) => g.agents.includes("*"));
-    return star.length > 0 ? star[star.length - 1] : null;
+  static blocked(): RobotsRules {
+    return new RobotsRules([{ agents: ["*"], allow: [], disallow: ["/"] }]);
+  }
+
+  private applicable(): RobotGroup[] {
+    const product = USER_AGENT.split("/")[0].toLowerCase();
+    const matching = this.groups.filter((group) => group.agents.includes(product));
+    return matching.length > 0 ? matching : this.groups.filter((group) => group.agents.includes("*"));
   }
 
   private static regexCache = new Map<string, RegExp>();
@@ -102,15 +113,14 @@ class RobotsRules {
       re = new RegExp("^" + source + (anchored ? "$" : ""));
       RobotsRules.regexCache.set(pattern, re);
     }
-    const match = re.exec(path);
-    return match ? match[0].length : 0;
+    // Only literal rule bytes contribute specificity, not wildcard expansion.
+    return re.test(path) ? Buffer.byteLength(pattern.replace(/\*/g, "").replace(/\$$/, ""), "utf8") : 0;
   }
 
   isAllowed(pathname: string): boolean {
-    const group = this.applicable();
-    if (!group) return true;
-    const allow = Math.max(0, ...group.allow.map((p) => RobotsRules.matchLength(p, pathname)));
-    const disallow = Math.max(0, ...group.disallow.map((p) => RobotsRules.matchLength(p, pathname)));
+    const groups = this.applicable();
+    const allow = Math.max(0, ...groups.flatMap((group) => group.allow.map((p) => RobotsRules.matchLength(p, pathname))));
+    const disallow = Math.max(0, ...groups.flatMap((group) => group.disallow.map((p) => RobotsRules.matchLength(p, pathname))));
     return allow >= disallow;
   }
 }
@@ -159,13 +169,17 @@ export class PoliteFetcher {
         headers: { "user-agent": USER_AGENT },
         signal: AbortSignal.timeout(this.timeoutMs),
       });
-      const rules = res.status === 200 ? RobotsRules.parse(await res.text()) : RobotsRules.empty();
+      const rules = res.status >= 200 && res.status < 300
+        ? RobotsRules.parse(await res.text())
+        : res.status >= 400 && res.status < 500
+          ? RobotsRules.empty()
+          : RobotsRules.blocked();
       this.robots.set(origin, rules);
       return rules;
     } catch {
-      // An unreachable robots.txt is not permission to give up: the RFC draft
-      // default when robots.txt cannot be fetched is full allow.
-      const rules = RobotsRules.empty();
+      // A timeout or network failure supplies no permission. Keep this origin
+      // blocked for the run instead of repeatedly probing an unavailable host.
+      const rules = RobotsRules.blocked();
       this.robots.set(origin, rules);
       return rules;
     }

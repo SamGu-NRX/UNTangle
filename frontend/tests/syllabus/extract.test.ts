@@ -113,6 +113,7 @@ describe("gradingWeights", () => {
         ["Participation", 15],
       ]);
       expectValidSource(result.source, text);
+      for (const component of result.components) expectValidSource(component.source, text);
     }
   });
 
@@ -159,7 +160,10 @@ describe("realistic syllabus text", () => {
     }
     if (facts.attendancePolicy.found) expectValidSource(facts.attendancePolicy.source, text);
     if (facts.examCount.found) expectValidSource(facts.examCount.source, text);
-    if (facts.gradingWeights.found) expectValidSource(facts.gradingWeights.source, text);
+    if (facts.gradingWeights.found) {
+      expectValidSource(facts.gradingWeights.source, text);
+      for (const component of facts.gradingWeights.components) expectValidSource(component.source, text);
+    }
   });
 
   test("the exam quote is the totals sentence, not the schedule line", () => {

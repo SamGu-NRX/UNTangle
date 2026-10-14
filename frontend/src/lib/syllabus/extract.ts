@@ -263,13 +263,12 @@ function gradingWeights(text: string, sentences: Sentence[]): SyllabusFacts["gra
     return { found: false, reason: "weight block does not sum to a plausible total" };
   }
   const components: GradingComponent[] = best.pairs.map((pair) => {
-    const at = best.sentence.text.indexOf(`${pair.name}`);
     return {
       name: pair.name,
       weightPct: pair.weightPct,
       source: {
         quote: best.sentence.text,
-        start: best.sentence.start + Math.max(0, at),
+        start: best.sentence.start,
         end: best.sentence.end,
       },
     };

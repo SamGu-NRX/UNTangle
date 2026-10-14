@@ -15,7 +15,8 @@
  *   sentence that overlaps the labeled policy excerpt (content words);
  * - exam count: a prediction is correct when the count equals the label;
  * - grading weights: each labeled component (name, weight) must be matched
- *   by an extracted component with the same weight and an overlapping name.
+ *   by exactly one extracted component with the same weight and an overlapping
+ *   name, with no extra components. Wrong positive answers count as FP and FN.
  *
  * It prints precision, recall, and F1 per fact type, plus corpus coverage
  * (how many labeled planner courses had a findable syllabus at all - here,
@@ -26,8 +27,9 @@
  *   bun --no-env-file tests/syllabus/eval.ts
  *   bun --no-env-file tests/syllabus/eval.ts --file=../docs/research/syllabus/labels.json
  *
- * Exit code 1 when a label entry cannot be scored (missing cached text), so
- * a broken cache is never silently scored as zero.
+ * Exit code 1 for missing cached text, missing text hashes, or hash mismatches.
+ * The full corpus is validated before any entry is scored. Use --cache-text=<dir>
+ * to select restored cached text; no network requests are made.
  */
 
 import { createHash } from "node:crypto";
@@ -55,7 +57,8 @@ interface GradingWeightsLabel {
   present: boolean;
   components?: { name: string; weightPct: number }[];
 }
-interface LabelEntry {
+export interface LabelEntry {
+  textSha256?: string;
   id: string;
   course: string;
   section: string;
@@ -112,11 +115,17 @@ function pct(value: number | null): string {
   return value === null ? "n/a" : `${(value * 100).toFixed(1)}%`;
 }
 
-function main(): void {
-  const fileArg = process.argv.find((arg) => arg.startsWith("--file="))?.slice("--file=".length);
-  const labelsPath = fileArg ? path.resolve(process.cwd(), fileArg) : DEFAULT_LABELS;
-  const doc = JSON.parse(readFileSync(labelsPath, "utf8")) as { entries: LabelEntry[] };
+export function verifyText(entry: LabelEntry, text: string): void {
+  if (!entry.textSha256 || !/^[a-f0-9]{64}$/.test(entry.textSha256)) {
+    throw new Error(`cannot score ${entry.id}: missing valid textSha256; restore the original labeled text and bind its hash before replay`);
+  }
+  const actual = createHash("sha256").update(text, "utf8").digest("hex");
+  if (actual !== entry.textSha256) {
+    throw new Error(`cannot score ${entry.id}: cached text SHA-256 mismatch, expected ${entry.textSha256}, got ${actual}`);
+  }
+}
 
+export function scoreEntries(documents: { entry: LabelEntry; text: string }[]) {
   const attendance = emptyTally();
   const examCount = emptyTally();
   const weights = emptyTally();
@@ -124,16 +133,7 @@ function main(): void {
   const misses: string[] = [];
   let scored = 0;
 
-  for (const entry of doc.entries) {
-    const urlKey = createHash("sha1").update(entry.syllabusUrl).digest("hex");
-    let text: string;
-    try {
-      text = readFileSync(path.join(CACHE_TEXT, `${urlKey}.txt`), "utf8");
-    } catch {
-      console.error(`cannot score ${entry.id}: no cached text for ${entry.syllabusUrl}`);
-      console.error("run tools/syllabus/run.ts first to rebuild the study cache");
-      process.exit(1);
-    }
+  for (const { entry, text } of documents) {
     const facts = extractSyllabusFacts(text);
     scored++;
 
@@ -143,6 +143,7 @@ function main(): void {
       if (entry.attendance.present && labeled) attendance.tp++;
       else {
         attendance.fp++;
+        if (entry.attendance.present) attendance.fn++;
         misses.push(`${entry.id} attendance: extracted ${entry.attendance.present ? "wrong sentence" : "policy where none stated"}: "${facts.attendancePolicy.source.quote.slice(0, 110)}"`);
       }
     } else if (entry.attendance.present) {
@@ -155,6 +156,7 @@ function main(): void {
       if (entry.examCount.present && entry.examCount.count === facts.examCount.count) examCount.tp++;
       else {
         examCount.fp++;
+        if (entry.examCount.present) examCount.fn++;
         misses.push(`${entry.id} examCount: extracted ${facts.examCount.count}, label ${entry.examCount.present ? entry.examCount.count : "absent"}: "${facts.examCount.source.quote.slice(0, 110)}"`);
       }
     } else if (entry.examCount.present) {
@@ -183,10 +185,11 @@ function main(): void {
           misses.push(`${entry.id} weights: extra component ${extracted[i].name} ${extracted[i].weightPct}%`);
         }
       }
-      if (entry.gradingWeights.present && labeledComponents.length > 0 && matched.size === labeledComponents.length) weights.tp++;
-      else if (!entry.gradingWeights.present) {
+      if (entry.gradingWeights.present && labeledComponents.length > 0 && matched.size === labeledComponents.length && matched.size === extracted.length) weights.tp++;
+      else {
         weights.fp++;
-        misses.push(`${entry.id} weights: extracted weights where none stated`);
+        if (entry.gradingWeights.present) weights.fn++;
+        misses.push(`${entry.id} weights: ${entry.gradingWeights.present ? "wrong weight block" : "extracted weights where none stated"}`);
       }
     } else if (entry.gradingWeights.present) {
       weights.fn++;
@@ -198,6 +201,28 @@ function main(): void {
     }
   }
 
+  return { scored, attendance, examCount, weights, weightsComponents, misses };
+}
+
+function main(): void {
+  const fileArg = process.argv.find((arg) => arg.startsWith("--file="))?.slice("--file=".length);
+  const cacheArg = process.argv.find((arg) => arg.startsWith("--cache-text="))?.slice("--cache-text=".length);
+  const labelsPath = fileArg ? path.resolve(process.cwd(), fileArg) : DEFAULT_LABELS;
+  const cacheText = cacheArg ? path.resolve(process.cwd(), cacheArg) : CACHE_TEXT;
+  const doc = JSON.parse(readFileSync(labelsPath, "utf8")) as { entries: LabelEntry[] };
+  // Validate the entire corpus before extracting or reporting any scores.
+  const documents = doc.entries.map((entry) => {
+    const urlKey = createHash("sha1").update(entry.syllabusUrl).digest("hex");
+    let text: string;
+    try {
+      text = readFileSync(path.join(cacheText, `${urlKey}.txt`), "utf8");
+    } catch {
+      throw new Error(`cannot score ${entry.id}: no cached text for ${entry.syllabusUrl}; restore the original labeled cache`);
+    }
+    verifyText(entry, text);
+    return { entry, text };
+  });
+  const { scored, attendance, examCount, weights, weightsComponents, misses } = scoreEntries(documents);
   console.log(`scored ${scored} labeled syllabi from ${labelsPath}`);
   console.log("");
   const rows: [string, Tally, Tally][] = [
@@ -220,4 +245,11 @@ function main(): void {
   }
 }
 
-main();
+if (import.meta.main) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+}

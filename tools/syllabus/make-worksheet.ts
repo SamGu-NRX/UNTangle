@@ -1,12 +1,16 @@
 // Generates the hand-labeling worksheet from the study cache.
-// Usage: bun --no-env-file tools/syllabus/make-worksheet.ts [output]
+// Usage: bun --no-env-file tools/syllabus/make-worksheet.ts --readable=<list.json> [--cache=<dir>] [--output=<file>]
+// The JSON list contains cached text filenames selected for manual review.
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { extractSyllabusFacts } from "../../frontend/src/lib/syllabus/extract";
 
-const root = path.join(import.meta.dir, "../..");
-const rawManifest = JSON.parse(readFileSync(path.join(root, "tools/syllabus/.cache/manifest.json"), "utf8"));
+const option = (name: string) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+const readablePath = option("readable");
+if (!readablePath) throw new Error("--readable=<list.json> is required; supply a JSON array of cached <sha1(url)>.txt filenames");
+const cache = option("cache") ?? path.join(import.meta.dir, ".cache");
+const rawManifest = JSON.parse(readFileSync(path.join(cache, "manifest.json"), "utf8"));
 const manifest: Array<{
   syllabusUrl: string;
   courseCode?: string;
@@ -18,11 +22,14 @@ const manifest: Array<{
   ? rawManifest
   : ((rawManifest.entries ?? Object.values(rawManifest)[0] ?? []) as typeof manifest);
 const byKey = new Map(manifest.map((r) => [createHash("sha1").update(r.syllabusUrl).digest("hex"), r]));
-const readable = JSON.parse(readFileSync("/tmp/readable.json", "utf8")) as string[];
+const readable: unknown = JSON.parse(readFileSync(readablePath, "utf8"));
+if (!Array.isArray(readable) || !readable.every((file): file is string => typeof file === "string" && /^[a-f0-9]{40}\.txt$/.test(file))) {
+  throw new Error("--readable must contain a JSON array of <sha1(url)>.txt filenames");
+}
 
 const out: string[] = [];
 for (const f of readable) {
-  const text = readFileSync(path.join(root, "tools/syllabus/.cache/text", f), "utf8");
+  const text = readFileSync(path.join(cache, "text", f), "utf8");
   const meta = byKey.get(f.replace(".txt", ""));
   let d = `\n=== ${f}\n`;
   d += `META ${JSON.stringify({ course: meta?.courseCode, section: meta?.section, faculty: meta?.faculty, profileUrl: meta?.profileUrl, syllabusUrl: meta?.syllabusUrl, chars: meta?.textChars })}\n`;
@@ -39,6 +46,6 @@ for (const f of readable) {
   d += `GRADE:\n${pick((s) => /\d+(\.\d+)?\s*%|\b\d+\s*points?\b/i.test(s) && /(grade|grading|assessment|worth|weight|exam|quiz|homework|assignment|participation|lab|project|final|midterm|attendance)/i.test(s), 8).join("\n") || "  | none"}\n`;
   out.push(d);
 }
-const dst = process.argv[2] ?? "/tmp/worksheet.txt";
+const dst = option("output") ?? "/tmp/worksheet.txt";
 writeFileSync(dst, out.join("\n"));
 console.log(`worksheet entries: ${out.length} chars: ${out.join("").length} -> ${dst}`);

@@ -1,86 +1,104 @@
-# Syllabus fact extraction: hand-labeled evaluation
+# Syllabus fact extraction study
 
-**Question.** Can deterministic rules find the three planning facts (attendance policy,
-exam count, grading weights) in real UNT syllabi, reliably enough to use for course
-planning?
+Can deterministic rules quote attendance policies, count exams, and identify grading
+weights in UNT's public syllabi accurately enough for course planning?
 
-**Date:** 2026-10-14 · **Branch:** `obv/syllabus-facts-study`
+## Results are withdrawn
 
-## Verdict
+The previous results do not answer that question reliably. The scorer counted a
+wrong attendance or exam answer as a false positive without also counting the
+missed labeled fact. It also omitted wrong grading blocks from document-level
+counts and accepted blocks containing extra components. Recall was overstated.
 
-Rules alone are not sufficient.
-
-| Fact | Precision | Recall | F1 | Verdict |
-|---|---|---|---|---|
-| Attendance policy | 37.0% | 100.0% | 54.0% | Over-triggers on boilerplate |
-| Exam count | 54.5% | 63.2% | 58.5% | Polluted by schedule artifacts |
-| Grading weights (doc level) | — | 0.0% | — | Never fires on real documents |
-
-- **Attendance (recall 100%, precision 37%).** The extractor found an attendance
-  sentence in every document where one exists, but it also fired in 29 documents with
-  no real policy, almost always on university boilerplate: Survivor Advocates
-  descriptions, UNT Policy 06.039 references, and "Attendance Policy: Visit the UNT
-  Attendance Policy (link)" sentences. Policy presence is nearly free; knowing whether
-  a *course-specific* policy exists requires suppressing boilerplate.
-- **Exam count (P 54.5% / R 63.2%).** Two dominant failure modes, both confirmed in
-  the misclassification list: schedule rows read as counts ("Week 16 Final Exam" → 16;
-  "October 09, 2026 Midterm Exam" → 9), and percentage-weight lists read as counts
-  ("20% Examination #1 …" → 15). Syllabi that state counts plainly ("There will be
-  three exams in this course") are extracted correctly.
-- **Grading weights (0 recall across all 36 labeled grading tables).** The extractor
-  returned no weight block in *any* labeled document. Verified directly on GEOG 3010
-  (`b4c71421`), whose text contains an explicit prose list — "Grades: The course grade
-  will be based on the following components: mid-term examination – 25%; End-term
-  examination – 25%; op-ed piece – 25%; participation in classroom discussions 10%;
-  attendance – 15%" — and on ECON 4510 (`a1f7871a`, "Exam I 30% Exam II 30% Paper and
-  discussion 15% Final Exam 25%"). Prose-form lists and PDF-flattened tables both
-  evade the heading-anchored block detection. This is a genuine extractor failure, not
-  an evaluation artifact.
-
-## Method
-
-1. **Corpus.** Fall 2026 sweep of 147 public UNT faculty profiles
-   (`tools/syllabus/run.ts`): 125 syllabi collected, 71 readable as text (54
-   unreadable binary/DOCX outputs were excluded from labeling rather than counted as
-   negatives). Cached under `tools/syllabus/.cache/`.
-2. **Labels.** Each readable document was reviewed and hand-labeled for the three
-   facts. 50 documents were labeled; 6 readable documents were excluded because their
-   grading tables could not be fully verified from flattened text (conservative
-   exclusion, listed below). Labels: `labels.json`; each entry carries the fact plus a
-   verbatim excerpt as evidence.
-3. **Scoring.** `frontend/tests/syllabus/eval.ts` compares extractor output
-   (`extractSyllabusFacts`) against labels: presence with content-word overlap on
-   excerpts, exact count match, and component-level weight matching by name overlap
-   and weight. Doc-level grading scoring marks a document correct only when the
-   extracted component set matches the labeled set. Raw output:
-   `eval-results.txt`.
-
-### Caveats
-
-- Labels were written with the extractor's output visible in the review worksheet
-  (extract-then-label, not blind labeling), so label bias toward the extractor cannot
-  be fully excluded. Mitigation: labels were written against the document text itself,
-  including cases where the extractor was wrong (e.g. exam count 16 vs the labeled 2).
-- 50 labeled entries include several distinct sections sharing one syllabus document
-  (same text, different section); ~38 distinct documents underlie the 50 entries.
-- Excluded (grading table not fully verifiable): `4cfca730`, `989ca9a6`, `6652c54c`,
-  `82f7a47a`, `56dce29e`, `9e17c57f`.
-
-## What would change the verdict
-
-- **Weights:** heading-anchored block detection cannot see prose-form lists or
-  flattened tables. Either a table-aware PDF extraction step or a model-assisted
-  extraction pass is needed; the deterministic fallback should set "not available"
-  rather than guess (current behavior — correct to keep).
-- **Attendance:** boilerplate suppression (link/reference sentences, resource
-  descriptions) would convert the 100% recall into usable precision without losing it.
-- **Exam count:** excluding schedule-section sentences and percentage-context matches
-  addresses both observed failure modes.
-
-## Replay
+The corrected scorer has regression tests, but the original labeled-text cache
+was unavailable during landing. No replacement corpus scores were computed.
+`eval-results.txt` records this limitation instead of publishing the old numbers.
+The published numbers must be regenerated from the original labeled cache by
+running this exact command from the repository root, after binding its hashes:
 
 ```sh
-bun --no-env-file tools/syllabus/run.ts          # rebuild cache (network)
-bun --no-env-file tools/syllabus/build-labels.ts # assemble labels.json
-bun --no-env-file frontend/tests/syllabus/eval.ts
+bun --no-env-file frontend/tests/syllabus/eval.ts > docs/research/syllabus/eval-results.txt
 ```
+
+The old claim that grading extraction never fires was also wrong. The historical
+misclassification output included extracted grade-scale components for
+`222d3dfe` and `4556bf9b`. A wrong answer differs from an absent answer. The next
+report must distinguish correct answers, wrong answers on positive documents,
+spurious answers on negative documents, and absent answers on positive documents.
+There is no corrected performance verdict until the corpus is rescored.
+
+## Labels and scoring
+
+`labels.json` contains the hand-written facts, source URLs, and short identifying
+quotes, not full syllabi. Labels were written with extractor output visible in the
+worksheet, so this is not a blind evaluation. Some sections share syllabus text;
+entry-level scores must not be described as independent-document scores.
+
+The committed labels include 50 entries. Tests count 38 attendance-positive,
+29 exam-positive, and 38 grading-positive entries directly from that file.
+These are label counts, not extraction results. Every positive entry belongs in
+the corresponding recall denominator.
+
+`frontend/tests/syllabus/eval.ts` compares predictions with labels:
+
+- Attendance evidence must overlap the labeled excerpt in content words.
+- Exam count must equal the labeled count.
+- A grading block must match every labeled component by name overlap and weight,
+  one-to-one, with no extra extracted components. Component-level scores also
+  report unmatched labeled and extracted components separately.
+
+A wrong answer on a positive entry counts as both a false positive and a miss.
+An absent answer on a positive entry counts as a miss only. The scorer validates
+all text hashes before extracting facts or publishing any scores.
+
+## Offline replay and the missing hashes
+
+Cached reconstructed text belongs in
+`tools/syllabus/.cache/text/<sha1(syllabusUrl)>.txt`. The cache is gitignored.
+Each label must carry `textSha256`, computed over the exact reconstructed UTF-8
+text. The current committed labels lack these hashes because the original text
+was not available; evaluation rejects them rather than silently using changed
+syllabi at the same URLs.
+
+Restore the original labeled cache and its manifest. Confirm that it is the text
+used for labeling, not a newer download. Only then run:
+
+```sh
+bun --no-env-file tools/syllabus/build-labels.ts
+bun --no-env-file frontend/tests/syllabus/eval.ts > docs/research/syllabus/eval-results.txt
+```
+
+`build-labels.ts` assembles the existing hand-written labels and computes each
+text hash. Review and commit those hashes along with the regenerated results.
+Do not rerun the builder to bypass a hash mismatch. Changed documents require a
+new labeling study. For an existing hash-bound corpus, run only the evaluator;
+`--cache-text=<directory>` selects a restored text directory without networking.
+
+The original study reported exclusions for flattened grading tables that could
+not be verified: `4cfca730`, `989ca9a6`, `6652c54c`, `82f7a47a`, `56dce29e`, and
+`9e17c57f`. Collection and readability totals have not been recomputed here.
+
+## Future collection, not a replay of the labeled corpus
+
+This command uses the network and may produce changed documents. It was not run
+during landing and does not restore the original labeled corpus:
+
+```sh
+bun --no-env-file tools/syllabus/run.ts \
+  --profiles=tools/syllabus/data/profile-ids.txt --term="Fall 2026"
+```
+
+The fetcher combines matching robots groups, compares literal rule specificity,
+and blocks an origin for the run if robots.txt times out, fails, or returns a
+server error. Only a client-error response means no restrictions.
+
+For manual labeling, create a JSON array of readable cached text filenames, such
+as `["<40-character sha1 of syllabus URL>.txt"]`. Pass that list explicitly:
+
+```sh
+bun --no-env-file tools/syllabus/make-worksheet.ts \
+  --readable=/path/to/readable.json --output=/tmp/worksheet.txt
+```
+
+The worksheet accepts `--cache=/path/to/cache` and otherwise reads
+`tools/syllabus/.cache`. It does not depend on a hidden `/tmp/readable.json`.

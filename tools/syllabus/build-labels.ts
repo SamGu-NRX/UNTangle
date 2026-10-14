@@ -16,10 +16,9 @@ const manifest: Array<{ syllabusUrl: string; courseCode?: string; section?: stri
 const byKey = new Map(manifest.map((r) => [createHash("sha1").update(r.syllabusUrl).digest("hex"), r]));
 
 // [hash, attendance, examCount, gradingWeights]
-// attendance: [present, excerpt?] · examCount: [present, count?, excerpt?] ·
-// gradingWeights: [present, components?]
-type Fact<A, B> = [boolean, ...B[]];
-const LABELS: Array<[string, Fact<never, [string]>, Fact<never, [number, string]>, Fact<never, [Array<{ name: string; weightPct: number }>]>]> = [
+// Positive facts require their evidence fields; absent facts have no payload.
+type Fact<T extends unknown[]> = [false] | [true, ...T];
+const LABELS: Array<[string, Fact<[string]>, Fact<[number, string]>, Fact<[Array<{ name: string; weightPct: number }>]>]> = [
   ["0211309a87bee7454eae642f091c339e6ed3bede",
     [true, "Attendance: Attendance is part of course expectations and will be graded weekly."],
     [true, 2, "Exams: There are two exams for this course, and no comprehensive final exam."],
@@ -220,6 +219,7 @@ const entries = LABELS.map(([hash, attendance, examCount, grading]) => {
     profileUrl: meta.profileUrl ?? "",
     syllabusUrl: meta.syllabusUrl,
     docQuote,
+    textSha256: createHash("sha256").update(text, "utf8").digest("hex"),
     attendance: attendance[1] !== undefined ? { present: attendance[0], excerpt: attendance[1] } : { present: attendance[0] },
     examCount:
       examCount[1] !== undefined
