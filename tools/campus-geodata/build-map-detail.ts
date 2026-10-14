@@ -304,7 +304,13 @@ function build() {
       .sort((a, b) => a.area - b.area)[0];
     if (parent) partParent.set(part, parent);
   }
-  const hasParts = new Set([...partParent.entries()].filter(([part]) => resolveHeight({ tags: part.tags, osm: part.osm, fallback }).source !== "none").map(([, parent]) => parent));
+  // A part replaces its outline only if the part itself is drawn; drawnHeight can still drop it
+  // (a roof-only part with no min_height), and then the outline must keep its own height.
+  const hasParts = new Set(
+    [...partParent.entries()]
+      .filter(([part]) => drawnHeight(part.tags, resolveHeight({ tags: part.tags, osm: part.osm, fallback })).source !== "none")
+      .map(([, parent]) => parent),
+  );
 
   const coverage = { all: {} as Record<string, number>, campus: {} as Record<string, number> };
   const count = (bucket: Record<string, number>, key: string) => {
