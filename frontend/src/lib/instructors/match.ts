@@ -9,7 +9,7 @@
  * and abstains for every weak or ambiguous case. No edit distance, no
  * phonetics, no nickname dictionary.
  */
-import { foldName, hasUnmappedLetters, stripSuffixTokens, tokenize } from "./fold";
+import { foldName, hasUnsupportedCharacters, stripSuffixTokens, tokenize } from "./fold";
 import { parseSectionField, type PersonName } from "./parse";
 
 /** A grade-history identity, as untgrades reports it. */
@@ -58,7 +58,7 @@ function foldCandidate(candidate: Candidate): FoldedCandidate {
   const foldedLast = foldName(typeof candidate.lastName === "string" ? candidate.lastName : "");
   const last = stripSuffixTokens(tokenize(foldedLast));
   const first = stripSuffixTokens(tokenize(foldedFirst));
-  const unsupported = hasUnmappedLetters(foldedFirst) || hasUnmappedLetters(foldedLast);
+  const unsupported = hasUnsupportedCharacters(foldedFirst) || hasUnsupportedCharacters(foldedLast);
   return { id: candidate.id, lastTokens: last.tokens, firstTokens: first.tokens, unsupported };
 }
 

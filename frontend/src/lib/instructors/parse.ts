@@ -1,4 +1,4 @@
-import { foldName, hasUnmappedLetters, stripSuffixTokens, tokenize } from "./fold";
+import { foldName, hasUnsupportedCharacters, stripSuffixTokens, tokenize } from "./fold";
 
 /** One person parsed out of a section's instructor field, folded and tokenized. */
 export type PersonName = {
@@ -77,8 +77,9 @@ function parseDisplayField(folded: string): SectionPeople {
  * is garbage pairing the feed itself cannot resolve, so it stays unparseable.
  */
 function parseRawField(folded: string): SectionPeople {
-  const rawParts = folded.split(",").map(part => part.trim()).filter(part => part.length > 0);
-  if (rawParts.length === 0) return { kind: "unusable", word: "blank" };
+  const rawParts = folded.split(",").map(part => part.trim());
+  // Empty slots are damaged pairs, not the explicit None placeholders below.
+  if (rawParts.some(part => part.length === 0)) return { kind: "unparseable", folded };
   const parts = rawParts
     .map(part => part.split(" ").filter(token => token !== NONE_WORD).join(" ").trim())
     .filter(part => part.length > 0);
@@ -125,7 +126,7 @@ export function parseSectionField(sectionName: string): SectionPeople {
   if (PLACEHOLDER_WORDS.has(folded)) {
     return { kind: "unusable", word: folded as "tba" | "staff" | "closed" };
   }
-  if (hasUnmappedLetters(folded)) return { kind: "unsupported", folded };
+  if (hasUnsupportedCharacters(folded)) return { kind: "unsupported", folded };
   if (folded.includes(";")) return parseDisplayField(folded);
   return parseRawField(folded);
 }

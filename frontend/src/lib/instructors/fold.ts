@@ -54,17 +54,12 @@ export function foldName(text: string): string {
 }
 
 /**
- * True when the folded text still contains an unmapped letter or an unstripped
- * combining mark. Such a form must abstain rather than match: tokenizing would either
- * drop the letter (inventing a false initial) or split on it (inventing
- * tokens), and both lose information the threshold promises to weigh.
+ * True when folded text contains anything beyond tokens and field separators.
+ * Unknown punctuation, letters and marks must abstain: splitting on them can
+ * invent initials, as in "J@ane" becoming "j" and "ane".
  */
-export function hasUnmappedLetters(folded: string): boolean {
-  for (const ch of folded) {
-    // Marks outside the stripped range also split tokens and invent initials.
-    if (/[\p{L}\p{M}]/u.test(ch) && !/[a-z]/.test(ch)) return true;
-  }
-  return false;
+export function hasUnsupportedCharacters(folded: string): boolean {
+  return /[^a-z0-9 ,;]/.test(folded);
 }
 
 /** Splits a folded string into lowercase alphanumeric tokens. */

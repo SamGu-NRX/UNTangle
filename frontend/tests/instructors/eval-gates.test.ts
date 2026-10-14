@@ -106,6 +106,31 @@ describe("review hard cases", () => {
     }
   });
 
+  test("unknown punctuation cannot invent initials on either side", () => {
+    const john: Candidate = { id: "john", name: "John Smith", firstName: "John", lastName: "Smith" };
+    for (const punctuation of ["@", "/", ":", "!", "_"]) {
+      const malformed: Candidate = {
+        id: "jane", name: `J${punctuation}ane Smith`, firstName: `J${punctuation}ane`, lastName: "Smith",
+      };
+      expect(matchInstructor("Smith,John", [malformed]).candidateId).toBeNull();
+      expect(matchInstructor(`Smith,J${punctuation}ane`, [john])).toEqual({
+        candidateId: null, confidence: 0, reason: "section instructor name has unsupported characters",
+      });
+    }
+    expect(matchInstructor("Smith,John", [john]).candidateId).toBe("john");
+  });
+
+  test("empty raw comma slots abstain rather than realigning names", () => {
+    const john: Candidate = { id: "john", name: "John Smith", firstName: "John", lastName: "Smith" };
+    for (const field of ["Smith,,John", ",Smith,John", "Smith,John,", "Smith, ,John"]) {
+      expect(matchInstructor(field, [john])).toEqual({
+        candidateId: null, confidence: 0, reason: "section instructor field is unparseable",
+      });
+    }
+    expect(matchInstructor("Smith,John", [john]).candidateId).toBe("john");
+    expect(matchInstructor("None,Smith,John", [john]).candidateId).toBe("john");
+  });
+
   test("unsupported candidate letters cannot invent a matching first-name initial", () => {
     const result = matchInstructor("Smith,Sam", [
       { id: "sirri", name: "Sırrı Smith", firstName: "Sırrı", lastName: "Smith" },
