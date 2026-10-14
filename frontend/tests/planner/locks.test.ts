@@ -5,7 +5,6 @@ import {
   mountPlanner,
   removeDom,
   setSession,
-  sleep,
   waitFor,
 } from "./test-dom";
 import {
@@ -225,7 +224,6 @@ describe("lock control in the planner", () => {
     await first.run((p) => p.setSectionLock("MATH 1710", true));
     const locked = first.get().plannerState.selectedSections["MATH 1710"];
     await waitFor(() => first.get().saveState.label === "Saved", "saved");
-    await sleep(50);
     expect(server.row?.state.lockedSections).toEqual({ "MATH 1710": locked });
     await first.unmount();
     mounted.splice(mounted.indexOf(first.unmount), 1);
