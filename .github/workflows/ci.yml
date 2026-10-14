@@ -47,6 +47,9 @@ jobs:
       - name: Typecheck
         run: bun --no-env-file x tsc --noEmit
         working-directory: frontend
+      - name: Typecheck extension
+        run: bun --no-env-file x tsc --noEmit
+        working-directory: extension
 
   lint:
     name: Lint
@@ -90,6 +93,10 @@ jobs:
       - name: Unit tests
         run: bun --no-env-file test --isolate --timeout=20000
         working-directory: frontend
+      # Same flags as the frontend suite: isolated globals, generous timeout.
+      - name: Extension unit tests
+        run: bun --no-env-file test --isolate --timeout=20000
+        working-directory: extension
 
   build:
     name: Build
@@ -120,6 +127,35 @@ jobs:
           RESEND_FROM_EMAIL: ci@example.invalid
           ORS_API_KEY: dummy-ors-key-not-real
           RATE_LIMIT_TRUSTED_PROXY: reverse-proxy
+      - name: Build extension
+        run: bun --no-env-file run build
+        working-directory: extension
+
+  extension-e2e:
+    name: Extension journey
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      # The journey loads the built extension into Chromium against the mock
+      # myUNT page and a localhost stub; install the browser and its system
+      # libraries first. This is the run's only network fetch beyond localhost.
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+        working-directory: extension
+      - name: Run the browser journey
+        run: node e2e/extension.journey.mjs
+        working-directory: extension
 
   # Opt-in only: dispatched or called with run_live_postgres=true. Never runs
   # on pull_request or push (inputs is empty there).
