@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 /**
- * Map v2 browser journey through the normal /map route, at 1440x900 and
- * 390x844, against a production build (`next start`).
+ * Day browser journey through the /map route (which lands on Day), at
+ * 1440x900 and 390x844, against a production build (`next start`).
  *
  * The day comes from a guest plan written to localStorage before the page
  * loads: four sample sections on Monday (ENV, GAB, GATE, and Discovery Park,
  * which is off campus), chosen so GAB -> GATE has a 10-minute break and a
- * longer walk. Sections are synthetic samples.
+ * longer walk, and Kerr Hall as the starting point. The page's clock is
+ * fixed at Monday 8:37 so Day opens on that Monday. Sections are synthetic
+ * samples.
  *
- * Checks: walkway legs with minutes and source; wheel, keyboard and button
- * zoom; drag pan; selecting a stop in the list flies to it and selects its
- * pin; selecting a pin selects its row; a leg can be selected; the tight
- * transfer is flagged; the off-campus stop is listed as not on the map with
- * its reason; reduced motion keeps the camera flat; axe finds no serious or
- * critical violations; with WebGL disabled the page keeps the itinerary and
- * says the map is unavailable. Any failed check exits 1.
+ * Checks: the hero says when to leave the starting point; walk legs show
+ * minutes and no distance or source; wheel, keyboard and button zoom; drag
+ * pan; selecting a stop in the list flies to it and selects its pin;
+ * selecting a pin selects its row; a leg can be selected and shows its
+ * leave-by time; the tight transfer is flagged; the off-campus stop is
+ * listed as not on the map with its reason; every stop and leg, once
+ * selected, lands clear of the panel, sheet and controls; a selection from
+ * the full sheet drops it to half first; reduced motion keeps the camera
+ * flat; axe finds no serious or critical violations; with WebGL disabled the
+ * page keeps the itinerary and says the map is unavailable. Any failed
+ * check exits 1.
  *
  * Env: UNTANGLE_BASE_URL, UNTANGLE_OUT (screenshots, video, report),
  * UNTANGLE_E2E_MODULES (a node_modules with playwright and axe-core).
@@ -71,12 +77,17 @@ const plannerDoc = {
   },
 };
 
+const kerrHall = { name: "Kerr Hall", point: { lat: 33.2077137, lng: -97.1475024 } };
+
 async function seed(context) {
-  await context.addInitScript((doc) => {
+  // Monday 12 October 2026, 8:37 local: Date is fixed, timers keep running.
+  await context.clock.setFixedTime(new Date(2026, 9, 12, 8, 37));
+  await context.addInitScript(({ doc, start }) => {
     if (!window.localStorage.getItem("untangle.planner-state.v1")) {
       window.localStorage.setItem("untangle.planner-state.v1", JSON.stringify(doc));
+      window.localStorage.setItem("untangle.day-start.v1", JSON.stringify(start));
     }
-  }, plannerDoc);
+  }, { doc: plannerDoc, start: kerrHall });
 }
 
 /* ---------- page helpers ---------- */
@@ -118,6 +129,65 @@ async function axe(page, label) {
 }
 
 const near = (a, b, tolerance) => Math.abs(a - b) <= tolerance;
+
+/**
+ * Whether the selection's places on the map (the stop's pin, or both ends
+ * of a leg) are inside the map and clear of the panel, sheet, stepper and
+ * controls. Returns null when clear, else what overlapped.
+ */
+async function targetBlocked(page, kind, key) {
+  return page.evaluate(([kind, key]) => {
+    const map = document.querySelector('[data-testid="campus-map"]').getBoundingClientRect();
+    const covers = [".mv-panel", ".mv-sheet", ".mv-top", ".mv-controls", ".maplibregl-ctrl-bottom-right"]
+      .flatMap((selector) => [...document.querySelectorAll(selector)].map((el) => ({ selector, box: el.getBoundingClientRect() })))
+      .filter(({ box }) => box.width > 0 && box.height > 0);
+    const pinFor = (stopKey) => [...document.querySelectorAll(".mv-pin")].find((pin) => (pin.dataset.stopKeys ?? "").split("|").includes(stopKey));
+    const ends = kind === "stop" ? [pinFor(key)] : key.split(">").map((end) => (end === "start" ? document.querySelector(".mv-start-pin") : pinFor(end)));
+    const problems = [];
+    for (const el of ends) {
+      if (!el) {
+        problems.push("no marker");
+        continue;
+      }
+      // The pin's tip (its building) and the middle of its disc both have to show.
+      const box = el.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      for (const y of [box.bottom, box.top + Math.min(14, box.height / 2)]) {
+        if (x < map.left || x > map.right || y < map.top || y > map.bottom) problems.push(`off the map at ${Math.round(x)},${Math.round(y)}`);
+        for (const { selector, box: cover } of covers) {
+          if (x >= cover.left && x <= cover.right && y >= cover.top && y <= cover.bottom) problems.push(`under ${selector} at ${Math.round(x)},${Math.round(y)}`);
+        }
+      }
+    }
+    return problems.length ? problems.join("; ") : null;
+  }, [kind, key]);
+}
+
+/**
+ * Select every stop and every drawn leg from the list; each must land clear.
+ * `prepare` runs before each tap (the phone opens its sheet to reach the row).
+ */
+async function everyTargetClear(page, label, prepare = async () => {}) {
+  const rows = await page.evaluate(() => [
+    ...[...document.querySelectorAll(".mv-stop")].map((el) => ({ kind: "stop", key: el.dataset.stopKey, mapped: el.dataset.placement === "mapped" })),
+    ...[...document.querySelectorAll("button.mv-leg__row")].map((el) => ({
+      kind: "leg",
+      key: el.dataset.legKey,
+      mapped: ["walk", "straight-line"].includes(el.closest(".mv-leg").dataset.route),
+    })),
+  ]);
+  let checked = 0;
+  for (const row of rows.filter((r) => r.mapped)) {
+    const selector = row.kind === "stop" ? `.mv-stop[data-stop-key="${row.key}"]` : `.mv-leg__row[data-leg-key="${row.key}"]`;
+    await prepare();
+    await page.locator(selector).click();
+    await settle(page, 1300);
+    const blocked = await targetBlocked(page, row.kind, row.key);
+    check(`${label}: selected ${row.kind} ${row.key} lands clear of the panel, sheet and controls`, blocked === null, blocked);
+    checked += 1;
+  }
+  check(`${label}: every mapped stop and leg was checked`, checked >= 6, `${checked} targets`);
+}
 /** Holds a settled state on screen so the desktop recording is watchable; it changes no check. */
 const beat = (page) => pause(page, 1800);
 
@@ -142,34 +212,35 @@ async function desktop(browser) {
   );
   check("desktop: four Monday classes listed in time order", stops.length === 4 && /ANTH 3700/.test(stops[0].text), stops.map((s) => s.text.slice(0, 12)).join(", "));
 
+  const hero = (await page.locator(".mv-hero").first().textContent()) ?? "";
+  check("desktop: the hero says when to leave the starting point", /Leave Kerr Hall by\s*\d{1,2}:\d{2}/.test(hero) && /in \d+ min/.test(hero) && /ANTH 3700 starts at 9:30/.test(hero), hero);
+  check("desktop: Day opens on today", ((await page.locator(".mv-stepper__day").textContent()) ?? "") === "Today");
+
   const walks = await page.locator('.mv-leg[data-route="walk"]').evaluateAll((els) => els.map((el) => el.textContent));
   check(
-    "desktop: walkway legs show minutes and source",
-    walks.length >= 2 && walks.every((text) => /\d+ min walk/.test(text) && /via campus walkways/.test(text)),
+    "desktop: walk legs show minutes, with no distance or source",
+    walks.length >= 3 && walks.every((text) => /\d+ min/.test(text) && !/\b(mi|ft)\b|via /.test(text)),
     walks.join(" | "),
   );
-  check("desktop: a walk leg has a leave-by time", walks.some((text) => /Leave by \d{1,2}:\d{2} (AM|PM)/.test(text)));
 
   const pins = await page.locator(".mv-pin").count();
   check("desktop: one numbered pin per mapped building", pins === 3, `${pins} pins`);
 
   const tight = page.locator('.mv-leg[data-transfer="late"], .mv-leg[data-transfer="tight"]');
   const tightText = (await tight.first().textContent().catch(() => "")) ?? "";
-  check("desktop: tight transfer flagged", (await tight.count()) >= 1 && /longer than the break|Tight transfer/.test(tightText), tightText);
-  const summaryText = (await page.locator(".mv-summary__line").textContent()) ?? "";
-  check(
-    "desktop: summary counts the late transfer as late, not tight",
-    /1 late transfer/.test(summaryText) && !/tight transfer/.test(summaryText),
-    summaryText,
-  );
+  check("desktop: the late transfer is flagged on its walk", (await page.locator('.mv-leg[data-transfer="late"]').count()) === 1 && /\d+ min late/.test(tightText), tightText);
 
   const unresolved = page.locator('.mv-stop[data-placement="unresolved"]');
   const unresolvedText = (await unresolved.first().textContent().catch(() => "")) ?? "";
+  await unresolved.first().click();
+  const reason = (await page.locator(".mv-more:not(.mv-more--print)").first().textContent().catch(() => "")) ?? "";
   check(
-    "desktop: off-campus stop listed as not on map, with its reason",
-    (await unresolved.count()) === 1 && /Not on map/.test(unresolvedText) && /off the main campus/.test(unresolvedText),
-    unresolvedText,
+    "desktop: off-campus stop listed as not on map, with its reason when opened",
+    (await unresolved.count()) === 1 && /Not on map/.test(unresolvedText) && /off the main campus/.test(reason),
+    `${unresolvedText} | ${reason}`,
   );
+  await page.keyboard.press("Escape");
+  await settle(page, 400);
   check(
     // Discovery Park counts as Denton since the real-sections PR: main campus to it is a 20-minute shuttle, not a walk.
     "desktop: the leg to Discovery Park is a shuttle ride, not a walking route",
@@ -229,7 +300,7 @@ async function desktop(browser) {
   const gabPin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^2$/ }) });
   check("desktop: selecting a row selects its pin", (await gabPin.getAttribute("data-selected")) === "true");
   check("desktop: selecting a row flies in and tilts", after.zoom > 17 && after.pitch > 30, `zoom ${after.zoom}, pitch ${after.pitch}`);
-  check("desktop: selected row is marked", (await gabRow.getAttribute("aria-pressed")) === "true", gabKey);
+  check("desktop: selected row is marked and expanded", (await gabRow.getAttribute("aria-expanded")) === "true", gabKey);
   await shoot(page, "desktop-03-stop-selected.png");
   await beat(page);
 
@@ -238,39 +309,45 @@ async function desktop(browser) {
   await settle(page, 500);
   await page.getByRole("button", { name: "Zoom out" }).click();
   await settle(page, 900);
-  check("desktop: zooming out keeps the selection", (await gabRow.getAttribute("aria-pressed")) === "true");
+  check("desktop: zooming out keeps the selection", (await gabRow.getAttribute("aria-expanded")) === "true");
   const gatePin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^3$/ }) });
   await gatePin.click();
   await settle(page, 1400);
   const gateRow = page.locator(".mv-stop").nth(2);
-  check("desktop: selecting a pin selects its row", (await gateRow.getAttribute("aria-pressed")) === "true");
-  check("desktop: the previous row is no longer selected", (await gabRow.getAttribute("aria-pressed")) === "false");
+  check("desktop: selecting a pin selects its row", (await gateRow.getAttribute("aria-expanded")) === "true");
+  check("desktop: the previous row is no longer selected", (await gabRow.getAttribute("aria-expanded")) === "false");
   await shoot(page, "desktop-04-pin-selected.png");
   await beat(page);
 
   // Select the tight leg.
-  await page.locator('.mv-leg[data-transfer="late"] .mv-leg__card, .mv-leg[data-transfer="tight"] .mv-leg__card').first().click();
+  await page.locator('.mv-leg[data-transfer="late"] .mv-leg__row, .mv-leg[data-transfer="tight"] .mv-leg__row').first().click();
   await settle(page, 1400);
   after = await camera(page);
   check(
     "desktop: selecting a leg frames it flat",
-    after.pitch < 1 && (await page.locator('.mv-leg__card[data-selected="true"]').count()) === 1,
+    after.pitch < 1 && (await page.locator('.mv-leg__row[aria-expanded="true"]').count()) === 1,
     `pitch ${after.pitch}`,
   );
+  const legDetail = (await page.locator(".mv-more--leg").first().textContent().catch(() => "")) ?? "";
+  check("desktop: a selected walk shows its leave-by time", /Leave by \d{1,2}:\d{2}/.test(legDetail), legDetail);
   await shoot(page, "desktop-05-leg-selected.png");
   await beat(page);
 
   await page.keyboard.press("Escape");
   await settle(page, 400);
-  check("desktop: Escape clears the selection", (await page.locator('[aria-pressed="true"].mv-stop, [data-selected="true"].mv-leg__card').count()) === 0);
+  check("desktop: Escape clears the selection", (await page.locator('.mv-stop[aria-expanded="true"], .mv-leg__row[aria-expanded="true"]').count()) === 0);
 
-  // Days switch with the segmented control.
-  await page.getByRole("radio", { name: /^Tuesday/ }).click();
-  await settle(page, 600);
+  await everyTargetClear(page, "desktop");
+  await page.keyboard.press("Escape");
+
+  // Days switch with the stepper.
+  await page.getByRole("button", { name: "Next day" }).click();
+  await settle(page, 900);
   await beat(page);
   check("desktop: an empty day says so", /No classes on Tuesday/.test((await page.locator(".mv-panel__body").textContent()) ?? ""));
-  await page.getByRole("radio", { name: /^Monday/ }).click();
+  await page.getByRole("button", { name: "Previous day" }).click();
   await page.locator(".mv-stop").nth(3).waitFor();
+  check("desktop: the first day is the stepper's start", await page.getByRole("button", { name: "Previous day" }).isDisabled());
   await settle(page, 1200);
 
   await axe(page, "desktop /map");
@@ -310,7 +387,7 @@ async function phone(browser) {
   const pin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^1$/ }) });
   await pin.tap();
   await settle(page, 1400);
-  check("phone: tapping a pin selects its row", (await page.locator(".mv-stop").first().getAttribute("aria-pressed")) === "true");
+  check("phone: tapping a pin selects its row", (await page.locator(".mv-stop").first().getAttribute("aria-expanded")) === "true");
   const pinBox = await pin.boundingBox();
   const sheetBox = await sheet.boundingBox();
   check("phone: the selected pin sits above the sheet", pinBox && sheetBox && pinBox.y + pinBox.height < sheetBox.y, `pin bottom ${pinBox && pinBox.y + pinBox.height}, sheet top ${sheetBox?.y}`);
@@ -330,11 +407,40 @@ async function phone(browser) {
   };
   await drag(-320);
   check("phone: dragging up opens the sheet to full", (await sheet.getAttribute("data-detent")) === "full");
+  const attribution = await page.locator(".maplibregl-ctrl-attrib").boundingBox();
+  const sheetTop = (await sheet.boundingBox())?.y ?? 0;
+  const stepperBottom = await page.locator(".mv-top").evaluate((el) => el.getBoundingClientRect().bottom);
+  check(
+    "phone: at full the attribution stays visible between the stepper and the sheet",
+    attribution && attribution.y >= stepperBottom && attribution.y + attribution.height <= sheetTop + 1,
+    `stepper ${stepperBottom}, attribution ${attribution?.y}-${attribution && attribution.y + attribution.height}, sheet ${sheetTop}`,
+  );
   await page.locator('.mv-stop[data-placement="unresolved"]').scrollIntoViewIfNeeded();
   check("phone: off-campus stop is listed at full height", await page.locator('.mv-stop[data-placement="unresolved"]').isVisible());
   await shoot(page, "phone-03-full.png");
+  // Choosing from the full sheet drops it to half, then flies.
+  const fromFull = page.locator(".mv-stop").nth(2);
+  await fromFull.click();
+  await settle(page, 1400);
+  const fullKey = await fromFull.getAttribute("data-stop-key");
+  const fullBlocked = await targetBlocked(page, "stop", fullKey);
+  check(
+    "phone: a stop chosen at full drops the sheet to half and lands above it",
+    (await sheet.getAttribute("data-detent")) === "half" && fullBlocked === null,
+    fullBlocked,
+  );
+  await shoot(page, "phone-03b-from-full.png");
+  await page.keyboard.press("Escape");
+
+  // Rows below the half sheet are out of reach, as they are for a thumb: open it to full, then tap.
+  await everyTargetClear(page, "phone", async () => {
+    if ((await sheet.getAttribute("data-detent")) !== "full") await drag(-420);
+  });
+  await page.keyboard.press("Escape");
+
   await drag(700);
   check("phone: dragging down collapses the sheet to peek", (await sheet.getAttribute("data-detent")) === "peek");
+  check("phone: the attribution stays visible at peek", await page.locator(".maplibregl-ctrl-attrib").isVisible());
   await shoot(page, "phone-04-peek.png");
 
   const before = await camera(page);
