@@ -90,11 +90,15 @@ async function toCourses(page) {
   }
 }
 
-// v3 foundation: the shell's plan menu is gone (the schedule pill opens the
-// library), so Connect opens from the Courses view's own Auto-fill menu.
+// v3 Courses: Connect opens from the empty state's "Import your transcript",
+// or, once there is a plan, from the degree dialog behind the degree line.
 async function openConnectFromCourses(page) {
-  await page.getByRole("button", { name: "More Auto-fill options" }).filter({ visible: true }).first().click();
-  await page.getByRole("menuitem", { name: "Import a transcript" }).click();
+  const fromEmpty = page.getByRole("button", { name: /Import your transcript/ });
+  if (await fromEmpty.isVisible().catch(() => false)) await fromEmpty.click();
+  else {
+    await page.locator("[data-degree]").click();
+    await page.getByRole("dialog", { name: "Your degree" }).getByRole("button", { name: /^Import/ }).click();
+  }
   const sheet = page.getByRole("region", { name: SHEET });
   await sheet.waitFor();
   await page.waitForTimeout(350);
@@ -307,8 +311,8 @@ async function markACourseDone(page) {
   // "load", not "networkidle": since #39, the test server has a database URL it
   // can't reach, and this page's network didn't go idle within 30 s.
   await page.goto(`${base}/courses/math/1650`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Status options for MATH 1650" }).first().click();
-  await page.getByRole("menuitem", { name: "I have credit for this" }).click();
+  // v3 Courses: the course detail offers it as a button, not a status menu.
+  await page.getByRole("button", { name: "I have credit for this" }).first().click();
   await page.waitForTimeout(400);
 }
 

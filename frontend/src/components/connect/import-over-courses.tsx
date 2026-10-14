@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { CoursesClient } from "@/components/courses-client";
+import { CoursesView } from "@/components/courses/CoursesView";
 import { OPEN_CONNECT_EVENT } from "./open-connect";
 
 /**
@@ -23,5 +23,5 @@ export function ImportOverCourses() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
-  return <CoursesClient />;
+  return <CoursesView />;
 }

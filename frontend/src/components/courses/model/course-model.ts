@@ -162,34 +162,3 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
   }
   return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded) };
 }
-
-/** Counted as done in group headers: credit only. Covered courses are counted separately. */
-export const isFinished = (row: CourseRowModel) => row.status === "done";
-/** Can be added to the plan from a row or the palette without an override. */
-export const isPlannable = (row: CourseRowModel) => row.status === "available";
-
-export type CourseGroupModel = { key: string; label: string; ids: string[]; finished: number; covered: number; tag?: string };
-
-export function buildGroups(model: CourseModel, coreIds: readonly string[], majorDepartment: string | null): CourseGroupModel[] {
-  const core = coreIds.filter((id) => model.rows.has(id));
-  const coreSet = new Set(core);
-  const byDepartment = new Map<string, string[]>();
-  for (const row of model.rows.values()) {
-    if (coreSet.has(row.id)) continue;
-    byDepartment.set(row.department, [...(byDepartment.get(row.department) ?? []), row.id]);
-  }
-  const departments = [...byDepartment.keys()].sort((a, b) =>
-    a === majorDepartment ? -1 : b === majorDepartment ? 1 : a.localeCompare(b),
-  );
-  const finished = (ids: string[]) => ids.filter((id) => isFinished(model.rows.get(id)!)).length;
-  const covered = (ids: string[]) => ids.filter((id) => model.rows.get(id)!.status === "covered").length;
-  const groups: CourseGroupModel[] = [];
-  if (core.length > 0) {
-    groups.push({ key: "core", label: "Core", ids: core, finished: finished(core), covered: covered(core), tag: "Sample degree plan" });
-  }
-  for (const department of departments) {
-    const ids = byDepartment.get(department)!.sort();
-    groups.push({ key: `dept:${department}`, label: department, ids, finished: finished(ids), covered: covered(ids) });
-  }
-  return groups;
-}

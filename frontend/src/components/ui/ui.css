@@ -1909,6 +1909,10 @@
   font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
   letter-spacing: -0.005em;
 }
+/* The same head at the top of the phone sheet, under its handle. */
+.ui-context__head--sheet {
+  padding: 0 4px 4px 12px;
+}
 .ui-context__body {
   flex: 1;
   min-height: 0;

@@ -1,47 +1,41 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { usePlanner } from "@/components/planner-provider";
+import { LENS_HREF } from "@/components/shell/routes";
 import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
-import { BottomSheet } from "@/components/ui/BottomSheet";
-import { Button, IconButton, SplitButton } from "@/components/ui/Button";
-import { Close } from "@/components/ui/icons";
-import type { MenuEntry } from "@/components/ui/Menu";
-import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
+import { ContextPanel } from "@/components/ui/ContextPanel";
+import { ChevronDown } from "@/components/ui/icons";
 import { SearchTrigger } from "@/components/ui/SearchField";
 import type { SearchItem } from "@/components/ui/SearchPalette";
-import { Select } from "@/components/ui/Select";
 import { toast } from "@/components/ui/Toast";
-import { usePresence } from "@/components/ui/use-presence";
-import { getMajorById, getPlanningTermCourseCodes } from "@/lib/planner";
+import { assignColors, type Hue } from "@/lib/course-colors";
+import { getMajorById } from "@/lib/planner";
 import { optionIdLabel, optionLabel } from "@/lib/planner-sections";
-import { majors } from "@/lib/seed-data";
 import type { CoursePlan, CourseStatus, MajorId } from "@/lib/types";
 import styles from "./courses.module.css";
 import { CourseNavigationContext, type CourseNavigation } from "./bits";
-import { CourseList, type RowActions } from "./CourseList";
-import { DetailContent, type PanelActions } from "./DetailPanel";
-import { PHONE_QUERY, useMediaQuery } from "./hooks";
-import { computeAuto, describeAuto, undoBlocker } from "./model/auto";
-import { applyAuto, manualEdit, undoAuto as undoAutoUpdate } from "./model/plan-edits";
-import { buildCourseModel, buildGroups, isFinished, statusLabels, type CourseRowModel } from "./model/course-model";
-import { onlyCheckable, ruleCourseIds } from "./model/rules";
-import { SAMPLE_TRANSCRIPT_LABEL, sampleTranscript } from "./model/sample-transcript";
+import { CourseDetail, type DetailActions } from "./CourseDetail";
+import { CourseGroups } from "./CourseGroups";
+import type { RowActions } from "./CourseRow";
+import { DegreeDialog } from "./DegreeDialog";
+import { computeAuto, undoBlocker } from "./model/auto";
+import { buildCourseModel, type CourseModel, type CourseRowModel } from "./model/course-model";
+import { buildGroups, OPEN_AT_START, ROWS_BEFORE_MORE, rowFact, type GroupKey } from "./model/groups";
+import { autoTransaction, courseEdit, manualEdit, snapshotOf, undoAutoTransaction, undoCourseEdit } from "./model/plan-edits";
+import { creditProgress, DEGREE_CREDITS } from "./model/progress";
+import { sampleTranscript } from "./model/sample-transcript";
 import { instructorIndex, searchCatalog } from "./model/search";
+import { AUTO_TIMELINE, fadeIn, flip, fly, measure, MOVE, reducedMotion, wait, type Rects } from "./reveal";
 import { untProfile } from "./school";
+import { TermTray } from "./TermTray";
 
-const majorOptions = majors.map((major) => ({
-  value: major.id,
-  label: major.name,
-  meta: major.department === "—" ? undefined : major.department,
-}));
-const MAJOR_TRIGGER = { desktop: "courses-major-desktop", phone: "courses-major-phone" };
 const INSTRUCTOR_ITEM = "instructor:";
-/** Phone sheet detents: half and nearly full; it opens nearly full. */
-const SHEET_DETENTS = ["50%", "92%"] as const;
-
 const without = (list: readonly string[], id: string) => list.filter((value) => value !== id);
+/** A row's other place: the same course in the tray or in its group. */
+const otherPlace = (key: string) =>
+  key.startsWith("row:") ? `tray:${key.slice(4)}` : key.startsWith("tray:") ? `row:${key.slice(5)}` : undefined;
 
 /**
  * Opens the Connect sheet over Courses. Its owner listens for
@@ -53,83 +47,454 @@ export function openConnect(navigate: (href: string) => void) {
   if (!claimed) navigate("/courses/import");
 }
 
-function rowSummary(row: CourseRowModel | undefined): string {
+/**
+ * How an action plays (MOTION.md §1, §10): a pointer press animates; under
+ * reduced motion new rows only fade; a keyboard press (or an action with no
+ * press, such as search or a toast) changes at once.
+ */
+type Mode = "animate" | "fade" | "instant";
+const modeOf = (event?: { detail: number }): Mode => (!event || event.detail === 0 ? "instant" : reducedMotion() ? "fade" : "animate");
+
+/**
+ * Motion waiting for the commit that carries its change: `ready` says
+ * whether a committed model has it, and the layout effect then plays it
+ * before that commit paints. A hand edit and Auto keep separate slots.
+ */
+type EditMotion = { first: Rects; duration: number; mode: Mode; focus: readonly string[]; ready: (model: CourseModel) => boolean };
+type AutoMotion = { token: number; first: Rects; sources: Map<string, HTMLElement>; picks: string[]; mode: Mode; ready: (model: CourseModel) => boolean };
+
+function searchMeta(row: CourseRowModel | undefined): string {
   if (!row) return "";
-  const label = statusLabels[row.status];
-  if (row.status === "locked" || row.status === "check") {
-    const needs = ruleCourseIds(onlyCheckable(row.unmet));
-    return needs.length > 0 ? `${label}, needs ${needs.slice(0, 2).join(" and ")}` : label;
-  }
-  return label;
+  const fact = rowFact(row);
+  if (fact) return fact.text;
+  return { available: "You can take this", planned: "Planned", taking: "Taking now" }[row.status as "available" | "planned" | "taking"] ?? "";
 }
 
-export function CoursesView({
-  initialCourseId = null,
-  initialInstructor = null,
-}: {
-  initialCourseId?: string | null;
-  initialInstructor?: string | null;
-}) {
+export function CoursesView({ initialCourseId = null, initialInstructor = null }: { initialCourseId?: string | null; initialInstructor?: string | null }) {
   const profile = useMemo(() => untProfile(), []);
-  const {
-    hydrated,
-    plannerState,
-    sectionPlan,
-    sectionCatalog,
-    catalogVersion,
-    loadSections,
-    setSelectedMajor,
-    applyTranscriptRecords,
-    setSection,
-    updateCoursePlan,
-  } = usePlanner();
+  const term = profile.planningTerm;
+  const { hydrated, plannerState, sectionPlan, sectionCatalog, catalogVersion, loadSections, setSelectedMajor, applyTranscriptRecords, updateCoursePlan, transact, planStamp } =
+    usePlanner();
   const { openSearch } = useShell();
   const router = useRouter();
   const importTranscript = () => openConnect((href) => router.push(href));
-  const isPhone = useMediaQuery(PHONE_QUERY);
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [selectedId, setSelectedId] = useState<string | null>(initialCourseId);
-  const [panelOpen, setPanelOpen] = useState(initialCourseId !== null);
-  const [paletteInstructor, setPaletteInstructor] = useState<{ id: string; name: string } | null>(null);
-  const [sheetDetent, setSheetDetent] = useState(1);
-  const [announcement, setAnnouncement] = useState("");
-
-  const coursePlan: CoursePlan = plannerState.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
-  const planned = useMemo(() => new Set(getPlanningTermCourseCodes(plannerState)), [plannerState]);
-  const manualCredit = useMemo(() => new Set(coursePlan.manualCredit), [coursePlan.manualCredit]);
-  const autoPlanned = useMemo(() => new Set(coursePlan.autoPlanned), [coursePlan.autoPlanned]);
+  const { courseStatuses, transcriptRecords, coursePlan: storedPlan } = plannerState;
+  const coursePlan: CoursePlan = storedPlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
   const model = useMemo(
-    () =>
-      buildCourseModel(profile, {
-        statuses: plannerState.courseStatuses,
-        transcript: plannerState.transcriptRecords,
-        planned,
-        manualCredit,
-        autoPlanned,
-      }),
-    [profile, plannerState.courseStatuses, plannerState.transcriptRecords, planned, manualCredit, autoPlanned],
+    () => buildCourseModel(profile, snapshotOf(plannerState)),
+    // The model reads only these three; the rest of the plan (sections, the map's day) changes often.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, courseStatuses, transcriptRecords, storedPlan],
   );
-  const major = getMajorById(plannerState.selectedMajor);
-  const coreIds = useMemo(() => major?.coreCourseCodes ?? [], [major]);
-  const coreSet = useMemo(() => new Set(coreIds), [coreIds]);
-  const groups = useMemo(() => buildGroups(model, coreIds, major?.department ?? null), [model, coreIds, major]);
-  const resolvedCollapsed = useMemo(() => {
-    const result: Record<string, boolean> = {};
-    for (const group of groups) {
-      const open = group.key === "core" || group.key === `dept:${major?.department}`;
-      result[group.key] = collapsed[group.key] ?? !open;
+  const major = getMajorById(plannerState.selectedMajor) ?? null;
+  // Every department's courses, one step away; by default the groups list the degree's.
+  const [wide, setWide] = useState(false);
+  const groups = useMemo(() => buildGroups(model, major, wide), [model, major, wide]);
+  const hasDepartment = Boolean(major && major.department !== "—");
+  const trayRows = useMemo(() => [...model.rows.values()].filter((row) => row.inPlan).sort((a, b) => a.id.localeCompare(b.id)), [model]);
+  // A course keeps its color while it stays in the tray (lib/course-colors.ts).
+  const colorMemory = useRef<Map<string, Hue>>(new Map());
+  const colors = useMemo(() => {
+    const next = assignColors(trayRows, colorMemory.current);
+    colorMemory.current = next;
+    return next;
+  }, [trayRows]);
+  const credits = creditProgress(model, transcriptRecords, profile);
+
+  const [open, setOpen] = useState(OPEN_AT_START);
+  const [expanded, setExpanded] = useState<Record<GroupKey, boolean>>({ check: false, can: false, taking: false, later: false, done: false });
+  const [detailId, setDetailId] = useState<string | null>(initialCourseId);
+  const [detailOpen, setDetailOpen] = useState(initialCourseId !== null);
+  const [degreeOpen, setDegreeOpen] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const [freshResult, setFreshResult] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
+  const editMotion = useRef<EditMotion | null>(null);
+  const autoMotion = useRef<AutoMotion | null>(null);
+  // What is moving now. `token` changes whenever another action takes over, so late callbacks from the old one do nothing.
+  const live = useRef({ token: 0, animations: new Set<Animation>(), flyers: new Set<() => void>() });
+  const alive = useRef(true);
+  const focusAfterExpand = useRef<GroupKey | null>(null);
+
+  const untouched = !model.hasTranscript && Object.values(courseStatuses).every((status) => status === "notTaken");
+  const idle = hydrated && untouched && !major;
+  const sampleOnly = model.hasTranscript && transcriptRecords.every((record) => record.id.startsWith("sample-"));
+  const say = setAnnouncement;
+
+  /* ---------- motion ---------- */
+
+  const track = useCallback((animations: Animation | Animation[]) => {
+    for (const animation of [animations].flat()) live.current.animations.add(animation);
+  }, []);
+
+  /** Ends whatever is moving: flights and moves stop where they belong, and hidden tray rows show. */
+  const settle = useCallback(() => {
+    const now = live.current;
+    now.token += 1;
+    now.animations.forEach((animation) => animation.cancel());
+    now.animations.clear();
+    now.flyers.forEach((remove) => remove());
+    now.flyers.clear();
+    autoMotion.current = null;
+    editMotion.current = null;
+    setPending(new Set());
+    setChosen(new Set());
+  }, []);
+
+  // Leaving the page ends its motion and cancels an Auto that has not committed.
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      settle();
+    };
+  }, [settle]);
+
+  // Turning on reduced motion mid-reveal stops the movement (MOTION.md §10).
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => query.matches && settle();
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [settle]);
+
+  const prepareEdit = (ready: (model: CourseModel) => boolean, mode: Mode, duration: number, focus: readonly string[]) => {
+    settle();
+    editMotion.current = { first: mode !== "instant" && pageRef.current ? measure(pageRef.current) : new Map(), duration, mode, focus, ready };
+  };
+
+  const land = useCallback((id: string, token: number) => {
+    if (live.current.token !== token) return;
+    setPending((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  /** Auto (MOTION.md §8): the rest moves aside while each pick flies to its slot and lands. */
+  const playAuto = useCallback(
+    (root: HTMLElement, queued: AutoMotion) => {
+      const mode = queued.mode === "animate" && reducedMotion() ? "fade" : queued.mode;
+      const token = live.current.token;
+      if (mode !== "animate") {
+        setPending(new Set());
+        if (mode === "fade") {
+          queued.picks.forEach((id, index) => {
+            const target = root.querySelector<HTMLElement>(`[data-flip="tray:${CSS.escape(id)}"]`);
+            if (target) track(fadeIn(target, index * AUTO_TIMELINE.fadeStagger));
+          });
+        }
+        return;
+      }
+      // Every destination is read before anything is written (MOTION.md §11).
+      const targets = queued.picks.map((id) => {
+        const element = root.querySelector<HTMLElement>(`[data-flip="tray:${CSS.escape(id)}"]`);
+        return { id, element, to: element?.getBoundingClientRect() };
+      });
+      track(flip(root, queued.first, { duration: AUTO_TIMELINE.flip }));
+      targets.forEach(({ id, element, to }, index) => {
+        const from = queued.first.get(`row:${id}`);
+        const source = queued.sources.get(id);
+        const delay = AUTO_TIMELINE.flightDelay + index * AUTO_TIMELINE.flightStagger;
+        if (!element || !to || !from || !source) {
+          // Its row was in a closed group or past "Show more": it fades in where it lands.
+          if (element) track(fadeIn(element, delay));
+          window.setTimeout(() => land(id, token), delay);
+          return;
+        }
+        const flight = fly(source, from, to, delay);
+        live.current.flyers.add(flight.remove);
+        track(flight.animation);
+        flight.animation.finished
+          .catch(() => {})
+          .finally(() => {
+            flight.remove();
+            live.current.flyers.delete(flight.remove);
+            land(id, token);
+          });
+      });
+    },
+    [land, track],
+  );
+
+  useLayoutEffect(() => {
+    const root = pageRef.current;
+    if (!root) return;
+    const edit = editMotion.current;
+    if (edit?.ready(model)) {
+      editMotion.current = null;
+      if (edit.mode !== "instant") {
+        // Reduced motion may have turned on since the press.
+        const move = edit.mode === "animate" && !reducedMotion();
+        track(flip(root, edit.first, { duration: edit.duration, from: otherPlace, fadeIn: MOVE.fadeIn, move }));
+      }
+      for (const selector of edit.focus) {
+        const target = document.querySelector<HTMLElement>(selector);
+        if (target) {
+          target.focus();
+          break;
+        }
+      }
     }
-    return result;
-  }, [groups, collapsed, major]);
-  const coreDone = coreIds.filter((id) => {
-    const row = model.rows.get(id);
-    return row ? isFinished(row) : false;
-  }).length;
-  const coreCovered = coreIds.filter((id) => model.rows.get(id)?.status === "covered").length;
+    const auto = autoMotion.current;
+    if (auto?.ready(model)) {
+      autoMotion.current = null;
+      playAuto(root, auto);
+    }
+  }, [model, playAuto, track]);
+
+  useLayoutEffect(() => {
+    const key = focusAfterExpand.current;
+    if (!key) return;
+    focusAfterExpand.current = null;
+    const rows = pageRef.current?.querySelectorAll<HTMLElement>(`section[aria-labelledby="group-${key}"] [data-row-open]`);
+    rows?.[ROWS_BEFORE_MORE]?.focus();
+  }, [expanded]);
+
+  /* ---------- edits ---------- */
+
+  const AUTO_BUTTON = "[data-auto]";
+  // After a keyboard edit in the detail: the action that replaced the one pressed, else the detail's Close.
+  const DETAIL_FOCUS = ["[data-detail-primary]", ".ui-context__head button"];
+  const CREDIT_FOCUS = ["[data-detail-credit]", ".ui-context__head button"];
+  const rowButton = (place: "row" | "tray", id: string) => `[data-flip="${place}:${CSS.escape(id)}"] [data-row-open]`;
+
+  /** Where focus goes after a keyboard edit moves this row away: the next row, else the one before, else Auto. */
+  const afterRow = (id: string, place: "row" | "tray"): string[] => {
+    const buttons = [...(pageRef.current?.querySelectorAll<HTMLElement>(`[data-flip^="${place}:"] [data-row-open]`) ?? [])];
+    const index = buttons.findIndex((button) => button.dataset.rowOpen === id);
+    const neighbour = (buttons[index + 1] ?? buttons[index - 1])?.dataset.rowOpen;
+    return [...(neighbour ? [rowButton(place, neighbour)] : []), AUTO_BUTTON];
+  };
+
+  /**
+   * One hand edit to a course, committed against the plan as it is. Its toast
+   * offers Undo, which puts the course back only while nothing else changed it.
+   */
+  const commitEdit = async (
+    id: string,
+    change: { status?: CourseStatus; section?: string },
+    { event, focus = [], message }: { event?: MouseEvent; focus?: readonly string[]; message: string },
+  ) => {
+    const mode = modeOf(event);
+    const planned = change.status === undefined ? undefined : change.status === "inProgress";
+    if (planned === undefined) settle();
+    else prepareEdit((next) => next.rows.get(id)?.inPlan === planned, mode, planned ? MOVE.add : MOVE.remove, mode === "instant" && event ? focus : []);
+    const stamp = planStamp;
+    const outcome = await transact(courseEdit(id, change), stamp);
+    if (outcome.status !== "committed") {
+      editMotion.current = null;
+      toast({ message: "The plan changed before that edit landed. Try it again.", tone: "error" });
+      return;
+    }
+    say(`${message}.`);
+    const receipt = outcome.result;
+    toast({
+      message,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          settle();
+          void transact(undoCourseEdit(receipt), stamp).then((undone) => {
+            if (undone.status !== "committed" || !undone.result) toast({ message: `Undo is off: ${id} changed since.`, tone: "error" });
+          });
+        },
+      },
+    });
+  };
+
+  const plan = (id: string, event?: MouseEvent, focus: readonly string[] = []) =>
+    commitEdit(id, { status: "inProgress" }, { event, focus, message: `Added ${id} to ${term}` });
+  const unplan = (id: string, event?: MouseEvent, focus: readonly string[] = []) =>
+    commitEdit(id, { status: "notTaken" }, { event, focus, message: `Removed ${id}` });
+  const chooseSection = (id: string, sectionId: string, event: MouseEvent) => {
+    const options = sectionCatalog(id);
+    const section = options.status === "ready" ? options.result.sections.find((entry) => entry.id === sectionId) : undefined;
+    const label = `${id} §${section ? optionLabel(section) : optionIdLabel(sectionId)}`;
+    const planned = model.rows.get(id)?.inPlan === true;
+    // Picking a section adds the course when it is not planned yet.
+    void commitEdit(id, planned ? { section: sectionId } : { status: "inProgress", section: sectionId }, { event, message: `Added ${label}` });
+  };
+  const markCredit = (id: string, event?: MouseEvent) => {
+    prepareEdit((next) => next.rows.get(id)?.status === "done", "instant", 0, event?.detail === 0 ? CREDIT_FOCUS : []);
+    updateCoursePlan(manualEdit({ [id]: "completed" }, (current) => ({ manualCredit: [...without(current.manualCredit, id), id], autoPlanned: without(current.autoPlanned, id) })));
+    say(`Marked ${id} as credit you have.`);
+  };
+  /** Takes out every course Auto planned and the student has not touched since. */
+  const clearAutoPlan = () => {
+    settle();
+    const ids = coursePlan.autoPlanned.filter((id) => model.rows.get(id)?.inPlan);
+    updateCoursePlan(manualEdit(Object.fromEntries(ids.map((id) => [id, "notTaken" as const])), () => ({ autoPlanned: [], lastAuto: null })));
+    toast(`Removed ${ids.length} course${ids.length === 1 ? "" : "s"} Auto added`);
+  };
+  const autoInTray = coursePlan.autoPlanned.filter((id) => model.rows.get(id)?.inPlan).length;
+  const coreProgress = major
+    ? {
+        total: major.coreCourseCodes.length,
+        done: major.coreCourseCodes.filter((id) => model.rows.get(id)?.status === "done").length,
+        covered: major.coreCourseCodes.filter((id) => model.rows.get(id)?.status === "covered").length,
+      }
+    : null;
+  const clearCredit = (id: string, event?: MouseEvent) => {
+    prepareEdit((next) => next.rows.get(id)?.status !== "done", "instant", 0, event?.detail === 0 ? CREDIT_FOCUS : []);
+    updateCoursePlan(manualEdit({ [id]: "notTaken" }, (current) => ({ manualCredit: without(current.manualCredit, id) })));
+    say(`Removed your credit mark from ${id}.`);
+  };
+
+  /* ---------- Auto ---------- */
+
+  const lastAuto = coursePlan.lastAuto;
+  const undoBlocked = lastAuto ? undoBlocker(lastAuto, courseStatuses, plannerState.selectedMajor) : null;
+  const autoBusy = running || pending.size > 0;
+
+  const runAuto = async (event: MouseEvent<HTMLButtonElement>) => {
+    if (!major) {
+      toast("Choose your major first. Auto plans from its core courses.");
+      setDegreeOpen(true);
+      return;
+    }
+    if (autoBusy || !hydrated) return;
+    settle();
+    const token = live.current.token;
+    const stale = () => !alive.current || live.current.token !== token;
+    const mode = modeOf(event);
+    // The choice the transaction will make, so the picked rows can tint before the plan moves.
+    const preview = computeAuto(model, courseStatuses, major.coreCourseCodes, profile.autoCreditBudget).planned;
+    setRunning(true);
+    setFreshResult(false);
+    if (mode === "animate" && preview.length > 0) {
+      await wait(AUTO_TIMELINE.engine);
+      if (stale()) return void (alive.current && setRunning(false));
+      setChosen(new Set(preview));
+      await wait(AUTO_TIMELINE.tint);
+      if (stale()) return void (alive.current && setRunning(false));
+    }
+    const root = pageRef.current;
+    const sources = new Map(
+      preview.flatMap((id) => {
+        const element = root?.querySelector<HTMLElement>(`[data-flip="row:${CSS.escape(id)}"]`);
+        return element ? [[id, element] as const] : [];
+      }),
+    );
+    autoMotion.current =
+      preview.length > 0
+        ? { token, first: mode === "animate" && root ? measure(root) : new Map(), sources, picks: preview, mode, ready: (next) => preview.every((id) => next.rows.get(id)?.inPlan) }
+        : null;
+    setChosen(new Set());
+    setPending(new Set(mode === "animate" ? preview : []));
+    const outcome = await transact(autoTransaction(profile, major, { id: `auto-${Date.now().toString(36)}`, at: new Date().toISOString() }), planStamp);
+    if (!alive.current) return;
+    if (autoMotion.current?.token === token) {
+      // The commit did not carry the preview's picks (refused, or the plan moved meanwhile): show the plan as it is.
+      autoMotion.current = null;
+      setPending(new Set());
+    }
+    setRunning(false);
+    if (outcome.status !== "committed" || outcome.result === "major-changed") {
+      toast({ message: "The plan changed while Auto ran. Press Auto again.", tone: "error" });
+      return;
+    }
+    if (outcome.result.changes.length === 0) {
+      toast(`Nothing new to plan for ${term}`);
+      return;
+    }
+    const planned = outcome.result.planned.length;
+    setFreshResult(mode !== "instant");
+    say(planned > 0 ? `Planned ${planned} course${planned === 1 ? "" : "s"} for ${term}.` : `Removed ${outcome.result.unplanned.length} you no longer need.`);
+    if (mode === "instant") pageRef.current?.querySelector<HTMLElement>(AUTO_BUTTON)?.focus();
+  };
+
+  const undoAuto = async (event: MouseEvent<HTMLButtonElement>) => {
+    if (!lastAuto || undoBlocked) return;
+    const back = lastAuto.changes;
+    const mode = modeOf(event);
+    // Focus was on Undo, which goes away: the tray's Auto takes it.
+    prepareEdit((next) => back.every((change) => next.rows.get(change.code)?.inPlan === (change.from === "inProgress")), mode, AUTO_TIMELINE.undo, mode === "instant" ? [AUTO_BUTTON] : []);
+    const outcome = await transact(undoAutoTransaction(plannerState.selectedMajor), planStamp);
+    if (outcome.status === "committed" && outcome.result) {
+      toast(`${term} is back to how it was`);
+      say(`${term} is back to how it was.`);
+    } else {
+      editMotion.current = null;
+      toast({ message: "Undo is off: the plan changed since Auto ran.", tone: "error" });
+    }
+  };
+
+  const plannedByRun = lastAuto?.changes.filter((change) => change.to === "inProgress").length ?? 0;
+  const resultText =
+    plannedByRun > 0 ? `Planned ${plannedByRun} course${plannedByRun === 1 ? "" : "s"}` : `Removed ${lastAuto?.changes.length ?? 0} you no longer need`;
+  // The line keeps its place while rows fly, so nothing jumps when it appears (MOTION.md §8).
+  const showResult = Boolean(lastAuto) && !undoBlocked;
+
+  /* ---------- detail ---------- */
+
+  const openCourse = useCallback(
+    (id: string) => {
+      if (!model.rows.has(id)) return;
+      setDetailId(id);
+      setDetailOpen(true);
+    },
+    [model],
+  );
+  const navigation = useMemo<CourseNavigation>(() => ({ open: openCourse, isKnown: (id) => model.rows.has(id) }), [openCourse, model]);
+  const detailRow = detailId ? model.rows.get(detailId) : undefined;
+  useEffect(() => {
+    if (detailId && detailOpen) loadSections([detailId]);
+  }, [loadSections, detailOpen, detailId]);
+  useEffect(() => {
+    if (trayRows.length > 0) loadSections(trayRows.map((row) => row.id));
+  }, [loadSections, trayRows]);
+
+  const placed = useMemo(
+    () => sectionPlan.courses.flatMap((course) => (course.section ? [{ section: course.section, hue: colors.get(course.code) }] : [])),
+    [sectionPlan, colors],
+  );
+
+  // Row and detail callbacks read the latest render through a ref, so memoized rows never re-render for them.
+  const latest = useRef({ plan, unplan, openCourse, afterRow });
+  useLayoutEffect(() => {
+    latest.current = { plan, unplan, openCourse, afterRow };
+  });
+  const rowActions = useMemo<RowActions>(
+    () => ({
+      open: (id) => latest.current.openCourse(id),
+      add: (id, event) => void latest.current.plan(id, event, latest.current.afterRow(id, "row")),
+      remove: (id, event) => void latest.current.unplan(id, event, latest.current.afterRow(id, "tray")),
+    }),
+    [],
+  );
+  // A keyboard edit from the detail keeps focus there, on the action that replaced the one pressed.
+  const detailActions: DetailActions = {
+    plan: (id, event) => void plan(id, event, DETAIL_FOCUS),
+    unplan: (id, event) => void unplan(id, event, DETAIL_FOCUS),
+    markCredit,
+    clearCredit,
+    chooseSection,
+  };
+
+  /** ↑/↓ on a row moves to the next one; with the detail open, the detail follows without animating. */
+  const onListKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const target = event.target as HTMLElement;
+    if (!target.matches("[data-row-open]")) return;
+    const buttons = [...(pageRef.current?.querySelectorAll<HTMLElement>("[data-row-open]") ?? [])];
+    const next = buttons[buttons.indexOf(target) + (event.key === "ArrowDown" ? 1 : -1)];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+    next.scrollIntoView({ block: "nearest" });
+    if (detailOpen) setDetailId(next.dataset.rowOpen!);
+  };
+
+  /* ---------- search ---------- */
 
   const searchCourses = useMemo(() => [...model.rows.values()].map((row) => ({ id: row.id, title: row.title })), [model]);
-  // Instructors of every course whose options have loaded: real ones, or the samples a fallback course shows.
+  const coreSet = useMemo(() => new Set(major?.coreCourseCodes ?? []), [major]);
   const instructors = useMemo(
     () =>
       instructorIndex(
@@ -142,152 +507,7 @@ export function CoursesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [profile, sectionCatalog, catalogVersion],
   );
-
-  const untouched =
-    !model.hasTranscript && Object.values(plannerState.courseStatuses).every((status) => status === "notTaken");
-  // The empty state stays until the student has a major or any course data.
-  const idle = hydrated && untouched && !major;
-  const sampleOnly = model.hasTranscript && plannerState.transcriptRecords.every((record) => record.id.startsWith("sample-"));
-
-  const say = (text: string) => setAnnouncement(text);
-
-  const openCourse = useCallback(
-    (id: string) => {
-      if (!model.rows.has(id)) return;
-      setSelectedId(id);
-      setPanelOpen(true);
-      setSheetDetent(1);
-    },
-    [model],
-  );
-  const navigation = useMemo<CourseNavigation>(() => ({ open: openCourse, isKnown: (id) => model.rows.has(id) }), [openCourse, model]);
-
-  /** The student's own edit, applied atomically to the planner's current state (model/plan-edits). */
-  const edit = (
-    statuses: Record<string, CourseStatus>,
-    plan: (current: CoursePlan) => Partial<CoursePlan> = () => ({}),
-    alsoTouched: readonly string[] = [],
-  ) => updateCoursePlan(manualEdit(statuses, plan, alsoTouched));
-
-  const plan = (id: string) => {
-    edit({ [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
-    say(`Planned ${id} for ${profile.planningTerm}.`);
-  };
-  const unplan = (id: string) => {
-    edit({ [id]: "notTaken" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }));
-    say(`Removed ${id} from the plan.`);
-  };
-  const markCredit = (id: string) => {
-    edit(
-      { [id]: "completed" },
-      (current) => ({ manualCredit: [...without(current.manualCredit, id), id], autoPlanned: without(current.autoPlanned, id) }),
-    );
-    say(`Marked ${id} as credit you have.`);
-  };
-  const clearCredit = (id: string) => {
-    edit({ [id]: "notTaken" }, (current) => ({ manualCredit: without(current.manualCredit, id) }));
-    say(`Removed your credit mark from ${id}.`);
-  };
-
-  const rowActions: RowActions = {
-    open: openCourse,
-    plan,
-    unplan,
-    resetOverride: (id) => {
-      const row = model.rows.get(id);
-      if (row?.status === "done") clearCredit(id);
-      else unplan(id);
-    },
-  };
-
-  const closePanel = useCallback(() => {
-    setPanelOpen(false);
-    const id = selectedId;
-    if (id) {
-      window.requestAnimationFrame(() =>
-        document.querySelector<HTMLElement>(`[data-row-open="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }),
-      );
-    }
-  }, [selectedId]);
-
-  const panelActions: PanelActions = {
-    plan,
-    unplan,
-    markCredit,
-    clearCredit,
-    chooseSection: (id, sectionId) => {
-      // Picking a section is a hand edit to that course, even when it is already planned.
-      edit(model.rows.get(id)?.inPlan ? {} : { [id]: "inProgress" }, (current) => ({ autoPlanned: without(current.autoPlanned, id) }), [id]);
-      setSection(id, sectionId);
-      const option = sectionCatalog(id);
-      const section = option.status === "ready" ? option.result.sections.find((entry) => entry.id === sectionId) : undefined;
-      say(`Using section ${section ? optionLabel(section) : optionIdLabel(sectionId)} of ${id}.`);
-    },
-    close: closePanel,
-  };
-
-  const focusMajorPicker = () => {
-    document.getElementById(isPhone ? MAJOR_TRIGGER.phone : MAJOR_TRIGGER.desktop)?.focus();
-  };
-
-  const runAuto = () => {
-    if (!major) {
-      toast("Choose your major first. Auto-fill plans from its core courses.");
-      focusMajorPicker();
-      return;
-    }
-    const outcome = computeAuto(model, plannerState.courseStatuses, coreIds, profile.autoCreditBudget);
-    const summary = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
-    updateCoursePlan(
-      applyAuto(outcome, {
-        id: `auto-${Date.now().toString(36)}`,
-        at: new Date().toISOString(),
-        major: major.id,
-        changes: outcome.changes,
-        summary,
-        needsCheck: outcome.needsCheck,
-      }),
-    );
-    say(summary);
-  };
-
-  const lastAuto = coursePlan.lastAuto;
-  const undoBlocked = lastAuto ? undoBlocker(lastAuto, plannerState.courseStatuses, plannerState.selectedMajor) : null;
-
-  const undoAuto = () => {
-    if (!lastAuto || undoBlocked) return;
-    updateCoursePlan(undoAutoUpdate(plannerState.selectedMajor));
-    say("Auto-fill undone. Your plan is back to how it was.");
-  };
-
-  const dismissAuto = () => edit({}, () => ({ lastAuto: null }));
-
-  const clearAutoPlan = () => {
-    const ids = coursePlan.autoPlanned.filter((id) => model.rows.get(id)?.inPlan);
-    edit(Object.fromEntries(ids.map((id) => [id, "notTaken" as const])), () => ({ autoPlanned: [], lastAuto: null }));
-    say(ids.length ? `Removed ${ids.length} auto-planned course${ids.length === 1 ? "" : "s"}.` : "Nothing was auto-planned.");
-  };
-
-  const trySample = () => {
-    applyTranscriptRecords(sampleTranscript);
-    say("Added the sample transcript. Press Auto-fill to plan from it.");
-  };
-
-  const togglePlanFromSearch = (id: string) => {
-    const row = model.rows.get(id);
-    if (!row) return;
-    if (row.status === "available" || row.status === "check") {
-      plan(id);
-      toast(`Planned ${id} for ${profile.planningTerm}.`);
-    } else if (row.status === "planned") {
-      unplan(id);
-      toast(`Removed ${id} from the plan.`);
-    } else {
-      toast(`${id} is ${statusLabels[row.status].toLowerCase()}. Press Enter to see why.`);
-    }
-  };
-
-  // The shell's palette (⌘K, the top bar's field, the phone search sheet) shows this search on Courses.
+  const [searchInstructor, setSearchInstructor] = useState<{ id: string; name: string } | null>(null);
   const searchProvider = useMemo<ShellSearchProvider>(
     () => ({
       placeholder: "Search courses",
@@ -299,19 +519,12 @@ export function CoursesView({
           {
             id: "courses",
             label: "Courses",
-            items: results.courses.map((course): SearchItem => {
-              const row = model.rows.get(course.id);
-              return { id: course.id, code: course.id, title: course.title, meta: rowSummary(row), metaTone: row?.status === "locked" ? "danger" : "default" };
-            }),
+            items: results.courses.map((course): SearchItem => ({ id: course.id, code: course.id, title: course.title, meta: searchMeta(model.rows.get(course.id)) })),
           },
           {
             id: "instructors",
             label: "Instructors",
-            items: results.instructors.map((instructor): SearchItem => ({
-              id: `${INSTRUCTOR_ITEM}${instructor.name}`,
-              title: instructor.name,
-              meta: instructor.courseIds.slice(0, 3).join(", "),
-            })),
+            items: results.instructors.map((instructor): SearchItem => ({ id: `${INSTRUCTOR_ITEM}${instructor.name}`, title: instructor.name, meta: instructor.courseIds[0] })),
           },
         ];
       },
@@ -320,222 +533,161 @@ export function CoursesView({
           const name = item.id.slice(INSTRUCTOR_ITEM.length);
           const first = instructors.find((instructor) => instructor.name === name)?.courseIds[0];
           if (first) {
-            setPaletteInstructor({ id: first, name });
-            openCourse(first);
+            setSearchInstructor({ id: first, name });
+            latest.current.openCourse(first);
           }
           return;
         }
         if (wantsPlan) {
-          togglePlanFromSearch(item.id);
+          const row = model.rows.get(item.id);
+          if (row?.status === "available" || row?.status === "check") void latest.current.plan(item.id);
+          else if (row?.status === "planned") void latest.current.unplan(item.id);
+          else if (row) toast(`${item.id} can't be added: ${searchMeta(row).toLowerCase()}. Press Enter to see why.`);
           return true;
         }
-        setPaletteInstructor(null);
-        openCourse(item.id);
+        setSearchInstructor(null);
+        latest.current.openCourse(item.id);
       },
     }),
-    // togglePlanFromSearch and openCourse read the same model.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [model, searchCourses, instructors, coreSet, openCourse],
+    [model, searchCourses, instructors, coreSet],
   );
   useShellSearch(searchProvider);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      // Modal layers (the palette, a Select, a Menu) handle their own Escape first.
-      if (event.key === "Escape" && panelOpen && !isPhone && !event.defaultPrevented) closePanel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [panelOpen, isPhone, closePanel]);
-
-  // selectedId is never cleared, so the panel keeps its course while it slides out.
-  const panelRow = selectedId ? model.rows.get(selectedId) : undefined;
-  useEffect(() => {
-    if (selectedId && panelOpen) loadSections([selectedId]);
-  }, [loadSections, panelOpen, selectedId]);
-  const planSections = sectionPlan.courses.flatMap((course) => (course.section ? [course.section] : []));
-  const desktopPresence = usePresence(panelOpen && !isPhone && panelRow !== undefined, 150);
-
-  const instructorForPanel =
-    paletteInstructor && paletteInstructor.id === selectedId
-      ? paletteInstructor.name
-      : selectedId === initialCourseId
-        ? initialInstructor
-        : null;
-
-  const content = (row: CourseRowModel) => (
-    <DetailContent
-      key={`${row.id}|${instructorForPanel ?? ""}`}
-      row={row}
-      profile={profile}
-      inCore={coreSet.has(row.id)}
-      selectedSectionId={plannerState.selectedSections[row.id]}
-      sectionOptions={sectionCatalog(row.id)}
-      planSections={planSections}
-      initialInstructor={instructorForPanel}
-      actions={panelActions}
-      showClose
-    />
-  );
-
-  const autoItems: MenuEntry[] = [
-    { id: "import", label: "Import a transcript", onSelect: importTranscript },
-    ...(model.hasTranscript ? [] : [{ id: "sample", label: "Try the sample transcript", onSelect: trySample }]),
-    ...(coursePlan.autoPlanned.length > 0
-      ? [{ kind: "separator" as const, id: "sep" }, { id: "clear", label: "Clear the auto plan", onSelect: clearAutoPlan, destructive: true }]
-      : []),
-  ];
-
-  const autoControl = (small: boolean) => (
-    <SplitButton
-      size={small ? "sm" : "md"}
-      icon={<span aria-hidden="true">✦</span>}
-      onClick={runAuto}
-      menuLabel="More Auto-fill options"
-      menuItems={autoItems}
-    >
-      Auto-fill
-    </SplitButton>
-  );
-
-  const majorPicker = (id: string) => (
-    <div className={styles.majorPicker}>
-      <Select
-        id={id}
-        label="Major"
-        hideLabel
-        options={majorOptions}
-        value={plannerState.selectedMajor ?? ""}
-        placeholder="Choose your major"
-        onValueChange={(value) => {
-          setSelectedMajor(value as MajorId);
-          say(`Major set to ${getMajorById(value as MajorId)?.name}.`);
-        }}
-      />
-    </div>
-  );
-
-  const pct = coreIds.length ? coreDone / coreIds.length : 0;
+  const instructorForDetail =
+    searchInstructor && searchInstructor.id === detailId ? searchInstructor.name : detailId === initialCourseId ? initialInstructor : null;
+  const source = !model.hasTranscript ? "none" : sampleOnly ? "sample" : "transcript";
 
   return (
     <CourseNavigationContext.Provider value={navigation}>
-      <div className={`${styles.tokens} ${styles.root}`} data-panel={desktopPresence.mounted ? "open" : "closed"}>
+      <div className={styles.page} ref={pageRef} onKeyDown={onListKey}>
         <h1 className={styles.srOnly}>Courses</h1>
-        <div className={styles.viewhead}>
-          {majorPicker(MAJOR_TRIGGER.desktop)}
-          {major && coreIds.length > 0 ? (
-            <span className={styles.headMeta}>
-              <span className={styles.meta}>
-                {coreDone} of {coreIds.length} core done
-                {coreCovered > 0 ? `, ${coreCovered} covered` : ""}
-              </span>
-              <span className={styles.progress} aria-hidden="true">
-                <i style={{ transform: `scaleX(${pct})` }} />
-              </span>
+        <div className={styles.phoneSearch}>
+          <SearchTrigger shortcut="" onClick={openSearch} />
+        </div>
+        <div className={styles.degree}>
+          <button type="button" className={styles.degreeButton} data-degree="" aria-haspopup="dialog" onClick={() => setDegreeOpen(true)}>
+            {major?.name ?? "Choose your major"}
+            <ChevronDown size={16} />
+          </button>
+          {major || model.hasTranscript ? (
+            <span className={styles.progress}>
+              {credits} of {DEGREE_CREDITS} credits
             </span>
           ) : null}
-          <span className={styles.spacer} />
-          {autoControl(false)}
-          <Button variant="ghost" onClick={importTranscript}>
-            Import PDF
-          </Button>
         </div>
 
-        <div className={styles.phoneHead}>
-          <SearchTrigger className={styles.phoneSearch} shortcut="" onClick={openSearch} />
-          <div className={styles.phoneBar}>
-            {majorPicker(MAJOR_TRIGGER.phone)}
-            <span className={styles.spacer} />
-            {autoControl(true)}
+        {!hydrated ? (
+          <div className={styles.loading} role="status" aria-label="Loading your plan">
+            <span className={styles.shimmer} />
           </div>
-        </div>
-
-        <div role="status" aria-live="polite">
-          {lastAuto ? (
-            <div className={styles.autonote} data-autonote>
-              <span className={styles.spark} aria-hidden="true">
-                ✦
-              </span>
-              <span className={styles.autonoteText}>{lastAuto.summary}</span>
-              {lastAuto.needsCheck.length > 0 && model.rows.has(lastAuto.needsCheck[0]) ? (
-                <button type="button" className={styles.link} onClick={() => openCourse(lastAuto.needsCheck[0])}>
-                  {lastAuto.needsCheck.length === 1
-                    ? "Review the core course that needs an advisor"
-                    : `Review the ${lastAuto.needsCheck.length} core courses that need an advisor`}
-                </button>
-              ) : null}
-              {undoBlocked ? (
-                <span className={styles.meta} data-undo-blocked>
-                  Undo is off: {undoBlocked}
-                </span>
-              ) : (
-                <button type="button" className={styles.link} onClick={undoAuto}>
-                  Undo
-                </button>
-              )}
-              <span className={styles.spacer} />
-              {model.hasTranscript ? (
-                <ProvenanceTag
-                  source={sampleOnly ? "Statuses come from a made-up sample transcript." : "Statuses come from the transcript you imported."}
-                >
-                  {sampleOnly ? SAMPLE_TRANSCRIPT_LABEL : "From transcript"}
-                </ProvenanceTag>
-              ) : null}
-              <IconButton size="sm" className={styles.noteDismiss} label="Dismiss note" onClick={dismissAuto}>
-                <Close />
-              </IconButton>
-            </div>
-          ) : null}
-          <span className={styles.srOnly}>{announcement}</span>
-        </div>
-
-        <div className={styles.body}>
-          <div className={styles.list} data-course-list>
-            {!hydrated ? (
-              <div className={styles.loading} aria-label="Loading your plan" role="status">
-                <span className={styles.spinner} />
-              </div>
-            ) : idle ? (
-              <EmptyState onImport={importTranscript} onSample={trySample} onByHand={focusMajorPicker} />
-            ) : (
-              <CourseList
-                groups={groups}
-                rows={model.rows}
-                selectedId={selectedId}
-                collapsed={resolvedCollapsed}
-                onToggleGroup={(key) => setCollapsed((current) => ({ ...current, [key]: !resolvedCollapsed[key] }))}
-                onMove={(id) => setSelectedId(id)}
-                actions={rowActions}
-              />
-            )}
-          </div>
-          {desktopPresence.mounted && panelRow ? (
-            <div className={styles.panelCol}>
-              <aside className={styles.panel} data-state={desktopPresence.state} aria-labelledby="course-panel-title">
-                {content(panelRow)}
-              </aside>
-            </div>
-          ) : null}
-        </div>
-
-        {isPhone && panelRow ? (
-          <BottomSheet
-            open={panelOpen}
-            onOpenChange={(open) => {
-              if (!open) closePanel();
+        ) : idle ? (
+          <EmptyState
+            onImport={importTranscript}
+            onSample={() => {
+              applyTranscriptRecords(sampleTranscript);
+              say("Added the sample transcript. Choose your major, then press Auto.");
             }}
-            title={`${panelRow.id} details`}
-            detents={[...SHEET_DETENTS]}
-            initialDetent={1}
-            detent={sheetDetent}
-            onDetentChange={setSheetDetent}
-            className={styles.tokens}
-          >
-            {/* At half height the body does not scroll; moving focus into it opens the sheet fully. */}
-            <div onFocusCapture={() => setSheetDetent(1)}>{content(panelRow)}</div>
-          </BottomSheet>
-        ) : null}
+            onByHand={() => setDegreeOpen(true)}
+          />
+        ) : (
+          <>
+            <TermTray
+              term={term}
+              rows={trayRows}
+              colors={colors}
+              pending={pending}
+              // Starting value: 15 is the common four-year pace (school.ts), not a rule; no data on what students take.
+              budget={profile.autoCreditBudget}
+              running={autoBusy}
+              onAuto={runAuto}
+              result={showResult ? { text: resultText, hidden: autoBusy, fresh: freshResult, onUndo: undoAuto } : null}
+              selectedId={detailOpen ? detailId : null}
+              actions={rowActions}
+              weekHref={LENS_HREF.week}
+              more={autoInTray > 0 ? [{ id: "clear-auto", label: `Remove the ${autoInTray === 1 ? "course" : `${autoInTray} courses`} Auto added`, onSelect: clearAutoPlan, destructive: true }] : []}
+            />
+            <CourseGroups
+              groups={groups}
+              model={model}
+              open={open}
+              onToggle={(key) => setOpen((current) => ({ ...current, [key]: !current[key] }))}
+              expanded={expanded}
+              onExpand={(key) => {
+                focusAfterExpand.current = key;
+                setExpanded((current) => ({ ...current, [key]: true }));
+              }}
+              selectedId={detailOpen ? detailId : null}
+              chosen={chosen}
+              actions={rowActions}
+              term={term}
+            />
+            {hasDepartment ? (
+              <button type="button" className={styles.more} onClick={() => setWide((value) => !value)}>
+                {wide ? `Show only your degree's courses` : "Show courses from every department"}
+              </button>
+            ) : null}
+          </>
+        )}
+        <p className={styles.srOnly} role="status" aria-live="polite">
+          {announcement}
+        </p>
       </div>
+
+      <ContextPanel
+        open={detailOpen && detailRow !== undefined}
+        onClose={() => setDetailOpen(false)}
+        title={detailRow?.id ?? ""}
+        heading={
+          detailRow ? (
+            <span className={styles.panelHeading}>
+              <span className={styles.panelCode}>{detailRow.id}</span>
+              <span className={styles.creditsTag}>{detailRow.credits} credits</span>
+            </span>
+          ) : undefined
+        }
+        // The selected row, or the degree line when that row is not on the page (a searched course, a closed group).
+        returnFocus={() =>
+          (detailId ? pageRef.current?.querySelector<HTMLElement>(`[data-row-open="${CSS.escape(detailId)}"]`) : null) ??
+          pageRef.current?.querySelector<HTMLElement>("[data-degree]") ??
+          null
+        }
+      >
+        {detailRow ? (
+          <CourseDetail
+            key={`${detailRow.id}|${instructorForDetail ?? ""}`}
+            row={detailRow}
+            model={model}
+            profile={profile}
+            options={sectionCatalog(detailRow.id)}
+            placed={placed}
+            chosenSectionId={plannerState.selectedSections[detailRow.id]}
+            initialInstructor={instructorForDetail}
+            inCore={coreSet.has(detailRow.id)}
+            actions={detailActions}
+          />
+        ) : null}
+      </ContextPanel>
+
+      <DegreeDialog
+        open={degreeOpen}
+        onOpenChange={setDegreeOpen}
+        major={plannerState.selectedMajor}
+        onChoose={(id: MajorId) => {
+          setSelectedMajor(id);
+          say(`Major set to ${getMajorById(id)?.name}.`);
+        }}
+        source={source}
+        core={coreProgress}
+        onSample={() => {
+          applyTranscriptRecords(sampleTranscript);
+          setDegreeOpen(false);
+          say("Added the sample transcript. Press Auto to plan from it.");
+        }}
+        onImport={() => {
+          setDegreeOpen(false);
+          importTranscript();
+        }}
+      />
     </CourseNavigationContext.Provider>
   );
 }
@@ -546,24 +698,26 @@ function EmptyState({ onImport, onSample, onByHand }: { onImport: () => void; on
       <h2 className={styles.emptyTitle} id="empty-title">
         Start with what you&apos;ve taken
       </h2>
-      <button type="button" className={styles.emptyOption} data-primary="true" onClick={onImport}>
-        <span>
-          <strong>Import your transcript</strong>
-          <span className={styles.meta}>Upload the unofficial transcript PDF from myUNT.</span>
-        </span>
-      </button>
-      <button type="button" className={styles.emptyOption} onClick={onSample}>
-        <span>
-          <strong>Try a sample transcript</strong>
-          <span className={styles.meta}>A made-up first year in Computer Science, to see what Auto-fill does.</span>
-        </span>
-      </button>
-      <button type="button" className={styles.emptyOption} onClick={onByHand}>
-        <span>
-          <strong>Pick courses by hand</strong>
-          <span className={styles.meta}>Choose your major, then browse its courses.</span>
-        </span>
-      </button>
+      <ul className={styles.emptyList}>
+        <li>
+          <button type="button" className={styles.emptyOption} onClick={onImport}>
+            <strong>Import your transcript</strong>
+            <span>The unofficial transcript PDF from myUNT. Nothing is uploaded.</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" className={styles.emptyOption} onClick={onSample}>
+            <strong>Try a sample transcript</strong>
+            <span>A made-up first year in Computer Science.</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" className={styles.emptyOption} onClick={onByHand}>
+            <strong>Pick courses by hand</strong>
+            <span>Choose your major, then add its courses.</span>
+          </button>
+        </li>
+      </ul>
     </section>
   );
 }
