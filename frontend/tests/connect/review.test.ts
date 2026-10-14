@@ -1,0 +1,123 @@
+import { describe, expect, test } from "bun:test";
+import { checkReason, creditLine, importSelection, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
+import type { TranscriptCourseRecord } from "../../src/lib/types";
+
+function record(code: string, term: string, extra: Partial<TranscriptCourseRecord> = {}): TranscriptCourseRecord {
+  return {
+    id: `${code}-${term}`,
+    code,
+    title: code,
+    term,
+    grade: "A",
+    credits: 3,
+    sourceKind: "unt",
+    confidence: 0.9,
+    rationale: "Letter grade or credit marker satisfies completed credit.",
+    duplicateExcluded: false,
+    appliedStatus: "completed",
+    prerequisiteSatisfied: true,
+    reviewRequired: false,
+    ...extra,
+  };
+}
+
+const unknown = record("SPAN 1010", "2025 Fall", {
+  appliedStatus: "needsReview",
+  reviewRequired: true,
+  rationale: "Not in the planner catalog.",
+});
+const withdrawn = record("HIST 2610", "2026 Spring", {
+  grade: "W",
+  appliedStatus: "ignored",
+  reviewRequired: true,
+  rationale: "Grade does not indicate completed credit.",
+});
+const records = [
+  record("CSCE 1030", "2025 Fall"),
+  unknown,
+  record("MATH 1710", "2025 Fall", { grade: "B", credits: 4 }),
+  record("MATH 1720", "2026 Spring", { grade: "B", credits: 4 }),
+  withdrawn,
+  record("CSCE 2100", "2026 Fall", { grade: "EN", appliedStatus: "inProgress", rationale: "Transcript indicates the course is currently enrolled or in progress." }),
+];
+
+describe("review groups", () => {
+  test("rows to check come first; every other row sits under its term, in transcript order", () => {
+    const { toCheck, terms } = reviewGroups(records);
+    expect(toCheck.map((r) => r.code)).toEqual(["SPAN 1010", "HIST 2610"]);
+    expect(terms.map((t) => [t.term, t.records.map((r) => r.code)])).toEqual([
+      ["2025 Fall", ["CSCE 1030", "MATH 1710"]],
+      ["2026 Spring", ["MATH 1720"]],
+      ["2026 Fall", ["CSCE 2100"]],
+    ]);
+  });
+
+  test("a term whose only rows need checking gets no heading of its own", () => {
+    const { terms } = reviewGroups([unknown]);
+    expect(terms).toEqual([]);
+  });
+});
+
+describe("what Looks right saves", () => {
+  test("every settled row, and no row still to check", () => {
+    expect(importSelection(records, {}).map((r) => r.code)).toEqual(["CSCE 1030", "MATH 1710", "MATH 1720", "CSCE 2100"]);
+  });
+
+  test("a checked row counted as Done or Taking is saved with that status; Skip saves nothing", () => {
+    const chosen = importSelection(records, { [unknown.id]: "completed", [withdrawn.id]: "ignored" });
+    const span = chosen.find((r) => r.code === "SPAN 1010");
+    expect(span?.appliedStatus).toBe("completed");
+    expect(chosen.some((r) => r.code === "HIST 2610")).toBe(false);
+    expect(importSelection(records, { [withdrawn.id]: "inProgress" }).find((r) => r.code === "HIST 2610")?.appliedStatus).toBe("inProgress");
+  });
+
+  test("a decision for a settled row changes nothing", () => {
+    const settled = records[0];
+    expect(importSelection([settled], { [settled.id]: "ignored" })).toEqual([settled]);
+  });
+});
+
+describe("the credit line", () => {
+  test("sums done and in-progress credits of what will be saved", () => {
+    // 3 + 4 + 4 done; CSCE 2100 is 3 in progress.
+    expect(creditLine(importSelection(records, {}))).toBe("11 credits done and 3 in progress.");
+  });
+
+  test("counts a checked row once it is counted", () => {
+    expect(creditLine(importSelection(records, { [unknown.id]: "completed" }))).toBe("14 credits done and 3 in progress.");
+  });
+
+  test("names only the side that has credits, in the singular for one", () => {
+    expect(creditLine([record("CSCE 1030", "2025 Fall", { credits: 1 })])).toBe("1 credit done.");
+    expect(creditLine([record("CSCE 2100", "2026 Fall", { appliedStatus: "inProgress" })])).toBe("3 credits in progress.");
+  });
+
+  test("keeps a half credit", () => {
+    expect(creditLine([record("MUEN 1000", "2025 Fall", { credits: 0.5 }), record("CSCE 1030", "2025 Fall")])).toBe("3.5 credits done.");
+  });
+
+  test("says nothing when a saved row has no credit figure, or nothing is saved", () => {
+    expect(creditLine([record("CSCE 1030", "2025 Fall"), record("MATH 1710", "2025 Fall", { credits: null })])).toBeNull();
+    expect(creditLine([])).toBeNull();
+  });
+});
+
+describe("one fact per row", () => {
+  test("a settled row shows its grade, or Taking", () => {
+    expect(rowFact(records[0])).toBe("Grade A");
+    expect(rowFact(records[5])).toBe("Taking");
+    expect(rowFact(record("CSCE 1030", "2025 Fall", { grade: "" }))).toBe("Done");
+  });
+
+  test("a row to check shows its reason in a few words", () => {
+    expect(checkReason(unknown)).toBe("Not in the UNT catalog");
+    expect(checkReason(withdrawn)).toBe("Grade W earns no credit");
+    expect(checkReason(record("X 1000", "t", { rationale: "Something new." }))).toBe("Something new.");
+  });
+
+  test("terms read the way people say them", () => {
+    expect(termLabel("2025 Fall")).toBe("Fall 2025");
+    expect(termLabel("2026 SPRING")).toBe("Spring 2026");
+    expect(termLabel("Needs review")).toBe("Needs review");
+  });
+});
