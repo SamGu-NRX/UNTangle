@@ -114,9 +114,23 @@ describe("parseSectionField", () => {
     const display = parseSectionField("Anthony A Curran Jr");
     expect(display).toEqual({
       kind: "people",
+      people: [{
+        surnameTokens: ["curran"],
+        firstTokens: ["anthony", "a"],
+        suffix: "jr",
+        surnameOptions: [{ surnameTokens: ["a", "curran"], firstTokens: ["anthony"] }],
+      }],
+    });
+    const raw = parseSectionField("Curran Jr,Anthony A");
+    expect(raw).toEqual({
+      kind: "people",
       people: [{ surnameTokens: ["curran"], firstTokens: ["anthony", "a"], suffix: "jr" }],
     });
-    expect(parseSectionField("Curran Jr,Anthony A")).toEqual(display);
+    const displayPerson = display.kind === "people" ? display.people[0] : null;
+    const rawPerson = raw.kind === "people" ? raw.people[0] : null;
+    expect(displayPerson?.surnameTokens).toEqual(rawPerson?.surnameTokens);
+    expect(displayPerson?.firstTokens).toEqual(rawPerson?.firstTokens);
+    expect(displayPerson?.suffix).toBe(rawPerson?.suffix);
   });
 
   test("multi-person display form splits on semicolons", () => {
@@ -124,8 +138,18 @@ describe("parseSectionField", () => {
     expect(parsed.kind).toBe("people");
     if (parsed.kind === "people") {
       expect(parsed.people).toEqual([
-        { surnameTokens: ["jimenez"], firstTokens: ["jaime", "enrique"], suffix: null },
-        { surnameTokens: ["ogden"], firstTokens: ["samuel", "j"], suffix: "jr" },
+        {
+          surnameTokens: ["jimenez"],
+          firstTokens: ["jaime", "enrique"],
+          suffix: null,
+          surnameOptions: [{ surnameTokens: ["enrique", "jimenez"], firstTokens: ["jaime"] }],
+        },
+        {
+          surnameTokens: ["ogden"],
+          firstTokens: ["samuel", "j"],
+          suffix: "jr",
+          surnameOptions: [{ surnameTokens: ["j", "ogden"], firstTokens: ["samuel"] }],
+        },
       ]);
     }
   });

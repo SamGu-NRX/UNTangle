@@ -51,7 +51,7 @@ recall:    100%
 gates: pairs >= 150, hard cases >= 40, precision >= 0.98 -- all pass   (exit 0)
 ```
 
-`tests/instructors`: 53 pass, 0 fail. Full `bun --no-env-file test` in
+`tests/instructors`: 62 pass, 0 fail. Full `bun --no-env-file test` in
 `frontend/`: the same 4 failures appear with and without the instructor files
 present (1601 tests with, 1548 without), so they pre-exist on the alpha base
 and are unrelated to this change: the rate-limit, campus and map route tests
@@ -60,6 +60,28 @@ file runs in isolation. `tsc --noEmit`: clean. `bun run lint`: 0 errors;
 3 pre-existing warnings, all in files this change does not touch
 (`src/components/map/map-canvas.tsx`,
 `src/lib/optimizer/worker/optimize.worker.bundle.js`).
+
+## Review round (2026-10-14)
+
+The automated reviewer found six issues, all fixed in this revision:
+
+- Display-form compound surnames lost the match the raw pair form had:
+  "Fernando Mosquera Ferrandiz" read its surname as the last token only. The
+  parser now records every trailing token block as a possible surname for
+  comma-less segments, and the surname gate tries them.
+- "Smith, Ipek" with a dotted capital I lowercased into a base letter plus a
+  combining mark; tokenizing split on the mark and invented the initial "i",
+  producing a false 0.9 match against Ian Smith. Combining marks now strip
+  after folding, and any letter the fold map does not cover makes the whole
+  form abstain ("unsupported characters") instead of losing information.
+- "Hickman,M.T." collapsed to the single token "mt" because periods were
+  deleted rather than widened; adjacent initials now stay separate initials.
+- A zero-return corpus made precision NaN, which passed the `< 0.98` check.
+  The gate now rejects an undefined precision, and a test pins that corpus.
+- The labeled evaluation ran only as a manual script; CI never ran it. The
+  scoring core is now a pure `evaluate()` that `bun test` enforces.
+- `CONFIDENCE_THRESHOLD` was not consulted when qualifying pairs. The gate
+  now compares every outcome against the exported constant.
 
 ## Threshold
 

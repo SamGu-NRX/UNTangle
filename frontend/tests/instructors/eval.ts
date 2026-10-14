@@ -71,8 +71,51 @@ export function scoreAll(scenarios: readonly Scenario[]): { counts: Counts; perF
   return { counts, perFamily };
 }
 
+/** The eval gates: pair and scenario floors, and a precision floor that must be finite. */
+export type Gates = {
+  unknownFamilyCount: number;
+  pairs: number;
+  hardCases: number;
+  /** Undefined when nothing was returned (tp + fp is 0): precision is not measured. */
+  precision: number | undefined;
+  recall: number | undefined;
+  pass: boolean;
+  failures: string[];
+};
+
+/**
+ * Pure scoring core over the labeled scenarios: the same numbers the script
+ * prints, without printing or exiting, so the CI test suite can enforce the
+ * same gates the standalone runner does.
+ */
+export function evaluate(scenarios: readonly Scenario[] = SCENARIOS): Gates & { counts: Counts } {
+  const unknownFamilies = scenarios.filter(scenario => !HARD_FAMILIES.includes(scenario.family as Family));
+  const { counts } = scoreAll(scenarios);
+  const precisionDenominator = counts.tp + counts.fp;
+  const precision = precisionDenominator === 0 ? undefined : counts.tp / precisionDenominator;
+  const recallDenominator = counts.tp + counts.fn;
+  const recall = recallDenominator === 0 ? undefined : counts.tp / recallDenominator;
+  const failures: string[] = [];
+  if (unknownFamilies.length > 0) {
+    failures.push(`${unknownFamilies.length} scenarios name families outside the spec table`);
+  }
+  if (counts.pairs < 150) failures.push(`${counts.pairs} pairs is below the 150-pair floor`);
+  if (scenarios.length < 40) failures.push(`${scenarios.length} hard-case scenarios is below the 40 floor`);
+  if (precision === undefined) failures.push("the matcher returned no matches, so precision is undefined");
+  else if (!Number.isFinite(precision) || precision < 0.98) failures.push(`precision ${precision} is below 0.98`);
+  return {
+    unknownFamilyCount: unknownFamilies.length,
+    pairs: counts.pairs,
+    hardCases: scenarios.length,
+    precision,
+    recall,
+    pass: failures.length === 0,
+    failures,
+    counts,
+  };
+}
+
 function main(): number {
-  const unknownFamilies = SCENARIOS.filter(scenario => !HARD_FAMILIES.includes(scenario.family as Family));
   const { counts, perFamily } = scoreAll(SCENARIOS);
   const realPairs = SCENARIOS
     .filter(scenario => scenario.provenance !== "derived")
@@ -109,25 +152,11 @@ function main(): number {
   console.log(`precision: ${ratio(counts.tp, counts.tp + counts.fp)}`);
   console.log(`recall:    ${ratio(counts.tp, counts.tp + counts.fn)}`);
 
-  if (unknownFamilies.length > 0) {
-    console.error(`fail: ${unknownFamilies.length} scenarios name families outside the spec table`);
-    return 1;
-  }
-  if (counts.pairs < 150) {
-    console.error(`fail: ${counts.pairs} pairs is below the 150-pair floor`);
-    return 1;
-  }
-  if (SCENARIOS.length < 40) {
-    console.error(`fail: ${SCENARIOS.length} hard-case scenarios is below the 40 floor`);
-    return 1;
-  }
-  const precision = counts.tp / (counts.tp + counts.fp);
-  if (precision < 0.98) {
-    console.error(`fail: precision ${precision} is below 0.98`);
-    return 1;
-  }
+  const gates = evaluate(SCENARIOS);
+  for (const failure of gates.failures) console.error(`fail: ${failure}`);
+  if (!gates.pass) return 1;
   console.log("gates: pairs >= 150, hard cases >= 40, precision >= 0.98 -- all pass");
   return 0;
 }
 
-process.exitCode = main();
+if (import.meta.main) process.exitCode = main();
