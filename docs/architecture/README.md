@@ -322,6 +322,12 @@ Obvious agents build bounded pieces against frozen contracts:
 
 **The task rule.** A task is written only after its interface, fixtures and acceptance test are on `alpha`. `alpha`'s CI must stay green, so a new acceptance test is listed in `tests/pending-acceptance.txt`, and CI skips everything on that list. The agent makes the test pass. Its only allowed test-side edit is deleting its own line from the list, and a CI check fails any other change to an acceptance test.
 
+How it works:
+- A line in the list is a test file's path from the repo root, which skips the file, or `path::name`, which skips one test by the full name Bun prints.
+- Every package's `test` script runs `tools/repo-rules/src/run-tests.ts`. It gives `bun test` the package's test files minus the listed ones, and a name pattern that leaves out listed tests. A listed path that doesn't exist fails the run.
+- The Task rule job (`.github/workflows/pr-rules.yml`) runs from the base branch through `pull_request_target`, so a PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line for a test that already existed.
+- The lead lists a new acceptance test by adding the test and its line in one PR. The `lead-approved` label lifts the check.
+
 Where a task family repeats, the lead writes one harness that covers every member instead of one test per task. For example, a degree-plan validator checks every file in `plans/`, so each new plan is a data-only PR.
 
 **Contract changes:**

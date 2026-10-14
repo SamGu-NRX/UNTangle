@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "bun --no-env-file test --isolate --timeout=20000"
+    "test": "bun --no-env-file ../tools/repo-rules/src/run-tests.ts --isolate --timeout=20000"
   },
   "dependencies": {
     "better-auth": "^1.5.5",

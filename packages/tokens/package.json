@@ -10,7 +10,7 @@
   "scripts": {
     "lint": "eslint --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
-    "test": "bun --no-env-file test --pass-with-no-tests"
+    "test": "bun --no-env-file ../../tools/repo-rules/src/run-tests.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
