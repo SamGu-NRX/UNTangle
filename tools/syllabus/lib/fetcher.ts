@@ -171,17 +171,25 @@ export class PoliteFetcher {
     mkdirSync(path.join(this.cacheDir, "http"), { recursive: true });
   }
 
-  private send(url: string): Promise<Response> {
+  private send(url: string, checkRobots: boolean): Promise<Response> {
     // Start requests inside the global queue, not after releasing a time slot.
     const response = PoliteFetcher.requestQueue.then(async () => {
       const nextRequestAt = PoliteFetcher.lastRequestAt + this.minDelayMs;
       while (Date.now() < nextRequestAt) await Bun.sleep(nextRequestAt - Date.now());
+      if (this.stopped) throw this.stopped;
       try {
-        return fetch(url, {
+        const response = await fetch(url, {
           redirect: "manual",
           headers: { "user-agent": USER_AGENT },
           signal: AbortSignal.timeout(this.timeoutMs),
         });
+        // Set the stop before releasing the queue to the next request.
+        if (checkRobots && this.stopOnError && (response.status === 429 || response.status >= 500)) {
+          this.stopped = new StopOnHttpError(url, response.status);
+          await response.body?.cancel();
+          throw this.stopped;
+        }
+        return response;
       } finally {
         PoliteFetcher.lastRequestAt = Date.now();
       }
@@ -196,12 +204,7 @@ export class PoliteFetcher {
     // redirects instead need permission at every destination before requesting it.
     for (let hop = 0; hop <= 5; hop++) {
       if (checkRobots) await this.assertAllowed(current);
-      const response = await this.send(current);
-      if (checkRobots && this.stopOnError && (response.status === 429 || response.status >= 500)) {
-        this.stopped = new StopOnHttpError(current, response.status);
-        await response.body?.cancel();
-        throw this.stopped;
-      }
+      const response = await this.send(current, checkRobots);
       if (![301, 302, 303, 307, 308].includes(response.status)) return response;
       const location = response.headers.get("location");
       await response.body?.cancel();
@@ -236,7 +239,8 @@ export class PoliteFetcher {
           : RobotsRules.blocked();
       this.robots.set(origin, rules);
       return rules;
-    } catch {
+    } catch (err) {
+      if (err instanceof StopOnHttpError) throw err;
       // A timeout or network failure supplies no permission. Keep this origin
       // blocked for the run instead of repeatedly probing an unavailable host.
       const rules = RobotsRules.blocked();

@@ -147,6 +147,7 @@ function attendancePolicy(sentences: Sentence[]): FactResult {
 
 interface CountMention {
   count: number;
+  total: boolean;
 }
 
 /**
@@ -162,11 +163,12 @@ function examCountPhrase(sentence: string): CountMention[] {
     `\\b(${numberWord.source})\\s*(?:(?:\\w+\\s+){0,2}?)(exams|exam|midterms|midterm|tests|test|finals|final)\\b(?!(?:\\s*(?:is|are|was|were|will|counts|count|worth|covers|covers|schedule|date|time)))(?![^.,;]{0,20}\\bpercent|%)`,
     "gi",
   );
+  const totalPhrase = new RegExp(`^${numberWord.source}\\s+(?:exams?|tests?)\\b`, "i");
   for (const match of sentence.matchAll(phrase)) {
     const raw = match[1].toLowerCase();
     const count = /^\d+$/.test(raw) ? Number(raw) : WORD_NUMBERS[raw];
     if (count === undefined || count < 1 || count > 20) continue;
-    mentions.push({ count });
+    mentions.push({ count, total: totalPhrase.test(match[0]) });
   }
   return mentions;
 }
@@ -198,7 +200,9 @@ function examCount(sentences: Sentence[]): FactResult & { count?: number } {
     // one sentence ("two midterms and a final") sum when the sentence reads
     // as an enumeration; otherwise the first mention is the stated total.
     const enumeration = mentions.length > 1 && /\b(and|plus)\b/i.test(sentence.text);
-    const total = enumeration ? mentions.reduce((sum, m) => sum + m.count, 0) : mentions[0].count;
+    // An umbrella count such as "three exams" already includes its listed parts.
+    const explicitTotal = mentions.find((mention) => mention.total);
+    const total = explicitTotal?.count ?? (enumeration ? mentions.reduce((sum, m) => sum + m.count, 0) : mentions[0].count);
     candidates.push({ sentence, total });
   }
   if (candidates.length === 0) return { found: false, reason: "no sentence states a number of exams" };

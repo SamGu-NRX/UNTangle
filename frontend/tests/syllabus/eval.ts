@@ -99,7 +99,7 @@ function overlaps(a: string, b: string): boolean {
 
 function attendanceMatches(extracted: string, labeled: string): boolean {
   // Shared topic words cannot make a negated requirement equal a positive one.
-  const negated = /\b(?:not|never)\b|n't\b/i;
+  const negated = /\b(?:not|never)\b|n't\b|\bno\s+(?:class\s+)?attendance\b/i;
   return negated.test(extracted) === negated.test(labeled) && overlaps(extracted, labeled);
 }
 

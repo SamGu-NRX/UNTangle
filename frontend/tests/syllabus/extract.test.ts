@@ -111,6 +111,19 @@ describe("examCount", () => {
     expect(result.found).toBe(false);
   });
 
+  test("an explicit total takes precedence over its breakdown", () => {
+    for (const text of [
+      "There are three exams: two midterms and one final.",
+      "There will be three exams, including two midterm exams and one final exam.",
+      "Two midterms and one final make three exams in total.",
+    ]) {
+      const result = extractSyllabusFacts(text).examCount;
+      expect(result.count).toBe(3);
+      if (result.found) expectValidSource(result.source, text);
+    }
+    expect(extractSyllabusFacts("Two midterm exams and one final exam are given during the term.").examCount.count).toBe(3);
+  });
+
   test("week numbers and calendar dates are never exam totals", () => {
     for (const text of ["Week 16 Final Exam", "Week 9 Midterm Exam", "October 09, 2026 Midterm Exam", "10/09/2026 Midterm Exam", "10-09 Final Exam"]) {
       expect(extractSyllabusFacts(text).examCount.found).toBe(false);

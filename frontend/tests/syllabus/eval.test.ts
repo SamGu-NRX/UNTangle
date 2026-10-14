@@ -68,6 +68,16 @@ describe("document scoring", () => {
     expect(scoreEntries([document({ attendance: { present: true, excerpt: "Attendance is not required." } }, "Attendance is not required and affects no grade.")]).attendance).toEqual({ tp: 1, fp: 0, fn: 0 });
   });
 
+  test("no attendance has opposite polarity to required attendance", () => {
+    for (const [excerpt, text] of [
+      ["No attendance is required.", "Attendance is required every class meeting."],
+      ["Attendance is required.", "No attendance is required for this course."],
+    ]) {
+      expect(scoreEntries([document({ attendance: { present: true, excerpt } }, text)]).attendance).toEqual({ tp: 0, fp: 1, fn: 1 });
+    }
+    expect(scoreEntries([document({ attendance: { present: true, excerpt: "Attendance is not required." } }, "No attendance is required for this course.")]).attendance).toEqual({ tp: 1, fp: 0, fn: 0 });
+  });
+
   test("defined zero precision and recall yield zero F1, not an unavailable metric", () => {
     expect(rate({ tp: 0, fp: 2, fn: 3 })).toEqual({ precision: 0, recall: 0, f1: 0 });
     expect(rate({ tp: 0, fp: 0, fn: 3 })).toEqual({ precision: null, recall: 0, f1: null });
