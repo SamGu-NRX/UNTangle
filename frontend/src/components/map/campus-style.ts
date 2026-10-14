@@ -21,19 +21,25 @@ import type { CampusConfig } from "@/lib/campus/config";
 export const OPENFREEMAP_TILEJSON = "https://tiles.openfreemap.org/planet";
 const OPENFREEMAP_GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 
-/** OpenFreeMap requires "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"; the tile source carries it. */
-export const BASEMAP_ATTRIBUTION =
-  '<a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a> ' +
-  '<a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">© OpenMapTiles</a> ' +
-  'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>';
+const credit = (href: string, text: string) => `<a href="${href}" target="_blank" rel="noreferrer">${text}</a>`;
 
-/** Walking routes come from OSM walkways too; this line credits the contributors by name. */
-export const OSM_CONTRIBUTORS_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>';
-
-/** The map's own credit line: OSM contributors, plus the campus detail's other sources in words. */
+/**
+ * The map's one credit line, given to MapLibre as its custom attribution
+ * (the tile source's own credit is blanked so nothing repeats).
+ * OpenFreeMap asks for "© OpenMapTiles Data from OpenStreetMap"
+ * (openfreemap.org); OpenStreetMap's guideline asks for "OpenStreetMap" with
+ * a way to reach the ODbL, which the copyright link gives
+ * (osmfoundation.org/wiki/Licence/Attribution_Guidelines). A campus with map
+ * detail adds that file's sources. Each name links to its full terms.
+ */
 export function campusAttribution(campus: CampusConfig): string {
-  return campus.mapDetail ? `${OSM_CONTRIBUTORS_ATTRIBUTION}, ${campus.mapDetail.attribution}` : OSM_CONTRIBUTORS_ATTRIBUTION;
+  const parts = [
+    `© ${credit("https://www.openstreetmap.org/copyright", "OpenStreetMap contributors")}`,
+    credit("https://www.openmaptiles.org/", "OpenMapTiles"),
+    credit("https://openfreemap.org", "OpenFreeMap"),
+  ];
+  if (campus.mapDetail) parts.push(campus.mapDetail.attribution);
+  return parts.join(", ");
 }
 
 /**
@@ -528,7 +534,8 @@ const basemapLabels: LayerSpecification[] = [
 export function campusMapStyle(campus: CampusConfig): StyleSpecification {
   const detail = campus.mapDetail;
   const sources: StyleSpecification["sources"] = {
-    openmaptiles: { type: "vector", url: OPENFREEMAP_TILEJSON, attribution: BASEMAP_ATTRIBUTION },
+    // Empty, not omitted: an omitted credit falls back to the TileJSON's; campusAttribution carries it.
+    openmaptiles: { type: "vector", url: OPENFREEMAP_TILEJSON, attribution: "" },
   };
   if (detail) {
     // promoteId lets feature-state address every outline and part of one registry building by its id.

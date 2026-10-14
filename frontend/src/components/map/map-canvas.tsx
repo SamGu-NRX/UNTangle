@@ -8,6 +8,7 @@ import { stopNumbersLabel, type Itinerary, type ItineraryStop } from "@/lib/map-
 import type { MapRoutePoint } from "@/lib/types";
 import { campusAttribution, campusMapStyle } from "@/components/map/campus-style";
 import { setBuildingHighlights } from "@/components/map/building-highlight";
+import { foldAttributionOnFirstInteraction } from "@/components/map/attribution";
 import { dayBuildingHighlights } from "@/lib/campus/map-detail/highlight";
 import { startMap } from "@/components/map/start-map";
 import {
@@ -221,7 +222,8 @@ export function MapCanvas({ campus = activeCampus, itinerary, courseOrder = NO_C
       maxZoom: 19,
       maxPitch: latest.current.reducedMotion ? 0 : MAX_PITCH,
       maxBounds,
-      attributionControl: { compact: true, customAttribution: campusAttribution(campus) },
+      // Compact (behind an (i) button) only at 640 px or narrower; see attribution.ts.
+      attributionControl: { customAttribution: campusAttribution(campus) },
       // North stays up: no drag, twist or keyboard rotation, and no touch
       // tilt. The camera tilts only for a chosen stop, the day's fit at
       // street zoom, or the 3D control.
@@ -267,6 +269,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, courseOrder = NO_C
       event.preventDefault();
     };
     canvas.addEventListener("keydown", onKeyDown);
+    const stopFolding = foldAttributionOnFirstInteraction(map);
 
     map.on("load", () => {
       addRouteOverlay(map);
@@ -325,6 +328,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, courseOrder = NO_C
     const markers = markersRef.current;
     return () => {
       canvas.removeEventListener("keydown", onKeyDown);
+      stopFolding();
       markers.forEach(({ marker }) => marker.remove());
       markers.clear();
       map.remove();

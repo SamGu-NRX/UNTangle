@@ -88,7 +88,7 @@ export const untDenton: CampusConfig = {
   mapDetail: {
     url: "/map/unt-denton/detail.geojson",
     // Overture's licence (ODbL) asks for its credit next to OpenStreetMap's.
-    attribution: 'building heights partly from <a href="https://overturemaps.org" target="_blank" rel="noreferrer">Overture Maps Foundation</a>',
+    attribution: '<a href="https://docs.overturemaps.org/attribution/" target="_blank" rel="noreferrer">Overture Maps</a>',
   },
 };
 

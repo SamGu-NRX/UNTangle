@@ -33,10 +33,14 @@ describe("campus map style", () => {
     }
   });
 
-  test("the credit line names Overture only where its heights are used, in words", () => {
-    expect(campusAttribution(untDenton)).toContain("OpenStreetMap contributors");
-    expect(campusAttribution(untDenton)).toContain("Overture Maps Foundation");
-    expect(campusAttribution(utAustin)).not.toContain("Overture");
-    expect(campusAttribution(untDenton)).not.toMatch(/[·•|]/);
+  test("one short credit line: OSM linked to its licence, OpenMapTiles, OpenFreeMap, and Overture only where its heights are used", () => {
+    const text = (html: string) => html.replace(/<[^>]+>/g, "");
+    expect(text(campusAttribution(untDenton))).toBe("© OpenStreetMap contributors, OpenMapTiles, OpenFreeMap, Overture Maps");
+    expect(text(campusAttribution(utAustin))).toBe("© OpenStreetMap contributors, OpenMapTiles, OpenFreeMap");
+    expect(campusAttribution(untDenton)).toContain('href="https://www.openstreetmap.org/copyright"');
+  });
+
+  test("the tile source carries no credit of its own, so the line never repeats", () => {
+    expect(campusMapStyle(untDenton).sources.openmaptiles).toMatchObject({ attribution: "" });
   });
 });
