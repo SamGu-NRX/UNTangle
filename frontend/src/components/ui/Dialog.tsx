@@ -28,6 +28,13 @@ export type DialogProps = {
   /** `alertdialog` for a decision the user must make before continuing. */
   role?: "dialog" | "alertdialog";
   initialFocus?: RefObject<HTMLElement | null>;
+  /** Where focus goes on close, when the opener may not have kept focus (Safari doesn't focus a clicked link). */
+  returnFocus?: () => HTMLElement | null;
+  /**
+   * Id of a heading inside the body that names the dialog, when `title`
+   * is decoration (a wordmark) and the body's heading changes with its step.
+   */
+  labelledBy?: string;
   className?: string;
 };
 
@@ -49,6 +56,8 @@ export function Dialog({
   dismissible = true,
   role = "dialog",
   initialFocus,
+  returnFocus,
+  labelledBy,
   className,
 }: DialogProps) {
   // Opened or closed from the keyboard (an opener with a focus ring, Escape,
@@ -71,13 +80,23 @@ export function Dialog({
   useModalLayer(open, rootRef, {
     onEscape: dismissible ? () => onOpenChange(false) : undefined,
     initialFocus,
+    returnFocus,
   });
 
   if (!mounted || typeof document === "undefined") return null;
   const heading = title ?? shownTitle;
 
   return createPortal(
-    <div ref={rootRef} className="ui-dialog-layer" data-state={state} data-instant={instant ? "" : undefined} data-ui="" tabIndex={-1}>
+    <div
+      ref={rootRef}
+      className="ui-dialog-layer"
+      data-state={state}
+      data-instant={instant ? "" : undefined}
+      data-ui=""
+      tabIndex={-1}
+      // On its way out, nothing in it can be reached.
+      inert={state === "closed" || undefined}
+    >
       <div
         className="ui-dialog-scrim"
         data-state={state}
@@ -88,8 +107,8 @@ export function Dialog({
       <div
         role={role}
         aria-modal="true"
-        aria-labelledby={heading ? titleId : undefined}
-        aria-label={heading ? undefined : ariaLabel}
+        aria-labelledby={labelledBy ?? (heading ? titleId : undefined)}
+        aria-label={labelledBy || heading ? undefined : ariaLabel}
         aria-describedby={description ? descriptionId : undefined}
         className={cx("ui-dialog", className)}
         data-state={state}

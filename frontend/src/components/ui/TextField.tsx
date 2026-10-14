@@ -13,6 +13,8 @@ export type TextFieldProps = Omit<ComponentPropsWithRef<"input">, "size"> & {
   /** 16px glyph or short text inside the field, before or after the value. */
   leading?: ReactNode;
   trailing?: ReactNode;
+  /** A link at the far end of the label row, such as "Forgot it?". */
+  labelAside?: ReactNode;
   size?: "md" | "sm";
 };
 
@@ -27,6 +29,7 @@ export function TextField({
   error,
   leading,
   trailing,
+  labelAside,
   size = "md",
   className,
   id: idProp,
@@ -36,11 +39,21 @@ export function TextField({
   const id = idProp ?? `${baseId}-input`;
   const helpId = `${baseId}-help`;
   const describedBy = [rest["aria-describedby"], error || help ? helpId : null].filter(Boolean).join(" ") || undefined;
+  const labelEl = (
+    <label htmlFor={id} className={cx("ui-label", hideLabel && "sr-only-v2")}>
+      {label}
+    </label>
+  );
   return (
     <div className={cx("ui-textfield", size === "sm" && "ui-textfield--sm", className)} data-invalid={error ? "" : undefined}>
-      <label htmlFor={id} className={cx("ui-label", hideLabel && "sr-only-v2")}>
-        {label}
-      </label>
+      {labelAside ? (
+        <div className="ui-textfield__labelrow">
+          {labelEl}
+          {labelAside}
+        </div>
+      ) : (
+        labelEl
+      )}
       <div className="ui-field ui-field--input" data-disabled={rest.disabled ? "" : undefined}>
         {leading ? <span className="ui-field__adornment">{leading}</span> : null}
         <input id={id} className="ui-field__input" aria-invalid={error ? true : undefined} {...rest} aria-describedby={describedBy} />

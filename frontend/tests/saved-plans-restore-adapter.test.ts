@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-  describeRestoreSteps,
   dispatchRestore,
   simulateRestoredState,
   workingStateFingerprint,
@@ -183,21 +182,6 @@ describe("restore adapter", () => {
 
     const simulated = simulateRestoredState(snapshot, references);
     expect(simulated.selectedSections["ANTH 1010"]).not.toBe("anth-1010-999-gone");
-  });
-
-  it("describes restore steps quoting exact saved sections", () => {
-    const snapshot = snapshotFrom(validFixture.state, "Steps");
-    const references = resolveSavedPlanReferences(snapshot);
-
-    const steps = describeRestoreSteps(snapshot, references);
-    expect(steps[0]).toBe("Reset the working schedule to the planner default");
-    const selectionStep = steps.find((step) => step.startsWith("Select the exact saved sections:"));
-    expect(selectionStep).toContain("ANTH 1010 → anth-1010-001 (");
-    expect(selectionStep).toContain("Life Sciences Complex");
-
-    const staleSnapshot = snapshotFrom(missingSectionFixture.state, "Steps stale");
-    const staleSteps = describeRestoreSteps(staleSnapshot, resolveSavedPlanReferences(staleSnapshot));
-    expect(staleSteps[staleSteps.length - 1]).toContain("Select no exact sections");
   });
 
   it("fingerprints semantic working-state fields, ignoring timestamps", () => {

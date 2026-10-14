@@ -1,37 +1,46 @@
-/* Sign-in and password reset: one centred card (DESIGN.md §9 auth re-skin). */
+/* Sign-in and password reset (DESIGN.md §4.6, 06-sign-in.html): one form,
+   in a card on /auth and /forgot-password, or in the dialog and sheet that
+   open over the app. */
 
 .auth {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
-  background: var(--bg);
+  padding: max(24px, var(--safe-t)) 16px max(24px, var(--safe-b));
+  background: var(--ground);
 }
 .auth__card {
   display: grid;
-  gap: 14px;
-  width: min(400px, 100%);
-  padding: 28px 24px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
+  gap: 16px;
+  width: min(440px, 100%);
+  padding: 26px 26px 22px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
 }
 .auth__wordmark {
   justify-self: start;
   border-radius: 6px;
-  font: 800 var(--wordmark) / 1 var(--font-display);
+  font: 800 var(--wordmark) / 1 var(--font-mark);
   letter-spacing: -0.01em;
   color: var(--brand);
+}
+.auth__wordmark--sm {
+  font-size: 18px;
 }
 .auth__wordmark:focus-visible {
   outline: 2px solid transparent;
   box-shadow: var(--focus);
 }
+.auth__panel {
+  display: grid;
+  gap: 16px;
+}
 .auth__title {
-  margin: 6px 0 0;
-  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
+  margin: 4px 0 0;
+  font: 650 var(--text-h1) / var(--lh-h1) var(--font-ui);
+  letter-spacing: -0.012em;
   color: var(--ink);
 }
 .auth__title:focus,
@@ -41,65 +50,151 @@
 }
 .auth__lede {
   margin: -8px 0 0;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .auth__form {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 .auth__note {
   margin: 0;
   padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
-.auth__submit,
-.auth__guest {
+.auth__submit {
   width: 100%;
 }
+.auth__alts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+}
+.auth__alt {
+  justify-self: center;
+}
+.auth__foot p {
+  margin: 0;
+}
+.auth__aside {
+  border-radius: 4px;
+  font: 600 var(--text-meta) / var(--lh-meta) var(--font-ui);
+  color: var(--brand-2);
+}
+.auth__aside:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+/* Show / Hide sits inside the password field, as tall as the field allows. */
+.auth__show {
+  height: 36px;
+  margin-right: -6px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font: 600 var(--text-meta) / 1 var(--font-ui);
+  color: var(--brand-2);
+  touch-action: manipulation;
+}
+@media (pointer: coarse) {
+  /* The field is 44px tall on touch; the button fills it. */
+  .auth__show {
+    height: 44px;
+  }
+}
+.auth__show:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+@media (hover: hover) and (pointer: fine) {
+  .auth__aside:hover {
+    text-decoration: underline;
+  }
+  .auth__show:hover {
+    background: var(--paper-2);
+  }
+}
+.auth__foot {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 18px;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+/* Password reset */
 .auth__status {
   margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-2);
 }
 /* Kept in the tree while empty so the live region announces its first
    message; the negative margin cancels the card's gap meanwhile. */
 .auth__status:empty {
-  margin-top: -14px;
+  margin-top: -16px;
 }
-.auth__foot {
+.auth__links {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin: 2px 0 0;
+  margin: 0;
   padding-top: 14px;
   border-top: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
-.auth__foot a {
+.auth__links a {
   border-radius: 4px;
-  color: var(--brand);
+  color: var(--brand-2);
   font-weight: 600;
 }
-.auth__foot a.auth__foot-quiet {
+.auth__links a.auth__links-quiet {
   color: var(--ink-2);
   font-weight: 500;
 }
-.auth__foot a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .auth__links a:hover {
+    text-decoration: underline;
+  }
 }
+
+/* Over the app */
+.auth-dialog .ui-dialog__head {
+  padding: 24px 18px 0 26px;
+  align-items: center;
+}
+.auth-dialog .ui-dialog__title {
+  padding-top: 0;
+}
+.auth-dialog .ui-dialog__body {
+  padding: 18px 26px 22px;
+}
+.auth-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 0 20px;
+}
+/* The sheet body already pads 16px and the safe area. */
+.auth-sheet .auth__panel {
+  padding: 12px 4px 8px;
+}
+
 @media (max-width: 759px) {
   .auth {
     align-items: flex-start;
   }
   .auth__card {
-    border: 0;
     box-shadow: none;
     background: transparent;
     padding: 12px 4px;

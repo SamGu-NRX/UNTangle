@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { openSignIn } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
 import { UserGlyph } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
@@ -18,7 +19,8 @@ function initials(name: string | null | undefined, email: string): string {
 
 /**
  * Signed in: an initials avatar with a menu. Signed out: "Sign in", as text
- * on desktop and as a person glyph in the phone header.
+ * on desktop and as a person glyph in the phone header; it opens the sign-in
+ * form over the current page (SignInHost), and /auth is its fallback.
  */
 export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const { data, isPending } = authClient.useSession();
@@ -32,11 +34,11 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   }
   if (!user) {
     return compact ? (
-      <Link href="/auth" className="ui-btn ui-btn--ink ui-btn--icon shell-signin" aria-label="Sign in" data-ui="">
+      <Link href="/auth" onClick={openSignIn} className="ui-btn ui-btn--ink ui-btn--icon shell-signin" aria-label="Sign in" data-ui="">
         <UserGlyph size={22} />
       </Link>
     ) : (
-      <Link href="/auth" className="ui-btn ui-btn--quiet ui-btn--sm shell-signin" data-ui="">
+      <Link href="/auth" onClick={openSignIn} className="ui-btn ui-btn--quiet ui-btn--sm shell-signin" data-ui="">
         Sign in
       </Link>
     );
