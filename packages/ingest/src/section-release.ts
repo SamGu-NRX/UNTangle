@@ -32,7 +32,7 @@ export type DateSpan = { start: string; end: string };
 /** One meeting line for one day. A line that meets on several days ("TR") gives one record per day. */
 export type MeetingRecord = {
   day: Fact<ClassDay>;
-  /** Minutes after midnight; a class ending at 12:00AM ends at 1440. */
+  /** Minutes after midnight; a class ending at 12:00AM ends at 1440. Both known or both unknown, and a known end is after the start. */
   startMinutes: Fact<number>;
   endMinutes: Fact<number>;
   /** The room as written, trimmed ("Cury 203", "UNT Internet Course"); unknown for "", "None", "TBA", "No Room" and "No Facility Assigned". */

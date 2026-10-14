@@ -35,13 +35,22 @@ const sha256 = z.string().regex(/^[0-9a-f]{64}$/, "A hash is 64 lowercase hex di
  */
 const slug = z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'An id is lowercase words joined by hyphens, like "spring-2027".');
 
-export const MeetingRecordSchema = z.strictObject({
-  day: factSchema(ClassDaySchema),
-  startMinutes: factSchema(minute),
-  endMinutes: factSchema(minute),
-  room: factSchema(z.string().min(1).max(200)),
-  dates: factSchema(DateSpanSchema),
-});
+export const MeetingRecordSchema = z
+  .strictObject({
+    day: factSchema(ClassDaySchema),
+    startMinutes: factSchema(minute),
+    endMinutes: factSchema(minute),
+    room: factSchema(z.string().min(1).max(200)),
+    dates: factSchema(DateSpanSchema),
+  })
+  // The parser makes a one-ended or inverted time range invalid-data, so a record never holds one.
+  .superRefine(({ startMinutes, endMinutes }, ctx) => {
+    if (startMinutes.state !== endMinutes.state) {
+      ctx.addIssue({ code: "custom", path: ["endMinutes"], message: "A meeting's start and end are both known or both unknown." });
+    } else if (startMinutes.state === "known" && endMinutes.state === "known" && endMinutes.value <= startMinutes.value) {
+      ctx.addIssue({ code: "custom", path: ["endMinutes"], message: "A meeting ends after it starts." });
+    }
+  });
 
 export const ComponentRecordSchema = z.strictObject({
   classNumber,
@@ -64,6 +73,11 @@ export const SectionRecordSchema = z
     components: z.array(ComponentRecordSchema).min(1),
   })
   .superRefine((section, ctx) => {
+    const seen = new Set<string>();
+    section.classNumbers.forEach((number, index) => {
+      if (seen.has(number)) ctx.addIssue({ code: "custom", path: ["classNumbers", index], message: `Class ${number} is listed twice.` });
+      seen.add(number);
+    });
     // One component per class number, in the same order, primary first.
     const componentNumbers = section.components.map((component) => component.classNumber);
     if (componentNumbers.join("+") !== section.classNumbers.join("+")) {
@@ -74,9 +88,6 @@ export const SectionRecordSchema = z
         ctx.addIssue({ code: "custom", path: ["components", index, "role"], message: "The first component is the primary and only the first." });
       }
     });
-    if (!section.optionId.endsWith(`:${[...section.classNumbers].sort().join("+")}`)) {
-      ctx.addIssue({ code: "custom", path: ["optionId"], message: "An option id ends with its sorted class numbers." });
-    }
   });
 
 export const CourseRecordSchema = z.discriminatedUnion("availability", [
@@ -131,6 +142,20 @@ export const SectionReleaseSchema = z
         ctx.addIssue({ code: "custom", path: ["manifest", "counts", key], message: `The manifest counts ${counts[key]}; the release holds ${counted[key]}.` });
       }
     }
+    // An option id is the app's enrollment identity (lib/sections/INTEGRATION.md), so every part of it is checked.
+    courses.forEach((course, courseIndex) => {
+      if (course.availability !== "sections") return;
+      course.sections.forEach((section, sectionIndex) => {
+        const expected = `vsb:${manifest.termId}:${course.courseCode}:${[...section.classNumbers].sort().join("+")}`;
+        if (section.optionId !== expected) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["courses", courseIndex, "sections", sectionIndex, "optionId"],
+            message: `The option id is ${expected}: the release's term, the course and the sorted class numbers.`,
+          });
+        }
+      });
+    });
     if (manifest.releaseId !== `${manifest.sourceId}-${manifest.termId}-${manifest.contentSha256.slice(0, 12)}`) {
       ctx.addIssue({ code: "custom", path: ["manifest", "releaseId"], message: "A release id is <sourceId>-<termId>-<first 12 digits of contentSha256>." });
     }

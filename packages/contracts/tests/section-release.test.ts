@@ -120,8 +120,40 @@ describe("SectionReleaseSchema", () => {
   test("components follow the option's class numbers, primary first", () => {
     const [primary, lab] = math1680.components;
     expect(rejections(SectionReleaseSchema, withSection({ components: [lab, primary] }))).not.toEqual([]);
-    expect(rejections(SectionReleaseSchema, withSection({ optionId: "vsb:spring-2027:MATH 1680:6863" }))).toEqual([
-      "courses.2.sections.0.optionId: An option id ends with its sorted class numbers.",
+  });
+
+  test.each([
+    ["another term", "vsb:fall-2026:MATH 1680:6862+6863"],
+    ["another course", "vsb:spring-2027:BIOL 1710:6862+6863"],
+    ["other class numbers", "vsb:spring-2027:MATH 1680:6863"],
+    ["unsorted class numbers", "vsb:spring-2027:MATH 1680:6863+6862"],
+  ])("an option id naming %s is rejected", (_why, optionId) => {
+    expect(rejections(SectionReleaseSchema, withSection({ optionId }))).toEqual([
+      "courses.2.sections.0.optionId: The option id is vsb:spring-2027:MATH 1680:6862+6863: the release's term, the course and the sorted class numbers.",
+    ]);
+  });
+
+  test("a class number listed twice is rejected", () => {
+    const [primary] = math1680.components;
+    const twice = withSection({
+      optionId: "vsb:spring-2027:MATH 1680:6862+6862",
+      classNumbers: ["6862", "6862"],
+      components: [primary, { ...primary, role: "required-linked" }],
+    });
+    expect(rejections(SectionReleaseSchema, { ...twice, manifest: { ...release.manifest, counts: { ...release.manifest.counts, meetings: 4 } } })).toEqual([
+      "courses.2.sections.0.classNumbers.1: Class 6862 is listed twice.",
+    ]);
+  });
+
+  test.each([
+    ["a known start with an unknown end", { endMinutes: unknown<number>("", option(".meetings[1].end_time")) }, "A meeting's start and end are both known or both unknown."],
+    ["an end before the start", { endMinutes: known(470, option(".meetings[1].end_time")) }, "A meeting ends after it starts."],
+    ["an end equal to the start", { endMinutes: known(480, option(".meetings[1].end_time")) }, "A meeting ends after it starts."],
+  ])("a meeting with %s is rejected", (_why, edit, message) => {
+    const [primary, lab] = math1680.components;
+    const meetings = [{ ...lab.meetings[0], ...edit }];
+    expect(rejections(SectionReleaseSchema, withSection({ components: [primary, { ...lab, meetings }] }))).toEqual([
+      `courses.2.sections.0.components.1.meetings.0.endMinutes: ${message}`,
     ]);
   });
 
