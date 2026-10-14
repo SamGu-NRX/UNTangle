@@ -295,7 +295,7 @@ export type PlannerValue = ReturnType<PlannerModule["usePlanner"]>;
  * `waitFor` advances test time only when React and fetch promises have settled.
  * `extra` renders additional UI (e.g. the persistence panel) inside the provider.
  */
-export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore) {
+export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore, strict = false) {
   if (!clockInstalled) {
     clock.install();
     clockInstalled = true;
@@ -314,14 +314,13 @@ export async function mountPlanner(extra?: () => React.ReactNode, store?: Sectio
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await settle(() => root.render(
-    React.createElement(
-      mod.PlannerProvider,
-      // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
-      { sectionStore },
-      React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
-    ),
-  ));
+  const content = React.createElement(
+    mod.PlannerProvider,
+    // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
+    { sectionStore },
+    React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
+  );
+  await settle(() => root.render(strict ? React.createElement(React.StrictMode, null, content) : content));
   await waitFor(() => latest !== null, "first render");
 
   const get = (): PlannerValue => {

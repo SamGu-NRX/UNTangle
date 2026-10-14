@@ -31,9 +31,12 @@ export function savedPlansKey(userId: string | null): string {
 }
 
 // The library view keeps its store across account changes. Until the provider
-// finishes loading an identity, browser-backed stores refuse reads and writes.
+// confirms an identity, browser-backed stores refuse reads and writes.
 let browserIdentity: string | null | undefined;
 let browserIdentityToken = Symbol("saved-plan identity");
+export function getSavedPlanIdentity(): string | null | undefined {
+  return browserIdentity;
+}
 export function setSavedPlanIdentity(userId: string | null | undefined): void {
   browserIdentity = userId;
   browserIdentityToken = Symbol("saved-plan identity");

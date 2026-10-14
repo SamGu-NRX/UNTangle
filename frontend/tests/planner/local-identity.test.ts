@@ -11,6 +11,7 @@ import {
   createSavedPlanStore,
   LEGACY_SAVED_PLANS_STORE_KEY,
   savedPlansKey,
+  setSavedPlanIdentity,
 } from "@/lib/saved-plans/store";
 import type { PlannerState } from "@/lib/types";
 import {
@@ -54,8 +55,8 @@ afterEach(async () => {
   globalThis.fetch = previousFetch;
 });
 
-async function mount() {
-  const planner = await mountPlanner();
+async function mount(extra?: () => React.ReactNode) {
+  const planner = await mountPlanner(extra);
   mounted.push(planner.unmount);
   await waitFor(() => planner.get().hydrated, "identity hydrated");
   return planner;
@@ -185,7 +186,7 @@ test("a guest quarantines the legacy shared planner without loading it or exposi
   expect(readPlanner(null).state).toBeNull();
 });
 
-test("a long-lived browser library refuses access while B loads and then follows B's identity", async () => {
+test("a long-lived browser library follows B's identity before B's server plan loads", async () => {
   setSession(userA);
   const planner = await mount();
   const store = createSavedPlanStore();
@@ -196,8 +197,8 @@ test("a long-lived browser library refuses access while B loads and then follows
   globalThis.fetch = serverB.fetch as typeof fetch;
   setSession(userB);
   await waitFor(() => serverB.gets === 1, "B loading");
-  expect(store.list()).toMatchObject({ ok: false, failure: { kind: "storageUnavailable" } });
-  expect(store.savePlan({ state: privateState(), name: "Stale" })).toMatchObject({ ok: false });
+  expect(plans(store)).toEqual([]);
+  expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
   release();
   await waitFor(() => planner.get().hydrated && store.available, "B ready");
   expect(plans(store)).toEqual([]);
@@ -294,7 +295,7 @@ test("A's late save acknowledgment cannot recreate a backup after sign-out", asy
   expect(planner.get().plannerState.transcriptRecords).toEqual([]);
 });
 
-test("B's queued save uses B's backup after A's in-flight save settles", async () => {
+test("B saves independently while A's retired save is still in flight", async () => {
   server.writeElsewhere(privateState());
   setSession(userA);
   const planner = await mount();
@@ -307,9 +308,10 @@ test("B's queued save uses B's backup after A's in-flight save settles", async (
   await waitFor(() => serverB.gets === 1 && planner.get().hydrated, "B loaded");
   await planner.run((p) => p.setActiveDay("Fri"));
   await flushSaves();
-  expect(serverB.postsStarted).toBe(0);
+  expect(serverB.postsStarted).toBe(1);
+  expect(planner.get().saveState.label).toBe("Saved");
   release();
-  await waitFor(() => planner.get().saveState.label === "Saved", "B queued save stored");
+  await flushSaves();
   expect(serverB.row?.state.activeDay).toBe("Fri");
   expect(serverB.row?.state.transcriptRecords).toEqual([]);
   expect(readPlanner(userB.id).state?.activeDay).toBe("Fri");
@@ -455,4 +457,151 @@ test("a session lookup explicitly returning 401 confirms sign-out and deletes th
   expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBeNull();
   expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
   expect(planner.get().plannerState.transcriptRecords).toEqual([]);
+});
+
+test("B's first render, pagehide, saves, and local backup never contain A's planner or library", async () => {
+  const React = await import("react");
+  const { usePlanner } = await import("@/components/planner-provider");
+  const liveLibrary = createSavedPlanStore();
+  const frames: Array<{ identity: string; transcriptIds: string[]; libraryNames: string[] }> = [];
+  function ObserveIdentity() {
+    const planner = usePlanner();
+    const read = liveLibrary.list();
+    frames.push({
+      identity: planner.planStamp.identity,
+      transcriptIds: planner.plannerState.transcriptRecords.map((record) => record.id),
+      libraryNames: read.ok ? read.doc.plans.map((plan) => plan.name) : [],
+    });
+    React.useLayoutEffect(() => {
+      if (planner.planStamp.identity === `user:${userB.id}`) {
+        window.dispatchEvent(new Event("pagehide"));
+      }
+    }, [planner.planStamp.identity]);
+    return React.createElement("span", null, planner.plannerState.transcriptRecords.map((record) => record.title).join(", "));
+  }
+  server.writeElsewhere(privateState());
+  expect(library(userA.id).savePlan({ state: privateState(), name: "A private" }).ok).toBe(true);
+  const bState: PlannerState = { ...getInitialPlannerState(), optimization: "compact", activeDay: "Fri" };
+  expect(library(userB.id).savePlan({ state: bState, name: "B copy" }).ok).toBe(true);
+  setSession(userA);
+  const planner = await mount(() => React.createElement(ObserveIdentity));
+  expect(frames.some((frame) => frame.identity === `user:${userA.id}` && frame.transcriptIds.includes(transcript.id))).toBe(true);
+  await planner.run((p) => p.setActiveDay("Thu"));
+  const retiredA = planner.get();
+  const serverB = new FakePlannerServer();
+  serverB.writeElsewhere(bState);
+  const release = serverB.holdNextGet();
+  globalThis.fetch = Object.assign(serverB.fetch, { preconnect: previousFetch.preconnect });
+  try {
+    await planner.run(() => setSession(userB));
+    await waitFor(() => serverB.gets === 1, "B load started");
+    retiredA.resetPlanner();
+    retiredA.retrySave();
+    expect(await retiredA.transact(() => ({ next: privateState(), result: "stale" }), retiredA.planStamp)).toEqual({ status: "identity_changed" });
+    expect(serverB.postsStarted).toBe(0);
+    const firstB = frames.filter((frame) => frame.identity === `user:${userB.id}`);
+    expect(firstB.length).toBeGreaterThan(0);
+    for (const frame of firstB) {
+      expect(frame.transcriptIds).toEqual([]);
+      expect(frame.libraryNames).not.toContain("A private");
+    }
+    await flushSaves();
+  } finally {
+    release();
+  }
+  await waitFor(() => planner.get().hydrated && planner.get().plannerState.optimization === "compact", "B hydrated");
+  await planner.run((p) => p.setActiveDay("Mon"));
+  await waitFor(() => planner.get().saveState.label === "Saved", "B edit saved");
+  for (const frame of frames.filter((frame) => frame.identity === `user:${userB.id}`)) {
+    expect(frame.transcriptIds).toEqual([]);
+    expect(frame.libraryNames).not.toContain("A private");
+  }
+  expect(plans(liveLibrary).map((plan) => plan.name)).toEqual(["B copy"]);
+  expect(serverB.row?.state.activeDay).toBe("Mon");
+  expect(serverB.row?.state.transcriptRecords).toEqual([]);
+  for (const post of serverB.posts) expect(post.body.transcriptRecords).toEqual([]);
+  expect(readPlanner(userB.id).state?.activeDay).toBe("Mon");
+  expect(readPlanner(userB.id).state?.transcriptRecords).toEqual([]);
+});
+
+for (const status of [401, 500]) {
+  test(`a mirror recovered after an initial ${status} is saved when the retry confirms an empty server`, async () => {
+    createPlannerStateStore(window.localStorage, userA.id).writeMirror(privateState());
+    let first = true;
+    globalThis.fetch = Object.assign(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      if (first) {
+        first = false;
+        return new Response("{}", { status });
+      }
+      return server.fetch(input, init);
+    }, { preconnect: previousFetch.preconnect });
+    setSession(userA);
+    const planner = await mount();
+    expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
+    expect(server.row).toBeNull();
+    expect(planner.get().saveState.status).toBe(status === 401 ? "signed-out" : "not-saved");
+    await planner.run((p) => p.retrySave());
+    await waitFor(() => planner.get().saveState.label === "Saved", "recovered mirror saved to empty server");
+    expect(server.posts.map((post) => post.baseRevision)).toEqual(["0"]);
+    expect(server.row?.state.transcriptRecords).toEqual([transcript]);
+    await planner.unmount();
+    mounted.pop();
+    const reloaded = await mount();
+    expect(reloaded.get().plannerState.transcriptRecords).toEqual([transcript]);
+    expect(reloaded.get().saveState.label).toBe("Saved");
+  });
+}
+
+test("B's layout edit before bootstrap meets only B's stored plan in a conflict", async () => {
+  const React = await import("react");
+  const { usePlanner } = await import("@/components/planner-provider");
+  function EarlyEdit() {
+    const planner = usePlanner();
+    const editedRef = React.useRef(false);
+    React.useLayoutEffect(() => {
+      if (planner.planStamp.identity === `user:${userB.id}` && !editedRef.current) {
+        editedRef.current = true;
+        planner.setOptimization("clusterNight");
+      }
+    }, [planner]);
+    return null;
+  }
+  server.writeElsewhere(privateState());
+  setSession(userA);
+  const planner = await mount(() => React.createElement(EarlyEdit));
+  const serverB = new FakePlannerServer();
+  serverB.writeElsewhere({ ...getInitialPlannerState(), optimization: "compact" });
+  const release = serverB.holdNextGet();
+  globalThis.fetch = Object.assign(serverB.fetch, { preconnect: previousFetch.preconnect });
+  await planner.run(() => setSession(userB));
+  await waitFor(() => serverB.gets === 1, "B load started after its layout edit");
+  expect(planner.get().plannerState.optimization).toBe("clusterNight");
+  expect(planner.get().plannerState.transcriptRecords).toEqual([]);
+  release();
+  await waitFor(() => planner.get().conflict !== null, "B early-edit conflict");
+  expect(planner.get().conflict?.mine.optimization).toBe("clusterNight");
+  expect(planner.get().conflict?.mine.transcriptRecords).toEqual([]);
+  expect(planner.get().conflict?.theirs?.optimization).toBe("compact");
+  expect(planner.get().conflict?.theirs?.transcriptRecords).toEqual([]);
+  expect(serverB.posts).toEqual([]);
+});
+
+test("StrictMode replay restarts bootstrap and ignores the retired first load", async () => {
+  server.writeElsewhere(privateState());
+  setSession(userA);
+  setSavedPlanIdentity(userA.id);
+  const release = server.holdNextGet();
+  const planner = await mountPlanner(undefined, undefined, true);
+  mounted.push(planner.unmount);
+  try {
+    await waitFor(() => server.gets === 2 && planner.get().hydrated, "replayed bootstrap loaded");
+    expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
+    expect(planner.get().saveState.label).toBe("Saved");
+  } finally {
+    release();
+  }
+  await flushSaves();
+  expect(server.gets).toBe(2);
+  expect(server.posts).toEqual([]);
+  expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
 });
