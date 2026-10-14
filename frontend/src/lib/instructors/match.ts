@@ -136,6 +136,11 @@ function abstain(reason: string): MatchResult {
  * and ambiguity both abstain, with distinct reasons.
  */
 export function matchInstructor(sectionName: string, candidates: readonly Candidate[]): MatchResult {
+  return matchInstructorWith(sectionName, candidates, CONFIDENCE_THRESHOLD);
+}
+
+/** Exists so tests can vary the threshold without rewriting source. */
+export function matchInstructorWith(sectionName: string, candidates: readonly Candidate[], threshold: number): MatchResult {
   const parsed = parseSectionField(typeof sectionName === "string" ? sectionName : "");
   if (parsed.kind === "unusable") return abstain(`section instructor is ${parsed.word}`);
   if (parsed.kind === "unparseable") return abstain("section instructor field is unparseable");
@@ -169,7 +174,7 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
       if (outcome.kind === "suffix-contradiction") { suffixContradicted = true; continue; }
       if (outcome.kind === "insufficient-first") continue;
       if (outcome.kind === "first-contradiction") { firstNameContradicted = true; continue; }
-      if (outcome.confidence >= CONFIDENCE_THRESHOLD) {
+      if (outcome.confidence >= threshold) {
         qualified.push({ person, candidate, initial: outcome.initial, confidence: outcome.confidence });
       }
     }
