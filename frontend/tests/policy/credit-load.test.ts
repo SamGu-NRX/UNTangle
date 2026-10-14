@@ -108,7 +108,7 @@ describe("sourced-value contract", () => {
     }
   });
 
-  test("every threshold quotes a non-empty verbatim sentence", () => {
+  test("every threshold quotes a full sentence", () => {
     for (const t of all) {
       expect(t.sourceQuote.trim().length).toBeGreaterThan(0);
       expect(t.sourceQuote.split(/\s+/).length).toBeGreaterThan(3);
@@ -117,13 +117,13 @@ describe("sourced-value contract", () => {
 
   test("every GPA-conditional maximum keeps its condition wording", () => {
     for (const term of ["fall", "spring", "summer"] as const) {
-      const max = UNDERGRADUATE[term].maximumWithoutConditions;
+      const max = UNDERGRADUATE[term].standardMaximum;
       expect(max.condition).not.toBeNull();
       expect(max.condition).toContain("3.000");
     }
-    const ceiling = UNDERGRADUATE.fall.approvalCeiling;
-    if (ceiling.kind !== "with-approval") {
-      throw new Error("Expected fall to have a with-approval ceiling");
+    const ceiling = UNDERGRADUATE.fall.conditionalCeiling;
+    if (ceiling.kind !== "with-conditions") {
+      throw new Error("Expected fall to have a with-conditions ceiling");
     }
     expect(ceiling.maximum.condition).toContain("3.000");
   });
@@ -135,11 +135,11 @@ describe("sourced-value contract", () => {
     }
   });
 
-  test("summer models the missing approval path explicitly, with a source", () => {
-    const ceiling = UNDERGRADUATE.summer.approvalCeiling;
+  test("summer models the missing conditional path explicitly, with a source", () => {
+    const ceiling = UNDERGRADUATE.summer.conditionalCeiling;
     expect(ceiling.kind).toBe("none-in-catalog");
     if (ceiling.kind !== "none-in-catalog") {
-      throw new Error("Expected summer to have no approval path");
+      throw new Error("Expected summer to have no conditional path");
     }
     expect(ceiling.sourceUrl.startsWith("https://catalog.unt.edu/")).toBe(true);
     expect(ceiling.sourceQuote.trim().length).toBeGreaterThan(0);
@@ -155,8 +155,8 @@ describe("zoneFor, fall and spring", () => {
     [15, "full-time"],
     [16, "heavy"],
     [19, "heavy"],
-    [20, "needs-approval"],
-    [21, "needs-approval"],
+    [20, "gpa-conditions"],
+    [21, "gpa-conditions"],
     [22, "exceeds-maximum"],
     [30, "exceeds-maximum"],
   ])("%i hours -> %s", (hours, zone) => {

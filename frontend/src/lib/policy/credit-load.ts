@@ -3,10 +3,10 @@
  *
  * The credit-load meter needs to know where a student's hours sit against
  * the university's official rules: part-time, full-time at the normal load,
- * heavy but permitted, permitted only with approval, or past what the
- * catalog allows. This module is that policy, kept separate from the
- * parser so a threshold change is a data edit with a paper trail, not a
- * condition buried in logic.
+ * heavy but within the standard maximum, allowed only under the catalog's
+ * GPA conditions, or past what the catalog allows. This module is that
+ * policy, kept separate from the parser so a threshold change is a data
+ * edit with a paper trail, not a condition buried in logic.
  *
  * Every number carries the unt.edu page it came from, the sentence that
  * states it, and the date the page was retrieved. The contract test in
@@ -18,8 +18,7 @@
  *
  * - Student Load, 2026-2027 Undergraduate Catalog (catalog.unt.edu):
  *   https://catalog.unt.edu/content.php?catoid=37&navoid=4280
- * - Enrollment Certification, Undergraduate section (catalog.unt.edu):
- *   https://catalog.unt.edu/content.php?catoid=36&navoid=4059
+ * - Enrollment Certification, same page, Undergraduate and Graduate sections
  */
 
 /** A term the credit-load rules distinguish. */
@@ -27,14 +26,14 @@ export type Term = "fall" | "spring" | "summer";
 
 /**
  * The zones the credit-load meter renders, in increasing load. Summer has
- * no approval tier in the catalog, so `needs-approval` never occurs there
- * and hours past the summer maximum map to `exceeds-maximum` instead.
+ * no GPA-conditional tier in the catalog, so `gpa-conditions` never occurs
+ * there, and hours past the summer maximum map to `exceeds-maximum` instead.
  */
 export type CreditLoadZone =
   | "part-time"
   | "full-time"
   | "heavy"
-  | "needs-approval"
+  | "gpa-conditions"
   | "exceeds-maximum";
 
 /** One sourced numeric rule from the UNT catalog. */
@@ -48,19 +47,19 @@ export interface SourcedThreshold {
    * Enrollment condition the source attaches to this number, such as a
    * GPA bound, or null when the sentence states none. Zone names describe
    * load bands, not permission: `heavy` does not mean every student may
-   * enroll at that load, only that no approval tier applies to it.
+   * enroll at that load, only that no GPA-conditional tier applies to it.
    */
   readonly condition: string | null;
 }
 
 /**
- * How far enrollment may go above the unconditioned maximum. Fall and
+ * How far enrollment may go above the standard maximum. Fall and
  * spring allow up to 21 hours with a 3.000 GPA; the catalog states no
- * approval path for summer, so `none-in-catalog` carries the sentence
+ * conditional path for summer, so `none-in-catalog` carries the sentence
  * that governs the summer maximum instead of an invented ceiling.
  */
-export type ApprovalCeiling =
-  | { readonly kind: "with-approval"; readonly maximum: SourcedThreshold }
+export type ConditionalCeiling =
+  | { readonly kind: "with-conditions"; readonly maximum: SourcedThreshold }
   | {
       readonly kind: "none-in-catalog";
       readonly sourceUrl: string;
@@ -75,9 +74,9 @@ export interface TermProfile {
   /** Full-time zone runs up to the normal load, inclusive. */
   readonly fullTimeNormalLoad: SourcedThreshold;
   /** Heavy zone runs up to this ceiling, inclusive. */
-  readonly maximumWithoutConditions: SourcedThreshold;
-  /** Needs-approval zone and its cap, or the catalog's explicit lack of one. */
-  readonly approvalCeiling: ApprovalCeiling;
+  readonly standardMaximum: SourcedThreshold;
+  /** GPA-conditional zone and its cap, or the catalog's explicit lack of one. */
+  readonly conditionalCeiling: ConditionalCeiling;
 }
 
 /** Shared retrieval date for every source cited in this module. */
@@ -86,8 +85,8 @@ export const RETRIEVED_AT = "2026-10-14";
 const STUDENT_LOAD_URL =
   "https://catalog.unt.edu/content.php?catoid=37&navoid=4280";
 
-const CERTIFICATION_URL =
-  "https://catalog.unt.edu/content.php?catoid=36&navoid=4059";
+// Enrollment Certification is a section of the same 2026-2027 catalog page.
+const CERTIFICATION_URL = STUDENT_LOAD_URL;
 
 const sourced = (
   value: number,
@@ -109,21 +108,21 @@ const fallSpringProfile: TermProfile = {
   partTimeBelow: sourced(
     12,
     CERTIFICATION_URL,
-    "Full Time: fall, spring or summer terms/semesters, 12 or more hours.",
+    "Full Time: fall, spring or summer term/semester, 12 or more hours.",
   ),
   fullTimeNormalLoad: sourced(
     15,
     STUDENT_LOAD_URL,
     "The normal load for full-time undergraduate students is 15 semester hours for each fall or spring term/semester, or 30 hours for the nine-month academic year.",
   ),
-  maximumWithoutConditions: sourced(
+  standardMaximum: sourced(
     19,
     STUDENT_LOAD_URL,
     "During the fall/spring terms, a full-time undergraduate student with a GPA of less than 3.000 may select multiple sessions for a maximum of 19 semester hours.",
-    "GPA of less than 3.000; at 3.000 or above the approval path allows up to 21",
+    "GPA of less than 3.000; at 3.000 or above the conditional path allows up to 21",
   ),
-  approvalCeiling: {
-    kind: "with-approval",
+  conditionalCeiling: {
+    kind: "with-conditions",
     maximum: sourced(
       21,
       STUDENT_LOAD_URL,
@@ -137,20 +136,20 @@ const summerProfile: TermProfile = {
   partTimeBelow: sourced(
     12,
     CERTIFICATION_URL,
-    "Full Time: fall, spring or summer terms/semesters, 12 or more hours.",
+    "Full Time: fall, spring or summer term/semester, 12 or more hours.",
   ),
   fullTimeNormalLoad: sourced(
     12,
     STUDENT_LOAD_URL,
     "The normal load for full-time students is 12 hours for the summer term/semester.",
   ),
-  maximumWithoutConditions: sourced(
+  standardMaximum: sourced(
     18,
     STUDENT_LOAD_URL,
     "During the summer term/semester, a full-time undergraduate student with a GPA of more than 3.000 may select multiple sessions for a maximum of 18 semester hours.",
     "GPA of more than 3.000",
   ),
-  approvalCeiling: {
+  conditionalCeiling: {
     kind: "none-in-catalog",
     sourceUrl: STUDENT_LOAD_URL,
     sourceQuote:
@@ -161,8 +160,8 @@ const summerProfile: TermProfile = {
 
 /**
  * Undergraduate credit-load profiles, the default for the meter. The
- * summer approval ceiling is deliberately absent: the catalog grants the
- * 21-hour approval path only to "the fall or spring term/semester" and
+ * summer conditional ceiling is deliberately absent: the catalog grants the
+ * 21-hour conditional path only to "the fall or spring term/semester" and
  * states nothing beyond the summer maximum of 18.
  */
 export const UNDERGRADUATE: Record<Term, TermProfile> = {
@@ -188,7 +187,7 @@ export const GRADUATE: GraduateProfile = {
   fullTimeMinimum: sourced(
     9,
     CERTIFICATION_URL,
-    "Full Time: fall, spring or summer terms/semesters, 9 or more hours.",
+    "Full Time: fall, spring or summer term/semester, 9 or more hours.",
   ),
   fallSpringMaximum: sourced(
     16,
@@ -206,7 +205,7 @@ export const GRADUATE: GraduateProfile = {
  *
  * Zones are load bands, not enrollment permission: the catalog conditions
  * the 19, 18, and 21 hour ceilings on GPA, and this function takes no
- * GPA, so callers must not read `heavy` or `needs-approval` as permitted
+ * GPA, so callers must not read `heavy` or `gpa-conditions` as permitted
  * for every student. The per-threshold `condition` field carries the
  * eligibility wording for UI that needs it.
  */
@@ -220,11 +219,11 @@ export function zoneFor(hours: number, term: Term): CreditLoadZone {
   const profile = UNDERGRADUATE[term];
   if (hours < profile.partTimeBelow.value) return "part-time";
   if (hours <= profile.fullTimeNormalLoad.value) return "full-time";
-  if (hours <= profile.maximumWithoutConditions.value) return "heavy";
+  if (hours <= profile.standardMaximum.value) return "heavy";
 
-  const ceiling = profile.approvalCeiling;
-  if (ceiling.kind === "with-approval") {
-    if (hours <= ceiling.maximum.value) return "needs-approval";
+  const ceiling = profile.conditionalCeiling;
+  if (ceiling.kind === "with-conditions") {
+    if (hours <= ceiling.maximum.value) return "gpa-conditions";
     return "exceeds-maximum";
   }
   return "exceeds-maximum";
