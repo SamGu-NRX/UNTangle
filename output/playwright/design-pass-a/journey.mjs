@@ -384,7 +384,8 @@ async function plansCompareRestore(page, size) {
   const mainNow = async () => {
     await page.waitForTimeout(1500);
     return page.evaluate(() => {
-      const doc = JSON.parse(localStorage.getItem("untangle.planner-state.v1") ?? "null");
+      // The guest's own key since #77 (local planner data per identity).
+      const doc = JSON.parse(localStorage.getItem("untangle.planner-state.v1:guest") ?? "null");
       const state = doc?.state ?? doc;
       return JSON.stringify({ statuses: state?.courseStatuses, plan: state?.coursePlan, records: state?.transcriptRecords?.length });
     });
@@ -398,6 +399,7 @@ async function plansCompareRestore(page, size) {
   check(size, "library: the result is announced once, by the toast's live region", announcers === 1, `${announcers} live regions`);
   check(size, "library: using a copy keeps you in the library and offers Undo", page.url().endsWith("/schedules") && (await page.getByRole("button", { name: "Undo" }).count()) === 1);
   const adopted = await mainNow();
+  check(size, "library: Main is read from storage", before !== JSON.stringify({}) && !before.includes('"statuses":null') && before.includes("statuses"), before.slice(0, 80));
   check(size, "library: using the copy changed Main", adopted !== before);
   await page.getByRole("button", { name: "Undo" }).click();
   const undone = await mainNow();
