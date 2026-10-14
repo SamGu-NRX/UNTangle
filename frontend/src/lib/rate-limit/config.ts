@@ -16,6 +16,8 @@ export function budgetWindowMs(budget: { windowSeconds?: number }): number {
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Feed previews fetch an external calendar and parse it: kept tight on purpose.
+  calendarFeedsPreview: { user: 5, ip: 15 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },
