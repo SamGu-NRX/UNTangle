@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
+import { blocksWithEvents, withEvents } from "./joined";
 
 const YEAR_2026 = { start: "2026-01-01T00:00:00Z", end: "2027-01-01T00:00:00Z" };
 const FIXTURES = join(import.meta.dir, "fixtures");
@@ -20,7 +21,7 @@ function chicagoFixture(): string {
 }
 
 const clubEvent = (raw: string) =>
-  parseCalendarFeed(raw, YEAR_2026).occurrences.filter((o) => o.summary.startsWith("Club Coordination"));
+  withEvents(parseCalendarFeed(raw, YEAR_2026)).filter((o) => o.summary.startsWith("Club Coordination"));
 
 test("a daily zoned event keeps wall time across the spring 2026 DST gap in America/Chicago", () => {
   const result = parseCalendarFeed(
@@ -110,7 +111,7 @@ test("UNTIL is an inclusive upper bound at the exact occurrence instant", () => 
 
 test("weekly INTERVAL 2 lands every other Monday", () => {
   const result = parseCalendarFeed(chicagoFixture(), YEAR_2026);
-  const biweekly = result.occurrences.filter((o) => o.summary === "Biweekly lab");
+  const biweekly = withEvents(result).filter((o) => o.summary === "Biweekly lab");
   expect(biweekly.map((o) => o.start)).toEqual([
     "2026-11-02T16:00:00.000Z",
     "2026-11-16T16:00:00.000Z",
@@ -120,14 +121,14 @@ test("weekly INTERVAL 2 lands every other Monday", () => {
 
 test("DAILY with BYDAY filters expanded days to the listed weekdays", () => {
   const result = parseCalendarFeed(chicagoFixture(), YEAR_2026);
-  const filtered = result.occurrences.filter((o) => o.summary === "Filtered daily");
+  const filtered = withEvents(result).filter((o) => o.summary === "Filtered daily");
   // DTSTART Fri Nov 6; only Mon Nov 9 and Wed Nov 11 survive the MO,WE filter.
   expect(filtered.map((o) => o.start)).toEqual(["2026-11-09T15:00:00.000Z", "2026-11-11T15:00:00.000Z"]);
 });
 
 test("a comma-separated EXDATE with TZID drops exactly the matching occurrences, including across DST", () => {
   const result = parseCalendarFeed(chicagoFixture(), YEAR_2026);
-  const seminar = result.occurrences.filter((o) => o.summary === "Monday seminar");
+  const seminar = withEvents(result).filter((o) => o.summary === "Monday seminar");
   // COUNT=5 is Oct 5, 12, 19, 26, Nov 2; the EXDATE list removes Oct 26 (CDT) and
   // Nov 2 (CST, after the DST return), leaving three.
   expect(seminar.map((o) => o.start)).toEqual([
@@ -179,7 +180,7 @@ test("a date-form EXDATE removes exactly its all-day occurrence", () => {
 
 test("an all-day event is all-day with an exclusive DTEND and one occurrence in range", () => {
   const result = parseCalendarFeed(chicagoFixture(), YEAR_2026);
-  const workshops = result.occurrences.filter((o) => o.summary === "All-day workshops");
+  const workshops = withEvents(result).filter((o) => o.summary === "All-day workshops");
   expect(workshops).toHaveLength(1);
   expect(workshops[0]?.isAllDay).toBe(true);
   expect(workshops[0]?.start).toBe("2026-10-14T00:00:00.000Z");
@@ -200,7 +201,7 @@ test("an event straddling rangeStart is included and events entirely outside are
   const straddling = parseCalendarFeed(feed, { start: "2026-10-14T14:30:00Z", end: "2026-10-14T23:00:00Z" });
   // Oct 14 holds: the all-day event (spans the whole day), UTC sync (14:00-15:00Z,
   // straddling rangeStart), and the Wednesday club meeting (15:00-16:00Z).
-  expect(straddling.occurrences.map((o) => o.summary)).toEqual([
+  expect(withEvents(straddling).map((o) => o.summary)).toEqual([
     "All-day workshops",
     "UTC sync",
     "Club Coordination Meeting for the Department of Computer Science and Engineering Weekly Session",
@@ -208,14 +209,14 @@ test("an event straddling rangeStart is included and events entirely outside are
   // A range that ends Oct 5 15:30Z still catches the Monday seminar start (15:00-16:00Z),
   // but nothing from the Oct 7 club meeting onward.
   const endsMidSeminar = parseCalendarFeed(feed, { start: "2026-10-01T00:00:00Z", end: "2026-10-05T15:30:00Z" });
-  expect(endsMidSeminar.occurrences.map((o) => o.summary)).toEqual(["Monday seminar"]);
+  expect(withEvents(endsMidSeminar).map((o) => o.summary)).toEqual(["Monday seminar"]);
   const beforeEverything = parseCalendarFeed(feed, { start: "2026-01-01T00:00:00Z", end: "2026-03-01T00:00:00Z" });
   expect(beforeEverything.occurrences).toEqual([]);
 });
 
 test("the weekly MO WE FR event yields three busy blocks with weekday numbers and minutes", () => {
   const result = parseCalendarFeed(chicagoFixture(), YEAR_2026);
-  const club = result.weeklyBusyBlocks.filter((b) => b.summary.startsWith("Club Coordination"));
+  const club = blocksWithEvents(result).filter((b) => b.summary.startsWith("Club Coordination"));
   // Monday 10:00-11:00, Wednesday 10:00-11:00, Friday 10:00-11:00; weekday 0 is Sunday.
   expect(club.map((b) => [b.weekday, b.startMinutes, b.endMinutes])).toEqual([
     [1, 600, 660],
@@ -227,11 +228,11 @@ test("the weekly MO WE FR event yields three busy blocks with weekday numbers an
 test("the real Google US holidays fixture parses into the expected all-day holidays", () => {
   const result = parseCalendarFeed(readFileSync(join(FIXTURES, "us-holidays.ics"), "utf-8"), YEAR_2026);
   expect(result.skipped).toEqual([]);
-  expect(result.occurrences.map((o) => `${o.summary} ${o.start}`)).toEqual([
+  expect(withEvents(result).map((o) => `${o.summary} ${o.start}`)).toEqual([
     "Independence Day 2026-07-04T00:00:00.000Z",
     "Thanksgiving Day 2026-11-26T00:00:00.000Z",
   ]);
-  expect(result.occurrences.every((o) => o.isAllDay)).toBe(true);
+  expect(withEvents(result).every((o) => o.isAllDay)).toBe(true);
 });
 
 test("an unknown TZID and an unsupported FREQ land in skipped while the rest parses", () => {
@@ -243,7 +244,7 @@ test("an unknown TZID and an unsupported FREQ land in skipped while the rest par
     ),
     YEAR_2026,
   );
-  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(withEvents(result).map((o) => o.summary)).toEqual(["Fine event"]);
   expect(result.skipped.map((s) => s.uid).sort()).toEqual(["mars@t", "monthly@t"]);
   expect(result.skipped.every((s) => s.reason.length > 0)).toBe(true);
 });
@@ -284,8 +285,8 @@ test("an absurd INTERVAL is rejected as malformed instead of overflowing date ar
     ),
     YEAR_2026,
   );
-  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
-  expect(result.skipped).toEqual([{ uid: "huge@t", reason: "unsupported or malformed RRULE" }]);
+  expect(withEvents(result).map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(result.skipped).toEqual([{ uid: "huge@t", summary: "Huge interval", reason: "unsupported or malformed RRULE" }]);
 });
 
 test("malformed BYDAY and WKST weekday codes land in skipped", () => {
@@ -307,7 +308,7 @@ test("malformed BYDAY and WKST weekday codes land in skipped", () => {
     ),
     YEAR_2026,
   );
-  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(withEvents(result).map((o) => o.summary)).toEqual(["Fine event"]);
   expect(result.skipped.map((s) => s.uid).sort()).toEqual(["byday@t", "wkst@t"]);
 });
 
@@ -325,7 +326,7 @@ test("a cancelled event is omitted without a skip entry", () => {
     ),
     YEAR_2026,
   );
-  expect(result.occurrences.map((o) => o.summary)).toEqual(["Live meeting"]);
+  expect(withEvents(result).map((o) => o.summary)).toEqual(["Live meeting"]);
   expect(result.weeklyBusyBlocks).toEqual([]);
   expect(result.skipped).toEqual([]);
 });
@@ -350,7 +351,7 @@ test("DURATION, RDATE, and RECURRENCE-ID events are skipped with reasons instead
     ),
     YEAR_2026,
   );
-  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(withEvents(result).map((o) => o.summary)).toEqual(["Fine event"]);
   expect(result.skipped.map((s) => s.uid).sort()).toEqual(["dur@t", "rdate@t", "recid@t"]);
   expect(result.skipped.every((s) => s.reason.length > 0)).toBe(true);
 });
@@ -368,7 +369,7 @@ test("an overnight weekly event splits its busy block per local day", () => {
     ),
     YEAR_2026,
   );
-  expect(result.weeklyBusyBlocks).toEqual([
+  expect(blocksWithEvents(result)).toEqual([
     { uid: "overnight@t", summary: "Overnight study hall", weekday: 1, startMinutes: 1380, endMinutes: 1440 },
     { uid: "overnight@t", summary: "Overnight study hall", weekday: 2, startMinutes: 0, endMinutes: 60 },
   ]);
@@ -387,7 +388,7 @@ test("a weekly event ending exactly at midnight leaves no empty next-day block",
     ),
     YEAR_2026,
   );
-  expect(result.weeklyBusyBlocks).toEqual([
+  expect(blocksWithEvents(result)).toEqual([
     { uid: "midnight@t", summary: "Late lab", weekday: 1, startMinutes: 1380, endMinutes: 1440 },
   ]);
 });

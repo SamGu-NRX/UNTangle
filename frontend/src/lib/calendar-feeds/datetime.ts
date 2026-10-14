@@ -10,6 +10,27 @@
 
 export type CalendarDate = { year: number; month: number; day: number };
 
+/**
+ * The zone for floating times: iCalendar values with neither a TZID nor a Z
+ * suffix, and preview range values without a UTC offset. RFC 5545 leaves
+ * floating times to the reader; this library reads them as America/Chicago,
+ * the zone all UNT campuses schedule in, so the answer never depends on the
+ * server's own time zone.
+ */
+export const FLOATING_TIME_ZONE = "America/Chicago";
+
+/**
+ * UTC milliseconds for a calendar reading, taking the year literally.
+ * `Date.UTC` maps years 0 through 99 to 1900 through 1999, so the year is set
+ * with `setUTCFullYear` instead.
+ */
+function utcMs(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): number {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(hour, minute, second, 0);
+  return date.getTime();
+}
+
 /** A wall-clock reading: what a calendar in a zone prints for an instant. */
 export type ZoneWallTime = {
   year: number;
@@ -51,19 +72,8 @@ export function isValidTimeZone(zone: string): boolean {
   }
 }
 
-/** The zone's wall-clock reading of an instant. An undefined zone is the process local zone. */
-export function zoneWallTime(epochMs: number, timeZone: string | undefined): ZoneWallTime {
-  if (timeZone === undefined) {
-    const local = new Date(epochMs);
-    return {
-      year: local.getFullYear(),
-      month: local.getMonth() + 1,
-      day: local.getDate(),
-      hour: local.getHours(),
-      minute: local.getMinutes(),
-      second: local.getSeconds(),
-    };
-  }
+/** The zone's wall-clock reading of an instant. */
+export function zoneWallTime(epochMs: number, timeZone: string): ZoneWallTime {
   const parts = zoneFormatter(timeZone).formatToParts(new Date(epochMs));
   const read = (type: Intl.DateTimeFormatPartTypes): number =>
     Number(parts.find((part) => part.type === type)?.value ?? "0");
@@ -80,14 +90,14 @@ export function zoneWallTime(epochMs: number, timeZone: string | undefined): Zon
 /** The zone's UTC offset, in milliseconds, at the given instant. */
 export function zoneOffsetMs(epochMs: number, timeZone: string): number {
   const wall = zoneWallTime(epochMs, timeZone);
-  return Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second) - epochMs;
+  return utcMs(wall.year, wall.month, wall.day, wall.hour, wall.minute, wall.second) - epochMs;
 }
 
 /**
  * Converts a wall-clock reading in a zone to the UTC instant it names. Normal
  * times converge on the first pass. Ambiguous fall-back times take the earlier
  * offset. Nonexistent spring-forward times resolve to the transition instant
- * itself, just after the gap. An undefined zone is the process local zone.
+ * itself, just after the gap.
  *
  * The candidate set method: every instant that prints this wall time differs
  * from the naive reading by some zone offset, so probe the offsets observable
@@ -97,11 +107,8 @@ export function zoneOffsetMs(epochMs: number, timeZone: string): number {
  * not enough: for zones east of UTC that probe can already see the
  * post-transition offset, which silently picks the later fall-back candidate.
  */
-export function resolveZonedWallTime(wall: ZoneWallTime, timeZone: string | undefined): number {
-  if (timeZone === undefined) {
-    return new Date(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second).getTime();
-  }
-  const naive = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second);
+export function resolveZonedWallTime(wall: ZoneWallTime, timeZone: string): number {
+  const naive = utcMs(wall.year, wall.month, wall.day, wall.hour, wall.minute, wall.second);
   const probeHours = [-48, -24, 0, 24, 48];
   const offsets = new Set(probeHours.map((hours) => zoneOffsetMs(naive + hours * 3_600_000, timeZone)));
   const candidates: number[] = [];
@@ -146,7 +153,7 @@ function transitionInstant(before: number, after: number, afterOffset: number, t
 }
 
 export function calendarDateToUtcMs(date: CalendarDate): number {
-  return Date.UTC(date.year, date.month - 1, date.day);
+  return utcMs(date.year, date.month, date.day);
 }
 
 /** Weekday of a calendar date, 0 = Sunday through 6 = Saturday. */
@@ -186,7 +193,7 @@ export function formatInstant(epochMs: number): string {
 
 /** One iCalendar DATE or DATE-TIME value resolved against a zone. */
 export type ResolvedDateTime =
-  | { kind: "timed"; epochMs: number; wall: ZoneWallTime; zone: string | undefined }
+  | { kind: "timed"; epochMs: number; wall: ZoneWallTime; zone: string }
   | { kind: "date"; date: CalendarDate }
   | { kind: "invalid"; reason: string };
 
@@ -196,21 +203,21 @@ const DATE_FORM = /^(\d{4})(\d{2})(\d{2})$/;
 /**
  * Resolves one iCalendar DATE or DATE-TIME value. A Z suffix is UTC; a TZID
  * parameter names the zone; a floating value (neither) resolves in
- * `zoneForFloating`, which callers set to the owning event's zone so UNTIL and
- * EXDATE values can share it (undefined = the process local zone). The wall
- * components ride along so recurrence expansion can reuse the event's wall
- * time on other dates.
+ * `zoneForFloating`. Callers pass the owning event's zone so UNTIL, EXDATE and
+ * RECURRENCE-ID values share it, and FLOATING_TIME_ZONE when there is no event
+ * zone. Four-digit years are taken literally. The wall components ride along
+ * so recurrence expansion can reuse the event's wall time on other dates.
  */
 export function parseIcsDateTime(
   value: string,
   params: Record<string, string>,
-  zoneForFloating: string | undefined,
+  zoneForFloating: string,
 ): ResolvedDateTime {
   const valueParam = params["VALUE"]?.toUpperCase();
   if (valueParam !== undefined && valueParam !== "DATE" && valueParam !== "DATE-TIME") {
     return { kind: "invalid", reason: `unsupported VALUE=${valueParam}` };
   }
-  const time = DATE_TIME_FORM.exec(value.trim());
+  const time = DATE_TIME_FORM.exec(value.trim().toUpperCase());
   if (time !== null) {
     if (valueParam === "DATE") return { kind: "invalid", reason: "VALUE=DATE requires a bare date" };
     const wall = {
@@ -252,8 +259,42 @@ function isPlausibleWall(wall: ZoneWallTime): boolean {
   );
 }
 
-/** The calendar date an instant falls on, in the given zone (undefined = local). */
-export function calendarDateOfInstant(epochMs: number, timeZone: string | undefined): CalendarDate {
+/** The calendar date an instant falls on, in the given zone. */
+export function calendarDateOfInstant(epochMs: number, timeZone: string): CalendarDate {
   const wall = zoneWallTime(epochMs, timeZone);
   return { year: wall.year, month: wall.month, day: wall.day };
+}
+
+const RANGE_INSTANT_FORM = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:\d{2})?$/i;
+
+/**
+ * Parses one preview range value: an ISO 8601 date-time such as
+ * `2026-10-14T09:00:00Z`, `2026-10-14T09:00:00-05:00`, or
+ * `2026-10-14T09:00:00`. A value without an offset is a floating time and
+ * reads as FLOATING_TIME_ZONE (America/Chicago), with the same DST choices as
+ * feed times. Returns null for anything else, including the locale formats
+ * `Date.parse` would accept, so the answer never depends on the server.
+ */
+export function parseRangeInstant(value: string): number | null {
+  const match = RANGE_INSTANT_FORM.exec(value.trim());
+  if (match === null) return null;
+  const wall = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: match[6] === undefined ? 0 : Number(match[6]),
+  };
+  if (!isPlausibleWall(wall) || wall.second > 59) return null;
+  const fractionMs = match[7] === undefined ? 0 : Number(match[7].slice(0, 3).padEnd(3, "0"));
+  const offset = match[8]?.toUpperCase();
+  if (offset === undefined) return resolveZonedWallTime(wall, FLOATING_TIME_ZONE) + fractionMs;
+  const naive = utcMs(wall.year, wall.month, wall.day, wall.hour, wall.minute, wall.second) + fractionMs;
+  if (offset === "Z") return naive;
+  const sign = offset.startsWith("-") ? -1 : 1;
+  const offsetHours = Number(offset.slice(1, 3));
+  const offsetMinutes = Number(offset.slice(4, 6));
+  if (offsetHours > 23 || offsetMinutes > 59) return null;
+  return naive - sign * (offsetHours * 60 + offsetMinutes) * 60_000;
 }

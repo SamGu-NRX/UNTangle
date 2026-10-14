@@ -24,7 +24,7 @@ export const MAX_EXPANSION_ITERATIONS = 100_000;
 const WEEKDAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
 function parseWeekdayCode(code: string): number | null {
-  const day = WEEKDAY_CODES.indexOf(code.trim().toUpperCase());
+  const day = WEEKDAY_CODES.indexOf(code.trim());
   return day < 0 ? null : day;
 }
 
@@ -34,7 +34,9 @@ export const MAX_RRULE_INTERVAL = 1_000;
 /**
  * Parses an RRULE value. Returns null for unsupported frequencies, unsupported
  * or malformed parts, so the event lands in `skipped` instead of producing
- * silently wrong occurrences.
+ * silently wrong occurrences. Part names and values are case-insensitive
+ * (RFC 5545 section 2.1), so the whole value is uppercased first; the only
+ * free-form part, UNTIL, is a date-time whose letters are T and Z.
  */
 export function parseRrule(value: string): Rrule | null {
   let freq: "DAILY" | "WEEKLY" | null = null;
@@ -43,10 +45,10 @@ export function parseRrule(value: string): Rrule | null {
   let until: string | null = null;
   let count: number | null = null;
   let wkst = 1; // Monday, per RFC 5545.
-  for (const part of value.split(";")) {
+  for (const part of value.toUpperCase().split(";")) {
     const equals = part.indexOf("=");
     if (equals <= 0) return null;
-    const key = part.slice(0, equals).trim().toUpperCase();
+    const key = part.slice(0, equals).trim();
     const raw = part.slice(equals + 1).trim();
     if (key === "FREQ") {
       if (raw === "DAILY" || raw === "WEEKLY") freq = raw;
