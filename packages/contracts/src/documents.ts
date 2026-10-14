@@ -175,6 +175,12 @@ export const ScheduleBodySchema = z
     // The invariants normalizePlannerState keeps today: a pick belongs to a
     // planned course, and a lock pins exactly the course's pick.
     const planned = new Set(schedule.courses);
+    // Undo and "clear Auto's picks" act on autoPlanned, so it may name only planned courses.
+    for (const code of schedule.autoPlanned) {
+      if (!planned.has(code)) {
+        ctx.addIssue({ code: "custom", path: ["autoPlanned"], message: `${code} is marked as added by Auto but isn't in courses.` });
+      }
+    }
     for (const code of Object.keys(schedule.selectedSections)) {
       if (!planned.has(code)) {
         ctx.addIssue({ code: "custom", path: ["selectedSections", code], message: `${code} has a pick but isn't in courses.` });

@@ -115,16 +115,16 @@ Some state never syncs and stays on each device: the active tab, the selected da
 
 ```ts
 interface Write { operationId: string; documentId: string; kind: DocumentKind; baseRevision: number; schemaVersion: 1; body: unknown | null /* null deletes */ }
-interface Receipt { userId: string; operationId: string; bodySha256: string; committedRevision: number }
+interface Receipt { userId: string; operationId: string; writeSha256: string; committedRevision: number }
 ```
 
 The server handles a write in one transaction:
 1. Authorize the caller.
-2. Look up the receipt by `(userId, operationId)`. If it exists and its `bodySha256` matches, return it; if the hash differs, reject the write.
+2. Look up the receipt by `(userId, operationId)`. If it exists and its `writeSha256` matches, return it; if the hash differs, reject the write.
 3. Compare the revision.
 4. Write the body, bump the revision and store the receipt.
 
-The hash covers the exact body bytes the client stored in its outbox, so a retry always matches.
+The hash covers the whole write (document id, kind, base revision, schema version and body) exactly as the client stored it in its outbox, so a retry always matches, and a reused operation id can't match a different write that happens to share a body, as every delete's `null` body does. Versions are create-only: a version write has base revision 0 and a body, and the contract rejects anything else.
 
 The one exception is the extension, which holds only a read-only view. It sends a single command, `add-option`, carrying the schedule revision the student saw when they confirmed. If the schedule has moved on since then, the server rejects the command, and the extension shows a fresh preview against the latest revision before the student confirms again. Applying it anyway would merge two schedule edits silently. No other commands exist in v1, so an over-the-air client never sends a command the server doesn't know.
 
@@ -150,16 +150,17 @@ Delete-versus-edit is a conflict. An offline device can't resurrect a deleted sc
 
 **Local data belongs to one identity.** Every local store (planner backup, library, preferences, outbox) is keyed by the signed-in user id or a guest id. The guest path never reads a user's keys, and signing out deletes that user's local copies from the browser. Sign-out first checks the outbox. If any write is waiting, unconfirmed or needs sign-in, it asks: "Some changes haven't synced. Sync now, or sign out and discard them?" Nothing in the outbox is deleted without that choice. Today a single shared key leaks one student's plan and transcript to the next person on the browser; `untangle/local-identity` fixes that before anything else builds on local state.
 
-**Guests.** A guest works against the same local store under a guest identity, with sync off. On a shared computer, the next anonymous visitor must not inherit a previous guest's plan and transcript, so:
-- guest data expires after 14 days without an edit;
-- on load, guest data last edited more than 4 hours ago shows "Continue where you left off, or start fresh?";
-- every screen offers "Clear this browser" one step away.
+**Guests.** A guest works against the same local store under a guest identity, with sync off. On a shared computer, the next anonymous visitor must not inherit a previous guest's plan and transcript. An elapsed-time rule alone can't promise that, because a lab computer is often handed over minutes after the last edit. So the guest identity is tied to the browser session, and a handover inside one session gets its own guards:
+- **The guest id lives in a session cookie,** so it ends when the browser closes. Tabs in one browser session share it, which keeps the emailed sign-in link working. Guest data found under any other guest id is never shown: on load the app asks "Someone used UNTangle as a guest in this browser. Continue their work, or start fresh?" with no preview of the plan, and "start fresh" deletes it.
+- **Idle lock:** after 30 minutes without interaction, a guest's screens are covered by the same question, again with no preview, before anything is drawn.
+- **A transcript makes the risk concrete,** so a guest who imports one sees, before the import is stored: "This browser keeps your transcript until you clear it or close the browser. On a shared computer, sign in or clear it when you're done."
+- **"Clear this browser"** is one step away on every screen, and guest data expires after 14 days without an edit as a backstop.
 
-Both durations are starting values with nothing measured behind them. Signing in follows `docs/architecture/guest-sync.md`, for each document kind: empty account means save automatically, with Undo; both sides have different work means one question; whatever isn't chosen is kept as a saved copy in the account. Nothing is merged silently.
+What remains: two students passing a browser back and forth within 30 minutes, without closing it, can't be told apart, and the import warning is the only guard there. The 30-minute and 14-day values are starting points with nothing measured behind them. Signing in follows `docs/architecture/guest-sync.md`, for each document kind: empty account means save automatically, with Undo; both sides have different work means one question; whatever isn't chosen is kept as a saved copy in the account. Nothing is merged silently.
 
 **Migration.**
 1. Deploy the document tables and readers first.
-2. Migrate each user's legacy row atomically: an academic record, plus a schedule named "Main".
+2. Migrate each user's legacy row atomically into three documents: an academic record, a schedule named "Main", and preferences holding the row's optimization goal. Constraints and weights live only in each browser's localStorage today, so the server starts preferences with the defaults, and the first signed-in web client offers its local values as an ordinary preferences write.
    - **Term:** `PlannerState` has no term field, so stamp the term the plan was made for, taken from its sections' term. Fall back to the current term only when a plan has no sections.
    - **Fields:** keep every field that has a home, including the optimization goal.
    - **Marker:** record a migration marker.
@@ -227,7 +228,7 @@ CORS:
 
 It's built from three pieces:
 - **Content script:** on myUNT class search only. It reads an allowlist of fields through the portal adapter and draws minimal overlays in a shadow root, styled with `tokens`.
-- **Background worker:** holds the token, keeps a read-only projection of the chosen schedule and a queue of pending adds, and talks to the API. It runs no sync engine.
+- **Background worker:** holds the token, keeps a read-only projection of the chosen schedule and a queue of pending adds, and talks to the API. It runs no sync engine. A Manifest V3 worker can be stopped at any time, so a confirmed add is written to `chrome.storage.local` (the command, its operation id and the schedule revision the student saw) before it is sent, and removed only when its receipt or rejection arrives. A restarted worker resends what's left.
 - **Trusted panel:** shows details and confirms actions.
 
 Permissions are `storage` and `identity`, the UNTangle API host, and `content_scripts.matches` for the exact myUNT class-search hosts. PeopleSoft renders results in frames, so the exact frame origins come from a live capture before release. The manifest test pins the host list. The extension never asks for `<all_urls>`, cookies, history or request interception, and never runs on a login or identity-provider host.

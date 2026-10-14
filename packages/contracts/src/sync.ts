@@ -13,23 +13,39 @@ import { DocumentIdSchema, OperationIdSchema } from "./ids";
  * schema applies, so the server can check a document's first write; on later
  * writes it must equal the stored document's kind, or the write is rejected.
  */
-export const WriteSchema = z.strictObject({
-  operationId: OperationIdSchema,
-  documentId: DocumentIdSchema,
-  kind: DocumentKindSchema,
-  /** The revision the client last saw; 0 when it saw no document. */
-  baseRevision: z.int().min(0),
-  schemaVersion: z.literal(1),
-  // z.json() also rejects a missing body, which z.unknown() would let through.
-  body: z.json(),
-});
+export const WriteSchema = z
+  .strictObject({
+    operationId: OperationIdSchema,
+    documentId: DocumentIdSchema,
+    kind: DocumentKindSchema,
+    /** The revision the client last saw; 0 when it saw no document. */
+    baseRevision: z.int().min(0),
+    schemaVersion: z.literal(1),
+    // z.json() also rejects a missing body, which z.unknown() would let through.
+    body: z.json(),
+  })
+  // Versions are restore history, so they are created once and never changed or deleted.
+  .superRefine((write, ctx) => {
+    if (write.kind !== "version") return;
+    if (write.baseRevision !== 0) {
+      ctx.addIssue({ code: "custom", path: ["baseRevision"], message: "A version is only ever created, from revision 0." });
+    }
+    if (write.body === null) {
+      ctx.addIssue({ code: "custom", path: ["body"], message: "A version can't be deleted." });
+    }
+  });
 
 /** Proof that a write committed. "Synced" is shown only once one arrives. */
 export const ReceiptSchema = z.strictObject({
   userId: z.string().min(1),
   operationId: OperationIdSchema,
-  /** Lowercase hex SHA-256 of the exact body bytes the client stored in its outbox. */
-  bodySha256: z.string().regex(/^[0-9a-f]{64}$/, "bodySha256 is 64 lowercase hex digits."),
+  /**
+   * Lowercase hex SHA-256 of the whole write, every field, exactly as the
+   * client stored it in its outbox and resends it. Hashing the body alone
+   * would let a reused operation id match a different write with the same
+   * body, as every delete's null body does.
+   */
+  writeSha256: z.string().regex(/^[0-9a-f]{64}$/, "writeSha256 is 64 lowercase hex digits."),
   committedRevision: z.int().min(1),
 });
 

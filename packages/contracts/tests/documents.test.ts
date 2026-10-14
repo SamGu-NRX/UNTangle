@@ -104,6 +104,13 @@ describe("document bodies reject what the app could not have written", () => {
     ]);
   });
 
+  test("a schedule whose Auto provenance names a course it doesn't plan", () => {
+    const autoPlanned = [...schedule.autoPlanned, "HIST 2610"];
+    expect(rejections(ScheduleBodySchema, { ...schedule, autoPlanned })).toEqual([
+      "autoPlanned: HIST 2610 is marked as added by Auto but isn't in courses.",
+    ]);
+  });
+
   test("a schedule that locks a course to an option it hasn't picked", () => {
     const lockedSections = { "MATH 1720": "math-1720-001" };
     expect(rejections(ScheduleBodySchema, { ...schedule, lockedSections })).toEqual([

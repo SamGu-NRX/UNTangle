@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { PullListSchema, ReceiptSchema, WriteSchema } from "../src/sync";
-import { schedule } from "./fixtures";
+import { schedule, version } from "./fixtures";
 import { decoded, rejections, without } from "./helpers";
 
 function sha256Hex(text: string): string {
@@ -47,13 +47,34 @@ describe("Write", () => {
   ])("rejects %s", (_case, change) => {
     expect(rejections(WriteSchema, { ...write, ...change })).toHaveLength(1);
   });
+
+  describe("a version is only ever created", () => {
+    const create = { ...write, documentId: "version-1", kind: "version", baseRevision: 0, body: version };
+
+    test("round-trips its creation", () => {
+      expect(decoded(WriteSchema, create)).toEqual(create);
+    });
+
+    test("rejects an update", () => {
+      expect(rejections(WriteSchema, { ...create, baseRevision: 1 })).toEqual([
+        "baseRevision: A version is only ever created, from revision 0.",
+      ]);
+    });
+
+    test("rejects a delete", () => {
+      expect(rejections(WriteSchema, { ...create, baseRevision: 1, body: null })).toEqual([
+        "baseRevision: A version is only ever created, from revision 0.",
+        "body: A version can't be deleted.",
+      ]);
+    });
+  });
 });
 
 describe("Receipt", () => {
   const receipt = {
     userId: "user_8f2k",
     operationId: write.operationId,
-    bodySha256: sha256Hex(JSON.stringify(write.body)),
+    writeSha256: sha256Hex(JSON.stringify(write)),
     committedRevision: 5,
   };
 
@@ -61,9 +82,16 @@ describe("Receipt", () => {
     expect(decoded(ReceiptSchema, receipt)).toEqual(receipt);
   });
 
+  test("two deletes with one operation id hash differently when they target different documents", () => {
+    const deleteA = sha256Hex(JSON.stringify({ ...write, body: null }));
+    const deleteB = sha256Hex(JSON.stringify({ ...write, documentId: "schedule-other", body: null }));
+    expect(deleteA).not.toBe(deleteB);
+  });
+
   test.each([
-    ["an uppercase hash", { bodySha256: receipt.bodySha256.toUpperCase() }],
-    ["a truncated hash", { bodySha256: receipt.bodySha256.slice(1) }],
+    ["an uppercase hash", { writeSha256: receipt.writeSha256.toUpperCase() }],
+    ["a truncated hash", { writeSha256: receipt.writeSha256.slice(1) }],
+    ["the old body-only field name", { bodySha256: receipt.writeSha256 }],
     ["revision 0, which no commit produces", { committedRevision: 0 }],
     ["an empty user id", { userId: "" }],
   ])("rejects %s", (_case, change) => {
