@@ -1,0 +1,91 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Merchandising Hospitality and Tourism
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161833Z
+UID:tag:localist.com\,2008:EventInstance_53986001047520
+DTSTART:20261002T160000Z
+DTEND:20261003T030000Z
+DESCRIPTION:Every artifact has a story\, and sometimes the story is so cree
+ py\, weird\, or fascinating it becomes lore. Explore the history of some o
+ f the strangest and most bizarre objects in UNT Special Collections  in Th
+ e Legend of Eppy and Other Artifacts of Lore. This is one “lore drop” 
+ you won’t want to miss.\n\n \n\nLike the apocalyptic paintings made by a
+  Sunday school teacher in Denton to scare kids straight\, or the tiny skul
+ l kept by a boy who loved his pet hamster\, Mildred\, so much he could nev
+ er say goodbye. This exhibit explores the concept of lore through the arti
+ facts we leave behind\, like photographs of the infamous “Wyooter” cry
+ ptid\, and a book so small it caused the typesetter to go blind.\n\n \n\nN
+ o artifact in Special Collections has such an inspired lore as Eppy\, an i
+ nfamous former mascot that was lost\, found\, stolen and returned with a s
+ uspicious injury. Countless Reddit threads document student’s search for
+  Eppy. Abandoned after his retirement in the mid-1990’s and relegated to
+  a stairwell in the Union\, students sought out and ultimately saved this 
+ creepy\, but beloved\, piece of history.\n\n \n\nThe exhibition will be on
+  view from October 2 - 31. \n\n \n\nOCTOBER EXTENDED HOURS\n\nMonday- CLOS
+ ED\n\nTuesday- 11 a.m. - 6 p.m.\n\nWednesday- 11 a.m. - 6 p.m.\n\nThursday
+ - 11 a.m. - 9 p.m.\n\nFriday- 11 a.m. - 10 p.m.\n\nSaturday- 11 a.m. - 10 
+ p.m.\n\nSunday- 12 p.m. - 6 p.m.
+GEO:33.215956;-97.134129
+LOCATION:UNT CoLab
+SUMMARY:The Legend Of Eppy and Other Artifacts of Lore
+URL;VALUE=URI:https://calendar.unt.edu/event/the-legend-of-eppy-and-other-a
+ rtifacts-of-lore-9705
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161833Z
+UID:tag:localist.com\,2008:EventInstance_54010251119614
+DTSTART:20261002T230000Z
+DTEND:20261003T010000Z
+DESCRIPTION:Join us on Friday\, October 2 from 6 p.m. - 8 p.m. for the open
+ ing reception of Creature Feature!\n\n \n\nExperience the mysterious\, the
+  weird and the unexplained in this special Halloween exhibition featuring 
+ various creatures of lore! From cute to creepy to fantastically freaky\, y
+ ou will encounter a wide range of wild and weirdly-wonderous critters.\n\n
+  \n\nThis juried exhibit features 35 works of various mediums from artists
+  around the country and will be on display in the Mezzanine Level gallery.
+  Please note: the Mezzanine Level is only accessible via the staircase.\n\
+ n \n\nLight refreshments will be served during the reception.\n\nThe exhib
+ ition will be available to view from October 1 - 31 at the UNT CoLab.
+GEO:33.215956;-97.134129
+LOCATION:UNT CoLab
+SUMMARY:Creature Feature: Opening Reception
+URL;VALUE=URI:https://calendar.unt.edu/event/creature-feature-opening-recep
+ tion
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161833Z
+UID:tag:localist.com\,2008:EventInstance_53985113055851
+DTSTART:20261002T230000Z
+DTEND:20261003T010000Z
+DESCRIPTION:Join us for the opening reception of The Legend of Eppy and Oth
+ er Artifacts of Lore on Friday\, October 2 from 6 p.m. - 8 p.m. to explore
+  the history of some of the strangest and bizarre objects in UNT Special C
+ ollections. This is one “lore drop” you won’t want to miss.\n\n \n\n
+ Every artifact has a story\, and sometimes the story is so creepy\, weird\
+ , or fascinating it becomes lore.\n\n \n\nLike the apocalyptic paintings m
+ ade by a Sunday school teacher in Denton to scare kids straight\, or the t
+ iny skull kept by a boy who loved his pet hamster\, Mildred\, so much he c
+ ould never say goodbye. This exhibit explores the concept of lore through 
+ the artifacts we leave behind\, like photographs of the infamous “Wyoote
+ r” cryptid\, and a book so small it caused the typesetter to go blind.\n
+ \n \n\nNo artifact in Special Collections has such an inspired lore as Epp
+ y\, an infamous former mascot that was lost\, found\, stolen and returned 
+ with a suspicious injury. Countless Reddit threads document student’s se
+ arch for Eppy. Abandoned after his retirement in the mid-1990’s and rele
+ gated to a stairwell in the Union\, students sought out and ultimately sav
+ ed this creepy\, but beloved\, piece of history.\n\n \n\nThe exhibition wi
+ ll be on view from October 2 - 31.
+GEO:33.215956;-97.134129
+LOCATION:UNT CoLab
+SUMMARY:The Legend Of Eppy: Opening Reception 
+URL;VALUE=URI:https://calendar.unt.edu/event/the-legend-of-eppy-opening-rec
+ eption
+CATEGORIES:Social & Entertainment
+END:VEVENT
+END:VCALENDAR
