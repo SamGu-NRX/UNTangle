@@ -1,5 +1,5 @@
 import { GradesMcpClient } from "./client";
-import { GradesDiskCache } from "./cache";
+import type { GradesCache } from "./cache";
 import { GradesError, NoHistoryError, malformed } from "./errors";
 import { courseInput, instructorInput, searchInput, parseCoursePage, parseInstructorPage, parseSearch } from "./parse";
 import type { CoursePage, InstructorPage } from "./parse";
@@ -55,7 +55,7 @@ async function loadGeneration<T extends Page>(load: (offset: number) => Promise<
 
 export class GradesHistoryService {
   private readonly pending = new Map<string, Promise<unknown>>();
-  constructor(private readonly client: GradesMcpClient, private readonly cache: GradesDiskCache) {}
+  constructor(private readonly client: GradesMcpClient, private readonly cache: GradesCache) {}
 
   private async cached<T>(key: string, load: () => Promise<unknown>, parse: (value: unknown) => T): Promise<T> {
     let request = this.pending.get(key);

@@ -1,5 +1,6 @@
 import { GradesError, malformed, NoHistoryError } from "./errors";
-import { gradesLimiter, GradesLimiter } from "./limiter";
+import { gradesLimiter } from "./limiter";
+import type { GradesRequestLimiter } from "./limiter";
 
 export const MCP_ENDPOINT = "https://www.untgrades.app/api/mcp";
 export type ToolArguments = {
@@ -124,7 +125,7 @@ async function readSseResult(response: Response, id: number): Promise<Record<str
 
 export class GradesMcpClient {
   private id = 0;
-  constructor(private readonly options: { endpoint?: string; fetch?: typeof fetch; limiter?: GradesLimiter; now?: () => number; timeoutMs?: number } = {}) {}
+  constructor(private readonly options: { endpoint?: string; fetch?: typeof fetch; limiter?: GradesRequestLimiter; now?: () => number; timeoutMs?: number } = {}) {}
 
   async rpc(method: "tools/list" | "tools/call", params: object): Promise<Record<string, unknown>> {
     const limiter = this.options.limiter ?? gradesLimiter;
@@ -143,7 +144,7 @@ export class GradesMcpClient {
       if (response.status === 429 || response.status === 503) {
         // Missing/invalid Retry-After uses a conservative minute cooldown, not an immediate retry.
         const wait = retryAfterMs(response.headers.get("Retry-After"), (this.options.now ?? Date.now)()) ?? 60_000;
-        limiter.cooldown(wait);
+        await limiter.cooldown(wait);
         throw new GradesError(response.status === 429 ? "throttled" : "upstream", `untgrades.app HTTP ${response.status}`, Math.ceil(wait / 1_000));
       }
       if (!response.ok) throw new GradesError("upstream", `untgrades.app HTTP ${response.status}`);
