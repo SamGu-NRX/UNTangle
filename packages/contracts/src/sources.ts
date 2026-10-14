@@ -16,9 +16,15 @@ const urlPrefix = z
   .max(2048)
   .regex(/^https:\/\/[a-z0-9.-]+(?::\d+)?\/(?:[^\s?#]*\/)?$/, "A URL prefix is an https URL that ends in a slash, without a query.");
 
+/** A source's id, such as "vsb-untgrades": lowercase words joined by hyphens, up to 64 characters. Releases name their source with it. */
+export const SourceIdSchema = z
+  .string()
+  .max(64)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A source id is lowercase words joined by hyphens, like "vsb-untgrades".');
+
 export const SourcePolicySchema = z
   .strictObject({
-    sourceId: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A source id is lowercase words joined by hyphens, like "vsb-untgrades".'),
+    sourceId: SourceIdSchema,
     description: z.string().min(1).max(500),
     acquisition: z.enum(["server", "browser-capture", "curated", "link-only"]),
     approval: z.enum(["allowed", "review-required", "disabled"]),

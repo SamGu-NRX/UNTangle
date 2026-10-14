@@ -11,6 +11,7 @@
 import { z } from "zod";
 import { ClassDaySchema } from "./filters";
 import { CourseCodeSchema } from "./ids";
+import { SourceIdSchema } from "./sources";
 
 /** A JSON path into the raw response: `$`, then `.name`, `[0]` or `["key"]` steps. */
 const jsonPath = z.string().max(300).regex(/^\$(?:\.[a-z_]+|\[\d+\]|\["[^"\\]+"\])+$/, 'A source path looks like $.courses["MATH 1680"].sections[0].status.');
@@ -91,14 +92,24 @@ export const SectionRecordSchema = z
   });
 
 export const CourseRecordSchema = z.discriminatedUnion("availability", [
-  z.strictObject({ courseCode: CourseCodeSchema, availability: z.literal("sections"), sections: z.array(SectionRecordSchema).min(1) }),
+  z
+    .strictObject({ courseCode: CourseCodeSchema, availability: z.literal("sections"), sections: z.array(SectionRecordSchema).min(1) })
+    // One record per enrollment option, as vsb.ts requires: a repeat would overwrite or double-count it downstream.
+    .superRefine((course, ctx) => {
+      const seen = new Set<string>();
+      course.sections.forEach((section, index) => {
+        const key = [...section.classNumbers].sort().join("+");
+        if (seen.has(key)) ctx.addIssue({ code: "custom", path: ["sections", index, "classNumbers"], message: `Two options share class numbers ${key}.` });
+        seen.add(key);
+      });
+    }),
   z.strictObject({ courseCode: CourseCodeSchema, availability: z.literal("no-classes") }),
   z.strictObject({ courseCode: CourseCodeSchema, availability: z.literal("invalid-data"), problem: z.string().min(1).max(1000) }),
 ]);
 
 export const ReleaseManifestSchema = z.strictObject({
   releaseId: z.string().min(1).max(200),
-  sourceId: z.string().min(1).max(64),
+  sourceId: SourceIdSchema,
   institutionId: slug,
   termId: slug,
   fetchedAt: z.iso.datetime(),

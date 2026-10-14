@@ -157,6 +157,22 @@ describe("SectionReleaseSchema", () => {
     ]);
   });
 
+  test("two options with the same class numbers in one course are rejected", () => {
+    const counts = { ...release.manifest.counts, sections: 2, components: 4, meetings: 6 };
+    const repeated: SectionRelease = {
+      manifest: { ...release.manifest, counts },
+      courses: [release.courses[0], release.courses[1], { courseCode: "MATH 1680", availability: "sections", sections: [math1680, math1680] }],
+    };
+    expect(rejections(SectionReleaseSchema, repeated)).toEqual(["courses.2.sections.1.classNumbers: Two options share class numbers 6862+6863."]);
+  });
+
+  test.each(["VSB UNT", "../vsb", "vsb_untgrades", "Vsb-untgrades"])("a manifest source id %p that no policy could name is rejected", (sourceId) => {
+    const manifest = { ...release.manifest, sourceId, releaseId: `${sourceId}-spring-2027-${contentSha256.slice(0, 12)}` };
+    expect(rejections(SectionReleaseSchema, { ...release, manifest })).toEqual([
+      'manifest.sourceId: A source id is lowercase words joined by hyphens, like "vsb-untgrades".',
+    ]);
+  });
+
   test("a course with sections lists at least one", () => {
     const courses = [release.courses[0], release.courses[1], { courseCode: "MATH 1680", availability: "sections", sections: [] }];
     expect(rejections(SectionReleaseSchema, { ...release, courses })).not.toEqual([]);
