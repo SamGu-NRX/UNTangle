@@ -696,12 +696,16 @@
   padding: 0;
   list-style: none;
 }
+/* Without an add button (a course you can't add), the text starts at the heading's edge. */
 .section {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 10px 0;
+}
+.section[data-addable] {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
 }
 .section + .section {
   border-top: 1px solid var(--line);

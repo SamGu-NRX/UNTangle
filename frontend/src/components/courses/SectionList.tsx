@@ -150,6 +150,7 @@ export function SectionList({ courseId, term, options, placed, chosenId, canAdd,
             <li
               key={section.id}
               className={styles.section}
+              data-addable={canAdd || undefined}
               onPointerEnter={(event) => event.pointerType === "mouse" && setPreview({ id: section.id, instant: false })}
               onPointerLeave={(event) => event.pointerType === "mouse" && setPreview((current) => (current?.id === section.id ? null : current))}
               // Focus from the keyboard draws the preview at once (keyboard actions never animate).
@@ -176,9 +177,7 @@ export function SectionList({ courseId, term, options, placed, chosenId, canAdd,
                 >
                   {isChosen ? <Check size={18} /> : <Plus size={18} />}
                 </button>
-              ) : (
-                <span />
-              )}
+              ) : null}
               <button
                 type="button"
                 className={styles.sectionBody}

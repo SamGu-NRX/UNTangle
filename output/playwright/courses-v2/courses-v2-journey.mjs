@@ -161,7 +161,9 @@ async function journey(browser, viewport) {
   check(`${tag}: the result line says what Auto did`, new RegExp(`Planned ${trayCount} course`).test(resultText) && trayCount > 0, resultText.replace(/\s+/g, " "));
   check(`${tag}: MATH 1720 is in the term tray`, (await trayRow(page, "MATH 1720").count()) === 1 && (await rowOf(page, "MATH 1720").count()) === 0);
   const toCheck = page.locator('[data-status=check][data-flip^="row:"]').first();
-  check(`${tag}: a To check row says why, in attention`, (await toCheck.locator("[data-tone=attention]").count()) === 1 && /^(Needs|Take with|Catalog rule|Transcript)/.test(await toCheck.locator("[data-tone=attention]").innerText()));
+  // The fact starts with a visually hidden ", " for screen readers, so the text is matched after it.
+  const reason = (await toCheck.locator("[data-tone=attention]").innerText()).replace(/^,\s*/, "");
+  check(`${tag}: a To check row says why, in attention`, /^(Needs|Take with|Catalog rule|Transcript)/.test(reason), reason);
   const doneHead = await page.getByRole("button", { name: /^Done/ }).innerText();
   check(`${tag}: a closed group shows its count`, /Done\s*4/.test(doneHead), doneHead.replace(/\s+/g, " "));
   check(`${tag}: an open group shows no count`, !/\d/.test(await page.getByRole("button", { name: /^To check/ }).innerText()));
@@ -188,7 +190,9 @@ async function journey(browser, viewport) {
   await axe(page, `${tag}: after Auto`);
 
   // ---------- 3. undo, after a reload ----------
-  await page.reload({ waitUntil: "networkidle" });
+  // "load", not "networkidle": with no database the sections route holds each planned course's request
+  // until the browser's 15s timeout, so a page with planned courses never goes idle (verified with a network probe).
+  await page.reload({ waitUntil: "load" });
   await result.waitFor();
   check(`${tag}: the Auto run and its Undo survive a reload`, (await result.getByRole("button", { name: "Undo" }).count()) === 1);
   await tap(result.getByRole("button", { name: "Undo" }));
@@ -369,7 +373,7 @@ async function journey(browser, viewport) {
   await shoot(page, `${tag}-05-planned`);
 
   // ---------- deep links ----------
-  const response = await page.goto(`${BASE}/courses/CSCE/2100`, { waitUntil: "networkidle" });
+  const response = await page.goto(`${BASE}/courses/CSCE/2100`, { waitUntil: "load" });
   check(`${tag}: the deep link renders with grade history down`, response.status() === 200, String(response.status()));
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
