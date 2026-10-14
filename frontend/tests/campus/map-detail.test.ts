@@ -15,7 +15,7 @@ import { untFallbackHeights } from "@/lib/campus/map-detail/fallback-heights";
 import type { ItineraryStop } from "@/lib/map-itinerary";
 
 const noTable = new Map<string, FallbackHeight>();
-const dath: FallbackHeight = { osm: "way/518915918", name: "Dance & Theatre Building (DATH)", floors: 3, source: "test fixture" };
+const dath: FallbackHeight = { osm: "way/518915918", name: "Dance & Theatre Building (DATH)", floors: 3, source: "https://example.unt.edu/fixture.pdf", retrieved: "2026-10-13" };
 const table = new Map([[dath.osm, dath]]);
 
 describe("resolveHeight", () => {
@@ -91,13 +91,29 @@ describe("OSM length and level parsing", () => {
 });
 
 describe("the fallback table", () => {
-  test("every entry cites its source and names a whole number of floors", () => {
+  test("every entry cites a unt.edu URL with an ISO retrieval date and names a whole number of floors", () => {
+    expect(untFallbackHeights.length).toBe(19);
     for (const entry of untFallbackHeights) {
       expect(entry.osm).toMatch(/^(way|relation)\/\d+$/);
-      expect(entry.source.trim().length).toBeGreaterThan(0);
+      const url = new URL(entry.source);
+      expect(url.protocol).toBe("https:");
+      expect(url.hostname === "unt.edu" || url.hostname.endsWith(".unt.edu")).toBe(true);
+      expect(entry.retrieved).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(new Date(`${entry.retrieved}T00:00:00Z`).toISOString().slice(0, 10)).toBe(entry.retrieved);
       expect(Number.isInteger(entry.floors) && entry.floors >= 1).toBe(true);
     }
     expect(new Set(untFallbackHeights.map((entry) => entry.osm)).size).toBe(untFallbackHeights.length);
+  });
+
+  test("table heights reach the built file where OSM has no levels of its own", () => {
+    // Terrill Hall: 3 floors in UNT's plan, no OSM levels, so 3 x 3.66 m.
+    const terrill = untFallbackHeights.find((entry) => entry.osm === "way/260225245");
+    expect(terrill?.floors).toBe(3);
+    expect(resolveHeight({ tags: {}, osm: "way/260225245", fallback: new Map([["way/260225245", terrill!]]), overtureMetres: 10.7 })).toEqual({
+      source: "fallback-table",
+      height: 11,
+      base: 0,
+    });
   });
 });
 

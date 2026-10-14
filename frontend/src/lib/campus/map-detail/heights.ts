@@ -34,9 +34,12 @@ export type FallbackHeight = {
   /** OSM element, "way/123" or "relation/123". */
   osm: string;
   name: string;
+  /** Floors above ground. */
   floors: number;
-  /** Where the floor count was checked: a URL or a dated observation. */
+  /** Where the floor count was checked: a unt.edu URL. */
   source: string;
+  /** When the source was read, as an ISO date (YYYY-MM-DD). */
+  retrieved: string;
 };
 
 export type HeightInputs = {
