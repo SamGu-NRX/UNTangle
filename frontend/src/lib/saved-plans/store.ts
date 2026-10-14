@@ -24,6 +24,9 @@ import type { PlannerState } from "@/lib/types";
  */
 
 export const LEGACY_SAVED_PLANS_STORE_KEY = "untangle.saved-plans.v1";
+// Views create a library store before the planner has prepared an identity,
+// so its storage checks use a key that holds no one's data.
+const STORAGE_PROBE_KEY = "untangle.storage-probe";
 export const SAVED_PLANS_STORE_KEY = `${LEGACY_SAVED_PLANS_STORE_KEY}:guest`;
 
 export function savedPlansKey(userId: string | null): string {
@@ -129,9 +132,8 @@ function defaultStorage(): Storage | null {
       return null;
     }
     const storage = window.localStorage;
-    const probeKey = `${SAVED_PLANS_STORE_KEY}.probe`;
-    storage.setItem(probeKey, "1");
-    storage.removeItem(probeKey);
+    storage.setItem(STORAGE_PROBE_KEY, "1");
+    storage.removeItem(STORAGE_PROBE_KEY);
     return storage;
   } catch {
     return null;
@@ -240,7 +242,7 @@ export function createSavedPlanStore(storage?: Storage | null, userId: string | 
     // A storage object can exist yet deny every access (private mode,
     // blocked permissions): probe once so `available` reflects reality.
     try {
-      resolvedStorage.getItem(SAVED_PLANS_STORE_KEY);
+      resolvedStorage.getItem(STORAGE_PROBE_KEY);
     } catch {
       available = false;
     }

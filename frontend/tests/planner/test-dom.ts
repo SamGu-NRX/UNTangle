@@ -48,8 +48,25 @@ export function failSessionLookup(status: number): void {
   sessionListeners.forEach((listener) => listener());
 }
 
+/** The lookup has not answered yet, as on a page's first load and in its server render. */
+export function pendSessionLookup(): void {
+  session = { data: null, isPending: true, error: null };
+  sessionListeners.forEach((listener) => listener());
+}
+
+type SignOutResult = { data: unknown; error: { message: string; status: number } | null };
+let signOutImpl: () => Promise<SignOutResult> = async () => ({ data: { success: true }, error: null });
+/** Replaces what `authClient.signOut()` does; `resetSignOut` restores a successful sign-out. */
+export function setSignOut(impl: () => Promise<SignOutResult>): void {
+  signOutImpl = impl;
+}
+export function resetSignOut(): void {
+  signOutImpl = async () => ({ data: { success: true }, error: null });
+}
+
 mock.module("@/lib/auth-client", () => ({
   authClient: {
+    signOut: () => signOutImpl(),
     useSession: () =>
       useSyncExternalStore(
         (listener) => {
@@ -294,8 +311,16 @@ export type PlannerValue = ReturnType<PlannerModule["usePlanner"]>;
  * Flushes React work with `act` without advancing the debounce clock.
  * `waitFor` advances test time only when React and fetch promises have settled.
  * `extra` renders additional UI (e.g. the persistence panel) inside the provider.
+ * With `hydrate`, the tree is first rendered to HTML as a server would (no
+ * effects, server snapshots), then hydrated; `recoverableErrors` collects
+ * hydration mismatches.
  */
-export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore, strict = false) {
+export async function mountPlanner(
+  extra?: () => React.ReactNode,
+  store?: SectionStore,
+  strict = false,
+  { hydrate = false }: { hydrate?: boolean } = {},
+) {
   if (!clockInstalled) {
     clock.install();
     clockInstalled = true;
@@ -303,7 +328,7 @@ export async function mountPlanner(extra?: () => React.ReactNode, store?: Sectio
   const mod = await import("@/components/planner-provider");
   const sectionStore = store ?? (await import("@/lib/section-store")).sampleSectionStore;
   const React = await import("react");
-  const { createRoot } = await import("react-dom/client");
+  const { createRoot, hydrateRoot } = await import("react-dom/client");
 
   let latest: PlannerValue | null = null;
   function Probe() {
@@ -313,14 +338,30 @@ export async function mountPlanner(extra?: () => React.ReactNode, store?: Sectio
 
   const container = document.createElement("div");
   document.body.appendChild(container);
-  const root = createRoot(container);
   const content = React.createElement(
     mod.PlannerProvider,
     // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
     { sectionStore },
     React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
   );
-  await settle(() => root.render(strict ? React.createElement(React.StrictMode, null, content) : content));
+  const tree = strict ? React.createElement(React.StrictMode, null, content) : content;
+  const recoverableErrors: unknown[] = [];
+  let serverHtml: string | null = null;
+  let root!: import("react-dom/client").Root;
+  if (hydrate) {
+    const { renderToReadableStream } = await import("react-dom/server");
+    const stream = await renderToReadableStream(tree);
+    await stream.allReady;
+    serverHtml = await new Response(stream).text();
+    container.innerHTML = serverHtml;
+    latest = null;
+    await settle(() => {
+      root = hydrateRoot(container, tree, { onRecoverableError: (error) => recoverableErrors.push(error) });
+    });
+  } else {
+    root = createRoot(container);
+    await settle(() => root.render(tree));
+  }
   await waitFor(() => latest !== null, "first render");
 
   const get = (): PlannerValue => {
@@ -340,7 +381,7 @@ export async function mountPlanner(extra?: () => React.ReactNode, store?: Sectio
     container.remove();
   };
 
-  return { get, run, unmount, container };
+  return { get, run, unmount, container, recoverableErrors, serverHtml };
 }
 
 /** Lets the debounced save (350 ms) fire and any resulting request settle. */
