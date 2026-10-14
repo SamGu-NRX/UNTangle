@@ -27,9 +27,9 @@ test("defect 6: three unlocks off the longest chain beat two unlocks on it", () 
 
   const scorer = pathingScorer(requirements, result);
   const score = (id: string) => scorer(result.catalog.find((course) => course.id === id)!, result.statuses.get(id)!);
-  // Scores are scaled by 2 * (catalog size + 1) = 16, so 3 unlocks and 2.5 become 48 and 40.
-  expect(score("w")).toBe(48);
-  expect(score("s")).toBe(40);
+  // Scores are 1 + unlocks + bonus, scaled by 2 * (catalog size + 1) = 16: 4 and 3.5 become 64 and 56.
+  expect(score("w")).toBe(64);
+  expect(score("s")).toBe(56);
   expect(recommendNextTerm(requirements, result, { creditTarget: 6 }).map((rec) => rec.courseId)).toEqual(["w", "s"]);
 });
 
@@ -57,6 +57,16 @@ test("suggestNext keeps the plan's order even when catalog-wide dependents favor
   const major: Major = { coreCourseCodes: ["s", "w"] };
   expect(suggestNext(major, result, { maxCredits: 3 }).map((suggestion) => suggestion.courseId)).toEqual(["s"]);
   expect(suggestNext(major, result, { maxCredits: 3, scorer: pathingScorer(requirements, result) }).map((suggestion) => suggestion.courseId)).toEqual(["w"]);
+});
+
+test("suggestNext prefers a remaining-path course with no unlocks over an off-path course with many dependents", () => {
+  // z is required and unlocks nothing; x is in no requirement but two catalog courses need it.
+  const catalog = [row("p"), row("r", courseRef("p")), row("z"), row("x"), row("y1", courseRef("x")), row("y2", courseRef("x"))];
+  const result = assess(catalog);
+  const major: Major = { coreCourseCodes: ["x", "z"] };
+  const scorer = pathingScorer(require("r", "z"), result);
+  expect(suggestNext(major, result, { maxCredits: 3 }).map((suggestion) => suggestion.courseId)).toEqual(["x"]);
+  expect(suggestNext(major, result, { maxCredits: 3, scorer }).map((suggestion) => suggestion.courseId)).toEqual(["z"]);
 });
 
 test("the scorer is finite for every universe course, including cycle-blocked ones", () => {

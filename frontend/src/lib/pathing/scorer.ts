@@ -3,10 +3,10 @@ import { unlockAnalysis } from "./analysis";
 import type { RequirementSet } from "./types";
 
 /**
- * Plan-aware scores for `suggestNext`: the course's transitive unlocks on the
- * remaining path, plus 0.5 when it sits on the critical path, so one more
- * unlock always outranks the bonus. Courses off the remaining path, including
- * finished ones, score 0.
+ * Plan-aware scores for `suggestNext`: 1 for being on the remaining path, plus
+ * the course's transitive unlocks there, plus 0.5 when it sits on the critical
+ * path, so one more unlock always outranks the bonus. Courses off the
+ * remaining path, including finished ones, score 0.
  *
  * `suggestNext` adds this to its own count of catalog-wide dependents, which
  * is below the catalog's size. Scaling by the catalog size plus one keeps even
@@ -19,6 +19,6 @@ export function pathingScorer(requirements: RequirementSet, statuses: InferenceR
   return (course) => {
     const entry = analysis.courses.get(course.id);
     if (!entry?.onRemainingPath) return 0;
-    return scale * (entry.unlocksTransitive.length + (entry.onCriticalPath ? 0.5 : 0));
+    return scale * (1 + entry.unlocksTransitive.length + (entry.onCriticalPath ? 0.5 : 0));
   };
 }

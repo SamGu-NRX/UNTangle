@@ -48,7 +48,9 @@ function analyze(plan: RequirementSet, statuses: InferenceResult, planned: Reado
     if (!verdictCache.has(id)) verdictCache.set(id, alignVerdicts(byId.get(id)!.prerequisite, statuses.statuses.get(id)!.reason));
     return verdictCache.get(id)!;
   };
-  const termMap = courseTerms(open, byId, (id) => statusOf(id) === "eligible", { credited, satisfied, done }, verdictsOf);
+  // An override that locks a course is the final word: no prerequisite can clear it.
+  const barred = (id: CourseId) => statusOf(id) === "locked" && statuses.statuses.get(id)!.reason.kind === "override";
+  const termMap = courseTerms(open, byId, (id) => statusOf(id) === "eligible", barred, { credited, satisfied, done }, verdictsOf);
   const costing: Costing = { credited, satisfied, done, terms: (id) => termMap.get(id) ?? 1 };
   const terms = (id: CourseId) => (credited(id) ? 0 : costing.terms(id));
   const facts: CourseFacts = {
@@ -177,7 +179,9 @@ function analyze(plan: RequirementSet, statuses: InferenceResult, planned: Reado
   const absent = [...listings.keys()].filter((id) => !byId.has(id)).sort(compareIds);
   if (absent.length > 0) warnings.push(`Not in the catalog, so never counted as done and left out of paths: ${absent.join(", ")}.`);
   if (missing.size > 0) warnings.push(`Prerequisites not in the catalog, assumed to take one term with nothing before them: ${[...missing].sort(compareIds).join(", ")}.`);
-  const stuck = [...new Set(unmet.flatMap((evaluation) => evaluation.blocked))].sort(compareIds);
+  const blockedIds = [...new Set(unmet.flatMap((evaluation) => evaluation.blocked))].sort(compareIds);
+  for (const id of blockedIds.filter(barred)) warnings.push(`${id} is locked by an override: ${statuses.statuses.get(id)!.reason.message}`);
+  const stuck = blockedIds.filter((id) => !barred(id));
   if (stuck.length > 0) warnings.push(`No prerequisite route to ${stuck.join(", ")}: an unbroken prerequisite cycle or an empty list of alternatives blocks ${stuck.length === 1 ? "it" : "them"}.`);
   plan.requirements.forEach((requirement, index) => {
     const evaluation = evaluations[index]!;

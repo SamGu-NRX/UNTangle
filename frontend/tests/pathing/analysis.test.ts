@@ -261,3 +261,32 @@ test("an alternative the engine proves through closure is not recommended again"
   expect(analysis.advisorChecks).toEqual(["r"]);
   expect(recommendNextTerm(require("q", "r"), result, { creditTarget: 15 })).toEqual([]);
 });
+
+test("a grade minimum inside another one still catches a short grade", () => {
+  // r needs p at C and at B; the transcript shows a C.
+  const catalog = [row("p"), row("r", minGrade("C", minGrade("B", courseRef("p"))))];
+  const result = assess(catalog, { transcript: [pass("p", "C")] });
+  expect(result.statuses.get("r")!.status).toBe("locked");
+  const analysis = unlockAnalysis(require("p", "r"), result);
+  expect(analysis.courses.get("r")!.remainingChain).toBe(2);
+  expect(analysis.warnings).toEqual(["Grade below the minimum on record, so a retake or advisor review comes first: r needs a higher grade in p."]);
+});
+
+test("between equally short routes, the one needing no advisor wins", () => {
+  const catalog = [row("a"), row("b"), row("c", or(and(courseRef("a"), consent()), courseRef("b")))];
+  const result = assess(catalog);
+  const analysis = unlockAnalysis(require("c"), result);
+  expect(analysis.courses.get("b")!.unlocksDirect).toEqual(["c"]);
+  expect(analysis.courses.get("a")!.onRemainingPath).toBe(false);
+  expect(ids(recommendNextTerm(require("c"), result, { creditTarget: 15 }))).toEqual(["b"]);
+});
+
+test("a course an override locks has no route, and the override's reason is the warning", () => {
+  const catalog = [row("q"), row("r")];
+  const result = assess(catalog, { overrides: new Map([["q", { status: "locked" as const, reason: "Not approved" }]]) });
+  const analysis = unlockAnalysis(require("q", "r"), result);
+  expect(analysis.courses.get("q")!.remainingChain).toBeNull();
+  expect(analysis.remainingCriticalPath).toBeNull();
+  expect(analysis.warnings).toEqual(["q is locked by an override: Not approved"]);
+  expect(ids(recommendNextTerm(require("q", "r"), result, { creditTarget: 15 }))).toEqual(["r"]);
+});

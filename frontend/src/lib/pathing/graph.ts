@@ -90,25 +90,30 @@ export type Verdicts = ReadonlyMap<Prerequisite, Reason>;
  * engine evaluates AND, OR and corequisite nodes child by child and a grade
  * minimum through its requirement, so the trees line up until the engine
  * substitutes a closure witness or the shapes differ; matching stops there.
+ * A grade minimum inside another one is the exception: the engine checks the
+ * requirement once per threshold and joins the two results in an AND, so the
+ * requirement takes whichever result is unmet.
  */
 export function alignVerdicts(node: Prerequisite, reason: Reason): Map<Prerequisite, Reason> {
   const verdicts = new Map<Prerequisite, Reason>();
   // Status-level wrappers (advisor check, cycle, unrecognized grade) hold the evaluated reason as their only child.
   let root = reason;
   while ((root.kind === "advisor" || root.kind === "cycle") && root.children?.length === 1) root = root.children[0]!;
-  const visit = (current: Prerequisite, verdict: Reason) => {
+  const visit = (current: Prerequisite, verdict: Reason, graded: boolean) => {
     verdicts.set(current, verdict);
     if (verdict.outcome === "satisfied") return;
     const children = verdict.children ?? [];
     if ((current.kind === "and" || current.kind === "or") && verdict.kind === current.kind && children.length === current.children.length) {
-      current.children.forEach((child, index) => visit(child, children[index]!));
-    } else if (current.kind === "minGrade") {
-      visit(current.requirement, verdict);
+      current.children.forEach((child, index) => visit(child, children[index]!, graded));
+    } else if (current.kind === "minGrade" && !graded) {
+      visit(current.requirement, verdict, true);
+    } else if (current.kind === "minGrade" && verdict.kind === "and" && children.length === 2) {
+      visit(current.requirement, children.find((child) => child.outcome === "unmet") ?? children[0]!, true);
     } else if (current.kind === "corequisite" && verdict.kind === "corequisite" && children.length === 1) {
-      visit(current.requirement, children[0]!);
+      visit(current.requirement, children[0]!, graded);
     }
   };
-  visit(node, root);
+  visit(node, root, false);
   return verdicts;
 }
 
@@ -161,7 +166,8 @@ function delay(node: Prerequisite, costing: Costing, verdicts: Verdicts, graded 
 /**
  * Terms until each unfinished universe course is complete, counting next term
  * as 1. Credited courses cost 0 and eligible ones 1, because the engine has
- * already cleared them. The rest follow `1 + delay(prerequisite)`.
+ * already cleared them. A barred course, which an override marks locked, has
+ * no route: no prerequisite can clear it. The rest follow `1 + delay(prerequisite)`.
  *
  * Solved as a least fixpoint: every estimate starts at 1 and only rises, so a
  * value found halfway through a cycle is never frozen in. The least solution's
@@ -174,16 +180,17 @@ export function courseTerms(
   open: readonly CourseId[],
   byId: ReadonlyMap<CourseId, CatalogCourse>,
   eligible: (courseId: CourseId) => boolean,
+  barred: (courseId: CourseId) => boolean,
   costing: Omit<Costing, "terms">,
   verdictsOf: (courseId: CourseId) => Verdicts,
 ): Map<CourseId, number> {
-  const terms = new Map(open.map((id) => [id, 1]));
+  const terms = new Map(open.map((id) => [id, barred(id) ? Infinity : 1]));
   const current: Costing = { ...costing, terms: (id) => terms.get(id) ?? 1 };
   const bound = open.length + 1;
   for (let changed = true; changed; ) {
     changed = false;
     for (const id of open) {
-      if (eligible(id)) continue;
+      if (eligible(id) || barred(id)) continue;
       const next = 1 + delay(byId.get(id)!.prerequisite, current, verdictsOf(id));
       const value = next > bound ? Infinity : next;
       if (value !== terms.get(id)) {
@@ -198,7 +205,8 @@ export function courseTerms(
 /**
  * The unmet course leaves on an expression's shortest routes, each marked
  * `together` when it only needs co-enrollment. Every OR branch tying the
- * minimum stays, since each is a real way forward. A course reached both ways
+ * minimum stays, since each is a real way forward, except that advisor-free
+ * routes win a tie with ones needing approval. A course reached both ways
  * keeps the stricter "before" mark. A credited course appears only when a
  * grade it earned falls short, which the caller reports as a retake.
  */
@@ -221,9 +229,10 @@ export function neededCourses(node: Prerequisite, costing: Costing, verdicts: Ve
         const delays = routes.map((child) => delay(child, costing, verdicts, graded, together));
         const best = Math.min(...delays);
         if (best === Infinity) return;
-        routes.forEach((child, index) => {
-          if (delays[index] === best) visit(child, graded, together);
-        });
+        // Among equally short routes, the ones needing no advisor are the real way forward.
+        const shortest = routes.filter((_, index) => delays[index] === best);
+        const clear = shortest.filter((child) => !needsAdvisor(child));
+        for (const child of clear.length > 0 ? clear : shortest) visit(child, graded, together);
         return;
       }
       case "minGrade":

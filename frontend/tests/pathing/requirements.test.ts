@@ -154,6 +154,23 @@ test("malformed plans fail loudly", () => {
   expect(() => unlockAnalysis(plan({ kind: "choose", name: "C", count: 3, options: ["x", "y"] }), result)).toThrow('Requirement "C" must choose between 1 and 2 courses.');
   expect(() => unlockAnalysis(plan({ kind: "hours", name: "D", hours: 0, options: ["x"] }), result)).toThrow('Requirement "D" needs a positive hour count.');
   expect(() => unlockAnalysis(plan({ kind: "all", name: " ", courses: ["x"] }), result)).toThrow("Every requirement needs a name.");
+  // Inside one branch both groups are active together, so sharing x would count it twice.
+  const sameBranch = plan({
+    kind: "choice",
+    name: "E",
+    branches: [{ name: "Only", requirements: [{ kind: "all", name: "F", courses: ["x"] }, { kind: "choose", name: "G", count: 1, options: ["x", "y"] }] }],
+  });
+  expect(() => unlockAnalysis(sameBranch, result)).toThrow('Course x is listed by both "F" and "G"; a course counts toward one requirement.');
+  // Rival branches may share a course, because only one of them is followed.
+  const rivalBranches = plan({
+    kind: "choice",
+    name: "H",
+    branches: [
+      { name: "One", requirements: [{ kind: "all", name: "I", courses: ["x"] }] },
+      { name: "Two", requirements: [{ kind: "all", name: "J", courses: ["x", "y"] }] },
+    ],
+  });
+  expect(unlockAnalysis(rivalBranches, result).requirements[0]!.branch).toBe("One");
 });
 
 test("an option cleared by an override needs no advisor, so its group follows it", () => {
@@ -194,5 +211,5 @@ test("two pools that match the same courses are rejected", () => {
     { kind: "pool", name: "More TECM", hours: 3, match: { subject: "TECM", level: 4000 } },
   );
   expect(() => unlockAnalysis(twoPools, assess([row("TECM 4180")])))
-    .toThrow('Pools in "Upper TECM" and "More TECM" match the same TECM courses; a course counts toward one requirement.');
+    .toThrow('Pools "Upper TECM" and "More TECM" match the same TECM courses; a course counts toward one requirement.');
 });

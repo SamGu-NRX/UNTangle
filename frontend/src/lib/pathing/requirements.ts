@@ -254,6 +254,21 @@ export function evaluateRequirement(requirement: Requirement, facts: CourseFacts
   }
 }
 
+/** A requirement that lists courses itself, with the choice branch it sits in at each enclosing choice. */
+type Leaf = { requirement: Requirement; key: string; branches: ReadonlyMap<string, number> };
+
+function leafRequirements(requirement: Requirement, key: string, branches: ReadonlyMap<string, number>): Leaf[] {
+  if (requirement.kind !== "choice") return [{ requirement, key, branches }];
+  return requirement.branches.flatMap((branch, index) =>
+    branch.requirements.flatMap((inner, position) =>
+      leafRequirements(inner, `${key}.${index}.${position}`, new Map(branches).set(key, index))));
+}
+
+/** Two requirements can share a course only when they are one requirement (a shared lab) or sit in different branches of one choice. */
+function exclusive(a: Leaf, b: Leaf): boolean {
+  return a.key === b.key || [...a.branches].some(([choice, branch]) => b.branches.has(choice) && b.branches.get(choice) !== branch);
+}
+
 /**
  * Validates the plan and maps every course it lists, by name or by pattern, to
  * its place in the plan. A course counts toward one requirement only, so a
@@ -266,21 +281,27 @@ export function listCourses(
   check(plan.requirements.length > 0, `Plan "${plan.name}" has no requirements.`);
   plan.requirements.forEach(validate);
   const listings = new Map<CourseId, Listing>();
+  const leaves = plan.requirements.flatMap((requirement, position) => leafRequirements(requirement, `${position}`, new Map()));
+  const owners = new Map<CourseId, Leaf>();
+  for (const leaf of leaves) {
+    for (const id of new Set(listed(leaf.requirement))) {
+      const owner = owners.get(id);
+      check(owner === undefined || exclusive(owner, leaf),
+        `Course ${id} is listed by both "${owner?.requirement.name}" and "${leaf.requirement.name}"; a course counts toward one requirement.`);
+      owners.set(id, leaf);
+    }
+  }
   plan.requirements.forEach((requirement, position) => {
     for (const id of listed(requirement)) {
-      const owner = listings.get(id);
-      // Two labs can share a lecture's companion within one requirement, never across two.
-      check(owner === undefined || owner.position === position,
-        `Course ${id} is listed by both "${owner?.group}" and "${requirement.name}"; a course counts toward one requirement.`);
-      listings.set(id, { group: requirement.name, position, branch: branchOf(requirement, (inner) => listed(inner).includes(id)) });
+      if (!listings.has(id)) listings.set(id, { group: requirement.name, position, branch: branchOf(requirement, (inner) => listed(inner).includes(id)) });
     }
   });
-  const ruled = plan.requirements.flatMap((requirement, position) => patterns(requirement).map((pattern) => ({ pattern, position })));
+  const ruled = leaves.flatMap((leaf) => patterns(leaf.requirement).map((pattern) => ({ pattern, leaf })));
   for (const a of ruled) {
     for (const b of ruled) {
       const overlap = a.pattern.subject === b.pattern.subject && Math.abs(a.pattern.level - b.pattern.level) < 1000;
-      check(a.position === b.position || !overlap,
-        `Pools in "${plan.requirements[a.position]!.name}" and "${plan.requirements[b.position]!.name}" match the same ${a.pattern.subject} courses; a course counts toward one requirement.`);
+      check(a === b || !overlap || exclusive(a.leaf, b.leaf),
+        `Pools "${a.leaf.requirement.name}" and "${b.leaf.requirement.name}" match the same ${a.pattern.subject} courses; a course counts toward one requirement.`);
     }
   }
   const matches = patternMatcher(catalog, new Set(listings.keys()));
