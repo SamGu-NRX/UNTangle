@@ -128,7 +128,7 @@ Apple's guideline 2.5.2 requires apps to be self-contained and forbids downloadi
 - **Style/tiles:** OpenFreeMap serves styles and vector tiles with no API key and no paid plan; the documented style URL is `https://tiles.openfreemap.org/styles/liberty` ([OpenFreeMap](https://openfreemap.org/)).
 - **Expo compatibility:** this is a native module — it does **not** work in Expo Go. It requires a development build (`expo prebuild` + `expo run:ios`/`run:android`) or an EAS build.
 - **Attribution is still required.** "No API key" does not mean "no attribution": OpenFreeMap, OpenStreetMap (ODbL), and style/font contributors must be credited in the map UI, and OpenFreeMap's own service terms (fair use, caching, commercial use) govern production deployment. MapLibre Native itself is BSD-2-Clause, which permits proprietary use with its conditions.
-- **Relation to existing web stack:** the web app currently uses Leaflet. MapLibre Native is a separate renderer; styles are not portable between Leaflet and MapLibre, so treat map styling as a per-platform concern even though the underlying style JSON (Mapbox style spec) could be shared if the web app ever moves to MapLibre GL JS.
+- **Relation to existing web stack:** the web app already renders with MapLibre GL JS on OpenFreeMap tiles (`frontend/src/components/map/`, since #25), so the same style JSON and layer definitions in `campus-style.ts` and `map-layers.ts` can be shared with MapLibre Native. Platform-specific code is limited to the renderer component, gestures and camera.
 
 **Verification:** a dev-build map screen renders the OpenFreeMap `liberty` style on iOS with attribution visible, and the repo includes the required license notices.
 
