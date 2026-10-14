@@ -544,14 +544,15 @@
   justify-items: start;
   padding-bottom: 18px;
 }
+/* Quiet buttons pull left by their 12px padding, so their text starts at the title's edge. */
 .quietActions {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-left: -10px;
+  margin-left: -12px;
 }
 .detailActions > :global(.ui-btn--quiet) {
-  margin-left: -10px;
+  margin-left: -12px;
 }
 .dsec {
   margin: 0 calc(-1 * var(--detail-pad));
