@@ -48,3 +48,7 @@ try {
 }
 writeFileSync(join(out, "route-diagnostics.json"), `${JSON.stringify(results, null, 2)}\n`);
 console.log(JSON.stringify(results, null, 2));
+const sectionsResponse = await fetch(`${base}/api/sections/spring-2027/MATH/1720`);
+const sections = { httpStatus: sectionsResponse.status, body: await sectionsResponse.json() };
+writeFileSync(join(out, "section-diagnostics.json"), `${JSON.stringify(sections, null, 2)}\n`);
+console.log(JSON.stringify(sections, null, 2));
