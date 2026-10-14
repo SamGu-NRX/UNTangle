@@ -185,6 +185,14 @@ function parseDocument(raw: string): {
   };
 }
 
+function canonicalPlannerState(state: PlannerState): string {
+  return JSON.stringify(normalizePlannerState(state), (_key, value: unknown) =>
+    isRecord(value)
+      ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]))
+      : value,
+  );
+}
+
 export function createPlannerStateStore(storage?: Storage | null, userId: string | null = null): PlannerStore {
   const storeKey = plannerStateKey(userId);
   const quarantinePrefix = `${QUARANTINE_PREFIX}${userId === null ? "guest" : `user:${encodeURIComponent(userId)}`}:`;
@@ -227,14 +235,14 @@ export function createPlannerStateStore(storage?: Storage | null, userId: string
   }
 
   function migrateLegacy(serverState?: PlannerState | null) {
-    if (!resolvedStorage) return;
+    if (!resolvedStorage || (userId !== null && serverState === undefined)) return;
     try {
       const raw = resolvedStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY);
       if (raw === null) return;
       const parsed = parseDocument(raw);
       // The old document has no owner field. Only an exact server match proves ownership.
       const owned = userId !== null && serverState && parsed.doc &&
-        JSON.stringify(parsed.doc.state) === JSON.stringify(normalizePlannerState(serverState));
+        canonicalPlannerState(parsed.doc.state) === canonicalPlannerState(serverState);
       if (owned && resolvedStorage.getItem(storeKey) === null) {
         resolvedStorage.setItem(storeKey, raw);
       } else {

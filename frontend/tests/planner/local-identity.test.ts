@@ -15,6 +15,7 @@ import {
 import type { PlannerState } from "@/lib/types";
 import {
   FakePlannerServer,
+  failSessionLookup,
   flushSaves,
   installDom,
   mountPlanner,
@@ -346,4 +347,102 @@ test("an import captured for A is refused after switching to B, while B can impo
   expect(imported.snapshot.name).toBe("B import");
   expect(imported.snapshot.state.transcriptRecords).toEqual([]);
   expect(plans(store).map((p) => p.name)).toEqual(["B import", "B import"]);
+});
+
+
+for (const status of [0, 500]) {
+  test(`a failed session lookup with status ${status} keeps A's identity and local data until confirmed sign-out`, async () => {
+    server.writeElsewhere(privateState());
+    setSession(userA);
+    const planner = await mount();
+    await planner.run((p) => p.setActiveDay("Thu"));
+    await waitFor(() => planner.get().saveState.label === "Saved", "A backup saved");
+    expect(library(userA.id).savePlan({ state: privateState(), name: "A offline copy" }).ok).toBe(true);
+    const backup = window.localStorage.getItem(plannerStateKey(userA.id));
+    expect(readPlanner(userA.id).state?.transcriptRecords).toEqual([transcript]);
+
+    await planner.run(() => failSessionLookup(status));
+    await flushSaves();
+    expect(planner.get().isRegistered).toBe(true);
+    expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
+    expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBe(backup);
+    expect(plans(createSavedPlanStore()).map((plan) => plan.name)).toEqual(["A offline copy"]);
+    expect(window.localStorage.getItem(plannerStateKey(null))).toBeNull();
+
+    await planner.run(() => setSession(userA));
+    await planner.run(() => setSession(null));
+    await waitFor(() => !planner.get().isRegistered && planner.get().hydrated, "confirmed signed-out guest");
+    expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBeNull();
+    expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
+    expect(planner.get().plannerState.transcriptRecords).toEqual([]);
+  });
+}
+
+for (const failure of ["401", "500", "network"]) {
+  test(`a ${failure} planner load leaves the legacy key untouched until a successful ownership retry`, async () => {
+    const state = privateState();
+    const raw = legacyPlanner(state);
+    server.writeElsewhere(state);
+    let first = true;
+    globalThis.fetch = Object.assign(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      if (first) {
+        first = false;
+        if (failure === "network") throw new Error("Synthetic dropped connection");
+        return new Response("{}", { status: Number(failure) });
+      }
+      return server.fetch(input, init);
+    }, { preconnect: previousFetch.preconnect });
+    setSession(userA);
+    const planner = await mount();
+    expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBe(raw);
+    expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBeNull();
+    expect(quarantines("untangle.planner-state.corrupt-legacy-")).toEqual([]);
+    expect(server.posts).toEqual([]);
+
+    await planner.run((p) => p.retrySave());
+    await waitFor(() => planner.get().saveState.label === "Saved", "server ownership retry loaded");
+    expect(planner.get().plannerState.transcriptRecords).toEqual([transcript]);
+    expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBe(raw);
+    expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBeNull();
+    expect(quarantines("untangle.planner-state.corrupt-legacy-")).toEqual([]);
+    expect(server.posts).toEqual([]);
+  });
+}
+
+test("legacy ownership ignores map insertion order after normalization", async () => {
+  const state: PlannerState = {
+    ...privateState(),
+    courseStatuses: { ...getInitialPlannerState().courseStatuses, "ANTH 1010": "inProgress", "CSCE 1030": "inProgress" },
+    selectedSections: { "ANTH 1010": "anth-1010-001", "CSCE 1030": "csce-1030-001" },
+    lockedSections: { "ANTH 1010": "anth-1010-001", "CSCE 1030": "csce-1030-001" },
+  };
+  const raw = legacyPlanner(state);
+  server.writeElsewhere({
+    ...state,
+    courseStatuses: Object.fromEntries(Object.entries(state.courseStatuses).reverse()),
+    selectedSections: Object.fromEntries(Object.entries(state.selectedSections).reverse()),
+    lockedSections: Object.fromEntries(Object.entries(state.lockedSections ?? {}).reverse()),
+  });
+  setSession(userA);
+  const planner = await mount();
+  expect(planner.get().plannerState.lockedSections).toEqual({ "ANTH 1010": "anth-1010-001", "CSCE 1030": "csce-1030-001" });
+  expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBe(raw);
+  expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBeNull();
+  expect(quarantines("untangle.planner-state.corrupt-legacy-")).toEqual([]);
+});
+
+
+test("a session lookup explicitly returning 401 confirms sign-out and deletes the old account's local data", async () => {
+  server.writeElsewhere(privateState());
+  setSession(userA);
+  const planner = await mount();
+  await planner.run((p) => p.setActiveDay("Thu"));
+  await waitFor(() => planner.get().saveState.label === "Saved", "A backup saved");
+  expect(readPlanner(userA.id).state?.transcriptRecords).toEqual([transcript]);
+  expect(library(userA.id).savePlan({ state: privateState(), name: "A copy" }).ok).toBe(true);
+  await planner.run(() => failSessionLookup(401));
+  await waitFor(() => !planner.get().isRegistered && planner.get().hydrated, "server-confirmed guest");
+  expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBeNull();
+  expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
+  expect(planner.get().plannerState.transcriptRecords).toEqual([]);
 });

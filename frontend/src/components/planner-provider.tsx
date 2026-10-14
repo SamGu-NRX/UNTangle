@@ -260,9 +260,17 @@ export function PlannerProvider({
   sectionStore?: SectionStore;
 }) {
   const sessionResult = authClient.useSession();
+  const sessionValue = sessionResult.error?.status === 401 ? null : sessionResult.data;
+  const [confirmedSession, setConfirmedSession] = useState(sessionValue);
+  const sessionKnown = !sessionResult.isPending && (!sessionResult.error || sessionResult.error.status === 401);
+  if (sessionKnown && confirmedSession !== sessionValue) {
+    setConfirmedSession(sessionValue);
+  }
+  // A failed or pending lookup is not a sign-out; a server 401 confirms the session ended.
+  const sessionData = sessionKnown ? sessionValue : confirmedSession;
   // The plan lives in a reducer (lib/planner-transaction.ts) so transactions are checked and acknowledged in
   // state. Its dispatch takes everything setState did, so every existing setPlannerState call is unchanged.
-  const transactionIdentity = sessionResult.data?.user?.id ? `user:${sessionResult.data.user.id}` : "guest";
+  const transactionIdentity = sessionData?.user?.id ? `user:${sessionData.user.id}` : "guest";
   const [planBox, dispatchPlan] = useReducer(
     (box: ReturnType<typeof plannerBox>, numbered: NumberedAction) => reducePlannerBox(box, numbered, transactionIdentity),
     undefined,
@@ -315,7 +323,7 @@ export function PlannerProvider({
   const preferencesKeyRef = useRef<string | null>(null);
   // Revision of the stored entry this tab last read or wrote (0 for none).
   const preferencesRevision = useRef(0);
-  const userId = sessionResult.data?.user?.id ?? null;
+  const userId = sessionData?.user?.id ?? null;
   const identityTag = userId ? `user:${userId}` : "guest";
 
   const adoptPreferences = useCallback((next: SchedulePreferences) => {
@@ -409,7 +417,7 @@ export function PlannerProvider({
   const guestStore = useMemo(() => createPlannerStateStore(undefined, userId), [userId]);
   const localStoreRef = useRef(guestStore);
   useEffect(() => { localStoreRef.current = guestStore; }, [guestStore]);
-  const isRegistered = Boolean(sessionResult.data?.user);
+  const isRegistered = Boolean(sessionData?.user);
   const stateRef = useRef(plannerState);
   useEffect(() => {
     stateRef.current = plannerState;
@@ -580,6 +588,8 @@ export function PlannerProvider({
       setSaveState(saveStateOf("not-saved", loaded.message, "server"));
       return;
     }
+    serverLoadPending.current = false;
+    localStoreRef.current.migrateLegacy(loaded.state);
     setServerPersistent(loaded.persistent);
     serverRevision.current = loaded.revision;
     const current = stateRef.current;
@@ -657,10 +667,10 @@ export function PlannerProvider({
   // else. Each run gets a new generation; any response that arrives after a
   // newer run started belongs to the previous identity and is dropped.
   useEffect(() => {
-    if (sessionResult.isPending) {
+    if (!sessionKnown) {
       return;
     }
-    const userId = sessionResult.data?.user?.id ?? null;
+    const userId = sessionData?.user?.id ?? null;
     const registered = userId !== null;
     const needed = registered ? `registered:${userId}` : "guest";
     if (bootstrappedFor.current === needed) {
@@ -716,9 +726,9 @@ export function PlannerProvider({
         if (!isCurrent()) {
           return;
         }
-        guestStore.migrateLegacy(loaded.kind === "loaded" ? loaded.state : null);
         const mutated = mutatedBeforeBootstrap.current;
         if (loaded.kind === "loaded") {
+          guestStore.migrateLegacy(loaded.state);
           setServerPersistent(loaded.persistent);
           const storedDiffers =
             loaded.state !== null && workingStateFingerprint(loaded.state) !== workingStateFingerprint(stateRef.current);
@@ -764,6 +774,7 @@ export function PlannerProvider({
           );
           enterSignedOut(loaded.message);
         } else {
+          serverLoadPending.current = true;
           setServerPersistent(false);
           // Server unreachable at load: fall back to this browser's mirror so
           // a returning user does not start from defaults. Later saves carry
@@ -772,6 +783,9 @@ export function PlannerProvider({
           if (mirror.ok && mirror.state && !mutated) {
             setPlannerState(mirror.state);
             lastPersistedFingerprint.current = workingStateFingerprint(mirror.state);
+          } else if (!mutated) {
+            // Untouched defaults are not edits to POST or conflict with the retry's server copy.
+            lastPersistedFingerprint.current = workingStateFingerprint(stateRef.current);
           }
           setSaveState(saveStateOf("not-saved", loaded.message, "server"));
         }
@@ -812,12 +826,12 @@ export function PlannerProvider({
       hydrationWaiters.current.forEach((resolve) => resolve());
       hydrationWaiters.current = [];
     });
-  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionResult.data, sessionResult.isPending, setPlannerState]);
+  }, [bumpPlanEpoch, enterSignedOut, guestStore, markSaved, raiseConflict, sessionData, sessionKnown, setPlannerState]);
 
   // Local bridge until #19 lands: a new session for the same signed-in user
   // (signing in again in this tab) counts as a restore. Idempotent, so #19's
   // own `onSessionRestored` event firing as well is harmless.
-  const sessionId = sessionResult.data?.session?.id ?? null;
+  const sessionId = sessionData?.session?.id ?? null;
   const previousSessionId = useRef<string | null>(null);
   useEffect(() => {
     const previous = previousSessionId.current;
@@ -868,7 +882,7 @@ export function PlannerProvider({
       if (conflictRef.current) {
         return;
       }
-      if (Boolean(sessionResult.data?.user)) {
+      if (Boolean(sessionData?.user)) {
         if (sessionExpired.current) {
           // Signed out: no server writes, but every edit stays in this
           // browser's mirror until the session is restored.
@@ -893,7 +907,7 @@ export function PlannerProvider({
         clearTimeout(saveTimer.current);
       }
     };
-  }, [conflict, guestStore, hydrated, persistGuest, persistServer, plannerState, sessionResult.data]);
+  }, [conflict, guestStore, hydrated, persistGuest, persistServer, plannerState, sessionData]);
 
   // An edit made in the last 350 ms before the page goes away (reload, tab
   // close, full navigation) would never reach the debounced save. Flush it on
@@ -910,7 +924,7 @@ export function PlannerProvider({
       if (conflictRef.current || workingStateFingerprint(state) === lastPersistedFingerprint.current) {
         return;
       }
-      if (!sessionResult.data?.user) {
+      if (!sessionData?.user) {
         persistGuest(state);
         return;
       }
@@ -924,22 +938,26 @@ export function PlannerProvider({
     };
     window.addEventListener("pagehide", flush);
     return () => window.removeEventListener("pagehide", flush);
-  }, [guestStore, hydrated, persistGuest, sessionResult.data]);
+  }, [guestStore, hydrated, persistGuest, sessionData]);
 
   const retrySave = useCallback(() => {
     const state = stateRef.current;
-    if (Boolean(sessionResult.data?.user)) {
+    if (Boolean(sessionData?.user)) {
       if (sessionExpired.current) {
         // The user may have signed in again elsewhere (another tab): try the
         // restore path, which re-reads or re-saves under the revision rules.
         handleSessionRestored();
         return;
       }
+      if (serverLoadPending.current) {
+        void reloadFromServer();
+        return;
+      }
       void persistServer(state);
     } else {
       persistGuest(state);
     }
-  }, [handleSessionRestored, persistGuest, persistServer, sessionResult.data]);
+  }, [handleSessionRestored, persistGuest, persistServer, reloadFromServer, sessionData]);
 
   /**
    * Another tab of this browser stored something (guest store, or the

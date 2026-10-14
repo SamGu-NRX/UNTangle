@@ -24,7 +24,7 @@ type TestUser = { id: string; email: string; name: string };
 type SessionValue = {
   data: { user: TestUser; session: { id: string } } | null;
   isPending: boolean;
-  error: null;
+  error: { message: string; status: number; statusText: string } | null;
 };
 
 let session: SessionValue = { data: null, isPending: false, error: null };
@@ -36,6 +36,15 @@ export function setSession(user: TestUser | null, sessionId?: string) {
   session = user
     ? { data: { user, session: { id: sessionId ?? `session-${sessionCounter}` } }, isPending: false, error: null }
     : { data: null, isPending: false, error: null };
+  sessionListeners.forEach((listener) => listener());
+}
+
+export function failSessionLookup(status: number): void {
+  session = {
+    data: null,
+    isPending: false,
+    error: { message: "Session lookup failed", status, statusText: status === 0 ? "Network error" : "Server error" },
+  };
   sessionListeners.forEach((listener) => listener());
 }
 
