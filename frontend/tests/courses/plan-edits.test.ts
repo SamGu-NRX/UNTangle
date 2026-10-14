@@ -69,7 +69,7 @@ describe("courseEdit and its Undo", () => {
     expect(result).toEqual({
       id: "CSCE 1010",
       before: { status: before.courseStatuses["CSCE 1010"], section: undefined, lock: undefined },
-      after: { status: "inProgress", section: "sec-1" },
+      after: { status: "inProgress", section: "sec-1", lock: undefined },
     });
     const undone = undoCourseEdit(result)(next!);
     expect(undone.result).toBe(true);
@@ -108,6 +108,17 @@ describe("courseEdit and its Undo", () => {
     expect(undone.result).toBe(true);
     expect(undone.next?.courseStatuses["MATH 1720"]).toBe("inProgress");
     expect(undone.next?.selectedSections["MATH 1720"]).toBe("sec-3");
+  });
+
+  test("Undo refuses once the course's section was locked or unlocked since", () => {
+    const plan = samplePlan();
+    const planned = normalizePlannerState({ ...plan, courseStatuses: { ...plan.courseStatuses, "MATH 1720": "inProgress" } });
+    const { next, result } = courseEdit("MATH 1720", { section: "sec-4" })(planned);
+    expect(result.after.lock).toBeUndefined();
+    // Week locks the section the student just picked: status and section are unchanged, the lock is new.
+    const locked = normalizePlannerState({ ...next!, lockedSections: { "MATH 1720": "sec-4" } });
+    expect(locked.lockedSections).toEqual({ "MATH 1720": "sec-4" });
+    expect(undoCourseEdit(result)(locked)).toEqual({ result: false });
   });
 
   test("Undo refuses once the course changed again", () => {

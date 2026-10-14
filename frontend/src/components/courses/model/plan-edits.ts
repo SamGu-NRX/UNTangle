@@ -111,7 +111,7 @@ export function undoAutoTransaction(major: MajorId | null) {
 export type EditReceipt = {
   id: string;
   before: { status: CourseStatus | undefined; section: string | undefined; lock: string | undefined };
-  after: { status: CourseStatus | undefined; section: string | undefined };
+  after: { status: CourseStatus | undefined; section: string | undefined; lock: string | undefined };
 };
 
 /**
@@ -135,7 +135,10 @@ export function courseEdit(id: string, change: { status?: CourseStatus; section?
     }
     // The plan as the next transaction will see it: normalizing drops the section of a course taken out of the plan.
     const settled = normalizePlannerState(next);
-    return { next, result: { id, before, after: { status: settled.courseStatuses[id], section: settled.selectedSections[id] } } };
+    return {
+      next,
+      result: { id, before, after: { status: settled.courseStatuses[id], section: settled.selectedSections[id], lock: settled.lockedSections?.[id] } },
+    };
   };
 }
 
@@ -146,7 +149,10 @@ export function courseEdit(id: string, change: { status?: CourseStatus; section?
  */
 export function undoCourseEdit({ id, before, after }: EditReceipt) {
   return (plan: PlannerState): PlanTransaction<boolean> => {
-    if (plan.courseStatuses[id] !== after.status || plan.selectedSections[id] !== after.section) return { result: false };
+    // Locking or unlocking the section (in Week) is a change too: Undo would overwrite it.
+    if (plan.courseStatuses[id] !== after.status || plan.selectedSections[id] !== after.section || plan.lockedSections?.[id] !== after.lock) {
+      return { result: false };
+    }
     const next = withPlanUpdate(plan, manualEdit({ [id]: before.status ?? "notTaken" }, () => ({}), [id]));
     const selectedSections = { ...next.selectedSections };
     if (before.section === undefined) delete selectedSections[id];

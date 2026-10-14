@@ -39,6 +39,8 @@ export type CourseRowModel = CatalogEntry & {
   /** What still blocks it (locked and check rows). */
   unmet: RuleNode | null;
   coveredBy: string | null;
+  /** On the student's transcript, as any record (passed, in progress or waiting for review). */
+  onTranscript: boolean;
 };
 
 export type PlanSnapshot = {
@@ -105,6 +107,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
   // Courses closure satisfies, as the engine decided them (no second copy of its rules).
   const covered = inference.coverage;
   const prerequisites = new Map(profile.catalog.map((course) => [course.id, course.prerequisite]));
+  const onTranscript = transcriptCodes(profile, plan.transcript);
 
   const rows = new Map<string, CourseRowModel>();
   for (const entry of profile.entries.values()) {
@@ -158,6 +161,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
       rule,
       unmet,
       coveredBy,
+      onTranscript: onTranscript.has(entry.id),
     });
   }
   return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded) };

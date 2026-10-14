@@ -52,7 +52,8 @@ export function degreeScope(model: CourseModel, major: Pick<Major, "department" 
   const department = major && major.department !== "—" ? major.department : null;
   if (!department || wide) return new Set(rows.map((row) => row.id));
   const core = new Set(major?.coreCourseCodes ?? []);
-  const studentHasIt = (row: CourseRowModel) => row.override || !["available", "locked", "check"].includes(row.status);
+  // A transcript record counts even when the course is waiting for a check (an unrecognized grade, a row to review).
+  const studentHasIt = (row: CourseRowModel) => row.override || row.onTranscript || !["available", "locked", "check"].includes(row.status);
   return new Set(rows.filter((row) => core.has(row.id) || row.department === department || studentHasIt(row)).map((row) => row.id));
 }
 

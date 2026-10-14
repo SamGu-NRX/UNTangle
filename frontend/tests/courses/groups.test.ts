@@ -55,6 +55,19 @@ describe("groups", () => {
     expect(can.count).toBeGreaterThan(buildGroups(model, cs).find((group) => group.key === "can")!.count);
   });
 
+  test("a transcript course waiting for a check stays in scope outside the department", () => {
+    const flagged = { ...sampleTranscript[0], id: "flag", code: "BIOL 1710", grade: "A", reviewRequired: true };
+    const transcript = [...sampleTranscript, flagged];
+    const withFlag = buildCourseModel(profile, { ...samplePlan(), transcript });
+    expect(withFlag.rows.get("BIOL 1710")!.onTranscript).toBe(true);
+    expect(degreeScope(withFlag, cs).has("BIOL 1710")).toBe(true);
+    const check = buildGroups(withFlag, cs).find((group) => group.key === "check")!;
+    expect(check.parts.flatMap((part) => part.ids)).toContain("BIOL 1710");
+    expect(rowFact(withFlag.rows.get("BIOL 1710")!)?.text).toBe("Transcript grade needs a check");
+    // Without the record, the same course is outside the CSCE scope.
+    expect(degreeScope(model, cs).has("BIOL 1710")).toBe(false);
+  });
+
   test("without a department every course is in scope", () => {
     expect(degreeScope(model, null).size).toBe(model.rows.size);
     expect(degreeScope(model, { department: "—", coreCourseCodes: [] }).size).toBe(model.rows.size);

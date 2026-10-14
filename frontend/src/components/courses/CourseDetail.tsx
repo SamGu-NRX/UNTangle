@@ -12,7 +12,8 @@ import { Grades, slicesByInstructor, useGradeHistory } from "./Grades";
 import type { CourseModel, CourseRowModel } from "./model/course-model";
 import { instructorKey } from "./model/grades";
 import { rowFact } from "./model/groups";
-import { ruleCourseIds, splitUnparsed } from "./model/rules";
+import { isMet, pathStops, type StopState } from "./model/path";
+import { splitUnparsed } from "./model/rules";
 import type { SchoolProfile } from "./school";
 import { SectionList, type PlacedSection } from "./SectionList";
 
@@ -55,7 +56,8 @@ function statusLine(row: CourseRowModel, term: string): string {
   }
 }
 
-const isFinished = (row: CourseRowModel | undefined) => row?.status === "done" || row?.status === "covered" || row?.status === "taking";
+/** This course's own place on its path: met once it's done or covered. */
+const stateOfRow = (row: CourseRowModel): StopState => (row.status === "done" || row.status === "covered" ? row.status : "todo");
 
 /**
  * The course detail (DESIGN.md §4.2), the same in the desktop panel and the
@@ -171,10 +173,10 @@ function DetailActionsPart({ row, term, actions }: { row: CourseRowModel; term: 
 }
 
 function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; model: CourseModel; dependents: readonly string[]; inCore: boolean }) {
-  // The path draws at most four stops, so it fits a 360px screen: up to two prerequisites
+  // The path draws at most four stops, so it fits a 360px screen: up to two requirements
   // (the catalog rule below names them all), this course, and as many unlocks as fit, at most two.
-  const needs = ruleCourseIds(row.rule).slice(0, 2);
-  const drawn = Math.min(2, 3 - needs.length);
+  const requirements = pathStops(row.rule, model.rows).slice(0, 2);
+  const drawn = Math.min(2, 3 - requirements.length);
   const unlocks = dependents.slice(0, drawn);
   // The rest are listed under the path, up to four, then counted.
   const listed = dependents.slice(drawn, drawn + 4);
@@ -182,31 +184,46 @@ function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; mod
   const { readable, unparsed } = splitUnparsed(row.rule);
   const engine = row.assessment?.status;
   const meets = engine === "eligible" || engine === "done" || engine === "taking";
-  const proof = needs.flatMap((id) => {
-    const need = model.rows.get(id);
-    return need?.meta.kind === "grade" ? [`${id} (${need.meta.grade})`] : [];
+  const proof = requirements.flatMap((stop) => {
+    const id = stop.kind === "course" ? stop.id : stop.chosen;
+    const need = id ? model.rows.get(id) : undefined;
+    return id && isMet(stop.state) && need?.meta.kind === "grade" ? [`${id} (${need.meta.grade})`] : [];
   });
 
   const stops = [
-    ...needs.map((id) => {
-      const need = model.rows.get(id);
-      const met = isFinished(need);
-      const meta = need?.status === "taking" ? "Taking now" : need?.status === "covered" ? "Covered" : need?.meta.kind === "grade" ? `Grade ${need.meta.grade}` : "Not yet";
-      return { id, link: true, tone: met ? ("default" as const) : ("ring" as const), met, meta };
+    ...requirements.map((stop, index) => {
+      const id = stop.kind === "course" ? stop.id : stop.chosen;
+      const grade = id ? model.rows.get(id)?.meta : undefined;
+      const meta = {
+        done: grade?.kind === "grade" ? `Grade ${grade.grade}` : "Done",
+        covered: "Covered",
+        taking: "Taking now",
+        planned: "Planned",
+        todo: "Not yet",
+      }[stop.state];
+      return {
+        key: `need-${index}`,
+        id,
+        // An unmet choice names how many ways there are; the catalog rule below lists them.
+        label: id ?? (stop.kind === "choice" ? `One of ${stop.options}` : ""),
+        tone: isMet(stop.state) ? ("default" as const) : ("ring" as const),
+        met: isMet(stop.state),
+        meta,
+      };
     }),
-    { id: row.id, link: false, tone: "here" as const, met: isFinished(row), meta: "This course" },
-    ...unlocks.map((id) => ({ id, link: true, tone: "ring" as const, met: false, meta: "Unlocks" })),
+    { key: "here", id: null, label: row.id, tone: "here" as const, met: isMet(stateOfRow(row)), meta: "This course" },
+    ...unlocks.map((id) => ({ key: `unlock-${id}`, id, label: id, tone: "ring" as const, met: false, meta: "Unlocks" })),
   ];
 
   return (
     <>
-      {needs.length + unlocks.length > 0 ? (
+      {requirements.length + unlocks.length > 0 ? (
         <PathLine orientation="horizontal" label={`Prerequisites and what ${row.id} unlocks`} className={styles.path}>
           {stops.map((stop, index) => {
             const leg: PathLeg | undefined = index < stops.length - 1 ? (stop.met ? "done" : "todo") : undefined;
             return (
-              <PathStop key={stop.id} tone={stop.tone} leg={leg} marker={stop.met && stop.tone === "default" ? <Check size={14} strokeWidth={2.4} /> : null}>
-                <span className={styles.pathCode}>{stop.link ? <CourseLink id={stop.id} /> : stop.id}</span>
+              <PathStop key={stop.key} tone={stop.tone} leg={leg} marker={stop.met && stop.tone === "default" ? <Check size={14} strokeWidth={2.4} /> : null}>
+                <span className={styles.pathCode}>{stop.id ? <CourseLink id={stop.id} /> : stop.label}</span>
                 <span className={styles.pathMeta}>{stop.meta}</span>
               </PathStop>
             );

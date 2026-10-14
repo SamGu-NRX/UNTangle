@@ -27,7 +27,13 @@ type Props = {
   gpaOf: (instructor: string) => number | null;
 };
 
-const WEEK: readonly Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const WEEKDAYS: readonly Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+/** Monday to Friday, plus Saturday and Sunday when a meeting falls on them, as Week shows. */
+export function weekDays(meetings: ReadonlyArray<{ day: Day | null }>): Day[] {
+  const weekend = (["Sat", "Sun"] as const).filter((day) => meetings.some((meeting) => meeting.day === day));
+  return [...WEEKDAYS, ...weekend];
+}
 const LETTER: Record<Day, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "R", Fri: "F", Sat: "S", Sun: "U" };
 const DAY_NAME: Record<Day, string> = { Mon: "Mon", Tue: "Tue", Wed: "Wed", Thu: "Thu", Fri: "Fri", Sat: "Sat", Sun: "Sun" };
 /** Sections shown before "Show all". Starting value, matching the mockup's four rows. */
@@ -240,6 +246,7 @@ function MiniWeek({
   const blocks = placed.flatMap(({ section, hue }) => section.meetings.filter(timed).map((meeting) => ({ meeting, hue, key: section.id })));
   const ghosts = preview ? preview.meetings.filter(timed) : [];
   const all = [...blocks.map((block) => block.meeting), ...ghosts];
+  const days = weekDays(all);
   // 8:00 to 5:00 unless the week runs outside it.
   const start = Math.min(8 * 60, ...all.map((meeting) => Math.floor(meeting.startMinutes / 60) * 60));
   const end = Math.max(17 * 60, ...all.map((meeting) => Math.ceil(meeting.endMinutes / 60) * 60));
@@ -249,13 +256,13 @@ function MiniWeek({
   });
   return (
     <div aria-hidden="true">
-      <div className={styles.miniDays}>
-        {WEEK.map((day) => (
+      <div className={styles.miniDays} style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+        {days.map((day) => (
           <span key={day}>{day}</span>
         ))}
       </div>
-      <div className={styles.miniWeek}>
-        {WEEK.map((day) => (
+      <div className={styles.miniWeek} style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
+        {days.map((day) => (
           <div key={day}>
             {blocks
               .filter((block) => block.meeting.day === day)
