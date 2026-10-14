@@ -42,7 +42,7 @@
           { "context": "Build", "integration_id": 15368 },
           { "context": "Task rule", "integration_id": 15368 },
           { "context": "Path ownership", "integration_id": 15368 },
-          { "context": "Sam approved", "integration_id": 15368 }
+          { "context": "Sam approved (alpha)", "integration_id": 15368 }
         ]
       }
     }

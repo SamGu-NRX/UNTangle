@@ -200,27 +200,31 @@ async function ruleset(branch: string): Promise<Ruleset> {
 describe("the alpha and main rulesets", () => {
   const GITHUB_ACTIONS_APP = 15368;
 
-  test("differ only in name and branch", async () => {
+  test("differ only in name, branch and the approval status each requires", async () => {
     const alpha = await ruleset("alpha");
     const main = await ruleset("main");
     expect(alpha.conditions.ref_name).toEqual({ include: ["refs/heads/alpha"], exclude: [] });
     expect(main.conditions.ref_name).toEqual({ include: ["refs/heads/main"], exclude: [] });
-    expect({ ...main, name: alpha.name, conditions: alpha.conditions }).toEqual(alpha);
+    const asAlpha = JSON.parse(JSON.stringify(main).replaceAll('"Sam approved (main)"', '"Sam approved (alpha)"'));
+    expect({ ...asAlpha, name: alpha.name, conditions: alpha.conditions }).toEqual(alpha);
   });
 
-  test("require every CI job, both PR checks and Sam's approval, each from GitHub Actions", async () => {
-    const ci = await workflow("ci.yml");
-    const prRules = await workflow("pr-rules.yml");
-    const expected = [
-      // Live Postgres tests run only when asked for, so they can't be required.
-      ...Object.values(ci.jobs).map((job) => job.name).filter((name) => name !== "Live Postgres tests"),
-      ...Object.values(prRules.jobs).map((job) => job.name).filter((name) => name !== "Approval"),
-      "Sam approved",
-    ];
-    const { rules } = await ruleset("alpha");
-    const checks = rules.find((rule) => rule.type === "required_status_checks")?.parameters?.required_status_checks;
-    expect(checks).toEqual(expected.map((context) => ({ context, integration_id: GITHUB_ACTIONS_APP })));
-  });
+  test.each(["alpha", "main"])(
+    "%s requires every CI job, both PR checks and Sam's approval for that branch, each from GitHub Actions",
+    async (branch) => {
+      const ci = await workflow("ci.yml");
+      const prRules = await workflow("pr-rules.yml");
+      const expected = [
+        // Live Postgres tests run only when asked for, so they can't be required.
+        ...Object.values(ci.jobs).map((job) => job.name).filter((name) => name !== "Live Postgres tests"),
+        ...Object.values(prRules.jobs).map((job) => job.name).filter((name) => name !== "Approval"),
+        `Sam approved (${branch})`,
+      ];
+      const { rules } = await ruleset(branch);
+      const checks = rules.find((rule) => rule.type === "required_status_checks")?.parameters?.required_status_checks;
+      expect(checks).toEqual(expected.map((context) => ({ context, integration_id: GITHUB_ACTIONS_APP })));
+    },
+  );
 
   test("require a PR and forbid force-pushes and deletion", async () => {
     const { rules } = await ruleset("alpha");
@@ -230,10 +234,5 @@ describe("the alpha and main rulesets", () => {
   test("let admins bypass only when merging a PR, never by pushing", async () => {
     const { bypass_actors } = await ruleset("alpha");
     expect(bypass_actors).toEqual([{ actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "pull_request" }]);
-  });
-
-  test("require the status the Approval job posts", async () => {
-    const { jobs } = await workflow("pr-rules.yml");
-    expect(jobs.approval.steps[0].with?.script).toContain('const STATUS_CONTEXT = "Sam approved";');
   });
 });

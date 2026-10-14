@@ -8,7 +8,9 @@ gh api -X PUT repos/SamGu-NRX/UNTangle/rulesets/<id> --input .github/rulesets/al
 gh api -X PUT repos/SamGu-NRX/UNTangle/rulesets/<id> --input .github/rulesets/main.json
 ```
 
-Apply them only once `.github/workflows/pr-rules.yml` with the Approval job is on the default branch. `pull_request_target` runs the default branch's copy, so until then nothing reports the Task rule, Path ownership or `Sam approved` checks, and every PR into these branches waits on them.
+Apply them only once `.github/workflows/pr-rules.yml` with the Approval job is on the default branch. `pull_request_target` runs the default branch's copy, so until then nothing reports the Task rule, Path ownership or `Sam approved (<branch>)` checks, and every PR into these branches waits on them.
+
+Each ruleset requires its own approval status, `Sam approved (alpha)` or `Sam approved (main)`, because a status belongs to a commit that PRs into other branches can share. Nothing requires `Sam approved (edge)`.
 
 Each required check names `integration_id` 15368, the GitHub Actions app (`gh api /apps/github-actions`), so a status posted with a person's token doesn't count.
 

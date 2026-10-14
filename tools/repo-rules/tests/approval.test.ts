@@ -28,7 +28,6 @@ const OBVIOUS = "obvious-autobuild[bot]";
 const ACTIONS_BOT = "github-actions[bot]";
 const OWNER = "SamGu-NRX";
 const REPO = "UNTangle";
-const NUMBER = 7;
 
 type LabelEvent = {
   id: number;
@@ -51,19 +50,35 @@ class RequestError extends Error {
   }
 }
 
+/** What PRs in one repository share: commit statuses, which belong to a commit rather than a PR, and the clock. */
+class FakeRepo {
+  statuses: Status[] = [];
+  private nextId = 1;
+
+  /** A new id and timestamp. Three records share each second (ids 3-5, 6-8, ...), as fast actions do on GitHub. */
+  stamp(): { id: number; created_at: string } {
+    const id = this.nextId++;
+    return { id, created_at: new Date(Date.UTC(2026, 9, 14, 12, 0, Math.floor(id / 3))).toISOString().replace(".000", "") };
+  }
+}
+
 class FakePR {
   head = "a1";
   labels: string[] = [];
   events: LabelEvent[] = [];
-  statuses: Status[] = [];
+  /** Bodies of the comments the job posted. */
+  comments: string[] = [];
   /** Set to make the next label removal fail with this HTTP status. */
   removeLabelFailure: number | undefined;
-  private nextId = 1;
 
-  /** A new id and timestamp. Three records share each second (ids 3-5, 6-8, ...), as fast actions do on GitHub. */
+  constructor(
+    readonly base = "alpha",
+    readonly number = 7,
+    readonly repo = new FakeRepo(),
+  ) {}
+
   private stamp(): { id: number; created_at: string } {
-    const id = this.nextId++;
-    return { id, created_at: new Date(Date.UTC(2026, 9, 14, 12, 0, Math.floor(id / 3))).toISOString().replace(".000", "") };
+    return this.repo.stamp();
   }
 
   /** Someone adds the label on GitHub. The workflow run it triggers is a separate step: run(). */
@@ -81,15 +96,20 @@ class FakePR {
     this.head = sha;
   }
 
-  /** Posts a commit status as `login` would, outside the workflow. */
+  /** Posts this PR's approval status as `login` would, outside the workflow. */
   postStatus(sha: string, state: string, login: string): void {
-    this.statuses.push({ ...this.stamp(), sha, context: "Sam approved", state, description: "", creator: { login } });
+    this.repo.statuses.push({ ...this.stamp(), sha, context: `Sam approved (${this.base})`, state, description: "", creator: { login } });
   }
 
-  /** The newest "Sam approved" status on a commit, as the merge box reads it. */
-  statusOn(sha: string): Pick<Status, "state" | "description"> | undefined {
-    const latest = this.statuses.filter((status) => status.sha === sha && status.context === "Sam approved").at(-1);
+  /** The newest approval status for `base` on a commit, as that branch's ruleset reads it. */
+  statusOn(sha: string, base = this.base): Pick<Status, "state" | "description"> | undefined {
+    const latest = this.repo.statuses.filter((status) => status.sha === sha && status.context === `Sam approved (${base})`).at(-1);
     return latest && { state: latest.state, description: latest.description };
+  }
+
+  /** Every status context on a commit. */
+  contextsOn(sha: string): string[] {
+    return [...new Set(this.repo.statuses.filter((status) => status.sha === sha).map((status) => status.context))];
   }
 
   /** Runs the Approval script for one pull_request_target event, as GitHub would. */
@@ -102,7 +122,7 @@ class FakePR {
     const outputs: Record<string, string> = {};
     let notice: string | undefined;
     const issue = (params: { owner: string; repo: string; issue_number: number }) => {
-      if (params.owner !== OWNER || params.repo !== REPO || params.issue_number !== NUMBER) {
+      if (params.owner !== OWNER || params.repo !== REPO || params.issue_number !== this.number) {
         throw new Error(`Asked about the wrong PR: ${JSON.stringify(params)}`);
       }
     };
@@ -116,6 +136,11 @@ class FakePR {
             if (!this.labels.includes(params.name)) throw new RequestError("Label does not exist", 404);
             this.removeLabel(ACTIONS_BOT);
             return { data: [] };
+          },
+          createComment: async (params: { owner: string; repo: string; issue_number: number; body: string }) => {
+            issue(params);
+            this.comments.push(params.body);
+            return { data: {} };
           },
           listLabelsOnIssue: async (params: { owner: string; repo: string; issue_number: number }) => {
             issue(params);
@@ -131,11 +156,11 @@ class FakePR {
         repos: {
           // GitHub lists a commit's statuses newest first.
           listCommitStatusesForRef: async (params: { owner: string; repo: string; ref: string }) => ({
-            data: this.statuses.filter((status) => params.owner === OWNER && params.repo === REPO && status.sha === params.ref).reverse(),
+            data: this.repo.statuses.filter((status) => params.owner === OWNER && params.repo === REPO && status.sha === params.ref).reverse(),
           }),
           createCommitStatus: async (params: { owner: string; repo: string; sha: string; context: string; state: string; description: string }) => {
             if (params.owner !== OWNER || params.repo !== REPO) throw new Error("Posted to the wrong repository.");
-            this.statuses.push({ ...params, ...this.stamp(), creator: { login: ACTIONS_BOT } });
+            this.repo.statuses.push({ ...params, ...this.stamp(), creator: { login: ACTIONS_BOT } });
             return { data: {} };
           },
         },
@@ -148,7 +173,7 @@ class FakePR {
         sender: { login: sender },
         ...(options.label === undefined ? {} : { label: { name: options.label } }),
         // A payload records the head when the event happened, which a queued run sees later.
-        pull_request: { number: NUMBER, head: { sha: options.head ?? this.head } },
+        pull_request: { number: this.number, base: { ref: this.base }, head: { sha: options.head ?? this.head } },
       },
     };
     const core = {
@@ -284,6 +309,77 @@ describe("the Approval job", () => {
     expect((await pr.run("labeled", SAM, { label: LABEL })).approved).toBe("true");
   });
 
+  test("names the base branch in the status, so an approval into edge never satisfies alpha or main", async () => {
+    const pr = new FakePR("edge");
+    expect((await label(pr, SAM)).approved).toBe("true");
+    expect(pr.contextsOn("a1")).toEqual(["Sam approved (edge)"]);
+  });
+
+  test("posts, for alpha and main, the status that branch's ruleset requires and the other's doesn't", async () => {
+    const required = async (branch: string): Promise<string[]> => {
+      // SAFETY: the expectations below fail on any other shape.
+      const body = (await Bun.file(path.join(repoRoot, ".github/rulesets", `${branch}.json`)).json()) as {
+        rules: Array<{ type: string; parameters?: { required_status_checks?: Array<{ context: string }> } }>;
+      };
+      return body.rules.flatMap((rule) => rule.parameters?.required_status_checks?.map((check) => check.context) ?? []);
+    };
+    for (const [branch, other] of [["alpha", "main"], ["main", "alpha"]]) {
+      const pr = new FakePR(branch);
+      await label(pr, SAM);
+      const [posted] = pr.contextsOn("a1");
+      expect(pr.contextsOn("a1")).toEqual([posted]);
+      expect(await required(branch)).toContain(posted);
+      expect(await required(other)).not.toContain(posted);
+    }
+    const edge = new FakePR("edge");
+    await label(edge, SAM);
+    for (const branch of ["alpha", "main"]) expect(await required(branch)).not.toContain(edge.contextsOn("a1")[0]);
+  });
+
+  test("keeps two PRs with one head independent", async () => {
+    // One branch, opened as a PR into edge and another into alpha, so both PRs share every commit.
+    const repo = new FakeRepo();
+    const intoEdge = new FakePR("edge", 8, repo);
+    const intoAlpha = new FakePR("alpha", 9, repo);
+    expect((await label(intoEdge, SAM)).approved).toBe("true");
+    expect((await intoAlpha.run("edited", OBVIOUS)).approved).toBe("false");
+    expect(intoAlpha.statusOn("a1")).toEqual(waitingStatus);
+    expect(intoEdge.statusOn("a1")).toEqual(approvedStatus);
+  });
+
+  test("doesn't let an edge approval of a shared head revive an alpha label from an older commit", async () => {
+    const repo = new FakeRepo();
+    const intoEdge = new FakePR("edge", 8, repo);
+    const intoAlpha = new FakePR("alpha", 9, repo);
+    await label(intoAlpha, SAM);
+    // The branch moves to b2 for both PRs. The alpha PR's strip run hasn't happened.
+    intoAlpha.push("b2");
+    intoEdge.push("b2");
+    await label(intoEdge, SAM);
+    expect((await intoAlpha.run("edited", OBVIOUS)).approved).toBe("false");
+    expect(intoAlpha.statusOn("b2")).toEqual(waitingStatus);
+    expect(intoEdge.statusOn("b2")).toEqual(approvedStatus);
+  });
+
+  test("announces in a comment when a push removes the label", async () => {
+    const pr = new FakePR();
+    await label(pr, SAM);
+    pr.push("b2");
+    await pr.run("synchronize", OBVIOUS);
+    expect(pr.comments).toEqual(["Approval removed by a new push; add sam-approved again."]);
+  });
+
+  test("announces it too when the push's run removes a label Sam added after the push", async () => {
+    // The run can't tell this label from one that predates the push, so the loss must be visible.
+    const pr = new FakePR();
+    pr.push("b2");
+    pr.addLabel(SAM);
+    await pr.run("synchronize", OBVIOUS);
+    expect(pr.comments).toEqual(["Approval removed by a new push; add sam-approved again."]);
+    expect((await pr.run("labeled", SAM, { label: LABEL })).approved).toBe("false");
+    expect(pr.statusOn("b2")).toEqual(waitingStatus);
+  });
+
   test("strips the label on a push and leaves the new commit waiting", async () => {
     const pr = new FakePR();
     await label(pr, SAM);
@@ -343,6 +439,7 @@ describe("the Approval job", () => {
     pr.push("b2");
     expect((await pr.run("synchronize", OBVIOUS)).approved).toBe("false");
     expect(pr.statusOn("b2")).toEqual(waitingStatus);
+    expect(pr.comments).toEqual([]);
   });
 
   test("fails, posting nothing, when it can't strip the label after a push", async () => {

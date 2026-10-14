@@ -4,16 +4,18 @@ name: PR rules
 # can't edit the jobs that judge it.
 #
 # Approval decides from the GitHub API alone whether Sam approved the PR's
-# current commit, posts the "Sam approved" commit status on that commit, and
-# hands its answer to the other two jobs. Those check out the PR's base commit
+# current commit, posts a "Sam approved (<base branch>)" commit status on that
+# commit, and hands its answer to the other two jobs. Those check out the PR's base commit
 # to run the scripts and read the lists from there. Nothing from the PR is
 # checked out or run: its commits are fetched only so git can diff them.
 # Label changes re-run the jobs, since sam-approved lifts the checks.
 #
-# On alpha and main, a ruleset requires the "Sam approved" status from GitHub
-# Actions (.github/rulesets/). On edge the jobs run the same way, but nothing
-# requires the status: it is informational there, and agents land on edge
-# without Sam's approval.
+# A status belongs to a commit, not a PR, and two PRs can share a head: one
+# into edge and one into alpha, say. Naming the base branch in the status keeps
+# an approval for one from counting for the other. The alpha ruleset requires
+# "Sam approved (alpha)" from GitHub Actions and the main ruleset "Sam approved
+# (main)" (.github/rulesets/). No ruleset requires "Sam approved (edge)": it is
+# informational, and agents land on edge without Sam's approval.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
@@ -26,8 +28,8 @@ jobs:
   approval:
     name: Approval
     runs-on: ubuntu-latest
-    # The only job that writes: it strips sam-approved on a push and posts the
-    # "Sam approved" status.
+    # The only job that writes: it strips sam-approved on a push, says so in a
+    # PR comment, and posts the approval status.
     permissions:
       statuses: write
       pull-requests: write
@@ -65,9 +67,10 @@ jobs:
             if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
               throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
             }
-            const STATUS_CONTEXT = "Sam approved";
-            const ACTIONS_BOT = "github-actions[bot]";
             const pr = context.payload.pull_request;
+            if (!pr?.base?.ref || !pr.head?.sha) throw new Error("The event carries no pull request with a base branch and a head commit.");
+            const STATUS_CONTEXT = `Sam approved (${pr.base.ref})`;
+            const ACTIONS_BOT = "github-actions[bot]";
             const { owner, repo } = context.repo;
             const issue = { owner, repo, issue_number: pr.number };
             // The REST API documents no order for events or statuses. created_at has
@@ -80,8 +83,9 @@ jobs:
             // - an approver added it last, acting as themselves rather than through an app;
             // - it was added while the PR's head was this commit. Either this run is that
             //   label event, or an earlier run for it already marked this commit with a
-            //   success status. A push strips the label (below), and a status belongs to
-            //   one commit, so approval never carries over to a new commit.
+            //   success status for this base branch. A push strips the label (below), and
+            //   a status belongs to one commit, so approval never carries over to a new
+            //   commit.
             function decide({ labels, events, trigger, headStatus }) {
               if (!labels.includes(label)) {
                 return { approved: false, reason: `The PR doesn't have the ${label} label.` };
@@ -104,12 +108,24 @@ jobs:
               return { approved: false, reason: `${label} was added before this commit was pushed. Remove it and add it again to approve this commit.` };
             }
 
+            // The strip removes whatever label is there when this step runs, so it also
+            // removes one Sam added after the push but before this run reached it. Only
+            // removing a label older than the push would need the push's time, and the
+            // API has none to compare against: the payload records no push time, the
+            // PR's updated_at also moves when a label is added, and event times step
+            // by whole seconds. So a removal is always announced in a comment, and an
+            // approval lost this way is visible rather than silent.
             if (context.payload.action === "synchronize") {
+              let removed = false;
               try {
                 await github.rest.issues.removeLabel({ ...issue, name: label });
-                core.info(`Removed ${label}: a push needs a new approval.`);
+                removed = true;
               } catch (error) {
                 if (error.status !== 404) throw error;
+              }
+              if (removed) {
+                await github.rest.issues.createComment({ ...issue, body: `Approval removed by a new push; add ${label} again.` });
+                core.info(`Removed ${label}: a push needs a new approval.`);
               }
             }
 
