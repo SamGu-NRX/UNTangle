@@ -462,6 +462,7 @@
   color: var(--ink-2);
 }
 .majorSource {
+  text-wrap: pretty;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -682,6 +683,7 @@
 }
 .miniCaption {
   margin: 4px 0 8px;
+  text-wrap: pretty;
   font-size: 13px;
   line-height: 18px;
   color: var(--ink-2);
@@ -783,6 +785,9 @@
   column-gap: 8px;
   font-size: 14px;
   font-weight: 550;
+}
+.pattern {
+  white-space: nowrap;
 }
 .sectionCode {
   color: var(--ink-2);

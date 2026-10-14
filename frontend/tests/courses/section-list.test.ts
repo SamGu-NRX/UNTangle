@@ -18,3 +18,16 @@ test("the mini week adds Saturday and Sunday only when a meeting falls on them",
   expect(weekDays([{ day: "Sat" }])).toEqual([...weekdays, "Sat"]);
   expect(weekDays([{ day: "Sun" }, { day: "Sat" }])).toEqual([...weekdays, "Sat", "Sun"]);
 });
+
+test("a section's times read as one pattern per distinct time, in UNT's day letters", async () => {
+  const { meetingPatterns } = await import("@/components/courses/SectionList");
+  const at = (day: "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat", startMinutes: number, endMinutes: number) => ({ day, startMinutes, endMinutes });
+  const lectureAndLab = {
+    online: false,
+    async: false,
+    meetings: [at("Mon", 600, 650), at("Wed", 600, 650), at("Fri", 600, 650), at("Thu", 840, 950), at("Sat", 540, 650)],
+  };
+  expect(meetingPatterns(lectureAndLab)).toEqual(["MWF 10:00–10:50", "R 2:00–3:50", "S 9:00–10:50"]);
+  expect(meetingPatterns({ online: true, async: true, meetings: [] })).toEqual(["Online, no set time"]);
+  expect(meetingPatterns({ online: false, async: false, meetings: [] })).toEqual(["Time to be announced"]);
+});

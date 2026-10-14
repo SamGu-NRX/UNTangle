@@ -47,15 +47,20 @@ function clock(minutes: number) {
   return `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-/** "MWF 10:00–10:50", one pattern per distinct time; "Online, no set time" without one. */
-function when(section: Section): string {
+/** ["MWF 10:00–10:50", "T 2:00–3:50"]: one pattern per distinct time; "Online, no set time" without one. */
+export function meetingPatterns(section: {
+  meetings: ReadonlyArray<Pick<Meeting, "day" | "startMinutes" | "endMinutes">>;
+  online: boolean;
+  async: boolean;
+}): string[] {
   const patterns = new Map<string, Day[]>();
-  for (const meeting of section.meetings.filter(timed)) {
-    const key = `${clock(meeting.startMinutes)}–${clock(meeting.endMinutes)}`;
-    patterns.set(key, [...(patterns.get(key) ?? []), meeting.day]);
+  for (const { day, startMinutes, endMinutes } of section.meetings) {
+    if (day === null || startMinutes === null || endMinutes === null) continue;
+    const key = `${clock(startMinutes)}–${clock(endMinutes)}`;
+    patterns.set(key, [...(patterns.get(key) ?? []), day]);
   }
-  if (patterns.size === 0) return section.online || section.async ? "Online, no set time" : "Time to be announced";
-  return [...patterns].map(([time, days]) => `${[...new Set(days)].map((day) => LETTER[day]).join("")} ${time}`).join(" and ");
+  if (patterns.size === 0) return [section.online || section.async ? "Online, no set time" : "Time to be announced"];
+  return [...patterns].map(([time, days]) => `${[...new Set(days)].map((day) => LETTER[day]).join("")} ${time}`);
 }
 
 /** "18 open", "Full", "Wait list". Samples have no seats. */
@@ -191,7 +196,12 @@ export function SectionList({ courseId, term, options, placed, chosenId, canAdd,
               >
                 <span className={styles.sectionWhen}>
                   <span className={styles.sectionCode}>{label}</span>
-                  {when(section)}
+                  {/* Each pattern wraps as a whole, so a lab's time never splits across lines. */}
+                  {meetingPatterns(section).map((pattern, index) => (
+                    <span key={pattern} className={styles.pattern}>
+                      {index === 0 ? pattern : `and ${pattern}`}
+                    </span>
+                  ))}
                 </span>
                 <span className={styles.sectionWho}>
                   <span>{instructor ?? "Instructor not listed"}</span>
