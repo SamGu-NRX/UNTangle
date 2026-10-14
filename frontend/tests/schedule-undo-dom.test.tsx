@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
 import { act } from "react";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { installDom, mountPlanner, removeDom, setSession } from "./planner/test-dom";
@@ -10,6 +10,16 @@ beforeAll(() => {
   setSession(null);
   previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
   environment.IS_REACT_ACT_ENVIRONMENT = true;
+});
+beforeEach(() => {
+  window.localStorage.clear();
+  setSession(null);
+});
+afterEach(async () => {
+  const { dismissToast } = await import("@/components/ui/Toast");
+  await act(async () => { dismissToast(); });
+  window.localStorage.clear();
+  setSession(null);
 });
 afterAll(() => {
   removeDom();
