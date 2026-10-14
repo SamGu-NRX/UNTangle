@@ -91,7 +91,7 @@ function references(text: string): string[] {
   return [...new Set([...text.matchAll(/\b[A-Z]{2,5}\s*\d{4}[A-Z]?\b/gi)].map(match => normalizeUntCourseId(match[0])))];
 }
 
-test("all 656 catalog entries preserve eligibility monotonicity under positive-course deletion", () => {
+test("all catalog entries preserve eligibility monotonicity under positive-course deletion", () => {
   let comparisons = 0;
   let eligibleBaselines = 0;
   for (const row of coverage.courses) {
@@ -121,10 +121,10 @@ test("all 656 catalog entries preserve eligibility monotonicity under positive-c
       }
     }
   }
-  expect(coverage.courses.length).toBe(656);
+  expect(coverage.courses.length).toBe(669);
   expect(comparisons).toBeGreaterThan(500);
   expect(eligibleBaselines).toBeGreaterThan(200);
-  console.info(`Catalog monotonicity: 656 entries, ${comparisons} deletion comparisons, ${eligibleBaselines} eligible baselines.`);
+  console.info(`Catalog monotonicity: 669 entries, ${comparisons} deletion comparisons, ${eligibleBaselines} eligible baselines.`);
 });
 
 function closureSources(reason: Reason): string[] {

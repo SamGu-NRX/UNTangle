@@ -106,11 +106,11 @@ test("all eligible catalog targets reject lowered grades on essential stated min
     }
     if (tested) gradedTargets.add(row.courseId);
   }
-  expect(coverage.courses.length).toBe(656);
+  expect(coverage.courses.length).toBe(669);
   expect(eligibleTargets).toBeGreaterThan(300);
   for (const id of ["CSCE 1040", "MATH 1720", "MEEN 3210", "MEEN 3230", "MEEN 3240", "MEEN 4110", "MEEN 4140", "MEEN 4150", "MEEN 4315"]) expect(gradedTargets.has(id)).toBe(true);
   expect(probes).toBeGreaterThan(0);
-  console.info("Grade thresholds: 656 entries, " + eligibleTargets + " eligible targets, " + gradedTargets.size + " graded targets, " + probes + " single-grade probes.");
+  console.info("Grade thresholds: 669 entries, " + eligibleTargets + " eligible targets, " + gradedTargets.size + " graded targets, " + probes + " single-grade probes.");
 });
 
 const sharedRows = coverage.courses.filter(row => /\b(?:all|each|both)\b[^.;]*\b[A-D]\s+or\s+(?:better|higher)/i.test(row.source));

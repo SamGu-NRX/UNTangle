@@ -1,5 +1,55 @@
 [
     {
+        "course_number": "CHEM1415",
+        "title": "General Chemistry for Engineering Majors",
+        "number_of_hours": "3 hours (3;0;1*)",
+        "description": "Fundamental concepts, atomic structure, periodic table, stoichiometry, states of matter, chemical bonding, new materials, solutions, thermodynamics, reaction rates, equilibrium, electrochemistry, polymers and nuclear reactions.",
+        "prerequisites": "C or better in MATH 1650 or equivalent. Corequisite(s): CHEM 1435. *This hour is a problem-solving session.",
+        "prerequisites_course_codes": [
+            "MATH1650",
+            "CHEM1435"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191196"
+    },
+    {
+        "course_number": "CHEM1430",
+        "title": "Laboratory Sequence for General Chemistry I  (CHEM 1111)",
+        "number_of_hours": "1 hour (1;3)",
+        "description": "Laboratory techniques, weighing, errors and significant figures, identification and purification of substances, and elementary quantitative analysis.",
+        "prerequisites": "CHEM 1410 or CHEM 1412 or CHEM 1413.",
+        "prerequisites_course_codes": [
+            "CHEM1410",
+            "CHEM1412",
+            "CHEM1413"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191200"
+    },
+    {
+        "course_number": "CHEM1435",
+        "title": "General Chemistry Laboratory for Engineering Majors",
+        "number_of_hours": "1 hour (1;3)",
+        "description": "Laboratory techniques; application of statistical methods to laboratory data; chemical and physical property measurements; stoichiometric analysis; measurement of thermodynamic, electrochemical and kinetic data.",
+        "prerequisites": "CHEM 1415 (may be taken concurrently).",
+        "prerequisites_course_codes": [
+            "CHEM1415"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191201"
+    },
+    {
+        "course_number": "CHEM1440",
+        "title": "Laboratory Sequence for General Chemistry II  (CHEM 1112)",
+        "number_of_hours": "1 hour (1;3)",
+        "description": "Quantitative, gravimetric and volumetric analyses; coordination compounds.",
+        "prerequisites": "C or better in CHEM 1430. Corequisite(s): CHEM 1420 or CHEM 1422 or CHEM 1423.",
+        "prerequisites_course_codes": [
+            "CHEM1430",
+            "CHEM1420",
+            "CHEM1422",
+            "CHEM1423"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191202"
+    },
+    {
         "course_number": "CHEM2900",
         "title": "Introduction to Chemical Research",
         "number_of_hours": "1\u20133 hours",

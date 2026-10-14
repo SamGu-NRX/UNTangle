@@ -1,5 +1,17 @@
 [
     {
+        "course_number": "CSCE1015",
+        "title": "Computing Tools and Techniques Laboratory",
+        "number_of_hours": "1 hour (0;2)",
+        "description": "Fills in the \u201cmissing\u201d information needed to become a successful, working computer scientist/engineer. A hands-on introduction to the tools, techniques, and procedures needed to be successful in future courses and careers. Topics include Linux, containerization/virtualization, version control with Git, IDEs (Integrated Development Environments), testing/debugging/profiling code, secure coding practices, PKI (public key infrastructure) cryptography, tool automation, basic networking.",
+        "prerequisites": "CSCE 1030 or CSCE 1035.",
+        "prerequisites_course_codes": [
+            "CSCE1030",
+            "CSCE1035"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=195076"
+    },
+    {
         "course_number": "CSCE2900",
         "title": "Special Problems in Computer Science and Engineering",
         "number_of_hours": "1\u20134 hours",
@@ -7,6 +19,42 @@
         "prerequisites": "Students must get instructor consent by email, as well as departmental consent by filling out the Enrollment Assistance request form at www.cse.unt.edu/overrides . Students must upload the instructor consent and all other consent/approval documentation in the form. For elective credit only. May be repeated for credit for a maximum of 6 hours.",
         "prerequisites_course_codes": [],
         "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=37&coid=170688"
+    },
+    {
+        "course_number": "CSCE4115",
+        "title": "Formal Languages, Automata and Computability",
+        "number_of_hours": "3 hours",
+        "description": "Introduces students to the formal language theory that underlies modern computer science. Topics include different representational forms for regular languages, context-free grammars, pushdown automata, pumping lemmas for regular and context-free languages, and Chomsky\u2019s hierarchy.",
+        "prerequisites": "CSCE 2100 and CSCE 2110, each with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191392"
+    },
+    {
+        "course_number": "CSCE4210",
+        "title": "Game Programming I",
+        "number_of_hours": "3 hours (3;0;1)",
+        "description": "Introduction to game programming, including real-time, event-driven, and multimedia programming techniques. Graphics, sound and input programming. Students learn how to program a billboard game in 3D with constrained camera motion.",
+        "prerequisites": "CSCE 2110 with a grade of C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2110"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191393"
+    },
+    {
+        "course_number": "CSCE4230",
+        "title": "Introduction to Computer Graphics",
+        "number_of_hours": "3 hours",
+        "description": "Basic Euclidian geometry and linear algebra, computer graphics algorithms and data structures, OpenGL and its inner workings.",
+        "prerequisites": "CSCE 2100, CSCE 2110, MATH 2700, each with a grade of a C or better.",
+        "prerequisites_course_codes": [
+            "CSCE2100",
+            "CSCE2110",
+            "MATH2700"
+        ],
+        "url": "https://catalog.unt.edu/preview_course_nopop.php?catoid=40&coid=191396"
     },
     {
         "course_number": "CSCE4815",

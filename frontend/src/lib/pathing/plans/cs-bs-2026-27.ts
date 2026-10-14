@@ -32,30 +32,23 @@ export const csBs2026: RequirementSet = {
           name: "Software Development Capstone",
           requirements: [
             { kind: "all", name: "Capstone courses", courses: ["CSCE 4901", "CSCE 4902"] },
-            // The elective list lives on a separate catalog page that was not copied.
-            { kind: "pool", name: "CSCE Advanced Elective Courses", hours: 6 },
+            // The catalog's "plus 6 hours chosen from CSCE Advanced Elective
+            // Courses" is satisfied by the 12 elective hours below (the
+            // Advanced Elective Courses list is exactly these two groups), so
+            // the 6- or 9-hour minimum needs no separate line.
+            { kind: "hours", name: "CSCE core, 6 hours", hours: 6, options: ["CSCE 3530", "CSCE 4115", "CSCE 4430", "CSCE 4600", "CSCE 4650"] },
+            { kind: "hours", name: "CSCE breadth, 6 hours", hours: 6, options: ["CSCE 4201", "CSCE 4210", "CSCE 4230", "CSCE 4240", "CSCE 4290", "CSCE 4350", "CSCE 4460"] },
           ],
         },
         {
           name: "Senior Thesis",
           requirements: [
             { kind: "all", name: "Senior thesis", courses: ["CSCE 4999"] },
-            { kind: "pool", name: "CSCE Advanced Elective Courses", hours: 9 },
+            { kind: "hours", name: "CSCE core, 6 hours", hours: 6, options: ["CSCE 3530", "CSCE 4115", "CSCE 4430", "CSCE 4600", "CSCE 4650"] },
+            { kind: "hours", name: "CSCE breadth, 6 hours", hours: 6, options: ["CSCE 4201", "CSCE 4210", "CSCE 4230", "CSCE 4240", "CSCE 4290", "CSCE 4350", "CSCE 4460"] },
           ],
         },
       ],
-    },
-    {
-      kind: "hours",
-      name: "CSCE core, 6 hours",
-      hours: 6,
-      options: ["CSCE 3530", "CSCE 4115", "CSCE 4430", "CSCE 4600", "CSCE 4650"],
-    },
-    {
-      kind: "hours",
-      name: "CSCE breadth, 6 hours",
-      hours: 6,
-      options: ["CSCE 4201", "CSCE 4210", "CSCE 4230", "CSCE 4240", "CSCE 4290", "CSCE 4350", "CSCE 4460"],
     },
     {
       kind: "all",

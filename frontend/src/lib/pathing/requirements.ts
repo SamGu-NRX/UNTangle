@@ -208,8 +208,9 @@ function evaluateBranch(requirements: readonly Requirement[], name: string, fact
  * Progress and the shortest remaining route for one requirement.
  *
  * A choice is the student's decision, not a route to shorten: it follows the
- * met branch, else the one with the most credited courses (the student has
- * started it), else the first reachable branch that needs no advisor, else the
+ * met branch, else the one with the most uniquely credited courses (coursework
+ * the student started in that branch alone; shared credit does not start a
+ * route), else the first reachable branch that needs no advisor, else the
  * first reachable one in plan order. Picking the shortest branch instead would
  * follow the senior thesis for every sophomore, because its senior-standing
  * rule costs no terms. Until a branch is started, every branch's courses count
@@ -247,13 +248,20 @@ export function evaluateRequirement(requirement: Requirement, facts: CourseFacts
       return { ...fromOptions([], requirement.hours, "hours", facts), terms: 0, tracked: false };
     case "choice": {
       const branches = requirement.branches.map((branch) => evaluateBranch(branch.requirements, branch.name, facts));
+      // Coursework listed by several branches is shared: crediting it shows
+      // progress on the choice, not that one route was started. Only a course
+      // credited in exactly one branch counts as starting it.
+      const credited = requirement.branches.map((branch) => new Set(branch.requirements.flatMap(listed).filter(facts.credited)));
+      const creditCounts = new Map<CourseId, number>();
+      for (const ids of credited) for (const id of ids) creditCounts.set(id, (creditCounts.get(id) ?? 0) + 1);
+      const started = credited.map((ids) => [...ids].filter((id) => creditCounts.get(id) === 1).length);
       const order = branches.map((_, index) => index).sort((a, b) => {
         const [x, y] = [branches[a]!, branches[b]!];
-        return Number(y.met) - Number(x.met) || y.progress - x.progress ||
+        return Number(y.met) - Number(x.met) || started[b]! - started[a]! || y.progress - x.progress ||
           Number(x.terms === Infinity) - Number(y.terms === Infinity) || Number(x.advisor) - Number(y.advisor) || a - b;
       });
       const best = branches[order[0]!]!;
-      if (best.met || best.progress > 0) return best;
+      if (best.met || started[order[0]!]! > 0) return best;
       return { ...best, options: [...new Set(branches.flatMap((branch) => branch.options))] };
     }
   }
