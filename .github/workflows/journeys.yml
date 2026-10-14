@@ -1,0 +1,246 @@
+name: Browser journeys
+
+on:
+  pull_request:
+    branches: [alpha, edge]
+    paths:
+      - 'frontend/**'
+      - 'packages/**'
+      - 'output/playwright/scheduler-v2/journey.mjs'
+      - 'output/playwright/design-pass-a/journey.mjs'
+      - 'output/playwright/courses-v2/courses-v2-journey.mjs'
+      - 'tools/mock-myunt/**'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/journeys.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: journeys-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  TZ: America/Chicago
+  BETTER_AUTH_URL: http://127.0.0.1:3000
+  RESEND_FROM_EMAIL: ci@example.invalid
+  RATE_LIMIT_TRUSTED_PROXY: reverse-proxy
+
+jobs:
+  build:
+    name: Build journey app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Generate throwaway configuration
+        run: |
+          for name in BETTER_AUTH_SECRET RESEND_API_KEY ORS_API_KEY; do
+            value=$(openssl rand -hex 32)
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          echo 'DATABASE_URL=postgres://unused:unused@127.0.0.1:9/journey_build' >> "$GITHUB_ENV"
+      # A separate user lets us block app egress without blocking the Actions runner.
+      - name: Create isolated app user
+        run: |
+          sudo useradd --create-home --shell /bin/bash journey
+          sudo chown -R journey:journey "$GITHUB_WORKSPACE"
+      # Fonts and catalog data are bundled; the build needs no external traffic.
+      - name: Block external network
+        run: |
+          sudo iptables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d 127.0.0.0/8 -j REJECT
+          sudo ip6tables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d ::1/128 -j REJECT
+      - name: Build production app once
+        run: sudo --preserve-env -u journey "$(command -v node)" node_modules/next/dist/bin/next build
+        working-directory: frontend
+      - name: Restore Actions network access
+        if: always()
+        run: |
+          if id journey > /dev/null 2>&1; then
+            for command in iptables ip6tables; do
+              destination=127.0.0.0/8
+              if [ "$command" = ip6tables ]; then destination=::1/128; fi
+              if sudo "$command" -C OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d "$destination" -j REJECT 2>/dev/null; then
+                sudo "$command" -D OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d "$destination" -j REJECT
+              fi
+            done
+          fi
+      - name: Archive production build
+        run: tar --exclude=frontend/.next/cache -czf "$RUNNER_TEMP/journey-app.tar.gz" frontend/.next
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: journey-app
+          path: ${{ runner.temp }}/journey-app.tar.gz
+          retention-days: 1
+
+  journey:
+    name: Journey ${{ matrix.name }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/journey-browsers
+    strategy:
+      fail-fast: false
+      # All five use synthetic or guest data. No journey needs a real UNT account.
+      matrix:
+        name: [map, webmcp, scheduler-v2, design-pass-a, courses-v2]
+    # Production auth and API rate-limit counters use Postgres even for guests.
+    # Each job gets an empty database; the bootstrap password is rotated below.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: untangle_ci
+          POSTGRES_PASSWORD: journey_bootstrap
+          POSTGRES_DB: untangle_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U untangle_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: journey-app
+          path: ${{ runner.temp }}
+      - name: Restore production build
+        run: tar -xzf "$RUNNER_TEMP/journey-app.tar.gz"
+      - name: Install isolated browser tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/journey-tools"
+          cd "$RUNNER_TEMP/journey-tools"
+          bun --no-env-file add --exact playwright@1.58.2 axe-core@4.10.3
+          echo "UNTANGLE_E2E_MODULES=$PWD/node_modules" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_MODULE=$PWD/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "AXE_PATH=$PWD/node_modules/axe-core/axe.min.js" >> "$GITHUB_ENV"
+      - name: Cache Chromium
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/journey-browsers
+          key: journey-chromium-${{ runner.os }}-${{ runner.arch }}-1.58.2
+      # System libraries are installed on cache hits too.
+      - name: Install Chromium and system dependencies
+        run: node "$UNTANGLE_E2E_MODULES/playwright/cli.js" install --with-deps chromium
+      - name: Generate throwaway configuration and migrate Postgres
+        run: |
+          for name in BETTER_AUTH_SECRET RESEND_API_KEY ORS_API_KEY; do
+            value=$(openssl rand -hex 32)
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          password=$(openssl rand -hex 32)
+          echo "::add-mask::$password"
+          PGPASSWORD=journey_bootstrap psql -h 127.0.0.1 -U untangle_ci -d untangle_ci -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE untangle_ci PASSWORD '$password';"
+          echo "DATABASE_URL=postgres://untangle_ci:$password@127.0.0.1:5432/untangle_ci" >> "$GITHUB_ENV"
+          export PGPASSWORD="$password"
+          for migration in frontend/drizzle/*.sql; do
+            psql -h 127.0.0.1 -U untangle_ci -d untangle_ci -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          echo 'UNTANGLE_BASE_URL=http://127.0.0.1:3000' >> "$GITHUB_ENV"
+          echo "UNTANGLE_OUT=$RUNNER_TEMP/journey-output" >> "$GITHUB_ENV"
+          echo "OUT_DIR=$RUNNER_TEMP/journey-output" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/journey-output"
+      - name: Create isolated app user
+        run: |
+          sudo useradd --create-home --shell /bin/bash journey
+          sudo chown -R journey:journey "$GITHUB_WORKSPACE" "$RUNNER_TEMP/journey-tools" "$PLAYWRIGHT_BROWSERS_PATH" "$UNTANGLE_OUT"
+      # Blocks both server and browser egress, including email, ORS and UNT.
+      # Design pass A fulfills my.unt.edu requests from the local mock itself.
+      - name: Block external network
+        run: |
+          sudo iptables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d 127.0.0.0/8 -j REJECT
+          sudo ip6tables -I OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d ::1/128 -j REJECT
+      - name: Start production server
+        run: |
+          cd frontend
+          sudo --preserve-env -u journey "$(command -v node)" node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 > "$UNTANGLE_OUT/server.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/journey-server.pid"
+          for attempt in {1..60}; do
+            if curl --fail --silent "$UNTANGLE_BASE_URL/schedule" > /dev/null; then exit 0; fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/journey-server.pid")" 2>/dev/null; then
+              cat "$UNTANGLE_OUT/server.log"
+              exit 1
+            fi
+            sleep 1
+          done
+          cat "$UNTANGLE_OUT/server.log"
+          exit 1
+      - name: Start synthetic myUNT server
+        if: matrix.name == 'design-pass-a'
+        run: |
+          sudo --preserve-env -u journey "$(command -v bun)" --no-env-file tools/mock-myunt/server.ts > "$UNTANGLE_OUT/mock-myunt.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/journey-mock.pid"
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:4317/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$UNTANGLE_OUT/mock-myunt.log"
+          exit 1
+      - name: Run browser journey
+        env:
+          JOURNEY: ${{ matrix.name }}
+        run: |
+          case "$JOURNEY" in
+            map) sudo --preserve-env -u journey "$(command -v node)" frontend/tests/map-e2e/journey.mjs ;;
+            webmcp) sudo --preserve-env -u journey "$(command -v node)" frontend/tests/webmcp-e2e/journey.mjs ;;
+            scheduler-v2) sudo --preserve-env -u journey "$(command -v node)" output/playwright/scheduler-v2/journey.mjs "$UNTANGLE_BASE_URL" "$UNTANGLE_OUT" ;;
+            design-pass-a) sudo --preserve-env -u journey "$(command -v node)" output/playwright/design-pass-a/journey.mjs "$UNTANGLE_BASE_URL" http://localhost:4317 "$UNTANGLE_OUT" ;;
+            courses-v2) sudo --preserve-env -u journey "$(command -v node)" output/playwright/courses-v2/courses-v2-journey.mjs ;;
+            *) echo "Unknown journey: $JOURNEY" >&2; exit 2 ;;
+          esac
+      - name: Stop servers and restore Actions network access
+        if: always()
+        run: |
+          if id journey > /dev/null 2>&1; then
+            sudo pkill -KILL -u journey || [ "$?" -eq 1 ]
+            for command in iptables ip6tables; do
+              destination=127.0.0.0/8
+              if [ "$command" = ip6tables ]; then destination=::1/128; fi
+              if sudo "$command" -C OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d "$destination" -j REJECT 2>/dev/null; then
+                sudo "$command" -D OUTPUT -m owner --uid-owner "$(id -u journey)" ! -d "$destination" -j REJECT
+              fi
+            done
+          fi
+      - name: Upload screenshots and report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: journey-${{ matrix.name }}
+          path: ${{ runner.temp }}/journey-output
+          retention-days: 14
+          if-no-files-found: warn
