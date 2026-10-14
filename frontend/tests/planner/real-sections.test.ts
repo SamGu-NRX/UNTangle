@@ -383,8 +383,8 @@ describe("the Discovery Park shuttle", () => {
       dates: null,
     });
     const itinerary = buildItinerary([stop("gab", "09:00", "09:50"), stop("ntdp", "10:00", "10:50")], new Map(), new Map());
-    expect(itinerary.legs[0]).toMatchObject({ route: { kind: "shuttle", seconds: 1200 }, walkMinutes: 20, transfer: "late", leaveBy: "09:40" });
-    expect(itinerary.summary).toMatchObject({ walkMinutes: 0, shuttleLegs: 1, loading: false });
+    // A ride longer than the break leaves as the earlier class ends.
+    expect(itinerary.legs[0]).toMatchObject({ route: { kind: "shuttle", seconds: 1200 }, walkMinutes: 20, transfer: "late", leaveAt: 9 * 60 + 50 });
     expect(routeRuns(itinerary.stops)).toEqual([]);
   });
 

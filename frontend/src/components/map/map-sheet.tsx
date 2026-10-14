@@ -20,19 +20,29 @@ const DRAG_THRESHOLD_PX = 8;
 
 type Props = {
   detent: SheetDetent;
-  onDetentChange: (detent: SheetDetent) => void;
+  /** `instant` for a move asked for from the keyboard, which doesn't animate. */
+  onDetentChange: (detent: SheetDetent, instant?: boolean) => void;
+  /** The current detent was chosen from the keyboard: settle on it without the transition. */
+  instant: boolean;
   /** Visible height after each settle, for the map's bottom inset. */
   onVisibleHeightChange: (height: number) => void;
   reducedMotion: boolean;
   /** Height of the area the sheet sits in (the map's area), in px. */
   areaHeight: number;
+  /**
+   * The full detent, measured by the caller: the area less the floating day
+   * stepper and the attribution row, which stay visible at every detent.
+   */
+  fullHeight: number;
   header: ReactNode;
   children: ReactNode;
   bodyRef: RefObject<HTMLDivElement | null>;
 };
 
 /**
- * The phone itinerary: a sheet over the map with three detents. It follows
+ * The phone day: a sheet over the map with three detents (MOTION.md §5:
+ * peek shows the hero, half is max(320px, 50%), full stops below the
+ * stepper). It follows
  * the finger 1:1, resists past its ends, and on release lands on the detent
  * the drag's momentum points at. A drag can grab it mid-settle: the settle
  * transition is a CSS transition, which restarts from wherever the sheet is.
@@ -40,9 +50,11 @@ type Props = {
 export function MapSheet({
   detent,
   onDetentChange,
+  instant,
   onVisibleHeightChange,
   reducedMotion,
   areaHeight,
+  fullHeight,
   header,
   children,
   bodyRef,
@@ -60,12 +72,13 @@ export function MapSheet({
     return () => observer.disconnect();
   }, []);
 
-  const full = Math.round(areaHeight * 0.92);
-  // Peek shows the handle, the day switcher and the summary (the header,
-  // whatever it measures). The map's area ends at the phone tab bar, which
-  // already clears the home indicator, so no inset is added here.
+  const full = Math.round(fullHeight);
+  // Peek shows the handle and the hero (the header, whatever it measures).
+  // The map's area ends at the phone tab bar, which already clears the home
+  // indicator, so no inset is added here.
   const peek = Math.min(headerHeight, Math.round(full * 0.45));
-  const half = Math.max(peek + 80, Math.round(areaHeight * 0.5));
+  // 320px is MOTION.md §5's floor for half, a starting value.
+  const half = Math.min(full, Math.max(peek + 80, 320, Math.round(areaHeight * 0.5)));
   const heights: Record<SheetDetent, number> = { peek, half, full };
 
   const visibleRef = useRef(heights[detent]);
@@ -92,9 +105,9 @@ export function MapSheet({
 
   // Settle on the controlled detent whenever it or the geometry changes.
   useLayoutEffect(() => {
-    place(heights[detent], true);
+    place(heights[detent], !instant);
     onVisibleHeightChange(heights[detent]);
-    // heights is derived from the three values listed.
+    // heights is derived from the three values listed; `instant` only says how the latest detent was chosen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detent, peek, half, full, place]);
 
@@ -181,7 +194,7 @@ export function MapSheet({
     const target = event.target as HTMLElement;
     if (!sheet || !bodyRef.current?.contains(target)) return;
     const visibleBottom = sheet.getBoundingClientRect().top + heights.half;
-    if (target.getBoundingClientRect().bottom > visibleBottom) onDetentChange("full");
+    if (target.getBoundingClientRect().bottom > visibleBottom) onDetentChange("full", true);
   };
 
   // A click that ends a drag is not a tap on whatever card it ended over.
@@ -199,7 +212,7 @@ export function MapSheet({
     return () => sheet.removeEventListener("click", onClick, true);
   }, []);
 
-  const cycle = () => onDetentChange(order[(order.indexOf(detent) + 1) % order.length]);
+  const cycle = (event: { detail: number }) => onDetentChange(order[(order.indexOf(detent) + 1) % order.length], event.detail === 0);
 
   return (
     <div
@@ -213,14 +226,14 @@ export function MapSheet({
       onPointerCancel={cancel}
       onFocusCapture={onFocusCapture}
       role="region"
-      aria-label="Itinerary"
+      aria-label="Your day"
     >
       <div ref={headerRef} className="mv-sheet__header">
         <button
           type="button"
           className="mv-sheet__handle"
           onClick={cycle}
-          aria-label={detent === "full" ? "Collapse itinerary" : "Expand itinerary"}
+          aria-label={detent === "full" ? "Collapse your day" : "Expand your day"}
           aria-expanded={detent !== "peek"}
         >
           <span aria-hidden="true" />
@@ -233,6 +246,9 @@ export function MapSheet({
         className="mv-sheet__body"
         data-lens-scroll=""
         data-scrollable={detent === "full" ? "true" : "false"}
+        // Below full, part of the body is off screen; this much room lets a
+        // chosen row scroll up into the part that shows.
+        style={{ paddingBottom: 24 + full - heights[detent] }}
         inert={detent === "peek"}
       >
         {children}
