@@ -208,14 +208,24 @@ test("a long-lived browser library refuses access while B loads and then follows
 });
 
 for (const signedIn of [false, true]) {
-  test(`the legacy library is quarantined without ownership evidence when ${signedIn ? "signed in" : "a guest"} loads`, async () => {
+  test(`the live library keeps its migration notice when ${signedIn ? "signed in" : "a guest"} loads`, async () => {
     expect(library(userA.id).savePlan({ state: privateState(), name: "Legacy A" }).ok).toBe(true);
     const raw = window.localStorage.getItem(savedPlansKey(userA.id))!;
     window.localStorage.removeItem(savedPlansKey(userA.id));
     window.localStorage.setItem(LEGACY_SAVED_PLANS_STORE_KEY, raw);
+    const liveStore = createSavedPlanStore();
     setSession(signedIn ? userB : null);
     await mount();
-    expect(plans(createSavedPlanStore())).toEqual([]);
+    const firstRead = liveStore.list();
+    if (!firstRead.ok) throw new Error(firstRead.failure.message);
+    expect(firstRead.doc.plans).toEqual([]);
+    expect(firstRead.notices).toEqual([{
+      kind: "corruptDataRecovered",
+      message: "An older shared-browser library was quarantined because its owner could not be established.",
+    }]);
+    const nextRead = liveStore.list();
+    if (!nextRead.ok) throw new Error(nextRead.failure.message);
+    expect(nextRead.notices).toEqual(firstRead.notices);
     const keys = quarantines("untangle.saved-plans.corrupt-legacy-");
     expect(keys).toHaveLength(1);
     expect(window.localStorage.getItem(keys[0])).toBe(raw);

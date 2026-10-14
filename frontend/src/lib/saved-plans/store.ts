@@ -37,7 +37,7 @@ let browserIdentityToken = Symbol("saved-plan identity");
 export function setSavedPlanIdentity(userId: string | null | undefined): void {
   browserIdentity = userId;
   browserIdentityToken = Symbol("saved-plan identity");
-  if (userId !== undefined) createSavedPlanStore().list();
+  // The live library read performs migration so its notice reaches the view.
   if (typeof window !== "undefined") window.dispatchEvent(new Event(SAVED_PLANS_CHANGED_EVENT));
 }
 
