@@ -242,7 +242,7 @@ export function otherSiteOf(section: Section): string | null {
 }
 
 /** Open per INTEGRATION.md: not closed or wait-listed, and every component with known seats has one open. */
-export function hasOpenSeats(section: Section): boolean {
+export function hasOpenSeats(section: Pick<Section, "status" | "components">): boolean {
   if (section.status === "closed" || section.status === "waitlist" || section.status === "cancelled") return false;
   return section.components.every((component) => component.seats.open === null || component.seats.open > 0);
 }
