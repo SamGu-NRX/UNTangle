@@ -11,7 +11,9 @@
     "dev": "node scripts/dev.mjs",
     "dev:turbo": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint"
+    "lint": "turbo run lint --continue",
+    "typecheck": "turbo run typecheck --continue",
+    "test": "turbo run test --continue --env-mode=loose"
   },
   "devDependencies": {
     "turbo": "^2.8.19"
