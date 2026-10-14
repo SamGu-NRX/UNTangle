@@ -74,6 +74,10 @@ Every variable the frontend reads â€” and which features degrade without each â€
 
 - `.husky/pre-commit` calls `scripts/format-staged.sh`, which is not in the repository. The hook is inert in normal clones (nothing installs or activates it), but do not enable husky without restoring that script.
 
+### Continuous integration
+
+Every pull request into `alpha` (and every push to `alpha`) runs GitHub Actions CI (`.github/workflows/ci.yml`): typecheck, lint, unit tests, and a production build that uses dummy placeholder environment variables instead of any repository secrets. Opt-in live Postgres tests run separately via `workflow_dispatch`.
+
 ## Privacy
 
 Transcript import runs in the browser: the PDF is read, redacted and parsed locally, and nothing about it is sent anywhere. Only the course rows you approve are kept in your plan. See the privacy note in [`frontend/README.md`](frontend/README.md).
