@@ -21,7 +21,7 @@ Two rules hold for every primitive:
 - **Props:** `label` (accessible name), `items` (`{ id, label, onSelect | href, icon?, shortcut?, destructive?, disabled?, current? }`, plus `{ kind: "separator" }` and `{ kind: "label" }`), `trigger` (render prop; spread its props onto a button), `align`, `header`.
 - **States:** closed, open (anchored, 120ms exit), item active, disabled, destructive.
 - **Use when:** the ⋯ overflow of one item: Rename, Duplicate, Export, Delete.
-- **Don't use when:** choosing a value. That is `Segmented`, `Chip`, or a search list in a dialog (DESIGN.md §9 rule 1).
+- **Don't use when:** choosing a value. That is `Segmented`, `Chip`, or a search list in a dialog (DESIGN.md §9 rule 1). The one exception is the schedule switcher (`surfaces.md`), which moves you to another schedule rather than setting a field, and marks the open one with `current`.
 - **Specimen:** Also in components/ui.
 
 ## Choosing

@@ -12,7 +12,7 @@ A surface is the kind of container a piece of UI lives in. UNTangle uses seven. 
 | Grid | Time laid out across days | Week's grid, the mini week in course detail, the small drawn week on library rows | Lead-owned. Ask for a prop. |
 | Dialog | A task with a clear end that needs full attention, or a destructive confirm | Major picker, Export, Sign in, "Delete Fridays off?" | `Dialog` (becomes a sheet on phones) |
 | Toast | Confirming an action that just happened, with at most one action | "Removed CSCE 2610" with Undo, "Planned 5 courses" | `toast()` from `ui/Toast` |
-| Popover | A short list anchored to the control that opened it | The schedule switcher on desktop, the ⋯ menu (rename, duplicate, export, delete), tooltips | `Menu`, `Tooltip`. On phones the switcher is a sheet. |
+| Popover | A short list anchored to the control that opened it | The schedule switcher on desktop, the ⋯ menu (rename, duplicate, export, delete), tooltips | `Menu`, `Tooltip`. The switcher is the one `Menu` that picks: it moves you to another schedule rather than setting a field, so it marks the open schedule with `current`. On phones the switcher is a sheet. |
 
 The term tray, the week grid and the context panel are the only boxed surfaces on a page (simplification rule 9). Everything else sits on the page ground.
 
