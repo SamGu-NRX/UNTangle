@@ -108,7 +108,9 @@ export function ScheduleDetail({
           </h3>
           <PathLine label="History">
             <PathStop marker={<Check size={14} />} leg="past">
-              <VersionButton pressed={shownVersion === "now"} onClick={() => setVersion("now")} title="Now" meta={versionTime(entry.state.updatedAt, now)} />
+              <div className={styles.versionRow}>
+                <VersionButton pressed={shownVersion === "now"} onClick={() => setVersion("now")} title="Now" meta={versionTime(entry.state.updatedAt, now)} />
+              </div>
             </PathStop>
             <PathStop tone="ring">
               <div className={styles.versionRow}>

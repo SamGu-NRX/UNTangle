@@ -80,7 +80,7 @@ export function ImportReview({
                   <li key={record.id} className={styles.checkRow} data-flagged="">
                     <span className="ui-code">{record.code}</span>
                     <div className={styles.checkBody}>
-                      <span className={styles.rowTitle}>{record.title}</span>
+                      <span className={styles.rowTitle}>{keepCodesWhole(record.title)}</span>
                       <span className={styles.reason}>{checkReason(record)}</span>
                       <Segmented
                         label={`How to count ${record.code}`}
@@ -115,7 +115,7 @@ export function ImportReview({
                         onClick={() => setEditing(open ? null : record.id)}
                       >
                         <span className="ui-code">{record.code}</span>
-                        <span className={styles.rowTitle}>{record.title}</span>
+                        <span className={styles.rowTitle}>{keepCodesWhole(record.title)}</span>
                         <span className={styles.rowFact}>{rowFact(record, decision)}</span>
                         <span className="sr-only-v2">. Change how it counts</span>
                       </button>
@@ -149,4 +149,9 @@ export function ImportReview({
       </div>
     </>
   );
+}
+
+/** "Computer Science I (COSC 1336 or COSC 1436)": a no-break space keeps each code in a title on one line. */
+function keepCodesWhole(title: string): string {
+  return title.replace(/\b([A-Z]{2,5}) (\d{4})\b/g, "$1\u00a0$2");
 }

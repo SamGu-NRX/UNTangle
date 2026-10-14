@@ -134,8 +134,13 @@
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }
+/* A text button's label sits on the column edge: back by its own 12px (sm) padding. */
 .skip > a,
 .skip > .skipButton {
+  margin-left: -12px;
+}
+/* Same for a quiet button that starts a link row ("Open myUNT again"): 10px padding. */
+.alt > :global(.ui-btn--quiet):first-child {
   margin-left: -10px;
 }
 .actions {
@@ -299,6 +304,13 @@ ol.steps {
   background: var(--attention-soft);
   font-size: var(--text-body);
 }
+/* Course codes in DM Sans 600 here: Syne is for the wordmark only. */
+.review :global(.ui-code),
+.art :global(.ui-code) {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0;
+}
 .checkRow > :global(.ui-code) {
   padding-top: 3px;
 }
@@ -376,7 +388,7 @@ ol.steps {
   border-radius: 50%;
   background: var(--brand);
   color: #fff;
-  font: 700 12px / 1 var(--font-mark);
+  font: 700 12px / 1 var(--font-ui);
   box-shadow: 0 0 0 3px var(--ground), var(--shadow-2);
 }
 .art {
@@ -444,7 +456,7 @@ ol.steps {
   margin-left: 0;
 }
 .artBig {
-  font: 700 30px / 1 var(--font-mark);
+  font: 700 30px / 1 var(--font-ui);
   letter-spacing: -0.01em;
   color: var(--ink);
 }

@@ -153,7 +153,7 @@ export function WeekGrid({
                   height: `calc(${((item.end - item.start) / span) * 100}% - 2px)`,
                 }}
               >
-                {item.code}
+                <CodeLabel code={item.code} />
               </span>
             ))}
           </div>
@@ -161,6 +161,17 @@ export function WeekGrid({
       </div>
       <MeetingList items={items} labels={labels} />
     </div>
+  );
+}
+
+/** "MATH" over "2700": a narrow block shows the whole code on two lines instead of cutting it. */
+function CodeLabel({ code }: { code: string }) {
+  const [department, number] = code.split(" ");
+  return (
+    <>
+      <span>{department}</span>
+      {number ? <span>{number}</span> : null}
+    </>
   );
 }
 

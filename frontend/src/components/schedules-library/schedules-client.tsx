@@ -388,14 +388,15 @@ export function SchedulesClient() {
           aria-pressed={on}
           onClick={() => pickRow(entry)}
         />
-        {comparing && pickIndex >= 0 ? (
-          <span className={styles.pick} aria-hidden="true">
-            {"AB"[pickIndex]}
-          </span>
-        ) : null}
         <WeekThumb blocks={entry.blocks} colors={colors} />
         <div className={styles.rowText}>
           <span className={styles.rowName}>
+            {/* Beside the name, so it never covers the drawn week. */}
+            {comparing && pickIndex >= 0 ? (
+              <span className={styles.pick} aria-hidden="true">
+                {"AB"[pickIndex]}
+              </span>
+            ) : null}
             {entry.active ? <span className={styles.dot} aria-hidden="true" /> : null}
             {entry.name}
           </span>

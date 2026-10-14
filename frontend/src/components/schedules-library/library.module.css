@@ -11,7 +11,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0 0 16px 8px;
+  /* Right: the header ⋯ centers over the rows' ⋯ (36px buttons 8px in, against this 32px one). */
+  margin: 0 10px 16px 8px;
 }
 .title {
   margin: 0;
@@ -104,13 +105,7 @@
   pointer-events: auto;
 }
 /* The A and B badges sit on the row's corner, outside the grid. */
-/* The A and B badges sit on the thumbnail's top-left corner, above it: this
-   outranks `.row > :not(.hit)`, which would otherwise put them at the
-   thumbnail's level and under it. */
-.row > .pick {
-  position: absolute;
-  z-index: 3;
-}
+
 @media (hover: hover) and (pointer: fine) {
   .row:not([data-selected]):hover {
     background: rgba(26, 46, 26, 0.04);
@@ -164,20 +159,18 @@
     height: 44px;
   }
 }
+/* Compare's A or B, ahead of the name. */
 .pick {
-  position: absolute;
-  top: 2px;
-  left: 0;
+  flex: none;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  /* 20px, inside the name's 22px line, so entering Compare moves nothing. */
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--brand);
-  /* A white ring reads on the plain row and on the selected tint alike. */
-  box-shadow: 0 0 0 2px var(--paper), var(--shadow-1);
   color: #fff;
-  font: 700 11px / 1 var(--font-mark);
+  font: 700 10.5px / 1 var(--font-ui);
 }
 
 .thumb {
@@ -294,7 +287,8 @@
   position: relative;
   display: grid;
   grid-template-columns: 34px repeat(var(--days), 1fr);
-  height: 280px;
+  /* 36px an hour: a 50-minute class is tall enough for its code's two lines. */
+  height: 324px;
   border-top: 1px solid var(--line);
 }
 .gutter {
@@ -320,14 +314,18 @@
   position: absolute;
   inset: 0 0 0 34px;
 }
+/* The code sits 4px clear of the 3px color bar and 3px clear of the right edge, on two lines. */
 .event {
   position: absolute;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  padding: 3px 5px;
+  padding: 3px 3px 3px 7px;
   border-radius: 6px;
   background: var(--ct);
   box-shadow: inset 3px 0 0 var(--c);
-  font: 700 10.5px / 1.2 var(--font-mark);
+  font: 600 10.5px / 1.15 var(--font-ui);
+  letter-spacing: 0.01em;
   white-space: nowrap;
   color: var(--ink);
 }
@@ -339,7 +337,7 @@
   color: var(--ink);
 }
 .event[data-variant="faded"] {
-  opacity: 0.35;
+  opacity: 0.55;
 }
 .legend {
   display: flex;
@@ -367,7 +365,7 @@
   outline-offset: -1.5px;
 }
 .legend i[data-variant="faded"] {
-  opacity: 0.35;
+  opacity: 0.55;
 }
 
 .history {
@@ -378,15 +376,17 @@
 }
 .versionRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
+  margin-top: -4px;
 }
 .version {
+  /* Hugs its two lines in every row, selected or not; Restore sits at the far end. */
   display: grid;
   gap: 1px;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  margin: -4px 0 0 -10px;
+  margin: 0 auto 0 -10px;
   padding: 6px 10px;
   border-radius: 10px;
   text-align: left;
@@ -454,12 +454,21 @@
   padding: 0;
   list-style: none;
 }
+/* A quiet line inside the panel sits on the panel's own edge. */
+.detail .quiet {
+  margin: 0;
+}
 .changes li {
   display: grid;
   grid-template-columns: 10px 84px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   font-size: var(--text-body);
+}
+.changes :global(.ui-code) {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0;
 }
 .cdot {
   width: 10px;
@@ -515,8 +524,8 @@
     font-size: 20px;
   }
   .event {
-    padding: 3px 3px;
-    font-size: 9px;
+    padding: 3px 2px 3px 6px;
+    font-size: 10px;
     letter-spacing: 0;
   }
   .pushList {
@@ -526,12 +535,13 @@
   }
   .pushDetail {
     position: fixed;
-    inset: calc(var(--header-h) + var(--safe-t)) 0 0 0;
+    /* Stops at the tab bar, so no text scrolls under its glass. The 20px sides match the list's content edge. */
+    inset: calc(var(--header-h) + var(--safe-t)) 0 calc(var(--tabbar-h) + var(--safe-b)) 0;
     z-index: 25;
     display: block;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 4px 16px calc(var(--tabbar-h) + 24px + var(--safe-b));
+    padding: 4px 20px 24px;
     background: var(--ground);
     transform: translateX(100%);
     visibility: hidden;
