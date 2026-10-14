@@ -1,17 +1,20 @@
 import { readFileSync } from "node:fs";
 import { recommendNextTerm, unlockAnalysis } from "../../src/lib/pathing";
-import type { CoursePathing, PathingAnalysis, RequirementSet, TermRecommendation } from "../../src/lib/pathing";
+import type { PathingAnalysis, RequirementProgress, TermRecommendation } from "../../src/lib/pathing";
+import { csBs2026 } from "../../src/lib/pathing/plans/cs-bs-2026-27";
 import { adaptUntCatalog, evidenceFromUntTranscript, inferStatuses, normalizeUntCourseId, parseUntPrerequisite, untAdapter } from "../../src/lib/prereq";
-import type { UntCatalogEntry } from "../../src/lib/prereq";
+import type { InferenceResult, Reason, UntCatalogEntry } from "../../src/lib/prereq";
 import type { TranscriptCourseRecord } from "../../src/lib/types";
-import { majors } from "../../src/lib/seed-data";
 
 type CatalogRow = readonly [string, string, string];
+
+export const csTranscript = ["CSCE 1010", "CSCE 1015", "CSCE 1030", "CSCE 1040", "CSCE 2100", "MATH 1710", "MATH 1720"];
 
 export type CsPathingScenario = {
   report: string;
   unparseableRows: readonly string[];
   prereqCoverage: Readonly<Record<"full" | "partial" | "unknown", number>>;
+  result: InferenceResult;
   analysis: PathingAnalysis;
   recommendations: readonly TermRecommendation[];
 };
@@ -32,80 +35,74 @@ const record = (code: string): TranscriptCourseRecord => ({
   reviewRequired: false,
 });
 
-/** Leading integer of an hour cell: "3 hours", "1-3 hours" (smaller of the range), "(3;0;2)" contact strings. */
+/** Leading integer of an hour cell: "3 hours", "1-3 hours" (the smaller end), "(3;0;2)" contact strings. */
 function leadingInteger(text: string): number | undefined {
   const match = text.match(/\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : undefined;
 }
 
-function catalogRows(): readonly CatalogRow[] {
-  return JSON.parse(
-    readFileSync(new URL("../../src/lib/course-catalog/prerequisites.json", import.meta.url), "utf8"),
-  ) as readonly CatalogRow[];
+/** The engine's own "Check with advisor" lines under a reason, in tree order. */
+function advisorNotes(reason: Reason): string[] {
+  const children = reason.children ?? [];
+  if (children.length === 0) return reason.kind === "advisor" && reason.outcome === "unknown" ? [reason.message] : [];
+  return children.flatMap(advisorNotes);
 }
 
-function courseLine(course: CoursePathing, status: string): string {
-  const reasons = course.reasons.length > 0 ? ` | reasons: ${course.reasons.join("; ")}` : "";
-  const chain = course.remainingChain === null ? "null (unresolved cycle)" : course.remainingChain;
-  return `${course.courseId} | ${course.group} | ${status} | ${course.credits} cr | direct ${course.unlocksDirect.length} | transitive ${course.unlocksTransitive.length} | chain ${chain}${reasons}`;
+function progressLine(progress: RequirementProgress): string {
+  const branch = progress.branch ? ` (following ${progress.branch})` : "";
+  const unit = progress.target === 1 ? progress.unit.slice(0, -1) : progress.unit;
+  const terms = progress.met ? "met"
+    : progress.remainingTerms === null ? "no route"
+    : `${progress.tracked ? "" : "at least "}${progress.remainingTerms} ${progress.remainingTerms === 1 ? "term" : "terms"} left`;
+  return `  ${progress.name}${branch}: ${progress.done} of ${progress.target} ${unit} done; ${terms}`;
 }
 
-function render(
-  analysis: PathingAnalysis,
-  recommendations: readonly TermRecommendation[],
-  rowCount: number,
-  unparseableRows: readonly string[],
-  prereqCoverage: Readonly<Record<"full" | "partial" | "unknown", number>>,
-  requirements: RequirementSet,
-): string {
+function render(scenario: Omit<CsPathingScenario, "report">, rowCount: number): string {
+  const { analysis, recommendations, result, unparseableRows, prereqCoverage } = scenario;
   const gaps = prereqCoverage.partial + prereqCoverage.unknown;
-  const groups = requirements.chooseNGroups ?? [];
   const lines = [
-    "UNTangle pathing report for Computer Science, BS (major cs)",
+    `UNTangle pathing report: ${csBs2026.name}`,
+    `Plan source: ${csBs2026.source}`,
     `Catalog rows: ${rowCount}; unparseable rows: ${unparseableRows.length}; prerequisite parse gaps: ${gaps} (full ${prereqCoverage.full}, partial ${prereqCoverage.partial}, unknown ${prereqCoverage.unknown})`,
-    `Requirement set provenance: the CS, BS degree-plan page was unreachable this session (crawler and direct fetch both failed),`,
-    `so the required-course list is the seed-data core list from src/lib/seed-data.ts (${requirements.requiredCourseIds.join(", ")});`,
-    `choose-N groups passed: ${groups.length > 0 ? groups.map((group) => group.name).join("; ") : "none (catalog wording unverified, not invented)"}`,
-    `Universe courses: ${analysis.universe.length}; remaining critical path: ${analysis.remainingCriticalPath === null ? "null (unresolved cycle)" : analysis.remainingCriticalPath}`,
-    `Warnings: ${analysis.warnings.length > 0 ? analysis.warnings.join("; ") : "none"}`,
+    `Transcript, all grade A: ${csTranscript.join(", ")}`,
+    `Remaining critical path: ${analysis.remainingCriticalPath ?? "unknown"} terms`,
     "",
-    "Next-term recommendation (credit target 15):",
-    ...recommendations.map((rec, index) => {
-      const entry: CoursePathing = {
-        courseId: rec.courseId,
-        group: rec.group,
-        status: "eligible",
-        credits: rec.credits,
-        unlocksDirect: rec.unlocksDirect,
-        unlocksTransitive: rec.unlocksTransitive,
-        remainingChain: rec.remainingChain,
-        available: true,
-        reasons: rec.reasons,
-      };
-      return `  ${index + 1}. ${courseLine(entry, "eligible")}`;
-    }),
+    "Warnings:",
+    ...analysis.warnings.map((warning) => `  ${warning}`),
     "",
-    "Universe analysis (sorted by course id):",
-    ...analysis.universe.map((id) => `  ${courseLine(analysis.courses.get(id)!, analysis.courses.get(id)!.status)}`),
+    "Requirements:",
+    ...analysis.requirements.map(progressLine),
+    "",
+    "Recommended next term (credit target 15):",
+    ...recommendations.map((rec, index) => `  ${index + 1}. ${rec.courseId} (${rec.credits} cr): ${rec.reason}`),
+    "",
+    "One term away, but status unknown until an advisor clears the engine's check:",
+    ...analysis.advisorChecks.flatMap((id) => [
+      `  ${id}: ${analysis.courses.get(id)!.reason}`,
+      ...advisorNotes(result.statuses.get(id)!.reason).map((note) => `    engine: ${note}`),
+    ]),
+    "",
+    "Remaining-path courses (id | status | chain | critical | unlocks direct/transitive):",
+    ...[...analysis.courses.values()]
+      .filter((course) => course.onRemainingPath)
+      .map((course) => `  ${course.courseId} | ${course.status} | ${course.remainingChain ?? "none"} | ${course.onCriticalPath ? "yes" : "no"} | ${course.unlocksDirect.length}/${course.unlocksTransitive.length}`),
   ];
   return `${lines.join("\n")}\n`;
 }
 
 /**
- * Real catalog, real engine, real requirement set: the 656-row UNT catalog is adapted with a
- * leading-integer credit-hours map, and the transcript is exactly CSCE 1030, 1040,
- * 2100, MATH 1710, 1720 with grade A. The requirement set is the seed-data CS core
- * (the degree-plan page was unreachable this session), so the universe is that core
- * plus its downward prerequisite closure. Rows that cannot be parsed are reported, never
- * skipped silently, and prerequisite text that does not fully parse is counted as
- * coverage, so advisor-check and equivalent-clause rows stay visible instead of
- * being presented as fully understood.
+ * The real 656-row catalog through the real engine, scored against the real
+ * 2026-2027 CS BS plan. Credit hours come from each row's leading integer.
+ * Rows that cannot be read are reported, and prerequisite text that does not
+ * fully parse is counted, so advisor-check rows stay visible.
  */
 export function buildCsScenario(): CsPathingScenario {
-  const rows = catalogRows();
+  const rows = JSON.parse(
+    readFileSync(new URL("../../src/lib/course-catalog/prerequisites.json", import.meta.url), "utf8"),
+  ) as readonly CatalogRow[];
   const creditHours = new Map<string, number>();
   const unparseableRows: string[] = [];
-  const coverage = { full: 0, partial: 0, unknown: 0 };
+  const prereqCoverage = { full: 0, partial: 0, unknown: 0 };
   for (const [courseNumber, hours, prerequisites] of rows) {
     let id: string;
     try {
@@ -120,9 +117,7 @@ export function buildCsScenario(): CsPathingScenario {
       continue;
     }
     creditHours.set(id, hoursValue);
-    // Rows failing code or hours parsing are already reported above; coverage
-    // counts only rows that actually enter the catalog.
-    coverage[parseUntPrerequisite(prerequisites).coverage]++;
+    prereqCoverage[parseUntPrerequisite(prerequisites).coverage]++;
   }
   const entries: readonly UntCatalogEntry[] = rows.map(([courseNumber, hours, prerequisites]) => ({
     course_number: courseNumber,
@@ -131,23 +126,9 @@ export function buildCsScenario(): CsPathingScenario {
     prerequisites_course_codes: [],
   }));
   const catalog = adaptUntCatalog(entries, creditHours);
-  const major = majors.find((candidate) => candidate.id === "cs");
-  if (!major) throw new Error("Computer Science, BS major is missing from seed data.");
-  // The seed-data core list is the requirement source of record this round; the
-  // degree-plan page could not be fetched, so no requirement is invented here.
-  const requirements: RequirementSet = {
-    requiredCourseIds: [...major.coreCourseCodes],
-    chooseNGroups: [],
-  };
-  const evidence = evidenceFromUntTranscript(["CSCE1030", "CSCE1040", "CSCE2100", "MATH1710", "MATH1720"].map(record));
-  const result = inferStatuses(catalog, evidence, untAdapter);
-  const analysis = unlockAnalysis(requirements, result);
-  const recommendations = recommendNextTerm(requirements, result, { creditTarget: 15 });
-  return {
-    report: render(analysis, recommendations, rows.length, unparseableRows, coverage, requirements),
-    unparseableRows,
-    prereqCoverage: coverage,
-    analysis,
-    recommendations,
-  };
+  const result = inferStatuses(catalog, evidenceFromUntTranscript(csTranscript.map(record)), untAdapter);
+  const analysis = unlockAnalysis(csBs2026, result);
+  const recommendations = recommendNextTerm(csBs2026, result, { creditTarget: 15 });
+  const scenario = { unparseableRows, prereqCoverage, result, analysis, recommendations };
+  return { ...scenario, report: render(scenario, rows.length) };
 }

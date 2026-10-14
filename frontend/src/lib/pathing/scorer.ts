@@ -3,25 +3,22 @@ import { unlockAnalysis } from "./analysis";
 import type { RequirementSet } from "./types";
 
 /**
- * Scorer seam for `suggestNext`.
+ * Plan-aware scores for `suggestNext`: the course's transitive unlocks on the
+ * remaining path, plus 0.5 when it sits on the critical path, so one more
+ * unlock always outranks the bonus. Courses off the remaining path, including
+ * finished ones, score 0.
  *
- * `suggestNext` alone only considers the major's eligible CORE courses, while
- * this scorer adds requirement-universe unlock evidence for callers that want
- * breadth-aware core-course picking: the score is the course's unfinished
- * transitive unlock count within the requirement universe.
- *
- * Courses on the longest remaining chain get a bounded bonus of 0.5. The bonus
- * is strictly below 1, so a one-course unlock advantage always outweighs it and
- * only reorders courses whose transitive unlock counts tie. The output is
- * always a finite number (0 for finished courses), as `suggestNext` requires.
+ * `suggestNext` adds this to its own count of catalog-wide dependents, which
+ * is below the catalog's size. Scaling by the catalog size plus one keeps even
+ * a half-point difference larger than that count, so the plan evidence decides
+ * the order and the catalog count only breaks ties.
  */
 export function pathingScorer(requirements: RequirementSet, statuses: InferenceResult): SuggestionScorer {
   const analysis = unlockAnalysis(requirements, statuses);
-  return (course, assessment) => {
-    if (assessment.status === "done" || assessment.status === "taking") return 0;
+  const scale = 2 * (statuses.catalog.length + 1);
+  return (course) => {
     const entry = analysis.courses.get(course.id);
-    if (!entry) return 0;
-    const onLongestChain = entry.remainingChain !== null && entry.remainingChain > 0 && entry.remainingChain === analysis.remainingCriticalPath;
-    return entry.unlocksTransitive.length + (onLongestChain ? 0.5 : 0);
+    if (!entry?.onRemainingPath) return 0;
+    return scale * (entry.unlocksTransitive.length + (entry.onCriticalPath ? 0.5 : 0));
   };
 }

@@ -3,32 +3,26 @@ import { expect, test } from "bun:test";
 import { buildCsScenario } from "./cs-report";
 
 test("Computer Science, BS pathing report matches the committed snapshot", () => {
-  const { report, unparseableRows, prereqCoverage, analysis, recommendations } = buildCsScenario();
-  // Nothing in the catalog is silently skipped: every hour cell yields a leading integer.
+  const { report, unparseableRows, prereqCoverage, result, analysis, recommendations } = buildCsScenario();
   expect(unparseableRows).toEqual([]);
-  // Parse fidelity is reported, not implied: 226 of 656 rows keep unparsed clauses
-  // (advisor checks, equivalents, standing rules) instead of dropping them.
   expect(prereqCoverage).toEqual({ full: 430, partial: 168, unknown: 58 });
   expect(report).toBe(readFileSync(new URL("./cs-report.fixture.txt", import.meta.url), "utf8"));
-  // The requirement-scoped universe is the five seed-data core courses (all
-  // completed on the sample transcript) plus the prerequisites they name.
-  expect(analysis.universe).toHaveLength(10);
-  for (const id of ["CSCE 1030", "CSCE 1040", "CSCE 2100", "MATH 1710", "MATH 1720"]) {
-    const course = analysis.courses.get(id);
-    expect(course?.group).toBe("required");
-    expect(course?.status).toBe("done");
-    expect(course?.remainingChain).toBe(0);
+
+  // 2110, 3444, 4901, 4902 (and ENGL 1310, TECM 2700, 4901, 4902) is the longest chain.
+  expect(analysis.remainingCriticalPath).toBe(4);
+  expect(recommendations.map((rec) => rec.courseId)).toEqual(["ENGL 1310", "CSCE 3550", "MATH 2700", "MATH 1780", "BIOL 1132"]);
+  expect(recommendations.reduce((total, rec) => total + rec.credits, 0)).toBe(15);
+  // The transcript's finished courses, and the CSCE 1035 and MATH 1100 behind
+  // them, are off the remaining path, so none is ever recommended.
+  for (const id of ["CSCE 1010", "CSCE 1030", "CSCE 1035", "MATH 1100"]) {
+    expect(analysis.courses.get(id)!.onRemainingPath).toBe(false);
   }
-  // Every required course is done, so nothing remains on the critical path and
-  // the only recommendation is the one eligible closure course.
-  expect(analysis.remainingCriticalPath).toBe(0);
-  expect(recommendations.map((rec) => rec.courseId)).toEqual(["CSCE 1010"]);
-  expect(recommendations.reduce((total, rec) => total + rec.credits, 0)).toBeLessThanOrEqual(15);
-  // Advisor-check requirements in the closure (CSCE 1035, MATH 1100, MATH 1650)
-  // are unknown, never presented as takeable.
-  for (const id of ["CSCE 1035", "MATH 1100", "MATH 1650"]) {
-    const course = analysis.courses.get(id);
-    expect(course?.status).toBe("unknown");
-    expect(course?.available).toBe(false);
-  }
+
+  // CSCE 2110 would lead the term, but the parser reads its corequisite note
+  // ("can be taken concurrently with CSCE 2100") as an advisor check, so the
+  // engine reports it unknown and it is never presented as available.
+  expect(result.statuses.get("CSCE 2110")!.status).toBe("unknown");
+  expect(analysis.courses.get("CSCE 2110")!.available).toBe(false);
+  expect(analysis.courses.get("CSCE 2110")!.unlocksTransitive).toHaveLength(10);
+  expect(analysis.advisorChecks).toEqual(["CSCE 2110", "CSCE 2610", "EENG 2710"]);
 });
