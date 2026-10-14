@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Courses v2 acceptance journey (HANDOFF steps 4-5) at 1440x900 and 390x844,
+ * Courses v2 browser journey (HANDOFF steps 4-5) at 1440x900 and 390x844,
  * against a production build. Each viewport runs in a fresh guest context:
  *   1. pick a major in the custom picker
  *   2. try the sample transcript, press Auto-fill, see statuses (one covered
@@ -16,6 +16,8 @@
  * (/api/grades/*), intercepted so the run never calls upstream: CSCE 1030
  * gets a fixture in the adapter's shape, every other course gets the
  * adapter's "unavailable" answer.
+ * MATH 1720 and CSCE 1030 sections replay a recorded Spring 2027 snapshot
+ * through the same /api/sections endpoints the app's client reads.
  *
  * Env: UNTANGLE_BASE_URL (default http://127.0.0.1:3123), PLAYWRIGHT_MODULE,
  * AXE_PATH, OUT_DIR (default: this script's directory).
@@ -29,9 +31,10 @@ const BASE = process.env.UNTANGLE_BASE_URL ?? "http://127.0.0.1:3123";
 const OUT = process.env.OUT_DIR ?? here;
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const axeSource = readFileSync(process.env.AXE_PATH ?? "node_modules/axe-core/axe.min.js", "utf8");
+const sectionsFixture = JSON.parse(readFileSync(new URL("./fixtures/spring-2027-sections.json", import.meta.url), "utf8"));
 mkdirSync(OUT, { recursive: true });
 
-const report = { startedAt: new Date().toISOString(), base: BASE, checks: [], axe: [], notes: [] };
+const report = { startedAt: new Date().toISOString(), base: BASE, checks: [], axe: [], notes: [], sectionsFixture: sectionsFixture.fixture, sectionFixtureRequests: [] };
 const check = (name, passed, detail = null) => {
   report.checks.push({ name, passed: Boolean(passed), detail });
   console.log(`${passed ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
@@ -87,6 +90,15 @@ const routeGrades = (page) =>
     route.fulfill({ json: route.request().url().endsWith("/CSCE/1030") ? fixture : unavailable }),
   );
 
+async function routeSections(page) {
+  for (const [path, json] of Object.entries(sectionsFixture.responses)) {
+    await page.route(`**${path}`, (route) => {
+      report.sectionFixtureRequests.push(path);
+      return route.fulfill({ json, headers: { "Cache-Control": "no-store" } });
+    });
+  }
+}
+
 
 const rowOf = (page, id) => page.locator(`[data-row-open="${id}"]`).locator("xpath=..");
 const rowStatus = (page, id) => rowOf(page, id).locator("[data-row-status]").innerText();
@@ -114,6 +126,7 @@ async function journey(browser, viewport) {
   });
   const page = await context.newPage();
   await routeGrades(page);
+  await routeSections(page);
   const tag = viewport.name;
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -148,11 +161,13 @@ async function journey(browser, viewport) {
   const noteBox = page.locator("[data-autonote]");
   await noteBox.waitFor();
   const noteText = await noteBox.innerText();
-  check(`${tag}: the AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 1 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
+  // 1461c03 treats concurrent permission as an annotation, making CSCE 2100 the second Auto course.
+  check(`${tag}: the AutoNote reports the fill`, /Filled 5 courses from your transcript, 1 through prerequisites\. Planned 2 for Spring 2027\./.test(noteText), noteText.replace(/\s+/g, " "));
   check(`${tag}: CSCE 1030 covered through CSCE 1040`, (await rowStatus(page, "CSCE 1030")) === "Covered" && (await rowMeta(page, "CSCE 1030")).includes("Via CSCE 1040"));
   check(`${tag}: CSCE 1040 done from the transcript`, (await rowStatus(page, "CSCE 1040")) === "Done" && (await rowMeta(page, "CSCE 1040")).includes("Grade A"));
   check(`${tag}: MATH 1720 planned by Auto`, (await rowStatus(page, "MATH 1720")) === "Planned" && (await rowMeta(page, "MATH 1720")).includes("Spring 2027"));
-  check(`${tag}: CSCE 2100 left for an advisor`, (await rowStatus(page, "CSCE 2100")) === "Check");
+  // 1461c03 clears CSCE 2100 for this transcript without an advisor-only companion requirement.
+  check(`${tag}: CSCE 2100 eligible and planned by Auto`, (await rowStatus(page, "CSCE 2100")) === "Planned" && (await rowMeta(page, "CSCE 2100")).includes("Spring 2027"));
   const coreHeader = await page.locator("#group-core").innerText();
   check(`${tag}: the group header carries one fact, how much is done`, /2 of 5 done/.test(coreHeader) && !/covered/.test(coreHeader), coreHeader.replace(/\s+/g, " "));
   const rowHeight = await rowOf(page, "CSCE 1030").evaluate((el) => el.getBoundingClientRect().height);
@@ -372,7 +387,8 @@ async function journey(browser, viewport) {
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
   const deepText = await deepPanel.innerText();
-  check(`${tag}: the deep link shows catalog text and the history state`, deepText.includes("Foundations of Computing") && deepText.includes("Check with an advisor"));
+  // 1461c03 removes the unparsed concurrent-permission warning; desktop kept the second Auto plan.
+  check(`${tag}: the deep link shows catalog text and the history state`, deepText.includes("Foundations of Computing") && (await rowStatus(page, "CSCE 2100")) === (phone ? "Available" : "Planned"));
   await page.waitForTimeout(350);
   await shoot(page, `${tag}-06-deep-link`);
   await axe(page, `${tag}: deep link`);
@@ -399,6 +415,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
     const page = await context.newPage();
     await routeGrades(page);
+    await routeSections(page);
     await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
     await chooseMajor(page, false);
     await page.keyboard.press("Home");
@@ -416,6 +433,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     await routeGrades(page);
+    await routeSections(page);
     await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
     await chooseMajor(page, false);
     await page.keyboard.press("Home");
@@ -450,7 +468,12 @@ try {
     check(`${label} is a 404, not a 500`, response.status() === 404, `${path} → ${response.status()}`);
   }
   await page.goto(`${BASE}/instructors/123`, { waitUntil: "domcontentloaded" });
+  await page.waitForURL("**/courses", { timeout: 15000 });
   check("an old instructor link redirects instead of 404", new URL(page.url()).pathname === "/courses", page.url());
+  const serverRedirect = await fetch(`${BASE}/instructors/123`, { redirect: "manual" });
+  const location = serverRedirect.headers.get("location");
+  // Keep the server redirect defect visible even when hydration navigates to Courses.
+  check("an old instructor link returns a server 307 redirect to Courses", serverRedirect.status === 307 && location !== null && new URL(location, BASE).pathname === "/courses", `HTTP ${serverRedirect.status}, Location ${location ?? "missing"}`);
 } finally {
   await browser.close();
 }

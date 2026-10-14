@@ -9,6 +9,7 @@ on:
       - 'output/playwright/scheduler-v2/journey.mjs'
       - 'output/playwright/design-pass-a/journey.mjs'
       - 'output/playwright/courses-v2/courses-v2-journey.mjs'
+      - 'output/playwright/courses-v2/fixtures/**'
       - 'tools/mock-myunt/**'
       - 'package.json'
       - 'bun.lock'
