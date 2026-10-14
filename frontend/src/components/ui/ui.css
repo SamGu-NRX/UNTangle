@@ -1664,8 +1664,9 @@
   pointer-events: none;
 }
 @media (max-width: 759px) {
+  /* A lens with its own bottom bar (Week's Add and Auto) lifts toasts above it with --toast-lift. */
   .ui-toaster {
-    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b));
+    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b) + var(--toast-lift, 0px));
   }
 }
 .ui-toast {

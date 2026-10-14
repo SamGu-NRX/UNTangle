@@ -14,6 +14,8 @@ export const maxBytes = 64 * 1024 * 1024;
 export const termPattern = /^(spring|summer|fall)-\d{4}$/;
 export const subjectPattern = /^[A-Z]{3,4}$/;
 export const coursePattern = /^([A-Z]{3,4}) \d{3,4}[A-Z]?$/;
+/** myUNT class numbers. The test fixture's have 4 digits and the design's examples 5, so both are accepted. */
+export const classNumberPattern = /^\d{4,5}$/;
 
 /** The vsb file for a whole term, or for one subject in it. */
 export function vsbUrl(term: string, subject?: string): string {

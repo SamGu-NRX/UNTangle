@@ -119,21 +119,11 @@ describe("lock control in the planner", () => {
     setSession(null);
   });
 
+  // Week sets a lock from the selected event's panel ("Keep this section"); these
+  // tests drive the provider directly and read the lock back from the plan.
   async function mountWithLocks() {
-    const { SectionLockButton } = await import("@/components/schedule-section-locks");
     const React = await import("react");
-    const { usePlanner } = await import("@/components/planner-provider");
-    function Locks() {
-      const { plannerState } = usePlanner();
-      return React.createElement(
-        "div",
-        null,
-        Object.entries(plannerState.selectedSections).map(([courseCode, sectionId]) =>
-          React.createElement(SectionLockButton, { key: courseCode, courseCode, sectionId }),
-        ),
-      );
-    }
-    const planner = await mountPlanner(() => React.createElement(Locks));
+    const planner = await mountPlanner(() => React.createElement("div"));
     mounted.push(planner.unmount);
     await planner.get().afterHydration();
     await waitFor(() => planner.get().hydrated, "hydrated");
@@ -149,25 +139,17 @@ describe("lock control in the planner", () => {
     await planner.run((p) => p.setOptimization("clusterMorning"));
   }
 
-  // The name is the button's text (visible "Lock" + visually hidden rest); no aria-label.
-  const button = (container: HTMLElement, courseCode: string) =>
-    [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.startsWith(`Lock ${courseCode} section `),
-    )!;
+  const kept = (planner: Awaited<ReturnType<typeof mountWithLocks>>, courseCode: string) =>
+    Boolean(planner.get().plannerState.lockedSections?.[courseCode]);
 
-  test("the toggle is named Lock {COURSE} section {NNN} and exposes its state with aria-pressed", async () => {
+  test("a lock pins the course's current section and releases it", async () => {
     const planner = await mountWithLocks();
     await takeCourses(planner);
     const sectionId = planner.get().plannerState.selectedSections["MATH 1710"];
-    const toggle = button(planner.container, "MATH 1710");
-    expect(toggle.textContent).toBe(`Lock MATH 1710 section ${optionIdLabel(sectionId)}`);
-    expect(toggle.hasAttribute("aria-label")).toBe(false);
-    expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    toggle.click();
-    await waitFor(() => button(planner.container, "MATH 1710").getAttribute("aria-pressed") === "true", "pressed");
+    expect(kept(planner, "MATH 1710")).toBe(false);
+    await planner.run((p) => p.setSectionLock("MATH 1710", true));
     expect(planner.get().plannerState.lockedSections).toEqual({ "MATH 1710": sectionId });
-    button(planner.container, "MATH 1710").click();
-    await waitFor(() => button(planner.container, "MATH 1710").getAttribute("aria-pressed") === "false", "released");
+    await planner.run((p) => p.setSectionLock("MATH 1710", false));
     expect(planner.get().plannerState.lockedSections).toEqual({});
   });
 
@@ -187,7 +169,7 @@ describe("lock control in the planner", () => {
 
     await planner.run((p) => p.optimizeSchedule());
     expect(planner.get().plannerState.selectedSections["MATH 1710"]).toBe(before["MATH 1710"]);
-    expect(button(planner.container, "MATH 1710").getAttribute("aria-pressed")).toBe("true");
+    expect(kept(planner, "MATH 1710")).toBe(true);
   });
 
   test("picking a section by hand for a locked course moves the lock to it", async () => {
@@ -212,7 +194,7 @@ describe("lock control in the planner", () => {
 
     const second = await mountWithLocks();
     expect(second.get().plannerState.lockedSections).toEqual({ "MATH 1710": locked });
-    expect(button(second.container, "MATH 1710").getAttribute("aria-pressed")).toBe("true");
+    expect(kept(second, "MATH 1710")).toBe(true);
     await second.run((p) => p.setOptimization("clusterNight"));
     expect(second.get().plannerState.selectedSections["MATH 1710"]).toBe(locked);
   });
@@ -231,6 +213,6 @@ describe("lock control in the planner", () => {
     const second = await mountWithLocks();
     await waitFor(() => second.get().saveState.label === "Saved", "loaded");
     expect(second.get().plannerState.lockedSections).toEqual({ "MATH 1710": locked });
-    expect(button(second.container, "MATH 1710").getAttribute("aria-pressed")).toBe("true");
+    expect(kept(second, "MATH 1710")).toBe(true);
   });
 });

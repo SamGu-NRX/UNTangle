@@ -1,36 +1,32 @@
 import { describe, expect, test } from "bun:test";
-import { buildPlanIcs, checkTermDates, foldLine } from "@/lib/planner-ics";
-import { buildScheduleEvents, getInitialPlannerState, recommendSections, resolveSectionPlan } from "@/lib/planner";
-import type { PlannerState, ScheduleEvent } from "@/lib/types";
+import { termDatesFor } from "@/lib/export/term-dates";
+import { buildWeekIcs, chicagoOffsetHours, foldLine, icsFileName } from "@/lib/planner-ics";
+import { asyncMeeting, meeting, section } from "../schedule-builder/fixtures";
 
 /**
  * A strict, independent reader for the subset of RFC 5545 the export uses.
  * It shares no code with planner-ics.ts: it checks line endings and lengths,
- * unfolds, checks BEGIN/END nesting, and unescapes TEXT values.
+ * unfolds, checks BEGIN/END nesting, and keeps each property's parameters.
  */
-type Component = { name: string; props: Map<string, string[]>; children: Component[] };
+type Prop = { params: string; value: string };
+type Component = { name: string; props: Map<string, Prop[]>; children: Component[] };
 
 function parseIcs(raw: string): Component {
   expect(raw.endsWith("\r\n")).toBe(true);
   expect(/[^\r]\n/.test(raw)).toBe(false); // no bare LF
   const physical = raw.slice(0, -2).split("\r\n");
-  for (const line of physical) {
-    expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
-  }
+  for (const line of physical) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
   const logical: string[] = [];
   for (const line of physical) {
-    if (line.startsWith(" ")) {
-      logical[logical.length - 1] += line.slice(1);
-    } else {
-      logical.push(line);
-    }
+    if (line.startsWith(" ")) logical[logical.length - 1] += line.slice(1);
+    else logical.push(line);
   }
   const stack: Component[] = [];
   let root: Component | null = null;
   for (const line of logical) {
     const colon = line.indexOf(":");
     expect(colon).toBeGreaterThan(0);
-    const name = line.slice(0, colon);
+    const [name, ...params] = line.slice(0, colon).split(";");
     const value = line.slice(colon + 1);
     if (name === "BEGIN") {
       const component: Component = { name: value, props: new Map(), children: [] };
@@ -41,224 +37,221 @@ function parseIcs(raw: string): Component {
       expect(stack.pop()?.name).toBe(value);
     } else {
       const top = stack[stack.length - 1];
-      expect(top).toBeDefined();
-      top.props.set(name, [...(top.props.get(name) ?? []), value]);
+      top.props.set(name, [...(top.props.get(name) ?? []), { params: params.join(";"), value }]);
     }
   }
   expect(stack).toHaveLength(0);
   return root!;
 }
 
-const unescape = (value: string) =>
-  value.replace(/\\(\\|n|N|;|,)/g, (_, ch: string) => (ch === "n" || ch === "N" ? "\n" : ch));
 const one = (c: Component, name: string) => {
   const values = c.props.get(name) ?? [];
   expect(values).toHaveLength(1);
   return values[0];
 };
-
-const dayIndex: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5 };
-
-function planWithCourses(codes: string[]): PlannerState {
-  const base = getInitialPlannerState();
-  const courseStatuses = { ...base.courseStatuses };
-  codes.forEach((code) => {
-    courseStatuses[code] = "inProgress";
-  });
-  return { ...base, courseStatuses, selectedSections: recommendSections("compact", codes) };
-}
-
-const term = { start: "2027-01-19", end: "2027-05-14" }; // typed by the user, not inferred
-
-describe(".ics export", () => {
-  const state = planWithCourses(["MATH 1710", "ANTH 1010", "CSCE 1030"]);
-  const events = buildScheduleEvents(resolveSectionPlan(state));
-  const now = new Date("2026-10-11T15:04:05.000Z");
-  const result = buildPlanIcs(events, term, now);
-  const calendar = parseIcs(result.ics);
-
-  test("parses as one VCALENDAR with the required properties", () => {
-    expect(calendar.name).toBe("VCALENDAR");
-    expect(one(calendar, "VERSION")).toBe("2.0");
-    expect(one(calendar, "PRODID")).toContain("UNTangle");
-    expect(calendar.children.every((child) => child.name === "VEVENT")).toBe(true);
-  });
-
-  test("has exactly one VEVENT per plan meeting, matching day, time, course and room", () => {
-    expect(events.length).toBeGreaterThan(3);
-    expect(calendar.children).toHaveLength(events.length);
-    expect(result.eventCount).toBe(events.length);
-    expect(result.skipped).toEqual([]);
-
-    const remaining = [...calendar.children];
-    for (const event of events) {
-      const index = remaining.findIndex((vevent) => {
-        const start = one(vevent, "DTSTART");
-        const date = new Date(`${start.slice(0, 4)}-${start.slice(4, 6)}-${start.slice(6, 8)}T00:00:00Z`);
-        return (
-          unescape(one(vevent, "SUMMARY")).startsWith(`${event.courseCode} `) &&
-          date.getUTCDay() === dayIndex[event.day] &&
-          start.slice(9, 13) === event.start.replace(":", "") &&
-          one(vevent, "DTEND").slice(9, 13) === event.end.replace(":", "") &&
-          unescape(one(vevent, "LOCATION")) === event.location
-        );
-      });
-      expect(index).toBeGreaterThanOrEqual(0);
-      remaining.splice(index, 1);
-    }
-    expect(remaining).toHaveLength(0);
-  });
-
-  test("each meeting starts in the first week of the term and repeats weekly until the last day", () => {
-    const termStart = Date.parse(`${term.start}T00:00:00Z`);
-    for (const vevent of calendar.children) {
-      const start = one(vevent, "DTSTART");
-      expect(start).toMatch(/^\d{8}T\d{6}$/); // floating local time
-      const date = Date.parse(`${start.slice(0, 4)}-${start.slice(4, 6)}-${start.slice(6, 8)}T00:00:00Z`);
-      expect(date).toBeGreaterThanOrEqual(termStart);
-      expect(date - termStart).toBeLessThan(7 * 86_400_000);
-      expect(one(vevent, "DTEND").slice(0, 8)).toBe(start.slice(0, 8));
-      expect(one(vevent, "RRULE")).toMatch(/^FREQ=WEEKLY;BYDAY=(MO|TU|WE|TH|FR);UNTIL=20270514T235959$/);
-      expect(one(vevent, "DTSTAMP")).toBe("20261011T150405Z");
-      expect(unescape(one(vevent, "DESCRIPTION"))).toContain("Sample data");
-    }
-    const uids = calendar.children.map((vevent) => one(vevent, "UID"));
-    expect(new Set(uids).size).toBe(uids.length);
-  });
-
-  test("escapes commas, semicolons, backslashes and newlines and folds long lines", () => {
-    const tricky: ScheduleEvent = {
-      ...events[0],
-      title: "Signals; Systems, and \\ Noise\nLab — a very long title that will certainly need folding past seventy-five octets",
-      location: "Room 1, Wing; B",
-    };
-    const parsed = parseIcs(buildPlanIcs([tricky], term, now).ics);
-    const vevent = parsed.children[0];
-    expect(unescape(one(vevent, "SUMMARY"))).toBe(`${tricky.courseCode} ${tricky.title} (sample)`);
-    expect(unescape(one(vevent, "LOCATION"))).toBe("Room 1, Wing; B");
-    expect(foldLine("x".repeat(200)).split("\r\n ").join("")).toBe("x".repeat(200));
-  });
-
-  test("a meeting whose weekday never falls inside a short term is reported, not invented", () => {
-    const fridayOnly = events.find((event) => event.day === "Fri") ?? { ...events[0], day: "Fri" as const };
-    // 2027-01-19 is a Tuesday; a Tue–Wed term has no Friday.
-    const short = buildPlanIcs([fridayOnly], { start: "2027-01-19", end: "2027-01-20" }, now);
-    expect(short.eventCount).toBe(0);
-    expect(short.skipped).toHaveLength(1);
-    expect(parseIcs(short.ics).children).toHaveLength(0);
-  });
-});
+const events = (calendar: Component) => calendar.children.filter((c) => c.name === "VEVENT");
 
 /**
- * Checks every VEVENT against the plan's meetings, one to one: weekday
- * (RRULE BYDAY and the DTSTART date), start and end wall-clock time, duration,
- * and the term bounds. Times are floating local (no TZID, no Z), which is
- * the event's timezone: the UNT wall clock the plan is written in.
+ * Every date an imported event occurs on, the way a calendar app expands it:
+ * weekly from DTSTART while the start instant is not after UNTIL, minus
+ * EXDATEs. Written from the RFC, not from planner-ics.ts.
  */
-function assertIcsMatchesMeetings(calendar: Component, meetings: ScheduleEvent[], termDates: { start: string; end: string }) {
-  const byDayCode: Record<string, string> = { Mon: "MO", Tue: "TU", Wed: "WE", Thu: "TH", Fri: "FR" };
-  const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(2, 4));
-  const termStart = termDates.start.replaceAll("-", "");
-  const termEnd = termDates.end.replaceAll("-", "");
-  expect(calendar.children).toHaveLength(meetings.length);
-  const remaining = [...calendar.children];
-  for (const meeting of meetings) {
-    const index = remaining.findIndex((vevent) => {
-      const start = one(vevent, "DTSTART");
-      return (
-        unescape(one(vevent, "SUMMARY")).startsWith(`${meeting.courseCode} `) &&
-        one(vevent, "RRULE").includes(`BYDAY=${byDayCode[meeting.day]};`) &&
-        start.slice(9, 13) === meeting.start.replace(":", "")
-      );
-    });
-    expect(index).toBeGreaterThanOrEqual(0);
-    const vevent = remaining.splice(index, 1)[0];
-    // Floating local time: no TZID parameter, no UTC suffix.
-    expect([...vevent.props.keys()].filter((key) => key.startsWith("DTSTART") || key.startsWith("DTEND"))).toEqual([
-      "DTSTART",
-      "DTEND",
-    ]);
-    const start = one(vevent, "DTSTART");
-    const end = one(vevent, "DTEND");
-    expect(start).toMatch(/^\d{8}T\d{6}$/);
-    expect(end).toMatch(/^\d{8}T\d{6}$/);
-    const date = new Date(`${start.slice(0, 4)}-${start.slice(4, 6)}-${start.slice(6, 8)}T00:00:00Z`);
-    expect(date.getUTCDay()).toBe(dayIndex[meeting.day]);
-    expect(end.slice(0, 8)).toBe(start.slice(0, 8));
-    expect(start.slice(9)).toBe(`${meeting.start.replace(":", "")}00`);
-    expect(end.slice(9)).toBe(`${meeting.end.replace(":", "")}00`);
-    const planMinutes =
-      minutes(meeting.end.replace(":", "")) - minutes(meeting.start.replace(":", ""));
-    expect(minutes(end.slice(9, 13)) - minutes(start.slice(9, 13))).toBe(planMinutes);
-    expect(planMinutes).toBeGreaterThan(0);
-    // Term bounds: first occurrence on or after the first day, and within the first week.
-    expect(start.slice(0, 8) >= termStart).toBe(true);
-    expect(date.getTime() - Date.parse(`${termDates.start}T00:00:00Z`)).toBeLessThan(7 * 86_400_000);
-    const rule = Object.fromEntries(one(vevent, "RRULE").split(";").map((part) => part.split("=")));
-    expect(rule.FREQ).toBe("WEEKLY");
-    expect(rule.BYDAY).toBe(byDayCode[meeting.day]);
-    expect(rule.UNTIL.slice(0, 8) <= termEnd).toBe(true);
-    expect(rule.UNTIL).toBe(`${termEnd}T235959`);
-    expect(unescape(one(vevent, "LOCATION"))).toBe(meeting.location);
+function occurrences(event: Component): string[] {
+  const start = one(event, "DTSTART").value; // 20270111T090000, Chicago
+  const rule = Object.fromEntries(one(event, "RRULE").value.split(";").map((part) => part.split("=")));
+  expect(rule.FREQ).toBe("WEEKLY");
+  const until = Date.UTC(+rule.UNTIL.slice(0, 4), +rule.UNTIL.slice(4, 6) - 1, +rule.UNTIL.slice(6, 8), +rule.UNTIL.slice(9, 11), +rule.UNTIL.slice(11, 13), +rule.UNTIL.slice(13, 15));
+  const excluded = new Set((event.props.get("EXDATE") ?? []).flatMap((prop) => prop.value.split(",")));
+  const out: string[] = [];
+  const [y, mo, d, h, mi] = [+start.slice(0, 4), +start.slice(4, 6) - 1, +start.slice(6, 8), +start.slice(9, 11), +start.slice(11, 13)];
+  for (let week = 0; week < 60; week += 1) {
+    const local = Date.UTC(y, mo, d + week * 7, h, mi);
+    // Chicago is UTC-5 from mid-March to early November and UTC-6 otherwise: enough for a spring term.
+    const date = new Date(local);
+    const month = date.getUTCMonth();
+    const daylight = (month > 2 && month < 10) || (month === 2 && date.getUTCDate() >= 14);
+    const instant = local + (daylight ? 5 : 6) * 3_600_000;
+    if (instant > until) break;
+    const stamp = `${date.toISOString().slice(0, 10).replaceAll("-", "")}T${start.slice(9)}`;
+    if (!excluded.has(stamp)) out.push(date.toISOString().slice(0, 10));
   }
-  expect(remaining).toHaveLength(0);
+  return out;
 }
 
-describe(".ics depth: weekday, times, duration and term bounds per meeting", () => {
-  const now = new Date("2026-10-11T15:04:05.000Z");
-  const base = buildScheduleEvents(resolveSectionPlan(planWithCourses(["MATH 1710"])))[0];
-  // One section meeting on two weekdays, and one in a late-afternoon slot.
-  const twoDays: ScheduleEvent[] = [
-    { ...base, courseCode: "TEST 1000", title: "Two-day course", sectionId: "test-1000-001", day: "Tue", start: "09:30", end: "10:50", location: "Life Sciences" },
-    { ...base, courseCode: "TEST 1000", title: "Two-day course", sectionId: "test-1000-001", day: "Thu", start: "09:30", end: "10:50", location: "Life Sciences" },
-  ];
-  const lateAfternoon: ScheduleEvent = {
-    ...base,
-    courseCode: "TEST 2000",
-    title: "Late course",
-    sectionId: "test-2000-002",
-    day: "Wed",
-    start: "16:00",
-    end: "17:20",
-    location: "Gateway Center",
-  };
+const SPRING = termDatesFor("Spring 2027")!;
+const NOW = new Date("2026-10-13T12:00:00Z");
 
-  test("a two-weekday section and a late-afternoon class", () => {
-    const meetings = [...twoDays, lateAfternoon];
-    const calendar = parseIcs(buildPlanIcs(meetings, term, now).ics);
-    assertIcsMatchesMeetings(calendar, meetings, term);
-    const late = calendar.children.find((v) => unescape(one(v, "SUMMARY")).startsWith("TEST 2000"))!;
-    expect(one(late, "DTSTART")).toBe("20270120T160000");
-    expect(one(late, "DTEND")).toBe("20270120T172000");
-    const tuesday = calendar.children.find((v) => one(v, "RRULE").includes("BYDAY=TU"))!;
-    expect(one(tuesday, "DTSTART")).toBe("20270119T093000"); // the term starts on that Tuesday
-    const thursday = calendar.children.find((v) => one(v, "RRULE").includes("BYDAY=TH"))!;
-    expect(one(thursday, "DTSTART")).toBe("20270121T093000");
+const csce = section({
+  courseCode: "CSCE 2110",
+  meetings: (["Mon", "Wed", "Fri"] as const).map((day) => meeting({ day, at: "9:00", until: "9:50", room: "GAB 535" })),
+});
+const math = section({
+  courseCode: "MATH 2700",
+  sectionCode: "003",
+  meetings: (["Tue", "Thu"] as const).map((day) => meeting({ day, at: "14:00", until: "15:20", room: "CURY 202" })),
+});
+const online = section({ courseCode: "TECM 2700", sectionCode: "900", online: true, meetings: [asyncMeeting] });
+/** Online, but with a set weekly time: still left out, as the export says. */
+const liveOnline = section({ courseCode: "CSCE 1030", online: true, meetings: [meeting({ day: "Tue", at: "18:00", until: "19:20", building: null, room: "Online" })] });
+
+describe("term dates", () => {
+  test("Spring 2027 runs from the first to the last day of regular classes, with its breaks", () => {
+    expect(SPRING).toEqual({
+      term: "Spring 2027",
+      first: "2027-01-11",
+      last: "2027-04-29",
+      breaks: [
+        { name: "Martin Luther King Jr. Holiday", begin: "2027-01-18", end: "2027-01-18" },
+        { name: "Spring Break", begin: "2027-03-08", end: "2027-03-14" },
+      ],
+    });
   });
 
-  test("the real plan's meetings, for a term that starts mid-week", () => {
-    const meetings = buildScheduleEvents(resolveSectionPlan(planWithCourses(["MATH 1710", "ANTH 1010", "CSCE 1030"])));
-    const midWeek = { start: "2027-01-21", end: "2027-05-12" }; // Thursday to Wednesday
-    assertIcsMatchesMeetings(parseIcs(buildPlanIcs(meetings, midWeek, now).ics), meetings, midWeek);
+  test("a term with no calendar has no dates, rather than guessed ones", () => {
+    expect(termDatesFor("Fall 2031")).toBeNull();
   });
 });
 
-describe("term dates are entered, never inferred", () => {
-  test("accepts a valid range", () => {
-    expect(checkTermDates(term)).toEqual({ ok: true, ...term });
+describe("calendar file", () => {
+  const result = buildWeekIcs([csce, math, online, liveOnline], SPRING, { now: NOW, titleOf: (code) => (code === "CSCE 2110" ? "Foundations of Data Structures" : undefined) });
+  const calendar = parseIcs(result.ics);
+
+  test("one VCALENDAR with a Chicago VTIMEZONE", () => {
+    expect(calendar.name).toBe("VCALENDAR");
+    expect(one(calendar, "VERSION").value).toBe("2.0");
+    const zone = calendar.children.find((c) => c.name === "VTIMEZONE")!;
+    expect(one(zone, "TZID").value).toBe("America/Chicago");
+    expect(zone.children.map((c) => [c.name, one(c, "TZOFFSETTO").value, one(c, "RRULE").value])).toEqual([
+      ["DAYLIGHT", "-0500", "FREQ=YEARLY;BYMONTH=3;BYDAY=2SU"],
+      ["STANDARD", "-0600", "FREQ=YEARLY;BYMONTH=11;BYDAY=1SU"],
+    ]);
   });
-  test("rejects missing, malformed and impossible dates", () => {
-    expect(checkTermDates({ start: "", end: "2027-05-14" })).toMatchObject({ ok: false, field: "start" });
-    expect(checkTermDates({ start: "2027-02-30", end: "2027-05-14" })).toMatchObject({ ok: false, field: "start" });
-    expect(checkTermDates({ start: "2027-01-19", end: "05/14/2027" })).toMatchObject({ ok: false, field: "end" });
+
+  test("one weekly event per timed meeting, in Chicago time, starting the first week of the term", () => {
+    expect(result.eventCount).toBe(5);
+    const starts = events(calendar).map((e) => [one(e, "DTSTART").params, one(e, "DTSTART").value, one(e, "DTEND").value]);
+    expect(starts).toEqual([
+      ["TZID=America/Chicago", "20270111T090000", "20270111T095000"],
+      ["TZID=America/Chicago", "20270113T090000", "20270113T095000"],
+      ["TZID=America/Chicago", "20270115T090000", "20270115T095000"],
+      ["TZID=America/Chicago", "20270112T140000", "20270112T152000"],
+      ["TZID=America/Chicago", "20270114T140000", "20270114T152000"],
+    ]);
   });
-  test("rejects an end before the start and a range longer than a year", () => {
-    expect(checkTermDates({ start: "2027-05-14", end: "2027-01-19" })).toMatchObject({ ok: false, field: "end" });
-    expect(checkTermDates({ start: "2027-01-01", end: "2028-06-01" })).toMatchObject({ ok: false, field: "end" });
+
+  test("UNTIL is 23:59:59 Chicago time on the last day of classes, written in UTC", () => {
+    // Apr 29 is in daylight time (UTC-5), so 23:59:59 local is 04:59:59Z on Apr 30.
+    for (const e of events(calendar)) expect(one(e, "RRULE").value).toMatch(/;UNTIL=20270430T045959Z$/);
   });
-  test("refuses to build sample meetings without valid dates", () => {
-    const sample = buildScheduleEvents(resolveSectionPlan(planWithCourses(["MATH 1710"])));
-    expect(() => buildPlanIcs(sample, { start: "", end: "" })).toThrow(/valid term dates/);
-    expect(() => buildPlanIcs(sample, null)).toThrow(/valid term dates/);
+
+  test("EXDATE removes the holiday and every spring break day the class meets", () => {
+    const exdates = events(calendar).map((e) => (e.props.get("EXDATE") ?? []).map((p) => `${p.params}:${p.value}`));
+    expect(exdates).toEqual([
+      ["TZID=America/Chicago:20270118T090000,20270308T090000"],
+      ["TZID=America/Chicago:20270310T090000"],
+      ["TZID=America/Chicago:20270312T090000"],
+      ["TZID=America/Chicago:20270309T140000"],
+      ["TZID=America/Chicago:20270311T140000"],
+    ]);
+  });
+
+  test("imported, no class falls on spring break or MLK Day, and none outside the term", () => {
+    const dates = events(calendar).flatMap(occurrences);
+    expect(dates.filter((date) => date >= "2027-03-08" && date <= "2027-03-14")).toEqual([]);
+    expect(dates).not.toContain("2027-01-18");
+    expect(dates.every((date) => date >= "2027-01-11" && date <= "2027-04-29")).toBe(true);
+    // Monday classes: 16 Mondays from Jan 11 to Apr 26, minus MLK Day and spring break.
+    expect(occurrences(events(calendar)[0])).toHaveLength(14);
+  });
+
+  test("online sections are left out, with or without a set time, and named", () => {
+    const summaries = events(calendar).map((e) => one(e, "SUMMARY").value);
+    expect(summaries.some((s) => s.includes("TECM 2700") || s.includes("CSCE 1030"))).toBe(false);
+    expect(result.leftOut).toEqual(["TECM 2700", "CSCE 1030"]);
+  });
+
+  test("summary, location and description", () => {
+    const first = events(calendar)[0];
+    expect(one(first, "SUMMARY").value).toBe("CSCE 2110 Foundations of Data Structures");
+    expect(one(first, "LOCATION").value).toBe("GAB 535");
+    expect(one(events(calendar)[3], "SUMMARY").value).toBe("MATH 2700");
+    expect(one(first, "DTSTAMP").value).toBe("20261013T120000Z");
+  });
+});
+
+describe("dates per meeting", () => {
+  test("an eight-week class keeps its own dates; UNTIL in standard time is six hours ahead", () => {
+    const firstHalf = section({ courseCode: "SPAN 2040", meetings: [meeting({ day: "Tue", at: "9:35", until: "10:55", dates: { start: "2027-01-11", end: "2027-03-05" } })] });
+    const secondHalf = section({ courseCode: "SPAN 2050", meetings: [meeting({ day: "Tue", at: "9:35", until: "10:55", dates: { start: "2027-03-15", end: "2027-05-07" } })] });
+    const calendar = parseIcs(buildWeekIcs([firstHalf, secondHalf], SPRING, { now: NOW }).ics);
+    const [a, b] = events(calendar);
+    expect(one(a, "DTSTART").value).toBe("20270112T093500");
+    expect(one(a, "RRULE").value).toBe("FREQ=WEEKLY;BYDAY=TU;UNTIL=20270306T055959Z");
+    expect(a.props.get("EXDATE")).toBeUndefined();
+    // Its own dates run into finals week; weekly classes stop at the last day of classes.
+    expect(one(b, "DTSTART").value).toBe("20270316T093500");
+    expect(one(b, "RRULE").value).toBe("FREQ=WEEKLY;BYDAY=TU;UNTIL=20270430T045959Z");
+  });
+
+  test("two records of one section at the same day and time get their own UIDs", () => {
+    const split = section({
+      courseCode: "CHEM 1410",
+      meetings: [
+        meeting({ day: "Mon", at: "9:00", until: "9:50", dates: { start: "2027-01-11", end: "2027-03-05" } }),
+        meeting({ day: "Mon", at: "9:00", until: "9:50", room: "CHEM 352", dates: { start: "2027-03-15", end: "2027-04-29" } }),
+      ],
+    });
+    const uids = events(parseIcs(buildWeekIcs([split], SPRING, { now: NOW }).ics)).map((e) => one(e, "UID").value);
+    expect(new Set(uids).size).toBe(2);
+  });
+
+  test("weekend meetings and a class ending at midnight", () => {
+    const late = section({
+      courseCode: "MUJS 1000",
+      meetings: [meeting({ day: "Sat", at: "11:30", until: "12:20" }), meeting({ day: "Sun", at: "22:00", until: "24:00" })],
+    });
+    const calendar = parseIcs(buildWeekIcs([late], SPRING, { now: NOW }).ics);
+    const [sat, sun] = events(calendar);
+    expect(one(sat, "DTSTART").value).toBe("20270116T113000");
+    expect(one(sat, "EXDATE").value).toBe("20270313T113000");
+    expect(one(sun, "DTEND").value).toBe("20270118T000000");
+    expect(one(sun, "EXDATE").value).toBe("20270314T220000");
+  });
+
+  test("a section that meets only outside the term is left out, not stretched into it", () => {
+    const winter = section({ courseCode: "HIST 2610", meetings: [meeting({ day: "Mon", at: "9:00", until: "11:00", dates: { start: "2026-12-14", end: "2027-01-08" } })] });
+    const result = buildWeekIcs([winter], SPRING, { now: NOW });
+    expect(result.eventCount).toBe(0);
+    expect(result.leftOut).toEqual(["HIST 2610"]);
+  });
+
+  test("a sample section says so", () => {
+    const sample = section({ courseCode: "CSCE 2110", term: null, meetings: [meeting({ day: "Mon", at: "9:00", until: "9:50" })] });
+    const calendar = parseIcs(buildWeekIcs([sample], SPRING, { now: NOW }).ics);
+    expect(one(events(calendar)[0], "DESCRIPTION").value).toContain("Sample section");
+  });
+});
+
+describe("Chicago offset at the daylight-time changes", () => {
+  const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+  test("2027: daylight time from Sunday Mar 14 to Sunday Nov 7", () => {
+    expect(chicagoOffsetHours(day("2027-03-13"))).toBe(6);
+    expect(chicagoOffsetHours(day("2027-03-14"))).toBe(5);
+    expect(chicagoOffsetHours(day("2027-11-06"))).toBe(5);
+    expect(chicagoOffsetHours(day("2027-11-07"))).toBe(6);
+  });
+});
+
+describe("text", () => {
+  test("escapes and folds", () => {
+    const odd = section({ courseCode: "CSCE 2110", meetings: [meeting({ day: "Mon", at: "9:00", until: "9:50", room: "GAB 535; Lab, back\\room" })] });
+    const raw = buildWeekIcs([odd], SPRING, { now: NOW, titleOf: () => "A very long course title that will certainly need folding across lines" }).ics;
+    expect(raw).toContain("LOCATION:GAB 535\\; Lab\\, back\\\\room");
+    parseIcs(raw);
+    expect(foldLine("x".repeat(80))).toBe(`${"x".repeat(75)}\r\n ${"x".repeat(5)}`);
+  });
+
+  test("file name", () => {
+    expect(icsFileName(SPRING)).toBe("spring-2027-classes.ics");
   });
 });

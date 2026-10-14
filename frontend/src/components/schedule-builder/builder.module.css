@@ -1,0 +1,1001 @@
+/*
+ * Week (03-schedule-builder.html as amended by untangle-v3.md). The grid is
+ * the one surface on the page; the strip and the panel are the only other
+ * boxes. Motion: only transform and opacity move (MOTION.md §11), and only
+ * from a pointer; colors change on hover with --t-hover.
+ */
+
+.page {
+  --hh: 64px;
+  --gut: 52px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+/* From 1200px the panel pushes the page aside; narrow the page so both fit (ScheduleBuilder MAIN_MAX). */
+@media (min-width: 1200px) {
+  .page {
+    max-width: min(960px, 100vw - var(--context-w) - var(--context-gap) - 48px);
+  }
+}
+
+/* Course colors (DESIGN.md §7): one hue per course, set where it's drawn. */
+:is(.page, .grid) [data-hue="1"] { --c: var(--c1); --ct: var(--c1t); }
+:is(.page, .grid) [data-hue="2"] { --c: var(--c2); --ct: var(--c2t); }
+:is(.page, .grid) [data-hue="3"] { --c: var(--c3); --ct: var(--c3t); }
+:is(.page, .grid) [data-hue="4"] { --c: var(--c4); --ct: var(--c4t); }
+:is(.page, .grid) [data-hue="5"] { --c: var(--c5); --ct: var(--c5t); }
+:is(.page, .grid) [data-hue="6"] { --c: var(--c6); --ct: var(--c6t); }
+
+.label {
+  margin: 0;
+  font: 650 11px/16px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.meta {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.hint {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.code {
+  font: 700 13px/1.2 var(--font-mark);
+  color: var(--ink);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.start {
+  justify-self: start;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chevron {
+  color: var(--ink-3);
+  flex: none;
+}
+
+/* ───────── Header: one Preferences control, then the actions ───────── */
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.prefButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 40px;
+  margin-left: -10px;
+  padding: 0 12px 0 10px;
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 15px;
+  text-align: left;
+  transition: background-color var(--t-hover) ease;
+}
+.prefButton svg {
+  flex: none;
+  color: var(--ink-2);
+}
+.prefButton b {
+  font-weight: 650;
+  white-space: nowrap;
+}
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.prefButton[aria-expanded="true"] {
+  background: var(--brand-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .prefButton:hover:not([aria-expanded="true"]) {
+    background: rgba(26, 46, 26, 0.05);
+  }
+}
+/* Touch: controls reach 44px (DESIGN.md §5), and wrapped chip rows sit far enough
+   apart that their extended hit areas never overlap. */
+@media (pointer: coarse) {
+  .prefButton,
+  .pill {
+    min-height: 44px;
+  }
+  .course {
+    min-height: 48px;
+  }
+  .chips,
+  .filterRow {
+    row-gap: 16px;
+  }
+}
+.headActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ───────── The answer: one line, or one alternative ───────── */
+
+/* As tall as the strip, so the grid doesn't drop when an alternative appears (MOTION.md §4: heights snap). */
+.answerSlot {
+  min-height: 52px;
+  margin-bottom: 8px;
+}
+.answer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.answer[data-tone="attention"] {
+  color: var(--attention);
+}
+.answer[data-tone="danger"] {
+  color: var(--danger);
+}
+.answer > :global(.ui-glyph),
+.answerGlyph {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.answer > button {
+  margin-left: auto;
+  flex: none;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 8px 6px 16px;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+}
+.strip[data-tone="danger"] {
+  background: var(--danger-soft);
+}
+.stripGlyph {
+  flex: none;
+  color: var(--danger);
+}
+.stripCount {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  /* Fits "Updating" and the dot, so the sentence never shifts when the count changes. */
+  min-width: 84px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  white-space: nowrap;
+}
+.stripCount > span,
+.stripSentence {
+  display: inline-block;
+}
+/* Still searching: a quiet pulse. Reduced motion keeps the dot still. */
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pulse {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.stripSentence {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.stripActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ───────── The grid ───────── */
+
+.grid {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
+}
+.gridHead,
+.gridBody {
+  display: grid;
+  grid-template-columns: var(--gut) repeat(var(--cols), minmax(0, 1fr));
+}
+.gridHead {
+  height: 36px;
+  align-items: center;
+}
+.gridHead span {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.gridBody {
+  position: relative;
+  border-top: 1px solid var(--line);
+}
+.gutter {
+  position: relative;
+}
+.gutter span {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+.day {
+  position: relative;
+  border-left: 1px solid var(--line);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 100% var(--hh);
+}
+@media (hover: hover) and (pointer: fine) {
+  .day {
+    cursor: cell;
+  }
+}
+
+.event {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--ct);
+  box-shadow: inset 3px 0 0 var(--c);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--t-hover) ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .event {
+    touch-action: none;
+  }
+  /* 8% of the hue keeps ink-2 times at 4.77:1 or better on every course color (16% fell to 4.28). */
+  .event:hover {
+    background: color-mix(in srgb, var(--ct) 92%, var(--c));
+  }
+}
+.eventCode {
+  font: 700 12px/1.25 var(--font-mark);
+  color: var(--ink);
+}
+.eventTime {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.eventLock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: var(--ink-2);
+}
+.event[aria-pressed="true"] {
+  z-index: 4;
+  box-shadow: inset 3px 0 0 var(--c), 0 0 0 2px var(--c), var(--shadow-2);
+}
+.event[data-conflict] {
+  background: var(--danger-soft);
+  box-shadow: inset 3px 0 0 var(--danger), 0 0 0 1.5px var(--danger);
+}
+.event[data-dragging] {
+  z-index: 6;
+  box-shadow: inset 3px 0 0 var(--c), var(--shadow-3);
+  cursor: grabbing;
+}
+.event:focus-visible,
+.outline:focus-visible,
+.pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.outline {
+  position: absolute;
+  z-index: 3;
+  left: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--c);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  font: 700 11px/1 var(--font-mark);
+  color: var(--c);
+  cursor: pointer;
+  transition: background-color var(--t-hover) ease;
+}
+.outline[data-clash] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.outline[data-near] {
+  background: var(--ct);
+}
+@media (hover: hover) and (pointer: fine) {
+  .outline:hover {
+    background: var(--ct);
+  }
+}
+
+/* Pointing at a section in search paints it here; a clash takes the right half, in red. */
+.ghost {
+  position: absolute;
+  z-index: 5;
+  left: 4px;
+  right: 4px;
+  padding: 6px 8px;
+  border: 1.5px dashed var(--brand-2);
+  border-radius: 8px;
+  background: rgba(0, 122, 64, 0.07);
+  font: 700 11px/1.2 var(--font-mark);
+  color: var(--brand-2);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 120ms var(--ease-out);
+}
+@starting-style {
+  .ghost {
+    opacity: 0;
+  }
+}
+.ghost[data-clash] {
+  left: 50%;
+  border-color: var(--danger);
+  background: rgba(251, 234, 232, 0.94);
+  color: var(--danger);
+}
+
+.busy {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  padding: 4px 8px;
+  background: repeating-linear-gradient(135deg, rgba(79, 101, 79, 0.1) 0 6px, transparent 6px 12px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.busy[data-draft] {
+  box-shadow: inset 0 0 0 1.5px var(--brand-2);
+  color: var(--brand);
+}
+
+/* The drawn walk: a 2px line between consecutive classes, its minutes on it. */
+.walkLine {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--brand-2);
+  pointer-events: none;
+}
+.walkLine[data-kind="tight"] {
+  background: var(--attention);
+}
+.walkLine[data-kind="late"] {
+  background: var(--danger);
+}
+.walkChip {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 7px 0 5px;
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1.5px var(--brand-2);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--brand);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.walkChip[data-kind="tight"] {
+  background: var(--attention-soft);
+  box-shadow: 0 0 0 1.5px var(--attention);
+  color: var(--attention);
+}
+.walkChip[data-kind="late"] {
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
+
+.gridFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px 8px 16px;
+  border-top: 1px solid var(--line);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--ct);
+  box-shadow: inset 3px 0 0 var(--c);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.pill .code {
+  font-size: 12px;
+}
+.tag {
+  margin-left: auto;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+}
+.empty > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 360px;
+  padding: 24px;
+  border-radius: var(--r-lg);
+  background: rgba(255, 255, 255, 0.92);
+  text-align: center;
+  pointer-events: auto;
+}
+.empty h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+
+/* ───────── Panel contents ───────── */
+
+.panelBody,
+.prefs,
+.find,
+.export {
+  display: grid;
+  gap: 16px;
+}
+.note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--attention);
+}
+.keep {
+  padding: 4px 0;
+}
+.danger {
+  color: var(--danger);
+}
+
+.filters {
+  display: grid;
+  gap: 10px;
+}
+.filters[hidden] {
+  display: none;
+}
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.filterRow .label {
+  width: 52px;
+}
+.group {
+  padding: 4px 0;
+}
+.courses,
+.sections,
+.busyList,
+.changes,
+.numbers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.course {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% + 24px);
+  margin: 0 -12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  transition: background-color var(--t-hover) ease;
+}
+.course[aria-expanded="true"] {
+  background: var(--paper-2);
+}
+.course[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .course:hover {
+    background: var(--paper-2);
+  }
+}
+/* Brand, not accent: the ring sits on paper-2 when the row is open, where accent is under 3:1. */
+.course:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.courseText {
+  display: grid;
+  min-width: 0;
+}
+.courseTitle {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.courseSections {
+  padding: 4px 0 8px;
+}
+.section {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  transition: background-color var(--t-hover) ease;
+}
+.section[data-highlight] {
+  background: var(--brand-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .section:hover {
+    background: var(--paper-2);
+  }
+}
+.place {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--brand);
+  color: #fff;
+  transition: transform var(--t-press) var(--ease-out);
+}
+/* A pointer press only: Space or Enter from the keyboard never animates (MOTION.md §3). */
+@media (prefers-reduced-motion: no-preference) {
+  .place:active:not(:disabled):not([aria-disabled]):not(:focus-visible) {
+    transform: scale(0.97);
+  }
+}
+@media (pointer: coarse) {
+  .place {
+    width: 44px;
+    height: 44px;
+  }
+  .section {
+    grid-template-columns: 44px 1fr;
+  }
+}
+.place[data-state="clash"] {
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+  color: var(--danger);
+}
+.place[data-state="on"] {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.place[data-state="full"] {
+  background: var(--paper-3);
+  color: var(--ink-4);
+}
+.place:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.sectionText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 2px;
+}
+.sectionLine {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.sectionCode {
+  margin-right: 6px;
+  font: 700 11.5px var(--font-mark);
+  color: var(--ink-2);
+}
+.clash {
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.prefSection {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.busyRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  margin-bottom: 6px;
+  padding: 0 4px 0 12px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  font-size: 14px;
+}
+.busyRow > button {
+  margin-left: auto;
+}
+.busyForm {
+  display: grid;
+  gap: 10px;
+}
+.fieldError {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+.timeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.reasons {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--ink);
+}
+.reasons li[data-warning] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--attention);
+}
+.reasons li[data-warning] svg {
+  flex: none;
+  margin-top: 2px;
+}
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.compare th,
+.compare td {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  text-align: right;
+  font-weight: 400;
+}
+.compare thead th,
+.compare thead td {
+  padding-top: 0;
+  border-top: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.compare tbody th {
+  text-align: left;
+}
+.compare td[data-change="better"] {
+  font-weight: 650;
+  color: var(--brand);
+}
+.compare td[data-change="worse"] {
+  font-weight: 650;
+  color: var(--attention);
+}
+.changes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.changes s {
+  color: var(--ink-2);
+  text-decoration-color: var(--ink-4);
+}
+
+/* ───────── Export ───────── */
+
+.export {
+  gap: 0;
+}
+.exportSection {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.exportSection:first-child {
+  padding-top: 4px;
+  border-top: 0;
+}
+.exportHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.exportHead > :first-child {
+  width: 18px;
+  color: var(--brand-2);
+  text-align: center;
+}
+.numbers {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  font-size: 13px;
+  line-height: 1.9;
+}
+/* Numbers in one column, so a lecture and its lab ("12043 12237") line up with single numbers. */
+.numbers li {
+  display: grid;
+  grid-template-columns: 7.5em 1fr auto;
+  gap: 12px;
+}
+.numbers b {
+  font-weight: 650;
+}
+.numbers span {
+  color: var(--ink-2);
+}
+.numbers em {
+  font-style: normal;
+  color: var(--attention);
+}
+.sheetTitle {
+  margin: 0;
+  padding: 4px 0 8px;
+  font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
+}
+
+/* ───────── Paper (PrintWeek) ───────── */
+
+.print {
+  --hh: 44px;
+  --gut: 52px;
+  display: grid;
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.printControls {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.printTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+.printTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.printTable th,
+.printTable td {
+  padding: 6px 8px 6px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+.printTable thead th {
+  border-top: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+@media print {
+  .printControls {
+    display: none;
+  }
+  .print {
+    max-width: none;
+    padding: 0;
+  }
+  .print .grid {
+    box-shadow: 0 0 0 1px var(--line);
+    break-inside: avoid;
+  }
+}
+
+/* ───────── Phone ───────── */
+
+.actionBar {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  .answerSlot {
+    min-height: 40px;
+  }
+  .page {
+    --hh: 52px;
+    --gut: 30px;
+    padding-bottom: 84px;
+  }
+  .head {
+    margin: 0 4px 4px;
+  }
+  .prefButton {
+    flex: 1;
+    margin-left: -6px;
+  }
+  .prefLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .answer {
+    min-height: 40px;
+    padding: 0 6px;
+    font-size: 13.5px;
+  }
+  .strip {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 10px 10px 10px 14px;
+  }
+  .stripSentence {
+    flex-basis: calc(100% - 80px);
+  }
+  .stripActions {
+    width: 100%;
+  }
+  .stripActions > :not(:global(.ui-btn--icon)) {
+    flex: 1;
+  }
+  .grid {
+    border-radius: 14px;
+  }
+  .gridHead {
+    height: 30px;
+  }
+  .gridHead span {
+    font-size: 11px;
+  }
+  .gutter span {
+    right: 4px;
+    font-size: 10px;
+  }
+  .event {
+    padding: 4px;
+    border-radius: 6px;
+  }
+  .eventCode {
+    font-size: 10.5px;
+    line-height: 12px;
+  }
+  .walkChip {
+    height: 16px;
+    padding: 0 5px 0 3px;
+    font-size: 10px;
+  }
+  .walkWords,
+  .tag {
+    display: none;
+  }
+  .actionBar {
+    --glass-fill: rgba(255, 255, 255, 0.84);
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--shell-bottom-h, 0px) + 8px + var(--safe-b));
+    z-index: 35;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+  }
+  .actionBar > button {
+    flex: 1;
+    height: 44px;
+  }
+}
