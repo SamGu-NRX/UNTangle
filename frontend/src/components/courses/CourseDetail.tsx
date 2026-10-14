@@ -171,11 +171,14 @@ function DetailActionsPart({ row, term, actions }: { row: CourseRowModel; term: 
 }
 
 function PathPart({ row, model, dependents, inCore }: { row: CourseRowModel; model: CourseModel; dependents: readonly string[]; inCore: boolean }) {
-  const needs = ruleCourseIds(row.rule).slice(0, 3);
-  const unlocks = dependents.slice(0, 2);
-  // The path draws two unlocks; the rest are listed under it, up to four, then counted.
-  const listed = dependents.slice(2, 6);
-  const uncounted = dependents.length - 2 - listed.length;
+  // The path draws at most four stops, so it fits a 360px screen: up to two prerequisites
+  // (the catalog rule below names them all), this course, and as many unlocks as fit, at most two.
+  const needs = ruleCourseIds(row.rule).slice(0, 2);
+  const drawn = Math.min(2, 3 - needs.length);
+  const unlocks = dependents.slice(0, drawn);
+  // The rest are listed under the path, up to four, then counted.
+  const listed = dependents.slice(drawn, drawn + 4);
+  const uncounted = dependents.length - drawn - listed.length;
   const { readable, unparsed } = splitUnparsed(row.rule);
   const engine = row.assessment?.status;
   const meets = engine === "eligible" || engine === "done" || engine === "taking";

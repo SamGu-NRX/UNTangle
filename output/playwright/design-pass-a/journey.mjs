@@ -339,9 +339,10 @@ async function connectHistory(page, size) {
   await page.waitForTimeout(300);
   const focused = await page.evaluate(() => {
     const el = document.activeElement;
-    return el && el !== document.body ? el.getAttribute("aria-label") || el.className || el.tagName : "body";
+    return el && el !== document.body ? (el.hasAttribute("data-degree") ? "degree button" : el.getAttribute("aria-label") || el.className || el.tagName) : "body";
   });
-  check(size, "connect: closing returns focus to the menu button that opened it", focused === "More Auto-fill options", focused);
+  // v3 Courses: Connect opens from the degree dialog, which has closed by then, so focus returns to the degree button that opened it.
+  check(size, "connect: closing returns focus to the control that opened it", focused === "degree button", focused);
   await page.goto(`${base}/courses/import`, { waitUntil: "networkidle" });
   await sheet.waitFor();
   check(size, "connect: a cold /courses/import opens the sheet at /connect", page.url().endsWith("/connect"), page.url());

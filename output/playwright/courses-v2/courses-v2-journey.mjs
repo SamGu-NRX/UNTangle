@@ -232,6 +232,17 @@ async function journey(browser, viewport) {
     check(`${tag}: the panel starts at or below the top bar`, top >= bar - 1, `${top} >= ${bar}`);
   } else {
     check(`${tag}: the sheet has a drag handle`, await panel.getByRole("button", { name: "Resize sheet" }).isVisible());
+    // v3: the detail sheet opens at its half detent (MOTION.md §5); Tab into the content opens it fully.
+    await page.waitForTimeout(400);
+    const offset = await panel.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+    const expected = (0.92 - 0.52) * viewport.height;
+    check(`${tag}: the sheet opens at the half detent`, Math.abs(offset - expected) < 3, `${offset.toFixed(1)}px vs ${expected}px`);
+    await panel.getByRole("button", { name: "Resize sheet" }).focus();
+    // Past the sheet's Close button, into its body.
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(400);
+    check(`${tag}: moving focus into the half-height sheet opens it fully`, (await panel.getAttribute("data-expanded")) !== null);
   }
   const bars = await panel.locator("[data-grade-bar]").evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
   check(`${tag}: the bars are one green`, bars.length === 6 && new Set(bars).size === 1 && bars[0] === "rgb(0, 81, 43)", bars.join());
@@ -275,19 +286,7 @@ async function journey(browser, viewport) {
     await panel.waitFor({ state: "detached" });
     check(`${tag}: Esc closes the panel`, true);
   } else {
-    // The detail sheet opens at its half detent; Tab into the content opens it fully.
     const sheet = panel;
-    const grip = sheet.getByRole("button", { name: "Resize sheet" });
-    await page.waitForTimeout(400);
-    const offset = await sheet.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
-    const expected = (0.92 - 0.52) * viewport.height;
-    check(`${tag}: the sheet opens at the half detent`, Math.abs(offset - expected) < 3, `${offset.toFixed(1)}px vs ${expected}px`);
-    await grip.focus();
-    // Past the sheet's Close button, into its body.
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Tab");
-    await page.waitForTimeout(400);
-    check(`${tag}: moving focus into the half-height sheet opens it fully`, (await sheet.getAttribute("data-expanded")) !== null);
     // ⌘K over the sheet, then Escape from a palette button: only the palette closes.
     await page.keyboard.press("Meta+k");
     const palette = page.getByRole("dialog", { name: "Search courses" });

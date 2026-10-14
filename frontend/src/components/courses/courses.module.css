@@ -78,7 +78,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 14px 10px 20px;
+  padding: 14px 20px 10px;
 }
 .trayTitle {
   margin: 0;
@@ -506,7 +506,9 @@
   font: 550 11px/1 var(--font-ui);
   white-space: nowrap;
 }
+/* --detail-pad matches the panel's body padding (24px) or the phone sheet's (16px), so sections run edge to edge without overflowing. */
 .detail {
+  --detail-pad: 24px;
   padding-bottom: 8px;
 }
 .detailHead {
@@ -546,8 +548,8 @@
   margin-left: -10px;
 }
 .dsec {
-  margin: 0 -24px;
-  padding: 18px 24px;
+  margin: 0 calc(-1 * var(--detail-pad));
+  padding: 18px var(--detail-pad);
   border-top: 1px solid var(--line);
 }
 .dsec h3 {
@@ -591,6 +593,7 @@
   font-weight: 600;
 }
 .courseLink {
+  white-space: nowrap;
   color: var(--brand-2);
   font-weight: 600;
   text-decoration: none;
@@ -606,6 +609,7 @@
   }
 }
 .unknownCourse {
+  white-space: nowrap;
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
@@ -1031,7 +1035,25 @@
     font-size: 13px;
   }
   .trayHead {
-    padding: 12px 10px 8px 16px;
+    padding: 12px 16px 8px;
+  }
+  .detail {
+    --detail-pad: 16px;
+  }
+  /* Four stops fit a 360px screen. */
+  .path {
+    --path-gap: 10px;
+  }
+  .path li {
+    min-width: 0;
+  }
+  /* With a fact on two lines, the code lines up with its first line. */
+  .code,
+  .fact {
+    align-self: start;
+  }
+  .code {
+    line-height: 16px;
   }
   /* One left edge with the tray's title. */
   .result {

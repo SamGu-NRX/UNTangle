@@ -69,10 +69,14 @@ function seats(section: Section): { text: string; full: boolean } | null {
   }
 }
 
-/** "GAB 535" -> "535"; a room string that does not start with its building code has no number to show. */
-function roomNumber(meeting: Meeting): string | undefined {
+/**
+ * "GAB 535" -> "535". A location that is a building name ("Life Sciences
+ * Complex", as the samples have) has no room number, so nothing shows after the plate.
+ */
+export function roomNumber(meeting: Pick<Meeting, "room" | "buildingCode">): string | undefined {
   const [first, ...rest] = meeting.room.trim().split(/\s+/);
-  return meeting.buildingCode && first?.toUpperCase() === meeting.buildingCode && rest.length > 0 ? rest.join(" ") : undefined;
+  const room = rest.join(" ");
+  return meeting.buildingCode && first?.toUpperCase() === meeting.buildingCode && /\d/.test(room) ? room : undefined;
 }
 
 const joinDays = (days: string[]) => (days.length <= 1 ? days.join("") : `${days.slice(0, -1).join(", ")} and ${days.at(-1)}`);
