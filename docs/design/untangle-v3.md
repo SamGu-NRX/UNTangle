@@ -70,7 +70,7 @@ Both designs reached the same structure on their own: three lenses over one plan
 
 ## What comes from Fable
 
-1. **The walk is drawn.** One 2px green line is the route on the map, the connector between stops in Day, and the connector between consecutive classes in Week, with the minutes chip sitting on it. It turns red as "late" when the walk is longer than the break, and amber as "tight" within two minutes. Walking time is what no other UNT planner has, so it is the visual that repeats ([Fable DESIGN, H2](untangle-v3/DESIGN.md)).
+1. **The walk is drawn.** One 2px green line is the route on the map, the connector between stops in Day, and the connector between consecutive classes in Week, with the minutes chip sitting on it. It turns red as "late" when the walk is longer than the break, and amber as "tight" within two minutes. Walking time is what no other UNT planner has, so it is the visual that repeats (Fable DESIGN: [WalkRibbon](untangle-v3/DESIGN.md#schedulegrid-scheduleevent-walkribbon-nosettimestrip) for Week, [LegRow](untangle-v3/DESIGN.md#daypanel-stopcard-legrow-mappin-upnext) for Day).
 2. **One app, branded by host.** `brand.ts` picks the name and defaults by hostname. On vsb.untgrades.app it is "UNT Schedule Builder" with no account, the Find column open, a term picker and the data-freshness line. On untangleapp.vercel.app it is UNTangle.
 3. **The best-so-far upgrade animates in place.** When the optimizer improves a figure, it crossfades through a 2px blur with no reflow. Opus's rule also holds: never swap the grid while the student is previewing an option. Offer "A better week is ready" with a Show button instead.
 
