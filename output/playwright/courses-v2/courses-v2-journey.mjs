@@ -178,7 +178,8 @@ async function journey(browser, viewport) {
       const style = getComputedStyle(el);
       return `${style.fontFamily.split(",")[0]} ${style.fontSize} ${style.fontWeight}`;
     });
-    check(`${tag}: row code set in Syne 13 bold`, /syne/i.test(codeFont) && codeFont.includes("13px") && codeFont.includes("700"), codeFont);
+    // Syne is for the wordmark only (Sam, Oct 14); codes are DM Sans 600.
+    check(`${tag}: row code set in DM Sans 13 semibold`, /dm[ _]?sans/i.test(codeFont) && !/syne/i.test(codeFont) && codeFont.includes("13px") && codeFont.includes("600"), codeFont);
     const available = await page.locator('[data-status=available][data-flip^="row:"]').first().getAttribute("data-flip");
     const id = available.slice(4);
     check(`${tag}: an available row has its + beside the button, not inside it`, (await rowOf(page, id).locator("[data-row-open] button").count()) === 0 && (await rowOf(page, id).getByRole("button", { name: `Add ${id} to Spring 2027` }).count()) === 1, id);
