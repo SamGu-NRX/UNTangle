@@ -21,7 +21,7 @@ import {
   type OptSection,
   type OptWeights,
 } from "./types";
-import { NEUTRAL_INSTRUCTOR_GPA, neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
+import { courseEvidenceEligible, neutralRatingTenths, sectionEvidence, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
 
 export type PreparedMeeting = {
@@ -41,6 +41,13 @@ export type Candidate = {
   /** Index into `Prepared.courses` (courses sorted by code). */
   course: number;
   self: number;
+  /**
+   * The section's contribution to a schedule's instructor evidence: its
+   * known gpa when the course is evidence-eligible, else 0. Precomputed so
+   * the search never re-derives eligibility, and so the leaf mean and the
+   * completion bound sum the exact same values in the exact same order.
+   */
+  evidence: number;
   /** Bit i set when the section meets on OPT_DAYS[i]. */
   dayMask: number;
   /** Interned meeting-time pattern (days, starts, ends), comparable within a course. */
@@ -51,6 +58,15 @@ export type Candidate = {
 export type PreparedCourse = {
   code: string;
   credits: number;
+  /**
+   * Whether every section of the request course has a known
+   * instructorGpa, by `courseEvidenceEligible` on the request course:
+   * only then does the course contribute evidence for any option (the
+   * omit-per-course rule). The reasons module recomputes the same flag
+   * from the same request with the same shared function, so the two
+   * sides cannot disagree.
+   */
+  evidenceEligible: boolean;
   /** Candidates ascending by (self cost, section id). */
   candidates: Candidate[];
   /** First word of this course's bits; each course's bits start on a word boundary. */
@@ -381,6 +397,9 @@ export function prepare(
 
   sortedCourses.forEach((course, courseIndex) => {
     const neutral = neutralRatingTenths(course.sections);
+    // Omit-per-course evidence: computed once per request course with the
+    // shared predicate, then baked into every candidate's contribution.
+    const evidenceEligible = courseEvidenceEligible(course);
     neutralRatingByCourse[course.code] = neutral;
     creditsByCourse[course.code] = course.credits;
     const allowed = allowedByCourse[courseIndex];
@@ -412,6 +431,7 @@ export function prepare(
         section,
         course: courseIndex,
         self: selfCost(section, weights, neutral),
+        evidence: sectionEvidence(section, evidenceEligible),
         dayMask: meetings.reduce((mask, m) => mask | (1 << m.day), 0),
         timeSignature: signatureId,
         meetings,
@@ -428,6 +448,7 @@ export function prepare(
     courses.push({
       code: course.code,
       credits: course.credits,
+      evidenceEligible,
       candidates: ordered,
       wordLo,
       wordHi: word,
@@ -593,7 +614,6 @@ function incompatible(a: Candidate, b: Candidate, tightPair: (prev: PreparedMeet
  */
 function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[] {
   const best = new Map<string, Candidate>();
-  const evidenceOf = (candidate: Candidate): number => candidate.section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
   for (const candidate of candidates) {
     const key = walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings);
     const current = best.get(key);
@@ -601,8 +621,8 @@ function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[
       !current ||
       candidate.self < current.self ||
       (candidate.self === current.self &&
-        (evidenceOf(candidate) > evidenceOf(current) ||
-          (evidenceOf(candidate) === evidenceOf(current) && compareIds(candidate.section.id, current.section.id) < 0)))
+        (candidate.evidence > current.evidence ||
+          (candidate.evidence === current.evidence && compareIds(candidate.section.id, current.section.id) < 0)))
     ) {
       best.set(key, candidate);
     }

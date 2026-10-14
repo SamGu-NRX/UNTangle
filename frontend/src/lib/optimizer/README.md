@@ -52,9 +52,12 @@ an `OptimizeRequest`. `worker/` runs it off the main thread for the Week view.
 - Ties break in three tiers. First the cost: a preference is never traded for
   instructor score. Within `INSTRUCTOR_TIE_BREAK_TOLERANCE` of an equal cost
   (with integer costs, exactly equal), the plan whose sections' instructors
-  have the stronger grade-history evidence wins: each section contributes its
-  known `instructorGpa`, and a section without one contributes the neutral
-  `NEUTRAL_INSTRUCTOR_GPA`, so missing data neither penalizes nor invents.
+  have the stronger grade-history evidence wins, over courses where every
+  option has evidence: when any option of a course lacks a known
+  `instructorGpa`, that course's grade term is left out for every option (the
+  omit-per-course rule, from `docs/architecture/README.md`), so missing data
+  never acts as evidence; a schedule with no eligible course scores 0 for
+  every plan and the ids decide.
   What remains breaks by section ids in course-code order. With `maxNodes` the
   answer is the same on every machine. With `timeBudgetMs` it can stop at
   different points on different machines.

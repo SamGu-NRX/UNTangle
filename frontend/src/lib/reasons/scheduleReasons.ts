@@ -31,7 +31,7 @@ import {
   COST_PER_WALK_SECOND,
   EVENING_ANCHOR,
   MORNING_ANCHOR,
-  NEUTRAL_INSTRUCTOR_GPA,
+  courseEvidenceEligible,
   neutralRatingTenths,
   ratingTenths,
   type CostTerms,
@@ -250,25 +250,29 @@ const hasKnownGpa = (section: OptSection): section is OptSection & { instructorG
 
 /**
  * An option's instructor evidence, the value the engine's tie-break ranks
- * by: the mean over its sections of each section's known instructorGpa,
- * with NEUTRAL_INSTRUCTOR_GPA standing in for the missing ones (imported
- * from the engine so the two modules cannot drift). `knownMean` is what a
- * sentence may quote, the mean over the sections with a known gpa only, or
- * null when there is none: the optimizer's stand-ins are never quoted.
+ * by: the mean of the option's picked sections' known gpa over courses
+ * that are evidence-eligible, with eligibility derived from the same
+ * request through the engine's exported `courseEvidenceEligible` (the two
+ * modules recomputing the rule independently could drift; one shared
+ * function cannot). A course where any option lacks evidence contributes
+ * nothing for any plan, so an option with no contributing section scores
+ * 0, exactly as the engine scores it, and the key decides instead.
+ * `contributing` lists the sections that entered the mean; only they may
+ * be quoted in a sentence.
  */
-function instructorEvidenceOf(sections: OptSection[]): { filled: number; knownMean: number | null; knownCount: number } {
-  if (sections.length === 0) return { filled: NEUTRAL_INSTRUCTOR_GPA, knownMean: null, knownCount: 0 };
+function instructorEvidenceOf(
+  sections: OptSection[],
+  eligible: readonly boolean[],
+): { evidence: number; contributing: Array<OptSection & { instructorGpa: number }> } {
   let sum = 0;
-  let knownSum = 0;
-  let knownCount = 0;
-  for (const section of sections) {
-    sum += section.instructorGpa ?? NEUTRAL_INSTRUCTOR_GPA;
-    if (hasKnownGpa(section)) {
-      knownSum += section.instructorGpa;
-      knownCount += 1;
-    }
+  const contributing: Array<OptSection & { instructorGpa: number }> = [];
+  for (let i = 0; i < sections.length; i += 1) {
+    const section = sections[i];
+    if (!eligible[i] || !hasKnownGpa(section)) continue;
+    sum += section.instructorGpa;
+    contributing.push(section);
   }
-  return { filled: sum / sections.length, knownMean: knownCount > 0 ? knownSum / knownCount : null, knownCount };
+  return { evidence: contributing.length > 0 ? sum / contributing.length : 0, contributing };
 }
 
 function gradeReason(section: OptSection, history: CourseHistory): Reason | null {
@@ -316,6 +320,11 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
 
   const neutralRatingByCourse = Object.fromEntries(request.courses.map((course) => [course.code, neutralRatingTenths(course.sections)]));
   const creditsByCourse = Object.fromEntries(request.courses.map((course) => [course.code, course.credits]));
+  // Per request course, the engine's evidence-eligibility flag, recomputed
+  // with the engine's own exported predicate so the sentence can only ever
+  // quote evidence the optimizer actually ranked by. Options' sections
+  // below are index-aligned with this array.
+  const eligibleByCourse = request.courses.map(courseEvidenceEligible);
   const options: Option[] = alternatives.map((schedule, rank) => {
     const sections = request.courses.map((course) => {
       const section = course.sections.find((candidate) => candidate.id === schedule.byCourse[course.code]);
@@ -368,16 +377,18 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
     facts.push({ ...fact, kind: best ? "preference-met" : "fact", preference: key });
   }
   // The engine's Auto tie-break: at equal cost, higher instructor evidence
-  // (the mean-with-neutral value the optimizer ranks by) wins. Worth 0, so
+  // (the omit-per-course mean the optimizer ranks by) wins. Worth 0, so
   // stated-preference comparisons come first, and the maxReasons slice
-  // below applies as usual. The sentence quotes only real evidence: the
-  // mean over the sections with a known gpa, never the neutral stand-ins.
+  // below applies as usual. The sentence fires only when the tie-break
+  // actually operated on eligible-course evidence, and quotes only real
+  // evidence: the mean over the contributing sections, never a stand-in
+  // for missing data.
   if (next && alternatives[input.index].cost === alternatives[input.index + 1].cost) {
-    const mineEvidence = instructorEvidenceOf(mine.sections);
-    const nextEvidence = instructorEvidenceOf(next.sections);
-    if (mineEvidence.filled > nextEvidence.filled && mineEvidence.knownMean !== null) {
-      const subject = mineEvidence.knownCount === 1 ? "this instructor's sections" : "these instructors' sections";
-      const quoted = (Math.round(mineEvidence.knownMean * 10) / 10).toFixed(1);
+    const mineEvidence = instructorEvidenceOf(mine.sections, eligibleByCourse);
+    const nextEvidence = instructorEvidenceOf(next.sections, eligibleByCourse);
+    if (mineEvidence.contributing.length > 0 && mineEvidence.evidence > nextEvidence.evidence) {
+      const subject = mineEvidence.contributing.length === 1 ? "this instructor's sections" : "these instructors' sections";
+      const quoted = (Math.round(mineEvidence.evidence * 10) / 10).toFixed(1);
       comparisons.push({
         worth: 0,
         reason: {
@@ -387,8 +398,8 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
           evidence: {
             numbers: [
               { label: "average grade points of sections with grade history", value: Number(quoted) },
-              { label: "sections with grade history", value: mineEvidence.knownCount },
-              ...mine.sections.filter(hasKnownGpa).map((section) => ({
+              { label: "sections with grade history", value: mineEvidence.contributing.length },
+              ...mineEvidence.contributing.map((section) => ({
                 label: `grade points of section ${section.label ?? section.id}`,
                 value: section.instructorGpa,
               })),

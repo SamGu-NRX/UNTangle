@@ -477,11 +477,14 @@ describe("instructor evidence tie-break", () => {
   // The engine's tie grid: both cheap plans cost 200 (10 lean minutes at
   // weight 1), and the winner's ECON instructor averaged 3.9 against 2.9
   // for the runner-up's. Sections at different times are never twins.
-  const tied = (mathGpa: number | null | undefined = null) =>
+  // mathGpa fills math-001; math-002 stays without evidence, so with the
+  // default null the MATH course is omitted from the evidence tier for
+  // every plan and ECON decides the tie alone.
+  const tied = (mathGpa: number | null | undefined = null, mathGpa2: number | null | undefined = null) =>
     request(
       [
         course("ECON 1110", [evidenceSection("econ-a", "ECON 1110", [at("Mon", 480, 530)], 3.9), evidenceSection("econ-b", "ECON 1110", [at("Mon", 610, 660)], 2.9)]),
-        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], mathGpa), evidenceSection("math-002", "MATH 1650", [at("Mon", 670, 720)], null)]),
+        course("MATH 1650", [evidenceSection("math-001", "MATH 1650", [at("Mon", 540, 590)], mathGpa), evidenceSection("math-002", "MATH 1650", [at("Mon", 670, 720)], mathGpa2)]),
       ],
       { compact: 1 },
     );
@@ -498,7 +501,9 @@ describe("instructor evidence tie-break", () => {
   });
 
   test("two sections with grade history say these instructors' sections", () => {
-    const req = tied(3.5);
+    // Both MATH options need a gpa for the course to be evidence-eligible;
+    // then the winner quotes the mean over both of its known sections.
+    const req = tied(3.5, 3.5);
     const alternatives = optimal(req);
     const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
     const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
