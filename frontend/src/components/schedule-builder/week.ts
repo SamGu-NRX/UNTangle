@@ -33,6 +33,12 @@ export function clockWithSuffix(minutes: number): string {
 
 export const timeRange = (start: number, end: number) => `${clock(start)}–${clock(end)}`;
 
+/** How Week names Auto's alternative at a rank, inside a sentence ("option 2"); the strip shows "2 of 3". */
+export const optionName = (index: number) => `option ${index + 1}`;
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+/** The same name starting a label ("Option 2"). */
+export const optionTitle = (index: number) => capitalized(optionName(index));
+
 /** "MWF", "TR": the registrar's day letters, as myUNT and vsb print them. */
 export function dayLetters(days: readonly Day[]): string {
   const letter: Record<Day, string> = { Mon: "M", Tue: "T", Wed: "W", Thu: "R", Fri: "F", Sat: "S", Sun: "U" };

@@ -1,12 +1,16 @@
 import type { TermDates } from "@/lib/export/term-dates";
 import type { Day, Section } from "@/lib/sections";
+import { classDayStatus } from "@/lib/terms/terms";
 
 /**
  * iCalendar (RFC 5545) file for a week of classes. Each timed meeting is one
  * weekly event in America/Chicago, from its first day in the term to the
  * term's last day of classes (an eight-week class keeps its own, narrower
- * dates), with the term's breaks removed as EXDATEs so an imported calendar
- * shows nothing over spring break. An online class that meets at a set time
+ * dates). Every weekly date the registrar's calendar marks as no class or
+ * finals (`classDayStatus`, for the meeting's own session) becomes an
+ * EXDATE, so an imported calendar shows nothing over spring break or a
+ * holiday. A date the calendar can't answer yet ("unknown") stays: the file
+ * never guesses. An online class that meets at a set time
  * is a real class time and stays; only meetings with no set time are left
  * out. Pure: the same input gives the same file.
  */
@@ -115,11 +119,9 @@ export function buildWeekIcs(sections: readonly Section[], term: TermDates, opti
   const stamp = utcStamp(options.now ?? new Date());
   const termFirst = toTime(term.first);
   const termLast = toTime(term.last);
-  const breakDays = term.breaks.flatMap(({ begin, end }) => {
-    const days: number[] = [];
-    for (let day = toTime(begin); day <= toTime(end); day += DAY_MS) days.push(day);
-    return days;
-  });
+  /** The session a meeting runs in: the one its own dates match (an eight-week half), else the full term's. */
+  const sessionOf = (dates: { start: string | null; end: string | null }) =>
+    term.sessions.find((session) => session.begin === dates.start && session.end === dates.end)?.id ?? term.sessionId;
 
   const lines = [
     "BEGIN:VCALENDAR",
@@ -148,7 +150,12 @@ export function buildWeekIcs(sections: readonly Section[], term: TermDates, opti
       const first = from + ((WEEKDAY[meeting.day] - new Date(from).getUTCDay() + 7) % 7) * DAY_MS;
       if (first > until) continue;
       const startClock = compactClock(meeting.startMinutes);
-      const skipped = breakDays.filter((day) => day >= first && day <= until && new Date(day).getUTCDay() === WEEKDAY[meeting.day]);
+      const session = sessionOf(meeting.dates);
+      const skipped: number[] = [];
+      for (let day = first; day <= until; day += 7 * DAY_MS) {
+        const status = classDayStatus(new Date(day).toISOString().slice(0, 10), session);
+        if (status === "no-class" || status === "finals") skipped.push(day);
+      }
       const instructor = meeting.instructor.display ?? section.instructor.display;
       eventCount += 1;
       lines.push(

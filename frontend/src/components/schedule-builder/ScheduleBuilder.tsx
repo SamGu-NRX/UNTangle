@@ -23,7 +23,7 @@ import { addBusy, preferenceSummary } from "./preferences";
 import { newBusyId, PreferencesPanel } from "./PreferencesPanel";
 import { SearchPanel } from "./SearchPanel";
 import type { SharedWeek } from "./share";
-import { andList, dayLetters, eventsOf, placeEvents, sectionLabel, walksOf } from "./week";
+import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
 import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
 
 export type SearchRequest = { nonce: number; query: string };
@@ -254,7 +254,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     if (!previewMap || Object.keys(previewMap).length === 0) return;
     // Rechecked here: the button may have drawn before a setting changed.
     if (strip?.kind === "options" && (feed.stale || feed.status === "running")) return;
-    const label = strip?.kind === "options" ? `option ${strip.index + 1}` : "the shared week";
+    const label = strip?.kind === "options" ? optionName(strip.index) : "the shared week";
     keyboard.current = false;
     host.edits.use(previewMap);
     closeStrip();
@@ -330,7 +330,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         : panel?.kind === "prefs"
           ? "Preferences"
           : strip?.kind === "options"
-            ? `Option ${strip.index + 1} next to your week`
+            ? `${optionTitle(strip.index)} next to your week`
             : "";
 
   const answerLine = (() => {
@@ -582,7 +582,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           <OptionDetails
             now={now}
             option={shown}
-            label={`Option ${strip.index + 1}`}
+            label={optionTitle(strip.index)}
             reasons={previewMap ? feed.explain(previewMap) : []}
             onUse={applyShown}
             canUse={!identical && !feed.stale && !running}

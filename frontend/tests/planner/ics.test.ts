@@ -95,11 +95,18 @@ const online = section({ courseCode: "TECM 2700", sectionCode: "900", online: tr
 const liveOnline = section({ courseCode: "CSCE 1030", online: true, meetings: [meeting({ day: "Tue", at: "18:00", until: "19:20", building: null, room: "Online" })] });
 
 describe("term dates", () => {
-  test("Spring 2027 runs from the first to the last day of regular classes, with its breaks", () => {
+  test("Spring 2027, from the registrar's calendar: first to last day of regular classes, its sessions and breaks", () => {
     expect(SPRING).toEqual({
       term: "Spring 2027",
+      sessionId: "2027-spring-full",
       first: "2027-01-11",
       last: "2027-04-29",
+      sessions: [
+        { id: "2026-winter-3w1", begin: "2026-12-14", end: "2027-01-08" },
+        { id: "2027-spring-full", begin: "2027-01-11", end: "2027-05-07" },
+        { id: "2027-spring-8w1", begin: "2027-01-11", end: "2027-03-05" },
+        { id: "2027-spring-8w2", begin: "2027-03-15", end: "2027-05-07" },
+      ],
       breaks: [
         { name: "Martin Luther King Jr. Holiday", begin: "2027-01-18", end: "2027-01-18" },
         { name: "Spring Break", begin: "2027-03-08", end: "2027-03-14" },
@@ -206,6 +213,14 @@ describe("dates per meeting", () => {
     });
     const uids = events(parseIcs(buildWeekIcs([split], SPRING, { now: NOW }).ics)).map((e) => one(e, "UID").value);
     expect(new Set(uids).size).toBe(2);
+  });
+
+  test("each date is asked of the calendar for the meeting's own session: a first-half Friday class skips its finals day", () => {
+    const firstHalf = section({ courseCode: "SPAN 2040", meetings: [meeting({ day: "Fri", at: "9:00", until: "9:50", dates: { start: "2027-01-11", end: "2027-03-05" } })] });
+    const event = events(parseIcs(buildWeekIcs([firstHalf], SPRING, { now: NOW }).ics))[0];
+    // Mar 5 is the 8-week session's final-exam day; nothing in it falls on spring break.
+    expect(one(event, "EXDATE").value).toBe("20270305T090000");
+    expect(occurrences(event).at(-1)).toBe("2027-02-26");
   });
 
   test("weekend meetings and a class ending at midnight", () => {
