@@ -107,7 +107,7 @@ The planner blob becomes separate documents. Each has its own revision:
 
 Roadmaps and calendar or notification subscriptions get documents when their features are built, not before.
 
-Each fact lives in exactly one document. Planned courses for a term belong to that term's schedule. The academic record holds only facts about the student's history: completed courses, courses in progress now, transfer and exam credit. Today `PlannerState` marks a planned course `inProgress`, and the migration moves those courses into the schedule. A write carries its document's `kind`, so the server can check the body of a document's first write; on later writes the kind must match the stored document.
+Each fact lives in exactly one document. Planned courses for a term belong to that term's schedule. The academic record holds only facts about the student's history: completed courses, courses in progress now, transfer and exam credit. Today `PlannerState` marks a planned course `inProgress`, and the migration moves those courses into the schedule. Auto plans and unplans courses for a term, so in this model it writes only that term's schedule, and its Undo record (`lastAuto`) commits in the same write as its effect. It never changes the academic record. A write carries its document's `kind`, so the server can check the body of a document's first write; on later writes the kind must match the stored document.
 
 Some state never syncs and stays on each device: the active tab, the selected day, scroll and sheet position, the schedule being viewed. Another device shouldn't move the screen you're reading.
 
@@ -158,14 +158,14 @@ Delete-versus-edit is a conflict. An offline device can't resurrect a deleted sc
 
 What remains: two students passing a browser back and forth within 30 minutes, without closing it, can't be told apart, and the import warning is the only guard there. The 30-minute and 14-day values are starting points with nothing measured behind them. Signing in follows `docs/architecture/guest-sync.md`, for each document kind: empty account means save automatically, with Undo; both sides have different work means one question; whatever isn't chosen is kept as a saved copy in the account. Nothing is merged silently.
 
-**Migration.**
-1. Deploy the document tables and readers first.
-2. Migrate each user's legacy row atomically into three documents: an academic record, a schedule named "Main", and preferences holding the row's optimization goal. Constraints and weights live only in each browser's localStorage today, so the server starts preferences with the defaults, and the first signed-in web client offers its local values as an ordinary preferences write.
+**Migration.** The order matters: a legacy write that lands after a row is migrated would be acknowledged and then lost, so a user's legacy writes stop in the same transaction that migrates their row.
+1. **Old clients first.** Ship a web release whose old-API client treats an "upgrade required" response as final: it shows "UNTangle was updated. Reload to keep editing." and does no retry.
+2. Deploy the document tables and readers.
+3. Migrate each user's legacy row in one transaction that locks the row, writes the documents and records a migration marker. The legacy `/api/planner` write path takes the same row lock and answers "upgrade required" once the marker exists, so no legacy write can succeed after its row is migrated. Old writes never overwrite documents. The row becomes three documents: an academic record, a schedule named "Main", and preferences holding the row's optimization goal.
    - **Term:** `PlannerState` has no term field, so stamp the term the plan was made for, taken from its sections' term. Fall back to the current term only when a plan has no sections.
-   - **Fields:** keep every field that has a home, including the optimization goal.
-   - **Marker:** record a migration marker.
-3. **Old local keys carry no owner,** and that is the leak the identity work closes, so they are never moved into an account just because someone signed in. On first run, the new client moves an old key into the signed-in account only when its contents canonically equal that account's own server copy, which is what `untangle/local-identity` does. Every other old key stays quarantined, is never offered to an account, and is deleted after 30 days.
-4. **Old clients first.** Before the server rejects old `/api/planner` writes, ship a web release whose old-API client treats an "upgrade required" response as final: it shows "UNTangle was updated. Reload to keep editing." and does no retry. Only after that release is live does the server start answering old writes with that response. Old writes must never overwrite documents with a full state that lacks the new fields.
+   - **Fields:** keep every field that has a home. `catalogId` starts null; the student or a transcript import sets it.
+   - **Planned courses:** courses the legacy row marks `inProgress` without an in-progress transcript row move into Main's `courses`.
+4. **Local data.** Constraints and weights live only in localStorage today, so the server starts preferences with the defaults. A local key counts as the student's only if it's stored under their own identity, which `untangle/local-identity` (#77) does for everything written since it shipped. The first signed-in web client offers those values as an ordinary preferences write. Older keys carry no owner, and that is the leak the identity work closes, so they are never offered to any account, even when they differ from the defaults: an ownerless key is moved into an account only when its contents canonically equal that account's own server copy, as #77 does, and every other one stays quarantined and is deleted after 30 days. A student whose settings predate #77 sets them again; that loss is the price of never handing one student's settings to another.
 
 Polling on focus, on app foreground, and once a minute while visible keeps devices current. Add server-sent events only if students report stale phones.
 

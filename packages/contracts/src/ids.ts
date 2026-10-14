@@ -41,6 +41,12 @@ export const TermIdSchema = z
   .max(64)
   .refine(isTermId, 'A term id is lowercase words joined by hyphens, like "spring-2027".');
 
+/** A catalog year, such as "unt-2026-27". Degree requirements depend on it. */
+export const CatalogIdSchema = z
+  .string()
+  .max(64)
+  .regex(slug, 'A catalog id is lowercase words joined by hyphens, like "unt-2026-27".');
+
 export const CourseIdSchema = z
   .string()
   .max(32)

@@ -120,6 +120,7 @@ export const academicRecord = {
   transcriptRecords: savedPlan.transcriptRecords,
   manualCredit: coursePlan.manualCredit,
   major: savedPlan.selectedMajor,
+  catalogId: "unt-2026-27",
 };
 
 // The planned courses are the ones marked inProgress without an in-progress

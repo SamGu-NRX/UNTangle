@@ -6,9 +6,14 @@ Readers: the implementer of the follow-up to #62 and the lead. This note answers
 
 A guest's work is kept in this browser under a guest identity: planner state, preferences and library entries, each in its own store. The guest id lives in a session cookie, so it ends when the browser closes; the architecture README ("Guests") covers the shared-computer guards. Every tab in the browser session shares the stores, including the tab the emailed sign-in link opens, so a new tab sees the same work. A signed-in student's local copies are kept under their own user id, never under the guest identity, and signing out deletes them from the browser (see the architecture README, "Local data belongs to one identity").
 
-Signing in compares each guest store with the matching account document: the plan with the schedule "Main", preferences with preferences, and library entries with versions.
-
-Each guest store gets its own outcome before its guest key is cleared: the plan against Main, preferences against preferences, and each library entry against the account's versions. The table below is for the plan. Preferences follow the same rows, comparing field groups. Library entries are never discarded: each one is added to the account's library unless an identical entry is already there.
+Signing in compares each part of the guest's work with the matching account data, and each part gets its own outcome before its guest key is cleared:
+- **The plan** (planned courses, picks, locks, Auto's last run) against the schedule "Main", by the table below.
+- **The academic record** (course statuses for completed and in-progress work, transcript rows, manual credit, major) against the account's record. The guest's planner state holds both, so it is split first, the same way the migration splits a legacy row:
+  - If the account has no record, save the guest's, with Undo, like the second table row.
+  - If the guest's matches or is empty, load the account's.
+  - Otherwise settle it per course. A course only one side has takes that side's value. Transcript rows join by id. Manual credit is the union. A course both sides have with different values, or a different major, goes to the student in the same sheet, one line each, defaulting to the account's value. Nothing is discarded without that choice.
+- **Preferences** follow the table's rows, comparing field groups.
+- **Library entries** are moved whole. Each `SavedPlanSnapshot` keeps its planner state, name, archive state, source, catalog fingerprint and restore assumptions, and is added to the account's library unless an identical entry is already there. Today the library holds that same type, so the move is lossless. When the library becomes synced documents (step 3a), that step defines a document shape that holds every one of these fields before any guest library is converted. Until it exists, guest library entries are moved, never converted to a narrower shape.
 
 | Guest plan | Account plan | What happens |
 |---|---|---|
@@ -42,6 +47,8 @@ This removes the import-only code path: the import page, Week and the library al
 
 ### Tests
 - one strict test for each row of the sign-in table, with Undo on the auto-save;
+- a guest who only imported a transcript, with Main untouched, keeps that record: it is saved, merged or asked about, never cleared unseen;
+- a guest library entry arrives in the account with every `SavedPlanSnapshot` field intact;
 - Escape on the sheet keeps the account and saves the guest copy;
 - the guest key is shared across two tabs and cleared after sign-in;
 - the apply function gives the same result when run twice;
