@@ -47,6 +47,9 @@ jobs:
       - name: Typecheck
         run: bun --no-env-file x tsc --noEmit
         working-directory: frontend
+      - name: Typecheck (mobile)
+        run: bun --no-env-file x tsc --noEmit
+        working-directory: mobile
 
   lint:
     name: Lint
@@ -90,6 +93,9 @@ jobs:
       - name: Unit tests
         run: bun --no-env-file test --isolate --timeout=20000
         working-directory: frontend
+      - name: Unit tests (mobile)
+        run: bun --no-env-file run test
+        working-directory: mobile
 
   build:
     name: Build
@@ -120,6 +126,10 @@ jobs:
           RESEND_FROM_EMAIL: ci@example.invalid
           ORS_API_KEY: dummy-ors-key-not-real
           RATE_LIMIT_TRUSTED_PROXY: reverse-proxy
+      # The mobile build bundles the Expo app for web; it needs no secrets.
+      - name: Build (mobile)
+        run: bun --no-env-file x expo export --platform web
+        working-directory: mobile
 
   # Opt-in only: dispatched or called with run_live_postgres=true. Never runs
   # on pull_request or push (inputs is empty there).
