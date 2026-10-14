@@ -18,6 +18,10 @@ on:
         type: boolean
         default: false
 
+# The workflow only reads the repository; nothing it runs should be able to write to it.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
