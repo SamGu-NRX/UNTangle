@@ -167,6 +167,10 @@ svg.i.sm { width: 16px; height: 16px; } svg.i.lg { width: 24px; height: 24px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); z-index: 80; display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 0 8px 0 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 14px; box-shadow: var(--shadow-3); opacity: 0; transform: translate(-50%, 8px); transition: opacity var(--t-exit) var(--ease-out), transform var(--t-exit) var(--ease-out); pointer-events: none; white-space: nowrap; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); transition-duration: var(--t-enter); pointer-events: auto; }
 .toast button { height: 32px; padding: 0 10px; border-radius: 8px; color: #a8e8c4; font-weight: 650; }
+.toast .toast-x { display: grid; place-items: center; width: 32px; padding: 0; margin-left: -10px; color: #ffffffb8; }
+.toast .toast-x .i { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) { .toast .toast-x:hover { color: #fff; } }
+@media (pointer: coarse) { .toast button { position: relative; } .toast button::after { content: ""; position: absolute; inset: -6px 0; } }
 @media (max-width: 759px) { .toast { bottom: calc(var(--tabbar-h) + 12px + var(--safe-b)); } }
 
 /* fields */

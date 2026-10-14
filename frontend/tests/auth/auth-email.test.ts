@@ -183,7 +183,7 @@ describe("the per-inbox send budget (lib/rate-limit's store, class authEmail: 3 
   test("the store only ever sees an HMAC of the address", async () => {
     const seen: string[] = [];
     const budget = recipientBudget({
-      store: { hit: async (_route, caller) => (seen.push(caller), 1) },
+      store: { ...memoryStore(), hit: async (_route, caller) => (seen.push(caller), 1) },
       secret: "test-secret",
     });
     await budget.take("eagle@my.unt.edu", "magic-link");

@@ -2,8 +2,8 @@
   "corpusSha256": "7b1f6cfd71b19c44e5fab4b12dc1d7457a329933c9c76a9645ae0dde7bd20af7",
   "total": 656,
   "counts": {
-    "full": 430,
-    "partial": 168,
+    "full": 434,
+    "partial": 164,
     "unknown": 58
   },
   "empty": 202,
@@ -826,12 +826,12 @@
     },
     {
       "courseId": "CSCE 2100",
-      "coverage": "partial",
+      "coverage": "full",
       "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): MATH 1710 . Can be taken concurrently with CSCE 2110 ."
     },
     {
       "courseId": "CSCE 2110",
-      "coverage": "partial",
+      "coverage": "full",
       "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): This course can be taken concurrently with CSCE 2100 ."
     },
     {
@@ -2211,7 +2211,7 @@
     },
     {
       "courseId": "MATH 3410",
-      "coverage": "partial",
+      "coverage": "full",
       "source": "Grade of A, B, or C in either MATH 1720 or MATH 1830 . MATH 2700 recommended (may be taken concurrently)."
     },
     {
@@ -2241,7 +2241,7 @@
     },
     {
       "courseId": "MATH 4060",
-      "coverage": "partial",
+      "coverage": "full",
       "source": "MATH 3000 . Prior or concurrent enrollment in MATH 3510 or MATH 3610 is strongly recommended."
     },
     {

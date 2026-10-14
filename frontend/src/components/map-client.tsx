@@ -14,7 +14,7 @@ import {
 } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import { provenanceSource, provenanceText, summarizeProvenance } from "@/components/sections-provenance";
-import { DaySummary, DaySwitcher, EmptyDay, Timeline } from "@/components/map/map-itinerary";
+import { DaySummary, DaySwitcher, EmptyDay, OtherCampusEmpty, Timeline } from "@/components/map/map-itinerary";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { CameraInsets } from "@/components/map/map-canvas";
 import type { MapSelection } from "@/components/map/selection";
@@ -172,6 +172,8 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
     <div className="mv-empty" aria-busy="true">
       <p>Loading your plan…</p>
     </div>
+  ) : campus.id !== activeCampus.id ? (
+    <OtherCampusEmpty campusName={campus.shortName} homeName={activeCampus.shortName} />
   ) : itinerary.stops.length === 0 ? (
     <EmptyDay day={activeDay} firstDayWithClasses={firstDayWithClasses} onPickDay={changeDay} />
   ) : (

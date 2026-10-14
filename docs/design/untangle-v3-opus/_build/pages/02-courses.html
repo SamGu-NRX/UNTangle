@@ -298,16 +298,23 @@ async function runAuto() {
   btn.style.width = w + "px"; btn.innerHTML = '<span class="spin"></span><span class="sr">Planning</span>'; btn.disabled = true;
   await new Promise((r) => setTimeout(r, 450));
   const picks = PICKS.filter(([c]) => !planned.has(c));
+  if (!picks.length) {
+    // Everything Auto would pick is already in the term: say so, and offer no Undo that would do nothing.
+    btn.disabled = false; btn.style.width = ""; btn.innerHTML = "Auto"; hydrateIcons($("#tray")); btn.focus({ preventScroll: true });
+    toast("Spring 2027 already has everything Auto would pick");
+    return;
+  }
+  const before = plannedCredits();
   picks.forEach(([c]) => { const r = $(`.row[data-key="${c}"]`); r && r.classList.add("chosen"); });
   await new Promise((r) => setTimeout(r, 160));
   const from = new Map(picks.map(([c]) => { const r = $(`.row[data-key="${c}"]`); return [c, r ? r.getBoundingClientRect() : null]; }));
   const snaps = new Map(picks.map(([c]) => [c, $(`.row[data-key="${c}"]`)?.cloneNode(true)]));
   lastAuto = picks.map(([c]) => c);
   flip(allNodes, () => { picks.forEach(([c, col, sec]) => planned.set(c, { c: col, sec })); renderAll(); }, { duration: 320, easing: EASE.inOut });
-  $("#trayCred").textContent = "0";
+  $("#trayCred").textContent = before;
   $(".tray-head").insertAdjacentHTML("afterend", `<p class="result" id="result" style="opacity:0">Planned ${picks.length} courses<button class="btn btn-quiet" id="undo" data-i="undo" data-is="sm">Undo</button></p>`);
   hydrateIcons($("#result")); $("#undo").onclick = undoAuto;
-  let cred = 0;
+  let cred = before;
   picks.forEach(([c], i) => {
     const target = $(`.row[data-key="t-${c}"]`); if (!target) return;
     const land = () => { target.style.visibility = ""; cred += COURSES[c][1]; $("#trayCred").textContent = cred; };
@@ -392,7 +399,9 @@ function detailHTML(code) {
     <div class="miniweek" id="mw" aria-hidden="true">${[0, 1, 2, 3, 4].map((d) => `<div>${SCHED.filter((x) => x[2].includes(d)).map((x) => `<i class="blk" data-c="${x[1]}" style="top:${((x[3] - 8) / 9) * 100}%;height:${((x[4] - x[3]) / 9) * 100}%"></i>`).join("")}</div>`).join("")}</div>
     <p class="meta" style="margin-bottom:8px">Your Spring 2027 week. Point at a section to see where it lands.</p>
     ${secs.map((x) => `<div class="sect" data-sec='${JSON.stringify({ days: x.days, s: x.s, e: x.e, bad: !!x.conflict })}'>
-      <button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}${x.conflict ? ", it overlaps MATH 2700" : ""}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>
+      ${planned.get(code)?.sec === `§${x.n}`
+        ? `<button class="add on" aria-disabled="true" aria-label="Section ${x.n} is in Spring 2027" data-addsec="${code}|${x.n}">${icon("check")}</button>`
+        : `<button class="add ${x.conflict ? "warn" : ""}" ${x.full ? "disabled" : ""} aria-label="${x.full ? "Section full" : `Add section ${x.n}${x.conflict ? ", it overlaps MATH 2700" : ""}`}" data-addsec="${code}|${x.n}">${icon(x.full ? "lock" : "plus")}</button>`}
       <div><div class="l1"><span class="code">§${x.n}</span>${x.d}</div><div class="l2"><span>${x.who}</span><span class="star">${icon("star")}${x.r}</span>${x.b ? `<span class="plate"><b>${x.b[0]}</b>${x.b[1]}</span>` : ""}</div>${x.conflict ? `<div class="conflict">${x.conflict}</div>` : ""}</div>
       <span class="seats ${x.full ? "full" : ""}">${x.seats}</span></div>`).join("")}
     <div class="src"><span class="tag">Sample sections</span>Times and seats are illustrative.</div>
@@ -410,6 +419,11 @@ const panel = new Panel($("#panel"));
 const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.56, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true, onDetent: (i) => { if (i < 0) { selected = null; markSelected(); } } });
 $("#scrim").onclick = () => closeDetail();
 function markSelected() { $$(".row").forEach((r) => { const on = r.dataset.code === selected && !r.dataset.key.startsWith("t-"); r.dataset.selected = on; r.querySelector(".row-hit")?.setAttribute("aria-current", on); }); }
+/* Rebuild the open detail in place (its status line and action follow the plan), keeping scroll and focus. */
+function refreshDetail(root, focusSelector) {
+  const y = root.scrollTop; root.innerHTML = detailHTML(selected); wireDetail(root); root.scrollTop = y;
+  if (focusSelector) $(focusSelector, root)?.focus({ preventScroll: true });
+}
 function wireDetail(root) {
   hydrateIcons(root);
   $$("[data-close]", root).forEach((b) => (b.onclick = (e) => closeDetail(e.detail === 0)));
@@ -421,12 +435,13 @@ function wireDetail(root) {
   });
   $$("[data-addsec]", root).forEach((b) => b.addEventListener("click", (e) => {
     e.stopPropagation(); const [code, n] = b.dataset.addsec.split("|");
+    if (planned.get(code)?.sec === `§${n}`) return;
     const clash = b.classList.contains("warn");
-    b.classList.add("on"); b.classList.remove("warn"); b.innerHTML = icon("check");
     planned.set(code, { c: 2, sec: `§${n}` }); renderAll(); markSelected();
+    refreshDetail(root, `[data-addsec="${code}|${n}"]`);
     toast(clash ? `Added ${code} §${n}. It overlaps MATH 2700.` : `Added ${code} §${n}`, "Undo", () => { planned.delete(code); renderAll(); openDetail(code, true); });
   }));
-  $$("[data-instr]", root).forEach((c) => c.addEventListener("click", () => { instr = c.dataset.instr; const y = root.scrollTop; root.innerHTML = detailHTML(selected); wireDetail(root); root.scrollTop = y; }));
+  $$("[data-instr]", root).forEach((c) => c.addEventListener("click", () => { instr = c.dataset.instr; refreshDetail(root, `[data-instr="${instr}"]`); }));
 }
 function openDetail(code, instant) {
   selected = code; markSelected();

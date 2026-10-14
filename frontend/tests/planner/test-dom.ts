@@ -24,7 +24,7 @@ type TestUser = { id: string; email: string; name: string };
 type SessionValue = {
   data: { user: TestUser; session: { id: string } } | null;
   isPending: boolean;
-  error: null;
+  error: { message: string; status: number; statusText: string } | null;
 };
 
 let session: SessionValue = { data: null, isPending: false, error: null };
@@ -36,6 +36,15 @@ export function setSession(user: TestUser | null, sessionId?: string) {
   session = user
     ? { data: { user, session: { id: sessionId ?? `session-${sessionCounter}` } }, isPending: false, error: null }
     : { data: null, isPending: false, error: null };
+  sessionListeners.forEach((listener) => listener());
+}
+
+export function failSessionLookup(status: number): void {
+  session = {
+    data: null,
+    isPending: false,
+    error: { message: "Session lookup failed", status, statusText: status === 0 ? "Network error" : "Server error" },
+  };
   sessionListeners.forEach((listener) => listener());
 }
 
@@ -286,7 +295,7 @@ export type PlannerValue = ReturnType<PlannerModule["usePlanner"]>;
  * `waitFor` advances test time only when React and fetch promises have settled.
  * `extra` renders additional UI (e.g. the persistence panel) inside the provider.
  */
-export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore) {
+export async function mountPlanner(extra?: () => React.ReactNode, store?: SectionStore, strict = false) {
   if (!clockInstalled) {
     clock.install();
     clockInstalled = true;
@@ -305,14 +314,13 @@ export async function mountPlanner(extra?: () => React.ReactNode, store?: Sectio
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await settle(() => root.render(
-    React.createElement(
-      mod.PlannerProvider,
-      // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
-      { sectionStore },
-      React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
-    ),
-  ));
+  const content = React.createElement(
+    mod.PlannerProvider,
+    // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
+    { sectionStore },
+    React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
+  );
+  await settle(() => root.render(strict ? React.createElement(React.StrictMode, null, content) : content));
   await waitFor(() => latest !== null, "first render");
 
   const get = (): PlannerValue => {

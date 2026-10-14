@@ -10,7 +10,7 @@ import {
   waitFor,
 } from "./test-dom";
 import { getInitialPlannerState } from "@/lib/planner";
-import { createPlannerStateStore, PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
+import { createPlannerStateStore, plannerStateKey, PLANNER_STATE_STORE_KEY } from "@/lib/planner-store";
 
 // The planner's five durability rules, each asserted against the real
 // provider. Registered-user rules run against a fake /api/planner with the
@@ -269,7 +269,7 @@ describe("rule 5: another tab saves newer data", () => {
     // Another tab saves: the server moves on and that tab's mirror write
     // fires a storage event here.
     server.writeElsewhere({ ...getInitialPlannerState(), optimization: "clusterNight" });
-    window.dispatchEvent(new window.StorageEvent("storage", { key: PLANNER_STATE_STORE_KEY }));
+    window.dispatchEvent(new window.StorageEvent("storage", { key: plannerStateKey(user.id) }));
     await waitFor(() => planner.get().tookNewerVersion, "adopted");
     expect(planner.get().plannerState.optimization).toBe("clusterNight");
     expect(planner.get().saveState.label).toBe("Saved");

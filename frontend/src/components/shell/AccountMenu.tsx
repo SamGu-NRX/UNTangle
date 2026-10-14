@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { clearPlannerIdentity } from "@/lib/planner-store";
+import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { UserGlyph } from "@/components/ui/icons";
@@ -54,7 +56,12 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
             id: "sign-out",
             label: "Sign out",
             onSelect: async () => {
-              await authClient.signOut();
+              const result = await authClient.signOut();
+              if (result.error) return;
+              clearPlannerIdentity(user.id);
+              clearSavedPlansIdentity(user.id);
+              clearPlannerIdentity(null);
+              clearSavedPlansIdentity(null);
               router.push("/");
             },
           },

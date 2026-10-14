@@ -754,6 +754,19 @@
   margin: 0;
 }
 
+/* The empty state's one action keeps its drawn 18px line but takes a 44px touch target. */
+@media (pointer: coarse) {
+  .mv-empty .mv-link {
+    position: relative;
+  }
+
+  .mv-empty .mv-link::after {
+    content: "";
+    position: absolute;
+    inset: -13px -8px;
+  }
+}
+
 .mv-link {
   padding: 0;
   border: 0;

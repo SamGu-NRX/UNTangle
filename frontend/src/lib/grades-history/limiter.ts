@@ -3,7 +3,12 @@ import { GradesError } from "./errors";
 export type Clock = { now: () => number; sleep: (ms: number) => Promise<void> };
 export const systemClock: Clock = { now: Date.now, sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)) };
 
-export class GradesLimiter {
+export interface GradesRequestLimiter {
+  acquire(): Promise<void>;
+  cooldown(ms: number): void | Promise<void>;
+}
+
+export class GradesLimiter implements GradesRequestLimiter {
   private minuteTokens = 1;
   private hourTokens = 300;
   private refilledAt: number;

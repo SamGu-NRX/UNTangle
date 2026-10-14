@@ -562,10 +562,10 @@ export type CampusResolver = {
 };
 
 export function createCampusResolver(buildings: readonly CampusBuilding[], bounds: Bounds, cleanupWords: readonly string[] = []): CampusResolver {
+  const byId = new Map(buildings.map(building => [building.id, building]));
   const aliasMap = new Map(
     buildings.flatMap((building) =>
       unique([
-        building.id,
         building.shortName,
         building.mnemonic ?? "",
         building.name,
@@ -576,16 +576,16 @@ export function createCampusResolver(buildings: readonly CampusBuilding[], bound
   );
 
   const resolveBuilding = (location: string, buildingId?: string | null) => {
-    const idMatch = buildingId
-      ? baseLocationKeys(buildingId, cleanupWords)
-          .map((key) => aliasMap.get(key))
-          .find(Boolean)
-      : undefined;
+    // Canonical IDs such as osm-123 must never lose their numeric token as a room suffix.
+    const idMatch = byId.get(buildingId ?? "") ?? byId.get(location);
     if (idMatch) {
       return idMatch;
     }
     return (
-      baseLocationKeys(location, cleanupWords)
+      [
+        ...(buildingId && !/^osm-\d+$/i.test(buildingId) ? baseLocationKeys(buildingId, cleanupWords) : []),
+        ...baseLocationKeys(location, cleanupWords),
+      ]
         .map((key) => aliasMap.get(key))
         .find(Boolean) ?? null
     );

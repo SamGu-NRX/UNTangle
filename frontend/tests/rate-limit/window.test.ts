@@ -54,3 +54,27 @@ test("windows of different lengths in one memory store don't reset each other", 
   expect(await store.hit("grades", "a", 22, 60_000)).toBe(1);
   expect(await store.hit("authEmail", "a", 2, 600_000)).toBe(2);
 });
+
+
+test("cleanup retains the preceding exhausted window for hits already in flight", async () => {
+  const store = memoryStore();
+  expect(await store.hit("grades", "caller", 1, 60_000)).toBe(1);
+  expect(await store.hit("grades", "caller", 1, 60_000)).toBe(2);
+  expect(await store.hit("grades", "other", 2, 60_000)).toBe(1);
+  expect(await store.hit("grades", "caller", 1, 60_000)).toBe(3);
+});
+
+test("a delayed session lookup counts against the window that is current at the hit", async () => {
+  let time = 59_999;
+  const session = Promise.withResolvers<{ user: { id: string } } | null>();
+  let slow = true;
+  const route = createRateLimitWrapper({ store: memoryStore(), secret: "test", now: () => time,
+    session: () => slow ? session.promise : Promise.resolve({ user: { id: "alice" } }) })("mapRoute", () => new Response("ok"));
+  const request = new Request("http://localhost/", { headers: { "x-real-ip": "203.0.113.1" } });
+  const delayed = route(request);
+  time = 60_001;
+  slow = false;
+  for (let i = 0; i < 60; i++) expect((await route(request)).status).toBe(200);
+  session.resolve({ user: { id: "alice" } });
+  expect((await delayed).status).toBe(429);
+});
