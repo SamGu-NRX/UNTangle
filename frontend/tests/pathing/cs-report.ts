@@ -79,7 +79,8 @@ function render(scenario: Omit<CsPathingScenario, "report">, rowCount: number): 
     "One term away, but status unknown until an advisor clears the engine's check:",
     ...analysis.advisorChecks.flatMap((id) => [
       `  ${id}: ${analysis.courses.get(id)!.reason}`,
-      ...advisorNotes(result.statuses.get(id)!.reason).map((note) => `    engine: ${note}`),
+      // Catalog text can end in a space; trim it so the fixture has no trailing whitespace.
+      ...advisorNotes(result.statuses.get(id)!.reason).map((note) => `    engine: ${note.trimEnd()}`),
     ]),
     "",
     "Remaining-path courses (id | status | chain | critical | unlocks direct/transitive):",

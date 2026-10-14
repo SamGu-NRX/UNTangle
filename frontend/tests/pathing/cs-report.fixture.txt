@@ -32,7 +32,7 @@ One term away, but status unknown until an advisor clears the engine's check:
     engine: Check with advisor: This course can be taken concurrently with CSCE 2100
   CSCE 2610: Required (Major requirements)
     engine: Check with advisor: CSCI majors: EENG 2710
-    engine: Check with advisor: CMPE majors: EENG 2710 taken concurrently with EENG 2711 
+    engine: Check with advisor: CMPE majors: EENG 2710 taken concurrently with EENG 2711
   EENG 2710: Required (Other required courses)
     engine: Check with advisor: Engineering
     engine: Check with advisor: engineering technology majors
