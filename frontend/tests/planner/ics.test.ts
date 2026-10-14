@@ -91,7 +91,7 @@ const math = section({
   meetings: (["Tue", "Thu"] as const).map((day) => meeting({ day, at: "14:00", until: "15:20", room: "CURY 202" })),
 });
 const online = section({ courseCode: "TECM 2700", sectionCode: "900", online: true, meetings: [asyncMeeting] });
-/** Online, but with a set weekly time: still left out, as the export says. */
+/** Online, but at a set weekly time: a real class time, so it goes in the file. */
 const liveOnline = section({ courseCode: "CSCE 1030", online: true, meetings: [meeting({ day: "Tue", at: "18:00", until: "19:20", building: null, room: "Online" })] });
 
 describe("term dates", () => {
@@ -128,7 +128,7 @@ describe("calendar file", () => {
   });
 
   test("one weekly event per timed meeting, in Chicago time, starting the first week of the term", () => {
-    expect(result.eventCount).toBe(5);
+    expect(result.eventCount).toBe(6);
     const starts = events(calendar).map((e) => [one(e, "DTSTART").params, one(e, "DTSTART").value, one(e, "DTEND").value]);
     expect(starts).toEqual([
       ["TZID=America/Chicago", "20270111T090000", "20270111T095000"],
@@ -136,6 +136,7 @@ describe("calendar file", () => {
       ["TZID=America/Chicago", "20270115T090000", "20270115T095000"],
       ["TZID=America/Chicago", "20270112T140000", "20270112T152000"],
       ["TZID=America/Chicago", "20270114T140000", "20270114T152000"],
+      ["TZID=America/Chicago", "20270112T180000", "20270112T192000"],
     ]);
   });
 
@@ -152,6 +153,7 @@ describe("calendar file", () => {
       ["TZID=America/Chicago:20270312T090000"],
       ["TZID=America/Chicago:20270309T140000"],
       ["TZID=America/Chicago:20270311T140000"],
+      ["TZID=America/Chicago:20270309T180000"],
     ]);
   });
 
@@ -164,10 +166,11 @@ describe("calendar file", () => {
     expect(occurrences(events(calendar)[0])).toHaveLength(14);
   });
 
-  test("online sections are left out, with or without a set time, and named", () => {
-    const summaries = events(calendar).map((e) => one(e, "SUMMARY").value);
-    expect(summaries.some((s) => s.includes("TECM 2700") || s.includes("CSCE 1030"))).toBe(false);
-    expect(result.leftOut).toEqual(["TECM 2700", "CSCE 1030"]);
+  test("an online class with a set time is in the file; one with no set time is left out and named", () => {
+    const live = events(calendar).find((e) => one(e, "SUMMARY").value === "CSCE 1030")!;
+    expect([one(live, "DTSTART").value, one(live, "LOCATION").value]).toEqual(["20270112T180000", "Online"]);
+    expect(events(calendar).some((e) => one(e, "SUMMARY").value.includes("TECM 2700"))).toBe(false);
+    expect(result.leftOut).toEqual(["TECM 2700"]);
   });
 
   test("summary, location and description", () => {

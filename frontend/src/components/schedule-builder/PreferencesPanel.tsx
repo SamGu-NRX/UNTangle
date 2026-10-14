@@ -5,6 +5,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Close } from "@/components/ui/icons";
 import { Segmented } from "@/components/ui/Segmented";
+import { Switch } from "@/components/ui/Switch";
 import { TextField } from "@/components/ui/TextField";
 import type { SchedulePreferences, WeekDay } from "@/lib/types";
 import styles from "./builder.module.css";
@@ -134,6 +135,24 @@ export function PreferencesPanel({ preferences: p, defaults, onChange, canDraw }
           options={MOST_CREDITS.map((value) => ({ value: String(value), label: value === null ? "No limit" : String(value) }))}
           value={String(c.maxCredits)}
           onValueChange={(value) => onChange((q) => ({ ...q, constraints: { ...q.constraints, maxCredits: value === "null" ? null : Number(value) } }))}
+        />
+      </section>
+
+      <section className={styles.prefSection} aria-labelledby="pref-suggest">
+        <h3 id="pref-suggest" className={styles.label}>
+          Sections Auto suggests
+        </h3>
+        <Switch
+          checked={c.openSeatsOnly}
+          onChange={(on) => onChange((q) => ({ ...q, constraints: { ...q.constraints, openSeatsOnly: on } }))}
+          label="Open seats only"
+          description="Full and wait-listed sections stay pickable by hand."
+        />
+        <Switch
+          checked={c.otherSites}
+          onChange={(on) => onChange((q) => ({ ...q, constraints: { ...q.constraints, otherSites: on } }))}
+          label="Include other UNT sites"
+          description="Frisco and other campuses outside Denton. Discovery Park counts as Denton."
         />
       </section>
 

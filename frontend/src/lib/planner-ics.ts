@@ -6,8 +6,9 @@ import type { Day, Section } from "@/lib/sections";
  * weekly event in America/Chicago, from its first day in the term to the
  * term's last day of classes (an eight-week class keeps its own, narrower
  * dates), with the term's breaks removed as EXDATEs so an imported calendar
- * shows nothing over spring break. Online sections are left out, and so are
- * meetings with no set time. Pure: the same input gives the same file.
+ * shows nothing over spring break. An online class that meets at a set time
+ * is a real class time and stays; only meetings with no set time are left
+ * out. Pure: the same input gives the same file.
  */
 
 export const ICS_TIMEZONE = "America/Chicago";
@@ -99,7 +100,7 @@ export type IcsResult = {
   ics: string;
   /** Weekly events written, one per timed meeting. */
   eventCount: number;
-  /** Courses with nothing in the file: online, no meeting with a set time, or none inside the term. */
+  /** Courses with nothing in the file: no meeting with a set time, or none inside the term. */
   leftOut: string[];
 };
 
@@ -134,12 +135,10 @@ export function buildWeekIcs(sections: readonly Section[], term: TermDates, opti
   let eventCount = 0;
 
   for (const section of sections) {
-    const timed = section.online
-      ? []
-      : section.meetings.filter(
-          (meeting): meeting is typeof meeting & { day: Day; startMinutes: number; endMinutes: number } =>
-            !meeting.tba && !meeting.async && meeting.day !== null && meeting.startMinutes !== null && meeting.endMinutes !== null,
-        );
+    const timed = section.meetings.filter(
+      (meeting): meeting is typeof meeting & { day: Day; startMinutes: number; endMinutes: number } =>
+        !meeting.tba && !meeting.async && meeting.day !== null && meeting.startMinutes !== null && meeting.endMinutes !== null,
+    );
     const title = options.titleOf?.(section.courseCode);
     const written = eventCount;
     for (const [index, meeting] of timed.entries()) {

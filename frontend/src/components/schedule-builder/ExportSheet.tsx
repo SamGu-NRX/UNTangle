@@ -116,7 +116,7 @@ export function ExportSheet({ open, onOpenChange, phone, host, sections, events,
         </h3>
         <p className={styles.meta}>
           {term
-            ? `${term.term}, ${day(term.first)} to ${day(term.last)}. Weekly repeats skip${spring ? ` spring break (${dayRange(spring.begin, spring.end)}) and other days off` : " days off"}. Online classes are left out.`
+            ? `${term.term}, ${day(term.first)} to ${day(term.last)}. Weekly repeats skip${spring ? ` spring break (${dayRange(spring.begin, spring.end)}) and other days off` : " days off"}. Classes with no set time are left out.`
             : `There's no calendar for ${host.term.label} yet, so no file can be made.`}
         </p>
         <Button

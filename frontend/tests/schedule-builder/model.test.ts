@@ -257,6 +257,12 @@ describe("preferences", () => {
     expect(busyGroups(p)).toEqual([]);
     expect(preferenceSummary(withShortWalks(p, true, defaults), defaults)).not.toContain("walks");
   });
+
+  test("the two suggestion filters are named only when they differ from the defaults", () => {
+    const filtered = { ...defaults, constraints: { ...defaults.constraints, openSeatsOnly: true, otherSites: true } };
+    expect(preferenceSummary(filtered, defaults)).toBe("Open seats only, other UNT sites too");
+    expect(preferenceSummary(filtered, filtered)).toBe("");
+  });
 });
 
 describe("share links and files", () => {

@@ -98,6 +98,8 @@ export function preferenceSummary(p: SchedulePreferences, defaults: SchedulePref
   if (shortWalks(p) !== shortWalks(defaults)) parts.push(shortWalks(p) ? "short walks" : "long walks are fine");
   if (fewerDays(p) && !fewerDays(defaults)) parts.push("fewer days on campus");
   if (topRated(p) && !topRated(defaults)) parts.push("top-rated professors");
+  if (c.openSeatsOnly !== defaults.constraints.openSeatsOnly) parts.push(c.openSeatsOnly ? "open seats only" : "full sections allowed");
+  if (c.otherSites !== defaults.constraints.otherSites) parts.push(c.otherSites ? "other UNT sites too" : "Denton only");
   for (const group of busyGroups(p)) parts.push(`${group.label.toLowerCase()} ${andList(group.days)} ${clock(group.start)}–${clock(group.end)}`);
   const line = parts.join(", ");
   return line ? line[0].toUpperCase() + line.slice(1) : "";
