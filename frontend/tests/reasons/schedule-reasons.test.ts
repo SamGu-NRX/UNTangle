@@ -1,20 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
-import {
-  costTerms,
-  COST_PER_DAY,
-  COST_PER_GAP_MINUTE,
-  COST_PER_LEAN_MINUTE,
-  COST_PER_RATING_TENTH,
-  COST_PER_WALK_SECOND,
-  neutralRatingTenths,
-} from "@/lib/optimizer/score";
-import type { OptimizeRequest, OptWeights, RankedSchedule } from "@/lib/optimizer/types";
+import { costTerms, neutralRatingTenths, UNKNOWN_WALK_SECONDS, type CostTerms } from "@/lib/optimizer/score";
+import type { OptimizeRequest, OptWalkingTime, OptWeights, RankedSchedule } from "@/lib/optimizer/types";
+import { normalizeCourse } from "@/lib/grades-history/normalize";
+import type { CourseHistory, GradeCounts } from "@/lib/grades-history/types";
+import type { Section } from "@/lib/sections/model";
+import { scheduleReasons } from "@/lib/reasons";
+import type { Reason, ScheduleReasonsInput, StatedPreference } from "@/lib/reasons/types";
 import { FIRST_HALF, SECOND_HALF } from "../optimizer/generator";
-import { DEFAULT_MAX_REASONS, MIN_GRADE_SAMPLE, scheduleReasons } from "@/lib/reasons";
-import type { GradeCounts, GradeTotals } from "@/lib/grades-history/types";
-import type { Reason, ReasonEvidence, ReasonKind, ScheduleReasonsInput } from "@/lib/reasons/types";
-import type { Seats } from "@/lib/sections/model";
 
 type Course = OptimizeRequest["courses"][number];
 type Meeting = Course["sections"][number]["meetings"][number];
@@ -27,489 +20,375 @@ function section(id: string, courseCode: string, meetings: Meeting[], rating: nu
   return { id, courseCode, rating, meetings, ...(label ? { label } : {}) };
 }
 
-function request(courses: Course[], weights: OptWeights, overrides: Partial<OptimizeRequest> = {}): OptimizeRequest {
+function course(code: string, sections: Course["sections"]): Course {
+  return { code, credits: 3, sections };
+}
+
+function request(courses: Course[], weights: Partial<OptWeights>, overrides: Partial<OptimizeRequest> = {}): OptimizeRequest {
   return {
     courses,
     locks: {},
     excluded: [],
     constraints: noConstraints,
-    weights,
+    weights: { ...zeroWeights, ...weights },
     walkingTime: () => ({ seconds: 960, source: "campus-network" }),
     ...overrides,
   };
 }
 
-function at(day: Day, start: number, end: number, buildingId: string | null): Meeting {
+function at(day: Day, start: number, end: number, buildingId: string | null = "LANG"): Meeting {
   return { day, start, end, buildingId };
 }
 
-function dated(day: Day, start: number, end: number, buildingId: string | null, dates: { start: string; end: string }): Meeting {
-  return { ...at(day, start, end, buildingId), dates };
+function dated(day: Day, start: number, end: number, dates: { start: string; end: string }): Meeting {
+  return { ...at(day, start, end), dates };
 }
 
-function instructorTotals(parts: { a: number; b: number; c: number; d: number; f: number; w?: number; i?: number }): GradeTotals {
-  const counts: GradeCounts = {
-    A: parts.a,
-    B: parts.b,
-    C: parts.c,
-    D: parts.d,
-    F: parts.f,
-    ...(parts.w ? { W: parts.w } : {}),
-    ...(parts.i ? { I: parts.i } : {}),
+/** Known legs by "FROM>TO"; every other pair is unknown. */
+function legs(known: Record<string, number>): (from: string, to: string) => OptWalkingTime {
+  return (from, to) => {
+    const seconds = known[`${from}>${to}`];
+    return seconds === undefined ? { seconds: null, source: "unknown" } : { seconds, source: "campus-network" };
   };
-  const totalEnroll = parts.a + parts.b + parts.c + parts.d + parts.f + (parts.w ?? 0) + (parts.i ?? 0);
-  return {
-    counts,
-    total: totalEnroll,
-    grades: {
-      gradeA: parts.a,
-      gradeB: parts.b,
-      gradeC: parts.c,
-      gradeD: parts.d,
-      gradeF: parts.f,
-      gradeP: 0,
-      gradeNP: 0,
-      gradeW: parts.w ?? 0,
-      gradeWF: 0,
-      gradeI: parts.i ?? 0,
-      gradePR: 0,
-      gradeNPR: 0,
-      gradeZ: 0,
-      gradeSuppressed: 0,
-      totalEnroll,
-    },
-  };
-}
-
-const KINDS: ReasonKind[] = ["preference-met", "trade-off", "comparison", "fact", "grade-history", "travel-unknown", "seats"];
-
-/** Numbers appearing in a sentence, ignoring course codes like "MATH 1650" (identifiers, not quantities). */
-function numericTokens(text: string): number[] {
-  return [...text.replace(/[A-Z]{2,4}\s\d+[A-Z]?/g, " ").matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
-}
-
-function assertEvidence(reason: Reason): void {
-  // One plain sentence, one fact: a reason that joins two with a semicolon is two reasons.
-  expect(reason.sentence.length).toBeGreaterThan(0);
-  expect(reason.sentence.endsWith(".")).toBe(true);
-  expect(reason.sentence).not.toContain(";");
-  expect(/^[A-Z]/.test(reason.sentence)).toBe(true);
-  expect(KINDS).toContain(reason.kind);
-  // Strict: no reason without evidence.
-  expect(reason.evidence.numbers.length).toBeGreaterThan(0);
-  const allowed = new Set<number>();
-  for (const entry of reason.evidence.numbers as ReasonEvidence["numbers"]) {
-    expect(entry.label.length).toBeGreaterThan(0);
-    if (typeof entry.value === "number") allowed.add(entry.value);
-    else for (const token of numericTokens(entry.value)) allowed.add(token);
-  }
-  // Every number the sentence quotes must be in its evidence.
-  for (const token of numericTokens(reason.sentence)) {
-    expect(allowed.has(token), `sentence number ${token} missing from evidence of: ${reason.sentence}`).toBe(true);
-  }
-}
-
-function allReasons(input: Omit<ScheduleReasonsInput, "index">): { index: number; reasons: Reason[] }[] {
-  return input.alternatives.map((_, index) => {
-    const reasons = scheduleReasons({ ...input, index });
-    for (const reason of reasons) assertEvidence(reason);
-    return { index, reasons };
-  });
-}
-
-/** The optimizer's cost, rebuilt as the weighted sum of the exported cost terms. */
-function costFromTerms(requested: OptimizeRequest, schedule: RankedSchedule): number {
-  const neutralRatingByCourse: Record<string, number> = {};
-  const creditsByCourse: Record<string, number> = {};
-  for (const course of requested.courses) {
-    neutralRatingByCourse[course.code] = neutralRatingTenths(course.sections);
-    creditsByCourse[course.code] = course.credits;
-  }
-  const sections = requested.courses.map((course) => {
-    const found = course.sections.find((candidate) => candidate.id === schedule.byCourse[course.code]);
-    if (!found) throw new Error(`missing section for ${course.code}`);
-    return found;
-  });
-  const terms = costTerms({
-    sections,
-    term: requested.term,
-    creditsByCourse,
-    neutralRatingByCourse,
-    weights: requested.weights,
-    walkingTime: requested.walkingTime,
-  });
-  return (
-    requested.weights.fewerDays * COST_PER_DAY * terms.daysOnCampus +
-    requested.weights.compact * COST_PER_GAP_MINUTE * terms.gapMinutes +
-    requested.weights.walking * COST_PER_WALK_SECOND * terms.travelSeconds +
-    COST_PER_LEAN_MINUTE * (requested.weights.mornings * terms.morningLeanMinutes + requested.weights.evenings * terms.eveningLeanMinutes) +
-    requested.weights.rating * COST_PER_RATING_TENTH * terms.ratingShortfallTenths
-  );
 }
 
 function optimal(req: OptimizeRequest): RankedSchedule[] {
   const result = optimize(req);
-  expect(result.status).toBe("optimal");
-  if (result.status !== "optimal") throw new Error("expected optimal");
+  if (result.status !== "optimal") throw new Error(`expected optimal, got ${result.status}`);
   return result.schedules;
 }
 
+function termsOf(req: OptimizeRequest, schedule: RankedSchedule): CostTerms {
+  const sections = req.courses.map((c) => c.sections.find((s) => s.id === schedule.byCourse[c.code])!);
+  return costTerms({
+    sections,
+    term: req.term,
+    creditsByCourse: Object.fromEntries(req.courses.map((c) => [c.code, c.credits])),
+    neutralRatingByCourse: Object.fromEntries(req.courses.map((c) => [c.code, neutralRatingTenths(c.sections)])),
+    weights: req.weights,
+    walkingTime: req.walkingTime,
+  });
+}
+
+/** The optimizer's cost term per preference: lower is better for all of them. */
+const COST_TERM: Record<StatedPreference, (t: CostTerms) => number> = {
+  fewerDays: (t) => t.daysOnCampus,
+  compact: (t) => t.gapMinutes,
+  mornings: (t) => t.morningLeanMinutes,
+  evenings: (t) => t.eveningLeanMinutes,
+  walking: (t) => t.knownTravelSeconds + UNKNOWN_WALK_SECONDS * t.unknownWalks,
+  rating: (t) => t.ratingShortfallTenths,
+};
+
+/** The word a sentence must use when this option's term is lower (better), then higher (worse). */
+const DIRECTION: Record<StatedPreference, [string, string]> = {
+  fewerDays: ["less", "more"],
+  compact: ["shorter", "longer"],
+  mornings: ["earlier", "later"],
+  evenings: ["later", "earlier"],
+  walking: ["less", "more"],
+  rating: ["higher", "lower"],
+};
+
+/** Numbers in a sentence, ignoring course codes like "MATH 1650" (identifiers, not quantities). */
+function numericTokens(text: string): number[] {
+  return [...text.replace(/[A-Z]{2,4}\s\d+[A-Z]?/g, " ").matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+}
+
+function check(req: OptimizeRequest, alternatives: RankedSchedule[], index: number, reason: Reason): void {
+  const { sentence } = reason;
+  expect(sentence).toMatch(/^[A-Z0-9].*\.$/);
+  expect(sentence).not.toMatch(/[;·•|()]/);
+  expect(reason.evidence.numbers.length).toBeGreaterThan(0);
+  const allowed = new Set(reason.evidence.numbers.flatMap((entry) => (typeof entry.value === "number" ? [entry.value] : numericTokens(entry.value))));
+  for (const token of numericTokens(sentence)) {
+    expect(allowed.has(token), `${token} is not in the evidence of: ${sentence}`).toBe(true);
+  }
+  if (reason.kind !== "comparison" && reason.kind !== "trade-off") return;
+  // Direction: the sentence must point the way the optimizer's own term does.
+  const letter = /Option ([A-Z])/.exec(sentence)![1];
+  const other = letter.charCodeAt(0) - 65;
+  const preference = reason.preference!;
+  const mine = COST_TERM[preference](termsOf(req, alternatives[index]));
+  const theirs = COST_TERM[preference](termsOf(req, alternatives[other]));
+  expect(mine, `no difference behind: ${sentence}`).not.toBe(theirs);
+  const [right, wrong] = mine < theirs ? DIRECTION[preference] : [...DIRECTION[preference]].reverse();
+  expect(reason.kind).toBe(mine < theirs ? "comparison" : "trade-off");
+  expect(sentence, `wrong direction in: ${sentence}`).toContain(` ${right} `);
+  expect(sentence).not.toContain(` ${wrong} `);
+}
+
+/** Reasons for every option, each checked. */
+function reasonsFor(req: OptimizeRequest, extra: Omit<ScheduleReasonsInput, "alternatives" | "request" | "index"> = {}): Reason[][] {
+  const alternatives = optimal(req);
+  return alternatives.map((_, index) => {
+    const reasons = scheduleReasons({ alternatives, request: req, index, ...extra });
+    for (const reason of reasons) check(req, alternatives, index, reason);
+    return reasons;
+  });
+}
+
+const sentences = (reasons: Reason[]) => reasons.map((reason) => reason.sentence);
+const about = (reasons: Reason[], preference: StatedPreference) => reasons.filter((reason) => reason.preference === preference);
+
+// {s1, c1} has no gap and no travel (both LANG); {s0, c0} is back to back
+// across buildings (LANG to LAB, 960 s); the other pairs leave gaps.
+const walkingRequest = () =>
+  request(
+    [
+      course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600)]), section("s1", "MATH 1650", [at("Mon", 780, 840)])]),
+      course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "LAB")]), section("c1", "CHEM 2370", [at("Mon", 840, 900)])]),
+    ],
+    { compact: 1, walking: 2 },
+  );
+
+// The winner is one day on campus with a 2-hour gap; the runner-up is two
+// days with no gap.
+const rankedFirstRequest = (weights: Partial<OptWeights>) =>
+  request(
+    [
+      course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600)])]),
+      course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 720, 780)]), section("c1", "CHEM 2370", [at("Tue", 540, 600)])]),
+    ],
+    weights,
+  );
+
+// One section, four stated preferences: four facts.
+const fourFactsRequest = () =>
+  request([course("MATH 1650", [section("s0", "MATH 1650", [at("Tue", 480, 540), at("Thu", 480, 540)], 4, "002")])], {
+    fewerDays: 1,
+    compact: 1,
+    mornings: 1,
+    rating: 1,
+  });
+
 describe("scheduleReasons", () => {
-  // Two courses, two options each. Same-day back-to-back pairs are cheapest:
-  // {s1, c1} has no gap and no travel (both LANG), {s0, c0} is back-to-back
-  // across buildings (LANG to LAB, 960 s), {s1, c0} leaves a 2-hour gap, and
-  // {s0, c1} both a 3-hour gap and no travel. The optimizer ranks them, so
-  // every comparison is relative to its actual alternatives.
-  const walkingRequest = () =>
-    request(
-      [
-        {
-          code: "MATH 1650",
-          credits: 3,
-          sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")]), section("s1", "MATH 1650", [at("Mon", 780, 840, "LANG")])],
-        },
-        {
-          code: "CHEM 2370",
-          credits: 3,
-          sections: [section("c0", "CHEM 2370", [at("Mon", 600, 660, "LAB")]), section("c1", "CHEM 2370", [at("Mon", 840, 900, "LANG")])],
-        },
-      ],
-      { ...zeroWeights, compact: 1, walking: 2 },
-    );
-
-  // The winner pairs MATH with the back-to-back Tuesday CHEM section: one day
-  // on campus but a 2-hour gap. The runner-up spreads over two days with no
-  // gap. With fewerDays at 3 the winner ranks first and still says what it
-  // gives up.
-  const rankedFirstRequest = (weights: Partial<OptWeights>) =>
-    request(
-      [
-        { code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")])] },
-        {
-          code: "CHEM 2370",
-          credits: 3,
-          sections: [section("c0", "CHEM 2370", [at("Mon", 720, 780, "LANG")]), section("c1", "CHEM 2370", [at("Tue", 540, 600, "LANG")])],
-        },
-      ],
-      { ...zeroWeights, ...weights },
-    );
-
-  test("the optimizer's cost is the weighted sum of the exported cost terms", () => {
-    const cases = [
-      rankedFirstRequest({ fewerDays: 3, compact: 1 }),
-      rankedFirstRequest({ fewerDays: 1, compact: 4 }),
-      request(
-        [
-          { code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")])] },
-          { code: "CHEM 2370", credits: 3, sections: [section("c0", "CHEM 2370", [at("Mon", 600, 660, "SCI")]), section("c1", "CHEM 2370", [at("Mon", 600, 660, "GHOST")])] },
-        ],
-        { ...zeroWeights, walking: 2 },
-        { walkingTime: (from: string, to: string) => (from === "LANG" && to === "SCI" ? { seconds: 300, source: "campus-network" as const } : { seconds: null, source: "unknown" as const }) },
-      ),
-      request(
-        [
-          {
-            code: "MATH 1650",
-            credits: 3,
-            sections: [
-              section("s0", "MATH 1650", [dated("Mon", 480, 540, "LANG", FIRST_HALF), dated("Wed", 720, 780, "LANG", SECOND_HALF)]),
-              section("s1", "MATH 1650", [dated("Mon", 540, 600, "LANG", FIRST_HALF), dated("Wed", 750, 810, "LANG", SECOND_HALF)]),
-            ],
-          },
-        ],
-        { ...zeroWeights, mornings: 4 },
-        { term: { start: "2027-01-11", end: "2027-05-07" } },
-      ),
-      request(
-        [
-          {
-            code: "MATH 1650",
-            credits: 3,
-            sections: [
-              section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")], null),
-              section("s1", "MATH 1650", [at("Mon", 540, 600, "LANG")], 5),
-              section("s2", "MATH 1650", [at("Tue", 540, 600, "LANG")], 3),
-            ],
-          },
-        ],
-        { ...zeroWeights, rating: 4 },
-      ),
-    ];
-    for (const req of cases) {
-      for (const schedule of optimal(req)) {
-        expect(schedule.cost).toBe(costFromTerms(req, schedule));
-      }
-    }
-  });
-
-  test("every reason carries evidence, and every number in the sentence is in it", () => {
-    const requests = [
-      walkingRequest(),
-      rankedFirstRequest({ fewerDays: 3, compact: 1 }),
-      request(
-        [{ code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 480, 540, "LANG")])], }],
-        { ...zeroWeights, fewerDays: 1, compact: 1, mornings: 1, rating: 1 },
-      ),
-      request(
-        [
-          { code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")])] },
-          { code: "CHEM 2370", credits: 3, sections: [section("c0", "CHEM 2370", [at("Mon", 600, 660, "LAB")])] },
-        ],
-        { ...zeroWeights, walking: 2 },
-        { walkingTime: () => ({ seconds: null, source: "unknown" as const }) },
-      ),
-    ];
-    for (const req of requests) {
-      const schedules = optimal(req);
-      for (const { reasons } of allReasons({ alternatives: schedules, request: req })) {
-        expect(reasons.length).toBeGreaterThan(0);
-      }
-    }
-  });
-
   test("a comparison is relative to the next actual option, named as the UI names it", () => {
-    const req = walkingRequest();
-    const schedules = optimal(req);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    // 960 seconds between LANG and LAB: exactly 16 minutes, against Option B.
-    // The winner itself is walk-free (LANG next to LANG), so the comparison
-    // is favorable, not a trade-off.
-    expect(reasons.some((reason) => reason.kind === "comparison" && reason.sentence === "It means 16 minutes less travel time between classes than Option B.")).toBe(true);
-    const comparison = reasons.find((reason) => reason.kind === "comparison" && reason.preference === "walking");
-    expect(comparison).toBeDefined();
-    expect(comparison!.evidence.numbers.some((entry) => entry.label.startsWith("Option A:"))).toBe(true);
-    expect(comparison!.evidence.numbers.some((entry) => entry.label.startsWith("Option B:"))).toBe(true);
+    const [first] = reasonsFor(walkingRequest());
+    const walking = about(first, "walking");
+    expect(walking.length).toBe(1);
+    expect(walking[0].sentence).toBe("Travel between back-to-back classes takes 16 minutes less than in Option B.");
+    expect(walking[0].kind).toBe("comparison");
+    expect(about(first, "compact").map((reason) => reason.kind)).toEqual(["preference-met"]);
   });
 
   test("a ranked-first schedule still names what it gives up", () => {
-    const req = rankedFirstRequest({ fewerDays: 3, compact: 1 });
-    const schedules = optimal(req);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    expect(reasons.some((reason) => reason.kind === "comparison" && reason.sentence === "It means 1 day fewer on campus than Option B.")).toBe(true);
-    expect(reasons.some((reason) => reason.kind === "trade-off" && reason.sentence === "Time between classes runs 120 minutes longer than Option B's.")).toBe(true);
+    const [first] = reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }));
+    expect(sentences(first)).toEqual(["You are on campus 1 day less than with Option B.", "Time between classes is 120 minutes longer than in Option B."]);
+    expect(first.map((reason) => reason.kind)).toEqual(["comparison", "trade-off"]);
   });
 
-  test("reasons rank by how much the difference is worth: weight times the optimizer's per-unit cost", () => {
-    const rankedFirst = rankedFirstRequest({ fewerDays: 3, compact: 1 });
-    const first = allReasons({ alternatives: optimal(rankedFirst), request: rankedFirst })[0].reasons;
-    expect(first[0].preference).toBe("fewerDays");
-    expect(first[1].preference).toBe("compact");
-
-    // Same two schedules with the weights flipped: the gap difference now
-    // outweighs the day difference, and the order follows.
-    const flipped = rankedFirstRequest({ fewerDays: 1, compact: 4 });
-    const flippedReasons = allReasons({ alternatives: optimal(flipped), request: flipped })[0].reasons;
-    expect(flippedReasons[0].preference).toBe("compact");
-    expect(flippedReasons[1].preference).toBe("fewerDays");
+  test("reasons rank by weight times the optimizer's cost per unit times the difference", () => {
+    // 3 x 3600 for a day beats 1 x 60 x 120 for the gap; flipped weights flip the order.
+    expect(reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }))[0].map((reason) => reason.preference)).toEqual(["fewerDays", "compact"]);
+    expect(reasonsFor(rankedFirstRequest({ fewerDays: 1, compact: 4 }))[0].map((reason) => reason.preference)).toEqual(["compact", "fewerDays"]);
   });
 
-  test("one reason per preference: a comparison replaces the fact", () => {
-    const req = walkingRequest();
-    const schedules = optimal(req);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    const walking = reasons.filter((reason) => reason.preference === "walking");
-    expect(walking.length).toBe(1);
-    expect(walking[0].kind).toBe("comparison");
-    const compact = reasons.filter((reason) => reason.preference === "compact");
-    expect(compact.length).toBe(1);
-    expect(compact[0].kind).toBe("preference-met");
+  test("days on campus are named", () => {
+    const [only] = reasonsFor(fourFactsRequest());
+    expect(sentences(only)).toContain("Your classes fall on Tuesday and Thursday.");
+  });
+
+  test("dated sessions: days are named, and no reason claims a week", () => {
+    const req = request(
+      [
+        course("MATH 1650", [section("s0", "MATH 1650", [dated("Mon", 540, 600, FIRST_HALF)])]),
+        course("CHEM 2370", [section("c0", "CHEM 2370", [dated("Wed", 540, 600, SECOND_HALF)])]),
+      ],
+      { fewerDays: 1 },
+      { term: { start: "2027-01-11", end: "2027-05-07" } },
+    );
+    const [only] = reasonsFor(req);
+    expect(sentences(only)).toEqual(["Your classes fall on Monday and Wednesday."]);
   });
 
   test("at most three reasons by default, and maxReasons is honored or rejected", () => {
-    // One section, four weighted preferences: four facts, capped at three.
-    const req = request(
-      [{ code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 480, 540, "LANG")])] }],
-      { ...zeroWeights, fewerDays: 1, compact: 1, mornings: 1, rating: 1 },
-    );
-    const schedules = optimal(req);
-    expect(schedules.length).toBe(1);
-    const base = { alternatives: schedules, request: req };
-    expect(scheduleReasons({ ...base, index: 0 }).length).toBe(3);
-    expect(scheduleReasons({ ...base, index: 0 }).length).toBe(DEFAULT_MAX_REASONS);
-    expect(scheduleReasons({ ...base, index: 0, maxReasons: 4 }).length).toBe(4);
-    expect(scheduleReasons({ ...base, index: 0, maxReasons: 1 }).length).toBe(1);
-    expect(scheduleReasons({ ...base, index: 0, maxReasons: 0 })).toEqual([]);
-    expect(() => scheduleReasons({ ...base, index: 0, maxReasons: -1 })).toThrow("reasons: maxReasons must be a non-negative number");
-    expect(() => scheduleReasons({ ...base, index: 0, maxReasons: Number.NaN })).toThrow("reasons: maxReasons must be a non-negative number");
+    const req = fourFactsRequest();
+    const base = { alternatives: optimal(req), request: req, index: 0 };
+    expect(scheduleReasons(base).length).toBe(3);
+    expect(scheduleReasons({ ...base, maxReasons: 4 }).length).toBe(4);
+    expect(scheduleReasons({ ...base, maxReasons: 0 })).toEqual([]);
+    expect(() => scheduleReasons({ ...base, maxReasons: -1 })).toThrow("reasons: maxReasons must be a non-negative integer");
+    expect(() => scheduleReasons({ ...base, maxReasons: Number.NaN })).toThrow("reasons: maxReasons must be a non-negative integer");
   });
 
   test("with no stated preferences and nothing supplied, there is nothing to say", () => {
-    const req = request(
-      [{ code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 480, 540, "LANG")])] }],
-      zeroWeights,
-    );
-    const schedules = optimal(req);
-    expect(scheduleReasons({ alternatives: schedules, index: 0, request: req })).toEqual([]);
+    const req = request([course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 480, 540)])])], {});
+    expect(reasonsFor(req)).toEqual([[]]);
   });
 
-  test("this schedule's own unknown travel is never compared, only caveated", () => {
-    const req = request(
-      [
-        {
-          code: "MATH 1650",
-          credits: 3,
-          sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG"), at("Tue", 540, 600, "LANG")])],
-        },
-        {
-          code: "CHEM 2370",
-          credits: 3,
-          sections: [section("c0", "CHEM 2370", [at("Mon", 600, 660, "LAB")]), section("c1", "CHEM 2370", [at("Tue", 600, 660, "LAB")])],
-        },
-      ],
-      { ...zeroWeights, walking: 2 },
-      { walkingTime: () => ({ seconds: null, source: "unknown" as const }) },
-    );
-    const schedules = optimal(req);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    expect(reasons.some((reason) => reason.kind === "comparison" || reason.kind === "trade-off")).toBe(false);
-    expect(reasons.some((reason) => reason.kind === "travel-unknown" && reason.sentence === "Travel time is unknown for 1 back-to-back pair across buildings, and the estimate counts 10 minutes for it.")).toBe(true);
-    expect(reasons.some((reason) => reason.sentence === "Travel time between back-to-back classes adds up to 10 minutes.")).toBe(true);
+  test("an index outside the alternatives is a programming error", () => {
+    const req = walkingRequest();
+    const base = { alternatives: optimal(req), request: req };
+    expect(() => scheduleReasons({ ...base, index: -1 })).toThrow("reasons: index must point at one of the alternatives");
+    expect(() => scheduleReasons({ ...base, index: base.alternatives.length })).toThrow("reasons: index must point at one of the alternatives");
   });
 
-  test("when only the other option has unknown travel, a lower estimate is stated as at least", () => {
-    const req = request(
-      [
-        { code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG"), at("Tue", 540, 600, "LANG")])] },
-        {
-          code: "CHEM 2370",
-          credits: 3,
-          sections: [section("c0", "CHEM 2370", [at("Mon", 600, 660, "SCI")]), section("c1", "CHEM 2370", [at("Tue", 600, 660, "GHOST")])],
-        },
-      ],
-      { ...zeroWeights, walking: 2 },
-      { walkingTime: (from: string, to: string) => (from === "LANG" && to === "SCI" ? { seconds: 300, source: "campus-network" as const } : { seconds: null, source: "unknown" as const }) },
-    );
-    const schedules = optimal(req);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    // 300 known seconds here; the other option's leg is only assumed 600.
-    expect(reasons.some((reason) => reason.kind === "comparison" && reason.sentence === "It means at least 5 minutes less travel time between classes than Option B.")).toBe(true);
+  describe("unknown travel", () => {
+    // MATH meets Mon to Wed in LANG; CHEM's c0 follows it in SCI (300 s),
+    // c1 follows it in LAB (960 s) and in a building with no route.
+    const atLeastRequest = (c1: Meeting[]) =>
+      request(
+        [
+          course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600), at("Tue", 540, 600), at("Wed", 540, 600)])]),
+          course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "SCI")]), section("c1", "CHEM 2370", c1)]),
+        ],
+        { walking: 2 },
+        { walkingTime: legs({ "LANG>SCI": 300, "LANG>LAB": 960 }) },
+      );
+
+    test("at least is bounded by the other option's known travel", () => {
+      const [first, second] = reasonsFor(atLeastRequest([at("Tue", 600, 660, "LAB"), at("Wed", 600, 660, "GHOST")]));
+      // 960 known seconds against 300: at least 11 minutes, whatever the unknown walk takes.
+      expect(sentences(about(first, "walking"))).toEqual(["Travel between back-to-back classes takes at least 11 minutes less than in Option B."]);
+      // Option B quotes only what is known, and says what is not.
+      expect(about(second, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([
+        ["Travel between back-to-back classes adds up to 16 minutes, not counting 1 walk with no known time.", "fact"],
+      ]);
+    });
+
+    test("no comparison when the other option's unknown walk could be shorter", () => {
+      const [first, second] = reasonsFor(atLeastRequest([at("Tue", 600, 660, "GHOST")]));
+      expect(about(first, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([["Travel between back-to-back classes adds up to 5 minutes.", "fact"]]);
+      expect(sentences(about(second, "walking"))).toEqual(["1 walk between back-to-back classes has no known time."]);
+    });
+
+    test("an option with only unknown walks is never the best for walking", () => {
+      const req = request(
+        [course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600)])]), course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 600, 660, "LAB")])])],
+        { walking: 2 },
+        { walkingTime: legs({}) },
+      );
+      const [only] = reasonsFor(req);
+      expect(only.map((reason) => [reason.sentence, reason.kind])).toEqual([["1 walk between back-to-back classes has no known time.", "fact"]]);
+    });
   });
 
-  test("dated sessions: no reason claims a week", () => {
-    const req = request(
-      [
-        { code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [dated("Mon", 540, 600, "LANG", FIRST_HALF)])] },
-        { code: "CHEM 2370", credits: 3, sections: [section("c0", "CHEM 2370", [dated("Wed", 540, 600, "LANG", SECOND_HALF)])] },
-      ],
-      { ...zeroWeights, fewerDays: 1 },
-      { term: { start: "2027-01-11", end: "2027-05-07" } },
-    );
-    const schedules = optimal(req);
-    expect(schedules.length).toBe(1);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    expect(reasons.some((reason) => reason.sentence === "It keeps you on campus 2 days.")).toBe(true);
-    for (const reason of reasons) {
-      expect(reason.sentence.match(/week/i)).toBeNull();
-    }
+  describe("evenings", () => {
+    test("a later-ending option is described as ending later", () => {
+      // Lean before 10 PM: s0 ends 7 PM (180 minutes), s1 ends 11 AM (660).
+      const req = request([course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 1080, 1140)]), section("s1", "MATH 1650", [at("Tue", 600, 660)])])], {
+        evenings: 2,
+      });
+      const [first, second] = reasonsFor(req);
+      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["Its classes end a combined 480 minutes later than Option B's.", "comparison"]]);
+      expect(sentences(second)).toEqual(["Your latest class ends at 11 AM."]);
+    });
+
+    test("an earlier-ending option ranked first for fewer days names the trade-off", () => {
+      const req = request(
+        [
+          course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 600, 660)]), section("s1", "MATH 1650", [at("Tue", 1080, 1140)])]),
+          course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 540, 600)])]),
+        ],
+        { fewerDays: 4, evenings: 1 },
+      );
+      const [first] = reasonsFor(req);
+      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([
+        ["You are on campus 1 day less than with Option B.", "comparison"],
+        ["Its classes end a combined 480 minutes earlier than Option B's.", "trade-off"],
+      ]);
+    });
   });
 
   test("mornings compare the optimizer's mean-start lean, not the earliest start", () => {
-    // s0 starts at 8:00 (first half) and noon (second half); s1 starts at
-    // 9:00 and 12:30. Earliest starts differ by 60 minutes, but the lean the
-    // optimizer scores differs by 45: the mean start after 7 AM.
+    // Earliest starts differ by 60 minutes; mean starts (8 AM and noon,
+    // against 9 AM and 12:30 PM) by 45, which is what the optimizer scores.
     const req = request(
       [
-        {
-          code: "MATH 1650",
-          credits: 3,
-          sections: [
-            section("s0", "MATH 1650", [dated("Mon", 480, 540, "LANG", FIRST_HALF), dated("Wed", 720, 780, "LANG", SECOND_HALF)]),
-            section("s1", "MATH 1650", [dated("Mon", 540, 600, "LANG", FIRST_HALF), dated("Wed", 750, 810, "LANG", SECOND_HALF)]),
-          ],
-        },
+        course("MATH 1650", [
+          section("s0", "MATH 1650", [dated("Mon", 480, 540, FIRST_HALF), dated("Wed", 720, 780, SECOND_HALF)]),
+          section("s1", "MATH 1650", [dated("Mon", 540, 600, FIRST_HALF), dated("Wed", 750, 810, SECOND_HALF)]),
+        ]),
       ],
-      { ...zeroWeights, mornings: 4 },
+      { mornings: 4 },
       { term: { start: "2027-01-11", end: "2027-05-07" } },
     );
-    const schedules = optimal(req);
-    expect(schedules.length).toBe(2);
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    expect(reasons.some((reason) => reason.sentence === "Its classes start a combined 45 minutes earlier (counted after 7 AM) than Option B's.")).toBe(true);
-    expect(reasons.some((reason) => reason.sentence.includes("60 minutes"))).toBe(false);
+    const [first] = reasonsFor(req);
+    expect(sentences(first)).toEqual(["Its classes start a combined 45 minutes earlier than Option B's."]);
   });
 
-  test("unrated sections fill in from the course mean, and one point is singular", () => {
-    const req = request(
-      [
-        {
-          code: "MATH 1650",
-          credits: 3,
-          sections: [
-            // s0 and s1 must not share a meeting pattern: the optimizer keeps
-            // only the first of same-shaped sections. With the course mean
-            // (5 and 3 -> 4.0) filling in s0's rating, it ranks between them.
-            section("s0", "MATH 1650", [at("Tue", 540, 600, "LANG")], null),
-            section("s1", "MATH 1650", [at("Mon", 540, 600, "LANG")], 5),
-            section("s2", "MATH 1650", [at("Tue", 660, 720, "LANG")], 3),
-          ],
-        },
-      ],
-      { ...zeroWeights, rating: 4 },
-    );
-    const schedules = optimal(req);
-    // The course mean (5 and 3 -> 4.0) fills in s0's missing rating, and the
-    // shortfall comparisons run on that fill-in.
-    const { reasons } = allReasons({ alternatives: schedules, request: req })[0];
-    expect(reasons.some((reason) => reason.sentence === "Its instructors average 1 point higher than Option B's.")).toBe(true);
+  describe("rating", () => {
+    // Two courses that both vary, so the options differ in both.
+    const ratingRequest = (chemRating: number | null) =>
+      request(
+        [
+          course("MATH 1650", [section("s0", "MATH 1650", [at("Mon", 540, 600)], 5), section("s1", "MATH 1650", [at("Tue", 540, 600)], 4)]),
+          course("CHEM 2370", [section("c0", "CHEM 2370", [at("Mon", 660, 720)], chemRating), section("c1", "CHEM 2370", [at("Tue", 660, 720)], 4)]),
+        ],
+        { rating: 4 },
+      );
 
-    const unrated = request(
-      [{ code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")], null)] }],
-      { ...zeroWeights, rating: 1 },
-    );
-    const { reasons: unratedReasons } = allReasons({ alternatives: optimal(unrated), request: unrated })[0];
-    expect(unratedReasons.some((reason) => reason.sentence === "No section of this schedule has a rating.")).toBe(true);
-  });
-
-  test("seat reasons come from the shared Seats type and unknowns say nothing", () => {
-    const base = () =>
-      request([{ code: "MATH 1650", credits: 3, sections: [section("s0", "MATH 1650", [at("Mon", 540, 600, "LANG")], 4, "Lab")] }], zeroWeights);
-    const schedules = optimal(base());
-    const input = (seats: Readonly<Record<string, Seats>>): ScheduleReasonsInput => ({ alternatives: schedules, index: 0, request: base(), seats });
-    const closed = scheduleReasons(input({ s0: { open: 0, total: 30 } }));
-    expect(closed.some((reason) => reason.kind === "seats" && reason.sentence === "Section Lab of MATH 1650 has no open seats left.")).toBe(true);
-    const tight = scheduleReasons(input({ s0: { open: 3, total: 30 } }));
-    expect(tight.some((reason) => reason.kind === "seats" && reason.sentence === "Section Lab of MATH 1650 has 3 of 30 seats open.")).toBe(true);
-    const roomy = scheduleReasons(input({ s0: { open: 20, total: 30 } }));
-    expect(roomy.some((reason) => reason.kind === "seats")).toBe(false);
-    const unknown = scheduleReasons(input({ s0: { open: null, total: null } }));
-    expect(unknown).toEqual([]);
-  });
-
-  test("grade history describes the chosen instructor's past sections on an A through F denominator", () => {
-    const req = request(
-      [{ code: "BIOL 2040", credits: 3, sections: [section("b0", "BIOL 2040", [at("Mon", 540, 600, "LANG")])] }],
-      zeroWeights,
-    );
-    const schedules = optimal(req);
-    const reasons = scheduleReasons({
-      alternatives: schedules,
-      index: 0,
-      request: req,
-      instructorGradeHistory: { b0: instructorTotals({ a: 62, b: 20, c: 10, d: 4, f: 4, w: 50, i: 20 }) },
+    test("the comparison is the average per course", () => {
+      // 5 and 5 against 4 and 4: a sum of 2 points over 2 courses.
+      const [first, second] = reasonsFor(ratingRequest(5));
+      expect(sentences(first)).toEqual(["Its instructors' ratings average 1 point higher than Option B's."]);
+      expect(sentences(second)).toEqual(["Its instructors average a rating of 4 across 2 rated sections."]);
     });
-    expect(MIN_GRADE_SAMPLE).toBe(10);
-    expect(reasons.some((reason) => reason.kind === "grade-history" && reason.sentence === "Across past sections taught by this section's instructor, 82% of 100 graded students earned an A or B in BIOL 2040.")).toBe(true);
-    const grade = reasons.find((reason) => reason.kind === "grade-history");
-    expect(grade).toBeDefined();
-    const denominator = grade!.evidence.numbers.find((entry) => entry.label === "graded students (A through F)");
-    expect(denominator!.value).toBe(100);
 
-    const thin = scheduleReasons({
-      alternatives: schedules,
-      index: 0,
-      request: req,
-      instructorGradeHistory: { b0: instructorTotals({ a: 3, b: 2, c: 2, d: 1, f: 1 }) },
+    test("no comparison against an option that relies on a fill-in rating", () => {
+      // c0 is unrated; the course mean (4) fills in for it in the optimizer.
+      const [first, second] = reasonsFor(ratingRequest(null));
+      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["Its instructors average a rating of 5 across 1 rated section.", "fact"]]);
+      expect(second.map((reason) => reason.kind)).toEqual(["fact"]);
     });
-    expect(thin.some((reason) => reason.kind === "grade-history")).toBe(false);
   });
 
-  test("a schedule outside the alternatives, or a bad cap, is a programming error", () => {
-    const req = walkingRequest();
-    const schedules = optimal(req);
-    const base = { alternatives: schedules, request: req };
-    expect(() => scheduleReasons({ ...base, index: -1 })).toThrow("reasons: index must point at one of the alternatives");
-    expect(() => scheduleReasons({ ...base, index: schedules.length })).toThrow("reasons: index must point at one of the alternatives");
-    expect(() => scheduleReasons({ ...base, index: 0, maxReasons: -1 })).toThrow("reasons: maxReasons must be a non-negative number");
-    expect(() => scheduleReasons({ ...base, index: 0, maxReasons: Number.NaN })).toThrow("reasons: maxReasons must be a non-negative number");
+  describe("seat warnings", () => {
+    const catalog = (status: Section["status"], open: number | null, total: number | null): Pick<Section, "status" | "components"> => ({
+      status,
+      components: [{ id: "x", classNumber: null, sectionCode: "002", role: "primary", instructor: { display: null, raw: "" }, seats: { open, total }, meetings: [] }],
+    });
+    const warn = (seat: Pick<Section, "status" | "components">, maxReasons?: number) => {
+      const req = fourFactsRequest();
+      const alternatives = optimal(req);
+      const reasons = scheduleReasons({ alternatives, request: req, index: 0, seats: { s0: seat }, maxReasons });
+      for (const reason of reasons) check(req, alternatives, 0, reason);
+      return reasons;
+    };
+
+    test("closed, wait-listed and full sections always appear, outside the top three", () => {
+      expect(sentences(warn(catalog("closed", null, null)))[0]).toBe("Section 002 of MATH 1650 is closed.");
+      expect(sentences(warn(catalog("waitlist", 0, 30)))[0]).toBe("Section 002 of MATH 1650 is wait-listed.");
+      const full = warn(catalog("open", 0, 30));
+      expect(full[0].sentence).toBe("Section 002 of MATH 1650 has no open seats.");
+      expect(full.length).toBe(4);
+      expect(sentences(warn(catalog("open", 0, 30), 0))).toEqual(["Section 002 of MATH 1650 has no open seats."]);
+    });
+
+    test("open seats and unknown seats say nothing", () => {
+      expect(warn(catalog("open", 1, 30)).some((reason) => reason.kind === "seats")).toBe(false);
+      expect(warn(catalog("unknown", null, null)).some((reason) => reason.kind === "seats")).toBe(false);
+    });
+  });
+
+  describe("grade history", () => {
+    const instructor = { id: "x", firstName: "Ada", lastName: "Byron", name: "Ada Byron" };
+    const history = (sections: GradeCounts[], number = "2040"): CourseHistory =>
+      normalizeCourse(
+        { subject: "BIOL", number, title: "Genetics" },
+        sections.map((counts, i) => ({ sectionNumber: String(i + 1).padStart(3, "0"), instructor, year: "2025", term: "Fall", counts })),
+      );
+    const req = () => request([course("BIOL 2040", [section("b0", "BIOL 2040", [at("Mon", 540, 600)], 4, "001")])], {});
+    const gradeReasons = (h: CourseHistory) => {
+      const alternatives = optimal(req());
+      const reasons = scheduleReasons({ alternatives, request: req(), index: 0, instructorGradeHistory: { b0: h } });
+      for (const reason of reasons) check(req(), alternatives, 0, reason);
+      return reasons;
+    };
+
+    test("three sections graded A through F describe the past, on an A through F denominator", () => {
+      const reasons = gradeReasons(history([{ A: 30, B: 10, C: 5, D: 3, F: 2, W: 20 }, { A: 20, B: 12, C: 10, D: 4, F: 4 }, { A: 1, B: 0, C: 0, D: 0, F: 0 }]));
+      // (51 A + 22 B) of 101 graded A through F; the 20 withdrawals are not in it.
+      expect(sentences(reasons)).toEqual(["Section 001's instructor gave an A or B to 72% of students graded A through F in 3 past sections of BIOL 2040."]);
+    });
+
+    test("fewer than three sections graded A through F say nothing, however many students", () => {
+      expect(gradeReasons(history([{ A: 300, B: 100, C: 50, D: 0, F: 0 }, { A: 200, B: 100, C: 0, D: 0, F: 0 }, { A: 0, B: 0, C: 0, D: 0, F: 0, W: 30 }]))).toEqual([]);
+    });
+
+    test("history for another course is a programming error", () => {
+      expect(() => gradeReasons(history([{ A: 1 }], "2050"))).toThrow("reasons: grade history for BIOL 2050 was given for section b0 of BIOL 2040");
+    });
   });
 });
