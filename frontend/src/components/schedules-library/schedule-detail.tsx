@@ -12,7 +12,8 @@ import { eventsOf, overlayBlocks, weekBlocks, type PlacedBlock } from "@/lib/pla
 import { resolveSectionReferences } from "@/lib/plan-library/snapshot";
 import type { PlannerState } from "@/lib/types";
 import type { Entry } from "./schedules-client";
-import { skippedSectionLines, versionTime } from "./view-model";
+import { lockChangeLines, skippedSectionLines, versionTime } from "./view-model";
+import { diffLibraryPlans } from "@/lib/plan-library/diff";
 import { WeekGrid } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -45,13 +46,18 @@ export function ScheduleDetail({
   onExport: () => void;
   onRestore: (pick: (current: PlannerState) => PlannerState | null, label: string) => void;
 }) {
-  const { sectionCatalog } = usePlanner();
+  const { sectionCatalog, plannerState } = usePlanner();
   const [version, setVersion] = useState<"now" | "before-auto">("now");
   const before = entry.active ? beforeAuto(entry.state) : null;
   const shownVersion = before ? version : "now";
   const versionBlocks = shownVersion === "before-auto" && before ? weekBlocks(eventsOf(before.state, sectionCatalog)) : null;
   const items = overlayBlocks(entry.blocks, versionBlocks);
-  const skipped = entry.snapshot ? skippedSectionLines(resolveSectionReferences(entry.snapshot.state, sectionCatalog)) : [];
+  const skipped = entry.snapshot
+    ? [
+        ...skippedSectionLines(resolveSectionReferences(entry.snapshot.state, sectionCatalog)),
+        ...lockChangeLines(diffLibraryPlans(entry.snapshot.state, plannerState, sectionCatalog).lockChanges),
+      ]
+    : [];
 
   return (
     <div className={styles.detail}>
@@ -85,7 +91,7 @@ export function ScheduleDetail({
         </p>
       ) : null}
       {skipped.length ? (
-        <ul className={styles.warnList} aria-label="Saved sections Use in Main can't keep">
+        <ul className={styles.warnList} aria-label="What Use in Main changes beyond the week">
           {skipped.map((line) => (
             <li key={line}>{line}</li>
           ))}

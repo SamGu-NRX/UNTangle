@@ -95,3 +95,20 @@ describe("which compared schedule Use in Main applies to", () => {
     expect(adoptableSide(main, main)).toBeNull();
   });
 });
+
+describe("what Use in Main does to locks", () => {
+  it("names each lock it adds, moves or removes", async () => {
+    const { lockChangeLines } = await import("@/components/schedules-library/view-model");
+    expect(
+      lockChangeLines([
+        { courseCode: "ANTH 1010", savedPlan: "anth-1010-002", workingState: null },
+        { courseCode: "BIOL 1112", savedPlan: "biol-1112-003", workingState: "biol-1112-001" },
+        { courseCode: "CHEM 1410", savedPlan: null, workingState: "chem-1410-001" },
+      ]),
+    ).toEqual([
+      "ANTH 1010: Use in Main locks it to section 002.",
+      "BIOL 1112: Use in Main locks it to section 003 instead.",
+      "CHEM 1410: Use in Main unlocks its section.",
+    ]);
+  });
+});

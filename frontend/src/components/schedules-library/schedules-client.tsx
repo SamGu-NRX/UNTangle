@@ -19,6 +19,8 @@ import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { PLANNING_TERM } from "@/lib/terms";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
 import type { PlannerState } from "@/lib/types";
+import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
+import { saveOutcome } from "@/lib/connect/review";
 import { adoptCopy, noteLanded, undoAdoption, type Adoption } from "./adopt";
 import { CompareView, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
@@ -221,14 +223,17 @@ export function SchedulesClient() {
     if (pendingUndo.current) noteLanded(pendingUndo.current, planner);
   });
 
-  async function adoptEntry(entry: Entry) {
-    const snapshot = entry.snapshot;
-    if (!snapshot) return;
-    await planner.afterHydration();
-    const adoption = adoptCopy(plannerNow.current, snapshot);
-    pendingUndo.current = adoption;
+  // Success is said only once the new Main is stored (#37's honest-save rule). Until then, or
+  // when the save fails or meets a newer version from another tab, the save panel shows below.
+  const announce = useRef<{ name: string; adoption: Adoption } | null>(null);
+  const stored = saveOutcome(planner.saveState.status, Boolean(planner.conflict)) === "saved";
+  useEffect(() => {
+    // Runs on every commit: the save state arriving re-renders this page.
+    if (!stored || !announce.current) return;
+    const { name, adoption } = announce.current;
+    announce.current = null;
     toast({
-      message: `Main now uses ${entry.name}`,
+      message: `Main now uses ${name}`,
       action: {
         label: "Undo",
         onClick: () => {
@@ -240,6 +245,15 @@ export function SchedulesClient() {
         },
       },
     });
+  });
+
+  async function adoptEntry(entry: Entry) {
+    const snapshot = entry.snapshot;
+    if (!snapshot) return;
+    await planner.afterHydration();
+    const adoption = adoptCopy(plannerNow.current, snapshot);
+    pendingUndo.current = adoption;
+    announce.current = { name: entry.name, adoption };
   }
 
   function saveCopy(name: string) {
@@ -332,6 +346,8 @@ export function SchedulesClient() {
   }
 
   const mainSaved = hasSavedCopy(plannerState, live);
+  // Main isn't stored: a conflict with another tab, or a failed, refused or signed-out save.
+  const saveTrouble = ["conflict", "unsaved"].includes(saveOutcome(planner.saveState.status, Boolean(planner.conflict)));
   const sides: CompareSide[] = picks.map((id) => find(id)).filter((entry): entry is Entry => entry !== null);
   const colors = weekColors(...all.map((entry) => entry.blocks));
 
@@ -448,6 +464,11 @@ export function SchedulesClient() {
           event.target.value = "";
         }}
       />
+      {saveTrouble ? (
+        <div className={styles.saveTrouble}>
+          <PlannerPersistencePanel />
+        </div>
+      ) : null}
       {comparing && phone && sides.length < 2 ? (
         <p className={styles.quiet} role="status">
           Pick {sides.length ? "one more schedule" : "two schedules"} to compare.

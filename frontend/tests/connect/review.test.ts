@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkReason, creditLine, decisionOf, importSaveOutcome, importSelection, missingApprovedRecords, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
+import { checkReason, creditLine, decisionOf, importSaveOutcome, importSelection, missingApprovedRecords, saveOutcome, reviewGroups, rowFact, termLabel } from "../../src/lib/connect/review";
 import type { TranscriptCourseRecord } from "../../src/lib/types";
 
 function record(code: string, term: string, extra: Partial<TranscriptCourseRecord> = {}): TranscriptCourseRecord {
@@ -108,6 +108,13 @@ describe("the credit line", () => {
     expect(creditLine([record("CSCE 2100", "2026 Fall", { appliedStatus: "inProgress" })])).toBe("3 credits in progress.");
   });
 
+  test("zero-credit rows read as their status", () => {
+    expect(creditLine([record("UNIV 1000", "2025 Fall", { credits: 0 })])).toBe("0 credits done.");
+    expect(creditLine([record("UNIV 1000", "2025 Fall", { credits: 0 }), record("CSCE 2100", "2026 Fall", { appliedStatus: "inProgress" })])).toBe(
+      "0 credits done and 3 in progress.",
+    );
+  });
+
   test("keeps a half credit", () => {
     expect(creditLine([record("MUEN 1000", "2025 Fall", { credits: 0.5 }), record("CSCE 1030", "2025 Fall")])).toBe("3.5 credits done.");
   });
@@ -169,6 +176,18 @@ describe("after Looks right", () => {
     expect(outcome("saved", [records[0]])).toBe("dropped");
     // The record is there but no longer approved as it was.
     expect(outcome("saved", [records[0], { ...records[2], appliedStatus: "ignored" }])).toBe("dropped");
+  });
+
+  test("a kept record that lost the student's settled review flag still counts as dropped", () => {
+    const settled = { ...records[2], reviewRequired: false };
+    expect(missingApprovedRecords([settled], [{ ...settled, reviewRequired: true }]).map((r) => r.code)).toEqual(["MATH 1710"]);
+  });
+
+  test("any plan edit reports success only once stored", () => {
+    expect(saveOutcome("saved", false)).toBe("saved");
+    expect(saveOutcome("pending", false)).toBe("waiting");
+    expect(saveOutcome("saved", true)).toBe("conflict");
+    expect(saveOutcome("failed", false)).toBe("unsaved");
   });
 
   test("the missing records are the ones to add again", () => {

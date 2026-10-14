@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import type { Hue } from "@/lib/course-colors";
-import { clockText, gridDays, type PlacedBlock, type WeekBlock } from "@/lib/plan-library/week";
+import { clockText, gridDays, spokenClock, type PlacedBlock, type WeekBlock } from "@/lib/plan-library/week";
 import type { ClassDay } from "@/lib/types";
 import styles from "./library.module.css";
 
@@ -180,7 +180,7 @@ function MeetingList({ items, labels }: { items: readonly PlacedBlock[]; labels?
     <ul className="sr-only-v2" aria-label="Meetings">
       {items.map((item) => (
         <li key={item.id}>
-          {item.code}, {DAY_NAMES[item.day]} {clockText(item.start)} to {clockText(item.end)}
+          {item.code}, {DAY_NAMES[item.day]} {spokenClock(item.start)} to {spokenClock(item.end)}
           {labels?.[item.variant] ? `, ${labels[item.variant]}` : ""}
         </li>
       ))}

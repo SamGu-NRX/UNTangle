@@ -215,6 +215,9 @@
   line-height: var(--lh-meta);
   color: var(--danger);
 }
+.saveTrouble {
+  margin: 0 8px 16px;
+}
 .notices {
   display: grid;
   gap: 6px;

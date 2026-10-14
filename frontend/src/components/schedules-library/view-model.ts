@@ -1,5 +1,7 @@
 import { normalizePlannerState } from "@/lib/planner";
+import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
+import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
@@ -84,4 +86,20 @@ export function adoptableSide<T extends { active: boolean }>(a: T, b: T): T | nu
   if (!b.active) return b;
   if (!a.active) return a;
   return null;
+}
+
+/**
+ * What "Use in Main" does to section locks, one line per course: the grid
+ * doesn't draw locks, and locks decide what Auto may move later.
+ * `changes` compares the copy (savedPlan) with Main (workingState).
+ */
+export function lockChangeLines(changes: readonly PlanLockChange[]): string[] {
+  return changes.map(({ courseCode, savedPlan, workingState }) => {
+    if (!savedPlan) return `${courseCode}: Use in Main unlocks its section.`;
+    // A real option reads "class 12345"; a sample one is just its number, so say "section 001".
+    const label = sectionRef(savedPlan).provenance === "real" ? optionIdLabel(savedPlan) : `section ${optionIdLabel(savedPlan)}`;
+    return workingState
+      ? `${courseCode}: Use in Main locks it to ${label} instead.`
+      : `${courseCode}: Use in Main locks it to ${label}.`;
+  });
 }
