@@ -178,10 +178,16 @@ export function useModalLayer(
         if (!stops.length) return;
         const first = stops[0];
         const last = stops[stops.length - 1];
-        if (event.shiftKey && (active === first || active === root)) {
+        // Focus can rest on something outside the Tab order, such as the
+        // heading a sheet focuses when it opens. Before the first stop or
+        // after the last, the browser would carry Tab out of the layer.
+        const follows = (a: HTMLElement, b: HTMLElement) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const atStart = active === first || active === root || (active.tabIndex < 0 && follows(active, first));
+        const atEnd = active === last || (active.tabIndex < 0 && follows(last, active));
+        if (event.shiftKey && atStart) {
           event.preventDefault();
           last.focus();
-        } else if (!event.shiftKey && active === last) {
+        } else if (!event.shiftKey && atEnd) {
           event.preventDefault();
           first.focus();
         }
