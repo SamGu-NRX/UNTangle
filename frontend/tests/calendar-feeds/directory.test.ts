@@ -83,7 +83,13 @@ test("every directory entry has a real-content fixture that the parser accepts",
     const fixturePath = join(FIXTURES, fixtureNameFor(entry));
     expect(existsSync(fixturePath), `fixture is missing for ${entry.name}: ${fixturePath}`).toBeTrue();
     const raw = readFileSync(fixturePath, "utf-8");
+    // The parser records events it rejects in `skipped` and keeps going, so a
+    // lone surviving event could hide a partial-drop regression. Assert the
+    // whole excerpt is accepted: nothing skipped, every VEVENT returned.
+    const veventCount = (raw.match(/^BEGIN:VEVENT\r?$/gm) ?? []).length;
+    expect(veventCount, `fixture contains real events for ${entry.name}`).toBeGreaterThanOrEqual(1);
     const result = parseCalendarFeed(raw, YEAR_2026);
-    expect(result.events.length, `fixture parses to real events for ${entry.name}`).toBeGreaterThanOrEqual(1);
+    expect(result.skipped, `parser skips nothing in the fixture for ${entry.name}`).toHaveLength(0);
+    expect(result.events.length, `parser returns every VEVENT in the fixture for ${entry.name}`).toBe(veventCount);
   }
 });
