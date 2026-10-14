@@ -251,3 +251,209 @@ test("an unknown TZID and an unsupported FREQ land in skipped while the rest par
 test("a document without BEGIN:VCALENDAR is a feed-level error", () => {
   expect(() => parseCalendarFeed("BEGIN:VEVENT\r\nEND:VEVENT\r\n", YEAR_2026)).toThrow(/VCALENDAR/);
 });
+
+test("a nonexistent spring-forward wall time in a zone east of UTC resolves to the transition instant", () => {
+  const result = parseCalendarFeed(
+    ics(event("UID:berlin-spring@t", "SUMMARY:Berlin gap", "DTSTART;TZID=Europe/Berlin:20260329T023000")),
+    YEAR_2026,
+  );
+  // 02:30 does not exist in Berlin on 2026-03-29 (02:00 CET jumps to 03:00 CEST
+  // at 01:00Z); the promised resolution is the transition instant itself.
+  expect(result.occurrences.map((o) => o.start)).toEqual(["2026-03-29T01:00:00.000Z"]);
+});
+
+test("an ambiguous fall-back wall time in a zone east of UTC takes the earlier offset", () => {
+  const result = parseCalendarFeed(
+    ics(event("UID:berlin-fold@t", "SUMMARY:Berlin fold", "DTSTART;TZID=Europe/Berlin:20261025T023000")),
+    YEAR_2026,
+  );
+  // 02:30 happens twice in Berlin on 2026-10-25: 00:30Z (CEST) and 01:30Z (CET).
+  expect(result.occurrences.map((o) => o.start)).toEqual(["2026-10-25T00:30:00.000Z"]);
+});
+
+test("an absurd INTERVAL is rejected as malformed instead of overflowing date arithmetic", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:huge@t",
+        "SUMMARY:Huge interval",
+        "DTSTART;TZID=America/Chicago:20261014T090000",
+        "RRULE:FREQ=DAILY;INTERVAL=1000000000;COUNT=2",
+      ),
+      event("UID:fine@t", "SUMMARY:Fine event", "DTSTART;TZID=America/Chicago:20261014T090000"),
+    ),
+    YEAR_2026,
+  );
+  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(result.skipped).toEqual([{ uid: "huge@t", reason: "unsupported or malformed RRULE" }]);
+});
+
+test("malformed BYDAY and WKST weekday codes land in skipped", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:byday@t",
+        "SUMMARY:Bad byday",
+        "DTSTART;TZID=America/Chicago:20261014T090000",
+        "RRULE:FREQ=WEEKLY;BYDAY=XX",
+      ),
+      event(
+        "UID:wkst@t",
+        "SUMMARY:Bad wkst",
+        "DTSTART;TZID=America/Chicago:20261014T090000",
+        "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=XX",
+      ),
+      event("UID:fine@t", "SUMMARY:Fine event", "DTSTART;TZID=America/Chicago:20261014T090000"),
+    ),
+    YEAR_2026,
+  );
+  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(result.skipped.map((s) => s.uid).sort()).toEqual(["byday@t", "wkst@t"]);
+});
+
+test("a cancelled event is omitted without a skip entry", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:gone@t",
+        "SUMMARY:Cancelled meeting",
+        "STATUS:CANCELLED",
+        "DTSTART;TZID=America/Chicago:20261014T090000",
+        "RRULE:FREQ=WEEKLY",
+      ),
+      event("UID:here@t", "SUMMARY:Live meeting", "DTSTART;TZID=America/Chicago:20261014T090000"),
+    ),
+    YEAR_2026,
+  );
+  expect(result.occurrences.map((o) => o.summary)).toEqual(["Live meeting"]);
+  expect(result.weeklyBusyBlocks).toEqual([]);
+  expect(result.skipped).toEqual([]);
+});
+
+test("DURATION, RDATE, and RECURRENCE-ID events are skipped with reasons instead of silently misparsed", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event("UID:dur@t", "SUMMARY:Duration event", "DTSTART;TZID=America/Chicago:20261014T090000", "DURATION:PT1H"),
+      event(
+        "UID:rdate@t",
+        "SUMMARY:Rdate event",
+        "DTSTART;TZID=America/Chicago:20261014T090000",
+        "RDATE;TZID=America/Chicago:20261015T090000",
+      ),
+      event(
+        "UID:recid@t",
+        "SUMMARY:Moved instance",
+        "DTSTART;TZID=America/Chicago:20261014T090000",
+        "RECURRENCE-ID;TZID=America/Chicago:20261015T090000",
+      ),
+      event("UID:fine@t", "SUMMARY:Fine event", "DTSTART;TZID=America/Chicago:20261014T090000"),
+    ),
+    YEAR_2026,
+  );
+  expect(result.occurrences.map((o) => o.summary)).toEqual(["Fine event"]);
+  expect(result.skipped.map((s) => s.uid).sort()).toEqual(["dur@t", "rdate@t", "recid@t"]);
+  expect(result.skipped.every((s) => s.reason.length > 0)).toBe(true);
+});
+
+test("an overnight weekly event splits its busy block per local day", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:overnight@t",
+        "SUMMARY:Overnight study hall",
+        "DTSTART;TZID=America/Chicago:20261012T230000",
+        "DTEND;TZID=America/Chicago:20261013T010000",
+        "RRULE:FREQ=WEEKLY",
+      ),
+    ),
+    YEAR_2026,
+  );
+  expect(result.weeklyBusyBlocks).toEqual([
+    { uid: "overnight@t", summary: "Overnight study hall", weekday: 1, startMinutes: 1380, endMinutes: 1440 },
+    { uid: "overnight@t", summary: "Overnight study hall", weekday: 2, startMinutes: 0, endMinutes: 60 },
+  ]);
+});
+
+test("a weekly event ending exactly at midnight leaves no empty next-day block", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:midnight@t",
+        "SUMMARY:Late lab",
+        "DTSTART;TZID=America/Chicago:20261012T230000",
+        "DTEND;TZID=America/Chicago:20261013T000000",
+        "RRULE:FREQ=WEEKLY",
+      ),
+    ),
+    YEAR_2026,
+  );
+  expect(result.weeklyBusyBlocks).toEqual([
+    { uid: "midnight@t", summary: "Late lab", weekday: 1, startMinutes: 1380, endMinutes: 1440 },
+  ]);
+});
+
+test("COUNT keeps counting pre-range occurrences when the walk starts near the range", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:bridge@t",
+        "SUMMARY:Bridge club",
+        "DTSTART;TZID=America/Chicago:20261228T120000",
+        "DTEND;TZID=America/Chicago:20261228T130000",
+        "RRULE:FREQ=DAILY;BYDAY=MO,WE;COUNT=5",
+      ),
+    ),
+    { start: "2027-01-04T00:00:00Z", end: "2027-01-14T00:00:00Z" },
+  );
+  // The full set is Mon Dec 28, Wed Dec 30, Mon Jan 4, Wed Jan 6, Mon Jan 11;
+  // COUNT=5 is spent by Jan 11 even though the walk starts near the range.
+  expect(result.occurrences.map((o) => o.start)).toEqual([
+    "2027-01-04T18:00:00.000Z",
+    "2027-01-06T18:00:00.000Z",
+    "2027-01-11T18:00:00.000Z",
+  ]);
+});
+
+test("a DTSTART far before the range expands only the days that can matter", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:old@t",
+        "SUMMARY:Since 2020",
+        "DTSTART:20200101T120000Z",
+        "DTEND:20200101T130000Z",
+        "RRULE:FREQ=DAILY;COUNT=100000",
+      ),
+    ),
+    { start: "2026-10-01T00:00:00Z", end: "2026-10-04T00:00:00Z" },
+  );
+  expect(result.skipped).toEqual([]);
+  expect(result.occurrences.map((o) => o.start)).toEqual([
+    "2026-10-01T12:00:00.000Z",
+    "2026-10-02T12:00:00.000Z",
+    "2026-10-03T12:00:00.000Z",
+  ]);
+});
+
+test("the shared expansion budget skips unbounded rules instead of walking forever", () => {
+  const result = parseCalendarFeed(
+    ics(
+      event(
+        "UID:endless@t",
+        "SUMMARY:Endless rule",
+        "DTSTART:20260101T120000Z",
+        "DTEND:20260101T130000Z",
+        "RRULE:FREQ=DAILY;BYDAY=SU;COUNT=9999999",
+      ),
+      event("UID:after@t", "SUMMARY:After the budget", "DTSTART:20260601T120000Z", "DTEND:20260601T130000Z"),
+    ),
+    { start: "2026-01-01T00:00:00Z", end: "2300-01-01T00:00:00Z" },
+  );
+  // The BYDAY filter keeps accepted occurrences far below the occurrence cap,
+  // so the shared work budget is what runs out. The budget is shared across
+  // the feed: once spent, the remaining events are skipped too, and nothing
+  // throws.
+  expect(result.skipped.map((s) => s.uid)).toEqual(["endless@t", "after@t"]);
+  expect(result.skipped.every((s) => s.reason.includes("budget"))).toBe(true);
+  expect(result.occurrences).toEqual([]);
+});

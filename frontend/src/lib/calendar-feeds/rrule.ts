@@ -5,7 +5,7 @@
  * event's zone is the caller's job, so wall times survive DST shifts.
  */
 
-import { addDaysToDate, compareDates, weekdayOfDate, type CalendarDate } from "./datetime";
+import { addDaysToDate, compareDates, daysBetween, weekdayOfDate, type CalendarDate } from "./datetime";
 
 export type Rrule = {
   freq: "DAILY" | "WEEKLY";
@@ -25,8 +25,11 @@ const WEEKDAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
 function parseWeekdayCode(code: string): number | null {
   const day = WEEKDAY_CODES.indexOf(code.trim().toUpperCase());
-  return day;
+  return day < 0 ? null : day;
 }
+
+/** INTERVAL above this bound is treated as malformed rather than expanded; huge steps overflow date arithmetic. */
+export const MAX_RRULE_INTERVAL = 1_000;
 
 /**
  * Parses an RRULE value. Returns null for unsupported frequencies, unsupported
@@ -50,7 +53,7 @@ export function parseRrule(value: string): Rrule | null {
       else return null;
     } else if (key === "INTERVAL") {
       const parsed = Number(raw);
-      if (!Number.isInteger(parsed) || parsed < 1) return null;
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_RRULE_INTERVAL) return null;
       interval = parsed;
     } else if (key === "BYDAY") {
       const days: number[] = [];
@@ -84,39 +87,70 @@ export function parseRrule(value: string): Rrule | null {
  * ends the walk once no later date can matter (the caller's range bound).
  * UNTIL is a suffix filter, so the caller applies it afterwards.
  *
+ * `skipToDate` bounds the walk from below: candidates whose date is before it
+ * are not materialized, but COUNT still counts every occurrence the rule
+ * produced before the walk starts (COUNT is the size of the full expanded set
+ * including DTSTART), so the pre-range contribution is computed with integer
+ * weekday arithmetic instead of by walking dates.
+ *
+ * `budget` is shared across every event in a parse: each examined candidate
+ * decrements it, and once it is spent the walk stops and `exhausted` flips so
+ * the caller can skip the event instead of emitting truncated data.
+ *
  * DAILY treats BYDAY as a filter over expanded days, so a DTSTART whose
  * weekday is not in BYDAY is itself filtered. WEEKLY expands a BYDAY grid per
  * WKST week and drops grid days before DTSTART; BYDAY defaults to the DTSTART
  * weekday.
  */
+export type ExpansionBudget = { workRemaining: number; exhausted: boolean };
+
 export function expandRuleDates(
   rule: Rrule,
   dtstartDate: CalendarDate,
   shouldStop: (candidate: CalendarDate) => boolean,
+  skipToDate: CalendarDate | null,
+  budget: ExpansionBudget,
 ): CalendarDate[] {
   const dates: CalendarDate[] = [];
-  let accepted = 0;
-  let examined = 0;
   if (rule.freq === "DAILY") {
-    for (let step = 0; step < MAX_EXPANSION_ITERATIONS; step += 1) {
+    const step0 = firstDailyStep(rule, dtstartDate, skipToDate);
+    const priorAccepted = dailyPriorOccurrences(rule, dtstartDate, step0);
+    let accepted = priorAccepted;
+    for (let step = step0; step - step0 < MAX_EXPANSION_ITERATIONS; step += 1) {
+      if (budget.workRemaining <= 0) {
+        budget.exhausted = true;
+        return dates;
+      }
+      budget.workRemaining -= 1;
       const candidate = addDaysToDate(dtstartDate, step * rule.interval);
-      if (shouldStop(candidate)) break;
+      if (!candidateIsUsable(candidate)) return dates;
+      if (shouldStop(candidate)) return dates;
       if (rule.byDay !== null && !rule.byDay.includes(weekdayOfDate(candidate))) continue;
       dates.push(candidate);
       accepted += 1;
-      if (rule.count !== null && accepted >= rule.count) break;
+      if (rule.count !== null && accepted >= rule.count) return dates;
     }
+    // Only the step bound can end the loop without an early return: reaching it
+    // means the walk was truncated, so flag the budget rather than emit a
+    // silently partial set.
+    budget.exhausted = true;
     return dates;
   }
   const weekDays = [...new Set(rule.byDay ?? [weekdayOfDate(dtstartDate)])].sort(
     (a, b) => weekOffset(a, rule.wkst) - weekOffset(b, rule.wkst),
   );
   const anchor = addDaysToDate(dtstartDate, -weekOffset(weekdayOfDate(dtstartDate), rule.wkst));
-  for (let week = 0; examined < MAX_EXPANSION_ITERATIONS; week += 1) {
+  const week0 = firstWeeklyWeek(rule, anchor, skipToDate);
+  let accepted = weeklyPriorOccurrences(rule, anchor, dtstartDate, weekDays, week0);
+  for (let week = week0; week - week0 < MAX_EXPANSION_ITERATIONS; week += 1) {
     const weekBase = addDaysToDate(anchor, week * rule.interval * 7);
+    if (!candidateIsUsable(weekBase)) return dates;
     for (const day of weekDays) {
-      examined += 1;
-      if (examined > MAX_EXPANSION_ITERATIONS) return dates;
+      if (budget.workRemaining <= 0) {
+        budget.exhausted = true;
+        return dates;
+      }
+      budget.workRemaining -= 1;
       const candidate = addDaysToDate(weekBase, weekOffset(day, rule.wkst));
       if (compareDates(candidate, dtstartDate) < 0) continue; // week-zero days before DTSTART
       if (shouldStop(candidate)) return dates;
@@ -125,7 +159,96 @@ export function expandRuleDates(
       if (rule.count !== null && accepted >= rule.count) return dates;
     }
   }
+  // Same as the DAILY walk: only the week bound reaches here, which is a
+  // truncation, not a natural end.
+  budget.exhausted = true;
   return dates;
+}
+
+/** False for dates whose year arithmetic overflowed or left the representable calendar. */
+function candidateIsUsable(date: CalendarDate): boolean {
+  return Number.isInteger(date.year) && date.year >= 1 && date.year <= 9999;
+}
+
+/** First DAILY step whose date is not before skipToDate, so old DTSTARTs do not walk the whole gap. */
+function firstDailyStep(rule: Rrule, dtstartDate: CalendarDate, skipToDate: CalendarDate | null): number {
+  if (skipToDate === null) return 0;
+  const delta = daysBetween(dtstartDate, skipToDate);
+  let step = delta <= 0 ? 0 : Math.floor(delta / rule.interval);
+  while (step > 0 && compareDates(addDaysToDate(dtstartDate, (step - 1) * rule.interval), skipToDate) >= 0) {
+    step -= 1;
+  }
+  while (compareDates(addDaysToDate(dtstartDate, step * rule.interval), skipToDate) < 0) {
+    step += 1;
+  }
+  return step;
+}
+
+/**
+ * How many occurrences the rule produced before the first walked step, so
+ * COUNT keeps counting from DTSTART. Pure integer weekday arithmetic: the
+ * stepped weekday sequence repeats with period 7 / gcd(interval, 7).
+ */
+function dailyPriorOccurrences(rule: Rrule, dtstartDate: CalendarDate, steps: number): number {
+  if (steps <= 0) return 0;
+  if (rule.byDay === null) return steps;
+  const dtstartWeekday = weekdayOfDate(dtstartDate);
+  const cycle = 7 / gcd(rule.interval, 7);
+  const perCycle = countCycleDays(rule.byDay, dtstartWeekday, rule.interval, cycle);
+  const fullCycles = Math.floor(steps / cycle);
+  let remainder = 0;
+  for (let step = fullCycles * cycle; step < steps; step += 1) {
+    if (rule.byDay.includes((dtstartWeekday + step * rule.interval) % 7)) remainder += 1;
+  }
+  return fullCycles * perCycle + remainder;
+}
+
+function countCycleDays(byDay: number[], dtstartWeekday: number, interval: number, cycle: number): number {
+  let count = 0;
+  for (let step = 0; step < cycle; step += 1) {
+    if (byDay.includes((dtstartWeekday + step * interval) % 7)) count += 1;
+  }
+  return count;
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/** First WEEKLY week whose grid days are not all before skipToDate. */
+function firstWeeklyWeek(rule: Rrule, anchor: CalendarDate, skipToDate: CalendarDate | null): number {
+  if (skipToDate === null) return 0;
+  const delta = daysBetween(anchor, skipToDate);
+  let week = delta <= 0 ? 0 : Math.floor(delta / (rule.interval * 7));
+  // A week is skippable only when its last possible grid day is still before
+  // skipToDate; adjust the estimate with at most a couple of comparisons.
+  while (week > 0 && compareDates(addDaysToDate(anchor, (week - 1) * rule.interval * 7 + 6), skipToDate) >= 0) {
+    week -= 1;
+  }
+  while (compareDates(addDaysToDate(anchor, week * rule.interval * 7 + 6), skipToDate) < 0) {
+    week += 1;
+  }
+  return week;
+}
+
+/**
+ * Occurrences produced in the weeks before the first walked week. Weeks after
+ * the first emit their whole grid; only week zero can drop days before
+ * DTSTART, so the adjustment is exact.
+ */
+function weeklyPriorOccurrences(
+  rule: Rrule,
+  anchor: CalendarDate,
+  dtstartDate: CalendarDate,
+  weekDays: number[],
+  weeks: number,
+): number {
+  if (weeks <= 0) return 0;
+  let droppedInWeekZero = 0;
+  for (const day of weekDays) {
+    if (compareDates(addDaysToDate(anchor, weekOffset(day, rule.wkst)), dtstartDate) < 0) droppedInWeekZero += 1;
+  }
+  return weeks * weekDays.length - droppedInWeekZero;
 }
 
 /** Days from the week start (WKST) to the given weekday. */

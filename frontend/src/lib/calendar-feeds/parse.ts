@@ -10,6 +10,7 @@ import {
   calendarDateOfInstant,
   calendarDateToUtcMs,
   compareDates,
+  daysBetween,
   formatInstant,
   minutesFromWall,
   parseIcsDateTime,
@@ -21,7 +22,13 @@ import {
 } from "./datetime";
 import { CalendarParseError } from "./errors";
 import { parseContentLine, stripByteOrderMark, unescapeText, unfoldLines, type ContentLine } from "./ics-text";
-import { expandRuleDates, parseRrule, type Rrule } from "./rrule";
+import {
+  expandRuleDates,
+  MAX_EXPANSION_ITERATIONS,
+  parseRrule,
+  type ExpansionBudget,
+  type Rrule,
+} from "./rrule";
 import type {
   CalendarOccurrence,
   CalendarParseResult,
@@ -32,6 +39,9 @@ import type {
 
 type TimedStart = Extract<ResolvedDateTime, { kind: "timed" }>;
 type DateStart = Extract<ResolvedDateTime, { kind: "date" }>;
+
+/** Cap on materialized occurrences per parse, so a wide range cannot exhaust memory. */
+export const MAX_PARSE_OCCURRENCES = 20_000;
 
 export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParseResult {
   const rangeStartMs = parseRangeInstant(range.start);
@@ -48,8 +58,19 @@ export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParse
   const occurrences: CalendarOccurrence[] = [];
   const weeklyBusyBlocks: WeeklyBusyBlock[] = [];
   const skipped: SkippedEntry[] = [];
+  // One shared work budget across the whole feed: no single event owns the
+  // expansion allowance, so no feed can spend unbounded work per event.
+  const budget: ExpansionBudget = { workRemaining: MAX_EXPANSION_ITERATIONS, exhausted: false };
   for (const event of collectRawEvents(lines)) {
-    const outcome = expandEvent(event, rangeStartMs, rangeEndMs);
+    if (budget.exhausted) {
+      skipped.push({ uid: event.uid, reason: "recurrence expansion budget exceeded" });
+      continue;
+    }
+    if (occurrences.length >= MAX_PARSE_OCCURRENCES) {
+      skipped.push({ uid: event.uid, reason: "occurrence budget exceeded" });
+      continue;
+    }
+    const outcome = expandEvent(event, rangeStartMs, rangeEndMs, budget);
     if (outcome.ok) {
       occurrences.push(...outcome.occurrences);
       weeklyBusyBlocks.push(...outcome.busyBlocks);
@@ -85,6 +106,10 @@ type RawEvent = {
   dtend: RawProperty | null;
   rrule: string | null;
   exdates: RawProperty[];
+  status: string | null;
+  duration: string | null;
+  hasRdate: boolean;
+  hasRecurrenceId: boolean;
 };
 
 function emptyRawEvent(): RawEvent {
@@ -97,6 +122,10 @@ function emptyRawEvent(): RawEvent {
     dtend: null,
     rrule: null,
     exdates: [],
+    status: null,
+    duration: null,
+    hasRdate: false,
+    hasRecurrenceId: false,
   };
 }
 
@@ -145,6 +174,18 @@ function collectProperty(line: ContentLine, event: RawEvent): void {
     case "EXDATE":
       event.exdates.push({ value: line.value, params: line.params });
       break;
+    case "STATUS":
+      if (event.status === null) event.status = line.value.trim().toUpperCase();
+      break;
+    case "DURATION":
+      if (event.duration === null) event.duration = line.value.trim();
+      break;
+    case "RDATE":
+      event.hasRdate = true;
+      break;
+    case "RECURRENCE-ID":
+      event.hasRecurrenceId = true;
+      break;
     case "UID":
       if (event.uid === null) event.uid = line.value.trim();
       break;
@@ -171,7 +212,17 @@ function skipEvent(uid: string | null, reason: string): EventOutcome {
 }
 
 /** Expands one raw event into occurrences (and busy blocks for WEEKLY rules), or a skip reason. */
-function expandEvent(event: RawEvent, rangeStartMs: number, rangeEndMs: number): EventOutcome {
+function expandEvent(event: RawEvent, rangeStartMs: number, rangeEndMs: number, budget: ExpansionBudget): EventOutcome {
+  if (event.status === "CANCELLED") {
+    // A canceled event produces no occurrences and no busy time; omission is
+    // the correct reading, so it is not reported as a skip anomaly.
+    return { ok: true, occurrences: [], busyBlocks: [] };
+  }
+  if (event.hasRecurrenceId) return skipEvent(event.uid, "RECURRENCE-ID overrides are not supported");
+  if (event.hasRdate) return skipEvent(event.uid, "RDATE is not supported");
+  if (event.duration !== null) {
+    return skipEvent(event.uid, "DURATION is not supported; express the length with DTEND");
+  }
   if (event.dtstart === null) return skipEvent(event.uid, "event has no DTSTART");
   const start = parseIcsDateTime(event.dtstart.value, event.dtstart.params, undefined);
   if (start.kind === "invalid") return skipEvent(event.uid, start.reason);
@@ -201,7 +252,7 @@ function expandEvent(event: RawEvent, rangeStartMs: number, rangeEndMs: number):
   const outcome =
     rule === null
       ? singleOccurrences(event, start, durationMs, isAllDay, exclusions, rangeStartMs, rangeEndMs)
-      : expandOccurrences(event, start, durationMs, rule, exclusions, rangeStartMs, rangeEndMs);
+      : expandOccurrences(event, start, durationMs, rule, exclusions, rangeStartMs, rangeEndMs, budget);
   if (!outcome.ok) return outcome;
   return { ok: true, occurrences: outcome.occurrences, busyBlocks };
 }
@@ -256,6 +307,7 @@ function expandOccurrences(
   exclusions: Exclusion[],
   rangeStartMs: number,
   rangeEndMs: number,
+  budget: ExpansionBudget,
 ): EventOutcome {
   const isAllDay = start.kind === "date";
   const zone = start.kind === "timed" ? start.zone : undefined;
@@ -275,13 +327,21 @@ function expandOccurrences(
 
   // Stop once a candidate's wall date is past the range end plus the event's
   // length in days plus two days of zone slack; no such occurrence can overlap.
+  // The walk also starts near the range (skipToDate): occurrences that end
+  // before the range starts are never materialized, and the rule expansion
+  // bridges their COUNT contribution with integer arithmetic.
   const rangeEndDate = calendarDateOfInstant(rangeEndMs, "UTC");
   const slackDays = Math.floor(durationMs / 86_400_000) + 2;
   const stopDate = addDaysToDate(rangeEndDate, slackDays);
-  const candidates = expandRuleDates(rule, dtstartDate, (candidate) => compareDates(candidate, stopDate) > 0);
+  const skipToDate = addDaysToDate(calendarDateOfInstant(rangeStartMs, "UTC"), -(slackDays + 1));
+  const candidates = expandRuleDates(rule, dtstartDate, (candidate) => compareDates(candidate, stopDate) > 0, skipToDate, budget);
+  if (budget.exhausted) return skipEvent(event.uid, "recurrence expansion budget exceeded");
 
   const occurrences: CalendarOccurrence[] = [];
   for (const candidateDate of candidates) {
+    if (occurrences.length >= MAX_PARSE_OCCURRENCES) {
+      return skipEvent(event.uid, "occurrence budget exceeded");
+    }
     const candidateMs = isAllDay
       ? calendarDateToUtcMs(candidateDate)
       : resolveZonedWallTime(
@@ -351,11 +411,13 @@ function makeOccurrence(event: RawEvent, startMs: number, endMs: number, isAllDa
 }
 
 /**
- * One busy block per distinct BYDAY weekday (or the DTSTART weekday when BYDAY
- * is absent), with wall-clock minutes in the event's zone. Floating times count
- * as local. UTC-timed weekly events get no block (their occurrences still
- * appear), and all-day weekly events block the whole day. Blocks ignore COUNT
- * and UNTIL on purpose.
+ * Busy blocks for a WEEKLY rule: the DTSTART wall span, split per local day,
+ * anchored at each BYDAY weekday (or the DTSTART weekday when BYDAY is
+ * absent). An overnight or multi-day span yields one block per covered day,
+ * clamped to that day (end exclusive at 1440), so endMinutes never reads as a
+ * reversed span. Floating times count as local. UTC-timed weekly events get
+ * no block (their occurrences still appear), and all-day weekly events block
+ * the whole day. Blocks ignore COUNT and UNTIL on purpose.
  */
 function weeklyBusyBlocksFor(
   event: RawEvent,
@@ -365,9 +427,10 @@ function weeklyBusyBlocksFor(
 ): WeeklyBusyBlock[] {
   const summary = event.summary ?? "";
   const uid = event.uid ?? "";
-  const distinctDays = (weekday: number) => [...new Set(rule.byDay ?? [weekday])].sort((a, b) => a - b);
+  const byDays = [...new Set(rule.byDay ?? [])].sort((a, b) => a - b);
   if (start.kind === "date") {
-    return distinctDays(weekdayOfDate(start.date)).map((weekday) => ({
+    const days = byDays.length > 0 ? byDays : [weekdayOfDate(start.date)];
+    return days.map((weekday) => ({
       uid,
       summary,
       weekday,
@@ -380,6 +443,26 @@ function weeklyBusyBlocksFor(
   const endWall = zoneWallTime(start.epochMs + durationMs, start.zone);
   const startMinutes = minutesFromWall(startWall);
   const endMinutes = durationMs === 0 ? startMinutes : minutesFromWall(endWall);
-  const dtstartWeekday = weekdayOfDate({ year: startWall.year, month: startWall.month, day: startWall.day });
-  return distinctDays(dtstartWeekday).map((weekday) => ({ uid, summary, weekday, startMinutes, endMinutes }));
+  const startDay = { year: startWall.year, month: startWall.month, day: startWall.day };
+  const endDay = { year: endWall.year, month: endWall.month, day: endWall.day };
+  const anchorDays = byDays.length > 0 ? byDays : [weekdayOfDate(startDay)];
+  if (durationMs === 0) {
+    return anchorDays.map((weekday) => ({ uid, summary, weekday, startMinutes, endMinutes }));
+  }
+  const spanDays = Math.max(0, daysBetween(startDay, endDay));
+  const blocks: WeeklyBusyBlock[] = [];
+  const seen = new Set<string>();
+  for (const anchorWeekday of anchorDays) {
+    for (let offset = 0; offset <= spanDays; offset += 1) {
+      const segmentStart = offset === 0 ? startMinutes : 0;
+      const segmentEnd = offset === spanDays ? endMinutes : 1440;
+      if (segmentEnd <= segmentStart) continue; // an end exactly at midnight leaves no empty segment
+      const weekday = (anchorWeekday + offset) % 7;
+      const key = `${weekday}:${segmentStart}:${segmentEnd}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      blocks.push({ uid, summary, weekday, startMinutes: segmentStart, endMinutes: segmentEnd });
+    }
+  }
+  return blocks;
 }

@@ -5,7 +5,6 @@
  * server tells the truth about its size.
  */
 
-import { lookup } from "node:dns/promises";
 import { CalendarFetchError } from "./errors";
 import { ipLiteralHost, isBlockedAddress, validateCalendarUrl } from "./ssrf";
 
@@ -25,10 +24,13 @@ export const CALENDAR_MAX_BYTES = 1024 * 1024;
 
 export const defaultFetchDeps: FetchDeps = {
   resolveDns: async (hostname) => {
-    const entries = await lookup(hostname, { all: true, verbatim: true });
+    // Imported at call time on purpose: tests can mock.module the dns module
+    // and the route (which uses these defaults) picks the mock up per call.
+    const dns = await import("node:dns/promises");
+    const entries = await dns.lookup(hostname, { all: true, verbatim: true });
     return entries.map((entry) => ({ address: entry.address, family: entry.family === 6 ? 6 : 4 }));
   },
-  doFetch: (url, init) => fetch(url, init),
+  doFetch: (url, init) => globalThis.fetch(url, init),
   timeoutMs: 10_000,
   maxBytes: CALENDAR_MAX_BYTES,
   maxRedirects: 3,
@@ -56,6 +58,7 @@ export async function fetchCalendarIcs(rawUrl: string, deps: Partial<FetchDeps> 
       throw fetchErrorFromCause(error);
     }
     if (response.status >= 300 && response.status < 400) {
+      await discardBody(response);
       if (hop >= resolved.maxRedirects) throw new CalendarFetchError("invalid", "too many redirects");
       const location = response.headers.get("location");
       if (location === null || location === "") {
@@ -71,6 +74,7 @@ export async function fetchCalendarIcs(rawUrl: string, deps: Partial<FetchDeps> 
       continue;
     }
     if (response.status < 200 || response.status >= 300) {
+      await discardBody(response);
       throw new CalendarFetchError("unreachable", `the feed responded with status ${response.status}`);
     }
     return await readFeedBody(response, resolved, deadline);
@@ -114,20 +118,37 @@ const ACCEPTED_CONTENT_TYPES = new Set([
   "application/octet-stream",
 ]);
 
+/** Releases a rejected response's connection so the transfer actually stops. */
+async function discardBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // The stream was already closed or errored; nothing left to release.
+  }
+}
+
 async function readFeedBody(response: Response, deps: FetchDeps, deadline: number): Promise<string> {
   const contentType = (response.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
   if (!ACCEPTED_CONTENT_TYPES.has(contentType)) {
+    await discardBody(response);
     throw new CalendarFetchError("invalid", "the response is not a calendar content type");
   }
   const contentLength = Number(response.headers.get("content-length") ?? "");
   if (Number.isFinite(contentLength) && contentLength > deps.maxBytes) {
+    await discardBody(response);
     throw new CalendarFetchError("invalid", "the feed body exceeds the size limit");
   }
-  const body = await readBodyCapped(response, deps.maxBytes, deadline);
-  if (!/^\s*BEGIN:VCALENDAR/i.test(body)) {
-    throw new CalendarFetchError("invalid", "the response does not start with BEGIN:VCALENDAR");
+  try {
+    const body = await readBodyCapped(response, deps.maxBytes, deadline);
+    if (!/^\s*BEGIN:VCALENDAR/i.test(body)) {
+      throw new CalendarFetchError("invalid", "the response does not start with BEGIN:VCALENDAR");
+    }
+    return body;
+  } catch (error) {
+    // A server that drops the connection mid-read surfaces here as a raw
+    // stream error; map it onto the same timeout/unreachable split as fetches.
+    throw fetchErrorFromCause(error);
   }
-  return body;
 }
 
 /** Decodes the body with a cumulative byte cap, so oversized bodies abort mid-stream. */
@@ -137,17 +158,31 @@ async function readBodyCapped(response: Response, maxBytes: number, deadline: nu
   const decoder = new TextDecoder("utf-8");
   let decoded = "";
   let total = 0;
-  for (;;) {
-    if (Date.now() >= deadline) throw new CalendarFetchError("timeout", "reading the feed timed out");
-    const chunk = await raceDeadline(reader.read(), deadline);
-    if (chunk.done) break;
-    if (chunk.value !== undefined) {
-      total += chunk.value.byteLength;
-      if (total > maxBytes) throw new CalendarFetchError("invalid", "the feed body exceeds the size limit");
-      decoded += decoder.decode(chunk.value, { stream: true });
+  try {
+    for (;;) {
+      if (Date.now() >= deadline) throw new CalendarFetchError("timeout", "reading the feed timed out");
+      const chunk = await raceDeadline(reader.read(), deadline);
+      if (chunk.done) break;
+      if (chunk.value !== undefined) {
+        total += chunk.value.byteLength;
+        if (total > maxBytes) throw new CalendarFetchError("invalid", "the feed body exceeds the size limit");
+        decoded += decoder.decode(chunk.value, { stream: true });
+      }
     }
+    return decoded + decoder.decode();
+  } catch (error) {
+    await cancelReader(reader);
+    throw error;
   }
-  return decoded + decoder.decode();
+}
+
+/** Cancels a reader best-effort so a rejected transfer does not stay open until the deadline. */
+async function cancelReader(reader: ReadableStreamDefaultReader): Promise<void> {
+  try {
+    await reader.cancel();
+  } catch {
+    // The stream was already closed or errored; nothing left to release.
+  }
 }
 
 /** Rejects when the promise does not settle before the shared deadline. */
