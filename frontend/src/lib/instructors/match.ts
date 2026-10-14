@@ -41,12 +41,13 @@ const EXACT_SINGLE_CONFIDENCE = 0.95;
 /** Surname plus two or more compared full first-name tokens. */
 const EXACT_MULTI_CONFIDENCE = 1;
 
-type FoldedCandidate = { id: string; lastTokens: string[]; firstTokens: string[]; unsupported: boolean };
+type FoldedCandidate = { id: string; lastTokens: string[]; firstTokens: string[]; suffix: string | null; unsupported: boolean };
 
 type ComboOutcome =
   | { kind: "surname-mismatch" }
   | { kind: "insufficient-first" }
   | { kind: "first-contradiction" }
+  | { kind: "suffix-contradiction" }
   | { kind: "qualified"; confidence: number; initial: boolean };
 
 function personKey(person: PersonName): string {
@@ -58,8 +59,10 @@ function foldCandidate(candidate: Candidate): FoldedCandidate {
   const foldedLast = foldName(typeof candidate.lastName === "string" ? candidate.lastName : "");
   const last = stripSuffixTokens(tokenize(foldedLast));
   const first = stripSuffixTokens(tokenize(foldedFirst));
-  const unsupported = hasUnsupportedCharacters(foldedFirst) || hasUnsupportedCharacters(foldedLast);
-  return { id: candidate.id, lastTokens: last.tokens, firstTokens: first.tokens, unsupported };
+  // Structured candidate slots cannot contain section-field separators.
+  const unsupported = hasUnsupportedCharacters(foldedFirst) || hasUnsupportedCharacters(foldedLast)
+    || /[,;]/.test(foldedFirst + foldedLast);
+  return { id: candidate.id, lastTokens: last.tokens, firstTokens: first.tokens, suffix: last.suffix ?? first.suffix, unsupported };
 }
 
 function sameTokens(a: readonly string[], b: readonly string[]): boolean {
@@ -86,15 +89,20 @@ function scorePair(person: PersonName, candidate: FoldedCandidate): ComboOutcome
   for (const partition of partitions) {
     if (!sameTokens(partition.surnameTokens, candidate.lastTokens)) continue;
     surnameMatched = true;
+    if (person.suffix && candidate.suffix && person.suffix !== candidate.suffix) {
+      return { kind: "suffix-contradiction" };
+    }
     const compared = Math.min(partition.firstTokens.length, candidate.firstTokens.length);
     if (compared === 0) continue;
     let initial = false;
+    let fullTokens = 0;
     let contradicted = false;
     for (let i = 0; i < compared; i++) {
       const a = partition.firstTokens[i] ?? "";
       const b = candidate.firstTokens[i] ?? "";
       if (a === b) {
         if (a.length === 1) initial = true;
+        else fullTokens += 1;
         continue;
       }
       if (a.length === 1 && b.startsWith(a)) { initial = true; continue; }
@@ -103,10 +111,13 @@ function scorePair(person: PersonName, candidate: FoldedCandidate): ComboOutcome
       break;
     }
     if (contradicted) { anyContradicted = true; continue; }
-    const confidence = initial
+    const fullFirst = (partition.firstTokens[0]?.length ?? 0) > 1
+      && partition.firstTokens[0] === candidate.firstTokens[0];
+    // A corroborating middle initial must not weaken an exact full first name.
+    const confidence = !fullFirst
       ? INITIAL_CONFIDENCE
-      : compared > 1 ? EXACT_MULTI_CONFIDENCE : EXACT_SINGLE_CONFIDENCE;
-    return { kind: "qualified", confidence, initial };
+      : fullTokens > 1 ? EXACT_MULTI_CONFIDENCE : EXACT_SINGLE_CONFIDENCE;
+    return { kind: "qualified", confidence, initial: initial && !fullFirst };
   }
   if (surnameMatched) return anyContradicted ? { kind: "first-contradiction" } : { kind: "insufficient-first" };
   return { kind: "surname-mismatch" };
@@ -146,6 +157,7 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
   const qualified: { person: PersonName; candidate: FoldedCandidate; initial: boolean; confidence: number }[] = [];
   let surnameMatched = false;
   let firstNameContradicted = false;
+  let suffixContradicted = false;
   for (const person of people) {
     for (const candidate of byId.values()) {
       // Unsupported letters can tokenize as false initials, so they provide no evidence.
@@ -153,6 +165,7 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
       const outcome = scorePair(person, candidate);
       if (outcome.kind === "surname-mismatch") continue;
       surnameMatched = true;
+      if (outcome.kind === "suffix-contradiction") { suffixContradicted = true; continue; }
       if (outcome.kind === "insufficient-first") continue;
       if (outcome.kind === "first-contradiction") { firstNameContradicted = true; continue; }
       if (outcome.confidence >= CONFIDENCE_THRESHOLD) {
@@ -163,11 +176,13 @@ export function matchInstructor(sectionName: string, candidates: readonly Candid
 
   if (qualified.length === 0) {
     return abstain(
-      firstNameContradicted
-        ? "section surname matches but the first name does not"
-        : surnameMatched
-          ? "section surname matches but first-name evidence is insufficient"
-          : "no candidate shares the section surname",
+      suffixContradicted
+        ? "section surname matches but the suffix does not"
+        : firstNameContradicted
+          ? "section surname matches but the first name does not"
+          : surnameMatched
+            ? "section surname matches but first-name evidence is insufficient"
+            : "no candidate shares the section surname",
     );
   }
 

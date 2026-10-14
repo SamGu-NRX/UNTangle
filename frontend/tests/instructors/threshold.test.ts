@@ -25,14 +25,18 @@ test("raising the threshold excludes weak pairs before deciding ambiguity", () =
       console.log(JSON.stringify([
         matchInstructor("Smith,John", [full, initial]),
         matchInstructor("Smith,J", [full]),
+        matchInstructor("Smith,John P", [{ ...full, firstName: "John Patrick" }]),
       ]));
     `;
     const child = Bun.spawnSync([process.execPath, "--no-env-file", "--eval", script], {
       cwd: directory,
     });
     expect(child.exitCode).toBe(0);
-    const [strong, weak] = JSON.parse(child.stdout.toString());
+    const [strong, weak, middle] = JSON.parse(child.stdout.toString());
     expect(strong).toEqual({
+      candidateId: "john", confidence: 0.95, reason: "matched on surname and first name",
+    });
+    expect(middle).toEqual({
       candidateId: "john", confidence: 0.95, reason: "matched on surname and first name",
     });
     expect(weak.candidateId).toBeNull();

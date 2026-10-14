@@ -106,6 +106,50 @@ describe("review hard cases", () => {
     }
   });
 
+  test("candidate slots reject field separators without rejecting raw section pairs", () => {
+    for (const separator of [",", ";"]) {
+      const malformed: Candidate = { id: "bad", name: "Jane Smith", firstName: `J${separator}ane`, lastName: "Smith" };
+      expect(matchInstructor("Smith,John", [malformed]).candidateId).toBeNull();
+      const surname: Candidate = { id: "bad", name: "John Smith", firstName: "John", lastName: `S${separator}mith` };
+      expect(matchInstructor("S Mith,John", [surname]).candidateId).toBeNull();
+    }
+    const john: Candidate = { id: "john", name: "John Smith", firstName: "John", lastName: "Smith" };
+    expect(matchInstructor("Smith,John", [john]).candidateId).toBe("john");
+  });
+
+  test("a consistent middle initial preserves exact-first-name confidence", () => {
+    for (const firstName of ["John P", "John Patrick"]) {
+      const john: Candidate = { id: "john", name: `${firstName} Smith`, firstName, lastName: "Smith" };
+      expect(matchInstructor("Smith,John", [john]).confidence).toBe(0.95);
+      expect(matchInstructor("Smith,John P", [john])).toEqual({
+        candidateId: "john", confidence: 0.95, reason: "matched on surname and first name",
+      });
+      expect(matchInstructor("Smith,J P", [john]).confidence).toBe(0.9);
+      expect(matchInstructor("Smith,John Q", [john]).candidateId).toBeNull();
+    }
+  });
+
+  test("a trailing initial preserves confidence from two matching full tokens", () => {
+    const john: Candidate = { id: "john", name: "John Patrick Q Smith", firstName: "John Patrick Q", lastName: "Smith" };
+    expect(matchInstructor("Smith,John Patrick", [john]).confidence).toBe(1);
+    expect(matchInstructor("Smith,John Patrick Q", [john])).toEqual({
+      candidateId: "john", confidence: 1, reason: "matched on surname and full first name",
+    });
+  });
+
+  test("conflicting suffixes abstain in raw and display forms", () => {
+    const senior: Candidate = { id: "senior", name: "John Smith Sr", firstName: "John", lastName: "Smith Sr" };
+    const junior: Candidate = { id: "junior", name: "John Smith Jr", firstName: "John Jr", lastName: "Smith" };
+    for (const field of ["Smith Jr,John", "John Smith Jr"]) {
+      expect(matchInstructor(field, [senior])).toEqual({
+        candidateId: null, confidence: 0, reason: "section surname matches but the suffix does not",
+      });
+      expect(matchInstructor(field, [senior, junior]).candidateId).toBe("junior");
+    }
+    expect(matchInstructor("Smith,John", [senior]).candidateId).toBe("senior");
+    expect(matchInstructor("Smith Sr,John", [senior]).candidateId).toBe("senior");
+  });
+
   test("unknown punctuation cannot invent initials on either side", () => {
     const john: Candidate = { id: "john", name: "John Smith", firstName: "John", lastName: "Smith" };
     for (const punctuation of ["@", "/", ":", "!", "_"]) {
