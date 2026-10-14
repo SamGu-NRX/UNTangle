@@ -1,0 +1,48 @@
+# Paths only the lead changes ("Who builds what" in docs/architecture/README.md).
+# A PR from an agent branch (obv/*) that touches one fails the Path ownership
+# check, unless the lead adds the lead-approved label.
+#
+# One glob per line, from the repo root. * stays inside one directory and **
+# crosses directories. Lines starting with # are comments.
+
+# Root manifests and the lockfile
+package.json
+bun.lock
+turbo.json
+tsconfig.base.json
+eslint.config.mjs
+
+# Package manifests, which hold the export maps, and the settings that decide
+# what typecheck and lint enforce
+packages/*/package.json
+packages/*/tsconfig*.json
+frontend/package.json
+frontend/tsconfig.json
+frontend/eslint.config.mjs
+
+# Contracts and design tokens
+packages/contracts/**
+packages/tokens/**
+
+# Database migrations and schema
+frontend/drizzle/**
+frontend/drizzle.config.ts
+frontend/src/lib/db/**
+
+# Auth
+frontend/src/lib/auth*.ts
+frontend/src/lib/account-password.ts
+frontend/src/lib/magic-link-*.ts
+frontend/src/lib/unt-auth.ts
+frontend/src/app/api/auth/**
+frontend/src/app/api/account/**
+frontend/src/server/auth/**
+
+# The planner provider, UI primitives and global styles
+frontend/src/components/planner-provider.tsx
+frontend/src/components/ui/**
+frontend/src/app/globals.css
+
+# CI, this list, and the checks that read it
+.github/**
+tools/repo-rules/**

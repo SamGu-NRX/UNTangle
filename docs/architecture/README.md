@@ -332,7 +332,7 @@ Where a task family repeats, the lead writes one harness that covers every membe
 
 **Contract changes:**
 - If an agent needs a contract change, it proposes one in its PR description; it doesn't work around the boundary.
-- A CI path check fails any agent PR that touches a lead-owned path.
+- A CI path check fails any agent PR that touches a lead-owned path. It is the Path ownership job in `.github/workflows/pr-rules.yml`: it applies to PRs from `obv/*` branches, reads the globs in `.github/lead-owned-paths.txt` from the base branch, and is lifted by the `lead-approved` label.
 - Briefs forbid adding dependencies.
 
 UI work by agents follows `docs/design/`, starting with its README. A UI task gets a filled recipe (`docs/design/recipe-template.md`), approved by the lead before code. A UI PR shows real app screenshots at 390 and 1440, and those screenshots pass the visual QA checklist (`docs/design/visual-qa.md`). Mobile screens are lead- or specialist-built until agents have a working iOS simulator.
