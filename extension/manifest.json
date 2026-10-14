@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "UNTangle Class Search",
+  "version": "0.1.0",
+  "description": "UNTangle facts beside myUNT class-search sections: Main-schedule conflicts, instructor grade history, and a working Add.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "http://localhost:4317/*",
+    "http://127.0.0.1:3217/*",
+    "https://*.unt.edu/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "UNTangle Class Search"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:4317/*", "https://*.unt.edu/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
