@@ -43,7 +43,7 @@ export function TermTray({ term, rows, colors, pending, budget, running, onAuto,
   return (
     <section className={styles.tray} aria-labelledby="tray-title">
       <div className={styles.trayHead}>
-        <div>
+        <div className={styles.trayHeading}>
           <h2 className={styles.trayTitle} id="tray-title">
             {term}
           </h2>
@@ -51,9 +51,6 @@ export function TermTray({ term, rows, colors, pending, budget, running, onAuto,
             {over ? `${credits} credits, above the usual ${budget}` : `${credits} credits`}
           </p>
         </div>
-        <Button className={styles.auto} data-auto="" icon={<TrayIn size={18} />} loading={running} loadingLabel="Planning" onClick={onAuto}>
-          Auto
-        </Button>
         {more.length > 0 ? (
           <Menu
             label={`More for ${term}`}
@@ -66,6 +63,9 @@ export function TermTray({ term, rows, colors, pending, budget, running, onAuto,
             )}
           />
         ) : null}
+        <Button data-auto="" icon={<TrayIn size={18} />} loading={running} loadingLabel="Planning" onClick={onAuto}>
+          Auto
+        </Button>
       </div>
       {result ? (
         <p className={styles.result} data-flip="result" data-hidden={result.hidden || undefined} data-fresh={result.fresh || undefined}>

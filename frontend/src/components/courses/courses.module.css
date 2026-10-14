@@ -94,8 +94,10 @@
 .trayMeta[data-tone="attention"] {
   color: var(--attention);
 }
-.auto {
-  margin-left: auto;
+/* The title takes the free space, so Auto stays at the right edge whether or not ⋯ shows beside it. */
+.trayHeading {
+  flex: 1;
+  min-width: 0;
 }
 .result {
   display: flex;
@@ -142,6 +144,7 @@
 }
 .trayEmpty p {
   margin: 0;
+  text-wrap: pretty;
   font-size: 14px;
   color: var(--ink-2);
 }
@@ -170,7 +173,8 @@
   gap: 8px;
   width: 100%;
   min-height: 44px;
-  padding: 0 10px 0 6px;
+  /* Text starts where the rows' glyphs start; the chevron centers on the rows' +/− column. */
+  padding: 0 16px 0 12px;
   border-radius: 10px;
   color: var(--ink);
   font: 650 15px/1 var(--font-ui);
@@ -335,9 +339,14 @@
   outline: none;
   box-shadow: var(--focus);
 }
+/* Square on the left so the 3px bar stays straight instead of curling round the corner. */
 .row[data-selected] {
+  border-radius: 0 10px 10px 0;
   background: var(--brand-soft);
   box-shadow: inset 3px 0 0 var(--brand);
+}
+.row[data-selected] .rowOpen::after {
+  border-radius: 0 10px 10px 0;
 }
 /* Auto's picks tint before they leave for the tray (MOTION.md §8, 120ms). */
 .row[data-chosen] {
@@ -568,6 +577,7 @@
 }
 .rule {
   margin: 12px 0 0;
+  text-wrap: pretty;
   font-size: 13px;
   line-height: 19px;
   color: var(--ink-2);
@@ -625,7 +635,8 @@
   position: absolute;
   left: 3px;
   right: 3px;
-  border-radius: 3px;
+  /* Square on the left, where the course color runs, so the bar stays straight. */
+  border-radius: 0 3px 3px 0;
   background: var(--paper-3);
   box-shadow: inset 2px 0 0 var(--ink-4);
 }
@@ -832,15 +843,10 @@
 }
 
 /* Grades */
+/* Chips wrap rather than scroll, so no name is cut at the panel's edge. */
 .instructorChips {
-  flex-wrap: nowrap;
-  margin: 0 -24px 14px;
-  padding: 2px 24px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.instructorChips > * {
-  flex: none;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 .fallback {
   margin: 0 0 12px;
@@ -1027,6 +1033,14 @@
   .trayHead {
     padding: 12px 10px 8px 16px;
   }
+  /* One left edge with the tray's title. */
+  .result {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+  .trayFoot {
+    padding-left: 6px;
+  }
   .trayRows .row {
     margin: 0 4px;
   }
@@ -1062,14 +1076,16 @@
     grid-row: 2;
     font-size: 15px;
   }
+  /* A long fact wraps on the right rather than hiding the part the student acts on. */
   .fact {
     grid-column: 3;
     grid-row: 1;
     justify-self: end;
     max-width: 100%;
-    overflow: hidden;
     font-size: 12.5px;
-    text-overflow: ellipsis;
+    line-height: 16px;
+    white-space: normal;
+    text-wrap: balance;
   }
   .act {
     width: 40px;
