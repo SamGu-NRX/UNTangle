@@ -42,7 +42,12 @@ export type ScenarioEvaluation = {
 /** The planner state a student with this scenario would hold. */
 export function buildState(scenario: StudentScenario, catalog: ReturnType<typeof scenarioCatalog>): PlannerState {
   const statuses: Record<string, "completed" | "inProgress" | "notTaken"> = {};
-  for (const { code } of scenario.completed) statuses[code] = "completed";
+  for (const { code } of scenario.completed) {
+    if (scenario.nextTerm.includes(code)) {
+      throw new Error(`scenario ${scenario.id}: ${code} is listed as both completed and next-term — a course cannot be both; fix the scenario`);
+    }
+    statuses[code] = "completed";
+  }
   for (const code of scenario.nextTerm) statuses[code] = "inProgress";
 
   const toId = (code: string, sectionCode: string): string =>

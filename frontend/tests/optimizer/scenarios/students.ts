@@ -153,7 +153,7 @@ export const scenarios: StudentScenario[] = [
       { code: "CSCE 3530", grade: "B" },
       { code: "MATH 3410", grade: "B" },
     ],
-    nextTerm: ["CSCE 4220", "CSCE 4240", "CSCE 4901"],
+    nextTerm: ["CSCE 4220", "CSCE 4240", "CSCE 4901", "COMM 1010"],
     preferences: { constraints: cons({}), weights: goal("compact").weights },
     expect: { feasible: false, note: "both single-option courses meet at the same time" },
   },
@@ -194,7 +194,6 @@ export const scenarios: StudentScenario[] = [
     completed: [
       { code: "CSCE 2610", grade: "B" },
       { code: "CSCE 3020", grade: "A" },
-      { code: "MATH 2700", grade: "B" },
     ],
     nextTerm: ["CSCE 3550", "CSCE 3600", "CSCE 4110", "MATH 2700"],
     picks: { "CSCE 3550": "400" },
@@ -398,7 +397,6 @@ export const scenarios: StudentScenario[] = [
     year: 2,
     completed: [
       { code: "ECON 1100", grade: "B" },
-      { code: "ENGL 1310", grade: "B" },
     ],
     nextTerm: ["ECON 1110", "MATH 1190", "COMM 1010", "ENGL 1310"],
     preferences: { constraints: cons({}), weights: goal("clusterNight").weights },
@@ -429,9 +427,8 @@ export const scenarios: StudentScenario[] = [
     completed: [
       { code: "CSCE 2610", grade: "B" },
       { code: "CSCE 3020", grade: "A" },
-      { code: "MATH 2700", grade: "B" },
     ],
-    nextTerm: ["CSCE 3600", "CSCE 4110", "MATH 2700"],
+    nextTerm: ["CSCE 3600", "CSCE 4110", "MATH 2700", "CSCE 3530"],
     picks: { "CSCE 3600": "vsb:spring-2027:CSCE 3600:999999" },
     locks: { "CSCE 3600": "vsb:spring-2027:CSCE 3600:999999" },
     preferences: { constraints: cons({}), weights: goal("compact").weights },
