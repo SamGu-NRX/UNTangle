@@ -78,7 +78,7 @@ async function shootPanel(panel, name) {
   await panel.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   for (const width of PANEL_WIDTHS) {
     await panel.setViewportSize({ width, height: 200 });
-    const height = await panel.evaluate(() => document.documentElement.scrollHeight);
+    const height = Math.max(360, await panel.evaluate(() => document.documentElement.scrollHeight));
     await panel.setViewportSize({ width, height });
     // Two frames, so the capture never catches the compositor mid-resize.
     await panel.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
