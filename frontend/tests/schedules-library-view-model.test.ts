@@ -112,3 +112,36 @@ describe("what Use in Main does to locks", () => {
     ]);
   });
 });
+
+describe("downloading a schedule file", () => {
+  it("revokes the file's URL only in a later task, after the click", async () => {
+    const { downloadFile } = await import("@/components/schedules-library/view-model");
+    const events: string[] = [];
+    const queued: Array<() => void> = [];
+    downloadFile(new Blob(["{}"]), "untangle-main.json", {
+      createObjectURL: () => (events.push("create"), "blob:1"),
+      revokeObjectURL: (url) => events.push(`revoke ${url}`),
+      createLink: () => ({
+        href: "",
+        download: "",
+        click() {
+          events.push(`click ${this.href} as ${this.download}`);
+        },
+        remove: () => events.push("remove"),
+      }),
+      later: (run) => queued.push(run),
+    });
+    expect(events).toEqual(["create", "click blob:1 as untangle-main.json", "remove"]);
+    queued.forEach((run) => run());
+    expect(events.at(-1)).toBe("revoke blob:1");
+  });
+});
+
+describe("notice lines", () => {
+  it("get keys that differ even when two lines say the same thing", async () => {
+    const { keyedLines } = await import("@/components/schedules-library/view-model");
+    const keyed = keyedLines(["Unreadable: bad", "Unreadable: bad", "Other"]);
+    expect(new Set(keyed.map((line) => line.key)).size).toBe(3);
+    expect(keyed.map((line) => line.text)).toEqual(["Unreadable: bad", "Unreadable: bad", "Other"]);
+  });
+});

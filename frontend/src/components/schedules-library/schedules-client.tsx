@@ -21,11 +21,11 @@ import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPl
 import type { PlannerState } from "@/lib/types";
 import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
 import { saveOutcome } from "@/lib/connect/review";
-import { adoptCopy, noteLanded, undoAdoption, type Adoption } from "./adopt";
+import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } from "./adopt";
 import { CompareView, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
-import { exportFileName, hasSavedCopy, importScheduleFile, whenText } from "./view-model";
+import { downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, whenText } from "./view-model";
 import { WeekThumb } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -226,11 +226,17 @@ export function SchedulesClient() {
   // Success is said only once the new Main is stored (#37's honest-save rule). Until then, or
   // when the save fails or meets a newer version from another tab, the save panel shows below.
   const announce = useRef<{ name: string; adoption: Adoption } | null>(null);
-  const stored = saveOutcome(planner.saveState.status, Boolean(planner.conflict)) === "saved";
+  const outcome = saveOutcome(planner.saveState.status, Boolean(planner.conflict));
   useEffect(() => {
     // Runs on every commit: the save state arriving re-renders this page.
-    if (!stored || !announce.current) return;
-    const { name, adoption } = announce.current;
+    if (!announce.current) return;
+    const step = announcementStep(outcome);
+    if (step === "wait") return;
+    const pending = announce.current;
+    announce.current = null;
+    // A save that failed or met a newer version isn't this adoption landing; a later save mustn't announce it.
+    if (step === "drop") return;
+    const { name, adoption } = pending;
     announce.current = null;
     toast({
       message: `Main now uses ${name}`,
@@ -273,15 +279,7 @@ export function SchedulesClient() {
   }
 
   function exportPlan(plan: SavedPlanSnapshot) {
-    const blob = new Blob([exportPlanJson(plan)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = exportFileName(plan);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadFile(new Blob([exportPlanJson(plan)], { type: "application/json" }), exportFileName(plan));
     toast(`Exported “${plan.name}”`);
   }
 
@@ -599,8 +597,8 @@ function LibraryNotices({
   if (!lines.length) return null;
   return (
     <div className={styles.notices} role="status">
-      {lines.map((line) => (
-        <p key={line}>{line}</p>
+      {keyedLines(lines).map((line) => (
+        <p key={line.key}>{line.text}</p>
       ))}
     </div>
   );

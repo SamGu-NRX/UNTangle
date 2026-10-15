@@ -125,3 +125,39 @@ export async function importScheduleFile(
   const result = store.importPlan(parsed, undefined, identity);
   return result.ok ? { ok: true, name: result.snapshot.name } : { ok: false, kind: result.failure.kind, message: result.failure.message };
 }
+
+/** What downloadFile needs from the browser; tests pass fakes. */
+export type DownloadHost = {
+  createObjectURL(blob: Blob): string;
+  revokeObjectURL(url: string): void;
+  createLink(): { href: string; download: string; click(): void; remove(): void };
+  /** Runs `run` in a later task. */
+  later(run: () => void): void;
+};
+
+const browserDownload = (): DownloadHost => ({
+  createObjectURL: (blob) => URL.createObjectURL(blob),
+  revokeObjectURL: (url) => URL.revokeObjectURL(url),
+  createLink: () => document.body.appendChild(document.createElement("a")),
+  later: (run) => window.setTimeout(run, 0),
+});
+
+/**
+ * Saves `blob` as `name`. The object URL is revoked in a later task, not in
+ * the click's: some browsers start the download after the click returns, and
+ * revoking first cancels it or saves an empty file.
+ */
+export function downloadFile(blob: Blob, name: string, host: DownloadHost = browserDownload()) {
+  const url = host.createObjectURL(blob);
+  const link = host.createLink();
+  link.href = url;
+  link.download = name;
+  link.click();
+  link.remove();
+  host.later(() => host.revokeObjectURL(url));
+}
+
+/** Lines with keys that can't repeat, even when two lines say the same thing. */
+export function keyedLines(lines: readonly string[]): Array<{ key: string; text: string }> {
+  return lines.map((text, index) => ({ key: `${index}:${text}`, text }));
+}
