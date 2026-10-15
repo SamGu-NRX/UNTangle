@@ -164,10 +164,10 @@ describe("the answer line", () => {
   });
 
   test("a course that needs a pick opens it", () => {
-    const courses: AnswerCourse[] = [...placed(["CSCE 2110"]), { code: "MATH 2700", credits: 3, state: "pick", note: "MATH 2700 §003 isn't offered in Spring 2027 anymore." }];
+    const courses: AnswerCourse[] = [...placed(["CSCE 2110"]), { code: "MATH 2700", credits: 3, state: "pick", note: "MATH 2700 section 003 isn't offered in Spring 2027 anymore." }];
     expect(answer([csce2110], defaults, courses)).toEqual({
       tone: "attention",
-      text: "MATH 2700 §003 isn't offered in Spring 2027 anymore.",
+      text: "MATH 2700 section 003 isn't offered in Spring 2027 anymore.",
       action: "pick",
       courseCode: "MATH 2700",
     });
@@ -216,7 +216,7 @@ describe("an alternative in one sentence", () => {
   test("more tight walks to a course already walked to tightly is still one sentence, not a crash", () => {
     const fewer = week([csce2110, two("PHYS 2220", "002", ["Mon", "Wed"], "10:00", "10:50", "phys")]);
     const more = week([csce2110, mwf("PHYS 2220", "009", "10:00", "10:50", "phys")]);
-    expect(describeAlternative(fewer, more)).toBe("Friday end at 10:50.");
+    expect(describeAlternative(fewer, more)).toBe("Friday ends at 10:50.");
     const sameDays = week([csce2110, mwf("PHYS 2220", "010", "10:00", "10:50", "phys"), mwf("PHYS 2221", "001", "11:00", "11:50", "gab")]);
     expect(() => describeAlternative(more, sameDays)).not.toThrow();
   });

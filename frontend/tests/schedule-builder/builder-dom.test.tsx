@@ -186,7 +186,7 @@ describe("Week", () => {
     await click(keep);
     expect(edits.keep).toHaveBeenCalledWith("CSCE 2110", true);
     // The course's other section is offered on the grid as a dotted outline.
-    expect(buttons(view.container, /^Move CSCE 2110 to §002/)).toHaveLength(3);
+    expect(buttons(view.container, /^Move CSCE 2110 to section 002/)).toHaveLength(3);
     await view.unmount();
   });
 

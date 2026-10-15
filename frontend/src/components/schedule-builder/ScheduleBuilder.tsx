@@ -233,7 +233,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   };
 
   const place = (section: Section, overlaps: string[], fromKeyboard: boolean) => {
-    const what = section.courseCode in current ? `Moved ${section.courseCode} to §${sectionLabel(section)}` : `Added ${section.courseCode} §${sectionLabel(section)}`;
+    const what = section.courseCode in current ? `Moved ${section.courseCode} to section ${sectionLabel(section)}` : `Added ${section.courseCode} section ${sectionLabel(section)}`;
     keyboard.current = fromKeyboard;
     host.edits.place(section.courseCode, section.id);
     setPreview(null);

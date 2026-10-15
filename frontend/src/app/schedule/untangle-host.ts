@@ -56,10 +56,10 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
     case "recommended":
       return { state: "placed" };
     case "sample-pick":
-      return { state: "pick", note: `${course.code} §${optionIdLabel(course.savedId!)} is a sample section. Pick a real one.` };
+      return { state: "pick", note: `${course.code} section ${optionIdLabel(course.savedId!)} is made up for planning. Pick a real one.` };
     case "needs-review": {
       const ref = sectionRef(course.savedId!);
-      const saved = `${course.code} §${optionIdLabel(course.savedId!)}`;
+      const saved = `${course.code} section ${optionIdLabel(course.savedId!)}`;
       if (ref.provenance === "real" && course.result?.provenance.kind === "sample") return { state: "pick", note: `${saved} can't be checked: ${planningTerm.label} sections didn't load.` };
       if (ref.provenance === "real" && ref.term !== planningTerm.id) return { state: "pick", note: `${saved} is from another term. Pick a ${planningTerm.label} section.` };
       return { state: "pick", note: `${saved} isn't offered in ${planningTerm.label} anymore. Pick another section.` };

@@ -175,12 +175,15 @@ export function describeAlternative(
   const later = DAY_ORDER.filter((day) => a.endOf.has(day) && (b.endOf.get(day) ?? -Infinity) - a.endOf.get(day)! >= NOTICE_MIN);
   if (later.length > 0) {
     const latest = Math.max(...later.map((day) => b.endOf.get(day)!));
-    costs.push(`${dayNames(later.filter((day) => b.endOf.get(day) === latest))} end at ${clock(latest)}`);
+    const days = later.filter((day) => b.endOf.get(day) === latest);
+    // "Wednesday ends", "Tuesday and Thursday end".
+    costs.push(`${dayNames(days)} ${days.length === 1 ? "ends" : "end"} at ${clock(latest)}`);
   }
   const earlier = DAY_ORDER.filter((day) => a.startOf.has(day) && a.startOf.get(day)! - (b.startOf.get(day) ?? Infinity) >= NOTICE_MIN);
   if (earlier.length > 0) {
     const earliest = Math.min(...earlier.map((day) => b.startOf.get(day)!));
-    costs.push(`${dayNames(earlier.filter((day) => b.startOf.get(day) === earliest))} start at ${clock(earliest)}`);
+    const days = earlier.filter((day) => b.startOf.get(day) === earliest);
+    costs.push(`${dayNames(days)} ${days.length === 1 ? "starts" : "start"} at ${clock(earliest)}`);
   }
   if (b.badWalks > a.badWalks) {
     // Name a walk that is new or newly worse; with only more of the same, any bad one will do.

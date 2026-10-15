@@ -113,6 +113,8 @@
   border-top: 0;
 }
 .sec h3 {
+  /* A section scrolled to (keyboard focus, a link) keeps its padding under the head's rule. */
+  scroll-margin-top: 14px;
   margin: 0 0 2px;
   font-size: 14px;
   font-weight: 650;

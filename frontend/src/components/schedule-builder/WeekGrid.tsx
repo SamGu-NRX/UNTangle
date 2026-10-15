@@ -223,7 +223,7 @@ export function WeekGrid(props: Props) {
   };
 
   const headStyle: CSSVars = { "--cols": days.length };
-  const bodyStyle: CSSVars = { "--cols": days.length, height: `calc(${last - first} * var(--hh))` };
+  const bodyStyle: CSSVars = { "--cols": days.length, height: `calc(${last - first} * var(--hh) + var(--grid-top))` };
 
   return (
     <section className={styles.grid} aria-label={props.label} data-phone={phone ? "" : undefined}>
@@ -239,7 +239,7 @@ export function WeekGrid(props: Props) {
         style={bodyStyle}
       >
         <div className={styles.gutter} aria-hidden="true">
-          {Array.from({ length: last - first - 1 }, (_, i) => first + i + 1).map((hour) => (
+          {Array.from({ length: last - first }, (_, i) => first + i).map((hour) => (
             <span key={hour} style={{ top: at(hour * 60, first) }}>
               {hour % 12 === 0 ? 12 : hour % 12}
               {phone ? "" : hour < 12 ? " AM" : " PM"}
@@ -318,7 +318,9 @@ export function WeekGrid(props: Props) {
                     onPointerCancel={onEventCancel}
                   >
                     {/* The name is what the event shows (WCAG 2.5.3), then the day and its state for screen readers. */}
-                    <span className={styles.eventCode}>{event.courseCode}</span>{" "}
+                    <span className={styles.eventCode}>
+                      <span className={styles.eventSubject}>{event.courseCode.split(" ")[0]}</span> {event.courseCode.split(" ").slice(1).join(" ")}
+                    </span>{" "}
                     <span className={tall && !phone ? styles.eventTime : "sr-only-v2"}>{timeRange(event.start, event.end)}</span>
                     <span className="sr-only-v2">
                       , {DAY_NAME[event.day]}
@@ -342,7 +344,7 @@ export function WeekGrid(props: Props) {
                   data-hue={props.hueOf(outline.courseCode)}
                   data-clash={outline.clash ? "" : undefined}
                   style={{ top: at(outline.start, first), height: `calc(${span(outline.start, outline.end)} - 2px)` }}
-                  aria-label={`Move ${outline.courseCode} to §${outline.label}, ${outline.days} ${timeRange(outline.start, outline.end)}${outline.clash ? ", overlaps another class" : ""}`}
+                  aria-label={`Move ${outline.courseCode} to section ${outline.label}, ${outline.days} ${timeRange(outline.start, outline.end)}${outline.clash ? ", overlaps another class" : ""}`}
                   onClick={(click) => props.onPick(outline.courseCode, outline.sectionId, click.detail === 0)}
                 >
                   §{outline.label}

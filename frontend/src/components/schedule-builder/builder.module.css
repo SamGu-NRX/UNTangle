@@ -327,8 +327,11 @@
   text-align: center;
   color: var(--ink-2);
 }
+/* Room above the first hour, so a class starting on the hour doesn't sit on the day header and the hour can carry its label. */
 .gridBody {
+  --grid-top: 10px;
   position: relative;
+  padding-top: var(--grid-top);
   border-top: 1px solid var(--line);
 }
 .gutter {
@@ -420,6 +423,12 @@
  * The code runs up the block instead, read bottom to top like a chart label,
  * on one line that ends in an ellipsis rather than a cut glyph.
  */
+/* Too short as well for the whole code up the block: the number alone. The answer line names both courses in full. */
+@container (max-width: 30px) and (max-height: 76px) {
+  .event .eventSubject {
+    display: none;
+  }
+}
 @container (max-width: 30px) {
   .event .eventCode {
     /* In vertical writing the line runs along the height, so the height bounds the ellipsis. */
@@ -629,6 +638,7 @@
   margin-left: auto;
 }
 
+/* An empty week: the grid fades toward a card in its middle, rather than being cut by a box. */
 .empty {
   position: absolute;
   inset: 0;
@@ -636,6 +646,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
+  background: radial-gradient(closest-side, var(--paper) 45%, color-mix(in oklab, var(--paper) 0%, transparent));
   pointer-events: none;
 }
 .empty > div {
@@ -643,9 +654,11 @@
   justify-items: center;
   gap: 12px;
   max-width: 360px;
-  padding: 24px;
+  padding: 28px 32px;
+  border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
   text-align: center;
   pointer-events: auto;
 }
