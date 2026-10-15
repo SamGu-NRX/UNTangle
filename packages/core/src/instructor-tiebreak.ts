@@ -62,6 +62,48 @@ export type ScheduleComparator = (a: SchedulePicks, b: SchedulePicks) => number;
  * doesn't list. It never compares schedules it can't account for.
  */
 export function instructorTiebreak(courses: readonly CourseEvidence[]): ScheduleComparator {
-  void courses;
-  throw new Error("Not built yet: docs/tasks/instructor-tiebreak.md");
+  const courseCodes = new Set<string>();
+  const request = courses.map(({ courseCode, options }) => {
+    if (courseCodes.has(courseCode)) throw new Error(`Duplicate course: ${courseCode}`);
+    courseCodes.add(courseCode);
+    const entries = Object.entries(options);
+    if (entries.length === 0) throw new Error(`Course ${courseCode} has no options`);
+
+    const evidenceByOption = new Map<string, number | null>();
+    let counted = true;
+    for (const [optionId, evidence] of entries) {
+      if (evidence.kind === "unknown") {
+        counted = false;
+        evidenceByOption.set(optionId, null);
+        continue;
+      }
+      const value = evidence.meanGradePointsHundredths;
+      if (!Number.isInteger(value) || value < 0 || value > 400) {
+        throw new Error(`Course ${courseCode}, option ${optionId}: evidence must be whole hundredths from 0 to 400`);
+      }
+      evidenceByOption.set(optionId, value);
+    }
+    return { courseCode, evidenceByOption, counted };
+  });
+
+  function score(picks: SchedulePicks): number {
+    for (const courseCode of Object.keys(picks)) {
+      if (!courseCodes.has(courseCode)) throw new Error(`Schedule adds course: ${courseCode}`);
+    }
+    let total = 0;
+    for (const { courseCode, evidenceByOption, counted } of request) {
+      if (!Object.hasOwn(picks, courseCode)) throw new Error(`Schedule misses course: ${courseCode}`);
+      const optionId = picks[courseCode];
+      const evidence = evidenceByOption.get(optionId);
+      if (evidence === undefined) throw new Error(`Course ${courseCode}: unknown option ${optionId}`);
+      if (counted && evidence !== null) total += evidence;
+    }
+    return total;
+  }
+
+  return (a, b) => {
+    const aScore = score(a);
+    const bScore = score(b);
+    return bScore - aScore;
+  };
 }
