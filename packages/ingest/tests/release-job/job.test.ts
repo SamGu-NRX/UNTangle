@@ -117,6 +117,29 @@ describe("runReleaseJob", () => {
     expect(report.wrote).toBe(false);
   });
 
+  test("a body cut off mid-JSON is refused and the pointer stays put", async () => {
+    // Partial response: the fetch itself succeeds, the whole-file parse does
+    // not. The last good release stays published and the run reports why.
+    // The seed run publishes a body whose hash differs from both changedBody
+    // (already the pointer) and termBody (the 304 test below publishes it), so
+    // the shared outDir's state chain stays intact for the later tests.
+    const seedBody = (() => {
+      const raw = JSON.parse(termBody) as { courses: Record<string, { sections: Array<{ linked_sections: Array<{ open_seats: number }> }> }> };
+      raw.courses["MATH 1680"].sections[0].linked_sections[0].open_seats = 98;
+      return JSON.stringify(raw);
+    })();
+    files["/data/spring-2027.json"] = { body: seedBody, etag: '"v7"' };
+    const first = await job();
+    expect(first.outcome).toBe("published");
+    const before = pointerFile();
+    files["/data/spring-2027.json"] = { body: termBody.slice(0, Math.floor(termBody.length / 2)), etag: '"v8"' };
+    const report = await job();
+    expect(report.outcome).toBe("refused");
+    expect(report.reason).toBe("invalid-json");
+    expect(report.wrote).toBe(false);
+    expect(pointerFile()).toBe(before);
+  });
+
   test("a 304 leaves the published release in place", async () => {
     // Restore the original body under its original etag: the first run
     // publishes it (the pointer still holds the changed release), the second

@@ -152,7 +152,11 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
 
   const built = buildSectionRelease({ body, sourceId: "vsb-untgrades", institutionId: "unt", termId, fetchedAt: new Date(now()).toISOString() });
   if (!built.ok) {
-    // The last good release stays published; nothing has been written.
+    // Whole-file failures — a body that does not parse, a schema mismatch, a
+    // wrong term — are always refused, whatever the last good release looked
+    // like: the pointer stays put and nothing has been written. Per-course
+    // invalid-data records are the expected, publishable failure mode;
+    // compare.ts sanityCheck bounds those instead.
     return { termId, outcome: "refused", reason: built.reason, detail: built.message, fetched, termWatch: await runWatch(), wrote: false };
   }
   const next = built.release;

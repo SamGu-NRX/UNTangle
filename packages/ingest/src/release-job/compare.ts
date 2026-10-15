@@ -14,6 +14,14 @@ import type { ComponentRecord, Fact, SectionRelease, SectionRecord } from "../se
 
 export type ChangeKind = "status" | "instructor" | "room" | "time" | "dates" | "seats" | "components";
 
+/**
+ * Share of a release's courses that may be invalid-data records and still
+ * publish. Starting value with no measurement behind it: no real release has
+ * been measured yet, so nobody knows how many invalid courses a healthy
+ * mirror day carries. Tighten or loosen once real runs say what normal is.
+ */
+const MAX_INVALID_SHARE = 0.05;
+
 export type SectionChange = {
   courseCode: string;
   optionId: string;
@@ -134,10 +142,14 @@ function factEqual(a: Fact<unknown>, b: Fact<unknown>): boolean {
 export type SanityResult = { ok: true } | { ok: false; check: string; detail: string };
 
 /**
- * Refuses a release that looks broken. `previous` is null for a first
- * release, which only the file-level checks cover: a first release with no
- * sections, or with any course the parser failed on, is refused too, since
- * the mirror's own coverage claim cannot vouch for what we failed to read.
+ * Refuses a release that looks broken. Whole-file failures — a body that
+ * does not parse, a schema mismatch — are always refused, but they never
+ * reach this check: the build step refuses them. Per-course invalid-data
+ * records are expected and may publish, because the design keeps them as
+ * explicit invalid-data records, never as "no classes". They are bounded
+ * two ways: the invalid count may not rise against the last good release
+ * (a first release, with no baseline, refuses any invalid course), and
+ * invalid courses may not exceed MAX_INVALID_SHARE of all courses.
  */
 export function sanityCheck(previous: SectionRelease | null, next: SectionRelease): SanityResult {
   if (next.manifest.counts.courses === 0) {
@@ -146,11 +158,26 @@ export function sanityCheck(previous: SectionRelease | null, next: SectionReleas
   if (next.manifest.counts.coursesWithSections === 0 && (previous === null || previous.manifest.counts.coursesWithSections > 0)) {
     return { ok: false, check: "no-sections", detail: "no course has any enrollment option" };
   }
-  if (next.manifest.counts.invalidCourses > 0 && (previous === null || next.manifest.counts.invalidCourses > previous.manifest.counts.invalidCourses)) {
+  // The explicit parser-failure rule: whole-file parse failures and schema
+  // mismatches are always refused upstream in the build step; per-course
+  // invalid-data records are expected and may publish within these bounds.
+  const previousInvalid = previous?.manifest.counts.invalidCourses ?? 0;
+  const invalid = next.manifest.counts.invalidCourses;
+  if (invalid > previousInvalid) {
     return {
       ok: false,
       check: "parser-failure",
-      detail: `${next.manifest.counts.invalidCourses} course(s) failed to parse versus ${previous?.manifest.counts.invalidCourses ?? 0} in the last good release`,
+      detail: previous === null
+        ? `a first release with ${invalid} course(s) failed to parse is refused`
+        : `${invalid} course(s) failed to parse versus ${previousInvalid} in the last good release: a rising count is refused`,
+    };
+  }
+  const invalidShare = invalid / next.manifest.counts.courses;
+  if (invalidShare > MAX_INVALID_SHARE) {
+    return {
+      ok: false,
+      check: "parser-failure",
+      detail: `${invalid} of ${next.manifest.counts.courses} courses failed to parse: a ${(invalidShare * 100).toFixed(1)}% share is over the ${(MAX_INVALID_SHARE * 100).toFixed(0)}% limit`,
     };
   }
   if (previous !== null && previous.manifest.counts.courses > 0) {

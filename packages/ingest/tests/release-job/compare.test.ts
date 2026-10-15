@@ -142,6 +142,63 @@ describe("sanityCheck", () => {
     expect(result).toMatchObject({ ok: false, check: "parser-failure" });
   });
 
+  // The explicit parser-failure rule in three cases: a same invalid count
+  // publishes, a share over 5% refuses, a rising count refuses. The share
+  // arithmetic needs room, so these fixtures grow the seven-course acceptance
+  // fixture with clones of MATH 1680 (codes MATH 9000+, each carrying MATH's
+  // sections; AARS 6810 is the only original without options). Invalid courses
+  // are clones, so six original with-options courses survive every edit.
+  function releaseWith(total: number, invalid: number): SectionRelease {
+    return release(raw => {
+      const original = raw.courses["MATH 1680"];
+      const clones: string[] = [];
+      for (let i = 0; i < total - 7; i++) {
+        const code = `MATH 9${String(i).padStart(3, "0")}`;
+        raw.courses[code] = JSON.parse(JSON.stringify(original)) as Raw["courses"][string];
+        clones.push(code);
+      }
+      for (const code of clones.slice(0, invalid)) raw.courses[code].status = "mysterious";
+      raw.coverage.catalog_courses = total;
+      raw.coverage.completed_courses = total;
+      // Invalid-data courses still count as courses and as with-options: the
+      // only course without options in any of these fixtures is AARS 6810.
+      raw.coverage.courses_with_options = total - 1;
+    });
+  }
+
+  test("the same invalid count as the last good release publishes", () => {
+    const before = releaseWith(25, 1);
+    expect(before.manifest.counts.invalidCourses).toBe(1);
+    const after = releaseWith(25, 1);
+    expect(after.manifest.counts.invalidCourses).toBe(1);
+    // One invalid course in twenty-five is 4%, inside the share limit, and the
+    // count did not rise: the per-course invalid-data record may publish.
+    expect(sanityCheck(before, after)).toEqual({ ok: true });
+  });
+
+  test("an invalid share over 5% is refused", () => {
+    // Two of forty is exactly the 5% limit and passes; two of thirty-three is
+    // 6.1%, over it. The course-count drop (17.5%) stays inside the 20%
+    // course-count rule, so only the share rule can refuse this pair.
+    const before = releaseWith(40, 2);
+    expect(sanityCheck(before, before)).toEqual({ ok: true });
+    const after = releaseWith(33, 2);
+    const result = sanityCheck(before, after);
+    expect(result).toMatchObject({ ok: false, check: "parser-failure" });
+    expect(result.ok === false && result.detail).toContain("over the 5% limit");
+  });
+
+  test("a rising invalid count is refused even when the share stays inside the limit", () => {
+    // One invalid of twenty-five is 4%; two of forty is exactly 5%, not over
+    // it. Only the rising count (1 -> 2) can refuse this pair.
+    const before = releaseWith(25, 1);
+    const after = releaseWith(40, 2);
+    expect(after.manifest.counts.invalidCourses).toBe(2);
+    const result = sanityCheck(before, after);
+    expect(result).toMatchObject({ ok: false, check: "parser-failure" });
+    expect(result.ok === false && result.detail).toContain("a rising count is refused");
+  });
+
   test("a release with no sections at all is refused", () => {
     const before = release();
     const after = release(raw => {
