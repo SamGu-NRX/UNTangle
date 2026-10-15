@@ -73,8 +73,11 @@ function main(): void {
     }
   }
 
-  const dir = new URL(".", import.meta.url).pathname;
-  writeFileSync(`${dir}REPORT.md`, `${report.join("\n")}\n`);
+  // fileURLToPath decodes %XX sequences, so this works from a directory whose
+  // path contains spaces; a raw .pathname keeps them and would write to a
+  // nonexistent percent-encoded path.
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  writeFileSync(path.join(dir, "REPORT.md"), `${report.join("\n")}\n`);
 
   console.log(report.join("\n"));
   if (failed.length > 0) {
