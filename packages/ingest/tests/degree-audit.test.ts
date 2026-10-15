@@ -386,3 +386,24 @@ describe("typed grade scopes from the catalog wording", () => {
     expect(option?.detail).toContain("6 planned");
   });
 });
+
+test("the generated core-total policy is scoped to the core's own courses", () => {
+  const core = program("core");
+  const totalHours = findNode("Core total: 42 hours", core.requirements);
+  expect(totalHours).toBeDefined();
+  if (totalHours?.kind !== "policy" || totalHours.policy.type !== "totalHours") throw new Error("unexpected node shape");
+  const scope = totalHours.policy.courseScope;
+  expect(scope?.kind).toBe("codes");
+  if (scope?.kind !== "codes") throw new Error("missing codes scope");
+  expect(scope.codes).toContain("PHIL 2500");
+  // Major-only courses stay out of the core's hour total.
+  expect(scope.codes).not.toContain("CSCE 2110");
+  expect(scope.codes).not.toContain("CSCE 1030");
+  // The majors' degree totals still count the whole record.
+  const cs = program("cs-bs");
+  const degreeTotal = findNode("Total hours: 120", cs.requirements);
+  expect(degreeTotal).toBeDefined();
+  if (degreeTotal?.kind !== "policy" || degreeTotal.policy.type !== "totalHours") throw new Error("unexpected node shape");
+  expect(degreeTotal.policy.courseScope).toBeUndefined();
+});
+

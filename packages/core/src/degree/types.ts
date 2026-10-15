@@ -81,7 +81,7 @@ export type CourseScope =
   | { kind: "subjectLevel"; subjects: string[]; minLevel: number | null };
 
 export type Policy =
-  | { type: "totalHours"; hours: number }
+  | { type: "totalHours"; hours: number; courseScope?: CourseScope }
   | { type: "advancedHours"; hours: number }
   | { type: "residencyPercent"; percent: number }
   | { type: "advancedHoursAtUnt"; hours: number }

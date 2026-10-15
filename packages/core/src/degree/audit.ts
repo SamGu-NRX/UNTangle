@@ -190,22 +190,11 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
         // Options in listed order form a prefix: each option whose courses are
         // all completed and unclaimed is taken (and claims them) until the
         // hours are met. A course claimed here cannot satisfy a later node,
-        // which is how the catalog's double-dip rule behaves. In-progress
-        // rows are never claimed, but their planned contribution is reported:
-        // a live term already reaching the hours, or adding any hours at all,
-        // reads in progress rather than unsatisfied.
-        let plannedCredits = 0;
-        let plannedUnknown = false;
-        for (const option of node.options) {
-          if (plannedCredits >= node.hours) break;
-          if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !allocation.used.has(code))) continue;
-          for (const code of option.must) {
-            if (!inProgress.has(code)) continue;
-            const value = creditsByCode.get(code);
-            if (value === undefined) plannedUnknown = true;
-            else plannedCredits += value;
-          }
-        }
+        // which is how the catalog's double-dip rule behaves. When the node is
+        // still short, in-progress rows plan the remaining hours: each counted
+        // option claims its in-progress codes into the same allocation, so a
+        // live course contributes planned hours to exactly one area, and a
+        // node already satisfied by completed work claims nothing further.
         let courses = 0;
         let credits = 0;
         let unknownCredits = false;
@@ -221,6 +210,21 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
             else credits += value;
           }
         }
+        let plannedCredits = 0;
+        let plannedUnknown = false;
+        if (credits < node.hours) {
+          for (const option of node.options) {
+            if (plannedCredits >= node.hours - credits) break;
+            if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !allocation.used.has(code))) continue;
+            for (const code of option.must) {
+              if (!inProgress.has(code)) continue;
+              const value = creditsByCode.get(code);
+              if (value === undefined) plannedUnknown = true;
+              else plannedCredits += value;
+              allocation.used.add(code);
+            }
+          }
+        }
         const detail = `${courses} course${courses === 1 ? "" : "s"}, ${credits}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedCredits > credits ? `, ${plannedCredits} planned` : ""}`;
         const status = credits >= node.hours ? "satisfied" : plannedCredits > credits || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
         return { name: node.name, status, detail, citation: cite };
@@ -229,17 +233,21 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
       usedCodes.forEach((code) => applied.add(code));
       // In-progress rows are reported as planned coverage: a term still under
       // way that already reaches the hours — or adds any hours at all — keeps
-      // the node in progress instead of unsatisfied.
+      // the node in progress instead of unsatisfied. Each counted option claims
+      // its in-progress codes in a node-local set, so one live course cannot
+      // contribute planned hours to two overlapping options.
       let plannedTotal = 0;
       let plannedUnknown = false;
+      const plannedUsed = new Set<string>();
       for (const option of node.options) {
         if (plannedTotal >= node.hours) break;
-        if (!option.must.every((code) => completed.has(code) || inProgress.has(code))) continue;
+        if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !plannedUsed.has(code))) continue;
         for (const code of option.must) {
           if (!inProgress.has(code)) continue;
           const value = creditsByCode.get(code);
           if (value === undefined) plannedUnknown = true;
           else plannedTotal += value;
+          plannedUsed.add(code);
         }
       }
       let total = 0;
@@ -352,6 +360,22 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
 
 type ScopeContext = { applied: Set<string>; poolMatches: Set<string> };
 
+/** The courses from `list` a typed scope admits. */
+function coursesInScope(scope: CourseScope, list: AuditCourse[], context: ScopeContext): AuditCourse[] {
+  switch (scope.kind) {
+    case "overall":
+      return list;
+    case "unt":
+      return list.filter((course) => course.sourceKind === "unt");
+    case "major":
+      return list.filter((course) => context.applied.has(course.code) || context.poolMatches.has(course.code));
+    case "codes":
+      return list.filter((course) => scope.codes.includes(course.code));
+    case "subjectLevel":
+      return list.filter((course) => scope.subjects.includes(subjectOf(course.code)) && (scope.minLevel === null || levelOf(course.code) >= scope.minLevel));
+  }
+}
+
 /**
  * The completed courses a grade or GPA policy applies to, from the typed
  * scope ingest parsed out of the catalog's wording. Returns null when no
@@ -362,19 +386,7 @@ type ScopeContext = { applied: Set<string>; poolMatches: Set<string> };
 function scopedCourses(p: { scope: string; courseScope?: CourseScope }, courses: AuditCourse[], context: ScopeContext): AuditCourse[] | null {
   const completed = courses.filter((course) => !course.inProgress);
   if (p.courseScope) {
-    const scope = p.courseScope;
-    switch (scope.kind) {
-      case "overall":
-        return completed;
-      case "unt":
-        return completed.filter((course) => course.sourceKind === "unt");
-      case "major":
-        return completed.filter((course) => context.applied.has(course.code) || context.poolMatches.has(course.code));
-      case "codes":
-        return completed.filter((course) => scope.codes.includes(course.code));
-      case "subjectLevel":
-        return completed.filter((course) => scope.subjects.includes(subjectOf(course.code)) && (scope.minLevel === null || levelOf(course.code) >= scope.minLevel));
-    }
+    return coursesInScope(p.courseScope, completed, context);
   }
   if (p.scope === "overall") return completed;
   if (p.scope === "unt") return completed.filter((course) => course.sourceKind === "unt");
@@ -410,9 +422,13 @@ function evaluatePolicy(policy: PolicyNode, courses: AuditCourse[], context: Sco
   const p = policy.policy;
   switch (p.type) {
     case "totalHours": {
-      const total = sum(completed);
+      // An optional course scope narrows both sums to the policy's own course
+      // set: the core's 42-hour total counts core coursework, not the whole
+      // record. Unscoped totals still read every completed transcript course.
+      const inScope = p.courseScope ? coursesInScope(p.courseScope, courses, context) : courses;
+      const total = sum(inScope.filter((course) => !course.inProgress));
       if (total === null) return { ...detail, detail: `${policy.quote} — completed hours include unknown credit values; cannot verify.` };
-      const planned = sum(courses.filter((course) => course.inProgress)) ?? 0;
+      const planned = sum(inScope.filter((course) => course.inProgress)) ?? 0;
       return { ...detail, status: total >= p.hours ? "satisfied" : "unsatisfied", detail: `${total} completed hours of ${p.hours}${planned > 0 ? ` (${planned} in progress)` : ""}` };
     }
     case "advancedHours": {

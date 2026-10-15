@@ -85,6 +85,34 @@ function policyNode(name: string, policy: PolicyNode["policy"], quote: string, c
   return { kind: "policy", name, policy, quote, citation: cite };
 }
 
+/** Every course code a set of requirement nodes names, in stable order. */
+function collectCodes(nodes: RequirementNode[]): string[] {
+  const codes = new Set<string>();
+  const walk = (node: RequirementNode): void => {
+    switch (node.kind) {
+      case "all":
+        for (const slot of node.items) for (const alternative of slot.alternatives) alternative.must.forEach((code) => codes.add(code));
+        break;
+      case "choose":
+      case "hours":
+        node.options.forEach((option) => option.must.forEach((code) => codes.add(code)));
+        break;
+      case "group":
+        node.children.forEach(walk);
+        break;
+      case "choice":
+        node.branches.forEach((branch) => walk(branch.node));
+        break;
+      case "pool":
+      case "policy":
+      case "note":
+        break;
+    }
+  };
+  nodes.forEach(walk);
+  return [...codes].sort();
+}
+
 function allNode(name: string, items: FlowItem[], cite: Citation): AllNode {
   return { kind: "all", name, items: allSlots(parseUnits(items)), citation: cite };
 }
@@ -607,6 +635,18 @@ function deriveCore(page: CatalogPage): RequirementNode[] {
   const otherWays = [transfer, exam].filter(Boolean) as Section[];
   if (otherWays.length > 0) {
     nodes.push(note("Other ways to complete the core", otherWays.map((section) => paragraphs(section).join(" ")).join(" "), citation(otherWays[0], page)));
+  }
+
+  // The core-total policy counts core coursework, not the whole record: scope
+  // it to the courses the core's own requirement lists admit. Without this, a
+  // student with 42 completed hours outside the core would satisfy it.
+  const codes = collectCodes(nodes);
+  if (codes.length > 0) {
+    return nodes.map((node) =>
+      node.kind === "policy" && node.policy.type === "totalHours" && node.policy.courseScope === undefined
+        ? { ...node, policy: { ...node.policy, courseScope: { kind: "codes", codes } } }
+        : node,
+    );
   }
   return nodes;
 }

@@ -308,3 +308,93 @@ describe("review round seven: maximum packing and partial planned progress", () 
   });
 });
 
+
+describe("review round eight: planned allocation and scoped hour totals", () => {
+  test("an in-progress course plans only one allocated area", () => {
+    const spread: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [
+        {
+          kind: "hours",
+          name: "Component Area Option A",
+          hours: 6,
+          citation,
+          options: [{ must: ["PHIL 2500"] }, { must: ["PADM 2100"] }],
+        },
+        {
+          kind: "hours",
+          name: "Social and Behavioral Sciences",
+          hours: 3,
+          citation,
+          options: [{ must: ["PHIL 2500"] }],
+        },
+      ],
+    };
+    const result = auditProgram(spread, [inProgressCourse("PHIL 2500")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("3 planned");
+    // One course, one area: the same live course cannot also plan the
+    // later area.
+    expect(result.requirements[1]!.status).toBe("unsatisfied");
+    expect(result.requirements[1]!.detail).not.toContain("planned");
+  });
+
+  test("an in-progress course contributes planned hours to only one eligible option", () => {
+    const overlap: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [{
+        kind: "hours",
+        name: "Component Area Option A",
+        hours: 6,
+        citation,
+        options: [{ must: ["PHIL 2500"] }, { must: ["PHIL 2500", "ANTH 1010"] }],
+      }],
+    };
+    const result = auditProgram(overlap, [inProgressCourse("PHIL 2500"), inProgressCourse("ANTH 1010")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("3 planned");
+    expect(result.requirements[0]!.detail).not.toContain("9 planned");
+  });
+
+  test("a scoped totalHours policy counts only the courses in its scope", () => {
+    const coreTotal: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "policy",
+        name: "Core total: 6 hours",
+        citation,
+        quote: "The core curriculum consists of 6 semester credit hours.",
+        policy: { type: "totalHours", hours: 6, courseScope: { kind: "codes", codes: ["A 1000", "B 1000"] } },
+      }],
+    };
+    const outside = auditProgram(coreTotal, [course("C 1000", "A"), course("C 2000", "A")]);
+    expect(outside.policies[0]!.status).toBe("unsatisfied");
+    expect(outside.policies[0]!.detail).toContain("0 completed hours of 6");
+    const inside = auditProgram(coreTotal, [course("A 1000", "A"), course("B 1000", "A")]);
+    expect(inside.policies[0]!.status).toBe("satisfied");
+    expect(inside.policies[0]!.detail).toContain("6 completed hours of 6");
+    const mixed = auditProgram(coreTotal, [course("A 1000", "A"), inProgressCourse("B 1000")]);
+    expect(mixed.policies[0]!.status).toBe("unsatisfied");
+    expect(mixed.policies[0]!.detail).toContain("3 completed hours of 6");
+    expect(mixed.policies[0]!.detail).toContain("3 in progress");
+  });
+
+  test("an unscoped totalHours policy still counts the whole record", () => {
+    const degree: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "policy",
+        name: "Total hours: 6",
+        citation,
+        quote: "Students must complete at least 6 semester credit hours.",
+        policy: { type: "totalHours", hours: 6 },
+      }],
+    };
+    const result = auditProgram(degree, [course("C 1000", "A"), course("C 2000", "A")]);
+    expect(result.policies[0]!.status).toBe("satisfied");
+    expect(result.policies[0]!.detail).toContain("6 completed hours of 6");
+  });
+});
+
