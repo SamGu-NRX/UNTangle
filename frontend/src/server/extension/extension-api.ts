@@ -67,7 +67,11 @@ export const extensionAddReplySchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("rejection"),
     operationId: OperationIdSchema,
-    reason: z.enum(["stale-revision", "not-found", "forbidden"]),
+    // "operation-reused" extends the edge contract (the client guard at edge
+    // commit 0d8f959 closes its union at "forbidden"): the same operation id
+    // arrived with different command bytes. The client's reason union must
+    // learn it alongside this route.
+    reason: z.enum(["stale-revision", "not-found", "forbidden", "operation-reused"]),
   }),
 ]);
 

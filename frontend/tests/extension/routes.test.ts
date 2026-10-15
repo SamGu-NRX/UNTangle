@@ -2,8 +2,11 @@
  * The extension routes against an in-memory store with the document-sync
  * decision logic real writes use. Pins: every preview verdict (clear, conflict
  * by course and by busy block, each unknown reason), the add-command path
- * (receipt, replay, stale revision, pinned lock), and the boundary (extension
- * grants only, bound schedule only, origin rules, no cookie credentials).
+ * (receipt, same-command replay, reused-operation refusal, stale revision,
+ * pinned lock), and the boundary (extension grants only, bound schedule only,
+ * origin rules, no cookie credentials, revoked tokens). Every success and
+ * rejection body is fed through the extension client's own guards, copied in
+ * extension-api-guards.ts.
  */
 import { describe, expect, test } from "bun:test";
 import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
@@ -16,6 +19,7 @@ import { DocumentSchema, type Document, type PreferencesBody } from "../../../pa
 import type { Receipt } from "../../../packages/contracts/src/sync";
 import type { Section } from "@/lib/sections/model";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
+import { isAddReply, isPreview, isRecord } from "./extension-api-guards";
 
 const origin = "https://untangle.example";
 const extension = `chrome-extension://${"a".repeat(32)}`;
@@ -123,12 +127,25 @@ const addCommand = (overrides: Record<string, unknown> = {}) => ({
   expectedRevision: 1, ...overrides,
 });
 
+/** Parses a route response through the extension client's own guards: the
+ * client rejects any response these fail, so the routes must never send one. */
+const readPreview = async (response: Response) => {
+  const body: unknown = await response.json();
+  expect(isPreview(body)).toBe(true);
+  return extensionPreviewSchema.parse(body);
+};
+const readAddReply = async (response: Response) => {
+  const body: unknown = await response.json();
+  expect(isAddReply(body)).toBe(true);
+  return extensionAddReplySchema.parse(body);
+};
+
 describe("extension previews", () => {
   test("a clear section states the meeting, seats and the revision it checked", async () => {
     const h = setup();
     const response = await h.preview(await h.issue());
     expect(response.status).toBe(200);
-    const preview = extensionPreviewSchema.parse(await response.json());
+    const preview = await readPreview(response);
     expect(preview.conflict).toBe("clear");
     expect(preview.title).toBe("CSCE 1030");
     expect(String(preview.optionId)).toBe(extensionOptionId(csce1030) as string);
@@ -146,36 +163,36 @@ describe("extension previews", () => {
     });
     const token = await h.issue();
     // CSCE 2110 section 001 overlaps CSCE 1030 on Monday...
-    const withCourse = extensionPreviewSchema.parse(await (await h.preview(token, h.previewUrl(term, "20111"))).json());
+    const withCourse = await readPreview(await h.preview(token, h.previewUrl(term, "20111")));
     expect(withCourse.conflict).toBe("conflict");
     expect(withCourse.clashes).toEqual([{ kind: "course", name: "CSCE 1030", when: "Mon 9:30 AM to 10:30 AM" }]);
     // ...and section 002 overlaps the Tuesday busy block only.
-    const withBusy = extensionPreviewSchema.parse(await (await h.preview(token, h.previewUrl(term, "20112"))).json());
+    const withBusy = await readPreview(await h.preview(token, h.previewUrl(term, "20112")));
     expect(withBusy.conflict).toBe("conflict");
     expect(withBusy.clashes).toEqual([{ kind: "busy", name: "Work shift", when: "Tue 9:35 AM to 10:00 AM" }]);
   });
 
   test("unknown verdicts name why: missing section, no schedule, term mismatch, TBA, stale pick", async () => {
     const hMissing = setup({ sections, scheduleBody: null });
-    const noSchedule = extensionPreviewSchema.parse(await (await hMissing.preview(await hMissing.issue())).json());
+    const noSchedule = await readPreview(await hMissing.preview(await hMissing.issue()));
     expect(noSchedule.conflict).toBe("unknown");
     expect(noSchedule.unknownReason).toBe("schedule-unavailable");
     expect(noSchedule.details.join(" ")).toContain("Sign in");
 
     const hNotFound = setup({ sections, scheduleBody: null });
-    const unknownClass = extensionPreviewSchema.parse(await (await hNotFound.preview(await hNotFound.issue(), hNotFound.previewUrl(term, "99999"))).json());
+    const unknownClass = await readPreview(await hNotFound.preview(await hNotFound.issue(), hNotFound.previewUrl(term, "99999")));
     expect(unknownClass.conflict).toBe("unknown");
     expect(unknownClass.unknownReason).toBe("schedule-unavailable");
     expect(unknownClass.details.join(" ")).toContain("99999");
 
     const hTerm = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
-    const otherTerm = extensionPreviewSchema.parse(await (await hTerm.preview(await hTerm.issue())).json());
+    const otherTerm = await readPreview(await hTerm.preview(await hTerm.issue()));
     expect(otherTerm.conflict).toBe("unknown");
     expect(otherTerm.unknownReason).toBe("schedule-unavailable");
     expect(otherTerm.details.join(" ")).toContain("fall-2027");
 
     const hTba = setup({ sections, scheduleBody: scheduleBody() });
-    const tba = extensionPreviewSchema.parse(await (await hTba.preview(await hTba.issue(), hTba.previewUrl(term, "30100"))).json());
+    const tba = await readPreview(await hTba.preview(await hTba.issue(), hTba.previewUrl(term, "30100")));
     expect(tba.conflict).toBe("unknown");
     expect(tba.unknownReason).toBe("no-set-time");
 
@@ -183,20 +200,20 @@ describe("extension previews", () => {
       sections,
       scheduleBody: scheduleBody({ courses: ["CSCE 1030", "MATH 2000"], selectedSections: { "CSCE 1030": csce1030.id, "MATH 2000": "vsb:old:pick" } }),
     });
-    const stalePick = extensionPreviewSchema.parse(await (await hStale.preview(await hStale.issue())).json());
+    const stalePick = await readPreview(await hStale.preview(await hStale.issue()));
     expect(stalePick.conflict).toBe("unknown");
     expect(stalePick.unknownReason).toBe("schedule-time-missing");
     expect(stalePick.details.join(" ")).toContain("MATH 2000");
 
     const hDown = setup({ sections: null, scheduleBody: null });
-    const down = extensionPreviewSchema.parse(await (await hDown.preview(await hDown.issue())).json());
+    const down = await readPreview(await hDown.preview(await hDown.issue()));
     expect(down.conflict).toBe("unknown");
     expect(down.unknownReason).toBe("schedule-unavailable");
   });
 
   test("a section already picked in Main says so", async () => {
     const h = setup();
-    const preview = extensionPreviewSchema.parse(await (await h.preview(await h.issue())).json());
+    const preview = await readPreview(await h.preview(await h.issue()));
     expect(preview.inSchedule).toBe(true);
   });
 });
@@ -207,7 +224,7 @@ describe("extension add-option commands", () => {
     const token = await h.issue();
     const response = await h.add(token, addCommand());
     expect(response.status).toBe(200);
-    const reply = extensionAddReplySchema.parse(await response.json());
+    const reply = await readAddReply(response);
     if (reply.kind !== "receipt") throw new Error(`expected a receipt, got ${reply.kind}`);
     expect(`${reply.operationId}`).toBe("op-1");
     expect(reply.committedRevision).toBe(2);
@@ -218,12 +235,36 @@ describe("extension add-option commands", () => {
     });
   });
 
-  test("a replay of the same operation id returns the original receipt without writing", async () => {
+  test("a retry of the same command returns the original receipt without writing", async () => {
     const h = setup();
     const token = await h.issue();
     const first = await h.add(token, addCommand());
-    const second = await h.add(token, addCommand({ expectedRevision: 99 }));
-    expect(await second.json()).toEqual(await first.json());
+    expect(first.status).toBe(200);
+    const second = await h.add(token, addCommand());
+    expect(second.status).toBe(200);
+    expect(await readAddReply(second)).toEqual(await readAddReply(first));
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+  });
+
+  test("an operation id reused for a different command is refused, not acknowledged", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const first = await h.add(token, addCommand());
+    expect(first.status).toBe(200);
+    // Same operation id, different option: never answered with the first
+    // command's receipt.
+    const reused = await h.add(token, addCommand({ optionId: extensionOptionId(csce2110) as string }));
+    expect(reused.status).toBe(409);
+    const reusedBody: unknown = await reused.json();
+    // "operation-reused" extends the edge contract: the guard copied at
+    // 0d8f959 closes its union at "forbidden" and must learn the new reason.
+    expect(isRecord(reusedBody)).toBe(true);
+    expect(isAddReply(reusedBody)).toBe(false);
+    expect(reusedBody).toMatchObject({ kind: "rejection", operationId: "op-1", reason: "operation-reused" });
+    const reusedRevision = await h.add(token, addCommand({ expectedRevision: 99 }));
+    expect(reusedRevision.status).toBe(409);
+    // The original command's commit stands untouched.
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
   });
 
   test("a stale expected revision is a typed rejection, never an overwrite", async () => {
@@ -232,7 +273,7 @@ describe("extension add-option commands", () => {
     await h.add(token, addCommand()); // schedule is now revision 2
     const stale = await h.add(token, addCommand({ operationId: "op-2", expectedRevision: 1 }));
     expect(stale.status).toBe(409);
-    const reply = extensionAddReplySchema.parse(await stale.json());
+    const reply = await readAddReply(stale);
     if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
     expect(reply.reason).toBe("stale-revision");
     // The operation stays uncommitted, so a fresh preview then reconfirm works.
@@ -250,7 +291,7 @@ describe("extension add-option commands", () => {
     });
     const lockedReply = await locked.add(await locked.issue(), addCommand());
     expect(lockedReply.status).toBe(403);
-    const lockedBody = extensionAddReplySchema.parse(await lockedReply.json());
+    const lockedBody = await readAddReply(lockedReply);
     if (lockedBody.kind !== "rejection") throw new Error(`expected a rejection, got ${lockedBody.kind}`);
     expect(lockedBody.reason).toBe("forbidden");
 
@@ -263,7 +304,7 @@ describe("extension add-option commands", () => {
     const h = setup();
     const response = await h.add(await h.issue(), addCommand({ optionId: "CSCE1030-99999" }));
     expect(response.status).toBe(422);
-    const reply = extensionAddReplySchema.parse(await response.json());
+    const reply = await readAddReply(response);
     if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
     expect(reply.reason).toBe("not-found");
     expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(1);
@@ -274,12 +315,16 @@ describe("extension boundary", () => {
   test("extension grants only, and only against their bound schedule", async () => {
     const h = setup();
     const mobile = await h.issue("mobile");
-    expect((await h.preview(mobile)).status).toBe(403);
-    expect((await h.add(mobile, addCommand({ scheduleId: "sched-other-1" }))).status).toBe(403);
+    // Wrong kind and insufficient scope are 401: the extension answers them by
+    // asking the student to sign in again. 403 is a command rejection only.
+    const mobilePreview = await h.preview(mobile);
+    expect(mobilePreview.status).toBe(401);
+    expect((await mobilePreview.json()).error).toBe("insufficient_scope");
+    expect((await h.add(mobile, addCommand({ scheduleId: "sched-other-1" }))).status).toBe(401);
 
     const token = await h.issue();
     const other = await h.add(token, addCommand({ scheduleId: "sched-other-1" }));
-    expect(other.status).toBe(403);
+    expect(other.status).toBe(401);
     expect((await other.json()).error).toBe("insufficient_scope");
     expect(await h.store.getDocument("alice", scheduleId)).toBeTruthy();
   });
@@ -290,9 +335,11 @@ describe("extension boundary", () => {
     // A cookie alongside a token is refused, never resolved implicitly.
     const withCookie = await h.preview(await h.issue(), h.previewUrl(), { cookie: "better-auth.session=1" });
     expect(withCookie.status).toBe(400);
-    // A different extension origin gets no CORS echo and no access.
+    // A different extension origin gets no CORS echo and no access: 400 with a
+    // typed code, since 403 is a command rejection only.
     const foreign = await h.preview(null, h.previewUrl(), { origin: `chrome-extension://${"b".repeat(32)}` });
-    expect(foreign.status).toBe(403);
+    expect(foreign.status).toBe(400);
+    expect((await foreign.json()).error).toBe("forbidden_origin");
     expect(foreign.headers.get("access-control-allow-origin")).toBeNull();
     // The allowed extension origin gets the echo, with no credentials header.
     const allowed = await h.preview(null, h.previewUrl(), { origin: extension });
@@ -301,6 +348,16 @@ describe("extension boundary", () => {
     expect(allowed.headers.get("vary")).toBe("Origin");
     // A malformed body is a typed 400, not a server error.
     expect((await h.add(await h.issue(), { command: "drop-everything" })).status).toBe(400);
+  });
+
+  test("a revoked token is 401 with a typed code, so the extension asks for sign-in", async () => {
+    const h = setup();
+    const token = await h.issue();
+    await h.grants.revoke(token);
+    const response = await h.preview(token);
+    expect(response.status).toBe(401);
+    expect((await response.json()).error).toBe("invalid_token");
+    expect((await h.add(token, addCommand())).status).toBe(401);
   });
 });
 

@@ -3,6 +3,12 @@
  * extension kind, origin and CORS rules matching the device routes, bounded
  * body reads, and typed error codes with no raw messages. Mirrors
  * frontend/src/server/auth/device-http.ts.
+ *
+ * Status contract: every authentication or scope failure — missing, revoked,
+ * expired, wrong-kind, or insufficient-scope token — is 401, so the extension
+ * asks the student to sign in again; a request carrying both a token and a
+ * cookie is 400; 403, 409 and 422 are command rejections only, and their body
+ * is always an add reply carrying the command's operation id.
  */
 import { DeviceGrantError, type DeviceGrants } from "@/server/auth/device-grants";
 import { deviceBearer } from "@/server/auth/v1-auth";
@@ -56,13 +62,24 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
   }
 
   /** Authenticates an extension-kind grant. A mobile token, or an extension
-   * grant with no bound schedule, has no extension scopes here. */
+   * grant with no bound schedule, has no extension scopes here. Scope and kind
+   * failures are 401 like every other authentication failure — the extension
+   * answers 401 by asking the student to sign in again, and 403 is reserved
+   * for command rejections. */
   async function authenticate(token: string, scope?: DeviceScope, scheduleId?: string): Promise<ExtensionIdentity> {
-    const identity = await grants.authenticate(token, scope, scheduleId);
-    if (identity.clientKind !== "extension") throw new DeviceGrantError("insufficient_scope", 403);
+    let identity: Awaited<ReturnType<DeviceGrants["authenticate"]>>;
+    try {
+      identity = await grants.authenticate(token, scope, scheduleId);
+    } catch (error) {
+      if (error instanceof DeviceGrantError && error.code === "insufficient_scope") {
+        throw new DeviceGrantError("insufficient_scope", 401);
+      }
+      throw error;
+    }
+    if (identity.clientKind !== "extension") throw new DeviceGrantError("insufficient_scope", 401);
     // The grant's schedule id names the only schedule this grant can see.
     if (!identity.scheduleId || !DocumentIdSchema.safeParse(identity.scheduleId).success) {
-      throw new DeviceGrantError("insufficient_scope", 403);
+      throw new DeviceGrantError("insufficient_scope", 401);
     }
     return { userId: identity.userId, grantId: identity.grantId, scheduleId: identity.scheduleId };
   }
@@ -113,7 +130,10 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
 
   async function handle(request: Request, action: () => Promise<Response>): Promise<Response> {
     try {
-      if (!allowed(request)) throw new DeviceGrantError("forbidden_origin", 403);
+      // A disallowed origin is 400 with a typed code: 403 is a command
+      // rejection only, and the browser blocks the disallowed-origin response
+      // from client code anyway.
+      if (!allowed(request)) throw new DeviceGrantError("forbidden_origin", 400);
       return cors(request, await action());
     } catch (error) {
       if (error instanceof DeviceGrantError) return cors(request, json({ error: error.code }, error.status));

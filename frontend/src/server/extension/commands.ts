@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /**
  * The extension's single command, add-option, applied through the same server
  * write path document sync uses (frontend/src/lib/document-sync): a whole
@@ -35,6 +37,68 @@ const rejection = (operationId: string, reason: RejectionReason, status: number)
 
 export type CommandOutcome = { status: number; body: ExtensionAddReply };
 
+/** The schedule body with the option applied as the course's pick. Applying an
+ * option twice changes nothing, so rebuilding these bytes reproduces the
+ * original write exactly. */
+function scheduleWithOption(current: ScheduleBody, option: { courseCode: string; id: string }): ScheduleBody {
+  return {
+    ...current,
+    courses: current.courses.includes(option.courseCode) ? current.courses : [...current.courses, option.courseCode],
+    selectedSections: { ...current.selectedSections, [option.courseCode]: option.id },
+  };
+}
+
+/** The whole-document write the command commits: the schedule body with the
+ * option applied, at the revision the student confirmed. */
+function buildWritePayload(command: ExtensionAddOptionCommand, scheduleId: string, body: ScheduleBody) {
+  return {
+    operationId: command.operationId,
+    documentId: scheduleId,
+    kind: "schedule" as const,
+    baseRevision: command.expectedRevision,
+    schemaVersion: 1 as const,
+    body,
+  };
+}
+
+/**
+ * Answers a retry whose operation id already has a stored receipt. The receipt
+ * belongs to this command only when the write this request would commit is
+ * byte-identical to the write the receipt names, so the bytes are rebuilt from
+ * the current schedule and hashed: while the schedule still stands at the
+ * committed revision, a retry of the same command reproduces the original
+ * bytes exactly. Anything else — a different option, a different revision, a
+ * moved or deleted schedule — is an operation id asking to acknowledge a
+ * command it did not commit, and is refused instead of acknowledged.
+ */
+async function verifiedReplay(
+  deps: { store: ExtensionStore; sections: SectionsSource },
+  identity: { userId: string; scheduleId: string },
+  command: ExtensionAddOptionCommand,
+  receipt: Receipt,
+): Promise<CommandOutcome> {
+  const refuse = () => rejection(command.operationId, "operation-reused", 409);
+  if (command.expectedRevision !== receipt.committedRevision - 1) return refuse();
+  let schedule: Document;
+  try {
+    schedule = await deps.store.getDocument(identity.userId, identity.scheduleId);
+  } catch {
+    return refuse(); // Missing or deleted: this request's write cannot be reproduced.
+  }
+  if (schedule.kind !== "schedule" || schedule.revision !== receipt.committedRevision) return refuse();
+  const current = ScheduleBodySchema.safeParse(schedule.body);
+  if (!current.success) return refuse();
+  const sections = await deps.sections.termSections(current.data.termId);
+  const section = sections?.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
+  if (!section) return refuse();
+  const bytes = new TextEncoder().encode(
+    JSON.stringify(buildWritePayload(command, identity.scheduleId, scheduleWithOption(current.data, section))),
+  );
+  return createHash("sha256").update(bytes).digest("hex") === receipt.writeSha256
+    ? { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: receipt.committedRevision } }
+    : refuse();
+}
+
 /**
  * Applies one add-option command. The caller has already authenticated the
  * device grant and verified the command's scheduleId is the grant's bound
@@ -48,11 +112,10 @@ export async function applyAddOption(
 ): Promise<CommandOutcome> {
   const { userId, scheduleId } = identity;
   // A replay returns the original receipt before any state check, exactly as
-  // the sync path's receipt lookup precedes every state check.
+  // the sync path's receipt lookup precedes every state check — but only for
+  // the command the receipt actually committed.
   const existing = await deps.store.receipt(userId, command.operationId);
-  if (existing) {
-    return { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: existing.committedRevision } };
-  }
+  if (existing) return verifiedReplay(deps, identity, command, existing);
 
   let schedule: Document;
   try {
@@ -77,22 +140,7 @@ export async function applyAddOption(
   const locked = current.data.lockedSections[section.courseCode];
   if (locked !== undefined && locked !== section.id) return rejection(command.operationId, "forbidden", 403);
 
-  const body: ScheduleBody = {
-    ...current.data,
-    courses: current.data.courses.includes(section.courseCode)
-      ? current.data.courses
-      : [...current.data.courses, section.courseCode],
-    selectedSections: { ...current.data.selectedSections, [section.courseCode]: section.id },
-  };
-
-  const writePayload = {
-    operationId: command.operationId,
-    documentId: scheduleId,
-    kind: "schedule" as const,
-    baseRevision: command.expectedRevision,
-    schemaVersion: 1 as const,
-    body,
-  };
+  const writePayload = buildWritePayload(command, scheduleId, scheduleWithOption(current.data, section));
   const bytes = new TextEncoder().encode(JSON.stringify(writePayload));
   try {
     const receipt = await deps.store.write(userId, bytes, scheduleId);
@@ -108,12 +156,10 @@ export async function applyAddOption(
       };
     }
     if (error instanceof SyncError && error.code === "OPERATION_REUSED") {
-      // A concurrent retry of the same operation committed between the receipt
-      // lookup and the write. The stored receipt is that operation's reply.
-      const committed = await deps.store.receipt(userId, command.operationId);
-      if (committed) {
-        return { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: committed.committedRevision } };
-      }
+      // A concurrent write between the receipt lookup and the commit already
+      // stored different bytes under this operation id: a different command
+      // raced in. The stored receipt is not this command's reply, so refuse.
+      return rejection(command.operationId, "operation-reused", 409);
     }
     throw error;
   }
