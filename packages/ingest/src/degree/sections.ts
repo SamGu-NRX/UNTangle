@@ -128,7 +128,12 @@ function collectList(list: HtmlElement, out: FlowItem[]): void {
       continue;
     }
     if (child.tag !== "li") {
-      collectItems(child, out);
+      // collectItems matches its tag cases against children while walking, so a
+      // block-level element handed over directly (a bare <p> or nested <ul>
+      // between list items) would be walked generically and lose its inline
+      // structure — the note <p> split into per-anchor paragraphs. Wrap it so
+      // the element's own case applies.
+      collectItems({ tag: "#list-flow", attrs: {}, children: [child] }, out);
       continue;
     }
     const nested = child.children.filter((grandchild) => isElement(grandchild) && (grandchild.tag === "ul" || grandchild.tag === "ol"));

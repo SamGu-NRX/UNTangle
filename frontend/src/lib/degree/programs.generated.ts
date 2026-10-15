@@ -4,7 +4,7 @@
 export const DEGREE_DATA = {
   "catalogId": "catoid-40",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-15T12:25:01.631Z",
+  "builtAt": "2026-10-15T16:33:37.601Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -5017,7 +5017,7 @@ export const DEGREE_DATA = {
         {
           "kind": "note",
           "name": "Component Area Option double-dip rule",
-          "text": "Note: Students may not “double-dip” courses to complete the University Core Curriculum. If a student completes for the Social and Behavioral Sciences area, PADM 2100 may not count toward Component Area Option A.",
+          "text": "Note: Students may not “double-dip” courses to complete the University Core Curriculum. If a student completes PADM 2100 for the Social and Behavioral Sciences area, PADM 2100 may not count toward Component Area Option A.",
           "citation": {
             "page": "core-curriculum.html",
             "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21275",
