@@ -11,4 +11,3 @@
 # A task's only allowed edit here is deleting its own line.
 
 # Step 1 lanes (docs/tasks/<lane>.md).
-packages/core/tests/filters/filters.test.ts
