@@ -393,11 +393,20 @@ async function journey(browser, viewport) {
   check(`${tag}: the deep link renders with grade history down`, response.status() === 200, String(response.status()));
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
-  const deepText = await deepPanel.innerText();
   // Desktop kept the second Auto run's CSCE 2100; the phone undid its only run.
+  const deepStatus = phone ? "You can take this" : "Planned for Spring 2027";
+  // The detail opens on the first render from the catalog, before the planner has read the saved plan:
+  // that read waits for the session lookup to prepare an identity. Grade history is answered locally and can
+  // arrive first, so wait for the status the saved plan gives rather than reading the panel once.
+  const statusShown = await deepPanel
+    .getByText(deepStatus, { exact: true })
+    .waitFor({ timeout: 15000 })
+    .then(() => true, () => false);
+  const deepText = await deepPanel.innerText();
   check(
     `${tag}: the deep link shows catalog text and the status`,
-    deepText.includes("Foundations of Computing") && deepText.includes(phone ? "You can take this" : "Planned for Spring 2027"),
+    statusShown && deepText.includes("Foundations of Computing") && deepText.includes(deepStatus),
+    statusShown ? null : `status never read "${deepStatus}": ${deepText.replace(/\s+/g, " ").slice(0, 160)}`,
   );
   await page.waitForTimeout(350);
   await shoot(page, `${tag}-06-deep-link`);
