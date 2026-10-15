@@ -15,6 +15,10 @@ export type CalendarEvent = {
   location: string;
   /** At most MAX_DESCRIPTION_CHARS characters; a cut description ends with an ellipsis. */
   description: string;
+  /** The event's URL property (typically the event's page on the host calendar); null when absent. */
+  url: string | null;
+  /** CATEGORIES values, in feed order; empty when the event had none. */
+  categories: string[];
   isAllDay: boolean;
   /** TRANSP:TRANSPARENT. The event still occurs but never counts as busy time. */
   transparent: boolean;

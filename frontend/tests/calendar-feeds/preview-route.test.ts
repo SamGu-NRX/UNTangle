@@ -119,7 +119,7 @@ test("answers 200 with the parsed shape on success", async () => {
   expect(payload.range).toEqual({ start: "2026-01-01T00:00:00.000Z", end: "2026-03-01T00:00:00.000Z" });
   // The real parser ran over the mocked feed text.
   expect(payload.events).toEqual([
-    { id: 0, uid: "x@t", summary: "Tiny event", location: "", description: "", isAllDay: false, transparent: false },
+    { id: 0, uid: "x@t", summary: "Tiny event", location: "", description: "", url: null, categories: [], isAllDay: false, transparent: false },
   ]);
   expect(payload.occurrences).toEqual([
     { eventId: 0, start: "2026-01-15T14:00:00.000Z", end: "2026-01-15T15:00:00.000Z", status: "confirmed" },
