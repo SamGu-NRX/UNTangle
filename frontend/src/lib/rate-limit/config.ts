@@ -16,11 +16,22 @@ export function budgetWindowMs(budget: { windowSeconds?: number }): number {
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Unmeasured starting caps: grant creation and human approval are infrequent;
+  // token polling needs room for the advertised five-second interval.
+  deviceStart: { ip: 10, windowSeconds: 600 },
+  deviceInspect: { ip: 30, windowSeconds: 600 },
+  deviceApprove: { user: 10, ip: 10, windowSeconds: 600 },
+  deviceToken: { ip: 120 },
   // Each preview fetches an outside URL; this is an unmeasured starting value.
   calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },
+  // /api/v1 document routes, counted by address before sign-in is checked;
+  // each student is then counted against plannerRead or plannerSave. Loose
+  // because many phones can share one carrier NAT address: room for 25
+  // students reading at their full budget. Unmeasured starting value.
+  documentFlood: { ip: 3000 },
   plannerRead: { user: 120, ip: 360 },
   plannerSave: { user: 60, ip: 180 },
   sections: { user: 60, ip: 180 },

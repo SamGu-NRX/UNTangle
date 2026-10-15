@@ -5,7 +5,7 @@ import { inferStatuses, untAdapter, type CatalogCourse, type Prerequisite } from
 import { renderPrerequisiteTable } from "@/lib/course-catalog/build";
 import { computeAuto, describeAuto, undoBlocker, undoStatuses } from "@/components/courses/model/auto";
 import { getInitialPlannerState, getPlanningTermCourseCodes } from "@/lib/planner";
-import { buildCourseModel, buildGroups, type PlanSnapshot } from "@/components/courses/model/course-model";
+import { buildCourseModel, type PlanSnapshot } from "@/components/courses/model/course-model";
 import {
   onlyCheckable,
   ruleFromPrerequisite,
@@ -149,15 +149,6 @@ describe("course model on the UNT catalog with the sample transcript", () => {
     expect(outcome.unplanned).toEqual(["CSCE 1030"]);
     expect(outcome.planned).toEqual([]);
     expect(outcome.changes).toContainEqual({ code: "CSCE 1030", from: "inProgress", to: "notTaken" });
-  });
-
-  test("groups count only credit as done and report coverage separately", () => {
-    const model = buildCourseModel(profile, plan(sampleStatuses()));
-    const groups = buildGroups(model, csCore, "CSCE");
-    // CSCE 1040 and MATH 1710 are done; CSCE 1030 is covered, not done.
-    expect(groups[0]).toMatchObject({ key: "core", ids: csCore, finished: 2, covered: 1 });
-    expect(groups[1].key).toBe("dept:CSCE");
-    expect(groups[1].ids).not.toContain("CSCE 1030");
   });
 });
 

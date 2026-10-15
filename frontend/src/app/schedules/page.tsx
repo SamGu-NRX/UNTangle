@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { PlansClient } from "@/components/saved-plans/plans-client";
+import { SchedulesClient } from "@/components/schedules-library/schedules-client";
 
 export const metadata: Metadata = { title: "Schedules" };
 
 export default function SchedulesPage() {
-  return <PlansClient />;
+  return <SchedulesClient />;
 }

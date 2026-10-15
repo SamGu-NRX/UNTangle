@@ -15,10 +15,33 @@ type Options = {
   now?: () => number;
 };
 
-export function createRateLimitWrapper({ store, session, secret, now = Date.now }: Options) {
-  // Callers are stored as HMACs, so the table never holds a raw IP or user id.
+/** Callers are stored as HMACs, so the table never holds a raw IP or user id. */
+function callerHash(secret: string) {
   const key = createHmac("sha256", secret).update("untangle rate limit").digest();
-  const hash = (caller: string) => createHmac("sha256", key).update(caller).digest("base64url");
+  return (caller: string) => createHmac("sha256", key).update(caller).digest("base64url");
+}
+
+/**
+ * Counts a request against a user the handler has already identified, for
+ * routes where the wrapper can't see who is calling (device bearer tokens are
+ * read only by authorizeV1). Uses the same counters as the wrapper's user
+ * budgets. Resolves to the seconds to wait when the budget is spent, or null.
+ */
+export function createUserLimit({ store, secret, now = Date.now }: Omit<Options, "session">) {
+  const hash = callerHash(secret);
+  return async (route: RouteClass, userId: string): Promise<number | null> => {
+    const budget: Budget = budgets[route];
+    if (!budget.user) throw new Error(`Route class ${route} has no per-user budget.`);
+    const time = now();
+    const windowMs = budgetWindowMs(budget);
+    const window = Math.floor(time / windowMs);
+    if ((await store.hit(route, hash(`user:${userId}`), window, windowMs)) <= budget.user) return null;
+    return Math.ceil(((window + 1) * windowMs - time) / 1000);
+  };
+}
+
+export function createRateLimitWrapper({ store, session, secret, now = Date.now }: Options) {
+  const hash = callerHash(secret);
 
   return <Args extends unknown[]>(route: RouteClass, handler: Handler<Args>) =>
     async (request: Request, ...args: Args): Promise<Response> => {

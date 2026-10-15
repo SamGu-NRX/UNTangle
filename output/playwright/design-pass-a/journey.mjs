@@ -3,15 +3,17 @@
 // and 390x844 (touch), against `next start` and the mock myUNT server
 // (tools/mock-myunt, port 4317), which stands in for myUNT's transcript page
 // and serves the synthetic transcript PDF.
-//   Connect: plan menu -> Open myUNT (popup) -> close -> "Use the downloaded
-//            PDF" (stubbed picker) -> review -> save; the page-wide drop;
-//            popups blocked; Back/Forward and focus; phones end at the
-//            native file chooser and survive a reload at /connect.
-//   Plans:   save a plan, change the working plan (mark a course as credit on
-//            Courses), compare (diff rows), restore.
-//   Auth:    sign-in by emailed link and by password, errors under each
-//            field; reset; the emailed link's landing page (no token use
-//            until its button is pressed).
+//   Import:  Courses menu -> /connect -> Open myUNT (popup) -> close -> "Use
+//            the downloaded PDF" (stubbed picker) -> review grouped by term
+//            with one credit line -> Looks right; the page-wide drop;
+//            popups blocked; Back and the old /courses/import address;
+//            phones end at the native file chooser and survive a reload.
+//   Library: save a copy, change the working plan (mark a course as credit
+//            on Courses), compare two schedules, use a copy in Main, Undo.
+//   Auth:    the sign-in dialog over a page (focus returns to Sign in);
+//            sign-in by emailed link and by password at /auth, errors under
+//            each field; reset; the emailed link's landing page (no token
+//            use until its button is pressed).
 // axe (WCAG 2.0-2.2 A/AA) on every state. Writes screenshots and report.json.
 //   node journey.mjs <baseUrl> <mockUrl> <outDir>
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -51,13 +53,15 @@ const file = { name: "transcript.pdf", mimeType: "application/pdf", buffer: pdf 
 
 async function plansSave(page, size) {
   await page.goto(`${base}/schedules`, { waitUntil: "networkidle" });
-  await page.getByLabel("Plan name (optional)").fill("Before import");
-  await page.getByRole("button", { name: "Save current schedule" }).click();
-  await page.getByText("Before import", { exact: true }).waitFor();
-  check(size, "plans: the view header replaces the headline", (await page.getByRole("heading", { level: 1, name: "Plan library" }).count()) === 1);
+  check(size, "library: one heading, Schedules", (await page.getByRole("heading", { level: 1, name: "Schedules" }).count()) === 1);
+  check(size, "library: Main is listed as the active schedule", (await page.getByRole("button", { name: "Open Main, active" }).count()) === 1);
+  await page.getByRole("button", { name: "Save a copy" }).first().click();
+  const name = page.getByRole("dialog", { name: "Save a copy of Main" }).getByLabel("Name");
+  await name.fill("Before import");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Open Before import" }).waitFor();
+  check(size, "library: a saved copy is a row with one fact, when it was saved", /Saved just now/.test(await page.locator("li", { has: page.getByRole("button", { name: "Open Before import" }) }).innerText()));
 }
-
-const SHEET = "Import from myUNT";
 const TRIP_KEY = "untangle.connect.trip";
 const pdfBase64 = pdf.toString("base64");
 
@@ -90,15 +94,20 @@ async function toCourses(page) {
   }
 }
 
-// v3 foundation: the shell's plan menu is gone (the schedule pill opens the
-// library), so Connect opens from the Courses view's own Auto-fill menu.
+// v3: the import is its own page at /connect. Courses reaches it from the empty state's
+// "Import your transcript" or, once there is a plan, from the degree dialog behind the degree line.
 async function openConnectFromCourses(page) {
-  await page.getByRole("button", { name: "More Auto-fill options" }).filter({ visible: true }).first().click();
-  await page.getByRole("menuitem", { name: "Import a transcript" }).click();
-  const sheet = page.getByRole("region", { name: SHEET });
-  await sheet.waitFor();
+  const fromEmpty = page.getByRole("button", { name: /Import your transcript/ });
+  if (await fromEmpty.isVisible().catch(() => false)) await fromEmpty.click();
+  else {
+    await page.locator("[data-degree]").click();
+    await page.getByRole("dialog", { name: "Your degree" }).getByRole("button", { name: /^Import/ }).click();
+  }
+  await page.waitForURL(/\/connect$/);
+  const stage = page.getByRole("main");
+  await stage.getByRole("heading", { level: 1 }).waitFor();
   await page.waitForTimeout(350);
-  return sheet;
+  return stage;
 }
 
 /** Drags made in the page: `files` is a list of [name, type] (the PDF bytes for .pdf), or null for a text drag. */
@@ -121,19 +130,25 @@ async function drag(page, phase, files) {
   );
 }
 const overlay = (page) => page.locator('[data-testid="pdf-drop-overlay"]');
+/**
+ * The visible toast's message. The Toaster also copies each message into a
+ * visually hidden live region, which is what a screen reader announces (once);
+ * the visible toast has no live role. A bare getByText matches both copies.
+ */
+const toastText = (page, text) => page.locator(".ui-toast__message").filter({ hasText: text });
 const flagSet = (page) => page.evaluate((key) => sessionStorage.getItem(key) === "1", TRIP_KEY);
 
 // Desktop: popup window -> close -> "Use the downloaded PDF" (stubbed picker)
-// -> review with a flagged row -> breakpoint crossed after approving -> save.
+// -> review grouped by term, with a row to check -> breakpoint crossed after deciding -> save.
 async function connectPopup(page, size) {
   await toCourses(page);
-  const sheet = await openConnectFromCourses(page);
-  check(size, "connect: the Courses menu opens the sheet over Courses at /connect", page.url().endsWith("/connect"), page.url());
-  const text = await sheet.innerText();
-  check(size, "connect: the start lists Reads / Removes / Keeps", /Reads/.test(text) && /Removes/.test(text) && /Keeps/.test(text));
+  const stage = await openConnectFromCourses(page);
+  check(size, "connect: the Courses menu opens the import page at /connect", page.url().endsWith("/connect"), page.url());
+  const text = await stage.innerText();
+  check(size, "connect: the first screen says the PDF is read here and nothing is uploaded", /Nothing is uploaded/.test(text));
   check(size, "connect: no extension anywhere in the flow", !/extension/i.test(text));
-  const open = sheet.getByRole("link", { name: /Open myUNT/ });
-  check(size, "connect: one primary action, Open myUNT", (await sheet.locator(".ui-btn--primary").count()) === 1 && /ui-btn--primary/.test(await open.getAttribute("class")));
+  const open = stage.getByRole("link", { name: /Open myUNT/ });
+  check(size, "connect: one primary action, Open myUNT", (await stage.locator(".ui-btn--primary").count()) === 1 && /ui-btn--primary/.test(await open.getAttribute("class")));
   await shot(page, size, "connect-start");
   await axe(page, size, "Connect start");
 
@@ -142,15 +157,15 @@ async function connectPopup(page, size) {
   await popup.waitForURL(/^https:\/\/my\.unt\.edu\//);
   check(size, "connect: Open myUNT opens the transcript page in a separate window", popup.url().startsWith("https://my.unt.edu/"), popup.url());
   check(size, "connect: the myUNT window can't reach back to UNTangle", (await popup.evaluate(() => window.opener)) === null);
-  check(size, "connect: while away the sheet waits calmly", await sheet.getByText("Download your transcript as a PDF, then come back.").isVisible());
+  check(size, "connect: while away the page waits calmly", await stage.getByRole("heading", { name: "Download your transcript there" }).isVisible());
   check(size, "connect: the trip is remembered for a reload", await flagSet(page));
   await shot(page, size, "connect-away");
   await axe(page, size, "Connect waiting for myUNT");
 
   await popup.close();
-  await sheet.getByText("Choose the transcript PDF you just downloaded.").waitFor();
+  await stage.getByRole("heading", { name: "Got it downloaded?" }).waitFor();
   await page.waitForTimeout(100);
-  const use = sheet.getByRole("button", { name: "Use the downloaded PDF" });
+  const use = stage.getByRole("button", { name: "Use the downloaded PDF" });
   check(size, "connect: closing myUNT makes 'Use the downloaded PDF' the primary action", /ui-btn--primary/.test(await use.getAttribute("class")));
   check(size, "connect: it takes focus", await use.evaluate((el) => el === document.activeElement));
   check(size, "connect: it is not pressed for the student (the picker needs a gesture)", (await page.evaluate(() => window.__pickerCalls.length)) === 0);
@@ -158,40 +173,57 @@ async function connectPopup(page, size) {
   await axe(page, size, "Connect back from myUNT");
 
   await use.click();
-  await page.getByRole("heading", { name: "Review your courses" }).waitFor();
+  await page.getByRole("heading", { name: /courses? found/ }).waitFor();
   const options = await page.evaluate(() => window.__pickerCalls[0]);
   check(size, "connect: the picker opens in Downloads for one PDF", options?.startIn === "downloads" && JSON.stringify(options.types[0].accept) === JSON.stringify({ "application/pdf": [".pdf"] }), JSON.stringify(options));
   check(size, "connect: choosing the file ends the trip", !(await flagSet(page)));
-  await page.waitForTimeout(200);
-  const review = page.getByRole("region", { name: "Review your courses" });
-  check(size, "connect: progress and review never say 'AI'", !/\bAI\b/.test(await review.innerText()));
-  const flaggedRows = await page.locator("li[data-flagged]").count();
-  const flaggedSelects = await page.locator('li[data-flagged] [role="combobox"]').count();
-  check(size, "connect: every row that needs a decision is tinted and carries a ui Select", flaggedRows > 0 && flaggedSelects === flaggedRows && (await page.locator("select:visible").count()) === 0, `${flaggedRows} flagged rows, ${flaggedSelects} Selects`);
+  await page.waitForTimeout(250);
+  check(size, "connect: progress and review never say 'AI'", !/\bAI\b/.test(await stage.innerText()));
+  await reviewChecks(page, stage, size);
   await shot(page, size, "connect-review");
   await axe(page, size, "Connect review");
 
-  // Crossing the phone breakpoint (rotation, zoom) must not remount the sheet and drop approvals.
-  const include = page.getByRole("checkbox", { name: "Include CSCE 1030", exact: true });
-  await include.check();
+  // Crossing the phone breakpoint (rotation, zoom) must keep the review and the decision.
+  const done = stage.getByRole("radiogroup", { name: "How to count HIST 9999" }).getByRole("radio", { name: "Done" });
+  await done.click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(400);
-  const kept = (await review.count()) === 1 && (await include.isChecked());
+  const kept = (await done.getAttribute("aria-checked")) === "true";
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.waitForTimeout(400);
-  check(size, "connect: crossing the phone breakpoint after approving a row keeps the review and the approval", kept && (await include.isChecked()));
+  check(size, "connect: crossing the phone breakpoint after deciding a row keeps the review and the decision", kept && (await done.getAttribute("aria-checked")) === "true");
 
-  await page.getByRole("button", { name: "Save 1 course" }).click();
-  await page.getByText("1 course added to your plan.", { exact: true }).waitFor();
-  await shot(page, size, "connect-done");
-  await axe(page, size, "Connect done");
-  await page.getByRole("button", { name: "Go to courses" }).click();
+  await stage.getByRole("button", { name: "Looks right" }).click();
   await page.waitForURL(/\/courses$/);
-  await page.waitForTimeout(400);
-  check(size, "connect: 'Go to courses' closes the sheet on Courses", (await page.getByRole("region", { name: /Import from myUNT|Your courses/ }).count()) === 0);
+  await toastText(page, /^Added \d+ courses? from your transcript$/).waitFor();
+  check(size, "connect: 'Looks right' saves and lands on Courses", page.url().endsWith("/courses"));
+  await shot(page, size, "connect-done");
 }
 
-// Desktop: the page-wide drop target, from Courses with the sheet closed.
+/** The review: rows to check first, then one heading per term; one fact per row; credits once, in the summary line. */
+async function reviewChecks(page, stage, size) {
+  const headings = await stage.getByRole("heading", { level: 2 }).allInnerTexts();
+  check(size, "review: 'To check' comes first, then the terms", /to check/i.test(headings[0] ?? "") && headings.slice(1).length > 0 && headings.slice(1).every((h) => /^(fall|spring|summer|winter) \d{4}$/i.test(h.trim())), JSON.stringify(headings));
+  const summary = await stage.locator("h1 + p").innerText();
+  check(size, "review: total credits appear once, in one summary line", /credits? (done|in progress)/.test(summary), summary);
+  const rows = (await stage.locator("li:not([data-flagged]) > button").allInnerTexts()).map((r) => r.replace(/\.? ?Change how it counts\s*$/, ""));
+  check(size, "review: each row is a code, a title and one fact, with no credits", rows.length > 0 && rows.every((r) => /(Grade [A-Z]+|Taking|Done)\s*$/.test(r) && !/\d\.\d{3}|credit/i.test(r)), JSON.stringify(rows.slice(0, 3)));
+  // A settled row opens its correction one step away: Skip leaves it out and the credit line drops.
+  const row = stage.locator("li:not([data-flagged]) > button").first();
+  await row.click();
+  const code = (await row.locator(".ui-code").innerText()).trim();
+  await stage.getByRole("radiogroup", { name: `How to count ${code}` }).getByRole("radio", { name: "Skip" }).click();
+  const after = await stage.locator("h1 + p").innerText().catch(() => "");
+  check(size, "review: a settled row can be corrected, and skipping it lowers the credits", /Skipped/.test(await row.innerText()) && after !== summary, `${summary} -> ${after}`);
+  await stage.getByRole("radiogroup", { name: `How to count ${code}` }).getByRole("radio", { name: "Done" }).click();
+  await row.click();
+  const flagged = await page.locator("li[data-flagged]").count();
+  const decisions = await page.locator('li[data-flagged] [role="radiogroup"]').count();
+  check(size, "review: every row to check has its reason and a Done, Taking or Skip choice, and no dropdown", flagged > 0 && decisions === flagged && (await page.locator("select:visible, [role=combobox]").count()) === 0, `${flagged} rows, ${decisions} choices`);
+  check(size, "review: no mid dots", !/\u00b7/.test(await stage.innerText()));
+}
+
+// Desktop: the page-wide drop target, from Courses.
 async function connectDrop(page, size) {
   await toCourses(page);
   await drag(page, "start", null);
@@ -201,26 +233,30 @@ async function connectDrop(page, size) {
 
   await drag(page, "start", [["unofficial-transcript.pdf", "application/pdf"]]);
   await overlay(page).waitFor();
-  check(size, "drop: dragging a file over the app shows the full-window target", await overlay(page).isVisible());
-  await page.waitForTimeout(250); // past the 120ms fade-in
+  check(size, "drop: dragging a PDF over the app shows the full-window target", /Drop your transcript/.test(await overlay(page).innerText()));
+  await page.waitForTimeout(250); // past the 140ms fade-in
   await shot(page, size, "drop-overlay");
   await drag(page, "dragleave", null);
   await page.waitForTimeout(100);
   check(size, "drop: leaving the window hides it", (await overlay(page).count()) === 0);
+  await drag(page, "start", [["photo.png", "image/png"]]);
+  await overlay(page).waitFor();
+  check(size, "drop: a file that isn't a PDF gets the grey target", /Only PDF transcripts work/.test(await overlay(page).innerText()));
+  await drag(page, "dragleave", null);
 
-  // Drop, then cross the breakpoint while the PDF is still being read.
+  // Drop on Courses, then cross the breakpoint while the PDF is still being read.
   await drag(page, "start", [["unofficial-transcript.pdf", "application/pdf"]]);
   await drag(page, "drop", null);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("heading", { name: "Review your courses" }).waitFor({ timeout: 15000 });
-  check(size, "drop: a PDF dropped with the sheet closed opens it and imports, through a breakpoint crossing mid-read", page.url().endsWith("/connect"), page.url());
+  await page.getByRole("heading", { name: /courses? found/ }).waitFor({ timeout: 15000 });
+  check(size, "drop: a PDF dropped on Courses goes to /connect and is read there, through a breakpoint crossing", page.url().endsWith("/connect"), page.url());
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.waitForTimeout(300);
 
   await drag(page, "start", [["a.pdf", "application/pdf"], ["b.pdf", "application/pdf"]]);
   await drag(page, "drop", null);
-  // Scoped to the dialog: Next's route announcer is an alert too.
-  const alert = page.getByRole("dialog").getByRole("alert");
+  // Scoped to the page: Next's route announcer is an alert too.
+  const alert = page.getByRole("main").getByRole("alert");
   await alert.waitFor();
   check(size, "drop: two files are refused with a reason", /2 files/.test(await alert.innerText()), await alert.innerText());
   await shot(page, size, "drop-two-files");
@@ -228,9 +264,8 @@ async function connectDrop(page, size) {
   await drag(page, "drop", null);
   await page.getByText("“photo.png” isn't a PDF", { exact: false }).waitFor();
   check(size, "drop: a non-PDF is refused by name", true);
-  await page.keyboard.press("Escape");
-  await page.getByRole("region", { name: /Import from myUNT|That file/ }).waitFor({ state: "detached" });
-  check(size, "connect: closing leaves no trip flag behind", !(await flagSet(page)));
+  await page.goto(`${base}/courses`, { waitUntil: "load" });
+  check(size, "connect: leaving the page leaves no trip flag behind", !(await flagSet(page)));
 }
 
 // Desktop with popups blocked: myUNT opens in a tab through the link, and
@@ -243,19 +278,19 @@ async function connectBlocked(browser, size) {
   });
   const page = await ctx.newPage();
   try {
-    await toCourses(page);
-    const sheet = await openConnectFromCourses(page);
-    const [tab] = await Promise.all([ctx.waitForEvent("page"), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
+    await page.goto(`${base}/connect`, { waitUntil: "networkidle" });
+    const stage = page.getByRole("main");
+    const [tab] = await Promise.all([ctx.waitForEvent("page"), stage.getByRole("link", { name: /Open myUNT/ }).click()]);
     await tab.waitForURL(/^https:\/\/my\.unt\.edu\//);
     check(size, "blocked: with popups blocked, myUNT opens in a new tab", tab.url().startsWith("https://my.unt.edu/"), tab.url());
-    check(size, "blocked: the sheet still waits for the return", await sheet.getByText("Download your transcript as a PDF, then come back.").isVisible());
+    check(size, "blocked: the page says so and waits for the return", await stage.getByText("myUNT opened in a new tab").isVisible());
     await page.bringToFront();
     await page.evaluate(() => {
       window.dispatchEvent(new Event("blur"));
       window.dispatchEvent(new Event("focus"));
     });
-    await sheet.getByText("Choose the transcript PDF you just downloaded.").waitFor();
-    check(size, "blocked: coming back to the tab leads with 'Use the downloaded PDF'", /ui-btn--primary/.test(await sheet.getByRole("button", { name: "Use the downloaded PDF" }).getAttribute("class")));
+    await stage.getByRole("heading", { name: "Got it downloaded?" }).waitFor();
+    check(size, "blocked: coming back to the tab leads with 'Use the downloaded PDF'", /ui-btn--primary/.test(await stage.getByRole("button", { name: "Use the downloaded PDF" }).getAttribute("class")));
     await shot(page, size, "blocked-back");
   } catch (error) {
     check(size, "blocked-popup journey ran to the end", false, String(error).split("\n")[0]);
@@ -267,105 +302,113 @@ async function connectBlocked(browser, size) {
 // chooser; the trip survives a reload at /connect.
 async function connectPhone(page, size) {
   await toCourses(page);
-  const sheet = await openConnectFromCourses(page);
+  const stage = await openConnectFromCourses(page);
   await shot(page, size, "connect-start");
   await axe(page, size, "Connect start");
-  const [popup] = await Promise.all([page.waitForEvent("popup"), sheet.getByRole("link", { name: /Open myUNT/ }).click()]);
+  const [popup] = await Promise.all([page.waitForEvent("popup"), stage.getByRole("link", { name: /Open myUNT/ }).click()]);
   await popup.close();
-  await sheet.getByText("Choose the transcript PDF you just downloaded.").waitFor();
+  await stage.getByRole("heading", { name: "Got it downloaded?" }).waitFor();
   // The trip to Safari can reload this tab.
   await page.reload({ waitUntil: "networkidle" });
-  const again = page.getByRole("region", { name: SHEET });
-  await again.waitFor();
-  check(size, "connect: after a reload the sheet reopens on 'Use the downloaded PDF'", await again.getByRole("button", { name: "Use the downloaded PDF" }).isVisible());
+  const again = page.getByRole("main");
+  await again.getByRole("heading", { level: 1 }).waitFor();
+  check(size, "connect: after a reload the page comes back on 'Use the downloaded PDF'", await again.getByRole("button", { name: "Use the downloaded PDF" }).isVisible());
   check(size, "connect: the restored trip consumed its flag", !(await flagSet(page)));
   await shot(page, size, "connect-back");
   await axe(page, size, "Connect back from myUNT");
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), again.getByRole("button", { name: "Use the downloaded PDF" }).click()]);
   check(size, "connect: without the picker, the native file chooser opens for one PDF", !chooser.isMultiple());
   await chooser.setFiles(file);
-  await page.getByRole("heading", { name: "Review your courses" }).waitFor();
-  await page.waitForTimeout(200);
+  await page.getByRole("heading", { name: /courses? found/ }).waitFor();
+  await page.waitForTimeout(250);
+  await reviewChecks(page, again, size);
   await shot(page, size, "connect-review");
   await axe(page, size, "Connect review");
-  await page.locator('li[data-flagged] [role="combobox"]').first().click();
-  await page.getByRole("listbox").waitFor();
-  await page.waitForTimeout(250);
-  await shot(page, size, "connect-review-select");
-  await page.keyboard.press("Escape");
-  await page.getByRole("checkbox", { name: "Include CSCE 1030", exact: true }).check();
-  await page.getByRole("button", { name: "Save 1 course" }).click();
-  await page.getByText("1 course added to your plan.", { exact: true }).waitFor();
-  await shot(page, size, "connect-done");
-  await axe(page, size, "Connect done");
-  await page.getByRole("button", { name: "Go to courses" }).click();
+  await again.getByRole("radiogroup", { name: "How to count HIST 9999" }).getByRole("radio", { name: "Skip" }).click();
+  await again.getByRole("button", { name: "Looks right" }).click();
   await page.waitForURL(/\/courses$/);
+  await toastText(page, /^Added \d+ courses? from your transcript$/).waitFor();
+  check(size, "connect: 'Looks right' saves and lands on Courses", true);
+  await shot(page, size, "connect-done");
 }
 
-/** The import adds transcript records, not statuses: mark a course as credit so Plans has a course-level diff. */
+/**
+ * Mark a course the transcript doesn't have as credit, so the library has a
+ * course-level difference. (The import now saves MATH 1650 as done, and a done
+ * course has no "I have credit for this".)
+ */
 async function markACourseDone(page) {
   // "load", not "networkidle": since #39, the test server has a database URL it
   // can't reach, and this page's network didn't go idle within 30 s.
-  await page.goto(`${base}/courses/math/1650`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Status options for MATH 1650" }).first().click();
-  await page.getByRole("menuitem", { name: "I have credit for this" }).click();
+  await page.goto(`${base}/courses/math/1710`, { waitUntil: "load" });
+  // v3 Courses: the course detail offers it as a button, not a status menu.
+  await page.getByRole("button", { name: "I have credit for this" }).first().click();
   await page.waitForTimeout(400);
 }
 
-// Opening over a view and the history it leaves: Back closes, Forward
-// reopens, closing then still returns to the view; focus returns to the
-// opener; a cold /courses/import load opens the sheet over Courses.
+// Back from the import page returns to Courses; the old /courses/import address lands on it.
 async function connectHistory(page, size) {
   await toCourses(page);
-  const sheet = await openConnectFromCourses(page);
-  await sheet.waitFor();
-  await page.goBack();
-  await sheet.waitFor({ state: "detached" });
-  check(size, "connect: Back closes the sheet and stays on Courses", page.url().endsWith("/courses"), page.url());
-  await page.goForward();
-  await sheet.waitFor();
-  await page.getByRole("button", { name: "Not now" }).click();
-  await sheet.waitFor({ state: "detached" });
-  check(size, "connect: after Back/Forward, closing still returns to Courses", page.url().endsWith("/courses"), page.url());
   await openConnectFromCourses(page);
-  await sheet.waitFor();
-  await page.waitForTimeout(300);
-  await page.keyboard.press("Escape");
-  await sheet.waitFor({ state: "detached" });
-  await page.waitForTimeout(300);
-  const focused = await page.evaluate(() => {
-    const el = document.activeElement;
-    return el && el !== document.body ? el.getAttribute("aria-label") || el.className || el.tagName : "body";
-  });
-  check(size, "connect: closing returns focus to the menu button that opened it", focused === "More Auto-fill options", focused);
+  await page.goBack();
+  await page.waitForURL(/\/courses$/);
+  check(size, "connect: Back from the import page returns to Courses", page.url().endsWith("/courses"), page.url());
   await page.goto(`${base}/courses/import`, { waitUntil: "networkidle" });
-  await sheet.waitFor();
-  check(size, "connect: a cold /courses/import opens the sheet at /connect", page.url().endsWith("/connect"), page.url());
-  await page.getByRole("button", { name: "Not now" }).click();
-  await sheet.waitFor({ state: "detached" });
-  check(size, "connect: closing it lands on Courses", page.url().endsWith("/courses"), page.url());
+  check(size, "connect: the old /courses/import address goes to /connect", page.url().endsWith("/connect"), page.url());
+  await page.getByRole("link", { name: "Browse courses without a transcript" }).click();
+  await page.waitForURL(/\/courses$/);
+  check(size, "connect: 'Browse courses without a transcript' goes to Courses", page.url().endsWith("/courses"));
 }
 
 async function plansCompareRestore(page, size) {
   await page.goto(`${base}/schedules`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "More actions for Before import" }).click();
-  await page.getByRole("menuitem", { name: "Compare with working schedule" }).click();
-  const diff = page.locator(".plans-diff");
-  await diff.waitFor();
-  const code = diff.locator(".ui-code").first();
-  const font = await code.evaluate((el) => getComputedStyle(el).fontFamily);
-  check(size, "plans: diff rows set course codes in Syne", /Syne/i.test(font), `${await code.innerText()} in ${font.split(",")[0]}`);
-  await page.waitForTimeout(300); // let the menu finish closing before the shot
-  await shot(page, size, "plans-diff");
-  await axe(page, size, "Plans with a comparison");
-  await page.getByRole("button", { name: "Restore", exact: true }).first().click();
-  await page.getByRole("dialog", { name: /Restore “Before import”/ }).waitFor();
-  await page.waitForTimeout(250);
-  await shot(page, size, "plans-restore");
-  await axe(page, size, "Plans restore preview");
-  await page.getByRole("button", { name: "Restore this plan" }).click();
-  await page.waitForURL(/\/schedule$/);
-  check(size, "plans: restoring goes to the Week view", page.url().endsWith("/schedule"));
+  await page.getByRole("button", { name: "Compare", exact: true }).click();
+  await page.getByRole("button", { name: /^Compare Before import/ }).click();
+  await page.getByRole("button", { name: /^Compare Main/ }).click();
+  const table = page.getByRole("table");
+  await table.waitFor();
+  const labels = await table.locator("tbody th").allInnerTexts();
+  check(size, "library: the comparison has the five figures", JSON.stringify(labels) === JSON.stringify(["Days on campus", "First class", "Last class ends", "Walking a week", "Tight walks"]), JSON.stringify(labels));
+  check(size, "library: A, Both and B are one segmented control", (await page.getByRole("radiogroup", { name: "Show" }).getByRole("radio").count()) === 3);
+  // The import and the claimed credit differ: #37's field-level comparison sits one step away.
+  await page.getByRole("button", { name: /^More differences/ }).click();
+  const more = await page.locator("section", { has: page.getByRole("button", { name: /^More differences/ }) }).locator("li").allInnerTexts();
+  check(size, "library: More differences lists what else differs, such as claimed credit", more.some((line) => /MATH 1710 is marked as credit/.test(line)), JSON.stringify(more));
+  await page.waitForTimeout(300);
+  await shot(page, size, "plans-compare");
+  await axe(page, size, "Library comparing two schedules");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+
+  await page.getByRole("button", { name: "Open Before import" }).click();
+  const use = page.getByRole("button", { name: "Use in Main" });
+  await use.waitFor();
+  await page.waitForTimeout(300);
+  await shot(page, size, "plans-detail");
+  await axe(page, size, "Library schedule detail");
+  // What Main holds, from the guest store, ignoring timestamps (saves land after a short debounce).
+  const mainNow = async () => {
+    await page.waitForTimeout(1500);
+    return page.evaluate(() => {
+      // The guest's own key since #77 (local planner data per identity).
+      const doc = JSON.parse(localStorage.getItem("untangle.planner-state.v1:guest") ?? "null");
+      const state = doc?.state ?? doc;
+      return JSON.stringify({ statuses: state?.courseStatuses, plan: state?.coursePlan, records: state?.transcriptRecords?.length });
+    });
+  };
+  const before = await mainNow();
+  await use.click();
+  await toastText(page, "Main now uses Before import").waitFor();
+  const announcers = await page.evaluate(() =>
+    [...document.querySelectorAll("[aria-live], [role=status], [role=alert]")].filter((el) => el.textContent?.includes("Main now uses Before import")).length,
+  );
+  check(size, "library: the result is announced once, by the toast's live region", announcers === 1, `${announcers} live regions`);
+  check(size, "library: using a copy keeps you in the library and offers Undo", page.url().endsWith("/schedules") && (await page.getByRole("button", { name: "Undo" }).count()) === 1);
+  const adopted = await mainNow();
+  check(size, "library: Main is read from storage", before !== JSON.stringify({}) && !before.includes('"statuses":null') && before.includes("statuses"), before.slice(0, 80));
+  check(size, "library: using the copy changed Main", adopted !== before);
+  await page.getByRole("button", { name: "Undo" }).click();
+  const undone = await mainNow();
+  check(size, "library: Undo puts Main back as it was", undone === before && (await toastText(page, "Main has changed since").count()) === 0, undone === before ? "" : `${before.slice(0, 120)} vs ${undone.slice(0, 120)}`);
 }
 
 // The emailed link's landing page: mail scanners may open it, so loading it must not use the
@@ -403,6 +446,30 @@ async function signInLinkPage(page, size) {
   } finally {
     page.off("request", onRequest);
   }
+}
+
+// The sign-in dialog over a page: Sign in in the bar opens it, Escape closes it, focus goes back.
+async function signInDialog(page, size, phone) {
+  await page.goto(`${base}/courses`, { waitUntil: "load" });
+  const trigger = page.getByRole("link", { name: "Sign in" }).filter({ visible: true }).first();
+  await trigger.waitFor();
+  await trigger.click();
+  const box = page.getByRole("dialog", { name: "Sign in" });
+  await box.waitFor();
+  await page.waitForTimeout(400);
+  check(size, "sign-in: Sign in opens the form over the current page", page.url().endsWith("/courses"), page.url());
+  const email = box.getByRole("textbox", { name: "UNT email" });
+  check(size, "sign-in: the email field takes focus, autocomplete username, no autocapitalize", (await email.evaluate((el) => el === document.activeElement)) && (await email.getAttribute("autocomplete")) === "username" && (await email.getAttribute("autocapitalize")) === "none");
+  check(size, "sign-in: the emailed link comes first, the password second", (await box.getByRole("button", { name: "Email me a sign-in link" }).isVisible()) && (await box.getByRole("button", { name: "Use a password instead" }).isVisible()));
+  check(size, "sign-in: the copy promises nothing about merging a guest's schedules", !/comes with you|merge/i.test(await box.innerText()));
+  await shot(page, size, phone ? "sign-in-sheet" : "sign-in-dialog");
+  await axe(page, size, "Sign-in dialog");
+  await page.keyboard.press("Escape");
+  await box.waitFor({ state: "detached" });
+  await page.waitForTimeout(100);
+  check(size, "sign-in: Escape closes it and focus returns to Sign in", await trigger.evaluate((el) => el === document.activeElement));
+  await page.keyboard.press("Tab");
+  check(size, "sign-in: the closed dialog isn't tabbable", (await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))) === false && (await page.getByRole("dialog").count()) === 0);
 }
 
 async function auth(page, size) {
@@ -474,6 +541,7 @@ try {
       }
       await markACourseDone(page);
       await plansCompareRestore(page, vp.size);
+      await signInDialog(page, vp.size, vp.phone);
       await auth(page, vp.size);
       await signInLinkPage(page, vp.size);
     } catch (error) {

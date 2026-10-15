@@ -24,6 +24,17 @@
   font: 600 var(--text-meta) / var(--lh-meta) var(--font-ui);
   color: var(--ink);
 }
+/* TextField's label with a link at the far end ("Forgot it?"). */
+.ui-textfield__labelrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 6px;
+}
+.ui-textfield__labelrow > .ui-label {
+  margin: 0;
+}
 .ui-help {
   margin: 6px 0 0;
   font-size: var(--text-meta);
@@ -1923,6 +1934,10 @@
   margin: 0;
   font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
   letter-spacing: -0.005em;
+}
+/* The same head at the top of the phone sheet, under its handle. */
+.ui-context__head--sheet {
+  padding: 0 0 4px;
 }
 .ui-context__body {
   flex: 1;

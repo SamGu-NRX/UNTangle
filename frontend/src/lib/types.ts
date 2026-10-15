@@ -260,6 +260,12 @@ export type BlockedTime = {
   day: WeekDay;
   start: number;
   end: number;
+  /**
+   * The real date ranges the block applies to, when it is not weekly
+   * (calendar busy time from a connected feed). Absent, null or empty means
+   * every week.
+   */
+  dates?: { start: string; end: string }[] | null;
 };
 
 /**

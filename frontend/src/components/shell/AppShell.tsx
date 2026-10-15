@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { SignInHost } from "@/components/auth-client";
 import { ConnectHost } from "@/components/connect/connect-host";
 import { noteNavigation } from "@/components/ui/back-close";
 import { SearchPalette } from "@/components/ui/SearchPalette";
@@ -69,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return (
       <>
         {children}
+        <SignInHost />
         <Toaster />
       </>
     );
@@ -109,6 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       />
       <ConnectHost />
+      <SignInHost />
       <Toaster />
       <WebMcpTools />
     </ShellContext.Provider>

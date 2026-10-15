@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { clearPlannerIdentity } from "@/lib/planner-store";
 import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
 import { useState } from "react";
+import { openSignIn } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
 import { useConfirmedAccount } from "@/components/planner-provider";
 import { UserGlyph } from "@/components/ui/icons";
@@ -22,7 +23,8 @@ function initials(name: string | null | undefined, email: string): string {
 
 /**
  * Signed in: an initials avatar with a menu. Signed out: "Sign in", as text
- * on desktop and as a person glyph in the phone header.
+ * on desktop and as a person glyph in the phone header; it opens the sign-in
+ * form over the current page (SignInHost), and /auth is its fallback.
  *
  * It shows the account the planner confirmed, not the raw session lookup, so
  * a lookup that fails for a moment does not show "Sign in" while that
@@ -39,11 +41,11 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   }
   if (account.status === "signed-out") {
     return compact ? (
-      <Link href="/auth" className="ui-btn ui-btn--ink ui-btn--icon shell-signin" aria-label="Sign in" data-ui="">
+      <Link href="/auth" onClick={openSignIn} className="ui-btn ui-btn--ink ui-btn--icon shell-signin" aria-label="Sign in" data-ui="">
         <UserGlyph size={22} />
       </Link>
     ) : (
-      <Link href="/auth" className="ui-btn ui-btn--quiet ui-btn--sm shell-signin" data-ui="">
+      <Link href="/auth" onClick={openSignIn} className="ui-btn ui-btn--quiet ui-btn--sm shell-signin" data-ui="">
         Sign in
       </Link>
     );

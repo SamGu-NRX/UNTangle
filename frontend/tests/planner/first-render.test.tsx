@@ -5,8 +5,11 @@
  * the answer arrives. The account menu follows the account the planner
  * confirmed, and a failed sign-out says so and keeps the account's data.
  */
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, mock, test } from "bun:test";
 import { useEffect, type ReactNode } from "react";
+
+// CSS modules have no loader under bun test: each class name is its own key.
+mock.module("@/components/schedules-library/library.module.css", () => ({ default: new Proxy({}, { get: (_, key) => String(key) }) }));
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { getInitialPlannerState } from "@/lib/planner";
 import { createPlannerStateStore, LEGACY_PLANNER_STATE_STORE_KEY, plannerStateKey } from "@/lib/planner-store";
@@ -110,7 +113,7 @@ function legacyPlanner(state: PlannerState) {
 for (const answer of ["signed in as A", "no session"] as const) {
   test(`a page load renders planner views from the server HTML, touches no stored data while the first lookup is pending, and keeps them mounted when it answers ${answer}`, async () => {
     const { usePlanner } = await import("@/components/planner-provider");
-    const { PlansClient } = await import("@/components/saved-plans/plans-client");
+    const { SchedulesClient: PlansClient } = await import("@/components/schedules-library/schedules-client");
     const { PlannerPersistencePanel } = await import("@/components/planner-persistence-panel");
     let mounts = 0;
     const frames: Array<{ identityReady: boolean; hydrated: boolean }> = [];
@@ -169,7 +172,7 @@ for (const answer of ["signed in as A", "no session"] as const) {
       expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBeNull();
       expect(Object.keys(window.localStorage).filter((key) => key.includes("corrupt-legacy-"))).toHaveLength(1);
     }
-    await waitFor(() => planner.container.textContent?.includes(answer === "no session" ? "Guest copy" : "No saved") ?? false, "library read");
+    await waitFor(() => planner.container.textContent?.includes(answer === "no session" ? "Guest copy" : "Save a copy of Main to try another week") ?? false, "library read");
     expect(mounts).toBe(1);
   });
 }
