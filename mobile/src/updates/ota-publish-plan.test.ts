@@ -69,9 +69,7 @@ describe("selectProductionBuilds", () => {
       // A build with no channel (the CLI drops the null key) can't receive a production-channel update.
       { ...productionMatch, updateChannel: undefined, id: "build-3" },
     ];
-    const { production, rejected } = selectProductionBuilds(builds, "ios");
-    expect(production.map((build) => build.id)).toEqual(["build-1", "build-2"]);
-    expect(rejected).toBe(5);
+    expect(selectProductionBuilds(builds).map((build) => build.id)).toEqual(["build-1", "build-2"]);
   });
 });
 
@@ -90,14 +88,14 @@ describe("matchingFingerprint", () => {
 
 describe("the checked-in build-list fixtures", () => {
   test("the matching list passes the guard on its one finished production store build", () => {
-    const { production } = selectProductionBuilds(parseBuildList(JSON.stringify(matchingList)), "ios");
+    const production = selectProductionBuilds(parseBuildList(JSON.stringify(matchingList)));
     expect(matchingFingerprint(production, FIXTURE_FP).matches.map((build) => build.id)).toEqual([
       "11111111-1111-1111-1111-111111111111",
     ]);
   });
 
   test("the stale list holds a production build with another fingerprint", () => {
-    const { production } = selectProductionBuilds(parseBuildList(JSON.stringify(staleList)), "ios");
+    const production = selectProductionBuilds(parseBuildList(JSON.stringify(staleList)));
     expect(production).toHaveLength(1);
     expect(matchingFingerprint(production, FIXTURE_FP).matches).toEqual([]);
   });

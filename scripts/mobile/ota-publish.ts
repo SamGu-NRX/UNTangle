@@ -48,7 +48,9 @@ interface CliOptions {
 
 // Absolute, so the script and its tests run from any directory.
 const MOBILE_DIR = join(import.meta.dir, "../../mobile");
-const EAS_CLI = ["npx", "--yes", "eas-cli@latest"] as const;
+// Pinned to the release whose build:list --json shape the guard reads
+// (docs/mobile/ota.md). Bump it together with a fresh look at that shape.
+const EAS_CLI = ["npx", "--yes", "eas-cli@24.14.0"] as const;
 /** eas-cli rejects a larger build:list --limit (BUILDS_LIMIT in eas-cli src/build/queries.ts). */
 const BUILD_LIST_LIMIT = 50;
 
@@ -243,11 +245,11 @@ export function main(env: Env, argv: readonly string[]): number {
   console.log(`Runtime fingerprint (local, ${options.platform}): ${fingerprint}`);
 
   const { matches } = matchingFingerprint(
-    selectProductionBuilds(storeBuilds(options.platform, fingerprint, options.buildListFile), options.platform).production,
+    selectProductionBuilds(storeBuilds(options.platform, fingerprint, options.buildListFile)),
     fingerprint,
   );
   if (matches.length === 0) {
-    const { production } = selectProductionBuilds(storeBuilds(options.platform, undefined, options.buildListFile), options.platform);
+    const production = selectProductionBuilds(storeBuilds(options.platform, undefined, options.buildListFile));
     if (production.length === 0) {
       console.error(
         `Refusing to publish: eas build:list shows no finished ${options.channel} ${options.platform} store build at all. ` +

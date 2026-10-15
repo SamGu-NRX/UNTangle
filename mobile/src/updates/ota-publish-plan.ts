@@ -36,12 +36,14 @@ export function parseBuildList(raw: string): EasBuild[] {
     throw new OtaPublishError("could not parse the eas build:list JSON output");
   }
   if (!Array.isArray(parsed)) throw new OtaPublishError("the eas build:list JSON output is not an array of builds");
-  parsed.forEach((entry: unknown, index) => {
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
-      throw new OtaPublishError(`the eas build:list JSON output holds a non-object at index ${index}`);
-    }
-  });
-  return parsed as EasBuild[];
+  const bad = parsed.findIndex((entry: unknown) => !isBuildRecord(entry));
+  if (bad >= 0) throw new OtaPublishError(`the eas build:list JSON output holds a non-object at index ${bad}`);
+  return parsed.filter(isBuildRecord);
+}
+
+/** Every EasBuild field is optional, so any plain object is one; the guard compares the fields it reads. */
+function isBuildRecord(entry: unknown): entry is EasBuild {
+  return entry !== null && typeof entry === "object" && !Array.isArray(entry);
 }
 
 export function fingerprintOf(build: EasBuild): string | null {
@@ -51,26 +53,24 @@ export function fingerprintOf(build: EasBuild): string | null {
 const PRODUCTION_CHANNEL = "production";
 const FINISHED = "FINISHED";
 const STORE = "STORE";
+/** AppPlatform for iOS, the only platform this script publishes. */
+const IOS = "IOS";
 
 /**
  * The production builds the update could land on: finished, store-distributed,
- * on the given platform, and on the production channel, the only channel the
+ * on iOS, and on the production channel, the only channel the
  * update is published to. Builds on other channels, like a preview build for
  * internal distribution, and an internal build made with the production
  * profile must never satisfy the guard.
  */
-export function selectProductionBuilds(
-  builds: readonly EasBuild[],
-  platform: "ios",
-): { production: EasBuild[]; rejected: number } {
-  const production = builds.filter(
+export function selectProductionBuilds(builds: readonly EasBuild[]): EasBuild[] {
+  return builds.filter(
     (build) =>
       build.status === FINISHED &&
-      build.platform === platform.toUpperCase() &&
+      build.platform === IOS &&
       build.distribution === STORE &&
       build.updateChannel?.name === PRODUCTION_CHANNEL,
   );
-  return { production, rejected: builds.length - production.length };
 }
 
 /** The production builds whose runtime fingerprint matches the update's. */

@@ -153,7 +153,9 @@ source: `build:list --json` prints a bare array of the GraphQL `BuildFragment`
 (`src/build/queries.ts`), which drops `__typename` and every null field.
 Enum values are upper case (`"IOS"`, `"FINISHED"`, `"STORE"`), the channel is
 `updateChannel.name` and the fingerprint is `fingerprint.hash`. Replace them
-with a real capture once the first production build exists.
+with a real capture once the first production build exists. The script runs
+that same release (`eas-cli@24.14.0`, pinned in `scripts/mobile/ota-publish.ts`);
+bump the pin only after checking the shape again.
 
 ### Exit codes
 
