@@ -18,6 +18,11 @@ export type ContextPanelProps = {
   onClose: () => void;
   /** The panel's heading and accessible name, such as "CSCE 2110". */
   title: string;
+  /**
+   * Shown in place of `title` when the heading needs more than text (a code
+   * and a tag). When set, the phone sheet shows it too, with a Close button.
+   */
+  heading?: ReactNode;
   /** The selected item, which takes focus back when the panel closes. */
   returnFocus: () => HTMLElement | null;
   children: ReactNode;
@@ -48,7 +53,7 @@ function markMain(name: string, on: boolean) {
  * The page under a panel moves with a transform, so a lens using it should
  * not rely on position: fixed inside <main>.
  */
-export function ContextPanel({ open, onClose, title, returnFocus, children }: ContextPanelProps) {
+export function ContextPanel({ open, onClose, title, heading, returnFocus, children }: ContextPanelProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const isClient = useIsClient();
   /** Closing from the keyboard skips the exit; reset whenever the panel opens again. */
@@ -128,6 +133,16 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
         title={shownTitle}
         detents={["52%", "92%"]}
         returnFocus={returnFocus}
+        header={
+          heading ? (
+            <div className="ui-context__head ui-context__head--sheet">
+              <h2 className="ui-context__title">{heading}</h2>
+              <IconButton label={`Close ${shownTitle}`} size="sm" onClick={onClose}>
+                <Close />
+              </IconButton>
+            </div>
+          ) : undefined
+        }
       >
         {children}
       </BottomSheet>
@@ -147,7 +162,7 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
     >
       <div className="ui-context__head">
         <h2 id={titleId} className="ui-context__title">
-          {shownTitle}
+          {heading ?? shownTitle}
         </h2>
         <IconButton
           label={`Close ${shownTitle}`}
