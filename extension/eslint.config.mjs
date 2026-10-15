@@ -13,8 +13,8 @@ export default tseslint.config(
     },
   },
   {
-    // The journey is a plain node script run by bun; give it node globals.
+    // The journey runs in Node and evaluates callbacks in extension pages.
     files: ["e2e/**/*.mjs"],
-    languageOptions: { globals: { ...globals.node } },
+    languageOptions: { globals: { ...globals.node, ...globals.browser, chrome: "readonly" } },
   },
 );

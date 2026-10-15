@@ -5,12 +5,18 @@
     "": {
       "name": "untangle",
       "devDependencies": {
+        "eslint": "^9",
         "turbo": "^2.8.19",
+        "typescript": "^5",
+        "typescript-eslint": "^8.56.1",
       },
     },
     "extension": {
       "name": "extension",
       "version": "0.1.0",
+      "dependencies": {
+        "@untangle/tokens": "workspace:*",
+      },
       "devDependencies": {
         "@eslint/js": "^9",
         "@types/bun": "^1.4.2",

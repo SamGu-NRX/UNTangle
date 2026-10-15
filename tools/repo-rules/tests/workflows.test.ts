@@ -15,7 +15,7 @@ async function workflow(name: string): Promise<Workflow> {
 describe("ci.yml", () => {
   test("keeps the job names the main ruleset requires", async () => {
     const { jobs } = await workflow("ci.yml");
-    expect(Object.values(jobs).map((job) => job.name)).toEqual(["Typecheck", "Lint", "Test", "Build", "Live Postgres tests"]);
+    expect(Object.values(jobs).map((job) => job.name)).toEqual(["Typecheck", "Lint", "Test", "Build", "Extension journey", "Live Postgres tests"]);
   });
 
   test("runs on PRs and pushes for alpha, main and edge, with read-only access", async () => {

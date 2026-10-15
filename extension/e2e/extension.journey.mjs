@@ -1,21 +1,5 @@
 #!/usr/bin/env node
-/**
- * End-to-end journey: load the built extension into Chromium, open the mock
- * myUNT class-search page served by tools/mock-myunt, and assert the three
- * behaviors against the contract-accurate local stub:
- *
- *   1. the row colliding with the seeded Main schedule shows the conflict badge,
- *   2. the free row shows a clear verdict and the async row a cannot-check verdict,
- *   3. the instructor panel shows grade history, and Add posts the merged
- *      planner state (observed at the stub) and flips the row to Added.
- *
- * Offline by construction: the only servers are the local stub and the local
- * mock; the only network fetch permitted beyond localhost is the one-time
- * `playwright install chromium`.
- *
- * Run: node extension/e2e/extension.journey.mjs
- * (after `bun --no-env-file x playwright install chromium` once)
- */
+/** Offline MV3 journey against the mock portal and device-grant/API stub. */
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,7 +15,6 @@ const artifactsDir = path.join(extensionRoot, "e2e", "artifacts");
 
 const STUB = "http://127.0.0.1:3217";
 const MOCK = "http://localhost:4317";
-const SECTION_ENGL = "vsb:spring-2027:ENGL 1310:005";
 
 function step(message) {
   console.log(`journey: ${message}`);
@@ -90,16 +73,6 @@ async function launch(candidateList) {
   throw new Error(`no Chromium launch candidate worked: ${lastError}`);
 }
 
-async function waitForSelector(page, selector, label, timeoutMs = 20000) {
-  try {
-    await page.waitForSelector(selector, { timeout: timeoutMs });
-    return true;
-  } catch {
-    fail(`${label} did not appear (${selector})`);
-    return false;
-  }
-}
-
 async function main() {
   mkdirSync(artifactsDir, { recursive: true });
   if (!buildExtension()) return;
@@ -129,81 +102,83 @@ async function main() {
     context = launched.context;
     userDataDir = launched.userDataDir;
 
-    // Seed the student session the way a signed-in tab would have it: the
-    // stub's /session page sets the Better Auth session cookie.
-    const seed = await context.newPage();
-    await seed.goto(`${STUB}/session`);
-    await seed.waitForSelector("#session");
-    await seed.close();
-    step("stub session cookie seeded");
-
+    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+    const extensionId = new URL(worker.url()).host;
+    const panel = await context.newPage();
+    await panel.setViewportSize({width:390,height:844});
     const page = await context.newPage();
     await page.goto(`${MOCK}/class-search`);
-    step("opened the mock class-search page");
-
-    const results = [];
-    const check = (ok, label) => {
-      console.log(`journey ${ok ? "OK" : "FAIL"}: ${label}`);
-      results.push({ ok, label });
-      return ok;
-    };
-
-    // 1. The colliding row shows the Main-schedule conflict badge.
-    const conflictOk =
-      (await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R1"] [data-unt-badge="conflict"]', "the conflict badge")) &&
-      check((await page.textContent('[data-unt-row="SSR_CLSRCH_R1"] [data-unt-badge="conflict"]')).includes("Conflicts with Main"), "row 1 shows the Main-schedule conflict badge");
-
-    // 2. The free row clears; the async row cannot be checked.
-    const clearOk =
-      (await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R2"] [data-unt-badge="clear"]', "the clear verdict")) &&
-      check((await page.textContent('[data-unt-row="SSR_CLSRCH_R2"] [data-unt-badge="clear"]')).includes("No conflict with Main"), "row 2 shows a clear verdict");
-    const unknownOk = await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R3"] [data-unt-badge="unknown"]', "the cannot-check verdict on the async row");
-
-    // 3. Grade history renders for the matched instructor.
-    const gradesOk =
-      (await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R1"] [data-unt-grades="history"]', "the grade history panel")) &&
-      check((await page.textContent('[data-unt-row="SSR_CLSRCH_R1"] [data-unt-grades="history"]')).includes("GPA 3.40"), "row 1 shows John Smith's CSCE 1030 grade history");
-    const noHistoryOk = await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R2"] [data-unt-grades="no-history"]', "the honest no-history state on row 2");
-
-    await page.screenshot({ path: path.join(artifactsDir, "01-conflict-badges-and-grades.png"), fullPage: true });
-    step("screenshot 01 written");
-
-    // 4. Add the free row to Main; the stub must observe the merged write.
-    const addButton = page.locator('[data-unt-row="SSR_CLSRCH_R2"] [data-unt-add="idle"]');
-    await addButton.click();
-    const addedOk =
-      (await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R2"] [data-unt-add="added"]', "the Added state")) &&
-      check((await page.textContent('[data-unt-row="SSR_CLSRCH_R2"] [data-unt-add="added"]')).includes("Added to Main"), "row 2 flips to Added to Main");
-
-    const observed = await (await fetch(`${STUB}/__observed`)).json();
-    const lastWrite = observed.writes.at(-1);
-    if (lastWrite === undefined) fail("the stub observed no planner write");
-    else console.log(`journey: last observed write: ${JSON.stringify(lastWrite)}`);
-    const writeOk =
-      lastWrite !== undefined &&
-      check(lastWrite.header === "1", "the write carried X-Planner-Base-Revision 1") &&
-      check(lastWrite.body?.selectedSections?.["ENGL 1310"] === SECTION_ENGL, "the stub observed ENGL 1310 added") &&
-      check(lastWrite.body?.selectedSections?.["CSCE 1040"] === "vsb:spring-2027:CSCE 1040:10001", "the write preserved the existing Main schedule");
-
-    // The add changed the schedule: the other rows' annotations rebuild and
-    // re-request their facts. Wait for the settled badges so the screenshot
-    // shows final verdicts, and prove the refresh actually recomputed them.
-    const conflictRefreshedOk = check(
-      await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R1"] [data-unt-badge="conflict"]', "row 1's refreshed conflict badge"),
-      "row 1 still conflicts with the new Main schedule after the add",
-    );
-    const unknownRefreshedOk = check(
-      await waitForSelector(page, '[data-unt-row="SSR_CLSRCH_R3"] [data-unt-badge="unknown"]', "row 3's refreshed cannot-check badge"),
-      "row 3 still cannot be checked against Main after the add",
-    );
-
-    await page.screenshot({ path: path.join(artifactsDir, "02-added-to-main.png"), fullPage: true });
-    step("screenshot 02 written");
-
-    const allOk = conflictOk && clearOk && unknownOk && gradesOk && noHistoryOk && addedOk && writeOk && conflictRefreshedOk && unknownRefreshedOk;
-    if (!allOk) fail("one or more journey assertions did not hold");
-    else console.log("journey: ALL ASSERTIONS PASSED");
+    await page.locator('[data-unt-row="SSR_CLSRCH_R1"][data-unt-marker="unknown"]').waitFor();
+    await panel.goto(`chrome-extension://${extensionId}/popup.html`);
+    await panel.locator("#sign-in").click();
+    try { await panel.waitForFunction(() => document.querySelector("#sign-in").hidden, undefined, {timeout:15000}); }
+    catch { throw new Error(`Sign-in failed: ${await panel.locator("body").innerText()} Requests: ${JSON.stringify(await (await fetch(`${STUB}/__observed`)).json())}`); }
+    step("device grant exchanged through the trusted panel");
+    await page.locator('[data-unt-row="SSR_CLSRCH_R1"][data-unt-marker="conflict"]').waitFor();
+    await page.locator('[data-unt-row="SSR_CLSRCH_R2"][data-unt-marker="clear"]').waitFor();
+    await page.locator('[data-unt-row="SSR_CLSRCH_R3"][data-unt-marker="unknown"]').waitFor();
+    const pageText = await page.locator("body").innerText();
+    if (pageText.includes("Work on Monday") || pageText.includes("3.40")) throw new Error("Private details leaked onto class search");
+    await page.screenshot({path:path.join(artifactsDir,"v1-markers.png"),fullPage:true});
+    // A page click proposes only. Opening the trusted extension page is a
+    // deterministic way to inspect the same popup document in headless CI.
+    await page.locator('[data-unt-row="SSR_CLSRCH_R1"] button').click();
+    await panel.reload();
+    await panel.locator("#details").filter({hasText:"Work on Monday"}).waitFor();
+    for (const width of [390,1440]) {
+      await panel.setViewportSize({width,height:900});
+      await panel.emulateMedia({reducedMotion:"reduce"});
+      await panel.locator("body").click({position:{x:2,y:2}});
+      await panel.keyboard.press("Tab");
+      const focused=await panel.locator(":focus").getAttribute("id");
+      if (focused !== "confirm") throw new Error(`Keyboard focus missed confirm at ${width}`);
+      const layout=await panel.evaluate(() => ({overflow:document.documentElement.scrollWidth > innerWidth, height:document.querySelector("#confirm").getBoundingClientRect().height, outline:getComputedStyle(document.activeElement).outlineStyle}));
+      if (layout.overflow || layout.height < 44 || layout.outline === "none") throw new Error(`Popup accessibility/layout failed at ${width}: ${JSON.stringify(layout)}`);
+      await panel.screenshot({path:path.join(artifactsDir,`v1-panel-${width}.png`)});
+    }
+    await panel.setViewportSize({width:390,height:844});
+    if ((await (await fetch(`${STUB}/__observed`)).json()).writes.length !== 0) throw new Error("A proposal wrote the schedule");
+    await page.locator('[data-unt-row="SSR_CLSRCH_R2"] button').click();
+    await panel.reload();
+    await panel.locator("#confirm").filter({hasText:"ENGL 1310"}).waitFor();
+    await fetch(`${STUB}/__advance`,{method:"POST"});
+    await panel.locator("#confirm").click();
+    await panel.locator("#notice").filter({hasText:"Review the fresh preview"}).waitFor();
+    const fresh = await panel.evaluate(() => chrome.runtime.sendMessage({type:"panel/status"}));
+    if (fresh.preview.preview.revision !== 2) throw new Error("Stale revision did not load a fresh preview");
+    if ((await (await fetch(`${STUB}/__observed`)).json()).writes.length !== 0) throw new Error("Stale revision silently applied");
+    await page.locator('[data-unt-row="SSR_CLSRCH_R2"][data-unt-marker="conflict"]').waitFor();
+    step("stale add rejected and refreshed both the panel and page marker before reconfirmation");
+    await fetch(`${STUB}/__drop-next`,{method:"POST"});
+    await panel.locator("#confirm").click();
+    await panel.locator("#notice").filter({hasText:"Waiting to sync"}).waitFor();
+    const stored = await worker.evaluate(async () => chrome.storage.local.get(null));
+    const pendingKey = Object.keys(stored).find(key=>key.startsWith("add:"));
+    if (!pendingKey) throw new Error("Confirmed add was not retained after a lost response");
+    const operationId = stored[pendingKey].command.operationId;
+    await panel.screenshot({path:path.join(artifactsDir,"v1-waiting-to-sync.png")});
+    await context.close();
+    // Restart the browser with the same profile. The MV3 worker must replay
+    // from local storage without a page message or a second confirmation.
+    context = await chromium.launchPersistentContext(userDataDir,{channel:"chromium",headless:true,args:[`--disable-extensions-except=${distDir}`,`--load-extension=${distDir}`]});
+    const restartedPanel=await context.newPage();
+    await restartedPanel.goto(`chrome-extension://${extensionId}/popup.html`);
+    await restartedPanel.waitForFunction(async () => !Object.keys(await chrome.storage.local.get(null)).some(key=>key.startsWith("add:")));
+    const observed=await (await fetch(`${STUB}/__observed`)).json();
+    if (observed.writes.length !== 1 || observed.writes[0].operationId !== operationId || observed.writes[0].expectedRevision !== 2) throw new Error("Restart duplicated or changed the confirmed operation");
+    if (observed.requests.some(r=>r.cookie)) throw new Error("The worker sent session cookies");
+    if (observed.requests.filter(r=>r.path==="/api/v1/extension/commands").length !== 3) throw new Error("Expected stale, committed and replay requests");
+    await restartedPanel.locator("#notice").filter({hasText:"Added to Main."}).waitFor();
+    if (await restartedPanel.locator("#confirm").isVisible()) throw new Error("Receipt left a duplicate add action");
+    await restartedPanel.screenshot({path:path.join(artifactsDir,"v1-restarted.png")});
+    const transcript=await context.newPage(); await transcript.goto(`${MOCK}/transcript`);
+    if (await transcript.locator("[data-unt-row]").count()) throw new Error("Content script ran outside class search");
+    step("ALL ASSERTIONS PASSED: device sign-in, markers, private panel, stale preview and restart replay");
   } catch (error) {
+    if (context) {
+      for (const tab of context.pages()) if (tab.url().includes("popup.html")) console.error("popup failure state", await tab.locator("body").innerText().catch(()=>"closed"));
+      console.error("stub failure state", JSON.stringify(await (await fetch(`${STUB}/__observed`)).json()));
+    }
     fail(String(error));
   } finally {
     if (context) await context.close().catch(() => {});

@@ -1,8 +1,7 @@
 /**
  * The sections client: per-course section lists from the UNTangle proxy,
  * cached per session so a page of rows resolves against upstream once.
- * The route is unauthenticated but the fetch still carries the session,
- * per the service worker's single-credential rule.
+ * Public reads omit credentials.
  */
 import type { CourseSections } from "../shared/api-types";
 import { UNTANGLE_ORIGIN } from "../config";
@@ -28,7 +27,7 @@ export class SectionsClient {
     try {
       response = await this.fetchImpl(
         `${this.base}/api/sections/${encodeURIComponent(term)}/${encodeURIComponent(subject)}/${encodeURIComponent(number)}`,
-        { credentials: "include" },
+        { credentials: "omit" },
       );
     } catch (error) {
       console.warn(`sections fetch failed:`, error);
