@@ -40,7 +40,7 @@ export const untAdapter: SchoolAdapter = {
 const gradePrefix = /^(?:(?:a\s+)?grade of\s+)?["“]?([A-D])["”]?\s+or\s+(?:better|higher)\s+in\s*:?\s*(?:(?:each|one) of the following:\s*|the following:\s*)?/i;
 const gradeSuffix = /\s*,?\s*(?:(?:each|both|all)\s+)?(?:(?:of\s+)?which\s+must\s+be\s+)?(?:completed\s+)?(?:with\s+)?(?:a\s+)?(?:grade of\s+)?([A-D])\s+or\s+(?:better|higher)\s*$/i;
 
-function unknown(source: string): Prerequisite {
+function unknown(source: string): Extract<Prerequisite, { kind: "unknown" }> {
   return { kind: "unknown", source, detail: "Catalog clause needs advisor interpretation." };
 }
 
@@ -281,8 +281,14 @@ function parseClause(source: string): Prerequisite {
   if (/^if\b/i.test(text)) return unknown(source);
   if (/\b(?:majors?|minors?)\b[^;]*\b(?:must|that have|only)\b|\b(?:major|minor) status:|\b(?:majors?|minors?):|^Non-Majors:/i.test(text)) {
     const parts = splitTopLevel(text, /;\s*/g);
-    if (parts.length > 1) return { kind: "and", source, children: parts.map(part => /^consent\b/i.test(part.trim()) ? parseClause(part) : unknown(part)) };
-    return unknown(source);
+    if (parts.length > 1) return { kind: "and", source, children: parts.map(part => /^consent\b/i.test(part.trim()) ? parseClause(part) : { ...unknown(part), scope: "clause" }) };
+    return { ...unknown(source), scope: "clause" };
+  }
+  // "Either" explicitly extends concurrent permission to both alternatives.
+  const eitherConcurrent = text.match(/^(.*?)\s*\(either may be taken concurrently\)$/i);
+  if (eitherConcurrent) {
+    const requirement = parseClause(eitherConcurrent[1]);
+    return isCourseList(requirement) ? { kind: "corequisite", requirement, source } : unknown(source);
   }
   const sharedGrade = text.match(gradeSuffix);
   if (sharedGrade && /\bboth\b/i.test(sharedGrade[0])) {
@@ -344,6 +350,18 @@ export function parseUntPrerequisite(source: string): ParseResult {
   for (const clause of clauses) {
     if (!clause.trim()) continue;
     if (/^(?:Core Category:|Recommended:|May (?:not )?be repeated\b)/i.test(clause.trim())) {
+      annotations.push(clause);
+      continue;
+    }
+    const body = clause.trim().replace(/^co-?requisite(?:\(s\)|s)?\s*:\s*/i, "");
+    const permission = body.match(/^(?:This course )?(?:can|may) be taken concurrently with (.+)$/i);
+    // CSCE 2100/2110 permit a shared term; they do not require the named companion.
+    if (permission && isCourseList(parseClause(permission[1]))) {
+      annotations.push(clause);
+      continue;
+    }
+    const recommendation = body.match(/^(?:(?:Prior or )?concurrent enrollment in (.+?) (?:is (?:strongly )?recommended(?: but not required)?|strongly encouraged)|(.+?) recommended \(may be taken concurrently\)|It is recommended that the course be taken concurrently with (.+))$/i);
+    if (recommendation && isCourseList(parseClause(recommendation[1] ?? recommendation[2] ?? recommendation[3]))) {
       annotations.push(clause);
       continue;
     }

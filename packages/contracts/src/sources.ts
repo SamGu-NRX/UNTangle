@@ -25,6 +25,7 @@ export const SourceIdSchema = z
 export const SourcePolicySchema = z
   .strictObject({
     sourceId: SourceIdSchema,
+    institutionId: z.string().max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     description: z.string().min(1).max(500),
     acquisition: z.enum(["server", "browser-capture", "curated", "link-only"]),
     approval: z.enum(["allowed", "review-required", "disabled"]),
@@ -38,6 +39,12 @@ export const SourcePolicySchema = z
     policyCheckedAt: z.iso.date().nullable(),
   })
   .superRefine((policy, ctx) => {
+    if (!sourceMatchesInstitution(policy)) {
+      ctx.addIssue({ code: "custom", path: ["institutionId"], message: "The vsb-untgrades source belongs to unt." });
+    }
+    if (policy.acquisition === "server" && policy.approval === "allowed" && policy.maxRequestsPerHour === null) {
+      ctx.addIssue({ code: "custom", path: ["maxRequestsPerHour"], message: "An allowed server source has an aggregate hourly request cap." });
+    }
     // Only a server job fetches, so only a server source may name URLs, and an allowed one must.
     if (policy.acquisition !== "server" && policy.allowedUrlPrefixes.length > 0) {
       ctx.addIssue({ code: "custom", path: ["allowedUrlPrefixes"], message: `A ${policy.acquisition} source is never fetched by a server, so it names no URLs.` });
@@ -51,3 +58,8 @@ export const SourcePolicySchema = z
   });
 
 export type SourcePolicy = z.output<typeof SourcePolicySchema>;
+
+/** The VSB feed contains UNT course identities and cannot label another institution's release. */
+export function sourceMatchesInstitution(source: { sourceId: string; institutionId: string }): boolean {
+  return source.sourceId !== "vsb-untgrades" || source.institutionId === "unt";
+}

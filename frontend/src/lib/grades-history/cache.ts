@@ -6,7 +6,13 @@ import { object } from "./client";
 
 // One day is a cache policy for historical records, not a measured freshness guarantee.
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1_000;
-export class GradesDiskCache {
+export interface GradesCache {
+  get(key: string): Promise<unknown | undefined>;
+  set(key: string, value: unknown): Promise<void>;
+  remove(key: string): Promise<void>;
+}
+
+export class GradesDiskCache implements GradesCache {
   constructor(private readonly directory: string, private readonly ttlMs = CACHE_TTL_MS, private readonly now = Date.now) {}
   private file(key: string) { return path.join(this.directory, createHash("sha256").update(key).digest("hex") + ".json"); }
 

@@ -27,7 +27,7 @@ type Props = {
   /** Space covered by the panel or sheet, so the camera centers in what's visible. */
   insets: CameraInsets;
   reducedMotion: boolean;
-  /** Skip camera moves (the phone sheet is at full height and hides the map). */
+  /** The phone sheet is at full height and hides the map: skip camera moves and make the map inert. */
   frozen: boolean;
 };
 
@@ -512,7 +512,9 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
   }
 
   return (
-    <div className="mv-canvas">
+    // At full the sheet covers the map and its controls sit off screen; inert
+    // keeps the canvas, markers and buttons out of the tab order until it collapses.
+    <div className="mv-canvas" inert={frozen}>
       <div ref={containerRef} className="mv-canvas__map" data-testid="campus-map" />
       <div className="mv-controls" style={{ bottom: insets.bottom + 16 }} role="group" aria-label="Map controls">
         <div className="mv-controls__stack">

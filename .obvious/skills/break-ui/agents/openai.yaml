@@ -1,0 +1,4 @@
+interface:
+  display_name: "Break UI"
+  short_description: "Stress-test interface data and report what breaks"
+  default_prompt: "Use $break-ui to stress-test the requested interface within the authorized scope."
