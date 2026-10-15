@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ContextPanel } from "@/components/ui/ContextPanel";
-import { AlertGlyph, SearchGlyph, ShareGlyph, SlidersGlyph, TrayIn, Undo } from "@/components/ui/icons";
+import { AlertGlyph, BookGlyph, SearchGlyph, ShareGlyph, SlidersGlyph, TrayIn, Undo } from "@/components/ui/icons";
 import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { StatusGlyph } from "@/components/ui/StatusGlyph";
 import { toast } from "@/components/ui/Toast";
@@ -19,8 +19,9 @@ import { ExportSheet } from "./ExportSheet";
 import type { BuilderHost } from "./host";
 import { NoticeStrip, OptionsStrip } from "./OptionsStrip";
 import { EventPanel, OptionDetails } from "./panels";
+import { changedCount, newBusyId } from "./limits";
 import { addBusy, preferenceSummary } from "./preferences";
-import { newBusyId, PreferencesPanel } from "./PreferencesPanel";
+import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
 import type { SharedWeek } from "./share";
 import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
@@ -28,7 +29,7 @@ import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
 
 export type SearchRequest = { nonce: number; query: string };
 
-type Panel = { kind: "event"; code: string } | { kind: "search" } | { kind: "prefs" } | { kind: "option" };
+type Panel = { kind: "event"; code: string } | { kind: "search" } | { kind: "option" };
 type Strip =
   /** `instant`: the option on the grid was reached from the keyboard (Auto, Next or Show), so it didn't animate. */
   | { kind: "options"; runId: number | null; shown: ReadonlyArray<Record<string, string>>; index: number; better: boolean; instant: boolean }
@@ -81,6 +82,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   const [preview, setPreview] = useState<Section | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  /** Preferences is its own popover (a sheet on phones), not the contextual panel: the week stays in view behind it. */
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const prefsButton = useRef<HTMLButtonElement>(null);
   /** The last change came from the keyboard: the grid updates without moving (MOTION.md §3). */
   const keyboard = useRef(false);
   /** The last change undoes or leaves a preview: an exit, so it moves a little faster (MOTION.md §7). */
@@ -207,7 +211,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z" && !isEditable(event.target)) {
         event.preventDefault();
         undo(true);
-      } else if (event.key === "Escape" && !event.defaultPrevented && !panel && strip && !document.querySelector('[aria-modal="true"]')) {
+      } else if (event.key === "Escape" && !event.defaultPrevented && !panel && !prefsOpen && strip && !document.querySelector('[aria-modal="true"]')) {
         keyboard.current = true;
         closeStrip();
       }
@@ -215,6 +219,9 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  const closePrefs = useCallback(() => setPrefsOpen(false), []);
+  const prefsAnchor = useCallback(() => prefsButton.current, []);
 
   const openPanel = (next: Panel) => {
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -300,9 +307,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       slots.add(slot);
       return true;
     });
-  const busy: Busy[] = host.preferences.constraints.blocked
-    .filter((block) => !block.id.startsWith("lunch-"))
-    .map((block) => ({ id: block.id, label: block.label, day: block.day, start: block.start, end: block.end }));
+  const busy: Busy[] = host.preferences.constraints.blocked.map((block) => ({ id: block.id, label: block.label, day: block.day, start: block.start, end: block.end }));
 
   const answerCourses: AnswerCourse[] = host.courses.map((course) => ({
     code: course.code,
@@ -312,6 +317,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   }));
   const answer = answerFor({ courses: answerCourses, events: now.events, walks: now.walks, preferences: host.preferences, termLabel: host.term.label });
   const summary = preferenceSummary(host.preferences, host.defaults);
+  const prefCount = changedCount(host.preferences, host.defaults);
   const noSetTime = shownSections.filter(hasNoSetTime);
   const running = feed.status === "running";
   const firstAnswerPending = running && (strip?.kind !== "options" || strip.shown.length === 0);
@@ -330,9 +336,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       ? panel.code
       : panel?.kind === "search"
         ? "Find courses"
-        : panel?.kind === "prefs"
-          ? "Preferences"
-          : strip?.kind === "options"
+        : strip?.kind === "options"
             ? `${optionTitle(strip.index)} next to your week`
             : "";
 
@@ -432,30 +436,57 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   return (
     <div className={styles.page} data-builder={host.brand.id}>
       <div className={styles.head}>
-        <button
-          type="button"
-          className={styles.prefButton}
-          aria-expanded={panel?.kind === "prefs"}
-          onClick={() => (panel?.kind === "prefs" ? closePanel() : openPanel({ kind: "prefs" }))}
-        >
-          <SlidersGlyph size={20} />
-          {/* On a phone the summary stands alone; the label stays in the name. */}
-          <b className={summary ? styles.prefLabel : undefined}>Preferences</b>
-          <span className={styles.summary}>{summary}</span>
-        </button>
+        <div className={styles.title} aria-hidden="true">
+          <b>{host.term.label}</b>
+          <span>{host.courses.length === 0 ? "No courses yet" : `Built from ${host.courses.length} course${host.courses.length === 1 ? "" : "s"}`}</span>
+        </div>
         <div className={styles.headActions}>
           <IconButton label="Undo" size="sm" disabled={!host.edits.canUndo} aria-keyshortcuts="Meta+Z Control+Z" onClick={(event) => undo(event.detail === 0)}>
             <Undo size={20} />
           </IconButton>
-          {phone ? (
-            <IconButton label="Export" size="sm" variant="secondary" onClick={() => setExporting(true)}>
-              <ShareGlyph size={18} />
-            </IconButton>
-          ) : (
-            <Button variant="secondary" size="sm" icon={<ShareGlyph size={18} />} onClick={() => setExporting(true)}>
-              Export
-            </Button>
+          <IconButton label="Export" size="sm" onClick={() => setExporting(true)}>
+            <ShareGlyph size={19} />
+          </IconButton>
+          <span className={styles.headRule} aria-hidden="true" />
+          {phone ? null : (
+            <button
+              type="button"
+              className={styles.topButton}
+              aria-expanded={panel?.kind === "search"}
+              onClick={() => {
+                setPrefsOpen(false);
+                if (panel?.kind === "search") closePanel();
+                else openPanel({ kind: "search" });
+              }}
+            >
+              <BookGlyph size={18} />
+              Courses
+              {host.courses.length > 0 ? <span className={styles.count}>{host.courses.length}</span> : null}
+            </button>
           )}
+          <button
+            ref={prefsButton}
+            type="button"
+            className={styles.topButton}
+            aria-expanded={prefsOpen}
+            aria-haspopup="dialog"
+            aria-describedby={summary ? "pref-summary" : undefined}
+            onClick={() => {
+              if (!prefsOpen) closePanel();
+              setPrefsOpen(!prefsOpen);
+            }}
+          >
+            <SlidersGlyph size={18} />
+            Preferences
+            {prefCount > 0 ? (
+              <span className={styles.count} aria-label={`${prefCount} changed`}>
+                {prefCount}
+              </span>
+            ) : null}
+          </button>
+          <span id="pref-summary" hidden>
+            {summary}
+          </span>
           {phone ? null : (
             <Button size="sm" icon={<TrayIn size={18} />} loading={firstAnswerPending} loadingLabel="Looking for weeks" disabled={host.courses.length === 0} onClick={(event) => auto(event.detail === 0)}>
               {host.brand.primaryLabel}
@@ -479,6 +510,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         outlines={outlines}
         ghost={ghost}
         busy={busy}
+        limits={host.preferences.constraints}
         motion={{ key: shownKey, instant, exit }}
         interactive={!previewing}
         phone={phone}
@@ -575,12 +607,6 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
               toast({ message: `Removed ${selectedCourse.code}`, action: undoAction });
             }}
           />
-        ) : panel?.kind === "prefs" ? (
-          host.preferencesReady ? (
-            <PreferencesPanel preferences={host.preferences} defaults={host.defaults} onChange={host.setPreferences} canDraw={fine} />
-          ) : (
-            <p className={styles.hint}>Loading your preferences.</p>
-          )
         ) : panel?.kind === "option" && strip?.kind === "options" ? (
           <OptionDetails
             now={now}
@@ -592,6 +618,25 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
           />
         ) : null}
       </ContextPanel>
+
+      <PreferencesPopover
+        open={prefsOpen}
+        onClose={closePrefs}
+        anchor={prefsAnchor}
+        phone={phone}
+        ready={host.preferencesReady}
+        preferences={host.preferences}
+        defaults={host.defaults}
+        onChange={host.setPreferences}
+        newId={newBusyId}
+        courses={host.courses}
+        // No toast here: the locked row appearing is the feedback and its unlock button is the undo.
+        // An Undo toast stays until dismissed and would cover the bottom of the popover.
+        onKeep={(code, kept) => host.edits.keep(code, kept)}
+        options={host.search.options}
+        load={host.search.load}
+        touch={!fine}
+      />
 
       <ExportSheet
         open={exporting}

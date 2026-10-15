@@ -35,6 +35,8 @@ type Props = {
   outlines: readonly Outline[];
   ghost: readonly Ghost[];
   busy: readonly Busy[];
+  /** Class hours and days off from Preferences, hatched so the week shows what Auto avoids. */
+  limits?: { earliestStart: number | null; latestEnd: number | null; daysOff: readonly Day[] };
   /**
    * Names the sections on the grid; a new key FLIPs them, unless `instant`
    * (keyboard changes never animate). `exit` (Undo, leaving a preview) moves
@@ -257,6 +259,13 @@ export function WeekGrid(props: Props) {
             onPointerUp={onColumnUp}
             onPointerCancel={() => setDraft(null)}
           >
+            {props.limits?.daysOff.includes(day) ? <div className={styles.limit} style={{ top: 0, bottom: 0 }} aria-hidden="true" /> : null}
+            {props.limits?.earliestStart != null && props.limits.earliestStart > first * 60 ? (
+              <div className={styles.limit} data-edge="start" style={{ top: 0, height: span(first * 60, props.limits.earliestStart) }} aria-hidden="true" />
+            ) : null}
+            {props.limits?.latestEnd != null && props.limits.latestEnd < last * 60 ? (
+              <div className={styles.limit} data-edge="end" style={{ top: at(props.limits.latestEnd, first), bottom: 0 }} aria-hidden="true" />
+            ) : null}
             {busy
               .filter((block) => block.day === day)
               .map((block) => (

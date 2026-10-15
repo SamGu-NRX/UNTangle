@@ -68,55 +68,113 @@
   flex: none;
 }
 
-/* ───────── Header: one Preferences control, then the actions ───────── */
+/* ───────── Header: the term, then Courses and Preferences (r3 mockup) ───────── */
 
 .head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  min-height: 52px;
+  margin-bottom: 2px;
 }
-.prefButton {
+.title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.title b {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+}
+.title span {
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.headActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.headRule {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--line);
+}
+.topButton {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
-  height: 40px;
-  margin-left: -10px;
+  gap: 7px;
+  height: 36px;
   padding: 0 12px 0 10px;
+  border: 1px solid var(--line);
   border-radius: 10px;
+  background: var(--paper);
+  font-size: 13px;
+  font-weight: 600;
   color: var(--ink);
-  font-size: 15px;
-  text-align: left;
-  transition: background-color var(--t-hover) ease;
+  white-space: nowrap;
+  transition:
+    transform var(--t-press) var(--ease-out),
+    background-color var(--t-hover) ease,
+    border-color var(--t-hover) ease,
+    box-shadow var(--t-hover) ease;
 }
-.prefButton svg {
+.topButton svg {
   flex: none;
   color: var(--ink-2);
 }
-.prefButton b {
-  font-weight: 650;
-  white-space: nowrap;
+.topButton:active {
+  transform: scale(0.97);
 }
-.summary {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ink-2);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.prefButton[aria-expanded="true"] {
+.topButton[aria-expanded="true"] {
+  border-color: color-mix(in oklab, var(--brand-2) 40%, var(--line));
   background: var(--brand-soft);
+  color: var(--brand);
+}
+.topButton[aria-expanded="true"] svg {
+  color: var(--brand);
+}
+.topButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--paper-2);
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.topButton[aria-expanded="true"] .count {
+  background: color-mix(in oklab, var(--brand-2) 14%, var(--paper));
+  color: var(--brand);
 }
 @media (hover: hover) and (pointer: fine) {
-  .prefButton:hover:not([aria-expanded="true"]) {
-    background: rgba(26, 46, 26, 0.05);
+  .topButton:hover:not([aria-expanded="true"]) {
+    border-color: var(--line-2);
+    box-shadow: var(--shadow-1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topButton:active {
+    transform: none;
   }
 }
 /* Touch: controls reach 44px (DESIGN.md §5), and wrapped chip rows sit far enough
    apart that their extended hit areas never overlap. */
 @media (pointer: coarse) {
-  .prefButton,
+  .topButton,
   .pill {
     min-height: 44px;
   }
@@ -128,12 +186,24 @@
     row-gap: 16px;
   }
 }
-.headActions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
+@media (max-width: 420px) {
+  .head {
+    gap: 8px;
+  }
+  .headActions {
+    gap: 2px;
+  }
+  .headRule {
+    display: none;
+  }
+  .topButton {
+    padding: 0 10px;
+  }
+}
+@media (max-width: 370px) {
+  .title span {
+    display: none;
+  }
 }
 
 /* ───────── The answer: one line, or one alternative ───────── */
@@ -252,11 +322,9 @@
   align-items: center;
 }
 .gridHead span {
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  font-weight: 600;
   text-align: center;
-  text-transform: uppercase;
   color: var(--ink-2);
 }
 .gridBody {
@@ -466,6 +534,22 @@
   color: var(--ink-2);
   pointer-events: none;
 }
+/* Outside class hours, or a day off: hatched like the painted grid in Preferences. */
+.limit {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  background-color: color-mix(in oklab, var(--paper-2) 70%, transparent);
+  background-image: repeating-linear-gradient(135deg, rgba(79, 101, 79, 0.16) 0 1px, transparent 1px 7px);
+  pointer-events: none;
+}
+.limit[data-edge="start"] {
+  border-bottom: 1.5px solid color-mix(in oklab, var(--brand-2) 70%, transparent);
+}
+.limit[data-edge="end"] {
+  border-top: 1.5px solid color-mix(in oklab, var(--brand-2) 70%, transparent);
+}
 .busy[data-draft] {
   box-shadow: inset 0 0 0 1.5px var(--brand-2);
   color: var(--brand);
@@ -575,7 +659,6 @@
 /* ───────── Panel contents ───────── */
 
 .panelBody,
-.prefs,
 .find,
 .export {
   display: grid;
@@ -614,7 +697,6 @@
 }
 .courses,
 .sections,
-.busyList,
 .changes,
 .numbers {
   margin: 0;
@@ -742,41 +824,6 @@
 .clash {
   font-size: 13px;
   color: var(--danger);
-}
-
-.prefSection {
-  display: grid;
-  gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-.busyRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  margin-bottom: 6px;
-  padding: 0 4px 0 12px;
-  border-radius: 10px;
-  background: var(--paper-2);
-  font-size: 14px;
-}
-.busyRow > button {
-  margin-left: auto;
-}
-.busyForm {
-  display: grid;
-  gap: 10px;
-}
-.fieldError {
-  margin: -4px 0 0;
-  font-size: 13px;
-  color: var(--danger);
-}
-.timeRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 
 .reasons {
@@ -973,18 +1020,6 @@
   }
   .head {
     margin: 0 4px 4px;
-  }
-  .prefButton {
-    flex: 1;
-    margin-left: -6px;
-  }
-  .prefLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
   .answer {
     min-height: 40px;
