@@ -125,6 +125,26 @@ describe("instructorMeanHundredths", () => {
     expect(instructorMeanHundredths(single, "x-1")).toBe(247);
   });
 
+  test("pools the raw letter counts and rounds once, not per-section GPAs", () => {
+    // Splitting one instructor's record across sections must not lose
+    // precision to per-section rounding: 117/36 = 3.25 and 10/10 = 1.00 are
+    // exact, but 114/39 = 2.9230… would round per section to 2.92. Weighting
+    // the rounded section GPAs gives 283 hundredths; pooling the raw counts
+    // (edge join.ts sumCounts semantics) gives 241/85 = 2.8353 → 284.
+    const split: CourseHistory = {
+      ...HISTORY,
+      terms: [{
+        year: "2027", term: "Spring", counts: {}, total: 85, grades: gradeData({ A: 40, B: 18, C: 1, D: 25, F: 1 }),
+        sections: [
+          pastSection("001", "x-1", "Ada", "Lovelace", { A: 19, B: 12, C: 0, D: 5, F: 0 }),
+          pastSection("002", "x-1", "Ada", "Lovelace", { A: 21, B: 6, C: 1, D: 10, F: 1 }),
+          pastSection("003", "x-1", "Ada", "Lovelace", { A: 0, B: 0, C: 0, D: 10, F: 0 }),
+        ],
+      }],
+    };
+    expect(instructorMeanHundredths(split, "x-1")).toBe(284);
+  });
+
   test("returns null when no section of the instructor's has A through F grades", () => {
     const withdrawOnly: CourseHistory = {
       ...HISTORY,

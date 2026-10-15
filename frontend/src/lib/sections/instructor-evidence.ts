@@ -19,7 +19,6 @@
 
 import type { InstructorEvidence } from "@untangle/core/instructor-tiebreak";
 import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
-import { gradeGpa } from "@/lib/grades-history/normalize";
 import { matchInstructor, type Candidate } from "@/lib/instructors/match";
 import type { Section } from "./model";
 
@@ -55,18 +54,14 @@ export function instructorMeanHundredths(history: CourseHistory, instructorId: s
     .flatMap((term) => term.sections)
     .filter((past) => past.instructor.id === instructorId && aThroughF(past.grades) > 0);
   if (graded.length < MIN_GRADED_SECTIONS) return null;
+  // The raw letter counts pool across sections (edge join.ts sumCounts
+  // semantics) and the mean rounds once at the end: rounding each section's
+  // own GPA to hundredths first would fold every section's rounding error
+  // into the pooled mean.
   let points = 0;
   let students = 0;
   for (const past of graded) {
-    const gpa = gradeGpa({
-      A: past.grades.gradeA,
-      B: past.grades.gradeB,
-      C: past.grades.gradeC,
-      D: past.grades.gradeD,
-      F: past.grades.gradeF,
-    });
-    if (gpa === null) return null;
-    points += gpa * aThroughF(past.grades);
+    points += 4 * past.grades.gradeA + 3 * past.grades.gradeB + 2 * past.grades.gradeC + past.grades.gradeD;
     students += aThroughF(past.grades);
   }
   if (students === 0) return null;
