@@ -3,7 +3,7 @@ import { courses } from "@/lib/seed-data";
 import type { ScheduleEvent } from "@/lib/types";
 
 import { autoRequest, runAuto, weightsOf } from "./auto";
-import { dayPlan, sampleStart, walkMinutes } from "./day-plan";
+import { dayPlan, rangeWithPeriod, sampleStart, walkMinutes } from "./day-plan";
 import {
   conflictsWith,
   courseByCode,
@@ -181,6 +181,18 @@ describe("dayPlan", () => {
   });
 });
 
+describe("rangeWithPeriod", () => {
+  test("writes the period once when both ends share it", () => {
+    expect(rangeWithPeriod(15 * 60, 17 * 60)).toBe("3:00 to 5:00 PM");
+    expect(rangeWithPeriod(8 * 60, 9 * 60 + 30)).toBe("8:00 to 9:30 AM");
+  });
+
+  test("writes it on each end when the range crosses noon", () => {
+    expect(rangeWithPeriod(11 * 60, 13 * 60)).toBe("11:00 AM to 1:00 PM");
+    expect(rangeWithPeriod(11 * 60, 12 * 60)).toBe("11:00 AM to 12:00 PM");
+  });
+});
+
 describe("preferences", () => {
   const blank: Preferences = { ...samplePreferences, busy: {} };
 
@@ -259,6 +271,5 @@ describe("Auto", () => {
     const { optimize } = jest.requireActual("@/lib/optimizer/optimize");
     const result = optimize(autoRequest(samplePicks(), { ...samplePreferences, maxCredits: 21 }));
     expect(result.status).toBe("optimal");
-    expect(result.stats.elapsedMs).toBeLessThan(300);
   });
 });

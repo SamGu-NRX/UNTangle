@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { firstFittingSection, samplePicks, sampleRecord, weekOf, type GuestRecord, type GuestWeek, type Picks } from "./guest-plan";
 import { samplePreferences, type Preferences } from "./preferences";
@@ -28,23 +28,34 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [picks, setPicks] = useState<Picks>(samplePicks);
   const [prefs, setPrefsState] = useState<Preferences>(samplePreferences);
 
+  // The latest picks, updated in the same call that sets them, so two actions
+  // before a re-render (an add, then an undo) each see the other's result and
+  // a fit check never runs against a stale set.
+  const picksRef = useRef<Picks>(picks);
+  const commit = useCallback((next: Picks) => {
+    picksRef.current = next;
+    setPicks(next);
+  }, []);
+
   const add = useCallback(
     (code: string, sectionId?: string) => {
-      const id = sectionId ?? firstFittingSection(code, picks)?.id;
+      const current = picksRef.current;
+      const id = sectionId ?? firstFittingSection(code, current)?.id;
       if (!id) return false;
-      setPicks((current) => ({ ...current, [code]: id }));
+      commit({ ...current, [code]: id });
       return true;
     },
-    [picks],
+    [commit],
   );
-  const remove = useCallback((code: string) => {
-    setPicks((current) => {
-      const next = { ...current };
+  const remove = useCallback(
+    (code: string) => {
+      const next = { ...picksRef.current };
       delete next[code];
-      return next;
-    });
-  }, []);
-  const replace = useCallback((next: Picks) => setPicks({ ...next }), []);
+      commit(next);
+    },
+    [commit],
+  );
+  const replace = useCallback((next: Picks) => commit({ ...next }), [commit]);
   const setPrefs = useCallback((update: (prefs: Preferences) => Preferences) => setPrefsState(update), []);
 
   const value = useMemo<PlanStore>(

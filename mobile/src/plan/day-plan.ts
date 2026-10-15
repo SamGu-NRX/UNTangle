@@ -103,6 +103,16 @@ export function rangeText(start: number, end: number): string {
   return `${clockText(start)} to ${clockText(end)}`;
 }
 
+/**
+ * "3:00 to 5:00 PM", or "11:00 AM to 1:00 PM" when the range crosses noon.
+ * The period is written once when both ends share it, and on each end otherwise.
+ */
+export function rangeWithPeriod(start: number, end: number): string {
+  const period = (minutes: number) => (minutes < 720 ? "AM" : "PM");
+  if (period(start) === period(end)) return `${rangeText(start, end)} ${period(end)}`;
+  return `${clockWithPeriod(start)} to ${clockWithPeriod(end)}`;
+}
+
 /** "9:00 AM" for a time shown without a day around it. */
 export function clockWithPeriod(minutes: number): string {
   return `${clockText(minutes)} ${minutes < 720 ? "AM" : "PM"}`;

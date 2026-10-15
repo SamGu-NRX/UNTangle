@@ -5,7 +5,7 @@ import Animated, { FadeIn, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ClassDay } from "@/lib/types";
-import { clockWithPeriod, rangeText } from "@/plan/day-plan";
+import { clockWithPeriod, rangeWithPeriod } from "@/plan/day-plan";
 import { creditsText, sectionNumber, sectionsOf } from "@/plan/guest-plan";
 import { usePlan } from "@/plan/plan-store";
 import {
@@ -362,7 +362,7 @@ export default function PreferencesSheet() {
               <View style={styles.flex}>
                 <Txt variant="bodyStrong">{row.label}</Txt>
                 <Txt variant="meta" tone="ink2">
-                  {daysText(row.days)}, {rangeText(row.start, row.end)} {row.end <= 720 ? "AM" : "PM"}
+                  {daysText(row.days)}, {rangeWithPeriod(row.start, row.end)}
                 </Txt>
               </View>
               <PressScale
