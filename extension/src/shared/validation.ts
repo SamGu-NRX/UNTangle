@@ -5,7 +5,7 @@ export type PageRequest = {
   ref: SectionRef;
 };
 export type PanelRequest = {
-  type: "panel/status" | "panel/sign-in" | "panel/retry";
+  type: "panel/status" | "panel/sign-in" | "panel/retry" | "panel/sign-out";
 } | {
   type: "panel/confirm";
   previewId: string;
@@ -24,7 +24,7 @@ export function validateMessage(raw: unknown, sender: chrome.runtime.MessageSend
   const popupUrl = `chrome-extension://${extensionId}/popup.html`;
   if (sender.url !== popupUrl || (sender.tab && (sender.tab.url !== popupUrl || sender.frameId !== 0)))
     return null;
-  if ((raw.type === "panel/status" || raw.type === "panel/sign-in" || raw.type === "panel/retry") && Object.keys(raw).length === 1)
+  if ((raw.type === "panel/status" || raw.type === "panel/sign-in" || raw.type === "panel/retry" || raw.type === "panel/sign-out") && Object.keys(raw).length === 1)
     return { type: raw.type };
   if (raw.type === "panel/confirm" && Object.keys(raw).length === 2 && isId(raw.previewId))
     return { type: raw.type, previewId: raw.previewId };

@@ -1,8 +1,8 @@
 import { DeviceClient } from "./lib/device-client";
+import type { DeviceAuth } from "./lib/worker-controller";
 import type { LocalStore } from "./lib/outbox";
 import { PlannerClient } from "./lib/planner-client";
 import { WorkerController } from "./lib/worker-controller";
-import { StudentError } from "./shared/student-error";
 import { validateMessage } from "./shared/validation";
 const store: LocalStore = {
   get: async (key) => (await chrome.storage.local.get(key))[key],
@@ -10,24 +10,36 @@ const store: LocalStore = {
   remove: async (key) => { await chrome.storage.local.remove(key); },
   all: () => chrome.storage.local.get(null),
 };
-const devices = new DeviceClient(fetch.bind(globalThis), {
-  redirectUri: chrome.identity.getRedirectURL("device"),
-  launch: async (url) => {
-    const result = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-    if (!result)
-      throw new StudentError("The sign-in window closed before you finished. Sign in again.");
-    return result;
-  },
+// A connected port means a trusted panel is open. When the panel closes, its
+// port disconnects and the sign-in poll stops with it.
+const panelPorts = new Set<chrome.runtime.Port>();
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name !== "panel")
+    return;
+  panelPorts.add(port);
+  port.onDisconnect.addListener(() => panelPorts.delete(port));
 });
+const devices = new DeviceClient(fetch.bind(globalThis), {
+  // The approval page opens as a normal browser tab, never a content script
+  // and never an identity window: the student signs in where UNTangle lives.
+  openTab: url => { void chrome.tabs.create({ url }); },
+  panelOpen: () => panelPorts.size > 0,
+});
+const auth: DeviceAuth = {
+  signIn: input => devices.signIn(input),
+  refresh: refreshToken => devices.refresh(refreshToken),
+  revoke: accessToken => devices.revoke(accessToken),
+};
 async function refreshMarkers(): Promise<void> {
   for (const tab of await chrome.tabs.query({})) {
     if (tab.id !== undefined)
       await chrome.tabs.sendMessage(tab.id, { type: "markers/refresh" }).catch(() => { });
   }
 }
-const controller = new WorkerController(store, new PlannerClient(fetch.bind(globalThis)), devices, refreshMarkers);
+const controller = new WorkerController(store, new PlannerClient(fetch.bind(globalThis)), auth, refreshMarkers);
 const ready = (async () => {
-  // Local storage is exposed to content scripts unless this is set.
+  // Local storage is exposed to content scripts unless this is set. The stored
+  // token pair stays visible to trusted extension contexts only.
   await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
   await controller.start();
 })();

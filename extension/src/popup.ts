@@ -237,7 +237,15 @@ function screen(): Screen {
     return { name: "loading", body: slow ? [h("p", { class: "loading", id: "view-title" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Checking Main")] : [], foot: [] };
   const next = state;
   const signIn = () => button("sign-in", "Sign in", "Signing in", "primary", () => void send({ type: "panel/sign-in" }, "sign-in"));
+  const signOut = () => button("sign-out", "Sign out", "Signing out", "secondary", () => void send({ type: "panel/sign-out" }, "sign-out"));
   const failure = next.outcome === "error" ? h("p", { class: "alert", role: "alert" }, next.notice) : null;
+  // A device sign-in holds the worker while the student approves in the
+  // UNTangle tab; the panel shows the code to match meanwhile.
+  if (next.userCode !== null)
+    return { name: "signing-in", body: result(null, "Approve this browser in UNTangle",
+      h("p", { class: "lead" }, "A UNTangle tab opened so you can sign in and approve this browser."),
+      h("p", { class: "small" }, "Check that this code matches the one shown in that tab before you approve."),
+      h("p", { class: "code", id: "user-code" }, next.userCode)), foot: [] };
   if (!next.signedIn && next.pending > 0) {
     return { name: "needs-sign-in", body: result(null, confirmedTitle ? `Sign in to finish adding ${confirmedTitle}` : "Sign in to finish your add",
       h("p", { class: "lead" }, "The add is saved in this browser. Once you sign in, UNTangle sends it to Main.")), foot: [failure, signIn()].filter(n => n !== null) };
@@ -253,7 +261,7 @@ function screen(): Screen {
     foot: [failure, button("retry", "Sync now", "Syncing", "primary", () => void send({ type: "panel/retry" }, "retry"))].filter(n => n !== null) };
   }
   if (next.outcome === "added" && !next.preview)
-    return { name: "added", body: result("added", confirmedTitle ? `Added ${confirmedTitle} to Main` : "Added to Main", h("p", { class: "lead" }, "Choose another section on class search to check it against Main.")), foot: [] };
+    return { name: "added", body: result("added", confirmedTitle ? `Added ${confirmedTitle} to Main` : "Added to Main", h("p", { class: "lead" }, "Choose another section on class search to check it against Main.")), foot: [signOut()] };
   if (next.outcome === "rejected" && !next.preview)
     return { name: "rejected", body: result("problem", `Couldn't add ${named}`, h("p", { class: "lead" }, "UNTangle didn't accept this add, and Main is unchanged. Choose another section on class search.")), foot: [] };
   if (next.preview) {
@@ -269,7 +277,7 @@ function screen(): Screen {
   }
   if (next.outcome === "error")
     return { name: "error", body: lead("problem", next.notice), foot: [button("reload", "Retry", "Loading", "secondary", () => void send({ type: "panel/status" }, "reload"))] };
-  return { name: "empty", body: result(null, "Choose a section on class search", h("p", { class: "lead" }, "Select the marker under any section in myUNT class search. Its check against Main opens here.")), foot: [] };
+  return { name: "empty", body: result(null, "Choose a section on class search", h("p", { class: "lead" }, "Select the marker under any section in myUNT class search. Its check against Main opens here.")), foot: [signOut()] };
 }
 
 function render(): void {
@@ -305,6 +313,12 @@ function setBusy(id: string | null): void {
 }
 async function send(message: object, from?: string): Promise<void> {
   setBusy(from ?? null);
+  // A device sign-in holds the worker until the student approves in the
+  // UNTangle tab, so this request's own reply lands only after approval.
+  // A parallel status poll draws the matching code while the worker is busy;
+  // it stops on its own once a reply reports the worker is no longer working.
+  if ((message as { type?: string }).type === "panel/sign-in")
+    setTimeout(() => void send({ type: "panel/status" }), 300);
   try {
     const next: unknown = await chrome.runtime.sendMessage(message);
     if (!next || typeof next !== "object" || typeof (next as PanelState).signedIn !== "boolean")
@@ -313,7 +327,12 @@ async function send(message: object, from?: string): Promise<void> {
     const reply = next as PanelState;
     unreachable = false;
     if (reply.working) {
-      // Another request holds the worker; keep what's on screen and ask again.
+      // Another request holds the worker; keep asking. A sign-in in flight
+      // draws its matching code while it waits.
+      if (reply.userCode !== null) {
+        state = reply;
+        render();
+      }
       setTimeout(() => void send({ type: "panel/status" }), 300);
       return;
     }
@@ -333,4 +352,7 @@ setTimeout(() => {
   if (!state && !unreachable)
     render();
 }, 400);
+// The panel's port tells the worker a trusted panel is open; when the panel
+// closes, the port disconnects and a running sign-in poll stops with it.
+chrome.runtime.connect({ name: "panel" });
 void send({ type: "panel/status" });

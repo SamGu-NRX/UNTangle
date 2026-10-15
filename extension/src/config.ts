@@ -3,6 +3,9 @@ export const UNTANGLE_ORIGIN = typeof __UNTANGLE_ORIGIN__ === "undefined" ? "htt
 export const TERM_PATTERN = /^(spring|summer|fall)-\d{4}$/;
 export const CLASS_NUMBER_PATTERN = /^\d{4,5}$/;
 export const SCHEDULE_NAME = "Main";
+// The schedule a device grant reads and adds options to. Main is the only
+// schedule today; the id is what /api/v1/extension/* projects as scheduleId.
+export const SCHEDULE_ID = "main";
 // Production frame origins need a live capture before release. Reserved
 // placeholders deliberately grant no access to UNT login or identity pages.
 export const CLASS_SEARCH_MATCHES = [

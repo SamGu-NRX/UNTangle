@@ -1,4 +1,4 @@
-import { isCommand, isId, isRecord, isSectionRef, type AddReply, type AddOptionCommand, type DeviceGrant, type SectionRef } from "../shared/extension-api";
+import { isCommand, isId, isRecord, isSectionRef, type AddReply, type AddOptionCommand, type SectionRef } from "../shared/extension-api";
 import type { PlannerApi, SessionCache } from "./planner-client";
 export interface LocalStore extends SessionCache {
   remove(key: string): Promise<void>;
@@ -6,7 +6,8 @@ export interface LocalStore extends SessionCache {
 }
 export interface PendingAdd {
   command: AddOptionCommand;
-  accountId: string;
+  /** The grant that proposed the add; only that grant's sign-in replays it. */
+  grantId: string;
   ref: SectionRef;
 }
 export class AddOutbox {
@@ -14,22 +15,27 @@ export class AddOutbox {
   async enqueue(pending: PendingAdd): Promise<void> {
     await this.store.set(`add:${pending.command.operationId}`, pending);
   }
-  async send(pending: PendingAdd, grant: DeviceGrant) {
-    if (pending.accountId !== grant.accountId || grant.expiresAt <= Date.now())
-      return null;
-    const reply = await this.client.add(pending.command, grant.accessToken);
+  /**
+   * Sends one pending add with the given (already fresh) access token. A null
+   * reply means the transport failed; the command stays stored for a retry.
+   */
+  async send(pending: PendingAdd, token: string): Promise<AddReply | null> {
+    const reply = await this.client.add(pending.command, token);
     if (reply)
       await this.store.remove(`add:${pending.command.operationId}`);
     return reply;
   }
-  async resend(grant: DeviceGrant, settled: (pending: PendingAdd, reply: AddReply) => Promise<void> = async () => { }): Promise<void> {
+  /** Replays only the adds the named grant made, under that grant's fresh token. */
+  async resend(grantId: string, token: string, settled: (pending: PendingAdd, reply: AddReply) => Promise<void> = async () => { }): Promise<void> {
     for (const [key, value] of Object.entries(await this.store.all())) {
       if (!key.startsWith("add:"))
         continue;
-      if (!isRecord(value) || !isCommand(value.command) || !isId(value.accountId) || !isSectionRef(value.ref) || key !== `add:${value.command.operationId}`)
+      if (!isRecord(value) || !isCommand(value.command) || !isId(value.grantId) || !isSectionRef(value.ref) || key !== `add:${value.command.operationId}`)
         throw new Error("Invalid persisted add command");
-      const pending = { command: value.command, accountId: value.accountId, ref: value.ref };
-      const reply = await this.send(pending, grant);
+      if (value.grantId !== grantId)
+        continue;
+      const pending = { command: value.command, grantId: value.grantId, ref: value.ref };
+      const reply = await this.send(pending, token);
       if (reply)
         await settled(pending, reply);
     }
