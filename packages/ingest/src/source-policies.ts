@@ -66,6 +66,31 @@ export const SOURCE_POLICIES: readonly ReviewedSourcePolicy[] = reviewed([
     policyEvidenceUrl: null,
     policyCheckedAt: null,
   },
+  {
+    sourceId: "catalog-utexas",
+    institutionId: "ut-austin",
+    description:
+      "UT Austin undergraduate catalog course pages, one page per field of study (catalog.utexas.edu/courses/<field-of-study>/), Courseleaf-published static HTML. Parsed from saved copies by packages/ingest/src/ut-austin/catalog.ts; the access-rule research is docs/research/ut-austin/README.md.",
+    acquisition: "server",
+    // Public, unauthenticated pages. The host published no robots.txt on
+    // 2026-10-15 (the path returned the site's 404 page) and no terms page
+    // governs the course pages, so policy evidence stays null and pacing is
+    // self-imposed. Redistribution of the parsed records is unverified:
+    // catalog text is UT Austin's publication, so releases built from it
+    // should be served through /api/v1 like the VSB mirror's.
+    approval: "allowed",
+    retention: "versioned",
+    redistribution: "unverified",
+    allowedUrlPrefixes: ["https://catalog.utexas.edu/courses/"],
+    // One page per field of study, a few hundred pages in all, captured
+    // about twice a year per catalog edition. Three seconds between fetches
+    // matches the capture used for the first fixtures; nothing was measured.
+    minIntervalMs: 3_000,
+    maxRequestsPerHour: 60,
+    maxConcurrency: 1,
+    policyEvidenceUrl: null,
+    policyCheckedAt: null,
+  },
 ]);
 
 /** The policy for `sourceId`. Throws when the table has none, so a job can't fetch from an unreviewed source. */

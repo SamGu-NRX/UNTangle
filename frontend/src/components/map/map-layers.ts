@@ -13,7 +13,7 @@ import type {
   LayerSpecification,
   Map as MapLibreMap,
 } from "maplibre-gl";
-import type { Itinerary } from "@/lib/map-itinerary";
+import type { ItineraryLeg } from "@/lib/map-itinerary";
 import { LABEL_ANCHOR_LAYER } from "@/components/map/campus-style";
 
 // Source, layer and image ids follow the design's route-and-pins.md.
@@ -158,7 +158,10 @@ export function addRouteOverlay(map: MapLibreMap) {
   }
 }
 
-export function setRouteData(map: MapLibreMap, itinerary: Itinerary) {
+/** What the overlay draws: each leg's key and route. A selected gap event adds its two walks. */
+export type DrawnLegs = { legs: readonly Pick<ItineraryLeg, "key" | "route">[] };
+
+export function setRouteData(map: MapLibreMap, itinerary: DrawnLegs) {
   const routes = map.getSource<GeoJSONSource>(ROUTE_SOURCE);
   const ends = map.getSource<GeoJSONSource>(ROUTE_ENDS_SOURCE);
   if (!routes || !ends) return;
@@ -184,14 +187,14 @@ export function setRouteData(map: MapLibreMap, itinerary: Itinerary) {
   });
 }
 
-/** Mark the selected leg; MapLibre merges feature-state, so every leg is set every time. */
-export function setLegSelection(map: MapLibreMap, itinerary: Itinerary, selectedKey: string | null) {
+/** Mark the selected legs; MapLibre merges feature-state, so every leg is set every time. */
+export function setLegSelection(map: MapLibreMap, itinerary: DrawnLegs, selectedKeys: ReadonlySet<string>) {
   if (!map.getSource(ROUTE_SOURCE)) return;
   for (const leg of itinerary.legs) {
     if (leg.route.kind !== "walk" && leg.route.kind !== "straight-line") continue;
     map.setFeatureState(
       { source: ROUTE_SOURCE, id: leg.key },
-      { selected: leg.key === selectedKey },
+      { selected: selectedKeys.has(leg.key) },
     );
   }
 }

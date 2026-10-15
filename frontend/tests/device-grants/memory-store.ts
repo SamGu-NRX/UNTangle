@@ -102,10 +102,14 @@ export class MemoryDeviceStore implements DeviceStore {
       return true;
     });
   }
-  finishSecurityChange(userId: string, changeId: string): Promise<number> {
+  finishSecurityChange(userId: string, changeId: string, keepSession?: string): Promise<number> {
     return this.exclusive(async draft => {
       if (draft.changes.get(userId)?.id !== changeId) throw changeNotCurrent();
       const generation = draft.generations.get(userId)! + 1;
+      if (keepSession !== undefined) {
+        const session = this.tables().session.find(row => row.token === keepSession && row.userId === userId);
+        if (session) session.securityGeneration = generation;
+      }
       draft.generations.set(userId, generation);
       draft.changes.delete(userId);
       return generation;

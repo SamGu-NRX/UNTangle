@@ -64,7 +64,7 @@ export function toPlainRequest(request: OptimizeRequest): PlainRequest {
   const sections = request.courses.flatMap((course) =>
     walkingActive
       ? course.sections
-      : allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints)),
+      : allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints, request.term ?? null)),
   );
   const ids = [
     ...new Set(sections.flatMap((section) => section.meetings.map((meeting) => meeting.buildingId).filter((id): id is string => id !== null))),

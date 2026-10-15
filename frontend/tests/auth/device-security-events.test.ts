@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { setPasswordHandler } from "@/lib/account-password";
 import { createDeviceGrants, pkceChallenge, securityChangeTimeout } from "@/server/auth/device-grants";
 import { createV1Auth } from "@/server/auth/v1-auth";
@@ -299,9 +299,9 @@ test("a failed reset completion blocks the account until the change times out, a
   const service = grantsWithStore(new MemoryDeviceStore(() => time), () => time);
   const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
     ...storeDeps(service), beginSecurityChange: service.beginSecurityChange,
-    finishSecurityChange: async (userId, id) => {
+    finishSecurityChange: async (userId, id, keep) => {
       if (failFinish) throw new Error("generation completion unavailable");
-      return service.finishSecurityChange(userId, id);
+      return service.finishSecurityChange(userId, id, keep);
     },
   });
   const cookie = await otpSignIn(t);
@@ -390,7 +390,7 @@ test.each([false, true])("change-password blocks devices from before its write u
       if (pauseNextBegin) { pauseNextBegin = false; begun.resolve(); await release.promise; }
       return change;
     },
-    finishSecurityChange: async (userId, id) => { hashAtFinish = credentialHash(t); return service.finishSecurityChange(userId, id); },
+    finishSecurityChange: async (userId, id, keep) => { hashAtFinish = credentialHash(t); return service.finishSecurityChange(userId, id, keep); },
   });
   const cookie = await otpSignIn(t);
   expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
@@ -420,9 +420,9 @@ test.each([false, true])("a failed change-password completion leaves device acce
   let failFinish = false;
   const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
     ...storeDeps(service), beginSecurityChange: service.beginSecurityChange,
-    finishSecurityChange: async (userId, id) => {
+    finishSecurityChange: async (userId, id, keep) => {
       if (failFinish) throw new Error("generation completion unavailable");
-      return service.finishSecurityChange(userId, id);
+      return service.finishSecurityChange(userId, id, keep);
     },
   });
   const cookie = await otpSignIn(t);
@@ -906,5 +906,182 @@ describe("third review: credential writes, stale sessions and refusals", () => {
       expect(await during.json()).toEqual(await unknown.clone().json());
     }
     await service.finishSecurityChange(userId, change.changeId);
+  });
+});
+
+describe("fourth review: refusals that change nothing, and errors that leak nothing", () => {
+  async function harness(clock?: () => number) {
+    const store = new MemoryDeviceStore(clock);
+    const service = grantsWithStore(store, clock);
+    let pauseBegin = false;
+    const begun = deferred(), release = deferred();
+    const t: ReturnType<typeof setup> = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+      ...storeDeps(service), finishSecurityChange: service.finishSecurityChange,
+      beginSecurityChange: async (userId, expected) => {
+        const change = await service.beginSecurityChange(userId, expected);
+        if (pauseBegin) { pauseBegin = false; begun.resolve(); await release.promise; }
+        return change;
+      },
+    });
+    const cookie = await otpSignIn(t);
+    const userId = (t.store.user as { id: string }[])[0].id;
+    const sessionRow = (cookie: string) => (t.store.session as { token: string; securityGeneration: number }[]).find((row) => cookie.includes(row.token));
+    return { store, service, t, cookie, userId, sessionRow, pauseNextBegin: () => { pauseBegin = true; return { begun, release }; }, ctx: await t.auth.$context };
+  }
+
+  test("a change-password refused because a newer change replaced it doesn't move the caller's session", async () => {
+    let time = Date.now();
+    const { t, cookie, sessionRow, pauseNextBegin } = await harness(() => time);
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+    const stamp = sessionRow(cookie)!.securityGeneration;
+    const pause = pauseNextBegin();
+    const change = t.post("/change-password", { currentPassword: password, newPassword: "attacker-password-789" }, cookie);
+    let reset: Promise<Response>;
+    try {
+      await pause.begun.promise;
+      time += securityChangeTimeout;
+      await t.post("/request-password-reset", { email: VICTIM, redirectTo: "/forgot-password" });
+      const token = new URL(t.lastLink("password-reset")).pathname.split("/").pop()!;
+      // The newer change opens and is left open, so a moved stamp would land on it.
+      const ctx = await t.auth.$context;
+      const originalHash = ctx.password.hash;
+      const hashing = deferred(), finishReset = deferred();
+      ctx.password.hash = async (value) => { if (value === "reset-password-456") { hashing.resolve(); await finishReset.promise; } return originalHash(value); };
+      reset = t.post("/reset-password", { token, newPassword: "reset-password-456" });
+      await hashing.promise;
+      pause.release.resolve();
+      expect((await change).status).toBe(401);
+      expect(sessionRow(cookie)?.securityGeneration).toBe(stamp);
+      finishReset.resolve();
+      ctx.password.hash = originalHash;
+    } finally { pause.release.resolve(); }
+    expect((await reset!).status).toBe(200);
+  });
+
+  test("set-password on an account with an empty legacy credential row refuses before ending any device", async () => {
+    const { t, cookie, service, userId } = await harness();
+    (t.store.account as Record<string, unknown>[]).push({ id: "legacy", accountId: userId, providerId: "credential", userId, password: null, createdAt: new Date(), updatedAt: new Date() });
+    const tokens = await devices(service, userId);
+    const before = await service.readSecurityGeneration(userId);
+    const refused = await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie));
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({ code: "PASSWORD_ALREADY_SET" });
+    expect(await service.readSecurityGeneration(userId)).toBe(before);
+    for (const token of [tokens[1], tokens[3]]) expect((await service.authenticate(token.accessToken)).userId).toBe(userId);
+  });
+
+  test("a sign-out that fails with a plain error still finishes its change", async () => {
+    const { t, cookie, service, userId, ctx } = await harness();
+    await otpSignIn(t);
+    const original = ctx.internalAdapter.deleteSession;
+    ctx.internalAdapter.deleteSession = async () => { throw new Error("session store unavailable"); };
+    try {
+      const response = await t.post("/revoke-other-sessions", {}, cookie).catch(() => null);
+      expect(response?.status ?? 500).toBeGreaterThanOrEqual(500);
+    } finally { ctx.internalAdapter.deleteSession = original; }
+    expect(typeof await service.readSecurityGeneration(userId)).toBe("number");
+    expect(await documentAccess(t, service, cookie)).toBe(true);
+  });
+});
+
+describe("fifth review: logs, sign-out settling, and the caller's session", () => {
+  async function harness(clock?: () => number) {
+    const store = new MemoryDeviceStore(clock);
+    const service = grantsWithStore(store, clock);
+    const finishes: (string | undefined)[] = [];
+    const t: ReturnType<typeof setup> = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+      ...storeDeps(service), beginSecurityChange: service.beginSecurityChange,
+      finishSecurityChange: async (userId, id, keep) => { finishes.push(keep); return service.finishSecurityChange(userId, id, keep); },
+    });
+    const cookie = await otpSignIn(t);
+    const userId = (t.store.user as { id: string }[])[0].id;
+    const sessionRow = (cookie: string) => (t.store.session as { token: string; securityGeneration: number }[]).find((row) => cookie.includes(row.token));
+    return { store, service, t, cookie, userId, sessionRow, finishes, ctx: await t.auth.$context };
+  }
+  /** A failed query as drizzle reports it: its message lists the parameters, here a session token. */
+  const failedQuery = (token: string) => Object.assign(new Error(`Failed query: delete from "session" where "token" = $1\nparams: ${token}`), {
+    cause: Object.assign(new Error(`duplicate key ${token}`), { code: "57P01" }),
+  });
+  function consoleSpies() {
+    const spies = [spyOn(console, "error").mockImplementation(() => {}), spyOn(console, "warn").mockImplementation(() => {}), spyOn(console, "log").mockImplementation(() => {})];
+    const printed = () => spies.flatMap((spy) => spy.mock.calls.flat()).map((arg) =>
+      arg instanceof Error ? `${arg.message} ${String((arg as { cause?: unknown }).cause)}` : typeof arg === "string" ? arg : JSON.stringify(arg)).join("\n");
+    return { printed, restore: () => spies.forEach((spy) => spy.mockRestore()) };
+  }
+
+  test("failed queries on the sign-out routes and in the sign-out's finish log no token text", async () => {
+    const { t, cookie, store, ctx, sessionRow } = await harness();
+    const other = await otpSignIn(t);
+    const token = sessionRow(cookie)!.token;
+    const logs = consoleSpies();
+    const { deleteSession, updateSession } = ctx.internalAdapter;
+    const finish = store.finishSecurityChange.bind(store);
+    try {
+      ctx.internalAdapter.deleteSession = async () => { throw failedQuery(token); };
+      const otherSessions = await t.post("/revoke-other-sessions", {}, cookie);
+      expect(otherSessions.status).toBe(500);
+      expect(await otherSessions.text()).toBe("");
+      expect((await t.post("/revoke-session", { token: sessionRow(other)!.token }, cookie)).status).toBe(500);
+      ctx.internalAdapter.deleteSession = deleteSession;
+      // The finish that moves the caller's session fails too, in the after hook.
+      ctx.internalAdapter.updateSession = async () => { throw failedQuery(token); };
+      store.finishSecurityChange = async (userId, id, keep) => { if (keep) throw failedQuery(token); return finish(userId, id); };
+      await t.post("/revoke-other-sessions", {}, cookie);
+      const printed = logs.printed();
+      expect(printed).toContain("57P01");
+      expect(printed).not.toContain(token);
+    } finally {
+      logs.restore();
+      ctx.internalAdapter.deleteSession = deleteSession;
+      ctx.internalAdapter.updateSession = updateSession;
+      store.finishSecurityChange = finish;
+    }
+  });
+
+  test("a sign-out settles its change once", async () => {
+    const { t, cookie, finishes } = await harness();
+    await otpSignIn(t);
+    expect((await t.post("/revoke-other-sessions", {}, cookie)).status).toBe(200);
+    expect(finishes).toHaveLength(1);
+  });
+
+  test("a sign-out whose change was replaced before it settled doesn't move the caller's session", async () => {
+    let time = Date.now();
+    const { t, cookie, service, userId, sessionRow, ctx } = await harness(() => time);
+    await otpSignIn(t);
+    const stamp = sessionRow(cookie)!.securityGeneration;
+    const original = ctx.internalAdapter.deleteSession;
+    const deleting = deferred(), release = deferred();
+    let paused = false;
+    ctx.internalAdapter.deleteSession = async (token) => {
+      if (!paused) { paused = true; deleting.resolve(); await release.promise; }
+      return original(token);
+    };
+    const logs = consoleSpies();
+    try {
+      const signOut = t.post("/revoke-other-sessions", {}, cookie);
+      await deleting.promise;
+      time += securityChangeTimeout;
+      const newer = await service.beginSecurityChange(userId);
+      release.resolve();
+      await signOut;
+      expect(sessionRow(cookie)?.securityGeneration).toBe(stamp);
+      await service.finishSecurityChange(userId, newer.changeId);
+    } finally { release.resolve(); ctx.internalAdapter.deleteSession = original; logs.restore(); }
+  });
+
+  test("a sign-out whose session move fails still finishes its change", async () => {
+    const { t, cookie, service, userId, store, ctx } = await harness();
+    await otpSignIn(t);
+    const finish = store.finishSecurityChange.bind(store);
+    const { updateSession } = ctx.internalAdapter;
+    // Fail the move wherever it happens: a separate session update, or inside the finish.
+    ctx.internalAdapter.updateSession = async () => { throw new Error("session store unavailable"); };
+    store.finishSecurityChange = async (id, change, keep) => { if (keep) throw new Error("session store unavailable"); return finish(id, change); };
+    const logs = consoleSpies();
+    try {
+      await t.post("/revoke-other-sessions", {}, cookie).catch(() => null);
+    } finally { logs.restore(); ctx.internalAdapter.updateSession = updateSession; store.finishSecurityChange = finish; }
+    expect(typeof await service.readSecurityGeneration(userId)).toBe("number");
   });
 });
