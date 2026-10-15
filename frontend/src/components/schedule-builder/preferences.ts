@@ -21,7 +21,7 @@ export const MOST_CREDITS: readonly (number | null)[] = [null, 12, 15, 18];
  */
 export const LUNCH = { start: 720, end: 780, label: "Lunch" } as const;
 const LUNCH_PREFIX = "lunch-";
-const isLunch = (block: BlockedTime) => block.id.startsWith(LUNCH_PREFIX);
+export const isLunch = (block: BlockedTime) => block.id.startsWith(LUNCH_PREFIX);
 
 /** A weight at or above this reads as the preference being on. */
 const WEIGHT_ON = 2;

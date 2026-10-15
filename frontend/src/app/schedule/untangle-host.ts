@@ -212,8 +212,10 @@ export function useUntangleHost(brand: Brand): BuilderHost {
       }));
     },
     use: (byCourse) => {
-      const codes = Object.keys(byCourse).filter((code) => refusal(code) === null);
-      if (codes.length === 0) return;
+      const checked = Object.keys(byCourse).map((code) => [code, refusal(code)] as const);
+      const codes = checked.flatMap(([code, refused]) => (refused ? [] : [code]));
+      const refusals = checked.flatMap(([, refused]) => (refused ? [refused] : []));
+      if (codes.length === 0) return refusals;
       change(codes, (plan) => {
         let locks = plan.lockedSections ?? {};
         for (const code of codes) if (locks[code] && locks[code] !== byCourse[code]) locks = withEntry(locks, code, undefined);
@@ -224,6 +226,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
           lockedSections: locks,
         };
       });
+      return refusals;
     },
     clear: () => {
       const codes = getPlanningTermCourseCodes(plannerState);
@@ -235,6 +238,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
             courseStatuses: { ...acc.courseStatuses, [code]: "notTaken" },
             selectedSections: withEntry(acc.selectedSections, code, undefined),
             lockedSections: withEntry(acc.lockedSections, code, undefined),
+            coursePlan: acc.coursePlan && { ...acc.coursePlan, autoPlanned: acc.coursePlan.autoPlanned.filter((c) => c !== code) },
           }),
           plan,
         ),
@@ -393,7 +397,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
 
   const walk = useCallback((from: string, to: string) => {
     const time = plannerTravelTime(from, to);
-    return time.seconds === null ? null : { minutes: Math.round(time.seconds / 60), shuttle: isShuttleLeg(from, to) };
+    return time.seconds === null ? null : { seconds: time.seconds, shuttle: isShuttleLeg(from, to) };
   }, []);
 
   return {

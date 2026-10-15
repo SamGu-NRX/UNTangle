@@ -64,12 +64,16 @@ export function ExportSheet({ open, onOpenChange, phone, host, sections, events,
   const fileInput = useRef<HTMLInputElement>(null);
   const titleOf = (code: string) => host.courses.find((course) => course.code === code)?.title;
   const rows = orderClassNumbers(
-    sections.map((section) => ({
-      courseCode: section.courseCode,
-      sectionLabel: sectionLabel(section),
-      classNumbers: section.term === null ? [] : section.components.flatMap((c) => (c.classNumber ? [c.classNumber] : [])),
-      openSeats: section.seats.open,
-    })),
+    sections.map((section) => {
+      // A section's own count is its primary row's (INTEGRATION.md); the scarcest component it needs is what fills first.
+      const known = section.components.flatMap((c) => (c.seats.open === null ? [] : [c.seats.open]));
+      return {
+        courseCode: section.courseCode,
+        sectionLabel: sectionLabel(section),
+        classNumbers: section.term === null ? [] : section.components.flatMap((c) => (c.classNumber ? [c.classNumber] : [])),
+        openSeats: known.length > 0 ? Math.min(...known) : null,
+      };
+    }),
   );
   const count = rows.reduce((sum, row) => sum + row.classNumbers.length, 0);
   const without = sections.filter((section) => !rows.some((row) => row.courseCode === section.courseCode)).map((s) => s.courseCode);

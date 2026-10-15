@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { classNumberSection } from "@/components/shell/class-number-search";
 import { courseHref, searchCourses } from "@/components/shell/course-search";
 import { hasStartedPlan, landing, readClock, type LandingInput, type PlanProgress } from "@/components/shell/home-entry";
 import { chipStatusLabel, chipTone } from "@/components/shell/plan-status";
@@ -124,6 +125,15 @@ describe("plan chip", () => {
     expect(chipStatusLabel("failed", SAVE_LABELS.failed)).toBe("Saving failed");
     expect(chipStatusLabel("not-saved", SAVE_LABELS["not-saved"])).toBe("Not saved");
     expect(chipStatusLabel("saved", SAVE_LABELS.saved)).toBe("Saved");
+  });
+});
+
+describe("class-number search", () => {
+  test("five digits is a class number; four is one only when no course matches", () => {
+    expect(classNumberSection(" 21843 ", true)?.items.map((item) => item.title)).toEqual(["Find class 21843 in Week"]);
+    expect(classNumberSection("7139", false)?.items.map((item) => item.title)).toEqual(["Find class 7139 in Week"]);
+    expect(classNumberSection("2110", true)).toBeNull();
+    for (const query of ["123", "123456", "21a43", "CSCE 2110"]) expect(classNumberSection(query, false)).toBeNull();
   });
 });
 

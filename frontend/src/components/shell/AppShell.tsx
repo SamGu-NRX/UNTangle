@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [mode, provider]);
 
   const results = useMemo(() => searchCourses(courses, query), [query]);
-  const classNumber = classNumberSection(query);
+  const classNumber = classNumberSection(query, results.length > 0);
   const sections = [...(classNumber ? [classNumber] : []), ...(provider ? provider.search(query) : [{ id: "courses", label: "Courses", items: results }])];
 
   if (mode === "bare") {

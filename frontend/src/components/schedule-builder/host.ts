@@ -68,8 +68,11 @@ export type BuilderEdits = {
   place: (courseCode: string, sectionId: string) => void;
   remove: (courseCode: string) => void;
   keep: (courseCode: string, kept: boolean) => void;
-  /** Replaces the week's sections with an alternative's. */
-  use: (byCourse: Record<string, string>) => void;
+  /**
+   * Replaces the week's sections with an alternative's. Returns why each
+   * course it left out was refused, one sentence each; empty when none was.
+   */
+  use: (byCourse: Record<string, string>) => string[];
   clear: () => void;
   undo: () => void;
   canUndo: boolean;

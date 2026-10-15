@@ -1,7 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { installDom, mountPlanner, removeDom, setSession } from "./planner/test-dom";
+import type { BuilderHost } from "@/components/schedule-builder/host";
+import { installDom, mountPlanner, removeDom, setSession, waitFor } from "./planner/test-dom";
 
 let previousActEnvironment: boolean | undefined;
 const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -83,6 +84,59 @@ test("Undo control restores the student's stored picks in the rendered week", as
     expect(grid().textContent).toBe(before);
     expect(planner.get().sectionPicks).toEqual({ "ANTH 1010": "anth-1010-003" });
     expect(named(planner.container, "Undo")?.disabled).toBe(true);
+  } finally {
+    await planner.unmount();
+  }
+});
+
+/** Week's host on the real planner, without the page around it. */
+async function mountHost() {
+  const { useUntangleHost } = await import("@/app/schedule/untangle-host");
+  const { brandFor } = await import("@/lib/brand");
+  const box: { host: BuilderHost | null } = { host: null };
+  function HostProbe({ onHost }: { onHost: (host: BuilderHost) => void }) {
+    const host = useUntangleHost(brandFor("untangle"));
+    useLayoutEffect(() => {
+      onHost(host);
+    });
+    return null;
+  }
+  const planner = await mountPlanner(() => <HostProbe onHost={(host) => void (box.host = host)} />);
+  await planner.get().afterHydration();
+  return { planner, host: () => box.host! };
+}
+
+test("Clear takes the courses' Auto-filled mark with them, and Undo puts it back", async () => {
+  const { planner, host } = await mountHost();
+  try {
+    await planner.run((p) =>
+      p.updateCoursePlan(({ courseStatuses, coursePlan }) => ({
+        courseStatuses: { ...courseStatuses, "MATH 1720": "inProgress", "ANTH 1010": "inProgress" },
+        coursePlan: { ...coursePlan, autoPlanned: ["MATH 1720"] },
+      })),
+    );
+    await planner.run(() => host().edits.clear());
+    await waitFor(() => planner.get().plannerState.courseStatuses["MATH 1720"] === "notTaken", "plan cleared");
+    expect(planner.get().plannerState.coursePlan?.autoPlanned).toEqual([]);
+    await waitFor(() => host().edits.canUndo, "Undo ready");
+    await planner.run(() => host().edits.undo());
+    await waitFor(() => planner.get().plannerState.courseStatuses["MATH 1720"] === "inProgress", "clear undone");
+    expect(planner.get().plannerState.coursePlan?.autoPlanned).toEqual(["MATH 1720"]);
+  } finally {
+    await planner.unmount();
+  }
+});
+
+test("using a week says why it left a course out", async () => {
+  const { planner, host } = await mountHost();
+  try {
+    await planner.run((p) => p.setCourseStatus("MATH 1710", "completed"));
+    let refused: string[] = [];
+    await planner.run(() => {
+      refused = host().edits.use({ "MATH 1710": "math-1710-001", "ANTH 1010": "anth-1010-001" });
+    });
+    expect(refused).toEqual(["MATH 1710 is done already."]);
+    await waitFor(() => planner.get().plannerState.selectedSections["ANTH 1010"] === "anth-1010-001", "ANTH 1010 used");
   } finally {
     await planner.unmount();
   }

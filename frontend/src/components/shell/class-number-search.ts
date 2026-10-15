@@ -3,17 +3,18 @@ import type { SearchSection } from "@/components/ui/SearchPalette";
 /** Prefix of the palette item that opens a class number in Week. */
 export const CLASS_NUMBER_ITEM = "class-number:";
 
-/** Five digits is a myUNT class number; four would collide with course numbers ("2110"). */
-const CLASS_NUMBER = /^\d{5}$/;
+/** myUNT class numbers have four or five digits. */
+const CLASS_NUMBER = /^\d{4,5}$/;
 
 /**
- * A five-digit query in the top bar's search is a class number (DESIGN.md
- * §8.1): offer to find it in Week, whose search looks it up through
- * /api/sections/<term>/class/<number>.
+ * A class number in the top bar's search (DESIGN.md §8.1): offer to find it
+ * in Week, whose search looks it up through /api/sections/<term>/class/<number>.
+ * Four digits can also be a course number ("2110"), so a four-digit query is
+ * offered only when no course matches it, the rule Week's search follows.
  */
-export function classNumberSection(query: string): SearchSection | null {
+export function classNumberSection(query: string, coursesMatch: boolean): SearchSection | null {
   const number = query.trim();
-  if (!CLASS_NUMBER.test(number)) return null;
+  if (!CLASS_NUMBER.test(number) || (number.length === 4 && coursesMatch)) return null;
   return {
     id: "class-number",
     label: "Class number",

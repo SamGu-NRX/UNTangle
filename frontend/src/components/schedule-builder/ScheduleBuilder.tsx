@@ -20,7 +20,7 @@ import type { BuilderHost } from "./host";
 import { NoticeStrip, OptionsStrip } from "./OptionsStrip";
 import { EventPanel, OptionDetails } from "./panels";
 import { changedCount, newBusyId } from "./limits";
-import { addBusy, preferenceSummary } from "./preferences";
+import { addBusy, preferenceSummary, removeBusy } from "./preferences";
 import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
 import type { SharedWeek } from "./share";
@@ -197,8 +197,13 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shared]);
 
+  // A toast keeps the Undo from the render that showed it, before its edit committed and made Undo possible.
+  const canUndo = useRef(host.edits.canUndo);
+  useLayoutEffect(() => {
+    canUndo.current = host.edits.canUndo;
+  });
   const undo = (fromKeyboard: boolean) => {
-    if (!host.edits.canUndo) return;
+    if (!canUndo.current) return;
     keyboard.current = fromKeyboard;
     exiting.current = true;
     host.edits.undo();
@@ -266,10 +271,12 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     if (strip?.kind === "options" && (feed.stale || feed.status === "running")) return;
     const label = strip?.kind === "options" ? optionName(strip.index) : "the shared week";
     keyboard.current = false;
-    host.edits.use(previewMap);
+    const refused = host.edits.use(previewMap);
+    // Nothing was used: the preview stays, to keep or dismiss.
+    if (refused.length === Object.keys(previewMap).length) return void toast({ message: `Nothing from ${label} was used. ${refused.join(" ")}`, tone: "error" });
     closeStrip();
     if (panel?.kind === "option") setPanel(null);
-    toast({ message: `Using ${label}`, action: undoAction });
+    toast({ message: refused.length > 0 ? `Using ${label}. ${refused.join(" ")}` : `Using ${label}`, action: undoAction });
   };
 
   // What the grid draws besides the week.
@@ -526,9 +533,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         onBusy={(block) => {
           const day = block.day;
           if (!isWeekDay(day)) return;
-          const before = host.preferences;
-          host.setPreferences((p) => addBusy(p, { label: "Busy", day, start: block.start, end: block.end }, newBusyId()));
-          toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences(() => before) } });
+          const id = newBusyId();
+          host.setPreferences((p) => addBusy(p, { label: "Busy", day, start: block.start, end: block.end }, id));
+          // Undo takes back this block alone, keeping preferences changed since.
+          toast({ message: "Added a busy time. Auto keeps it free.", action: { label: "Undo", onClick: () => host.setPreferences((p) => removeBusy(p, [id])) } });
         }}
         footer={
           noSetTime.length > 0 || host.provenance === "sample" ? (
