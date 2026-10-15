@@ -359,7 +359,8 @@ async function plansCompareRestore(page, size) {
   await diff.waitFor();
   const code = diff.locator(".ui-code").first();
   const font = await code.evaluate((el) => getComputedStyle(el).fontFamily);
-  check(size, "plans: diff rows set course codes in Syne", /Syne/i.test(font), `${await code.innerText()} in ${font.split(",")[0]}`);
+  // Syne is for the wordmark only (Sam, Oct 14); #95 moved .ui-code to DM Sans 600.
+  check(size, "plans: diff rows set course codes in DM Sans", /dm[ _]?sans/i.test(font) && !/syne/i.test(font.split(",")[0]), `${await code.innerText()} in ${font.split(",")[0]}`);
   await page.waitForTimeout(300); // let the menu finish closing before the shot
   await shot(page, size, "plans-diff");
   await axe(page, size, "Plans with a comparison");
