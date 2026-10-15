@@ -1,4 +1,5 @@
 import * as Updates from "expo-updates";
+import type { UpdateCheckResult, UpdateCheckResultNotAvailableReason } from "expo-updates";
 import { AppState } from "react-native";
 
 import { beginUnsafeMoment, endUnsafeMoment } from "./safe-moment";
@@ -22,6 +23,16 @@ const mockedUpdates = jest.mocked(Updates, { shallow: true });
 const REAL_ID = "1f2e3d4c-5b6a-7988-9900-aabbccddeeff";
 const REAL_URL = `https://u.expo.dev/${REAL_ID}`;
 
+// The full SDK result shape: the mocked client is typed with the real
+// signature, so a partial object would fail tsc even though the controller
+// only reads isAvailable and isRollBackToEmbedded.
+const NO_UPDATE_AVAILABLE: UpdateCheckResult = {
+  isAvailable: false,
+  manifest: undefined,
+  isRollBackToEmbedded: false,
+  reason: "noUpdateAvailableOnServer" as UpdateCheckResultNotAvailableReason,
+};
+
 async function flush(): Promise<void> {
   for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
 }
@@ -44,7 +55,7 @@ describe("startUpdateChecks", () => {
     mockedUpdates.checkForUpdateAsync.mockReset();
     mockedUpdates.fetchUpdateAsync.mockReset();
     mockedUpdates.reloadAsync.mockReset();
-    mockedUpdates.checkForUpdateAsync.mockResolvedValue({ isAvailable: false, isRollBackToEmbedded: false });
+    mockedUpdates.checkForUpdateAsync.mockResolvedValue(NO_UPDATE_AVAILABLE);
     // Spy on the real react-native AppState instead of replacing the module:
     // a bare factory mock breaks jest-expo's expo-modules-core chain.
     AppState.addEventListener = jest.fn(() => ({ remove: jest.fn() }));
