@@ -7,7 +7,7 @@ import { describe, expect, test } from "bun:test";
 import { diffSavedPlanAgainstWorking } from "@/lib/plan-library/diff";
 import { buildSavedPlanSnapshot, resolveSectionReferences } from "@/lib/plan-library/snapshot";
 import { getInitialPlannerState, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
-import { dispatchRestore, describeRestoreSteps, describeSkippedReferences, type RestorePlannerApi } from "@/lib/saved-plans/restore-adapter";
+import { dispatchRestore, describeSkippedReferences, type RestorePlannerApi } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
 import { fixtureCatalog, fixtureInput, optionsOf, renumber, courseAs } from "./sections/real-term";
 
@@ -94,9 +94,6 @@ describe("restoring a saved plan", () => {
       "SPAN 2040": "preserved",
     });
     expect(describeSkippedReferences(report)).toEqual([]);
-    expect(describeRestoreSteps(plan, report).join("\n")).toContain(
-      "Keep saved sections that are no longer offered in Spring 2027, marked Needs review in Week: MATH 1680 class 9998 + 9999",
-    );
 
     const unchecked = resolveSectionReferences(plan.state, fixtureCatalog(input, ["MATH 1680"]));
     expect(unchecked.unchecked.map((finding) => finding.courseCode)).toEqual(["MATH 1680"]);

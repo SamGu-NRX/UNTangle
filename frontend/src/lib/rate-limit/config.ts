@@ -16,6 +16,12 @@ export function budgetWindowMs(budget: { windowSeconds?: number }): number {
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Unmeasured starting caps: grant creation and human approval are infrequent;
+  // token polling needs room for the advertised five-second interval.
+  deviceStart: { ip: 10, windowSeconds: 600 },
+  deviceInspect: { ip: 30, windowSeconds: 600 },
+  deviceApprove: { user: 10, ip: 10, windowSeconds: 600 },
+  deviceToken: { ip: 120 },
   // Each preview fetches an outside URL; this is an unmeasured starting value.
   calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },

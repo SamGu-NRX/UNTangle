@@ -8,9 +8,8 @@ import {
   type Trip,
 } from "../../src/components/connect/myunt-trip";
 import { filePicker, pickPdf, PDF_PICKER_OPTIONS } from "../../src/components/connect/pick-pdf";
-import { isFileDrag, readDrop } from "../../src/components/connect/pdf-drop";
+import { dragLooksLikePdf, handOverDrop, isFileDrag, readDrop, routeDrop, takeHandedDrop } from "../../src/components/connect/pdf-drop";
 import { clearTripFlag, readTripFlag, setTripFlag, TRIP_KEY } from "../../src/components/connect/trip-flag";
-import { CLOSED_FRAME, nextFrame } from "../../src/components/connect/host-frame";
 
 const geometry = {
   screenX: 100,
@@ -60,14 +59,19 @@ describe("the trip to myUNT", () => {
 });
 
 describe("the myUNT window", () => {
-  test("is 1000x800, centred over this window", () => {
-    expect(popupFeatures(geometry)).toBe("popup=yes,width=1000,height=800,left=320,top=100");
+  test("is 480x760, 24px in from this window's right edge and centred top to bottom", () => {
+    // 100 + 1440 - 24 - 480 = 1036; 50 + (900 - 760) / 2 = 120.
+    expect(popupFeatures(geometry)).toBe("popup=yes,width=480,height=760,left=1036,top=120");
   });
 
-  test("shrinks to fit a small screen and never sits off-screen", () => {
+  test("shrinks to fit a small screen and never takes a negative position", () => {
     const small = { screenX: 0, screenY: 0, outerWidth: 390, outerHeight: 844, screen: { availWidth: 390, availHeight: 844 } };
-    expect(popupFeatures(small)).toBe("popup=yes,width=320,height=764,left=35,top=40");
-    expect(popupFeatures({ ...small, screenX: -500 })).toContain("left=0");
+    expect(popupFeatures(small)).toBe("popup=yes,width=320,height=760,left=46,top=42");
+    expect(popupFeatures({ ...small, screenX: -500, screenY: -300 })).toBe("popup=yes,width=320,height=760,left=0,top=0");
+  });
+
+  test("on a second monitor to the right, it stays beside this window", () => {
+    expect(popupFeatures({ ...geometry, screenX: 1700 })).toContain("left=2636");
   });
 
   function fakeWindow(result: PopupHandle | null) {
@@ -175,6 +179,35 @@ describe("dropping a PDF anywhere", () => {
     expect(readDrop([untyped])).toEqual({ kind: "file", file: untyped });
   });
 
+  test("while dragging, only one item that is (or may be) a PDF shows the PDF target", () => {
+    expect(dragLooksLikePdf([{ kind: "file", type: "application/pdf" }])).toBe(true);
+    // Some systems leave a file's type empty during the drag; the drop checks the name.
+    expect(dragLooksLikePdf([{ kind: "file", type: "" }])).toBe(true);
+    expect(dragLooksLikePdf([{ kind: "file", type: "image/png" }])).toBe(false);
+    expect(dragLooksLikePdf([{ kind: "file", type: "application/pdf" }, { kind: "file", type: "application/pdf" }])).toBe(false);
+    expect(dragLooksLikePdf([{ kind: "string", type: "text/plain" }])).toBe(false);
+    expect(dragLooksLikePdf(null)).toBe(false);
+  });
+
+  test("a drop on another page is handed to the import page once", () => {
+    const pdf = file("a.pdf", "application/pdf");
+    expect(takeHandedDrop()).toBeNull();
+    handOverDrop({ kind: "file", file: pdf });
+    expect(takeHandedDrop()).toEqual({ kind: "file", file: pdf });
+    expect(takeHandedDrop()).toBeNull();
+  });
+
+  test("a drop while the session loads is held for the flow, not lost; once ready it is taken at once", () => {
+    const pdf = file("a.pdf", "application/pdf");
+    const taken: unknown[] = [];
+    routeDrop({ kind: "file", file: pdf }, false, (r) => taken.push(r));
+    expect(taken).toEqual([]);
+    expect(takeHandedDrop()).toEqual({ kind: "file", file: pdf });
+    routeDrop({ kind: "file", file: pdf }, true, (r) => taken.push(r));
+    expect(taken).toEqual([{ kind: "file", file: pdf }]);
+    expect(takeHandedDrop()).toBeNull();
+  });
+
   test("two files, a non-PDF, or nothing are refused with a reason", () => {
     const two = readDrop([file("a.pdf", "application/pdf"), file("b.pdf", "application/pdf")]);
     expect(two).toMatchObject({ kind: "error" });
@@ -222,40 +255,5 @@ describe("the return flag", () => {
     expect(() => setTripFlag(denied)).not.toThrow();
     expect(() => clearTripFlag(denied)).not.toThrow();
     expect(readTripFlag(null)).toBe(false);
-  });
-});
-
-describe("the sheet's container", () => {
-  const noTrip = () => false;
-
-  test("is chosen when the sheet opens", () => {
-    expect(nextFrame(CLOSED_FRAME, true, true, noTrip)).toEqual({ open: true, phone: true, restoreTrip: false });
-    expect(nextFrame(CLOSED_FRAME, true, false, () => true)).toEqual({ open: true, phone: false, restoreTrip: true });
-  });
-
-  test("holds across the breakpoint while open, so the sheet is not remounted mid-import", () => {
-    const opened = nextFrame(CLOSED_FRAME, true, false, noTrip);
-    // A phone rotating or a desktop zooming past 759px flips isPhone.
-    expect(nextFrame(opened, true, true, noTrip)).toBe(opened);
-    expect(nextFrame(opened, true, false, noTrip)).toBe(opened);
-  });
-
-  test("keeps its container through the close, then takes the new one on the next open", () => {
-    const opened = nextFrame(CLOSED_FRAME, true, false, noTrip);
-    const closed = nextFrame(opened, false, true, noTrip);
-    expect(closed).toEqual({ open: false, phone: false, restoreTrip: false });
-    expect(nextFrame(closed, true, true, noTrip)).toEqual({ open: true, phone: true, restoreTrip: false });
-  });
-
-  test("reads the trip flag once per opening", () => {
-    let reads = 0;
-    const read = () => {
-      reads += 1;
-      return true;
-    };
-    const opened = nextFrame(CLOSED_FRAME, true, false, read);
-    nextFrame(opened, true, true, read);
-    nextFrame(opened, true, false, read);
-    expect(reads).toBe(1);
   });
 });

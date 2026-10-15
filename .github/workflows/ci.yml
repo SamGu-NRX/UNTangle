@@ -160,5 +160,5 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Live Postgres tests
-        run: bun --no-env-file test --isolate tests/rate-limit/postgres-live.test.ts tests/auth/postgres-live.test.ts tests/document-sync/postgres-live.test.ts
+        run: bun --no-env-file test --isolate tests/rate-limit/postgres-live.test.ts tests/auth/postgres-live.test.ts tests/document-sync/postgres-live.test.ts tests/device-grants/postgres-live.test.ts
         working-directory: frontend

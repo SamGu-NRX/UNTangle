@@ -1,10 +1,8 @@
-import { sectionMeetingsSummary } from "@/lib/plan-library/diff";
 import {
   getInitialPlannerState,
   mergeTranscriptRecords,
   normalizePlannerState,
 } from "@/lib/planner";
-import { optionIdLabel, planningTerm } from "@/lib/planner-sections";
 import { stableHash } from "@/lib/plan-library/snapshot";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
@@ -279,96 +277,11 @@ export function simulateRestoredState(
   return normalizePlannerState({ ...state, lockedSections });
 }
 
-/** Human-readable dispatch plan for the confirmation preview. */
-export function describeRestoreSteps(
-  snapshot: SavedPlanSnapshot,
-  references: SectionReferenceReport,
-): string[] {
-  const planState = snapshot.state;
-  const steps: string[] = [];
-  steps.push("Reset the working schedule to the planner default");
-  steps.push(
-    planState.selectedMajor
-      ? `Set your major to “${planState.selectedMajor}”`
-      : "Clear the selected major",
-  );
-  steps.push(`Set the schedule optimization preference to “${planState.optimization}”`);
-  steps.push(`Set the active day to ${planState.activeDay}`);
-  steps.push(
-    planState.transcriptRecords.length > 0
-      ? `Apply ${planState.transcriptRecords.length} transcript record(s)`
-      : "Apply no transcript records (this plan has none)",
-  );
-
-  const afterApplyStatuses = statusesAfterTranscriptApply(
-    getInitialPlannerState().courseStatuses,
-    planState.transcriptRecords,
-  );
-  const statusDiffs: string[] = [];
-  declaredCodes(planState, { ...getInitialPlannerState(), courseStatuses: afterApplyStatuses }).forEach(
-    (courseCode) => {
-      const target = statusOf(planState.courseStatuses, courseCode);
-      if (statusOf(afterApplyStatuses, courseCode) !== target) {
-        statusDiffs.push(`${courseCode} → ${target}`);
-      }
-    },
-  );
-  steps.push(
-    statusDiffs.length > 0
-      ? `Declare course statuses: ${statusDiffs.join(", ")}`
-      : "Declare no course-status changes (they already match)",
-  );
-
-  const coursePlan = savedCoursePlan(planState);
-  if (coursePlan) {
-    const facts = [
-      coursePlan.manualCredit.length > 0 ? `credit you claimed for ${coursePlan.manualCredit.join(", ")}` : null,
-      coursePlan.autoPlanned.length > 0 ? `${coursePlan.autoPlanned.length} course(s) planned by Auto-fill` : null,
-      coursePlan.lastAuto ? "the last Auto-fill run" : null,
-    ].filter(Boolean);
-    steps.push(`Restore ${facts.join(", ")}`);
-  }
-
-  if (references.preserved.length > 0) {
-    const selections = references.preserved
-      .map((finding) =>
-        finding.section
-          ? `${finding.courseCode} → ${finding.sectionId} (${sectionMeetingsSummary(finding.section)})`
-          : `${finding.courseCode} → ${finding.sectionId}`,
-      )
-      .join("; ");
-    steps.push(`Select the exact saved sections: ${selections}`);
-  } else {
-    steps.push("Select no exact sections (none of the saved selections survive in the current catalog)");
-  }
-  if (references.needsReview.length > 0) {
-    steps.push(
-      `Keep saved sections that are no longer offered in ${planningTerm.label}, marked Needs review in Week: ${references.needsReview
-        .map((finding) => `${finding.courseCode} ${optionIdLabel(finding.sectionId)}`)
-        .join("; ")}`,
-    );
-  }
-  if (references.unchecked.length > 0) {
-    steps.push(
-      `Keep saved sections Week has not checked against ${planningTerm.label} yet: ${references.unchecked
-        .map((finding) => `${finding.courseCode} ${optionIdLabel(finding.sectionId)}`)
-        .join("; ")}`,
-    );
-  }
-  const locks = [...references.preserved, ...references.needsReview, ...references.unchecked].filter(
-    (finding) => snapshot.state.lockedSections?.[finding.courseCode] === finding.sectionId,
-  );
-  if (locks.length > 0) {
-    steps.push(`Lock ${locks.map((finding) => `${finding.courseCode} section ${finding.sectionId}`).join(", ")}`);
-  }
-  return steps;
-}
-
 /**
  * Human-readable warnings for saved section references that no longer resolve.
- * Rendered in the restore preview BEFORE anything is applied, so restoring a
- * plan with stale, inactive or unknown sections shows what will change first
- * instead of destroying the working schedule's shape silently.
+ * The library counts them in a copy's detail before "Use in Main", so using
+ * a plan with stale, inactive or unknown sections says so first instead of
+ * changing the working schedule's shape silently.
  */
 export function describeSkippedReferences(
   references: SectionReferenceReport,

@@ -156,15 +156,14 @@ describe("coursePlan through the real provider", () => {
     const { sampleTranscript } = await import("@/components/courses/model/sample-transcript");
     const { manualEdit } = await import("@/components/courses/model/plan-edits");
     const { buildSavedPlanSnapshot } = await import("@/lib/plan-library/snapshot");
-    const { comparePlan } = await import("@/components/saved-plans/plans-view-model");
-    const { describeCourseFactChanges } = await import("@/lib/plan-library/diff");
+    const { describeCourseFactChanges, diffSavedPlanAgainstWorking } = await import("@/lib/plan-library/diff");
     const planner = await guestPlanner();
     await planner.run((p) => p.applyTranscriptRecords(sampleTranscript));
     const snapshot = buildSavedPlanSnapshot({ state: planner.get().plannerState, name: "Plain", source: { kind: "workingState", detail: "test" } });
     await planner.run((p) =>
       p.updateCoursePlan(manualEdit({}, (plan) => ({ manualCredit: [...plan.manualCredit, "ENGL 1320"], autoPlanned: ["MATH 1720"] }))),
     );
-    const diff = comparePlan(snapshot, planner.get().plannerState);
+    const diff = diffSavedPlanAgainstWorking(snapshot, planner.get().plannerState);
     expect(diff.changedFieldCount).toBeGreaterThan(0);
     expect(describeCourseFactChanges(diff.courseFactChanges)).toEqual([
       "ENGL 1320 is marked as credit you have in the working schedule but not in the plan",

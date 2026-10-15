@@ -6,8 +6,8 @@ import { lensForPath, shellModeFor, withQuery } from "@/components/shell/routes"
 import { SAVE_LABELS, type PlannerSaveStatus } from "@/components/planner-provider";
 
 describe("shell routes", () => {
-  test("sign-in, password reset, print and /dev render without the shell", () => {
-    for (const path of ["/auth", "/forgot-password", "/schedule/print", "/dev/controls"]) {
+  test("sign-in, password reset, the transcript import, print and /dev render without the shell", () => {
+    for (const path of ["/auth", "/forgot-password", "/connect", "/schedule/print", "/dev/controls"]) {
       expect(shellModeFor(path)).toBe("bare");
     }
   });
@@ -21,6 +21,7 @@ describe("shell routes", () => {
   test("prefixes match whole segments only", () => {
     expect(shellModeFor("/authors")).toBe("app");
     expect(shellModeFor("/developer")).toBe("app");
+    expect(shellModeFor("/connections")).toBe("app");
     expect(lensForPath("/days")).toBeNull();
     expect(lensForPath("/schedules")).toBeNull();
   });
