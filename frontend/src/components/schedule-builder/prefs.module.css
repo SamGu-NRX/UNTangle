@@ -902,3 +902,9 @@
     transition: none;
   }
 }
+
+/* The sheet's head gets the same hairline as the popover's once its body scrolls,
+   so content passing under it reads as scrolled rather than clipped. */
+:global(.ui-sheet):has(:global(.ui-sheet__body):not([data-at-top])) .head {
+  border-bottom-color: var(--line);
+}
