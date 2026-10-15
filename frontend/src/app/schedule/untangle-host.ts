@@ -20,7 +20,7 @@ import {
   takeFromAutoRun,
   type PlannedCourse,
 } from "@/lib/planner";
-import { findOption, optionIdLabel, planningTerm, sectionRef } from "@/lib/planner-sections";
+import { findOption, optionIdLabel, planningTerm, sectionRef, type CourseOptions } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
 import { fetchCourseHistory, fetchMissingHistories } from "@/lib/grades-history/course-history";
@@ -42,6 +42,18 @@ type Snapshot = {
 /** Undo steps kept per visit. More than anyone presses; a bound, not a rule. */
 const HISTORY = 50;
 const SUGGESTIONS = 8;
+
+/**
+ * Whether one planning course may fetch and carry instructor evidence: only
+ * when its loaded sections are real. The section store answers "ready" even
+ * when it fell back to synthetic sample sections (vsb had no usable record),
+ * and samples fabricate instructors — real grade history mapped onto a
+ * fabricated name could win the tie-break for a section that is not a real
+ * enrollment option.
+ */
+export function evidenceFetchable(code: string, loaded: CourseOptions): boolean {
+  return loaded.status === "ready" && loaded.result.provenance.kind === "real" && loaded.result.sections.length > 0 && code.includes(" ");
+}
 
 function withEntry<T>(record: Record<string, T> | undefined, code: string, value: T | undefined): Record<string, T> {
   const next = { ...(record ?? {}) };
@@ -310,14 +322,9 @@ export function useUntangleHost(brand: Brand): BuilderHost {
         }),
       );
     };
-    // Only loaded courses fetch, as before; a course first fetches when its
-    // sections load, then never again this session.
-    const fetchable = new Set(
-      codes.filter((code) => {
-        const loaded = sectionCatalog(code);
-        return loaded.status === "ready" && loaded.result.sections.length > 0 && code.includes(" ");
-      }),
-    );
+    // Only loaded, real-provenance courses fetch, as before; a course first
+    // fetches when its sections load, then never again this session.
+    const fetchable = new Set(codes.filter((code) => evidenceFetchable(code, sectionCatalog(code))));
     historiesRef.current = fetchMissingHistories(fetchable, historiesRef.current, fetchOne);
     const histories = historiesRef.current;
     let cancelled = false;
