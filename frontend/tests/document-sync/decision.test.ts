@@ -44,6 +44,11 @@ describe("document write decisions", () => {
     rejects(() => decide({ body: null }, current), "REVISION_CONFLICT", 409);
     rejects(() => decide({ baseRevision: 1 }, { ...current, revision: 2, deleted: true }), "REVISION_CONFLICT", 409);
   });
+  test("a tombstone refuses edits and deletes even at its current revision", () => {
+    const tombstone: CurrentDocument = { ...current, revision: 2, deleted: true };
+    rejects(() => decide({ baseRevision: 2, body: { ...schedule, name: "Back from the dead" } }, tombstone), "DOCUMENT_DELETED", 409);
+    rejects(() => decide({ baseRevision: 2, body: null }, tombstone), "DOCUMENT_DELETED", 409);
+  });
   test("kind and institution stay fixed", () => {
     rejects(() => decide({ baseRevision: 1, kind: "preferences" }, current), "KIND_MISMATCH", 409);
     rejects(() => decide({ baseRevision: 1, body: { ...schedule, institutionId: "ut" } }, current), "INSTITUTION_MISMATCH", 409);
