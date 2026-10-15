@@ -9,12 +9,13 @@
  * and infeasibility handling with actionable relaxation suggestions.
  */
 
-import { buildOptimizeRequest } from "@/lib/planner";
+import { buildOptimizeRequest, getCourseByCode } from "@/lib/planner";
 import { optimize } from "@/lib/optimizer/optimize";
 import type { OptimizeRequest, OptimizeResult } from "@/lib/optimizer/types";
 import type { PlannerState } from "@/lib/types";
 import { defaultPlannerState } from "@/lib/seed-data";
 import { normalizePlannerState } from "@/lib/planner";
+import { explanationFailures } from "../checks";
 import { combinationCount, referenceTopK, referenceFeasible, violations, referenceRelax } from "../reference";
 import { scenarioCatalog, sectionIdByCode } from "./catalog";
 import type { StudentScenario } from "./students";
@@ -71,6 +72,45 @@ export function buildState(scenario: StudentScenario, catalog: ReturnType<typeof
   });
 }
 
+/**
+ * Both solvers consume the same request, so comparing them cannot catch a
+ * request that lost part of the scenario. Each next-term course must be
+ * searched or counted in fixedCredits, each lock on a searched course kept,
+ * and maxCredits carried.
+ */
+export function requestFailures(
+  scenario: StudentScenario,
+  state: PlannerState,
+  request: OptimizeRequest,
+): string[] {
+  const failures: string[] = [];
+  const locked = state.lockedSections ?? {};
+  const searched = new Set(request.courses.map((course) => course.code));
+  for (const code of searched) {
+    if (!scenario.nextTerm.includes(code)) failures.push(`request searches ${code}, which the scenario does not take`);
+  }
+  const ridesAlong = scenario.nextTerm.filter((code) => !searched.has(code));
+  const credits = ridesAlong.reduce((sum, code) => sum + (getCourseByCode(code)?.creditHours ?? 0), 0);
+  if ((request.fixedCredits ?? 0) !== credits) {
+    failures.push(`fixedCredits is ${request.fixedCredits ?? 0}, but ${ridesAlong.join(", ") || "no course"} outside the search carry ${credits}`);
+  }
+  for (const [code, sectionId] of Object.entries(locked)) {
+    if (searched.has(code) && request.locks[code] !== sectionId) {
+      failures.push(`request locks ${code} to ${request.locks[code] ?? "nothing"}, not the scenario's ${sectionId}`);
+    }
+  }
+  // A pick the optimizer may not offer is held as a one-option lock (heldOutCourses in planner.ts).
+  for (const [code, sectionId] of Object.entries(request.locks)) {
+    if (!(code in locked) && sectionId !== state.selectedSections[code]) {
+      failures.push(`request locks ${code} to ${sectionId}, which the scenario neither locks nor picks`);
+    }
+  }
+  if (request.constraints.maxCredits !== scenario.preferences.constraints.maxCredits) {
+    failures.push(`maxCredits is ${request.constraints.maxCredits}, not the scenario's ${scenario.preferences.constraints.maxCredits}`);
+  }
+  return failures;
+}
+
 function timePattern(request: OptimizeRequest, byCourse: Record<string, string>): Map<string, string[]> {
   const pattern = new Map<string, string[]>();
   for (const course of request.courses) {
@@ -106,7 +146,7 @@ export function evaluateScenario(scenario: StudentScenario): ScenarioEvaluation 
   });
 
   const combos = combinationCount(request);
-  const failures: string[] = [];
+  const failures = requestFailures(scenario, state, request);
   const notRun: ScenarioEvaluation = {
     id: scenario.id,
     ok: false,
@@ -126,6 +166,7 @@ export function evaluateScenario(scenario: StudentScenario): ScenarioEvaluation 
     failures.push(`scenario authoring error: ${combos} combinations exceeds the reference cap of ${MAX_COMBINATIONS}`);
     return notRun;
   }
+  if (failures.length > 0) return notRun;
 
   const engineStart = performance.now();
   const result = optimize(request);
@@ -213,8 +254,9 @@ export function evaluateScenario(scenario: StudentScenario): ScenarioEvaluation 
       }
     }
   } else {
-    // Infeasible: the explanation must name the blocking courses and be
-    // minimal, and every claimed-resolves suggestion must actually fix it.
+    // Infeasible: the explanation must name the blocking courses and be a
+    // minimal conflicting set by the reference, and every claimed-resolves
+    // suggestion must actually fix it.
     if (result.status !== "infeasible") {
       failures.push(`no schedule fits but status is ${result.status}; expected infeasible with an explanation`);
     } else if (!result.explanation) {
@@ -224,6 +266,7 @@ export function evaluateScenario(scenario: StudentScenario): ScenarioEvaluation 
       if (!explanation.minimal) failures.push("explanation is not minimal");
       const courses = explanation.members.filter((m) => m.kind === "course").map((m) => m.courseCode);
       if (courses.length === 0) failures.push("explanation names no courses");
+      failures.push(...explanationFailures(request, explanation));
       for (const suggestion of explanation.suggestions) {
         if (suggestion.resolves === null) continue;
         const actuallyResolves = referenceFeasible(referenceRelax(request, suggestion.relaxation));

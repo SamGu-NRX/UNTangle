@@ -119,10 +119,12 @@ display are institution-configured and not documented publicly; nothing here is 
 about them.
 
 **Lesson for UNTangle.** The product bet is that the schedule builder should read the
-student's degree plan, not just a hand-typed course list. UNTangle already encodes 15
-UNT degree plans and produces next-term recommendations
-(`frontend/src/lib/pathing/analysis.ts`), so Auto could offer "build my week from
-my degree plan's next-term recommendations" without new data infrastructure.
+student's degree plan, not just a hand-typed course list. Alpha encodes one UNT degree
+plan, CS BS 2026-27 (`frontend/src/lib/pathing/plans/cs-bs-2026-27.ts`), and produces
+next-term recommendations from it (`frontend/src/lib/pathing/analysis.ts`), so Auto
+could offer "build my week from my degree plan's next-term recommendations" to CS
+students. Offering it for other majors depends on the catalog-derived degree pipeline
+in PR #132 (open).
 
 ## 3. Coursicle
 
@@ -335,7 +337,7 @@ the one whose sections are all open first; today a closed or waitlisted section 
 freely because seats are only a filter (`openSeatsOnly`) and a reason warning
 (`frontend/src/lib/reasons/scheduleReasons.ts` refuses to rank a not-open section away,
 but the cost function itself is seat-blind). Add seat status as a cost term after the
-instructor-strength evidence term (merged in PR #79) and before the section-id order,
+instructor-strength evidence term (merged into alpha in PR #96) and before the section-id order,
 and let Auto include a waitlisted section when it wins on cost,
 saying so in the alternative's detail line.
 
@@ -357,9 +359,12 @@ the seat term is 0 when every section is open, so existing pinned costs do not m
 ### 2. Historical fill-rate evidence on every section
 
 **The change.** Snapshot each term section's seat counts on a schedule (the section file
-is already cached per process), store the history, and show on a section row how fast
-the section has filled in past terms and how open it has stayed this term, e.g.
-"usually full by the first day". Abstain from any claim with fewer than two snapshots.
+is already cached per process) and store the history. With only this term's snapshots,
+a section row states what changed this term, e.g. "12 open on Oct 3, full on Oct 10".
+A past-terms claim such as "usually full by the first day" needs snapshots that cover a
+past term's add/drop window, so the label can rest on how long the section sat open
+across that window, as Penn's `percent_open` does. Abstain from any claim with fewer
+than two snapshots.
 
 **Why.** Penn computes exactly this as `percent_open`, a time-weighted fraction of the
 add/drop window a section sat open
@@ -375,17 +380,22 @@ release); `frontend/src/lib/reasons/scheduleReasons.ts` (a reason line); new
 `frontend/src/components/schedule-builder/FillRateNote.tsx` (the note under a section
 row).
 
-**Acceptance check.** A fixture test feeds two synthetic snapshots (open at t0, full at
-t1) and asserts the computed rate and the "usually fills early" label; a second test
-asserts abstention (no claim rendered) with a single snapshot, matching the repo's
+**Acceptance check.** A fixture test feeds two synthetic current-term snapshots (open at
+t0, full at t1) and asserts the current-term sentence and no "usually fills early"
+label. A second test feeds a past term's snapshots spanning its add/drop window and
+asserts the time-weighted open fraction and the label. A third asserts abstention (no
+claim rendered) with a single snapshot, matching the repo's
 abstain-when-evidence-is-thin rule.
 
 ### 3. Watch a full section from a saved plan
 
 **The change.** A saved plan that depends on a closed or waitlisted section gets a Watch
-entry: UNTangle polls the section's status on its existing snapshot job and shows an
-in-app badge (and later a digest) when it opens. No push infrastructure in the first
-cut; the watch list is computed from the saved-plan store plus the newest section data.
+entry, and an in-app badge when that section opens. Saved plans live only in the
+browser (`frontend/src/lib/saved-plans/store.ts` is a localStorage store), and no job
+sends section snapshots to the frontend, so the first cut runs in the browser: when the
+student opens Schedules, it reads the watched sections' current status through the
+existing section route and compares. No push and no digest in the first cut; both need
+a server-side copy of saved plans, which does not exist yet.
 
 **Why.** Seat alerts are Coursicle's single most praised feature
 (https://www.reddit.com/r/Coursicle/comments/1mby86r/what_is_coursicle/) and the exact
@@ -393,10 +403,11 @@ gap students fill by refreshing myUNT. UTRP's Schedule Backup exists for the sam
 panic (https://www.reddit.com/r/UTAustin/comments/1g6s585/ut_registration_plus_v2_has_released/).
 
 **Files.** `frontend/src/lib/saved-plans/store.ts` (enumerate pinned sections per plan);
-new `frontend/src/lib/sections/watch.ts` (plan-by-plan feasibility check against current
-statuses); new `frontend/src/app/api/sections/watch/route.ts`, following the shape of
-the existing `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` and
-reusing its `withRateLimit("sections", ...)` budget.
+new `frontend/src/lib/sections/watch.ts` (a pure plan-by-plan check of pinned sections
+against current statuses, run in the browser); the existing
+`frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` supplies the statuses
+under its `withRateLimit("sections", ...)` budget;
+`frontend/src/components/schedules-library/schedules-client.tsx` (the badge).
 
 **Acceptance check.** A test with a saved-plan fixture naming one waitlisted section and
 a sections fixture where it is open returns the plan in the watch result with reason
@@ -411,10 +422,10 @@ blocks a hard conflict in Auto plus a named clash in the Week answer line.
 
 **Why.** GT Scheduler ships a Finals tab as a headline feature (captured in
 `captures/gt-scheduler.png`, https://gt-scheduler.org/); no other builder in this study
-does it, and nothing in UNTangle reads exam data today (grep for exam in
-`frontend/src/lib` and `frontend/src/components/schedule` finds only syllabus parsing).
-PR #58's ICS export deliberately excludes finals week, so the term calendar source it
-uses (`lib/terms/terms.ts`) already knows which days are finals days.
+does it. UNTangle already has the term-level finals window: `Session.finalExams` in
+`frontend/src/lib/terms/terms.ts` holds its first and last day, and PR #58's ICS export
+uses the term calendar to leave finals week out. What is missing is each section's own
+exam slot, which UNT publishes by class number.
 
 **Files.** `frontend/src/lib/sections/model.ts` (optional `exam` meetings per section or
 per class number), `frontend/src/lib/optimizer/prepare.ts` and `optimize.ts` (exam
@@ -431,8 +442,15 @@ its synthetic construction explicitly, per the repo's fixture rules.
 
 **The change.** Keep PR #58's strip as the default answer, but add a mode that lists
 every conflict-free combination (or the first N) as small week previews with the chosen
-section names; hovering previews on the grid, clicking issues the locks. Raise the
-optimizer's `k` for this mode and render with a virtualized list.
+section names; hovering previews on the grid, clicking issues the locks. Raising `k`
+is not enough: every alternative must differ from the earlier ones in at least
+`minDifferentCourses` courses (`frontend/src/lib/optimizer/optimize.ts`, step 3 of its
+header), the search keeps a pool of 64 leaves (`POOL_SIZE`), and `prepare.ts` rejects
+any `k` outside 1..20. The mode needs its own enumeration path with the diversity rule
+off and its own node budget. It also has to decide whether `dropTwins` in `prepare.ts`
+applies: that step keeps only the cheapest of two sections that meet at the same times,
+which is right for ranking and wrong for a list meant to show every section. Render the
+result with a virtualized list.
 
 **Why.** This is GT Scheduler's core interaction, read in source:
 a virtualized combination list with calendar previews where clicking pins all CRNs
@@ -442,14 +460,19 @@ instinct (https://www.coursicle.com/college-schedule-maker/). UNTangle's diversi
 returns 3 alternatives that "differ in a way a student would notice", which is the right
 default and the wrong ceiling.
 
-**Files.** `frontend/src/lib/optimizer/optimize.ts` (raise or parameterize `k`),
+**Files.** `frontend/src/lib/optimizer/optimize.ts` (a separate enumeration entry point
+with the diversity rule off and its own budget), `frontend/src/lib/optimizer/prepare.ts`
+(the 1..20 bound on `k` and the `dropTwins` decision),
 `frontend/src/lib/optimizer/README.md` (contract update), new
 `frontend/src/components/schedule-builder/CombinationsList.tsx` beside
 `OptionsStrip.tsx`, `frontend/src/components/schedule/use-optimizer.ts` (fetch
 the full result set for the mode).
 
-**Acceptance check.** An engine test asserts `k = 25` on a generated 6-course instance
-returns 25 distinct conflict-free schedules within the follow-up budget; a component
+**Acceptance check.** An engine test on a generated 6-course instance asserts the
+enumeration returns exactly the conflict-free combinations the reference solver
+(`frontend/tests/optimizer/reference.ts`) enumerates, including two that differ only by
+a section meeting at the same times, and that Auto's `k` still rejects values above 20;
+a component
 test asserts clicking a list row dispatches locks for exactly that row's section ids
 and that the next Auto run request contains them (worker protocol test, mirroring
 `frontend/tests/optimizer/worker.test.ts`).
@@ -460,7 +483,11 @@ and that the next Auto run request contains them (worker protocol test, mirrorin
 public UNT iCal feeds already exist per PR #75) into a named blocked time on the day it
 occurs, so Auto and the week hatching respect a club meeting or work shift without
 retyping it. Repeats stay out of scope for the first cut; one event becomes one
-BlockedTime.
+`BlockedTime` whose `dates` holds the event's date. Without `dates` a block applies
+every week (`frontend/src/lib/types.ts`, `BlockedTime`); Auto already honors dated
+blocks (`blockConflicts` in `frontend/src/lib/optimizer/prepare.ts`), and
+`busyOccurrencesToBlockedTime` in `frontend/src/lib/planner.ts` builds dated blocks the
+same way for calendar busy time.
 
 **Why.** Every builder in this study treats breaks as first-class generator input: VSB's
 Busy times (verified in `captures/vsb-unt-mirror.png`), Civitas's breaks and preferences
@@ -471,8 +498,9 @@ sorting option). UNTangle already parses feed events; the Week builder's blocked
 control (merged in PR #58) only accepts hand-typed blocks.
 
 **Files.** `frontend/src/lib/calendar-feeds/parse.ts` (event lookup by id from an
-already-parsed feed); `frontend/src/components/schedule/constraint-logic.ts` (build a
-`BlockDraft` from the event; reuse `parseBlockDraft` validation);
+already-parsed feed); `frontend/src/components/schedule/constraint-logic.ts` (build the
+dated `BlockedTime` directly; `BlockDraft` and `parseBlockDraft` have no dates field, so
+going through them would block every week);
 `frontend/src/components/schedule-builder/PreferencesPopover.tsx` (entry point: a
 "convert from calendar feed" affordance on the blocked-times control, whose state lives
 in `frontend/src/components/schedule-builder/preferences.ts`). A click-on-grid
@@ -481,19 +509,25 @@ affordance would touch the lead-owned
 `.github/lead-owned-paths.txt`), so that part is lead-only and out of an agent PR's
 scope.
 
-**Acceptance check.** A unit test converts a fixture event (Tue 18:00 to 20:00) into a
-`BlockedTime` that `parseSchedulePreferences` accepts, and a duplicate conversion is
-rejected as an existing blocked-time id.
+**Acceptance check.** A unit test converts a fixture event (Tue 18:00 to 20:00 on one
+date) into a `BlockedTime` with that date that `parseSchedulePreferences` accepts, and a
+duplicate conversion is rejected as an existing blocked-time id. An optimizer test pins
+that the block rules out a weekly Tuesday 18:30 section but allows a section whose
+Tuesday meetings all fall on other dates (a second-half-term section, for example).
 
 ### 7. Serve a stale term snapshot with a banner instead of failing at registration peaks
 
-**The change.** Persist each successfully fetched term section file as the served
-fallback: `frontend/src/lib/sections/proxy.ts` already keeps an in-process slot per term
-file (data, checkedAt, diagnostic, retryAt), so extend it to persist the last good file
-and serve that with a stale diagnostic when the untgrades mirror is down or slow; the
-section route keeps responding through `sections/server.ts` with no shape change. The UI
-shows a dated "course data from October 4, refreshed 8:02 AM" banner instead of an
-error. Warm the snapshot on a schedule during registration windows.
+**The change.** Serve the last good term section file when the untgrades mirror is down
+or slow. `frontend/src/lib/sections/proxy.ts` keeps one in-process slot per term file
+and already answers `stale` from it after the TTL lapses, but a cold start or a second
+instance has no slot. The durable copy is the last good release the section release job
+writes (`packages/ingest/src/release-job/publish.ts`): the proxy falls back to that
+release when its slot is empty and the upstream fetch fails, and marks the response
+stale; the section route keeps responding through `sections/server.ts` with no shape
+change. Today the release job writes to a local directory; the storage host and
+Postgres pointer it names as later work have to land first, so a deployed app can read
+the release. The UI shows a dated "course data from October 4, refreshed 8:02 AM"
+banner instead of an error. Warm the snapshot on a schedule during registration windows.
 
 **Why.** Builders failing during the enrollment window is the loudest, most repeated
 complaint in the entire study: five separate outage threads across two schools
@@ -508,44 +542,47 @@ data has one third-party source"). The UNT mirror's own header advertises its da
 ("Updated 10/4/2026", verified in `captures/vsb-unt-mirror.png`), so the date banner
 matches student expectations.
 
-**Files.** `frontend/src/lib/sections/proxy.ts` (persist the last good file and serve it
-on upstream failure); `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts`
-(the handler whose response carries the staleness diagnostic);
-`frontend/src/lib/data-provenance.ts` (staleness into the response's provenance); new
+**Files.** `frontend/src/lib/sections/proxy.ts` (fall back to the published release on
+upstream failure); `packages/ingest/src/release-job/publish.ts` (the `ReleaseSink` the
+app reads the last good release from);
+`frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` (the handler whose
+response carries the staleness diagnostic); `frontend/src/lib/sections/model.ts`
+(`RealProvenance.updatedAt` and `checkedAt` carry the release's date); new
 `frontend/src/components/schedule-builder/DataAgeNote.tsx` (the dated banner above the
 week).
 
 **Acceptance check.** A test on the
 `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` handler (through
-`sectionsProxy.respond`) stubs the upstream fetch as failing, seeds a persisted
-snapshot, and asserts the response serves the snapshot with a provenance entry whose
-retrieved-at date is the snapshot's; with no snapshot present the response stays the
-existing error.
+`sectionsProxy.respond`) starts with an empty slot, stubs the upstream fetch as failing,
+seeds a published release in a temporary `ReleaseSink` directory, and asserts the
+response serves that release as `stale` with the release's date in its provenance; with
+no release present the response stays the existing error.
 
-### 8. Compare saved schedules side by side
+### 8. Credit totals and a third plan in Compare
 
-**The change.** Pick two or three saved plans and render their weeks as small previews
-with the differences named ("Plan B frees Friday but adds an 8 AM"), plus per-plan
-credit totals; open one into the Week view from there.
+**The change.** Schedules already compares two saved plans
+(`frontend/src/components/schedules-library/compare-view.tsx`): one week with A, Both
+(B dashed where it differs) or B, figures from `compareRows` in
+`frontend/src/lib/plan-library/week.ts` (days on campus, first class, last class,
+walking), the sections that change, and a button to use B. What it lacks is each plan's
+credit total in the figures, and room for a third plan.
 
 **Why.** GT Scheduler's comparison panel overlays friends' pinned schedules and the
 capture shows a Compare Schedules control (https://gt-scheduler.org/,
 `captures/gt-scheduler.png`); UTRP built Schedule Backup because students juggle
 fallback plans in spreadsheets
 (https://www.reddit.com/r/UTAustin/comments/1g6s585/ut_registration_plus_v2_has_released/).
-UNTangle already stores named, revisoned plans
-(`frontend/src/lib/saved-plans/store.ts`, `nextCopyName` for duplicates) but nothing
-compares them, and PR #58's share/open flow stops at "use this over the current week".
+This is the smallest item on the list, because the two-plan comparison already covers
+the main need.
 
-**Files.** `frontend/src/components/schedule/week-model.ts` (reuse `eventsFor` and
-`firstClash` over arbitrary plans), new
-`frontend/src/components/schedule-builder/SavedPlansCompare.tsx`,
-`frontend/src/lib/saved-plans/store.ts` (multi-read).
+**Files.** `frontend/src/lib/plan-library/week.ts` (a credits row in `compareRows`),
+`frontend/src/components/schedules-library/compare-view.tsx` and
+`frontend/src/components/schedules-library/schedules-client.tsx` (picking and showing a
+third plan).
 
-**Acceptance check.** A test renders two fixture plans and asserts the difference
-summary names exactly the courses whose meeting times differ, and that plan-level
-clashes (a plan that is internally infeasible) surface through `firstClash` instead of
-rendering overlapping events silently.
+**Acceptance check.** A test on `compareRows` asserts a credits row whose values are each
+plan's planned credits. A component test picks three plans and asserts all three appear
+in the figures.
 
 ## Method and limits
 
@@ -556,7 +593,8 @@ rendering overlapping events silently.
   what the cited page shows.
 - Reddit threads were located through a cited web search (Perplexity, October 15,
   2026); quotes are as returned by that search and each thread is linked directly.
-- The recommendations name files as they exist on `alpha` at `bacc8820`. PR #58 (merged,
+- The recommendations name files as they exist on `alpha` at `bacc8820`, corrected
+  against `alpha` at `63fe90f` after review on PR #110. PR #58 (merged,
   the v3 Week rebuild) and open PR #61 move some of the same files; each recommendation
   above states its position relative to them, and nothing in this list duplicates their
   described scope.
