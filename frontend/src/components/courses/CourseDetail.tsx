@@ -36,6 +36,12 @@ type Props = {
   /** On the major's core list. */
   inCore: boolean;
   actions: DetailActions;
+  /**
+   * False until the planner has read the student's saved plan. Until then the
+   * row's status is the catalog's default, so the status, actions, path and
+   * sections wait; only catalog facts show.
+   */
+  planLoaded: boolean;
 };
 
 const article = (grade: string) => (/^[AEFHILMNORSX]/.test(grade) ? "an" : "a");
@@ -65,7 +71,7 @@ const stateOfRow = (row: CourseRowModel): StopState => (row.status === "done" ||
  * against the student's record, sections against their week, grade history
  * and the description.
  */
-export function CourseDetail({ row, model, profile, options, placed, chosenSectionId, initialInstructor, inCore, actions }: Props) {
+export function CourseDetail({ row, model, profile, options, placed, chosenSectionId, initialInstructor, inCore, actions, planLoaded }: Props) {
   const term = profile.planningTerm;
   const { view, retry } = useGradeHistory(profile, row.id);
   const slices = useMemo(() => slicesByInstructor(view), [view]);
@@ -79,31 +85,41 @@ export function CourseDetail({ row, model, profile, options, placed, chosenSecti
     <div className={styles.detail}>
       <div className={styles.detailHead}>
         <p className={styles.detailTitle}>{row.title}</p>
-        <p className={styles.detailStatus}>
-          <span aria-hidden="true">
-            <StatusGlyph status={row.status} />
-          </span>
-          {statusLine(row, term)}
-        </p>
+        {planLoaded ? (
+          <p className={styles.detailStatus}>
+            <span aria-hidden="true">
+              <StatusGlyph status={row.status} />
+            </span>
+            {statusLine(row, term)}
+          </p>
+        ) : (
+          <div className={styles.loading} role="status" aria-label="Loading your plan">
+            <span className={styles.shimmer} />
+          </div>
+        )}
       </div>
-      <DetailActionsPart row={row} term={term} actions={actions} />
-      <section className={styles.dsec} aria-labelledby="detail-path">
-        <h3 id="detail-path">Path</h3>
-        <PathPart row={row} model={model} dependents={profile.dependents(row.id)} inCore={inCore} />
-      </section>
-      <section className={styles.dsec} aria-labelledby="detail-sections">
-        <h3 id="detail-sections">Sections</h3>
-        <SectionList
-          courseId={row.id}
-          term={term}
-          options={options}
-          placed={placed}
-          chosenId={row.inPlan ? chosenSectionId : undefined}
-          canAdd={canAdd}
-          onAdd={(sectionId, event) => actions.chooseSection(row.id, sectionId, event)}
-          gpaOf={(name) => slices.get(instructorKey(name))?.gpa ?? null}
-        />
-      </section>
+      {planLoaded ? (
+        <>
+          <DetailActionsPart row={row} term={term} actions={actions} />
+          <section className={styles.dsec} aria-labelledby="detail-path">
+            <h3 id="detail-path">Path</h3>
+            <PathPart row={row} model={model} dependents={profile.dependents(row.id)} inCore={inCore} />
+          </section>
+          <section className={styles.dsec} aria-labelledby="detail-sections">
+            <h3 id="detail-sections">Sections</h3>
+            <SectionList
+              courseId={row.id}
+              term={term}
+              options={options}
+              placed={placed}
+              chosenId={row.inPlan ? chosenSectionId : undefined}
+              canAdd={canAdd}
+              onAdd={(sectionId, event) => actions.chooseSection(row.id, sectionId, event)}
+              gpaOf={(name) => slices.get(instructorKey(name))?.gpa ?? null}
+            />
+          </section>
+        </>
+      ) : null}
       <section className={styles.dsec} aria-labelledby="detail-grades">
         <h3 id="detail-grades">Grades</h3>
         <Grades
