@@ -11,11 +11,11 @@ import type { NormalizedEvent } from "./types";
 /** Two occurrences of one event may start this far apart, in milliseconds. */
 export const DEDUPE_START_WINDOW_MS = 5 * 60 * 1000;
 
-/** Lowercase, strip punctuation to spaces, collapse whitespace. */
+/** Lowercase, turn everything but letters and digits (in any script) into spaces, collapse whitespace. */
 export function normalizeEventTitle(title: string): string {
   return title
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
@@ -58,8 +58,11 @@ function unionTags(events: readonly NormalizedEvent[]): string[] {
  * source's order first. Input order is otherwise preserved.
  */
 export function dedupeEvents(events: readonly NormalizedEvent[]): NormalizedEvent[] {
-  // Clusters of events sharing a title-and-place key, each cluster holding
-  // events whose starts are within the window of the cluster's earliest start.
+  // Clusters of events sharing a title-and-place key, chained by start: an
+  // event joins every cluster holding a start within the window of its own,
+  // and joining two clusters merges them, so 0, 4 and 8 minutes collapse.
+  // Members stay in input order, which the tag union follows.
+  const inputOrder = new Map(events.map((event, index) => [event, index]));
   const byKey = new Map<string, NormalizedEvent[][]>();
   for (const event of events) {
     const key = eventKey(event);
@@ -69,12 +72,9 @@ export function dedupeEvents(events: readonly NormalizedEvent[]): NormalizedEven
       byKey.set(key, clusters);
     }
     const startMs = Date.parse(event.start);
-    const open = clusters.find(cluster => Math.abs(startMs - Date.parse(cluster[0]!.start)) <= DEDUPE_START_WINDOW_MS);
-    if (open !== undefined) {
-      open.push(event);
-    } else {
-      clusters.push([event]);
-    }
+    const near = clusters.filter(cluster => cluster.some(member => Math.abs(startMs - Date.parse(member.start)) <= DEDUPE_START_WINDOW_MS));
+    const merged = [...near.flat(), event].sort((a, b) => inputOrder.get(a)! - inputOrder.get(b)!);
+    byKey.set(key, [...clusters.filter(cluster => !near.includes(cluster)), merged]);
   }
 
   const result: NormalizedEvent[] = [];

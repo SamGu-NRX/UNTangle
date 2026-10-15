@@ -84,6 +84,16 @@ describe("diffReleases", () => {
     // The release stores day codes and minute-of-day, so the after text starts "Tue 600".
     expect(diff.changes.some(change => change.kind === "time" && change.after.startsWith("Tue 600"))).toBe(true);
   });
+
+  test("a meeting whose only change is its dates shows the dates as text", () => {
+    const before = release();
+    const after = release(raw => {
+      raw.courses["MATH 1680"].sections[0].meetings[0].meeting_dates = "01/18/2027 - 05/07/2027";
+    });
+    const change = diffReleases(before, after).changes.find(entry => entry.kind === "time");
+    expect(change?.before).toContain("2027-01-11 to 2027-05-07");
+    expect(change?.after).toContain("2027-01-18 to 2027-05-07");
+  });
 });
 
 describe("sanityCheck", () => {

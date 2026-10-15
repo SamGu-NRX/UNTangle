@@ -14,6 +14,8 @@
  * as arguments, so tests run against a local stub.
  */
 
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { diffReleases, sanityCheck, type ReleaseDiff, type SanityResult } from "./compare";
@@ -70,6 +72,8 @@ export type JobReport = {
   manifest?: ReleaseManifest["counts"];
   /** Per-URL fetch results, in policy order. */
   fetched: Array<{ url: string; kind: FetchOutcome["kind"]; reason?: string }>;
+  /** Each requested subject file: whether it went into the build, and why not when it did not. */
+  subjects: Array<{ subject: string; applied: boolean; detail?: string }>;
   /** Watched terms and what the watchdog saw. */
   termWatch: TermWatchReport[];
   /** Whether this run fetched at all (dry runs and unchanged terms do not write). */
@@ -77,37 +81,70 @@ export type JobReport = {
 };
 
 export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobReport> {
-  const now = options.now ?? Date.now;
-  const termId = options.termId;
-  const outDir = options.outDir;
+  const { outDir } = options;
   const dryRun = options.dryRun === true;
-  const watchTerms = options.watchTerms === undefined ? ["fall-2027"] : options.watchTerms;
-
   const sink: ReleaseSink = localSink(outDir);
   const state = dryRun ? emptyMirrorState() : await loadMirrorState(outDir);
+  // A 304 is only usable with the body it confirms. A file whose body is not
+  // cached is fetched without validators, so the mirror cannot answer 304 for it.
+  for (const [url, file] of Object.entries(state.files)) {
+    if (!existsSync(cachedBodyPath(outDir, url))) Object.assign(file, { etag: null, lastModified: null });
+  }
   const mirror = new Mirror({
     policy: options.policy,
     baseUrl: options.baseUrl,
     fetcher: options.fetcher,
     timeoutMs: options.timeoutMs,
-    now,
+    now: options.now,
     state,
   });
+  // Every exit saves the request log and validators, including refusals,
+  // errors and the watch's requests, so the next run honors the policy.
+  try {
+    return await runWithMirror(options, mirror, sink);
+  } finally {
+    if (!dryRun) await saveMirrorState(outDir, mirror.state);
+  }
+}
+
+async function runWithMirror(options: RunReleaseJobOptions, mirror: Mirror, sink: ReleaseSink): Promise<JobReport> {
+  const now = options.now ?? Date.now;
+  const { termId, outDir } = options;
+  const dryRun = options.dryRun === true;
+  const watchTerms = options.watchTerms === undefined ? ["fall-2027"] : options.watchTerms;
+
+  /** The body a 200 delivered, cached for a later 304; or the cached body that a 304 confirms. Null for any other outcome. */
+  const bodyOf = async (url: string, outcome: FetchOutcome): Promise<string | null> => {
+    if (outcome.kind === "fetched") {
+      if (!dryRun) {
+        await mkdir(path.join(outDir, "bodies"), { recursive: true });
+        await writeFile(cachedBodyPath(outDir, url), outcome.body, "utf8");
+      }
+      return outcome.body;
+    }
+    if (outcome.kind === "not-modified") return readFile(cachedBodyPath(outDir, url), "utf8");
+    return null;
+  };
 
   const fetched: JobReport["fetched"] = [];
+  const subjectReports: JobReport["subjects"] = [];
   const record = (url: string, outcome: { kind: FetchOutcome["kind"]; reason?: string }) =>
     fetched.push({ url, kind: outcome.kind, ...(outcome.reason ? { reason: outcome.reason } : {}) });
 
   // The watchdog's loop, shared by every terminal path that got a term
-  // response: one request per watched term, classified by the fetch the job
-  // already made.
+  // response: one request per watched term, and none for a watched term that
+  // is the job's own term, whose fetch is already in hand.
   const runWatch = async (): Promise<TermWatchReport[]> => {
     const reports: TermWatchReport[] = [];
     for (const watched of watchTerms) {
+      if (watched === termId) {
+        reports.push(termWatchReport(watched, termOutcome));
+        continue;
+      }
       const watchUrl = mirror.urlFor(watched);
       const outcome = await mirror.fetchFile(watched);
       record(watchUrl, outcome);
-      reports.push(watchFromOutcome(watched, outcome));
+      reports.push(termWatchReport(watched, outcome));
     }
     return reports;
   };
@@ -119,35 +156,48 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
   record(termUrl, termOutcome);
 
   if (termOutcome.kind === "deferred") {
-    return { termId, outcome: "error", reason: "deferred", detail: `the term file was not fetched: ${termOutcome.reason}`, fetched, termWatch: [], wrote: false };
+    return { termId, outcome: "error", reason: "deferred", detail: `the term file was not fetched: ${termOutcome.reason}`, fetched, subjects: subjectReports, termWatch: [], wrote: false };
   }
   if (termOutcome.kind === "error") {
-    return { termId, outcome: "error", reason: "fetch-failed", detail: termOutcome.message, fetched, termWatch: [], wrote: false };
+    return { termId, outcome: "error", reason: "fetch-failed", detail: termOutcome.message, fetched, subjects: subjectReports, termWatch: [], wrote: false };
   }
   if (termOutcome.kind === "absent") {
-    return { termId, outcome: "error", reason: "absent-upstream", detail: `the mirror has no file for ${termId}`, fetched, termWatch: [], wrote: false };
+    return { termId, outcome: "error", reason: "absent-upstream", detail: `the mirror has no file for ${termId}`, fetched, subjects: subjectReports, termWatch: [], wrote: false };
   }
-  if (termOutcome.kind === "not-modified") {
-    return { termId, outcome: "unchanged", reason: "not-modified", detail: `HTTP 304 for ${termUrl}; the published release stays`, fetched, termWatch: await runWatch(), wrote: false };
+  const subjects = options.subjects ?? [];
+  // With no subjects, a 304 means the build would repeat the published one.
+  // With subjects, the cached term body is rebuilt, since a subject file can
+  // change while the term file does not.
+  if (termOutcome.kind === "not-modified" && !subjects.length) {
+    return { termId, outcome: "unchanged", reason: "not-modified", detail: `HTTP 304 for ${termUrl}; the published release stays`, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
 
   // 2. Subject overlays, then build. A subject file that fails its own
   //    schema check is dropped and reported; the term file's slice for that
   //    subject stands.
-  let body = termOutcome.body;
-  const subjects = options.subjects ?? [];
+  const termBody = await bodyOf(termUrl, termOutcome) as string;
+  let body = termBody;
   if (subjects.length) {
     const requests = subjects.map(subject => ({ term: termId, subject }));
     const outcomes = await mirror.fetchFiles(requests);
     const overlays: Array<{ subject: string; body: string }> = [];
     for (const { request, url, outcome } of outcomes) {
       record(url, outcome);
-      if (outcome.kind !== "fetched") continue;
-      const check = checkSubjectFile(outcome.body, termId, request.subject as string);
-      if (!check.ok) continue;
-      overlays.push({ subject: request.subject as string, body: outcome.body });
+      const subject = request.subject as string;
+      const subjectBody = await bodyOf(url, outcome);
+      if (subjectBody === null) {
+        subjectReports.push({ subject, applied: false, detail: `not fetched: ${outcome.kind}` });
+        continue;
+      }
+      const check = checkSubjectFile(subjectBody, termId, subject);
+      if (!check.ok) {
+        subjectReports.push({ subject, applied: false, detail: check.detail });
+        continue;
+      }
+      subjectReports.push({ subject, applied: true });
+      overlays.push({ subject, body: subjectBody });
     }
-    if (overlays.length) body = overlaySubjects(termOutcome.body, overlays);
+    if (overlays.length) body = overlaySubjects(termBody, overlays);
   }
 
   const built = buildSectionRelease({ body, sourceId: "vsb-untgrades", institutionId: "unt", termId, fetchedAt: new Date(now()).toISOString() });
@@ -157,7 +207,7 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
     // like: the pointer stays put and nothing has been written. Per-course
     // invalid-data records are the expected, publishable failure mode;
     // compare.ts sanityCheck bounds those instead.
-    return { termId, outcome: "refused", reason: built.reason, detail: built.message, fetched, termWatch: await runWatch(), wrote: false };
+    return { termId, outcome: "refused", reason: built.reason, detail: built.message, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
   const next = built.release;
 
@@ -165,7 +215,7 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
   const pointer = await sink.readPointer(termId);
   const previous = pointer ? await sink.readContent(pointer.file) : null;
   if (previous !== null && previous.manifest.contentSha256 === next.manifest.contentSha256) {
-    return { termId, outcome: "unchanged", detail: "same content hash as the published release", previousReleaseId: pointer?.releaseId, fetched, termWatch: await runWatch(), wrote: false };
+    return { termId, outcome: "unchanged", detail: "same content hash as the published release", previousReleaseId: pointer?.releaseId, fetched, subjects: subjectReports, termWatch: await runWatch(), wrote: false };
   }
   const diff = previous ? diffReleases(previous, next) : null;
   const sanity = sanityCheck(previous, next);
@@ -179,6 +229,7 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
       diff,
       sanity,
       fetched,
+      subjects: subjectReports,
       termWatch: await runWatch(),
       wrote: false,
     };
@@ -188,7 +239,6 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
   if (!dryRun) {
     await sink.putContent(next);
     await sink.putPointer(next, new Date(now()).toISOString());
-    await saveMirrorState(outDir, mirror.state);
   }
 
   // The watchdog runs after the release work, so the term file always gets
@@ -206,15 +256,12 @@ export async function runReleaseJob(options: RunReleaseJobOptions): Promise<JobR
     sanity,
     manifest: next.manifest.counts,
     fetched,
+    subjects: subjectReports,
     termWatch,
     wrote: !dryRun,
   };
 }
 
-/** The watchdog's report for a fetch the job already made, so a watched term costs one request, not two. */
-function watchFromOutcome(watched: string, outcome: Awaited<ReturnType<Mirror["fetchFile"]>>): TermWatchReport {
-  return termWatchReport(watched, outcome);
-}
 /** Subject files carry the term file's schema; the check is the root-level one. */
 function checkSubjectFile(body: string, termId: string, subject: string): { ok: true } | { ok: false; detail: string } {
   let parsed: unknown;
@@ -237,32 +284,59 @@ function checkSubjectFile(body: string, termId: string, subject: string): { ok: 
 }
 
 /**
- * Overlays subject files on the term file: a subject file's courses replace
- * that subject's slice, coverage is recomputed from what is actually there,
- * and updated_at keeps the newest value. The result is the body
- * buildSectionRelease validates; its own coverage gate still applies, so a
- * bad overlay fails the build and no release is written.
+ * Overlays subject files on the term file: a subject file's courses for its
+ * own subject replace that subject's slice, and updated_at keeps the newest
+ * value. The term file's coverage claims move by exactly what the overlay
+ * added or removed, so a term file that claimed an incomplete scrape still
+ * claims one, and buildSectionRelease's coverage gate refuses it.
  */
 function overlaySubjects(termBody: string, overlays: Array<{ subject: string; body: string }>): string {
-  const term = JSON.parse(termBody) as {
+  let term: {
     updated_at: string;
     coverage: { catalog_courses: number; completed_courses: number; courses_with_options: number };
     courses: Record<string, unknown>;
   };
+  try {
+    term = JSON.parse(termBody) as typeof term;
+  } catch {
+    return termBody;
+  }
+  // A term body without coverage and courses objects goes to the build as it
+  // came, so buildSectionRelease refuses it with its own reason.
+  if (typeof term !== "object" || term === null || typeof term.coverage !== "object" || term.coverage === null || typeof term.courses !== "object" || term.courses === null) {
+    return termBody;
+  }
+  const before = courseCounts(term.courses);
   for (const overlay of overlays) {
     const parsed = JSON.parse(overlay.body) as { updated_at?: string; courses: Record<string, unknown> };
-    for (const [code, course] of Object.entries(parsed.courses)) term.courses[code] = course;
+    const inSubject = (code: string) => code.split(" ")[0] === overlay.subject;
+    for (const code of Object.keys(term.courses)) if (inSubject(code)) delete term.courses[code];
+    for (const [code, course] of Object.entries(parsed.courses)) if (inSubject(code)) term.courses[code] = course;
     if (parsed.updated_at && Date.parse(parsed.updated_at) > Date.parse(term.updated_at)) term.updated_at = parsed.updated_at;
   }
-  const entries = Object.entries(term.courses).filter(([code]) => /^[A-Z]{3,4} \d{3,4}[A-Z]?$/.test(code));
+  const after = courseCounts(term.courses);
   term.coverage = {
-    catalog_courses: entries.length,
-    completed_courses: entries.length,
-    courses_with_options: entries.filter(([, value]) => {
+    catalog_courses: term.coverage.catalog_courses + after.courses - before.courses,
+    completed_courses: term.coverage.completed_courses + after.courses - before.courses,
+    courses_with_options: term.coverage.courses_with_options + after.withOptions - before.withOptions,
+  };
+  return JSON.stringify(term);
+}
+
+/** Course entries and entries with options, counted the way buildSectionRelease's coverage gate counts them. */
+function courseCounts(courses: Record<string, unknown>): { courses: number; withOptions: number } {
+  const entries = Object.entries(courses).filter(([code]) => /^[A-Z]{3,4} \d{3,4}[A-Z]?$/.test(code));
+  return {
+    courses: entries.length,
+    withOptions: entries.filter(([, value]) => {
       return typeof value === "object" && value !== null && "sections" in value && Array.isArray((value as { sections: unknown }).sections) && (value as { sections: unknown[] }).sections.length > 0;
     }).length,
   };
-  return JSON.stringify(term);
+}
+
+/** Where a fetched body is kept for a later 304, keyed by its URL. */
+function cachedBodyPath(outDir: string, url: string): string {
+  return path.join(outDir, "bodies", `${createHash("sha256").update(url).digest("hex")}.json`);
 }
 
 /** Fetch state lives beside the releases, so one-shot CLI runs keep their etags and budget. */

@@ -80,3 +80,15 @@ test("empty input yields empty output and a single event passes through unchange
   const one = event({});
   expect(dedupeEvents([one])).toEqual([one]);
 });
+
+test("titles in non-Latin scripts stay distinct", () => {
+  expect(normalizeEventTitle("日本語")).not.toBe(normalizeEventTitle("中文"));
+  expect(dedupeEvents([event({ title: "日本語" }), event({ title: "中文" })]).length).toBe(2);
+});
+
+test("a chain whose ends are more than the window apart collapses through its middle", () => {
+  const at = (minutes: number) => new Date(Date.parse("2026-10-20T23:30:00.000Z") + minutes * 60_000).toISOString();
+  expect(dedupeEvents([event({ start: at(0) }), event({ start: at(4) }), event({ start: at(8) })]).length).toBe(1);
+  // The middle event arriving last still joins the two ends.
+  expect(dedupeEvents([event({ start: at(0) }), event({ start: at(8) }), event({ start: at(4) })]).length).toBe(1);
+});
