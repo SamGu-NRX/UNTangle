@@ -1,10 +1,16 @@
 import { courses } from "@/lib/seed-data";
+import { compareAcademicTerms } from "@/lib/term-chronology";
 import type {
   Course,
+  TranscriptAppliedStatus,
   TranscriptCourseRecord,
   TranscriptImportSummary,
   TranscriptSourceKind,
 } from "@/lib/types";
+
+// Chronological term ordering lives in @/lib/term-chronology (shared with the
+// planner); re-exported here so importer consumers keep a single import site.
+export { compareAcademicTerms };
 
 export type RawTranscriptCourse = {
   code?: unknown;
@@ -30,7 +36,8 @@ export type TranscriptReconcileResult = {
 const courseCodePattern = /\b([A-Z]{2,5})[\s._-]*(\d{4})\b/gi;
 const transcriptRowPattern =
   /\b([A-Z]{2,5})\s+(\d{4})\s+(.+?)\s+(\d+\.\d{3})\s+(\d+\.\d{3})\s+(?:(A|B|C|D|F|P|CR|NP|I|W|Z|EN|IP)\s+)?(\d+\.\d{3})/g;
-const termPattern = /\b(20\d{2}\s+(?:Fall|Spring|Summer|Winter))\b/g;
+const termPattern =
+  /\b((?:20\d{2}\s+(?:Fall|Spring|Summer|Winter))|(?:(?:Fall|Spring|Summer|Winter)\s+20\d{2}))\b/g;
 const completedGrades = new Set(["A", "B", "C", "CR"]);
 const reviewCompletedGrades = new Set(["D", "P"]);
 const inProgressGrades = new Set(["EN", "IP"]);
@@ -231,7 +238,7 @@ export function reconcileTranscriptCourses({
   });
 
   const reconciled = [...deduped.values()].sort((a, b) => {
-    const termOrder = a.term.localeCompare(b.term);
+    const termOrder = compareAcademicTerms(a.term, b.term);
     if (termOrder !== 0) return termOrder;
     return a.code.localeCompare(b.code);
   });
@@ -507,7 +514,6 @@ function lastTermIndex(value: string) {
   const matches = [...value.matchAll(termPattern)];
   return matches.at(-1)?.index ?? -1;
 }
-
 export function redactTranscriptText(transcriptText: string) {
   return transcriptText
     .replace(/Name:\s*.*?(?=\s+Student ID:)/gi, "Name: [redacted]")
@@ -518,4 +524,54 @@ export function redactTranscriptText(transcriptText: string) {
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
     .replace(/\b\d{3}[-.\s]\d{2}[-.\s]\d{4}\b/g, "[redacted id]")
     .replace(/\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g, "[redacted phone]");
+}
+
+export function redactRenderedTranscriptPage(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+  pageNumber: number,
+) {
+  const height = Math.round(canvas.height * (pageNumber === 1 ? 0.2 : 0.075));
+  context.save();
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, height);
+  context.fillStyle = "#6b826b";
+  context.font = `${Math.max(14, Math.round(canvas.width * 0.014))}px sans-serif`;
+  context.fillText("student identity redacted", Math.round(canvas.width * 0.04), Math.round(height * 0.55));
+  context.restore();
+}
+
+export function effectiveTranscriptRecord(
+  record: TranscriptCourseRecord,
+  override: TranscriptAppliedStatus | undefined,
+): TranscriptCourseRecord {
+  if (!override || override === record.appliedStatus) return record;
+
+  return {
+    ...record,
+    appliedStatus: override,
+    prerequisiteSatisfied: override === "completed" ? record.grade !== "D" : false,
+    reviewRequired: override === "needsReview",
+    rationale:
+      override === "completed" || override === "inProgress"
+        ? `${record.rationale} Manually included during transcript review.`
+        : record.rationale,
+  };
+}
+
+// The apply gate for the transcript import review step: only rows the user
+// explicitly included (per-row approval) that still resolve to completed or
+// in-progress credit are applied to the planner.
+export function selectApprovedTranscriptRecords(
+  records: TranscriptCourseRecord[],
+  included: ReadonlySet<string>,
+  overrides: Record<string, TranscriptAppliedStatus> = {},
+): TranscriptCourseRecord[] {
+  return records
+    .map((record) => effectiveTranscriptRecord(record, overrides[record.id]))
+    .filter(
+      (record) =>
+        included.has(record.id) &&
+        (record.appliedStatus === "completed" || record.appliedStatus === "inProgress"),
+    );
 }
