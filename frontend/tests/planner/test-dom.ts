@@ -109,6 +109,7 @@ const DOM_KEYS = [
   "MouseEvent",
   "FocusEvent",
   "MutationObserver",
+  "ResizeObserver",
   "getComputedStyle",
   "requestAnimationFrame",
   "cancelAnimationFrame",

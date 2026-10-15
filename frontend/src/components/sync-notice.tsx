@@ -52,6 +52,11 @@ function sides(question: AcademicQuestion): { name: string; latest: string; mine
   }
 }
 
+/** What a question is about, so its answer stays with it. */
+function questionKey(question: AcademicQuestion): string {
+  return question.kind === "course" ? `course:${question.course}` : question.kind === "transcript-id" ? `row:${question.id}` : question.kind;
+}
+
 /** One question as a pair of radios; the other device's value is chosen until the student picks. */
 function Question({ question, value, onChange }: { question: AcademicQuestion; value: "latest" | "mine"; onChange: (value: "latest" | "mine") => void }) {
   const name = useId();
@@ -74,8 +79,11 @@ function Question({ question, value, onChange }: { question: AcademicQuestion; v
 
 function AcademicReview({ conflict, open, onOpenChange, onSettled }: { conflict: SyncConflict; open: boolean; onOpenChange: (open: boolean) => void; onSettled: () => void }) {
   const { settleSyncConflict } = usePlanner();
+  // Questions are recomputed from the student's side on every status read, so one can appear, or move,
+  // while the dialog is open. Answers are kept by question, not by position.
   const questions = academicQuestions(conflict);
-  const [answers, setAnswers] = useState<Array<"latest" | "mine">>(() => questions.map(() => "latest"));
+  const [answers, setAnswers] = useState<Record<string, "latest" | "mine">>({});
+  const answerOf = (question: AcademicQuestion) => answers[questionKey(question)] ?? "latest";
   const [saving, setSaving] = useState(false);
   return (
     <Dialog
@@ -93,7 +101,7 @@ function AcademicReview({ conflict, open, onOpenChange, onSettled }: { conflict:
             loading={saving}
             onClick={async () => {
               setSaving(true);
-              const settled = await settleSyncConflict({ kind: "answers", body: answerAcademicQuestions(conflict, answers) });
+              const settled = await settleSyncConflict({ kind: "answers", body: answerAcademicQuestions(conflict, questions.map(answerOf)) });
               setSaving(false);
               // On failure the dialog stays open with the student's answers.
               if (!settled) {
@@ -109,12 +117,12 @@ function AcademicReview({ conflict, open, onOpenChange, onSettled }: { conflict:
       }
     >
       <div className="sync-questions">
-        {questions.map((question, index) => (
+        {questions.map((question) => (
           <Question
-            key={question.kind === "course" ? question.course : question.kind === "transcript-id" ? question.id : question.kind}
+            key={questionKey(question)}
             question={question}
-            value={answers[index] ?? "latest"}
-            onChange={(side) => setAnswers((current) => current.map((answer, i) => (i === index ? side : answer)))}
+            value={answerOf(question)}
+            onChange={(side) => setAnswers((current) => ({ ...current, [questionKey(question)]: side }))}
           />
         ))}
       </div>
