@@ -1,4 +1,5 @@
 import { extensionTokens } from "@untangle/tokens/extension";
+import { UNTANGLE_ORIGIN } from "./config";
 import type { Preview, PreviewClash, PreviewGrades, PreviewMeeting, UnknownReason } from "./shared/extension-api";
 import { MARKER_STATES, PILL_CSS, type MarkerState } from "./shared/marker-states";
 import type { PanelState } from "./shared/panel";
@@ -29,6 +30,7 @@ h1, h2, p { margin: 0; }
 main { padding: var(--s5) var(--s6) var(--s6); }
 .foot { position: sticky; bottom: 0; padding: var(--s4) var(--s6) var(--s5); background: var(--paper); border-top: 1px solid var(--line); }
 .foot:empty { display: none; }
+.foot .btn + .btn { margin-top: var(--s2); }
 [tabindex="-1"]:focus { outline: none; }
 [tabindex="-1"]:focus-visible { outline: 2px solid transparent; border-radius: var(--r-xs); box-shadow: var(--focus); }
 
@@ -158,6 +160,8 @@ let unreachable = false;
 let slow = false;
 let busy: string | null = null;
 let enterAdded = false;
+// Sign out was pressed with adds waiting; the panel asks before discarding them.
+let confirmSignOut = false;
 
 function meetingsSection(meetings: PreviewMeeting[]): HTMLElement {
   return h("section", { "aria-labelledby": "meetings-title" },
@@ -251,11 +255,17 @@ function screen(): Screen {
   const failure = next.outcome === "error" ? h("p", { class: "alert", role: "alert" }, next.notice) : null;
   // The worker polls a device sign-in until the student approves or the code
   // expires; the panel only shows the code to match, and can close.
-  if (next.userCode !== null)
+  const userCode = next.userCode;
+  if (userCode !== null)
     return { name: "signing-in", body: result(null, "Approve this browser in UNTangle",
       h("p", { class: "lead" }, "A UNTangle tab opened so you can sign in and approve this browser."),
       h("p", { class: "small" }, "Check that this code matches the one shown in that tab before you approve. This panel can close while you do."),
-      h("p", { class: "code", id: "user-code" }, next.userCode)), foot: [] };
+      h("p", { class: "code", id: "user-code" }, userCode)),
+    foot: [
+      // The same approval page the worker opened, for a student who closed that tab.
+      button("open-untangle", "Open UNTangle", "Opening", "primary", () => void chrome.tabs.create({ url: `${UNTANGLE_ORIGIN}/device?user_code=${encodeURIComponent(userCode)}` })),
+      button("cancel-sign-in", "Cancel sign-in", "Cancelling", "secondary", () => void send({ type: "panel/cancel-sign-in" }, "cancel-sign-in")),
+    ] };
   if (!next.signedIn) {
     const n = next.discarded;
     return { name: "signed-out", body: result(null, "Sign in to check class search",
@@ -263,10 +273,21 @@ function screen(): Screen {
       h("p", { class: "lead" }, "UNTangle opens a window where you sign in and approve this browser. Then every section in myUNT class search shows whether it fits Main."),
       h("p", { class: "small" }, "This browser can read Main and add the sections you confirm here. It can't change anything else in your account.")), foot: [failure, signIn()].filter(n => n !== null) };
   }
+  if (next.pending > 0 && confirmSignOut) {
+    const one = next.pending === 1;
+    return { name: "confirm-sign-out", body: result("waiting", one ? "Sign out before this add syncs?" : `Sign out before ${next.pending} adds sync?`,
+      h("p", { class: "lead" }, one
+        ? "UNTangle hasn't confirmed it yet. Signing out discards it from this browser, though it may already be in Main."
+        : "UNTangle hasn't confirmed them yet. Signing out discards them from this browser, though some may already be in Main.")),
+    foot: [
+      button("retry", "Sync now", "Syncing", "primary", () => { confirmSignOut = false; void send({ type: "panel/retry" }, "retry"); }),
+      button("discard-sign-out", "Sign out and discard", "Signing out", "secondary", () => { confirmSignOut = false; void send({ type: "panel/sign-out" }, "discard-sign-out"); }),
+    ] };
+  }
   if (next.pending > 0) {
     return { name: "waiting", body: result("waiting", confirmedTitle ? `${confirmedTitle} is waiting to sync` : "Waiting to sync",
       h("p", { class: "lead" }, "The add is saved in this browser, and UNTangle hasn't confirmed it yet. Chrome sends it again when it restarts."),
-      h("p", { class: "small" }, next.pending === 1 ? "Signing out discards this add." : `Signing out discards these ${next.pending} adds.`)),
+      h("p", { class: "small" }, next.pending === 1 ? "Signing out discards it from this browser. It may already be in Main." : `Signing out discards these ${next.pending} adds from this browser. Some may already be in Main.`)),
     foot: [failure, button("retry", "Sync now", "Syncing", "primary", () => void send({ type: "panel/retry" }, "retry"))].filter(n => n !== null) };
   }
   if (next.outcome === "added" && !next.preview)
@@ -296,9 +317,17 @@ function render(): void {
   view.setAttribute("aria-busy", String(next.name === "loading"));
   view.replaceChildren(...next.body);
   actions.replaceChildren(...next.foot);
-  // Sign out sits in the top bar on every signed-in screen.
-  const signedIn = !unreachable && state?.signedIn === true;
-  bar.replaceChildren(wordmark, ...signedIn ? [button("sign-out", "Sign out", "Signing out", "quiet", () => void send({ type: "panel/sign-out" }, "sign-out"))] : []);
+  // Sign out sits in the top bar on every signed-in screen except its own confirmation.
+  const signedIn = !unreachable && state?.signedIn === true && next.name !== "confirm-sign-out";
+  bar.replaceChildren(wordmark, ...signedIn ? [button("sign-out", "Sign out", "Signing out", "quiet", () => {
+    // Waiting adds would be discarded, so ask first (docs/architecture/README.md, "Local data belongs to one identity").
+    if ((state?.pending ?? 0) > 0) {
+      confirmSignOut = true;
+      render();
+    }
+    else
+      void send({ type: "panel/sign-out" }, "sign-out");
+  })] : []);
   if (next.name === "added" && enterAdded)
     view.querySelector(".state")?.setAttribute("data-enter", "");
   enterAdded = false;

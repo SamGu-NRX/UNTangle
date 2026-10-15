@@ -43,10 +43,8 @@ const sameSignIn = (stored: unknown, pending: PendingSignIn) => isPendingSignIn(
 export class WorkerController {
   private grant: StoredGrant | null = null;
   private preview: PanelPreview | null = null;
-  /** While a device sign-in is in flight, the code the student matches on the approval page. */
-  private userCode: string | null = null;
-  /** The poll of the sign-in in flight; one at a time. */
-  private signingIn: Promise<void> | null = null;
+  /** The sign-in this worker is polling; the panel shows its code. One at a time. */
+  private signingIn: PendingSignIn | null = null;
   private notice = CHOOSE_SECTION;
   private outcome: PanelOutcome = "none";
   private busy = false;
@@ -59,9 +57,12 @@ export class WorkerController {
   async start(): Promise<void> {
     const saved = await this.store.get(GRANT_KEY);
     this.grant = isStoredGrant(saved) ? saved : null;
-    // A sign-in started before Chrome stopped this worker keeps polling.
+    // A sign-in started before Chrome stopped this worker keeps polling,
+    // unless a grant already loaded and there is nothing left to sign in to.
     const pending = await this.signIns.get(SIGN_IN_KEY);
-    if (isPendingSignIn(pending))
+    if (isPendingSignIn(pending) && this.grant)
+      await this.signIns.remove(SIGN_IN_KEY);
+    else if (isPendingSignIn(pending))
       this.follow(pending);
     try {
       await this.replay();
@@ -70,7 +71,7 @@ export class WorkerController {
       await this.failed(error);
     }
   }
-  private async failed(error: unknown, grantId = this.grant?.grantId, fallback = COULDNT_LOAD): Promise<void> {
+  private async failed(error: unknown, fallback = COULDNT_LOAD, grantId = this.grant?.grantId): Promise<void> {
     if (error instanceof AuthenticationRequired && this.grant?.grantId === grantId)
       await this.signOut();
     this.notice = error instanceof StudentError ? error.message : fallback;
@@ -78,8 +79,9 @@ export class WorkerController {
     this.outcome = error instanceof AuthenticationRequired ? "none" : "error";
   }
   /**
-   * Ends the grant locally. Its waiting adds go with it: only the grant that
-   * made an add may send it, and the next sign-in is a new grant. The count
+   * Ends the grant locally. Its waiting adds go with it: this client replays
+   * an add only under the grant that made it (the server keys receipts by
+   * user and operation id), and the next sign-in is a new grant. The count
    * is kept so the panel can say how many were discarded. The adds go first,
    * so a worker stopped halfway still holds the grant and the next sign-out
    * finishes the job.
@@ -96,8 +98,10 @@ export class WorkerController {
     await this.changed();
   }
   private follow(pending: PendingSignIn): void {
-    this.userCode = pending.userCode;
-    this.signingIn ??= this.finishSignIn(pending).finally(() => { this.signingIn = null; });
+    if (this.signingIn)
+      return;
+    this.signingIn = pending;
+    void this.finishSignIn(pending);
   }
   /**
    * Polls a started sign-in until the student approves, denies, or the code
@@ -111,18 +115,26 @@ export class WorkerController {
       // worker; a fetch doesn't. If Chrome stops the worker anyway, start()
       // resumes from storage on the next event.
       const tokens = await this.auth.poll(pending, async () => sameSignIn(await this.signIns.get(SIGN_IN_KEY), pending));
+      if (this.signingIn !== pending) {
+        // Cancelled while the last poll was in flight: end the grant it brought back.
+        await this.auth.revoke(tokens.accessToken).catch(() => { });
+        return;
+      }
       await this.saveGrant(tokens);
       await this.store.remove(DISCARDED_KEY);
       this.notice = CHOOSE_SECTION;
       this.outcome = "none";
     }
     catch (error) {
-      if (!(error instanceof SignInCancelled))
-        await this.failed(error, this.grant?.grantId, SIGN_IN_UNFINISHED);
+      if (!(error instanceof SignInCancelled) && this.signingIn === pending)
+        await this.failed(error, SIGN_IN_UNFINISHED);
     }
     finally {
-      this.userCode = null;
-      await this.signIns.remove(SIGN_IN_KEY);
+      // A newer sign-in may have replaced this one; leave its state alone.
+      if (this.signingIn === pending)
+        this.signingIn = null;
+      if (sameSignIn(await this.signIns.get(SIGN_IN_KEY), pending))
+        await this.signIns.remove(SIGN_IN_KEY);
       await this.changed();
     }
   }
@@ -213,7 +225,7 @@ export class WorkerController {
     const pending = owner === undefined ? 0 : Object.entries(stored).filter(([key, value]) => key.startsWith("add:") && isRecord(value) && value.grantId === owner).length;
     const discarded = stored[DISCARDED_KEY];
     return {
-      signedIn: this.grant !== null, userCode: this.userCode, preview: this.preview, notice: this.notice, outcome: this.outcome, pending,
+      signedIn: this.grant !== null, userCode: this.signingIn?.userCode ?? null, preview: this.preview, notice: this.notice, outcome: this.outcome, pending,
       discarded: this.grant === null && typeof discarded === "number" && Number.isSafeInteger(discarded) ? discarded : 0, working: false,
     };
   }
@@ -240,7 +252,7 @@ export class WorkerController {
         return { marker: preview.inSchedule === true ? "added" : preview.conflict };
       }
       catch (error) {
-        await this.failed(error, active.grantId);
+        await this.failed(error, COULDNT_LOAD, active.grantId);
         return { marker: "unknown" };
       }
     }
@@ -261,6 +273,11 @@ export class WorkerController {
           await this.signIns.set(SIGN_IN_KEY, pending);
           this.follow(pending);
         }
+      }
+      if (request.type === "panel/cancel-sign-in") {
+        // The poll stops at its next round, when it finds the stored sign-in gone.
+        this.signingIn = null;
+        await this.signIns.remove(SIGN_IN_KEY);
       }
       if (request.type === "panel/sign-out") {
         // Tell UNTangle with the freshest token there is; if the server can't
@@ -308,7 +325,7 @@ export class WorkerController {
       return await this.state();
     }
     catch (error) {
-      await this.failed(error, this.grant?.grantId, request.type === "panel/sign-in" ? SIGN_IN_UNFINISHED : COULDNT_LOAD);
+      await this.failed(error, request.type === "panel/sign-in" ? SIGN_IN_UNFINISHED : COULDNT_LOAD);
       return await this.state();
     }
     finally {

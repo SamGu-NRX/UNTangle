@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { WorkerController, type DeviceAuth, type SessionStore } from "../src/lib/worker-controller";
-import { GrantRevoked, type PendingSignIn } from "../src/lib/device-client";
+import { DeviceClient, GrantRevoked, SignInCancelled, type PendingSignIn } from "../src/lib/device-client";
+import { jsonResponse } from "./helpers";
 import { AuthenticationRequired, type PlannerApi } from "../src/lib/planner-client";
 import type { LocalStore } from "../src/lib/outbox";
 import type { AddOptionCommand, DeviceScopeName, DeviceTokenResponse, Preview, StoredGrant } from "../src/shared/extension-api";
@@ -278,4 +279,76 @@ test("signing out revokes the grant and clears the tokens even if the server can
   expect(f.revoked).toEqual([tokenA]);
   expect((await state(worker)).signedIn).toBe(false);
   expect(await f.store.get("device-grant")).toBeUndefined();
+});
+test("another grant's stored add neither blocks this grant nor gets sent", async () => {
+  const f = fixture();
+  const other: AddOptionCommand = { command: "add-option", operationId: "other-grant-op", scheduleId: "main", optionId: "section-15802", expectedRevision: 0 };
+  await f.store.set("add:other-grant-op", { command: other, grantId: "grant-x", ref });
+  const worker = f.make();
+  await worker.start();
+  const current = await state(worker);
+  expect(current.pending).toBe(0);
+  await worker.handle({ type: "panel/confirm", previewId: current.preview!.previewId });
+  expect(f.sent.map(command => command.operationId)).not.toContain("other-grant-op");
+  expect(f.sent).toHaveLength(1);
+  expect(await f.store.get("add:other-grant-op")).toBeDefined();
+});
+test("Cancel ends the poll through SignInCancelled, and a sign-in started right after survives the old poll's end", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  let starts = 0;
+  const tokenRequests: string[] = [];
+  const waits: (() => void)[] = [];
+  const devices = new DeviceClient(async (url, init) => {
+    if (url.endsWith("/api/v1/device/start")) {
+      starts++;
+      return jsonResponse({ deviceCode: `${"d".repeat(42)}${starts}`, userCode: starts === 1 ? "ABCD2345" : "EFGH2345", verificationUri: "http://127.0.0.1:3217/device", expiresIn: 600, interval: 5 });
+    }
+    tokenRequests.push(JSON.parse(String(init?.body)).deviceCode);
+    return jsonResponse({ error: "authorization_pending" }, 400);
+  }, { openTab: () => { }, delay: () => new Promise(resolve => { waits.push(resolve); }) });
+  const ended: unknown[] = [];
+  const poll = devices.poll.bind(devices);
+  devices.poll = (pending, current) => poll(pending, current).catch(error => { ended.push(error); throw error; });
+  const worker = new WorkerController(f.store, f.signIns, f.api, devices);
+  await worker.start();
+  expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ userCode: "ABCD2345" });
+  await settle();
+  expect(await worker.handle({ type: "panel/cancel-sign-in" })).toMatchObject({ signedIn: false, userCode: null, outcome: "none" });
+  expect(await f.signIns.get("device-sign-in")).toBeUndefined();
+  // A new sign-in before the first poll wakes.
+  expect(await worker.handle({ type: "panel/sign-in" })).toMatchObject({ userCode: "EFGH2345" });
+  await settle();
+  waits[0]();
+  await settle();
+  expect(ended).toHaveLength(1);
+  expect(ended[0]).toBeInstanceOf(SignInCancelled);
+  // The first sign-in never asked for tokens, and the second is untouched.
+  expect(tokenRequests).toEqual([]);
+  expect(await state(worker)).toMatchObject({ userCode: "EFGH2345", outcome: "none" });
+  expect(await f.signIns.get("device-sign-in")).toMatchObject({ userCode: "EFGH2345" });
+});
+test("tokens that arrive after Cancel are revoked, not saved", async () => {
+  const f = fixture();
+  await f.store.remove("device-grant");
+  let approve: (value: DeviceTokenResponse) => void = () => { };
+  f.auth.poll = () => new Promise(resolve => { approve = resolve; });
+  const worker = f.make();
+  await worker.start();
+  await worker.handle({ type: "panel/sign-in" });
+  await worker.handle({ type: "panel/cancel-sign-in" });
+  approve({ ...tokens });
+  await settle();
+  expect(f.revoked).toEqual([tokenA]);
+  expect(await state(worker)).toMatchObject({ signedIn: false, userCode: null });
+  expect(await f.store.get("device-grant")).toBeUndefined();
+});
+test("a stored sign-in is dropped, not resumed, when a grant already loaded", async () => {
+  const f = fixture();
+  await f.signIns.set("device-sign-in", started);
+  f.auth.poll = async () => { throw new Error("must not poll"); };
+  const worker = f.make();
+  await worker.start();
+  expect(await f.signIns.get("device-sign-in")).toBeUndefined();
+  expect(await state(worker)).toMatchObject({ signedIn: true, userCode: null });
 });

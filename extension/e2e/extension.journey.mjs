@@ -75,11 +75,13 @@ async function propose(page, panel, rowId, title) {
  * over the content.
  */
 async function shootPanel(panel, name) {
-  // Sign out is on every signed-in screen and on no other.
+  // Sign out is on every signed-in screen but its own confirmation, and on no other.
   const view = await panel.locator("#view").getAttribute("data-view");
-  const signedOut = ["signed-out", "signing-in", "loading"].includes(view);
+  const signedOut = ["signed-out", "signing-in", "loading", "confirm-sign-out"].includes(view);
   if (await panel.locator("#sign-out").count() !== (signedOut ? 0 : 1)) throw new Error(`Sign out ${signedOut ? "showed" : "was missing"} on the ${view} screen`);
   await panel.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  // Off every button, so no capture shows a hover state.
+  await panel.mouse.move(0, 0);
   for (const width of PANEL_WIDTHS) {
     await panel.setViewportSize({ width, height: 200 });
     const height = Math.max(360, await panel.evaluate(() => document.documentElement.scrollHeight));
@@ -210,6 +212,13 @@ async function main() {
       if (approvalTab === null) throw new Error("the worker never opened the UNTangle approval tab");
       const approvalCode = new URL(approvalTab.url()).searchParams.get("user_code");
       if (approvalCode !== shownCode) throw new Error(`the approval tab's code ${approvalCode} does not match the panel's ${shownCode}`);
+      // A student who closed that tab gets it back from the panel, and approves there.
+      await approvalTab.close();
+      const reopened = context.waitForEvent("page");
+      await panel.locator("#open-untangle").click();
+      approvalTab = await reopened;
+      await approvalTab.waitForLoadState();
+      if (new URL(approvalTab.url()).searchParams.get("user_code") !== shownCode) throw new Error(`Open UNTangle went to ${approvalTab.url()}`);
       await approvalTab.locator("#approve").click();
       await approvalTab.locator("#result").filter({ hasText: "Approved" }).waitFor({ timeout: 15000 });
       await onScreen(panel, "empty");
@@ -306,6 +315,11 @@ async function main() {
     if (!pendingKey) throw new Error("Confirmed add was not retained after a lost response");
     const operationId = stored[pendingKey].command.operationId;
     await shootPanel(panel, "waiting");
+    // With an add waiting, Sign out asks first and offers to sync instead.
+    await panel.locator("#sign-out").click();
+    await onScreen(panel, "confirm-sign-out", "Sign out before this add syncs?");
+    if (await panel.locator("#retry").count() !== 1 || await panel.locator("#discard-sign-out").count() !== 1) throw new Error("Sign-out confirmation lacks Sync now or Sign out and discard");
+    await shootPanel(panel, "confirm-sign-out");
     await settled(page, "SSR_CLSRCH_R1", "pending");
     await shootMarkers(page, "v1-markers-after-adds.png");
     await context.close();
@@ -366,6 +380,13 @@ async function main() {
     await restartedPanel.locator("#sign-out").click();
     await onScreen(restartedPanel, "signed-out");
     if (!(await observed()).requests.some(request => request.path === "/api/v1/device/revoke")) throw new Error("signing out did not revoke the grant on the server");
+    // Cancel ends a sign-in the student no longer wants.
+    await knobs({ holdApproval: true });
+    await restartedPanel.locator("#sign-in").click();
+    await onScreen(restartedPanel, "signing-in");
+    await restartedPanel.locator("#cancel-sign-in").click();
+    await onScreen(restartedPanel, "signed-out");
+    await knobs({ holdApproval: false });
     await restartedPanel.locator("#sign-in").click();
     await onScreen(restartedPanel, "signing-in");
     await onScreen(restartedPanel, "preview", "Foundations of Computing");
