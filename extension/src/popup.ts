@@ -313,6 +313,12 @@ function setBusy(id: string | null): void {
 }
 async function send(message: object, from?: string): Promise<void> {
   setBusy(from ?? null);
+  // A device sign-in holds the worker until the student approves in the
+  // UNTangle tab, so this request's own reply lands only after approval.
+  // A parallel status poll draws the matching code while the worker is busy;
+  // it stops on its own once a reply reports the worker is no longer working.
+  if ((message as { type?: string }).type === "panel/sign-in")
+    setTimeout(() => void send({ type: "panel/status" }), 300);
   try {
     const next: unknown = await chrome.runtime.sendMessage(message);
     if (!next || typeof next !== "object" || typeof (next as PanelState).signedIn !== "boolean")

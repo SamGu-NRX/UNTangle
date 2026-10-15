@@ -40,7 +40,7 @@ export interface SignInInput {
 
 interface PendingStart {
   deviceCode: string;
-  userCode: string;
+  verifier: string;
   intervalMs: number;
   deadline: number;
 }

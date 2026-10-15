@@ -39,7 +39,8 @@ type GrantState = {
   access: { token: string; expiresAt: number }[];
 };
 const grants = new Map<string, GrantState>();
-const opaque = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"[b % 64]).join("");
+// Exactly 43 base64url characters: the contract's opaque shape.
+const opaque = () => Array.from(crypto.getRandomValues(new Uint8Array(43)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"[b % 64]).join("");
 const base32 = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"[b & 31]).join("");
 async function issue(grant: GrantState): Promise<unknown> {
   const access = { token: opaque(), expiresAt: Date.now() + (accessExpiresInSeconds ?? 300) * 1000 };
@@ -184,14 +185,15 @@ Bun.serve({
       if (!parsed.success)
         return json({ error: "invalid_request" }, 400);
       const grant = [...grants.values()].find(candidate => candidate.refresh?.token === parsed.data.refreshToken);
-      if (!grant || grant.status !== "active")
+      const refresh = grant?.refresh;
+      if (!grant || !refresh || grant.status !== "active")
         return json({ error: "invalid_token" }, 401);
-      if (grant.refresh.used) {
+      if (refresh.used) {
         // Presenting a used refresh token revokes the whole grant.
         grant.status = "revoked";
         return json({ error: "invalid_token" }, 401);
       }
-      grant.refresh.used = true;
+      refresh.used = true;
       return json(await issue(grant));
     }
     if (path === "/api/v1/device/revoke" && request.method === "POST") {

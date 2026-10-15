@@ -6,10 +6,11 @@ import type { DeviceScopeName, DeviceTokenResponse, Preview } from "../src/share
 import type { PanelState } from "../src/shared/panel";
 import { StudentError } from "../src/shared/student-error";
 const ref = { term: "spring-2027", classNumber: "15802" };
-const tokens: DeviceTokenResponse = { accessToken: "token-a", refreshToken: "refresh-a", tokenType: "Bearer", expiresIn: 300, scopes: ["schedule:read", "schedule:add-option"] as DeviceScopeName[], grantId: "grant-a" };
+const tokens: DeviceTokenResponse = { accessToken: "a".repeat(43), refreshToken: "r".repeat(43), tokenType: "Bearer", expiresIn: 300, scopes: ["schedule:read", "schedule:add-option"] as DeviceScopeName[], grantId: "grant-a" };
+const storedGrant = { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, grantId: tokens.grantId, scopes: [...tokens.scopes], scheduleId: "main", accessExpiresAt: Date.now() + 300_000 };
 const projection: Preview = { scheduleId: "main", optionId: "section-15802", revision: 1, title: "ENGL 1310", conflict: "clear", details: [] };
 function fixture() {
-  const values: Record<string, unknown> = { "device-grant": { ...tokens, scheduleId: "main", accessExpiresAt: Date.now() + 300_000 }, "proposed-section": ref };
+  const values: Record<string, unknown> = { "device-grant": structuredClone(storedGrant), "proposed-section": ref };
   const store: LocalStore = { get: async (k) => structuredClone(values[k]), set: async (k, v) => { values[k] = structuredClone(v); }, remove: async (k) => { delete values[k]; }, all: async () => structuredClone(values) };
   let changes = 0;
   const api: PlannerApi = { preview: async () => projection, add: async () => null };

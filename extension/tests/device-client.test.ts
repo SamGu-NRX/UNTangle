@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { deviceGrantStarted, deviceTokenResponse, startDeviceGrant } from "../../../packages/contracts/src/device-grant";
+import { deviceGrantStarted, deviceTokenResponse, startDeviceGrant } from "../../packages/contracts/src/device-grant";
 import { DeviceClient, GrantRevoked, SignInCancelled, SignInDenied, SignInExpired } from "../src/lib/device-client";
-import { isTokenResponse } from "../src/shared/extension-api";
+import { isTokenResponse, type DeviceTokenResponse } from "../src/shared/extension-api";
 import { StudentError } from "../src/shared/student-error";
 import type { FetchLike } from "../src/lib/planner-client";
 import { fakeFetch, jsonResponse } from "./helpers";
@@ -13,14 +13,16 @@ const started = deviceGrantStarted.parse({
   expiresIn: 600,
   interval: 5,
 });
-const tokens = deviceTokenResponse.parse({
+// The extension only ever holds schedule scopes, so the fixture is typed as
+// the extension's DeviceTokenResponse and checked against the contract below.
+const tokens: DeviceTokenResponse = {
   accessToken: "a".repeat(43),
   refreshToken: "r".repeat(43),
   tokenType: "Bearer",
   expiresIn: 300,
   scopes: ["schedule:read", "schedule:add-option"],
   grantId: "grant-1",
-});
+};
 
 function makeClient(fetchImpl: FetchLike, panelOpen: () => boolean = () => true) {
   let now = 1_000_000;
@@ -39,7 +41,7 @@ function makeClient(fetchImpl: FetchLike, panelOpen: () => boolean = () => true)
 test("start follows the contract, opens the approval page with the user code, and exchanges with S256", async () => {
   let challenge = "";
   const codes: string[] = [];
-  const f = fakeFetch((index, request) => {
+  const f = fakeFetch(async (index, request) => {
     expect(request.init?.credentials).toBe("omit");
     const body = JSON.parse(String(request.init?.body));
     if (index === 0) {
@@ -70,26 +72,30 @@ test("start follows the contract, opens the approval page with the user code, an
 });
 
 test("polling honours the server interval and backs off on slow_down", async () => {
-  const f = fakeFetch(index => jsonResponse(index === 0 ? { error: "authorization_pending" } : index === 1 ? { error: "slow_down" } : index === 2 ? { error: "authorization_pending" } : tokens));
+  // Request 0 is /device/start; the token polls follow.
+  const f = fakeFetch(index => jsonResponse(index === 0 ? started : index === 1 ? { error: "authorization_pending" } : index === 2 ? { error: "slow_down" } : index === 3 ? { error: "authorization_pending" } : tokens, index > 0 && index < 4 ? 400 : 200));
   const h = makeClient(f.fetchImpl);
   await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).resolves.toEqual(tokens);
   expect(h.waits).toEqual([5000, 5000, 10000, 10000]);
 });
 
 test("a denied approval stops after one poll with the denied error", async () => {
-  const f = fakeFetch(() => jsonResponse({ error: "access_denied" }, 400));
+  const f = fakeFetch(index => jsonResponse(index === 0 ? started : { error: "access_denied" }, index === 0 ? 200 : 400));
   const h = makeClient(f.fetchImpl);
   await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInDenied);
   expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(1);
 });
 
 test("polling stops at the deadline even while the server says pending", async () => {
+  // 3s expiry, 1s interval: polls land at t=1s and t=2s, and t=3s IS the
+  // deadline, so the poll stops without a third call.
   const expiring = deviceGrantStarted.parse({ ...started, expiresIn: 3, interval: 1 });
   const f = fakeFetch(index => jsonResponse(index === 0 ? expiring : { error: "authorization_pending" }, index === 0 ? 200 : 400));
   const h = makeClient(f.fetchImpl);
   await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInExpired);
+  // The final sleep lands on the deadline; no third token call happens.
   expect(h.waits).toEqual([1000, 1000, 1000]);
-  expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(3);
+  expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(2);
 });
 
 test("a transport hiccup keeps polling until the deadline", async () => {
@@ -101,7 +107,8 @@ test("a transport hiccup keeps polling until the deadline", async () => {
   });
   const h = makeClient(f.fetchImpl);
   await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInExpired);
-  expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(3);
+  expect(h.waits).toEqual([1000, 1000, 1000]);
+  expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(2);
 });
 
 test("closing the trusted panel stops the poll", async () => {
@@ -117,6 +124,8 @@ test("closing the trusted panel stops the poll", async () => {
 });
 
 test("a malformed token payload never signs in", async () => {
+  // The fixture is a valid contract token response, not just a TS shape.
+  expect(deviceTokenResponse.safeParse(tokens).success).toBe(true);
   expect(isTokenResponse(tokens)).toBe(true);
   expect(isTokenResponse({ ...tokens, accessToken: "short" })).toBe(false);
   expect(isTokenResponse({ ...tokens, tokenType: "bearer" })).toBe(false);
@@ -138,7 +147,7 @@ test("an approval page on another origin or path is never opened", async () => {
 });
 
 test("refresh sends only the refresh token, validates the pair, and maps a rejected grant to sign-out", async () => {
-  const ok = fakeFetch(request => {
+  const ok = fakeFetch((_index, request) => {
     expect(request.init?.credentials).toBe("omit");
     expect(JSON.parse(String(request.init?.body))).toEqual({ refreshToken: tokens.refreshToken });
     return jsonResponse(tokens);
@@ -152,7 +161,7 @@ test("refresh sends only the refresh token, validates the pair, and maps a rejec
 });
 
 test("revoke presents the access token as a bearer credential and treats a dead grant as done", async () => {
-  const f = fakeFetch(request => {
+  const f = fakeFetch((_index, request) => {
     expect(request.init?.method).toBe("POST");
     expect(request.init?.credentials).toBe("omit");
     expect(new Headers(request.init?.headers).get("Authorization")).toBe(`Bearer ${tokens.accessToken}`);

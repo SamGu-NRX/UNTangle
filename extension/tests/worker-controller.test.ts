@@ -7,13 +7,20 @@ import type { AddOptionCommand, DeviceScopeName, DeviceTokenResponse, Preview, S
 import type { PanelState } from "../src/shared/panel";
 import { StudentError } from "../src/shared/student-error";
 const ref = { term: "spring-2027", classNumber: "15802" };
-const tokens: DeviceTokenResponse = { accessToken: "token-a", refreshToken: "refresh-a", tokenType: "Bearer", expiresIn: 300, scopes: ["schedule:read", "schedule:add-option"] as DeviceScopeName[], grantId: "grant-a" };
+// Opaque tokens are 43-character base64url strings per the validators.
+const tokenA = "a".repeat(43);
+const tokenB = "b".repeat(43);
+const refreshA = "r".repeat(43);
+const refreshB = "s".repeat(43);
+const tokens: DeviceTokenResponse = { accessToken: tokenA, refreshToken: refreshA, tokenType: "Bearer", expiresIn: 300, scopes: ["schedule:read", "schedule:add-option"] as DeviceScopeName[], grantId: "grant-a" };
+// Exactly the six stored fields; extra fields would fail isStoredGrant.
+const storedGrant: StoredGrant = { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, grantId: tokens.grantId, scopes: [...tokens.scopes], scheduleId: "main", accessExpiresAt: 1_000_000 + 300_000 };
 const projection: Preview = { scheduleId: "main", optionId: "section-15802", revision: 1, title: "ENGL 1310", conflict: "clear", details: ["Work on Tuesday"] };
 function fixture() {
   let now = 1_000_000;
   // The seeded grant's access token lives 300s from `now`, comfortably above
   // the refresh margin; tests that exercise expiry overwrite it.
-  const values: Record<string, unknown> = { "device-grant": { ...tokens, scheduleId: "main", accessExpiresAt: now + 300_000 }, "proposed-section": ref };
+  const values: Record<string, unknown> = { "device-grant": structuredClone(storedGrant), "proposed-section": ref };
   const store: LocalStore = { get: async (k) => structuredClone(values[k]), set: async (k, v) => { values[k] = structuredClone(v); }, remove: async (k) => { delete values[k]; }, all: async () => structuredClone(values) };
   const sent: AddOptionCommand[] = [];
   const revoked: string[] = [];
@@ -21,8 +28,8 @@ function fixture() {
   let changes = 0;
   const api: PlannerApi = { preview: async () => projection, add: async (command) => { sent.push(command); return { kind: "receipt", operationId: command.operationId, committedRevision: 2 }; } };
   const auth: DeviceAuth = {
-    signIn: async () => ({ ...tokens, grantId: "renewed", accessToken: "token-b", refreshToken: "refresh-b" }),
-    refresh: async (refreshToken) => { refreshes.push(refreshToken); return { ...tokens, accessToken: "token-b", refreshToken: "refresh-b" }; },
+    signIn: async () => ({ ...tokens, grantId: "renewed", accessToken: tokenB, refreshToken: refreshB }),
+    refresh: async (refreshToken) => { refreshes.push(refreshToken); return { ...tokens, accessToken: tokenB, refreshToken: refreshB }; },
     revoke: async (accessToken) => { revoked.push(accessToken); },
   };
   const make = () => new WorkerController(store, api, auth, async () => { changes++; }, () => now);
@@ -102,8 +109,13 @@ test("a lapsed sign-in reveals sign-in while preserving the pending operation", 
   expect(Object.keys(await f.store.all()).filter(k => k.startsWith("add:"))).toHaveLength(1);
   f.api.add = async (command) => { f.sent.push(command); return { kind: "receipt", operationId: command.operationId, committedRevision: 2 }; };
   await worker.handle({ type: "panel/sign-in" });
-  expect(f.sent).toHaveLength(1);
   expect((await state(worker)).signedIn).toBe(true);
+  // A fresh device sign-in mints a NEW grant, so the old grant's add is
+  // never replayed under the new token; it stays stored for its own grant
+  // (the panel's pending count covers only the signed-in grant's adds).
+  expect(f.sent).toHaveLength(0);
+  expect(Object.keys(await f.store.all()).filter(k => k.startsWith("add:"))).toHaveLength(1);
+  expect((await state(worker)).pending).toBe(0);
 });
 test("another grant cannot replay or be blocked by a previous grant's pending command", async () => {
   const f = fixture();
@@ -112,7 +124,7 @@ test("another grant cannot replay or be blocked by a previous grant's pending co
   await worker.start();
   const current = await state(worker);
   await worker.handle({ type: "panel/confirm", previewId: current.preview!.previewId });
-  f.auth.signIn = async () => ({ ...tokens, grantId: "grant-b", accessToken: "token-b", refreshToken: "refresh-b" });
+  f.auth.signIn = async () => ({ ...tokens, grantId: "grant-b", accessToken: tokenB, refreshToken: refreshB });
   f.api.add = async (command) => { f.sent.push(command); return { kind: "receipt", operationId: command.operationId, committedRevision: 2 }; };
   await worker.handle({ type: "panel/sign-in" });
   expect(f.sent).toEqual([]);
@@ -142,16 +154,18 @@ test("an access token inside the refresh margin refreshes before use, and a fres
   await worker.start();
   await state(worker);
   expect(f.refreshes).toEqual([]);
-  expect(seen).toEqual(["token-a"]);
+  expect(seen).toEqual([tokenA]);
   // 300s life minus 271s leaves 29s: inside the 30s margin, so the next use
   // rotates the pair first and the planner sees only the new token.
   f.advance(271_000);
-  expect(await state(worker)).toMatchObject({ signedIn: true });
-  expect(f.refreshes).toEqual(["refresh-a"]);
-  expect(seen).toEqual(["token-a", "token-b"]);
+  // A marker request goes through session(): inside the 30-second margin it
+  // must rotate the pair before presenting anything to the planner.
+  await worker.handle({ type: "marker/request", ref });
+  expect(f.refreshes).toEqual([refreshA]);
+  expect(seen).toEqual([tokenA, tokenB]);
   const stored = (await f.store.get("device-grant")) as StoredGrant;
-  expect(stored.accessToken).toBe("token-b");
-  expect(stored.refreshToken).toBe("refresh-b");
+  expect(stored.accessToken).toBe(tokenB);
+  expect(stored.refreshToken).toBe(refreshB);
   expect(stored.accessExpiresAt).toBe(f.now() + 300_000);
 });
 test("concurrent uses share one refresh, so the server never sees a reused token", async () => {
@@ -161,7 +175,7 @@ test("concurrent uses share one refresh, so the server never sees a reused token
   const gate = new Promise<void>(resolve => { release = resolve; });
   f.auth.refresh = async () => { refreshCount++; await gate; return { ...tokens, accessToken: "token-b", refreshToken: "refresh-b" }; };
   // Seed a grant already inside the margin, so any session() call refreshes.
-  await f.store.set("device-grant", { ...tokens, scheduleId: "main", accessExpiresAt: f.now() + 5_000 });
+  await f.store.set("device-grant", { ...structuredClone(storedGrant), accessExpiresAt: f.now() + 5_000 });
   const worker = f.make();
   const started = worker.start();
   // Both markers must join the in-flight rotation instead of starting another.
@@ -175,7 +189,7 @@ test("concurrent uses share one refresh, so the server never sees a reused token
 });
 test("a dead refresh token signs out, clears storage, and sign-in works again", async () => {
   const f = fixture();
-  await f.store.set("device-grant", { ...tokens, scheduleId: "main", accessExpiresAt: f.now() + 5_000 });
+  await f.store.set("device-grant", { ...structuredClone(storedGrant), accessExpiresAt: f.now() + 5_000 });
   f.auth.refresh = async () => { throw new GrantRevoked(); };
   f.api.preview = async () => { throw new Error("session() must throw before any authenticated call"); };
   const worker = f.make();
@@ -186,11 +200,11 @@ test("a dead refresh token signs out, clears storage, and sign-in works again", 
   f.auth.signIn = async () => ({ ...tokens });
   await worker.handle({ type: "panel/sign-in" });
   expect((await state(worker)).signedIn).toBe(true);
-  expect(await f.store.get("device-grant")).toMatchObject({ accessToken: "token-a", grantId: "grant-a" });
+  expect(await f.store.get("device-grant")).toMatchObject({ accessToken: tokenA, grantId: "grant-a" });
 });
 test("an unreachable refresh keeps the grant and reports the outage, not sign-out", async () => {
   const f = fixture();
-  await f.store.set("device-grant", { ...tokens, scheduleId: "main", accessExpiresAt: f.now() + 5_000 });
+  await f.store.set("device-grant", { ...structuredClone(storedGrant), accessExpiresAt: f.now() + 5_000 });
   f.auth.refresh = async () => { throw new StudentError("Couldn't reach UNTangle. Check your connection and retry."); };
   const worker = f.make();
   await worker.start();
@@ -199,7 +213,7 @@ test("an unreachable refresh keeps the grant and reports the outage, not sign-ou
   expect(reply.signedIn).toBe(true);
   expect(reply.outcome).toBe("error");
   expect(reply.notice).toBe("Couldn't reach UNTangle. Check your connection and retry.");
-  expect(await f.store.get("device-grant")).toMatchObject({ accessToken: "token-a" });
+  expect(await f.store.get("device-grant")).toMatchObject({ accessToken: tokenA });
 });
 test("signing out revokes the grant and clears the tokens even if the server cannot be reached", async () => {
   const f = fixture();
@@ -207,7 +221,7 @@ test("signing out revokes the grant and clears the tokens even if the server can
   const worker = f.make();
   await worker.start();
   await worker.handle({ type: "panel/sign-out" });
-  expect(f.revoked).toEqual(["token-a"]);
+  expect(f.revoked).toEqual([tokenA]);
   expect((await state(worker)).signedIn).toBe(false);
   expect(await f.store.get("device-grant")).toBeUndefined();
 });
