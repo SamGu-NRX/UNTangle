@@ -170,7 +170,7 @@ describe("auth security events revoke actual device access and refresh tokens", 
     expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
   });
 
-  test("sign out everywhere revokes every mobile and extension token for that account", async () => {
+  test("sign out everywhere ends every mobile and extension token, and also ends the current browser session", async () => {
     const { t, cookie, seed } = await fixture();
     const assertRevoked = await seed();
     expect((await t.post("/revoke-sessions", {}, cookie)).status).toBe(200);
@@ -797,17 +797,79 @@ describe("third review: credential writes, stale sessions and refusals", () => {
     expect(credentials()).toHaveLength(1);
   });
 
-  test("a sign-out the endpoint fails moves no generation", async () => {
-    const { t, cookie, ctx, service, userId } = await harness();
-    const before = await service.readSecurityGeneration(userId);
-    const original = ctx.internalAdapter.deleteSessions;
-    ctx.internalAdapter.deleteSessions = async () => { throw new Error("session store unavailable"); };
+  /**
+   * better-auth 1.5.5 looks up the rows for its delete hooks inside a silent
+   * try/catch: if that lookup fails, the hooks are skipped and the delete
+   * still runs. This fails that lookup for sessions and reports when the
+   * sessions are gone, so a sign-out can't rely on a delete hook.
+   */
+  function blindDeleteHooks(ctx: Awaited<ReturnType<typeof harness>>["ctx"]) {
+    const adapter = ctx.adapter as unknown as {
+      findMany: (input: { model: string; where?: { field: string }[] }) => Promise<unknown>;
+      deleteMany: (input: { model: string }) => Promise<unknown>;
+    };
+    const { findMany, deleteMany } = adapter;
+    const deleted = deferred(), release = deferred();
+    let paused = false;
+    adapter.findMany = async (input) => {
+      if (input.model === "session" && input.where?.some((clause) => clause.field === "userId")) throw new Error("session lookup failed");
+      return findMany(input);
+    };
+    adapter.deleteMany = async (input) => {
+      const result = await deleteMany(input);
+      if (input.model === "session" && !paused) { paused = true; deleted.resolve(); await release.promise; }
+      return result;
+    };
+    return { deleted, release, restore: () => { adapter.findMany = findMany; adapter.deleteMany = deleteMany; release.resolve(); } };
+  }
+
+  test("a device token used after a sign-out deleted sessions, but before its after hook, is refused", async () => {
+    const { t, cookie, service, userId, hasSession, ctx } = await harness();
+    const tokens = await devices(service, userId);
+    const blind = blindDeleteHooks(ctx);
+    const signOut = t.post("/revoke-sessions", {}, cookie);
     try {
-      expect((await t.post("/revoke-sessions", {}, cookie)).status).toBe(500);
-    } finally { ctx.internalAdapter.deleteSessions = original; }
+      await blind.deleted.promise;
+      expect(hasSession(cookie)).toBe(false);
+      for (const token of tokens) {
+        await expect(service.authenticate(token.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
+        await expect(service.refresh(token.refreshToken)).rejects.toMatchObject({ code: "invalid_token" });
+      }
+    } finally { blind.restore(); }
+    expect((await signOut).status).toBe(200);
+  });
+
+  test("a sign-out that fails after deleting sessions leaves no device token usable", async () => {
+    const { t, cookie, service, userId, store, hasSession, ctx } = await harness();
+    const tokens = await devices(service, userId);
+    const blind = blindDeleteHooks(ctx);
+    // Every security-store write fails from the moment the sessions are gone.
+    const { beginSecurityChange, finishSecurityChange } = store;
+    let failing = false;
+    void blind.deleted.promise.then(() => { failing = true; blind.release.resolve(); });
+    store.beginSecurityChange = async (...args) => { if (failing) throw new Error("generation store unavailable"); return beginSecurityChange.apply(store, args); };
+    store.finishSecurityChange = async (...args) => { if (failing) throw new Error("generation store unavailable"); return finishSecurityChange.apply(store, args); };
+    try {
+      expect((await t.post("/revoke-sessions", {}, cookie)).status).toBeGreaterThanOrEqual(500);
+    } finally { blind.restore(); store.beginSecurityChange = beginSecurityChange; store.finishSecurityChange = finishSecurityChange; }
+    expect(hasSession(cookie)).toBe(false);
+    for (const token of tokens) await expect(service.authenticate(token.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
+  });
+
+  test.each(["/revoke-sessions", "/revoke-other-sessions"])("a %s whose change can't open deletes nothing", async (path) => {
+    const { t, cookie, service, userId, store, hasSession } = await harness();
+    const other = await otpSignIn(t);
+    const tokens = await devices(service, userId);
+    const before = await service.readSecurityGeneration(userId);
+    const original = store.beginSecurityChange.bind(store);
+    store.beginSecurityChange = async () => { throw new Error("generation store unavailable"); };
+    try {
+      expect((await t.post(path, {}, cookie)).status).toBe(500);
+    } finally { store.beginSecurityChange = original; }
+    expect(hasSession(cookie)).toBe(true);
+    expect(hasSession(other)).toBe(true);
     expect(await service.readSecurityGeneration(userId)).toBe(before);
-    expect((await t.post("/revoke-sessions", {}, cookie)).status).toBe(200);
-    expect(await service.readSecurityGeneration(userId)).toBeGreaterThan(before);
+    for (const token of [tokens[1], tokens[3]]) expect((await service.authenticate(token.accessToken)).userId).toBe(userId);
   });
 
   test("a password write that fails closes its change instead of locking the account until the timeout", async () => {

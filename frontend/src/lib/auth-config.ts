@@ -1,6 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { timingSafeEqual } from "node:crypto";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { emailOTP, magicLink } from "better-auth/plugins";
 import type { AuthEmailKind } from "@/lib/auth-email";
 import { EmailBudgetExceeded } from "@/lib/email-budget";
@@ -105,7 +105,7 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
   const sessionStamps = new WeakMap<object, number>();
   const resets = new WeakMap<object, Change>();
   const passwordChanges = new WeakMap<object, Change & { callerToken: string | null }>();
-  const signOutChanges = new WeakMap<object, Promise<Change>>();
+  const signOutChanges = new WeakMap<object, Change & { callerToken: string }>();
 
   type SessionWriter = { updateSession: (token: string, data: Record<string, unknown>) => Promise<unknown> };
   /** The one place a device-store refusal becomes an HTTP answer; anything else is rethrown. */
@@ -182,18 +182,6 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
     await finishChange(change.userId, change.changeId);
   }
 
-  /**
-   * A change made by a signed-in caller (sign-outs, setting a password):
-   * refused, with no bump, unless the caller's session is on the current
-   * generation. With `keepCaller`, the caller's session moves to the
-   * generation the change finishes at. That write happens while the change
-   * is open, when no reader can judge the session stale.
-   */
-  async function callerChange(caller: { token: string; userId: string }, adapter: { updateSession: (token: string, data: Record<string, unknown>) => Promise<unknown> }, keepCaller: boolean, opened?: Change) {
-    const change = opened ?? await openChange(caller.userId, stampOf(caller));
-    if (keepCaller && tracksChanges) await adapter.updateSession(caller.token, { securityGeneration: change.generation + 1 });
-    await finishChange(caller.userId, change.changeId);
-  }
 
   return betterAuth({
     ...options,
@@ -237,22 +225,6 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
         },
       },
       session: {
-        delete: {
-          // A sign-out opens its change here: after the endpoint's own session
-          // check, and before the first session is deleted. If the change is
-          // refused or fails, nothing has been signed out.
-          before: async (_session, ctx) => {
-            if (ctx?.path !== "/revoke-sessions" && ctx?.path !== "/revoke-other-sessions") return;
-            const caller = ctx.context.session?.session;
-            if (!caller) throw new Error(`${ctx.path} is deleting sessions without a caller.`);
-            // getSession deletes an expired caller's own session on these paths,
-            // then the endpoint refuses. That delete opens nothing.
-            if (new Date(caller.expiresAt) < new Date()) return;
-            let change = signOutChanges.get(ctx.context);
-            if (!change) signOutChanges.set(ctx.context, change = openChange(caller.userId, stampOf(caller)));
-            await change;
-          },
-        },
         create: {
           before: async (session, ctx) => {
             if (ctx?.path === "/sign-in/email-otp") {
@@ -393,12 +365,16 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           return;
         }
 
-        // better-auth's /revoke-sessions turns any error from its delete into
-        // a 500, so a sign-out during an open change is refused here first.
-        if ((ctx.path === "/revoke-sessions" || ctx.path === "/revoke-other-sessions") && tracksChanges) {
-          const token = await ctx.getSignedCookie(ctx.context.authCookies.sessionToken.name, ctx.context.secret);
-          const found = token ? await ctx.context.internalAdapter.findSession(token) : null;
-          if (found) await generationOf(found.user.id);
+        // A sign-out opens its change before better-auth deletes anything, so
+        // device grants end before any session does. If the change can't
+        // open, the request fails and nothing is deleted. This hook runs
+        // before the endpoint's sensitiveSessionMiddleware, so it makes the
+        // same check first (a live session, read past the cookie cache): a
+        // request the middleware will refuse opens nothing.
+        if (ctx.path === "/revoke-sessions" || ctx.path === "/revoke-other-sessions") {
+          const caller = await getSessionFromCtx(ctx, { disableCookieCache: true });
+          if (caller) signOutChanges.set(ctx.context, { ...await openChange(caller.user.id, stampOf(caller.session)), callerToken: caller.session.token });
+          return;
         }
         if (ctx.path === "/reset-password") {
           const token = ctx.body?.token || ctx.query?.token;
@@ -495,12 +471,17 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           // including when the password changed but the generation store is unavailable.
           await finishChange(reset.userId, reset.changeId);
         }
-        // A sign-out finishes the change its first session delete opened, or,
-        // when there was nothing to delete, opens and finishes one here.
-        if ((ctx.path === "/revoke-sessions" || ctx.path === "/revoke-other-sessions") && result && typeof result === "object" && "status" in result && result.status === true) {
-          const caller = ctx.context.session?.session;
-          // "Other sessions" keeps the caller's, on the new generation.
-          if (caller) await callerChange(caller, ctx.context.internalAdapter, ctx.path === "/revoke-other-sessions", await signOutChanges.get(ctx.context));
+        // A sign-out finishes its change whether or not the endpoint
+        // succeeded: the opening bump has already ended the account's device
+        // grants, and finishing keeps the account from being blocked until the
+        // timeout. "Sign out everywhere" ends this browser's session too.
+        // "Other sessions" keeps the caller's, on the new generation.
+        const signOut = signOutChanges.get(ctx.context);
+        if (signOut) {
+          signOutChanges.delete(ctx.context);
+          if (ctx.path === "/revoke-other-sessions" && tracksChanges)
+            await ctx.context.internalAdapter.updateSession(signOut.callerToken, { securityGeneration: signOut.generation + 1 });
+          await finishChange(signOut.userId, signOut.changeId);
         }
         const change = passwordChanges.get(ctx.context);
         if (ctx.path === "/change-password" && change && result && typeof result === "object" && "user" in result) {
