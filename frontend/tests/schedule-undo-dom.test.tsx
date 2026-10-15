@@ -65,9 +65,9 @@ test("Undo control restores the student's stored picks in the rendered week", as
 });
 
 test("the other-campus action uses the shipped Day navigation label", async () => {
-  const { OtherCampusEmpty } = await import("@/components/map/map-itinerary");
+  const { OtherCampusHero } = await import("@/components/map/day-panel");
   const { mount } = await import("./ui/dom");
-  const view = await mount(<OtherCampusEmpty campusName="UT Austin" homeName="UNT" />);
+  const view = await mount(<OtherCampusHero campusName="UT Austin" homeName="UNT" />);
   try {
     const link = view.container.querySelector("a");
     expect(link?.textContent?.trim()).toBe("Day");
