@@ -1,0 +1,44 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Swimming & Diving
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T162152Z
+UID:tag:localist.com\,2008:EventInstance_53308284235166
+DTSTART;VALUE=DATE:20260918
+DESCRIPTION:UNT Swimming and Diving is hosting a exhibition match\, Green t
+ eam vs. White team!\n\nSeason match schedule available here.
+GEO:33.210899;-97.152806
+LOCATION:Pohl Recreation Center\, Natatorium
+SUMMARY:UNT Swimming and Diving: Green vs. White
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-swim
+ ming-and-diving-vs-green-vs-white-6523
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162152Z
+UID:tag:localist.com\,2008:EventInstance_53308284254627
+DTSTART;VALUE=DATE:20260926
+DESCRIPTION:UNT Swimming and Diving at the OSU Sam Freas Invitational. Go M
+ ean Green!\n\nSeason match schedule available here.
+LOCATION:Norman\, OK
+SUMMARY:UNT Swimming and Diving at Sam Freas Invitational
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-swim
+ ming-and-diving-vs-sam-freas-invite-443
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162152Z
+UID:tag:localist.com\,2008:EventInstance_53308284266920
+DTSTART;VALUE=DATE:20261009
+DESCRIPTION:UNT Swimming and Diving at New Mexico State. Go Mean Green!\n\n
+ Season match schedule available here.
+LOCATION:Las Cruces\, New Mexico
+SUMMARY:UNT Swimming and Diving at New Mexico State
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-swim
+ ming-and-diving-at-new-mexico-state-6922
+CATEGORIES:Athletics
+END:VEVENT
+END:VCALENDAR

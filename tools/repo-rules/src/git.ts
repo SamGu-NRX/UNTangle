@@ -53,21 +53,11 @@ export function changedFiles(repoDir: string, from: string, to: string): FileCha
   return changes;
 }
 
-/** Labels from the PR_LABELS variable, a JSON array of names. */
-export function labelsFromEnv(value: string | undefined): string[] {
-  if (value === undefined || value === "") return [];
-  const parsed: unknown = JSON.parse(value);
-  if (!Array.isArray(parsed) || !parsed.every((label): label is string => typeof label === "string")) {
-    throw new Error(`PR_LABELS must be a JSON array of strings, got ${value}`);
-  }
-  return parsed;
-}
-
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Set ${name}.`);
   return value;
 }
 
-/** The label that lifts both PR checks. Only the lead adds it. */
-export const LEAD_APPROVED = "lead-approved";
+/** What a failed PR check prints last: who can lift it, and how. */
+export const LIFTED_BY = "Only Sam's approving review of the PR's current commit lifts this check.";

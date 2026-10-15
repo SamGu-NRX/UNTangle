@@ -1,6 +1,6 @@
 UNTangle pathing report: Computer Science, BS (2026-2027)
 Plan source: https://catalog.unt.edu/preview_program.php?catoid=37&poid=18560, copied 2026-10-14
-Catalog rows: 656; unparseable rows: 0; prerequisite parse gaps: 226 (full 430, partial 168, unknown 58)
+Catalog rows: 656; unparseable rows: 0; prerequisite parse gaps: 222 (full 434, partial 164, unknown 58)
 Transcript, all grade A: CSCE 1010, CSCE 1015, CSCE 1030, CSCE 1040, CSCE 2100, MATH 1710, MATH 1720
 Remaining critical path: 4 terms
 
@@ -21,15 +21,13 @@ Requirements:
   4000-level TECM: 0 of 3 hours done; 3 terms left
 
 Recommended next term (credit target 15):
-  1. ENGL 1310 (3 cr): Needed for TECM 2700; 4 remaining courses wait on it; on the longest remaining chain (4 terms)
-  2. CSCE 3550 (3 cr): Required (Major requirements)
-  3. MATH 2700 (3 cr): Required (Other required courses)
-  4. MATH 1780 (3 cr): Counts toward Probability or statistics, 0 of 1 course done
-  5. BIOL 1132 (3 cr): Counts toward Laboratory science, 0 of 2 courses done
+  1. CSCE 2110 (3 cr): Required (Major requirements); unlocks CSCE 3444, CSCE 3600, CSCE 4110 and 3 more; 10 remaining courses wait on it; on the longest remaining chain (4 terms)
+  2. ENGL 1310 (3 cr): Needed for TECM 2700; 4 remaining courses wait on it; on the longest remaining chain (4 terms)
+  3. CSCE 3550 (3 cr): Required (Major requirements)
+  4. MATH 2700 (3 cr): Required (Other required courses)
+  5. MATH 1780 (3 cr): Counts toward Probability or statistics, 0 of 1 course done
 
 One term away, but status unknown until an advisor clears the engine's check:
-  CSCE 2110: Required (Major requirements); unlocks CSCE 3444, CSCE 3600, CSCE 4110 and 3 more; 10 remaining courses wait on it; on the longest remaining chain (4 terms)
-    engine: Check with advisor: This course can be taken concurrently with CSCE 2100
   CSCE 2610: Required (Major requirements)
     engine: Check with advisor: CSCI majors: EENG 2710
     engine: Check with advisor: CMPE majors: EENG 2710 taken concurrently with EENG 2711
@@ -44,7 +42,7 @@ Remaining-path courses (id | status | chain | critical | unlocks direct/transiti
   BIOL 1710 | eligible | 1 | no | 0/0
   BIOL 1720 | eligible | 1 | no | 0/0
   BIOL 1760 | eligible | 1 | no | 0/0
-  CSCE 2110 | unknown | 1 | yes | 6/10
+  CSCE 2110 | eligible | 1 | yes | 6/10
   CSCE 2610 | unknown | 1 | no | 0/0
   CSCE 3444 | locked | 2 | yes | 1/2
   CSCE 3530 | locked | 3 | no | 0/0

@@ -1,9 +1,9 @@
 import { GradesMcpClient } from "./client";
-import { GradesDiskCache } from "./cache";
+import type { GradesCache } from "./cache";
 import { GradesError, NoHistoryError, malformed } from "./errors";
 import { courseInput, instructorInput, searchInput, parseCoursePage, parseInstructorPage, parseSearch } from "./parse";
 import type { CoursePage, InstructorPage } from "./parse";
-import { normalizeCourse, sumCounts, totals } from "./normalize";
+import { gradeGpa, normalizeCourse, sumCounts, totals } from "./normalize";
 import type { CourseHistory, GradeSearch, HistoryResult, InstructorHistory } from "./types";
 
 export function failure<T>(error: unknown): HistoryResult<T> {
@@ -55,7 +55,7 @@ async function loadGeneration<T extends Page>(load: (offset: number) => Promise<
 
 export class GradesHistoryService {
   private readonly pending = new Map<string, Promise<unknown>>();
-  constructor(private readonly client: GradesMcpClient, private readonly cache: GradesDiskCache) {}
+  constructor(private readonly client: GradesMcpClient, private readonly cache: GradesCache) {}
 
   private async cached<T>(key: string, load: () => Promise<unknown>, parse: (value: unknown) => T): Promise<T> {
     let request = this.pending.get(key);
@@ -141,7 +141,8 @@ export class GradesHistoryService {
           if (!sections.length) malformed("instructor course sections", "at least one section for the listed instructor");
           courses.push(normalizeCourse(full.course, sections));
         }
-        return { instructor: identity, courses, ...totals(sumCounts(courses.map((c) => c.counts))) };
+        const counts = sumCounts(courses.map((c) => c.counts));
+        return { instructor: identity, courses, ...totals(counts), gpa: gradeGpa(counts) };
       } catch (error) {
         if (error instanceof GradesError && error.reason === "malformed") await this.cache.remove(key);
         throw error;

@@ -86,14 +86,14 @@
   {
     "courseId": "CSCE2100",
     "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): MATH 1710 . Can be taken concurrently with CSCE 2110 .",
-    "coverage": "partial",
-    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),coreq(MATH 1710),unknown)"
+    "coverage": "full",
+    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),coreq(MATH 1710))"
   },
   {
     "courseId": "CSCE2110",
     "source": "CSCE 1040 or CSCE 1045 , with a grade of C or better. Corequisite(s): This course can be taken concurrently with CSCE 2100 .",
-    "coverage": "partial",
-    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)),coreq(unknown))"
+    "coverage": "full",
+    "expected": "and(or(grade:C(CSCE 1040),grade:C(CSCE 1045)))"
   },
   {
     "courseId": "CSCE2900",

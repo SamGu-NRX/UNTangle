@@ -1,4 +1,5 @@
-import { index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -127,7 +128,66 @@ export const authRateLimits = pgTable("auth_rate_limit", {
   key: text("key").notNull().unique(),
   count: integer("count").notNull(),
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+}, (table) => [index("auth_rate_limit_last_request_idx").on(table.lastRequest)]);
+
+export const gradesHistoryCache = pgTable("grades_history_cache", {
+  key: text("key").primaryKey(),
+  // The envelope holds JSON null for confirmed absence without using SQL NULL.
+  record: jsonb("record").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+// Every untgrades caller locks the same row before checking or spending the budget.
+export const gradesHistoryBudget = pgTable("grades_history_budget", {
+  source: text("source").primaryKey(),
+  nextPermitAt: timestamp("next_permit_at", { withTimezone: true }).notNull(),
+  cooldownUntil: timestamp("cooldown_until", { withTimezone: true }).notNull(),
+  sentAt: bigint("sent_at", { mode: "number" }).array().notNull(),
+});
+
+export const documents = pgTable("documents", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  id: text("id").notNull(),
+  kind: text("kind").notNull(),
+  institutionId: text("institution_id").notNull(),
+  revision: integer("revision").notNull(),
+  body: jsonb("body"),
+  deleted: boolean("deleted").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.id] }),
+  check("documents_kind", sql`${table.kind} in ('academic-record', 'schedule', 'preferences')`),
+  check("documents_revision", sql`${table.revision} > 0`),
+  check("documents_tombstone", sql`${table.deleted} = (${table.body} is null)`),
+]);
+
+export const receipts = pgTable("receipts", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  operationId: text("operation_id").notNull(),
+  writeSha256: text("write_sha256").notNull(),
+  committedRevision: integer("committed_revision").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.operationId] }),
+  check("receipts_hash", sql`${table.writeSha256} ~ '^[0-9a-f]{64}$'`),
+  check("receipts_revision", sql`${table.committedRevision} > 0`),
+]);
+
+// Versions have no update path. The migration also rejects direct SQL updates.
+export const versions = pgTable("versions", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  id: text("id").notNull(),
+  institutionId: text("institution_id").notNull(),
+  scheduleId: text("schedule_id").notNull(),
+  reason: text("reason").notNull(),
+  body: jsonb("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.id] }),
+  index("versions_user_created_idx").on(table.userId, table.createdAt.desc(), table.id.desc()),
+  index("versions_schedule_created_idx").on(table.userId, table.scheduleId, table.createdAt.desc(), table.id.desc()),
+  check("versions_reason", sql`${table.reason} in ('before-auto', 'restore-point', 'import')`),
+]);
 
 // Epoch milliseconds avoid the timezone ambiguity of timestamp without time zone.
 export const deviceSecurity = pgTable("device_security", {
@@ -169,4 +229,9 @@ export const schema = {
   plannerStates,
   apiRateLimits,
   authRateLimits,
+  gradesHistoryCache,
+  gradesHistoryBudget,
+  documents,
+  receipts,
+  versions,
 };

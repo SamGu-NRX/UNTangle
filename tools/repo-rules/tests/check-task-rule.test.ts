@@ -81,13 +81,9 @@ describe("the check, run against real commits", () => {
   afterEach(() => cleanup());
 
   const script = path.resolve(import.meta.dir, "../src/check-task-rule.ts");
-  function check(labels: string[] = []) {
+  function check() {
     const head = git(dir, ["rev-parse", "HEAD"]);
-    return run([process.execPath, "--no-env-file", script], dir, {
-      BASE_SHA: "base",
-      HEAD_SHA: head,
-      PR_LABELS: JSON.stringify(labels),
-    });
+    return run([process.execPath, "--no-env-file", script], dir, { BASE_SHA: "base", HEAD_SHA: head });
   }
 
   test("passes a PR that deletes its line and adds the implementation", () => {
@@ -126,11 +122,12 @@ describe("the check, run against real commits", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  test("lets the lead-approved label through", () => {
-    writeFiles(dir, { [accept]: "// rewritten by the lead\n" });
-    git(dir, ["commit", "-qam", "lead fixes the test"]);
-    const result = check(["documentation", "lead-approved"]);
-    expect(result.output).toContain("Skipped: the PR has the lead-approved label.");
-    expect(result.exitCode).toBe(0);
+  // The workflow lifts the check when Sam approves; the script itself never does.
+  test("fails a PR that edits the acceptance test, and names who can lift it", () => {
+    writeFiles(dir, { [accept]: "// rewritten\n" });
+    git(dir, ["commit", "-qam", "rewrite the test"]);
+    const result = check();
+    expect(result.output).toContain("Only Sam's approving review of the PR's current commit lifts this check.");
+    expect(result.exitCode).toBe(1);
   });
 });

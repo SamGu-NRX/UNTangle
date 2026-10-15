@@ -27,8 +27,8 @@ Verdict key: **qualify** = permitted, no login, yields the data claimed; **does-
 | Class-search component, cookieless | `NUI_FRAMEWORK.PT_LANDINGPAGE.GBL` and the classic `SA_LEARN_SERVICES.SSR_CLSRCH_ENTRY.GBL` both **redirect to `?cmd=login&errorPg=ckreq`** ("cookies required" PeopleSoft error page, 2,892 B, 15:06:24–25Z) — a cookie gate, not an auth gate, but the component never renders data without session cookies | — |
 | Class-search component, guest with cookie jar (no credentials) | Login page 200 → `PT_LANDINGPAGE.GBL` 200 renders *"Student Homepage … There are no tiles to display"* → `SSR_STUDENT_FL.SSR_MD_SP_FL.GBL?page=SSR_MD_TGT_PAGE_FL` 200 renders only a JS search shell: *"Manage Classes … Search Category Name … Search keywords … No results to display"*. No term grid, no section rows, no JSON/XHR data endpoint appears in any fetched HTML (greps for `groupletid`, tile labels, and 6-digit `STRM`-style codes found nothing) | — |
 | Format / endpoint | PeopleSoft Fluid (JS-rendered). No sessionless HTML or JSON endpoint was found. Reaching results would require driving the Fluid UI (JS + cookies + `ICAction` posts). Underlying GET/JSON called by the tiles: **unverified — not discovered** | — |
-| Login required | **Effectively yes for results**: no credentials are needed, but every data-bearing component demands session cookies and JS execution; no sessionless data path found in ~10 probes | — |
-| Terms of use | Login page *User Agreement*, verbatim: *"This system is the property of the University of North Texas System and your use of this resource constitutes an agreement to abide by relevant federal and state laws and institutional policies. Unauthorized use of this system is prohibited. Violations can result in penalties and criminal prosecution. Usage may be subject to security testing and monitoring. Users have no expectation of privacy except as otherwise provided by applicable privacy laws."* (cached 15:07:30Z) | **Does-not-qualify** — JS+cookie orchestration with no found data endpoint, plus an explicit monitoring/penalties clause over automated-looking use |
+| Login required | **Unverified for results**: no credentials were needed for the guest shell. Cookies and JS are execution requirements, not proof of login; the data path was not exercised. | — |
+| Terms of use | Login page *User Agreement*, verbatim: *"This system is the property of the University of North Texas System and your use of this resource constitutes an agreement to abide by relevant federal and state laws and institutional policies. Unauthorized use of this system is prohibited. Violations can result in penalties and criminal prosecution. Usage may be subject to security testing and monitoring. Users have no expectation of privacy except as otherwise provided by applicable privacy laws."* (cached 15:07:30Z) | **Unverified**: the general unauthorized-use warning does not settle whether the public guest search is permitted. This survey does not establish an automated-access permission. |
 
 ### Family 2 — Published schedule exports (registrar-published spreadsheets)
 
@@ -86,16 +86,16 @@ No UNT web policy explicitly authorizes or forbids crawlers on public pages. The
 
 ## (b) Overall verdict
 
-**No.** No single permitted public source exists today that can yield a **real term's complete section list** without login. Verified state:
+**Unverified.** This survey did not establish a permitted source for a complete term schedule. It also did not prove that none exists: the guest JavaScript search path was not exercised. The observations below describe the 2026-10-11 probes.
 
-- The **complete** section list (with instructor, meeting days/times, building/room, modality, capacity/status, term dates — the *"details, meeting information and section notes"* tabs) exists **only inside the myUNT PeopleSoft Fluid class search**, which requires session cookies plus JS execution and exposes no sessionless data endpoint that this survey could find. Its User Agreement prohibits "unauthorized use" and warns of monitoring.
+- The registrar directs students to the myUNT PeopleSoft Fluid class search for detailed sections. Its observed guest shell required cookies and JavaScript. Guest credentials were unnecessary. The static probes found no data endpoint, and the general unauthorized-use warning does not by itself establish whether public guest search is permitted.
 - The only **no-login real-term section data** found is the registrar's two 8-week-II xlsx exports — **partial** (one session of one term, ≈427 sections, 8 fields, no instructor/meeting/room/capacity).
 - **catalog.unt.edu** deep pages are behind an AWS WAF JS challenge; no term/section data observed in accessible pages.
 - **data.unt.edu** offers section-level *enrollment analytics* (not schedules); its SAS host refused TLS connections; the **Digital Library** is ALTCHA-gated.
 
 ## (c) Recommended source and ingestion sketch
 
-For a **complete** section list: no qualifying source — pursue **explicit permission or a data feed** from the Registrar / UNT IT (the registrar's own page points users to the myUNT class search for authoritative data, so a feed request is the natural ask; UNTangle should not drive the PeopleSoft UI without written authorization). Record that as the unresolved external-permission item.
+For a **complete** section list: the public guest path remains unverified. Pursue **explicit permission or a data feed** from the Registrar / UNT IT (the registrar's own page points users to the myUNT class search for authoritative data, so a feed request is the natural ask; UNTangle should not drive the PeopleSoft UI without written authorization). Record that as the unresolved external-permission item.
 
 For a **partial** real-term supplement (what is ingestible today without permission):
 
@@ -170,4 +170,4 @@ For a **partial** real-term supplement (what is ingestible today without permiss
 
 ## Task decision (2026-10-11)
 
-Per the task's own condition ("if no source qualifies, the survey alone is the complete result"): **no ingest is performed in this change.** No candidate bundle is produced, `frontend/src/lib/generated/seed-data.json` and `courses/*.json` are untouched, and `activeDataset` continues to describe the shipped synthetic-sample bundle. The unresolved external item — an authorized data feed or explicit written permission from UNT Registrar/IT — is recorded in the PR Handoff for Sam. The tested candidate-bundle validator and comparison tooling in `tools/catalog-ingest/lib/` and `frontend/tests/data/` define the contract any future authorized source must meet.
+Per the task's own condition ("if no source qualifies, the survey alone is the complete result"): **no ingest was performed in this survey.** The no-source exception was not established by these probes. No candidate bundle is produced, `frontend/src/lib/generated/seed-data.json` and `courses/*.json` are untouched, and `activeDataset` continues to describe the shipped synthetic-sample bundle. The unresolved external item — an authorized data feed or explicit written permission from UNT Registrar/IT — is recorded in the PR Handoff for Sam. The tested candidate-bundle validator and comparison tooling in `tools/catalog-ingest/lib/` and `frontend/tests/data/` define the contract any future authorized source must meet.

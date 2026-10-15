@@ -211,12 +211,16 @@ function parseSection(row: Row, path: string, term: string, courseCode: string):
 function parseCourse(value: unknown, path: string, term: string, code: string) {
   try {
     const course = object(value, path);
+    if (text(course, "course_code", path) !== code) fail(`${path}.course_code`, `does not match ${code}`);
     // An unknown status (a failed scrape, say) must not read as an authoritative empty list.
     if (course.status !== "ok" && course.status !== "no_classes") {
       fail(`${path}.status`, `unknown course status ${JSON.stringify(course.status)}`);
     }
     const sections = list(course, "sections", path)
       .map((row, i) => parseSection(row, `${path}.sections[${i}]`, term, code));
+    if ((course.status === "ok") !== (sections.length > 0)) {
+      fail(`${path}.status`, "ok requires sections; no_classes requires an empty list");
+    }
     if (new Set(sections.map(section => section.id)).size < sections.length) {
       fail(`${path}.sections`, "two options share one class-number set");
     }

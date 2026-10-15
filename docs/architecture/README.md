@@ -337,21 +337,29 @@ How it works:
 - A line in the list is a test file's path from the repo root, which skips the file, or `path::name`, which skips one test by the full name Bun prints.
 - Every package's `test` script runs `tools/repo-rules/src/run-tests.ts`. It gives `bun test` the package's test files minus the listed ones. A file with listed test names runs on its own, with a name pattern that leaves those tests out. A listed path that doesn't exist, or that no package's tests cover, fails the run.
 - The Task rule job (`.github/workflows/pr-rules.yml`) runs through `pull_request_target`, so its workflow comes from the default branch and its script and list from the PR's base commit. A PR can't edit it. It fails a PR that edits, moves or deletes a listed test, deletes the list, or adds a line to it.
-- The lead lists a new acceptance test with the test and its line in one PR, labeled `lead-approved`, which lifts the check.
+- The lead lists a new acceptance test with the test and its line in one PR. Sam's approval (below, under "Branches") lifts the check for that PR.
 
 Where a task family repeats, the lead writes one harness that covers every member instead of one test per task. For example, a degree-plan validator checks every file in `plans/`, so each new plan is a data-only PR.
 
 **Contract changes:**
 - If an agent needs a contract change, it proposes one in its PR description; it doesn't work around the boundary.
-- A CI path check fails any agent PR that touches a lead-owned path. It is the Path ownership job in `.github/workflows/pr-rules.yml`: it applies to PRs from `obv/*` branches, reads the globs in `.github/lead-owned-paths.txt` from the PR's base commit, and is lifted by the `lead-approved` label.
+- A CI path check fails any agent PR that touches a lead-owned path. It is the Path ownership job in `.github/workflows/pr-rules.yml`: it applies to PRs from `obv/*` branches, reads the globs in `.github/lead-owned-paths.txt` from the PR's base commit, and is lifted by Sam's approval.
 - Briefs forbid adding dependencies.
 
 UI work by agents follows `docs/design/`, starting with its README. A UI task gets a filled recipe (`docs/design/recipe-template.md`), approved by the lead before code. A UI PR shows real app screenshots at 390 and 1440, and those screenshots pass the visual QA checklist (`docs/design/visual-qa.md`). Mobile screens are lead- or specialist-built until agents have a working iOS simulator.
 
 Branches:
-- **Production-bound work:** starts from `alpha`. The lead lands it after review and CI.
-- **Exploratory work:** starts from `edge` and opens its PR into `edge`. The lead merges it once CI is green and a light check passes. A nightly workflow merges `alpha` into `edge`, so exploration sees accepted work. Nothing moves from `edge` to `alpha` in bulk; a good result is promoted through an ordinary PR.
+- **Production-bound work:** starts from `alpha`. It lands after review, CI and Sam's approval.
+- **Exploratory work:** starts from `edge` and opens its PR into `edge`. The lead merges it once CI is green and a light check passes; it doesn't need Sam's approval. A nightly workflow merges `alpha` into `edge`, so exploration sees accepted work. Nothing moves from `edge` to `alpha` in bulk; a good result is promoted through an ordinary PR.
 - **`main`:** gets `alpha` after the ship check.
+
+**Sam's approval.** Sam approves a PR himself, once it has been iterated to a good point, by approving it in a PR review. GitHub enforces this, not CI. `.github/CODEOWNERS` names Sam as the owner of every path, and the rulesets on `alpha` and `main` (`.github/rulesets/`) require one approving review from a code owner on the PR's latest push, so a review belongs to one PR, and a push dismisses it. The rulesets also require the CI jobs and the Task rule and Path ownership statuses from GitHub Actions, on a branch that is up to date with its base, and allow no direct push, force-push or deletion. `edge` has no such ruleset.
+
+Sam's approval also lifts the Task rule and Path ownership checks. `.github/workflows/pr-rules.yml` runs both checks from the PR's base commit, then posts each result as a commit status on the PR's head commit. A failed check posts success instead when Sam's latest review that approves or requests changes is an approval of that head commit. A later request for changes or a dismissal cancels it; a comment-only review doesn't. A review re-runs the workflow, so the statuses follow his reviews.
+- Agents never submit PR reviews, never merge into alpha or main, and never use `gh pr merge --admin`. Only Sam approves.
+- Agents running on Sam's machine use his GitHub token, so GitHub can't tell them apart from him. Admins can bypass the rulesets when merging a PR, so such an agent could merge as Sam with `--admin`. For those agents, the rule above holds only because they follow it.
+- GitHub doesn't let anyone approve their own PR. A PR opened with Sam's account, which is every PR a local agent opens, can't get his approval, so it merges only when Sam merges it himself with his admin bypass.
+- TODO(Sam): give agents their own GitHub identity, a machine user or a GitHub App, without his permissions, so their PRs can get his review and GitHub can tell their actions from his.
 
 CI runs typecheck, lint, tests and the build on PRs and pushes for alpha and main, and for edge through edge's own copy of the workflow. Today these jobs run in `frontend/` only. Step 1 makes them run for every package, so code moved into `packages/core` is still checked. Step 1 also picks one lockfile: the root `bun.lock`, with `frontend/bun.lock` removed once a root frozen install is shown to be enough. With the foundations, CI adds:
 - the import-boundary lint;
