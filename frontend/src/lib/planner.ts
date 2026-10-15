@@ -488,6 +488,8 @@ export function buildOptimizeRequest(
     k?: number;
     /** Dated busy pieces from the busy route's serialized response (calendar-feeds/busy-serialize.ts); title-free by construction. */
     busyOccurrences?: readonly SerializedBusyOccurrence[];
+    /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts); a course without an entry carries no evidence. */
+    evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>;
   } = {},
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
@@ -500,7 +502,9 @@ export function buildOptimizeRequest(
     return fixed && course ? [{ code, credits: course.creditHours, sections: [fixed] }] : [];
   });
   const optimizerCourses = [
-    ...toOptimizerCourses(codes, catalog, preferences.constraints).filter((course) => !held.has(course.code)),
+    // A held course's single option contributes the same to every schedule,
+    // so it never decides a tie: only the searched courses carry evidence.
+    ...toOptimizerCourses(codes, catalog, preferences.constraints, options.evidenceHundredths).filter((course) => !held.has(course.code)),
     ...keptAsIs,
   ];
   const searched = new Set(optimizerCourses.map((course) => course.code));

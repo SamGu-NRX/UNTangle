@@ -253,6 +253,35 @@ function scoreSchedule(input) {
   return { cost, breakdown };
 }
 
+// ../packages/core/src/instructor-tiebreak.ts
+function instructorEvidenceContributions(courses) {
+  const courseCodes = new Set;
+  const out = {};
+  for (const { courseCode, options } of courses) {
+    if (courseCodes.has(courseCode))
+      throw new Error(`Duplicate course: ${courseCode}`);
+    courseCodes.add(courseCode);
+    const entries = Object.entries(options);
+    if (entries.length === 0)
+      throw new Error(`Course ${courseCode} has no options`);
+    const counted = entries.every(([, evidence]) => evidence.kind === "known");
+    const values = {};
+    for (const [optionId, evidence] of entries) {
+      if (evidence.kind === "unknown") {
+        values[optionId] = 0;
+        continue;
+      }
+      const value = evidence.meanGradePointsHundredths;
+      if (!Number.isInteger(value) || value < 0 || value > 400) {
+        throw new Error(`Course ${courseCode}, option ${optionId}: evidence must be whole hundredths from 0 to 400`);
+      }
+      values[optionId] = counted ? value : 0;
+    }
+    out[courseCode] = { counted, options: values };
+  }
+  return out;
+}
+
 // src/lib/optimizer/prepare.ts
 var DAY_INDEX = new Map(OPT_DAYS.map((day, index) => [day, index]));
 function isInteger(value, min, max) {
@@ -464,6 +493,13 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
   validateRequest(request, checkDeadline);
   const { constraints, weights } = request;
   const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
+  const evidenceHundredths = instructorEvidenceContributions(sortedCourses.map((course) => ({
+    courseCode: course.code,
+    options: Object.fromEntries(course.sections.map((section) => [
+      section.id,
+      typeof section.instructorGpaHundredths === "number" ? { kind: "known", meanGradePointsHundredths: section.instructorGpaHundredths } : { kind: "unknown" }
+    ]))
+  })));
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;
   const buildingIndex = new Map;
   const intern = (id) => {
@@ -515,7 +551,8 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     const neutral = neutralRatingTenths(course.sections);
     neutralRatingByCourse[course.code] = neutral;
     creditsByCourse[course.code] = course.credits;
-    const evidenceCounted = course.sections.every((section) => typeof section.instructorGpaHundredths === "number");
+    const courseEvidence = evidenceHundredths[course.code];
+    const evidenceCounted = courseEvidence.counted;
     const allowed = allowedByCourse[courseIndex];
     const kept = [];
     for (const section of allowed) {
@@ -544,7 +581,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
         self: selfCost(section, weights, neutral),
         dayMask: meetings.reduce((mask, m) => mask | 1 << m.day, 0),
         timeSignature: signatureId,
-        evidence: evidenceCounted ? section.instructorGpaHundredths : 0,
+        evidence: courseEvidence.options[section.id],
         meetings
       });
     }

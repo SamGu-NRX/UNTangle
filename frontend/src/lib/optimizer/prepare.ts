@@ -26,6 +26,7 @@ import {
 } from "./types";
 import { neutralRatingTenths, selfCost, transferFits, UNKNOWN_WALK_SECONDS, walkSeconds } from "./score";
 import { dayNumber, someBackToBack, weekSegments } from "./weeks";
+import { instructorEvidenceContributions } from "@untangle/core/instructor-tiebreak";
 
 export type PreparedMeeting = {
   day: number;
@@ -51,9 +52,9 @@ export type Candidate = {
   meetings: PreparedMeeting[];
   /**
    * What the section's instructor adds to the evidence tie-break, in
-   * hundredths: its evidence when the course counts, else 0 (a course with
-   * any option without evidence is left out for every option, so its
-   * sections contribute nothing to any schedule).
+   * hundredths: core's per-option contribution
+   * (`instructorEvidenceContributions`) — its evidence when the course
+   * counts under the omit rule, else 0.
    */
   evidence: number;
 };
@@ -70,7 +71,7 @@ export type PreparedCourse = {
   byDayMask: Array<{ dayMask: number; bits: Uint32Array }>;
   /** Number of candidates before the time-of-day, day-off and blocked-time checks. */
   sectionsBeforeConstraints: number;
-  /** Whether every option the request lists for this course has accepted evidence (core's omit rule). */
+  /** Whether every option the request lists for this course has accepted evidence (core's omit rule, via `instructorEvidenceContributions`). */
   evidenceCounted: boolean;
   /** The most any live candidate contributes to the tie-break: an upper bound on the course's evidence term. */
   maxEvidence: number;
@@ -366,6 +367,25 @@ export function prepare(
   validateRequest(request, checkDeadline);
   const { constraints, weights } = request;
   const sortedCourses = [...request.courses].sort((a, b) => compareIds(a.code, b.code));
+  // Core owns the omit rule (packages/core/src/instructor-tiebreak.ts): a
+  // course's evidence enters the tie-break only when every option the request
+  // lists has accepted evidence — one option without evidence leaves the
+  // course out for every option, so a schedule can never gain the tier by
+  // dropping that option. `validateRequest` above has already thrown the
+  // louder `OptimizerInputError` on any evidence core would reject.
+  const evidenceHundredths = instructorEvidenceContributions(
+    sortedCourses.map((course) => ({
+      courseCode: course.code,
+      options: Object.fromEntries(
+        course.sections.map((section) => [
+          section.id,
+          typeof section.instructorGpaHundredths === "number"
+            ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+            : { kind: "unknown" as const },
+        ]),
+      ),
+    })),
+  );
   // Buildings matter only to walking. With walking unweighted and unchecked,
   // every meeting is treated as "no building" and no walking time is fetched.
   const walkingMatters = weights.walking > 0 || constraints.walking !== null;
@@ -444,7 +464,8 @@ export function prepare(
     // every option the request lists has accepted evidence — one option
     // without evidence leaves the course out for every option, so a schedule
     // can never gain the tier by dropping that option.
-    const evidenceCounted = course.sections.every((section) => typeof section.instructorGpaHundredths === "number");
+    const courseEvidence = evidenceHundredths[course.code];
+    const evidenceCounted = courseEvidence.counted;
     const allowed = allowedByCourse[courseIndex];
     const kept: Candidate[] = [];
     for (const section of allowed) {
@@ -476,9 +497,8 @@ export function prepare(
         self: selfCost(section, weights, neutral),
         dayMask: meetings.reduce((mask, m) => mask | (1 << m.day), 0),
         timeSignature: signatureId,
-        // The candidate's evidence contribution: the section's own when the
-        // course counts under the omit rule, else 0 for every candidate.
-        evidence: evidenceCounted ? section.instructorGpaHundredths! : 0,
+        // The candidate's evidence contribution, from core's omit rule.
+        evidence: courseEvidence.options[section.id],
         meetings,
       });
     }

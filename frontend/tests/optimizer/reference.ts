@@ -13,6 +13,7 @@
  * or bitmasks. Dates with identical active meetings need only one pair check.
  */
 
+import { instructorTiebreak } from "@untangle/core/instructor-tiebreak";
 import type { ExplainMember, Relaxation, OptCourse, OptDay, OptimizeRequest, OptMeeting, OptSection, OptWeights } from "@/lib/optimizer/types";
 
 const DAYS: OptDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -84,14 +85,6 @@ export type RefSchedule = {
   byCourse: Record<string, string>;
   cost: number;
   key: string[];
-  /**
-   * The tie-break evidence, computed here from the request alone: over the
-   * courses whose every listed option carries accepted evidence (a whole
-   * number from 0 to 400), the sum of the picked options' hundredths. One
-   * option without evidence leaves the course out for every schedule, so it
-   * can never decide a tie (docs/architecture/README.md).
-   */
-  evidence: number;
   breakdown: {
     daysOnCampus: number;
     gapMinutes: number;
@@ -232,28 +225,28 @@ function compareKey(a: string[], b: string[]): number {
   return 0;
 }
 
-/**
- * Tie-break evidence of one schedule, from the request alone: a course whose
- * every option has accepted evidence (whole hundredths, 0 to 400) adds its
- * picked option's value; any option without evidence leaves the whole course
- * out, for every schedule alike.
- */
-function evidenceOf(request: OptimizeRequest, byCourse: Record<string, string>): number {
-  let total = 0;
-  for (const course of request.courses) {
-    const known = (value: number | null | undefined): value is number =>
-      typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 400;
-    if (!course.sections.every((section) => known(section.instructorGpaHundredths))) continue;
-    total += course.sections.find((section) => section.id === byCourse[course.code])!.instructorGpaHundredths!;
-  }
-  return total;
-}
-
 /** Every valid schedule, best first. */
 export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
   const courses = [...request.courses].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   const out: RefSchedule[] = [];
   const current: OptSection[] = [];
+  // The evidence tier is core's rule, read off the request exactly as the
+  // engine prepares it: per option, the accepted hundredths; the comparator
+  // applies the omit rule (a course with any option without evidence
+  // contributes 0 for every schedule).
+  const compareEvidence = instructorTiebreak(
+    request.courses.map((course) => ({
+      courseCode: course.code,
+      options: Object.fromEntries(
+        course.sections.map((section) => [
+          section.id,
+          typeof section.instructorGpaHundredths === "number"
+            ? { kind: "known" as const, meanGradePointsHundredths: section.instructorGpaHundredths }
+            : { kind: "unknown" as const },
+        ]),
+      ),
+    })),
+  );
   const walk = (index: number) => {
     if (index === courses.length) {
       if (violations(request, current).length > 0) return;
@@ -263,7 +256,6 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
         byCourse: Object.fromEntries(current.map((s) => [s.courseCode, s.id])),
         cost,
         key: current.map((s) => s.id),
-        evidence: evidenceOf(request, Object.fromEntries(current.map((s) => [s.courseCode, s.id]))),
         breakdown,
       });
       return;
@@ -275,9 +267,9 @@ export function enumerateValid(request: OptimizeRequest): RefSchedule[] {
     }
   };
   walk(0);
-  // Same order the engine must return: ascending cost, then stronger
-  // instructor evidence, then the section ids in course-code order.
-  return out.sort((a, b) => a.cost - b.cost || b.evidence - a.evidence || compareKey(a.key, b.key));
+  // Same order the engine must return: ascending cost, then core's
+  // instructor-evidence order, then the section ids in course-code order.
+  return out.sort((a, b) => a.cost - b.cost || compareEvidence(a.byCourse, b.byCourse) || compareKey(a.key, b.key));
 }
 
 /** Top k under the contract: best first, each next the best that differs enough from all picked. */

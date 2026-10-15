@@ -131,7 +131,10 @@ describe("applySectionFilters", () => {
   test("a threshold above every known mean hides everything", () => {
     const { course: kept, summary } = applySectionFilters(course, [], 400, historyOk);
     expect(kept.sections).toEqual([]);
-    expect(summary.hidden.unknown).toBe(3);
+    // The Doe section has accepted evidence at 3.26 — a definite fail below
+    // 4.0, hidden without counting as unknown. The other two have no
+    // accepted evidence at all: unknown, not a definite fail.
+    expect(summary.hidden).toEqual({ total: 3, unknown: 2 });
   });
 
   test("an unavailable history leaves every option unknown — a throttle never reads as weak grades", () => {
