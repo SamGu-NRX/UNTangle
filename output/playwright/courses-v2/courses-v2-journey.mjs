@@ -17,6 +17,8 @@
  * (/api/grades/*), intercepted so the run never calls upstream: CSCE 1030
  * gets a fixture in the adapter's shape, every other course gets the
  * adapter's "unavailable" answer.
+ * MATH 1720 and CSCE 1030 sections replay a recorded Spring 2027 snapshot
+ * through the same /api/sections endpoints the app's client reads.
  *
  * Env: UNTANGLE_BASE_URL (default http://127.0.0.1:3123), PLAYWRIGHT_MODULE,
  * AXE_PATH, OUT_DIR (default: this script's directory).
@@ -30,9 +32,10 @@ const BASE = process.env.UNTANGLE_BASE_URL ?? "http://127.0.0.1:3123";
 const OUT = process.env.OUT_DIR ?? here;
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const axeSource = readFileSync(process.env.AXE_PATH ?? "node_modules/axe-core/axe.min.js", "utf8");
+const sectionsFixture = JSON.parse(readFileSync(new URL("./fixtures/spring-2027-sections.json", import.meta.url), "utf8"));
 mkdirSync(OUT, { recursive: true });
 
-const report = { startedAt: new Date().toISOString(), base: BASE, checks: [], axe: [], notes: [] };
+const report = { startedAt: new Date().toISOString(), base: BASE, checks: [], axe: [], notes: [], sectionsFixture: sectionsFixture.fixture, sectionFixtureRequests: [] };
 const check = (name, passed, detail = null) => {
   report.checks.push({ name, passed: Boolean(passed), detail });
   console.log(`${passed ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
@@ -88,6 +91,15 @@ const routeGrades = (page) =>
     route.fulfill({ json: route.request().url().endsWith("/CSCE/1030") ? fixture : unavailable }),
   );
 
+async function routeSections(page) {
+  for (const [path, json] of Object.entries(sectionsFixture.responses)) {
+    await page.route(`**${path}`, (route) => {
+      report.sectionFixtureRequests.push(path);
+      return route.fulfill({ json, headers: { "Cache-Control": "no-store" } });
+    });
+  }
+}
+
 
 // v3 Courses (HANDOFF §5): a row is a stretched button with its action beside it; a list row is
 // data-flip="row:<id>" and the same course in the term tray is data-flip="tray:<id>".
@@ -128,6 +140,7 @@ async function journey(browser, viewport) {
   });
   const page = await context.newPage();
   await routeGrades(page);
+  await routeSections(page);
   const tag = viewport.name;
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -160,6 +173,8 @@ async function journey(browser, viewport) {
   const trayCount = await page.locator('[data-flip^="tray:"]').count();
   check(`${tag}: the result line says what Auto did`, new RegExp(`Planned ${trayCount} course`).test(resultText) && trayCount > 0, resultText.replace(/\s+/g, " "));
   check(`${tag}: MATH 1720 is in the term tray`, (await trayRow(page, "MATH 1720").count()) === 1 && (await rowOf(page, "MATH 1720").count()) === 0);
+  // 1461c03 clears CSCE 2100 for this transcript, so Auto plans it as the second course.
+  check(`${tag}: CSCE 2100 eligible and planned by Auto`, (await trayRow(page, "CSCE 2100").count()) === 1 && trayCount === 2, `${trayCount} in the tray`);
   const toCheck = page.locator('[data-status=check][data-flip^="row:"]').first();
   // The fact starts with a visually hidden ", " for screen readers, so the text is matched after it.
   const reason = (await toCheck.locator("[data-tone=attention]").innerText()).replace(/^,\s*/, "");
@@ -379,7 +394,11 @@ async function journey(browser, viewport) {
   const deepPanel = panelFor("CSCE 2100");
   await deepPanel.getByText(/Couldn.t load grade history/).waitFor();
   const deepText = await deepPanel.innerText();
-  check(`${tag}: the deep link shows catalog text and the status`, deepText.includes("Foundations of Computing") && /You can take this|Planned for Spring 2027|Needs |Catalog rule/.test(deepText));
+  // Desktop kept the second Auto run's CSCE 2100; the phone undid its only run.
+  check(
+    `${tag}: the deep link shows catalog text and the status`,
+    deepText.includes("Foundations of Computing") && deepText.includes(phone ? "You can take this" : "Planned for Spring 2027"),
+  );
   await page.waitForTimeout(350);
   await shoot(page, `${tag}-06-deep-link`);
   await axe(page, `${tag}: deep link`);
@@ -406,6 +425,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
     const page = await context.newPage();
     await routeGrades(page);
+    await routeSections(page);
     await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
     await (await chooseMajor(page, false)).pick();
     await page.locator('[data-row-open="CSCE 1010"]').click();
@@ -421,6 +441,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     await routeGrades(page);
+    await routeSections(page);
     await page.goto(`${BASE}/courses`, { waitUntil: "networkidle" });
     await (await chooseMajor(page, false)).pick();
     await page.locator('[data-row-open="CSCE 1010"]').waitFor();
@@ -453,7 +474,12 @@ try {
     check(`${label} is a 404, not a 500`, response.status() === 404, `${path} → ${response.status()}`);
   }
   await page.goto(`${BASE}/instructors/123`, { waitUntil: "domcontentloaded" });
+  await page.waitForURL("**/courses", { timeout: 15000 });
   check("an old instructor link redirects instead of 404", new URL(page.url()).pathname === "/courses", page.url());
+  const serverRedirect = await fetch(`${BASE}/instructors/123`, { redirect: "manual" });
+  const location = serverRedirect.headers.get("location");
+  // Keep the server redirect defect visible even when hydration navigates to Courses.
+  check("an old instructor link returns a server 307 redirect to Courses", serverRedirect.status === 307 && location !== null && new URL(location, BASE).pathname === "/courses", `HTTP ${serverRedirect.status}, Location ${location ?? "missing"}`);
 } finally {
   await browser.close();
 }

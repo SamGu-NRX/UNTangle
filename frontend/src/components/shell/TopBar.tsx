@@ -26,7 +26,8 @@ export function TopBar({ lens, hrefs, onPick, onSearch }: LensNav & { onSearch: 
         UNTangle
       </Link>
       <ViewTabs lens={lens} hrefs={hrefs} onPick={onPick} />
-      <SearchTrigger className="shell-search" compact={lens === "week" || lens === "day"} onClick={onSearch} />
+      {/* The same field on every lens, so nothing in the bar moves when the lens changes. */}
+      <SearchTrigger className="shell-search" onClick={onSearch} />
       <span className="shell-spacer" />
       <SchedulePill />
       <AccountMenu />

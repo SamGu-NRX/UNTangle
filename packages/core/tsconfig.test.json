@@ -1,0 +1,11 @@
+{
+  // Tests run in Bun, so they get Bun's types. The source is checked on its
+  // own by tsconfig.json, without them. The fixtures are meant to fail
+  // tsconfig.json; no-dom.test.ts compiles them one at a time.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src", "tests"],
+  "exclude": ["tests/fixtures"]
+}

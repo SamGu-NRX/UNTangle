@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "bun --no-env-file ../tools/repo-rules/src/run-tests.ts --isolate --timeout=20000"
   },
   "dependencies": {
+    "@untangle/core": "workspace:*",
     "better-auth": "^1.5.5",
     "drizzle-orm": "^0.45.1",
     "leaflet": "^1.9.4",
@@ -19,7 +22,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "resend": "^6.9.4",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@untangle/sync": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

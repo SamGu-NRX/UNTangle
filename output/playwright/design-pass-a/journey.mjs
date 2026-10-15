@@ -14,13 +14,13 @@
 //            until its button is pressed).
 // axe (WCAG 2.0-2.2 A/AA) on every state. Writes screenshots and report.json.
 //   node journey.mjs <baseUrl> <mockUrl> <outDir>
-import { chromium } from "playwright";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const require = createRequire(import.meta.url);
-const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+const axeSource = readFileSync(process.env.AXE_PATH ?? require.resolve("axe-core/axe.min.js"), "utf8");
 const [base, mock, out] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
 const results = [];

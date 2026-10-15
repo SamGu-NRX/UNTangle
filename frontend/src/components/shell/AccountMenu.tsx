@@ -6,8 +6,10 @@ import { clearPlannerIdentity } from "@/lib/planner-store";
 import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { useConfirmedAccount } from "@/components/planner-provider";
 import { UserGlyph } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
+import { toast } from "@/components/ui/Toast";
 import { SCHEDULES_HREF } from "./routes";
 import { SetPasswordDialog } from "./SetPasswordDialog";
 
@@ -21,18 +23,21 @@ function initials(name: string | null | undefined, email: string): string {
 /**
  * Signed in: an initials avatar with a menu. Signed out: "Sign in", as text
  * on desktop and as a person glyph in the phone header.
+ *
+ * It shows the account the planner confirmed, not the raw session lookup, so
+ * a lookup that fails for a moment does not show "Sign in" while that
+ * account's schedule is still on screen.
  */
 export function AccountMenu({ compact = false }: { compact?: boolean }) {
-  const { data, isPending } = authClient.useSession();
+  const account = useConfirmedAccount();
   const router = useRouter();
   const [settingPassword, setSettingPassword] = useState(false);
-  const user = data?.user;
 
-  if (isPending) {
+  if (account.status === "checking") {
     // Hold the avatar's space so the bar does not shift when the session lands.
     return <span className="shell-avatar shell-avatar--placeholder" aria-hidden="true" />;
   }
-  if (!user) {
+  if (account.status === "signed-out") {
     return compact ? (
       <Link href="/auth" className="ui-btn ui-btn--ink ui-btn--icon shell-signin" aria-label="Sign in" data-ui="">
         <UserGlyph size={22} />
@@ -43,6 +48,29 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       </Link>
     );
   }
+  const { user } = account;
+  const signOut = async () => {
+    let failed: boolean;
+    try {
+      failed = Boolean((await authClient.signOut()).error);
+    } catch {
+      failed = true;
+    }
+    if (failed) {
+      // The session may still be live, so this account's local data stays.
+      toast({
+        message: "Couldn't sign out. You're still signed in on this device.",
+        tone: "error",
+        action: { label: "Try again", onClick: () => void signOut() },
+      });
+      return;
+    }
+    clearPlannerIdentity(user.id);
+    clearSavedPlansIdentity(user.id);
+    clearPlannerIdentity(null);
+    clearSavedPlansIdentity(null);
+    router.push("/");
+  };
   return (
     <>
       <Menu
@@ -55,15 +83,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
           {
             id: "sign-out",
             label: "Sign out",
-            onSelect: async () => {
-              const result = await authClient.signOut();
-              if (result.error) return;
-              clearPlannerIdentity(user.id);
-              clearSavedPlansIdentity(user.id);
-              clearPlannerIdentity(null);
-              clearSavedPlansIdentity(null);
-              router.push("/");
-            },
+            onSelect: signOut,
           },
         ]}
         trigger={(props) => (
