@@ -82,6 +82,14 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
   const passwordSessionGenerations = new WeakMap<object, { userId: string; generation: number }>();
   const claimedOtpEmails = new WeakMap<object, string>();
   const resetUsers = new WeakMap<object, string>();
+  const passwordChanges = new WeakMap<object, string>();
+  /** Ends a change-password transition once its password write has succeeded. */
+  async function finishPasswordChange(context: object) {
+    const userId = passwordChanges.get(context);
+    if (!userId) return;
+    passwordChanges.delete(context);
+    await finishChange?.(userId);
+  }
 
   return betterAuth({
     ...options,
@@ -133,6 +141,9 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
               if (!email || user?.email.toLowerCase() !== email)
                 throw new APIError("BAD_REQUEST", { message: "This sign-in code has not been claimed." });
             }
+            // With revokeOtherSessions, change-password makes this session
+            // after its password write. Finish first so it gets the new generation.
+            if (ctx?.path === "/change-password") await finishPasswordChange(ctx.context);
             let generation: number;
             if (ctx?.path === "/sign-in/email") {
               const captured = passwordSessionGenerations.get(ctx.context);
@@ -153,6 +164,22 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           before: async (account, ctx) => {
             if (account.providerId === "credential" && account.password && ctx?.path !== "/reset-password")
               await bumpSecurityGeneration?.(account.userId);
+          },
+        },
+        update: {
+          // change-password (better-auth 1.5.5) writes the new hash through
+          // updateAccount after checking the current password. Open the same
+          // transition reset uses, so no grant is issued until the write lands.
+          // finishPasswordChange closes it. A failure before then leaves it
+          // closed for recovery, as with a reset.
+          before: async (account, ctx) => {
+            if (!account.password || ctx?.path === "/reset-password") return;
+            if (ctx?.path !== "/change-password")
+              throw new Error(`A password write on ${ctx?.path ?? "a server-side call"} has no device-revocation handling.`);
+            const userId = ctx.context.session?.user.id;
+            if (!userId) throw new Error("change-password reached its password write without a session.");
+            await beginChange?.(userId);
+            passwordChanges.set(ctx.context, userId);
           },
         },
       },
@@ -314,6 +341,8 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           // when the password changed but the generation store is unavailable.
           await finishChange?.(userId);
         }
+        if (ctx.path === "/change-password" && result && typeof result === "object" && "user" in result)
+          await finishPasswordChange(ctx.context);
       }),
     },
   });

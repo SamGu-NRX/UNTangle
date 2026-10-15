@@ -73,7 +73,7 @@ async function fixture(unverified = false) {
       }
     };
   }
-  return { t, cookie, seed };
+  return { t, cookie, seed, service, userId };
 }
 
 describe("auth security events revoke actual device access and refresh tokens", () => {
@@ -102,6 +102,35 @@ describe("auth security events revoke actual device access and refresh tokens", 
     expect(recovery.status).toBe(302);
     expect((await t.session(cookieFrom(recovery)))?.user?.email).toBe(VICTIM);
     await assertRevoked();
+  });
+
+  test.each([false, true])("changing the password (revokeOtherSessions: %p) revokes every mobile and extension token for that account", async (revokeOtherSessions) => {
+    const { t, cookie, seed, service, userId } = await fixture();
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+    const assertRevoked = await seed();
+    const before = await service.readSecurityGeneration(userId);
+    const changed = await t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456", revokeOtherSessions }, cookie);
+    expect(changed.status).toBe(200);
+    await assertRevoked();
+    // The transition finished: the generation is readable and moved twice.
+    expect(await service.readSecurityGeneration(userId)).toBe(before + 2);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(401);
+    if (revokeOtherSessions) {
+      expect(await t.session(cookie)).toBeNull();
+      const replacement = await t.auth.api.getSession({ headers: new Headers({ cookie: cookieFrom(changed) }) });
+      expect(replacement?.session.securityGeneration).toBe(before + 2);
+    }
+  });
+
+  test("a refused password change leaves device tokens and the generation alone", async () => {
+    const { t, cookie, seed, service, userId } = await fixture();
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+    await seed();
+    const before = await service.readSecurityGeneration(userId);
+    expect((await t.post("/change-password", { currentPassword: "wrong-password-000", newPassword: "changed-password-456" }, cookie)).status).toBe(400);
+    expect((await t.post("/change-password", { currentPassword: password, newPassword: "short" }, cookie)).status).toBe(400);
+    expect(await service.readSecurityGeneration(userId)).toBe(before);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
   });
 
   test("sign out everywhere revokes every mobile and extension token for that account", async () => {
@@ -272,4 +301,52 @@ test.each(["email-otp", "magic-link"] as const)("a failed %s cleanup completion 
     await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
     await expect(service.refresh(tokens.refreshToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
   }
+});
+
+test("a failed change-password start blocks the password write", async () => {
+  const service = createDeviceGrants(new MemoryDeviceStore());
+  let available = true;
+  const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+    beginSecurityChange: async (userId) => {
+      if (!available) throw new Error("generation storage unavailable");
+      await service.beginSecurityChange(userId);
+    },
+    finishSecurityChange: service.finishSecurityChange,
+  });
+  const cookie = await otpSignIn(t);
+  expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+  available = false;
+  expect((await t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456" }, cookie)).status).toBe(500);
+  expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
+});
+
+test("a failed change-password completion leaves device access blocked, like a reset", async () => {
+  const service = createDeviceGrants(new MemoryDeviceStore());
+  const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+    beginSecurityChange: service.beginSecurityChange,
+    finishSecurityChange: async () => { throw new Error("generation completion unavailable"); },
+  });
+  const cookie = await otpSignIn(t);
+  expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+  const userId = (t.store.user as { id: string }[])[0].id;
+  const previousTokens = await devices(service, userId);
+  expect((await t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456" }, cookie)).status).toBe(500);
+  await expect(service.readSecurityGeneration(userId)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+  for (const tokens of previousTokens) {
+    await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+    await expect(service.refresh(tokens.refreshToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+  }
+});
+
+test("a password write outside reset and change-password fails loudly instead of skipping device revocation", async () => {
+  const service = createDeviceGrants(new MemoryDeviceStore());
+  const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+    beginSecurityChange: service.beginSecurityChange, finishSecurityChange: service.finishSecurityChange,
+  });
+  const cookie = await otpSignIn(t);
+  expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+  const userId = (t.store.user as { id: string }[])[0].id;
+  const ctx = await t.auth.$context;
+  await expect(ctx.internalAdapter.updatePassword(userId, await ctx.password.hash("server-side-789"))).rejects.toThrow("no device-revocation handling");
+  expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
 });
