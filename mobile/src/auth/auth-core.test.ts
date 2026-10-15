@@ -40,7 +40,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   return { ok: status >= 200 && status < 300, status, headers: new Map(), json: async () => body } as unknown as Response;
 }
 
-type Step = { status: number; body: unknown } | { reject: string };
+type Step = { status: number; body: unknown } | { reject: string } | { malformed: true };
 
 /**
  * The queue answers each call in order and, once empty, keeps answering with
@@ -56,6 +56,18 @@ function queueFetch(steps: Step[]): { fetchLike: FetchLike; calls: Array<{ url: 
     const step = steps.shift();
     if (!step) return pending();
     if ("reject" in step) throw new Error(step.reject);
+    if ("malformed" in step) {
+      // A 200 whose body is not JSON at all: response.json() rejects, and
+      // device-api reports the failed guard as invalid_request with a 200.
+      return {
+        ok: true,
+        status: 200,
+        headers: new Map(),
+        json: async () => {
+          throw new Error("Unexpected token 'n' in JSON");
+        },
+      } as unknown as Response;
+    }
     return jsonResponse(step.body, step.status);
   }) as unknown as FetchLike;
   return { fetchLike, calls };
@@ -234,6 +246,8 @@ describe("getAccessToken", () => {
     await expect(harness.auth.getAccessToken()).resolves.toBeNull();
     expect(harness.auth.getState()).toEqual({ status: "signed-out" });
     expect(harness.store.clear).toHaveBeenCalled();
+    // The grant is lost, so nothing may reschedule behind it.
+    expect(harness.timers.every(timer => timer.cleared)).toBe(true);
   });
 
   it("keeps the grant when the refresh hits the rate limiter's real 429", async () => {
@@ -305,6 +319,140 @@ describe("getAccessToken", () => {
     await expect(harness.auth.getAccessToken()).resolves.toBeNull();
     expect(harness.auth.getState().status).toBe("signed-in");
     expect(harness.store.clear).not.toHaveBeenCalled();
+  });
+});
+
+describe("token-store failures during refresh and sign-out", () => {
+  it("lands signed out with no unhandled rejection when a timer-driven refresh cannot save", async () => {
+    const harness = makeHarness([
+      { status: 200, body: SYNC_200 }, // restore's count read
+      { status: 200, body: TOKENS_B },
+    ]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    harness.store.save = jest.fn(async () => {
+      throw new Error("Keychain write failed");
+    });
+    await harness.auth.restore();
+    await flush();
+    harness.advance(300_000);
+    // The refresh fires from the timer's fire-and-forget call: a save
+    // rejection escaping there would be an unhandled rejection, and this
+    // test fails if one is reported.
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      harness.timers[0]?.handler();
+      await waitFor(harness.auth, "signed-out");
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(unhandled).toEqual([]);
+    // The rotated tokens exist only in memory (the save failed) and the
+    // server has consumed the old refresh token, so the only safe state is
+    // signed out with the Keychain cleared.
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    expect(harness.store.clear).toHaveBeenCalled();
+    // Only the fired proactive timer exists: the failure path schedules
+    // nothing new behind the sign-out.
+    expect(harness.timers).toHaveLength(1);
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+  });
+
+  it("resolves signOut without throwing when the refresh inside it cannot save", async () => {
+    const harness = makeHarness([
+      { status: 200, body: SYNC_200 }, // restore's count read
+      { status: 200, body: TOKENS_B },
+    ]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    harness.store.save = jest.fn(async () => {
+      throw new Error("Keychain write failed");
+    });
+    harness.advance(300_000); // the stored access token has expired
+    // signOut awaits getAccessToken, which refreshes first: the failed save
+    // must land signed out instead of rejecting through signOut.
+    await expect(harness.auth.signOut()).resolves.toBeUndefined();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+  });
+
+  it("schedules the 30s backoff when a 200 refresh response is not valid JSON", async () => {
+    const harness = makeHarness([
+      { status: 200, body: SYNC_200 }, // restore's count read
+      { malformed: true },
+    ]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    harness.advance(300_000);
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    // The grant is not lost: the state stays signed in, the tokens are
+    // untouched, and the spent timer is replaced by the retry backoff.
+    expect(harness.auth.getState().status).toBe("signed-in");
+    expect(harness.store.clear).not.toHaveBeenCalled();
+    expect(harness.store.saved).toHaveLength(0);
+    expect(harness.timers.some(timer => timer.ms === 30_000 && !timer.cleared)).toBe(true);
+  });
+
+  it("schedules the 30s backoff when a 200 refresh body fails the token guard", async () => {
+    const harness = makeHarness([
+      { status: 200, body: SYNC_200 }, // restore's count read
+      { status: 200, body: {} },
+    ]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    harness.advance(300_000);
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(harness.auth.getState().status).toBe("signed-in");
+    expect(harness.store.clear).not.toHaveBeenCalled();
+    expect(harness.store.saved).toHaveLength(0);
+    expect(harness.timers.some(timer => timer.ms === 30_000 && !timer.cleared)).toBe(true);
+  });
+
+  it("still signs out when the Keychain clear rejects during sign-out", async () => {
+    const harness = makeHarness([{ status: 200, body: { revoked: true } }]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    harness.store.clear = jest.fn(async () => {
+      throw new Error("Keychain clear failed");
+    });
+    await expect(harness.auth.signOut()).resolves.toBeUndefined();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    // No in-memory grant survives, and the revoke was still attempted.
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(harness.calls.some(call => call.url.endsWith("/api/v1/device/revoke"))).toBe(true);
+  });
+
+  it("still signs out when the Keychain clear rejects during a refused refresh", async () => {
+    const harness = makeHarness([
+      { status: 200, body: SYNC_200 }, // restore's count read
+      { status: 401, body: { error: "invalid_token" } },
+    ]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    harness.store.clear = jest.fn(async () => {
+      throw new Error("Keychain clear failed");
+    });
+    harness.advance(300_000);
+    // handleGrantLost's clear rejection must not escape through the awaited
+    // refresh or an unhandled rejection.
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(unhandled).toEqual([]);
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
   });
 });
 

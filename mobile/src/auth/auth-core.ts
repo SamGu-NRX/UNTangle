@@ -94,8 +94,9 @@ export function createAuth(deps: AuthDeps) {
     const delay = Math.max(stored.accessExpiresAt - marginMs - now(), 0);
     refreshHandle = setTimer(() => {
       refreshHandle = null;
-      // Fire and forget: the outcome lands in the state either way.
-      void getAccessToken();
+      // Fire and forget: the outcome lands in the state either way. The catch
+      // is belt-and-suspenders so no future rejection path goes unhandled.
+      void getAccessToken().catch(() => undefined);
     }, delay);
   }
 
@@ -107,7 +108,7 @@ export function createAuth(deps: AuthDeps) {
     // never reaches zero while the grant itself is still live.
     refreshHandle = setTimer(() => {
       refreshHandle = null;
-      void getAccessToken();
+      void getAccessToken().catch(() => undefined);
     }, REFRESH_RETRY_MS);
   }
 
@@ -138,7 +139,10 @@ export function createAuth(deps: AuthDeps) {
     // generation moved. The only safe state is signed out.
     stored = null;
     cancelRefreshTimer();
-    await deps.tokenStore.clear();
+    // Durable cleanup is best-effort: a store that cannot clear must not stop
+    // the signed-out state from publishing, or the screen would show
+    // signed-in with no tokens behind it.
+    await deps.tokenStore.clear().catch(() => undefined);
     replaceState({ status: "signed-out" });
   }
 
@@ -163,16 +167,35 @@ export function createAuth(deps: AuthDeps) {
         return null;
       }
       // Only the contract's own refusals end the grant: a 400 or 401 naming
-      // invalid_token or invalid_grant. The limiter's 429, a 503, and any
-      // body this client does not know all keep the tokens for a later try.
+      // invalid_token or invalid_grant.
       const refused = outcome.status === 400 || outcome.status === 401;
       if (refused && (outcome.error === "invalid_token" || outcome.error === "invalid_grant")) {
         await handleGrantLost();
+        return null;
       }
+      // A 200 whose body failed the guard (device-api reports it as
+      // invalid_request with status 200), and any other shape this client
+      // does not know, did not consume the grant. The timer that led here is
+      // spent, so without a reschedule the refresh loop would die silently:
+      // keep the backoff alive for a later try.
+      scheduleRefreshRetry();
       return null;
     }
     stored = storedFromDeviceTokens(outcome.value, now());
-    await deps.tokenStore.save(stored);
+    try {
+      await deps.tokenStore.save(stored);
+    } catch {
+      // The server has already consumed the old refresh token, so a failed
+      // Keychain write must not leave that used token as the only copy: the
+      // next restart would refresh with it and the server would revoke the
+      // grant. Drop the grant everywhere — memory now, the Keychain
+      // best-effort — and land signed out; signing in again is the recovery.
+      cancelRefreshTimer();
+      stored = null;
+      await deps.tokenStore.clear().catch(() => undefined);
+      replaceState({ status: "signed-out" });
+      return null;
+    }
     if (state.status === "signed-in") {
       replaceState({ ...state, grantId: stored.grantId, scopes: stored.scopes });
       scheduleRefresh();
@@ -346,7 +369,9 @@ export function createAuth(deps: AuthDeps) {
       // may outlive the sign-out.
       cancelRefreshTimer();
       stored = null;
-      await deps.tokenStore.clear();
+      // Best-effort like the revoke: the signed-out state must publish even
+      // when the durable cleanup fails.
+      await deps.tokenStore.clear().catch(() => undefined);
       replaceState({ status: "signed-out" });
     },
 
