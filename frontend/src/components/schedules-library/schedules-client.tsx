@@ -237,7 +237,6 @@ export function SchedulesClient() {
     // A save that failed or met a newer version isn't this adoption landing; a later save mustn't announce it.
     if (step === "drop") return;
     const { name, adoption } = pending;
-    announce.current = null;
     toast({
       message: `Main now uses ${name}`,
       action: {
