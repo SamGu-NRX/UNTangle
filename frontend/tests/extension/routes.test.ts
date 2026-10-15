@@ -294,6 +294,35 @@ describe("extension previews", () => {
     expect((await readPreview(await h.preview(token, h.previewUrl(term, "30100")))).meetings?.[0]?.days).toBe("TBA");
   });
 
+  test("a term UNTangle has no dates for is unknown, not checked against another term's dates", async () => {
+    const h = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl("fall-2027", "10234")));
+    expect(preview.conflict).toBe("unknown");
+    expect(preview.unknownReason).toBe("schedule-unavailable");
+    expect(preview.details).toEqual(["UNTangle doesn't have fall-2027's dates yet, so it can't check times."]);
+  });
+
+  test("a course clashing with many meetings is one row, leaving room for busy clashes", async () => {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+    const allWeek = section("PHYS 1710", "001", ["70001"], days.map((day) => meeting({ day, startMinutes: 480, endMinutes: 720 })));
+    // 13 meetings, every one inside PHYS 1710's mornings.
+    const busyWeek = section("PHYS 1730", "001", ["70002"], [
+      ...days.map((day) => meeting({ day, startMinutes: 540, endMinutes: 600 })),
+      ...days.slice(0, 6).map((day) => meeting({ day, startMinutes: 600, endMinutes: 660 })),
+    ]);
+    const busy = [{ id: "gym", label: "Gym", day: "Sun" as const, start: 540, end: 560 }];
+    const h = setup({
+      sections: [allWeek, busyWeek],
+      scheduleBody: scheduleBody({ courses: ["PHYS 1710"], selectedSections: { "PHYS 1710": allWeek.id } }),
+      preferences: preferences(busy),
+    });
+    const preview = await readPreview(await h.preview(await h.issue(), h.previewUrl(term, "70002")));
+    expect(preview.clashes).toEqual([
+      { kind: "course", name: "PHYS 1710", when: "Mon 9:00 AM to 10:00 AM" },
+      { kind: "busy", name: "Gym", when: "Sun 9:00 AM to 9:20 AM" },
+    ]);
+  });
+
   test("busy blocks come only from the preferences of Main's institution", async () => {
     const busy = [{ id: "work", label: "Work shift", day: "Mon" as const, start: 540, end: 600 }];
     const h = setup({ sections, scheduleBody: scheduleBody(), preferences: { ...preferences(busy), institutionId: "other-school" as PreferencesBody["institutionId"] } });

@@ -112,6 +112,19 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
       meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
     });
   }
+  // The section proxy loads any term vsb publishes, but the clash rules read an
+  // undated meeting as running the term's dates, and only the terms in
+  // termDates have them. Without them, a check would use another term's dates.
+  const termRange = termDates[term];
+  if (!termRange) {
+    return extensionPreviewSchema.parse({
+      scheduleId, optionId: extensionOptionId(resolved) ?? optionIdFromClassNumber(classNumber), revision,
+      title: resolved.courseCode, conflict: "unknown", unknownReason: "schedule-unavailable",
+      details: [`UNTangle doesn't have ${term}'s dates yet, so it can't check times.`],
+      section: clamp(resolved.sectionCode, 12),
+      meetings: resolved.meetings.slice(0, 8).map(wordMeeting),
+    });
+  }
 
   const details: string[] = [];
   const optionId = extensionOptionId(resolved) ?? optionIdFromClassNumber(classNumber);
@@ -167,16 +180,19 @@ export function buildPreview(input: PreviewInput): ExtensionPreview {
     const picked = sections.find((section) => section.id === pickId);
     if (!picked) continue;
     const pickedMeetings = picked.meetings.filter(isTimed);
+    // One row per course, naming its first overlap: a section with many
+    // meetings would otherwise fill the 12 rows and crowd out busy clashes.
     for (const optionMeeting of optionMeetings) {
       const pickedMeeting = pickedMeetings.find((candidate) => meetingsConflict(optionMeeting, candidate));
       if (pickedMeeting) {
         clashes.push({ kind: "course", name: clamp(code, 80), when: clamp(wordOverlap(intervalOf(optionMeeting), intervalOf(pickedMeeting)), 80) });
+        break;
       }
     }
   }
   const optMeetings = toOptSection(resolved)?.meetings ?? [];
   for (const block of blocked) {
-    const optMeeting = optMeetings.find((candidate) => blockConflicts(block, candidate, termDates[term] ?? null));
+    const optMeeting = optMeetings.find((candidate) => blockConflicts(block, candidate, termRange));
     if (optMeeting) {
       clashes.push({
         kind: "busy",
