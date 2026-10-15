@@ -73,8 +73,8 @@ const plannerDoc = {
 
 async function seed(context) {
   await context.addInitScript((doc) => {
-    if (!window.localStorage.getItem("untangle.planner-state.v1")) {
-      window.localStorage.setItem("untangle.planner-state.v1", JSON.stringify(doc));
+    if (!window.localStorage.getItem("untangle.planner-state.v1:guest")) {
+      window.localStorage.setItem("untangle.planner-state.v1:guest", JSON.stringify(doc));
     }
   }, plannerDoc);
 }
