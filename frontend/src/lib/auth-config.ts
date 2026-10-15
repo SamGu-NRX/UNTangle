@@ -20,7 +20,8 @@ export type AuthDeps = {
   readSecurityGeneration?: (userId: string) => Promise<number>;
   /** See DeviceStore in server/auth/device-grants.ts. */
   beginSecurityChange?: (userId: string, expectedGeneration?: number) => Promise<SecurityChange>;
-  holdsSecurityChange?: (userId: string, changeId: string) => Promise<boolean>;
+  writeCredential?: (userId: string, changeId: string, passwordHash: string, mode: "update" | "insert") => Promise<void>;
+  endStaleSession?: (token: string) => Promise<boolean>;
   finishSecurityChange?: (userId: string, changeId: string) => Promise<number>;
   /** Deployment settings that don't change who may sign in (IP header, limiter storage). */
   options?: Pick<BetterAuthOptions, "advanced" | "rateLimit">;
@@ -70,7 +71,7 @@ function stampOf(session: object): number {
   return stamp;
 }
 
-export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpSecurityGeneration, readSecurityGeneration, beginSecurityChange, holdsSecurityChange, finishSecurityChange, options }: AuthDeps) {
+export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpSecurityGeneration, readSecurityGeneration, beginSecurityChange, finishSecurityChange, writeCredential, endStaleSession, options }: AuthDeps) {
   /** Sends an auth email. Over budget: a sign-in link or code request fails with 429; a reset send is dropped (logged), since that endpoint answers the same whether or not an account exists. */
   async function send(kind: AuthEmailKind, to: string, url: string) {
     try {
@@ -86,24 +87,31 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
     }
   }
 
-  const changeStore = [beginSecurityChange, holdsSecurityChange, finishSecurityChange].filter(Boolean).length;
-  if (changeStore !== 0 && changeStore !== 3)
-    throw new Error("beginSecurityChange, holdsSecurityChange and finishSecurityChange must be configured together.");
-  // Without the change store (some tests), a change is two plain bumps and
-  // sessions aren't moved between generations.
-  const tracksChanges = changeStore === 3;
+  const changeStore = [readSecurityGeneration, beginSecurityChange, finishSecurityChange, writeCredential, endStaleSession].filter(Boolean).length;
+  if (changeStore !== 0 && changeStore !== 1 + 4)
+    throw new Error("readSecurityGeneration, beginSecurityChange, finishSecurityChange, writeCredential and endStaleSession must be configured together.");
+  // The device store writes the account and session tables itself, with its
+  // own ids and no secondary storage. Either option would make those writes wrong.
+  if (changeStore === 5 && options?.advanced?.database?.generateId)
+    throw new Error("advanced.database.generateId isn't supported: DeviceStore writes account rows with its own ids.");
+  // Without the change store (some tests), a change is two plain bumps,
+  // better-auth writes passwords itself, and sessions aren't moved between generations.
+  const tracksChanges = changeStore === 5;
   const beginChange = beginSecurityChange ?? (async (userId: string) => { await bumpSecurityGeneration?.(userId); return { changeId: "", generation: 0 }; });
-  const holdsChange = holdsSecurityChange ?? (async () => true);
   const finishChange = finishSecurityChange ?? (async (userId: string) => { await bumpSecurityGeneration?.(userId); return 0; });
   type Change = SecurityChange & { userId: string };
-  const passwordSessionGenerations = new WeakMap<object, { userId: string; generation: number }>();
+  const passwordSessionGenerations = new WeakMap<object, { userId: string; generation: number | null }>();
   const claimedOtpEmails = new WeakMap<object, string>();
   const sessionStamps = new WeakMap<object, number>();
   const resets = new WeakMap<object, Change>();
   const passwordChanges = new WeakMap<object, Change & { callerToken: string | null }>();
+  const signOutChanges = new WeakMap<object, Change & { callerToken: string }>();
 
+  type SessionWriter = { updateSession: (token: string, data: Record<string, unknown>) => Promise<unknown> };
   /** The one place a device-store refusal becomes an HTTP answer; anything else is rethrown. */
   function refusal(error: unknown): never {
+    if (error instanceof DeviceGrantError && error.code === "credential_exists")
+      throw new APIError("BAD_REQUEST", { code: "PASSWORD_ALREADY_SET", message: "User already has a password set" });
     if (error instanceof DeviceGrantError && error.code === "security_change_in_progress")
       throw new APIError("CONFLICT", { code: "security_change_in_progress", message: "A change to this account's security settings is in progress. Try again in a moment." });
     if (error instanceof DeviceGrantError && error.code === "stale_session")
@@ -119,6 +127,36 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
   async function openChange(userId: string, expectedGeneration?: number): Promise<Change> {
     return { userId, ...await beginChange(userId, expectedGeneration).catch(refusal) };
   }
+  /**
+   * Writes a password under a change this request holds, through the device
+   * store's locked write (DeviceStore.writeCredential). Returns false, which
+   * tells better-auth to skip its own write: 1.5.5 discards the result at
+   * every call site this reaches (tests/auth/better-auth-pin.test.ts).
+   */
+  async function writeUnderChange(change: Change, passwordHash: string, mode: "update" | "insert", caller?: { token: string; adapter: SessionWriter }): Promise<false | undefined> {
+    if (!tracksChanges) return undefined;
+    try {
+      await writeCredential!(change.userId, change.changeId, passwordHash, mode);
+    } catch (error) {
+      // The write rolled back, so the password is unchanged and the change
+      // can close now rather than lock the account until it times out. The
+      // caller did nothing wrong, so their session moves with it. A replaced
+      // change can't be finished; that refusal is the one reported.
+      await caller?.adapter.updateSession(caller.token, { securityGeneration: change.generation + 1 }).catch(() => {});
+      await finishChange(change.userId, change.changeId).catch(() => {});
+      refusal(error);
+    }
+    return false;
+  }
+  /** A reset writes only under the change its own before hook opened; anything else is refused. */
+  async function writeResetPassword(context: object, userId: string | undefined, passwordHash: string, mode: "update" | "insert") {
+    const change = resets.get(context);
+    if (!change || (userId !== undefined && userId !== change.userId))
+      throw new APIError("BAD_REQUEST", { code: "INVALID_TOKEN", message: "This password-reset link is invalid or has expired." });
+    return writeUnderChange(change, passwordHash, mode);
+  }
+  /** What every refused password sign-in answers, matching better-auth's wrong-password response, so a refusal can't reveal that an account exists. */
+  const invalidCredentials = () => new APIError("UNAUTHORIZED", { code: "INVALID_EMAIL_OR_PASSWORD", message: "Invalid email or password" });
 
   /**
    * Before an emailed code or link is claimed: an unverified account gets a
@@ -144,18 +182,6 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
     await finishChange(change.userId, change.changeId);
   }
 
-  /**
-   * A change made by a signed-in caller (sign-outs, setting a password):
-   * refused, with no bump, unless the caller's session is on the current
-   * generation. With `keepCaller`, the caller's session moves to the
-   * generation the change finishes at. That write happens while the change
-   * is open, when no reader can judge the session stale.
-   */
-  async function callerChange(caller: { token: string; userId: string }, adapter: { updateSession: (token: string, data: Record<string, unknown>) => Promise<unknown> }, keepCaller: boolean) {
-    const change = await openChange(caller.userId, stampOf(caller));
-    if (keepCaller && tracksChanges) await adapter.updateSession(caller.token, { securityGeneration: change.generation + 1 });
-    await finishChange(caller.userId, change.changeId);
-  }
 
   return betterAuth({
     ...options,
@@ -220,8 +246,9 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
               if (!captured || captured.userId !== session.userId)
                 throw new Error("Password sign-in did not capture its account security generation.");
               // The password was checked against what was stored when this
-              // sign-in began. Any security change since then ends the sign-in.
-              if (await generationOf(session.userId) !== captured.generation) refusal(staleSession());
+              // sign-in began. A security change open then, or since, ends the
+              // sign-in, with the same answer as a wrong password.
+              if (captured.generation === null || await settledGeneration(session.userId) !== captured.generation) throw invalidCredentials();
               generation = captured.generation;
             } else {
               generation = await generationOf(session.userId);
@@ -233,14 +260,22 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
       },
       account: {
         create: {
-          // setPassword is server-only and has no path. Its credential insert
-          // happens after password validation and before the new password exists.
+          // A reset for an account with no password creates one. setPassword is
+          // server-only and has no path; it inserts after validating the password.
           before: async (account, ctx) => {
-            if (account.providerId !== "credential" || !account.password || ctx?.path === "/reset-password") return;
+            if (account.providerId !== "credential" || !account.password) return;
+            if (ctx?.path === "/reset-password") return writeResetPassword(ctx.context, account.userId, account.password, "insert");
             const caller = ctx?.context.session?.session;
             // A credential made outside a request has no caller to check (tests, operator scripts).
             if (!caller) { await bumpSecurityGeneration?.(account.userId); return; }
-            await callerChange(caller, ctx.context.internalAdapter, true);
+            if (caller.userId !== account.userId) throw new Error("set-password is writing another user's credential.");
+            // The caller's session moves to the finishing generation, and the
+            // change finishes, only after the locked write.
+            const change = await openChange(caller.userId, stampOf(caller));
+            const skip = await writeUnderChange(change, account.password, "insert", { token: caller.token, adapter: ctx.context.internalAdapter });
+            if (tracksChanges) await ctx.context.internalAdapter.updateSession(caller.token, { securityGeneration: change.generation + 1 });
+            await finishChange(change.userId, change.changeId);
+            return skip;
           },
         },
         update: {
@@ -248,22 +283,23 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           // current password against it, then writes through updateAccount
           // without checking that nothing changed in between. Open a security
           // change here, refused unless the caller's session is still on the
-          // current generation and no other change is open. A reset that
-          // finished during the check has moved the generation, so the stale
-          // write is refused; a reset that starts during the write is refused
-          // until this change finishes. If this request stalled past the
-          // timeout, a reset may have replaced its change: the last check
-          // before the write refuses then too.
+          // current generation and no other change is open, so a reset that
+          // finished during the check refuses the stale write. The write
+          // itself happens under the change's row lock, so a request that
+          // stalled past the timeout, and whose change a reset replaced,
+          // can't land its write either.
           before: async (account, ctx) => {
             // Any value counts as a write, including null or "", which clears the password.
-            if (account.password === undefined || ctx?.path === "/reset-password") return;
-            if (ctx?.path !== "/change-password")
+            if (account.password === undefined) return;
+            if (ctx?.path !== "/reset-password" && ctx?.path !== "/change-password")
               throw new Error(`A password write on ${ctx?.path ?? "a server-side call"} has no device-revocation handling.`);
+            if (typeof account.password !== "string" || account.password === "") throw new Error(`${ctx.path} is writing an empty password.`);
+            if (ctx.path === "/reset-password") return writeResetPassword(ctx.context, undefined, account.password, "update");
             const caller = ctx.context.session;
             if (!caller) throw new Error("change-password reached its password write without a session.");
             const change = await openChange(caller.user.id, stampOf(caller.session));
-            if (!(await holdsChange(change.userId, change.changeId))) refusal(staleSession());
             passwordChanges.set(ctx.context, { ...change, callerToken: caller.session.token });
+            return writeUnderChange(change, account.password, "update", { token: caller.session.token, adapter: ctx.context.internalAdapter });
           },
         },
       },
@@ -295,18 +331,14 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
         const gateRefusal = untEmailGate(ctx.path, ctx.body);
         if (gateRefusal) throw new APIError("BAD_REQUEST", { message: gateRefusal });
 
-        if (ctx.path === "/get-session" && tracksChanges) {
-          // A session left behind by a security change is deleted here, so
-          // the endpoint answers signed out (and clears the cookie) instead of
-          // reporting a session the document routes and device approval
-          // refuse. While a change is open, sessions are left for it to settle.
+        // A session left behind by a security change is deleted before any
+        // route sees it, so get-session answers signed out (and clears the
+        // cookie) and session routes answer 401, instead of a session the
+        // document routes and device approval refuse. One conditional delete,
+        // which leaves sessions alone while a change is open.
+        if (tracksChanges) {
           const token = await ctx.getSignedCookie(ctx.context.authCookies.sessionToken.name, ctx.context.secret);
-          const found = token ? await ctx.context.internalAdapter.findSession(token) : null;
-          if (found) {
-            const current = await settledGeneration(found.user.id);
-            if (current !== null && current !== stampOf(found.session)) await ctx.context.internalAdapter.deleteSession(found.session.token);
-          }
-          return;
+          if (token) await endStaleSession!(token);
         }
 
         if (ctx.path === "/sign-in/email" && typeof ctx.body?.email === "string") {
@@ -315,7 +347,7 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
             // Capture before password verification. If a security change
             // lands while the old password is being checked, the session hook
             // sees the generation moved and refuses the sign-in.
-            passwordSessionGenerations.set(ctx.context, { userId: existing.user.id, generation: await generationOf(existing.user.id) });
+            passwordSessionGenerations.set(ctx.context, { userId: existing.user.id, generation: await settledGeneration(existing.user.id) });
           }
         }
 
@@ -333,10 +365,15 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           return;
         }
 
+        // A sign-out opens its change before better-auth deletes anything, so
+        // device grants end before any session does. If the change can't
+        // open, the request fails and nothing is deleted. This hook runs
+        // before the endpoint's sensitiveSessionMiddleware, so it makes the
+        // same check first (a live session, read past the cookie cache): a
+        // request the middleware will refuse opens nothing.
         if (ctx.path === "/revoke-sessions" || ctx.path === "/revoke-other-sessions") {
-          const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
-          // "Other sessions" keeps the caller's, on the new generation.
-          if (session) await callerChange(session.session, ctx.context.internalAdapter, ctx.path === "/revoke-other-sessions");
+          const caller = await getSessionFromCtx(ctx, { disableCookieCache: true });
+          if (caller) signOutChanges.set(ctx.context, { ...await openChange(caller.user.id, stampOf(caller.session)), callerToken: caller.session.token });
           return;
         }
         if (ctx.path === "/reset-password") {
@@ -344,7 +381,9 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           const password = ctx.body?.newPassword;
           if (typeof token !== "string" || typeof password !== "string" || password.length < ctx.context.password.config.minPasswordLength || password.length > ctx.context.password.config.maxPasswordLength) return;
           const record = await ctx.context.internalAdapter.findVerificationValue(`reset-password:${token}`);
-          if (!record || record.expiresAt <= new Date()) return;
+          // The same expiry test as better-auth's reset. A request that opens
+          // no change here can't write a password (writeResetPassword).
+          if (!record || record.expiresAt < new Date()) return;
           // The change blocks sign-ins and grants until the password and
           // sessions are changed; a failure leaves it open until it times out.
           // It opens before the claim, so a refusal doesn't use up the link.
@@ -432,6 +471,18 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           // including when the password changed but the generation store is unavailable.
           await finishChange(reset.userId, reset.changeId);
         }
+        // A sign-out finishes its change whether or not the endpoint
+        // succeeded: the opening bump has already ended the account's device
+        // grants, and finishing keeps the account from being blocked until the
+        // timeout. "Sign out everywhere" ends this browser's session too.
+        // "Other sessions" keeps the caller's, on the new generation.
+        const signOut = signOutChanges.get(ctx.context);
+        if (signOut) {
+          signOutChanges.delete(ctx.context);
+          if (ctx.path === "/revoke-other-sessions" && tracksChanges)
+            await ctx.context.internalAdapter.updateSession(signOut.callerToken, { securityGeneration: signOut.generation + 1 });
+          await finishChange(signOut.userId, signOut.changeId);
+        }
         const change = passwordChanges.get(ctx.context);
         if (ctx.path === "/change-password" && change && result && typeof result === "object" && "user" in result) {
           passwordChanges.delete(ctx.context);
@@ -454,6 +505,7 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           if (current !== stamped) {
             await ctx.context.internalAdapter.deleteSession(created.session.token);
             deleteSessionCookie(ctx);
+            if (ctx.path === "/sign-in/email") throw invalidCredentials();
             refusal(current === null ? securityChangeInProgress() : staleSession());
           }
         }

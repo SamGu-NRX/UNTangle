@@ -3,7 +3,7 @@
  *
  * Preference reasons compare the optimizer's own cost terms (`costTerms` in
  * optimizer/score.ts) with the next alternative the optimizer returned,
- * named as the UI names it (Option A, Option B). Every term is a cost, so
+ * named as the caller names it (`optionName`, "option 2"). Every term is a cost, so
  * lower is better for every preference: `compare` decides which way a
  * difference points, and the phrase table only words it.
  *
@@ -60,14 +60,10 @@ function count(n: number, one: string): string {
 
 const minutes = (n: number) => count(n, "minute");
 
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 function joinList(items: string[]): string {
   return items.length <= 2 ? items.join(" and ") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
-
-/** How the UI names options: letters by rank. */
-function optionLetter(rank: number): string {
-  if (rank < 0 || rank >= 26) throw new Error(`reasons: cannot name alternative ${rank}`);
-  return String.fromCharCode(65 + rank);
 }
 
 /** `sessions` lists the date ranges the option's meetings run on, as one comparable key. */
@@ -130,7 +126,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     comparable: (mine, theirs) => mine.sessions === theirs.sessions,
     shown: identity,
     words: ["fewer", "more"],
-    say: (n, atLeast, word, other) => `Your classes fall on ${atLeast}${n} ${word} ${n === 1 ? "weekday" : "weekdays"} than in Option ${other}.`,
+    say: (n, atLeast, word, other) => `Your classes fall on ${atLeast}${n} ${word} ${n === 1 ? "weekday" : "weekdays"} than in ${other}.`,
     fact: ({ terms, sections }) => {
       const days = OPT_DAYS.filter((day) => sections.some((section) => section.meetings.some((m) => m.day === day)));
       if (days.length === 0) return null;
@@ -147,7 +143,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     range: ({ terms }) => exactly(terms.gapMinutes),
     shown: identity,
     words: ["shorter", "longer"],
-    say: (n, atLeast, word, other) => `Time between classes is ${atLeast}${minutes(n)} ${word} than in Option ${other}.`,
+    say: (n, atLeast, word, other) => `Time between classes is ${atLeast}${minutes(n)} ${word} than in ${other}.`,
     fact: ({ terms }) => ({
       sentence: terms.gapMinutes === 0 ? "There is no time between classes." : `Time between classes adds up to ${minutes(terms.gapMinutes)}.`,
       evidence: { numbers: [{ label: "minutes between classes", value: terms.gapMinutes }] },
@@ -159,7 +155,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     range: ({ terms }) => (terms.clampedMornings > 0 ? UNKNOWN : exactly(terms.morningLeanMinutes)),
     shown: perClass,
     words: ["earlier", "later"],
-    say: (n, atLeast, word, other) => `On average its classes start ${atLeast}${minutes(n)} ${word} than Option ${other}'s.`,
+    say: (n, atLeast, word, other) => `On average its classes start ${atLeast}${minutes(n)} ${word} than ${other}'s.`,
     fact: ({ breakdown }) =>
       breakdown.earliestStart === null
         ? null
@@ -174,7 +170,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     range: ({ terms }) => (terms.clampedEvenings > 0 ? UNKNOWN : exactly(terms.eveningLeanMinutes)),
     shown: perClass,
     words: ["later", "earlier"],
-    say: (n, atLeast, word, other) => `On average its classes end ${atLeast}${minutes(n)} ${word} than Option ${other}'s.`,
+    say: (n, atLeast, word, other) => `On average its classes end ${atLeast}${minutes(n)} ${word} than ${other}'s.`,
     fact: ({ breakdown }) =>
       breakdown.latestEnd === null
         ? null
@@ -190,7 +186,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     // A bound rounds down, so "at least" stays true.
     shown: (seconds, exact) => (exact ? Math.round(seconds / 60) : Math.floor(seconds / 60)),
     words: ["less", "more"],
-    say: (n, atLeast, word, other) => `Travel between back-to-back classes takes ${atLeast}${minutes(n)} ${word} than in Option ${other}.`,
+    say: (n, atLeast, word, other) => `Travel between back-to-back classes takes ${atLeast}${minutes(n)} ${word} than in ${other}.`,
     fact: ({ terms }) => travelFact(terms),
   },
   rating: {
@@ -201,7 +197,7 @@ const PREFERENCES: Record<StatedPreference, Preference> = {
     // The term sums over courses; the sentence quotes the average per course.
     shown: (tenths, _exact, courses) => Math.round(tenths / courses) / 10,
     words: ["higher", "lower"],
-    say: (n, atLeast, word, other) => `Its instructors' ratings average ${atLeast}${count(n, "point")} ${word} than Option ${other}'s.`,
+    say: (n, atLeast, word, other) => `Its instructors' ratings average ${atLeast}${count(n, "point")} ${word} than ${other}'s.`,
     fact: ({ sections, breakdown }, options) => {
       // Only sample sections carry ratings; when no option has one, saying so tells the student nothing.
       if (options.every((option) => option.breakdown.averageRating === null)) return null;
@@ -318,7 +314,8 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
     const difference = theirs ? compare(range, theirs) : null;
     const shown = difference ? preference.shown(difference.amount, difference.exact, mine.sections.length) : 0;
     if (theirs && difference && shown > 0) {
-      const [me, other] = [optionLetter(input.index), optionLetter(input.index + 1)];
+      // The caller names options the way its UI does ("option 2"); the engine never invents names.
+      const [me, other] = [input.optionName(input.index), input.optionName(input.index + 1)];
       const bound = (r: Range) => (r.lo === r.hi ? "" : ", a lower bound");
       comparisons.push({
         worth: weights[key] * preference.costPerUnit * difference.amount,
@@ -328,8 +325,8 @@ export function scheduleReasons(input: ScheduleReasonsInput): Reason[] {
           preference: key,
           evidence: {
             numbers: [
-              { label: `Option ${me}: ${preference.label}${bound(range)}`, value: range.lo },
-              { label: `Option ${other}: ${preference.label}${bound(theirs)}`, value: theirs.lo },
+              { label: `${capitalize(me)}: ${preference.label}${bound(range)}`, value: range.lo },
+              { label: `${capitalize(other)}: ${preference.label}${bound(theirs)}`, value: theirs.lo },
               { label: "difference as quoted", value: shown },
             ],
           },

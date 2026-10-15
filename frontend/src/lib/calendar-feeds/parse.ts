@@ -147,6 +147,8 @@ type RawEvent = {
   summary: string | null;
   location: string | null;
   description: string | null;
+  url: string | null;
+  categories: string[];
   dtstart: RawProperty | null;
   dtend: RawProperty | null;
   rrule: string | null;
@@ -164,6 +166,8 @@ function emptyRawEvent(): RawEvent {
     summary: null,
     location: null,
     description: null,
+    url: null,
+    categories: [],
     dtstart: null,
     dtend: null,
     rrule: null,
@@ -247,6 +251,21 @@ function collectProperty(line: ContentLine, event: RawEvent): void {
       break;
     case "DESCRIPTION":
       if (event.description === null) event.description = capDescription(unescapeText(line.value));
+      break;
+    case "URL":
+      if (event.url === null) {
+        const value = unescapeText(line.value).trim();
+        event.url = value === "" ? null : value;
+      }
+      break;
+    case "CATEGORIES":
+      // RFC 5545: a comma-separated list of names. First CATEGORIES wins, like SUMMARY and LOCATION.
+      if (event.categories.length === 0) {
+        event.categories = line.value
+          .split(",")
+          .map(part => unescapeText(part).trim())
+          .filter(part => part !== "");
+      }
       break;
     default:
       break; // DTSTAMP, ATTENDEE, and everything else this library does not model.
@@ -348,6 +367,9 @@ function draftFor(event: RawEvent, isAllDay: boolean, fallback: RawEvent | null)
     summary: event.summary ?? fallback?.summary ?? "",
     location: event.location ?? fallback?.location ?? "",
     description: event.description ?? fallback?.description ?? "",
+    url: event.url ?? fallback?.url ?? null,
+    // An override without its own CATEGORIES inherits the series'.
+    categories: event.categories.length > 0 ? event.categories : (fallback?.categories ?? []),
     isAllDay,
     transparent: event.transp === "TRANSPARENT",
   };

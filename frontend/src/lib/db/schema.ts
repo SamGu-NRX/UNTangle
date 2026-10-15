@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -55,7 +55,11 @@ export const accounts = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_user_id_idx").on(table.userId)],
+  (table) => [
+    index("account_user_id_idx").on(table.userId),
+    // One password per account (0015); DeviceStore.writeCredential relies on it.
+    uniqueIndex("account_credential_user_idx").on(table.userId).where(sql`${table.providerId} = 'credential'`),
+  ],
 );
 
 export const verifications = pgTable(

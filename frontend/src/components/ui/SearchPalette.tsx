@@ -36,6 +36,8 @@ export type SearchPaletteProps = {
   emptyQueryHint?: ReactNode;
   /** Show the ⌘↵ "plan / unplan" hint; only when onSelect honours `plan`. */
   planShortcut?: boolean;
+  /** Shown when a query finds nothing; defaults to the course wording. */
+  noMatchText?: (query: string) => ReactNode;
 };
 
 /**
@@ -56,6 +58,7 @@ export function SearchPalette({
   loading,
   emptyQueryHint = "Type a course code or title.",
   planShortcut = false,
+  noMatchText = (q) => `No courses match “${q}”.`,
 }: SearchPaletteProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -165,7 +168,7 @@ export function SearchPalette({
           {!query.trim() ? (
             <p className="ui-palette__empty">{emptyQueryHint}</p>
           ) : count === 0 && !loading ? (
-            <p className="ui-palette__empty">No courses match “{query.trim()}”.</p>
+            <p className="ui-palette__empty">{noMatchText(query.trim())}</p>
           ) : null}
         </div>
         <div className="ui-palette__foot" aria-hidden="true">

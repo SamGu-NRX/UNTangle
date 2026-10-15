@@ -166,6 +166,46 @@ describe("results", () => {
   });
 });
 
+describe("class numbers", () => {
+  test("a lecture's number names the first option it leads; a recitation's names an option that lists it", async () => {
+    const vsb = fakeVsb();
+    expect(await vsb.proxy.findClassNumber("spring-2027", "6862")).toEqual({
+      term: "spring-2027",
+      classNumber: "6862",
+      courseCode: "MATH 1680",
+      sectionId: mathId,
+    });
+    const recitation = await vsb.proxy.findClassNumber("spring-2027", "6863");
+    expect(recitation).toMatchObject({ courseCode: "MATH 1680" });
+    expect((recitation as { sectionId: string }).sectionId).toContain("6863");
+    // One term file serves every lookup.
+    expect(vsb.urls()).toEqual([termUrl]);
+  });
+
+  test("an unknown number is a 404, and an unreadable term a 503, never a guess", async () => {
+    expect((await fakeVsb().proxy.respondClassNumber("spring-2027", "99999")).status).toBe(404);
+    const down = fakeVsb(() => new Response(null, { status: 503 }));
+    expect(await down.proxy.findClassNumber("spring-2027", "6862")).toBe("unavailable");
+    expect((await down.proxy.respondClassNumber("spring-2027", "6862")).status).toBe(503);
+    expect(await fakeVsb().proxy.findClassNumber("fall-2031", "6862")).toBeNull();
+  });
+
+  test("malformed input is a 400 that never reaches vsb", async () => {
+    const vsb = fakeVsb();
+    for (const [term, number] of [["../x", "6862"], ["spring-2027", "68"], ["spring-2027", "686212"], ["spring-2027", "6862a"]]) {
+      expect((await vsb.proxy.respondClassNumber(term, number)).status).toBe(400);
+    }
+    expect(vsb.urls()).toEqual([]);
+  });
+
+  test("a match answers 200, uncached", async () => {
+    const response = await fakeVsb().proxy.respondClassNumber("spring-2027", "6862");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({ courseCode: "MATH 1680", sectionId: mathId });
+  });
+});
+
 describe("route", () => {
   test("malformed input is a 400 that never reaches vsb", async () => {
     const vsb = fakeVsb();

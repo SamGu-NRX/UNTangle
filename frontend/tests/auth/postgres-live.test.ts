@@ -62,3 +62,37 @@ test.skipIf(!url)("Postgres: migration 0009 deletes the sessions of never-verifi
     await pool.end();
   }
 });
+
+test.skipIf(!url)("Postgres: migration 0015 refuses duplicate credentials, then allows one credential per account", async () => {
+  expect(new URL(url!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);
+  const schema = `migration_0015_test_${crypto.randomUUID().replaceAll("-", "")}`;
+  const pool = new Pool({ connectionString: url, max: 2, options: `-c search_path=${schema}` });
+  try {
+    await pool.query(`CREATE SCHEMA ${schema}`);
+    const journal = JSON.parse(await readFile("drizzle/meta/_journal.json", "utf8")) as { entries: { tag: string }[] };
+    for (const tag of journal.entries.map((entry) => entry.tag).filter((tag) => tag < "0015"))
+      await pool.query((await readFile(`drizzle/${tag}.sql`, "utf8")).replaceAll('"public".', `"${schema}".`));
+    await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES ('twice', 'T', 't@my.unt.edu', true), ('once', 'O', 'o@my.unt.edu', true)`);
+    const credential = (id: string, userId: string, provider = "credential") =>
+      pool.query(`INSERT INTO "account" (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES ($1, $2, $3, $2, 'hash', now(), now())`, [id, userId, provider]);
+    await credential("a1", "twice");
+    await credential("a2", "twice");
+    await credential("a3", "once");
+    const migration = await readFile("drizzle/0015_credential_unique.sql", "utf8");
+    // One connection, so SHOW reads the setting the migration itself changed.
+    const client = await pool.connect();
+    try {
+      await expect(client.query(migration)).rejects.toThrow("1 account(s) have more than one credential row");
+      expect((await client.query(`SELECT count(*)::int AS n FROM pg_indexes WHERE indexname = 'account_credential_user_idx' AND schemaname = $1`, [schema])).rows).toEqual([{ n: 0 }]);
+      await client.query(`DELETE FROM "account" WHERE id = 'a2'`);
+      expect(migration).toContain("SET lock_timeout = '5s';");
+      await client.query(migration);
+      expect((await client.query("SHOW lock_timeout")).rows).toEqual([{ lock_timeout: "0" }]);
+    } finally { client.release(); }
+    await expect(credential("a4", "once")).rejects.toThrow("account_credential_user_idx");
+    await credential("a5", "once", "github");
+  } finally {
+    await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+    await pool.end();
+  }
+});
