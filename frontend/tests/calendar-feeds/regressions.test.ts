@@ -78,7 +78,7 @@ test("each event's text appears once, and occurrences point at it by id", () => 
     "DTSTART:20261001T150000Z", "DTEND:20261001T160000Z", "RRULE:FREQ=DAILY;COUNT=10",
   )), { start: "2026-10-01T00:00:00Z", end: "2026-11-01T00:00:00Z" });
   expect(result.events).toEqual([{
-    id: 0, uid: "weekly", summary: "Weekly sync", location: "Union 333", description, isAllDay: false, transparent: false,
+    id: 0, uid: "weekly", summary: "Weekly sync", location: "Union 333", description, url: null, categories: [], isAllDay: false, transparent: false,
   }]);
   expect(result.occurrences).toHaveLength(10);
   for (const occurrence of result.occurrences) {
