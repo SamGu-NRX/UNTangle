@@ -89,6 +89,23 @@ export type FilterContext = {
   sites: SiteDirectory;
 };
 
+function combineOutcomes(outcomes: readonly FilterOutcome[]): FilterOutcome {
+  if (outcomes.includes("fail")) return "fail";
+  return outcomes.includes("unknown") ? "unknown" : "pass";
+}
+
+function evaluateMeetings(
+  meetings: readonly FilterableMeeting[],
+  evaluate: (meeting: FilterableMeeting) => FilterOutcome,
+): FilterOutcome {
+  if (meetings.length === 0) return "unknown";
+  return combineOutcomes(meetings.map(evaluate));
+}
+
+function normalizeInstructor(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 /**
  * Judges one option against one filter.
  *
@@ -103,10 +120,73 @@ export type FilterContext = {
  * so a filter added later can't silently pass everything.
  */
 export function evaluateFilter(section: FilterableSection, filter: SectionFilter, context: FilterContext): FilterOutcome {
-  void section;
-  void filter;
-  void context;
-  throw new Error("Not built yet: docs/tasks/filter-predicates.md");
+  switch (filter.kind) {
+    case "open-seats": {
+      if (section.status === "closed" || section.status === "waitlist" || section.status === "cancelled") return "fail";
+      const seats = section.components.map(({ seats }): FilterOutcome => {
+        if (seats.open === null) return "unknown";
+        return seats.open >= filter.minimum ? "pass" : "fail";
+      });
+      return combineOutcomes([
+        section.status === "unknown" || section.components.length === 0 ? "unknown" : "pass",
+        ...seats,
+      ]);
+    }
+    case "modality":
+      return evaluateMeetings(section.meetings, (meeting) => {
+        if (meeting.kind === "unassigned") {
+          return filter.allowed.includes("in-person") && filter.allowed.includes("online-timed") && filter.allowed.includes("online-async")
+            ? "pass"
+            : "unknown";
+        }
+        const mode: MeetingMode = meeting.kind === "online" ? (meeting.async ? "online-async" : "online-timed") : "in-person";
+        return filter.allowed.includes(mode) ? "pass" : "fail";
+      });
+    case "site":
+      return evaluateMeetings(section.meetings, (meeting) => {
+        if (meeting.kind === "online") return "pass";
+        if (meeting.kind === "unassigned") return "unknown";
+        const directory = meeting.kind === "building" ? context.sites.byBuildingId : context.sites.byRoomCode;
+        const key = meeting.kind === "building" ? meeting.buildingId : meeting.buildingCode;
+        if (key === null || !Object.hasOwn(directory, key)) return "unknown";
+        const site = directory[key];
+        if (site === undefined) return "unknown";
+        return filter.allowed.includes(site) ? "pass" : "fail";
+      });
+    case "days":
+      return evaluateMeetings(section.meetings, (meeting) => {
+        if (meeting.async) return "pass";
+        if (meeting.day === null) return "unknown";
+        return filter.allowed.includes(meeting.day) ? "pass" : "fail";
+      });
+    case "time-window":
+      return evaluateMeetings(section.meetings, (meeting) => {
+        if (meeting.async) return "pass";
+        const { startMinutes, endMinutes } = meeting;
+        if (filter.earliestStart !== null && startMinutes !== null && startMinutes < filter.earliestStart) return "fail";
+        if (filter.latestEnd !== null && endMinutes !== null && endMinutes > filter.latestEnd) return "fail";
+        if ((filter.earliestStart !== null && startMinutes === null) || (filter.latestEnd !== null && endMinutes === null)) return "unknown";
+        return "pass";
+      });
+    case "instructor": {
+      if (section.instructor.display === null) return "unknown";
+      const instructors = section.instructor.display.split(";").map(normalizeInstructor).filter((name) => name.length > 0);
+      if (instructors.length === 0) return "unknown";
+      const matches = filter.names.some((name) => instructors.includes(normalizeInstructor(name)));
+      return matches === (filter.match === "only") ? "pass" : "fail";
+    }
+    case "credit-hours": {
+      const hours = context.creditHours;
+      if (hours === null) return "unknown";
+      if (filter.min !== null && hours < filter.min) return "fail";
+      if (filter.max !== null && hours > filter.max) return "fail";
+      return "pass";
+    }
+    default: {
+      const unknownFilter: never = filter;
+      throw new Error(`Unknown section filter kind: ${JSON.stringify(unknownFilter)}`);
+    }
+  }
 }
 
 /**
@@ -120,8 +200,5 @@ export function evaluateFilters(
   filters: readonly SectionFilter[],
   context: FilterContext,
 ): FilterOutcome {
-  void section;
-  void filters;
-  void context;
-  throw new Error("Not built yet: docs/tasks/filter-predicates.md");
+  return combineOutcomes(filters.map((filter) => evaluateFilter(section, filter, context)));
 }
