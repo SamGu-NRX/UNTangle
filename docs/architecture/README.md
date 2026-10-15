@@ -180,7 +180,7 @@ Surface:
 - `map/{route,resolve}`;
 - `catalog/{institution}/manifest`;
 - `calendar-feeds/preview`;
-- `devices/{authorize,token,revoke}`;
+- `device/{start,approve,inspect,token,refresh,revoke}`;
 - `account` (export, delete).
 
 ## Sign-in for each client
@@ -193,8 +193,8 @@ Surface:
 
 Mobile and the extension don't use better-auth's `bearer()` plugin. In the installed 1.5.5, it rewrites a bearer token into an ordinary full session cookie, with no scopes and no rotation (`better-auth/dist/plugins/bearer/index.mjs:19-57`). Instead there's one small first-party device-grant service. It is built in step 3b, just before the mobile and extension betas; the lead owns it, and it gets an independent security review before release.
 
-1. The client creates a PKCE verifier and a random state. The server records the S256 challenge, the grant kind, the exact redirect URI and an expiry.
-2. The client opens an UNTangle approval page in the system browser (`launchWebAuthFlow` in Chrome). A magic link from email would open in a different browser context, so the approval page signs the student in with a one-time code by email instead (better-auth's `email-otp` plugin, in 1.5.5), unless they're already signed in there.
+1. The client creates a PKCE verifier and sends its S256 challenge and the grant kind (and, for the extension, the schedule) to `device/start`. The server stores only hashes and returns a device code for the client, an 8-character user code for the student, the approval page's address (`/device`), a 10-minute expiry and a 5-second polling interval.
+2. The student opens `/device` in a browser and enters the user code (`/device?user_code=` fills it in). A magic link from email could open in a different browser, so the page signs the student in with a one-time code by email instead (better-auth's `email-otp` plugin, in 1.5.5), unless they're already signed in there. Meanwhile the client polls `device/token` with the device code and the verifier.
 3. The page shows the account, the device and what it can do. Approving is a same-origin POST, protected the way cookie writes are today: a required custom header, which forces a preflight, plus SameSite=Lax and an Origin check.
 4. The page returns a single-use code that expires in 60 seconds.
 5. The client exchanges code plus verifier. One Postgres transaction consumes the code and creates the grant.
@@ -206,17 +206,20 @@ There are two fixed grant kinds, not free-form scopes:
 Neither can delete the account or change credentials; those always need a fresh browser sign-in.
 
 Each grant records the account's security generation, and any mismatch ends the grant. The generation is bumped by:
-- password reset and account recovery;
-- "sign out everywhere";
+- password reset;
+- changing a password;
+- "sign out everywhere" and "sign out other sessions";
 - setting a password (`lib/account-password.ts`);
-- the cleanup in `lib/auth-config.ts:34-37`, which deletes an unverified account's sessions and password when the real inbox owner signs in. Without this, an attacker's device grant would survive the cleanup that ends their cookie.
+- the cleanup in `lib/auth-config.ts` that deletes an unverified account's sessions and password when the real inbox owner signs in. Without this, an attacker's device grant would survive the cleanup that ends their cookie.
 
 better-auth's own session revocation doesn't touch grants, so this wiring is a release gate.
 
+A grant hands out an access token and a refresh token that lasts as long as the grant. Each refresh returns a new pair and marks the old refresh token used. Presenting a used refresh token revokes the whole grant, so every token from that grant stops working; a stolen refresh token and its legitimate copy can't both stay alive.
+
 These lifetimes are starting values, with nothing measured behind them:
-- mobile: 7 days idle, 30 days absolute;
-- extension: 30 days absolute, since its access is read-mostly and students shouldn't need an email code daily during registration week;
-- no refresh tokens in v1.
+- access token: 5 minutes, never past the grant's own expiry;
+- mobile: 7 days idle, 30 days absolute. Each refresh restarts the idle clock, capped at the absolute expiry;
+- extension: 30 days absolute and no idle limit, since its access is read-mostly and students shouldn't need an email code daily during registration week.
 
 CORS:
 - Device calls carry `Authorization` and omit credentials. A request with both a device token and an account cookie is rejected.

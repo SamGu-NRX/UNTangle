@@ -3,7 +3,7 @@ import { DeviceGrantError, type DeviceGrants } from "./device-grants";
 import { deviceBearer } from "./v1-auth";
 
 type Action = "start" | "inspect" | "approve" | "token" | "refresh" | "revoke";
-type Session = { user: { id: string; emailVerified: boolean }; session: { securityGeneration?: number } } | null;
+type Session = { user: { id: string; emailVerified: boolean }; session: { securityGeneration: number } } | null;
 type Dependencies = { grants: DeviceGrants; origin: string; extensionOrigins: readonly string[]; session: (request: Request) => Promise<Session> };
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
 
@@ -84,7 +84,8 @@ export function createDeviceHttp({ grants, origin, extensionOrigins, session }: 
                 const browser = await session(request);
                 if (!browser?.user.emailVerified) throw new DeviceGrantError("unauthorized", 401);
                 if (browser.user.id !== parsed.data.expectedUserId) throw new DeviceGrantError("account_changed", 409);
-                output = await grants.approve(parsed.data.userCode, browser.user.id, parsed.data.decision, browser.session.securityGeneration ?? 0); break;
+                if (typeof browser.session.securityGeneration !== "number") throw new Error("Session has no securityGeneration.");
+                output = await grants.approve(parsed.data.userCode, browser.user.id, parsed.data.decision, browser.session.securityGeneration); break;
               }
               case "token": {
                 const parsed = exchangeDeviceGrant.safeParse(input);
