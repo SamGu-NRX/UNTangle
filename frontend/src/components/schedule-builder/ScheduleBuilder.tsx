@@ -265,6 +265,13 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     // Nothing moves from the keyboard (MOTION.md §1), and nothing moves beside Auto's reveal (§8).
     if (finished && !fromKeyboard && !building) setRing((n) => n + 1);
   };
+  // Week unmounts on a sign-in or sign-out: an Undo left on screen would act on the old identity's preferences.
+  useEffect(
+    () => () => {
+      if (setupUndo.current) dismissToast(setupUndo.current.toast);
+    },
+    [],
+  );
   // One of the setup's fields changed after it closed: its Undo would wipe that change too, so it goes.
   useEffect(() => {
     const pending = setupUndo.current;

@@ -100,16 +100,20 @@ function useSetup(ready: boolean, stamp: string): BuilderSetup {
   const identity = loadedIdentity(ready, stamp, ready ? browserStorage() : null);
   const tag = identity ? `${identity.kind}:${identity.id}` : null;
   const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
+  // A new identity is read now and returned from this render too, so a caller deciding on this
+  // render never sees the previous identity's answer.
+  let current = gate;
   if (gate.tag !== tag) {
     const storage = identity ? browserStorage() : null;
-    setGate({ tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity)) });
+    current = { tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity)) };
+    setGate(current);
   }
   return {
-    due: gate.due,
+    due: current.due,
     markSeen: () => {
-      if (gate.tag) seenThisPage.add(gate.tag);
+      if (current.tag) seenThisPage.add(current.tag);
       const storage = browserStorage();
-      if (gate.identity && storage) markSetupSeen(storage, gate.identity, new Date());
+      if (current.identity && storage) markSetupSeen(storage, current.identity, new Date());
       setGate((current) => ({ ...current, due: false }));
     },
   };

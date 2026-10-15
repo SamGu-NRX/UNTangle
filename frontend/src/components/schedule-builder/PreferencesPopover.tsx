@@ -617,7 +617,8 @@ export function PreferencesPopover(props: ShellProps) {
         </h2>
         <p>Auto builds your week around these.</p>
       </div>
-      {onSetUp ? (
+      {/* Only once preferences have loaded: the setup's Undo must start from the student's real ones. */}
+      {onSetUp && ready ? (
         <Button variant="quiet" size="sm" className={styles.setUp} onClick={onSetUp}>
           Set up Auto
         </Button>
