@@ -209,9 +209,42 @@ test("termStart and termEnd scope the pieces to the term's real dates", async ()
   expect(before.status).toBe(200);
   expect((await before.json()).occurrences).toEqual([]);
   // A term covering the date keeps the piece.
-  const covering = await POST(busyRequest({ ...VALID_BODY, termStart: "2026-01-12", termEnd: "2026-05-08" }, "192.0.2.84"));
+  const covering = await POST(busyRequest({ ...VALID_BODY, termStart: "2026-01-12", termEnd: "2026-02-27" }, "192.0.2.84"));
   expect(covering.status).toBe(200);
   expect((await covering.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 480, endMinutes: 540 }]);
+});
+
+test("a term without a range reads the whole term in America/Chicago, however far ahead it is", async () => {
+  setSession({ user: { id: "user-term-window" } });
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  // 2027-04-20 14:00Z is 09:00 in Denton (CDT), more than 60 days after any
+  // date this suite runs on before the term.
+  fetchStub.mockImplementation(
+    async () =>
+      new Response(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:w@t\r\nSUMMARY:Shift\r\nDTSTART:20270420T140000Z\r\nDTEND:20270420T150000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        { status: 200, headers: { "content-type": "text/calendar" } },
+      ),
+  );
+  try {
+    const response = await POST(busyRequest({ url: VALID_BODY.url, termStart: "2027-01-11", termEnd: "2027-05-07" }, "192.0.2.138"));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    // Midnight CST on the first day to midnight CDT after the last.
+    expect(payload.range).toEqual({ start: "2027-01-11T06:00:00.000Z", end: "2027-05-08T05:00:00.000Z" });
+    expect(payload.occurrences).toEqual([{ date: "2027-04-20", startMinutes: 540, endMinutes: 600 }]);
+  } finally {
+    fetchStub.mockImplementation(async () => tinyResponse());
+  }
+});
+
+test("a range that does not cover the term answers 400 before any fetch", async () => {
+  setSession({ user: { id: "user-term-uncovered" } });
+  const fetchesBefore = fetchStub.mock.calls.length;
+  // VALID_BODY's range ends 2026-03-01; the term runs to May.
+  const response = await POST(busyRequest({ ...VALID_BODY, termStart: "2026-01-12", termEnd: "2026-05-08" }, "192.0.2.139"));
+  expect(response.status).toBe(400);
+  expect(fetchStub.mock.calls.length).toBe(fetchesBefore);
 });
 
 test("term values that are not real inclusive ISO dates answer 400", async () => {
@@ -228,6 +261,9 @@ test("term values that are not real inclusive ISO dates answer 400", async () =>
     const response = await POST(busyRequest({ ...VALID_BODY, ...term }, "192.0.2.85"));
     expect(response.status).toBe(400);
   }
+  // A real last day whose following midnight the range parser can't read, with no range given.
+  const farEnd = await POST(busyRequest({ url: VALID_BODY.url, termStart: "2026-01-01", termEnd: "9999-12-31" }, "192.0.2.85"));
+  expect(farEnd.status).toBe(400);
   expect(fetchStub.mock.calls.length).toBe(fetchesBefore);
 });
 
