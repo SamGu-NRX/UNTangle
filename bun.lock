@@ -16,7 +16,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@untangle/core": "workspace:*",
-        "@untangle/ingest": "workspace:*",
         "@untangle/sync": "workspace:*",
         "better-auth": "^1.5.5",
         "drizzle-orm": "^0.45.1",
@@ -70,6 +69,9 @@
     "packages/ingest": {
       "name": "@untangle/ingest",
       "version": "0.0.0",
+      "dependencies": {
+        "@untangle/core": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.4.2",
         "eslint": "^9",

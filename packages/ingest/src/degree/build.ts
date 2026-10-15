@@ -3,7 +3,7 @@ import path from "node:path";
 import { PROGRAM_SPECS } from "./derive";
 import { readCatalogPage } from "./sections";
 import type { CatalogPage } from "./sections";
-import type { CourseSlot, DegreeData, OptionGroup, ProgramData, RequirementNode } from "./types";
+import type { CourseSlot, DegreeData, OptionGroup, ProgramData, RequirementNode } from "@untangle/core/degree/types";
 
 const CATALOG_ID = "catoid-40";
 const CATALOG_YEAR = "2026-2027";

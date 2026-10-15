@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import path from "node:path";
-import { auditProgram, type AuditCourse } from "../src/degree/audit";
+import { auditProgram, type AuditCourse } from "@untangle/core/degree/audit";
 import { buildDegreeData } from "../src/degree/build";
-import type { RequirementNode } from "../src/degree/types";
+import type { RequirementNode } from "@untangle/core/degree/types";
 
 const dataDir = path.resolve(import.meta.dir, "../data/catalog/unt-2026-27");
 const data = buildDegreeData(dataDir, "2026-10-15T00:00:00.000Z");
@@ -121,5 +121,92 @@ describe("auditProgram on synthetic records", () => {
   test("the summary counts every outcome", () => {
     const result = auditProgram(program("core"), [course("ENGL 1310", "B"), course("MATH 1710", "B", 4), course("BIOL 1710", "B", 3), course("BIOL 1711", "B", 1)]);
     expect(result.summary.satisfied + result.summary.inProgress + result.summary.unsatisfied + result.summary.advisory).toBe(result.requirements.length);
+  });
+});
+
+describe("records the packet names", () => {
+  test("a transfer student with the core complete reads satisfied, credited, and flagged for residence", () => {
+    const transfer = (code: string, credits: number): AuditCourse => ({
+      code,
+      grade: "B",
+      credits,
+      sourceKind: "transfer",
+      inProgress: false,
+    });
+    const result = auditProgram(program("core"), [
+      transfer("ENGL 1310", 3),
+      transfer("ENGL 1320", 3),
+      transfer("MATH 1710", 4),
+      transfer("HIST 2610", 3),
+      transfer("HIST 2620", 3),
+      transfer("PSCI 2305", 3),
+      transfer("PSCI 2306", 3),
+      transfer("BIOL 1710", 3),
+      transfer("BIOL 1711", 1),
+      transfer("BIOL 1132", 3),
+      transfer("MATH 1720", 4),
+      transfer("AGER 2250", 3),
+      transfer("ART 1300", 3),
+      transfer("ANTH 1010", 3),
+      transfer("CSCE 1010", 3),
+    ]);
+    const communication = result.requirements.find((node) => node.name.startsWith("Communication"));
+    expect(communication?.status).toBe("satisfied");
+    // Every component area plus both Component Area Options reads satisfied.
+    expect(result.summary.satisfied).toBeGreaterThanOrEqual(9);
+    // Transfer credit still counts, but the audit keeps the residence caveat visible.
+    expect(result.policies.some((policy) => policy.status === "unverifiable")).toBe(true);
+  });
+
+  test("a change of major: a finished mathematics record audited against CS keeps its math credit and shows the CS gap", () => {
+    const record: AuditCourse[] = [
+      course("MATH 1710", "A", 4),
+      course("MATH 1720", "A", 4),
+      course("MATH 1810", "A", 3),
+      course("MATH 1820", "A", 3),
+      course("MATH 1830", "A", 3),
+      course("MATH 2000", "A", 3),
+      course("MATH 2700", "A", 3),
+      course("MATH 2730", "A", 3),
+      course("MATH 3000", "A", 3),
+      course("CSCE 1030", "B", 3),
+    ];
+    const result = auditProgram(program("cs-bs"), record);
+    // The math slots the record covers read as satisfied inside the shared
+    // all-node ("1/3 slots satisfied" against the captured tree), while the
+    // CS-only slots keep the requirement open.
+    const mathNode = result.requirements.find((node) => node.name === "Other required courses");
+    expect(mathNode?.status).not.toBe("satisfied");
+    const progress = /^(\d+)\/(\d+) slots satisfied/.exec(mathNode?.detail ?? "");
+    if (!progress) throw new Error(`unexpected detail: ${mathNode?.detail}`);
+    expect(Number(progress[1])).toBeGreaterThanOrEqual(1);
+    expect(Number(progress[2])).toBeGreaterThan(Number(progress[1]));
+    // No CSCE courses beyond the first, so the major's own core stays open.
+    const csceCore = result.requirements.find((node) => node.name === "CSCE core, 6 hours");
+    expect(csceCore?.status).toBe("unsatisfied");
+    // The math record clears the major's C floor, vacuously for CS courses it has not taken.
+    const majorGrade = result.policies.find((policy) => policy.name === "Minimum grade of C (major courses)");
+    expect(majorGrade?.status).toBe("satisfied");
+  });
+
+  test("the C floor boundary against the derived CS tree: C+ and C pass, C- and D+ and D fail", () => {
+    const cs = program("cs-bs");
+    const required = findNode("Required courses", cs.requirements);
+    if (!required || required.kind !== "all") throw new Error("CS required-courses node missing");
+    // The record is built from the tree's own slots so the test follows the data.
+    const codes = required.items.map((slot) => slot.alternatives[0]!.must[0]!);
+    const boundary: [string, "C+" | "C" | "C-" | "D+" | "D"][] = [
+      [codes[0]!, "C+"],
+      [codes[1]!, "C"],
+      [codes[2]!, "C-"],
+      [codes[3]!, "D+"],
+      [codes[4]!, "D"],
+    ];
+    const result = auditProgram(cs, boundary.map(([code, grade]) => course(code, grade, 3)));
+    const majorGrade = result.policies.find((policy) => policy.name === "Minimum grade of C (major courses)");
+    expect(majorGrade?.status).toBe("unsatisfied");
+    const below = majorGrade?.detail ?? "";
+    for (const [code] of boundary.slice(2)) expect(below).toContain(code);
+    for (const [code] of boundary.slice(0, 2)) expect(below).not.toContain(`${code} (C`);
   });
 });

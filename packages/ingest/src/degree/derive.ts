@@ -1,5 +1,5 @@
 import type { CatalogPage, FlowItem, Section } from "./sections";
-import type { AllNode, ChooseNode, Citation, CourseSlot, HoursNode, NoteNode, OptionGroup, PolicyNode, PoolNode, RequirementNode } from "./types";
+import type { AllNode, ChooseNode, Citation, CourseSlot, HoursNode, NoteNode, OptionGroup, PolicyNode, PoolNode, RequirementNode } from "@untangle/core/degree/types";
 
 /**
  * Turns the section item streams of the saved catalog pages into the

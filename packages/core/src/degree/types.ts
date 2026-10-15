@@ -1,14 +1,13 @@
 /**
  * The requirements tree the UNT catalog pages turn into, and the shapes the
- * pure audit in `@untangle/core/degree` reads.
+ * pure audit in this package reads.
  *
  * Every node carries a citation: the saved catalog page it came from, the
  * page URL, the heading anchor on that page, and the heading text. A value
  * with no citation must not exist in this tree.
  *
- * These types are structurally duplicated (by design) in
- * packages/core/src/degree/types.ts; the frontend typecheck that assigns the
- * built data to the core interfaces fails when the two drift apart.
+ * The parser that builds these trees lives in packages/ingest; it imports
+ * these types across the package boundary so the shapes cannot drift.
  */
 
 /** Where a requirement's wording lives. */

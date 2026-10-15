@@ -57,7 +57,9 @@ const GRADE_POINTS: Record<string, number> = {
 /** Grades at or above a floor like "C" on the catalog's letter scale. */
 function gradeMeetsFloor(grade: string | null, floor: string): boolean {
   if (grade === null) return false;
-  const order = ["F", "D-", "D+", "D", "C-", "C+", "C", "B-", "B+", "B", "A-", "A+", "A"];
+  // Ordered weakest to strongest, matching GRADE_POINTS: each plus-grade sits
+  // above its letter, each minus-grade below it.
+  const order = ["F", "D-", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+"];
   const gradeIndex = order.indexOf(grade);
   const floorIndex = order.indexOf(floor);
   if (gradeIndex === -1 || floorIndex === -1) return false;
