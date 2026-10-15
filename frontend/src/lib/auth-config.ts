@@ -108,6 +108,22 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
       },
     },
     databaseHooks: {
+      user: {
+        create: {
+          before: async (user, ctx) => {
+            if (ctx?.path === "/sign-in/email-otp" && user.emailVerified === true && claimedOtpEmails.get(ctx.context) !== user.email.toLowerCase())
+              throw new APIError("BAD_REQUEST", { message: "This sign-in code has not been claimed." });
+          },
+        },
+        update: {
+          before: async (user, ctx) => {
+            // The plugin marks an existing account verified before creating its
+            // session. Refuse that write too when no code won the atomic claim.
+            if (ctx?.path === "/sign-in/email-otp" && user.emailVerified === true && !claimedOtpEmails.has(ctx.context))
+              throw new APIError("BAD_REQUEST", { message: "This sign-in code has not been claimed." });
+          },
+        },
+      },
       session: {
         create: {
           before: async (session, ctx) => {
@@ -216,11 +232,14 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
         if (ctx.path === "/sign-in/email-otp") {
           const email = ctx.body?.email;
           const otp = ctx.body?.otp;
-          if (typeof email !== "string" || typeof otp !== "string") return;
+          if (typeof email !== "string" || typeof otp !== "string")
+            throw new APIError("BAD_REQUEST", { message: "Enter the email and sign-in code." });
           const record = await ctx.context.internalAdapter.findVerificationValue(`sign-in-otp-${email.toLowerCase()}`);
-          if (!record || record.expiresAt <= new Date()) return;
+          if (!record || record.expiresAt <= new Date())
+            throw new APIError("BAD_REQUEST", { message: "This sign-in code is invalid or has expired." });
           const [storedHash, attempts] = record.value.split(":");
-          if (Number(attempts) >= 3) return;
+          if (Number(attempts) >= 3)
+            throw new APIError("FORBIDDEN", { message: "This sign-in code has no attempts left." });
           const providedHash = hashMagicLinkToken(otp);
           if (storedHash.length !== providedHash.length || !timingSafeEqual(Buffer.from(storedHash), Buffer.from(providedHash))) return;
           // atomicVerifyOTP in 1.5.5 reads and deletes separately. Its two

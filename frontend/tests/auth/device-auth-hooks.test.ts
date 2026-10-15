@@ -90,8 +90,44 @@ describe("device approval email codes", () => {
       }
       return record;
     };
-    expect((await t.post("/sign-in/email-otp", { email: VICTIM, otp })).status).toBe(400);
+    expect((await t.post("/sign-in/email-otp", { email: VICTIM, otp })).status).toBe(mode === "exhausted" ? 403 : 400);
     expect(t.store.session).toHaveLength(0);
+    expect(t.store.user).toHaveLength(0);
+  });
+  test.each(["missing", "wrong-code"] as const)("a %s precheck cannot verify an unverified account's attacker password", async (mode) => {
+    const t = setup();
+    const ctx = await t.auth.$context;
+    const user = await ctx.internalAdapter.createUser({ email: VICTIM, name: "Victim", emailVerified: false });
+    await ctx.internalAdapter.createAccount({ userId: user.id, providerId: "credential", accountId: user.id, password: await ctx.password.hash("attacker-password") });
+    await ctx.internalAdapter.createSession(user.id);
+    const accounts = structuredClone(t.store.account);
+    const sessions = structuredClone(t.store.session);
+    expect((await t.post("/email-otp/send-verification-otp", { email: VICTIM, type: "sign-in" })).status).toBe(200);
+    const otp = t.lastLink("email-code");
+    const original = ctx.internalAdapter.findVerificationValue;
+    let precheck = true;
+    ctx.internalAdapter.findVerificationValue = async (identifier) => {
+      const record = await original(identifier);
+      if (identifier === `sign-in-otp-${VICTIM}` && precheck) {
+        precheck = false;
+        if (mode === "missing") return null;
+        if (!record) throw new Error("Expected the issued email code");
+        return { ...record, value: "different-hash:0" };
+      }
+      return record;
+    };
+    const refused = await t.post("/sign-in/email-otp", { email: VICTIM, otp });
+    expect(refused.status).toBe(400);
+    expect(cookieFrom(refused)).toBe("");
+    expect((t.store.user as { emailVerified: boolean }[])[0].emailVerified).toBe(false);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "attacker-password" })).status).toBe(403);
+    expect(t.store.account).toEqual(accounts);
+    expect(t.store.session).toEqual(sessions);
+    const recovered = await otpSignIn(t);
+    expect(recovered.status).toBe(200);
+    expect((await t.session(cookieFrom(recovered)))?.user?.email).toBe(VICTIM);
+    expect(t.store.account).toHaveLength(0);
+    expect(t.store.session).toHaveLength(1);
   });
   test("UNT gate covers send and verify, and unused plugin flows are unavailable", async () => {
     const t = setup();
