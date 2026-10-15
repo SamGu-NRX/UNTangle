@@ -8,10 +8,9 @@
  *
  * isSectionRef is omitted (it needs the config's TERM_PATTERN and
  * CLASS_NUMBER_PATTERN and no response guard uses it). isAddReply's reason
- * union is the edge client's as of that commit: the "operation-reused"
- * rejection this branch adds extends the contract, so the reused-operation
- * test asserts that reply by exact shape and documents the guard gap until
- * the client learns the new reason.
+ * union is the edge client's as of that commit — stale-revision, not-found,
+ * forbidden — and every rejection these routes send carries one of those
+ * reasons, so readAddReply asserts isAddReply on each of them.
  */
 
 export const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);

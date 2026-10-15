@@ -62,14 +62,20 @@ function buildWritePayload(command: ExtensionAddOptionCommand, scheduleId: strin
 }
 
 /**
- * Answers a retry whose operation id already has a stored receipt. The receipt
- * belongs to this command only when the write this request would commit is
- * byte-identical to the write the receipt names, so the bytes are rebuilt from
- * the current schedule and hashed: while the schedule still stands at the
- * committed revision, a retry of the same command reproduces the original
- * bytes exactly. Anything else — a different option, a different revision, a
- * moved or deleted schedule — is an operation id asking to acknowledge a
- * command it did not commit, and is refused instead of acknowledged.
+ * Answers a retry whose operation id already has a stored receipt. The
+ * extension mints a fresh operation id for every confirmed add, so a reused
+ * operation id is either the genuine retry of the command the receipt
+ * committed, or a client bug. The revision relationship tells them apart: the
+ * original write committed exactly one revision past the command's expected
+ * revision, so a receipt that does not satisfy
+ * committedRevision === expectedRevision + 1 belongs to a different command
+ * and is refused with the client's own forbidden rejection. A retry that fits
+ * the relationship is answered with the original receipt even though the
+ * schedule has since moved on — the add committed and only its response was
+ * lost. Byte comparison stays possible only while the schedule still stands
+ * at the committed revision, where rebuilding this request's write and
+ * hashing it catches a reuse with different bytes; once the state has moved,
+ * the receipt itself is the answer.
  */
 async function verifiedReplay(
   deps: { store: ExtensionStore; sections: SectionsSource },
@@ -77,26 +83,26 @@ async function verifiedReplay(
   command: ExtensionAddOptionCommand,
   receipt: Receipt,
 ): Promise<CommandOutcome> {
-  const refuse = () => rejection(command.operationId, "operation-reused", 409);
-  if (command.expectedRevision !== receipt.committedRevision - 1) return refuse();
-  let schedule: Document;
+  const refuse = () => rejection(command.operationId, "forbidden", 409);
+  if (receipt.committedRevision !== command.expectedRevision + 1) return refuse();
+  let schedule: Document | null = null;
   try {
     schedule = await deps.store.getDocument(identity.userId, identity.scheduleId);
   } catch {
-    return refuse(); // Missing or deleted: this request's write cannot be reproduced.
+    schedule = null; // The schedule moved or was deleted since the commit; the receipt still answers.
   }
-  if (schedule.kind !== "schedule" || schedule.revision !== receipt.committedRevision) return refuse();
-  const current = ScheduleBodySchema.safeParse(schedule.body);
-  if (!current.success) return refuse();
-  const sections = await deps.sections.termSections(current.data.termId);
-  const section = sections?.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
-  if (!section) return refuse();
-  const bytes = new TextEncoder().encode(
-    JSON.stringify(buildWritePayload(command, identity.scheduleId, scheduleWithOption(current.data, section))),
-  );
-  return createHash("sha256").update(bytes).digest("hex") === receipt.writeSha256
-    ? { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: receipt.committedRevision } }
-    : refuse();
+  if (schedule && schedule.kind === "schedule" && schedule.revision === receipt.committedRevision) {
+    const current = ScheduleBodySchema.safeParse(schedule.body);
+    if (!current.success) return refuse();
+    const sections = await deps.sections.termSections(current.data.termId);
+    const section = sections?.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
+    if (!section) return refuse();
+    const bytes = new TextEncoder().encode(
+      JSON.stringify(buildWritePayload(command, identity.scheduleId, scheduleWithOption(current.data, section))),
+    );
+    if (createHash("sha256").update(bytes).digest("hex") !== receipt.writeSha256) return refuse();
+  }
+  return { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: receipt.committedRevision } };
 }
 
 /**
@@ -120,8 +126,14 @@ export async function applyAddOption(
   let schedule: Document;
   try {
     schedule = await deps.store.getDocument(userId, scheduleId);
-  } catch {
-    return rejection(command.operationId, "not-found", 422);
+  } catch (error) {
+    // Only an absent or deleted schedule is a verdict this check made. Every
+    // other storage failure is not the command's answer: it reaches the HTTP
+    // boundary's 503, and the extension retries later.
+    if (error instanceof SyncError && (error.code === "NOT_FOUND" || error.code === "DOCUMENT_DELETED")) {
+      return rejection(command.operationId, "not-found", 422);
+    }
+    throw error;
   }
   if (schedule.kind !== "schedule") {
     return rejection(command.operationId, "not-found", 422);
@@ -155,11 +167,18 @@ export async function applyAddOption(
         body: extensionAddReplySchema.parse({ kind: "rejection", operationId: command.operationId, reason: "stale-revision" }),
       };
     }
+    if (error instanceof SyncError && (error.code === "DOCUMENT_DELETED" || error.code === "NOT_FOUND")) {
+      // The schedule vanished between the read and the commit: there is
+      // nothing left to add onto, and the next preview says so.
+      return rejection(command.operationId, "not-found", 422);
+    }
     if (error instanceof SyncError && error.code === "OPERATION_REUSED") {
       // A concurrent write between the receipt lookup and the commit already
-      // stored different bytes under this operation id: a different command
-      // raced in. The stored receipt is not this command's reply, so refuse.
-      return rejection(command.operationId, "operation-reused", 409);
+      // stored different bytes under this operation id. The extension mints a
+      // fresh operation id for every confirmed add, so reuse is a client bug:
+      // the stored receipt is not this command's reply, and the reply is the
+      // client's own forbidden rejection.
+      return rejection(command.operationId, "forbidden", 409);
     }
     throw error;
   }

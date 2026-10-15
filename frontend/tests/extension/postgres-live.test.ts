@@ -3,23 +3,20 @@
  * device and document-sync live tests use (RATE_LIMIT_TEST_DATABASE_URL,
  * localhost-only, a disposable schema per run): a real documentRepository
  * behind the extension store, with real compare-and-set, receipt rows, and
- * tombstones. Cases from the lead review: add-option, a repeated operation
- * id, a reused operation id with a different command, a stale revision, and a
- * deleted schedule. store.ts is a server-only module its import graph refuses
- * under the test runner, so the store is mirrored here as the same
- * three-method delegation to the repository and the receipts table.
+ * tombstones. Cases: add-option, a repeated operation id, a reused operation
+ * id with a different command, a stale revision, and a deleted schedule. The
+ * store is the production factory from store-core.ts, which deliberately
+ * carries no server-only import so this module can construct it.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
-import { and, eq } from "drizzle-orm";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { ReceiptSchema } from "../../../packages/contracts/src/sync";
-import { PreferencesBodySchema } from "../../../packages/contracts/src/documents";
-import { schema, receipts, documents } from "@/lib/db/schema";
+import { schema } from "@/lib/db/schema";
 import { documentRepository } from "@/lib/document-sync/repository";
 import type { Section } from "@/lib/sections/model";
-import { applyAddOption, type ExtensionStore } from "@/server/extension/commands";
+import { applyAddOption } from "@/server/extension/commands";
+import { extensionStore } from "@/server/extension/store-core";
 import type { ExtensionAddOptionCommand } from "@/server/extension/extension-api";
 import { bytes, schedule, write } from "../document-sync/fixtures";
 
@@ -27,7 +24,7 @@ const url = process.env.RATE_LIMIT_TEST_DATABASE_URL;
 const namespace = `extension_test_${crypto.randomUUID().replaceAll("-", "")}`;
 let pool: Pool;
 let repo: ReturnType<typeof documentRepository>;
-let store: ExtensionStore;
+let store: ReturnType<typeof extensionStore>;
 
 const meeting = (overrides: Partial<Section["meetings"][number]> = {}) => ({
   room: "F151", buildingCode: null, buildingId: null, buildingName: "Fossil Green Hall",
@@ -65,32 +62,9 @@ describe.skipIf(!url)("extension add-option on Postgres", () => {
     }
     await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES ('alice', 'Alice', 'alice@example.invalid', true)`);
     const db = drizzle(pool, { schema });
-    const repository = documentRepository(db);
-    repo = repository;
-    // The same delegation store.ts performs: documents through the repository,
-    // receipts straight off the receipts table.
-    store = {
-      getDocument: (userId, documentId) => repository.get(userId, documentId),
-      write: (userId, bytes_, documentId) => repository.write(userId, bytes_, documentId),
-      async receipt(userId, operationId) {
-        const [row] = await db
-          .select()
-          .from(receipts)
-          .where(and(eq(receipts.userId, userId), eq(receipts.operationId, operationId)));
-        return row ? ReceiptSchema.parse(row) : null;
-      },
-      async preferences(userId) {
-        // One preferences document per user and institution; a student with
-        // several picks the first by id order.
-        const [row] = await db
-          .select({ body: documents.body })
-          .from(documents)
-          .where(and(eq(documents.userId, userId), eq(documents.kind, "preferences"), eq(documents.deleted, false)))
-          .orderBy(documents.id);
-        const parsed = PreferencesBodySchema.safeParse(row?.body);
-        return parsed.success ? parsed.data : null;
-      },
-    };
+    repo = documentRepository(db);
+    // The production store the routes use, built over the live database.
+    store = extensionStore(db);
     // The student's Main schedule at revision 1, written through the repository.
     await repo.write("alice", bytes(write({ documentId: "ext-main", operationId: "seed-1", body: schedule })), "ext-main");
   });
@@ -124,7 +98,7 @@ describe.skipIf(!url)("extension add-option on Postgres", () => {
   test("a reused operation id with a different command is refused, not acknowledged", async () => {
     const reused = await apply(command({ optionId: "CSCE2110-20111" }));
     expect(reused.status).toBe(409);
-    expect(reused.body).toMatchObject({ kind: "rejection", operationId: "live-op-1", reason: "operation-reused" });
+    expect(reused.body).toMatchObject({ kind: "rejection", operationId: "live-op-1", reason: "forbidden" });
     expect((await store.getDocument("alice", "ext-main")).revision).toBe(2);
   });
 

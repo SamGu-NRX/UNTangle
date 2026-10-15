@@ -19,7 +19,7 @@ import { DocumentSchema, type Document, type PreferencesBody } from "../../../pa
 import type { Receipt } from "../../../packages/contracts/src/sync";
 import type { Section } from "@/lib/sections/model";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
-import { isAddReply, isPreview, isRecord } from "./extension-api-guards";
+import { isAddReply, isPreview } from "./extension-api-guards";
 
 const origin = "https://untangle.example";
 const extension = `chrome-extension://${"a".repeat(32)}`;
@@ -251,20 +251,82 @@ describe("extension add-option commands", () => {
     const token = await h.issue();
     const first = await h.add(token, addCommand());
     expect(first.status).toBe(200);
-    // Same operation id, different option: never answered with the first
-    // command's receipt.
+    // Same operation id, different option, while the schedule still stands at
+    // the committed revision: the rebuilt bytes cannot match, and the reply is
+    // the client's own forbidden rejection — never the first command's receipt.
     const reused = await h.add(token, addCommand({ optionId: extensionOptionId(csce2110) as string }));
     expect(reused.status).toBe(409);
-    const reusedBody: unknown = await reused.json();
-    // "operation-reused" extends the edge contract: the guard copied at
-    // 0d8f959 closes its union at "forbidden" and must learn the new reason.
-    expect(isRecord(reusedBody)).toBe(true);
-    expect(isAddReply(reusedBody)).toBe(false);
-    expect(reusedBody).toMatchObject({ kind: "rejection", operationId: "op-1", reason: "operation-reused" });
+    const reusedReply = await readAddReply(reused);
+    if (reusedReply.kind !== "rejection") throw new Error(`expected a rejection, got ${reusedReply.kind}`);
+    expect(reusedReply.reason).toBe("forbidden");
+    // A reuse whose expected revision doesn't fit the receipt's commit is the
+    // same refusal: the receipt committed one past the original command's
+    // expected revision, not this one's.
     const reusedRevision = await h.add(token, addCommand({ expectedRevision: 99 }));
     expect(reusedRevision.status).toBe(409);
+    const reusedRevisionReply = await readAddReply(reusedRevision);
+    if (reusedRevisionReply.kind !== "rejection") throw new Error(`expected a rejection, got ${reusedRevisionReply.kind}`);
+    expect(reusedRevisionReply.reason).toBe("forbidden");
     // The original command's commit stands untouched.
     expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+  });
+
+  test("a retry answered after the schedule moved returns the original receipt", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const first = await h.add(token, addCommand());
+    expect(first.status).toBe(200);
+    const originalReply = await readAddReply(first);
+    // The student edits Main on the web: the schedule moves past the revision
+    // the add committed, and the extension's response was lost in between.
+    await h.store.write(
+      "alice",
+      new TextEncoder().encode(
+        JSON.stringify({
+          operationId: "web-edit-1", documentId: scheduleId, kind: "schedule", baseRevision: 2, schemaVersion: 1,
+          body: scheduleBody({ name: "Main (edited on the web)" }),
+        }),
+      ),
+      scheduleId,
+    );
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(3);
+    // The retry is the same command: answered with the original receipt, and
+    // nothing is written again.
+    const retry = await h.add(token, addCommand());
+    expect(retry.status).toBe(200);
+    expect(await readAddReply(retry)).toEqual(originalReply);
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(3);
+  });
+
+  test("a storage failure is 503, never a not-found verdict", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const store = h.store as unknown as { getDocument: () => Promise<Document> };
+    const original = store.getDocument;
+    store.getDocument = async () => {
+      throw new SyncError(503, "CONNECTION_FAILED", "The database is unreachable.");
+    };
+    const response = await h.add(token, addCommand());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "unavailable" });
+    store.getDocument = original;
+    expect(await h.store.receipt("alice", "op-1")).toBeNull();
+  });
+
+  test("a schedule deleted between the read and the write is not-found", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const store = h.store as unknown as { write: () => Promise<Receipt> };
+    const original = store.write;
+    store.write = async () => {
+      throw new SyncError(409, "DOCUMENT_DELETED", "This document was deleted. Save it as a new document.", 1);
+    };
+    const response = await h.add(token, addCommand());
+    expect(response.status).toBe(422);
+    const reply = await readAddReply(response);
+    if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
+    expect(reply.reason).toBe("not-found");
+    store.write = original;
   });
 
   test("a stale expected revision is a typed rejection, never an overwrite", async () => {
