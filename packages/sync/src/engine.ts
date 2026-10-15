@@ -70,7 +70,9 @@ export class SyncEngine {
     const current = state.documents.find((document) => document.documentId === documentId);
     requireGeneration(current, input.expectedGeneration);
     if (current && current.kind !== input.kind) throw new Error('A document cannot change kind.');
-    if (current && current.confirmed.revision > 0 && current.confirmed.body === null && body !== null) throw new Error('A deleted document cannot be resurrected. Save a new document id.');
+    // A queued delete commits first; accepting a later edit would resurrect the same id.
+    const deleted = current && (current.confirmed.revision > 0 && current.confirmed.body === null || current.pending.at(-1)?.write.body === null);
+    if (deleted && body !== null) throw new Error('A deleted document cannot be resurrected. Save a new document id.');
     if (current?.delivery.kind === 'conflict') throw new Error('Resolve the conflict before editing this document.');
     if (input.kind === 'version' && (current || body === null)) throw new Error('A version is created once and cannot be changed or deleted.');
     const last = current?.pending.at(-1);
@@ -100,7 +102,12 @@ export class SyncEngine {
       const state = await this.read();
       const document = state.documents.find((item) => item.documentId === documentId);
       const pending = document?.pending[0];
-      if (!document || !pending || document.delivery.kind === 'conflict') return;
+      if (!document || !pending) return;
+      if (document.delivery.kind === 'conflict') {
+        // A crash after recording a conflict must not strand an automatic merge.
+        await this.mergeAutomatically(documentId);
+        return;
+      }
       // Mark uncertainty before network I/O, so a killed process retries the same bytes on restart.
       const active = await this.store.transact(this.identity, (next) => {
         const current = next.documents.find((item) => item.documentId === documentId);
@@ -227,6 +234,7 @@ export class SyncEngine {
           const current = state.documents.find((item) => item.documentId === action.entry.documentId);
           if (current && current.kind !== action.entry.kind) throw new Error('Pull changed a local document kind.');
           if (current && current.confirmed.revision >= latest.revision) return;
+          if (current?.delivery.kind === 'conflict' && current.delivery.latest.revision >= latest.revision) return;
           if (current?.pending.length) {
             if (current.delivery.kind === 'retrying' || current.delivery.kind === 'needs-sign-in') return;
             current.delivery = { kind: 'conflict', latest };

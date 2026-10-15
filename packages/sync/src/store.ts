@@ -65,6 +65,7 @@ export class MemoryStore implements LocalStore {
     const key = identityKey(identity);
     const state = copy(this.states.get(key) ?? emptyState());
     const result = change(state);
+    if (result instanceof Promise) throw new Error('A sync storage transaction callback must be synchronous.');
     this.states.set(key, copy(state));
     return result === undefined ? result : copy(result);
   }

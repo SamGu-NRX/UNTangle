@@ -212,3 +212,72 @@ test('versions are append-only for guests as well as users', async () => {
     expect((await doc(engine)).draft).toEqual(body);
   }
 });
+
+test('an edit cannot queue behind an unconfirmed delete and resurrect the same document id', async () => {
+  const engine = new SyncEngine(new MemoryStore(), user, io({ fetch: async () => remote() }));
+  await engine.pull(list(1));
+  await engine.save({ documentId: 'doc', kind: 'schedule', body: null, expectedGeneration: 1 });
+  await expect(save(engine, 2, 'Resurrection')).rejects.toThrow('cannot be resurrected');
+  expect((await doc(engine)).pending.map((pending) => pending.write.body)).toEqual([null]);
+  await engine.syncNext('doc');
+  expect((await doc(engine)).confirmed).toEqual({ revision: 2, body: null });
+});
+
+test('a save hashing across sign-out cannot recreate the discarded draft', async () => {
+  let began = () => {}, release = () => {};
+  const started = new Promise<void>((resolve) => { began = resolve; });
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const engine = new SyncEngine(new MemoryStore(), user, io({ sha256: async (bytes) => { began(); await gate; return hash(bytes); } }));
+  const saving = save(engine); await started;
+  await engine.clearLocalData({ discardPending: true }); release();
+  await expect(saving).rejects.toThrow('discarded while saving');
+  expect(await engine.read()).toEqual({ epoch: 1, documents: [], usedOperationIds: [] });
+});
+
+test('explicitly reapplied schedule edits become a new operation against the viewed latest revision', async () => {
+  let conflicted = false;
+  const normal = io();
+  const engine = new SyncEngine(new MemoryStore(), user, io({ push: async (id, bytes) => {
+    if (!conflicted) { conflicted = true; return { kind: 'conflict', latest: remote(schedule('Server'), 8) }; }
+    return normal.push(id, bytes);
+  } }));
+  await save(engine); await engine.syncNext('doc');
+  const generation = (await doc(engine)).generation;
+  await expect(engine.resolve('doc', generation - 1, { kind: 'write', body: schedule('Wrong view') })).rejects.toThrow('Local document changed');
+  await engine.resolve('doc', generation, { kind: 'write', body: schedule('Reapplied') });
+  expect((await doc(engine)).pending[0].write).toMatchObject({ operationId: 'operation-2', baseRevision: 8, body: { name: 'Reapplied' } });
+  await engine.syncNext('doc');
+  expect((await doc(engine)).confirmed).toEqual({ revision: 9, body: schedule('Reapplied') });
+});
+
+test('a store callback that accidentally returns a promise cannot commit partial state', async () => {
+  const store = new MemoryStore(); const engine = new SyncEngine(store, user, io());
+  await save(engine);
+  await expect(store.transact(user, async (state) => { state.documents = []; })).rejects.toThrow('must be synchronous');
+  expect((await doc(engine)).draft).toEqual(schedule());
+});
+
+test('a restart between recording a preference conflict and preparing its merge resumes automatically', async () => {
+  const store = new MemoryStore(); const base = preferences(), latest = preferences(), mine = preferences();
+  latest.constraints.daysOff = ['Fri']; mine.constraints.maxCredits = 12;
+  let available = true, firstPush = true;
+  const normal = io();
+  const adapter = io({
+    fetch: async () => remote(base, 1, 'preferences'),
+    push: async (id, bytes) => {
+      if (firstPush) { firstPush = false; available = false; return { kind: 'conflict', latest: remote(latest, 2, 'preferences') }; }
+      return normal.push(id, bytes);
+    },
+    sha256: async (bytes) => { if (!available) throw new Error('Process interrupted before rebase'); return hash(bytes); },
+  });
+  const before = new SyncEngine(store, user, adapter);
+  await before.pull(list(1, false, 'preferences'));
+  await before.save({ documentId: 'doc', kind: 'preferences', body: mine, expectedGeneration: 1 });
+  await expect(before.syncNext('doc')).rejects.toThrow('Process interrupted');
+  expect((await doc(before)).delivery.kind).toBe('conflict');
+  available = true;
+  const after = new SyncEngine(store, user, adapter);
+  await after.syncNext('doc'); await after.syncNext('doc');
+  expect((await doc(after)).confirmed).toEqual({ revision: 3, body: { ...mine, constraints: { ...mine.constraints, daysOff: ['Fri'] } } });
+  expect(syncStatus(user, await doc(after))).toBe('Synced');
+});
