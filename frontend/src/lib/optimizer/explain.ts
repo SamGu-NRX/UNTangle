@@ -323,6 +323,12 @@ export function explainSentence(request: OptimizeRequest, members: ExplainMember
     const onlyB = onlySection(b);
     if (conditions.length === 0) {
       if (onlyA && onlyB) {
+        // A locked section already carries its pattern in describe(), so a
+        // trailing list would name it twice; name each section once instead.
+        if (locked.has(a) || locked.has(b)) {
+          const named = (code: string, only: OptSection) => (locked.has(code) ? describe(code) : `${code} (${pattern(only)})`);
+          return `${named(a, onlyA)} and ${named(b, onlyB)} overlap.`.replace(/^./, (s) => s.toUpperCase());
+        }
         const datesA = dated ? datesOf(onlyA) : null;
         const datesB = dated ? datesOf(onlyB) : null;
         const both =
