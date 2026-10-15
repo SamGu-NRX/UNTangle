@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { PlanProvider } from "@/plan/plan-store";
 import { color } from "@/theme/tokens";
+import { startUpdateChecks } from "@/updates/start";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 

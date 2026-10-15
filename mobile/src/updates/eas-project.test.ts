@@ -1,6 +1,7 @@
 import {
   EasProjectConfigError,
   PLACEHOLDER_PROJECT_ID,
+  resolveEasPair,
   resolveEasProject,
 } from "./eas-project";
 
@@ -56,6 +57,43 @@ describe("resolveEasProject", () => {
       { allowPlaceholder: false },
     );
     expect(eas).toEqual({ projectId: REAL_ID, updateUrl: REAL_URL, isPlaceholder: false });
+  });
+
+  test("a URL pointing at a different project throws", () => {
+    expect(() =>
+      resolveEasProject(
+        { EXPO_PUBLIC_EAS_PROJECT_ID: REAL_ID, EXPO_PUBLIC_EAS_UPDATE_URL: "https://u.expo.dev/ffffffff-1111-4222-8333-444444444444" },
+        { allowPlaceholder: false },
+      ),
+    ).toThrow(/different project/);
+    expect(() =>
+      resolveEasProject(
+        { EXPO_PUBLIC_EAS_PROJECT_ID: REAL_ID, EXPO_PUBLIC_EAS_UPDATE_URL: `${REAL_URL}/` },
+        { allowPlaceholder: false },
+      ),
+    ).toThrow(/different project/);
+  });
+
+  test("a trailing-slash URL is rejected, not silently normalized", () => {
+    expect(() =>
+      resolveEasProject(
+        { EXPO_PUBLIC_EAS_PROJECT_ID: REAL_ID, EXPO_PUBLIC_EAS_UPDATE_URL: "https://u.expo.dev/ffffffff-1111-4222-8333-444444444444" },
+        { allowPlaceholder: false },
+      ),
+    ).toThrow(/expected/);
+  });
+
+  test("resolveEasPair takes the values read with dot notation", () => {
+    expect(resolveEasPair(REAL_ID, REAL_URL, { allowPlaceholder: true })).toEqual({
+      projectId: REAL_ID,
+      updateUrl: REAL_URL,
+      isPlaceholder: false,
+    });
+    expect(resolveEasPair(undefined, undefined, { allowPlaceholder: true })).toEqual({
+      projectId: PLACEHOLDER_PROJECT_ID,
+      updateUrl: `https://u.expo.dev/${PLACEHOLDER_PROJECT_ID}`,
+      isPlaceholder: true,
+    });
   });
 
   test("surrounding whitespace is trimmed", () => {

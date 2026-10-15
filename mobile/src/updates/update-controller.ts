@@ -1,11 +1,15 @@
 /**
  * The over-the-air update flow: check on launch and on return to the
- * foreground, download in the background, and restart into a downloaded
- * update only at a safe moment. A restart replaces the whole JavaScript
- * runtime, and the guest's plan lives only in memory (plan-store), so the
- * restart lands only while no screen holds an unsafe moment open
- * (safe-moment.ts): reviewing an import, resolving a conflict or approving
- * Auto (docs/architecture/README.md, "Mobile").
+ * foreground, download in the background, and hold the downloaded update
+ * until something applies it at a safe moment. A restart replaces the whole
+ * JavaScript runtime, and the guest's plan lives only in memory (plan-store),
+ * so today nothing in the app calls applyWhenSafe: a downloaded update
+ * applies at the next cold start, which is expo-updates' own default, and
+ * applyWhenSafe is the explicit path reserved for when plans persist to
+ * SQLite. Its safety rule stands anyway, tested here: a screen reviewing an
+ * import, resolving a conflict or approving Auto holds an unsafe moment
+ * (safe-moment.ts) and no restart may land inside one
+ * (docs/architecture/README.md, "Mobile").
  *
  * The expo-updates calls sit behind UpdatesClient so every branch is
  * unit-testable without a device.
@@ -103,7 +107,7 @@ export function createUpdateController(options: UpdateControllerOptions) {
       }
 
       setState("ready");
-      log("update downloaded; it applies at the next safe backgrounding");
+      log("update downloaded; it applies at the next cold start");
     })();
 
     checkInFlight = run;
@@ -115,9 +119,11 @@ export function createUpdateController(options: UpdateControllerOptions) {
   }
 
   /**
-   * Called when the app moves to the background, where a restart is
-   * invisible. Refuses while an unsafe moment is open and stays ready, so
-   * the next backgrounding retries instead of dropping the download.
+   * The explicit apply path: restarts into a downloaded update when no unsafe
+   * moment is open. Nothing calls it today (see the module comment); when the
+   * plan persists to SQLite, backgrounding wires it back in. Refuses while an
+   * unsafe moment is open and stays ready, so the next caller retries instead
+   * of dropping the download.
    */
   function applyWhenSafe(): ApplyAttempt {
     if (installInFlight) return "in-progress";

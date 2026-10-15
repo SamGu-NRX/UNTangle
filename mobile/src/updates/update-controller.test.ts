@@ -15,7 +15,7 @@ jest.mock("expo-updates", () => ({
   reloadAsync: jest.fn(),
 }));
 
-const mockedUpdates = jest.mocked(Updates, true);
+const mockedUpdates = jest.mocked(Updates, { shallow: true });
 
 interface FakeClient {
   readonly client: UpdatesClient;

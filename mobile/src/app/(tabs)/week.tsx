@@ -16,6 +16,7 @@ import { land, refuse, tick } from "@/ui/haptics";
 import { Button, PressScale } from "@/ui/press";
 import { Txt } from "@/ui/text";
 import { WeekGrid } from "@/ui/week-grid";
+import { useUnsafeMoment } from "@/updates/safe-moment";
 
 const DAY_NAMES: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday" };
 
@@ -33,6 +34,10 @@ export default function WeekScreen() {
   const { picks, week, prefs, replace } = usePlan();
   const [auto, setAuto] = useState<AutoResult | null>(null);
   const [index, setIndex] = useState(0);
+  // While the Auto options card is open the update flow holds: a restart
+  // replaces the whole JavaScript runtime and the plan is memory-only, so the
+  // student's review would be lost (docs/mobile/ota.md).
+  useUnsafeMoment(auto !== null, "auto");
   const [used, setUsed] = useState<{ label: string; before: Picks } | null>(null);
 
   const option = auto?.kind === "options" ? auto.options[index] : null;

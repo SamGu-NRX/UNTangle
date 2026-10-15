@@ -56,8 +56,9 @@ function usage(): string {
     "Options:",
     "  --rollout-percentage <1-100>  Stage the update to this share of users.",
     "  --apply                       Publish. Without it the script only prints the plan.",
+    "  --platform ios                Only ios is supported (the shipping target).",
     "  --build-list-file <path>      Use a saved `eas build:list --json` output instead of calling EAS.",
-    "  --fingerprint-file <path>     Use a saved `expo-updates fingerprint:generate` output.",
+    "  --fingerprint-file <path>     Use a saved fingerprint generator output instead of computing one.",
     "",
     "Dry run is the default: every command prints what it would run and stops.",
   ].join("\n");
@@ -83,6 +84,15 @@ function parseArgs(argv: readonly string[]): CliOptions {
         break;
       case "--apply":
         options.apply = true;
+        break;
+      case "--platform":
+        if (!value) throw new OtaPublishError("--platform needs a value.");
+        if (value !== "ios") {
+          throw new OtaPublishError(
+            `--platform ${value} is not supported: ios is the shipping target and the only platform this script publishes (docs/mobile/ota.md).`,
+          );
+        }
+        index += 1;
         break;
       case "--build-list-file":
         if (!value) throw new OtaPublishError("--build-list-file needs a path.");
@@ -146,7 +156,15 @@ function readInputFile(path: string): string {
 }
 
 function fingerprintFromFile(raw: string, source: string): string {
-  const hash = JSON.parse(raw).hash;
+  // A malformed saved file is a local setup problem: exit 2 with a useful
+  // message, not an unhandled SyntaxError.
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new OtaPublishError(`${source} is not valid JSON; expected a saved fingerprint generator output.`);
+  }
+  const hash = parsed !== null && typeof parsed === "object" ? (parsed as { hash?: unknown }).hash : undefined;
   if (typeof hash !== "string" || hash === "") {
     throw new OtaPublishError(`${source} holds no fingerprint hash.`);
   }
@@ -220,7 +238,9 @@ function main(env: Env, argv: readonly string[]): number {
     .map((build) => `  - build ${build.id ?? "(no id)"} v${build.appVersion ?? "?"} fingerprint ${fingerprintOf(build)}`)
     .join("\n");
   const rollout = options.rolloutPercentage === undefined ? "" : ` --rollout-percentage ${options.rolloutPercentage}`;
-  const command = `npx eas-cli update --channel ${options.channel} --platform ${options.platform} --message "${options.message}"${rollout}`;
+  const command =
+    `npx eas-cli update --channel ${options.channel} --environment ${options.channel} --platform ${options.platform}` +
+    ` --message "${options.message}"${rollout}`;
 
   console.log(`Fingerprint guard passed: ${matches.length} production build(s) match.\n${matched}`);
   console.log(`Rollout: ${options.rolloutPercentage ?? 100}% of users on the ${options.channel} channel.`);
@@ -230,7 +250,18 @@ function main(env: Env, argv: readonly string[]): number {
     console.log(`Dry run only. To publish, rerun with --apply:\n  ${command}`);
     return 0;
   }
-  const result = run(["npx", "--yes", "eas-cli@latest", "update", "--channel", options.channel, "--platform", options.platform, "--message", options.message, ...(options.rolloutPercentage === undefined ? [] : ["--rollout-percentage", String(options.rolloutPercentage)]), "--non-interactive"], MOBILE_DIR);
+  const result = run(
+    [
+      "npx", "--yes", "eas-cli@latest", "update",
+      "--channel", options.channel,
+      "--environment", options.channel,
+      "--platform", options.platform,
+      "--message", options.message,
+      ...(options.rolloutPercentage === undefined ? [] : ["--rollout-percentage", String(options.rolloutPercentage)]),
+      "--non-interactive",
+    ],
+    MOBILE_DIR,
+  );
   if (!result.ok) {
     console.error(`eas update failed:\n${result.stderr || result.stdout}`);
     return 1;

@@ -42,9 +42,20 @@ export interface ResolveEasProjectOptions {
   readonly allowPlaceholder: boolean;
 }
 
-export function resolveEasProject(env: Env, options: ResolveEasProjectOptions): EasProject {
-  const projectId = env[EAS_PROJECT_ID_ENV]?.trim() ?? "";
-  const updateUrl = env[EAS_UPDATE_URL_ENV]?.trim() ?? "";
+/**
+ * The resolver bundled code calls: Expo inlines EXPO_PUBLIC_* only for literal
+ * dot-notation reads (process.env.EXPO_PUBLIC_X), so runtime callers read both
+ * values with dot notation and hand them here. resolveEasProject delegates to
+ * this. app.config.ts inlines the same rules, because the config file is
+ * loaded by plain Node require and cannot import this module.
+ */
+export function resolveEasPair(
+  projectIdRaw: string | undefined,
+  updateUrlRaw: string | undefined,
+  options: ResolveEasProjectOptions,
+): EasProject {
+  const projectId = projectIdRaw?.trim() ?? "";
+  const updateUrl = updateUrlRaw?.trim() ?? "";
 
   if (projectId === "" && updateUrl === "") {
     if (options.allowPlaceholder) {
@@ -84,5 +95,19 @@ export function resolveEasProject(env: Env, options: ResolveEasProjectOptions): 
       `${EAS_UPDATE_URL_ENV} must start with ${UPDATE_URL_PREFIX}, got "${updateUrl}".`,
     );
   }
+  // A copied or typoed URL must not silently point the build's updates.url at
+  // another project than extra.eas.projectId names: such an update would never
+  // reach the binary.
+  if (updateUrl.slice(UPDATE_URL_PREFIX.length) !== projectId) {
+    throw new EasProjectConfigError(
+      `${EAS_UPDATE_URL_ENV} points at a different project than ${EAS_PROJECT_ID_ENV}: ` +
+        `expected ${UPDATE_URL_PREFIX}${projectId}, got "${updateUrl}".`,
+    );
+  }
   return { projectId, updateUrl, isPlaceholder: false };
+}
+
+/** The environment form, for callers running in Node (the publish script). */
+export function resolveEasProject(env: Env, options: ResolveEasProjectOptions): EasProject {
+  return resolveEasPair(env[EAS_PROJECT_ID_ENV], env[EAS_UPDATE_URL_ENV], options);
 }

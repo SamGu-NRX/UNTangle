@@ -1,15 +1,20 @@
 import * as Updates from "expo-updates";
 import { AppState } from "react-native";
 
+import { resolveEasPair } from "./eas-project";
 import { isSafeToApply } from "./safe-moment";
 import { createUpdateController, type UpdateController } from "./update-controller";
-import { PLACEHOLDER_PROJECT_ID, resolveEasProject } from "./eas-project";
 
 /**
  * Real wiring for the update flow: check at launch, recheck on return to the
- * foreground after the app has sat in the background for a while, and restart
- * into a downloaded update when the app backgrounds at a safe moment. Called
- * once from the root layout; the returned cleanup unsubscribes.
+ * foreground after the app has sat in the background for a while, and download
+ * in the background. Nothing here restarts the app: the guest's plan lives
+ * only in memory (plan-store), so a restart when the app backgrounds would
+ * wipe a student's picks after a quick app switch. A downloaded update
+ * applies at the next cold start, which is expo-updates' own default, and
+ * controller.applyWhenSafe stays reserved for when plans persist to SQLite
+ * (docs/mobile/ota.md). Called once from the root layout; the returned
+ * cleanup unsubscribes.
  *
  * The app can stay resident for days, so a launch-only check would miss
  * updates published while it was in memory. Anything shorter reads as noise:
@@ -27,8 +32,15 @@ export function shouldRecheckOnForeground(
 }
 
 export function startUpdateChecks(): () => void {
-  const eas = resolveEasProject(process.env, { allowPlaceholder: true });
-  if (eas.isPlaceholder || eas.projectId === PLACEHOLDER_PROJECT_ID) {
+  // Expo inlines EXPO_PUBLIC_* only when bundled source reads
+  // process.env.EXPO_PUBLIC_X with dot notation; a lookup by name compiles to
+  // nothing, and a real build would always see the placeholder.
+  const eas = resolveEasPair(
+    process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+    process.env.EXPO_PUBLIC_EAS_UPDATE_URL,
+    { allowPlaceholder: true },
+  );
+  if (eas.isPlaceholder) {
     // Placeholder until `eas init` runs and the env is set: stay silent, keep
     // the app fully usable. docs/mobile/ota.md has the setup steps.
     console.warn(
@@ -50,9 +62,9 @@ export function startUpdateChecks(): () => void {
   const subscription = AppState.addEventListener("change", (appState) => {
     if (appState === "background") {
       backgroundedAtMs = Date.now();
-      // The restart is invisible here, and screens cannot hold an unsafe
-      // moment open across a backgrounding, so this is the apply moment.
-      controller.applyWhenSafe();
+      // Download while backgrounded, never reloadAsync here: the update waits
+      // for the next cold start (docs/mobile/ota.md).
+      void controller.check();
       return;
     }
     if (appState === "active") {
