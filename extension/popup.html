@@ -6,14 +6,9 @@
     <title>UNTangle</title>
   </head>
   <body>
-    <main>
-      <h1>UNTangle</h1>
-      <p id="notice" role="status"></p>
-      <div id="details"></div>
-      <button id="sign-in" type="button">Sign in to UNTangle</button>
-      <button id="confirm" type="button" hidden>Add to Main</button>
-      <button id="retry" type="button" hidden>Retry pending adds</button>
-    </main>
+    <header class="bar"><span class="wordmark">UNTangle</span></header>
+    <main id="view" aria-labelledby="view-title"></main>
+    <footer id="actions" class="foot"></footer>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

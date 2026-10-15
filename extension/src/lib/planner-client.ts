@@ -1,4 +1,5 @@
 import { UNTANGLE_ORIGIN } from "../config";
+import { StudentError } from "../shared/student-error";
 import { isAddReply, isPreview, isSectionRef, isCommand, type AddOptionCommand, type AddReply, type Preview, type SectionRef } from "../shared/extension-api";
 export type PlannerApi = Pick<PlannerClient, "preview" | "add">;
 export interface SessionCache {
@@ -6,7 +7,7 @@ export interface SessionCache {
   set(key: string, value: unknown): Promise<void>;
 }
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
-export class AuthenticationRequired extends Error {
+export class AuthenticationRequired extends StudentError {
   constructor() { super("Sign in to UNTangle to continue."); }
 }
 export class PlannerClient {
@@ -20,7 +21,7 @@ export class PlannerClient {
     if (response.status === 401)
       throw new AuthenticationRequired();
     if (!response.ok)
-      throw new Error("Couldn't load your schedule. Retry.");
+      throw new StudentError("Couldn't load Main from UNTangle. Check your connection and retry.");
     const body: unknown = await response.json();
     if (!isPreview(body))
       throw new Error("Invalid extension preview response");

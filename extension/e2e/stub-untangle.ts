@@ -3,6 +3,12 @@ import { isCommand, isRecord, type AddOptionCommand, type AddReply, type Preview
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 let revision = 1;
 let dropNext = false;
+// Journey knobs, one per panel state that a healthy server never shows.
+// Preview failure and delays last until cleared; command outcomes apply once.
+let failPreviewFor: string | null = null;
+let previewDelayMs = 0;
+let commandDelayMs = 0;
+let nextCommand: "reject" | "unauthorized" | null = null;
 const receipts = new Map<string, {
   body: string;
   reply: AddReply;
@@ -22,6 +28,31 @@ const auth = new Map<string, {
 }>();
 const token = "fixture-access-token";
 const titles: Record<string, string> = { "14523": "CSCE 1030", "15802": "ENGL 1310", "16077": "CSCE 2100" };
+const grades = { source: "UNT grade records" };
+function preview(classNumber: string): Preview {
+  const base = { scheduleId: "main", optionId: `section-${classNumber}`, revision, title: titles[classNumber], details: [] as string[], inSchedule: writes.some(w => w.optionId === `section-${classNumber}`) };
+  if (classNumber === "14523") {
+    return {
+      ...base, conflict: "conflict", courseTitle: "Computer Science I", section: "001",
+      meetings: [{ days: "Mon Wed Fri", time: "9:00 to 9:50 AM", room: "NTDP B185" }],
+      clashes: [{ kind: "course", name: "CSCE 1040", when: "Mon Wed Fri 9:30 to 10:20 AM" }, { kind: "busy", name: "Work", when: "Mon 9:00 to 10:00 AM" }],
+      grades: { ...grades, status: "history", instructor: "John Smith", averageGpa: 3.4, students: 146, terms: "2019 to 2025" },
+    };
+  }
+  if (classNumber === "15802") {
+    return {
+      ...base, conflict: revision >= 2 ? "conflict" : "clear", courseTitle: "College Writing I", section: "005",
+      meetings: [{ days: "Mon Wed Fri", time: "1:00 to 1:50 PM", room: "LANG 115" }],
+      clashes: revision >= 2 ? [{ kind: "course", name: "HIST 2610", when: "Mon Wed Fri 1:00 to 1:50 PM" }] : [],
+      grades: { ...grades, status: "none", instructor: "Jane Doe" },
+    };
+  }
+  return {
+    ...base, conflict: "unknown", unknownReason: "no-set-time", courseTitle: "Foundations of Computing", section: "004",
+    meetings: [{ days: "Online", time: null, room: null }],
+    grades: { ...grades, status: "unavailable", instructor: null },
+  };
+}
 Bun.serve({
   hostname: "127.0.0.1", port: Number(process.env.STUB_PORT ?? 3217),
   async fetch(request): Promise<Response> {
@@ -38,6 +69,20 @@ Bun.serve({
     if (path === "/__drop-next" && request.method === "POST") {
       dropNext = true;
       return json({ ok: true });
+    }
+    if (path === "/__knobs" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body))
+        return json({ error: "invalid knobs" }, 400);
+      if (body.failPreviewFor === null || typeof body.failPreviewFor === "string")
+        failPreviewFor = body.failPreviewFor;
+      if (typeof body.previewDelayMs === "number")
+        previewDelayMs = body.previewDelayMs;
+      if (typeof body.commandDelayMs === "number")
+        commandDelayMs = body.commandDelayMs;
+      if (body.nextCommand === "reject" || body.nextCommand === "unauthorized")
+        nextCommand = body.nextCommand;
+      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand });
     }
     requests.push({ path, cookie: request.headers.has("cookie"), bearer: request.headers.get("authorization") === `Bearer ${token}` });
     if (request.headers.has("cookie"))
@@ -77,12 +122,24 @@ Bun.serve({
       const classNumber = match[1];
       if (!titles[classNumber])
         return json({ error: "not found" }, 404);
-      return json({ scheduleId: "main", optionId: `section-${classNumber}`, revision, title: titles[classNumber], conflict: classNumber === "14523" || (classNumber === "15802" && revision >= 2) ? "conflict" : classNumber === "15802" ? "clear" : "unknown", details: classNumber === "14523" ? ["Work on Monday from 9 AM to 10 AM", "John Smith's course average is 3.40"] : ["Section 005"] } satisfies Preview);
+      if (previewDelayMs > 0)
+        await Bun.sleep(previewDelayMs);
+      if (failPreviewFor === classNumber)
+        return json({ error: "fixture failure" }, 500);
+      return json(preview(classNumber));
     }
     if (path === "/api/v1/extension/commands" && request.method === "POST") {
       const body: unknown = await request.json();
       if (!isCommand(body))
         return json({ error: "invalid command" }, 422);
+      if (commandDelayMs > 0)
+        await Bun.sleep(commandDelayMs);
+      const forced = nextCommand;
+      nextCommand = null;
+      if (forced === "unauthorized")
+        return json({ error: "Unauthorized" }, 401);
+      if (forced === "reject")
+        return json({ kind: "rejection", operationId: body.operationId, reason: "forbidden" }, 403);
       const encoded = JSON.stringify(body);
       const existing = receipts.get(body.operationId);
       if (existing)

@@ -1,6 +1,7 @@
 import { UNTANGLE_ORIGIN } from "../config";
 import { isGrant, isRecord, type DeviceGrant } from "../shared/extension-api";
 import type { FetchLike } from "./planner-client";
+import { StudentError } from "../shared/student-error";
 export interface AuthBrowser {
   redirectUri: string;
   launch(url: string): Promise<string>;
@@ -22,7 +23,7 @@ export class DeviceClient {
       body: JSON.stringify({ kind: "extension", redirectUri: this.browser.redirectUri, state, codeChallenge: challenge, codeChallengeMethod: "S256" }),
     });
     if (!response.ok)
-      throw new Error("Couldn't start sign-in. Retry.");
+      throw new StudentError("Couldn't start sign-in. Check your connection and retry.");
     const authorization: unknown = await response.json();
     if (!isRecord(authorization) || typeof authorization.authorizationUrl !== "string")
       throw new Error("Invalid device authorization response");
@@ -41,7 +42,7 @@ export class DeviceClient {
       body: JSON.stringify({ kind: "extension", code, codeVerifier: verifier, redirectUri: this.browser.redirectUri }),
     });
     if (!exchange.ok)
-      throw new Error("Sign-in expired. Retry.");
+      throw new StudentError("That sign-in expired. Sign in again.");
     const grant: unknown = await exchange.json();
     if (!isGrant(grant) || grant.expiresAt <= Date.now())
       throw new Error("Invalid device grant response");

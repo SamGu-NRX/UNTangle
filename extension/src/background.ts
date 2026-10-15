@@ -2,6 +2,7 @@ import { DeviceClient } from "./lib/device-client";
 import type { LocalStore } from "./lib/outbox";
 import { PlannerClient } from "./lib/planner-client";
 import { WorkerController } from "./lib/worker-controller";
+import { StudentError } from "./shared/student-error";
 import { validateMessage } from "./shared/validation";
 const store: LocalStore = {
   get: async (key) => (await chrome.storage.local.get(key))[key],
@@ -14,7 +15,7 @@ const devices = new DeviceClient(fetch.bind(globalThis), {
   launch: async (url) => {
     const result = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
     if (!result)
-      throw new Error("Sign-in was closed. Retry.");
+      throw new StudentError("The sign-in window closed before you finished. Sign in again.");
     return result;
   },
 });
@@ -36,6 +37,14 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
     respond({ error: "Message rejected" });
     return false;
   }
-  void ready.then(() => controller.handle(request)).then(respond, () => respond({ error: "UNTangle couldn't load. Retry." }));
+  const handled = ready.then(() => controller.handle(request));
+  void handled.then(respond, () => respond({ error: "UNTangle couldn't load. Retry." }));
+  // A marker click proposes the section, then opens the trusted panel, which
+  // reviews it and holds the only Add button. The panel opens after the
+  // proposal is stored so its first status read finds it. Chrome refuses
+  // openPopup when the window isn't focused; the toolbar button then opens
+  // the same review.
+  if (request.type === "proposal/request")
+    void handled.then(() => chrome.action.openPopup({ windowId: sender.tab?.windowId })).catch(() => { });
   return true;
 });
