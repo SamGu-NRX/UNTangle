@@ -39,10 +39,27 @@ async function readAcademicRecord(userId: string): Promise<AcademicRecordBody | 
   return null;
 }
 
-/** "2024 Fall" orders by the leading year; an unparsable term sorts oldest. */
+// Semester ranks inside a calendar year: Spring before Summer before Fall.
+const SEASON_RANK: [RegExp, number][] = [
+  [/spring/i, 1],
+  [/summer/i, 2],
+  [/fall|autumn/i, 3],
+  [/winter/i, 4],
+];
+
+/**
+ * Chronological term key: the calendar year times ten plus the semester's
+ * rank, so "2025 Spring" orders before "2025 Fall" (and "2024 Fall" before
+ * "2025 Spring") whichever way the transcript lists the rows. Both UNT row
+ * formats ("2025 Fall", "Fall 2025") parse. An unparsable term sorts oldest,
+ * and rows with equal keys keep transcript row order (the later row replaces
+ * the earlier), so the resolution stays deterministic.
+ */
 function termKey(term: string): number {
-  const year = Number.parseInt(term, 10);
-  return Number.isNaN(year) ? 0 : year;
+  const year = /\d{4}/.exec(term);
+  const season = SEASON_RANK.find(([pattern]) => pattern.test(term));
+  if (!year || !season) return 0;
+  return Number(year[0]) * 10 + season[1];
 }
 
 /**

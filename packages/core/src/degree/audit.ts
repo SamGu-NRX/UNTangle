@@ -87,23 +87,35 @@ function subjectOf(code: string): string {
   return code.split(/\s+/)[0] ?? "";
 }
 
-/** Greedy bipartite matching: cover as many distinct options with distinct courses. */
-function maxCovered(options: { must: string[] }[], completed: Set<string>, inProgress: Set<string>, limit = Infinity): { covered: number; satisfiedAll: boolean[]; usedCodes: string[] } {
+/**
+ * Maximum disjoint-option coverage: the largest number of options that can
+ * each take all their courses from `available`. Overlapping options make a
+ * first-fit undercount (options {A,B},{A,C},{B,D} admit two disjoint picks
+ * while greedy commits to one), so the search backtracks. Options are tried
+ * in catalog order, include-first, keeping the reported set deterministic.
+ */
+function maxCovered(options: { must: string[] }[], available: Set<string>, limit = Infinity): { covered: number; usedCodes: string[] } {
+  const candidates = options.filter((option) => option.must.every((code) => available.has(code)));
+  let bestCodes: string[][] = [];
   const used = new Set<string>();
-  const satisfiedAll = options.map((option) => option.must.every((code) => completed.has(code) || inProgress.has(code)));
-  const order = options
-    .map((option, index) => ({ option, index }))
-    .filter(({ option }) => option.must.every((code) => completed.has(code)))
-    .sort((a, b) => a.option.must.length - b.option.must.length);
-  let covered = 0;
-  for (const { option } of order) {
-    if (covered >= limit) break;
-    if (option.must.every((code) => !used.has(code))) {
-      option.must.forEach((code) => used.add(code));
-      covered += 1;
+  const picked: string[][] = [];
+  const walk = (start: number): void => {
+    if (picked.length > bestCodes.length) bestCodes = picked.map((codes) => [...codes]);
+    if (picked.length >= limit) return;
+    for (let index = start; index < candidates.length; index += 1) {
+      // No later candidate can grow a better answer from here.
+      if (picked.length + (candidates.length - index) <= bestCodes.length) break;
+      const option = candidates[index]!.must;
+      if (option.some((code) => used.has(code))) continue;
+      option.forEach((code) => used.add(code));
+      picked.push(option);
+      walk(index + 1);
+      picked.pop();
+      option.forEach((code) => used.delete(code));
     }
-  }
-  return { covered, satisfiedAll, usedCodes: [...used] };
+  };
+  walk(0);
+  return { covered: bestCodes.length, usedCodes: bestCodes.flat() };
 }
 
 /** Completed courses matching a pool's subject/level rule. */
@@ -151,48 +163,47 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
     }
     case "choose": {
       if (allocation) {
-        // Same disjoint coverage as maxCovered, but each taken option claims
-        // its courses in the shared allocation so later nodes cannot reuse
-        // them, and coverage only counts courses no earlier node took.
+        // Maximum disjoint coverage, but each taken option claims its courses
+        // in the shared allocation so later nodes cannot reuse them, and
+        // coverage only counts courses no earlier node took.
         const freeCompleted = new Set([...completed].filter((code) => !allocation.used.has(code)));
         const freePlanned = new Set([...freeCompleted, ...[...inProgress].filter((code) => !allocation.used.has(code))]);
-        const order = node.options
-          .filter((option) => option.must.every((code) => freeCompleted.has(code)))
-          .sort((a, b) => a.must.length - b.must.length);
-        let taken = 0;
-        for (const option of order) {
-          if (taken >= node.count) break;
-          option.must.forEach((code) => allocation.used.add(code));
-          option.must.forEach((code) => applied.add(code));
-          taken += 1;
-        }
-        const possible = maxCovered(node.options, freePlanned, new Set()).covered;
-        const status = taken >= node.count ? "satisfied" : possible >= node.count ? "inProgress" : "unsatisfied";
-        return { name: node.name, status, detail: `${Math.min(taken, node.count)}/${node.count} chosen`, citation: cite };
+        const { covered, usedCodes } = maxCovered(node.options, freeCompleted, node.count);
+        usedCodes.forEach((code) => {
+          allocation.used.add(code);
+          applied.add(code);
+        });
+        const possible = maxCovered(node.options, freePlanned, node.count).covered;
+        const status = covered >= node.count ? "satisfied" : possible > covered ? "inProgress" : "unsatisfied";
+        return { name: node.name, status, detail: `${covered}/${node.count} chosen`, citation: cite };
       }
       // Only the options the choice actually uses count toward grade floors:
       // the unused alternatives are not dragged in.
-      const { covered, usedCodes } = maxCovered(node.options, completed, inProgress, node.count);
+      const { covered, usedCodes } = maxCovered(node.options, completed, node.count);
       usedCodes.forEach((code) => applied.add(code));
-      const possible = maxCovered(node.options, new Set([...completed, ...inProgress]), new Set(), node.count).covered;
-      const status = covered >= node.count ? "satisfied" : possible >= node.count ? "inProgress" : "unsatisfied";
-      return { name: node.name, status, detail: `${Math.min(covered, node.count)}/${node.count} chosen`, citation: cite };
+      const possible = maxCovered(node.options, new Set([...completed, ...inProgress]), node.count).covered;
+      const status = covered >= node.count ? "satisfied" : possible > covered ? "inProgress" : "unsatisfied";
+      return { name: node.name, status, detail: `${covered}/${node.count} chosen`, citation: cite };
     }
     case "hours": {
       if (allocation) {
         // Options in listed order form a prefix: each option whose courses are
         // all completed and unclaimed is taken (and claims them) until the
         // hours are met. A course claimed here cannot satisfy a later node,
-        // which is how the catalog's double-dip rule behaves. A planned pass
-        // over completed plus in-progress rows reports hours a live term
-        // already reaches.
+        // which is how the catalog's double-dip rule behaves. In-progress
+        // rows are never claimed, but their planned contribution is reported:
+        // a live term already reaching the hours, or adding any hours at all,
+        // reads in progress rather than unsatisfied.
         let plannedCredits = 0;
+        let plannedUnknown = false;
         for (const option of node.options) {
           if (plannedCredits >= node.hours) break;
           if (!option.must.every((code) => (completed.has(code) || inProgress.has(code)) && !allocation.used.has(code))) continue;
           for (const code of option.must) {
+            if (!inProgress.has(code)) continue;
             const value = creditsByCode.get(code);
-            if (value !== undefined) plannedCredits += value;
+            if (value === undefined) plannedUnknown = true;
+            else plannedCredits += value;
           }
         }
         let courses = 0;
@@ -211,21 +222,24 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
           }
         }
         const detail = `${courses} course${courses === 1 ? "" : "s"}, ${credits}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedCredits > credits ? `, ${plannedCredits} planned` : ""}`;
-        const status = credits >= node.hours ? "satisfied" : plannedCredits >= node.hours ? "inProgress" : courses > 0 ? "inProgress" : "unsatisfied";
+        const status = credits >= node.hours ? "satisfied" : plannedCredits > credits || plannedUnknown || courses > 0 ? "inProgress" : "unsatisfied";
         return { name: node.name, status, detail, citation: cite };
       }
-      const { covered, usedCodes } = maxCovered(node.options, completed, inProgress);
+      const { covered, usedCodes } = maxCovered(node.options, completed);
       usedCodes.forEach((code) => applied.add(code));
-      // Planned coverage walks the options in catalog order over completed
-      // plus in-progress rows, so a term still under way can already reach
-      // the hours.
+      // In-progress rows are reported as planned coverage: a term still under
+      // way that already reaches the hours — or adds any hours at all — keeps
+      // the node in progress instead of unsatisfied.
       let plannedTotal = 0;
+      let plannedUnknown = false;
       for (const option of node.options) {
         if (plannedTotal >= node.hours) break;
         if (!option.must.every((code) => completed.has(code) || inProgress.has(code))) continue;
         for (const code of option.must) {
+          if (!inProgress.has(code)) continue;
           const value = creditsByCode.get(code);
-          if (value !== undefined) plannedTotal += value;
+          if (value === undefined) plannedUnknown = true;
+          else plannedTotal += value;
         }
       }
       let total = 0;
@@ -236,7 +250,7 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
         else total += value;
       }
       const detail = `${covered} course${covered === 1 ? "" : "s"}, ${total}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}${plannedTotal > total ? `, ${plannedTotal} planned` : ""}`;
-      const status = total >= node.hours ? "satisfied" : plannedTotal >= node.hours ? "inProgress" : covered > 0 ? "inProgress" : "unsatisfied";
+      const status = total >= node.hours ? "satisfied" : plannedTotal > total || plannedUnknown || covered > 0 ? "inProgress" : "unsatisfied";
       return { name: node.name, status, detail, citation: cite };
     }
     case "pool": {

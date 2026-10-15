@@ -295,6 +295,35 @@ describe("GET /api/v1/programs/[id]/audit", () => {
     expect(overall?.detail).toContain("3.00");
   });
 
+  test("the later term wins regardless of transcript row order", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    pull.mockImplementation(async () => [
+      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
+    ]);
+    get.mockImplementation(async () => ({
+      kind: "academic-record",
+      body: {
+        ...recordBody,
+        transcriptRecords: [
+          { ...recordBody.transcriptRecords[0]!, term: "2025 Fall", grade: "F" },
+          { ...recordBody.transcriptRecords[0]!, id: "row-1b", term: "2025 Spring", grade: "B" },
+        ],
+      },
+    }));
+
+    const response = await auditRoute.GET(
+      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
+      { params: Promise.resolve({ id: "cs-bs" }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { audit: { policies: { name: string; status: string; detail: string }[] } };
+    // 2025 Fall is the later term even though the Spring row is listed after
+    // it; the repeat rule must not depend on transcript row order.
+    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
+    expect(overall?.status).toBe("unsatisfied");
+    expect(overall?.detail).toContain("0.00");
+  });
+
   test("a major audit returns the University Core audit alongside it", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     pull.mockImplementation(async () => [

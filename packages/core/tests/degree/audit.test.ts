@@ -211,3 +211,100 @@ describe("review round six: typed scopes, planned progress, and no-guessing", ()
     expect(rules!.status).toBe("unverifiable");
   });
 });
+
+describe("review round seven: maximum packing and partial planned progress", () => {
+  test("an allocated hours node with a partial in-progress contribution reads in progress", () => {
+    const optionA: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [{
+        kind: "hours",
+        name: "Component Area Option A",
+        hours: 6,
+        citation,
+        options: [{ must: ["PHIL 2500"] }, { must: ["PADM 2100"] }],
+      }],
+    };
+    const result = auditProgram(optionA, [inProgressCourse("PHIL 2500")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("3 planned");
+  });
+
+  test("a non-allocated hours node with a partial in-progress contribution reads in progress", () => {
+    const electives: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "hours",
+        name: "Advanced electives",
+        hours: 6,
+        citation,
+        options: [{ must: ["CSCE 4110"] }, { must: ["CSCE 4210"] }],
+      }],
+    };
+    const result = auditProgram(electives, [inProgressCourse("CSCE 4110")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+    expect(result.requirements[0]!.detail).toContain("3 planned");
+  });
+
+  test("overlapping options pack to the maximum disjoint count", () => {
+    const packed: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "choose",
+        name: "Depth",
+        count: 2,
+        citation,
+        options: [{ must: ["A 1000", "B 1000"] }, { must: ["A 1000", "C 1000"] }, { must: ["B 1000", "D 1000"] }],
+      }],
+    };
+    const result = auditProgram(packed, [course("A 1000", "A"), course("B 1000", "A"), course("C 1000", "A"), course("D 1000", "A")]);
+    expect(result.requirements[0]!.status).toBe("satisfied");
+    expect(result.requirements[0]!.detail).toBe("2/2 chosen");
+  });
+
+  test("an allocated choose claims a maximum disjoint option set", () => {
+    const optionB: ProgramData = {
+      ...base,
+      oneCourseOneArea: true,
+      requirements: [
+        {
+          kind: "choose",
+          name: "Component Area Option B",
+          count: 2,
+          citation,
+          options: [{ must: ["A 1000", "B 1000"] }, { must: ["A 1000", "C 1000"] }, { must: ["B 1000", "D 1000"] }],
+        },
+        {
+          kind: "hours",
+          name: "Remaining hours",
+          hours: 3,
+          citation,
+          options: [{ must: ["A 1000"] }, { must: ["B 1000"] }, { must: ["C 1000"] }, { must: ["D 1000"] }],
+        },
+      ],
+    };
+    const result = auditProgram(optionB, [course("A 1000", "A"), course("B 1000", "A"), course("C 1000", "A"), course("D 1000", "A")]);
+    expect(result.requirements[0]!.status).toBe("satisfied");
+    expect(result.requirements[0]!.detail).toBe("2/2 chosen");
+    // The two packed options consume all four courses; nothing leaks to the
+    // later node under one-course-one-area.
+    expect(result.requirements[1]!.status).toBe("unsatisfied");
+    expect(result.requirements[1]!.detail).toContain("0/3 hours");
+  });
+
+  test("a choose with in-progress headroom reads in progress", () => {
+    const depth: ProgramData = {
+      ...base,
+      requirements: [{
+        kind: "choose",
+        name: "Depth",
+        count: 3,
+        citation,
+        options: [{ must: ["CSCE 4110"] }, { must: ["CSCE 4210"] }, { must: ["CSCE 4310"] }],
+      }],
+    };
+    const result = auditProgram(depth, [course("CSCE 4110", "A"), inProgressCourse("CSCE 4210")]);
+    expect(result.requirements[0]!.status).toBe("inProgress");
+  });
+});
+
