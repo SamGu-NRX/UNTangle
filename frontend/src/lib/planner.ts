@@ -39,7 +39,8 @@ import { compareAcademicTerms } from "@/lib/term-chronology";
 import { plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
-import type { OptCourse, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
+import type { OptBlockedTime, OptCourse, OptDay, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
+import type { FeedOccurrence } from "@untangle/core/occurrences";
 import {
   classDays,
   type ClassDay,
@@ -57,7 +58,67 @@ import {
   type WeekDay,
 } from "@/lib/types";
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Blocked-time dates are optional; when present they must be real inclusive ISO date ranges. */
+function blockedDatesValid(dates: unknown): boolean {
+  if (dates === undefined || dates === null) return true;
+  if (!Array.isArray(dates)) return false;
+  return dates.every((range) => {
+    if (!isPlainRecord(range)) return false;
+    if (typeof range.start !== "string" || typeof range.end !== "string") return false;
+    if (!ISO_DATE.test(range.start) || !ISO_DATE.test(range.end)) return false;
+    return parseIsoDate(range.start) !== null && parseIsoDate(range.end) !== null && range.start <= range.end;
+  });
+}
+
+function parseIsoDate(date: string): string | null {
+  if (!ISO_DATE.test(date)) return null;
+  const ms = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toISOString().slice(0, 10) === date ? date : null;
+}
+
+const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+function calendarWeekday(date: string): OptDay | null {
+  const parsed = parseIsoDate(date);
+  if (parsed === null) return null;
+  return CALENDAR_WEEKDAYS[new Date(Date.parse(`${parsed}T00:00:00Z`)).getUTCDay()] ?? null;
+}
+
+/**
+ * Calendar busy pieces become generic dated blocked times: weekday and
+ * minutes from the piece, grouped by slot with one date entry per piece, and
+ * no event title anywhere — the id carries only a slot index, so an
+ * infeasibility explanation names the block, never the event.
+ */
+export function busyOccurrencesToBlockedTime(pieces: readonly FeedOccurrence[]): OptBlockedTime[] {
+  const groups = new Map<string, { day: OptDay; start: number; end: number; dates: { start: string; end: string }[] }>();
+  for (const piece of pieces) {
+    const day = calendarWeekday(piece.date);
+    if (day === null) continue;
+    const key = `${day}/${piece.startMinutes}/${piece.endMinutes}`;
+    const group = groups.get(key);
+    if (group) {
+      group.dates.push({ start: piece.date, end: piece.date });
+    } else {
+      groups.set(key, { day, start: piece.startMinutes, end: piece.endMinutes, dates: [{ start: piece.date, end: piece.date }] });
+    }
+  }
+  return [...groups.values()].map((group, index) => ({
+    id: `cal-${index}`,
+    label: "Calendar busy",
+    day: group.day,
+    start: group.start,
+    end: group.end,
+    dates: group.dates,
+  }));
+}
+
+
 const validMajorIds = new Set<MajorId>(majors.map((m) => m.id));
+
 const catalogCourseCodes = new Set(courses.map((course) => course.code));
 
 const plannerStorageKey = "untangle-planner-state";
@@ -337,7 +398,8 @@ export function parseSchedulePreferences(raw: unknown): SchedulePreferences | nu
         WEEK_DAYS.includes(block.day as WeekDay) &&
         isMinute(block.start) &&
         isMinute(block.end) &&
-        (block.end as number) > (block.start as number),
+        (block.end as number) > (block.start as number) &&
+        blockedDatesValid(block.dates),
     )
   ) {
     return null;
@@ -413,6 +475,8 @@ export function buildOptimizeRequest(
     walkingTime?: WalkingTimeFn;
     timeBudgetMs?: number;
     k?: number;
+    /** Dated busy pieces from the student's connected calendar feeds (calendar-feeds/busy.ts); title-free by construction. */
+    busyOccurrences?: readonly FeedOccurrence[];
   } = {},
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
@@ -451,7 +515,7 @@ export function buildOptimizeRequest(
       earliestStart: c.earliestStart,
       latestEnd: c.latestEnd,
       daysOff: c.daysOff,
-      blocked: c.blocked,
+      blocked: [...c.blocked, ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [])],
       maxCredits: c.maxCredits,
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },
