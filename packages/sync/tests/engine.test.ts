@@ -281,3 +281,38 @@ test('a restart between recording a preference conflict and preparing its merge 
   expect((await doc(after)).confirmed).toEqual({ revision: 3, body: { ...mine, constraints: { ...mine.constraints, daysOff: ['Fri'] } } });
   expect(syncStatus(user, await doc(after))).toBe('Synced');
 });
+
+test('an edit during delete delivery is rejected without changing the pending delete bytes', async () => {
+  let began = () => {}, release = () => {};
+  const started = new Promise<void>((resolve) => { began = resolve; });
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const requests: string[] = [];
+  const normal = io();
+  const engine = new SyncEngine(new MemoryStore(), user, io({
+    fetch: async () => remote(),
+    push: async (id, bytes) => {
+      requests.push(bytes);
+      began();
+      await gate;
+      return normal.push(id, bytes);
+    },
+  }));
+  await engine.pull(list(1));
+  const deleted = await engine.save({ documentId: 'doc', kind: 'schedule', body: null, expectedGeneration: 1 });
+  const sending = engine.syncNext('doc');
+  await started;
+  try {
+    await expect(save(engine, deleted.generation, 'Resurrection while sending')).rejects.toThrow('cannot be resurrected');
+    const pending = await doc(engine);
+    expect(pending.draft).toBeNull();
+    expect(pending.pending.map((item) => item.bytes)).toEqual([deleted.pending[0].bytes]);
+    expect(syncStatus(user, pending)).toBe('Save not confirmed (retrying)');
+  } finally {
+    release();
+    await sending;
+  }
+  await engine.syncNext('doc');
+  expect(requests).toEqual([deleted.pending[0].bytes]);
+  expect((await doc(engine)).confirmed).toEqual({ revision: 2, body: null });
+  expect(syncStatus(user, await doc(engine))).toBe('Synced');
+});
