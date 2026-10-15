@@ -33,6 +33,10 @@ bun --no-env-file x expo export --platform web   # web bundle (what CI builds)
   grid and the stepped slider.
 - `src/data` - unauthenticated API modules with an injected fetch, kept for
   when device sign-in gives the app a credential.
+- `src/updates` - over-the-air updates: the check/download controller, the
+  safe-moment registry, and the EAS project resolution. See
+  `../docs/mobile/ota.md` for how they fit together and how updates are
+  published.
 
 ## Verification environment note
 

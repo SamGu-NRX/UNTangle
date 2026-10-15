@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { PlanProvider } from "@/plan/plan-store";
 import { color } from "@/theme/tokens";
+import { startUpdateChecks } from "@/updates/start";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -40,6 +41,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded || error) SplashScreen.hideAsync().catch(() => {});
   }, [loaded, error]);
+  // Over-the-air updates: check at launch, recheck on a long backgrounding,
+  // and restart into a downloaded update only at a safe moment.
+  useEffect(() => startUpdateChecks(), []);
   // A failed font load falls back to the system face rather than blocking the app.
   if (!loaded && !error) return null;
 
