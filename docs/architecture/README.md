@@ -319,7 +319,7 @@ Feature rules that follow from evidence:
 The lead owns, one writer at a time:
 - the root manifests and lockfile;
 - `packages/contracts`, and the package export maps (set once with wildcard subpaths, so moving a module into `core` doesn't touch a lead file);
-- database migrations;
+- database migrations. Each sets `lock_timeout` for its own statements, so a migration that would wait behind a long transaction fails instead of blocking every query queued behind it;
 - auth and the device-grant service;
 - the sync engine, the server mutation path, and the planner provider's integration with them;
 - `packages/tokens`, the web UI primitives, and the three shells: the web shell, the mobile tab shell and the extension overlay root. Native primitives go to a specialist, under the lead's review;

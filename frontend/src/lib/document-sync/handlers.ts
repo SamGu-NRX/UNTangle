@@ -64,6 +64,7 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
     } catch (error) {
       if (!(error instanceof DeviceGrantError)) throw error;
       if (error.code === "unauthorized") throw new SyncError(401, "UNAUTHORIZED", "Sign in to sync documents.");
+      if (error.code === "security_change_in_progress") throw new SyncError(409, error.code, "A change to this account's security settings is in progress. Try again in a moment.");
       const message = deviceRefusals[error.code as keyof typeof deviceRefusals];
       if (!message) throw error;
       throw new SyncError(error.status, error.code, message);
@@ -77,7 +78,9 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
       let retryAfter: number | null;
       try {
         retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
-      } catch {
+      } catch (error) {
+        // The error's name and code only: the store's messages can carry query values.
+        console.error("Document rate limiting unavailable", { name: (error as Error)?.name, code: (error as { code?: unknown })?.code });
         return Response.json({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
           { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
       }
@@ -91,7 +94,11 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
       if (error instanceof SyncError) {
         return Response.json({ error: error.message, code: error.code,
           ...(error.revision === undefined ? {} : { revision: error.revision }) },
-        { status: error.status, headers: { "Cache-Control": "no-store" } });
+        { status: error.status, headers: {
+          "Cache-Control": "no-store",
+          // A security change takes one request; a second later it has finished or failed.
+          ...(error.code === "security_change_in_progress" ? { "Retry-After": "1" } : {}),
+        } });
       }
       // Database failures must never return a receipt or expose a student's body.
       return Response.json({ error: "Document storage is unavailable.", code: "STORAGE_UNAVAILABLE" },
