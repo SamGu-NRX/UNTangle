@@ -65,14 +65,29 @@ export type ChoiceNode = Base & {
 /** All children required. */
 export type GroupNode = Base & { kind: "group"; children: RequirementNode[] };
 
+/**
+ * The typed course filter a grade or GPA policy applies to, parsed at ingest
+ * from the catalog's scope wording. A policy without a resolvable filter
+ * reports unverifiable — the audit never guesses a scope.
+ */
+export type CourseScope =
+  | { kind: "overall" }
+  | { kind: "unt" }
+  /** Courses the audit applied toward the major, plus completed pool matches. */
+  | { kind: "major" }
+  /** An explicit course set: one core area's list, or a program's foundation subtree. */
+  | { kind: "codes"; codes: string[] }
+  /** A subject/level rule, e.g. mathematics courses numbered 3350 or above. */
+  | { kind: "subjectLevel"; subjects: string[]; minLevel: number | null };
+
 export type Policy =
   | { type: "totalHours"; hours: number }
   | { type: "advancedHours"; hours: number }
   | { type: "residencyPercent"; percent: number }
   | { type: "advancedHoursAtUnt"; hours: number }
   | { type: "subjectHours"; hours: number; subjects: string[] }
-  | { type: "minGrade"; grade: string; scope: string }
-  | { type: "gpa"; minimum: number; scope: string }
+  | { type: "minGrade"; grade: string; scope: string; courseScope?: CourseScope }
+  | { type: "gpa"; minimum: number; scope: string; courseScope?: CourseScope }
   /** A rule the audit cannot measure; shown, never silently dropped. */
   | { type: "note" };
 

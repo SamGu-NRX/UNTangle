@@ -4,7 +4,7 @@
 export const DEGREE_DATA = {
   "catalogId": "catoid-40",
   "catalogYear": "2026-2027",
-  "builtAt": "2026-10-15T16:40:59.305Z",
+  "builtAt": "2026-10-15T18:25:39.717Z",
   "pages": [
     {
       "file": "cs-bs.html",
@@ -589,7 +589,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "minGrade",
             "grade": "C",
-            "scope": "all courses required in the major"
+            "scope": "all courses required in the major",
+            "courseScope": {
+              "kind": "major"
+            }
           },
           "quote": "A minimum grade of C is required in all courses required in a student’s major for degree completion. Courses include, but are not limited to, engineering, computing, mathematics, laboratory sciences, supporting area, technical elective, technical option, energy elective, and specialization courses.",
           "citation": {
@@ -597,21 +600,6 @@ export const DEGREE_DATA = {
             "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21227",
             "anchor": "DepartmentPolicies",
             "heading": "Department policies"
-          }
-        },
-        {
-          "kind": "policy",
-          "name": "Total hours: 120",
-          "policy": {
-            "type": "totalHours",
-            "hours": 120
-          },
-          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT.",
-          "citation": {
-            "page": "degree-requirements.html",
-            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
-            "anchor": "Minimum Hour Requirements",
-            "heading": "Minimum Hour Requirements"
           }
         },
         {
@@ -650,7 +638,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "overall"
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
           },
           "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
           "citation": {
@@ -666,7 +657,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "unt"
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
           },
           "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
           "citation": {
@@ -682,7 +676,20 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "minGrade",
             "grade": "C",
-            "scope": "Communication core requirement"
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
           },
           "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
           "citation": {
@@ -1380,7 +1387,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "minGrade",
             "grade": "C",
-            "scope": "all courses required in the major"
+            "scope": "all courses required in the major",
+            "courseScope": {
+              "kind": "major"
+            }
           },
           "quote": "A minimum grade of C is required in all courses required in a student’s major for degree completion. Courses include, but are not limited to, engineering, computing, mathematics, laboratory sciences, supporting area, technical elective, technical option, energy elective, and specialization courses.",
           "citation": {
@@ -1441,7 +1451,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "overall"
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
           },
           "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
           "citation": {
@@ -1457,7 +1470,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "unt"
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
           },
           "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
           "citation": {
@@ -1473,7 +1489,20 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "minGrade",
             "grade": "C",
-            "scope": "Communication core requirement"
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
           },
           "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
           "citation": {
@@ -2392,7 +2421,14 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "mathematics courses numbered 3350 or above"
+            "scope": "mathematics courses numbered 3350 or above",
+            "courseScope": {
+              "kind": "subjectLevel",
+              "subjects": [
+                "MATH"
+              ],
+              "minLevel": 3350
+            }
           },
           "quote": "Students must achieve a grade point average of at least 2.0 in all mathematics courses which are applied toward a mathematics major and are numbered 3350 or above.",
           "citation": {
@@ -2400,21 +2436,6 @@ export const DEGREE_DATA = {
             "url": "https://catalog.unt.edu/preview_program.php?catoid=40&poid=21333",
             "anchor": "OtherRequirements",
             "heading": "Other requirements"
-          }
-        },
-        {
-          "kind": "policy",
-          "name": "Total hours: 120",
-          "policy": {
-            "type": "totalHours",
-            "hours": 120
-          },
-          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT.",
-          "citation": {
-            "page": "degree-requirements.html",
-            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
-            "anchor": "Minimum Hour Requirements",
-            "heading": "Minimum Hour Requirements"
           }
         },
         {
@@ -2453,7 +2474,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "overall"
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
           },
           "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
           "citation": {
@@ -2469,7 +2493,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "unt"
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
           },
           "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
           "citation": {
@@ -2485,7 +2512,20 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "minGrade",
             "grade": "C",
-            "scope": "Communication core requirement"
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
           },
           "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
           "citation": {
@@ -2571,7 +2611,35 @@ export const DEGREE_DATA = {
               "policy": {
                 "type": "minGrade",
                 "grade": "C",
-                "scope": "foundation courses"
+                "scope": "foundation courses",
+                "courseScope": {
+                  "kind": "codes",
+                  "codes": [
+                    "BIOL 1710",
+                    "BIOL 1711",
+                    "BIOL 1720",
+                    "BIOL 1722",
+                    "BIOL 1750",
+                    "BIOL 1760",
+                    "BIOL 1761",
+                    "BIOL 2041",
+                    "BIOL 2042",
+                    "BIOL 2140",
+                    "BIOL 2241",
+                    "BIOL 2251",
+                    "CHEM 1410",
+                    "CHEM 1412",
+                    "CHEM 1413",
+                    "CHEM 1420",
+                    "CHEM 1422",
+                    "CHEM 1423",
+                    "CHEM 1430",
+                    "CHEM 1440",
+                    "CHEM 2370",
+                    "CHEM 3210",
+                    "MATH 1650"
+                  ]
+                }
               },
               "quote": "The Foundation course requirements listed below must be completed before enrollment in 3000 and 4000 level courses required for the major. Successful completion is based on achieving a C or better in each course and an overall 2.5 grade point average in these courses.",
               "citation": {
@@ -2587,7 +2655,35 @@ export const DEGREE_DATA = {
               "policy": {
                 "type": "gpa",
                 "minimum": 2.5,
-                "scope": "foundation courses"
+                "scope": "foundation courses",
+                "courseScope": {
+                  "kind": "codes",
+                  "codes": [
+                    "BIOL 1710",
+                    "BIOL 1711",
+                    "BIOL 1720",
+                    "BIOL 1722",
+                    "BIOL 1750",
+                    "BIOL 1760",
+                    "BIOL 1761",
+                    "BIOL 2041",
+                    "BIOL 2042",
+                    "BIOL 2140",
+                    "BIOL 2241",
+                    "BIOL 2251",
+                    "CHEM 1410",
+                    "CHEM 1412",
+                    "CHEM 1413",
+                    "CHEM 1420",
+                    "CHEM 1422",
+                    "CHEM 1423",
+                    "CHEM 1430",
+                    "CHEM 1440",
+                    "CHEM 2370",
+                    "CHEM 3210",
+                    "MATH 1650"
+                  ]
+                }
               },
               "quote": "The Foundation course requirements listed below must be completed before enrollment in 3000 and 4000 level courses required for the major. Successful completion is based on achieving a C or better in each course and an overall 2.5 grade point average in these courses.",
               "citation": {
@@ -3647,21 +3743,6 @@ export const DEGREE_DATA = {
         },
         {
           "kind": "policy",
-          "name": "Total hours: 120",
-          "policy": {
-            "type": "totalHours",
-            "hours": 120
-          },
-          "quote": "Students must complete a minimum of 120 semester hours to earn a degree at UNT.",
-          "citation": {
-            "page": "degree-requirements.html",
-            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
-            "anchor": "Minimum Hour Requirements",
-            "heading": "Minimum Hour Requirements"
-          }
-        },
-        {
-          "kind": "policy",
           "name": "Advanced hours at UNT: 24",
           "policy": {
             "type": "advancedHoursAtUnt",
@@ -3696,7 +3777,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "overall"
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
           },
           "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
           "citation": {
@@ -3712,7 +3796,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "unt"
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
           },
           "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
           "citation": {
@@ -3728,7 +3815,20 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "minGrade",
             "grade": "C",
-            "scope": "Communication core requirement"
+            "scope": "Communication core requirement",
+            "courseScope": {
+              "kind": "codes",
+              "codes": [
+                "ENGL 1310",
+                "ENGL 1311",
+                "ENGL 1315",
+                "ENGL 1320",
+                "ENGL 1321",
+                "ENGL 1325",
+                "TECM 1700",
+                "TECM 2700"
+              ]
+            }
           },
           "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
           "citation": {
@@ -3856,7 +3956,20 @@ export const DEGREE_DATA = {
               "policy": {
                 "type": "minGrade",
                 "grade": "C",
-                "scope": "Communication core requirement"
+                "scope": "Communication core requirement",
+                "courseScope": {
+                  "kind": "codes",
+                  "codes": [
+                    "ENGL 1310",
+                    "ENGL 1311",
+                    "ENGL 1315",
+                    "ENGL 1320",
+                    "ENGL 1321",
+                    "ENGL 1325",
+                    "TECM 1700",
+                    "TECM 2700"
+                  ]
+                }
               },
               "quote": "Students must take one course from Group 1 and one course from group 2. The courses are often taken in sequence (for example, students first take ENGL 1310, then take ENGL 1320 in the following semester). Students must receive a grade of C or higher in both courses to fulfill this core requirement.",
               "citation": {
@@ -6568,7 +6681,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "overall"
+            "scope": "overall",
+            "courseScope": {
+              "kind": "overall"
+            }
           },
           "quote": "A minimum overall grade point average (OGPA) of 2.000 (C) on all work attempted, including all transfer, correspondence, extension and residence work.",
           "citation": {
@@ -6584,7 +6700,10 @@ export const DEGREE_DATA = {
           "policy": {
             "type": "gpa",
             "minimum": 2,
-            "scope": "unt"
+            "scope": "unt",
+            "courseScope": {
+              "kind": "unt"
+            }
           },
           "quote": "A minimum cumulative GPA (UNT-CGPA) of 2.000 (C) on all work at UNT. Students may not use transfer credit to raise the GPA of work done at UNT.",
           "citation": {
@@ -6592,22 +6711,6 @@ export const DEGREE_DATA = {
             "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
             "anchor": "Grade Point Average (GPA)",
             "heading": "Grade Point Average (GPA)"
-          }
-        },
-        {
-          "kind": "policy",
-          "name": "Communication core grade",
-          "policy": {
-            "type": "minGrade",
-            "grade": "C",
-            "scope": "Communication core requirement"
-          },
-          "quote": "Students must have a grade of C or better in courses that meet the Communication requirement of the University Core Curriculum to show proficiency in English composition. Students who have earned a D in one or more of these two required courses must repeat the course and raise the grade to a C or better. Transfer students with more than 90 hours and who have earned a D in any of the basic English writing courses must retake the course during their first term/semester in residence.",
-          "citation": {
-            "page": "degree-requirements.html",
-            "url": "https://catalog.unt.edu/content.php?catoid=40&navoid=4689",
-            "anchor": "English Composition Proficiency",
-            "heading": "English Composition Proficiency"
           }
         }
       ],

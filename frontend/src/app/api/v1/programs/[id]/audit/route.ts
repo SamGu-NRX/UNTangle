@@ -12,8 +12,8 @@ export const runtime = "nodejs";
 
 // The four majors plus the University Core: the core's Component Area Option
 // is where the one-course-one-area allocation is visible in an audit, so
-// students audit their core progress directly. The program index (the listing
-// route) still lists the majors only.
+// students audit their core progress directly. The listing route includes the
+// core, and every major audit returns the core audit beside it.
 const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio", "core"];
 
 function findProgram(id: string): ProgramData | null {
@@ -39,6 +39,12 @@ async function readAcademicRecord(userId: string): Promise<AcademicRecordBody | 
   return null;
 }
 
+/** "2024 Fall" orders by the leading year; an unparsable term sorts oldest. */
+function termKey(term: string): number {
+  const year = Number.parseInt(term, 10);
+  return Number.isNaN(year) ? 0 : year;
+}
+
 /**
  * Maps the planner's academic record to the audit engine's course inputs.
  * Only transcript rows go in: they are the record's sourced evidence. The
@@ -46,20 +52,23 @@ async function readAcademicRecord(userId: string): Promise<AcademicRecordBody | 
  * hour evidence, so an audit over them would guess.
  */
 function auditCourses(record: AcademicRecordBody): AuditCourse[] {
-  const courses = new Map<string, AuditCourse>();
+  const courses = new Map<string, { course: AuditCourse; term: number }>();
   for (const row of record.transcriptRecords) {
-    if (row.appliedStatus === "ignored" || row.duplicateExcluded) continue;
+    // Ignored rows are excluded by the student; duplicate-excluded and
+    // needs-review rows are still working through the registrar process.
+    // None of them is completed evidence an audit may read.
+    if (row.appliedStatus === "ignored" || row.appliedStatus === "needsReview" || row.duplicateExcluded) continue;
     const inProgress = row.appliedStatus === "inProgress";
     // Current-term rows carry an empty grade; the engine then reads the slot
     // as in progress rather than completed without a grade.
     const grade = row.grade === "" ? null : row.grade;
+    const attempt = { course: { code: row.code, grade, credits: row.credits, sourceKind: row.sourceKind, inProgress }, term: termKey(row.term) };
     const existing = courses.get(row.code);
-    // A retake row with a real grade replaces an earlier ungraded one.
-    if (!existing || (existing.grade === null && grade !== null)) {
-      courses.set(row.code, { code: row.code, grade, credits: row.credits, sourceKind: row.sourceKind, inProgress });
-    }
+    // Under UNT's repeat rule the most recent attempt counts: a later-term
+    // row replaces an earlier one, including a failing grade.
+    if (!existing || attempt.term >= existing.term) courses.set(row.code, attempt);
   }
-  return [...courses.values()];
+  return [...courses.values()].map((entry) => entry.course);
 }
 
 /**
@@ -87,12 +96,19 @@ export const GET = withRateLimit("degreeAudit", async (request: Request, context
       { status: 404, headers: { "Cache-Control": "no-store" } },
     );
   }
-  const audit = auditProgram(program, auditCourses(record));
+  const courses = auditCourses(record);
+  const audit = auditProgram(program, courses);
+  // Every major audit carries the University Core audit beside it: both are
+  // audited against the same record, and the core's Component Area Option
+  // shows where otherwise double-counted courses land.
+  const coreProgram = id === "core" ? null : findProgram("core");
+  const core = coreProgram ? auditProgram(coreProgram, courses) : null;
   return NextResponse.json(
     {
       program: { id: program.id, name: program.name, catalogId: program.catalogId, sourceUrl: program.sourceUrl },
       catalogYear: DEGREE_DATA.catalogYear,
       audit,
+      core,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

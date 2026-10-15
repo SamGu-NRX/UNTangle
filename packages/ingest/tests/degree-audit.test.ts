@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { cpSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { auditProgram, type AuditCourse } from "@untangle/core/degree/audit";
 import { buildDegreeData } from "../src/degree/build";
@@ -312,5 +314,75 @@ describe("records the packet names", () => {
     const below = majorGrade?.detail ?? "";
     for (const [code] of boundary.slice(2)) expect(below).toContain(code);
     for (const [code] of boundary.slice(0, 2)) expect(below).not.toContain(`${code} (C`);
+  });
+});
+
+describe("typed grade scopes from the catalog wording", () => {
+  test("the mathematics GPA floor reads only 3350+ mathematics courses", () => {
+    const result = auditProgram(program("math-bsmth"), [
+      course("MATH 1710", "F", 4),
+      course("MATH 1720", "D-", 4),
+      course("MATH 3350", "A", 3),
+    ]);
+    const gpaPolicy = result.policies.find((policy) => policy.name === "GPA 2.0 (mathematics courses 3350+ in the major)");
+    expect(gpaPolicy?.status).toBe("satisfied");
+    expect(gpaPolicy?.detail).toContain("4.00");
+  });
+
+  test("the Communication core grade floor sees only the core Communication area", () => {
+    const result = auditProgram(program("math-bsmth"), [course("MATH 1710", "F", 4)]);
+    const communication = result.policies.find((policy) => policy.name === "Communication core grade");
+    // Zero courses in scope reads "nothing to check": an out-of-scope F must
+    // neither fail the floor nor count as clearing it.
+    expect(communication?.status).toBe("unverifiable");
+    expect(communication?.detail ?? "").not.toContain("MATH 1710");
+  });
+
+  test("nested biology foundation policies resolve their subtree as the scope", () => {
+    const foundation = findNode("Biology foundation courses", program("biology-bsbio").requirements);
+    if (!foundation || foundation.kind !== "all") throw new Error("biology foundation node missing");
+    const firstCourse = foundation.items[0]!.alternatives[0]!.must[0]!;
+    const result = auditProgram(program("biology-bsbio"), [course(firstCourse, "D", 4)]);
+    const rules = result.policies.find((policy) => policy.name === "Foundation grade rules");
+    expect(rules?.status).toBe("unsatisfied");
+    expect(rules?.detail).toContain(firstCourse);
+    const foundationGpa = result.policies.find((policy) => policy.name === "Foundation GPA 2.5");
+    expect(foundationGpa?.status).toBe("unsatisfied");
+  });
+
+  test("policies deduplicate across the program and university scans", () => {
+    const names = (nodes: RequirementNode[]): string[] =>
+      nodes.flatMap((node) =>
+        node.kind === "policy" ? [node.name]
+        : node.kind === "group" ? names(node.children)
+        : node.kind === "choice" ? node.branches.flatMap((branch) => names([branch.node]))
+        : [],
+      );
+    const totalHours = names(program("cs-bs").requirements).filter((name) => name === "Total hours: 120");
+    expect(totalHours.length).toBe(1);
+    const communication = names(program("core").requirements).filter((name) => name === "Communication core grade");
+    expect(communication.length).toBe(1);
+  });
+
+  test("a catalog page that no longer matches its manifest hash stops the build", () => {
+    const staging = path.join(os.tmpdir(), `untangle-manifest-check-${Date.now()}`);
+    cpSync(dataDir, staging, { recursive: true });
+    try {
+      writeFileSync(path.join(staging, "cs-bs.html"), "<html>tampered</html>\n");
+      expect(() => buildDegreeData(staging, "2026-10-15T00:00:00.000Z")).toThrow(/manifest hash/);
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
+  });
+
+  test("an in-progress record can already reach Component Area Option A's hours", () => {
+    const result = auditProgram(program("core"), [
+      course("ANTH 1010", "A", 3),
+      course("PADM 2100", null, 3, { inProgress: true }),
+      course("PHIL 2500", null, 3, { inProgress: true }),
+    ]);
+    const option = result.requirements.find((node) => node.name.startsWith("Component Area Option"));
+    expect(option?.status).toBe("inProgress");
+    expect(option?.detail).toContain("6 planned");
   });
 });

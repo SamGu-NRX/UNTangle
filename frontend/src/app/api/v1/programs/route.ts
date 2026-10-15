@@ -4,11 +4,9 @@ import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 
 export const runtime = "nodejs";
 
-// The four programs with a fully captured requirements tree. The University
-// Core tree stays in the data because each major's audit reads it; the core
-// audits directly through /api/v1/programs/core/audit, and this index lists
-// the majors only.
-const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio"];
+// The four majors plus the University Core: the core is audited directly
+// through /api/v1/programs/core/audit, and every major audit returns the
+// core audit beside it, so the index lists everything that can be audited.
 
 /**
  * The public program index for the degree audit: what can be audited and
@@ -18,7 +16,6 @@ const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio"];
  */
 export const GET = withRateLimit("degreeAudit", () => {
   const programs = DEGREE_DATA.programs
-    .filter((program) => AUDITABLE_PROGRAM_IDS.includes(program.id))
     .map((program) => ({ id: program.id, name: program.name, sourceUrl: program.sourceUrl }));
   return NextResponse.json(
     {

@@ -180,7 +180,9 @@ function programPolicies(page: CatalogPage, headings: string[]): PolicyNode[] {
         continue;
       }
       if (/grade point average of at least 2\.0 in all mathematics courses/.test(text)) {
-        nodes.push(policyNode("GPA 2.0 (mathematics courses 3350+ in the major)", { type: "gpa", minimum: 2, scope: "mathematics courses numbered 3350 or above" }, text, cite));
+        // The wording "mathematics courses" on the math degree page means
+        // MATH-prefixed courses numbered 3350 or above.
+        nodes.push(policyNode("GPA 2.0 (mathematics courses 3350+ in the major)", { type: "gpa", minimum: 2, scope: "mathematics courses numbered 3350 or above", courseScope: { kind: "subjectLevel", subjects: ["MATH"], minLevel: 3350 } }, text, cite));
         continue;
       }
       if (/achieving a C or better in each course and an overall 2\.5 grade point average in these courses/.test(text)) {

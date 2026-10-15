@@ -91,17 +91,17 @@ describe("GET /api/v1/programs", () => {
       programs: { id: string; name: string; sourceUrl: string }[];
       pages: { url: string; sha256: string }[];
     };
-    expect(body.programs.map((program) => program.id)).toEqual(["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio"]);
+    expect(body.programs.map((program) => program.id)).toEqual(["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio", "core"]);
     for (const program of body.programs) expect(program.sourceUrl.startsWith("https://catalog.unt.edu")).toBe(true);
     // Every page cites its capture provenance: url, time, and content hash.
     expect(body.pages.length).toBeGreaterThan(0);
     for (const page of body.pages) expect(page.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  test("does not leak the University Core as an auditable program", async () => {
+  test("lists the University Core alongside the majors: each major audit returns it", async () => {
     const response = await programsRoute.GET(new Request("http://localhost:3000/api/v1/programs"));
     const body = (await response.json()) as { programs: { id: string }[] };
-    expect(body.programs.some((program) => program.id === "core")).toBe(false);
+    expect(body.programs.some((program) => program.id === "core")).toBe(true);
   });
 });
 
@@ -240,6 +240,76 @@ describe("GET /api/v1/programs/[id]/audit", () => {
     expect(option?.name).toContain("Option A");
     expect(option?.status).toBe("inProgress");
     expect(option?.detail).toContain("3/6");
+  });
+
+  test("a needsReview row is not read as completed evidence", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    pull.mockImplementation(async () => [
+      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
+    ]);
+    get.mockImplementation(async () => ({
+      kind: "academic-record",
+      body: {
+        ...recordBody,
+        transcriptRecords: [{ ...recordBody.transcriptRecords[0]!, appliedStatus: "needsReview" }],
+      },
+    }));
+
+    const response = await auditRoute.GET(
+      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
+      { params: Promise.resolve({ id: "cs-bs" }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { audit: { policies: { name: string; status: string }[] } };
+    // The only transcript row is awaiting review, so the GPA has no evidence
+    // and reports unverifiable instead of reading the row as completed.
+    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
+    expect(overall?.status).toBe("unverifiable");
+  });
+
+  test("a passing retake replaces an earlier F under UNT's repeat rule", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    pull.mockImplementation(async () => [
+      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
+    ]);
+    get.mockImplementation(async () => ({
+      kind: "academic-record",
+      body: {
+        ...recordBody,
+        transcriptRecords: [
+          { ...recordBody.transcriptRecords[0]!, term: "2024 Fall", grade: "F" },
+          { ...recordBody.transcriptRecords[0]!, id: "row-1b", term: "2025 Fall", grade: "B" },
+        ],
+      },
+    }));
+
+    const response = await auditRoute.GET(
+      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
+      { params: Promise.resolve({ id: "cs-bs" }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { audit: { policies: { name: string; status: string; detail: string }[] } };
+    // The most recent attempt (the 2025 Fall B) counts, not the first row.
+    const overall = body.audit.policies.find((policy) => policy.name === "Overall GPA");
+    expect(overall?.status).toBe("satisfied");
+    expect(overall?.detail).toContain("3.00");
+  });
+
+  test("a major audit returns the University Core audit alongside it", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    pull.mockImplementation(async () => [
+      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
+    ]);
+    get.mockImplementation(async () => ({ kind: "academic-record", body: recordBody }));
+
+    const response = await auditRoute.GET(
+      new Request("http://localhost:3000/api/v1/programs/cs-bs/audit"),
+      { params: Promise.resolve({ id: "cs-bs" }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { core: { programId: string; requirements: { name: string }[] } | null };
+    expect(body.core?.programId).toBe("core");
+    expect(body.core?.requirements.length).toBeGreaterThan(0);
   });
 
   test("does not read another institution's record", async () => {
