@@ -274,6 +274,48 @@ test("a default range of now through now plus 60 days is used when none is given
   expect(end).toBe(start + 60 * 86_400_000);
 });
 
+test("the route's parsed response feeds buildOptimizeRequest as a dated calendar block", async () => {
+  setSession({ user: { id: "user-into-planner" } });
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  // One Tuesday event inside the planner's spring 2027 term: 2027-02-09
+  // 20:00-21:00Z is 14:00-15:00 in Denton (CST).
+  fetchStub.mockImplementation(
+    async () =>
+      new Response(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:p@t\r\nSUMMARY:Shift\r\nDTSTART:20270209T200000Z\r\nDTEND:20270209T210000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        { status: 200, headers: { "content-type": "text/calendar" } },
+      ),
+  );
+  try {
+    const response = await POST(
+      busyRequest(
+        { url: VALID_BODY.url, rangeStart: "2027-02-01T00:00:00Z", rangeEnd: "2027-03-01T00:00:00Z" },
+        "192.0.2.137",
+      ),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { occurrences: Array<{ date: string; startMinutes: number; endMinutes: number }> };
+    const { buildOptimizeRequest, defaultSchedulePreferences, getInitialPlannerState, normalizePlannerState } = await import(
+      "@/lib/planner"
+    );
+    const state = normalizePlannerState({ ...getInitialPlannerState(), courseStatuses: { "SPAN 2040": "inProgress" } });
+    const request = buildOptimizeRequest(state, defaultSchedulePreferences("compact"), {
+      courseCodes: ["SPAN 2040"],
+      busyOccurrences: body.occurrences,
+    });
+    expect(request.constraints.blocked).toContainEqual({
+      id: "cal-0",
+      label: "Calendar busy",
+      day: "Tue",
+      start: 840,
+      end: 900,
+      dates: [{ start: "2027-02-09", end: "2027-02-09" }],
+    });
+  } finally {
+    fetchStub.mockImplementation(async () => tinyResponse());
+  }
+});
+
 test("a response over 1 MiB answers 422 with a specific error instead of a cut-short body", async () => {
   setSession({ user: { id: "user-too-many" } });
   // One daily event over 54 years: about 19,700 busy pieces, near 1 MB of

@@ -52,6 +52,22 @@ describe("busyOccurrencesToBlockedTime", () => {
   test("a malformed piece date is dropped rather than throwing", () => {
     expect(busyOccurrencesToBlockedTime([piece("not a date", 540, 600)])).toEqual([]);
   });
+
+  test("with a term, pieces dated before its start and after its end drop and one inside stays", () => {
+    const term = { start: "2027-01-11", end: "2027-05-07" }; // spring 2027, the planner's term
+    const blocks = busyOccurrencesToBlockedTime(
+      [
+        piece("2026-11-17", 540, 600), // Tue, before the term
+        piece("2027-02-09", 540, 600), // Tue, inside the term
+        piece("2027-06-15", 540, 600), // Tue, after the term
+      ],
+      term,
+    );
+    // All three share the Tuesday slot; only the inside date may survive.
+    expect(blocks).toEqual([
+      { id: "cal-0", label: "Calendar busy", day: "Tue", start: 540, end: 600, dates: [{ start: "2027-02-09", end: "2027-02-09" }] },
+    ]);
+  });
 });
 
 describe("saved preferences accept dated blocks", () => {
@@ -92,6 +108,18 @@ describe("buildOptimizeRequest carries busy time", () => {
       own,
       { id: "cal-0", label: "Calendar busy", day: "Tue", start: 480, end: 540, dates: [{ start: "2027-02-09", end: "2027-02-09" }] },
     ]);
+  });
+
+  test("pieces dated outside the planning term add no calendar block", () => {
+    const state = normalizePlannerState({ ...getInitialPlannerState(), courseStatuses: { "SPAN 2040": "inProgress" } });
+    const preferences = defaultSchedulePreferences("compact");
+    const baseline = buildOptimizeRequest(state, preferences, { courseCodes: ["SPAN 2040"] });
+    const request = buildOptimizeRequest(state, preferences, {
+      courseCodes: ["SPAN 2040"],
+      busyOccurrences: [piece("2026-11-17", 480, 540), piece("2027-06-15", 480, 540)], // fall 2026 and summer 2027
+    });
+    expect(request.constraints.blocked).toEqual(baseline.constraints.blocked);
+    expect(request.constraints.blocked.filter((block) => block.id.startsWith("cal-"))).toEqual([]);
   });
 
   test("without busy occurrences the request is exactly as before", () => {
