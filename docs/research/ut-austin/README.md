@@ -273,7 +273,7 @@ way PR #63 did for UNT's thresholds.
 6. Sections via browser capture: sanitized captures of the UT Direct Course Schedule with a
    guest EID, a `PortalAdapter`-shaped reader per the architecture README, never a server
    fetch.
-7. Degree plans: parse the BSCompSci program pages with the existing degree pipeline and
-   UT's core component table; validate against the core curriculum page.
+7. Degree plans: parse the BSCompSci program pages with the degree pipeline pending in
+   PR #116 and UT's core component table; validate against the core curriculum page.
 8. Grade evidence: link courses to the grade-distribution dashboard; revisit parsing only if
    a stable export surface appears.
