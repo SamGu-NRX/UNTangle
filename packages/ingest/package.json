@@ -16,5 +16,8 @@
     "@types/bun": "^1.4.2",
     "eslint": "^9",
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@untangle/core": "workspace:*"
   }
 }
