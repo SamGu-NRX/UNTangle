@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { withRateLimit } from "@/lib/rate-limit/server";
-import { calendarDateOfInstant, parseRangeInstant, FLOATING_TIME_ZONE } from "@/lib/calendar-feeds/datetime";
+import { calendarDateOfInstant, parseRangeInstant, zoneWallTime, FLOATING_TIME_ZONE } from "@/lib/calendar-feeds/datetime";
 import { CalendarFetchError, CalendarParseError } from "@/lib/calendar-feeds/errors";
 import { fetchCalendarIcs } from "@/lib/calendar-feeds/fetch";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
-import { busyFromFeed } from "@/lib/calendar-feeds/busy";
+import { busyFromFeed, type BusyOccurrence } from "@/lib/calendar-feeds/busy";
 import { serializeBusy } from "@/lib/calendar-feeds/busy-serialize";
 import { TOO_MANY_EVENTS_MESSAGE } from "@/lib/calendar-feeds/preview";
 import { validateCalendarUrl } from "@/lib/calendar-feeds/ssrf";
@@ -99,13 +99,35 @@ async function busyHandler(request: Request) {
   }
   const json = serializeBusy({
     range,
-    occurrences: busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }),
+    occurrences: clipToRange(busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }), range),
     skipped: result.skipped,
   });
   if (json === null) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
   }
   return new NextResponse(json, { status: 200, headers: { "content-type": "application/json" } });
+}
+
+/**
+ * Each piece cut to the half-open range, dropping pieces left empty. The
+ * pieces cover whole local dates of the term, so an event straddling either
+ * end of the range would otherwise come back uncut. Pieces are local
+ * (America/Chicago) dates and minutes, so the range ends are compared as
+ * local dates and minutes too.
+ */
+function clipToRange(pieces: BusyOccurrence[], range: ParseRange): BusyOccurrence[] {
+  const local = (instant: string) => {
+    const wall = zoneWallTime(Date.parse(instant), FLOATING_TIME_ZONE);
+    return { date: zonedDateOf(instant), minutes: wall.hour * 60 + wall.minute };
+  };
+  const from = local(range.start);
+  const to = local(range.end);
+  return pieces.flatMap((piece) => {
+    if (piece.date < from.date || piece.date > to.date) return [];
+    const startMinutes = piece.date === from.date ? Math.max(piece.startMinutes, from.minutes) : piece.startMinutes;
+    const endMinutes = piece.date === to.date ? Math.min(piece.endMinutes, to.minutes) : piece.endMinutes;
+    return startMinutes < endMinutes ? [{ ...piece, startMinutes, endMinutes }] : [];
+  });
 }
 
 /**

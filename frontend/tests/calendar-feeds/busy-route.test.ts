@@ -297,6 +297,29 @@ test("without a term, the fallback term window reads the range in America/Chicag
   }
 });
 
+test("pieces are cut to the half-open range, and a piece wholly after it is left out", async () => {
+  setSession({ user: { id: "user-clip" } });
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  // 14:30-16:00Z straddles the range's end; 15:30-16:30Z starts after it.
+  fetchStub.mockImplementation(
+    async () =>
+      new Response(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@t\r\nSUMMARY:Straddles\r\nDTSTART:20260115T143000Z\r\nDTEND:20260115T160000Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b@t\r\nSUMMARY:After\r\nDTSTART:20260115T153000Z\r\nDTEND:20260115T163000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        { status: 200, headers: { "content-type": "text/calendar" } },
+      ),
+  );
+  try {
+    const response = await POST(
+      busyRequest({ url: VALID_BODY.url, rangeStart: "2026-01-15T14:00:00Z", rangeEnd: "2026-01-15T15:00:00Z" }, "192.0.2.140"),
+    );
+    expect(response.status).toBe(200);
+    // 14:30-15:00Z is 08:30-09:00 in Denton (CST).
+    expect((await response.json()).occurrences).toEqual([{ date: "2026-01-15", startMinutes: 510, endMinutes: 540 }]);
+  } finally {
+    fetchStub.mockImplementation(async () => tinyResponse());
+  }
+});
+
 test("a default range of now through now plus 60 days is used when none is given", async () => {
   setSession({ user: { id: "user-range" } });
   const before = Date.now();
