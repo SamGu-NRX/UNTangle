@@ -30,6 +30,8 @@ export const budgets = {
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },
+  // Serves cached directory feeds; upstream refresh is bounded by the cache, not by callers.
+  campusEvents: { user: 60, ip: 60 },
   // /api/v1 document routes, counted by address before sign-in is checked;
   // each student is then counted against plannerRead or plannerSave. Many
   // phones can share one carrier NAT address, so this is a flood guard, not a
