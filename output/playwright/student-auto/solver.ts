@@ -121,6 +121,22 @@ function timePatterns(request: ReturnType<typeof buildOptimizeRequest>, byCourse
   return patterns;
 }
 
+// A JSON.stringify replacer array filters keys at EVERY nesting level, so a
+// top-level key list would silently drop nested course, section and
+// preference data from both sides. Serialize recursively with sorted keys so
+// every nested field is compared, with key order normalized.
+function stable(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry) => stable(entry));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((key) => [key, stable((value as Record<string, unknown>)[key])]),
+    );
+  }
+  return value;
+}
+
 function modeSolve(statePath: string, prefsPath: string, workerPath?: string) {
   const state = normalizePlannerState(JSON.parse(readFileSync(statePath, "utf8")));
   const stored = JSON.parse(readFileSync(prefsPath, "utf8"));
@@ -137,7 +153,7 @@ function modeSolve(statePath: string, prefsPath: string, workerPath?: string) {
   // so the engine and reference below argue about what Auto actually solved.
   const worker = workerPath ? (JSON.parse(readFileSync(workerPath, "utf8")) as OptimizeJob | null) : null;
   if (worker?.request) {
-    const canon = (value: Record<string, unknown>) => JSON.stringify({ ...value, now: "" }, Object.keys(value).sort());
+    const canon = (value: Record<string, unknown>) => JSON.stringify(stable({ ...value, now: "" }));
     if (canon(worker.request as unknown as Record<string, unknown>) !== canon(plain as unknown as Record<string, unknown>)) {
       const sent = worker.request as unknown as Record<string, unknown>;
       const rebuilt = plain as unknown as Record<string, unknown>;
