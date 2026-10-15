@@ -69,7 +69,7 @@ export function SearchField({
 export type SearchTriggerProps = Omit<ComponentPropsWithRef<"button">, "children"> & {
   placeholder?: string;
   shortcut?: string;
-  /** Collapses to a 36px icon button (Week and Map views). */
+  /** Folds to a 36px square with the field's fill and glyph. */
   compact?: boolean;
 };
 
