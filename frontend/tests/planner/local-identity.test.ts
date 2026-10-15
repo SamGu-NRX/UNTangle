@@ -144,7 +144,7 @@ function observeDocumentStore(target: PersistedDocumentStore) {
 /** Puts a user's documents in this browser's store, as an earlier signed-in visit left them. */
 async function storeDocuments(userId: string, state: PlannerState) {
   const initial = getInitialPlannerState();
-  const sync = new PlannerSync(store, userId, planningTerm.id, httpSyncIO(() => server.fetch as typeof fetch), {
+  const sync = new PlannerSync(store, userId, planningTerm.id, httpSyncIO(userId, () => server.fetch as typeof fetch), {
     state: initial,
     preferences: defaultSchedulePreferences(initial.optimization),
   });

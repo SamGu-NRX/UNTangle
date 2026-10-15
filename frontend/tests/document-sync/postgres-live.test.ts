@@ -310,6 +310,14 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     expect((await pool.query(`SELECT count(*)::int AS n FROM planner_state WHERE user_id = 'dave'`)).rows).toEqual([{ n: 0 }]);
   });
 
+  test("a write that arrives before any pull and is refused still leaves the migrated documents readable", async () => {
+    await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES ('frank', 'Frank', 'frank@example.invalid', true)`);
+    await savePlannerState("frank", contract.savedPlan, 0, database);
+    // A device that never pulled writes the first schedule id from revision 0.
+    await expect(put("main-unt-spring-2027", { baseRevision: 0 }, "frank")).rejects.toMatchObject({ code: "REVISION_CONFLICT", revision: 1 });
+    expect(await repo.get("frank", "main-unt-spring-2027")).toMatchObject({ revision: 1, body: { courses: ["CSCE 1040", "MATH 1720"] } });
+  });
+
   test("a legacy save racing the migration either lands before it and is migrated, or is refused", async () => {
     await pool.query(`INSERT INTO "user" (id, name, email, email_verified) VALUES ('erin', 'Erin', 'erin@example.invalid', true)`);
     const [saved] = await Promise.all([savePlannerState("erin", contract.savedPlan, 0, database), repo.pull("erin")]);

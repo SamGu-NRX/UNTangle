@@ -33,6 +33,7 @@ import {
   type AcademicRecordBody,
   type DocumentKind,
 } from "../../../../packages/contracts/src/documents";
+import { ACCOUNT_HEADER } from "../../../../packages/contracts/src/sync";
 import {
   firstDocumentId,
   joinPlanner,
@@ -68,16 +69,22 @@ function hex(buffer: ArrayBuffer): string {
   return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** The engine's transport over /api/v1, and the pull list. `fetchImpl` is read on each call. */
-export function httpSyncIO(fetchImpl: () => FetchLike = () => globalThis.fetch): PlannerSyncIO {
-  const getDocument = (documentId: string) => fetchImpl()(`/api/v1/documents/${encodeURIComponent(documentId)}`, { cache: "no-store" });
+/**
+ * The engine's transport over /api/v1 for one account, and the pull list.
+ * Every request names the account (ACCOUNT_HEADER), so the server refuses it
+ * once the browser's session belongs to someone else. `fetchImpl` is read on
+ * each call.
+ */
+export function httpSyncIO(account: string, fetchImpl: () => FetchLike = () => globalThis.fetch): PlannerSyncIO {
+  const send: FetchLike = (input, init) => fetchImpl()(input, { ...init, headers: { ...init?.headers, [ACCOUNT_HEADER]: account } });
+  const getDocument = (documentId: string) => send(`/api/v1/documents/${encodeURIComponent(documentId)}`, { cache: "no-store" });
   return {
     operationId: () => crypto.randomUUID(),
     sha256: async (bytes) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(bytes))),
 
     async push(_userId, bytes): Promise<PushResult> {
       const write = JSON.parse(bytes) as { documentId: string; kind: DocumentKind };
-      const response = await fetchImpl()(`/api/v1/documents/${encodeURIComponent(write.documentId)}`, {
+      const response = await send(`/api/v1/documents/${encodeURIComponent(write.documentId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: bytes,
@@ -92,9 +99,14 @@ export function httpSyncIO(fetchImpl: () => FetchLike = () => globalThis.fetch):
         if (latest.ok) return { kind: "conflict", latest: await latest.json() };
         // A stale write to a deleted document conflicts on its revision before the deletion is checked.
         if (latest.status === 404) return { kind: "conflict", latest: deleted(revision) };
+        throw new Error(`The server couldn't return the newer document: ${latest.status}`);
       }
-      // Not a receipt and not a conflict: the engine keeps the write and later sends the same bytes again.
-      throw new Error(`The server refused a document write: ${response.status} ${code ?? "without a code"}`);
+      // The write itself is wrong (its body, kind, size or operation id); sending the same bytes again can't help.
+      if (response.status < 500 && response.status !== 408 && response.status !== 429) {
+        throw new WriteRefusedError(write.documentId, response.status, code);
+      }
+      // Busy or down: the engine keeps the write and sends the same bytes again later.
+      throw new Error(`The server couldn't take a document write: ${response.status} ${code ?? "without a code"}`);
     },
 
     async fetch(_userId, documentId) {
@@ -106,7 +118,7 @@ export function httpSyncIO(fetchImpl: () => FetchLike = () => globalThis.fetch):
     async pullList() {
       let response: Response;
       try {
-        response = await fetchImpl()("/api/v1/sync", { cache: "no-store" });
+        response = await send("/api/v1/sync", { cache: "no-store" });
       } catch {
         return { kind: "unavailable" };
       }
@@ -115,6 +127,14 @@ export function httpSyncIO(fetchImpl: () => FetchLike = () => globalThis.fetch):
       return { kind: "list", list: await response.json() };
     },
   };
+}
+
+/** The server answered a write with a refusal that the same bytes would get again. */
+export class WriteRefusedError extends Error {
+  constructor(readonly documentId: string, readonly status: number, readonly code: string | null) {
+    super(`The server refused a document write: ${status} ${code ?? "without a code"}`);
+    this.name = "WriteRefusedError";
+  }
 }
 
 /* ---------- which documents the planner shows ---------- */
@@ -229,6 +249,8 @@ export class PlannerSync {
   private localConflict: OpenConflict | null = null;
   /** Documents whose write this tab is sending now. */
   private readonly sending = new Set<string>();
+  /** Documents whose waiting write the server refused for good; they aren't sent again until a reload. */
+  private readonly refused = new Set<string>();
   /** Set when the planner retires this identity; from then on nothing reaches the network. */
   private closed = false;
   private readonly io: PlannerSyncIO;
@@ -251,7 +273,20 @@ export class PlannerSync {
       if (this.closed) return Promise.reject(new Error("This account's sync has closed."));
       return call(...args);
     };
-    this.io = { ...io, push: open(io.push), fetch: open(io.fetch), pullList: open(io.pullList) };
+    const push = open(io.push);
+    this.io = {
+      ...io,
+      push: (userId, bytes) =>
+        push(userId, bytes).catch((error: unknown) => {
+          if (error instanceof WriteRefusedError) {
+            console.error(error);
+            this.refused.add(error.documentId);
+          }
+          throw error;
+        }),
+      fetch: open(io.fetch),
+      pullList: open(io.pullList),
+    };
     this.engine = new SyncEngine(store, { kind: "user", id: userId }, this.io);
     this.base = splitPlanner(initial.state, initial.preferences, termId);
   }
@@ -327,7 +362,9 @@ export class PlannerSync {
 
   private async drainNow(): Promise<void> {
     for (let round = 0; round < 100; round++) {
-      const waiting = (await this.engine.read()).documents.filter((document) => document.pending.length && document.delivery.kind !== "conflict");
+      const waiting = (await this.engine.read()).documents.filter(
+        (document) => document.pending.length && document.delivery.kind !== "conflict" && !this.refused.has(document.documentId),
+      );
       let progressed = false;
       for (const document of waiting) {
         if (this.closed) return;
@@ -403,15 +440,29 @@ export class PlannerSync {
   }
 
   /** The sync state to show, and the conflict to settle with the student's side as it is now. */
-  status(read: PlannerRead): Promise<{ status: SyncStatus | null; conflict: (OpenConflict & { mine: Body }) | null; unsynced: boolean }> {
+  status(read: PlannerRead): Promise<{
+    status: SyncStatus | null;
+    conflict: (OpenConflict & { mine: Body }) | null;
+    unsynced: boolean;
+    /** The server refused a waiting write for good. */
+    refused: boolean;
+    /** The planner has no edit that isn't in this device's store yet. */
+    clean: boolean;
+    /** The open conflict's document has edits only this tab holds: another tab's conflict, or edits since it opened. */
+    conflictUnsaved: boolean;
+  }> {
     return this.run(async () => {
       const state = await this.engine.read();
       const snapshot = plannerSnapshot(state.documents, this.termId);
       const conflict = this.openConflict(snapshot);
+      const after = this.split(read());
       return {
         status: plannerStatus(this.userId, snapshot, conflict, this.sending),
-        conflict: conflict && { ...conflict, mine: this.mine(conflict.kind, this.split(read())) },
+        conflict: conflict && { ...conflict, mine: this.mine(conflict.kind, after) },
         unsynced: state.documents.some((document) => document.pending.length > 0),
+        refused: state.documents.some((document) => document.pending.length > 0 && this.refused.has(document.documentId)),
+        clean: equal(after, this.base),
+        conflictUnsaved: conflict !== null && (conflict.source === "local" || !equal(after[conflict.kind], this.base[conflict.kind])),
       };
     });
   }
@@ -459,6 +510,10 @@ export class PlannerSync {
   /** Stops all network work for good; this device's store is left as it is. */
   close(): void {
     this.closed = true;
+  }
+
+  get isClosed(): boolean {
+    return this.closed;
   }
 
   /** Deletes this account's documents from this device; waiting writes go too only with `discardPending`. */

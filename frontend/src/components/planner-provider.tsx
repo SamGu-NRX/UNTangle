@@ -250,7 +250,8 @@ type PlannerContextValue = {
   resolveConflict: (resolution: "keep-mine" | "take-theirs") => void;
   /** Signed in: a synced document to settle (docs/architecture/README.md, "Conflicts depend on the document kind"). */
   syncConflict: SyncConflict | null;
-  settleSyncConflict: (choice: SyncConflictChoice) => Promise<void>;
+  /** False when the choice couldn't be applied; the conflict is then still open. */
+  settleSyncConflict: (choice: SyncConflictChoice) => Promise<boolean>;
   /** Signed in: the server holds documents this copy of the app can't read, so it stopped saving until a reload. */
   clientOutdated: boolean;
   /**
@@ -316,7 +317,7 @@ function openBrowserDocumentStore(): Promise<LocalStore> {
  */
 function forgetAccountDocuments(open: () => Promise<LocalStore>, userId: string): void {
   void open()
-    .then((store) => new SyncEngine(store, { kind: "user", id: userId }, httpSyncIO()).clearLocalData({ discardPending: false }))
+    .then((store) => new SyncEngine(store, { kind: "user", id: userId }, httpSyncIO(userId)).clearLocalData({ discardPending: false }))
     .catch((error: unknown) => {
       if (error instanceof Error && error.message.startsWith("Unsynced changes")) return;
       console.error("Couldn't delete the signed-out account's documents from this browser", error);
@@ -351,7 +352,7 @@ function syncSaveState(status: SyncStatus | null, pull: "offline" | "signed-out"
     case "Needs sign-in":
       return state("signed-out", status, "Sign in again to sync. Your changes are saved on this device.", "session");
     case "Resolve conflict":
-      return state("not-saved", status, "This schedule changed somewhere else too. Choose which version to keep.", "conflict");
+      return state("not-saved", status, "Something you changed was changed somewhere else too. Choose what to keep.", "conflict");
     case null:
       return offline ? state("not-saved", SAVE_LABELS["not-saved"], "UNTangle can't be reached, so your schedule hasn't loaded. Changes stay on this device.", "network") : PENDING;
   }
@@ -521,12 +522,15 @@ function IdentityPlannerProvider({
   const [storeNotices, setStoreNotices] = useState<Array<{ message: string; quarantinedTo?: string }>>([]);
   const [guestStorageAvailable, setGuestStorageAvailable] = useState(true);
   // Signed in: what the documents' state reads as, and why it can't move forward.
-  const [syncView, setSyncView] = useState<{ status: SyncStatus | null; conflict: SyncConflict | null; unsynced: boolean }>({
+  const [syncView, setSyncView] = useState<{ status: SyncStatus | null; conflict: SyncConflict | null; refused: boolean; conflictUnsaved: boolean }>({
     status: null,
     conflict: null,
-    unsynced: false,
+    refused: false,
+    conflictUnsaved: false,
   });
-  const [syncProblem, setSyncProblem] = useState<"offline" | "signed-out" | "outdated" | "storage" | null>(null);
+  // Why the documents can't move forward: the last pull failed, this build can't read them, this browser
+  // can't store them, or the last edit couldn't be stored (a bug, shown rather than only logged).
+  const [syncProblem, setSyncProblem] = useState<"offline" | "signed-out" | "outdated" | "storage" | "save-failed" | null>(null);
   const [schedulePreferences, setSchedulePreferencesState] = useState<SchedulePreferences>(() =>
     defaultSchedulePreferences(getInitialPlannerState().optimization),
   );
@@ -738,26 +742,30 @@ function IdentityPlannerProvider({
   }, []);
 
   const legacyKeySettled = useRef(false);
-  const runSyncRef = useRef<((operation: (sync: PlannerSync) => Promise<unknown>) => Promise<void>) | null>(null);
+  const runSyncRef = useRef<((operation: (sync: PlannerSync) => Promise<unknown>) => Promise<boolean>) | null>(null);
   /**
    * Runs one operation on the account's documents, then shows what they
    * hold (unless this tab has edits still to save) and the state they're in.
    * An unconfirmed write is tried again after 2 seconds, doubling to a minute.
    */
   const runSync = useCallback(
-    async (operation: (sync: PlannerSync) => Promise<unknown>) => {
+    async (operation: (sync: PlannerSync) => Promise<unknown>, { saving = false } = {}): Promise<boolean> => {
       const sync = syncRef.current;
-      if (!sync) return;
+      if (!sync) return false;
       try {
         const outcome = await operation(sync);
-        if (outcome === "unavailable") setSyncProblem("offline");
-        else if (outcome === "synced") setSyncProblem(null);
+        if (saving) setSyncProblem((problem) => (problem === "save-failed" ? null : problem));
+        // A pull's outcome replaces only an earlier pull's problem.
+        const pullProblem = (next: "offline" | "signed-out" | null) =>
+          setSyncProblem((problem) => (problem === null || problem === "offline" || problem === "signed-out" ? next : problem));
+        if (outcome === "unavailable") pullProblem("offline");
+        else if (outcome === "synced") pullProblem(null);
         else if (outcome === "signed-out") {
-          setSyncProblem("signed-out");
+          pullProblem("signed-out");
           announceSessionExpired();
         }
         const view = await sync.adopt(readPlanner);
-        if (syncRef.current !== sync) return;
+        if (syncRef.current !== sync) return false;
         if (view) showDocuments(view, hydratedRef.current);
         if (outcome === "synced" && !legacyKeySettled.current) {
           // The ownerless pre-#77 planner key is settled against the account's plan once it has been read:
@@ -766,9 +774,10 @@ function IdentityPlannerProvider({
           localStoreRef.current.migrateLegacy(stateRef.current);
         }
         const next = await sync.status(readPlanner);
-        if (syncRef.current !== sync) return;
-        setSyncView(next);
-        setSavedFingerprint(workingStateFingerprint(stateRef.current));
+        if (syncRef.current !== sync) return false;
+        setSyncView({ status: next.status, conflict: next.conflict, refused: next.refused, conflictUnsaved: next.conflictUnsaved });
+        // The state shown is covered by the store only when the planner has nothing left to save.
+        setSavedFingerprint(next.clean ? workingStateFingerprint(stateRef.current) : null);
         if (next.status === "Needs sign-in") announceSessionExpired();
         if (retryTimer.current) clearTimeout(retryTimer.current);
         retryTimer.current = null;
@@ -779,15 +788,19 @@ function IdentityPlannerProvider({
         } else {
           retryDelay.current = 2000;
         }
+        return true;
       } catch (error) {
-        if (syncRef.current !== sync) return;
+        if (syncRef.current !== sync || sync.isClosed) return false;
         if (error instanceof ClientOutdatedError) {
-          // Stop: nothing this copy writes may drop what it couldn't read.
-          syncRef.current = null;
+          // Stop sending: nothing this copy writes may drop what it couldn't read. Its outbox stays, so
+          // sign-out still finds waiting writes and the reloaded app sends them.
+          sync.close();
           setSyncProblem("outdated");
-          return;
+          return false;
         }
         console.error("Syncing your schedule failed", error);
+        if (saving) setSyncProblem("save-failed");
+        return false;
       }
     },
     [announceSessionExpired, readPlanner, showDocuments],
@@ -799,7 +812,7 @@ function IdentityPlannerProvider({
   const handleSessionRestored = useCallback(() => {
     if (!instanceActive.current || !sessionExpired.current) return;
     sessionExpired.current = false;
-    setSyncProblem(null);
+    setSyncProblem((problem) => (problem === "signed-out" ? null : problem));
     void runSync((sync) => sync.refresh());
   }, [runSync]);
 
@@ -857,7 +870,7 @@ function IdentityPlannerProvider({
         const initialPlan = getInitialPlannerState();
         let sync: PlannerSync;
         try {
-          sync = new PlannerSync(await documentStore(), userId, planningTerm.id, httpSyncIO(), {
+          sync = new PlannerSync(await documentStore(), userId, planningTerm.id, httpSyncIO(userId), {
             state: initialPlan,
             preferences: defaultSchedulePreferences(initialPlan.optimization),
           });
@@ -885,15 +898,18 @@ function IdentityPlannerProvider({
         await runSync((current) => current.refresh());
         if (!isCurrent()) return;
         // Step 4 of the migration: settings this browser kept for this account (#77 keys them by account)
-        // are offered once, as an ordinary preferences write.
+        // are offered once, as an ordinary preferences write, while the account's preferences are still
+        // the defaults the migration started them with. Settings saved since, on any device, win.
         const storage = browserStorage();
         const key = preferencesKey({ kind: "user", id: userId });
         const local = storage ? readStoredPreferences(storage, key) : null;
-        if (storage && local?.kind === "ok" && syncRef.current === sync) {
+        const untouched = equal(preferencesRef.current, defaultSchedulePreferences(stateRef.current.optimization));
+        if (storage && local?.kind === "ok" && untouched && syncRef.current === sync) {
           adoptPreferences(local.preferences);
-          await runSync((current) => current.save(readPlanner));
+          const stored = await runSync((current) => current.save(readPlanner), { saving: true });
           if (!isCurrent()) return;
-          storage.removeItem(key);
+          // Removed only once the write is in this device's outbox.
+          if (stored) storage.removeItem(key);
           void runSync((current) => current.drain());
         }
         finishHydration();
@@ -987,8 +1003,9 @@ function IdentityPlannerProvider({
 
   /** Signed in: puts the planner's edit into this device's outbox, then sends it. */
   const saveDocuments = useCallback(async () => {
-    await runSync((sync) => sync.save(readPlanner));
+    const saved = await runSync((sync) => sync.save(readPlanner), { saving: true });
     await runSync((sync) => sync.drain());
+    return saved;
   }, [readPlanner, runSync]);
 
   useEffect(() => {
@@ -1164,13 +1181,13 @@ function IdentityPlannerProvider({
   }, [syncView.conflict]);
 
   const settleSyncConflict = useCallback(
-    async (choice: SyncConflictChoice) => {
+    async (choice: SyncConflictChoice): Promise<boolean> => {
       const sync = syncRef.current;
-      if (!sync || !syncConflictRef.current) return;
-      // Other edits are saved first, so taking the latest of one document can't drop them.
-      await saveDocuments();
+      if (!sync || !syncConflictRef.current) return false;
+      // Other edits go into the outbox first, so taking the latest of one document can't drop them.
+      if (!(await runSync((current) => current.save(readPlanner), { saving: true }))) return false;
       const { conflict: open } = await sync.status(readPlanner);
-      if (!open || syncRef.current !== sync) return;
+      if (!open || syncRef.current !== sync) return false;
       let settle: ConflictChoice;
       if (choice.kind === "answers") {
         settle = { kind: "keep", body: choice.body };
@@ -1183,16 +1200,25 @@ function IdentityPlannerProvider({
         const kept = createSavedPlanStore().savePlan({ state: stateRef.current, name: keptCopyName(new Date()) });
         if (!kept.ok) {
           toast({ message: "Couldn't keep a copy, so nothing changed. Try again.", tone: "error" });
-          return;
+          return false;
         }
         toast(`Kept your version in Schedules as "${kept.value.name}"`);
         settle = { kind: "use-latest" };
       }
-      await runSync(async (current) => showDocuments(await current.resolve(open, settle, readPlanner), false));
-      await runSync((current) => current.drain());
+      const settled = await runSync(async (current) => showDocuments(await current.resolve(open, settle, readPlanner), false));
+      void runSync((current) => current.drain());
+      return settled;
     },
-    [readPlanner, runSync, saveDocuments, showDocuments],
+    [readPlanner, runSync, showDocuments],
   );
+
+  // An edit made while a conflict is open isn't stored until the student chooses, so leaving asks first.
+  useEffect(() => {
+    if (!syncView.conflictUnsaved) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [syncView.conflictUnsaved]);
 
   const prepareSignOut = useCallback(async () => {
     const sync = syncRef.current;
@@ -1238,7 +1264,16 @@ function IdentityPlannerProvider({
         ? { status: "not-saved", label: SAVE_LABELS["not-saved"], detail: "UNTangle was updated. Reload to keep editing.", reason: "server" }
         : syncProblem === "storage"
           ? { status: "not-saved", label: SAVE_LABELS["not-saved"], detail: "This browser can't store your schedule, so edits stay in this tab and don't sync.", reason: "storage" }
-          : syncSaveState(syncView.status, syncProblem === "offline" || syncProblem === "signed-out" ? syncProblem : null);
+          : syncProblem === "save-failed" || syncView.refused
+            ? {
+                status: "not-saved",
+                label: SAVE_LABELS["not-saved"],
+                detail: syncView.refused
+                  ? "UNTangle refused your last change, so it stays in this tab only. Reload to try again."
+                  : "Your last change couldn't be stored on this device. Reload to try again.",
+                reason: "server",
+              }
+            : syncSaveState(syncView.status, syncProblem === "offline" || syncProblem === "signed-out" ? syncProblem : null);
     const storedSaveState = isRegistered ? accountSaveState : saveState;
     const shownSaveState = sessionUnknown && !sessionPending
       ? saveStateOf("not-saved", "Your session has not been confirmed. This plan is not synced to an account.", "session")

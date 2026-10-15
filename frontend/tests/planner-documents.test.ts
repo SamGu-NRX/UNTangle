@@ -53,13 +53,29 @@ describe("rebase", () => {
     });
   });
 
-  test("a removed key is removed, an unchanged body comes back as stored, and a changed array is the planner's", () => {
-    const stored = { courseStatuses: { "CSCE 1030": "completed", "ZZZZ 9999": "completed" }, list: ["a", "b"], name: "Spring plan" };
-    expect(rebase(stored, { courseStatuses: { "CSCE 1030": "completed" }, list: ["a"] }, { courseStatuses: {}, list: ["a"] })).toEqual({
-      courseStatuses: { "ZZZZ 9999": "completed" }, list: ["a", "b"], name: "Spring plan",
+  test("a removed key is removed, and an unchanged body comes back as stored", () => {
+    const stored = { courseStatuses: { "CSCE 1030": "completed", "ZZZZ 9999": "completed" }, name: "Spring plan" };
+    expect(rebase(stored, { courseStatuses: { "CSCE 1030": "completed" } }, { courseStatuses: {} })).toEqual({
+      courseStatuses: { "ZZZZ 9999": "completed" }, name: "Spring plan",
     });
-    expect(rebase(stored, { list: ["a"] }, { list: ["a"] })).toBe(stored);
-    expect(rebase(stored, { list: ["a"] }, { list: ["c"] })).toEqual({ ...stored, list: ["c"] });
+    expect(rebase(stored, { courseStatuses: {} }, { courseStatuses: {} })).toBe(stored);
+  });
+
+  test("a code list changes by what the planner added and removed, so codes it can't show stay", () => {
+    const stored = { courses: ["CSCE 1040", "ZZZZ 9999"], selectedSections: { "ZZZZ 9999": "zz-001" } };
+    const before = { courses: ["CSCE 1040"], selectedSections: {} };
+    const after = { courses: ["MATH 1720"], selectedSections: {} };
+    expect(rebase(stored, before, after)).toEqual({ courses: ["ZZZZ 9999", "MATH 1720"], selectedSections: { "ZZZZ 9999": "zz-001" } });
+  });
+
+  test("a list of rows with ids changes row by row, keeping rows the planner never read", () => {
+    const row = (id: string, grade: string) => ({ id, grade });
+    const stored = [row("a", "A"), row("hidden", "B"), row("c", "C")];
+    expect(rebase(stored, [row("a", "A"), row("c", "C")], [row("a", "B"), row("d", "D")])).toEqual([row("a", "B"), row("hidden", "B"), row("d", "D")]);
+  });
+
+  test("any other changed list is the planner's whole", () => {
+    expect(rebase({ changes: [{ code: "A" }, { code: "B" }] }, { changes: [{ code: "A" }] }, { changes: [{ code: "C" }] })).toEqual({ changes: [{ code: "C" }] });
   });
 
   test("a course code named __proto__ is data, not the prototype", () => {
@@ -80,6 +96,22 @@ describe("the legacy row's documents", () => {
     expect(plain(documents[0].body)).toEqual(expectedRecord);
     expect(plain(documents[1].body)).toEqual(fixtures.schedule);
     expect(plain(documents[2].body)).toEqual({ institutionId: "unt", goal: "compact", ...defaultSchedulePreferences("compact") });
+  });
+
+  test("a row the legacy route accepted but the contract refuses still migrates, losing only what can't be held", () => {
+    const [row] = fixtures.savedPlan.transcriptRecords;
+    const legacy = {
+      ...fixtures.savedPlan,
+      // An extra key on a row, the same row twice, and an Auto run that touched a completed course.
+      transcriptRecords: [{ ...row, importedFrom: "pdf" }, { ...row }, ...fixtures.savedPlan.transcriptRecords.slice(1)],
+      coursePlan: {
+        ...fixtures.savedPlan.coursePlan!,
+        lastAuto: { ...fixtures.savedPlan.coursePlan!.lastAuto!, changes: [{ code: "CSCE 1040", from: "completed" as const, to: "inProgress" as const }] },
+      },
+    };
+    const [record, schedule] = legacyDocuments(legacy);
+    expect(plain(record.body)).toEqual(expectedRecord);
+    expect(plain(schedule.body)).toEqual({ ...fixtures.schedule, lastAuto: null });
   });
 
   test("the term comes from a real pick, and only a plan without one falls back", () => {

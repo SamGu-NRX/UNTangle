@@ -59,7 +59,7 @@ async function isMigrated(reader: Pick<Database, "select">, userId: string): Pro
 }
 
 /** Call inside a transaction that holds the user row lock. Does nothing after the first time. */
-export async function migrateLegacyPlanner(tx: Transaction, userId: string): Promise<void> {
+async function migrateLegacyPlanner(tx: Transaction, userId: string): Promise<void> {
   if (await isMigrated(tx, userId)) return;
   const [row] = await tx.select().from(plannerStates).where(eq(plannerStates.userId, userId));
   if (row) {
@@ -74,7 +74,7 @@ export async function migrateLegacyPlanner(tx: Transaction, userId: string): Pro
   await tx.insert(plannerMigrations).values({ userId });
 }
 
-/** For reads: migrates only when the marker is missing, so a routine pull takes no lock. */
+/** Migrates in its own transaction, taking the lock only when the marker is missing, so a routine request takes none. */
 export async function ensureLegacyMigrated(db: Database, userId: string, lockUser: (tx: Transaction) => Promise<boolean>): Promise<void> {
   if (await isMigrated(db, userId)) return;
   await db.transaction(async (tx) => {

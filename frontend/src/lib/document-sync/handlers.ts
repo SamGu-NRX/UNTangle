@@ -1,5 +1,6 @@
 import type { DeviceGrantErrorCode, DeviceScope } from "../../../../packages/contracts/src/device-grant";
 import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
+import { ACCOUNT_HEADER } from "../../../../packages/contracts/src/sync";
 import { DeviceGrantError } from "@/server/auth/device-grants";
 import { SyncError } from "./decision";
 import type { DocumentRepository } from "./repository";
@@ -73,6 +74,10 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
   async function handle(request: Request, scope: DeviceScope, action: (identity: Identity) => Promise<unknown>): Promise<Response> {
     try {
       const identity = await identify(request, scope);
+      const expected = request.headers.get(ACCOUNT_HEADER);
+      if (expected !== null && expected !== identity.userId) {
+        throw new SyncError(401, "ACCOUNT_CHANGED", "This tab is syncing for another account. Sign in again to continue.");
+      }
       // Counted per student once identified, so phones sharing a carrier NAT
       // address don't share a budget. The route's withRateLimit guards by address.
       let retryAfter: number | null;

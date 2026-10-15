@@ -20,8 +20,10 @@
 import { equal } from "@untangle/sync";
 import {
   AcademicRecordBodySchema,
+  AutoTransactionSchema,
   PreferencesBodySchema,
   ScheduleBodySchema,
+  TranscriptCourseRecordSchema,
   type AcademicRecordBody,
   type PreferencesBody,
   type ScheduleBody,
@@ -62,6 +64,7 @@ export type StoredBodies = { [K in PlannerKind]: PlannerBodies[K] | null };
  */
 export function splitPlanner(state: PlannerState, preferences: SchedulePreferences, termId: string): PlannerBodies {
   const plan = normalizePlannerState(state);
+  const lastAuto = AutoTransactionSchema.safeParse(plan.coursePlan?.lastAuto ?? null);
   const planned = getPlanningTermCourseCodes(plan);
   const plannedSet = new Set(planned);
   const coursePlan = plan.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
@@ -71,21 +74,21 @@ export function splitPlanner(state: PlannerState, preferences: SchedulePreferenc
     "academic-record": AcademicRecordBodySchema.parse({
       institutionId: INSTITUTION_ID,
       courseStatuses: Object.fromEntries(history),
-      transcriptRecords: plan.transcriptRecords,
+      transcriptRecords: contractRows(plan.transcriptRecords),
       manualCredit: coursePlan.manualCredit,
       major: plan.selectedMajor,
       catalogId: null,
     }),
-    schedule: ScheduleBodySchema.parse({
+    schedule: scheduleBody({
       institutionId: INSTITUTION_ID,
       termId,
       name: MAIN_SCHEDULE_NAME,
       courses: planned,
-      selectedSections: plan.selectedSections,
+      selectedSections: Object.fromEntries(Object.entries(plan.selectedSections).filter(([, optionId]) => optionId !== "")),
       lockedSections: plan.lockedSections ?? {},
       // Auto's provenance only describes courses still planned; unplanning a course by status alone leaves it behind.
       autoPlanned: coursePlan.autoPlanned.filter((code) => plannedSet.has(code)),
-      lastAuto: coursePlan.lastAuto,
+      lastAuto: lastAuto.success ? lastAuto.data : null,
     }),
     preferences: PreferencesBodySchema.parse({
       institutionId: INSTITUTION_ID,
@@ -94,6 +97,31 @@ export function splitPlanner(state: PlannerState, preferences: SchedulePreferenc
       weights: preferences.weights,
     }),
   };
+}
+
+/**
+ * Transcript rows as the contract holds them. The legacy route kept a row's
+ * extra keys and could store two rows with one id (the id hashes code, term,
+ * grade and source, so such rows say the same thing); the first is kept.
+ */
+function contractRows(rows: PlannerState["transcriptRecords"]): AcademicRecordBody["transcriptRecords"] {
+  const keys = Object.keys(TranscriptCourseRecordSchema.shape) as Array<keyof AcademicRecordBody["transcriptRecords"][number]>;
+  const seen = new Set<string>();
+  return rows.flatMap((row) => {
+    if (seen.has(row.id)) return [];
+    seen.add(row.id);
+    return [Object.fromEntries(keys.map((key) => [key, row[key]])) as AcademicRecordBody["transcriptRecords"][number]];
+  });
+}
+
+/**
+ * The schedule body. Auto's last run is only an Undo record, and the legacy
+ * route accepted runs the contract refuses (a change from "completed"); such
+ * a run is dropped rather than leaving the student's plan unsyncable.
+ */
+function scheduleBody(body: Omit<ScheduleBody, "institutionId" | "termId"> & { institutionId: string; termId: string }): ScheduleBody {
+  const parsed = ScheduleBodySchema.safeParse(body);
+  return parsed.success ? parsed.data : ScheduleBodySchema.parse({ ...body, lastAuto: null });
 }
 
 /** The planner's view of the documents. `activeDay` stays on each device, so the caller supplies it. */
@@ -133,14 +161,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const isCodeList = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+const isRowList = (value: unknown): value is Array<Record<string, unknown> & { id: string }> =>
+  Array.isArray(value) && value.every((item) => isRecord(item) && typeof item.id === "string");
+
 /**
  * Applies the planner's change, `before` to `after` (both read through the
- * planner), to `stored`. Object keys the planner never read keep their stored
- * values at any depth; an array or value the planner changed takes the
- * planner's value whole.
+ * planner), to `stored`, so what the planner never read is written back
+ * unchanged:
+ * - object keys the planner never read keep their stored values, at any depth;
+ * - a list of codes (courses, manual credit, days off) changes by the codes
+ *   the planner added or removed, so a code it can't show stays;
+ * - a list of rows with ids (transcript rows, busy times) changes row by row;
+ * - any other value the planner changed takes the planner's value whole.
  */
 export function rebase(stored: unknown, before: unknown, after: unknown): unknown {
   if (equal(before, after)) return stored;
+  if (isCodeList(stored) && isCodeList(before) && isCodeList(after)) {
+    const removed = new Set(before.filter((code) => !after.includes(code)));
+    const added = after.filter((code) => !before.includes(code) && !stored.includes(code));
+    return [...stored.filter((code) => !removed.has(code)), ...added];
+  }
+  if (isRowList(stored) && isRowList(before) && isRowList(after)) {
+    const was = new Map(before.map((row) => [row.id, row]));
+    const now = new Map(after.map((row) => [row.id, row]));
+    const kept = stored.flatMap((row) => {
+      const next = now.get(row.id);
+      if (!next) return was.has(row.id) ? [] : [row];
+      return [rebase(row, was.get(row.id) ?? row, next)];
+    });
+    const storedIds = new Set(stored.map((row) => row.id));
+    return [...kept, ...after.filter((row) => !storedIds.has(row.id))];
+  }
   if (!isRecord(stored) || !isRecord(before) || !isRecord(after)) return after;
   const next: Record<string, unknown> = {};
   // defineProperty, not assignment: a course code may legally be "__proto__".

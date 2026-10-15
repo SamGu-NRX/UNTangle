@@ -325,6 +325,7 @@ export class FakeDocumentServer {
       return committed;
     },
     get: async (userId, documentId) => {
+      this.migrate(userId);
       const stored = this.document(userId, documentId);
       if (!stored || stored.deleted) throw new SyncError(404, "NOT_FOUND", "The document does not exist.");
       // Unparsed: a newer server returns fields this build's contracts don't know.

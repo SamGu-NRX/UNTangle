@@ -316,7 +316,7 @@ describe("an old client can't erase new fields", () => {
 describe("another tab of this browser", () => {
   const read = (state = getInitialPlannerState()) => () => ({ state, preferences: defaultSchedulePreferences(state.optimization) });
   const tab = () =>
-    new PlannerSync(store, user.id, "spring-2027", httpSyncIO(() => server.fetch as typeof fetch), read()());
+    new PlannerSync(store, user.id, "spring-2027", httpSyncIO(user.id, () => server.fetch as typeof fetch), read()());
 
   test("a preferences edit made on an older read merges per group; a schedule edit asks", async () => {
     server.legacy.set(user.id, fixtures.savedPlan);
@@ -335,5 +335,18 @@ describe("another tab of this browser", () => {
     await b.save(() => ({ state: { ...seenB.state, courseStatuses: { ...seenB.state.courseStatuses, "MATH 1720": "notTaken" } }, preferences: withCredits }));
     const status = await b.status(read(seenB.state));
     expect([status.status, status.conflict?.kind, status.conflict?.source]).toEqual(["Resolve conflict", "schedule", "local"]);
+  });
+
+  test("a tab still syncing for one student reads and writes nothing once the browser's session is another's", async () => {
+    const other = { id: "student-2", email: "other@my.unt.edu", name: "Other" };
+    server.seedPlan(other.id, { ...getInitialPlannerState(), selectedMajor: "math" });
+    const stale = tab();
+    setSession(other);
+    expect(await stale.refresh()).toBe("signed-out");
+    expect((await store.stored(user.id)).documents).toEqual([]);
+    await stale.save(() => ({ state: { ...getInitialPlannerState(), selectedMajor: "engl" }, preferences: defaultSchedulePreferences("clusterMorning") }));
+    await stale.drain();
+    expect(server.puts.map((put) => put.status)).toEqual([401]);
+    expect(server.plan(other.id)?.selectedMajor).toBe("math");
   });
 });
