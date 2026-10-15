@@ -1175,4 +1175,218 @@ describe("stale cleanup", () => {
     expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
     await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
   });
+
+  it("keeps a newer grant's Keychain entry when a cancelled flow's slow save resolves after it", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSlowSave: () => void = () => {};
+    const slowSaveGate = new Promise<void>(resolve => {
+      releaseSlowSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 }, // flow A: start
+      { status: 200, body: TOKENS_A }, // flow A: exchange, its save parks below
+      { status: 200, body: START_200 }, // flow B: start
+      { status: 200, body: TOKENS_GRANT_TWO }, // flow B: exchange
+      { status: 200, body: SYNC_200 }, // flow B's count read
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await slowSaveGate;
+      }
+      await workingSave(tokens);
+    });
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // flow A's Keychain write is parked mid-save
+    harness.auth.cancelSignIn();
+    // The world moves on while flow A's write is slow: a newer sign-in starts
+    // and its grant is the one the phone lives on now. The flush lets flow B
+    // finish whatever the store lets it finish before flow A's write lands.
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await flush();
+    releaseSlowSave();
+    await expect(first).resolves.toEqual({ ok: false, reason: "cancelled" });
+    await expect(second).resolves.toEqual({ ok: true });
+    await flush();
+    // The UI stays signed in as the newer grant, in memory ...
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+    // ... and on disk: the cancelled flow's cleanup must not have erased the
+    // newer grant's Keychain entry, or the session dies at the next restart.
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+  });
+
+  it("still cleans the store when a plain cancel has no newer sign-in behind it", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSlowSave: () => void = () => {};
+    const slowSaveGate = new Promise<void>(resolve => {
+      releaseSlowSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await slowSaveGate;
+      }
+      await workingSave(tokens);
+    });
+    const pending = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight;
+    harness.auth.cancelSignIn();
+    releaseSlowSave();
+    await expect(pending).resolves.toEqual({ ok: false, reason: "cancelled" });
+    await flush();
+    // The grant-identity guard must stay a cleanup: with no newer grant to
+    // protect, the cancelled flow's stray entry is still wiped and nothing
+    // is live behind it.
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await harness.store.load()).toBeNull();
+    expect(harness.store.save).toHaveBeenCalledTimes(1);
+    expect(harness.store.clear).toHaveBeenCalledTimes(1);
+    expect(harness.timers).toHaveLength(0);
+  });
+
+  it("lands a save injected mid-cleanup after the whole conditional-clear unit", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSlowSave: () => void = () => {};
+    const slowSaveGate = new Promise<void>(resolve => {
+      releaseSlowSave = resolve;
+    });
+    let clearEntered: () => void = () => {};
+    const clearInFlight = new Promise<void>(resolve => {
+      clearEntered = resolve;
+    });
+    let releaseStaleClear: () => void = () => {};
+    const staleClearGate = new Promise<void>(resolve => {
+      releaseStaleClear = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 }, // flow A: start
+      { status: 200, body: TOKENS_A }, // flow A: exchange, its save parks below
+      { status: 200, body: START_200 }, // flow B: start
+      { status: 200, body: TOKENS_GRANT_TWO }, // flow B: exchange
+      { status: 200, body: SYNC_200 }, // flow B's count read
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await slowSaveGate;
+      }
+      await workingSave(tokens);
+    });
+    // The stale cleanup's clear parks before its erase lands: the wipe takes
+    // effect when the gate releases, so a write that beats it survives and a
+    // write it overtakes does not. That completion-time erase is the race.
+    let clearCalls = 0;
+    const workingClear = harness.store.clear;
+    harness.store.clear = jest.fn(async () => {
+      clearCalls += 1;
+      if (clearCalls === 1) {
+        clearEntered();
+        await staleClearGate;
+      }
+      await workingClear();
+    });
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight;
+    harness.auth.cancelSignIn();
+    releaseSlowSave();
+    await clearInFlight; // the stale cleanup is parked between read-back and clear
+    // A newer sign-in starts while the cleanup's clear is still in flight: its
+    // save joins the durable writes behind the whole conditional-clear unit.
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await flush();
+    releaseStaleClear();
+    await expect(first).resolves.toEqual({ ok: false, reason: "cancelled" });
+    await expect(second).resolves.toEqual({ ok: true });
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+    // The injected save survived: it landed after the whole cleanup unit, so
+    // the newer grant's Keychain entry outlives the stale flow's erase.
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+  });
+
+  it("skips the failed-save clear when a newer grant already owns the store", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseFailedSave: () => void = () => {};
+    const failedSaveGate = new Promise<void>(resolve => {
+      releaseFailedSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 }, // flow A: start
+      { status: 200, body: TOKENS_A }, // flow A: exchange, its save fails below
+      { status: 200, body: START_200 }, // flow B: start
+      { status: 200, body: TOKENS_GRANT_TWO }, // flow B: exchange
+      { status: 200, body: SYNC_200 }, // flow B's count read
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await failedSaveGate;
+        throw new Error("Keychain write failed");
+      }
+      await workingSave(tokens);
+    });
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // flow A's Keychain write is parked mid-save
+    harness.auth.cancelSignIn();
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await flush(); // flow B finishes everything the store lets it finish
+    // Flow A's slow write fails now: applyTokens' defensive clear fires while
+    // the newer grant is the durable world, not just the in-memory one.
+    releaseFailedSave();
+    await expect(first).resolves.toEqual({ ok: false, reason: "failed", error: "storage_failed" });
+    await expect(second).resolves.toEqual({ ok: true });
+    await flush();
+    // The newer grant's Keychain entry survives the failed-save cleanup.
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+  });
 });
+

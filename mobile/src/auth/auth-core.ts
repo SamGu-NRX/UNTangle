@@ -65,12 +65,51 @@ export function createAuth(deps: AuthDeps) {
   const clearTimer = deps.clearTimer ?? defaultClearTimer;
   const marginMs = deps.refreshMarginMs ?? REFRESH_MARGIN_MS;
 
+  const rawStore = deps.tokenStore;
+
   let state: AuthState = { status: "restoring" };
   const listeners = new Set<() => void>();
   let stored: StoredTokens | null = null;
   let refreshHandle: unknown = null;
   let refreshInFlight: Promise<string | null> | null = null;
   let signInGeneration = 0;
+
+  // Durable writes race a sign-in: a stale flow's cleanup and a newer flow's
+  // save must never interleave inside the store, or a cleanup's erase can land
+  // on top of a grant that reached the Keychain after it. This module's loads,
+  // saves, and conditional-clear units run through one single-writer queue, so
+  // each unit observes the store exactly as the previous one left it. The
+  // grant-loss and sign-out clears below stay direct on purpose: their
+  // generation re-checks and repair saves own that hazard, and routing them
+  // through the queue would serialize away exactly the two-clears-in-flight
+  // behavior the round-5 regressions pin.
+  let storeTail: Promise<unknown> = Promise.resolve();
+  function enqueueStore<T>(op: () => Promise<T>): Promise<T> {
+    const result = storeTail.then(op, op);
+    // Keep the chain alive for the next writer; op's own caller still sees its
+    // rejection, so nothing is swallowed here.
+    storeTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  const loadStored = (): Promise<StoredTokens | null> => enqueueStore(() => rawStore.load());
+  const saveStored = (tokens: StoredTokens): Promise<void> => enqueueStore(() => rawStore.save(tokens));
+
+  /**
+   * The durable cleanup for a flow whose world moved: erase the store only
+   * while it holds nothing or still holds that flow's own grant. An entry with
+   * a different grantId belongs to a newer sign-in — a newer world owns the
+   * Keychain, and wiping it would kill a session that is still live in memory
+   * until the next restart. Read and clear run as one queued unit on the raw
+   * store so no queued save can interleave between them.
+   */
+  async function clearDurableGrantIfUnowned(grantId: string): Promise<void> {
+    await enqueueStore(async () => {
+      const current = await rawStore.load();
+      if (current !== null && current.grantId !== grantId) return;
+      await rawStore.clear();
+    });
+  }
 
   function notify() {
     for (const listener of listeners) listener();
@@ -151,7 +190,7 @@ export function createAuth(deps: AuthDeps) {
     // the mirror from memory and publish nothing — the newer world speaks
     // for itself.
     if (generation !== signInGeneration) {
-      if (stored) await deps.tokenStore.save(stored).catch(() => undefined);
+      if (stored) await saveStored(stored).catch(() => undefined);
       return;
     }
     replaceState({ status: "signed-out" });
@@ -194,7 +233,7 @@ export function createAuth(deps: AuthDeps) {
     }
     stored = storedFromDeviceTokens(outcome.value, now());
     try {
-      await deps.tokenStore.save(stored);
+      await saveStored(stored);
     } catch {
       // The server has already consumed the old refresh token, so a failed
       // Keychain write must not leave that used token as the only copy: the
@@ -222,17 +261,19 @@ export function createAuth(deps: AuthDeps) {
     // newer world.
     const candidate = storedFromDeviceTokens(tokens, now());
     try {
-      await deps.tokenStore.save(candidate);
+      await saveStored(candidate);
       return candidate;
     } catch {
       // A Keychain write that fails must not leave the un-persisted grant
       // live in memory, where cancelSignIn would only reset the UI around
       // it. Drop the grant and land signed-out so the caller can surface a
       // retryable failure; the clear is best-effort because a store that
-      // cannot save may not clear either. Defensive: this flow never
-      // assigned the live grant, but clear it all the same.
+      // cannot save may not clear either, and grant-conditional: erase
+      // nothing when the store already holds a newer sign-in's grant — that
+      // world owns the Keychain now. Defensive: this flow never assigned the
+      // live grant, but clear it all the same.
       stored = null;
-      await deps.tokenStore.clear().catch(() => undefined);
+      await clearDurableGrantIfUnowned(candidate.grantId).catch(() => undefined);
       replaceState({ status: "signed-out" });
       return null;
     }
@@ -297,9 +338,12 @@ export function createAuth(deps: AuthDeps) {
       // passes — but the just-saved token is durable, and cancelSignIn never
       // touches the store, so this clear is the only durable cleanup the
       // stray save gets. Publish nothing: the state already says signed-out,
-      // or a newer flow owns it.
+      // or a newer flow owns it. The durable cleanup is grant-conditional for
+      // the same reason: a newer sign-in whose grant reached the Keychain
+      // while this save was slow owns the store, and an unconditional clear
+      // would erase a live session's only durable copy.
       if (generation !== signInGeneration) {
-        await deps.tokenStore.clear().catch(() => undefined);
+        await clearDurableGrantIfUnowned(outcome.tokens.grantId).catch(() => undefined);
         return { ok: false, reason: "cancelled" };
       }
       stored = saved;
@@ -328,7 +372,7 @@ export function createAuth(deps: AuthDeps) {
     /** Reads the Keychain once at startup and lands in the stored state. */
     async restore(): Promise<void> {
       try {
-        stored = await deps.tokenStore.load();
+        stored = await loadStored();
       } catch {
         // An unreadable Keychain must not wedge the app in "restoring": the
         // student signs in again and the store rewrites the envelope.
@@ -411,7 +455,7 @@ export function createAuth(deps: AuthDeps) {
       // entry. Repair the mirror from memory and publish nothing — the newer
       // world speaks for itself.
       if (generation !== signInGeneration) {
-        if (stored) await deps.tokenStore.save(stored).catch(() => undefined);
+        if (stored) await saveStored(stored).catch(() => undefined);
         return;
       }
       replaceState({ status: "signed-out" });
