@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AuthProvider } from "@/auth/auth-store";
 import { PlanProvider } from "@/plan/plan-store";
 import { color } from "@/theme/tokens";
 
@@ -46,15 +47,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PlanProvider>
-          <StatusBar style="dark" />
-          <Stack screenOptions={{ contentStyle: { backgroundColor: color.ground } }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="course/[code]" options={{ ...sheet, sheetAllowedDetents: [0.6, 0.94] }} />
-            <Stack.Screen name="preferences" options={{ ...sheet, sheetAllowedDetents: [0.94] }} />
-            <Stack.Screen name="sign-in" options={{ ...sheet, sheetAllowedDetents: [0.6] }} />
-          </Stack>
-        </PlanProvider>
+        <AuthProvider>
+          <PlanProvider>
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ contentStyle: { backgroundColor: color.ground } }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="course/[code]" options={{ ...sheet, sheetAllowedDetents: [0.6, 0.94] }} />
+              <Stack.Screen name="preferences" options={{ ...sheet, sheetAllowedDetents: [0.94] }} />
+              <Stack.Screen name="sign-in" options={{ ...sheet, sheetAllowedDetents: [0.6] }} />
+            </Stack>
+          </PlanProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
