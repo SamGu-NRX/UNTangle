@@ -576,6 +576,49 @@ describe("beginSignIn", () => {
     expect(harness.calls.some(call => call.url.endsWith("/api/v1/sync"))).toBe(false);
   });
 
+  it("keeps the cancelled grant out of getAccessToken while the Keychain save is pending", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSave: () => void = () => {};
+    const saveGate = new Promise<void>(resolve => {
+      releaseSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+    ]);
+    await harness.auth.restore();
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveEntered();
+      await saveGate;
+      await workingSave(tokens);
+    });
+    const pending = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // the exchange succeeded and the Keychain write is parked
+    // The grant belongs to the Keychain first: while the write pends,
+    // nothing is live in memory — before or after the student backs out.
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    harness.auth.cancelSignIn();
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      releaseSave();
+      await expect(pending).resolves.toEqual({ ok: false, reason: "cancelled" });
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await harness.store.load()).toBeNull();
+  });
+
   it("lands signed out with a retryable failure when the Keychain save rejects", async () => {
     const harness = makeHarness([
       { status: 200, body: START_200 },
@@ -920,5 +963,216 @@ describe("token containment", () => {
       const headers = (call.init?.headers as Record<string, string> | undefined) ?? {};
       if (headers.Authorization) expect(headers.Authorization).not.toContain(TOKENS_A.refreshToken);
     }
+  });
+});
+
+describe("stale cleanup", () => {
+  const list = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({ documentId: `doc-${i + 1}`, kind: "schedule", revision: 1, deleted: false }));
+
+  it("does not let a stale grant-loss cleanup erase a newer grant or return the UI to signed-out", async () => {
+    let releaseSync: () => void = () => {};
+    const syncGate = new Promise<void>(resolve => {
+      releaseSync = resolve;
+    });
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSave: () => void = () => {};
+    const saveGate = new Promise<void>(resolve => {
+      releaseSave = resolve;
+    });
+    // Both clear calls stall on their own gate: the first belongs to
+    // handleGrantLost (released last, after a newer grant is live), the
+    // second to signOut (released first, so signed-out publishes and a new
+    // sign-in becomes possible).
+    const clearLanded: Array<Promise<void>> = [];
+    const clearResolvers: Array<() => void> = [];
+    const clearGates: Array<Promise<void>> = [];
+    const clearReleases: Array<() => void> = [];
+    for (let i = 0; i < 2; i += 1) {
+      clearLanded.push(new Promise<void>(resolve => clearResolvers.push(resolve)));
+      clearGates.push(new Promise<void>(resolve => clearReleases.push(resolve)));
+    }
+    let syncCalls = 0;
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/start")) return jsonResponse(START_200, 200);
+      if (url.endsWith("/api/v1/device/token")) return jsonResponse(TOKENS_GRANT_TWO, 200);
+      if (url.endsWith("/api/v1/sync")) {
+        const index = syncCalls;
+        syncCalls += 1;
+        if (index === 0) {
+          await syncGate;
+          return jsonResponse({ error: "unauthorized" }, 401);
+        }
+        return jsonResponse(list(5), 200);
+      }
+      return jsonResponse({ revoked: true }, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    // restore() needs a persisted grant to find; the real loader answers the
+    // persisted-content assertions at the end of the test.
+    const realLoad = harness.store.load;
+    harness.store.load = jest.fn(async () => activeTokens());
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) {
+        saveEntered();
+        await saveGate;
+      }
+      await workingSave(tokens);
+    });
+    let clearCount = 0;
+    const workingClear = harness.store.clear;
+    harness.store.clear = jest.fn(async () => {
+      const index = clearCount;
+      clearCount += 1;
+      clearResolvers[index]?.();
+      if (index < clearGates.length) await clearGates[index];
+      await workingClear();
+    });
+    await harness.auth.restore();
+    harness.store.load = realLoad;
+    // The count read answers 401 for the live grant: handleGrantLost starts
+    // and stalls on its Keychain clear.
+    releaseSync();
+    await clearLanded[0];
+    // Sign-out runs concurrently and stalls on its own clear.
+    const signingOut = harness.auth.signOut();
+    await clearLanded[1];
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      // signOut's clear resolves first: it publishes signed-out, which
+      // admits a full new sign-in while the grant-loss clear still pends.
+      clearReleases[1]?.();
+      await signingOut;
+      expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+      const second = harness.auth.beginSignIn();
+      await waitFor(harness.auth, "awaiting-approval");
+      await saveInFlight; // grant-2's Keychain write is parked
+      releaseSave();
+      await expect(second).resolves.toEqual({ ok: true });
+      await flush();
+      expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 5, countFailed: false });
+      // The stalled grant-loss clear finally resolves: it must not return
+      // the UI to signed-out, and the repair re-save must restore the new
+      // grant's Keychain entry.
+      clearReleases[0]?.();
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(unhandled).toEqual([]);
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 5, countFailed: false });
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+  });
+
+  it("does not let a stalled sign-out clear erase a newer grant or return the UI to signed-out", async () => {
+    let releaseSync: () => void = () => {};
+    const syncGate = new Promise<void>(resolve => {
+      releaseSync = resolve;
+    });
+    let refreshEntered: () => void = () => {};
+    const refreshInFlight = new Promise<void>(resolve => {
+      refreshEntered = resolve;
+    });
+    let releaseRefresh: () => void = () => {};
+    const refreshGate = new Promise<void>(resolve => {
+      releaseRefresh = resolve;
+    });
+    let secondClearEntered: () => void = () => {};
+    const secondClearInFlight = new Promise<void>(resolve => {
+      secondClearEntered = resolve;
+    });
+    let releaseSecondClear: () => void = () => {};
+    const secondClearGate = new Promise<void>(resolve => {
+      releaseSecondClear = resolve;
+    });
+    let syncCalls = 0;
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/start")) return jsonResponse(START_200, 200);
+      if (url.endsWith("/api/v1/device/token")) return jsonResponse(TOKENS_GRANT_TWO, 200);
+      if (url.endsWith("/api/v1/device/refresh")) {
+        refreshEntered();
+        await refreshGate;
+        return jsonResponse({ error: "invalid_token" }, 400);
+      }
+      if (url.endsWith("/api/v1/sync")) {
+        const index = syncCalls;
+        syncCalls += 1;
+        if (index === 0) {
+          await syncGate;
+          return jsonResponse({ error: "unauthorized" }, 401);
+        }
+        return jsonResponse(list(5), 200);
+      }
+      return jsonResponse({ revoked: true }, 200);
+    };
+    const harness = makeHarness([], { fetchLike });
+    // Same loader split as the grant-loss variant above.
+    const realLoad = harness.store.load;
+    harness.store.load = jest.fn(async () => activeTokens());
+    // handleGrantLost's clear resolves normally; signOut's clear stalls.
+    let clearCount = 0;
+    const workingClear = harness.store.clear;
+    harness.store.clear = jest.fn(async () => {
+      clearCount += 1;
+      if (clearCount === 2) {
+        secondClearEntered();
+        await secondClearGate;
+      }
+      await workingClear();
+    });
+    await harness.auth.restore();
+    harness.store.load = realLoad;
+    await flush(); // the count read parks on its gate
+    harness.advance(300_000); // past the refresh margin
+    harness.timers[0]?.handler(); // the proactive refresh parks on its gate
+    await refreshInFlight;
+    // Sign-out joins the in-flight refresh and parks behind it.
+    const signingOut = harness.auth.signOut();
+    await flush();
+    // The 401 lands for the still-live grant: handleGrantLost clears and
+    // publishes signed-out mid-sign-out.
+    releaseSync();
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    // The refused refresh resumes into the grant-identity guard and touches
+    // nothing; signOut proceeds to its own clear, which stalls.
+    releaseRefresh();
+    await secondClearInFlight;
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      // A full new sign-in completes while signOut's clear is stalled.
+      const second = harness.auth.beginSignIn();
+      await waitFor(harness.auth, "awaiting-approval");
+      await expect(second).resolves.toEqual({ ok: true });
+      await flush();
+      expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 5, countFailed: false });
+      // The stalled sign-out clear resolves into a moved generation: it must
+      // not return the UI to signed-out, and the repair re-save must restore
+      // the new grant's Keychain entry.
+      releaseSecondClear();
+      await signingOut;
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(unhandled).toEqual([]);
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 5, countFailed: false });
+    const persisted = await harness.store.load();
+    expect(persisted?.grantId).toBe("grant-2");
+    expect(persisted?.accessToken).toBe(TOKENS_GRANT_TWO.accessToken);
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
   });
 });

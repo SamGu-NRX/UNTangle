@@ -137,12 +137,23 @@ export function createAuth(deps: AuthDeps) {
     // A refresh token the server refuses means this grant is finished: the
     // token was reused, the grant was revoked, or the account's security
     // generation moved. The only safe state is signed out.
+    const generation = signInGeneration;
     stored = null;
     cancelRefreshTimer();
     // Durable cleanup is best-effort: a store that cannot clear must not stop
     // the signed-out state from publishing, or the screen would show
     // signed-in with no tokens behind it.
     await deps.tokenStore.clear().catch(() => undefined);
+    // An async result must not touch state or durable storage for a world
+    // that moved while it was in flight: a sign-out (or a newer sign-in it
+    // admitted) landed during the clear and owns the phone now, and this
+    // stray clear can have erased that newer grant's Keychain entry. Repair
+    // the mirror from memory and publish nothing — the newer world speaks
+    // for itself.
+    if (generation !== signInGeneration) {
+      if (stored) await deps.tokenStore.save(stored).catch(() => undefined);
+      return;
+    }
     replaceState({ status: "signed-out" });
   }
 
@@ -203,21 +214,27 @@ export function createAuth(deps: AuthDeps) {
     return stored.accessToken;
   }
 
-  async function applyTokens(tokens: DeviceTokens): Promise<boolean> {
-    stored = storedFromDeviceTokens(tokens, now());
+  async function applyTokens(tokens: DeviceTokens): Promise<StoredTokens | null> {
+    // The candidate stays local until the Keychain write lands: assigning it
+    // to the live grant first would let getAccessToken hand out this flow's
+    // bearer token while the save — and the caller's generation re-check — is
+    // still in flight, even after a cancel or sign-out gave the phone a
+    // newer world.
+    const candidate = storedFromDeviceTokens(tokens, now());
     try {
-      await deps.tokenStore.save(stored);
-      return true;
+      await deps.tokenStore.save(candidate);
+      return candidate;
     } catch {
       // A Keychain write that fails must not leave the un-persisted grant
       // live in memory, where cancelSignIn would only reset the UI around
       // it. Drop the grant and land signed-out so the caller can surface a
       // retryable failure; the clear is best-effort because a store that
-      // cannot save may not clear either.
+      // cannot save may not clear either. Defensive: this flow never
+      // assigned the live grant, but clear it all the same.
       stored = null;
       await deps.tokenStore.clear().catch(() => undefined);
       replaceState({ status: "signed-out" });
-      return false;
+      return null;
     }
   }
 
@@ -267,24 +284,25 @@ export function createAuth(deps: AuthDeps) {
     });
     if (generation !== signInGeneration) return { ok: false, reason: "cancelled" };
     if (outcome.ok) {
-      if (!(await applyTokens(outcome.tokens))) {
+      const saved = await applyTokens(outcome.tokens);
+      if (!saved) {
         // Nothing was persisted and nothing is live: the flow failed, and
         // starting it again is safe once the store recovers.
         return { ok: false, reason: "failed", error: "storage_failed" };
       }
       // The save can resolve after the flow that started it is gone: a
       // cancel or sign-out during the Keychain write bumps the generation
-      // while the generation-blind applyTokens is still in flight, and the
-      // tokens that land then belong to a flow this phone abandoned. Drop
-      // the grant from memory and clear the store — cancelSignIn never
-      // touches it, so this clear is the only durable cleanup the stray
-      // save gets — and publish nothing: the state already says signed-out,
+      // while applyTokens is still awaiting it. Nothing was ever live in
+      // memory — the candidate stays local to applyTokens until this check
+      // passes — but the just-saved token is durable, and cancelSignIn never
+      // touches the store, so this clear is the only durable cleanup the
+      // stray save gets. Publish nothing: the state already says signed-out,
       // or a newer flow owns it.
       if (generation !== signInGeneration) {
-        stored = null;
         await deps.tokenStore.clear().catch(() => undefined);
         return { ok: false, reason: "cancelled" };
       }
+      stored = saved;
       replaceState({ status: "signed-in", grantId: outcome.tokens.grantId, scopes: outcome.tokens.scopes, documentCount: null, countFailed: false });
       scheduleRefresh();
       // One read so the screen can say what the account holds; real sync is
@@ -361,6 +379,7 @@ export function createAuth(deps: AuthDeps) {
      */
     async signOut(): Promise<void> {
       signInGeneration += 1;
+      const generation = signInGeneration;
       cancelRefreshTimer();
       // Revoke with a live token: the server refuses an expired one, and a
       // refused revoke leaves the grant live for its idle limit. When a
@@ -385,6 +404,16 @@ export function createAuth(deps: AuthDeps) {
       // Best-effort like the revoke: the signed-out state must publish even
       // when the durable cleanup fails.
       await deps.tokenStore.clear().catch(() => undefined);
+      // An async result must not touch state or durable storage for a world
+      // that moved while it was in flight: a grant-loss cleanup publishing
+      // mid-sign-out can admit a newer sign-in before this clear resolves,
+      // and the stray clear can have erased that newer grant's Keychain
+      // entry. Repair the mirror from memory and publish nothing — the newer
+      // world speaks for itself.
+      if (generation !== signInGeneration) {
+        if (stored) await deps.tokenStore.save(stored).catch(() => undefined);
+        return;
+      }
       replaceState({ status: "signed-out" });
     },
 
