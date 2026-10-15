@@ -125,19 +125,19 @@ describe("course links", () => {
 });
 
 describe("Import transcript", () => {
-  test("goes to the import route only when no Connect sheet claims the event", async () => {
+  test("goes to the import page only when no shell claims the event", async () => {
     const { installDom, removeDom } = await import("../planner/test-dom");
     installDom();
     try {
       const { openConnect } = await import("@/components/courses/CoursesView");
       const visited: string[] = [];
       openConnect((href) => visited.push(href));
-      expect(visited).toEqual(["/courses/import"]);
+      expect(visited).toEqual(["/connect"]);
       const claim = (event: Event) => event.preventDefault();
       window.addEventListener("untangle:open-connect", claim);
       openConnect((href) => visited.push(href));
       window.removeEventListener("untangle:open-connect", claim);
-      expect(visited).toEqual(["/courses/import"]);
+      expect(visited).toEqual(["/connect"]);
     } finally {
       removeDom();
     }

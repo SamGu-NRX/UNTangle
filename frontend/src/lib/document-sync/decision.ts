@@ -62,6 +62,12 @@ export function decideWrite({ write, writeSha256, receipt, current }: {
     if (!body.success) throw new SyncError(400, "INVALID_BODY", "The version body is invalid.");
     return { kind: "version", body: body.data };
   }
+  // Delete-versus-edit is a conflict even at the tombstone's own revision: a deleted id is never
+  // brought back, and a second delete has nothing left to change (docs/architecture/README.md,
+  // "Saved state"). Restoring means saving a new document id.
+  if (current?.deleted) {
+    throw new SyncError(409, "DOCUMENT_DELETED", "This document was deleted. Save it as a new document.", current.revision);
+  }
   // A deletion of an unknown id cannot establish its institution. Clients must fetch it first.
   if (!current && write.body === null) {
     throw new SyncError(404, "NOT_FOUND", "The document does not exist.");

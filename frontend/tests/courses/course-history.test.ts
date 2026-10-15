@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { gpaFromGrades, httpGradeHistorySource, toCourseGradeView } from "@/lib/course-history";
-import { gradeBars } from "@/components/grade-chart-canvas";
+import { gradeBars } from "@/components/courses/model/grades";
 import type { CourseHistory, HistoryResult, HistorySection } from "@/lib/grades-history/types";
 import type { GradeData } from "@/lib/grades";
 
