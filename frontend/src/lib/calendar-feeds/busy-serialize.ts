@@ -11,10 +11,22 @@
 /** Largest busy response body, in bytes: the same 1 MiB as the preview cap. */
 export const MAX_BUSY_RESPONSE_BYTES = 1024 * 1024;
 
-/** The JSON text of a busy payload, or null when it is over MAX_BUSY_RESPONSE_BYTES. */
+/**
+ * One occurrence in the busy route's 200 response: exactly the wire shape, so
+ * a consumer can pass parsed route data straight to the planner. Carries no
+ * event text.
+ */
+export type SerializedBusyOccurrence = {
+  /** Inclusive ISO calendar date (America/Chicago) the piece falls on. */
+  date: string;
+  /** Wall-clock minutes after local midnight, 0 <= startMinutes < endMinutes <= 1440. */
+  startMinutes: number;
+  endMinutes: number;
+};
+
 export function serializeBusy(payload: {
   range: { start: string; end: string };
-  occurrences: ReadonlyArray<{ date: string; startMinutes: number; endMinutes: number }>;
+  occurrences: ReadonlyArray<SerializedBusyOccurrence>;
   skipped: ReadonlyArray<{ reason: string }>;
 }): string | null {
   const body = {

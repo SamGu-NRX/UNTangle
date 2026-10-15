@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { withRateLimit } from "@/lib/rate-limit/server";
-import { parseRangeInstant } from "@/lib/calendar-feeds/datetime";
+import { calendarDateOfInstant, parseRangeInstant, FLOATING_TIME_ZONE } from "@/lib/calendar-feeds/datetime";
 import { CalendarFetchError, CalendarParseError } from "@/lib/calendar-feeds/errors";
 import { fetchCalendarIcs } from "@/lib/calendar-feeds/fetch";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
@@ -35,13 +35,12 @@ type BusyBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown; termSt
  * inside the feed (no TZID, no Z) also read as America/Chicago, or the
  * feed's own `X-WR-TIMEZONE` when it has one.
  *
- * 200 response: `{ url, range, occurrences, skipped }`. Occurrences are
+ * 200 response: `{ range, occurrences, skipped }`. Occurrences are
  * `{ date, startMinutes, endMinutes }` — weekday and minutes are derived by
- * the caller, and no event title, location, or description is included. The
- * id is the generic `ev-<number>`; event text never crosses this boundary.
- * `skipped` lists `{ uid, summary, reason }` warnings for events and series
- * left out of the busy picture; a skipped transparent or free event is
- * reported, not silently dropped.
+ * the caller, and no event title, location, or description is included;
+ * event text never crosses this boundary. `skipped` lists `{ index, reason }`
+ * warnings for events and series left out of the busy picture; a skipped
+ * transparent or free event is reported, not silently dropped.
  *
  * Errors: 401 without a session, 400 for a bad body, range, term, or URL, a
  * blocked or invalid feed, or one that does not parse, 502 for an
@@ -98,13 +97,27 @@ async function busyHandler(request: Request) {
   }
   const json = serializeBusy({
     range,
-    occurrences: busyFromFeed(result, term ?? { start: range.start.slice(0, 10), end: range.end.slice(0, 10) }),
+    occurrences: busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }),
     skipped: result.skipped,
   });
   if (json === null) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
   }
   return new NextResponse(json, { status: 200, headers: { "content-type": "application/json" } });
+}
+
+/**
+ * The instant's calendar date in the floating zone (America/Chicago), not UTC:
+ * a 02:00Z range start is the previous evening in Denton, and the fallback
+ * term window must not start a day late.
+ */
+function zonedDateOf(instant: string): string {
+  const epochMs = parseRangeInstant(instant);
+  if (epochMs === null) return instant.slice(0, 10);
+  const date = calendarDateOfInstant(epochMs, FLOATING_TIME_ZONE);
+  const month = String(date.month).padStart(2, "0");
+  const day = String(date.day).padStart(2, "0");
+  return `${String(date.year).padStart(4, "0")}-${month}-${day}`;
 }
 
 /** The requested range as UTC instants, or now through now plus 60 days; null when malformed. */

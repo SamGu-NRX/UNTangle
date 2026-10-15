@@ -231,6 +231,36 @@ test("term values that are not real inclusive ISO dates answer 400", async () =>
   expect(fetchStub.mock.calls.length).toBe(fetchesBefore);
 });
 
+test("without a term, the fallback term window reads the range in America/Chicago", async () => {
+  setSession({ user: { id: "user-chicago" } });
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  // One event at 2026-01-16 02:30Z — 20:30 on January 15 in Denton (CST).
+  fetchStub.mockImplementation(
+    async () =>
+      new Response(
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:z@t\r\nSUMMARY:Late night\r\nDTSTART:20260116T023000Z\r\nDTEND:20260116T033000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        { status: 200, headers: { "content-type": "text/calendar" } },
+      ),
+  );
+  try {
+    const response = await POST(
+      busyRequest({
+        url: VALID_BODY.url,
+        rangeStart: "2026-01-16T02:00:00Z",
+        rangeEnd: "2026-01-23T02:00:00Z",
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { occurrences: Array<{ date: string; startMinutes: number; endMinutes: number }> };
+    // The fallback window starts 2026-01-15 in America/Chicago (02:00Z is
+    // 20:00 on the 15th), so the 02:30Z event keeps its local date and is not
+    // clipped out by a window that started a day late.
+    expect(body.occurrences).toEqual([{ date: "2026-01-15", startMinutes: 1230, endMinutes: 1290 }]);
+  } finally {
+    fetchStub.mockImplementation(async () => tinyResponse());
+  }
+});
+
 test("a default range of now through now plus 60 days is used when none is given", async () => {
   setSession({ user: { id: "user-range" } });
   const before = Date.now();

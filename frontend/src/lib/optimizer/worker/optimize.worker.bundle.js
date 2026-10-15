@@ -472,7 +472,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     }
     return index;
   };
-  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)));
+  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints, request.term ?? null)));
   const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings)), request.term, checkDeadline);
   let globalMinDuration = Number.POSITIVE_INFINITY;
   for (const list of allowedByCourse) {

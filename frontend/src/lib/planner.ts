@@ -39,8 +39,8 @@ import { compareAcademicTerms } from "@/lib/term-chronology";
 import { plannerTravelTime, type WalkingTimeFn } from "@/lib/planner-walking";
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
+import type { SerializedBusyOccurrence } from "@/lib/calendar-feeds/busy-serialize";
 import type { OptBlockedTime, OptCourse, OptDay, OptimizeRequest, OptSection } from "@/lib/optimizer/types";
-import type { FeedOccurrence } from "@untangle/core/occurrences";
 import {
   classDays,
   type ClassDay,
@@ -92,10 +92,18 @@ function calendarWeekday(date: string): OptDay | null {
  * minutes from the piece, grouped by slot with one date entry per piece, and
  * no event title anywhere — the id carries only a slot index, so an
  * infeasibility explanation names the block, never the event.
+ *
+ * Accepts exactly the busy route's serialized occurrence shape. Pieces dated
+ * outside `term` are dropped: an empty `dates` list means every week, so a
+ * wholly out-of-term piece must not survive into a block.
  */
-export function busyOccurrencesToBlockedTime(pieces: readonly FeedOccurrence[]): OptBlockedTime[] {
+export function busyOccurrencesToBlockedTime(
+  pieces: readonly SerializedBusyOccurrence[],
+  term?: { start: string; end: string },
+): OptBlockedTime[] {
   const groups = new Map<string, { day: OptDay; start: number; end: number; dates: { start: string; end: string }[] }>();
   for (const piece of pieces) {
+    if (term && (piece.date < term.start || piece.date > term.end)) continue;
     const day = calendarWeekday(piece.date);
     if (day === null) continue;
     const key = `${day}/${piece.startMinutes}/${piece.endMinutes}`;
@@ -475,8 +483,8 @@ export function buildOptimizeRequest(
     walkingTime?: WalkingTimeFn;
     timeBudgetMs?: number;
     k?: number;
-    /** Dated busy pieces from the student's connected calendar feeds (calendar-feeds/busy.ts); title-free by construction. */
-    busyOccurrences?: readonly FeedOccurrence[];
+    /** Dated busy pieces from the busy route's serialized response (calendar-feeds/busy-serialize.ts); title-free by construction. */
+    busyOccurrences?: readonly SerializedBusyOccurrence[];
   } = {},
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
@@ -515,7 +523,7 @@ export function buildOptimizeRequest(
       earliestStart: c.earliestStart,
       latestEnd: c.latestEnd,
       daysOff: c.daysOff,
-      blocked: [...c.blocked, ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [])],
+      blocked: [...c.blocked, ...busyOccurrencesToBlockedTime(options.busyOccurrences ?? [], planningTermDates)],
       maxCredits: c.maxCredits,
       walking: c.walkingBufferMinutes === null ? null : { bufferMinutes: c.walkingBufferMinutes },
     },

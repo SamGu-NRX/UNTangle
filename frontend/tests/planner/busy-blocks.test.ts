@@ -6,7 +6,10 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import type { FeedOccurrence } from "@untangle/core/occurrences";
+import {
+  serializeBusy,
+  type SerializedBusyOccurrence,
+} from "@/lib/calendar-feeds/busy-serialize";
 import {
   buildOptimizeRequest,
   busyOccurrencesToBlockedTime,
@@ -16,18 +19,12 @@ import {
   parseSchedulePreferences,
 } from "@/lib/planner";
 
-/** A busy piece as the busy API returns it (local minutes, one dated piece). */
-const piece = (date: string, startMinutes: number, endMinutes: number): FeedOccurrence =>
-  ({
-    eventId: 0,
-    date,
-    startMinutes,
-    endMinutes,
-    start: `${date}T00:00:00.000Z`,
-    end: `${date}T00:00:00.000Z`,
-    allDay: false,
-    busy: true,
-  }) as FeedOccurrence;
+/** A busy piece exactly as the busy route's JSON response carries it. */
+const piece = (date: string, startMinutes: number, endMinutes: number): SerializedBusyOccurrence => ({
+  date,
+  startMinutes,
+  endMinutes,
+});
 
 describe("busyOccurrencesToBlockedTime", () => {
   test("pieces become dated blocks with no event text", () => {

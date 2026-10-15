@@ -140,4 +140,22 @@ describe("acceptance: a work shift holds the slot only in its own weeks", () => 
     if (result.status !== "optimal") return;
     expect(result.schedules.map((s) => s.byCourse["SPAN 2040"])).toEqual(["s0"]);
   });
+
+  test("a Tuesday block dated in fall 2026 never excludes an undated Tuesday section in the spring 2027 term", () => {
+    // The shift is real busy time, but the term under planning does not
+    // overlap it: an undated spring section in the same weekly slot must stay
+    // eligible instead of being hidden by last fall's shift.
+    const fallShift: OptBlockedTime = {
+      id: "cal-0",
+      label: "Calendar busy",
+      day: "Tue",
+      start: 840,
+      end: 1080,
+      dates: [{ start: "2026-08-24", end: "2026-12-11" }],
+    };
+    const result = optimize(request([slot(null, 840, 1080)], [fallShift]));
+    expect(result.status).toBe("optimal");
+    if (result.status !== "optimal") return;
+    expect(result.schedules.map((s) => s.byCourse["SPAN 2040"])).toEqual(["s0"]);
+  });
 });

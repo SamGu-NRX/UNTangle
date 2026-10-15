@@ -363,7 +363,7 @@ export function prepare(
   // Sections that pass the time constraints come first, so nothing below
   // (buildings, walking times, conflicts) is spent on sections that can't be used.
   const allowedByCourse = sortedCourses.map((course) =>
-    allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)),
+    allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints, request.term ?? null)),
   );
   // Segments from the usable sections only: fewer ranges, fewer segments.
   // Any set of cuts that includes a schedule's own gives it the same pairs.
