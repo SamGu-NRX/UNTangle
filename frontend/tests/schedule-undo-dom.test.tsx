@@ -142,6 +142,16 @@ test("using a week says why it left a course out", async () => {
   }
 });
 
+test("walk times are whole seconds, rounded as Auto rounds them", async () => {
+  const { planner, host } = await mountHost();
+  try {
+    // The campus data has 213.5 s from ART to AUD.
+    expect(host().walk("art", "aud")).toEqual({ seconds: 214, shuttle: false });
+  } finally {
+    await planner.unmount();
+  }
+});
+
 test("the other-campus action uses the shipped Day navigation label", async () => {
   const { OtherCampusHero } = await import("@/components/map/day-panel");
   const { mount } = await import("./ui/dom");

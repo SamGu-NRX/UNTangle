@@ -397,7 +397,8 @@ export function useUntangleHost(brand: Brand): BuilderHost {
 
   const walk = useCallback((from: string, to: string) => {
     const time = plannerTravelTime(from, to);
-    return time.seconds === null ? null : { seconds: time.seconds, shuttle: isShuttleLeg(from, to) };
+    // Whole seconds, as the optimizer rounds them (walkSeconds in lib/optimizer/score.ts), so Week and Auto agree at the boundary.
+    return time.seconds === null ? null : { seconds: Math.round(time.seconds), shuttle: isShuttleLeg(from, to) };
   }, []);
 
   return {
