@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { setPasswordHandler } from "@/lib/account-password";
-import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
+import { createDeviceGrants, pkceChallenge, securityChangeTimeout } from "@/server/auth/device-grants";
+import { createV1Auth } from "@/server/auth/v1-auth";
 import { createDeviceHttp } from "@/server/auth/device-http";
 import type { DeviceGrants } from "@/server/auth/device-grants";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
@@ -35,6 +36,18 @@ function passwordRequest(cookie: string) {
     method: "POST", headers: { origin: BASE, "content-type": "application/json", cookie },
     body: JSON.stringify({ newPassword: password }),
   });
+}
+
+/** Whether this cookie passes the document routes' check (authorizeV1's browser branch). */
+async function documentAccess(t: ReturnType<typeof setup>, service: DeviceGrants, cookie: string) {
+  const authorize = createV1Auth(service, (request) => t.auth.api.getSession({ headers: request.headers }));
+  try {
+    await authorize(new Request(`${BASE}/api/v1/sync`, { headers: { cookie } }), "documents:read");
+    return true;
+  } catch (error) {
+    expect(error).toMatchObject({ code: "unauthorized", status: 401 });
+    return false;
+  }
 }
 
 async function fixture(unverified = false) {
@@ -77,11 +90,14 @@ async function fixture(unverified = false) {
 }
 
 describe("auth security events revoke actual device access and refresh tokens", () => {
-  test("setting a password revokes every mobile and extension token for that account", async () => {
-    const { t, cookie, seed } = await fixture();
+  test("setting a password revokes every mobile and extension token, and the caller keeps document access", async () => {
+    const { t, cookie, seed, service } = await fixture();
+    const other = await otpSignIn(t);
     const assertRevoked = await seed();
     expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
     await assertRevoked();
+    expect(await documentAccess(t, service, cookie)).toBe(true);
+    expect(await documentAccess(t, service, other)).toBe(false);
   });
 
   test("password reset revokes every mobile and extension token for that account", async () => {
@@ -94,14 +110,17 @@ describe("auth security events revoke actual device access and refresh tokens", 
     await assertRevoked();
   });
 
-  test("verified-account recovery revokes every mobile and extension token for that account", async () => {
-    const { t, seed } = await fixture();
-    const assertRevoked = await seed();
+  test("a magic-link sign-in to a verified account is ordinary sign-in and leaves device tokens working", async () => {
+    const { t, seed, service, userId } = await fixture();
+    await seed();
+    const before = await service.readSecurityGeneration(userId);
+    const tokens = await devices(service, userId);
     expect((await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" })).status).toBe(200);
-    const recovery = await t.get(t.lastVerifyLink());
-    expect(recovery.status).toBe(302);
-    expect((await t.session(cookieFrom(recovery)))?.user?.email).toBe(VICTIM);
-    await assertRevoked();
+    const signIn = await t.get(t.lastVerifyLink());
+    expect(signIn.status).toBe(302);
+    expect((await t.session(cookieFrom(signIn)))?.user?.email).toBe(VICTIM);
+    expect(await service.readSecurityGeneration(userId)).toBe(before);
+    for (const token of [tokens[1], tokens[3]]) expect((await service.authenticate(token.accessToken)).userId).toBe(userId);
   });
 
   test.each([false, true])("changing the password (revokeOtherSessions: %p) revokes every mobile and extension token for that account", async (revokeOtherSessions) => {
@@ -115,6 +134,7 @@ describe("auth security events revoke actual device access and refresh tokens", 
     // The transition finished: the generation is readable and moved twice.
     expect(await service.readSecurityGeneration(userId)).toBe(before + 2);
     expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(401);
+    expect(await documentAccess(t, service, revokeOtherSessions ? cookieFrom(changed) : cookie)).toBe(true);
     if (revokeOtherSessions) {
       expect(await t.session(cookie)).toBeNull();
       const replacement = await t.auth.api.getSession({ headers: new Headers({ cookie: cookieFrom(changed) }) });
@@ -139,6 +159,16 @@ describe("auth security events revoke actual device access and refresh tokens", 
     expect((await t.post("/revoke-sessions", {}, cookie)).status).toBe(200);
     expect(await t.session(cookie)).toBeNull();
     await assertRevoked();
+  });
+
+  test("sign out other sessions revokes every mobile and extension token, and the caller keeps document access", async () => {
+    const { t, cookie, seed, service } = await fixture();
+    const other = await otpSignIn(t);
+    const assertRevoked = await seed();
+    expect((await t.post("/revoke-other-sessions", {}, cookie)).status).toBe(200);
+    expect(await t.session(other)).toBeNull();
+    await assertRevoked();
+    expect(await documentAccess(t, service, cookie)).toBe(true);
   });
 
   test("OTP cleanup of an unverified account revokes every attacker device token", async () => {
@@ -170,7 +200,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-test("a persisted reset transition blocks new sign-ins and delayed old-password approvals", async () => {
+test("a reset refuses an old-password sign-in that was checked before it and finishes after it", async () => {
   const store = new MemoryDeviceStore();
   const service = createDeviceGrants(store);
   const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
@@ -220,13 +250,14 @@ test("a persisted reset transition blocks new sign-ins and delayed old-password 
     releaseHash.resolve();
     expect((await reset).status).toBe(200);
     releaseVerify.resolve();
+    // The old password was checked before the reset, but the session would be
+    // made after it: refused, with no session left behind.
     const delayed = await delayedLogin;
-    expect(delayed.status).toBe(200);
-    const delayedCookie = cookieFrom(delayed);
-    const delayedSession = await t.auth.api.getSession({ headers: new Headers({ cookie: delayedCookie }) });
-    expect(delayedSession?.session.securityGeneration).toBe(capturedGeneration);
+    expect(delayed.status).toBe(401);
+    expect(cookieFrom(delayed)).toBe("");
+    expect(t.store.session).toHaveLength(0);
     expect(await service.readSecurityGeneration(userId)).toBe(capturedGeneration + 2);
-    expect((await approve(pending.userCode, delayedCookie)).status).toBe(401);
+    expect((await approve(pending.userCode, initialCookie)).status).toBe(401);
     for (const tokens of previousTokens) {
       await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
       await expect(service.refresh(tokens.refreshToken)).rejects.toMatchObject({ code: "invalid_token" });
@@ -243,8 +274,9 @@ test("a persisted reset transition blocks new sign-ins and delayed old-password 
   }
 });
 
-test("a failed reset completion leaves device access blocked until the persisted transition is repaired", async () => {
-  const service = createDeviceGrants(new MemoryDeviceStore());
+test("a failed reset completion blocks the account until the change times out, and old device tokens stay ended", async () => {
+  let time = Date.now();
+  const service = createDeviceGrants(new MemoryDeviceStore(() => time), () => time);
   const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
     beginSecurityChange: service.beginSecurityChange,
     finishSecurityChange: async () => { throw new Error("generation completion unavailable"); },
@@ -258,19 +290,17 @@ test("a failed reset completion leaves device access blocked until the persisted
   const token = new URL(t.lastLink("password-reset")).pathname.split("/").pop()!;
   expect((await t.post("/reset-password", { token, newPassword: "reset-password-456" })).status).toBe(500);
   await expect(service.readSecurityGeneration(userId)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
-  for (const tokens of previousTokens) {
-    await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
-    await expect(service.refresh(tokens.refreshToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
-  }
   expect((await t.post("/sign-in/email", { email: VICTIM, password: "reset-password-456" })).status).toBe(500);
   for (const tokens of bobTokens) expect((await service.authenticate(tokens.accessToken)).userId).toBe("bob");
-  // An operator must verify the completed password/session writes before
-  // finishing an interrupted transition. An ordinary sign-in cannot clear it.
-  await service.finishSecurityChange(userId);
+  time += securityChangeTimeout;
   const recovered = await t.post("/sign-in/email", { email: VICTIM, password: "reset-password-456" });
   expect(recovered.status).toBe(200);
   const current = await t.auth.api.getSession({ headers: new Headers({ cookie: cookieFrom(recovered) }) });
   expect(current?.session.securityGeneration).toBe(await service.readSecurityGeneration(userId));
+  for (const tokens of previousTokens) {
+    await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+    await expect(service.refresh(tokens.refreshToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+  }
 });
 
 test.each(["email-otp", "magic-link"] as const)("a failed %s cleanup completion never issues an owner session or unblocks attacker devices", async (method) => {
@@ -307,9 +337,9 @@ test("a failed change-password start blocks the password write", async () => {
   const service = createDeviceGrants(new MemoryDeviceStore());
   let available = true;
   const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
-    beginSecurityChange: async (userId) => {
+    beginSecurityChange: async (userId, expected) => {
       if (!available) throw new Error("generation storage unavailable");
-      await service.beginSecurityChange(userId);
+      return service.beginSecurityChange(userId, expected);
     },
     finishSecurityChange: service.finishSecurityChange,
   });
@@ -329,8 +359,8 @@ test.each([false, true])("change-password blocks devices from before its write u
   const begun = deferred(), release = deferred();
   let hashAtFinish: string | null | undefined;
   const t: ReturnType<typeof setup> = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
-    beginSecurityChange: async (userId) => { await service.beginSecurityChange(userId); begun.resolve(); await release.promise; },
-    finishSecurityChange: async (userId) => { hashAtFinish = credentialHash(t); await service.finishSecurityChange(userId); },
+    beginSecurityChange: async (userId, expected) => { const id = await service.beginSecurityChange(userId, expected); begun.resolve(); await release.promise; return id; },
+    finishSecurityChange: async (userId, id) => { hashAtFinish = credentialHash(t); await service.finishSecurityChange(userId, id); },
   });
   const cookie = await otpSignIn(t);
   expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
@@ -390,4 +420,64 @@ test("a password write outside reset and change-password fails loudly instead of
     await expect(ctx.internalAdapter.updateAccount(account.id, { password: cleared } as never)).rejects.toThrow("no device-revocation handling");
   }
   expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
+});
+
+describe("races between a password reset and an attacker who knows the old password", () => {
+  async function prepared() {
+    const service = createDeviceGrants(new MemoryDeviceStore());
+    const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+      beginSecurityChange: service.beginSecurityChange, finishSecurityChange: service.finishSecurityChange,
+    });
+    const cookie = await otpSignIn(t);
+    expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+    const attacker = await t.post("/sign-in/email", { email: VICTIM, password });
+    expect(attacker.status).toBe(200);
+    async function reset() {
+      await t.post("/request-password-reset", { email: VICTIM, redirectTo: "/forgot-password" });
+      const token = new URL(t.lastLink("password-reset")).pathname.split("/").pop()!;
+      return t.post("/reset-password", { token, newPassword: "reset-password-456" });
+    }
+    return { t, attacker: cookieFrom(attacker), reset, ctx: await t.auth.$context };
+  }
+
+  test("a password change that checked the old password before a reset can't overwrite the reset", async () => {
+    const { t, attacker, reset, ctx } = await prepared();
+    const originalVerify = ctx.password.verify;
+    const verified = deferred(), release = deferred();
+    ctx.password.verify = async (input) => {
+      const result = await originalVerify(input);
+      verified.resolve();
+      await release.promise;
+      return result;
+    };
+    const change = t.post("/change-password", { currentPassword: password, newPassword: "attacker-password-789" }, attacker);
+    try {
+      await verified.promise;
+      ctx.password.verify = originalVerify;
+      expect((await reset()).status).toBe(200);
+    } finally { release.resolve(); ctx.password.verify = originalVerify; }
+    expect((await change).status).toBe(409);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "attacker-password-789" })).status).toBe(401);
+    expect((await t.post("/sign-in/email", { email: VICTIM, password: "reset-password-456" })).status).toBe(200);
+  });
+
+  test("a sign-in whose session is written after a reset deleted sessions is refused", async () => {
+    const { t, reset, ctx } = await prepared();
+    const adapter = ctx.adapter as unknown as { create: (input: { model: string }) => Promise<unknown> };
+    const originalCreate = adapter.create;
+    const inserting = deferred(), release = deferred();
+    let paused = false;
+    adapter.create = async (input) => {
+      if (input.model === "session" && !paused) { paused = true; inserting.resolve(); await release.promise; }
+      return originalCreate(input);
+    };
+    const signIn = t.post("/sign-in/email", { email: VICTIM, password });
+    try {
+      await inserting.promise;
+      expect((await reset()).status).toBe(200);
+    } finally { release.resolve(); adapter.create = originalCreate; }
+    const response = await signIn;
+    expect(response.status).toBe(401);
+    expect(t.store.session).toHaveLength(0);
+  });
 });

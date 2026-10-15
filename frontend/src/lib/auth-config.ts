@@ -7,6 +7,7 @@ import { EmailBudgetExceeded } from "@/lib/email-budget";
 import { hashMagicLinkToken, type MagicLinkClaims } from "@/lib/magic-link-claims";
 import { landingUrlFor } from "@/lib/magic-link-url";
 import { untEmailGate } from "@/lib/unt-auth";
+import { DeviceGrantError } from "@/server/auth/device-grants";
 
 export type AuthDeps = {
   database: BetterAuthOptions["database"];
@@ -16,8 +17,9 @@ export type AuthDeps = {
   sendEmail: (kind: AuthEmailKind, to: string, url: string) => Promise<unknown>;
   bumpSecurityGeneration?: (userId: string) => Promise<void>;
   readSecurityGeneration?: (userId: string) => Promise<number>;
-  beginSecurityChange?: (userId: string) => Promise<void>;
-  finishSecurityChange?: (userId: string) => Promise<void>;
+  /** See DeviceStore in server/auth/device-grants.ts. */
+  beginSecurityChange?: (userId: string, expectedGeneration?: number) => Promise<string>;
+  finishSecurityChange?: (userId: string, changeId: string) => Promise<void>;
   /** Deployment settings that don't change who may sign in (IP header, limiter storage). */
   options?: Pick<BetterAuthOptions, "advanced" | "rateLimit">;
 };
@@ -77,18 +79,40 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
 
   if (Boolean(beginSecurityChange) !== Boolean(finishSecurityChange))
     throw new Error("beginSecurityChange and finishSecurityChange must be configured together.");
-  const beginChange = beginSecurityChange ?? bumpSecurityGeneration;
-  const finishChange = finishSecurityChange ?? bumpSecurityGeneration;
+  // Without the change store (some tests), a change is two plain bumps.
+  const beginChange = beginSecurityChange ?? (async (userId: string) => { await bumpSecurityGeneration?.(userId); return ""; });
+  const finishChange = finishSecurityChange ?? (async (userId: string) => { await bumpSecurityGeneration?.(userId); });
+  type Change = { userId: string; changeId: string };
   const passwordSessionGenerations = new WeakMap<object, { userId: string; generation: number }>();
   const claimedOtpEmails = new WeakMap<object, string>();
-  const resetUsers = new WeakMap<object, string>();
-  const passwordChanges = new WeakMap<object, string>();
-  /** Ends a change-password transition once its password write has succeeded. */
+  const sessionStamps = new WeakMap<object, number>();
+  const resets = new WeakMap<object, Change>();
+  const passwordChanges = new WeakMap<object, Change>();
+
+  /** Opens a security change, turning a refusal (another change is open, or the generation moved) into a 409. */
+  async function beginOrRefuse(userId: string, message: string, expectedGeneration?: number): Promise<Change> {
+    try {
+      return { userId, changeId: await beginChange(userId, expectedGeneration) };
+    } catch (error) {
+      if (error instanceof DeviceGrantError && error.code === "account_changed") throw new APIError("CONFLICT", { message });
+      throw error;
+    }
+  }
+  /** Ends a change-password change once its password write has succeeded. */
   async function finishPasswordChange(context: object) {
-    const userId = passwordChanges.get(context);
-    if (!userId) return;
+    const change = passwordChanges.get(context);
+    if (!change) return;
     passwordChanges.delete(context);
-    await finishChange?.(userId);
+    await finishChange(change.userId, change.changeId);
+  }
+  /**
+   * Moves the caller's own session to the current generation after a change
+   * it made, so it keeps document access and can approve devices. Every other
+   * session stays behind. A session the change deleted isn't recreated.
+   */
+  async function restamp(context: { internalAdapter: { updateSession: (token: string, data: Record<string, unknown>) => Promise<unknown> } }, session: { token: string; userId: string } | undefined) {
+    if (!session || !readSecurityGeneration) return;
+    await context.internalAdapter.updateSession(session.token, { securityGeneration: await readSecurityGeneration(session.userId) });
   }
 
   return betterAuth({
@@ -149,10 +173,15 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
               const captured = passwordSessionGenerations.get(ctx.context);
               if (!captured || captured.userId !== session.userId)
                 throw new Error("Password sign-in did not capture its account security generation.");
+              // The password was checked against what was stored when this
+              // sign-in began. A reset or change since then ends the sign-in.
+              if (readSecurityGeneration && await readSecurityGeneration(session.userId) !== captured.generation)
+                throw new APIError("UNAUTHORIZED", { message: "Your password changed while you were signing in. Sign in again." });
               generation = captured.generation;
             } else {
               generation = await readSecurityGeneration?.(session.userId) ?? 0;
             }
+            if (ctx) sessionStamps.set(ctx.context, generation);
             return { data: { ...session, securityGeneration: generation } };
           },
         },
@@ -162,25 +191,33 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           // setPassword is server-only and has no path. Its credential insert
           // happens after password validation and before the new password exists.
           before: async (account, ctx) => {
-            if (account.providerId === "credential" && account.password && ctx?.path !== "/reset-password")
+            if (account.providerId === "credential" && account.password && ctx?.path !== "/reset-password") {
               await bumpSecurityGeneration?.(account.userId);
+              if (ctx) await restamp(ctx.context, ctx.context.session?.session);
+            }
           },
         },
         update: {
-          // change-password (better-auth 1.5.5) writes the new hash through
-          // updateAccount after checking the current password. Open the same
-          // transition reset uses, so no grant is issued until the write lands.
-          // finishPasswordChange closes it. A failure before then leaves it
-          // closed for recovery, as with a reset.
+          // change-password (better-auth 1.5.5) reads the stored hash, checks the
+          // current password against it, then writes through updateAccount
+          // without checking that nothing changed in between. Open a security
+          // change here, refused unless the caller's session is still on the
+          // current generation and no other change is open. A reset that
+          // finished during the check has moved the generation, so the stale
+          // write is refused; a reset that starts during the write is refused
+          // until this change finishes.
+          // finishPasswordChange closes the change. A failure before then
+          // leaves it open until securityChangeTimeout, as with a reset.
           before: async (account, ctx) => {
             // Any value counts as a write, including null or "", which clears the password.
             if (account.password === undefined || ctx?.path === "/reset-password") return;
             if (ctx?.path !== "/change-password")
               throw new Error(`A password write on ${ctx?.path ?? "a server-side call"} has no device-revocation handling.`);
-            const userId = ctx.context.session?.user.id;
-            if (!userId) throw new Error("change-password reached its password write without a session.");
-            await beginChange?.(userId);
-            passwordChanges.set(ctx.context, userId);
+            const caller = ctx.context.session;
+            if (!caller) throw new Error("change-password reached its password write without a session.");
+            const generation = (caller.session as { securityGeneration?: number }).securityGeneration ?? 0;
+            passwordChanges.set(ctx.context, await beginOrRefuse(caller.user.id,
+              "Your account changed while this was in progress. Sign in again, then try again.", generation));
           },
         },
       },
@@ -238,9 +275,13 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           return;
         }
 
-        if (ctx.path === "/revoke-sessions") {
+        if (ctx.path === "/revoke-sessions" || ctx.path === "/revoke-other-sessions") {
           const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
-          if (session) await bumpSecurityGeneration?.(session.user.id);
+          if (session) {
+            await bumpSecurityGeneration?.(session.user.id);
+            // "Other sessions" keeps the caller's; it moves to the new generation.
+            if (ctx.path === "/revoke-other-sessions") await restamp(ctx.context, session.session);
+          }
           return;
         }
         if (ctx.path === "/reset-password") {
@@ -249,12 +290,15 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           if (typeof token !== "string" || typeof password !== "string" || password.length < ctx.context.password.config.minPasswordLength || password.length > ctx.context.password.config.maxPasswordLength) return;
           const record = await ctx.context.internalAdapter.findVerificationValue(`reset-password:${token}`);
           if (!record || record.expiresAt <= new Date()) return;
-          if (!(await claims.claim(hashMagicLinkToken(`password-reset:${token}`), record.expiresAt)))
+          // The change blocks sign-ins and grants until the password and
+          // sessions are changed; a failure leaves it open until it times out.
+          // It opens before the claim, so a refusal doesn't use up the link.
+          const change = await beginOrRefuse(record.value, "Another change to this account is in progress. Try again in a moment.");
+          if (!(await claims.claim(hashMagicLinkToken(`password-reset:${token}`), record.expiresAt))) {
+            await finishChange(change.userId, change.changeId);
             throw new APIError("BAD_REQUEST", { message: "This password-reset code has already been used." });
-          // The persisted transition blocks grant issuance until the password
-          // and sessions are changed. Failures leave it blocked for recovery.
-          await beginChange?.(record.value);
-          resetUsers.set(ctx.context, record.value);
+          }
+          resets.set(ctx.context, change);
           return;
         }
         if (ctx.path === "/sign-in/email-otp") {
@@ -277,12 +321,12 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           claimedOtpEmails.set(ctx.context, email.toLowerCase());
           const existing = await ctx.context.internalAdapter.findUserByEmail(email.toLowerCase());
           if (existing?.user && !existing.user.emailVerified) {
-            await beginChange?.(existing.user.id);
+            const change = await beginOrRefuse(existing.user.id, "Another change to this account is in progress. Try again in a moment.");
             for (const account of await ctx.context.internalAdapter.findAccounts(existing.user.id)) {
               if (account.providerId === "credential") await ctx.context.internalAdapter.deleteAccount(account.id);
             }
             await ctx.context.internalAdapter.deleteSessions(existing.user.id);
-            await finishChange?.(existing.user.id);
+            await finishChange(change.userId, change.changeId);
           }
           return;
         }
@@ -322,28 +366,48 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
         }
 
         const { email } = JSON.parse(record.value) as { email: string };
+        // A link to a verified account is an ordinary sign-in and leaves the
+        // account's devices alone. An unverified account's password and
+        // sessions were made by someone who didn't own the inbox: end them.
         const existing = await ctx.context.internalAdapter.findUserByEmail(email.toLowerCase());
-        if (existing?.user?.emailVerified) await bumpSecurityGeneration?.(existing.user.id);
         if (existing?.user && !existing.user.emailVerified) {
-          await beginChange?.(existing.user.id);
+          const change = await beginOrRefuse(existing.user.id, "Another change to this account is in progress. Try again in a moment.");
           const accounts = await ctx.context.internalAdapter.findAccounts(existing.user.id);
           for (const account of accounts) {
             if (account.providerId === "credential") await ctx.context.internalAdapter.deleteAccount(account.id);
           }
           await ctx.context.internalAdapter.deleteSessions(existing.user.id);
-          await finishChange?.(existing.user.id);
+          await finishChange(change.userId, change.changeId);
         }
       }),
       after: createAuthMiddleware(async (ctx) => {
-        const userId = resetUsers.get(ctx.context);
+        const reset = resets.get(ctx.context);
         const result = ctx.context.returned;
-        if (ctx.path === "/reset-password" && userId && result && typeof result === "object" && "status" in result && result.status === true) {
-          // A failed completion leaves the persisted barrier closed, including
-          // when the password changed but the generation store is unavailable.
-          await finishChange?.(userId);
+        if (ctx.path === "/reset-password" && reset && result && typeof result === "object" && "status" in result && result.status === true) {
+          // A failed completion leaves the change open until it times out,
+          // including when the password changed but the generation store is unavailable.
+          await finishChange(reset.userId, reset.changeId);
         }
-        if (ctx.path === "/change-password" && result && typeof result === "object" && "user" in result)
+        if (ctx.path === "/change-password" && passwordChanges.has(ctx.context) && result && typeof result === "object" && "user" in result) {
           await finishPasswordChange(ctx.context);
+          await restamp(ctx.context, ctx.context.session?.session);
+        }
+
+        // A security change can begin between the session hook's check and
+        // the insert, and its session delete can then miss this session.
+        // Checking again after the insert closes that gap.
+        const created = ctx.context.newSession;
+        if (created && readSecurityGeneration) {
+          const stamped = sessionStamps.get(ctx.context);
+          const current = await readSecurityGeneration(created.user.id).catch((error: unknown) => {
+            if (error instanceof DeviceGrantError) return null;
+            throw error;
+          });
+          if (current !== stamped) {
+            await ctx.context.internalAdapter.deleteSession(created.session.token);
+            throw new APIError("UNAUTHORIZED", { message: "Your account changed while you were signing in. Sign in again." });
+          }
+        }
       }),
     },
   });

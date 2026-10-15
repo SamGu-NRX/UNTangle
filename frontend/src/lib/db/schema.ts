@@ -193,7 +193,11 @@ export const versions = pgTable("versions", {
 export const deviceSecurity = pgTable("device_security", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   generation: integer("generation").notNull().default(0),
+  // Unused since 0014 (single changes with a start time, below). Kept so an
+  // instance still running 0013 code during a deploy doesn't fail; drop later.
   activeTransitions: integer("active_transitions").notNull().default(0),
+  changeId: text("change_id"),
+  changeStartedAt: timestamp("change_started_at", { withTimezone: true }),
 });
 export const deviceGrants = pgTable("device_grant", {
   id: text("id").primaryKey(),

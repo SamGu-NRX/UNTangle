@@ -4,6 +4,11 @@ import { deviceScopes, type DeviceClientKind, type DeviceScope, type StartDevice
 // Starting lifetimes, not measured against production usage. The approved code
 // gets 60 seconds to limit interception; access lasts 5 minutes to limit exposure.
 export const deviceLifetimes = { pending: 600_000, approved: 60_000, access: 300_000, mobileIdle: 7 * 86400_000, absolute: 30 * 86400_000 } as const;
+// How long an unfinished account security change (see DeviceStore) blocks its
+// account. Unmeasured: chosen to be far longer than one reset or password
+// change takes (one password hash and a few writes), and short enough that
+// a crash mid-change doesn't lock the student out for long.
+export const securityChangeTimeout = 15 * 60_000;
 export const hashDeviceSecret = (value: string) => createHash("sha256").update(value).digest("hex");
 export const pkceChallenge = (value: string) => createHash("sha256").update(value).digest("base64url");
 const secret = () => randomBytes(32).toString("base64url");
@@ -27,11 +32,26 @@ export interface DeviceTransaction {
   saveToken(token: DeviceToken): Promise<void>;
   generation(userId: string): Promise<number>;
 }
+/**
+ * Each account has a security generation; grants and browser sessions record
+ * the one they were issued under, and any later bump ends them.
+ *
+ * A security change (password reset or change, unverified-account cleanup) is
+ * a bump before its credential writes and another after them. While it's open,
+ * `generation()` refuses, so nothing can be issued under a generation the
+ * change is about to end. One change runs per account at a time; a second
+ * one is refused with `account_changed`, so a slower change can never land its
+ * write after a faster one. A change left open longer than
+ * securityChangeTimeout stops blocking, and the next change replaces it. Its
+ * first bump has already ended the account's earlier grants and sessions.
+ */
 export interface DeviceStore {
   transaction<T>(work: (tx: DeviceTransaction) => Promise<T>): Promise<T>;
   bumpGeneration(userId: string): Promise<void>;
-  beginSecurityChange(userId: string): Promise<void>;
-  finishSecurityChange(userId: string): Promise<void>;
+  /** Opens a change and returns its id. With `expectedGeneration`, also refuses unless the generation is still that value. */
+  beginSecurityChange(userId: string, expectedGeneration?: number): Promise<string>;
+  /** Bumps the generation and closes the change if it is still the open one. */
+  finishSecurityChange(userId: string, changeId: string): Promise<void>;
 }
 export type DeviceIdentity = { userId: string; grantId: string; clientKind: DeviceClientKind; scopes: readonly DeviceScope[]; scheduleId: string | null };
 
@@ -133,8 +153,8 @@ export function createDeviceGrants(store: DeviceStore, now = Date.now) {
         return { revoked: true };
       });
     },
-    beginSecurityChange: (userId: string) => store.beginSecurityChange(userId),
-    finishSecurityChange: (userId: string) => store.finishSecurityChange(userId),
+    beginSecurityChange: (userId: string, expectedGeneration?: number) => store.beginSecurityChange(userId, expectedGeneration),
+    finishSecurityChange: (userId: string, changeId: string) => store.finishSecurityChange(userId, changeId),
     bumpSecurityGeneration: (userId: string) => store.bumpGeneration(userId),
     readSecurityGeneration: (userId: string) => run(tx => tx.generation(userId)),
   };

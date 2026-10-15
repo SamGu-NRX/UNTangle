@@ -140,7 +140,7 @@ describe("device approval email codes", () => {
 });
 
 describe("security generation hooks", () => {
-  test("set-password, recovery, reset and sign-out everywhere bump; ordinary OTP does not", async () => {
+  test("set-password, reset and both sign-outs bump; ordinary OTP and magic-link sign-in do not", async () => {
     const bumped: string[] = [];
     const t = setup(undefined, async (id) => { bumped.push(id); });
     const login = await otpSignIn(t);
@@ -157,16 +157,19 @@ describe("security generation hooks", () => {
     expect(bumped).toEqual([userId]);
     await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
     expect((await t.get(t.lastVerifyLink())).status).toBe(302);
-    expect(bumped).toEqual([userId, userId]);
+    expect(bumped).toEqual([userId]);
     await t.post("/request-password-reset", { email: VICTIM, redirectTo: "/forgot-password" });
     const token = new URL(t.lastLink("password-reset")).pathname.split("/").pop()!;
     expect((await t.post("/reset-password", { token: "wrong", newPassword: "new-password-456" })).status).toBe(400);
     expect((await t.post("/reset-password", { token, newPassword: "short" })).status).toBe(400);
-    expect(bumped).toHaveLength(2);
+    expect(bumped).toHaveLength(1);
     expect((await t.post("/reset-password", { token, newPassword: "new-password-456" })).status).toBe(200);
-    expect(bumped).toEqual([userId, userId, userId, userId]);
+    expect(bumped).toEqual([userId, userId, userId]);
     const second = await otpSignIn(t);
-    expect(second.status).toBe(200);
+    const third = await otpSignIn(t);
+    expect((await t.post("/revoke-other-sessions", {}, cookieFrom(second))).status).toBe(200);
+    expect(bumped).toEqual([userId, userId, userId, userId]);
+    expect(await t.session(cookieFrom(third))).toBeNull();
     expect((await t.post("/revoke-sessions", {}, cookieFrom(second))).status).toBe(200);
     expect(bumped).toEqual([userId, userId, userId, userId, userId]);
     expect(await t.session(cookieFrom(second))).toBeNull();

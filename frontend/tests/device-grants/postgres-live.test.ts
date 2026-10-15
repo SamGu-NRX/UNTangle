@@ -7,7 +7,7 @@ import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
 import { postgresDeviceStore } from "@/server/auth/device-postgres";
 
 const url = process.env.RATE_LIMIT_TEST_DATABASE_URL;
-test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse, generation revocation and isolation", async () => {
+test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse, generation revocation, isolation and security changes", async () => {
   expect(new URL(url!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);
   const schema = `device_test_${crypto.randomUUID().replaceAll("-", "")}`;
   const pool = new Pool({ connectionString: url, max: 8, options: `-c search_path=${schema} -c timezone=Pacific/Kiritimati` });
@@ -60,6 +60,33 @@ test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse
     const stored = JSON.stringify((await pool.query("SELECT * FROM device_grant")).rows);
     expect(stored.includes(grant.deviceCode)).toBe(false);
     expect(stored.includes(grant.userCode)).toBe(false);
+
+    // Security changes: one at a time across instances, refused on a moved
+    // generation, and stale after the timeout by the database's clock.
+    time = Date.now();
+    const bobDevice = await service.exchange((await approved("bob")).deviceCode, verifier);
+    const generation = await service.readSecurityGeneration("bob");
+    await expect(service.beginSecurityChange("bob", generation - 1)).rejects.toMatchObject({ code: "account_changed", status: 409 });
+    const begins = await Promise.allSettled(clients.map(client => client.beginSecurityChange("bob", generation)));
+    expect(begins.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(begins.filter(result => result.status === "rejected")).toMatchObject([{ reason: { code: "account_changed" } }, { reason: { code: "account_changed" } }, { reason: { code: "account_changed" } }]);
+    const opened = begins.find(result => result.status === "fulfilled");
+    if (!opened || opened.status !== "fulfilled") throw new Error("Expected one change to open");
+    await expect(service.readSecurityGeneration("bob")).rejects.toMatchObject({ code: "invalid_token" });
+    await expect(service.authenticate(bobDevice.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
+    await expect(pool.query("UPDATE device_security SET change_id = NULL WHERE user_id = 'bob'")).rejects.toThrow("device_security_change_check");
+    await pool.query("UPDATE device_security SET change_started_at = now() - interval '15 minutes 1 second' WHERE user_id = 'bob'");
+    expect(await service.readSecurityGeneration("bob")).toBe(generation + 1);
+    await expect(service.authenticate(bobDevice.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
+    const replacement = await service.beginSecurityChange("bob");
+    await service.finishSecurityChange("bob", opened.value);
+    await expect(service.readSecurityGeneration("bob")).rejects.toMatchObject({ code: "invalid_token" });
+    await service.finishSecurityChange("bob", replacement);
+    expect(await service.readSecurityGeneration("bob")).toBe(generation + 4);
+    expect((await pool.query("SELECT change_id, change_started_at FROM device_security WHERE user_id = 'bob'")).rows).toEqual([{ change_id: null, change_started_at: null }]);
+    await expect(service.finishSecurityChange("nobody", replacement)).rejects.toThrow("No account security change to finish");
+    const fresh = await service.exchange((await approved("bob")).deviceCode, verifier);
+    expect((await service.authenticate(fresh.accessToken, "documents:read")).userId).toBe("bob");
   } finally {
     await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     await pool.end();

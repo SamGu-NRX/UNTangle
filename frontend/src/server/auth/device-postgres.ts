@@ -1,7 +1,12 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { deviceGrants, deviceSecurity, deviceTokens } from "@/lib/db/schema";
-import { DeviceGrantError, type DeviceStore } from "./device-grants";
+import { DeviceGrantError, securityChangeTimeout, type DeviceStore } from "./device-grants";
+
+// Database time, so every instance agrees on when a change went stale.
+const staleBefore = sql`now() - ${sql.raw(`interval '${securityChangeTimeout} milliseconds'`)}`;
+const changeOpen = sql<boolean>`(${deviceSecurity.changeId} IS NOT NULL AND ${deviceSecurity.changeStartedAt} > ${staleBefore})`;
 
 export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib/db/schema").schema>, "transaction" | "insert" | "update">): DeviceStore {
   return {
@@ -24,17 +29,37 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
         await tx.insert(deviceSecurity).values({ userId }).onConflictDoNothing();
         // A bump waits for token issuance to commit; issuance after the bump sees
         // the new generation. Bumps never lock grants, so lock order cannot cycle.
-        const [row] = await tx.select().from(deviceSecurity).where(eq(deviceSecurity.userId, userId)).for("share");
-        if (row.activeTransitions > 0) throw new DeviceGrantError("invalid_token", 401);
+        const [row] = await tx.select({ generation: deviceSecurity.generation, open: changeOpen }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId)).for("share");
+        if (row.open) throw new DeviceGrantError("invalid_token", 401);
         return row.generation;
       },
     })),
-    async beginSecurityChange(userId) {
-      await db.insert(deviceSecurity).values({ userId, generation: 1, activeTransitions: 1 }).onConflictDoUpdate({ target: deviceSecurity.userId, set: { generation: sql`${deviceSecurity.generation} + 1`, activeTransitions: sql`${deviceSecurity.activeTransitions} + 1` } });
+    async beginSecurityChange(userId, expectedGeneration) {
+      const id = randomUUID();
+      await db.insert(deviceSecurity).values({ userId }).onConflictDoNothing();
+      // One statement checks and opens, so two changes can't both pass the check.
+      const rows = await db.update(deviceSecurity)
+        .set({ generation: sql`${deviceSecurity.generation} + 1`, changeId: id, changeStartedAt: sql`now()` })
+        .where(and(
+          eq(deviceSecurity.userId, userId),
+          or(isNull(deviceSecurity.changeId), lte(deviceSecurity.changeStartedAt, staleBefore)),
+          expectedGeneration === undefined ? undefined : eq(deviceSecurity.generation, expectedGeneration),
+        ))
+        .returning({ userId: deviceSecurity.userId });
+      if (rows.length !== 1) throw new DeviceGrantError("account_changed", 409);
+      return id;
     },
-    async finishSecurityChange(userId) {
-      const rows = await db.update(deviceSecurity).set({ generation: sql`${deviceSecurity.generation} + 1`, activeTransitions: sql`${deviceSecurity.activeTransitions} - 1` }).where(and(eq(deviceSecurity.userId, userId), gt(deviceSecurity.activeTransitions, 0))).returning({ userId: deviceSecurity.userId });
-      if (rows.length !== 1) throw new Error("No active account security change to finish");
+    async finishSecurityChange(userId, changeId) {
+      const mine = sql`${deviceSecurity.changeId} IS NOT DISTINCT FROM ${changeId}`;
+      const rows = await db.update(deviceSecurity)
+        .set({
+          generation: sql`${deviceSecurity.generation} + 1`,
+          changeId: sql`CASE WHEN ${mine} THEN NULL ELSE ${deviceSecurity.changeId} END`,
+          changeStartedAt: sql`CASE WHEN ${mine} THEN NULL ELSE ${deviceSecurity.changeStartedAt} END`,
+        })
+        .where(eq(deviceSecurity.userId, userId))
+        .returning({ userId: deviceSecurity.userId });
+      if (rows.length !== 1) throw new Error("No account security change to finish");
     },
     async bumpGeneration(userId) {
       await db.insert(deviceSecurity).values({ userId, generation: 1 }).onConflictDoUpdate({ target: deviceSecurity.userId, set: { generation: sql`${deviceSecurity.generation} + 1` } });
