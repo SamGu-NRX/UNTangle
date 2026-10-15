@@ -73,6 +73,60 @@ describe("auditProgram on synthetic records", () => {
     expect(status(pair)).toBe("satisfied");
   });
 
+  test("one course counts toward a core component area and a major requirement at once", () => {
+    // Hand-checked against the captured pages. The core page allows sharing:
+    // "Students who wish to take courses that will fulfill both core and major
+    // requirements simultaneously should check with academic advisors for
+    // assistance in selecting core courses. Students may also choose to use
+    // core courses to meet the minimum number of advanced hours required for
+    // their degree." (core-curriculum.html, UNT Core Curriculum intro).
+    // MATH 1710 (4 h) is listed in the core "Mathematics, 3 hours" area
+    // (core-curriculum.html) and in the CS major's "Other required courses"
+    // block — "MATH 1710 - Calculus I or MATH 1810 - Calculus for Science and
+    // Engineering I and MATH 1820 - Calculus for Science and Engineering II"
+    // (cs-bs.html, anchor majorrequirements). One record, one course, counted
+    // toward both: the core audit satisfies the Mathematics area and the CS
+    // audit counts the same course toward its required slot.
+    const record = [course("MATH 1710", "A", 4)];
+    const coreResult = auditProgram(program("core"), record);
+    const mathArea = coreResult.requirements.find((node) => node.name === "Mathematics, 3 hours");
+    expect(mathArea?.status).toBe("satisfied");
+
+    const cs = program("cs-bs");
+    expect(cs.coreSharedCourses).toContain("MATH 1710");
+    // The same one course counts toward the major: with an empty record no
+    // slot is covered, with only MATH 1710 exactly its slot is. (The node
+    // stays "unsatisfied" until every slot completes; the slot detail is the
+    // counting evidence.)
+    const otherDetail = (courses: AuditCourse[]) =>
+      auditProgram(cs, courses).requirements.find((node) => node.name === "Other required courses")!.detail;
+    expect(otherDetail([])).toMatch(/^0\/\d+ slots satisfied/);
+    expect(otherDetail(record)).toMatch(/^1\/\d+ slots satisfied/);
+  });
+
+  test("a course the catalog forbids from double counting counts once", () => {
+    // Hand-checked against the captured core page (Component Area Option A
+    // section): "Note: Students may not “double-dip” courses to complete the
+    // University Core Curriculum. If a student completes PADM 2100 for the
+    // Social and Behavioral Sciences area, PADM 2100 may not count toward
+    // Component Area Option A." (core-curriculum.html). With PADM 2100 used
+    // for Social and Behavioral Sciences, the audit counts it there and only
+    // there: were double-dipping possible, PADM 2100 plus PHIL 2500 would
+    // cover all six Component Area Option A hours outright, and the option
+    // would read satisfied. It does not — the option stays short of six hours,
+    // and the audit carries the catalog's rule as a cited advisory note.
+    const record = [course("PADM 2100", "A", 3), course("PHIL 2500", "A", 3)];
+    const result = auditProgram(program("core"), record);
+    const sbs = result.requirements.find((node) => node.name === "Social and Behavioral Sciences, 3 hours");
+    expect(sbs?.status).toBe("satisfied");
+    const option = result.requirements.find((node) => node.name.startsWith("Component Area Option"));
+    expect(option?.status).not.toBe("satisfied");
+    expect(option?.detail).toContain("3/6");
+    const rule = result.requirements.find((node) => node.name === "Component Area Option double-dip rule");
+    expect(rule?.status).toBe("advisory");
+    expect(rule?.detail).toContain("double-dip");
+  });
+
   test("or-alternatives satisfy a slot through either option", () => {
     const cs = program("cs-bs");
     const track = auditProgram(cs, [course("MATH 1810"), course("MATH 1820")]);
