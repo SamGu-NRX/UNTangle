@@ -22,7 +22,9 @@ archived, for example https://catalog.utexas.edu/archive/2025-26/undergraduate/.
 
 What we can get: one static HTML page per field of study under
 https://catalog.utexas.edu/courses/, for example
-https://catalog.utexas.edu/courses/c-s/ ("Computer Science (C S)"),
+https://catalog.utexas.edu/courses/c_s/ ("Computer Science (C S)"; the slug
+carries an underscore, and the hyphenated /courses/c-s/ this document first
+recorded returns the site's Page Not Found page),
 https://catalog.utexas.edu/courses/m/ (Mathematics) and
 https://catalog.utexas.edu/courses/phy/ (Physics). Each course is a Courseleaf
 `div.courseblock` carrying: the code (`detail-ut_code`, as in "C S 301K"), the title
@@ -33,7 +35,8 @@ detail spans: prerequisites or corequisites (`detail-prereq`), restrictions
 Curriculum: 093"), same-as notes (`detail-utexas_sameas`), TCCN equivalents
 (`detail-utexas_tccn`), grading basis (`detail-utexas_grade_mode`), repeatability
 (`detail-utexas_repeatable`) and academic level (`detail-acad_level`). All three example
-pages above returned HTTP 200 unauthenticated when checked on October 15, 2026.
+pages above returned HTTP 200 unauthenticated when checked on October 15, 2026, and the
+C S page at its corrected URL served bytes identical to the fixture captured that day.
 
 How we get it: plain server-side HTTP GET. No authentication, no JavaScript rendering, no
 API key. The first captures are saved fixtures under
@@ -172,11 +175,17 @@ The UT Austin campus data already in the repo: 32 buildings in
 `frontend/src/lib/campus/data/ut-austin/catalogue.json` with OSM-derived ids, names and
 coordinates (Perry-Castaneda Library, Main Building, McCombs School of Business and others),
 plus `campus-map.json`, `walking-times.json` and `verification.json` in the same directory.
-These came from OpenStreetMap and follow the same shape as the UNT Denton files under
+These came from OpenStreetMap: pedestrian paths, entrances and building outlines for the
+campus bounding box, retrieved from the Overpass API endpoint recorded with the exact query
+in `frontend/src/lib/campus/data/ut-austin/verification.json`
+(https://overpass.kumi.systems/api/interpreter, bbox 30.281,-97.744,30.291,-97.729), and
+they follow the same shape as the UNT Denton files under
 `frontend/src/lib/campus/data/unt/`. The adapter's `map` capability can point at these files
 as-is; what is missing compared to UNT is building code abbreviations (UT uses codes like
 "GDC" for the Gates Dell Complex in schedule locations), so a curated code-to-building table
-is a later task, sourced from the registrar's building codes list.
+is a later task, sourced from UT's public Building Information app, which lists each building
+with its code (https://utdirect.utexas.edu/apps/campus/buildings/information/nlogon/maps/utm/gdc/,
+"GATES DELL COMPLEX (GDC - 0152)", checked October 15, 2026).
 
 ## 7. Registration: unique numbers, waitlists, and how UT differs from myUNT
 

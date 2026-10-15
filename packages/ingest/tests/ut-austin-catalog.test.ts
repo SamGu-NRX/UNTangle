@@ -1,32 +1,58 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { parseCatalogCoursePage, type CatalogPageMeta, type UtAustinCatalogPage } from "../src/ut-austin/catalog";
+import { parseCatalogCoursePage, type UtAustinCatalogPage } from "../src/ut-austin/catalog";
 
 /**
  * The fixtures are saved copies of public catalog.utexas.edu course pages,
- * captured once, politely (three seconds apart), on October 15, 2026. Each
- * fixture's source URL and capture date are recorded in
- * fixtures/ut-austin/SOURCES.md and stamped onto every record the parser
- * yields. Tests never fetch.
+ * captured once, politely, on October 15, 2026. Each fixture's source URL and
+ * capture date are recorded in fixtures/ut-austin/SOURCES.md — the single
+ * metadata record — and the tests read them from that file rather than from a
+ * hard-coded map, so a replaced or added fixture cannot keep stale metadata:
+ * any HTML file without a SOURCES.md row fails these tests. Tests never fetch.
  */
 
-const fixturesDir = join(import.meta.dir, "fixtures", "ut-austin", "catalog");
+const fixturesDir = join(import.meta.dir, "fixtures", "ut-austin");
+const sourcesText = readFileSync(join(fixturesDir, "SOURCES.md"), "utf8");
 
-const pages: Record<string, UtAustinCatalogPage> = Object.fromEntries(
-  Object.entries({
-    "c-s.html": "https://catalog.utexas.edu/courses/c-s/",
-    "m.html": "https://catalog.utexas.edu/courses/m/",
-    "phy.html": "https://catalog.utexas.edu/courses/phy/",
-  }).map(([file, sourceUrl]) => {
-    const meta: CatalogPageMeta = { sourceUrl, capturedAt: "2026-10-15" };
-    return [sourceUrl, parseCatalogCoursePage(readFileSync(join(fixturesDir, file), "utf8"), meta)];
-  }),
+/** One `| `catalog/x.html` | url | date | how |` row of SOURCES.md. */
+type SourceRow = { file: string; sourceUrl: string; capturedAt: string };
+
+const sourceRows: SourceRow[] = [...sourcesText.matchAll(/^\| `([^`]+)` \| (\S+) \| (\d{4}-\d{2}-\d{2}) \|/gm)].map(
+  ([, file, sourceUrl, capturedAt]) => ({ file, sourceUrl, capturedAt }),
 );
 
-const cs = pages["https://catalog.utexas.edu/courses/c-s/"];
+const metaBySource = Object.fromEntries(sourceRows.map((row) => [row.sourceUrl, row]));
+
+const pages: Record<string, UtAustinCatalogPage> = Object.fromEntries(
+  sourceRows.map(({ file, sourceUrl, capturedAt }) => [
+    sourceUrl,
+    parseCatalogCoursePage(readFileSync(join(fixturesDir, file), "utf8"), { sourceUrl, capturedAt }),
+  ]),
+);
+
+const cs = pages["https://catalog.utexas.edu/courses/c_s/"];
 const math = pages["https://catalog.utexas.edu/courses/m/"];
 const phy = pages["https://catalog.utexas.edu/courses/phy/"];
+
+describe("SOURCES.md", () => {
+  test("lists every fixture file, and every listed file exists", () => {
+    const onDisk = readdirSync(join(fixturesDir, "catalog"))
+      .filter((name) => name.endsWith(".html"))
+      .map((name) => `catalog/${name}`)
+      .sort();
+    const listed = sourceRows.map((row) => row.file).sort();
+    expect(listed).toEqual(onDisk);
+    expect(listed.length).toBeGreaterThan(0);
+  });
+
+  test("parses into well-formed metadata rows", () => {
+    for (const row of sourceRows) {
+      expect(row.sourceUrl.startsWith("https://catalog.utexas.edu/courses/")).toBe(true);
+      expect(row.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+});
 
 describe("parseCatalogCoursePage", () => {
   test("reads the department from the page title", () => {
@@ -40,13 +66,18 @@ describe("parseCatalogCoursePage", () => {
     expect(cs.records).toHaveLength(190);
     expect(math.records).toHaveLength(139);
     expect(phy.records).toHaveLength(130);
+    // The captured pages are healthy: nothing was reported malformed.
+    expect(cs.invalid).toEqual([]);
+    expect(math.invalid).toEqual([]);
+    expect(phy.invalid).toEqual([]);
   });
 
-  test("every record carries its source URL and capture date", () => {
+  test("every record carries its source URL and capture date from SOURCES.md", () => {
     for (const page of [cs, math, phy]) {
+      const meta = metaBySource[page.sourceUrl];
       for (const record of page.records) {
         expect(record.sourceUrl).toBe(page.sourceUrl);
-        expect(record.capturedAt).toBe("2026-10-15");
+        expect(record.capturedAt).toBe(meta.capturedAt);
         expect(record.code.length).toBeGreaterThan(0);
         expect(record.title.length).toBeGreaterThan(0);
       }
@@ -144,5 +175,39 @@ describe("parseCatalogCoursePage", () => {
         capturedAt: "2026-10-15",
       }),
     ).toThrow("No course blocks found");
+  });
+
+  test("reports a malformed block instead of dropping it", () => {
+    // One healthy block between two malformed ones, so the indices prove the
+    // invalid blocks keep their saved positions and their raw text.
+    const block = (inner: string) => `<div class="courseblock">${inner}<div class="courseblockextra"><p>Body text.</p></div></div>`;
+    const good = block('<span class="text detail-ut_code">C S 301K</span> <span class="text detail-title">Foundations of Logical Thought</span>.');
+    const noTitle = block('<span class="text detail-ut_code">C S 999</span>, this block lost its title span.');
+    const noCode = block('<span class="text detail-title">Orphaned title</span>');
+    const page = parseCatalogCoursePage(good + noTitle + noCode, {
+      sourceUrl: "https://catalog.utexas.edu/courses/c_s/",
+      capturedAt: "2026-10-15",
+    });
+
+    expect(page.records.map((record) => record.code)).toEqual(["C S 301K"]);
+    expect(page.invalid).toHaveLength(2);
+    expect(page.invalid[0].index).toBe(1);
+    expect(page.invalid[0].reason).toBe("missing detail-title");
+    expect(page.invalid[0].sourceText).toContain("this block lost its title span");
+    expect(page.invalid[1].index).toBe(2);
+    expect(page.invalid[1].reason).toBe("missing detail-ut_code");
+    expect(page.invalid[1].sourceText).toContain("Orphaned title");
+  });
+
+  test("reports a block whose code carries no readable course number", () => {
+    const html = '<div class="courseblock"><span class="text detail-ut_code">?</span><span class="text detail-title">Untitled</span></div>';
+    const page = parseCatalogCoursePage(html, {
+      sourceUrl: "https://catalog.utexas.edu/courses/c_s/",
+      capturedAt: "2026-10-15",
+    });
+    expect(page.records).toHaveLength(0);
+    expect(page.invalid).toHaveLength(1);
+    expect(page.invalid[0].reason).toBe('detail-ut_code "?" has no readable course code');
+    expect(page.invalid[0].sourceText).toContain("Untitled");
   });
 });

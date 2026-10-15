@@ -2,7 +2,7 @@
  * UT Austin undergraduate-catalog course pages, parsed from saved HTML.
  *
  * Source: catalog.utexas.edu course pages, one page per field of study, as
- * in https://catalog.utexas.edu/courses/c-s/ ("Computer Science (C S)"). The
+ * in https://catalog.utexas.edu/courses/c_s/ ("Computer Science (C S)"). The
  * pages are Courseleaf-published static HTML: one `div.courseblock` per
  * course, with the code, title, hours, description and labeled detail
  * spans. There is no public API, so the ingest job saves a page once,
@@ -69,6 +69,20 @@ export type UtAustinCourseRecord = {
   capturedAt: string;
 };
 
+/**
+ * A course block the page published but the parser could not turn into a
+ * record. The block is never dropped: it is reported here with its raw text
+ * so a release job can fail the page validation explicitly.
+ */
+export type UtAustinInvalidBlock = {
+  /** The block's zero-based position among the page's course blocks, in saved order. */
+  index: number;
+  /** Why the block produced no record, naming the Courseleaf field at fault. */
+  reason: string;
+  /** The raw block HTML exactly as saved, so no source text is ever lost. */
+  sourceText: string;
+};
+
 /** What one saved course page parses into. */
 export type UtAustinCatalogPage = {
   /** The page title, "Computer Science (C S)", split into name and code. */
@@ -76,6 +90,12 @@ export type UtAustinCatalogPage = {
   sourceUrl: string;
   capturedAt: string;
   records: UtAustinCourseRecord[];
+  /**
+   * Blocks that yielded no record, each with its raw text. A release job
+   * must treat a non-empty list as a failed page validation: a published
+   * block missing its code or title is a layout change, not a skippable row.
+   */
+  invalid: UtAustinInvalidBlock[];
 };
 
 /** Strips tags and decodes the entities Courseleaf pages actually use. */
@@ -174,6 +194,10 @@ function parseDepartment(html: string, meta: CatalogPageMeta): { name: string; a
  *
  * Throws when the page carries no course blocks: a layout change or a wrong
  * page must fail loudly, never publish an empty catalog.
+ *
+ * A course block that has no readable code or title is never skipped: it is
+ * reported in `invalid` with its raw source text, so a release job sees every
+ * malformed block instead of silently publishing a partial catalog.
  */
 export function parseCatalogCoursePage(html: string, meta: CatalogPageMeta): UtAustinCatalogPage {
   const blocks = html.split('<div class="courseblock">').slice(1);
@@ -182,15 +206,30 @@ export function parseCatalogCoursePage(html: string, meta: CatalogPageMeta): UtA
   }
 
   const records: UtAustinCourseRecord[] = [];
-  for (const rawBlock of blocks) {
+  const invalid: UtAustinInvalidBlock[] = [];
+  for (const [blockIndex, rawBlock] of blocks.entries()) {
     // Each block runs to the next one; cut trailing sibling markup off.
     const block = rawBlock.slice(0, rawBlock.indexOf('<div class="courseblock">') === -1 ? undefined : rawBlock.indexOf('<div class="courseblock">'));
 
     const utCode = spanField(block, "detail-ut_code");
     const title = spanField(block, "detail-title");
-    if (!utCode || !title) continue;
+    if (!utCode || !title) {
+      const missing = [!utCode ? "detail-ut_code" : null, !title ? "detail-title" : null].filter(
+        (field): field is string => field !== null,
+      );
+      invalid.push({ index: blockIndex, reason: `missing ${missing.join(" and ")}`, sourceText: block });
+      continue;
+    }
 
     const codes = parseCodes(utCode);
+    if (codes.length === 0 || !splitCode(codes[0])) {
+      invalid.push({
+        index: blockIndex,
+        reason: `detail-ut_code "${utCode}" has no readable course code`,
+        sourceText: block,
+      });
+      continue;
+    }
     const hours = parseHours(spanField(block, "detail-hours_html"));
     // The description is the first courseblockextra div on the block.
     const descriptionMatch = block.match(/<div class="courseblockextra[^"]*">([\s\S]*?)<\/div>/);
@@ -226,5 +265,6 @@ export function parseCatalogCoursePage(html: string, meta: CatalogPageMeta): UtA
     sourceUrl: meta.sourceUrl,
     capturedAt: meta.capturedAt,
     records,
+    invalid,
   };
 }

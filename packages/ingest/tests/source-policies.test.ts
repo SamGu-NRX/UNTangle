@@ -41,7 +41,7 @@ describe("SOURCE_POLICIES", () => {
       expect(policy.acquisition).toBe("server");
       expect(policy.minIntervalMs).toBeGreaterThan(0);
       expect(policy.maxConcurrency).toBe(1);
-      for (const url of ["https://catalog.utexas.edu/courses/c-s/", "https://catalog.utexas.edu/courses/m/", "https://catalog.utexas.edu/courses/phy/"]) {
+      for (const url of ["https://catalog.utexas.edu/courses/c_s/", "https://catalog.utexas.edu/courses/m/", "https://catalog.utexas.edu/courses/phy/"]) {
         expect(policy.allowedUrlPrefixes.some((prefix) => url.startsWith(prefix))).toBe(true);
       }
       // The interactive schedule app is EID-gated and no page outside the
