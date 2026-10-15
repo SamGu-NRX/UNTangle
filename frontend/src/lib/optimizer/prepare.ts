@@ -243,7 +243,7 @@ export function passesTimeConstraints(
 }
 
 /** Same day and overlapping times; dated blocks only bite when the weeks overlap too. */
-function blockConflicts(block: OptBlockedTime, meeting: OptMeeting, term: OptDateRange | null): boolean {
+export function blockConflicts(block: OptBlockedTime, meeting: OptMeeting, term: OptDateRange | null): boolean {
   if (block.day !== meeting.day) return false;
   if (meeting.start >= block.end || block.start >= meeting.end) return false;
   const ranges = block.dates;

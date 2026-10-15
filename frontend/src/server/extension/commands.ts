@@ -21,7 +21,8 @@ import type { SectionsSource } from "./preview";
  */
 export interface ExtensionStore {
   getDocument(userId: string, documentId: string): Promise<Document>;
-  preferences(userId: string): Promise<PreferencesBody | null>;
+  /** The user's preferences for one institution, or null when there are none. */
+  preferences(userId: string, institutionId: string): Promise<PreferencesBody | null>;
   receipt(userId: string, operationId: string): Promise<Receipt | null>;
   write(userId: string, bytes: Uint8Array, documentId: string): Promise<Receipt>;
 }
@@ -59,8 +60,10 @@ function buildWritePayload(command: ExtensionAddOptionCommand, scheduleId: strin
 
 /**
  * Answers a retry whose operation id already has a stored receipt. The
- * extension mints a fresh operation id for every confirmed add, so a reused
- * operation id is either the genuine retry of the command the receipt
+ * extension mints a fresh crypto.randomUUID() for every confirmed add
+ * (extension/src/lib/worker-controller.ts on edge) and reuses one only to
+ * resend the same queued command after a transport failure or a 503, so a
+ * reused operation id is either the genuine retry of the command the receipt
  * committed, or a client bug. The revision relationship tells them apart: the
  * original write committed exactly one revision past the command's expected
  * revision, so a receipt that does not satisfy
@@ -92,7 +95,9 @@ async function verifiedReplay(
     const current = ScheduleBodySchema.safeParse(schedule.body);
     if (!current.success) return refuse();
     const sections = await deps.sections.termSections(current.data.termId);
-    const section = sections?.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
+    // Unavailable term data is no verdict: the boundary answers 503 and the extension retries.
+    if (sections === null) throw new Error("Term sections are unavailable.");
+    const section = sections.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
     if (!section) return refuse();
     // jsonb re-sorts object keys on the way through Postgres, so the rebuilt
     // write bytes cannot reproduce the receipt's hash even for the identical
@@ -106,8 +111,8 @@ async function verifiedReplay(
 /**
  * Applies one add-option command. The caller has already authenticated the
  * device grant and verified the command's scheduleId is the grant's bound
- * schedule. Rejections keep the operation uncommitted, so the extension
- * retries the same operation id after showing a fresh preview.
+ * schedule. Rejections keep the operation uncommitted; after one, the
+ * student confirms again from a fresh preview, under a new operation id.
  */
 export async function applyAddOption(
   deps: { store: ExtensionStore; sections: SectionsSource },
@@ -138,9 +143,16 @@ export async function applyAddOption(
   }
   const current = ScheduleBodySchema.safeParse(schedule.body);
   if (!current.success) return rejection(command.operationId, "not-found", 422);
+  // The write below is built from this read, so it must be the revision the
+  // student confirmed: a compare-and-set on the expected revision alone would
+  // commit this older body over a write that landed after the read.
+  if (schedule.revision !== command.expectedRevision) return rejection(command.operationId, "stale-revision", 409);
 
   const sections = await deps.sections.termSections(current.data.termId);
-  const section = sections?.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
+  // Unavailable term data is no verdict on the option: the HTTP boundary
+  // answers 503 and the extension retries.
+  if (sections === null) throw new Error("Term sections are unavailable.");
+  const section = sections.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
   if (!section) return rejection(command.operationId, "not-found", 422);
   // Sections data belongs to UNT; a schedule of another institution can't take a UNT option.
   if (current.data.institutionId !== "unt") return rejection(command.operationId, "forbidden", 403);

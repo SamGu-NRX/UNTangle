@@ -22,13 +22,17 @@ export function extensionStore(db: NodePgDatabase<typeof schema>): ExtensionStor
   return {
     getDocument: (userId, documentId): Promise<Document> => repository.get(userId, documentId),
     write: (userId, bytes, documentId) => repository.write(userId, bytes, documentId),
-    async preferences(userId): Promise<PreferencesBody | null> {
+    async preferences(userId, institutionId): Promise<PreferencesBody | null> {
       // One preferences document per user and institution; a student with
       // several picks the first by id order, the pull list's own order.
+      // The column is the body's institutionId, copied on every write.
       const [row] = await db
         .select({ body: documents.body })
         .from(documents)
-        .where(and(eq(documents.userId, userId), eq(documents.kind, "preferences"), eq(documents.deleted, false)))
+        .where(and(
+          eq(documents.userId, userId), eq(documents.kind, "preferences"),
+          eq(documents.institutionId, institutionId), eq(documents.deleted, false),
+        ))
         .orderBy(documents.id);
       const parsed = PreferencesBodySchema.safeParse(row?.body);
       return parsed.success ? parsed.data : null;
