@@ -11,6 +11,7 @@
     "test": "bun --no-env-file ../tools/repo-rules/src/run-tests.ts --isolate --timeout=20000"
   },
   "dependencies": {
+    "@untangle/core": "workspace:*",
     "better-auth": "^1.5.5",
     "drizzle-orm": "^0.45.1",
     "leaflet": "^1.9.4",
