@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UNTangle mockup: onboarding, round 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+<style>
+.mock{
+  --ground:#f4f6f3;--paper:#fff;--paper-2:#eef2ed;--paper-3:#e5ebe4;--line:#dde6dc;--line-2:#c5d3c4;
+  --ink:#1a2e1a;--ink-2:#4f654f;--ink-3:#6b806b;--ink-4:#9fb09f;
+  /* ink-3 is 4.26:1 on white, short of AA for small text; --meta is a half step darker (5.06:1). */
+  --meta:#5f745f;
+  --brand:#00512b;--brand-2:#007a40;--brand-soft:#e3efe6;--accent:#00a855;--accent-soft:#dff5e8;
+  --attn:#8a6100;--attn-bg:#fbf3df;--danger:#b3261e;--danger-bg:#fbeae8;
+  --c1:#3f7a4f;--c1s:#e6f0e8;--c2:#a3613f;--c2s:#f6ebe4;--c3:#4b6a8a;--c3s:#e6ecf2;
+  --c4:#8d7325;--c4s:#f5f0e0;--c5:#7a5272;--c5s:#f1e8f0;--c6:#3d7a7a;--c6s:#e3f0f0;
+  --sh-1:0 1px 2px rgba(20,40,22,.07);
+  --sh-2:0 24px 48px -12px rgba(20,40,22,.22),0 4px 10px rgba(20,40,22,.08);
+  --ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1);
+  --hatch:repeating-linear-gradient(135deg,rgba(79,101,79,.2) 0 1px,transparent 1px 7px);
+  --hatch-strong:repeating-linear-gradient(135deg,rgba(79,101,79,.46) 0 1.25px,transparent 1.25px 6px);
+  container-type:inline-size;font-family:"DM Sans",system-ui,sans-serif;font-optical-sizing:auto;color:var(--ink);
+  -webkit-font-smoothing:antialiased;max-width:1440px;margin:0 auto;padding:12px 10px 40px;font-size:14px;line-height:1.45;
+}
+.mock *,.mock *::before,.mock *::after{box-sizing:border-box}
+:where(.mock) :where(button,input,select,textarea){font:inherit;color:inherit}
+.mock button{cursor:pointer}
+.mock button:disabled{cursor:default}
+.mock :focus{outline:none}
+.mock :focus-visible{outline:2px solid var(--brand-2);outline-offset:2px;border-radius:8px}
+.hgi{line-height:1;font-size:18px}
+[hidden]{display:none!important}
+
+/* reviewer chrome (not product) */
+.rv{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px 12px;margin-bottom:14px;box-shadow:var(--sh-1)}
+.rv-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rv-mark{font-family:Syne,sans-serif;font-weight:800;color:var(--brand);font-size:17px}
+.rv-title{font-weight:600;font-size:15px}
+.rv-tag{font-size:12px;color:var(--meta)}
+.rv-dirs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px;background:var(--paper-2);padding:4px;border-radius:12px}
+.rv-dir{border:0;background:transparent;border-radius:9px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:1px;transition:background-color .15s ease,box-shadow .15s ease}
+.rv-dir b{font-weight:600;font-size:13.5px}
+.rv-dir span{font-size:11.5px;color:var(--meta)}
+.rv-dir[aria-selected="true"]{background:var(--paper);box-shadow:var(--sh-1),0 0 0 1px var(--line)}
+.rv-line{margin:10px 2px 0;font-size:13px;color:var(--ink-2)}
+.rv-tools{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--meta);align-items:center}
+.rv-tools label{display:inline-flex;align-items:center;gap:6px}
+.demo{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#4b2fa8;background:#f1ecff;border-radius:4px;padding:1px 5px;margin-right:2px}
+.rv-seg{display:inline-flex;gap:2px;background:var(--paper-2);border-radius:8px;padding:2px}
+.rv-seg button{border:0;background:transparent;border-radius:6px;padding:3px 9px;font-size:12px}
+.rv-seg button[aria-pressed="true"]{background:var(--paper);box-shadow:var(--sh-1);color:var(--ink);font-weight:600}
+.rv-link{border:0;background:none;color:var(--brand-2);font-size:12.5px;padding:0;text-decoration:underline;text-underline-offset:2px}
+@container (max-width:760px){.rv-dirs{grid-template-columns:1fr 1fr}.rv-dir span{display:none}}
+.rn{display:none;margin:12px 0 0;border:1.5px dashed #7b5cd6;color:#4b2fa8;background:#f5f1ff;border-radius:8px;padding:6px 9px;font-size:11.5px;line-height:1.4}
+.rn b{font-weight:700}
+.rn code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;background:#ebe4ff;border-radius:3px;padding:0 3px}
+.show-notes .rn{display:block}
+
+.stage{display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+@container (min-width:1180px){.stage{grid-template-columns:minmax(0,1fr) 390px;align-items:start}}
+.view{margin:0;min-width:0}
+.view figcaption{font-size:12px;color:var(--meta);margin:0 0 8px 4px;font-weight:500}
+
+/* desktop frame: the Week behind the card */
+.dk{position:relative;height:880px;border-radius:14px;border:1px solid var(--line);background:var(--ground);overflow:hidden;display:grid;grid-template-rows:52px auto minmax(0,1fr);box-shadow:var(--sh-1);container-type:inline-size;container-name:dk}
+.app-bar{display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line)}
+.wordmark{font-family:Syne,sans-serif;font-weight:800;color:var(--brand);font-size:19px;letter-spacing:-.01em}
+.lenses{display:flex;gap:2px;font-size:13px;color:var(--meta)}
+.lenses span{padding:6px 11px;border-radius:8px}
+.lenses .on{background:var(--brand);color:#fff;font-weight:600}
+.app-bar .sp{flex:1}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-size:11px;font-weight:700}
+.wk-bar{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.wk-term{display:flex;flex-direction:column;line-height:1.2}
+.wk-term b{font-size:15px;font-weight:650}
+.wk-term span{font-size:12px;color:var(--meta)}
+.wk-bar .sp{flex:1}
+.top-btn{position:relative;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px 0 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);font-size:13px;font-weight:600}
+.top-btn i{font-size:17px;color:var(--ink-2)}
+.top-btn .count{font-size:11.5px;font-weight:650;color:var(--ink-2);background:var(--paper-2);border-radius:6px;padding:1px 6px}
+/* after the build: one ring from the Preferences button, so the student sees where these answers live */
+.top-btn.here::after{content:"";position:absolute;inset:-1px;border-radius:10px;box-shadow:0 0 0 0 rgba(0,122,64,.45);animation:here 1.1s var(--ease-out) .5s 2}
+@keyframes here{to{box-shadow:0 0 0 10px rgba(0,122,64,0)}}
+.top-btn.here{border-color:var(--brand-2);color:var(--brand)}
+.wk{position:relative;padding:0 16px 16px 8px;min-height:0}
+@container dk (max-width:600px){.lenses,.avatar,.wk-term span,.top-btn .count{display:none}}
+@container dk (max-width:420px){.top-btn[data-k="courses"]{font-size:0;gap:0;padding:0 10px}}
+.veil{position:absolute;inset:0;background:rgba(20,40,22,.26);transition:opacity .24s ease;z-index:5}
+.veil.off{opacity:0;pointer-events:none}
+
+/* phone frame */
+.ph{width:min(390px,100%);height:844px;margin:0 auto;border-radius:52px;padding:10px;background:#142218;box-shadow:var(--sh-2)}
+.ph-screen{position:relative;height:100%;border-radius:42px;overflow:hidden;background:var(--ground);container-type:inline-size;container-name:ph;display:flex;flex-direction:column}
+.ph-status{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:6px 28px 0 30px;font-size:14px;font-weight:600;position:relative;z-index:9}
+.ph-status::after{content:"";position:absolute;left:50%;top:10px;width:108px;height:30px;border-radius:20px;background:#0b130d;transform:translateX(-50%)}
+.ph .wk-bar{padding:6px 12px 6px 16px;gap:6px}
+.ph .top-btn{height:44px;padding:0 12px}
+.ph .wk{flex:1;padding:0 10px 0 2px;overflow:hidden}
+@container ph (max-width:360px){.ph .wk-term span,.ph .top-btn .count{display:none}.ph .top-btn{padding:0 10px}}
+
+/* the card */
+.win{position:absolute;z-index:6;background:var(--paper);display:flex;flex-direction:column;min-height:0;transition:opacity .22s var(--ease-out),transform .22s var(--ease-out)}
+.dk .win{left:50%;top:50%;width:min(580px,calc(100% - 32px));max-height:calc(100% - 40px);transform:translate(-50%,-50%);border-radius:20px;box-shadow:var(--sh-2)}
+.dk .win.gone{opacity:0;transform:translate(-50%,-48%) scale(.97);pointer-events:none;transition-duration:.16s}
+.ph .win{inset:0;padding-top:46px}
+.ph .win.gone{opacity:0;transform:translateY(16px);pointer-events:none;transition-duration:.16s}
+.w-head{display:flex;align-items:center;gap:14px;padding:18px 24px 0;flex:none}
+.ph .w-head{padding:8px 18px 0}
+/* progress: one segment per question, a wider gap between chapters */
+.prog{flex:1;display:flex;gap:8px;min-width:0}
+.prog .ch{display:flex;gap:3px;flex:var(--n)}
+.prog i{display:block;flex:1;height:4px;border-radius:2px;background:var(--paper-3);position:relative;overflow:hidden}
+.prog i::after{content:"";position:absolute;inset:0;background:var(--brand-2);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--ease-out)}
+.prog i.done::after,.prog i.on::after{transform:scaleX(1)}
+.prog i.skipped::after{transform:scaleX(1);background:var(--line-2)}
+.skip-all{border:0;background:none;color:var(--ink-2);font-weight:600;font-size:13px;padding:8px 10px;border-radius:9px;white-space:nowrap;margin-right:-10px}
+.ph .skip-all{min-height:44px}
+@media (hover:hover) and (pointer:fine){.skip-all:hover{background:var(--paper-2)}}
+.w-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;position:relative}
+.pane{padding:20px 24px 20px;animation:paneIn .24s var(--ease-out)}
+.ph .pane{padding:16px 18px 16px}
+.pane.back{animation-name:paneBack}
+@keyframes paneIn{from{opacity:0;transform:translateX(14px)}}
+@keyframes paneBack{from{opacity:0;transform:translateX(-14px)}}
+.eyebrow{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:12.5px;font-weight:650;color:var(--brand-2)}
+.eyebrow .opt{font-size:11px;font-weight:650;color:var(--meta);background:var(--paper-2);border-radius:5px;padding:1px 6px}
+.pane h2{margin:0;font-size:25px;font-weight:650;letter-spacing:-.022em;line-height:1.15;text-wrap:balance}
+.ph .pane h2{font-size:23px}
+.pane .lede{margin:6px 0 16px;color:var(--ink-2);font-size:14px;text-wrap:pretty}
+.w-foot{display:flex;align-items:center;gap:8px;padding:12px 24px 18px;border-top:1px solid var(--line);flex:none;background:var(--paper);border-radius:0 0 20px 20px}
+.ph .w-foot{padding:10px 18px 30px;flex-wrap:wrap;row-gap:0;border-radius:0}
+.w-foot .grow{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:11px;padding:0 18px;height:42px;font-size:14px;font-weight:600;transition:transform .12s var(--ease-out),background-color .15s ease,opacity .15s ease;white-space:nowrap}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn i{font-size:16px}
+.ph .btn{height:48px}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:disabled{background:var(--paper-3);color:var(--ink-3)}
+.btn-quiet{background:transparent;color:var(--ink-2)}
+.btn-soft{background:var(--paper-2);color:var(--ink)}
+.btn-icon{width:42px;padding:0}
+.ph .btn-icon{width:48px}
+@media (hover:hover) and (pointer:fine){.btn-primary:not(:disabled):hover{background:#00451f}.btn-quiet:hover,.btn-soft:hover{background:var(--paper-3)}}
+.btn-sm{height:32px;padding:0 10px;font-size:12.5px;border-radius:8px}
+.ph .btn-sm{height:40px}
+
+/* what matters: a big picture over a short list of answers */
+.picbox{position:relative;height:150px;border-radius:16px;background:var(--paper-2);display:grid;place-items:center;margin:0 0 6px;overflow:hidden}
+.ph .picbox{height:128px}
+.picbox svg{display:block;max-width:calc(100% - 24px)}
+.pic-say{margin:0 0 14px;min-height:20px;font-size:13px;color:var(--ink-2);text-align:center;transition:opacity .15s ease}
+.pic-say.idle{color:var(--meta)}
+.answers{display:flex;flex-direction:column;gap:6px}
+.ans{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);text-align:left;font-size:14.5px;font-weight:550;transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease,transform .12s var(--ease-out)}
+.ans:active{transform:scale(.985)}
+.ans .dot{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line-2);flex:none;display:grid;place-items:center;transition:box-shadow .15s ease}
+.ans .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand-2);transform:scale(0.4);opacity:0;transition:transform .18s var(--ease-out),opacity .15s ease}
+.ans[aria-checked="true"]{border-color:var(--brand-2);background:var(--brand-soft);box-shadow:0 0 0 1px var(--brand-2)}
+.ans[aria-checked="true"] .dot{box-shadow:inset 0 0 0 1.5px var(--brand-2)}
+.ans[aria-checked="true"] .dot::after{transform:scale(1);opacity:1}
+.ans .hint{margin-left:auto;font-size:12px;font-weight:500;color:var(--meta)}
+@media (hover:hover) and (pointer:fine){.ans:hover{border-color:var(--line-2)}.ans[aria-checked="true"]:hover{border-color:var(--brand-2)}}
+
+/* shape of your days: one day drawn as a strip, then the week */
+.day{margin:0 0 4px}
+.day-cap{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--meta);margin:0 2px 26px}
+.day-cap b{color:var(--ink-2);font-weight:650}
+.day-track{position:relative;height:60px;border-radius:12px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);touch-action:pan-y}
+.day-track .hz{position:absolute;top:0;bottom:0;background-color:var(--paper-2);background-image:var(--hatch)}
+.day-track .hz.a{left:0;border-radius:12px 0 0 12px}
+.day-track .hz.b{right:0;border-radius:0 12px 12px 0}
+.day-track .tick{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.dblk{position:absolute;top:10px;bottom:10px;left:0;width:var(--w);padding:0 1.5px;transition:transform .34s var(--ease-io),opacity .2s ease}
+.dblk>div{height:100%;border-radius:7px;background:var(--hs);box-shadow:inset 3px 0 0 var(--hc);color:color-mix(in oklab,var(--hc) 72%,#000);font-size:10.5px;font-weight:650;padding:4px 6px;overflow:hidden;white-space:nowrap;line-height:1.2}
+.dblk.busy>div{background:var(--c2s);box-shadow:inset 3px 0 0 var(--c2)}
+.dgap{position:absolute;top:-22px;left:0;transform:translateX(-50%);font-size:11px;font-weight:650;color:var(--brand);white-space:nowrap;transition:left .34s var(--ease-io),opacity .2s ease;font-variant-numeric:tabular-nums}
+.dgap::after{content:"";position:absolute;left:50%;top:17px;width:1px;height:12px;background:var(--brand-2);opacity:.6}
+.dknob{position:absolute;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--paper);border:1.5px solid var(--brand-2);color:var(--brand-2);display:grid;place-items:center;z-index:3;touch-action:none;cursor:ew-resize;box-shadow:var(--sh-1);padding:0;transition:left .2s var(--ease-out),transform .12s var(--ease-out)}
+.dknob i{font-size:16px}
+.dknob::before{content:"";position:absolute;inset:-8px}
+.dknob:active{transform:scale(.94)}
+.dknob.drag{transition:transform .12s var(--ease-out)}
+.dknob:focus-visible{border-radius:50%}
+.dknob .lab{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:650;color:var(--ink);white-space:nowrap;background:var(--paper);padding:0 3px;border-radius:4px}
+.dknob[data-k="end"] .lab{left:auto;right:-2px;transform:none}
+.dknob[data-k="start"] .lab{left:-2px;transform:none}
+.day-axis{position:relative;height:16px;margin-top:4px;font-size:10.5px;color:var(--meta);font-variant-numeric:tabular-nums}
+.day-axis span{position:absolute;transform:translateX(-50%)}
+.limits{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px}
+.ph .limits{grid-template-columns:1fr}
+.lim{display:flex;align-items:center;gap:10px;border-radius:12px;background:var(--paper-2);padding:6px 6px 6px 12px}
+.lim i.hgi{font-size:18px;color:var(--brand-2)}
+.lim .tx{flex:1;min-width:0;line-height:1.2}
+.lim .tx b{display:block;font-size:13px;font-weight:650}
+.lim .tx span{display:block;font-size:12px;color:var(--meta)}
+.step{display:inline-flex;gap:2px;flex:none}
+.step button{width:34px;height:34px;border:0;border-radius:9px;background:var(--paper);display:grid;place-items:center;color:var(--ink-2);box-shadow:var(--sh-1);transition:transform .12s var(--ease-out)}
+.step button:active:not(:disabled){transform:scale(.94)}
+.step button:disabled{opacity:.4}
+.ph .step button{width:44px;height:44px}
+.step i{font-size:15px}
+.mini{margin-top:14px;border-radius:14px;background:var(--paper-2);padding:10px 10px 8px}
+.mini-cap{display:flex;justify-content:space-between;font-size:11.5px;color:var(--meta);margin:0 2px 6px}
+
+/* picture slider (same as Preferences) */
+.sl{padding:2px 0 0;margin-top:16px}
+.sl-label{font-size:13px;font-weight:650;margin:0 0 -2px}
+.sl-row{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:10px}
+.sl-pic{width:32px;height:32px;display:grid;place-items:center;color:var(--ink-4);transition:color .18s ease,transform .18s var(--ease-out)}
+.sl-pic svg{display:block}
+.sl-pic.on{color:var(--brand-2);transform:scale(1.08)}
+.sl-track{position:relative;height:44px;touch-action:pan-y;cursor:pointer}
+.sl-in{position:absolute;left:11px;right:11px;top:50%;height:0}
+.sl-rail{position:absolute;left:-11px;right:-11px;top:-2px;height:4px;border-radius:2px;background:var(--paper-3)}
+.sl-tick{position:absolute;top:-2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--line-2)}
+.sl-fill{position:absolute;top:-2px;height:4px;width:100%;left:0;transform-origin:left center;background:var(--brand-2);border-radius:2px}
+.sl-run{position:absolute;left:0;top:0;width:100%;height:0;transition:transform .16s var(--ease-out)}
+.sl-thumb{position:absolute;left:-11px;top:-11px;width:22px;height:22px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1px var(--line-2),0 2px 6px rgba(20,40,22,.18);transition:transform .12s var(--ease-out)}
+.sl-track.drag .sl-run{transition:none}
+.sl-track.drag .sl-thumb{transform:scale(1.1)}
+.sl-track:focus-visible{outline:none}
+.sl-track:focus-visible .sl-thumb{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--brand-2)}
+.sl-ends{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--meta);margin-top:-6px}
+.sl-ends .on{color:var(--ink);font-weight:600}
+.sl-out{margin:4px 0 0;font-size:12.5px;color:var(--ink-2);min-height:18px}
+
+/* week view (the frame's Week, the mini preview and the last step) */
+.wv{display:grid;grid-template-columns:var(--gut,44px) minmax(0,1fr);-webkit-user-select:none;user-select:none}
+.wv-days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.wv-day{min-height:var(--head,34px);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--ink-2)}
+.wv-day.off span{text-decoration:line-through;color:var(--ink-3)}
+.wv-gut{position:relative}
+.wv-hour{position:absolute;right:17px;transform:translateY(-50%);font-size:10px;color:var(--meta);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wv-body{position:relative;height:calc(28 * var(--rowh));border-radius:10px;background-color:var(--paper);background-image:linear-gradient(to bottom,var(--line) 1px,transparent 1px),linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:100% calc(var(--rowh) * 2),20% 100%;box-shadow:inset 0 0 0 1px var(--line)}
+.wv-l{position:absolute;inset:0;pointer-events:none}
+.wv-ow{position:absolute;left:0;right:0;background-color:var(--paper-2);background-image:var(--hatch)}
+.wv-ow.top{top:0;border-radius:10px 10px 0 0}.wv-ow.bot{bottom:0;border-radius:0 0 10px 10px}
+.wv-off{position:absolute;top:0;bottom:0;width:20%;background-color:var(--paper-2);background-image:var(--hatch)}
+.wv-soft{position:absolute;top:2px;bottom:2px;width:calc(20% - 4px);margin-left:2px;border:1.5px dashed var(--attn);border-radius:8px;background:rgba(251,243,223,.45)}
+.wv-edge{position:absolute;left:0;right:0;border-top:1.5px solid var(--brand-2);opacity:.8}
+.wv-b{position:absolute;padding:1.5px 2px}
+.wv-b>div{height:100%;border-radius:6px;overflow:hidden;font-size:10.5px;font-weight:650;line-height:1.15;padding:3px 5px;background:var(--hs);box-shadow:inset 3px 0 0 var(--hc);color:color-mix(in oklab,var(--hc) 72%,#000)}
+.cr{position:absolute;top:0;left:0;width:20%;padding:1.5px 2.5px;transition:transform .32s var(--ease-io),opacity .2s ease}
+.cr>div{height:100%;border-radius:6px;background:var(--hs);box-shadow:inset 3px 0 0 var(--hc);padding:3px 5px;overflow:hidden;color:color-mix(in oklab,var(--hc) 72%,#000);font-size:10.5px;font-weight:650;line-height:1.2}
+.cr small{display:block;font-weight:500;font-size:10px;opacity:.9}
+.cr.gone{opacity:0}
+.wv--mini .cr>div,.wv--mini .wv-b>div{font-size:0;padding:0;border-radius:3px;box-shadow:none;background:var(--hc);opacity:.8}
+.wv--mini .wv-day{min-height:20px;font-size:10.5px;color:var(--meta)}
+.wv--mini .wv-body{border-radius:8px}
+.wv-faint{opacity:.5;transition:opacity .4s ease}
+.wk.built .wv-faint{opacity:1}
+.wk.built .cr{animation:crIn .4s var(--ease-out) backwards;animation-delay:calc(var(--i) * 45ms)}
+@keyframes crIn{from{opacity:0;transform:var(--t) translateY(-6%)}}
+
+/* in your own words (optional) */
+.tb{position:relative;border:1px solid var(--line-2);border-radius:12px;background:var(--paper);transition:border-color .15s ease,box-shadow .15s ease}
+.tb:focus-within{border-color:var(--brand-2);box-shadow:0 0 0 3px var(--brand-soft)}
+.tb-mirror,.tb textarea{font:inherit;font-size:16px;line-height:1.6;padding:12px 14px;margin:0;border:0;white-space:pre-wrap;overflow-wrap:break-word;letter-spacing:normal}
+.tb-mirror{position:absolute;inset:0;color:transparent;pointer-events:none;overflow:hidden}
+.tb textarea{position:relative;display:block;width:100%;min-height:96px;resize:none;overflow:hidden;background:transparent;color:var(--ink);caret-color:var(--brand-2)}
+.tb textarea::placeholder{color:var(--ink-3)}
+.tb-mirror .ok{text-decoration:underline 2px var(--brand-2);text-underline-offset:5px;text-decoration-skip-ink:none}
+.tb-mirror .ask{text-decoration:underline dotted 2px var(--attn);text-underline-offset:5px;text-decoration-skip-ink:none}
+.tb-mirror .bad{background:var(--attn-bg);border-radius:4px;text-decoration:underline wavy 1.5px var(--attn);text-underline-offset:5px;text-decoration-skip-ink:none}
+.facts{list-style:none;margin:6px 0 0;padding:0}
+.facts-h{font-size:12px;font-weight:650;color:var(--meta);margin:16px 0 2px}
+.fact{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 0;border-top:1px solid var(--line);animation:rowIn .2s var(--ease-out)}
+.fact:first-child{border-top:0}
+@keyframes rowIn{from{opacity:0;transform:translateY(-3px)}}
+.fact .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand);flex:none}
+.fact .ic i{font-size:16px}
+.fact.warn .ic{background:var(--attn-bg);color:var(--attn)}
+.fact .tx{flex:1;min-width:0;font-size:14px}
+.fact .tx b{font-weight:600}
+.fact .tx span{display:block;font-size:12px;color:var(--meta)}
+.fact .x{width:36px;height:36px;border:0;background:none;border-radius:9px;color:var(--ink-3);display:grid;place-items:center;flex:none}
+.ph .fact .x{width:44px;height:44px}
+@media (hover:hover) and (pointer:fine){.fact .x:hover{background:var(--paper-2);color:var(--ink)}}
+.fact select,.fact input.nm{height:34px;border:1px solid var(--line-2);border-radius:8px;background:var(--paper);padding:0 8px;font-size:13.5px}
+.ph .fact select,.ph .fact input.nm{height:40px;font-size:16px}
+.ask-q{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
+.ask-q span{font-size:12.5px;color:var(--attn);font-weight:600;margin-right:2px}
+.choice{display:inline-flex;background:var(--paper-2);border-radius:9px;padding:3px;gap:2px}
+.choice button{border:0;background:transparent;border-radius:7px;height:30px;padding:0 10px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.ph .choice button{height:38px}
+.choice button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:var(--sh-1)}
+
+/* looking ahead (optional): a semester ribbon */
+.rib{margin:4px 0 0;overflow-x:auto;padding-bottom:4px}
+.rib-grid{display:grid;grid-template-columns:72px repeat(11,minmax(26px,1fr));gap:3px;align-items:center;min-width:420px}
+.ph .rib-grid{grid-template-columns:repeat(11,minmax(0,1fr));min-width:0}
+.ph .rib-lab{grid-column:1/-1;margin-top:4px}
+.ph .rib-lab:empty{display:none}
+.rib-lab{font-size:12px;font-weight:600;color:var(--ink-2)}
+.rib-cell{height:44px;border:0;border-radius:7px;background:var(--paper-2);display:grid;place-items:center;padding:0;color:var(--ink-3);transition:background-color .15s ease,color .15s ease}
+.rib-cell.su{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.rib-cell.past{opacity:.45}
+.rib-cell.span{background:var(--brand-soft)}
+.rib-cell.grad{background:var(--brand-2);color:#fff}
+.rib-cell.coop{background:var(--c4s);color:var(--c4);box-shadow:inset 0 0 0 1.5px var(--c4)}
+.rib-cell i{font-size:16px}
+.rib-term{font-size:10px;color:var(--meta);text-align:center;line-height:1.1;font-variant-numeric:tabular-nums}
+.rib-say{font-size:13px;color:var(--ink-2);margin:10px 0 0;min-height:20px}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:18px}
+.field label{font-size:13px;font-weight:600}
+.field input{height:44px;border:1px solid var(--line-2);border-radius:10px;padding:0 12px;font-size:16px;background:var(--paper)}
+.field input:focus{border-color:var(--brand-2);box-shadow:0 0 0 3px var(--brand-soft)}
+.field small{font-size:12px;color:var(--meta)}
+.ghead{font-size:12.5px;color:var(--meta);margin:0 0 6px}
+
+/* ready */
+.final-week{border-radius:14px;background:var(--paper-2);padding:10px;margin-bottom:12px}
+.lean-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:0 0 12px}
+.ls{border:1px solid var(--line);border-radius:11px;padding:5px 5px 6px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.ls .p{height:36px;border-radius:7px;background:var(--paper-2);display:grid;place-items:center;overflow:hidden}
+.ls .p svg{display:block;max-width:100%}
+.ls b{font-size:11px;font-weight:650;line-height:1.2;color:var(--ink-2)}
+.ls span{font-size:11px;color:var(--meta);line-height:1.2}
+.strip-h{font-size:12px;font-weight:650;color:var(--meta);margin:0 0 6px}
+.preset-line{display:flex;align-items:center;gap:10px;min-height:52px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.preset-line i{color:var(--brand-2)}
+.preset-line .tx{flex:1;font-size:13.5px;color:var(--ink-2)}
+.preset-line input{border:0;border-bottom:1.5px dashed var(--line-2);background:transparent;font-weight:650;color:var(--ink);width:8.5em;padding:2px 0;font-size:13.5px}
+.ph .preset-line input{font-size:16px}
+.preset-line input:focus{border-bottom:1.5px solid var(--brand-2)}
+.home{display:flex;gap:12px;align-items:center;padding:12px 0 2px}
+.home .tx{flex:1;font-size:13px;color:var(--ink-2)}
+.sw{position:relative;width:40px;height:24px;border-radius:12px;border:0;background:var(--line-2);flex:none;padding:0;transition:background-color .18s ease}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(20,40,22,.25);transition:transform .18s var(--ease-out)}
+.sw[aria-checked="true"]{background:var(--brand-2)}
+.sw[aria-checked="true"]::after{transform:translateX(16px)}
+.sw::before{content:"";position:absolute;inset:-10px -4px}
+.dont{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);min-height:44px}
+.ph .dont{order:-1;flex-basis:100%}
+.dont input{width:18px;height:18px;accent-color:var(--brand-2)}
+
+.toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px 10px 14px;font-size:13px;display:flex;gap:10px;align-items:center;box-shadow:var(--sh-2);z-index:8;transition:opacity .22s var(--ease-out),transform .22s var(--ease-out);width:max-content;max-width:calc(100% - 24px)}
+.toast.off{opacity:0;transform:translate(-50%,10px);pointer-events:none}
+.toast i{color:#9fe2bb}
+.toast button{border:0;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;height:30px;padding:0 10px;font-size:12.5px;font-weight:600}
+.ph .toast{bottom:34px}
+.ph .toast button{height:40px}
+
+@media (prefers-reduced-motion:reduce){
+  .mock *,.mock *::before,.mock *::after{transition-property:opacity,background-color,color,border-color,box-shadow!important;animation-name:fadeOnly!important}
+  .dk .win.gone{transform:translate(-50%,-50%)}
+  .ph .win.gone{transform:none}
+  .top-btn.here::after{animation:none!important}
+}
+@keyframes fadeOnly{from{opacity:0}}
+</style>
+</head>
+<body>
+<div class="mock" id="app">
+  <header class="rv">
+    <div class="rv-top"><span class="rv-mark">UNTangle</span><span class="rv-title">Onboarding: tell us about your week</span><span class="rv-tag">Round 3. One question per screen on desktop too. It opens over the Week before the first build. Skip any question, or all of them. Desktop and phone share one state.</span></div>
+    <div class="rv-dirs" role="tablist" aria-label="Jump to a chapter">
+      <button class="rv-dir" role="tab" data-step="0" aria-selected="true"><b>What matters most</b><span>Four questions, one per screen</span></button>
+      <button class="rv-dir" role="tab" data-step="4" aria-selected="false"><b>Shape of your days</b><span>Start, end and gaps, shown on a day</span></button>
+      <button class="rv-dir" role="tab" data-step="5" aria-selected="false"><b>In your own words</b><span>Optional typed step</span></button>
+      <button class="rv-dir" role="tab" data-step="6" aria-selected="false"><b>Looking ahead</b><span>Optional</span></button>
+      <button class="rv-dir" role="tab" data-step="7" aria-selected="false"><b>Ready</b><span>Build the week</span></button>
+    </div>
+    <p class="rv-line">Pick an answer and the picture shows what Auto will do. Continue moves on; Skip this question keeps Auto's default; Skip setup leaves. On the shape step, drag the sun and moon along the day or use the buttons, and slide the gaps.</p>
+    <div class="rv-tools">
+      <span><span class="demo">Demo</span> Typed step</span><span class="rv-seg" id="rv-text"><button data-v="ex" aria-pressed="true">Example filled</button><button data-v="empty">Empty</button></span>
+      <label><input type="checkbox" id="rv-notes"> Review notes</label>
+      <button class="rv-link" id="rv-replay">Replay from the start</button>
+    </div>
+    <p class="rn"><b>Demo control:</b> "Typed step" fills the optional text box with an example, so you can see what the parser understood without typing. The chapter tabs above jump straight to a step.</p>
+  </header>
+  <div class="stage">
+    <figure class="view"><figcaption>Desktop, 1440 wide</figcaption><div class="dk" id="dk"></div></figure>
+    <figure class="view"><figcaption>Phone, 390 wide</figcaption><div class="ph"><div class="ph-screen" id="ph"></div></div></figure>
+  </div>
+</div>
+<script>
+(() => {
+"use strict";
+const T0 = 480, T1 = 1320, SPAN = T1 - T0, STEP = 30, R = SPAN / STEP;
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"], PLURAL = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays"], DAYNAME = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), lerp = (a, b, t) => a + (b - a) * t;
+const at = (v, pts) => { const x = clamp(v, 0, pts.length - 1), i = Math.min(pts.length - 2, Math.floor(x)); return lerp(pts[i], pts[i + 1], x - i); };
+const fmt = (m, sfx = true) => { const hh = Math.floor(m / 60), mm = m % 60; return (hh % 12 || 12) + (mm ? ":" + String(mm).padStart(2, "0") : "") + (sfx ? (hh >= 12 ? " PM" : " AM") : ""); };
+const range = (a, b) => ((a >= 720) === (b >= 720) ? `${fmt(a, false)}–${fmt(b)}` : `${fmt(a)}–${fmt(b)}`);
+const dayList = (ds) => { if (ds.length === 5) return "Every weekday"; const n = ds.map((d) => DAYS[d]); return n.length < 2 ? n.join("") : n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; };
+const h = (s) => { const t = document.createElement("template"); t.innerHTML = s.trim(); return t.content.firstElementChild; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+const uid = (p) => p + Math.random().toString(36).slice(2, 7);
+const EXAMPLE = "I work Tue/Thu 3–5, Fridays off if possible, classes near the music building";
+
+/* ================= the questions =================
+   Each "what matters" question sets one planner weight (0..4), the same
+   fields as the Preferences cards. Time of day sets mornings or evenings. */
+const LEVEL = ["Doesn't matter", "A little", "Some", "A lot", "Most"];
+const Q = {
+  time: { q: "When do you like your classes?", title: "Time of day", bi: true, min: -2,
+    opts: [[-2, "As early as I can"], [-1, "Mornings, if they fit"], [0, "No preference"], [1, "Afternoons, if they fit"], [2, "As late as I can"]],
+    say: ["Auto puts classes as early in the day as it can.", "Auto leans toward morning sections.", "Auto puts classes wherever they fit best.", "Auto leans toward afternoon sections.", "Auto puts classes as late in the day as it can."],
+    val: ["As early as it can", "Earlier", "Any time", "Later", "As late as it can"],
+    weights: (v) => { const w = [0, 2, 4][Math.abs(v)]; return `mornings = ${v < 0 ? w : 0}, evenings = ${v > 0 ? w : 0}`; } },
+  fewerDays: { q: "How much do fewer days on campus matter?", title: "Fewer days on campus", min: 0,
+    opts: [[0, "Doesn't matter"], [1, "A little"], [2, "Some"], [3, "A lot"], [4, "More than anything"]],
+    say: ["Auto uses whichever days fit best.", "Auto breaks ties toward fewer days.", "Auto favors fewer days on campus.", "Auto strongly favors fewer days on campus.", "Auto fits classes into as few days as it can."],
+    val: LEVEL, weights: (v) => `fewerDays = ${v}` },
+  walking: { q: "How much do short walks between classes matter?", title: "Short walks", min: 0,
+    opts: [[0, "Doesn't matter"], [1, "A little"], [2, "Some"], [3, "A lot"], [4, "More than anything"]],
+    say: ["Auto doesn't weigh walking distance.", "Auto breaks ties toward shorter walks.", "Auto favors nearby buildings.", "Auto strongly favors nearby buildings.", "Auto counts short walks above everything else it leans on."],
+    val: LEVEL, weights: (v) => `walking = ${v}` },
+  rating: { q: "How much do well-rated instructors matter?", title: "Well-rated instructors", min: 0, sub: "From student star ratings.",
+    opts: [[0, "Doesn't matter"], [1, "A little"], [2, "Some"], [3, "A lot"], [4, "More than anything"]],
+    say: ["Auto doesn't look at instructor ratings.", "Auto breaks ties toward better-rated instructors.", "Auto favors instructors students rate highly.", "Auto strongly favors highly rated instructors.", "Auto counts instructor ratings above everything else it leans on."],
+    val: LEVEL, weights: (v) => `rating = ${v}` },
+};
+const STEPS = [
+  { id: "time", ch: 0 }, { id: "fewerDays", ch: 0 }, { id: "walking", ch: 0 }, { id: "rating", ch: 0 },
+  { id: "shape", ch: 1 }, { id: "words", ch: 2, optional: true }, { id: "ahead", ch: 3, optional: true }, { id: "ready", ch: 4 },
+];
+const CHAPTERS = ["What matters most", "Shape of your days", "In your own words", "Looking ahead", "Ready"];
+const LAST = STEPS.length - 1;
+
+/* ================= state ================= */
+const fresh = () => ({
+  step: 0, back: false, done: null,
+  /* null means not answered: Auto keeps its default for that weight */
+  time: null, fewerDays: null, walking: null, rating: null, compact: 2,
+  win: { start: 540, end: 1320 }, daysOff: [], softOff: [], busy: Array(5 * R).fill(null),
+  text: "", answers: {}, ignored: [], accepted: [], applied: {},
+  grad: 7, coop: [2], minor: "", preset: "My week", remind: true, dontAsk: false,
+  skipped: [],
+});
+function createStore(init) {
+  let s = init; const subs = new Set();
+  return { get: () => s, set(p) { s = { ...s, ...(typeof p === "function" ? p(s) : p) }; subs.forEach((f) => f(s)); }, sub(f) { subs.add(f); f(s); return () => subs.delete(f); } };
+}
+const store = createStore(fresh());
+const subs = [];
+const watch = (f) => subs.push(store.sub(f));
+const val = (s, k) => (s[k] === null ? (k === "time" ? 0 : k === "fewerDays" ? 2 : 0) : s[k]);
+
+/* ================= parsing the optional typed step =================
+   A stand-in for alpha's rule-based parser (preferences/parse.ts): enough
+   rules to show understood, hedged and not-understood phrases. */
+const DAYRE = "(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?)s?";
+const dayIdx = (w) => { w = w.toLowerCase(); return w.startsWith("mo") ? 0 : w.startsWith("tu") ? 1 : w.startsWith("we") ? 2 : w.startsWith("th") ? 3 : 4; };
+const toMin = (hh, mm, ap, guess = true) => { hh = +hh; mm = +(mm || 0); if (ap) { ap = ap[0].toLowerCase(); if (ap === "p" && hh < 12) hh += 12; if (ap === "a" && hh === 12) hh = 0; } else if (guess && hh < 8) hh += 12; return hh * 60 + mm; };
+const HEDGE = /\b(if possible|ideally|preferably|prefer|would be nice|if i can|hopefully|try to|rather)\b/i;
+function matchClause(c) {
+  const out = [], hedged = HEDGE.test(c); let x;
+  if ((x = c.match(/\bno (\d{1,2})\s?(?:am|a\.m\.)?'?s\b/i))) out.push({ kind: "start", v: toMin(x[1], 0, "am") + 60 });
+  else if ((x = c.match(/\b(?:nothing|no class(?:es)?|not) (?:before|earlier than) (\d{1,2})(?::(\d\d))?\s?(am|pm)?/i))) out.push({ kind: "start", v: toMin(x[1], x[2], x[3] || "am") });
+  if ((x = c.match(/\b(?:done|finished|out|home|free|end(?:ing)?) by (\d{1,2})(?::(\d\d))?\s?(am|pm)?/i)) || (x = c.match(/\bno class(?:es)? after (\d{1,2})(?::(\d\d))?\s?(am|pm)?/i))) out.push({ kind: "end", v: toMin(x[1], x[2], x[3]) });
+  if ((x = c.match(new RegExp("\\b" + DAYRE + " off\\b", "i"))) || (x = c.match(new RegExp("\\bno class(?:es)? on " + DAYRE, "i")))) out.push({ kind: "off", d: dayIdx(x[1]), hedged });
+  if ((x = c.match(/\b(work|practice|rehearsal|gym|job|shift|band|club)\b/i))) {
+    const days = [...c.matchAll(new RegExp("\\b" + DAYRE + "\\b", "gi"))].map((m) => dayIdx(m[1]));
+    const t = c.match(/(\d{1,2})(?::(\d\d))?\s?(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d\d))?\s?(am|pm)?/i);
+    if (days.length && t) {
+      let a = toMin(t[1], t[2], t[3] || t[6]), b = toMin(t[4], t[5], t[6]);
+      if (b <= a) b += 720;
+      const label = x[1][0].toUpperCase() + x[1].slice(1).toLowerCase();
+      a = clamp(a, T0, T1); b = clamp(b, T0, T1);
+      if (b > a) out.push({ kind: "busy", label: label === "Job" || label === "Shift" ? "Work" : label, days: [...new Set(days)].sort(), a, b });
+    }
+  }
+  if (/\blunch\b/i.test(c)) out.push({ kind: "busy", label: "Lunch", days: [0, 1, 2, 3, 4], a: 720, b: 780 });
+  return out;
+}
+const keyOf = (f) => (f.kind === "busy" ? `busy:${f.label}:${f.days}:${f.a}:${f.b}` : f.kind === "off" ? `off:${f.d}:${f.hedged ? "h" : ""}` : `${f.kind}:${f.v}`);
+function parse(text) {
+  const facts = [], unknown = [], re = /[^,.;\n]+/g; let m;
+  while ((m = re.exec(text))) {
+    const raw = m[0], lead = raw.length - raw.trimStart().length, c = raw.trim(); if (!c) continue;
+    const span = [m.index + lead, m.index + lead + c.length], got = matchClause(c);
+    if (got.length) got.forEach((f) => facts.push({ ...f, span, text: c, key: keyOf(f) }));
+    else unknown.push({ span, text: c, suggest: /\b(near|close to|by the|next to)\b/i.test(c) ? { label: "Make short walks matter a lot" } : null });
+  }
+  return { facts, unknown };
+}
+const hedgedPending = (s, f) => f.kind === "off" && f.hedged && !s.answers[f.key];
+function applyFact(s, f, on) {
+  const p = {};
+  if (f.kind === "start") p.win = { ...s.win, start: on ? f.v : T0 };
+  if (f.kind === "end") p.win = { ...s.win, end: on ? f.v : T1 };
+  if (f.kind === "off") {
+    const must = !f.hedged || s.answers[f.key] === "must";
+    const drop = (arr) => arr.filter((d) => d !== f.d);
+    p.daysOff = on && must ? [...new Set([...drop(s.daysOff), f.d])] : drop(s.daysOff);
+    p.softOff = on && !must ? [...new Set([...drop(s.softOff), f.d])] : drop(s.softOff);
+  }
+  if (f.kind === "busy") {
+    const b = s.busy.slice();
+    f.days.forEach((d) => { for (let m = f.a; m < f.b; m += STEP) b[d * R + (m - T0) / STEP] = on ? f.label : null; });
+    p.busy = b;
+  }
+  return p;
+}
+function syncText(text) {
+  store.set((s) => {
+    let n = { ...s, text };
+    const { facts } = parse(text), now = new Set(facts.map((f) => f.key)), applied = { ...s.applied };
+    Object.entries(s.applied).forEach(([k, f]) => { if (!now.has(k)) { n = { ...n, ...applyFact(n, f, false) }; delete applied[k]; } });
+    facts.forEach((f) => { if (!applied[f.key]) { n = { ...n, ...applyFact(n, f, true) }; applied[f.key] = f; } });
+    n.applied = applied;
+    return n;
+  });
+}
+const answer = (key, v) => store.set((s) => { const f = s.applied[key]; const n = { ...s, answers: { ...s.answers, [key]: v } }; return { ...n, ...applyFact(n, f, true) }; });
+
+/* ================= the week (same picture as Preferences) ================= */
+function runsOf(busy) {
+  const out = [];
+  for (let d = 0; d < 5; d++) { let r = 0; while (r < R) { if (busy[d * R + r] === null) { r++; continue; } let e = r, label = ""; while (e < R && busy[d * R + e] !== null) { if (!label && busy[d * R + e]) label = busy[d * R + e]; e++; } out.push({ d, r0: r, r1: e, label }); r = e; } }
+  return out;
+}
+const CART = [{ code: "MATH 1710", hue: 3 }, { code: "CSCE 1030", hue: 1 }, { code: "ENGL 1320", hue: 2 }, { code: "HIST 2610", hue: 5 }];
+function layout(s) {
+  const active = [0, 1, 2, 3, 4].filter((d) => !s.daysOff.includes(d));
+  const prefer = active.filter((d) => !s.softOff.includes(d)).length ? active.filter((d) => !s.softOff.includes(d)) : active;
+  const occ = [[], [], [], [], []]; runsOf(s.busy).forEach((u) => occ[u.d].push([T0 + u.r0 * STEP, T0 + u.r1 * STEP]));
+  const ws = s.win.start, we = s.win.end, out = [], flow = [];
+  CART.forEach((c, ci) => { for (let k = 0; k < 2; k++) flow.push({ id: ci * 3 + k, code: c.code, hue: c.hue, len: 80 }); });
+  flow.push({ id: 20, code: "CSCE 1030 lab", hue: 6, len: 110 });
+  if (!active.length) return out;
+  const t = val(s, "time"), fd = val(s, "fewerDays");
+  const nd = clamp(Math.round(at(fd, [5, 4, 4, 3, 2])), 1, prefer.length);
+  const days = [1, 3, 0, 2, 4].filter((d) => prefer.includes(d)).slice(0, nd).sort((a, b) => a - b);
+  const per = days.map(() => []); flow.forEach((m, i) => per[i % nd].push(m));
+  const gap = at(s.compact, [60, 45, 30, 15, 10]);
+  const tryAt = (d, m, from) => { let a = Math.max(ws, from); for (let n = 0; n < 60 && a + m.len <= we; n++) { const hit = occ[d].find(([x, y]) => a < y && a + m.len > x); if (!hit) return a; a = Math.ceil((hit[1] + 10) / 5) * 5; } return null; };
+  days.forEach((d, j) => {
+    const list = per[j], total = list.reduce((a, m) => a + m.len, 0) + gap * (list.length - 1);
+    const mid = Math.max(ws, 600), late = Math.max(ws, we - total - 60);
+    let cur = Math.round((t <= 0 ? lerp(mid, ws, -t / 2) : lerp(mid, late, t / 2)) / 5) * 5;
+    list.forEach((m) => { let a = tryAt(d, m, cur), dd = d; if (a === null) for (const o of active) { const r = tryAt(o, m, ws); if (r !== null) { a = r; dd = o; break; } } if (a === null) return; out.push({ ...m, d: dd, start: a }); occ[dd].push([a, a + m.len]); if (dd === d) cur = a + m.len + gap; });
+  });
+  return out;
+}
+
+/* ================= pictures (the same drawings as the Preferences cards) ================= */
+function timePic(v, W = 120, H = 56, tint = true) {
+  const small = W < 50, sr = small ? 4 : Math.max(6, H * 0.12), cx = W / 2, cy = H - (small ? 3 : 10), r = Math.min(W / 2 - sr - 3, H - sr * 2 - 8), th = Math.PI * (1 - (clamp(v, -2, 2) + 2) / 4);
+  const x = cx + r * Math.cos(th), y = cy - r * Math.sin(th), moon = v > 1.2;
+  const sky = `<path d="M${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="none" stroke="var(--ink-4)" stroke-width="${small ? 1.5 : 1.8}" stroke-dasharray="${small ? "1.5 2.5" : "2 4"}" stroke-linecap="round"/>`;
+  const ground = `<line x1="${small ? 1 : 6}" x2="${W - (small ? 1 : 6)}" y1="${cy}" y2="${cy}" stroke="var(--ink-4)" stroke-width="1.2"/>`;
+  const fg = tint ? null : "currentColor";
+  const body = moon ? `<circle cx="${x}" cy="${y}" r="${sr}" fill="${fg || "var(--c3)"}"/><circle cx="${x + sr * 0.5}" cy="${y - sr * 0.4}" r="${sr * 0.85}" fill="var(--paper-2)"/>` : `<circle cx="${x}" cy="${y}" r="${sr}" fill="${fg || "#e0a52b"}"/>`;
+  const labels = W >= 200 ? `<text x="${cx - r}" y="${cy + 14}" text-anchor="middle" font-size="10.5" fill="var(--meta)">8 AM</text><text x="${cx}" y="${cy - r - 8}" text-anchor="middle" font-size="10.5" fill="var(--meta)">Noon</text><text x="${cx + r}" y="${cy + 14}" text-anchor="middle" font-size="10.5" fill="var(--meta)">10 PM</text>` : "";
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true" style="overflow:visible">${sky}${ground}${labels}${body}</svg>`;
+}
+function daysPic(v, W = 70, H = 46, tint = true) {
+  const nd = clamp(Math.round(at(v, [5, 4, 4, 3, 2])), 1, 5), on = [1, 3, 0, 2, 4].slice(0, nd).sort((a, b) => a - b);
+  const lab = W >= 140, top = lab ? 14 : H * 0.06, cw = W / 5, counts = [0, 0, 0, 0, 0], hues = [[], [], [], [], []], hs = [3, 1, 2, 5, 6];
+  for (let i = 0; i < 8; i++) { counts[on[i % nd]]++; hues[on[i % nd]].push(hs[i % 5]); }
+  const colH = H - top - (lab ? 2 : H * 0.06), bh = colH / 4.4;
+  let s = "";
+  for (let d = 0; d < 5; d++) {
+    const has = counts[d] > 0;
+    if (lab) s += `<text x="${d * cw + cw / 2}" y="10" text-anchor="middle" font-size="10" font-weight="600" fill="${has ? "var(--ink-2)" : "var(--ink-4)"}">${DAYS[d]}</text>`;
+    s += `<rect x="${d * cw + 1.5}" y="${top}" width="${cw - 3}" height="${colH}" rx="3" fill="${tint ? "var(--paper)" : "currentColor"}" opacity="${tint ? (has ? 1 : 0.45) : 0.12}"/>`;
+    for (let k = 0; k < counts[d]; k++) s += `<rect x="${d * cw + 1.5}" y="${top + 1 + k * (bh + 1)}" width="${cw - 3}" height="${bh}" rx="2" fill="${tint ? `var(--c${hues[d][k]})` : "currentColor"}" opacity="${tint ? 0.85 : 1}"/>`;
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`;
+}
+function gapsPic(v, W = 40, H = 46, tint = true) {
+  const g = at(v, [9, 6.5, 4.2, 2, 0.6]) * H / 46, L = H * 0.2, tot = 3 * L + 2 * g, y0 = (H - tot) / 2, x = W * 0.18, w = W * 0.64;
+  const fills = tint ? ["var(--c3)", "var(--c1)", "var(--c2)"] : ["currentColor", "currentColor", "currentColor"];
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${[0, 1, 2].map((i) => `<rect x="${x}" y="${y0 + i * (L + g)}" width="${w}" height="${L}" rx="${Math.max(1.6, H / 26)}" fill="${fills[i]}" opacity="${tint ? 0.85 : 0.55 + i * 0.15}"/>`).join("")}</svg>`;
+}
+function walkPic(v, W = 70, H = 46, tint = true) {
+  const t = clamp(v, 0, 4) / 4, b = Math.min(W, H) * 0.24, x2 = lerp(W - 4, W * 0.5, t), y2 = lerp(H * 0.34, H * 0.56, t);
+  const bc = tint ? "var(--ink-2)" : "currentColor", pc = tint ? "var(--brand-2)" : "currentColor", sw = Math.max(1.6, H / 22);
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><rect x="4" y="${H * 0.58}" width="${b}" height="${b}" rx="2" fill="${bc}"/><rect x="${x2 - b}" y="${y2 - b}" width="${b}" height="${b}" rx="2" fill="${bc}"/><path d="M${4 + b} ${H * 0.58 + b * 0.5} Q ${(x2 + 4) / 2} ${H * 0.98} ${x2 - b * 0.5} ${y2}" fill="none" stroke="${pc}" stroke-width="${sw}" stroke-dasharray="${sw} ${Math.max(2.4, H / 14)}" stroke-linecap="round"/></svg>`;
+}
+function starPath(cx, cy, R1) { const r2 = R1 * 0.45; let p = ""; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r2 : R1; p += (i ? "L" : "M") + (cx + rr * Math.cos(a)).toFixed(2) + " " + (cy + rr * Math.sin(a)).toFixed(2); } return p + "Z"; }
+function ratingPic(v, W = 70, H = 46, tint = true) {
+  const lit = at(v, [0, 2, 3, 4, 5]), n = 5, gap = W / n, R1 = Math.min(gap * 0.42, H * 0.3), cy = H / 2;
+  let s = "";
+  for (let i = 0; i < n; i++) {
+    const f = clamp(lit - i, 0, 1), cx = gap * (i + 0.5);
+    s += `<path d="${starPath(cx, cy, R1)}" fill="${tint ? "var(--paper)" : "none"}" stroke="${tint ? "var(--ink-4)" : "currentColor"}" stroke-width="1.2" stroke-linejoin="round" opacity="${tint ? 1 : 0.5}"/>`;
+    if (f > 0) s += `<path d="${starPath(cx, cy, R1)}" fill="${tint ? "#e0a52b" : "currentColor"}" opacity="${f}"/>`;
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`;
+}
+const PIC = { time: timePic, fewerDays: daysPic, compact: gapsPic, walking: walkPic, rating: ratingPic };
+const BIG = { time: [300, 120], fewerDays: [210, 110], walking: [200, 110], rating: [240, 70] };
+
+/* tween a number for a picture so it glides between answers instead of jumping */
+function tweener(draw) {
+  let cur = null, raf = 0;
+  return (to) => {
+    cancelAnimationFrame(raf);
+    if (cur === null || reduce.matches) { cur = to; draw(cur); return; }
+    const from = cur, t0 = performance.now(), dur = 280;
+    const tick = (now) => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); cur = from + (to - from) * e; draw(cur); if (p < 1) raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+  };
+}
+
+/* ================= components ================= */
+function WeekView({ mini = false, rowh = 10, faint = false, labels = !mini, times = false }) {
+  const el = h(`<div class="wv${mini ? " wv--mini" : ""}${faint ? " wv-faint" : ""}" style="--rowh:${rowh}px;--gut:${mini ? 0 : 50}px;--head:${mini ? 20 : 34}px">
+    <div></div><div class="wv-days">${DAYS.map((d) => `<div class="wv-day"><span>${mini ? d[0] : d}</span></div>`).join("")}</div>
+    <div class="wv-gut">${mini ? "" : Array.from({ length: 14 }, (_, i) => { const m = T0 + i * 60; return i % (rowh < 9 ? 2 : 1) ? "" : `<span class="wv-hour" style="top:${(i * 60 / SPAN) * 100}%">${i === 0 || m === 720 ? fmt(m) : fmt(m, false)}</span>`; }).join("")}</div>
+    <div class="wv-body"><div class="wv-l"><div class="wv-ow top"></div><div class="wv-ow bot"></div><div class="offs"></div><div class="busy"></div><div class="crs"></div><div class="wv-edge s"></div><div class="wv-edge e"></div></div></div></div>`);
+  const crsL = el.querySelector(".crs"), pct = (m) => ((m - T0) / SPAN) * 100, crs = new Map();
+  watch((s) => {
+    el.querySelectorAll(".wv-day").forEach((n, i) => n.classList.toggle("off", s.daysOff.includes(i)));
+    el.querySelector(".offs").innerHTML = s.daysOff.map((d) => `<div class="wv-off" style="left:${d * 20}%"></div>`).join("") + s.softOff.map((d) => `<div class="wv-soft" style="left:${d * 20}%"></div>`).join("");
+    el.querySelector(".wv-ow.top").style.height = pct(s.win.start) + "%"; el.querySelector(".wv-ow.bot").style.height = 100 - pct(s.win.end) + "%";
+    const es = el.querySelector(".wv-edge.s"), ee = el.querySelector(".wv-edge.e");
+    es.style.top = pct(s.win.start) + "%"; es.style.display = s.win.start > T0 ? "" : "none"; ee.style.top = pct(s.win.end) + "%"; ee.style.display = s.win.end < T1 ? "" : "none";
+    el.querySelector(".busy").innerHTML = runsOf(s.busy).map((u) => `<div class="wv-b" style="left:${u.d * 20}%;width:20%;top:${(u.r0 / R) * 100}%;height:${((u.r1 - u.r0) / R) * 100}%;--hc:var(--c2);--hs:var(--c2s)"><div>${labels && u.r1 - u.r0 >= 2 ? esc(u.label || "Busy") : ""}</div></div>`).join("");
+    const seen = new Set();
+    layout(s).forEach((b, i) => {
+      seen.add(b.id); let e = crs.get(b.id);
+      if (!e) { e = h(`<div class="cr"><div></div></div>`); crsL.appendChild(e); crs.set(b.id, e); }
+      e.classList.remove("gone"); e.style.setProperty("--i", i);
+      e.style.setProperty("--hc", `var(--c${b.hue})`); e.style.setProperty("--hs", `var(--c${b.hue}s)`);
+      e.style.height = (b.len / SPAN) * 100 + "%";
+      const t = `translate(${b.d * 100}%, ${((b.start - T0) / b.len) * 100}%)`; e.style.transform = t; e.style.setProperty("--t", t);
+      if (labels) e.firstChild.innerHTML = `${esc(b.code)}${times ? `<small>${range(Math.round(b.start / 5) * 5, Math.round((b.start + b.len) / 5) * 5)}</small>` : ""}`;
+    });
+    crs.forEach((e, id) => !seen.has(id) && e.classList.add("gone"));
+  });
+  return el;
+}
+
+/* One "what matters" question: the picture on top shows what Auto will do with the answer. */
+function stepMatters(k, { phone }) {
+  const q = Q[k], i = STEPS.findIndex((x) => x.id === k);
+  const p = h(`<div><p class="eyebrow">What matters most, ${i + 1} of 4</p><h2>${q.q}</h2>${q.sub ? `<p class="lede" style="margin-bottom:12px">${q.sub}</p>` : `<div style="height:14px"></div>`}
+    <div class="picbox" aria-hidden="true"></div><p class="pic-say" aria-live="polite"></p>
+    <div class="answers" role="radiogroup" aria-label="${q.q}">${q.opts.map(([v, l]) => `<button class="ans" role="radio" data-v="${v}" aria-checked="false"><span class="dot"></span>${l}</button>`).join("")}</div>
+    <p class="rn"></p></div>`);
+  const box = p.querySelector(".picbox"), say = p.querySelector(".pic-say"), btns = [...p.querySelectorAll(".ans")];
+  const [W, H] = BIG[k], scale = phone ? 0.86 : 1;
+  const draw = tweener((v) => (box.innerHTML = PIC[k](v, Math.round(W * scale), Math.round(H * scale), true)));
+  let hovering = null;
+  const show = (s) => {
+    const v = hovering ?? s[k];
+    draw(v ?? (k === "time" ? 0 : 0));
+    say.textContent = v === null ? "Pick an answer to see what Auto does with it." : q.say[v - q.min];
+    say.classList.toggle("idle", v === null);
+  };
+  watch((s) => {
+    btns.forEach((b) => { const on = s[k] !== null && +b.dataset.v === s[k]; b.setAttribute("aria-checked", on); });
+    const sel = btns.find((b) => b.getAttribute("aria-checked") === "true");
+    btns.forEach((b, j) => (b.tabIndex = sel ? (b === sel ? 0 : -1) : j === 0 ? 0 : -1));
+    p.querySelector(".rn").innerHTML = `<b>Planner fields.</b> Sets <code>weights.${s[k] === null ? "(nothing; Auto keeps its default)" : q.weights(s[k])}</code>. The same field as the "${q.title}" card in Preferences.`;
+    show(s);
+  });
+  const choose = (v) => store.set((s) => ({ [k]: v, skipped: s.skipped.filter((x) => x !== k) }));
+  p.addEventListener("click", (e) => { const b = e.target.closest(".ans"); if (b) choose(+b.dataset.v); });
+  /* hovering an answer previews its picture; desktop only */
+  if (matchMedia("(hover:hover) and (pointer:fine)").matches) {
+    p.querySelector(".answers").addEventListener("pointerover", (e) => { const b = e.target.closest(".ans"); if (!b) return; hovering = +b.dataset.v; show(store.get()); });
+    p.querySelector(".answers").addEventListener("pointerleave", () => { hovering = null; show(store.get()); });
+  }
+  p.querySelector(".answers").addEventListener("keydown", (e) => {
+    const d = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]; if (!d) return;
+    e.preventDefault(); const cur = btns.indexOf(document.activeElement), n = clamp((cur < 0 ? 0 : cur) + d, 0, btns.length - 1);
+    choose(+btns[n].dataset.v); btns[n].focus();
+  });
+  return p;
+}
+
+/* Shape of your days: one day drawn as a strip, with the start, the end and the gaps marked on it. */
+function stepShape({ phone }) {
+  const p = h(`<div><p class="eyebrow">Shape of your days</p><h2>When a day starts, when it ends, and the gaps between</h2>
+    <p class="lede">These three decide how a day feels. Here is one of your days. Change them and watch it, and the week below, move.</p>
+    <div class="day"><div class="day-cap"><b class="dname"></b><span>Hatched means no class</span></div>
+      <div class="day-track"><div class="hz a"></div><div class="hz b"></div><div class="ticks"></div><div class="blks"></div><div class="gaps"></div>
+        <button class="dknob" data-k="start" role="slider" aria-label="Earliest class" aria-valuemin="${T0}" aria-valuemax="${T1}"><i class="hgi hgi-stroke hgi-sunrise"></i><span class="lab"></span></button>
+        <button class="dknob" data-k="end" role="slider" aria-label="Latest class end" aria-valuemin="${T0}" aria-valuemax="${T1}"><i class="hgi hgi-stroke hgi-moon-02"></i><span class="lab"></span></button></div>
+      <div class="day-axis">${[480, 600, 720, 840, 960, 1080, 1200, 1320].filter((m, i) => !phone || i % 2 === 0 || m === 1320).map((m) => `<span style="left:${((m - T0) / SPAN) * 100}%">${m === 480 ? "8 AM" : m === 720 ? "Noon" : m === 1320 ? "10 PM" : fmt(m, false)}</span>`).join("")}</div></div>
+    <div class="limits">
+      <div class="lim"><i class="hgi hgi-stroke hgi-sunrise"></i><span class="tx"><b>Earliest class</b><span class="ls"></span></span><span class="step"><button data-lim="start:-1" aria-label="Earlier start"><i class="hgi hgi-stroke hgi-minus-sign"></i></button><button data-lim="start:1" aria-label="Later start"><i class="hgi hgi-stroke hgi-add-01"></i></button></span></div>
+      <div class="lim"><i class="hgi hgi-stroke hgi-moon-02"></i><span class="tx"><b>Latest class ends</b><span class="le"></span></span><span class="step"><button data-lim="end:-1" aria-label="Earlier end"><i class="hgi hgi-stroke hgi-minus-sign"></i></button><button data-lim="end:1" aria-label="Later end"><i class="hgi hgi-stroke hgi-add-01"></i></button></span></div>
+    </div>
+    <div class="sl"><p class="sl-label">Time between classes</p><div class="sl-row"><span class="sl-pic l">${gapsPic(0, 30, 30, false)}</span><div class="sl-track" role="slider" tabindex="0" aria-label="Time between classes" aria-valuemin="0" aria-valuemax="4"><div class="sl-in"><div class="sl-rail"></div>${[0, 1, 2, 3, 4].map((i) => `<span class="sl-tick" style="left:${i * 25}%"></span>`).join("")}<div class="sl-fill"></div><div class="sl-run"><span class="sl-thumb"></span></div></div></div><span class="sl-pic r">${gapsPic(4, 30, 30, false)}</span></div><div class="sl-ends"><span class="l">Long gaps are fine</span><span class="r">Back-to-back</span></div><p class="sl-out"></p></div>
+    <div class="mini"><div class="mini-cap"><span>Your week with these</span><span>Changes as you go</span></div></div>
+    <p class="rn"><b>Planner fields.</b> Earliest and latest are hard limits, <code>constraints.earliestStart</code> and <code>latestEnd</code>, the sun and moon on the Preferences grid. Time between classes is a leaning, <code>weights.compact</code> 0 to 4. The planner has no term that adds breaks, so the left end is "long gaps are fine", not "leave breaks".</p></div>`);
+  p.querySelector(".mini").append(WeekView({ mini: true, rowh: phone ? 3.4 : 4.4 }));
+  const track = p.querySelector(".day-track"), pct = (m) => ((m - T0) / SPAN) * 100;
+  p.querySelector(".ticks").innerHTML = [600, 720, 840, 960, 1080, 1200].map((m) => `<span class="tick" style="left:${pct(m)}%"></span>`).join("");
+  const blkL = p.querySelector(".blks"), gapL = p.querySelector(".gaps"), blks = new Map();
+  const SAYG = ["Doesn't mind long gaps between classes.", "Breaks ties toward shorter gaps.", "Favors shorter gaps between classes.", "Strongly favors short gaps.", "Packs classes back-to-back wherever it can."];
+  watch((s) => {
+    const all = layout(s), counts = [0, 0, 0, 0, 0]; all.forEach((b) => counts[b.d]++);
+    const busyDays = runsOf(s.busy).map((u) => u.d);
+    const d = [1, 3, 0, 2, 4].reduce((best, x) => (counts[x] > counts[best] ? x : best), 1);
+    p.querySelector(".dname").textContent = `A ${DAYNAME[d]}`;
+    p.querySelector(".hz.a").style.width = pct(s.win.start) + "%";
+    p.querySelector(".hz.b").style.width = 100 - pct(s.win.end) + "%";
+    const items = all.filter((b) => b.d === d).map((b) => ({ id: b.id, a: b.start, b: b.start + b.len, label: b.code, hue: b.hue }))
+      .concat(runsOf(s.busy).filter((u) => u.d === d).map((u, j) => ({ id: "busy" + j, a: T0 + u.r0 * STEP, b: T0 + u.r1 * STEP, label: u.label || "Busy", busy: true })))
+      .sort((x, y) => x.a - y.a);
+    const seen = new Set();
+    items.forEach((it) => {
+      seen.add(it.id); let e = blks.get(it.id);
+      if (!e) { e = h(`<div class="dblk${it.busy ? " busy" : ""}"><div></div></div>`); blkL.append(e); blks.set(it.id, e); }
+      e.style.opacity = 1;
+      if (!it.busy) { e.style.setProperty("--hc", `var(--c${it.hue})`); e.style.setProperty("--hs", `var(--c${it.hue}s)`); }
+      const w = ((it.b - it.a) / SPAN) * 100;
+      e.style.setProperty("--w", w + "%");
+      e.style.transform = `translateX(${((it.a - T0) / (it.b - it.a)) * 100}%)`;
+      e.firstChild.textContent = phone ? it.label.split(" ")[0] : it.label;
+    });
+    blks.forEach((e, id) => { if (!seen.has(id)) e.style.opacity = 0; });
+    const cls = items.filter((x) => !x.busy);
+    gapL.innerHTML = cls.slice(1).map((it, j) => { const prev = cls[j], g = Math.round((it.a - prev.b) / 5) * 5; if (g <= 0) return ""; return `<span class="dgap" style="left:${pct((it.a + prev.b) / 2)}%">${g >= 60 ? `${Math.floor(g / 60)} h${g % 60 ? " " + (g % 60) : ""}` : g + " min"}</span>`; }).join("");
+    p.querySelectorAll(".dknob").forEach((k) => { const v = s.win[k.dataset.k]; k.style.left = pct(v) + "%"; k.setAttribute("aria-valuenow", v); k.setAttribute("aria-valuetext", fmt(v)); k.querySelector(".lab").textContent = k.dataset.k === "start" ? `From ${fmt(v)}` : `Until ${fmt(v)}`; });
+    p.querySelector(".ls").textContent = s.win.start === T0 ? "Any time from 8 AM" : `Not before ${fmt(s.win.start)}`;
+    p.querySelector(".le").textContent = s.win.end === T1 ? "Any time until 10 PM" : `Done by ${fmt(s.win.end)}`;
+    p.querySelector('[data-lim="start:-1"]').disabled = s.win.start <= T0;
+    p.querySelector('[data-lim="end:1"]').disabled = s.win.end >= T1;
+    p.querySelector('[data-lim="start:1"]').disabled = s.win.start >= s.win.end - 120;
+    p.querySelector('[data-lim="end:-1"]').disabled = s.win.end <= s.win.start + 120;
+    const v = s.compact, sl = p.querySelector(".sl");
+    sl.querySelector(".sl-run").style.transform = `translateX(${(v / 4) * 100}%)`;
+    sl.querySelector(".sl-fill").style.transform = `scaleX(${v / 4})`;
+    const lean = v >= 2.5 ? "r" : v <= 0.5 ? "l" : "";
+    sl.querySelectorAll(".sl-pic,.sl-ends span").forEach((n) => n.classList.toggle("on", n.classList.contains(lean)));
+    sl.querySelector(".sl-out").textContent = "Auto " + SAYG[Math.round(v)].charAt(0).toLowerCase() + SAYG[Math.round(v)].slice(1);
+    const tr = sl.querySelector(".sl-track"); tr.setAttribute("aria-valuenow", Math.round(v)); tr.setAttribute("aria-valuetext", SAYG[Math.round(v)]);
+  });
+  const setWin = (k, m) => store.set((s) => { const w = { ...s.win }; if (k === "start") w.start = clamp(m, T0, w.end - 120); else w.end = clamp(m, w.start + 120, T1); return { win: w }; });
+  p.addEventListener("click", (e) => { const b = e.target.closest("[data-lim]"); if (!b) return; const [k, d] = b.dataset.lim.split(":"); setWin(k, store.get().win[k] + +d * STEP); });
+  p.querySelectorAll(".dknob").forEach((k) => {
+    const which = k.dataset.k;
+    k.addEventListener("pointerdown", (e) => { e.preventDefault(); k.setPointerCapture(e.pointerId); k.classList.add("drag"); });
+    k.addEventListener("pointermove", (e) => { if (!k.classList.contains("drag")) return; const r = track.getBoundingClientRect(); setWin(which, T0 + Math.round((((e.clientX - r.left) / r.width) * SPAN) / STEP) * STEP); });
+    const up = () => k.classList.remove("drag"); k.addEventListener("pointerup", up); k.addEventListener("pointercancel", up);
+    k.addEventListener("keydown", (e) => { const d = { ArrowLeft: -STEP, ArrowDown: -STEP, ArrowRight: STEP, ArrowUp: STEP }[e.key]; if (d) { e.preventDefault(); setWin(which, store.get().win[which] + d); } });
+  });
+  const tr = p.querySelector(".sl-track"), inner = p.querySelector(".sl-in");
+  const pos = (x) => { const r = inner.getBoundingClientRect(); return clamp(((x - r.left) / r.width) * 4, 0, 4); };
+  tr.addEventListener("pointerdown", (e) => { tr.setPointerCapture(e.pointerId); tr.classList.add("drag"); store.set({ compact: pos(e.clientX) }); });
+  tr.addEventListener("pointermove", (e) => tr.classList.contains("drag") && store.set({ compact: pos(e.clientX) }));
+  const end = () => { if (!tr.classList.contains("drag")) return; tr.classList.remove("drag"); store.set((s) => ({ compact: Math.round(s.compact) })); };
+  tr.addEventListener("pointerup", end); tr.addEventListener("pointercancel", end);
+  tr.addEventListener("keydown", (e) => { const st = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key]; if (st) { e.preventDefault(); store.set((s) => ({ compact: clamp(Math.round(s.compact) + st, 0, 4) })); } });
+  return p;
+}
+
+/* In your own words: optional. The words stay the student's; understood phrases get a
+   green underline, hedged ones a dotted amber one, unknown ones an amber wash. */
+function TextBox() {
+  const el = h(`<div class="tb"><div class="tb-mirror" aria-hidden="true"></div><textarea rows="3" aria-label="Anything else about your week" placeholder="For example: I work Tue/Thu 3–5, Fridays off if possible" spellcheck="false"></textarea></div>`);
+  const ta = el.querySelector("textarea"), mir = el.querySelector(".tb-mirror");
+  let timer = null;
+  const fit = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; };
+  ta.addEventListener("input", () => { fit(); draw(store.get(), ta.value); clearTimeout(timer); timer = setTimeout(() => syncText(ta.value), 260); });
+  function draw(s, text) {
+    const { facts, unknown } = parse(text), marks = [], seen = new Set();
+    facts.forEach((f) => { const k = f.span.join(); if (seen.has(k)) { if (hedgedPending(s, f)) marks.find((m) => m.k === k).c = "ask"; return; } seen.add(k); marks.push({ k, s: f.span[0], e: f.span[1], c: hedgedPending(s, f) ? "ask" : "ok" }); });
+    unknown.forEach((u) => { if (s.ignored.includes(u.text)) return; marks.push({ s: u.span[0], e: u.span[1], c: s.accepted.includes(u.text) ? "ok" : "bad" }); });
+    marks.sort((a, b) => a.s - b.s);
+    let o = "", i = 0; marks.forEach((m) => { o += esc(text.slice(i, m.s)) + `<span class="${m.c}">${esc(text.slice(m.s, m.e))}</span>`; i = m.e; });
+    mir.innerHTML = o + esc(text.slice(i)) + "\n";
+  }
+  watch((s) => { if (document.activeElement !== ta && ta.value !== s.text) { ta.value = s.text; requestAnimationFrame(fit); } draw(s, ta.value); });
+  return el;
+}
+function FactRows() {
+  const el = h(`<div><p class="facts-h" hidden>What we understood</p><ul class="facts"></ul></div>`);
+  const ul = el.querySelector("ul");
+  let editing = null;
+  function update(s) {
+    if (ul.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+    const { facts, unknown } = parse(s.text), rows = [];
+    const x = (key, label) => `<button class="x" data-rm="${key}" aria-label="Remove: ${esc(label)}"><i class="hgi hgi-stroke hgi-cancel-01"></i></button>`;
+    const ed = (key, label) => `<button class="x" data-ed="${key}" aria-label="Rename: ${esc(label)}"><i class="hgi hgi-stroke hgi-pencil-edit-01"></i></button>`;
+    facts.forEach((f) => {
+      if (!s.applied[f.key]) return;
+      if (f.kind === "start") rows.push(`<li class="fact"><span class="ic"><i class="hgi hgi-stroke hgi-sunrise"></i></span><span class="tx"><b>No class before ${fmt(s.win.start)}</b></span>${x(f.key, "start time")}</li>`);
+      if (f.kind === "end") rows.push(`<li class="fact"><span class="ic"><i class="hgi hgi-stroke hgi-moon-02"></i></span><span class="tx"><b>No class after ${fmt(s.win.end)}</b></span>${x(f.key, "end time")}</li>`);
+      if (f.kind === "off") {
+        const pend = hedgedPending(s, f), ans = s.answers[f.key];
+        rows.push(`<li class="fact${pend ? " warn" : ""}"><span class="ic"><i class="hgi hgi-stroke hgi-calendar-block-01"></i></span><span class="tx"><b>${PLURAL[f.d]} off</b>${f.hedged ? `<div class="ask-q"><span>${pend ? "Must, or nice to have?" : ""}</span><span class="choice" role="group" aria-label="${PLURAL[f.d]} off: must or nice to have"><button data-ans="must" data-key="${f.key}" aria-pressed="${ans === "must"}">Must</button><button data-ans="nice" data-key="${f.key}" aria-pressed="${ans === "nice"}">Nice to have</button></span></div>` : ""}</span>${x(f.key, PLURAL[f.d] + " off")}</li>`);
+      }
+      if (f.kind === "busy") {
+        const lab = s.busy[f.days[0] * R + (f.a - T0) / STEP] || f.label;
+        rows.push(editing === f.key ? `<li class="fact"><span class="ic"><i class="hgi hgi-stroke hgi-briefcase-01"></i></span><span class="tx"><input class="nm" data-name="${f.key}" value="${esc(lab)}" aria-label="Name" maxlength="24"><span>${dayList(f.days)}, ${range(f.a, f.b)}</span></span>${x(f.key, lab)}</li>`
+          : `<li class="fact"><span class="ic"><i class="hgi hgi-stroke hgi-${lab === "Lunch" ? "restaurant-01" : "briefcase-01"}"></i></span><span class="tx"><b>${esc(lab)}</b><span>${dayList(f.days)}, ${range(f.a, f.b)}</span></span>${ed(f.key, lab)}</li>`);
+      }
+    });
+    unknown.forEach((u) => {
+      if (s.ignored.includes(u.text)) return;
+      if (s.accepted.includes(u.text)) { rows.push(`<li class="fact"><span class="ic"><i class="hgi hgi-stroke hgi-route-01"></i></span><span class="tx"><b>Short walks: a lot</b><span>From “${esc(u.text)}”</span></span></li>`); return; }
+      rows.push(`<li class="fact warn"><span class="ic"><i class="hgi hgi-stroke hgi-help-circle"></i></span><span class="tx">We didn't catch “<b>${esc(u.text)}</b>”.<div class="ask-q">${u.suggest ? `<button class="btn btn-sm btn-soft" data-accept="${esc(u.text)}">${u.suggest.label}</button>` : `<span style="color:var(--meta);font-weight:500">Try “no class before 10” or “busy Mon 2–4”.</span>`}<button class="btn btn-sm btn-quiet" data-ignore="${esc(u.text)}">Ignore it</button></div></span></li>`);
+    });
+    ul.innerHTML = rows.join("");
+    el.querySelector(".facts-h").hidden = !rows.length;
+    const f = ul.querySelector("input"); if (f && editing) f.focus();
+  }
+  ul.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-ans]"); if (a) answer(a.dataset.key, a.dataset.ans);
+    const ig = e.target.closest("[data-ignore]"); if (ig) store.set((s) => ({ ignored: [...s.ignored, ig.dataset.ignore] }));
+    const ac = e.target.closest("[data-accept]"); if (ac) store.set((s) => ({ accepted: [...s.accepted, ac.dataset.accept], walking: 3 }));
+    const ed = e.target.closest("[data-ed]"); if (ed) { editing = ed.dataset.ed; update(store.get()); }
+    const rm = e.target.closest("[data-rm]"); if (rm) { const s = store.get(), f = s.applied[rm.dataset.rm]; const text = s.text.replace(f.text, "").replace(/^[\s,]+|[\s,]+$/g, "").replace(/,\s*,/g, ","); editing = null; syncText(text); }
+  });
+  ul.addEventListener("focusout", (e) => { const t = e.target; if (t.dataset.name) { const key = t.dataset.name, v = t.value.trim(); setTimeout(() => { editing = null; if (v) { const s = store.get(), f = s.applied[key], b = s.busy.slice(); f.days.forEach((d) => { for (let m = f.a; m < f.b; m += STEP) b[d * R + (m - T0) / STEP] = v; }); store.set({ busy: b }); } else update(store.get()); }, 0); } });
+  ul.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.dataset.name) e.target.blur(); if (e.key === "Escape" && editing) { e.stopPropagation(); editing = null; update(store.get()); } });
+  watch(update);
+  return el;
+}
+function stepWords() {
+  const p = h(`<div><p class="eyebrow">In your own words <span class="opt">Optional</span></p><h2>Anything else about your week?</h2><p class="lede">Work, practice, a day you need free. Skip this if the answers so far cover it.</p></div>`);
+  p.append(TextBox(), FactRows());
+  p.append(h(`<p class="rn"><b>Lead's reading, kept optional.</b> Sam: "we could skip this step and jump straight into what matters." So the typed step comes after the questions, is marked Optional, and Skip this question is as easy to reach as Continue. What it understands maps through <code>applyIntent</code>: days off, blocked times, start and end.</p>`));
+  return p;
+}
+
+/* Looking ahead: optional. Graduation and co-op terms on one semester ribbon. */
+const TERMS = ["Fall 26", "Spring 27", "Summer 27", "Fall 27", "Spring 28", "Summer 28", "Fall 28", "Spring 29", "Summer 29", "Fall 29", "Spring 30"];
+const isSu = (i) => TERMS[i].startsWith("Su");
+function stepAhead() {
+  const p = h(`<div><p class="eyebrow">Looking ahead <span class="opt">Optional</span></p><h2>When do you plan to graduate?</h2><p class="lede">Only if you know. Your degree plan uses this to space out later terms.</p><p class="ghead">Tap a term. The cap marks graduation; the briefcase marks a co-op or internship term.</p>
+    <div class="rib"><div class="rib-grid">
+    <span class="rib-lab">Graduate</span>${TERMS.map((t, i) => `<button class="rib-cell${isSu(i) ? " su" : ""}" data-g="${i}" aria-label="Graduate ${t.replace(" ", " 20")}" aria-pressed="false"></button>`).join("")}
+    <span class="rib-lab">Co-op</span>${TERMS.map((t, i) => `<button class="rib-cell${isSu(i) ? " su" : ""}" data-c="${i}" aria-label="Co-op or internship ${t.replace(" ", " 20")}" aria-pressed="false"></button>`).join("")}
+    <span class="rib-lab"></span>${TERMS.map((t) => `<span class="rib-term" aria-hidden="true">${t.split(" ")[0].slice(0, t.startsWith("Fall") ? 4 : 3)}<br>${t.split(" ")[1]}</span>`).join("")}
+    </div></div><p class="rib-say"></p></div>`);
+  watch((s) => {
+    p.querySelectorAll("[data-g]").forEach((b) => { const i = +b.dataset.g; b.className = `rib-cell${isSu(i) ? " su" : ""}${i === s.grad ? " grad" : i < s.grad && !isSu(i) ? " span" : ""}`; b.innerHTML = i === s.grad ? '<i class="hgi hgi-stroke hgi-mortarboard-02"></i>' : ""; b.setAttribute("aria-pressed", i === s.grad); });
+    p.querySelectorAll("[data-c]").forEach((b) => { const i = +b.dataset.c, on = s.coop.includes(i); b.className = `rib-cell${isSu(i) ? " su" : ""}${on ? " coop" : ""}${i > s.grad ? " past" : ""}`; b.innerHTML = on ? '<i class="hgi hgi-stroke hgi-briefcase-01"></i>' : ""; b.setAttribute("aria-pressed", on); });
+    const n = TERMS.slice(0, s.grad + 1).filter((t) => !t.startsWith("Su")).length;
+    p.querySelector(".rib-say").innerHTML = `Graduating <b>${TERMS[s.grad].replace(" ", " 20")}</b>: ${n} fall and spring terms, counting this one${s.coop.length ? `, with a co-op in ${s.coop.map((i) => TERMS[i].replace(" ", " 20")).join(" and ")}` : ""}.`;
+  });
+  p.addEventListener("click", (e) => { const g = e.target.closest("[data-g]"), c = e.target.closest("[data-c]"); if (g) store.set({ grad: +g.dataset.g }); if (c) { const i = +c.dataset.c; store.set((s) => ({ coop: s.coop.includes(i) ? s.coop.filter((x) => x !== i) : [...s.coop, i] })); } });
+  const id = uid("minor-");
+  const f = h(`<div class="field"><label for="${id}">Minor</label><input id="${id}" placeholder="For example, Mathematics" list="${id}-l" autocomplete="off"><small>Leave it empty if you don't have one.</small><datalist id="${id}-l"><option>Mathematics</option><option>Business</option><option>Computer Science</option><option>Psychology</option><option>Music</option></datalist></div>`);
+  const inp = f.querySelector("input"); inp.addEventListener("input", () => store.set({ minor: inp.value })); watch((s) => { if (document.activeElement !== inp) inp.value = s.minor; });
+  p.append(f, h(`<p class="rn"><b>Kept from round 2</b> so no capability is lost; Sam didn't comment on it. It feeds the degree roadmap, not the week, so it could move there.</p>`));
+  return p;
+}
+
+function stepReady({ phone }) {
+  const p = h(`<div><p class="eyebrow">Ready</p><h2>Here's your first week</h2><p class="lede">Auto builds it from your answers. Change any of them later from Preferences on the Week.</p></div>`);
+  const w = h(`<div class="final-week"></div>`); w.append(WeekView({ labels: !phone, rowh: phone ? 7 : 8.5 })); p.append(w);
+  const strip = h(`<div><p class="strip-h">Your leanings, as they'll appear in Preferences</p><div class="lean-strip"></div></div>`);
+  const KEYS = [["time", "Time of day"], ["fewerDays", "Fewer days"], ["compact", "Short gaps"], ["walking", "Short walks"], ["rating", "Instructors"]];
+  watch((s) => {
+    strip.querySelector(".lean-strip").innerHTML = KEYS.map(([k, t]) => {
+      const v = k === "compact" ? Math.round(s.compact) : val(s, k), vv = k === "compact" ? LEVEL : Q[k].val, idx = k === "time" ? v + 2 : v;
+      const [W, H] = k === "time" ? [phone ? 50 : 70, 32] : k === "compact" ? [26, 32] : [phone ? 44 : 56, 30];
+      return `<div class="ls"><span class="p">${PIC[k](v, W, H, true)}</span><b>${t}</b><span>${s[k] === null && k !== "compact" ? "Skipped" : vv[idx]}</span></div>`;
+    }).join("");
+  });
+  p.append(strip);
+  const pl = h(`<div class="preset-line"><i class="hgi hgi-stroke hgi-bookmark-02"></i><span class="tx">Saved as your first preset, <input aria-label="Preset name" maxlength="24"></span></div>`);
+  const pi = pl.querySelector("input"); pi.addEventListener("input", () => store.set({ preset: pi.value })); watch((s) => { if (document.activeElement !== pi) pi.value = s.preset; });
+  const home = h(`<div class="home"><span class="tx">Club meetings, exams and deadlines can go on your week too. Remind me after this.</span><button class="sw" role="switch" aria-label="Remind me to add club meetings, exams and deadlines"></button></div>`);
+  const sw = home.querySelector(".sw"); sw.addEventListener("click", () => store.set((s) => ({ remind: !s.remind }))); watch((s) => sw.setAttribute("aria-checked", s.remind));
+  p.append(pl, home, h(`<p class="rn"><b>New, no planner field:</b> the named preset and the reminder. Alpha keeps one set of preferences per browser. The leanings strip uses the Preferences card pictures so the student recognizes them later.</p>`));
+  return p;
+}
+const STEP_FN = { time: (o) => stepMatters("time", o), fewerDays: (o) => stepMatters("fewerDays", o), walking: (o) => stepMatters("walking", o), rating: (o) => stepMatters("rating", o), shape: stepShape, words: stepWords, ahead: stepAhead, ready: stepReady };
+
+/* ================= the card ================= */
+function Window({ phone }) {
+  const chs = CHAPTERS.map((_, c) => STEPS.filter((s) => s.ch === c));
+  const w = h(`<section class="win" role="dialog" aria-modal="true" aria-label="Tell us about your week">
+    <div class="w-head"><div class="prog" role="progressbar" aria-label="Setup progress" aria-valuemin="1" aria-valuemax="${STEPS.length}">${chs.map((list) => `<span class="ch" style="--n:${list.length}">${list.map(() => "<i></i>").join("")}</span>`).join("")}</div><button class="skip-all">Skip setup</button></div>
+    <div class="w-body"></div>
+    <div class="w-foot"><button class="btn btn-quiet btn-icon" data-back aria-label="Back"><i class="hgi hgi-stroke hgi-arrow-left-01" style="font-size:18px"></i></button><span class="grow"></span><label class="dont" hidden><input type="checkbox"> Don't ask me again</label><button class="btn btn-quiet" data-skip>Skip this question</button><button class="btn btn-primary" data-next>Continue</button></div></section>`);
+  const body = w.querySelector(".w-body"), segs = [...w.querySelectorAll(".prog i")];
+  let shown = -1, stepSubs = [];
+  watch((s) => {
+    const st = STEPS[s.step], last = s.step === LAST, isQ = st.ch === 0;
+    segs.forEach((d, i) => { d.classList.toggle("on", i === s.step); d.classList.toggle("done", i < s.step && !s.skipped.includes(STEPS[i].id)); d.classList.toggle("skipped", i < s.step && s.skipped.includes(STEPS[i].id)); });
+    const prog = w.querySelector(".prog"); prog.setAttribute("aria-valuenow", s.step + 1); prog.setAttribute("aria-valuetext", `${CHAPTERS[st.ch]}, step ${s.step + 1} of ${STEPS.length}`);
+    w.querySelector("[data-back]").style.visibility = s.step ? "visible" : "hidden";
+    const skip = w.querySelector("[data-skip]"); skip.hidden = last; skip.textContent = st.optional ? "Skip" : isQ ? "Skip this question" : "Skip this step";
+    w.querySelector(".dont").hidden = !last;
+    w.querySelector(".dont input").checked = s.dontAsk;
+    const next = w.querySelector("[data-next]");
+    next.textContent = last ? "Build my week" : "Continue";
+    next.disabled = isQ && s[st.id] === null;
+    w.classList.toggle("gone", !!s.done); w.inert = !!s.done;
+    if (shown !== s.step) {
+      stepSubs.forEach((u) => u()); const before = subs.length;
+      shown = s.step; body.innerHTML = "";
+      const pane = h(`<div class="pane${s.back ? " back" : ""}"></div>`);
+      pane.append(STEP_FN[st.id]({ phone }));
+      body.append(pane); body.scrollTop = 0;
+      stepSubs = subs.splice(before);
+    }
+  });
+  const go = (d, skipping) => store.set((s) => {
+    const id = STEPS[s.step].id;
+    const skipped = skipping ? [...new Set([...s.skipped, id])] : s.skipped.filter((x) => x !== id);
+    const patch = skipping && Q[id] ? { [id]: null } : {};
+    return { ...patch, skipped, step: clamp(s.step + d, 0, LAST), back: d < 0 };
+  });
+  const focusTitle = () => requestAnimationFrame(() => { const t = body.querySelector("h2"); t.tabIndex = -1; t.focus({ preventScroll: true }); });
+  w.querySelector("[data-back]").addEventListener("click", () => { store.set((s) => ({ step: clamp(s.step - 1, 0, LAST), back: true })); focusTitle(); });
+  w.querySelector("[data-skip]").addEventListener("click", () => { go(1, true); focusTitle(); });
+  w.querySelector("[data-next]").addEventListener("click", () => { if (store.get().step === LAST) store.set({ done: "built" }); else { go(1, false); focusTitle(); } });
+  w.querySelector(".skip-all").addEventListener("click", () => store.set({ done: "skipped" }));
+  w.querySelector(".dont input").addEventListener("change", (e) => store.set({ dontAsk: e.target.checked }));
+  /* Enter on a chosen answer continues, so a keyboard user never has to tab to the button */
+  w.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.classList.contains("ans")) { e.preventDefault(); const n = w.querySelector("[data-next]"); if (!n.disabled) n.click(); } });
+  return w;
+}
+
+/* ================= frames ================= */
+function Bar(phone) {
+  return h(`<div class="wk-bar"><div class="wk-term"><b>Fall 2026</b><span>${phone ? "4 courses" : "4 courses in your cart"}</span></div><span class="sp"></span>
+    <span class="top-btn" data-k="courses"><i class="hgi hgi-stroke hgi-book-open-01"></i>Courses<span class="count">4</span></span>
+    <span class="top-btn" data-k="prefs"><i class="hgi hgi-stroke hgi-sliders-horizontal"></i>Preferences</span></div>`);
+}
+function Toast() {
+  const t = h(`<div class="toast off" role="status"><i class="hgi hgi-stroke hgi-checkmark-circle-02"></i><span></span><button data-again>Show setup again</button></div>`);
+  watch((s) => { t.classList.toggle("off", !s.done); if (s.done) t.querySelector("span").textContent = s.done === "built" ? "Built from your answers. Change them in Preferences." : "Skipped. Auto used its defaults."; });
+  t.querySelector("[data-again]").addEventListener("click", () => store.set({ done: null }));
+  return t;
+}
+function Frame(root, phone) {
+  root.innerHTML = "";
+  if (phone) root.append(h(`<div class="ph-status"><span>9:41</span><i class="hgi hgi-stroke hgi-wifi-01" style="font-size:15px"></i></div>`));
+  else root.append(h(`<div class="app-bar"><span class="wordmark">UNTangle</span><nav class="lenses" aria-hidden="true"><span>Courses</span><span class="on">Week</span><span>Day</span></nav><span class="sp"></span><span class="avatar">SG</span></div>`));
+  const bar = Bar(phone); root.append(bar);
+  const wk = h(`<div class="wk" aria-hidden="true"></div>`); wk.append(WeekView({ rowh: phone ? 22 : 23.5, faint: true, labels: true, times: !phone })); root.append(wk);
+  watch((s) => { wk.classList.toggle("built", s.done === "built"); bar.querySelector('[data-k="prefs"]').classList.toggle("here", s.done === "built"); });
+  if (!phone) { const veil = h(`<div class="veil"></div>`); watch((s) => veil.classList.toggle("off", !!s.done)); root.append(veil); }
+  root.append(Window({ phone }), Toast());
+}
+function mount() {
+  subs.forEach((u) => u()); subs.length = 0;
+  Frame(document.getElementById("dk"), false);
+  Frame(document.getElementById("ph"), true);
+}
+const syncTabs = (s) => document.querySelectorAll(".rv-dir").forEach((x) => x.setAttribute("aria-selected", STEPS[s.step].ch === STEPS[+x.dataset.step].ch));
+store.sub(syncTabs);
+document.querySelectorAll(".rv-dir").forEach((b) => b.addEventListener("click", () => store.set((s) => ({ step: +b.dataset.step, back: +b.dataset.step < s.step, done: null }))));
+let exampleOn = true;
+document.getElementById("rv-text").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; document.querySelectorAll("#rv-text button").forEach((x) => x.setAttribute("aria-pressed", x === b)); exampleOn = b.dataset.v === "ex"; const step = store.get().step; store.set({ ...fresh(), step }); syncText(exampleOn ? EXAMPLE : ""); mount(); });
+document.getElementById("rv-notes").addEventListener("change", (e) => document.getElementById("app").classList.toggle("show-notes", e.target.checked));
+document.getElementById("rv-replay").addEventListener("click", () => { store.set(fresh()); syncText(exampleOn ? EXAMPLE : ""); mount(); });
+const q = new URLSearchParams(location.search);
+syncText(EXAMPLE);
+if (q.get("step")) store.set({ step: +q.get("step") });
+if (q.get("answered")) store.set({ time: -1, fewerDays: 2, walking: 3, rating: 2 });
+if (q.get("notes")) { document.getElementById("rv-notes").checked = true; document.getElementById("app").classList.add("show-notes"); }
+mount();
+})();
+</script>
+</body>
+</html>
