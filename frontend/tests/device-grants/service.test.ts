@@ -204,16 +204,41 @@ describe("device token rotation and revocation", () => {
     expect(await t.service.readSecurityGeneration("alice")).toBe(1);
     await expect(t.service.authenticate(alice.accessToken)).rejects.toMatchObject(invalidToken);
     await expect(t.service.refresh(alice.refreshToken)).rejects.toMatchObject(invalidToken);
-    // Still its own until replaced: a stalled request can check before writing.
-    expect(await t.service.holdsSecurityChange("alice", abandoned.changeId)).toBe(true);
+    // Still its own until replaced: a stalled request may still write under it.
+    const account = [{ id: "credential-1", userId: "alice", providerId: "credential", password: "old-hash" }];
+    t.store.useAuthTables({ account, session: [] });
+    await t.service.writeCredential("alice", abandoned.changeId, "stalled-hash", "update");
+    expect(account[0].password).toBe("stalled-hash");
     const next = await t.service.beginSecurityChange("alice");
-    expect(await t.service.holdsSecurityChange("alice", abandoned.changeId)).toBe(false);
-    expect(await t.service.holdsSecurityChange("alice", next.changeId)).toBe(true);
+    await expect(t.service.writeCredential("alice", abandoned.changeId, "late-hash", "update")).rejects.toMatchObject(stale);
+    expect(account[0].password).toBe("stalled-hash");
+    await t.service.writeCredential("alice", next.changeId, "next-hash", "update");
+    await expect(t.service.writeCredential("alice", next.changeId, "second-hash", "insert")).rejects.toMatchObject({ code: "credential_exists", status: 409 });
+    expect(account).toHaveLength(1);
+    expect(account[0].password).toBe("next-hash");
     await expect(t.service.finishSecurityChange("alice", abandoned.changeId)).rejects.toThrow("no longer the open one");
     await expect(t.service.readSecurityGeneration("alice")).rejects.toMatchObject(inProgress);
     expect(await t.service.finishSecurityChange("alice", next.changeId)).toBe(3);
     const fresh = await t.issue();
     expect((await t.service.authenticate(fresh.accessToken)).userId).toBe("alice");
+  });
+
+  test("a session from an older generation is deleted, unless a change is open or it is current", async () => {
+    const t = setup();
+    const session = [
+      { token: "old", userId: "alice", securityGeneration: 0 },
+      { token: "current", userId: "alice", securityGeneration: 2 },
+      { token: "bob", userId: "bob", securityGeneration: 0 },
+    ];
+    t.store.useAuthTables({ account: [], session });
+    const change = await t.service.beginSecurityChange("alice");
+    expect(await t.service.endStaleSession("old")).toBe(false);
+    await t.service.finishSecurityChange("alice", change.changeId);
+    expect(await t.service.endStaleSession("current")).toBe(false);
+    expect(await t.service.endStaleSession("bob")).toBe(false);
+    expect(await t.service.endStaleSession("old")).toBe(true);
+    expect(await t.service.endStaleSession("missing")).toBe(false);
+    expect(session.map(row => row.token)).toEqual(["current", "bob"]);
   });
 
   test("storage holds only token and grant-code hashes", async () => {
