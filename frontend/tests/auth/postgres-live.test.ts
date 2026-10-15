@@ -91,16 +91,21 @@ test.skipIf(!url)("Postgres: migration 0015 drops empty legacy credentials, refu
     ]);
     const ids = async () => (await pool.query(`SELECT id FROM "account" ORDER BY id`)).rows.map((row: { id: string }) => row.id);
     const migration = await readFile("drizzle/0015_credential_unique.sql", "utf8");
-    // One connection, so SHOW reads the setting the migration itself changed.
+    // As CI applies it (psql -v ON_ERROR_STOP=1 -f): each statement on its
+    // own, outside a transaction, stopping at the first error. One
+    // connection, so SHOW reads the setting the migration itself changed.
     const client = await pool.connect();
+    const apply = async () => { for (const statement of migration.split("--> statement-breakpoint")) await client.query(statement); };
     try {
-      // Two passwords on one account: refused, and the empty-row cleanup is undone with it.
-      await expect(client.query(migration)).rejects.toThrow("1 account(s) still have more than one credential row");
+      // Two passwords on one account: refused, and the empty-row cleanup,
+      // already run in its own statement, is undone with it.
+      await expect(apply()).rejects.toThrow("1 account(s) still have more than one credential row");
       expect(await ids()).toEqual(["a1", "a2", "a3", "b1", "b2", "l1", "l2"]);
       expect((await client.query(`SELECT count(*)::int AS n FROM pg_indexes WHERE indexname = 'account_credential_user_idx' AND schemaname = $1`, [schema])).rows).toEqual([{ n: 0 }]);
       await client.query(`DELETE FROM "account" WHERE id = 'a2'`);
-      expect(migration).toContain("SET lock_timeout = '5s';");
-      await client.query(migration);
+      // The stopped run left its session-level SET in place, as a psql session would.
+      expect((await client.query("SHOW lock_timeout")).rows).toEqual([{ lock_timeout: "5s" }]);
+      await apply();
       expect((await client.query("SHOW lock_timeout")).rows).toEqual([{ lock_timeout: "0" }]);
     } finally { client.release(); }
     expect(await ids()).toEqual(["a1", "a3", "b2", "l2"]);

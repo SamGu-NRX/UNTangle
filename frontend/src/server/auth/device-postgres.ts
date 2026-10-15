@@ -109,13 +109,22 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
         throw new Error(`Stale-session check failed: ${databaseFailure(error).code ?? "unknown"}`);
       }
     },
-    async finishSecurityChange(userId, changeId) {
-      const [row] = await db.update(deviceSecurity)
-        .set({ generation: sql`${deviceSecurity.generation} + 1`, changeId: null, changeStartedAt: null })
-        .where(and(eq(deviceSecurity.userId, userId), eq(deviceSecurity.changeId, changeId)))
-        .returning({ generation: deviceSecurity.generation });
-      if (!row) throw changeNotCurrent();
-      return row.generation;
+    async finishSecurityChange(userId, changeId, keepSession) {
+      try {
+        return await db.transaction(async tx => {
+          const [row] = await tx.update(deviceSecurity)
+            .set({ generation: sql`${deviceSecurity.generation} + 1`, changeId: null, changeStartedAt: null })
+            .where(and(eq(deviceSecurity.userId, userId), eq(deviceSecurity.changeId, changeId)))
+            .returning({ generation: deviceSecurity.generation });
+          if (!row) throw changeNotCurrent();
+          if (keepSession !== undefined)
+            await tx.update(sessions).set({ securityGeneration: row.generation }).where(and(eq(sessions.token, keepSession), eq(sessions.userId, userId)));
+          return row.generation;
+        });
+      } catch (error) {
+        // The query parameters include the caller's session token.
+        throw new Error(`Security change finish failed: ${databaseFailure(error).code ?? "unknown"}`);
+      }
     },
     async bumpGeneration(userId) {
       await db.insert(deviceSecurity).values({ userId, generation: 1 }).onConflictDoUpdate({ target: deviceSecurity.userId, set: { generation: sql`${deviceSecurity.generation} + 1` } });
