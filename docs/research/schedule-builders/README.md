@@ -120,8 +120,8 @@ about them.
 
 **Lesson for UNTangle.** The product bet is that the schedule builder should read the
 student's degree plan, not just a hand-typed course list. UNTangle already encodes 15
-UNT degree plans (per project knowledge; encoding notes at
-`docs/research/degree-plans/encoding-notes.md`), so Auto could offer "build my week from
+UNT degree plans and produces next-term recommendations
+(`frontend/src/lib/pathing/analysis.ts`), so Auto could offer "build my week from
 my degree plan's next-term recommendations" without new data infrastructure.
 
 ## 3. Coursicle
@@ -372,8 +372,8 @@ but throws the history away.
 **Files.** New `frontend/src/lib/sections/fill-history.ts` (accumulator and rates);
 `packages/ingest/src/section-release.ts` (write the seat snapshot into each governed
 release); `frontend/src/lib/reasons/scheduleReasons.ts` (a reason line); new
-`frontend/src/components/schedule/FillRateNote.tsx` (the note under a section row,
-modeled on the existing `SampleNote.tsx`).
+`frontend/src/components/schedule-builder/FillRateNote.tsx` (the note under a section
+row).
 
 **Acceptance check.** A fixture test feeds two synthetic snapshots (open at t0, full at
 t1) and asserts the computed rate and the "usually fills early" label; a second test
@@ -444,15 +444,15 @@ default and the wrong ceiling.
 
 **Files.** `frontend/src/lib/optimizer/optimize.ts` (raise or parameterize `k`),
 `frontend/src/lib/optimizer/README.md` (contract update), new
-`frontend/src/components/schedule/CombinationsList.tsx` beside
-`AlternativesCompare.tsx`, `frontend/src/components/schedule/use-optimizer.ts` (fetch
+`frontend/src/components/schedule-builder/CombinationsList.tsx` beside
+`OptionsStrip.tsx`, `frontend/src/components/schedule/use-optimizer.ts` (fetch
 the full result set for the mode).
 
 **Acceptance check.** An engine test asserts `k = 25` on a generated 6-course instance
 returns 25 distinct conflict-free schedules within the follow-up budget; a component
 test asserts clicking a list row dispatches locks for exactly that row's section ids
 and that the next Auto run request contains them (worker protocol test, mirroring
-`tests/optimizer/worker.test.ts`).
+`frontend/tests/optimizer/worker.test.ts`).
 
 ### 6. Busy blocks from real calendars into the constraint rail
 
@@ -467,17 +467,19 @@ Busy times (verified in `captures/vsb-unt-mirror.png`), Civitas's breaks and pre
 (http://www.civitaslearning.com/wp-content/uploads/2025/01/Academic-Planning-Overview.pdf),
 GT Scheduler's events that both filter combinations and fold into the compactness sort
 (https://github.com/gt-scheduler/website, `Oscar.getCombinations` and the "Most Compact"
-sorting option). UNTangle already parses feed events; PR #58's rail only accepts
-hand-typed blocks.
+sorting option). UNTangle already parses feed events; the Week builder's blocked-times
+control (merged in PR #58) only accepts hand-typed blocks.
 
 **Files.** `frontend/src/lib/calendar-feeds/parse.ts` (event lookup by id from an
 already-parsed feed); `frontend/src/components/schedule/constraint-logic.ts` (build a
 `BlockDraft` from the event; reuse `parseBlockDraft` validation);
-`frontend/src/components/schedule/ConstraintRail.tsx` (entry point: a "convert from
-calendar feed" affordance on the rail's blocked-times control). A click-on-grid
-affordance would touch the lead-owned `frontend/src/components/schedule/WeekGrid.tsx`
-(listed in `.github/lead-owned-paths.txt`), so that part is lead-only and out of an
-agent PR's scope.
+`frontend/src/components/schedule-builder/PreferencesPopover.tsx` (entry point: a
+"convert from calendar feed" affordance on the blocked-times control, whose state lives
+in `frontend/src/components/schedule-builder/preferences.ts`). A click-on-grid
+affordance would touch the lead-owned
+`frontend/src/components/schedule-builder/WeekGrid.tsx` (listed in
+`.github/lead-owned-paths.txt`), so that part is lead-only and out of an agent PR's
+scope.
 
 **Acceptance check.** A unit test converts a fixture event (Tue 18:00 to 20:00) into a
 `BlockedTime` that `parseSchedulePreferences` accepts, and a duplicate conversion is
@@ -510,8 +512,8 @@ matches student expectations.
 on upstream failure); `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts`
 (the handler whose response carries the staleness diagnostic);
 `frontend/src/lib/data-provenance.ts` (staleness into the response's provenance); new
-`frontend/src/components/schedule/DataAgeNote.tsx` (the dated banner, modeled on the
-existing `SampleNote.tsx`).
+`frontend/src/components/schedule-builder/DataAgeNote.tsx` (the dated banner above the
+week).
 
 **Acceptance check.** A test on the
 `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` handler (through
@@ -537,7 +539,7 @@ compares them, and PR #58's share/open flow stops at "use this over the current 
 
 **Files.** `frontend/src/components/schedule/week-model.ts` (reuse `eventsFor` and
 `firstClash` over arbitrary plans), new
-`frontend/src/components/schedule/SavedPlansCompare.tsx`,
+`frontend/src/components/schedule-builder/SavedPlansCompare.tsx`,
 `frontend/src/lib/saved-plans/store.ts` (multi-read).
 
 **Acceptance check.** A test renders two fixture plans and asserts the difference
@@ -554,8 +556,9 @@ rendering overlapping events silently.
   what the cited page shows.
 - Reddit threads were located through a cited web search (Perplexity, October 15,
   2026); quotes are as returned by that search and each thread is linked directly.
-- The recommendations name files as they exist on `alpha` at `1c205c2e`. Open PRs #58
-  and #61 move some of the same files; each recommendation above states its position
-  relative to them, and nothing in this list duplicates their described scope.
+- The recommendations name files as they exist on `alpha` at `bacc8820`. PR #58 (merged,
+  the v3 Week rebuild) and open PR #61 move some of the same files; each recommendation
+  above states its position relative to them, and nothing in this list duplicates their
+  described scope.
 - No UNT account, password, or secret was used anywhere in this research; every page
   studied is public.
