@@ -1,0 +1,110 @@
+/*
+ * A signed-in student's open sync conflict. It waits for a choice without
+ * blocking the page, so it sits at the bottom-left on desktop, clear of the
+ * centred toast and of Week's rail, and above the tab bar on phones. A light
+ * surface, not the ink toast: it asks for a decision rather than reporting one.
+ */
+.sync-notice {
+  position: fixed;
+  left: 24px;
+  bottom: calc(24px + var(--safe-b));
+  z-index: 90;
+  display: grid;
+  gap: 4px;
+  width: min(400px, calc(100vw - 48px));
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--t-enter) var(--ease-out),
+    transform var(--t-enter) var(--ease-out);
+}
+@starting-style {
+  .sync-notice {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sync-notice {
+    transform: none;
+    transition: opacity var(--t-enter) var(--ease-out);
+  }
+}
+@media (max-width: 759px) {
+  .sync-notice {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b));
+  }
+}
+.sync-notice__title {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: 600;
+}
+.sync-notice__detail {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.sync-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sync-questions {
+  display: grid;
+  gap: 12px;
+}
+.sync-question {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sync-question legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.sync-question__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.sync-question__option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.sync-question__option input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+.sync-question__option > span {
+  display: grid;
+  gap: 2px;
+}
+.sync-question__where {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}

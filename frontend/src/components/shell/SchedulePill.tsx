@@ -7,14 +7,19 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Check, ChevronDown, ChevronRight, Close } from "@/components/ui/icons";
 import { PLANNING_TERM } from "@/lib/terms";
-import { SCHEDULE_NAME, chipStatusLabel, chipTone, savedWhere, type ChipTone } from "./plan-status";
+import { SCHEDULE_NAME, chipStatusLabel, chipTone, type ChipTone } from "./plan-status";
 import { SCHEDULES_HREF } from "./routes";
 
 function useScheduleState() {
   const { saveState, isRegistered, hydrated, retrySave } = usePlanner();
   const tone: ChipTone = hydrated ? chipTone(saveState.status) : "saving";
   const status =
-    tone === "saved" ? savedWhere(isRegistered) : hydrated ? chipStatusLabel(saveState.status, saveState.label) : "Loading";
+    tone === "saved"
+      ? // Signed in, the label is the sync state ("Synced", "Saved on this device").
+        isRegistered ? saveState.label : "Saved on this device"
+      : hydrated
+        ? chipStatusLabel(saveState.status, saveState.label)
+        : "Loading";
   return { tone, status, detail: saveState.detail, isRegistered, retrySave };
 }
 

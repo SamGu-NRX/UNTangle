@@ -7,7 +7,9 @@ import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
 import { useState } from "react";
 import { openSignIn } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
-import { useConfirmedAccount } from "@/components/planner-provider";
+import { useConfirmedAccount, usePlanner } from "@/components/planner-provider";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { UserGlyph } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { toast } from "@/components/ui/Toast";
@@ -34,6 +36,10 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const account = useConfirmedAccount();
   const router = useRouter();
   const [settingPassword, setSettingPassword] = useState(false);
+  const { prepareSignOut } = usePlanner();
+  // Open while waiting writes need the student's choice before signing out.
+  const [unsyncedAsk, setUnsyncedAsk] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   if (account.status === "checking") {
     // Hold the avatar's space so the bar does not shift when the session lands.
@@ -51,7 +57,17 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     );
   }
   const { user } = account;
-  const signOut = async () => {
+  /**
+   * Signing out deletes this account's documents from the browser, so a
+   * write still waiting for the server is never dropped without the
+   * student's choice (docs/architecture/README.md, "Local data belongs to one identity").
+   */
+  const signOut = async ({ discard = false }: { discard?: boolean } = {}) => {
+    const prepared = await prepareSignOut();
+    if (prepared.unsynced && !discard) {
+      setUnsyncedAsk(true);
+      return false;
+    }
     let failed: boolean;
     try {
       failed = Boolean((await authClient.signOut()).error);
@@ -63,15 +79,30 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       toast({
         message: "Couldn't sign out. You're still signed in on this device.",
         tone: "error",
-        action: { label: "Try again", onClick: () => void signOut() },
+        action: { label: "Try again", onClick: () => void signOut({ discard }) },
       });
-      return;
+      return false;
     }
+    setUnsyncedAsk(false);
+    await prepared.forget(discard).catch((error: unknown) => console.error("Couldn't clear this account's documents from the browser", error));
     clearPlannerIdentity(user.id);
     clearSavedPlansIdentity(user.id);
     clearPlannerIdentity(null);
     clearSavedPlansIdentity(null);
     router.push("/");
+    return true;
+  };
+  const syncThenSignOut = async () => {
+    setSyncing(true);
+    try {
+      if ((await prepareSignOut()).unsynced) {
+        toast({ message: "Couldn't sync. Check your connection and try again.", tone: "error" });
+        return;
+      }
+      await signOut();
+    } finally {
+      setSyncing(false);
+    }
   };
   return (
     <>
@@ -85,7 +116,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
           {
             id: "sign-out",
             label: "Sign out",
-            onSelect: signOut,
+            onSelect: () => void signOut(),
           },
         ]}
         trigger={(props) => (
@@ -95,6 +126,23 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         )}
       />
       <SetPasswordDialog open={settingPassword} onOpenChange={setSettingPassword} />
+      <Dialog
+        open={unsyncedAsk}
+        onOpenChange={setUnsyncedAsk}
+        role="alertdialog"
+        title="Some changes haven't synced."
+        description="Sync now, or sign out and discard them?"
+        footer={
+          <>
+            <Button variant="destructive" disabled={syncing} onClick={() => void signOut({ discard: true })}>
+              Sign out and discard
+            </Button>
+            <Button loading={syncing} onClick={() => void syncThenSignOut()}>
+              Sync now
+            </Button>
+          </>
+        }
+      />
     </>
   );
 }
