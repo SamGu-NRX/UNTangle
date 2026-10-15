@@ -233,6 +233,8 @@ jobs:
           exit 1
       - name: Capture course route diagnostics
         if: matrix.name == 'courses-v2'
+        # Diagnostics only explain failures; a failed capture must not skip the journey itself.
+        continue-on-error: true
         run: sudo --preserve-env -u journey "$(command -v node)" .github/scripts/journey-route-diagnostics.mjs
       - name: Run browser journey
         env:
