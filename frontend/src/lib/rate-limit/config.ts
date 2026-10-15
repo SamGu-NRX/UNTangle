@@ -24,6 +24,9 @@ export const budgets = {
   deviceToken: { ip: 120 },
   // Each preview fetches an outside URL; this is an unmeasured starting value.
   calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
+  // Same cost as a preview (one outside fetch), but the planner calls it
+  // automatically, so signed-in users get more room. Unmeasured.
+  calendarFeedBusy: { user: 30, ip: 15, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },

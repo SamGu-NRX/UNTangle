@@ -20,6 +20,22 @@ returns the result without storing it.
   when it is over `MAX_PREVIEW_RESPONSE_BYTES` (1 MiB). The route answers
   null with 422 and "This calendar has too many events to preview"; it never
   cuts a response short.
+- `busyFromFeed(parsed, termRange, timeZone?)`: the title-free dated busy
+  pieces the planner consumes as dated blocked times. It runs the same
+  occurrence pipeline as `occurrences` over the term's inclusive ISO-date
+  range, then keeps only busy pieces and drops every free-text field: a
+  piece is `{ eventId, date, startMinutes, endMinutes, start, end, allDay,
+  busy }`, with weekday and minutes derivable from `date` and local
+  midnight. Recurring series, canceled instances and transparent events
+  behave exactly as in the events API, because it is the same pipeline.
+  The busy route (`frontend/src/app/api/v1/calendar-feeds/busy/route.ts`)
+  fetches, parses, and returns these pieces through a serializer that maps
+  fields explicitly — occurrences carry only `{ date, startMinutes,
+  endMinutes }` and skipped entries only `{ index, reason }` (no summary,
+  UID, or feed URL: a Google secret-address URL carries a private token), so
+  a future field on the internal types cannot leak event text into the
+  response by accident; the planner converts them to dated blocked times in
+  `busyOccurrencesToBlockedTime` (`src/lib/planner.ts`).
 - `fetchCalendarIcs(url, deps?)`: fetch a feed over https with the SSRF
   guards below and return the raw text. Throws `CalendarFetchError` with a
   `kind` of `blocked` / `invalid` (the route answers 400) or `unreachable` /
