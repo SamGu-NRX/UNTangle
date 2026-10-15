@@ -1,0 +1,318 @@
+/**
+ * The extension routes against an in-memory store with the document-sync
+ * decision logic real writes use. Pins: every preview verdict (clear, conflict
+ * by course and by busy block, each unknown reason), the add-command path
+ * (receipt, replay, stale revision, pinned lock), and the boundary (extension
+ * grants only, bound schedule only, origin rules, no cookie credentials).
+ */
+import { describe, expect, test } from "bun:test";
+import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
+import { createExtensionHttp } from "@/server/extension/http";
+import type { ExtensionStore } from "@/server/extension/commands";
+import { parseWrite, SyncError, decideWrite, type CurrentDocument } from "@/lib/document-sync/decision";
+import { extensionPreviewSchema, extensionAddReplySchema } from "@/server/extension/extension-api";
+import { extensionOptionId, parseExtensionOptionId, sectionMatchesOptionId } from "@/server/extension/option-id";
+import { DocumentSchema, type Document, type PreferencesBody } from "../../../packages/contracts/src/documents";
+import type { Receipt } from "../../../packages/contracts/src/sync";
+import type { Section } from "@/lib/sections/model";
+import { MemoryDeviceStore } from "../device-grants/memory-store";
+
+const origin = "https://untangle.example";
+const extension = `chrome-extension://${"a".repeat(32)}`;
+const scheduleId = "sched-main-1";
+const term = "spring-2027";
+
+const meeting = (overrides: Partial<Section["meetings"][number]> = {}) => ({
+  room: "F151", buildingCode: null, buildingId: null, buildingName: "Fossil Green Hall",
+  kind: "building" as const, offCampus: false, day: "Mon" as const,
+  startMinutes: 540, endMinutes: 630, dates: { start: null, end: null, raw: "" },
+  instructor: { display: null, raw: "" }, async: false, tba: false, ...overrides,
+});
+
+const section = (courseCode: string, sectionCode: string, classNumbers: string[], meetings: Section["meetings"]): Section => ({
+  id: `vsb:${term}:${courseCode}:${sectionCode}`, term, courseCode, sectionCode, classNumbers,
+  option: null, instructor: { display: null, raw: "" }, seats: { open: 3, total: 40 },
+  status: "open", rawStatus: "Open", session: { label: "16W", dates: { start: null, end: null, raw: "" } },
+  components: [], meetings, online: false, async: false, tba: meetings.some(m => m.tba),
+});
+
+const csce1030 = section("CSCE 1030", "001", ["10234"], [meeting()]);
+const csce2110 = section("CSCE 2110", "001", ["20111"], [meeting({ startMinutes: 570, endMinutes: 660 })]);
+const csce2110Later = section("CSCE 2110", "002", ["20112"], [meeting({ day: "Tue", startMinutes: 570, endMinutes: 660 })]);
+const engrTba = section("ENGR 1000", "001", ["30100"], [meeting({ tba: true, day: null, startMinutes: null, endMinutes: null })]);
+const sections = [csce1030, csce2110, csce2110Later, engrTba];
+
+const scheduleBody = (overrides: Record<string, unknown> = {}) => ({
+  institutionId: "unt", termId: term, name: "Main", courses: ["CSCE 1030"],
+  selectedSections: { "CSCE 1030": csce1030.id }, lockedSections: {}, autoPlanned: [], lastAuto: null,
+  ...overrides,
+});
+
+const preferences = (blocked: unknown[] = []): PreferencesBody => ({
+  institutionId: "unt" as PreferencesBody["institutionId"], goal: "compact",
+  constraints: {
+    earliestStart: null, latestEnd: null, daysOff: [], blocked: blocked as PreferencesBody["constraints"]["blocked"],
+    maxCredits: null, walkingBufferMinutes: null, excludedSections: [], openSeatsOnly: false, otherSites: false,
+  },
+  weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+});
+
+/** A store with the real write decision logic and plain in-memory tables. */
+class MemoryExtensionStore implements ExtensionStore {
+  #documents = new Map<string, { kind: string; revision: number; institutionId: string; deleted: boolean; body: unknown }>();
+  #receipts = new Map<string, Receipt>();
+  preferencesBody: PreferencesBody | null = null;
+
+  seed(documentId: string, body: unknown) { this.#documents.set(documentId, { kind: "schedule", revision: 1, institutionId: "unt", deleted: false, body }); }
+
+  async getDocument(userId: string, documentId: string): Promise<Document> {
+    const document = this.#documents.get(documentId);
+    if (!document) throw new SyncError(404, "NOT_FOUND", "The document does not exist.");
+    return DocumentSchema.parse({ documentId, kind: document.kind, revision: document.revision, schemaVersion: 1, body: document.body });
+  }
+
+  async preferences() { return this.preferencesBody; }
+
+  async receipt(userId: string, operationId: string) { return this.#receipts.get(operationId) ?? null; }
+
+  async write(userId: string, bytes: Uint8Array, documentId: string): Promise<Receipt> {
+    const { write, writeSha256 } = parseWrite(bytes);
+    const document = this.#documents.get(documentId);
+    const current: CurrentDocument | null = document
+      ? { kind: document.kind as "schedule", revision: document.revision, institutionId: document.institutionId, deleted: document.deleted }
+      : null;
+    const decision = decideWrite({ write, writeSha256, receipt: this.#receipts.get(write.operationId) ?? null, current });
+    if (decision.kind === "replay") return decision.receipt;
+    if (decision.kind !== "document") throw new SyncError(409, "KIND_MISMATCH", "Versions are created through the app.");
+    this.#documents.set(documentId, {
+      kind: write.kind, revision: decision.revision, institutionId: decision.institutionId, deleted: false, body: decision.body,
+    });
+    const receipt: Receipt = { userId, operationId: write.operationId, writeSha256, committedRevision: decision.revision };
+    this.#receipts.set(write.operationId, receipt);
+    return receipt;
+  }
+}
+
+function setup(options: { sections: Section[] | null; scheduleBody: unknown | null; preferences?: PreferencesBody | null } = { sections, scheduleBody: scheduleBody() }) {
+  const grants = createDeviceGrants(new MemoryDeviceStore());
+  const store = new MemoryExtensionStore();
+  if (options.scheduleBody) store.seed(scheduleId, options.scheduleBody);
+  if (options.preferences !== undefined) store.preferencesBody = options.preferences;
+  const http = createExtensionHttp({ grants, store, sections: { termSections: async () => options.sections }, origin, extensionOrigins: [extension] });
+  let account = "alice";
+  async function issue(clientKind: "extension" | "mobile" = "extension") {
+    const start = clientKind === "extension"
+      ? { clientKind, codeChallenge: pkceChallenge("v".repeat(43)), codeChallengeMethod: "S256" as const, scheduleId }
+      : { clientKind, codeChallenge: pkceChallenge("v".repeat(43)), codeChallengeMethod: "S256" as const };
+    const pending = await grants.start(start);
+    await grants.approve(pending.userCode, account, "approve");
+    return (await grants.exchange(pending.deviceCode, "v".repeat(43))).accessToken;
+  }
+  const previewUrl = (t = term, classNumber = "10234") => `${origin}/api/v1/extension/preview/${t}/${classNumber}`;
+  const preview = (token: string | null, url = previewUrl(), extraHeaders: Record<string, string> = {}) =>
+    http.preview(new Request(url, { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...extraHeaders } }), { term: url.split("/")[7] ?? term, classNumber: url.split("/")[8] ?? "10234" });
+  const add = (token: string, body: unknown) =>
+    http.commands(new Request(`${origin}/api/v1/extension/commands`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body),
+    }));
+  return { grants, store, http, issue, preview, previewUrl, add, asAccount: (id: string) => { account = id; } };
+}
+
+const addCommand = (overrides: Record<string, unknown> = {}) => ({
+  command: "add-option", operationId: "op-1", scheduleId, optionId: extensionOptionId(csce2110Later) as string,
+  expectedRevision: 1, ...overrides,
+});
+
+describe("extension previews", () => {
+  test("a clear section states the meeting, seats and the revision it checked", async () => {
+    const h = setup();
+    const response = await h.preview(await h.issue());
+    expect(response.status).toBe(200);
+    const preview = extensionPreviewSchema.parse(await response.json());
+    expect(preview.conflict).toBe("clear");
+    expect(preview.title).toBe("CSCE 1030");
+    expect(String(preview.optionId)).toBe(extensionOptionId(csce1030) as string);
+    expect(preview.revision).toBe(1);
+    expect(preview.meetings?.[0]).toEqual({ days: "Mon", time: "9:00 AM to 10:30 AM", room: "F151" });
+    expect(preview.details.some(detail => detail.includes("3 of 40 seats"))).toBe(true);
+  });
+
+  test("an overlap with a picked course and with a busy block is a conflict naming both", async () => {
+    const busy = [{ id: "work", label: "Work shift", day: "Tue" as const, start: 575, end: 600 }];
+    const h = setup({
+      sections,
+      scheduleBody: scheduleBody({ courses: ["CSCE 1030", "CSCE 2110"], selectedSections: { "CSCE 1030": csce1030.id, "CSCE 2110": csce2110.id } }),
+      preferences: preferences(busy),
+    });
+    const token = await h.issue();
+    // CSCE 2110 section 001 overlaps CSCE 1030 on Monday...
+    const withCourse = extensionPreviewSchema.parse(await (await h.preview(token, h.previewUrl(term, "20111"))).json());
+    expect(withCourse.conflict).toBe("conflict");
+    expect(withCourse.clashes).toEqual([{ kind: "course", name: "CSCE 1030", when: "Mon 9:30 AM to 10:30 AM" }]);
+    // ...and section 002 overlaps the Tuesday busy block only.
+    const withBusy = extensionPreviewSchema.parse(await (await h.preview(token, h.previewUrl(term, "20112"))).json());
+    expect(withBusy.conflict).toBe("conflict");
+    expect(withBusy.clashes).toEqual([{ kind: "busy", name: "Work shift", when: "Tue 9:35 AM to 10:00 AM" }]);
+  });
+
+  test("unknown verdicts name why: missing section, no schedule, term mismatch, TBA, stale pick", async () => {
+    const hMissing = setup({ sections, scheduleBody: null });
+    const noSchedule = extensionPreviewSchema.parse(await (await hMissing.preview(await hMissing.issue())).json());
+    expect(noSchedule.conflict).toBe("unknown");
+    expect(noSchedule.unknownReason).toBe("schedule-unavailable");
+    expect(noSchedule.details.join(" ")).toContain("Sign in");
+
+    const hNotFound = setup({ sections, scheduleBody: null });
+    const unknownClass = extensionPreviewSchema.parse(await (await hNotFound.preview(await hNotFound.issue(), hNotFound.previewUrl(term, "99999"))).json());
+    expect(unknownClass.conflict).toBe("unknown");
+    expect(unknownClass.unknownReason).toBe("schedule-unavailable");
+    expect(unknownClass.details.join(" ")).toContain("99999");
+
+    const hTerm = setup({ sections, scheduleBody: scheduleBody({ termId: "fall-2027" }) });
+    const otherTerm = extensionPreviewSchema.parse(await (await hTerm.preview(await hTerm.issue())).json());
+    expect(otherTerm.conflict).toBe("unknown");
+    expect(otherTerm.unknownReason).toBe("schedule-unavailable");
+    expect(otherTerm.details.join(" ")).toContain("fall-2027");
+
+    const hTba = setup({ sections, scheduleBody: scheduleBody() });
+    const tba = extensionPreviewSchema.parse(await (await hTba.preview(await hTba.issue(), hTba.previewUrl(term, "30100"))).json());
+    expect(tba.conflict).toBe("unknown");
+    expect(tba.unknownReason).toBe("no-set-time");
+
+    const hStale = setup({
+      sections,
+      scheduleBody: scheduleBody({ courses: ["CSCE 1030", "MATH 2000"], selectedSections: { "CSCE 1030": csce1030.id, "MATH 2000": "vsb:old:pick" } }),
+    });
+    const stalePick = extensionPreviewSchema.parse(await (await hStale.preview(await hStale.issue())).json());
+    expect(stalePick.conflict).toBe("unknown");
+    expect(stalePick.unknownReason).toBe("schedule-time-missing");
+    expect(stalePick.details.join(" ")).toContain("MATH 2000");
+
+    const hDown = setup({ sections: null, scheduleBody: null });
+    const down = extensionPreviewSchema.parse(await (await hDown.preview(await hDown.issue())).json());
+    expect(down.conflict).toBe("unknown");
+    expect(down.unknownReason).toBe("schedule-unavailable");
+  });
+
+  test("a section already picked in Main says so", async () => {
+    const h = setup();
+    const preview = extensionPreviewSchema.parse(await (await h.preview(await h.issue())).json());
+    expect(preview.inSchedule).toBe(true);
+  });
+});
+
+describe("extension add-option commands", () => {
+  test("adds the option as the course's pick and commits one receipt", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const response = await h.add(token, addCommand());
+    expect(response.status).toBe(200);
+    const reply = extensionAddReplySchema.parse(await response.json());
+    if (reply.kind !== "receipt") throw new Error(`expected a receipt, got ${reply.kind}`);
+    expect(`${reply.operationId}`).toBe("op-1");
+    expect(reply.committedRevision).toBe(2);
+    const document = await h.store.getDocument("alice", scheduleId);
+    expect(document.body).toMatchObject({
+      courses: ["CSCE 1030", "CSCE 2110"],
+      selectedSections: { "CSCE 1030": csce1030.id, "CSCE 2110": csce2110Later.id },
+    });
+  });
+
+  test("a replay of the same operation id returns the original receipt without writing", async () => {
+    const h = setup();
+    const token = await h.issue();
+    const first = await h.add(token, addCommand());
+    const second = await h.add(token, addCommand({ expectedRevision: 99 }));
+    expect(await second.json()).toEqual(await first.json());
+  });
+
+  test("a stale expected revision is a typed rejection, never an overwrite", async () => {
+    const h = setup();
+    const token = await h.issue();
+    await h.add(token, addCommand()); // schedule is now revision 2
+    const stale = await h.add(token, addCommand({ operationId: "op-2", expectedRevision: 1 }));
+    expect(stale.status).toBe(409);
+    const reply = extensionAddReplySchema.parse(await stale.json());
+    if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
+    expect(reply.reason).toBe("stale-revision");
+    // The operation stays uncommitted, so a fresh preview then reconfirm works.
+    expect(await h.store.receipt("alice", "op-2")).toBeNull();
+  });
+
+  test("a pinned pick and a foreign institution are forbidden", async () => {
+    const locked = setup({
+      sections,
+      scheduleBody: scheduleBody({
+        courses: ["CSCE 1030", "CSCE 2110"],
+        selectedSections: { "CSCE 1030": csce1030.id, "CSCE 2110": csce2110.id },
+        lockedSections: { "CSCE 2110": csce2110.id },
+      }),
+    });
+    const lockedReply = await locked.add(await locked.issue(), addCommand());
+    expect(lockedReply.status).toBe(403);
+    const lockedBody = extensionAddReplySchema.parse(await lockedReply.json());
+    if (lockedBody.kind !== "rejection") throw new Error(`expected a rejection, got ${lockedBody.kind}`);
+    expect(lockedBody.reason).toBe("forbidden");
+
+    const foreign = setup({ sections, scheduleBody: scheduleBody({ institutionId: "ut" }) });
+    const foreignReply = await foreign.add(await foreign.issue(), addCommand());
+    expect(foreignReply.status).toBe(403);
+  });
+
+  test("an unknown option id is not-found and keeps the operation uncommitted", async () => {
+    const h = setup();
+    const response = await h.add(await h.issue(), addCommand({ optionId: "CSCE1030-99999" }));
+    expect(response.status).toBe(422);
+    const reply = extensionAddReplySchema.parse(await response.json());
+    if (reply.kind !== "rejection") throw new Error(`expected a rejection, got ${reply.kind}`);
+    expect(reply.reason).toBe("not-found");
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(1);
+  });
+});
+
+describe("extension boundary", () => {
+  test("extension grants only, and only against their bound schedule", async () => {
+    const h = setup();
+    const mobile = await h.issue("mobile");
+    expect((await h.preview(mobile)).status).toBe(403);
+    expect((await h.add(mobile, addCommand({ scheduleId: "sched-other-1" }))).status).toBe(403);
+
+    const token = await h.issue();
+    const other = await h.add(token, addCommand({ scheduleId: "sched-other-1" }));
+    expect(other.status).toBe(403);
+    expect((await other.json()).error).toBe("insufficient_scope");
+    expect(await h.store.getDocument("alice", scheduleId)).toBeTruthy();
+  });
+
+  test("credentials and origins follow the device routes", async () => {
+    const h = setup();
+    expect((await h.preview(null)).status).toBe(401);
+    // A cookie alongside a token is refused, never resolved implicitly.
+    const withCookie = await h.preview(await h.issue(), h.previewUrl(), { cookie: "better-auth.session=1" });
+    expect(withCookie.status).toBe(400);
+    // A different extension origin gets no CORS echo and no access.
+    const foreign = await h.preview(null, h.previewUrl(), { origin: `chrome-extension://${"b".repeat(32)}` });
+    expect(foreign.status).toBe(403);
+    expect(foreign.headers.get("access-control-allow-origin")).toBeNull();
+    // The allowed extension origin gets the echo, with no credentials header.
+    const allowed = await h.preview(null, h.previewUrl(), { origin: extension });
+    expect(allowed.headers.get("access-control-allow-origin")).toBe(extension);
+    expect(allowed.headers.get("access-control-allow-credentials")).toBeNull();
+    expect(allowed.headers.get("vary")).toBe("Origin");
+    // A malformed body is a typed 400, not a server error.
+    expect((await h.add(await h.issue(), { command: "drop-everything" })).status).toBe(400);
+  });
+});
+
+describe("extension option ids", () => {
+  test("round-trip between the extension id and the term's sections", () => {
+    const linked = section("ACCT 3120", "501", ["40220", "40221"], [meeting({ day: "Wed" })]);
+    const id = extensionOptionId(linked);
+    expect(id).toBe("ACCT3120-40220-40221");
+    expect(parseExtensionOptionId(id as string)).toEqual({ courseCode: "ACCT 3120", classNumbers: ["40220", "40221"] });
+    expect(sectionMatchesOptionId(linked, id as string)).toBe(true);
+    expect(sectionMatchesOptionId(csce1030, id as string)).toBe(false);
+    // Sample sections without class numbers get no extension id.
+    expect(extensionOptionId(section("MATH 2000", "001", [], []))).toBeNull();
+  });
+});
