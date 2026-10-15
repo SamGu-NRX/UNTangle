@@ -1,12 +1,12 @@
 # CodeRabbit reads this file from the pull request's head branch. Without base_branches it skips every PR whose
 # base isn't the default branch (main) with "Auto reviews are disabled on base/target branches other than the
 # default branch". Every UNTangle PR targets alpha or edge, so until 2026-10-15 none was auto-reviewed.
-# Drafts are reviewed too: Obvious threads deliver draft PRs, and their findings go back to the thread while it
-# still owns the branch.
+# Drafts are skipped: UNTangle is public, so reviews come from CodeRabbit's free OSS quota, which ran out
+# repeatedly on 2026-10-15 ("Review limit reached"). The lead requests "@coderabbitai review" on a draft it needs.
 reviews:
   auto_review:
     enabled: true
-    drafts: true
+    drafts: false
     base_branches:
       - "^alpha$"
       - "^beta$"
