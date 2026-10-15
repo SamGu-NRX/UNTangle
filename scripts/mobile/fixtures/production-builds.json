@@ -11,7 +11,7 @@
       "profile": "production",
       "appVersion": "1.0.0",
       "sdkVersion": "57.0.0",
-      "runtimeVersion": "c5c7d1271d1eec47c736fd68981ab8962f47c916"
+      "runtimeVersion": "677b489a545ef723b22b76b0830877e24022f4e9"
     },
     {
       "id": "22222222-2222-2222-2222-222222222222",
@@ -31,7 +31,7 @@
       "profile": "preview",
       "appVersion": "1.0.0",
       "sdkVersion": "57.0.0",
-      "runtimeVersion": "c5c7d1271d1eec47c736fd68981ab8962f47c916"
+      "runtimeVersion": "677b489a545ef723b22b76b0830877e24022f4e9"
     },
     {
       "id": "44444444-4444-4444-4444-444444444444",
@@ -41,7 +41,7 @@
       "profile": "production",
       "appVersion": "1.0.0",
       "sdkVersion": "57.0.0",
-      "runtimeVersion": "c5c7d1271d1eec47c736fd68981ab8962f47c916"
+      "runtimeVersion": "677b489a545ef723b22b76b0830877e24022f4e9"
     }
   ]
 }

@@ -181,10 +181,12 @@ file; they were never captured from a live EAS account.
   saved file, a malformed saved fingerprint, a non-iOS `--platform`, and a
   missing environment all refuse with clear messages (guard refusals exit 1,
   local setup problems exit 2).
-- The fingerprint fixtures embed `c5c7d1271d1eec47c736fd68981ab8962f47c916`,
+- The fingerprint fixture embeds `677b489a545ef723b22b76b0830877e24022f4e9`,
   computed with `npx --no-install expo-updates fingerprint:generate --platform
-  ios` in `mobile/` against this branch's checkout; it changes with any config
-  or dependency change and the fixtures note that.
+  ios` in `mobile/` against this branch's checkout (the earlier
+  `c5c7d1271d1eec47c736fd68981ab8962f47c916` went stale when the mobile
+  `typecheck` script changed `mobile/package.json` — it changes with any
+  config or dependency change, and the fixtures note that).
 
 ## Deliberately not done yet
 
