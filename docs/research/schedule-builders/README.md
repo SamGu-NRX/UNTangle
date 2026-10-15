@@ -4,7 +4,7 @@ Research pass, October 15, 2026. The task: study the schedule builders students 
 rate, read the open-source generation code where it exists, and turn it into a ranked,
 buildable backlog for UNTangle's Week view and Auto. Every load-bearing claim carries a
 URL to something read or captured this session. Repo file paths in the recommendations
-were read on `alpha` at commit `1c205c2e` the same day.
+were read on `alpha` at commit `bacc8820` the same day.
 
 Evidence classes used below, matching the conventions of
 `docs/research/registration-platforms/`:
@@ -321,7 +321,7 @@ UNTangle's engine is already ahead of every product above in one way: it is a
 preference-cost optimizer with hard constraints, locks, exclusions, walking checks,
 dated meetings, infeasibility explanations with checked suggestions, and a proven
 deterministic search (`frontend/src/lib/optimizer/README.md`, read this session). PR #58
-(the v3 Week rebuild, open) covers export, class numbers, share links, keep-this-section
+(the v3 Week rebuild, merged) covers export, class numbers, share links, keep-this-section
 locking, and a one-alternative-at-a-time strip; PR #61 (open backlog) covers instructor
 ratings and campus calendars. The recommendations below deliberately avoid duplicating
 either, and each says where it stands relative to them.
