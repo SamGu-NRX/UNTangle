@@ -21,13 +21,15 @@ import { dayHero, type HeroClass } from "@/lib/leave-by";
 import { dayWalkMinutes, formatWalkMinutes, toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
 import { DayHero, DayItinerary, DayStepper, OtherCampusHero, StartPicker, type NextClass } from "@/components/map/day-panel";
-import { campusNow, dayNames, meetsOn, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
+import { campusNow, dayNames, meetsOn, nextClassDay, nextClassFrom, nextDateOf, stepperDays } from "@/components/map/day-steps";
+import { findGapEvent, gapRows } from "@/components/map/gap-events";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
 import type { MapSelection } from "@/components/map/selection";
 import type { StartPlaceOption } from "@/components/map/start-places";
 import { setStartingPoint, useStartingPoint } from "@/components/map/starting-point";
-import { useItinerary } from "@/components/map/use-itinerary";
+import { useCampusEvents } from "@/components/map/use-campus-events";
+import { useEventDetour, useItinerary } from "@/components/map/use-itinerary";
 import "@/components/map/map.css";
 
 const MapCanvas = dynamic(() => import("@/components/map/map-canvas").then((module) => module.MapCanvas), {
@@ -135,6 +137,33 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   const start = useStartingPoint();
   const itinerary = useItinerary(stops, start);
 
+  // Campus events in the day's gaps: today's, or on the date the weekday shown next falls on.
+  const gapDate = campusTime && onCampus ? (isToday ? campusTime.iso : nextDateOf(day, campusTime.iso)) : null;
+  // Asked for as soon as the date is known, alongside the planner and the routes, so the
+  // rows are usually there with the itinerary. A late answer waits while the list is in use.
+  const listBusy = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isListBusy = useCallback(() => listBusy.current || (scrollRef.current?.scrollTop ?? 0) > 0, []);
+  const campusEvents = useCampusEvents(gapDate, isListBusy);
+  const [selection, setSelection] = useState<MapSelection>(null);
+  const selectedEventKey = selection?.kind === "event" ? selection.key : null;
+  const gaps = useMemo(
+    () =>
+      gapDate === null
+        ? []
+        : gapRows({
+            itinerary,
+            date: gapDate,
+            events: campusEvents,
+            now: isToday && campusTime ? campusTime.minute : null,
+            keep: selectedEventKey,
+          }),
+    [itinerary, gapDate, campusEvents, isToday, campusTime, selectedEventKey],
+  );
+  const gapsByLeg = useMemo(() => new Map(gaps.map((row) => [row.legKey, row])), [gaps]);
+  const gapDateLabel =
+    gapDate && !isToday ? new Date(`${gapDate}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : null;
+
   const hero = dayHero(
     itinerary.stops.map((entry, index): HeroClass => ({
       start: toMinutes(entry.stop.start),
@@ -153,7 +182,13 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   const isPhone = useMediaQuery(PHONE_QUERY);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
-  const [selection, setSelection] = useState<MapSelection>(null);
+  useEffect(() => {
+    listBusy.current = selection !== null;
+  }, [selection]);
+  const selectedEvent = useMemo(() => findGapEvent(gaps, selectedEventKey), [gaps, selectedEventKey]);
+  const detour = useEventDetour(selectedEvent);
+  // An event whose gap has ended leaves the list; its selection ends with it.
+  const visibleSelection: MapSelection = selection?.kind === "event" && !selectedEvent ? null : selection;
   const [frame, setFrame] = useState<DayFrame>({ day, instant: true });
   // Each lens keeps its own sheet while the student visits the others.
   const [detent, setDetentState] = usePageState<SheetDetent>("sheet-detent", "half");
@@ -171,7 +206,6 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const rows = useRef(new Map<string, HTMLElement>());
   const [area, setArea] = useState({ height: 0, panelRight: 0, topBottom: 0 });
   const [sheetVisible, setSheetVisible] = useState(0);
@@ -221,12 +255,12 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
   // within the part of the list the sheet shows once it settles.
   useEffect(() => {
     const body = scrollRef.current;
-    if (!selection || !body) return;
+    if (!visibleSelection || !body) return;
     const visible = isPhone ? Math.min(body.clientHeight, sheetVisible - body.offsetTop) : body.clientHeight;
     // On the phone the list jumps: the sheet's own move is the motion, and its
     // body stops scrolling at half, which would cut a smooth scroll short.
-    revealRow(body, rows.current.get(selection.key), visible, !isPhone && !reducedMotion && !selection.instant);
-  }, [isPhone, reducedMotion, selection, sheetVisible]);
+    revealRow(body, rows.current.get(visibleSelection.key), visible, !isPhone && !reducedMotion && !visibleSelection.instant);
+  }, [isPhone, reducedMotion, visibleSelection, sheetVisible]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -284,11 +318,13 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
       <>
         <DayItinerary
           itinerary={itinerary}
-          selection={selection}
+          selection={visibleSelection}
           onSelect={select}
           now={now}
           onChangeStart={openPicker}
           registerRow={registerRow}
+          gaps={gapsByLeg}
+          gapDateLabel={gapDateLabel}
         />
         {walked > 0 ? (
           <p className="mv-walk-total">
@@ -364,7 +400,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
         itinerary={itinerary}
         // The plan's course order picks each class building's course color, as the Week grid does.
         courseOrder={getPlanningTermCourseCodes(plannerState)}
-        selection={selection}
+        selection={visibleSelection}
         onSelect={select}
         padding={padding}
         frame={frame}
@@ -372,6 +408,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
         // At full the sheet covers the map: no useful framing is possible.
         frozen={isPhone && detent === "full"}
         onCreditsHeight={setCreditsHeight}
+        detour={detour}
       />
       <StartPicker open={pickerOpen} onOpenChange={setPickerOpen} places={places} current={start} onPick={pickStart} />
     </div>

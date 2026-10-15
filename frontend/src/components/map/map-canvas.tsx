@@ -21,6 +21,7 @@ import {
 } from "@/components/map/map-layers";
 import type { MapSelection } from "@/components/map/selection";
 import { dayTilt } from "@/components/map/day-tilt";
+import type { EventDetour } from "@/components/map/use-itinerary";
 
 /**
  * Camera padding in CSS px: the measured panel or sheet plus clearance, and
@@ -46,6 +47,8 @@ type Props = {
   frozen: boolean;
   /** The attribution row's height whenever it changes, so the phone sheet stops below it. */
   onCreditsHeight: (height: number) => void;
+  /** The selected gap event's pin and walks; null when no event is selected. */
+  detour?: EventDetour | null;
 };
 
 /*
@@ -177,6 +180,16 @@ function drawnItinerary(itinerary: Itinerary): Itinerary {
   return itinerary.start ? { ...itinerary, legs: [itinerary.start.leg, ...itinerary.legs] } : itinerary;
 }
 
+/** A gap event's walks that have a line to draw, and every point a framing of it must keep in view. */
+function detourPoints(detour: EventDetour): MapRoutePoint[] {
+  const routes = detour.legs.flatMap((leg) => (leg.route.kind === "walk" || leg.route.kind === "straight-line" ? leg.route.geometry : []));
+  return detour.point ? [detour.point, ...detour.ends, ...routes] : [];
+}
+
+/** The calendar glyph from components/ui/icons.tsx, as markup for the event pin's DOM marker. */
+const EVENT_GLYPH =
+  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></svg>';
+
 type Camera = { center: [number, number]; zoom: number; pitch: number; bearing: 0 };
 
 /**
@@ -245,6 +258,7 @@ export function MapCanvas({
   reducedMotion,
   frozen,
   onCreditsHeight,
+  detour = null,
 }: Props) {
   const { bounds } = campus;
   const maxBounds = new LngLatBounds(
@@ -256,6 +270,7 @@ export function MapCanvas({
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new globalThis.Map<string, { marker: Marker; element: HTMLButtonElement }>());
   const startMarkerRef = useRef<Marker | null>(null);
+  const eventMarkerRef = useRef<Marker | null>(null);
   /** A selection flight scheduled but not started; a drag or a newer request cancels it. */
   const pendingFlight = useRef<{ timer: ReturnType<typeof setTimeout>; frame: number } | null>(null);
   /** An animated move of ours is running; a padding change waits for it to end. */
@@ -285,8 +300,8 @@ export function MapCanvas({
   }, [dayFrame.day]);
 
   // Latest values for map event handlers, which are bound once.
-  const latest = useRef({ itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight });
-  latest.current = { itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight };
+  const latest = useRef({ itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight, detour });
+  latest.current = { itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight, detour };
 
   /* ---------- create the map once ---------- */
   useEffect(() => {
@@ -419,8 +434,13 @@ export function MapCanvas({
       map.getCanvas().style.cursor = "";
     });
     map.on("click", ROUTE_HIT_LAYER, (event) => {
-      const key = event.features?.[0]?.properties?.key;
-      if (typeof key === "string") latest.current.onSelect({ kind: "leg", key });
+      const keys = (event.features ?? []).map((feature) => feature.properties?.key).filter((key): key is string => typeof key === "string");
+      // A gap event's walks are drawn on top; where one runs along the day's own walk, the day's walk wins.
+      const shown = latest.current.detour;
+      const isDetour = (key: string) => shown?.legs.some((leg) => leg.key === key) ?? false;
+      const dayLeg = keys.find((key) => !isDetour(key));
+      if (dayLeg) latest.current.onSelect({ kind: "leg", key: dayLeg });
+      else if (shown && keys.length > 0) latest.current.onSelect({ kind: "event", key: shown.key });
     });
 
     const credits = container.querySelector(".maplibregl-ctrl-bottom-right");
@@ -437,6 +457,8 @@ export function MapCanvas({
       markers.clear();
       startMarkerRef.current?.remove();
       startMarkerRef.current = null;
+      eventMarkerRef.current?.remove();
+      eventMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -471,10 +493,16 @@ export function MapCanvas({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReady) return;
-    const drawn = drawnItinerary(itinerary);
+    const drawn = { legs: [...drawnItinerary(itinerary).legs, ...(detour?.legs ?? [])] };
     setRouteData(map, drawn);
-    setLegSelection(map, drawn, selection?.kind === "leg" ? selection.key : null);
-  }, [itinerary, selection, styleReady]);
+    const selected =
+      selection?.kind === "leg"
+        ? [selection.key]
+        : selection?.kind === "event" && detour?.key === selection.key
+          ? detour.legs.map((leg) => leg.key)
+          : [];
+    setLegSelection(map, drawn, new Set(selected));
+  }, [itinerary, selection, styleReady, detour]);
 
   /* ---------- the day's buildings, in course colors ---------- */
   // The parent passes a fresh course list each render; repaint only when a building or its color changes.
@@ -558,6 +586,26 @@ export function MapCanvas({
     startMarkerRef.current = new Marker({ element }).setLngLat([startPoint.lng, startPoint.lat]).addTo(map);
   }, [startPoint, startName]);
 
+  /* ---------- the selected gap event ---------- */
+  const eventKey = detour?.point ? detour.key : null;
+  const eventLat = detour?.point?.lat ?? null;
+  const eventLng = detour?.point?.lng ?? null;
+  useEffect(() => {
+    const map = mapRef.current;
+    eventMarkerRef.current?.remove();
+    eventMarkerRef.current = null;
+    if (!map || eventKey === null || eventLat === null || eventLng === null) return;
+    // Decorative, like the starting point: the selected row names the event, and taps fall through to the map.
+    const element = document.createElement("span");
+    element.className = "mv-event-pin";
+    element.setAttribute("aria-hidden", "true");
+    element.dataset.eventKey = eventKey;
+    // A keyboard choice shows the pin at once; a pointer one lets it grow in.
+    element.dataset.instant = latest.current.selection?.instant ? "true" : "false";
+    element.innerHTML = `<span class="mv-event-pin__disc">${EVENT_GLYPH}</span><span class="mv-event-pin__tail"></span>`;
+    eventMarkerRef.current = new Marker({ element, anchor: "bottom" }).setLngLat([eventLng, eventLat]).addTo(map);
+  }, [eventKey, eventLat, eventLng]);
+
   /* ---------- camera ---------- */
   const daySignature = itinerary.stops.map((entry) => entry.key).join("|");
   const mappedSignature = mappedPoints(itinerary)
@@ -613,6 +661,17 @@ export function MapCanvas({
       }
     }
 
+    if (chosen?.kind === "event") {
+      const shown = latest.current.detour;
+      const box = shown?.key === chosen.key ? boundsOf(detourPoints(shown)) : null;
+      if (box) {
+        // Flat, like a leg: the event, both classes and the walks between them stay in view.
+        flying.current = move;
+        map.fitBounds(box, { padding: space, maxZoom: LEG_MAX_ZOOM, pitch: 0, bearing: 0, duration: move ? FLIGHT_MS : 0, easing: cameraEase });
+        return;
+      }
+    }
+
     if (chosen?.kind === "leg") {
       const leg = drawnItinerary(current).legs.find((candidate) => candidate.key === chosen.key);
       const box =
@@ -653,6 +712,13 @@ export function MapCanvas({
   // for layout, and after a sheet snap it waits for the sheet to get going.
   const target = (() => {
     if (!selection) return "none";
+    if (selection.kind === "event") {
+      // Wait for the walks, so the camera moves once; an event with no place on the map leaves it where it is.
+      if (!detour || detour.key !== selection.key || !detour.point || !detour.settled || detour.legs.some((leg) => leg.route.kind === "loading")) {
+        return `pending:${selection.key}`;
+      }
+      return `event:${selection.key}:${detourPoints(detour).length}`;
+    }
     if (selection.kind === "stop") {
       const entry = itinerary.stops.find((stop) => stop.key === selection.key);
       return entry?.placement.kind === "mapped" ? `stop:${selection.key}:${entry.placement.point.lat},${entry.placement.point.lng}` : `pending:${selection.key}`;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "@/components/ui/Button";
-import { ChevronLeft, ChevronRight, ExternalGlyph, Walk } from "@/components/ui/icons";
+import { ChevronDown, ChevronLeft, ChevronRight, ExternalGlyph, Walk } from "@/components/ui/icons";
 import { PathLine, PathStop, type PathLeg } from "@/components/ui/PathLine";
 import { Plate } from "@/components/ui/Plate";
 import { SearchPalette, type SearchSection } from "@/components/ui/SearchPalette";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/map-itinerary";
 import type { ClassDay, MapStop } from "@/lib/types";
 import { dayNames } from "@/components/map/day-steps";
+import { GAP_PREVIEW, type GapEvent, type GapRow, type GapTrip } from "@/components/map/gap-events";
 import { fromKeyboard, type MapSelection } from "@/components/map/selection";
 import { searchStartPlaces, type StartPlaceOption } from "@/components/map/start-places";
 
@@ -401,6 +402,179 @@ function LegRow({
   );
 }
 
+/* ---------- in this gap: campus events between two classes ---------- */
+
+function tripText(trip: NonNullable<GapTrip>): string {
+  if (trip.minutes === 0) return "Same building";
+  return trip.mode === "shuttle" ? `${trip.minutes} min shuttle` : `${formatWalkMinutes(trip.minutes)} walk`;
+}
+
+/** The one line that answers "do I still make my next class": a verdict, the time to leave, or when it ends. */
+function fitText(item: GapEvent, nextCode: string, gapEnd: number): string {
+  if (item.fit === "tight" && item.leaveBy !== null) return `Leave by ${formatTime(item.leaveBy)}`;
+  if (item.fit === "ok") return `On time for ${nextCode}`;
+  const before = gapEnd - item.end;
+  return before === 0 ? `Ends as ${nextCode} starts` : `Ends ${formatWalkMinutes(before)} before ${nextCode}`;
+}
+
+/** "Willis Library" from "Willis Library, The Spark Makerspace Willis Library". */
+function rawPlaceName(location: string): string {
+  const name = location.split(",")[0].trim();
+  return name || "No place given";
+}
+
+function GapEventDetail({ item, row }: { item: GapEvent; row: GapRow }) {
+  const nextCode = row.to.stop.courseCode;
+  const fromName = buildingOf(row.from);
+  const there = item.to && (item.to.minutes === 0 ? `In the same building as ${row.from.stop.courseCode}` : `${tripText(item.to)} from ${fromName}`);
+  const back =
+    item.back === null
+      ? null
+      : item.back.minutes === 0
+        ? `${nextCode} is in the same building`
+        : item.leaveBy !== null
+          ? `Leave by ${formatTime(item.leaveBy)} to make ${nextCode}`
+          : null;
+  return (
+    <div className="mv-more mv-more--gap">
+      <span>
+        {formatTime(item.start)} to {formatTime(item.end)}
+      </span>
+      {item.place.location ? <span>In {item.place.location}</span> : null}
+      {there ? <span>{there}</span> : null}
+      {back ? <span>{back}</span> : null}
+      {item.place.kind === "raw" ? <span>This place isn&rsquo;t in the campus building list, so there&rsquo;s no walk time.</span> : null}
+      {item.place.kind === "building" && item.place.point === null ? <span>{item.place.name} is off the main campus map.</span> : null}
+      {item.url ? (
+        <a className="mv-link" href={item.url} target="_blank" rel="noreferrer">
+          Event page
+          <ExternalGlyph size={12} />
+          <span className="sr-only-v2"> for {item.title} (opens in a new tab)</span>
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function GapEventRow({
+  item,
+  row,
+  selected,
+  onSelect,
+  rowRef,
+}: {
+  item: GapEvent;
+  row: GapRow;
+  selected: boolean;
+  onSelect: (instant: boolean) => void;
+  rowRef: (element: HTMLElement | null) => void;
+}) {
+  const { place } = item;
+  return (
+    <li className="mv-gap__item">
+      <button
+        ref={rowRef}
+        type="button"
+        className="mv-gap__event"
+        data-event-key={item.key}
+        data-fit={item.fit}
+        aria-expanded={selected}
+        onClick={(event) => onSelect(fromKeyboard(event))}
+      >
+        <span className="mv-gap__line">
+          <span className="mv-gap__title">{item.title}</span>
+          <span className="mv-gap__time">
+            <span className="sr-only-v2">at </span>
+            <Clock minutes={item.start} />
+          </span>
+        </span>
+        <span className="mv-gap__line mv-gap__line--facts">
+          <span className="mv-gap__place">
+            {place.kind === "building" ? (
+              <Plate building={place.shortName} name={place.name} quiet className="mv-gap__plate" />
+            ) : (
+              // The place's name, before any room; the detail shows the feed's full text.
+              <span className="mv-gap__raw">{rawPlaceName(place.location)}</span>
+            )}
+            {item.to ? <span className="mv-gap__trip">{tripText(item.to)}</span> : null}
+          </span>
+          <span className="mv-gap__fit">{fitText(item, row.to.stop.courseCode, row.end)}</span>
+        </span>
+      </button>
+      {selected ? <GapEventDetail item={item} row={row} /> : null}
+    </li>
+  );
+}
+
+/**
+ * A quiet "In this gap" list on the walk between two classes: the first
+ * GAP_PREVIEW events, and the rest one press away. Each event selects like a
+ * stop, showing its place and walks on the map.
+ */
+function GapEvents({
+  row,
+  dateLabel,
+  isSelected,
+  onSelectEvent,
+  registerRow,
+}: {
+  row: GapRow;
+  /** "Oct 19" when the day shown isn't today, so the events' date is said once. */
+  dateLabel: string | null;
+  isSelected: (key: string) => boolean;
+  onSelectEvent: (key: string, instant: boolean) => void;
+  registerRow: (key: string, element: HTMLElement | null) => void;
+}) {
+  // Opening shows the rest at once, from any input (MOTION.md §7: group collapse is instant).
+  const [open, setOpen] = useState(false);
+  const listId = `mv-gap-${row.legKey.replace(/[^A-Za-z0-9_-]/g, "_")}`;
+  const more = row.events.length - GAP_PREVIEW;
+  const label = dateLabel ? `In this gap on ${dateLabel}` : "In this gap";
+  // A selected event stays listed when the gap closes.
+  const shown = row.events.filter((item, index) => open || index < GAP_PREVIEW || isSelected(item.key));
+  return (
+    <div className="mv-gap">
+      {more > 0 ? (
+        <button
+          type="button"
+          className="mv-gap__head"
+          aria-expanded={open}
+          aria-controls={listId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="mv-gap__label">{label}</span>
+          {open ? null : (
+            <span className="mv-gap__more">
+              {more} more<span className="sr-only-v2"> events</span>
+            </span>
+          )}
+          <ChevronDown className="mv-gap__chevron" size={14} />
+        </button>
+      ) : (
+        <p className="mv-gap__head mv-gap__head--static">
+          <span className="mv-gap__label">{label}</span>
+        </p>
+      )}
+      <ul
+        id={listId}
+        className="mv-gap__list"
+        aria-label={`Campus events between ${row.from.stop.courseCode} and ${row.to.stop.courseCode}`}
+      >
+        {shown.map((item) => (
+          <GapEventRow
+            key={item.key}
+            item={item}
+            row={row}
+            selected={isSelected(item.key)}
+            onSelect={(instant) => onSelectEvent(item.key, instant)}
+            rowRef={(element) => registerRow(item.key, element)}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function directionsHref(entry: ItineraryStop): string | null {
   if (entry.placement.kind !== "mapped") return null;
   const { lat, lng } = entry.placement.point;
@@ -478,6 +652,8 @@ export function DayItinerary({
   now,
   onChangeStart,
   registerRow,
+  gaps,
+  gapDateLabel,
 }: {
   itinerary: Itinerary;
   selection: MapSelection;
@@ -486,10 +662,15 @@ export function DayItinerary({
   now: number | null;
   onChangeStart: () => void;
   registerRow: (key: string, element: HTMLElement | null) => void;
+  /** Campus events in the day's gaps (gap-events.ts), by the leg each gap sits on. */
+  gaps: ReadonlyMap<string, GapRow>;
+  /** The events' date, when the day shown isn't today. */
+  gapDateLabel: string | null;
 }) {
   const { start, stops, legs } = itinerary;
-  const isSelected = (kind: "stop" | "leg", key: string) => selection?.kind === kind && selection.key === key;
-  const toggle = (kind: "stop" | "leg", key: string) => (instant: boolean) =>
+  type Kind = NonNullable<MapSelection>["kind"];
+  const isSelected = (kind: Kind, key: string) => selection?.kind === kind && selection.key === key;
+  const toggle = (kind: Kind, key: string) => (instant: boolean) =>
     onSelect(isSelected(kind, key) ? null : { kind, key, instant });
   const stopPast = (entry: ItineraryStop) => now !== null && now >= toMinutes(entry.stop.end);
   // A walk is behind you once the class it leads to has started.
@@ -519,6 +700,7 @@ export function DayItinerary({
       </PathStop>
       {stops.map((entry, index) => {
         const leg = legs[index];
+        const gap = leg ? gaps.get(leg.key) : undefined;
         const past = stopPast(entry);
         return (
           <PathStop
@@ -543,6 +725,15 @@ export function DayItinerary({
                 onSelect={toggle("leg", leg.key)}
                 onChangeStart={onChangeStart}
                 rowRef={(element) => registerRow(leg.key, element)}
+              />
+            ) : null}
+            {gap ? (
+              <GapEvents
+                row={gap}
+                dateLabel={gapDateLabel}
+                isSelected={(key) => isSelected("event", key)}
+                onSelectEvent={(key, instant) => toggle("event", key)(instant)}
+                registerRow={registerRow}
               />
             ) : null}
           </PathStop>

@@ -253,6 +253,8 @@
 .mv-link:focus-visible,
 .mv-stop:focus-visible,
 .mv-leg__row:focus-visible,
+.mv-gap__head:focus-visible,
+.mv-gap__event:focus-visible,
 .mv-sheet__handle:focus-visible,
 .mv-pin:focus-visible {
   outline: 2px solid var(--mv-accent);
@@ -335,6 +337,55 @@
   border-radius: 50%;
   background: var(--mv-surface);
   box-shadow: inset 0 0 0 3px var(--mv-ink-2), var(--mv-shadow-1);
+}
+
+/*
+ * A selected campus event: the lollipop of a class pin, in the selected
+ * pin's accent, with a calendar glyph where a class has its number.
+ * Decorative, like the starting point; the selected row names it.
+ */
+.mv-event-pin {
+  pointer-events: none;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  /* Under the class pins: when the event is in a class's building, that class's number stays readable. */
+  z-index: 0;
+}
+
+.mv-event-pin__disc {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2.5px solid var(--mv-surface);
+  background: var(--mv-accent);
+  box-shadow: var(--mv-shadow-2);
+  color: #fff;
+  transform-origin: 50% 100%;
+  /* Grows in from its tail, so it lands on its building (MOTION.md §4: nothing scales from 0). */
+  transition: transform var(--t-swap, 160ms) var(--mv-ease-out), opacity var(--t-swap, 160ms) var(--mv-ease-out);
+}
+
+@starting-style {
+  .mv-event-pin__disc {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+.mv-event-pin__tail {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--mv-accent);
+  box-shadow: 0 0 0 2px var(--mv-surface), var(--mv-shadow-1);
+}
+
+/* Chosen from the keyboard: the pin appears at once. */
+.mv-event-pin[data-instant="true"] .mv-event-pin__disc {
+  transition: none;
 }
 
 /* ---------- desktop panel ---------- */
@@ -632,6 +683,174 @@ button.mv-leg__row {
   display: none;
 }
 
+/*
+ * In this gap: campus events on the walk between two classes. Set in to
+ * the walk's own text (its glyph and gap, 30px, measured at 1440), in the
+ * leg's quieter size, so it reads as part of the break, not a class.
+ */
+.mv-gap {
+  margin: 2px 0 6px 30px;
+}
+
+.mv-gap__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% + 16px);
+  min-height: 28px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mv-ink-2);
+  font: 600 12px/16px var(--font-ui);
+  text-align: left;
+  touch-action: manipulation;
+  transition: background-color var(--t-hover, 160ms) ease;
+}
+
+button.mv-gap__head {
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  button.mv-gap__head {
+    min-height: 44px;
+  }
+}
+
+.mv-gap__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.mv-gap__more {
+  color: var(--mv-brand);
+  white-space: nowrap;
+}
+
+/* Flips with the list, at once (MOTION.md §7: group collapse is instant). */
+.mv-gap__chevron {
+  flex: none;
+  color: var(--mv-ink-3);
+}
+
+.mv-gap__head[aria-expanded="true"] .mv-gap__chevron {
+  transform: rotate(180deg);
+}
+
+.mv-gap__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Two lines: the title and when it starts, then where it is, the walk, and whether the next class still works. */
+.mv-gap__event {
+  display: grid;
+  gap: 1px;
+  width: calc(100% + 16px);
+  min-height: 44px;
+  margin: 0 -8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--t-hover, 160ms) ease;
+}
+
+.mv-gap__event[aria-expanded="true"] {
+  background: rgba(0, 168, 85, 0.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.mv-gap__head:hover,
+  .mv-gap__event:hover:not([aria-expanded="true"]) {
+    background: rgba(26, 46, 26, 0.05);
+  }
+}
+
+.mv-gap__line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* A cut-off place name needs clear air before the verdict, or the two read as one phrase. */
+.mv-gap__line--facts {
+  gap: 16px;
+}
+
+.mv-gap__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mv-gap__time {
+  font-size: 13px;
+  line-height: 18px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mv-gap__place {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--mv-ink-2);
+}
+
+.mv-gap__plate {
+  flex: none;
+}
+
+.mv-gap__raw {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mv-gap__trip {
+  flex: none;
+  white-space: nowrap;
+}
+
+.mv-gap__fit {
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--mv-ink-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Tight, as on a walk: leaving on time means leaving as it ends, or before. */
+.mv-gap__event[data-fit="tight"] .mv-gap__fit {
+  color: var(--attention, #8a6100);
+  font-weight: 650;
+}
+
+.mv-more--gap {
+  margin: 2px 0 8px;
+}
+
 .mv-more .mv-link {
   margin-top: 4px;
   display: inline-flex;
@@ -796,6 +1015,15 @@ button.mv-leg__row {
   .mv-pin__disc {
     transition: none !important;
   }
+  /* The event pin keeps a short fade and loses its growth. */
+  .mv-event-pin__disc {
+    transition: opacity 120ms ease;
+  }
+  @starting-style {
+    .mv-event-pin__disc {
+      transform: none;
+    }
+  }
   /* Press feedback keeps its color change and drops the scale. */
   .mv-control:active:not(:focus-visible) {
     transform: none;
@@ -823,7 +1051,9 @@ button.mv-leg__row {
   .mv-top,
   .mv-stepper button,
   .mv-foot .mv-link,
-  .mv-hero__show {
+  .mv-hero__show,
+  .mv-gap__more,
+  .mv-gap__chevron {
     display: none !important;
   }
   .mv-panel,

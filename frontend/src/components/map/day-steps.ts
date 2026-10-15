@@ -88,6 +88,15 @@ export function nextClassFrom(
   return null;
 }
 
+/** The campus date `day` next falls on, today included: Day's Thursday is this week's Thursday, or next week's once it has passed. */
+export function nextDateOf(day: ClassDay, todayIso: string): string {
+  for (let ahead = 0; ahead < 7; ahead += 1) {
+    const shifted = shiftIso(todayIso, ahead);
+    if (shifted.day === day) return shifted.iso;
+  }
+  throw new Error(`No ${day} within a week of ${todayIso}`);
+}
+
 /**
  * The days the stepper walks through, Monday first: the weekdays, a weekend
  * day when the plan meets on it, and today, so "Today" is always reachable.
