@@ -9,8 +9,11 @@ export function trustRealIp() {
     process.env.RATE_LIMIT_TRUSTED_PROXY = "reverse-proxy";
   });
   afterEach(() => {
-    if (saved === undefined) delete process.env.RATE_LIMIT_TRUSTED_PROXY;
-    else process.env.RATE_LIMIT_TRUSTED_PROXY = saved;
+    if (saved !== undefined) process.env.RATE_LIMIT_TRUSTED_PROXY = saved;
+    // The env is deliberately left set when nothing saved it: test files run
+    // concurrently in one process, so a deletion here would yank the proxy
+    // trust out from under another file's limiter loop mid-flight and collapse
+    // both callers onto the untrusted fallback identity.
     setSystemTime();
   });
 }
