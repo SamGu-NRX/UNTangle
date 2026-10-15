@@ -20,7 +20,6 @@ export interface EasBuild {
   readonly platform?: string;
   /** DistributionType: "STORE", "INTERNAL" or "SIMULATOR". */
   readonly distribution?: string;
-  readonly buildProfile?: string;
   readonly appVersion?: string;
   readonly updateChannel?: { readonly name?: string };
   readonly fingerprint?: { readonly hash?: string };
@@ -55,24 +54,22 @@ const STORE = "STORE";
 
 /**
  * The production builds the update could land on: finished, store-distributed,
- * on the given platform, and on the production channel (or the production
- * profile, for a record that predates channels). Builds on other channels,
- * like a preview build for internal distribution, and an internal build made
- * with the production profile must never satisfy the guard.
+ * on the given platform, and on the production channel, the only channel the
+ * update is published to. Builds on other channels, like a preview build for
+ * internal distribution, and an internal build made with the production
+ * profile must never satisfy the guard.
  */
 export function selectProductionBuilds(
   builds: readonly EasBuild[],
   platform: "ios",
 ): { production: EasBuild[]; rejected: number } {
-  const production = builds.filter((build) => {
-    const channel = build.updateChannel?.name;
-    return (
+  const production = builds.filter(
+    (build) =>
       build.status === FINISHED &&
       build.platform === platform.toUpperCase() &&
       build.distribution === STORE &&
-      (channel === PRODUCTION_CHANNEL || (channel === undefined && build.buildProfile === PRODUCTION_CHANNEL))
-    );
-  });
+      build.updateChannel?.name === PRODUCTION_CHANNEL,
+  );
   return { production, rejected: builds.length - production.length };
 }
 

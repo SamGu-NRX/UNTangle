@@ -20,7 +20,6 @@ const productionMatch: EasBuild = {
   platform: "IOS",
   distribution: "STORE",
   updateChannel: { name: "production" },
-  buildProfile: "production",
   appVersion: "1.0.0",
   fingerprint: { hash: FP_MATCH },
 };
@@ -67,12 +66,11 @@ describe("selectProductionBuilds", () => {
       { ...productionMatch, platform: "ANDROID" },
       // An internal build made with the production profile reaches no store install.
       { ...productionMatch, distribution: "INTERNAL" },
-      // A record with no channel (the CLI drops the null key) can qualify through the production profile.
+      // A build with no channel (the CLI drops the null key) can't receive a production-channel update.
       { ...productionMatch, updateChannel: undefined, id: "build-3" },
-      { ...productionMatch, updateChannel: undefined, buildProfile: "preview", id: "build-4" },
     ];
     const { production, rejected } = selectProductionBuilds(builds, "ios");
-    expect(production.map((build) => build.id)).toEqual(["build-1", "build-2", "build-3"]);
+    expect(production.map((build) => build.id)).toEqual(["build-1", "build-2"]);
     expect(rejected).toBe(5);
   });
 });

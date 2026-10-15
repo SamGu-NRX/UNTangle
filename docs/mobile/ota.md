@@ -117,9 +117,10 @@ The script is a **dry run by default**. It
 
 1. computes the local runtime fingerprint
    (`npx expo-updates fingerprint:generate --platform ios`),
-2. asks `eas build:list --json` for finished iOS store builds that carry that
-   fingerprint (`--status finished --distribution store --fingerprint-hash`,
-   `--limit 50`, eas-cli's cap), and keeps those on the production channel,
+2. asks `eas build:list --json` for finished iOS store builds on the
+   production channel that carry that fingerprint (`--status finished
+   --distribution store --channel production --fingerprint-hash`, `--limit 50`,
+   eas-cli's cap),
 3. **refuses to publish** unless at least one finished production build shares
    the update's fingerprint. With no matching build the update would be
    invisible to every install — that almost always means the change needs a
@@ -160,8 +161,8 @@ with a real capture once the first production build exists.
 - `1` — a guard refusal or EAS failure (missing environment variables, no
   production builds, fingerprint mismatch, an `eas build:list` or `eas update`
   failure). Nothing was published.
-- `2` — a local setup problem (a saved file could not be read or holds no
-  build array).
+- `2` — a local setup problem, or build-list output the script can't parse
+  (a saved file that can't be read, or output that isn't an array of builds).
 
 ## What the app does on the device
 
