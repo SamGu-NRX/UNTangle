@@ -1,4 +1,6 @@
 // Fixture-only server. No UNT calls, real credentials or session cookies.
+// Runs the device-code flow end to end against the contract's own schemas.
+import { approveDeviceGrant, deviceTokenResponse, exchangeDeviceGrant, inspectDeviceGrant, refreshDeviceGrant, startDeviceGrant } from "../../packages/contracts/src/device-grant";
 import { isCommand, isRecord, type AddOptionCommand, type AddReply, type Preview } from "../src/shared/extension-api";
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 let revision = 1;
@@ -9,6 +11,8 @@ let failPreviewFor: string | null = null;
 let previewDelayMs = 0;
 let commandDelayMs = 0;
 let nextCommand: "reject" | "unauthorized" | null = null;
+// Seconds an issued access token lives; null restores the real 5 minutes.
+let accessExpiresInSeconds: number | null = null;
 const receipts = new Map<string, {
   body: string;
   reply: AddReply;
@@ -19,14 +23,42 @@ const requests: {
   cookie: boolean;
   bearer: boolean;
 }[] = [];
-const auth = new Map<string, {
-  state: string;
-  redirectUri: string;
-  challenge: string;
-  code: string;
-  consumed: boolean;
-}>();
-const token = "fixture-access-token";
+// The active grant of the fixture account, keyed by device code. Its shape
+// mirrors what the server's device-grant service keeps: hashes stand in for
+// stored secrets, statuses move pending to approved to active (or denied).
+const base = "http://127.0.0.1:3217";
+type GrantState = {
+  deviceCode: string;
+  userCode: string;
+  codeChallenge: string;
+  verifier: null;
+  scheduleId: string;
+  status: "pending" | "approved" | "denied" | "active" | "revoked";
+  codeExpiresAt: number;
+  refresh: { token: string; used: boolean } | null;
+  access: { token: string; expiresAt: number }[];
+};
+const grants = new Map<string, GrantState>();
+const opaque = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), b => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"[b % 64]).join("");
+const base32 = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"[b & 31]).join("");
+async function issue(grant: GrantState): Promise<unknown> {
+  const access = { token: opaque(), expiresAt: Date.now() + (accessExpiresInSeconds ?? 300) * 1000 };
+  grant.access.push(access);
+  grant.refresh = { token: opaque(), used: false };
+  return deviceTokenResponse.parse({
+    accessToken: access.token,
+    refreshToken: grant.refresh.token,
+    tokenType: "Bearer",
+    expiresIn: accessExpiresInSeconds ?? 300,
+    scopes: ["schedule:read", "schedule:add-option"],
+    grantId: "fixture-grant",
+  });
+}
+const findAccess = (token: string) => [...grants.values()].flatMap(grant => grant.access.map(entry => ({ grant, entry }))).find(({ entry, grant }) => entry.token === token && entry.expiresAt > Date.now() && grant.status === "active");
+const sha256 = async (value: string) => {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
 const titles: Record<string, string> = { "14523": "CSCE 1030", "15802": "ENGL 1310", "16077": "CSCE 2100" };
 const grades = { source: "UNT grade records" };
 function preview(classNumber: string): Preview {
@@ -80,45 +112,112 @@ Bun.serve({
         previewDelayMs = body.previewDelayMs;
       if (typeof body.commandDelayMs === "number")
         commandDelayMs = body.commandDelayMs;
-      if (body.nextCommand === "reject" || body.nextCommand === "unauthorized")
+      if (body.nextCommand === "reject" || body.nextCommand === "unauthorized" || body.nextCommand === null)
         nextCommand = body.nextCommand;
-      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand });
+      if (typeof body.accessExpiresInSeconds === "number" && Number.isSafeInteger(body.accessExpiresInSeconds) && body.accessExpiresInSeconds > 0)
+        accessExpiresInSeconds = body.accessExpiresInSeconds;
+      if (body.accessExpiresInSeconds === null)
+        accessExpiresInSeconds = null;
+      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand, accessExpiresInSeconds });
     }
-    requests.push({ path, cookie: request.headers.has("cookie"), bearer: request.headers.get("authorization") === `Bearer ${token}` });
+    requests.push({ path, cookie: request.headers.has("cookie"), bearer: request.headers.get("authorization")?.startsWith("Bearer ") === true });
     if (request.headers.has("cookie"))
       return json({ error: "Cookies forbidden" }, 400);
-    if (path === "/api/v1/devices/authorize" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || body.kind !== "extension" || body.codeChallengeMethod !== "S256" || typeof body.codeChallenge !== "string" || typeof body.state !== "string" || typeof body.redirectUri !== "string")
+    // The device-code flow, with the contract's schemas as the wire truth.
+    if (path === "/api/v1/device/start" && request.method === "POST") {
+      const parsed = startDeviceGrant.safeParse(await request.json().catch(() => null));
+      if (!parsed.success)
         return json({ error: "invalid_request" }, 400);
-      const id = crypto.randomUUID();
-      auth.set(id, { state: body.state, redirectUri: body.redirectUri, challenge: body.codeChallenge, code: crypto.randomUUID(), consumed: false });
-      return json({ authorizationUrl: `http://127.0.0.1:3217/device/approve?id=${id}` });
+      const grant: GrantState = {
+        deviceCode: opaque(), userCode: base32(), codeChallenge: parsed.data.codeChallenge, verifier: null,
+        scheduleId: parsed.data.clientKind === "extension" ? parsed.data.scheduleId : "",
+        status: "pending", codeExpiresAt: Date.now() + 600_000, refresh: null, access: [],
+      };
+      grants.set(grant.deviceCode, grant);
+      return json({ deviceCode: grant.deviceCode, userCode: grant.userCode, verificationUri: `${base}/device`, expiresIn: 600, interval: 1 });
     }
-    if (path === "/device/approve") {
-      const grant = auth.get(url.searchParams.get("id") ?? "");
-      if (!grant)
-        return json({ error: "not found" }, 404);
-      const callback = new URL(grant.redirectUri);
-      callback.searchParams.set("state", grant.state);
-      callback.searchParams.set("code", grant.code);
-      return Response.redirect(callback.href);
-    }
-    if (path === "/api/v1/devices/token" && request.method === "POST") {
-      const body: unknown = await request.json();
-      if (!isRecord(body) || typeof body.codeVerifier !== "string")
-        return json({ error: "invalid_grant" }, 400);
-      const verifier = new Bun.CryptoHasher("sha256").update(body.codeVerifier).digest("base64url");
-      const grant = [...auth.values()].find(g => !g.consumed && g.code === body.code && g.redirectUri === body.redirectUri && g.challenge === verifier);
+    if (path === "/api/v1/device/inspect" && request.method === "POST") {
+      const parsed = inspectDeviceGrant.safeParse(await request.json().catch(() => null));
+      if (!parsed.success)
+        return json({ error: "invalid_request" }, 400);
+      const grant = [...grants.values()].find(candidate => candidate.userCode === parsed.data.userCode && candidate.status === "pending" && candidate.codeExpiresAt > Date.now());
       if (!grant)
         return json({ error: "invalid_grant" }, 400);
-      grant.consumed = true;
-      return json({ accessToken: token, grantId: "fixture-grant", accountId: "fixture-account", expiresAt: Date.now() + 3600000 });
+      return json({ clientKind: "extension", scopes: ["schedule:read", "schedule:add-option"], userCode: grant.userCode, scheduleId: grant.scheduleId });
     }
-    if (request.headers.get("authorization") !== `Bearer ${token}`)
-      return json({ error: "Unauthorized" }, 401);
+    if (path === "/api/v1/device/approve" && request.method === "POST") {
+      // Same-origin page call only, carrying the custom header, as the real
+      // approval page does.
+      if (request.headers.get("origin") !== base || request.headers.get("x-untangle-device") !== "1")
+        return json({ error: "forbidden_origin" }, 403);
+      const parsed = approveDeviceGrant.safeParse(await request.json().catch(() => null));
+      if (!parsed.success)
+        return json({ error: "invalid_request" }, 400);
+      const grant = [...grants.values()].find(candidate => candidate.userCode === parsed.data.userCode && candidate.status === "pending" && candidate.codeExpiresAt > Date.now());
+      if (!grant)
+        return json({ error: "invalid_grant" }, 400);
+      if (parsed.data.expectedUserId !== "fixture-account")
+        return json({ error: "account_changed" }, 409);
+      grant.status = parsed.data.decision === "approve" ? "approved" : "denied";
+      return json({ status: grant.status });
+    }
+    if (path === "/api/v1/device/token" && request.method === "POST") {
+      const parsed = exchangeDeviceGrant.safeParse(await request.json().catch(() => null));
+      if (!parsed.success)
+        return json({ error: "invalid_request" }, 400);
+      const grant = grants.get(parsed.data.deviceCode);
+      if (!grant || (await sha256(parsed.data.codeVerifier)) !== grant.codeChallenge)
+        return json({ error: "invalid_grant" }, 400);
+      if (grant.codeExpiresAt <= Date.now())
+        return json({ error: "expired_token" }, 400);
+      if (grant.status === "pending")
+        return json({ error: "authorization_pending" }, 400);
+      if (grant.status === "denied")
+        return json({ error: "access_denied" }, 400);
+      if (grant.status !== "approved")
+        return json({ error: "invalid_grant" }, 400);
+      grant.status = "active";
+      return json(await issue(grant));
+    }
+    if (path === "/api/v1/device/refresh" && request.method === "POST") {
+      const parsed = refreshDeviceGrant.safeParse(await request.json().catch(() => null));
+      if (!parsed.success)
+        return json({ error: "invalid_request" }, 400);
+      const grant = [...grants.values()].find(candidate => candidate.refresh?.token === parsed.data.refreshToken);
+      if (!grant || grant.status !== "active")
+        return json({ error: "invalid_token" }, 401);
+      if (grant.refresh.used) {
+        // Presenting a used refresh token revokes the whole grant.
+        grant.status = "revoked";
+        return json({ error: "invalid_token" }, 401);
+      }
+      grant.refresh.used = true;
+      return json(await issue(grant));
+    }
+    if (path === "/api/v1/device/revoke" && request.method === "POST") {
+      const found = findAccess((request.headers.get("authorization") ?? "").replace(/^Bearer /, ""));
+      if (!found)
+        return json({ error: "invalid_token" }, 401);
+      found.grant.status = "revoked";
+      return json({ revoked: true });
+    }
+    // The stub's /device page: a signed-in student who approves at once. The
+    // page reads the code from its own URL, like the real approval page does.
+    if (path === "/device") {
+      return new Response(`<!doctype html><meta charset="utf-8"><title>Connect a device</title><p id="result">Working</p><script>
+        const userCode = new URLSearchParams(location.search).get("user_code");
+        fetch("/api/v1/device/approve", { method: "POST", credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-UNTangle-Device": "1" },
+          body: JSON.stringify({ userCode, expectedUserId: "fixture-account", decision: "approve" }) })
+          .then(response => document.getElementById("result").textContent = response.ok ? "Approved. You can close this tab." : "Couldn't approve (HTTP " + response.status + ")")
+          .catch(() => document.getElementById("result").textContent = "Couldn't reach the server");
+      </script>`, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    }
     const match = path.match(/^\/api\/v1\/extension\/preview\/spring-2027\/(\d{4,5})$/);
     if (match) {
+      const found = findAccess((request.headers.get("authorization") ?? "").replace(/^Bearer /, ""));
+      if (!found)
+        return json({ error: "Unauthorized" }, 401);
       const classNumber = match[1];
       if (!titles[classNumber])
         return json({ error: "not found" }, 404);

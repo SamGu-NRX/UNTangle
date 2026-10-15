@@ -1,51 +1,200 @@
 import { UNTANGLE_ORIGIN } from "../config";
-import { isGrant, isRecord, type DeviceGrant } from "../shared/extension-api";
+import { isRecord, isTokenResponse, type DeviceTokenResponse } from "../shared/extension-api";
 import type { FetchLike } from "./planner-client";
 import { StudentError } from "../shared/student-error";
-export interface AuthBrowser {
-  redirectUri: string;
-  launch(url: string): Promise<string>;
+
+/** The server refused the refresh token: reuse, revocation or a lapsed grant. */
+export class GrantRevoked extends Error {
+  constructor() { super("The device grant is gone."); }
 }
+/** The student chose Deny on the approval page. */
+export class SignInDenied extends StudentError {
+  constructor() { super("You denied this sign-in in UNTangle. Sign in again to continue."); }
+}
+/** The device code ran out its ten minutes, or the server retired it. */
+export class SignInExpired extends StudentError {
+  constructor() { super("That sign-in request expired. Sign in again."); }
+}
+/** The trusted panel closed before the student approved; not student copy. */
+export class SignInCancelled extends Error {
+  constructor() { super("Sign-in cancelled."); }
+}
+
+export interface SigninHooks {
+  /** Opens the approval page in a normal browser tab, never a content script. */
+  openTab(url: string): void;
+  /** Whether a trusted panel is still connected; polling stops when it closes. */
+  panelOpen(): boolean;
+  /** Waits between polls; overridable in tests. The default sleeps. */
+  delay?(ms: number): Promise<void>;
+  /** The clock, overridable in tests. */
+  now?: () => number;
+}
+
+export interface SignInInput {
+  /** The schedule the grant may read and add options to. */
+  scheduleId: string;
+  /** Called once the server names the code the student matches on the page. */
+  onUserCode(userCode: string): void;
+}
+
+interface PendingStart {
+  deviceCode: string;
+  userCode: string;
+  intervalMs: number;
+  deadline: number;
+}
+
+const SIGNIN_UNREACHABLE = "Couldn't sign in to UNTangle. Check your connection and retry.";
+const UNREACHABLE = "Couldn't reach UNTangle. Check your connection and retry.";
+
+/** Reads the contract's deviceGrantError body code without trusting the body. */
+function errorCode(body: unknown): string | null {
+  return isRecord(body) && typeof body.error === "string" ? body.error : null;
+}
+
+function retryAfterSeconds(response: Response): number | null {
+  const header = response.headers.get("Retry-After");
+  if (header === null) return null;
+  if (/^\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isSafeInteger(seconds) ? seconds : null;
+  }
+  const date = Date.parse(header);
+  return Number.isFinite(date) ? Math.max(0, Math.ceil((date - Date.now()) / 1000)) : null;
+}
+
+/**
+ * Signs the extension in through UNTangle's device-code flow: a PKCE start,
+ * the student approving /device in a normal browser tab, and a token poll the
+ * panel can stop by closing. Tokens are returned once, validated, and never
+ * logged; the caller owns storing and refreshing them.
+ */
+export class DeviceClient {
+  private readonly now: () => number;
+  private readonly delay: (ms: number) => Promise<void>;
+  constructor(private readonly fetchImpl: FetchLike, private readonly hooks: SigninHooks, private readonly base = UNTANGLE_ORIGIN) {
+    this.now = hooks.now ?? Date.now;
+    this.delay = hooks.delay ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
+  }
+  async signIn(input: SignInInput): Promise<DeviceTokenResponse> {
+    const verifier = randomSecret();
+    const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
+    const response = await this.fetchImpl(`${this.base}/api/v1/device/start`, {
+      method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientKind: "extension", codeChallenge: challenge, codeChallengeMethod: "S256", scheduleId: input.scheduleId }),
+    }).catch(() => { throw new StudentError(SIGNIN_UNREACHABLE); });
+    if (!response.ok)
+      throw new StudentError(SIGNIN_UNREACHABLE);
+    const started: unknown = await response.json().catch(() => null);
+    // The server returns the contract's deviceGrantStarted: a device code for
+    // this client, an 8-character user code for the student, the /device page,
+    // a 10-minute expiry and a polling interval in seconds.
+    if (!isRecord(started) || typeof started.deviceCode !== "string" || started.deviceCode.length > 200
+      || typeof started.userCode !== "string" || !/^[A-Z2-7]{8}$/.test(started.userCode)
+      || typeof started.verificationUri !== "string" || typeof started.expiresIn !== "number"
+      || !Number.isSafeInteger(started.expiresIn) || started.expiresIn <= 0
+      || typeof started.interval !== "number" || !Number.isSafeInteger(started.interval) || started.interval <= 0)
+      throw new Error("Invalid device authorization response");
+    const page = new URL(started.verificationUri);
+    const base = new URL(this.base);
+    if (page.origin !== base.origin || page.username || page.password || page.pathname !== "/device")
+      throw new Error("Untrusted verification URL");
+    // The page fills the code in from the query (docs/architecture, /device?user_code=).
+    this.hooks.openTab(`${page.origin}${page.pathname}?user_code=${encodeURIComponent(started.userCode)}`);
+    input.onUserCode(started.userCode);
+    return await this.poll({
+      deviceCode: started.deviceCode,
+      verifier,
+      intervalMs: started.interval * 1000,
+      deadline: this.now() + started.expiresIn * 1000,
+    });
+  }
+  async refresh(refreshToken: string): Promise<DeviceTokenResponse> {
+    const response = await this.fetchImpl(`${this.base}/api/v1/device/refresh`, {
+      method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    }).catch(() => { throw new StudentError(UNREACHABLE); });
+    const body: unknown = await response.json().catch(() => null);
+    if (response.ok) {
+      if (isTokenResponse(body))
+        return body;
+      throw new Error("Invalid device grant response");
+    }
+    // A reused refresh token revokes the whole grant server-side; so do a
+    // revoked grant and any security-generation mismatch. All sign the
+    // extension out.
+    if (response.status === 401 || errorCode(body) === "invalid_token" || errorCode(body) === "invalid_grant")
+      throw new GrantRevoked();
+    throw new StudentError(UNREACHABLE);
+  }
+  async revoke(accessToken: string): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.base}/api/v1/device/revoke`, {
+        method: "POST", credentials: "omit", headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    }
+    catch {
+      throw new StudentError(UNREACHABLE);
+    }
+    // 401 means the grant is already gone, which is the sign-out the student asked for.
+    if (response.ok || response.status === 401)
+      return;
+    throw new StudentError(UNREACHABLE);
+  }
+  private async poll(pending: PendingStart): Promise<DeviceTokenResponse> {
+    let wait = pending.intervalMs;
+    for (;;) {
+      // Stop when the panel closes or after expiry, whichever comes first.
+      if (!this.hooks.panelOpen())
+        throw new SignInCancelled();
+      const remaining = pending.deadline - this.now();
+      if (remaining <= 0)
+        throw new SignInExpired();
+      await this.delay(Math.min(wait, remaining));
+      if (!this.hooks.panelOpen() || this.now() >= pending.deadline)
+        throw this.now() >= pending.deadline ? new SignInExpired() : new SignInCancelled();
+      let response: Response;
+      try {
+        response = await this.fetchImpl(`${this.base}/api/v1/device/token`, {
+          method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceCode: pending.deviceCode, codeVerifier: pending.verifier }),
+        });
+      }
+      catch {
+        continue; // A transport hiccup keeps polling until the deadline.
+      }
+      const body: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        if (isTokenResponse(body))
+          return body;
+        throw new Error("Invalid device grant response");
+      }
+      const code = errorCode(body);
+      if (response.status === 429 || code === "slow_down") {
+        // Back off: the contract has no slow_down today, but honouring it and
+        // the rate limit's Retry-After keeps a busy server out of the loop.
+        const retry = retryAfterSeconds(response);
+        wait = Math.max(wait + (code === "slow_down" ? 5000 : 0), (retry ?? 0) * 1000, pending.intervalMs);
+        continue;
+      }
+      if (code === "authorization_pending")
+        continue;
+      if (code === "access_denied")
+        throw new SignInDenied();
+      if (code === "expired_token" || code === "invalid_grant")
+        throw new SignInExpired();
+      if (response.status >= 500)
+        continue; // The server says unavailable; the deadline bounds the retries.
+      throw new StudentError(SIGNIN_UNREACHABLE);
+    }
+  }
+}
+
 function randomSecret(): string {
   return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
 function base64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-export class DeviceClient {
-  constructor(private readonly fetchImpl: FetchLike, private readonly browser: AuthBrowser, private readonly base = UNTANGLE_ORIGIN) { }
-  async signIn(): Promise<DeviceGrant> {
-    const verifier = randomSecret();
-    const state = randomSecret();
-    const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
-    const response = await this.fetchImpl(`${this.base}/api/v1/devices/authorize`, {
-      method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "extension", redirectUri: this.browser.redirectUri, state, codeChallenge: challenge, codeChallengeMethod: "S256" }),
-    });
-    if (!response.ok)
-      throw new StudentError("Couldn't start sign-in. Check your connection and retry.");
-    const authorization: unknown = await response.json();
-    if (!isRecord(authorization) || typeof authorization.authorizationUrl !== "string")
-      throw new Error("Invalid device authorization response");
-    const url = new URL(authorization.authorizationUrl);
-    if (url.origin !== new URL(this.base).origin || url.username || url.password)
-      throw new Error("Untrusted authorization URL");
-    const callback = new URL(await this.browser.launch(url.href));
-    const redirect = new URL(this.browser.redirectUri);
-    if (callback.origin !== redirect.origin || callback.pathname !== redirect.pathname || callback.hash || callback.searchParams.getAll("state").length !== 1 || callback.searchParams.get("state") !== state)
-      throw new Error("Invalid sign-in state or redirect");
-    const code = callback.searchParams.get("code");
-    if (!code || callback.searchParams.getAll("code").length !== 1 || code.length > 2048)
-      throw new Error("Missing sign-in code");
-    const exchange = await this.fetchImpl(`${this.base}/api/v1/devices/token`, {
-      method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "extension", code, codeVerifier: verifier, redirectUri: this.browser.redirectUri }),
-    });
-    if (!exchange.ok)
-      throw new StudentError("That sign-in expired. Sign in again.");
-    const grant: unknown = await exchange.json();
-    if (!isGrant(grant) || grant.expiresAt <= Date.now())
-      throw new Error("Invalid device grant response");
-    return grant;
-  }
 }

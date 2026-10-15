@@ -63,11 +63,29 @@ export type AddReply = {
   operationId: string;
   reason: "stale-revision" | "not-found" | "forbidden";
 };
-export interface DeviceGrant {
+export type DeviceScopeName = "schedule:read" | "schedule:add-option";
+export const DEVICE_SCOPES: readonly DeviceScopeName[] = ["schedule:read", "schedule:add-option"];
+/** A token pair exactly as the server sends it, per the contract's deviceTokenResponse. */
+export interface DeviceTokenResponse {
   accessToken: string;
+  refreshToken: string;
+  tokenType: "Bearer";
+  expiresIn: number;
+  scopes: DeviceScopeName[];
   grantId: string;
-  accountId: string;
-  expiresAt: number;
+}
+/**
+ * The pair as the worker keeps it in chrome.storage.local (trusted contexts
+ * only): the grant's own identity, the schedule it may read, and the access
+ * token's expiry computed from expiresIn when the pair was saved.
+ */
+export interface StoredGrant {
+  grantId: string;
+  accessToken: string;
+  refreshToken: string;
+  scopes: DeviceScopeName[];
+  scheduleId: string;
+  accessExpiresAt: number;
 }
 export const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 export const isId = (x: unknown): x is string => typeof x === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(x);
@@ -100,8 +118,27 @@ function hasValidLayoutFields(x: Record<string, unknown>): boolean {
 export function isPreview(x: unknown): x is Preview {
   return isRecord(x) && isId(x.scheduleId) && isId(x.optionId) && isRevision(x.revision) && typeof x.title === "string" && x.title.length <= 160 && (x.conflict === "clear" || x.conflict === "conflict" || x.conflict === "unknown") && Array.isArray(x.details) && x.details.length <= 30 && x.details.every(s => typeof s === "string" && s.length <= 500) && hasValidLayoutFields(x);
 }
-export function isGrant(x: unknown): x is DeviceGrant {
-  return isRecord(x) && typeof x.accessToken === "string" && /^[A-Za-z0-9._~-]{1,4096}$/.test(x.accessToken) && isId(x.grantId) && isId(x.accountId) && typeof x.expiresAt === "number" && Number.isFinite(x.expiresAt);
+// Opaque tokens from the contract are 43-character base64url strings.
+const OPAQUE = /^[A-Za-z0-9_-]{43}$/;
+const isScope = (x: unknown): x is DeviceScopeName => x === "schedule:read" || x === "schedule:add-option";
+const isScopes = (x: unknown): x is DeviceScopeName[] => Array.isArray(x) && x.length > 0 && x.length <= DEVICE_SCOPES.length && x.every(isScope);
+export function isTokenResponse(x: unknown): x is DeviceTokenResponse {
+  return isRecord(x) && Object.keys(x).length === 6
+    && typeof x.accessToken === "string" && OPAQUE.test(x.accessToken)
+    && typeof x.refreshToken === "string" && OPAQUE.test(x.refreshToken)
+    && x.tokenType === "Bearer"
+    && typeof x.expiresIn === "number" && Number.isSafeInteger(x.expiresIn) && x.expiresIn > 0
+    && isScopes(x.scopes)
+    && isId(x.grantId);
+}
+export function isStoredGrant(x: unknown): x is StoredGrant {
+  return isRecord(x) && Object.keys(x).length === 6
+    && isId(x.grantId)
+    && typeof x.accessToken === "string" && OPAQUE.test(x.accessToken)
+    && typeof x.refreshToken === "string" && OPAQUE.test(x.refreshToken)
+    && isScopes(x.scopes)
+    && typeof x.scheduleId === "string" && x.scheduleId.length >= 1 && x.scheduleId.length <= 200
+    && typeof x.accessExpiresAt === "number" && Number.isFinite(x.accessExpiresAt);
 }
 export function isCommand(x: unknown): x is AddOptionCommand {
   return isRecord(x) && Object.keys(x).length === 5 && x.command === "add-option" && isId(x.operationId) && isId(x.scheduleId) && isId(x.optionId) && isRevision(x.expectedRevision);

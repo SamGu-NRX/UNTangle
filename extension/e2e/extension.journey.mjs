@@ -175,15 +175,43 @@ async function main() {
     await panel.goto(`chrome-extension://${extensionId}/popup.html`);
     await onScreen(panel, "signed-out");
     await shootPanel(panel, "signed-out");
+    // Sign-in runs the device-code flow: the panel shows a code, the worker
+    // opens the UNTangle approval page in a normal tab, and the student
+    // approves there. No redirect and no identity window. The token issued
+    // now lives 8 seconds, so the next authenticated call must refresh first.
+    await knobs({ accessExpiresInSeconds: 8 });
     await panel.locator("#sign-in").click();
-    try { await onScreen(panel, "empty"); }
-    catch { throw new Error(`Sign-in failed: ${await panel.locator("body").innerText()} Requests: ${JSON.stringify(await observed())}`); }
+    try {
+      await onScreen(panel, "signing-in");
+      const shownCode = (await panel.locator("#user-code").innerText()).trim();
+      if (!/^[A-Z2-7]{8}$/.test(shownCode)) throw new Error(`the panel's code is not 8 base32 characters: ${shownCode}`);
+      let approvalTab = null;
+      for (let i = 0; i < 40 && approvalTab === null; i++) {
+        approvalTab = context.pages().find(candidate => candidate.url().startsWith(`${STUB}/device?`)) ?? null;
+        if (approvalTab === null) await panel.waitForTimeout(250);
+      }
+      if (approvalTab === null) throw new Error("the worker never opened the UNTangle approval tab");
+      const approvalCode = new URL(approvalTab.url()).searchParams.get("user_code");
+      if (approvalCode !== shownCode) throw new Error(`the approval tab's code ${approvalCode} does not match the panel's ${shownCode}`);
+      await approvalTab.locator("#result").filter({ hasText: "Approved" }).waitFor({ timeout: 15000 });
+      await onScreen(panel, "empty");
+    }
+    catch (error) {
+      throw new Error(`Device sign-in failed: ${error instanceof Error ? error.message : String(error)} — panel: ${await panel.locator("body").innerText()} Requests: ${JSON.stringify(await observed())}`);
+    }
+    await knobs({ accessExpiresInSeconds: null });
     await shootPanel(panel, "empty");
+    const signInObserved = await observed();
+    if (!signInObserved.requests.some(request => request.path === "/api/v1/device/start")) throw new Error("sign-in did not start the device flow");
+    if (signInObserved.requests.some(request => request.cookie)) throw new Error("the device flow sent a session cookie");
     step("device grant exchanged through the trusted panel");
 
     await settled(page, "SSR_CLSRCH_R1", "conflict");
     await settled(page, "SSR_CLSRCH_R2", "clear");
     await settled(page, "SSR_CLSRCH_R3", "unknown");
+    // The 8-second token was inside the refresh margin, so these first
+    // authenticated calls must have rotated it before use.
+    if (!(await observed()).requests.some(request => request.path === "/api/v1/device/refresh")) throw new Error("an 8-second access token did not refresh before its first authenticated use");
     const pageText = await page.locator("body").innerText();
     if (pageText.includes("Work") || pageText.includes("3.40") || pageText.includes("CSCE 1040")) throw new Error("Private details leaked onto class search");
     await shootMarkers(page, "v1-markers.png");
@@ -303,11 +331,19 @@ async function main() {
     await restartedPanel.locator("#sign-in").click();
     await onScreen(restartedPanel, "added", "Added CSCE 2100 to Main");
     if ((await observed()).writes.length !== 3) throw new Error("Signing in again did not send the waiting add exactly once");
-    step("rejection, load failure and a lapsed sign-in each show their own panel state");
+    // Signing out revokes the grant on the server, clears the stored tokens,
+    // and returns the panel to its signed-out screen; signing in again works.
+    await restartedPanel.locator("#sign-out").click();
+    await onScreen(restartedPanel, "signed-out");
+    if (!(await observed()).requests.some(request => request.path === "/api/v1/device/revoke")) throw new Error("signing out did not revoke the grant on the server");
+    await restartedPanel.locator("#sign-in").click();
+    await onScreen(restartedPanel, "signing-in");
+    await onScreen(restartedPanel, "empty");
+    step("rejection, load failure, sign-out with revocation and a lapsed sign-in each show their own panel state");
 
     const transcript = await context.newPage(); await transcript.goto(`${MOCK}/transcript`);
     if (await transcript.locator("[data-unt-row]").count()) throw new Error("Content script ran outside class search");
-    step("ALL ASSERTIONS PASSED: device sign-in, markers, private panel, stale preview, restart replay and every panel state");
+    step("ALL ASSERTIONS PASSED: device sign-in with a matching code, refresh before use, markers, private panel, stale preview, restart replay, sign-out with revocation and every panel state");
   } catch (error) {
     if (context) {
       for (const tab of context.pages()) if (tab.url().includes("popup.html")) console.error("popup failure state", await tab.locator("body").innerText().catch(()=>"closed"));

@@ -17,6 +17,11 @@ export interface PanelPreview {
 export type PanelOutcome = "none" | "waiting" | "added" | "changed" | "rejected" | "error";
 export interface PanelState {
   signedIn: boolean;
+  /**
+   * While a device sign-in is in flight, the code the student matches on the
+   * UNTangle approval page; null the rest of the time.
+   */
+  userCode: string | null;
   preview: PanelPreview | null;
   /** Student-facing copy. It never carries an internal error's message. */
   notice: string;
