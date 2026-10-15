@@ -85,9 +85,26 @@ test('each editable kind treats delete versus edit as conflict, and schedules ne
     expect(resolveConflict(kind, body, null, body)).toEqual({ kind: 'delete-versus-edit' });
   }
   expect(resolveConflict('schedule', schedule(), schedule(), schedule())).toEqual({ kind: 'schedule', choices: ['use-latest', 'keep-as-another-schedule', 'reapply-chosen-edits'] });
-  expect(resolveConflict('preferences', null, preferences(), preferences())).toEqual({ kind: 'missing-base' });
+  expect(resolveConflict('preferences', null, preferences(), preferences())).toEqual({ kind: 'merged', body: preferences() });
 });
 
 function row(id: string, code: string) {
   return { id, code, title: code, term: 'Fall 2026', grade: 'A', credits: 3, sourceKind: 'unt', confidence: 1, rationale: '', duplicateExcluded: false, appliedStatus: 'completed', prerequisiteSatisfied: true, reviewRequired: false } as const;
 }
+
+test('concurrent first preference writes treat every local group as changed from absence', () => {
+  const mine = preferences(), latest = preferences();
+  mine.constraints.maxCredits = 12; latest.constraints.maxCredits = 20; latest.constraints.daysOff = ['Fri'];
+  expect(resolveConflict('preferences', null, mine, latest)).toEqual({ kind: 'merged', body: mine });
+});
+
+test('concurrent first academic writes combine disjoint courses but ask about overlapping decisions', () => {
+  const mine = academic(), latest = academic();
+  mine.courseStatuses = { A: 'completed', B: 'inProgress' };
+  latest.courseStatuses = { A: 'inProgress', C: 'completed' };
+  const result = resolveConflict('academic-record', null, mine, latest);
+  expect(result.kind).toBe('academic-record');
+  if (result.kind !== 'academic-record') throw new Error('Expected a course question');
+  expect(result.body.courseStatuses).toEqual({ A: 'inProgress', B: 'inProgress', C: 'completed' });
+  expect(result.questions.map((question) => question.kind === 'course' ? question.course : question.kind)).toEqual(['A']);
+});

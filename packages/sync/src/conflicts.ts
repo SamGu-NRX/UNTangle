@@ -95,7 +95,6 @@ export type ConflictResolution =
   | { kind: 'schedule'; choices: readonly ['use-latest', 'keep-as-another-schedule', 'reapply-chosen-edits'] }
   | { kind: 'academic-record'; body: AcademicRecordBody; questions: AcademicQuestion[] }
   | { kind: 'delete-versus-edit' }
-  | { kind: 'missing-base' }
   | { kind: 'immutable-version' };
 
 export function resolveConflict(kind: DocumentKind, base: Body | null, local: Body | null, latest: Body | null): ConflictResolution {
@@ -105,8 +104,17 @@ export function resolveConflict(kind: DocumentKind, base: Body | null, local: Bo
     ScheduleBodySchema.parse(local); ScheduleBodySchema.parse(latest);
     return { kind, choices: ['use-latest', 'keep-as-another-schedule', 'reapply-chosen-edits'] };
   }
-  if (base === null) return { kind: 'missing-base' };
-  if (kind === 'preferences') return { kind: 'merged', body: mergePreferences(PreferencesBodySchema.parse(base), PreferencesBodySchema.parse(local), PreferencesBodySchema.parse(latest)) };
-  const merged = mergeAcademicRecord(AcademicRecordBodySchema.parse(base), AcademicRecordBodySchema.parse(local), AcademicRecordBodySchema.parse(latest));
+  if (kind === 'preferences') {
+    const mine = PreferencesBodySchema.parse(local), theirs = PreferencesBodySchema.parse(latest);
+    assertInstitution(mine, theirs);
+    // A first write changed every group from absence. No field is borrowed from an unseen base.
+    return { kind: 'merged', body: base === null ? mine : mergePreferences(PreferencesBodySchema.parse(base), mine, theirs) };
+  }
+  const mine = AcademicRecordBodySchema.parse(local);
+  // With no prior document, each course starts absent; overlapping different decisions still ask.
+  const before = base === null
+    ? AcademicRecordBodySchema.parse({ institutionId: mine.institutionId, courseStatuses: {}, transcriptRecords: [], manualCredit: [], major: null, catalogId: null })
+    : AcademicRecordBodySchema.parse(base);
+  const merged = mergeAcademicRecord(before, mine, AcademicRecordBodySchema.parse(latest));
   return merged.questions.length ? { kind, ...merged } : { kind: 'merged', body: AcademicRecordBodySchema.parse(merged.body) };
 }
