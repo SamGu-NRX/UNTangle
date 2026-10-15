@@ -82,15 +82,32 @@ test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse
     await pool.query("UPDATE device_security SET change_started_at = now() - interval '15 minutes 1 second' WHERE user_id = 'bob'");
     expect(await service.readSecurityGeneration("bob")).toBe(generation + 1);
     await expect(service.authenticate(bobDevice.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
-    expect(await service.holdsSecurityChange("bob", opened.value.changeId)).toBe(true);
+    // A timed-out change that nobody replaced still writes; once replaced, its write is refused in the same locked step.
+    await service.writeCredential("bob", opened.value.changeId, "stalled-hash", "insert");
     const replacement = await service.beginSecurityChange("bob");
-    expect(await service.holdsSecurityChange("bob", opened.value.changeId)).toBe(false);
+    await expect(service.writeCredential("bob", opened.value.changeId, "late-hash", "update")).rejects.toMatchObject({ code: "stale_session", status: 401 });
+    await service.writeCredential("bob", replacement.changeId, "reset-hash", "update");
+    await expect(service.writeCredential("bob", replacement.changeId, "second-hash", "insert")).rejects.toThrow("account_credential_user_idx");
+    expect((await pool.query("SELECT password FROM account WHERE user_id = 'bob' AND provider_id = 'credential'")).rows).toEqual([{ password: "reset-hash" }]);
     await expect(service.finishSecurityChange("bob", opened.value.changeId)).rejects.toThrow("no longer the open one");
     await expect(service.readSecurityGeneration("bob")).rejects.toMatchObject({ code: "security_change_in_progress" });
     expect(await service.finishSecurityChange("bob", replacement.changeId)).toBe(generation + 3);
     expect((await pool.query("SELECT change_id, change_started_at FROM device_security WHERE user_id = 'bob'")).rows).toEqual([{ change_id: null, change_started_at: null }]);
     await expect(service.finishSecurityChange("nobody", replacement.changeId)).rejects.toThrow("no longer the open one");
     expect(await service.readSecurityGeneration("nobody")).toBe(0);
+
+    // Stale sessions: one conditional delete, which spares current sessions and sessions during a change.
+    const current = await service.readSecurityGeneration("bob");
+    await pool.query(`INSERT INTO "session" (id, expires_at, token, updated_at, user_id, security_generation) VALUES
+      ('s-old', now() + interval '1 day', 't-old', now(), 'bob', $1), ('s-now', now() + interval '1 day', 't-now', now(), 'bob', $2)`, [current - 1, current]);
+    const during = await service.beginSecurityChange("bob");
+    expect(await service.endStaleSession("t-old")).toBe(false);
+    await service.finishSecurityChange("bob", during.changeId);
+    await pool.query(`UPDATE "session" SET security_generation = $1 WHERE token = 't-now'`, [current + 2]);
+    expect(await service.endStaleSession("t-now")).toBe(false);
+    expect(await service.endStaleSession("t-old")).toBe(true);
+    expect(await service.endStaleSession("t-missing")).toBe(false);
+    expect((await pool.query(`SELECT token FROM "session" WHERE user_id = 'bob'`)).rows).toEqual([{ token: "t-now" }]);
     const fresh = await service.exchange((await approved("bob")).deviceCode, verifier);
     expect((await service.authenticate(fresh.accessToken, "documents:read")).userId).toBe("bob");
   } finally {

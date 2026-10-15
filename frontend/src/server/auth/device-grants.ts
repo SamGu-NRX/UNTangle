@@ -57,8 +57,21 @@ export interface DeviceStore {
    * session) is no longer current. Returns the generation it opened at.
    */
   beginSecurityChange(userId: string, expectedGeneration?: number): Promise<SecurityChange>;
-  /** Whether `changeId` is still the account's open change (a timed-out one may have been replaced). */
-  holdsSecurityChange(userId: string, changeId: string): Promise<boolean>;
+  /**
+   * Writes the account's password, in one transaction that locks the
+   * account's security row and refuses (`stale_session`) unless `changeId` is
+   * still the open change. A request that stalled past the timeout, and whose
+   * change another one replaced, can't land its write after the newer one.
+   * "update" changes the existing credential; "insert" creates the first.
+   */
+  writeCredential(userId: string, changeId: string, passwordHash: string, mode: "update" | "insert"): Promise<void>;
+  /**
+   * Deletes the session if it was issued under an older generation and no
+   * change is open, in one statement. A change moves its caller's own session
+   * forward while the change is open, so that session is never caught between
+   * the two writes. Returns whether a session was deleted.
+   */
+  endStaleSession(token: string): Promise<boolean>;
   /** Closes the change with a bump and returns the new generation. Throws, changing nothing, if it isn't the open change. */
   finishSecurityChange(userId: string, changeId: string): Promise<number>;
 }
@@ -167,7 +180,8 @@ export function createDeviceGrants(store: DeviceStore, now = Date.now) {
       });
     },
     beginSecurityChange: (userId: string, expectedGeneration?: number) => store.beginSecurityChange(userId, expectedGeneration),
-    holdsSecurityChange: (userId: string, changeId: string) => store.holdsSecurityChange(userId, changeId),
+    writeCredential: (userId: string, changeId: string, passwordHash: string, mode: "update" | "insert") => store.writeCredential(userId, changeId, passwordHash, mode),
+    endStaleSession: (token: string) => store.endStaleSession(token),
     finishSecurityChange: (userId: string, changeId: string) => store.finishSecurityChange(userId, changeId),
     bumpSecurityGeneration: (userId: string) => store.bumpGeneration(userId),
     /** The current generation, refused with `security_change_in_progress` while a change is open. */
