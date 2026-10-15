@@ -3,9 +3,9 @@
  * the plan and the student's own Week weights, and refuses once Main changed.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { FakePlannerServer, installDom, mountPlanner, removeDom, setSession, waitFor } from "./planner/test-dom";
+import { FakeDocumentServer, installDom, mountPlanner, removeDom, setSession, waitFor } from "./planner/test-dom";
 
-let server: FakePlannerServer;
+let server: FakeDocumentServer;
 let previousFetch: typeof fetch;
 const mounted: Array<() => Promise<void>> = [];
 
@@ -22,7 +22,7 @@ describe("Use in Main, then Undo", () => {
   afterAll(() => removeDom());
   beforeEach(() => {
     window.localStorage.clear();
-    server = new FakePlannerServer();
+    server = new FakeDocumentServer();
     previousFetch = globalThis.fetch;
     globalThis.fetch = server.fetch as typeof fetch;
     setSession(null);
