@@ -17,6 +17,7 @@ import {
   parseIcsDateTime,
   parseRangeInstant,
   resolveZonedWallTime,
+  isValidTimeZone,
   weekdayOfDate,
   zoneWallTime,
   type CalendarDate,
@@ -75,14 +76,21 @@ export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParse
     throw new CalendarParseError("the feed has no BEGIN:VCALENDAR block");
   }
 
-  const events: CalendarEvent[] = [];
+  const { events, floatingZone } = collectRawEvents(lines);
+  // A feed's floating times belong to the calendar X-WR-TIMEZONE names when
+  // that zone is usable (Google's "secret address" writes it), and to
+  // America/Chicago otherwise: the campus zone, never the server's zone.
+  const eventZone =
+    floatingZone !== null && isValidTimeZone(floatingZone) ? floatingZone : FLOATING_TIME_ZONE;
+
+  const eventsWithIds: CalendarEvent[] = [];
   const eventIds = new Map<EventDraft, number>();
   const idFor = (draft: EventDraft): number => {
     let id = eventIds.get(draft);
     if (id === undefined) {
-      id = events.length;
+      id = eventsWithIds.length;
       eventIds.set(draft, id);
-      events.push({ id, ...draft });
+      eventsWithIds.push({ id, ...draft });
     }
     return id;
   };
@@ -93,7 +101,7 @@ export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParse
   // One shared work budget across the whole feed: no single event owns the
   // expansion allowance, so no feed can spend unbounded work per event.
   const budget: ExpansionBudget = { workRemaining: MAX_EXPANSION_ITERATIONS, exhausted: false };
-  for (const unit of groupSeries(collectRawEvents(lines))) {
+  for (const unit of groupSeries(events)) {
     if (unit.kind === "skip") {
       skipped.push(unit.entry);
       continue;
@@ -106,7 +114,7 @@ export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParse
       skipped.push(skipEntry(unit.master, "occurrence budget exceeded"));
       continue;
     }
-    const outcome = expandSeries(unit, rangeStartMs, rangeEndMs, budget, MAX_PARSE_OCCURRENCES - occurrences.length);
+    const outcome = expandSeries(unit, eventZone, rangeStartMs, rangeEndMs, budget, MAX_PARSE_OCCURRENCES - occurrences.length);
     if (!outcome.ok) {
       skipped.push(skipEntry(unit.master, outcome.reason));
       continue;
@@ -125,7 +133,7 @@ export function parseCalendarFeed(raw: string, range: ParseRange): CalendarParse
   }
   occurrences.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.eventId - b.eventId);
   weeklyBusyBlocks.sort((a, b) => a.weekday - b.weekday || a.startMinutes - b.startMinutes || a.eventId - b.eventId);
-  return { events, occurrences, weeklyBusyBlocks, skipped };
+  return { events: eventsWithIds, occurrences, weeklyBusyBlocks, skipped };
 }
 
 function requireRangeInstant(value: string): number {
@@ -180,9 +188,10 @@ function emptyRawEvent(): RawEvent {
   };
 }
 
-/** Walks the component stack and collects VEVENTs at VEVENT depth. Nested components (VALARM, VTIMEZONE) are tolerated and ignored. */
-function collectRawEvents(lines: string[]): RawEvent[] {
+/** Walks the component stack and collects VEVENTs at VEVENT depth. Nested components (VALARM, VTIMEZONE) are tolerated and ignored. Calendar-level X-WR-TIMEZONE (first occurrence wins) is captured for floating times. */
+function collectRawEvents(lines: string[]): { events: RawEvent[]; floatingZone: string | null } {
   const events: RawEvent[] = [];
+  let floatingZone: string | null = null;
   const stack: string[] = [];
   let current: RawEvent | null = null;
   for (const line of lines) {
@@ -204,11 +213,15 @@ function collectRawEvents(lines: string[]): RawEvent[] {
       if (open >= 0) stack.length = open;
       continue;
     }
+    if (parsed.name === "X-WR-TIMEZONE" && current === null && stack.length === 1 && stack[0] === "VCALENDAR" && floatingZone === null) {
+      floatingZone = parsed.value.trim().replace(/^"|"$/g, "");
+      continue;
+    }
     if (current !== null && stack[stack.length - 1] === "VEVENT") {
       collectProperty(parsed, current);
     }
   }
-  return events;
+  return { events, floatingZone };
 }
 
 function collectProperty(line: ContentLine, event: RawEvent): void {
@@ -428,6 +441,7 @@ function resolveTiming(event: RawEvent, floatingZone: string, fallbackDurationMs
  */
 function expandSeries(
   series: { master: RawEvent; overrides: RawEvent[] },
+  floatingZone: string,
   rangeStartMs: number,
   rangeEndMs: number,
   budget: ExpansionBudget,
@@ -440,7 +454,7 @@ function expandSeries(
     return EMPTY_SERIES;
   }
   if (master.hasRdate) return fail("RDATE is not supported");
-  const timing = resolveTiming(master, FLOATING_TIME_ZONE, null);
+  const timing = resolveTiming(master, floatingZone, null);
   if ("reason" in timing) return fail(timing.reason);
   const { start, durationMs, zone } = timing;
   const isAllDay = start.kind === "date";
