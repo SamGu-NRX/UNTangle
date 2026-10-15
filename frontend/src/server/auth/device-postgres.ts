@@ -13,6 +13,24 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
     const [row] = await db.select({ generation: deviceSecurity.generation, changing: changeOpen }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId));
     return row ?? { generation: 0, changing: false };
   }
+  /** The check and the write in one transaction (DeviceStore.writeCredential). */
+  async function lockedCredentialWrite(userId: string, changeId: string, passwordHash: string, mode: "update" | "insert") {
+    await db.transaction(async tx => {
+      // The row lock makes the check and the write one step: a change that
+      // replaces this one waits for the write, or the write sees it and stops.
+      const [row] = await tx.select({ changeId: deviceSecurity.changeId }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId)).for("update");
+      if (row?.changeId !== changeId) throw staleSession();
+      const now = new Date();
+      const credential = and(eq(accounts.userId, userId), eq(accounts.providerId, "credential"));
+      if (mode === "update") {
+        const updated = await tx.update(accounts).set({ password: passwordHash, updatedAt: now }).where(credential).returning({ id: accounts.id });
+        if (updated.length === 0) throw new Error("No credential to update.");
+      } else {
+        // account_credential_user_idx (0015) refuses a second credential too.
+        await tx.insert(accounts).values({ id: randomUUID(), accountId: userId, providerId: "credential", userId, password: passwordHash, createdAt: now, updatedAt: now });
+      }
+    });
+  }
   return {
     readGeneration,
     transaction: work => db.transaction(async tx => work({
@@ -56,21 +74,15 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
       throw (await readGeneration(userId)).changing ? securityChangeInProgress() : staleSession();
     },
     async writeCredential(userId, changeId, passwordHash, mode) {
-      await db.transaction(async tx => {
-        // The row lock makes the check and the write one step: a change that
-        // replaces this one waits for the write, or the write sees it and stops.
-        const [row] = await tx.select({ changeId: deviceSecurity.changeId }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId)).for("update");
-        if (row?.changeId !== changeId) throw staleSession();
-        const now = new Date();
-        const credential = and(eq(accounts.userId, userId), eq(accounts.providerId, "credential"));
-        if (mode === "update") {
-          const updated = await tx.update(accounts).set({ password: passwordHash, updatedAt: now }).where(credential).returning({ id: accounts.id });
-          if (updated.length === 0) throw new Error("No credential to update.");
-        } else {
-          // account_credential_user_idx (0015) refuses a second credential too.
-          await tx.insert(accounts).values({ id: randomUUID(), accountId: userId, providerId: "credential", userId, password: passwordHash, createdAt: now, updatedAt: now });
-        }
-      });
+      try { await lockedCredentialWrite(userId, changeId, passwordHash, mode); } catch (error) {
+        if (error instanceof DeviceGrantError) throw error;
+        // A failed query's message lists its parameters, the password hash
+        // among them. Keep only the database's error code and constraint.
+        const failure = error as { cause?: { code?: string; constraint?: string }; code?: string; constraint?: string };
+        const database = failure.cause ?? (failure.code ? failure : null);
+        if (!database) throw error;
+        throw new Error(`Credential write failed: ${[database.code, database.constraint].filter(Boolean).join(" ")}`);
+      }
     },
     async endStaleSession(token) {
       const current = sql`coalesce((select ${deviceSecurity.generation} from ${deviceSecurity} where ${deviceSecurity.userId} = ${sessions.userId}), 0)`;
