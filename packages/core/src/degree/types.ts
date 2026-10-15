@@ -96,6 +96,14 @@ export type ProgramData = {
    * computed from the two captured pages.
    */
   coreSharedCourses: string[];
+  /**
+   * True for the core program: the catalog's double-dip rule counts each
+   * course toward at most one core area, so the audit allocates courses to
+   * nodes in tree order (areas claim theirs before the Component Area
+   * Option choice reads what is left) instead of every node reading the
+   * full record independently.
+   */
+  oneCourseOneArea?: boolean;
 };
 
 /** The built dataset: the captured-page manifest plus the programs. */

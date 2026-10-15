@@ -539,20 +539,57 @@ function deriveCore(page: CatalogPage): RequirementNode[] {
     const optionA = sectionByName(page, "Component Area Option A");
     const optionB = sectionByName(page, "Component Area Option B");
     const branches: { name: string; node: RequirementNode }[] = [];
-    if (optionA) branches.push({ name: "6 hours from Component Area Option A", node: hoursNode("Six hours from Component Area Option A", 6, optionA.items, citation(optionA, page)) });
-    if (optionA && optionB) {
-      branches.push({
-        name: "3 hours from Option A and 3 hours from Option B",
-        node: {
-          kind: "group",
-          name: "Option A plus Option B",
-          children: [
-            hoursNode("Three hours from Component Area Option A", 3, optionA.items, citation(optionA, page)),
-            hoursNode("Three hours from Component Area Option B", 3, optionB.items, citation(optionB, page)),
-          ],
-          citation: citation(option, page),
-        },
-      });
+    if (optionA) {
+      // The allowance printed at the end of the Option A list: its six hours
+      // may come from "any course included in the other core areas listed
+      // above". Expand both Option A hour nodes with one-course options for
+      // those areas' courses, deduplicated against Option A's own list. The
+      // audit's allocation carries out the section's own double-dip note: a
+      // course its home area already used cannot also count toward Option A.
+      const otherCoreCodes: string[] = [];
+      const seen = new Set<string>();
+      const grab = (node: RequirementNode): void => {
+        switch (node.kind) {
+          case "hours":
+          case "choose":
+            for (const unit of node.options) {
+              for (const code of unit.must) {
+                if (!seen.has(code)) {
+                  seen.add(code);
+                  otherCoreCodes.push(code);
+                }
+              }
+            }
+            break;
+          case "group":
+            node.children.forEach(grab);
+            break;
+          default:
+            break;
+        }
+      };
+      for (const node of nodes) grab(node);
+      const optionACodes = new Set(parseUnits(optionA.items).flatMap((unit) => unitOptions(unit).flatMap((option) => option.must)));
+      const otherCoreOptions = otherCoreCodes
+        .filter((code) => !optionACodes.has(code))
+        .map((code) => ({ must: [code] }));
+      const sixFromA = hoursNode("Six hours from Component Area Option A", 6, optionA.items, citation(optionA, page));
+      branches.push({ name: "6 hours from Component Area Option A", node: { ...sixFromA, options: [...sixFromA.options, ...otherCoreOptions] } });
+      if (optionB) {
+        const threeFromA = hoursNode("Three hours from Component Area Option A", 3, optionA.items, citation(optionA, page));
+        branches.push({
+          name: "3 hours from Option A and 3 hours from Option B",
+          node: {
+            kind: "group",
+            name: "Option A plus Option B",
+            children: [
+              { ...threeFromA, options: [...threeFromA.options, ...otherCoreOptions] },
+              hoursNode("Three hours from Component Area Option B", 3, optionB.items, citation(optionB, page)),
+            ],
+            citation: citation(option, page),
+          },
+        });
+      }
     }
     nodes.push({ kind: "choice", name: "Component Area Option, 6 hours", branches, citation: citation(option, page) });
     if (optionA) {

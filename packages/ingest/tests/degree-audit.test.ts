@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import path from "node:path";
 import { auditProgram, type AuditCourse } from "@untangle/core/degree/audit";
 import { buildDegreeData } from "../src/degree/build";
-import type { RequirementNode } from "@untangle/core/degree/types";
+import type { ProgramData, RequirementNode } from "@untangle/core/degree/types";
 
 const dataDir = path.resolve(import.meta.dir, "../data/catalog/unt-2026-27");
 const data = buildDegreeData(dataDir, "2026-10-15T00:00:00.000Z");
@@ -170,6 +170,56 @@ describe("auditProgram on synthetic records", () => {
     const coa = satisfied.requirements.find((node) => node.name.startsWith("Component Area Option"));
     expect(coa?.status).toBe("satisfied");
     expect(coa?.name).toContain("Option A");
+  });
+
+  test("Option A accepts another core area's course when that area did not use it", () => {
+    // The allowance printed inside the Option A list: "Or any course included
+    // in the other core areas listed above". ANTH 1010 satisfies Social and
+    // Behavioral Sciences, which frees PADM 2100 — an SBS course reachable in
+    // the A list only through the derived expansion — to fill Option A beside
+    // PHIL 2500: three hours plus three hours makes the option satisfied.
+    // Were PADM 2100 not an option at all, the walk would stop at 3/6.
+    const record = [course("ANTH 1010"), course("PADM 2100"), course("PHIL 2500")];
+    const result = auditProgram(program("core"), record);
+    const sbs = result.requirements.find((node) => node.name === "Social and Behavioral Sciences, 3 hours");
+    expect(sbs?.status).toBe("satisfied");
+    expect(sbs?.detail).toContain("3/3");
+    const option = result.requirements.find((node) => node.name.startsWith("Component Area Option"));
+    expect(option?.status).toBe("satisfied");
+    expect(option?.detail).toContain("2 courses, 6/6 hours");
+    expect(option?.name).toContain("Option A");
+  });
+
+  test("oneCourseOneArea is what makes the audit count a course once", () => {
+    // The same tree and record with and without the flag: without it every
+    // node reads the full record, so MATH 1720 fills Mathematics and keeps
+    // counting toward the option (major-style sharing). With it Mathematics
+    // claims the course first and the option falls short at 3/6.
+    const citation = { page: "core.html", url: "https://catalog.example/core.html", anchor: "x", heading: "h" };
+    const requirements: RequirementNode[] = [
+      { kind: "hours", name: "Mathematics, 3 hours", hours: 3, options: [{ must: ["MATH 1720"] }], citation },
+      { kind: "hours", name: "Component Area Option A", hours: 6, options: [{ must: ["MATH 1720"] }, { must: ["PHIL 2500"] }], citation },
+    ];
+    const base = {
+      id: "synthetic",
+      name: "Synthetic",
+      catalogId: "2026-2027",
+      sourceUrl: "https://catalog.example/core.html",
+      coreSharedCourses: [] as string[],
+    } satisfies Omit<ProgramData, "requirements">;
+    const record = [course("MATH 1720", "B", 4), course("PHIL 2500", "B", 3)];
+
+    const shared = auditProgram({ ...base, requirements: structuredClone(requirements) } satisfies ProgramData, record);
+    const sharedOption = shared.requirements.find((node) => node.name === "Component Area Option A");
+    expect(sharedOption?.status).toBe("satisfied");
+    expect(sharedOption?.detail).toContain("7/6");
+
+    const allocated = auditProgram({ ...base, oneCourseOneArea: true, requirements: structuredClone(requirements) } satisfies ProgramData, record);
+    const math = allocated.requirements.find((node) => node.name === "Mathematics, 3 hours");
+    expect(math?.status).toBe("satisfied");
+    const allocatedOption = allocated.requirements.find((node) => node.name === "Component Area Option A");
+    expect(allocatedOption?.status).toBe("inProgress");
+    expect(allocatedOption?.detail).toContain("1 course, 3/6 hours");
   });
 
   test("the summary counts every outcome", () => {

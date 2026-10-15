@@ -67,6 +67,11 @@ export function buildDegreeData(dataDir: string, builtAt: string): DegreeData {
     sourceUrl: corePage.url,
     requirements: coreSpec.derive(corePage, university),
     coreSharedCourses: [...coreCodes].sort(),
+    // The core page's own double-dip note: each course counts toward at most
+    // one core area, so the audit allocates in tree order — the eight areas
+    // claim their courses before the Component Area Option choice reads what
+    // is left.
+    oneCourseOneArea: true,
   };
 
   return {

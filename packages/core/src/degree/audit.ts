@@ -31,6 +31,18 @@ export type PolicyOutcome = {
   citation: Citation;
 };
 
+type Branch = { name: string; node: RequirementNode };
+
+/**
+ * Shared allocation state for programs whose catalog rule counts each course
+ * toward one area only (the core's double-dip rule). Nodes consume completed
+ * courses from `used` in tree order, so a course claimed by an earlier node
+ * cannot satisfy a later one. Slot nodes (all) keep independent per-slot
+ * matching: the core tree has none, and programs that do use slots do not
+ * allocate.
+ */
+type Allocation = { used: Set<string> };
+
 export type AuditResult = {
   programId: string;
   programName: string;
@@ -93,7 +105,7 @@ function maxCovered(options: { must: string[] }[], completed: Set<string>, inPro
   return { covered, satisfiedAll };
 }
 
-function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set<string>, creditsByCode: Map<string, number>): NodeOutcome {
+function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set<string>, creditsByCode: Map<string, number>, allocation: Allocation | null = null): NodeOutcome {
   const cite = node.citation;
   switch (node.kind) {
     case "all": {
@@ -115,12 +127,54 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
       };
     }
     case "choose": {
+      if (allocation) {
+        // Same disjoint coverage as maxCovered, but each taken option claims
+        // its courses in the shared allocation so later nodes cannot reuse
+        // them, and coverage only counts courses no earlier node took.
+        const freeCompleted = new Set([...completed].filter((code) => !allocation.used.has(code)));
+        const freePlanned = new Set([...freeCompleted, ...[...inProgress].filter((code) => !allocation.used.has(code))]);
+        const order = node.options
+          .filter((option) => option.must.every((code) => freeCompleted.has(code)))
+          .sort((a, b) => a.must.length - b.must.length);
+        let taken = 0;
+        for (const option of order) {
+          if (taken >= node.count) break;
+          option.must.forEach((code) => allocation.used.add(code));
+          taken += 1;
+        }
+        const possible = maxCovered(node.options, freePlanned, new Set()).covered;
+        const status = taken >= node.count ? "satisfied" : possible >= node.count ? "inProgress" : "unsatisfied";
+        return { name: node.name, status, detail: `${Math.min(taken, node.count)}/${node.count} chosen`, citation: cite };
+      }
       const { covered } = maxCovered(node.options, completed, inProgress);
       const possible = maxCovered(node.options, completed, new Set([...completed, ...inProgress])).covered;
       const status = covered >= node.count ? "satisfied" : possible >= node.count ? "inProgress" : "unsatisfied";
       return { name: node.name, status, detail: `${Math.min(covered, node.count)}/${node.count} chosen`, citation: cite };
     }
     case "hours": {
+      if (allocation) {
+        // Options in listed order form a prefix: each option whose courses are
+        // all completed and unclaimed is taken (and claims them) until the
+        // hours are met. A course claimed here cannot satisfy a later node,
+        // which is how the catalog's double-dip rule behaves.
+        let courses = 0;
+        let credits = 0;
+        let unknownCredits = false;
+        for (const option of node.options) {
+          if (credits >= node.hours) break;
+          if (!option.must.every((code) => completed.has(code) && !allocation.used.has(code))) continue;
+          option.must.forEach((code) => allocation.used.add(code));
+          courses += 1;
+          for (const code of option.must) {
+            const value = creditsByCode.get(code);
+            if (value === undefined) unknownCredits = true;
+            else credits += value;
+          }
+        }
+        const detail = `${courses} course${courses === 1 ? "" : "s"}, ${credits}/${node.hours} hours${unknownCredits ? " (some credit hours unknown)" : ""}`;
+        const status = credits >= node.hours ? "satisfied" : courses > 0 ? "inProgress" : "unsatisfied";
+        return { name: node.name, status, detail, citation: cite };
+      }
       const { covered } = maxCovered(node.options, completed, inProgress);
       const satisfiedCodes = new Set<string>();
       for (const option of node.options) {
@@ -154,6 +208,38 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
       };
     }
     case "choice": {
+      if (allocation) {
+        // Branches try in order against the live allocation: the first
+        // satisfied branch keeps its consumption, later branches roll back so
+        // an unsatisfied attempt releases its courses to the next branch, and
+        // the first in-progress branch (re-evaluated so its partial claims
+        // stand) is the fallback when nothing satisfies.
+        let satisfied: { branch: Branch; outcome: NodeOutcome } | null = null;
+        let pending: { branch: Branch; outcome: NodeOutcome } | null = null;
+        for (const branch of node.branches) {
+          const snapshot = new Set(allocation.used);
+          const outcome = evaluate(branch.node, completed, inProgress, creditsByCode, allocation);
+          if (outcome.status === "satisfied") {
+            satisfied = { branch, outcome };
+            break;
+          }
+          if (outcome.status === "inProgress" && pending === null) pending = { branch, outcome };
+          allocation.used = snapshot;
+        }
+        if (satisfied) return { ...satisfied.outcome, name: `${node.name} — ${satisfied.branch.name}`, citation: cite };
+        if (pending) {
+          const outcome = evaluate(pending.branch.node, completed, inProgress, creditsByCode, allocation);
+          return { ...outcome, name: `${node.name} — ${pending.branch.name}`, citation: cite };
+        }
+        const first = node.branches[0];
+        const outcome = evaluate(first.node, completed, inProgress, creditsByCode, allocation);
+        return {
+          name: `${node.name} — ${first.name}`,
+          status: "unsatisfied",
+          detail: `No branch satisfied. First branch: ${outcome.detail}`,
+          citation: cite,
+        };
+      }
       const results = node.branches.map((branch) => ({ branch, outcome: evaluate(branch.node, completed, inProgress, creditsByCode) }));
       const chosen = results.find((result) => result.outcome.status === "satisfied")
         ?? results.find((result) => result.outcome.status === "inProgress");
@@ -167,7 +253,7 @@ function evaluate(node: RequirementNode, completed: Set<string>, inProgress: Set
       };
     }
     case "group": {
-      const results = node.children.map((child) => evaluate(child, completed, inProgress, creditsByCode));
+      const results = node.children.map((child) => evaluate(child, completed, inProgress, creditsByCode, allocation));
       const satisfied = results.filter((result) => result.status === "satisfied").length;
       const progress = results.filter((result) => result.status === "inProgress").length;
       // Notes and advisory pools cannot fail a group; only unsatisfied
@@ -295,7 +381,10 @@ export function auditProgram(program: ProgramData, courses: AuditCourse[]): Audi
   const nodeCodes = new Set<string>();
   for (const node of program.requirements) collectCodes(node, nodeCodes);
 
-  const requirements = program.requirements.map((node) => evaluate(node, completed, inProgress, creditsByCode));
+  // One allocation shared across the tree: earlier nodes' claims are visible
+  // to later ones (areas before the Component Area Option choice).
+  const allocation: Allocation | null = program.oneCourseOneArea ? { used: new Set<string>() } : null;
+  const requirements = program.requirements.map((node) => evaluate(node, completed, inProgress, creditsByCode, allocation));
   const policies = program.requirements
     .filter((node): node is Extract<RequirementNode, { kind: "policy" }> => node.kind === "policy")
     .map((node) => evaluatePolicy(node, courses, [...nodeCodes]));
