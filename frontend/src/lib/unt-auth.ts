@@ -14,7 +14,7 @@ export function untEmailRequirementMessage() {
 }
 
 /** Endpoints that can create an account, and so must only take UNT addresses. */
-export const UNT_GATED_PATHS = ["/sign-up/email", "/sign-in/magic-link"] as const;
+export const UNT_GATED_PATHS = ["/sign-up/email", "/sign-in/magic-link", "/sign-in/email-otp", "/email-otp/send-verification-otp"] as const;
 
 /**
  * The refusal message for a request that would create or reach an account

@@ -14,7 +14,7 @@ export type PlateProps = {
 
 /**
  * A building plate (DESIGN.md §1): the code on a small dark-green plate in
- * Syne caps, then the room, `[GAB] 535`.
+ * DM Sans bold caps, then the room, `[GAB] 535`.
  */
 export function Plate({ building, room, name, quiet, className }: PlateProps) {
   return (

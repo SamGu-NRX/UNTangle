@@ -600,9 +600,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  /* As tall as its ⋯ button even when there is none, so the close button lines up either way. */
+  min-height: 32px;
 }
 .bigcode {
-  font: 700 20px/24px var(--c-display);
+  /* DM Sans: Syne is for the wordmarks only (Sam's rule 4). */
+  font: 600 20px/24px var(--c-body);
+  font-variant-numeric: lining-nums tabular-nums;
   color: var(--c-brand);
 }
 .pStatus {
@@ -632,10 +636,11 @@
 .pNote q {
   color: var(--c-ink);
 }
+/* Level with the code line: as far down as .pHead's top padding, and 32px tall like its ⋯ button. */
 .pClose {
   position: absolute;
   right: 16px;
-  top: 16px;
+  top: 20px;
 }
 .pActions {
   display: flex;
@@ -913,7 +918,7 @@
   }
   .pClose {
     right: 0;
-    top: 0;
+    top: 4px;
   }
   .pActions {
     flex-wrap: nowrap;

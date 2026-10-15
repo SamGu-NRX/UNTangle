@@ -35,7 +35,7 @@ function withReadLatency(adapter: ReturnType<typeof memoryAdapter>): ReturnType<
   }) as ReturnType<typeof memoryAdapter>;
 }
 
-export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"]) {
+export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "finishSecurityChange"> = {}) {
   const store: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
   const mail: { kind: string; to: string; url: string }[] = [];
   const record = async (kind: string, to: string, url: string) => {
@@ -47,6 +47,9 @@ export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"])
     secret: "test-secret-at-least-32-characters-long",
     claims: memoryClaims(),
     sendEmail: sendEmail ?? record,
+    bumpSecurityGeneration,
+    readSecurityGeneration,
+    ...changes,
     // NODE_ENV=test makes better-auth skip its origin and CSRF checks; these tests run with them on.
     options: { advanced: { disableOriginCheck: false } },
   });

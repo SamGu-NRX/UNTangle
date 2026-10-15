@@ -14,7 +14,7 @@ All coordinates below use `[longitude, latitude]`.
 | Overview maximum fit zoom | `15.6` | Keeps a campus-wide view rather than fitting a single building |
 | Stop focus | Up to z17.8, pitch 45°, bearing 0° | Identifies the selected building without an orbit |
 | Leg focus | Up to z17.6, pitch 45°, bearing 0° | Fits the leg's full geometry, not only its endpoints |
-| Whole itinerary | Up to z17.6, pitch 0°, bearing 0° | All stops remain comparable |
+| Whole itinerary | Up to z17.6, pitch 45° when the flat fit reaches z16.45 and every stop stays in view once tilted, else 0°; bearing 0° | Shows the campus in 3D at street zoom; a day too spread out to fit tilted stays flat and comparable |
 | Map zoom limits | `minZoom: 13`, `maxZoom: 19` | Allow orientation and detailed walkway inspection without extreme overzoom |
 | Pitch limit | `maxPitch: 50` | Leaves a small margin above the focus angle; avoids a deep horizon |
 | Maximum bounds | `[[-97.166, 33.197], [-97.133, 33.225]]` | Keeps this campus-only view near Denton campus while allowing padding |
@@ -101,7 +101,7 @@ Motion serves spatial consistency: one occasional selection shows how a building
 | --- | --- |
 | First render, layout resize, detent change | Instant |
 | Pointer or touch stop / leg focus | 500 ms `flyTo` |
-| Zoom button, north reset, manual 3D toggle | 250 ms `easeTo` |
+| Zoom button, manual 3D toggle (to 45°, at z16 or closer) | 250 ms `easeTo` |
 | Hover, selected paint, list keyboard activation | Instant |
 | Button press feedback | Existing 120 ms token, transform only |
 

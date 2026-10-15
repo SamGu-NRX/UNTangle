@@ -1,6 +1,7 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
-import { magicLink } from "better-auth/plugins";
+import { timingSafeEqual } from "node:crypto";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+import { emailOTP, magicLink } from "better-auth/plugins";
 import type { AuthEmailKind } from "@/lib/auth-email";
 import { EmailBudgetExceeded } from "@/lib/email-budget";
 import { hashMagicLinkToken, type MagicLinkClaims } from "@/lib/magic-link-claims";
@@ -13,6 +14,10 @@ export type AuthDeps = {
   secret: string;
   claims: MagicLinkClaims;
   sendEmail: (kind: AuthEmailKind, to: string, url: string) => Promise<unknown>;
+  bumpSecurityGeneration?: (userId: string) => Promise<void>;
+  readSecurityGeneration?: (userId: string) => Promise<number>;
+  beginSecurityChange?: (userId: string) => Promise<void>;
+  finishSecurityChange?: (userId: string) => Promise<void>;
   /** Deployment settings that don't change who may sign in (IP header, limiter storage). */
   options?: Pick<BetterAuthOptions, "advanced" | "rateLimit">;
 };
@@ -22,7 +27,7 @@ export type AuthDeps = {
  * the real flows on an in-memory database. lib/auth.ts builds the app's.
  *
  * Who can hold an account is decided by the inbox:
- * - Accounts are created only by a sign-in link to a UNT address. Password
+ * - Accounts are created only by an emailed link or code to a UNT address. Password
  *   sign-up is off on the server (disableSignUp), so nobody can create a
  *   password account for an address they don't read. A password is an
  *   optional extra: set from a recent signed-in session
@@ -31,11 +36,11 @@ export type AuthDeps = {
  * - A password account whose address was never verified can't sign in
  *   (requireEmailVerification). Only accounts from before this rule can be
  *   in that state.
- * - Defense in depth: if a sign-in link is used on an account that was
+ * - Defense in depth: if an emailed link or code is used on an account that was
  *   never verified, that account's password and sessions were made by
- *   someone who didn't own the inbox. They are deleted before the link's
+ *   someone who didn't own the inbox. They are deleted before the owner's
  *   session is made, so only the inbox owner keeps access.
- * - A link works once even when two requests use it at the same moment
+ * - An inbox code or link works once even when requests use it concurrently
  *   (an atomic claim, MagicLinkClaims).
  */
 /** A callback parameter decoded, if it decodes and points at this app; otherwise null. */
@@ -54,21 +59,29 @@ export function trustedTarget(raw: string | undefined, isTrusted: (url: string) 
   return (raw && trustedCallback(raw, isTrusted)) || "/auth?link=failed";
 }
 
-export function createAuth({ database, baseURL, secret, claims, sendEmail, options }: AuthDeps) {
-  /** Sends an auth email. Over budget: a sign-in link request fails with 429; a reset send is dropped (logged), since that endpoint answers the same whether or not an account exists. */
+export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpSecurityGeneration, readSecurityGeneration, beginSecurityChange, finishSecurityChange, options }: AuthDeps) {
+  /** Sends an auth email. Over budget: a sign-in link or code request fails with 429; a reset send is dropped (logged), since that endpoint answers the same whether or not an account exists. */
   async function send(kind: AuthEmailKind, to: string, url: string) {
     try {
       await sendEmail(kind, to, url);
     } catch (error) {
       if (error instanceof EmailBudgetExceeded) {
         console.warn(`Auth email (${kind}) not sent: the recipient's send budget is used up.`);
-        if (kind === "magic-link") throw new APIError("TOO_MANY_REQUESTS", { message: error.message });
+        if (kind === "magic-link" || kind === "email-code") throw new APIError("TOO_MANY_REQUESTS", { message: error.message });
         return;
       }
       console.error(`Auth email (${kind}) delivery failed.`, error);
       throw error;
     }
   }
+
+  if (Boolean(beginSecurityChange) !== Boolean(finishSecurityChange))
+    throw new Error("beginSecurityChange and finishSecurityChange must be configured together.");
+  const beginChange = beginSecurityChange ?? bumpSecurityGeneration;
+  const finishChange = finishSecurityChange ?? bumpSecurityGeneration;
+  const passwordSessionGenerations = new WeakMap<object, { userId: string; generation: number }>();
+  const claimedOtpEmails = new WeakMap<object, string>();
+  const resetUsers = new WeakMap<object, string>();
 
   return betterAuth({
     ...options,
@@ -89,7 +102,71 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
         await send("password-reset", user.email, url);
       },
     },
+    session: {
+      additionalFields: {
+        securityGeneration: { type: "number", defaultValue: 0, input: false },
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user, ctx) => {
+            if (ctx?.path === "/sign-in/email-otp" && user.emailVerified === true && claimedOtpEmails.get(ctx.context) !== user.email.toLowerCase())
+              throw new APIError("BAD_REQUEST", { message: "This sign-in code has not been claimed." });
+          },
+        },
+        update: {
+          before: async (user, ctx) => {
+            // The plugin marks an existing account verified before creating its
+            // session. Refuse that write too when no code won the atomic claim.
+            if (ctx?.path === "/sign-in/email-otp" && user.emailVerified === true && !claimedOtpEmails.has(ctx.context))
+              throw new APIError("BAD_REQUEST", { message: "This sign-in code has not been claimed." });
+          },
+        },
+      },
+      session: {
+        create: {
+          before: async (session, ctx) => {
+            if (ctx?.path === "/sign-in/email-otp") {
+              const email = claimedOtpEmails.get(ctx.context);
+              const user = email ? await ctx.context.internalAdapter.findUserById(session.userId) : null;
+              if (!email || user?.email.toLowerCase() !== email)
+                throw new APIError("BAD_REQUEST", { message: "This sign-in code has not been claimed." });
+            }
+            let generation: number;
+            if (ctx?.path === "/sign-in/email") {
+              const captured = passwordSessionGenerations.get(ctx.context);
+              if (!captured || captured.userId !== session.userId)
+                throw new Error("Password sign-in did not capture its account security generation.");
+              generation = captured.generation;
+            } else {
+              generation = await readSecurityGeneration?.(session.userId) ?? 0;
+            }
+            return { data: { ...session, securityGeneration: generation } };
+          },
+        },
+      },
+      account: {
+        create: {
+          // setPassword is server-only and has no path. Its credential insert
+          // happens after password validation and before the new password exists.
+          before: async (account, ctx) => {
+            if (account.providerId === "credential" && account.password && ctx?.path !== "/reset-password")
+              await bumpSecurityGeneration?.(account.userId);
+          },
+        },
+      },
+    },
     plugins: [
+      emailOTP({
+        // A custom SHA-256 hash also lets the pre-session hook check a code
+        // before claiming it across instances. The plugin still enforces attempts.
+        storeOTP: { hash: async (otp) => hashMagicLinkToken(otp) },
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          if (type !== "sign-in") throw new APIError("BAD_REQUEST", { message: "Use a sign-in code." });
+          await send("email-code", email, otp);
+        },
+      }),
       // Defaults kept on purpose: the link expires in 5 minutes and allows
       // one attempt; the claim below makes that hold under concurrency.
       magicLink({
@@ -107,6 +184,80 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
         const refusal = untEmailGate(ctx.path, ctx.body);
         if (refusal) throw new APIError("BAD_REQUEST", { message: refusal });
 
+        if (ctx.path === "/sign-in/email" && typeof ctx.body?.email === "string") {
+          const existing = await ctx.context.internalAdapter.findUserByEmail(ctx.body.email.toLowerCase());
+          if (existing?.user) {
+            // Capture before password verification. If a reset wins while the
+            // old password is being checked, that delayed session stays old.
+            passwordSessionGenerations.set(ctx.context, {
+              userId: existing.user.id,
+              generation: await readSecurityGeneration?.(existing.user.id) ?? 0,
+            });
+          }
+        }
+
+        // Only the sign-in part of emailOTP is public. Credential recovery
+        // continues through the existing reset flow, with its revocation hook.
+        if (ctx.path.includes("email-otp") && ctx.path !== "/sign-in/email-otp" && ctx.path !== "/email-otp/send-verification-otp")
+          throw new APIError("NOT_FOUND", { message: "This email-code operation is unavailable." });
+        if (ctx.path === "/email-otp/send-verification-otp") {
+          if (ctx.body?.type !== "sign-in")
+            throw new APIError("BAD_REQUEST", { message: "Use a sign-in code." });
+          // 1.5.5 swallows background-task failures, including delivery and
+          // send-budget errors. This context is copied per request, so await
+          // delivery here and report its failure to the approval page.
+          ctx.context.runInBackgroundOrAwait = async (promise) => { await promise; };
+          return;
+        }
+
+        if (ctx.path === "/revoke-sessions") {
+          const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
+          if (session) await bumpSecurityGeneration?.(session.user.id);
+          return;
+        }
+        if (ctx.path === "/reset-password") {
+          const token = ctx.body?.token || ctx.query?.token;
+          const password = ctx.body?.newPassword;
+          if (typeof token !== "string" || typeof password !== "string" || password.length < ctx.context.password.config.minPasswordLength || password.length > ctx.context.password.config.maxPasswordLength) return;
+          const record = await ctx.context.internalAdapter.findVerificationValue(`reset-password:${token}`);
+          if (!record || record.expiresAt <= new Date()) return;
+          if (!(await claims.claim(hashMagicLinkToken(`password-reset:${token}`), record.expiresAt)))
+            throw new APIError("BAD_REQUEST", { message: "This password-reset code has already been used." });
+          // The persisted transition blocks grant issuance until the password
+          // and sessions are changed. Failures leave it blocked for recovery.
+          await beginChange?.(record.value);
+          resetUsers.set(ctx.context, record.value);
+          return;
+        }
+        if (ctx.path === "/sign-in/email-otp") {
+          const email = ctx.body?.email;
+          const otp = ctx.body?.otp;
+          if (typeof email !== "string" || typeof otp !== "string")
+            throw new APIError("BAD_REQUEST", { message: "Enter the email and sign-in code." });
+          const record = await ctx.context.internalAdapter.findVerificationValue(`sign-in-otp-${email.toLowerCase()}`);
+          if (!record || record.expiresAt <= new Date())
+            throw new APIError("BAD_REQUEST", { message: "This sign-in code is invalid or has expired." });
+          const [storedHash, attempts] = record.value.split(":");
+          if (Number(attempts) >= 3)
+            throw new APIError("FORBIDDEN", { message: "This sign-in code has no attempts left." });
+          const providedHash = hashMagicLinkToken(otp);
+          if (storedHash.length !== providedHash.length || !timingSafeEqual(Buffer.from(storedHash), Buffer.from(providedHash))) return;
+          // atomicVerifyOTP in 1.5.5 reads and deletes separately. Its two
+          // concurrent readers can both proceed, so use our Postgres claim.
+          if (!(await claims.claim(hashMagicLinkToken(`email-code:${record.identifier}:${storedHash}:${record.expiresAt.toISOString()}`), record.expiresAt)))
+            throw new APIError("BAD_REQUEST", { message: "This sign-in code has already been used." });
+          claimedOtpEmails.set(ctx.context, email.toLowerCase());
+          const existing = await ctx.context.internalAdapter.findUserByEmail(email.toLowerCase());
+          if (existing?.user && !existing.user.emailVerified) {
+            await beginChange?.(existing.user.id);
+            for (const account of await ctx.context.internalAdapter.findAccounts(existing.user.id)) {
+              if (account.providerId === "credential") await ctx.context.internalAdapter.deleteAccount(account.id);
+            }
+            await ctx.context.internalAdapter.deleteSessions(existing.user.id);
+            await finishChange?.(existing.user.id);
+          }
+          return;
+        }
         if (ctx.path !== "/magic-link/verify") return;
         // The only way in is the landing page's own form (same-origin). A
         // cross-site request would be another site signing this browser in
@@ -144,12 +295,24 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, optio
 
         const { email } = JSON.parse(record.value) as { email: string };
         const existing = await ctx.context.internalAdapter.findUserByEmail(email.toLowerCase());
+        if (existing?.user?.emailVerified) await bumpSecurityGeneration?.(existing.user.id);
         if (existing?.user && !existing.user.emailVerified) {
+          await beginChange?.(existing.user.id);
           const accounts = await ctx.context.internalAdapter.findAccounts(existing.user.id);
           for (const account of accounts) {
             if (account.providerId === "credential") await ctx.context.internalAdapter.deleteAccount(account.id);
           }
           await ctx.context.internalAdapter.deleteSessions(existing.user.id);
+          await finishChange?.(existing.user.id);
+        }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        const userId = resetUsers.get(ctx.context);
+        const result = ctx.context.returned;
+        if (ctx.path === "/reset-password" && userId && result && typeof result === "object" && "status" in result && result.status === true) {
+          // A failed completion leaves the persisted barrier closed, including
+          // when the password changed but the generation store is unavailable.
+          await finishChange?.(userId);
         }
       }),
     },
