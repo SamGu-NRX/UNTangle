@@ -7,7 +7,7 @@ import { useEffect, useReducer, useRef, type MouseEvent } from "react";
  * Downloads folder (Chromium blocks it for the File System Access API), so
  * the student downloads the PDF in myUNT and comes back to choose it. This
  * module opens myUNT in a separate window and notices the return, so the
- * sheet can then lead with "Use the downloaded PDF".
+ * import page can then lead with "Use the downloaded PDF".
  *
  *   idle --open--> away --(window closed | page regains focus/visibility)--> back
  *
@@ -50,6 +50,9 @@ export function tripReducer(trip: Trip, event: TripEvent): Trip {
 /** The window name: opening again reuses (and focuses) the same window. */
 export const MYUNT_WINDOW = "untangle-myunt";
 
+/** myUNT's transcript page in Student Center; sign-in comes first if needed. */
+export const MYUNT_URL = "https://my.unt.edu/psc/ps/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_TRN.GBL";
+
 type Geometry = {
   screenX: number;
   screenY: number;
@@ -58,11 +61,20 @@ type Geometry = {
   screen: { availWidth: number; availHeight: number };
 };
 
-/** A 1000x800 window (smaller on small screens), centred over this one. */
+/** Gap between the popup and this window's right edge. */
+const EDGE_GAP = 24;
+
+/**
+ * A 480x760 window (smaller on small screens) against this window's right
+ * edge (HANDOFF.md §4), where the import page shows its illustration, so the
+ * steps on the left stay visible beside it. Only negative positions are
+ * clamped: on a second monitor screenX is past the first screen's width,
+ * and browsers keep a popup on screen themselves.
+ */
 export function popupFeatures(win: Geometry): string {
-  const width = Math.max(320, Math.min(1000, win.screen.availWidth - 80));
-  const height = Math.max(320, Math.min(800, win.screen.availHeight - 80));
-  const left = Math.max(0, Math.round(win.screenX + (win.outerWidth - width) / 2));
+  const width = Math.max(320, Math.min(480, win.screen.availWidth - 80));
+  const height = Math.max(320, Math.min(760, win.screen.availHeight - 80));
+  const left = Math.max(0, Math.round(win.screenX + win.outerWidth - EDGE_GAP - width));
   const top = Math.max(0, Math.round(win.screenY + (win.outerHeight - height) / 2));
   return `popup=yes,width=${width},height=${height},left=${left},top=${top}`;
 }
@@ -163,5 +175,10 @@ export function useMyUntTrip(initial: () => Trip, onOpened: () => void) {
     dispatch({ type: "reset" });
   }
 
-  return { trip, openFromLink, reset };
+  /** Brings the myUNT popup forward, when this page still has its handle. */
+  function showPopup() {
+    if (popup.current && !popup.current.closed) popup.current.focus();
+  }
+
+  return { trip, openFromLink, reset, showPopup };
 }

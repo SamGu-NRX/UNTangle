@@ -1,5 +1,6 @@
-import { ImportOverCourses } from "@/components/connect/import-over-courses";
+import { redirect } from "next/navigation";
 
-export default function TranscriptImportPage() {
-  return <ImportOverCourses />;
+/** The import used to open over Courses here; it is the /connect page now. Kept for old links and bookmarks. */
+export default function TranscriptImportRedirect() {
+  redirect("/connect");
 }

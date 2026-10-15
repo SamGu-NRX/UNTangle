@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { CONNECT_PATH, OPEN_CONNECT_EVENT } from "@/components/connect/open-connect";
 import { usePlanner } from "@/components/planner-provider";
 import { LENS_HREF } from "@/components/shell/routes";
 import { useShell, useShellSearch, type ShellSearchProvider } from "@/components/shell/shell-context";
@@ -38,13 +39,12 @@ const otherPlace = (key: string) =>
   key.startsWith("row:") ? `tray:${key.slice(4)}` : key.startsWith("tray:") ? `row:${key.slice(5)}` : undefined;
 
 /**
- * Opens the Connect sheet over Courses. Its owner listens for
- * `untangle:open-connect` and calls preventDefault() to claim the event;
- * when nothing claims it (the sheet is not mounted), go to the import route.
+ * Opens the import page (/connect). The shell's ConnectHost claims the event
+ * and navigates; with no shell mounted, go there through `navigate`.
  */
 export function openConnect(navigate: (href: string) => void) {
-  const claimed = !window.dispatchEvent(new CustomEvent("untangle:open-connect", { cancelable: true }));
-  if (!claimed) navigate("/courses/import");
+  const claimed = !window.dispatchEvent(new Event(OPEN_CONNECT_EVENT, { cancelable: true }));
+  if (!claimed) navigate(CONNECT_PATH);
 }
 
 /**
