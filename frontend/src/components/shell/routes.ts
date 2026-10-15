@@ -25,11 +25,12 @@ export const SCHEDULES_HREF = "/schedules";
 /**
  * Routes drawn without the shell:
  * - sign-in and password reset have their own focused layout;
+ * - the transcript import has its own bar: the lenses have nothing to show before a transcript;
  * - the printable schedule is a paper layout;
  * - /dev pages are specimen sheets for the controls.
  */
 // Device consent is a focused sign-in task, outside the planner navigation.
-const BARE_PREFIXES = ["/device", "/auth", "/forgot-password", "/schedule/print", "/dev"];
+const BARE_PREFIXES = ["/device", "/auth", "/forgot-password", "/connect", "/schedule/print", "/dev"];
 
 function startsWithSegment(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);

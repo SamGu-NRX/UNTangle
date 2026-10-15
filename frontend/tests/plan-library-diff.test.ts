@@ -207,3 +207,52 @@ describe("plan diff: section locks", () => {
     expect(none.comparedFieldCount).toBe(same.comparedFieldCount - 1);
   });
 });
+
+describe("other differences between two schedules, in words", () => {
+  it("names each status, credit, Auto, lock, goal and major difference once, A first", async () => {
+    const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
+    const a = stateWith({
+      courseStatuses: { ...defaultPlannerState.courseStatuses, "ANTH 1010": "completed" },
+      lockedSections: { "ANTH 1010": "anth-1010-001" },
+      coursePlan: { manualCredit: ["ANTH 1010"], autoPlanned: [], lastAuto: null },
+      optimization: "compact",
+    });
+    const b = stateWith({
+      courseStatuses: { ...defaultPlannerState.courseStatuses, "ANTH 1010": "inProgress" },
+      coursePlan: { manualCredit: [], autoPlanned: ["ANTH 1010"], lastAuto: null },
+      optimization: "clusterNight",
+      selectedMajor: "cs",
+    });
+    expect(describeOtherDifferences(diffPlannerStates(a, b), "Main", "Fridays off")).toEqual([
+      "ANTH 1010 is done in Main and in progress in Fridays off.",
+      "ANTH 1010 is marked as credit you have in Main only.",
+      "ANTH 1010 was planned by Auto in Fridays off only.",
+      "ANTH 1010 is locked to anth-1010-001 in Main and not locked in Fridays off.",
+      "Main and Fridays off have different schedule goals.",
+      "Main and Fridays off are for different majors.",
+    ]);
+  });
+
+  it("says nothing when the two plans agree", async () => {
+    const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
+    expect(describeOtherDifferences(diffPlannerStates(stateWith({}), stateWith({})), "A", "B")).toEqual([]);
+  });
+
+  it("names a different Day, since using the copy changes the day Day opens on", async () => {
+    const { describeOtherDifferences, diffPlannerStates } = await import("@/lib/plan-library/diff");
+    expect(describeOtherDifferences(diffPlannerStates(stateWith({ activeDay: "Mon" }), stateWith({ activeDay: "Wed" })), "A", "B")).toEqual([
+      "A and B open Day on different days.",
+    ]);
+  });
+});
+
+describe("comparing two library schedules", () => {
+  it("reads a status the planner doesn't know the way loading would, never as undefined", async () => {
+    const { describeOtherDifferences, diffLibraryPlans } = await import("@/lib/plan-library/diff");
+    const imported = stateWith({ courseStatuses: { "ANTH 1010": "bogus" as never } });
+    const working = stateWith({ courseStatuses: { "ANTH 1010": "completed" } });
+    const lines = describeOtherDifferences(diffLibraryPlans(imported, working), "Imported", "Main");
+    expect(lines).toContain("ANTH 1010 is not taken in Imported and done in Main.");
+    expect(lines.join(" ")).not.toContain("undefined");
+  });
+});

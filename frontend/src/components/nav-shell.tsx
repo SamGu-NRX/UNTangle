@@ -7,8 +7,7 @@ import type { ReactNode } from "react";
  * their content the page margins. `step`, `back`, `next` and
  * `stickyFooter` are ignored: v2 has no step sequence and no wizard footer
  * (DESIGN.md §2). Still imported by courses-client, schedule-client,
- * map-client, saved-plans/plans-client and the
- * course and instructor detail pages.
+ * map-client and the course and instructor detail pages.
  */
 export function NavShell({
   children,

@@ -1,196 +1,580 @@
-/*
- * Connect sheet (DESIGN.md §4 ConnectSheet, mockup connect.html). The host
- * supplies the container: a 480px dialog on desktop, a 92% bottom sheet on
- * phones. Everything here is the content inside it.
- */
+/* The import page (DESIGN.md §4.1, 01-first-visit-import.html): one column
+   of at most 520px, and on desktop the example path line beside it. */
 
-.sheet {
+.page {
+  min-height: 100dvh;
+  background: var(--ground);
+}
+.bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
-  font-size: var(--text-md);
-  line-height: var(--lh-md);
-  color: var(--ink);
+  height: 64px;
+  padding: var(--safe-t) clamp(16px, 4vw, 40px) 0;
 }
-
-/* ---------- step dots ---------- */
-
-.steps {
-  display: flex;
-  gap: 14px;
-  margin: 0 0 4px;
-  padding: 0;
-  list-style: none;
-  font: 500 11px/16px var(--font-body);
-  color: var(--ink-2);
-}
-.steps li {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.steps li::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--line-strong);
-}
-.steps li[data-state="current"] {
-  color: var(--ink);
-  font-weight: 600;
-}
-.steps li[data-state="current"]::before {
-  background: var(--brand);
-}
-.steps li[data-state="done"]::before {
-  background: var(--brand);
-  box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--brand);
-}
-
-/* ---------- heading block ---------- */
-
-.seal {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--brand-soft);
-  color: var(--brand);
-  font: 800 20px/1 var(--font-display);
-}
-.seal[data-tone="ok"] {
-  border-radius: 50%;
-  background: var(--brand);
-  color: #fff;
-  font: 700 18px/1 var(--font-body);
-}
-.seal[data-tone="error"] {
-  border-radius: 50%;
-  background: var(--danger-soft);
-  color: var(--danger);
-  font: 700 18px/1 var(--font-body);
-}
-.title {
-  margin: 0;
-  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
-  color: var(--ink);
-  outline: none;
-}
-/* The heading takes focus on each step change so screen readers read the new
-   step; it is not a control, so it shows no ring (the global :focus-visible
-   rule would otherwise draw one after keyboard or file-picker input). */
-.title:focus,
-.title:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-.lead,
-.summary {
-  margin: 0;
-  color: var(--ink);
-}
-.summary {
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--ink-2);
-  margin-top: -6px;
-}
-.detail {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--ink-2);
-}
-.quiet {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--ink-2);
-}
-.alert {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--danger-soft);
-  color: var(--ink);
-  font-size: var(--text-md);
-}
-
-/* ---------- start: access list ---------- */
-
-.access {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--line);
-}
-.access li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line);
-}
-.access strong {
-  font-weight: 600;
-}
-.accessGlyph {
-  flex: none;
+.wordmark {
+  margin-right: auto;
+  border-radius: 6px;
+  font: 800 var(--wordmark) / 1 var(--font-mark);
+  letter-spacing: -0.01em;
   color: var(--brand);
 }
-
-/* ---------- footer, links ---------- */
-
-.foot {
-  display: flex;
-  flex-direction: row-reverse;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 4px;
-}
-.foot:has(> :only-child) {
-  justify-content: flex-start;
-}
-/* Phones: actions fill the row (two share it when they fit), so the primary
-   is a full-width thumb target instead of a button pushed to the right. */
-@media (max-width: 759px) {
-  .foot > * {
-    flex: 1 1 auto;
-  }
-}
-.linkButton {
-  position: relative;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--brand);
-  font: 600 13px/20px var(--font-body);
-  cursor: pointer;
-  text-underline-offset: 3px;
-}
-.linkButton {
-  justify-self: start;
-  width: fit-content;
-}
-.linkButton:hover:not(:disabled) {
-  text-decoration: underline;
-}
-.linkButton:disabled {
-  color: var(--ink-4);
-  cursor: default;
-}
-.linkButton:focus-visible {
-  border-radius: 4px;
+.wordmark:focus-visible {
   outline: 2px solid transparent;
   box-shadow: var(--focus);
 }
+.welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 520px) 1fr;
+  gap: 48px;
+  padding: clamp(24px, 9vh, 96px) clamp(20px, 8vw, 128px) 64px;
+}
 
-/* The fallback file input: clicked by "Use the downloaded PDF", never seen. */
+.welcome:focus {
+  outline: none;
+}
+
+/* One screen of the flow. Heights snap; the new screen fades in. */
+.stage {
+  max-width: 520px;
+  min-width: 0;
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out);
+}
+@starting-style {
+  .stage {
+    opacity: 0;
+  }
+}
+.stage[data-instant] {
+  transition: none;
+}
+
+.h1 {
+  margin: 0;
+  font: 650 28px / 34px var(--font-ui);
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+.h2 {
+  margin: 0;
+  font: 640 24px / 30px var(--font-ui);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+/* Balanced, so a heading never leaves one word alone on its last line. */
+.h1,
+.h2 {
+  text-wrap: balance;
+}
+.h1:focus,
+.h2:focus {
+  outline: none;
+}
+.lede {
+  max-width: 30em;
+  margin: 12px 0 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--ink-2);
+}
+.meta {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.hint {
+  margin: 14px 0 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
+}
+.summary {
+  margin: 8px 0 0;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+}
+.cta {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 32px;
+}
+.cta .meta {
+  max-width: 26em;
+}
+.alt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 28px 0 0;
+  font-size: var(--text-body);
+  color: var(--ink-2);
+}
+.inlineAction {
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font: 600 var(--text-body) / 1 var(--font-ui);
+  color: var(--brand-2);
+  touch-action: manipulation;
+}
+.inlineAction:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+.inlineAction:disabled {
+  color: var(--ink-4);
+}
+@media (pointer: coarse) {
+  .inlineAction {
+    min-height: 44px;
+  }
+}
+.skip {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+/* A text button's label sits on the column edge: back by its own 12px (sm) padding. */
+.skip > a,
+.skip > .skipButton {
+  margin-left: -12px;
+}
+/* Same for a quiet button that starts a link row ("Open myUNT again"): 10px padding. */
+.alt > :global(.ui-btn--quiet):first-child {
+  margin-left: -10px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 32px;
+}
+.wide {
+  width: 100%;
+  max-width: 420px;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  margin-bottom: 18px;
+  padding: 0 10px 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--brand);
+  font: 600 var(--text-meta) / 1 var(--font-ui);
+}
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.errMark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* The path line on the page's ground: its casing is the ground, not paper.
+   ol.steps outranks ui.css's .ui-path margin and gap. */
+ol.steps {
+  --path-gap: 22px;
+  margin-top: 28px;
+}
+.steps :global(.ui-path__stop) {
+  box-shadow: 0 0 0 2.5px var(--ground), var(--shadow-2);
+}
+.steps :global(.ui-path__stop[data-tone="ring"]) {
+  background: var(--ground);
+  box-shadow: inset 0 0 0 2px var(--ink-4), 0 0 0 2.5px var(--ground);
+}
+.steps :global(.ui-path__item[data-leg])::before {
+  box-shadow: 0 0 0 2px var(--ground);
+}
+.step {
+  display: grid;
+  gap: 2px;
+  padding-top: 3px;
+}
+.step strong {
+  font: 620 15px / 22px var(--font-ui);
+  color: var(--ink);
+}
+.step[data-state="todo"] strong {
+  color: var(--ink-2);
+}
+
+/* Review: one box of rows, scrolling inside itself. */
+.review {
+  margin-top: 20px;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.reviewScroll {
+  max-height: min(46vh, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+.reviewScroll:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.review ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--paper-2);
+  font: 650 var(--text-label) / var(--lh-label) var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.group[data-tone="check"] {
+  color: var(--attention);
+}
+.row {
+  border-top: 1px solid var(--line);
+}
+.rowButton {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: var(--text-body);
+  text-align: left;
+  color: var(--ink);
+  transition: background-color var(--t-hover) ease;
+  touch-action: manipulation;
+}
+.rowButton:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.rowButton[aria-expanded="true"] {
+  background: var(--paper-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rowButton:hover {
+    background: var(--paper-2);
+  }
+}
+.row[data-skipped] .rowButton > :not(.rowFact) {
+  color: var(--ink-4);
+}
+.correct {
+  margin: 0 16px 10px 120px;
+}
+.rowTitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rowFact {
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.checkRow {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--attention-soft);
+  font-size: var(--text-body);
+}
+/* Course codes in DM Sans 600 here: Syne is for the wordmark only. */
+.review :global(.ui-code),
+.art :global(.ui-code) {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.checkRow > :global(.ui-code) {
+  padding-top: 3px;
+}
+.checkBody {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.reason {
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--attention);
+}
+.decide {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+/* Desktop only: the drop line and the example path line. */
+.fineOnly {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .fineOnly {
+    display: inline;
+  }
+  p.fineOnly {
+    display: block;
+  }
+}
+
+.thesis {
+  align-self: start;
+  justify-self: center;
+  width: min(420px, 100%);
+  margin-top: 8px;
+}
+.thesisList {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Each disc sits level with its card's caption, 21px down, and the line runs
+   from one disc's centre to the next one's: exactly to the last disc, whatever
+   the cards' heights. */
+.thesisList > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  align-items: start;
+  gap: 12px;
+}
+.thesisList > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 21px;
+  bottom: calc(-18px - 21px);
+  width: 4px;
+  border-radius: 2px;
+  background: var(--brand-2);
+  box-shadow: 0 0 0 3px var(--ground);
+}
+.thesisStop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: 6px 0 0 8px;
+  z-index: 1;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font: 700 12px / 1 var(--font-ui);
+  box-shadow: 0 0 0 3px var(--ground), var(--shadow-2);
+}
+.art {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1);
+}
+.artCap {
+  margin-bottom: 8px;
+  font: 600 12px / 16px var(--font-ui);
+  color: var(--ink-2);
+}
+.artFile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+.artFile > svg {
+  color: var(--brand-2);
+}
+.artMeta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.artRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  font-size: var(--text-meta);
+  color: var(--ink);
+}
+.artRow > :global(.ui-code) {
+  width: 76px;
+  font-size: 12px;
+}
+.miniWeek {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  height: 64px;
+}
+.miniWeek > div {
+  position: relative;
+  border-radius: 4px;
+  background: var(--paper-2);
+}
+.miniWeek i {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-left: 2px solid;
+  border-radius: 3px;
+}
+.artWalk {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.artWalk .artMeta {
+  margin-left: 0;
+}
+.artBig {
+  font: 700 30px / 1 var(--font-ui);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.artRoute {
+  width: 120px;
+  height: 44px;
+  margin-left: auto;
+}
+
+/* The thesis rises in once, 60ms apart: the only stagger in the product (MOTION.md §3). */
+@media (prefers-reduced-motion: no-preference) {
+  .stage {
+    transition-property: opacity, transform, filter;
+    transition-duration: 200ms;
+    transition-timing-function: var(--ease-out);
+  }
+  @starting-style {
+    .stage {
+      transform: translateY(4px);
+      filter: blur(2px);
+    }
+  }
+  .thesisList > li {
+    animation: rise 420ms var(--ease-out) backwards;
+  }
+  .thesisList > li:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .thesisList > li:nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .thesisList > li:nth-child(4) {
+    animation-delay: 180ms;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    transition-duration: 120ms;
+  }
+}
+
+/* Drop anywhere (DESIGN.md §4.1): a dashed inset frame over the page. */
+.drop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgba(244, 246, 243, 0.9);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 140ms ease;
+}
+@starting-style {
+  .drop {
+    opacity: 0;
+  }
+}
+.dropFrame {
+  position: absolute;
+  inset: 14px;
+  border: 2px dashed var(--brand-2);
+  border-radius: 22px;
+}
+.drop[data-bad] .dropFrame {
+  border-color: var(--ink-4);
+}
+.dropInner {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.dropBadge {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.drop[data-bad] .dropBadge {
+  background: var(--paper-3);
+  color: var(--ink-2);
+}
+.dropTitle {
+  font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
+  color: var(--ink);
+}
+.dropMeta {
+  font-size: var(--text-meta);
+  color: var(--ink-2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dropFrame {
+    transform: none;
+    transition: transform 220ms var(--ease-out);
+  }
+  @starting-style {
+    .dropFrame {
+      transform: scale(0.985);
+    }
+  }
+}
+
 .fileInput {
   position: absolute;
   width: 1px;
@@ -203,186 +587,48 @@
   white-space: nowrap;
 }
 
-/* ---------- progress ---------- */
-
-.progress {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.progress li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  color: var(--ink-2);
-}
-.progress li[data-state="active"],
-.progress li[data-state="done"] {
-  color: var(--ink);
-}
-.progressIcon {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ink-4);
-}
-.progressIcon[data-state="done"] {
-  border: 0;
-  background: var(--brand)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.5 7 11l4.5-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    center / 16px no-repeat;
-}
-.progressSpin {
-  color: var(--brand);
-}
-
-/* ---------- review ---------- */
-
-.records {
-  display: grid;
-  max-height: 320px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+@media (max-width: 1023px) {
+  .welcome {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .thesis {
+    display: none;
+  }
 }
 @media (max-width: 759px) {
-  .records {
-    max-height: none;
+  .bar {
+    height: 56px;
   }
-}
-.reviewRow {
-  display: grid;
-  gap: 6px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--line);
-}
-.reviewRow:first-child {
-  border-top: 0;
-}
-.reviewRow[data-flagged] {
-  background: var(--danger-soft);
-}
-.reviewMain {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 24px;
-  cursor: pointer;
-}
-.reviewMain :global(.ui-check__box) {
-  margin: 0;
-}
-.reviewText {
-  display: grid;
-  min-width: 0;
-}
-.reviewLine {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-.reviewTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.reviewText small {
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--ink-2);
-}
-.reviewDecision {
-  display: grid;
-  gap: 6px;
-  padding-left: 52px;
-}
-.note {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--danger);
-}
-.exception {
-  padding-left: 52px;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-.exception summary {
-  width: fit-content;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.exception[open] summary {
-  margin-bottom: 6px;
-}
-.decision {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-.decision :global(.ui-select) {
-  width: 180px;
-}
-
-/* The trailing arrow on "Open myUNT": flex trims the space before it, so
-   the gap is set here. */
-.trail {
-  margin-left: 4px;
-}
-
-/* ---------- page-wide drop target ---------- */
-
-/* Covers the window while a file is dragged over it. Visual only: the drop
-   itself is handled on the window (pdf-drop.tsx), so this ignores the
-   pointer and sits above every layer, the Connect dialog included. */
-.dropOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  pointer-events: none;
-}
-.dropCard {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  width: min(560px, 100%);
-  padding: 40px 24px;
-  border: 2px dashed var(--brand);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
-  color: var(--brand);
-  text-align: center;
-}
-.dropCard strong {
-  font: 600 var(--text-xl) / var(--lh-xl) var(--font-body);
-  color: var(--ink);
-}
-.dropCard span {
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .dropOverlay {
-    animation: dropIn 120ms ease-out;
+  .welcome {
+    padding: 20px 20px calc(40px + var(--safe-b));
   }
-}
-@keyframes dropIn {
-  from {
-    opacity: 0;
+  .h1 {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .cta > :global(.ui-btn--lg),
+  .wide {
+    width: 100%;
+    max-width: none;
+  }
+  .actions > :global(.ui-btn) {
+    flex: 1 1 100%;
+  }
+  /* 72px holds a code ("CSCE 1030" at 13px), so the title gets the width, not the gap. */
+  .rowButton {
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 8px 14px;
+  }
+  .group {
+    padding: 10px 14px;
+  }
+  .correct {
+    margin: 0 14px 10px 96px;
+  }
+  .checkRow {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 14px 12px;
   }
 }

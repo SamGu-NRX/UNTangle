@@ -1,10 +1,10 @@
 /**
  * A tab-only note that the student left for myUNT to get the PDF. On a
- * phone that trip can reload this page; the sheet then reopens with "Use
- * the downloaded PDF" leading instead of starting over. It is a flag, no
- * transcript data, and it lives only while the trip is outstanding:
- * set when myUNT opens, consumed when the sheet restores from it, cleared
- * when a file is chosen or dropped, on Start over, and when the sheet closes.
+ * phone that trip can reload this page; the import page then comes back
+ * with "Use the downloaded PDF" leading instead of starting over. It is a
+ * flag, no transcript data, and it lives only while the trip is
+ * outstanding: set when myUNT opens, consumed when the page restores from
+ * it, cleared when a file is chosen or dropped and when the page is left.
  */
 export const TRIP_KEY = "untangle.connect.trip";
 
@@ -31,7 +31,7 @@ export function setTripFlag(storage: FlagStore | null = store()) {
   try {
     storage?.setItem(TRIP_KEY, "1");
   } catch {
-    // Storage denied: the sheet still works, it just won't survive a reload.
+    // Storage denied: the page still works, it just won't survive a reload.
   }
 }
 

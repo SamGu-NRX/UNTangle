@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
+import { ImportPage } from "@/components/connect/import-page";
 
-export const metadata: Metadata = { title: "Import from myUNT" };
+export const metadata: Metadata = { title: "Import your transcript" };
 
-/**
- * /connect draws no page of its own: the app shell's ConnectHost opens the
- * Connect sheet whenever the URL is /connect, over whatever view was showing
- * (or over this empty page on a direct visit or reload).
- */
 export default function ConnectPage() {
-  return null;
+  return <ImportPage />;
 }
