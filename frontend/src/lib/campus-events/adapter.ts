@@ -49,14 +49,14 @@ export function normalizeIcsFeed(icsText: string, range: ParseRange, source: Eve
     if (event === undefined) continue;
     events.push({
       sourceId: source.id,
-      url: event.url,
+      url: event.url ?? null,
       title: event.summary,
       start: occurrence.start,
       end: occurrence.end,
       isAllDay: event.isAllDay,
       location: event.location,
       buildingId: resolveEventBuilding(event.location),
-      tags: mergeTags([event.categories, [source.category]]),
+      tags: mergeTags([event.categories ?? [], [source.category]]),
     });
   }
   events.sort((a, b) => (a.start === b.start ? a.title.localeCompare(b.title) : a.start.localeCompare(b.start)));

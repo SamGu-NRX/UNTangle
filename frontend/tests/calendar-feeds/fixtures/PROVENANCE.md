@@ -34,6 +34,14 @@
   at calendar.unt.edu (the main feed at /calendar.ics, group feeds at
   /group/<slug>/calendar/ics, and department feeds at
   /department/<slug>/calendar/ics).
+- Terms / robots (applies to every fixture in this directory):
+  https://calendar.unt.edu/robots.txt — checked 2026-10-15, it sets
+  `User-agent: * / Crawl-Delay: 1` and explicitly
+  `Allow: /calendar/ics`, `Allow: /*/calendar/ics`, `Allow: /search/events.ics`,
+  and `Allow: /*/search/events.ics`, while disallowing search, year/month/week
+  calendar views, attendee endpoints, and auth pages. Every fixture URL here
+  matches one of the allowed ICS patterns. The XML twins (`/calendar/xml`,
+  `/*/search/events.xml`) are also allowed but unused by this repo.
 - Fetched: 2026-10-14 with plain curl (a generic user agent) from this repo's
   sandbox, honoring that host's robots.txt (crawl-delay respected, only
   non-disallowed paths requested). Every full feed was parsed with
