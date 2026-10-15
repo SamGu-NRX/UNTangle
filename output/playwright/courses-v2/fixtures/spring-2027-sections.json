@@ -1,0 +1,4730 @@
+{
+  "fixture": {
+    "source": "https://vsb.untgrades.app/data/spring-2027.json",
+    "sourceSnapshotSha256": "32e1e0adf4d64147252ea9768bd65790fc9298d1ea3c1193a7a0465359cc13ec",
+    "extraction": "Complete, unmodified MATH 1720 and CSCE 1030 records from the saved source snapshot.",
+    "normalizerCommit": "26e0df5c60bc03ff289ca26d806825d4ec4fec37",
+    "timestampPolicy": "Replay uses source updated_at as a fixed checkedAt fixture value; it does not claim a live check."
+  },
+  "responses": {
+    "/api/sections/spring-2027/MATH/1720": {
+      "term": "spring-2027",
+      "courseCode": "MATH 1720",
+      "status": "stale",
+      "availability": "sections",
+      "provenance": {
+        "kind": "real",
+        "source": "vsb.untgrades.app",
+        "updatedAt": "2026-10-04T19:02:54.758921+00:00",
+        "note": "Partial scrape: only MATH 1680 was collected from the live cloud browser. Run class_scraper.py to resume all remaining courses."
+      },
+      "checkedAt": "2026-10-04T19:02:54.758921+00:00",
+      "diagnostic": null,
+      "sections": [
+        {
+          "id": "vsb:spring-2027:MATH 1720:7139",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "310",
+          "classNumbers": [
+            "7139"
+          ],
+          "option": "1",
+          "instructor": {
+            "raw": "None",
+            "display": null
+          },
+          "seats": {
+            "open": 48,
+            "total": 48
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:7139",
+              "classNumber": "7139",
+              "sectionCode": "310",
+              "role": "primary",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 48,
+                "total": 48
+              },
+              "meetings": [
+                {
+                  "room": "Chil 245",
+                  "buildingCode": "CHIL",
+                  "buildingId": "chil",
+                  "buildingName": "Chilton Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 1050,
+                  "endMinutes": 1130,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Chil 245",
+                  "buildingCode": "CHIL",
+                  "buildingId": "chil",
+                  "buildingName": "Chilton Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 1050,
+                  "endMinutes": 1130,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Chil 245",
+              "buildingCode": "CHIL",
+              "buildingId": "chil",
+              "buildingName": "Chilton Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 1050,
+              "endMinutes": 1130,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Chil 245",
+              "buildingCode": "CHIL",
+              "buildingId": "chil",
+              "buildingName": "Chilton Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 1050,
+              "endMinutes": 1130,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:12733",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "501",
+          "classNumbers": [
+            "12733"
+          ],
+          "option": "2",
+          "instructor": {
+            "raw": "Chanana,Poonam",
+            "display": "Poonam Chanana"
+          },
+          "seats": {
+            "open": 55,
+            "total": 55
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:12733",
+              "classNumber": "12733",
+              "sectionCode": "501",
+              "role": "primary",
+              "instructor": {
+                "raw": "Chanana,Poonam",
+                "display": "Poonam Chanana"
+              },
+              "seats": {
+                "open": 55,
+                "total": 55
+              },
+              "meetings": [
+                {
+                  "room": "FRLD 160",
+                  "buildingCode": "FRLD",
+                  "buildingId": null,
+                  "buildingName": "Unknown building",
+                  "kind": "unknown",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 780,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Chanana,Poonam",
+                    "display": "Poonam Chanana"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "FRLD 160",
+                  "buildingCode": "FRLD",
+                  "buildingId": null,
+                  "buildingName": "Unknown building",
+                  "kind": "unknown",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 780,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Chanana,Poonam",
+                    "display": "Poonam Chanana"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "FRLD 160",
+              "buildingCode": "FRLD",
+              "buildingId": null,
+              "buildingName": "Unknown building",
+              "kind": "unknown",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 780,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Chanana,Poonam",
+                "display": "Poonam Chanana"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "FRLD 160",
+              "buildingCode": "FRLD",
+              "buildingId": null,
+              "buildingName": "Unknown building",
+              "kind": "unknown",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 780,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Chanana,Poonam",
+                "display": "Poonam Chanana"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6065",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "720",
+          "classNumbers": [
+            "6065"
+          ],
+          "option": "3",
+          "instructor": {
+            "raw": "Mann,Allen",
+            "display": "Allen Mann"
+          },
+          "seats": {
+            "open": 39,
+            "total": 39
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6065",
+              "classNumber": "6065",
+              "sectionCode": "720",
+              "role": "primary",
+              "instructor": {
+                "raw": "Mann,Allen",
+                "display": "Allen Mann"
+              },
+              "seats": {
+                "open": 39,
+                "total": 39
+              },
+              "meetings": [
+                {
+                  "room": "BLB 040",
+                  "buildingCode": "BLB",
+                  "buildingId": "blb",
+                  "buildingName": "Business Leadership Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Mann,Allen",
+                    "display": "Allen Mann"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "BLB 040",
+                  "buildingCode": "BLB",
+                  "buildingId": "blb",
+                  "buildingName": "Business Leadership Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Mann,Allen",
+                    "display": "Allen Mann"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "BLB 040",
+                  "buildingCode": "BLB",
+                  "buildingId": "blb",
+                  "buildingName": "Business Leadership Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Mann,Allen",
+                    "display": "Allen Mann"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "BLB 040",
+              "buildingCode": "BLB",
+              "buildingId": "blb",
+              "buildingName": "Business Leadership Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Mann,Allen",
+                "display": "Allen Mann"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "BLB 040",
+              "buildingCode": "BLB",
+              "buildingId": "blb",
+              "buildingName": "Business Leadership Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Mann,Allen",
+                "display": "Allen Mann"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "BLB 040",
+              "buildingCode": "BLB",
+              "buildingId": "blb",
+              "buildingName": "Business Leadership Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Mann,Allen",
+                "display": "Allen Mann"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6432",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "721",
+          "classNumbers": [
+            "6432"
+          ],
+          "option": "4",
+          "instructor": {
+            "raw": "Schwaighofer,Benjamin Aaron",
+            "display": "Benjamin Aaron Schwaighofer"
+          },
+          "seats": {
+            "open": 39,
+            "total": 39
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6432",
+              "classNumber": "6432",
+              "sectionCode": "721",
+              "role": "primary",
+              "instructor": {
+                "raw": "Schwaighofer,Benjamin Aaron",
+                "display": "Benjamin Aaron Schwaighofer"
+              },
+              "seats": {
+                "open": 39,
+                "total": 39
+              },
+              "meetings": [
+                {
+                  "room": "BLB 035",
+                  "buildingCode": "BLB",
+                  "buildingId": "blb",
+                  "buildingName": "Business Leadership Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Schwaighofer,Benjamin Aaron",
+                    "display": "Benjamin Aaron Schwaighofer"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "BLB 035",
+                  "buildingCode": "BLB",
+                  "buildingId": "blb",
+                  "buildingName": "Business Leadership Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Schwaighofer,Benjamin Aaron",
+                    "display": "Benjamin Aaron Schwaighofer"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "BLB 035",
+                  "buildingCode": "BLB",
+                  "buildingId": "blb",
+                  "buildingName": "Business Leadership Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Schwaighofer,Benjamin Aaron",
+                    "display": "Benjamin Aaron Schwaighofer"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "BLB 035",
+              "buildingCode": "BLB",
+              "buildingId": "blb",
+              "buildingName": "Business Leadership Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Schwaighofer,Benjamin Aaron",
+                "display": "Benjamin Aaron Schwaighofer"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "BLB 035",
+              "buildingCode": "BLB",
+              "buildingId": "blb",
+              "buildingName": "Business Leadership Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Schwaighofer,Benjamin Aaron",
+                "display": "Benjamin Aaron Schwaighofer"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "BLB 035",
+              "buildingCode": "BLB",
+              "buildingId": "blb",
+              "buildingName": "Business Leadership Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Schwaighofer,Benjamin Aaron",
+                "display": "Benjamin Aaron Schwaighofer"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:13911",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "722",
+          "classNumbers": [
+            "13911"
+          ],
+          "option": "5",
+          "instructor": {
+            "raw": "Mandal,Shilpi",
+            "display": "Shilpi Mandal"
+          },
+          "seats": {
+            "open": 40,
+            "total": 40
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:13911",
+              "classNumber": "13911",
+              "sectionCode": "722",
+              "role": "primary",
+              "instructor": {
+                "raw": "Mandal,Shilpi",
+                "display": "Shilpi Mandal"
+              },
+              "seats": {
+                "open": 40,
+                "total": 40
+              },
+              "meetings": [
+                {
+                  "room": "Matt 102",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Mandal,Shilpi",
+                    "display": "Shilpi Mandal"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Matt 102",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Mandal,Shilpi",
+                    "display": "Shilpi Mandal"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Matt 102",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Mandal,Shilpi",
+                    "display": "Shilpi Mandal"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Matt 102",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Mandal,Shilpi",
+                "display": "Shilpi Mandal"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Matt 102",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Mandal,Shilpi",
+                "display": "Shilpi Mandal"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Matt 102",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Mandal,Shilpi",
+                "display": "Shilpi Mandal"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6061+6198",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "110 + 112",
+          "classNumbers": [
+            "6061",
+            "6198"
+          ],
+          "option": "6",
+          "instructor": {
+            "raw": "Fontenot,Kenzie",
+            "display": "Kenzie Fontenot"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6061",
+              "classNumber": "6061",
+              "sectionCode": "110",
+              "role": "primary",
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Wh 116",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 116",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 116",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6198",
+              "classNumber": "6198",
+              "sectionCode": "112",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Gate 049",
+                  "buildingCode": "GATE",
+                  "buildingId": "gate",
+                  "buildingName": "Gateway Center",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 970,
+                  "endMinutes": 1020,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Gate 049",
+                  "buildingCode": "GATE",
+                  "buildingId": "gate",
+                  "buildingName": "Gateway Center",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 970,
+                  "endMinutes": 1020,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Wh 116",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 116",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 116",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Gate 049",
+              "buildingCode": "GATE",
+              "buildingId": "gate",
+              "buildingName": "Gateway Center",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 970,
+              "endMinutes": 1020,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Gate 049",
+              "buildingCode": "GATE",
+              "buildingId": "gate",
+              "buildingName": "Gateway Center",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 970,
+              "endMinutes": 1020,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6061+6062",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "110 + 111",
+          "classNumbers": [
+            "6061",
+            "6062"
+          ],
+          "option": "7",
+          "instructor": {
+            "raw": "Fontenot,Kenzie",
+            "display": "Kenzie Fontenot"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6061",
+              "classNumber": "6061",
+              "sectionCode": "110",
+              "role": "primary",
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Wh 116",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 116",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 116",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 610,
+                  "endMinutes": 660,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6062",
+              "classNumber": "6062",
+              "sectionCode": "111",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Wh 315",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 900,
+                  "endMinutes": 950,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 315",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 900,
+                  "endMinutes": 950,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Wh 116",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 116",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 116",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 610,
+              "endMinutes": 660,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 315",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 900,
+              "endMinutes": 950,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 315",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 900,
+              "endMinutes": 950,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6064+6515",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "120 + 122",
+          "classNumbers": [
+            "6064",
+            "6515"
+          ],
+          "option": "8",
+          "instructor": {
+            "raw": "Cohen,Jonathan Steven",
+            "display": "Jonathan Steven Cohen"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6064",
+              "classNumber": "6064",
+              "sectionCode": "120",
+              "role": "primary",
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Matt 312",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 805,
+                  "endMinutes": 855,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Matt 312",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 805,
+                  "endMinutes": 855,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Matt 312",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 805,
+                  "endMinutes": 855,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6515",
+              "classNumber": "6515",
+              "sectionCode": "122",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Wh 315",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 830,
+                  "endMinutes": 880,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 315",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 830,
+                  "endMinutes": 880,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Matt 312",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 805,
+              "endMinutes": 855,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Matt 312",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 805,
+              "endMinutes": 855,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Matt 312",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 805,
+              "endMinutes": 855,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 315",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 830,
+              "endMinutes": 880,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 315",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 830,
+              "endMinutes": 880,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6064+6210",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "120 + 121",
+          "classNumbers": [
+            "6064",
+            "6210"
+          ],
+          "option": "9",
+          "instructor": {
+            "raw": "Cohen,Jonathan Steven",
+            "display": "Jonathan Steven Cohen"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6064",
+              "classNumber": "6064",
+              "sectionCode": "120",
+              "role": "primary",
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Matt 312",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 805,
+                  "endMinutes": 855,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Matt 312",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 805,
+                  "endMinutes": 855,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Matt 312",
+                  "buildingCode": "MATT",
+                  "buildingId": "matt",
+                  "buildingName": "Matthews Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 805,
+                  "endMinutes": 855,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6210",
+              "classNumber": "6210",
+              "sectionCode": "121",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Phys 115",
+                  "buildingCode": "PHYS",
+                  "buildingId": "phys",
+                  "buildingName": "Physics Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 765,
+                  "endMinutes": 815,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Phys 115",
+                  "buildingCode": "PHYS",
+                  "buildingId": "phys",
+                  "buildingName": "Physics Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 765,
+                  "endMinutes": 815,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Matt 312",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 805,
+              "endMinutes": 855,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Matt 312",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 805,
+              "endMinutes": 855,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Matt 312",
+              "buildingCode": "MATT",
+              "buildingId": "matt",
+              "buildingName": "Matthews Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 805,
+              "endMinutes": 855,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Phys 115",
+              "buildingCode": "PHYS",
+              "buildingId": "phys",
+              "buildingName": "Physics Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 765,
+              "endMinutes": 815,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Phys 115",
+              "buildingCode": "PHYS",
+              "buildingId": "phys",
+              "buildingName": "Physics Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 765,
+              "endMinutes": 815,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:10242+6516",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "130 + 132",
+          "classNumbers": [
+            "6516",
+            "10242"
+          ],
+          "option": "10",
+          "instructor": {
+            "raw": "Fontenot,Kenzie",
+            "display": "Kenzie Fontenot"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6516",
+              "classNumber": "6516",
+              "sectionCode": "130",
+              "role": "primary",
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Gab 105",
+                  "buildingCode": "GAB",
+                  "buildingId": "gab",
+                  "buildingName": "General Academic Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 740,
+                  "endMinutes": 790,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Gab 105",
+                  "buildingCode": "GAB",
+                  "buildingId": "gab",
+                  "buildingName": "General Academic Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 740,
+                  "endMinutes": 790,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Gab 105",
+                  "buildingCode": "GAB",
+                  "buildingId": "gab",
+                  "buildingName": "General Academic Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 740,
+                  "endMinutes": 790,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:10242",
+              "classNumber": "10242",
+              "sectionCode": "132",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Peb 219",
+                  "buildingCode": "PEB",
+                  "buildingId": "peb",
+                  "buildingName": "Physical Education Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 620,
+                  "endMinutes": 670,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Peb 219",
+                  "buildingCode": "PEB",
+                  "buildingId": "peb",
+                  "buildingName": "Physical Education Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 620,
+                  "endMinutes": 670,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Gab 105",
+              "buildingCode": "GAB",
+              "buildingId": "gab",
+              "buildingName": "General Academic Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 740,
+              "endMinutes": 790,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Gab 105",
+              "buildingCode": "GAB",
+              "buildingId": "gab",
+              "buildingName": "General Academic Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 740,
+              "endMinutes": 790,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Gab 105",
+              "buildingCode": "GAB",
+              "buildingId": "gab",
+              "buildingName": "General Academic Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 740,
+              "endMinutes": 790,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Peb 219",
+              "buildingCode": "PEB",
+              "buildingId": "peb",
+              "buildingName": "Physical Education Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 620,
+              "endMinutes": 670,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Peb 219",
+              "buildingCode": "PEB",
+              "buildingId": "peb",
+              "buildingName": "Physical Education Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 620,
+              "endMinutes": 670,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6516+6517",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "130 + 131",
+          "classNumbers": [
+            "6516",
+            "6517"
+          ],
+          "option": "11",
+          "instructor": {
+            "raw": "Fontenot,Kenzie",
+            "display": "Kenzie Fontenot"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6516",
+              "classNumber": "6516",
+              "sectionCode": "130",
+              "role": "primary",
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Gab 105",
+                  "buildingCode": "GAB",
+                  "buildingId": "gab",
+                  "buildingName": "General Academic Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 740,
+                  "endMinutes": 790,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Gab 105",
+                  "buildingCode": "GAB",
+                  "buildingId": "gab",
+                  "buildingName": "General Academic Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 740,
+                  "endMinutes": 790,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Gab 105",
+                  "buildingCode": "GAB",
+                  "buildingId": "gab",
+                  "buildingName": "General Academic Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 740,
+                  "endMinutes": 790,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Fontenot,Kenzie",
+                    "display": "Kenzie Fontenot"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6517",
+              "classNumber": "6517",
+              "sectionCode": "131",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Phys 115",
+                  "buildingCode": "PHYS",
+                  "buildingId": "phys",
+                  "buildingName": "Physics Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 550,
+                  "endMinutes": 600,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Phys 115",
+                  "buildingCode": "PHYS",
+                  "buildingId": "phys",
+                  "buildingName": "Physics Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 550,
+                  "endMinutes": 600,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Gab 105",
+              "buildingCode": "GAB",
+              "buildingId": "gab",
+              "buildingName": "General Academic Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 740,
+              "endMinutes": 790,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Gab 105",
+              "buildingCode": "GAB",
+              "buildingId": "gab",
+              "buildingName": "General Academic Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 740,
+              "endMinutes": 790,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Gab 105",
+              "buildingCode": "GAB",
+              "buildingId": "gab",
+              "buildingName": "General Academic Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 740,
+              "endMinutes": 790,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Fontenot,Kenzie",
+                "display": "Kenzie Fontenot"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Phys 115",
+              "buildingCode": "PHYS",
+              "buildingId": "phys",
+              "buildingName": "Physics Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 550,
+              "endMinutes": 600,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Phys 115",
+              "buildingCode": "PHYS",
+              "buildingId": "phys",
+              "buildingName": "Physics Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 550,
+              "endMinutes": 600,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6931+6932",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "140 + 142",
+          "classNumbers": [
+            "6931",
+            "6932"
+          ],
+          "option": "12",
+          "instructor": {
+            "raw": "Naresh,Nirmala",
+            "display": "Nirmala Naresh"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6931",
+              "classNumber": "6931",
+              "sectionCode": "140",
+              "role": "primary",
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "LIFE A419",
+                  "buildingCode": "LIFE",
+                  "buildingId": "life",
+                  "buildingName": "Life Sciences Complex",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 545,
+                  "endMinutes": 595,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Naresh,Nirmala",
+                    "display": "Nirmala Naresh"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "LIFE A419",
+                  "buildingCode": "LIFE",
+                  "buildingId": "life",
+                  "buildingName": "Life Sciences Complex",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 545,
+                  "endMinutes": 595,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Naresh,Nirmala",
+                    "display": "Nirmala Naresh"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "LIFE A419",
+                  "buildingCode": "LIFE",
+                  "buildingId": "life",
+                  "buildingName": "Life Sciences Complex",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 545,
+                  "endMinutes": 595,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Naresh,Nirmala",
+                    "display": "Nirmala Naresh"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6932",
+              "classNumber": "6932",
+              "sectionCode": "142",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 34,
+                "total": 34
+              },
+              "meetings": [
+                {
+                  "room": "Phys 112",
+                  "buildingCode": "PHYS",
+                  "buildingId": "phys",
+                  "buildingName": "Physics Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 550,
+                  "endMinutes": 600,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Phys 112",
+                  "buildingCode": "PHYS",
+                  "buildingId": "phys",
+                  "buildingName": "Physics Building",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 550,
+                  "endMinutes": 600,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "LIFE A419",
+              "buildingCode": "LIFE",
+              "buildingId": "life",
+              "buildingName": "Life Sciences Complex",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 545,
+              "endMinutes": 595,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "LIFE A419",
+              "buildingCode": "LIFE",
+              "buildingId": "life",
+              "buildingName": "Life Sciences Complex",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 545,
+              "endMinutes": 595,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "LIFE A419",
+              "buildingCode": "LIFE",
+              "buildingId": "life",
+              "buildingName": "Life Sciences Complex",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 545,
+              "endMinutes": 595,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Phys 112",
+              "buildingCode": "PHYS",
+              "buildingId": "phys",
+              "buildingName": "Physics Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 550,
+              "endMinutes": 600,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Phys 112",
+              "buildingCode": "PHYS",
+              "buildingId": "phys",
+              "buildingName": "Physics Building",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 550,
+              "endMinutes": 600,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:6931+6941",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "140 + 141",
+          "classNumbers": [
+            "6931",
+            "6941"
+          ],
+          "option": "13",
+          "instructor": {
+            "raw": "Naresh,Nirmala",
+            "display": "Nirmala Naresh"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6931",
+              "classNumber": "6931",
+              "sectionCode": "140",
+              "role": "primary",
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "LIFE A419",
+                  "buildingCode": "LIFE",
+                  "buildingId": "life",
+                  "buildingName": "Life Sciences Complex",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 545,
+                  "endMinutes": 595,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Naresh,Nirmala",
+                    "display": "Nirmala Naresh"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "LIFE A419",
+                  "buildingCode": "LIFE",
+                  "buildingId": "life",
+                  "buildingName": "Life Sciences Complex",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 545,
+                  "endMinutes": 595,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Naresh,Nirmala",
+                    "display": "Nirmala Naresh"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "LIFE A419",
+                  "buildingCode": "LIFE",
+                  "buildingId": "life",
+                  "buildingName": "Life Sciences Complex",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 545,
+                  "endMinutes": 595,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Naresh,Nirmala",
+                    "display": "Nirmala Naresh"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:6941",
+              "classNumber": "6941",
+              "sectionCode": "141",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 30,
+                "total": 30
+              },
+              "meetings": [
+                {
+                  "room": "Col 047",
+                  "buildingCode": "COL",
+                  "buildingId": "col",
+                  "buildingName": "Coliseum",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 480,
+                  "endMinutes": 530,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Col 047",
+                  "buildingCode": "COL",
+                  "buildingId": "col",
+                  "buildingName": "Coliseum",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 480,
+                  "endMinutes": 530,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "LIFE A419",
+              "buildingCode": "LIFE",
+              "buildingId": "life",
+              "buildingName": "Life Sciences Complex",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 545,
+              "endMinutes": 595,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "LIFE A419",
+              "buildingCode": "LIFE",
+              "buildingId": "life",
+              "buildingName": "Life Sciences Complex",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 545,
+              "endMinutes": 595,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "LIFE A419",
+              "buildingCode": "LIFE",
+              "buildingId": "life",
+              "buildingName": "Life Sciences Complex",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 545,
+              "endMinutes": 595,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Naresh,Nirmala",
+                "display": "Nirmala Naresh"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Col 047",
+              "buildingCode": "COL",
+              "buildingId": "col",
+              "buildingName": "Coliseum",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 480,
+              "endMinutes": 530,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Col 047",
+              "buildingCode": "COL",
+              "buildingId": "col",
+              "buildingName": "Coliseum",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 480,
+              "endMinutes": 530,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:13121+13463",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "150 + 151",
+          "classNumbers": [
+            "13121",
+            "13463"
+          ],
+          "option": "14",
+          "instructor": {
+            "raw": "Cohen,Jonathan Steven",
+            "display": "Jonathan Steven Cohen"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:13121",
+              "classNumber": "13121",
+              "sectionCode": "150",
+              "role": "primary",
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Cury 204",
+                  "buildingCode": "CURY",
+                  "buildingId": "cury",
+                  "buildingName": "Curry Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 870,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Cury 204",
+                  "buildingCode": "CURY",
+                  "buildingId": "cury",
+                  "buildingName": "Curry Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 870,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Cury 204",
+                  "buildingCode": "CURY",
+                  "buildingId": "cury",
+                  "buildingName": "Curry Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 870,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:13463",
+              "classNumber": "13463",
+              "sectionCode": "151",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 34,
+                "total": 34
+              },
+              "meetings": [
+                {
+                  "room": "Wh 321",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 830,
+                  "endMinutes": 880,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Wh 321",
+                  "buildingCode": "WH",
+                  "buildingId": "wh",
+                  "buildingName": "Wooten Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 830,
+                  "endMinutes": 880,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Cury 204",
+              "buildingCode": "CURY",
+              "buildingId": "cury",
+              "buildingName": "Curry Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 870,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Cury 204",
+              "buildingCode": "CURY",
+              "buildingId": "cury",
+              "buildingName": "Curry Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 870,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Cury 204",
+              "buildingCode": "CURY",
+              "buildingId": "cury",
+              "buildingName": "Curry Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 870,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 321",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 830,
+              "endMinutes": 880,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Wh 321",
+              "buildingCode": "WH",
+              "buildingId": "wh",
+              "buildingName": "Wooten Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 830,
+              "endMinutes": 880,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:MATH 1720:13121+13506",
+          "term": "spring-2027",
+          "courseCode": "MATH 1720",
+          "sectionCode": "150 + 152",
+          "classNumbers": [
+            "13121",
+            "13506"
+          ],
+          "option": "15",
+          "instructor": {
+            "raw": "Cohen,Jonathan Steven",
+            "display": "Jonathan Steven Cohen"
+          },
+          "seats": {
+            "open": 60,
+            "total": 60
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:13121",
+              "classNumber": "13121",
+              "sectionCode": "150",
+              "role": "primary",
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "seats": {
+                "open": 60,
+                "total": 60
+              },
+              "meetings": [
+                {
+                  "room": "Cury 204",
+                  "buildingCode": "CURY",
+                  "buildingId": "cury",
+                  "buildingName": "Curry Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Mon",
+                  "startMinutes": 870,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Cury 204",
+                  "buildingCode": "CURY",
+                  "buildingId": "cury",
+                  "buildingName": "Curry Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Wed",
+                  "startMinutes": 870,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "Cury 204",
+                  "buildingCode": "CURY",
+                  "buildingId": "cury",
+                  "buildingName": "Curry Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Fri",
+                  "startMinutes": 870,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Cohen,Jonathan Steven",
+                    "display": "Jonathan Steven Cohen"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:MATH 1720:13506",
+              "classNumber": "13506",
+              "sectionCode": "152",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "seats": {
+                "open": 34,
+                "total": 34
+              },
+              "meetings": [
+                {
+                  "room": "HKRY 252",
+                  "buildingCode": "HKRY",
+                  "buildingId": "hick",
+                  "buildingName": "Hickory Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 900,
+                  "endMinutes": 950,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "HKRY 252",
+                  "buildingCode": "HKRY",
+                  "buildingId": "hick",
+                  "buildingName": "Hickory Hall",
+                  "kind": "building",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 900,
+                  "endMinutes": 950,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "None",
+                    "display": null
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "Cury 204",
+              "buildingCode": "CURY",
+              "buildingId": "cury",
+              "buildingName": "Curry Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Mon",
+              "startMinutes": 870,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Cury 204",
+              "buildingCode": "CURY",
+              "buildingId": "cury",
+              "buildingName": "Curry Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Wed",
+              "startMinutes": 870,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "Cury 204",
+              "buildingCode": "CURY",
+              "buildingId": "cury",
+              "buildingName": "Curry Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Fri",
+              "startMinutes": 870,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Cohen,Jonathan Steven",
+                "display": "Jonathan Steven Cohen"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "HKRY 252",
+              "buildingCode": "HKRY",
+              "buildingId": "hick",
+              "buildingName": "Hickory Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 900,
+              "endMinutes": 950,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "HKRY 252",
+              "buildingCode": "HKRY",
+              "buildingId": "hick",
+              "buildingName": "Hickory Hall",
+              "kind": "building",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 900,
+              "endMinutes": 950,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "None",
+                "display": null
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        }
+      ]
+    },
+    "/api/sections/spring-2027/CSCE/1030": {
+      "term": "spring-2027",
+      "courseCode": "CSCE 1030",
+      "status": "stale",
+      "availability": "sections",
+      "provenance": {
+        "kind": "real",
+        "source": "vsb.untgrades.app",
+        "updatedAt": "2026-10-04T19:02:54.758921+00:00",
+        "note": "Partial scrape: only MATH 1680 was collected from the live cloud browser. Run class_scraper.py to resume all remaining courses."
+      },
+      "checkedAt": "2026-10-04T19:02:54.758921+00:00",
+      "diagnostic": null,
+      "sections": [
+        {
+          "id": "vsb:spring-2027:CSCE 1030:12090+2557",
+          "term": "spring-2027",
+          "courseCode": "CSCE 1030",
+          "sectionCode": "400 + 305",
+          "classNumbers": [
+            "2557",
+            "12090"
+          ],
+          "option": "1",
+          "instructor": {
+            "raw": "Shrestha,Pradhumna Lal",
+            "display": "Pradhumna Lal Shrestha"
+          },
+          "seats": {
+            "open": 300,
+            "total": 300
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:2557",
+              "classNumber": "2557",
+              "sectionCode": "400",
+              "role": "primary",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 300,
+                "total": 300
+              },
+              "meetings": [
+                {
+                  "room": "UNT Internet Course",
+                  "buildingCode": null,
+                  "buildingId": null,
+                  "offCampus": false,
+                  "buildingName": "Online",
+                  "kind": "online",
+                  "day": null,
+                  "startMinutes": null,
+                  "endMinutes": null,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": true,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12090",
+              "classNumber": "12090",
+              "sectionCode": "305",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 32,
+                "total": 32
+              },
+              "meetings": [
+                {
+                  "room": "NTDP F223",
+                  "buildingCode": "NTDP",
+                  "buildingId": "ntdp",
+                  "buildingName": "Discovery Park",
+                  "kind": "building",
+                  "offCampus": true,
+                  "day": "Tue",
+                  "startMinutes": 930,
+                  "endMinutes": 1100,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "UNT Internet Course",
+              "buildingCode": null,
+              "buildingId": null,
+              "offCampus": false,
+              "buildingName": "Online",
+              "kind": "online",
+              "day": null,
+              "startMinutes": null,
+              "endMinutes": null,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": true,
+              "tba": false
+            },
+            {
+              "room": "NTDP F223",
+              "buildingCode": "NTDP",
+              "buildingId": "ntdp",
+              "buildingName": "Discovery Park",
+              "kind": "building",
+              "offCampus": true,
+              "day": "Tue",
+              "startMinutes": 930,
+              "endMinutes": 1100,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:CSCE 1030:12139+2557",
+          "term": "spring-2027",
+          "courseCode": "CSCE 1030",
+          "sectionCode": "400 + 301",
+          "classNumbers": [
+            "2557",
+            "12139"
+          ],
+          "option": "2",
+          "instructor": {
+            "raw": "Shrestha,Pradhumna Lal",
+            "display": "Pradhumna Lal Shrestha"
+          },
+          "seats": {
+            "open": 300,
+            "total": 300
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:2557",
+              "classNumber": "2557",
+              "sectionCode": "400",
+              "role": "primary",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 300,
+                "total": 300
+              },
+              "meetings": [
+                {
+                  "room": "UNT Internet Course",
+                  "buildingCode": null,
+                  "buildingId": null,
+                  "offCampus": false,
+                  "buildingName": "Online",
+                  "kind": "online",
+                  "day": null,
+                  "startMinutes": null,
+                  "endMinutes": null,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": true,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12139",
+              "classNumber": "12139",
+              "sectionCode": "301",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 42,
+                "total": 42
+              },
+              "meetings": [
+                {
+                  "room": "NTDP F270",
+                  "buildingCode": "NTDP",
+                  "buildingId": "ntdp",
+                  "buildingName": "Discovery Park",
+                  "kind": "building",
+                  "offCampus": true,
+                  "day": "Mon",
+                  "startMinutes": 640,
+                  "endMinutes": 810,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "UNT Internet Course",
+              "buildingCode": null,
+              "buildingId": null,
+              "offCampus": false,
+              "buildingName": "Online",
+              "kind": "online",
+              "day": null,
+              "startMinutes": null,
+              "endMinutes": null,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": true,
+              "tba": false
+            },
+            {
+              "room": "NTDP F270",
+              "buildingCode": "NTDP",
+              "buildingId": "ntdp",
+              "buildingName": "Discovery Park",
+              "kind": "building",
+              "offCampus": true,
+              "day": "Mon",
+              "startMinutes": 640,
+              "endMinutes": 810,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:CSCE 1030:12042+2557",
+          "term": "spring-2027",
+          "courseCode": "CSCE 1030",
+          "sectionCode": "400 + 302",
+          "classNumbers": [
+            "2557",
+            "12042"
+          ],
+          "option": "3",
+          "instructor": {
+            "raw": "Shrestha,Pradhumna Lal",
+            "display": "Pradhumna Lal Shrestha"
+          },
+          "seats": {
+            "open": 300,
+            "total": 300
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:2557",
+              "classNumber": "2557",
+              "sectionCode": "400",
+              "role": "primary",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 300,
+                "total": 300
+              },
+              "meetings": [
+                {
+                  "room": "UNT Internet Course",
+                  "buildingCode": null,
+                  "buildingId": null,
+                  "offCampus": false,
+                  "buildingName": "Online",
+                  "kind": "online",
+                  "day": null,
+                  "startMinutes": null,
+                  "endMinutes": null,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": true,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12042",
+              "classNumber": "12042",
+              "sectionCode": "302",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 46,
+                "total": 46
+              },
+              "meetings": [
+                {
+                  "room": "NTDP F222",
+                  "buildingCode": "NTDP",
+                  "buildingId": "ntdp",
+                  "buildingName": "Discovery Park",
+                  "kind": "building",
+                  "offCampus": true,
+                  "day": "Mon",
+                  "startMinutes": 930,
+                  "endMinutes": 1100,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "UNT Internet Course",
+              "buildingCode": null,
+              "buildingId": null,
+              "offCampus": false,
+              "buildingName": "Online",
+              "kind": "online",
+              "day": null,
+              "startMinutes": null,
+              "endMinutes": null,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": true,
+              "tba": false
+            },
+            {
+              "room": "NTDP F222",
+              "buildingCode": "NTDP",
+              "buildingId": "ntdp",
+              "buildingName": "Discovery Park",
+              "kind": "building",
+              "offCampus": true,
+              "day": "Mon",
+              "startMinutes": 930,
+              "endMinutes": 1100,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:CSCE 1030:12089+2557",
+          "term": "spring-2027",
+          "courseCode": "CSCE 1030",
+          "sectionCode": "400 + 304",
+          "classNumbers": [
+            "2557",
+            "12089"
+          ],
+          "option": "4",
+          "instructor": {
+            "raw": "Shrestha,Pradhumna Lal",
+            "display": "Pradhumna Lal Shrestha"
+          },
+          "seats": {
+            "open": 300,
+            "total": 300
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:2557",
+              "classNumber": "2557",
+              "sectionCode": "400",
+              "role": "primary",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 300,
+                "total": 300
+              },
+              "meetings": [
+                {
+                  "room": "UNT Internet Course",
+                  "buildingCode": null,
+                  "buildingId": null,
+                  "offCampus": false,
+                  "buildingName": "Online",
+                  "kind": "online",
+                  "day": null,
+                  "startMinutes": null,
+                  "endMinutes": null,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": true,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12089",
+              "classNumber": "12089",
+              "sectionCode": "304",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 56,
+                "total": 56
+              },
+              "meetings": [
+                {
+                  "room": "NTDP F218",
+                  "buildingCode": "NTDP",
+                  "buildingId": "ntdp",
+                  "buildingName": "Discovery Park",
+                  "kind": "building",
+                  "offCampus": true,
+                  "day": "Fri",
+                  "startMinutes": 930,
+                  "endMinutes": 1100,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "UNT Internet Course",
+              "buildingCode": null,
+              "buildingId": null,
+              "offCampus": false,
+              "buildingName": "Online",
+              "kind": "online",
+              "day": null,
+              "startMinutes": null,
+              "endMinutes": null,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": true,
+              "tba": false
+            },
+            {
+              "room": "NTDP F218",
+              "buildingCode": "NTDP",
+              "buildingId": "ntdp",
+              "buildingName": "Discovery Park",
+              "kind": "building",
+              "offCampus": true,
+              "day": "Fri",
+              "startMinutes": 930,
+              "endMinutes": 1100,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:CSCE 1030:12093+2557",
+          "term": "spring-2027",
+          "courseCode": "CSCE 1030",
+          "sectionCode": "400 + 306",
+          "classNumbers": [
+            "2557",
+            "12093"
+          ],
+          "option": "5",
+          "instructor": {
+            "raw": "Shrestha,Pradhumna Lal",
+            "display": "Pradhumna Lal Shrestha"
+          },
+          "seats": {
+            "open": 300,
+            "total": 300
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:2557",
+              "classNumber": "2557",
+              "sectionCode": "400",
+              "role": "primary",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 300,
+                "total": 300
+              },
+              "meetings": [
+                {
+                  "room": "UNT Internet Course",
+                  "buildingCode": null,
+                  "buildingId": null,
+                  "offCampus": false,
+                  "buildingName": "Online",
+                  "kind": "online",
+                  "day": null,
+                  "startMinutes": null,
+                  "endMinutes": null,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": true,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12093",
+              "classNumber": "12093",
+              "sectionCode": "306",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "seats": {
+                "open": 24,
+                "total": 24
+              },
+              "meetings": [
+                {
+                  "room": "NTDP F210",
+                  "buildingCode": "NTDP",
+                  "buildingId": "ntdp",
+                  "buildingName": "Discovery Park",
+                  "kind": "building",
+                  "offCampus": true,
+                  "day": "Wed",
+                  "startMinutes": 930,
+                  "endMinutes": 1100,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Shrestha,Pradhumna Lal",
+                    "display": "Pradhumna Lal Shrestha"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "UNT Internet Course",
+              "buildingCode": null,
+              "buildingId": null,
+              "offCampus": false,
+              "buildingName": "Online",
+              "kind": "online",
+              "day": null,
+              "startMinutes": null,
+              "endMinutes": null,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": true,
+              "tba": false
+            },
+            {
+              "room": "NTDP F210",
+              "buildingCode": "NTDP",
+              "buildingId": "ntdp",
+              "buildingName": "Discovery Park",
+              "kind": "building",
+              "offCampus": true,
+              "day": "Wed",
+              "startMinutes": 930,
+              "endMinutes": 1100,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Shrestha,Pradhumna Lal",
+                "display": "Pradhumna Lal Shrestha"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        },
+        {
+          "id": "vsb:spring-2027:CSCE 1030:12783+12808",
+          "term": "spring-2027",
+          "courseCode": "CSCE 1030",
+          "sectionCode": "501 + 551",
+          "classNumbers": [
+            "12783",
+            "12808"
+          ],
+          "option": "6",
+          "instructor": {
+            "raw": "Gooranorimi,Hadiseh",
+            "display": "Hadiseh Gooranorimi"
+          },
+          "seats": {
+            "open": 48,
+            "total": 48
+          },
+          "status": "open",
+          "rawStatus": "Open",
+          "session": {
+            "label": "Regular Academic Session",
+            "dates": {
+              "raw": "01/11/2027 - 05/07/2027",
+              "start": "2027-01-11",
+              "end": "2027-05-07"
+            }
+          },
+          "components": [
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12783",
+              "classNumber": "12783",
+              "sectionCode": "501",
+              "role": "primary",
+              "instructor": {
+                "raw": "Gooranorimi,Hadiseh",
+                "display": "Hadiseh Gooranorimi"
+              },
+              "seats": {
+                "open": 48,
+                "total": 48
+              },
+              "meetings": [
+                {
+                  "room": "FRLD 224",
+                  "buildingCode": "FRLD",
+                  "buildingId": null,
+                  "buildingName": "Unknown building",
+                  "kind": "unknown",
+                  "offCampus": false,
+                  "day": "Tue",
+                  "startMinutes": 840,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Gooranorimi,Hadiseh",
+                    "display": "Hadiseh Gooranorimi"
+                  },
+                  "async": false,
+                  "tba": false
+                },
+                {
+                  "room": "FRLD 224",
+                  "buildingCode": "FRLD",
+                  "buildingId": null,
+                  "buildingName": "Unknown building",
+                  "kind": "unknown",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 840,
+                  "endMinutes": 920,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Gooranorimi,Hadiseh",
+                    "display": "Hadiseh Gooranorimi"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            },
+            {
+              "id": "vsb-component:spring-2027:CSCE 1030:12808",
+              "classNumber": "12808",
+              "sectionCode": "551",
+              "role": "required-linked",
+              "instructor": {
+                "raw": "Gooranorimi,Hadiseh",
+                "display": "Hadiseh Gooranorimi"
+              },
+              "seats": {
+                "open": 48,
+                "total": 48
+              },
+              "meetings": [
+                {
+                  "room": "FRLD 224",
+                  "buildingCode": "FRLD",
+                  "buildingId": null,
+                  "buildingName": "Unknown building",
+                  "kind": "unknown",
+                  "offCampus": false,
+                  "day": "Thu",
+                  "startMinutes": 660,
+                  "endMinutes": 830,
+                  "dates": {
+                    "raw": "01/11/2027 - 05/07/2027",
+                    "start": "2027-01-11",
+                    "end": "2027-05-07"
+                  },
+                  "instructor": {
+                    "raw": "Gooranorimi,Hadiseh",
+                    "display": "Hadiseh Gooranorimi"
+                  },
+                  "async": false,
+                  "tba": false
+                }
+              ]
+            }
+          ],
+          "meetings": [
+            {
+              "room": "FRLD 224",
+              "buildingCode": "FRLD",
+              "buildingId": null,
+              "buildingName": "Unknown building",
+              "kind": "unknown",
+              "offCampus": false,
+              "day": "Tue",
+              "startMinutes": 840,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Gooranorimi,Hadiseh",
+                "display": "Hadiseh Gooranorimi"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "FRLD 224",
+              "buildingCode": "FRLD",
+              "buildingId": null,
+              "buildingName": "Unknown building",
+              "kind": "unknown",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 840,
+              "endMinutes": 920,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Gooranorimi,Hadiseh",
+                "display": "Hadiseh Gooranorimi"
+              },
+              "async": false,
+              "tba": false
+            },
+            {
+              "room": "FRLD 224",
+              "buildingCode": "FRLD",
+              "buildingId": null,
+              "buildingName": "Unknown building",
+              "kind": "unknown",
+              "offCampus": false,
+              "day": "Thu",
+              "startMinutes": 660,
+              "endMinutes": 830,
+              "dates": {
+                "raw": "01/11/2027 - 05/07/2027",
+                "start": "2027-01-11",
+                "end": "2027-05-07"
+              },
+              "instructor": {
+                "raw": "Gooranorimi,Hadiseh",
+                "display": "Hadiseh Gooranorimi"
+              },
+              "async": false,
+              "tba": false
+            }
+          ],
+          "online": false,
+          "async": false,
+          "tba": false
+        }
+      ]
+    }
+  }
+}

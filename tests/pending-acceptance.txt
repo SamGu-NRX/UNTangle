@@ -1,0 +1,13 @@
+# Acceptance tests CI skips until the task that makes them pass lands.
+# "The task rule" in docs/architecture/README.md explains the rule.
+#
+# One entry per line, as a path from the repo root:
+#   packages/core/tests/filters.test.ts
+#     skips the whole file;
+#   packages/core/tests/filters.test.ts::open seats unknown never passes
+#     skips one test, named as Bun prints it: describe titles, then the
+#     test title, joined by spaces.
+#
+# A task's only allowed edit here is deleting its own line.
+
+# Step 1 lanes (docs/tasks/<lane>.md).

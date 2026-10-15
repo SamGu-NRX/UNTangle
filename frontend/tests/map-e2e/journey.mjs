@@ -19,8 +19,15 @@
  * selected, lands clear of the panel, sheet and controls; a selection from
  * the full sheet drops it to half first; reduced motion keeps the camera
  * flat; axe finds no serious or critical violations; with WebGL disabled the
- * page keeps the itinerary and says the map is unavailable. Any failed
- * check exits 1.
+ * page keeps the itinerary and says the map is unavailable.
+ *
+ * The map fidelity work (#56): the campus detail file loads; the credit line
+ * names every source, in full at 1440, folded on a phone after the first
+ * tap and reopened by (i); the spread-out sample day opens flat; the 3D
+ * control tilts and flattens, instantly from the keyboard; a stop chosen
+ * with 3D turned off stays flat, and a new day forgets that choice; under
+ * reduced motion 3D is disabled with a description and pressing it keeps
+ * the map flat. Any failed check exits 1.
  *
  * Env: UNTANGLE_BASE_URL, UNTANGLE_OUT (screenshots, video, report),
  * UNTANGLE_E2E_MODULES (a node_modules with playwright and axe-core).
@@ -83,8 +90,9 @@ async function seed(context) {
   // Monday 12 October 2026, 8:37 local: Date is fixed, timers keep running.
   await context.clock.setFixedTime(new Date(2026, 9, 12, 8, 37));
   await context.addInitScript(({ doc, start }) => {
-    if (!window.localStorage.getItem("untangle.planner-state.v1")) {
-      window.localStorage.setItem("untangle.planner-state.v1", JSON.stringify(doc));
+    // The planner reads the guest identity's store (#77).
+    if (!window.localStorage.getItem("untangle.planner-state.v1:guest")) {
+      window.localStorage.setItem("untangle.planner-state.v1:guest", JSON.stringify(doc));
       window.localStorage.setItem("untangle.day-start.v1", JSON.stringify(start));
     }
   }, { doc: plannerDoc, start: kerrHall });
@@ -202,10 +210,19 @@ async function desktop(browser) {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  const detailLoads = [];
+  page.on("response", (response) => {
+    if (response.url().includes("/map/unt-denton/detail.geojson")) detailLoads.push(response.status());
+  });
 
   await openMap(page);
   await shoot(page, "desktop-01-day.png");
   await beat(page);
+
+  check("desktop: the campus detail file loads", detailLoads.includes(200), detailLoads.join(", ") || "no request");
+  const opening = await camera(page);
+  // The sample day spans Kerr Hall to GATE: too spread out to tilt with every stop in view.
+  check("desktop: the spread-out sample day opens flat", opening.pitch < 1, `zoom ${opening.zoom}, pitch ${opening.pitch}`);
 
   const stops = await page.locator(".mv-stop").evaluateAll((els) =>
     els.map((el) => ({ key: el.dataset.stopKey, placement: el.dataset.placement, text: el.textContent })),
@@ -254,6 +271,11 @@ async function desktop(browser) {
   check(
     "desktop: attribution credits OpenStreetMap contributors and OpenFreeMap",
     /OpenStreetMap contributors/.test(attribution) && /OpenFreeMap/.test(attribution) && /OpenMapTiles/.test(attribution),
+    attribution.trim(),
+  );
+  check(
+    "desktop: the credit line names Overture and shows in full",
+    /Overture Maps/.test(attribution) && !(await page.locator(".maplibregl-ctrl-attrib").evaluate((el) => el.classList.contains("maplibregl-compact"))),
     attribution.trim(),
   );
 
@@ -347,6 +369,34 @@ async function desktop(browser) {
   await everyTargetClear(page, "desktop");
   await page.keyboard.press("Escape");
 
+  // The 3D control: on lifts to street zoom and tilts, off flattens.
+  const threeD = page.getByRole("button", { name: "3D view" });
+  await page.getByRole("button", { name: "Show the whole day" }).click();
+  await settle(page, 1000);
+  await threeD.click();
+  await settle(page, 700);
+  after = await camera(page);
+  check("desktop: 3D tilts to street zoom", after.pitch > 30 && after.zoom >= 16 && (await threeD.getAttribute("aria-pressed")) === "true", `zoom ${after.zoom}, pitch ${after.pitch}`);
+  await shoot(page, "desktop-06-3d.png");
+  await threeD.click();
+  await settle(page, 700);
+  after = await camera(page);
+  check("desktop: 3D again flattens", after.pitch < 1 && (await threeD.getAttribute("aria-pressed")) === "false", `pitch ${after.pitch}`);
+  await threeD.focus();
+  await page.keyboard.press("Enter");
+  await settle(page, 120);
+  after = await camera(page);
+  check("desktop: 3D from the keyboard is instant", after.pitch > 30, `pitch ${after.pitch} 120 ms after Enter`);
+  await page.keyboard.press("Enter");
+  await settle(page, 300);
+
+  // 3D is now off by choice: a chosen stop flies there flat, until the day changes.
+  await gabRow.click();
+  await settle(page, 1400);
+  after = await camera(page);
+  check("desktop: with 3D turned off, a chosen stop stays flat", after.zoom > 17 && after.pitch < 1, `zoom ${after.zoom}, pitch ${after.pitch}`);
+  await page.keyboard.press("Escape");
+
   // Days switch with the stepper.
   await page.getByRole("button", { name: "Next day" }).click();
   await settle(page, 900);
@@ -356,13 +406,19 @@ async function desktop(browser) {
   await page.locator(".mv-stop").nth(3).waitFor();
   check("desktop: the first day is the stepper's start", await page.getByRole("button", { name: "Previous day" }).isDisabled());
   await settle(page, 1200);
+  await gabRow.click();
+  await settle(page, 1400);
+  after = await camera(page);
+  check("desktop: a new day forgets the 3D choice, so a chosen stop tilts again", after.pitch > 30, `pitch ${after.pitch}`);
+  await page.keyboard.press("Escape");
+  await settle(page, 400);
 
   await axe(page, "desktop /map");
 
   await page.emulateMedia({ media: "print" });
   await pause(page, 300);
   check("desktop print: the map is hidden and the itinerary remains", (await page.locator(".mv-canvas").isHidden()) && (await page.locator(".mv-stop").first().isVisible()));
-  await page.screenshot({ path: join(OUT, "desktop-06-print.png"), fullPage: true });
+  await page.screenshot({ path: join(OUT, "desktop-07-print.png"), fullPage: true });
   await page.emulateMedia({ media: "screen" });
   await pause(page, 1500);
 
@@ -391,10 +447,20 @@ async function phone(browser) {
   check("phone: itinerary is a bottom sheet at half height", (await sheet.getAttribute("data-detent")) === "half");
   await shoot(page, "phone-01-half.png");
 
+  // The credits show on load and fold behind (i) on the first tap on the map.
+  const credits = page.locator(".maplibregl-ctrl-attrib");
+  const creditsOpen = () => credits.evaluate((el) => el.classList.contains("maplibregl-compact-show"));
+  const phoneCredits = (await credits.textContent()) ?? "";
+  check("phone: the credit line shows on load", (await creditsOpen()) && /OpenStreetMap contributors/.test(phoneCredits) && /Overture Maps/.test(phoneCredits), phoneCredits.trim());
+
   const pin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^1$/ }) });
   await pin.tap();
   await settle(page, 1400);
   check("phone: tapping a pin selects its row", (await page.locator(".mv-stop").first().getAttribute("aria-expanded")) === "true");
+  check("phone: the first tap on the map folds the credits", !(await creditsOpen()));
+  await page.locator(".maplibregl-ctrl-attrib-button").tap();
+  await pause(page, 200);
+  check("phone: (i) opens the credits again", await creditsOpen());
   const pinBox = await pin.boundingBox();
   const sheetBox = await sheet.boundingBox();
   check("phone: the selected pin sits above the sheet", pinBox && sheetBox && pinBox.y + pinBox.height < sheetBox.y, `pin bottom ${pinBox && pinBox.y + pinBox.height}, sheet top ${sheetBox?.y}`);
@@ -476,6 +542,15 @@ async function reducedMotion(browser) {
   await settle(page, 400);
   const state = await camera(page);
   check("reduced motion: choosing a stop jumps there flat", state.zoom > 17 && state.pitch < 1, `zoom ${state.zoom}, pitch ${state.pitch}`);
+  const threeD = page.getByRole("button", { name: "3D view" });
+  const describedBy = await threeD.getAttribute("aria-describedby");
+  const note = describedBy ? ((await page.locator(`#${describedBy}`).textContent()) ?? "") : "";
+  check("reduced motion: 3D is disabled, with the reason as its description", (await threeD.getAttribute("aria-disabled")) === "true" && /reduced motion/.test(note), note);
+  // Playwright waits for an aria-disabled button to enable, so the press is dispatched.
+  await threeD.dispatchEvent("click");
+  await settle(page, 400);
+  const pressed = await camera(page);
+  check("reduced motion: pressing 3D keeps the map flat", pressed.pitch < 1, `pitch ${pressed.pitch}`);
   await context.close();
 }
 
@@ -497,7 +572,7 @@ async function withoutWebgl() {
     await page.waitForFunction(() => document.querySelectorAll('.mv-leg[data-route="walk"]').length >= 2, null, { timeout: 20000 });
     check("no WebGL: the itinerary still lists classes and walking minutes", (await page.locator('.mv-leg[data-route="walk"]').count()) >= 2);
     check("no WebGL: no uncaught page errors", errors.length === 0, errors.join(" | ") || null);
-    await shoot(page, "desktop-07-no-webgl.png");
+    await shoot(page, "desktop-08-no-webgl.png");
     await context.close();
   } finally {
     await noGl.close();

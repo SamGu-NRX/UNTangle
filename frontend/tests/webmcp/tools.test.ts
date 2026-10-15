@@ -43,12 +43,12 @@ describe("read tools", () => {
 
   test("check_eligibility separates met, unmet and unknown requirements", async () => {
     expect(await call("check_eligibility", { code: "MATH 1720" })).toMatchObject({ verdict: "eligible", met: ["MATH 1710"], unmet: [] });
-    // Planning CSCE 1040 is not passing it; the corequisite clause is catalog prose the engine cannot check.
+    // Planning CSCE 1040 does not meet the completed C-or-better prerequisite.
     expect(await call("check_eligibility", { code: "CSCE 2110" })).toMatchObject({
-      verdict: "check_with_advisor",
+      verdict: "not_eligible",
       met: [],
       unmet: ["CSCE 1040", "CSCE 1045"],
-      unknown: ["This course can be taken concurrently with CSCE 2100"],
+      unknown: [],
     });
   });
 

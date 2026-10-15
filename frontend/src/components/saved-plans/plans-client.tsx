@@ -95,7 +95,10 @@ export function PlansClient() {
   // state, and every mutation bumps the version to re-read the cache below.
   const [storeVersion, setStoreVersion] = useState(0);
   const listCacheRef = useRef<{ version: number; state: ListState } | null>(null);
+  // No identity's library is read until the planner has prepared one; until then the view is loading.
+  const identityReady = planner.identityReady;
   const readLibrary = useCallback(() => {
+    if (!identityReady) return LOADING_LIST;
     const cache = listCacheRef.current;
     if (!cache || cache.version !== storeVersion) {
       const state = toListState(store.list());
@@ -103,20 +106,23 @@ export function PlansClient() {
       return state;
     }
     return cache.state;
-  }, [store, storeVersion]);
+  }, [identityReady, store, storeVersion]);
   const bumpLibrary = useCallback(() => setStoreVersion((version) => version + 1), []);
   // Writes from elsewhere (the top bar's "Save a copy", another tab) re-read
   // the library too.
   useEffect(() => subscribeSavedPlans(bumpLibrary), [bumpLibrary]);
   const listState = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING_LIST);
-  // Availability is read through a store snapshot too: the server renders the
-  // storage-disabled state and React re-renders after hydration, so the banner
-  // never causes a hydration mismatch.
+  // Availability is read through a store snapshot too: the server and
+  // hydration render it unavailable and React re-renders after hydration, so
+  // the controls never cause a hydration mismatch. The disabled-storage
+  // banner waits for a prepared identity, because before that the store
+  // refuses every read for a reason that is not the browser's.
   const storeAvailable = useSyncExternalStore(
     noopSubscribe,
-    () => store.available,
+    () => identityReady && store.available,
     () => false,
   );
+  const storageDisabled = identityReady && !storeAvailable;
 
   const plans = listState.phase === "ready" ? listState.doc.plans : [];
   const activePlans = plans.filter((plan) => !plan.archivedAt);
@@ -193,6 +199,7 @@ export function PlansClient() {
   };
 
   const importPlan = async (file: File) => {
+    const identityToken = store.captureIdentity();
     setImportError(null);
     let parsed: unknown;
     try {
@@ -201,7 +208,7 @@ export function PlansClient() {
       setImportError("The file is not valid JSON.");
       return;
     }
-    const result = store.importPlan(parsed);
+    const result = store.importPlan(parsed, undefined, identityToken);
     if (!result.ok) {
       setImportError(result.failure.message);
       return;
@@ -230,7 +237,7 @@ export function PlansClient() {
     restorePlan && restoreReferences ? describeSkippedReferences(restoreReferences) : [];
   // listQuarantined() is a cheap localStorage key scan; recomputed per render
   // so it refreshes whenever the library version (listState) changes.
-  const quarantinedKeys = store.listQuarantined();
+  const quarantinedKeys = identityReady ? store.listQuarantined() : [];
 
   const openRestore = (plan: SavedPlanSnapshot) => {
     restoreFingerprintRef.current = workingStateFingerprint(planner.plannerState);
@@ -373,7 +380,7 @@ export function PlansClient() {
           </p>
         ) : null}
 
-        {!storeAvailable ? (
+        {storageDisabled ? (
           <p role="alert" className="plans-notice">
             Saved plans are unavailable because browser storage is disabled. You can still export plans that were saved
             earlier in another browser.

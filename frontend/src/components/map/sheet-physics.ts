@@ -68,3 +68,20 @@ export function releaseVelocity(samples: ReadonlyArray<{ t: number; y: number }>
   const dt = last.t - first.t;
   return dt > 0 ? (last.y - first.y) / dt : 0;
 }
+
+/**
+ * The sheet's three visible heights for a map area, always ordered
+ * peek <= half <= full. Full is measured by the caller: Day stops it below
+ * the floating stepper and the attribution row. Peek shows the header
+ * (handle and hero) but never more than 45% of full. Half aims for half the
+ * area, at least 80px above peek and at least 320px (MOTION.md §5's floor,
+ * a starting value). On a short area (landscape, or a header grown by 200%
+ * text) that aim can pass full, so half is held to the midpoint between
+ * peek and full.
+ */
+export function sheetHeights(areaHeight: number, headerHeight: number, fullHeight: number): { peek: number; half: number; full: number } {
+  const full = Math.round(fullHeight);
+  const peek = Math.min(headerHeight, Math.round(full * 0.45));
+  const half = Math.min(Math.max(peek + 80, 320, Math.round(areaHeight * 0.5)), Math.round((peek + full) / 2));
+  return { peek, half, full };
+}

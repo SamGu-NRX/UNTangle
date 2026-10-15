@@ -1,0 +1,86 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Liberal Arts and Social Sciences
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161824Z
+UID:tag:localist.com\,2008:EventInstance_53684574746856
+DTSTART:20260917T000000Z
+DTEND:20260917T010000Z
+DESCRIPTION:A middle-aged Tehranian man\, Mr. Badii (Homayoun Ershadi) is i
+ ntent on killing himself and seeks someone to bury him after his demise. D
+ riving around the city\, the seemingly well-to-do Badii meets with numerou
+ s people\, including a Muslim student (Mir Hossein Noori)\, asking them to
+  take on the job\, but initially he has little luck. Eventually\, Badii fi
+ nds a man who is up for the task because he needs the money\, but his new 
+ associate soon tries to talk him out of committing suicide. Directed by Ab
+ bas Kiarostami.
+GEO:33.211744;-97.145432
+LOCATION:Radio TV Film and Performing Arts\, 184
+SUMMARY:North Texas Arthouse: Taste of Cherry (1997)
+URL;VALUE=URI:https://calendar.unt.edu/event/north-texas-arthouse-taste-of-
+ cherry-1997
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161824Z
+UID:tag:localist.com\,2008:EventInstance_53797625400658
+DTSTART:20260918T003000Z
+DTEND:20260918T013000Z
+DESCRIPTION:First Stage Series:\n\nThe First Stage Series at the University
+  of North Texas offers senior students a distinctive opportunity to self-d
+ irect a theatrical production on campus. To participate\, students must su
+ bmit a proposal to a committee of faculty and staff and receive approval. 
+ These productions are entirely student-driven\, encompassing all aspects f
+ rom casting and rehearsals to the final direction of the show.\n\nAbout An
+ tigone Now:\n\nSet against the ruins of a city still reeling from war\, th
+ is modern retelling follows the fiercely determined Antigone as she stands
+  in defiance of her uncle’s decree to honor her fallen brother. Her act 
+ of resistance sparks a powerful conflict between personal loyalty and poli
+ tical authority. With vivid contemporary language and emotional intensity\
+ , this adaptation reexamines an ancient myth\, highlighting the enduring s
+ truggles of family\, duty\, and moral courage in a fractured world.\n\n   
+             Written by: Melissa Cooper\n               Director: Sophia Ag
+ uirre\n               Run Time: 60 Minutes\n\nTheatre Information:\n\nWe a
+ re thrilled to invite you to a captivating live performance in the Black B
+ ox Theatre (RTFP 127)\, located in the Radio\, TV\, Film\, and Performing 
+ Arts Building at 1179 Union Circle\, Denton\, Texas\, 76201. For maps\, di
+ rections\, and parking information\, please visit our website here.\n\nTo 
+ ensure a smooth and enjoyable experience\, we kindly ask that you arrive 2
+ 0-30 minutes before your selected show time. Our performance will begin pr
+ omptly\, and we want to make sure you don't miss a moment of the magic. Pl
+ ease note that late seating is not permitted. For the comfort and enjoymen
+ t of all our guests\, no food or drink is allowed in the performance space
+ s. Additionally\, recording or videography of any kind is strictly prohibi
+ ted once the performance begins. The Box Office does not offer refunds or 
+ exchanges.\n\nThis show has general admission seating. Seating will be fir
+ st come\, first served\, with house doors opening at 7:00PM and doors clos
+ ing promptly at 7:30PM. If you arrive after the doors have closed\, you wi
+ ll not be able to enter the show.\n\nThank you for supporting the UNT Danc
+ e and Theatre Department. We can't wait to welcome you and share this spec
+ ial experience with you. See you soon!
+GEO:33.211744;-97.145432
+LOCATION:Radio TV Film and Performing Arts\, 127
+SUMMARY:Dance & Theatre Presents: Antigone Now
+URL;VALUE=URI:https://calendar.unt.edu/event/dance-theatre-presents-antigon
+ e-now
+CATEGORIES:Social & Entertainment
+CATEGORIES:Student Life
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161824Z
+UID:tag:localist.com\,2008:EventInstance_53691359713324
+DTSTART:20260918T193000Z
+DTEND:20260918T203000Z
+DESCRIPTION:Learn the basics of sound production with Omar Milano. This is 
+ a hands-on workshop where you will work in small groups. Click here to reg
+ ister.
+GEO:33.211744;-97.145432
+LOCATION:Radio TV Film and Performing Arts\, 135
+SUMMARY:Workshop: Production Sound 101
+URL;VALUE=URI:https://calendar.unt.edu/event/workshop-production-sound-101
+CATEGORIES:Workshops & Training
+END:VEVENT
+END:VCALENDAR

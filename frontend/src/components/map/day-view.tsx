@@ -16,10 +16,11 @@ import { provenanceSource, provenanceText, summarizeProvenance } from "@/compone
 import { usePageState } from "@/components/shell/shell-context";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { activeCampus, campusById } from "@/lib/campus/config";
+import { getPlanningTermCourseCodes } from "@/lib/planner";
 import { dayHero, type HeroClass } from "@/lib/leave-by";
 import { dayWalkMinutes, formatWalkMinutes, toMinutes, type StartPlace } from "@/lib/map-itinerary";
 import { classDays, type ClassDay } from "@/lib/types";
-import { DayHero, DayItinerary, DayStepper, StartPicker, type NextClass } from "@/components/map/day-panel";
+import { DayHero, DayItinerary, DayStepper, OtherCampusHero, StartPicker, type NextClass } from "@/components/map/day-panel";
 import { campusNow, dayNames, meetsOn, nextClassDay, nextClassFrom, stepperDays } from "@/components/map/day-steps";
 import type { CameraPadding, DayFrame } from "@/components/map/map-canvas";
 import { MapSheet, type SheetDetent } from "@/components/map/map-sheet";
@@ -103,7 +104,7 @@ function revealRow(container: HTMLElement | null, row: HTMLElement | undefined, 
 export function DayView({ campusId, places }: { campusId: string; places: readonly StartPlaceOption[] }) {
   const campus = campusById(campusId);
   const onCampus = campus.id === activeCampus.id;
-  const { routeStops, hydrated, sectionPlan } = usePlanner();
+  const { routeStops, hydrated, sectionPlan, plannerState } = usePlanner();
   const ready = hydrated && !sectionPlan.courses.some((course) => course.state === "loading");
   const provenance = summarizeProvenance(
     sectionPlan.courses.flatMap((course) => (course.result ? [course.result] : [])),
@@ -265,6 +266,8 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
     <div className="mv-hero" aria-busy="true">
       <p className="mv-hero__label">Loading your classes</p>
     </div>
+  ) : !onCampus ? (
+    <OtherCampusHero campusName={campus.shortName} homeName={activeCampus.shortName} />
   ) : (
     <DayHero
       hero={hero}
@@ -359,6 +362,8 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
         key={campus.id}
         campus={campus}
         itinerary={itinerary}
+        // The plan's course order picks each class building's course color, as the Week grid does.
+        courseOrder={getPlanningTermCourseCodes(plannerState)}
         selection={selection}
         onSelect={select}
         padding={padding}

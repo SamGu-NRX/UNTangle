@@ -212,14 +212,28 @@
   stroke-linejoin: round;
 }
 
-.mv-control .mv-compass-n {
-  fill: var(--mv-danger);
-  stroke: none;
+/* The 3D toggle: the word DESIGN.md's control list uses, as the control's visible label. */
+.mv-control--text {
+  font: 650 12px/1 var(--font-ui, "DM Sans", sans-serif);
+  letter-spacing: 0.02em;
+  transition:
+    transform 120ms var(--mv-ease-out),
+    color 160ms ease,
+    background-color 160ms ease;
 }
 
-.mv-control .mv-compass-s {
-  fill: var(--mv-ink-3);
-  stroke: none;
+.mv-control--text[aria-pressed="true"] {
+  color: var(--mv-brand);
+  background: var(--mv-brand-soft);
+}
+
+.mv-control--text[aria-disabled="true"] {
+  color: var(--mv-ink-3);
+  cursor: not-allowed;
+}
+
+.mv-control--text[aria-disabled="true"]:active {
+  transform: none;
 }
 
 /* Pointer presses only: Space on a focused control doesn't animate. */

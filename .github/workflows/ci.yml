@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  # main is listed so a ruleset on main can require these checks; edge is the
+  # unreviewed integration branch, which runs its own copy of this file.
+  pull_request:
+    branches: [alpha, main, edge]
+  push:
+    branches: [alpha, main, edge]
+  workflow_dispatch:
+    inputs:
+      run_live_postgres:
+        description: Run the opt-in live Postgres tests
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      run_live_postgres:
+        description: Run the opt-in live Postgres tests
+        type: boolean
+        default: false
+
+# The workflow only reads the repository; nothing it runs should be able to write to it.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      # Every workspace package's typecheck script, through turbo.
+      - name: Typecheck
+        run: bun --no-env-file run typecheck
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      # Every workspace package's lint script, through turbo.
+      - name: Lint
+        run: bun --no-env-file run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      # Every workspace package's test script, through turbo. frontend's script
+      # keeps --isolate (some suites share in-memory stores through module
+      # state, so without it runs interfere) and --timeout=20000 (the default
+      # 5s is too tight on CI runners for the map routing and optimizer
+      # walk-cost tests).
+      - name: Unit tests
+        run: bun --no-env-file run test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      # Dummy, non-secret placeholders so the production build can run without
+      # any repository secrets. Every value is visibly fake.
+      - name: Build
+        run: bun --no-env-file x next build
+        working-directory: frontend
+        env:
+          BETTER_AUTH_SECRET: DUMMY-SECRET-0123456789abcdef0123456789ab
+          BETTER_AUTH_URL: http://localhost:3000
+          DATABASE_URL: postgres://dummy:dummy@127.0.0.1:9/untangle-does-not-exist
+          RESEND_API_KEY: re_dummy_not_a_real_key
+          RESEND_FROM_EMAIL: ci@example.invalid
+          ORS_API_KEY: dummy-ors-key-not-real
+          RATE_LIMIT_TRUSTED_PROXY: reverse-proxy
+
+  # Opt-in only: dispatched or called with run_live_postgres=true. Never runs
+  # on pull_request or push (inputs is empty there).
+  live-postgres:
+    name: Live Postgres tests
+    if: inputs.run_live_postgres == true
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: untangle_ci
+          POSTGRES_PASSWORD: untangle_ci_password
+          POSTGRES_DB: untangle_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U untangle_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TZ: America/Chicago
+      RATE_LIMIT_TEST_DATABASE_URL: postgres://untangle_ci:untangle_ci_password@localhost:5432/untangle_ci
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Cache Bun packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Live Postgres tests
+        run: bun --no-env-file test --isolate tests/rate-limit/postgres-live.test.ts tests/auth/postgres-live.test.ts tests/document-sync/postgres-live.test.ts
+        working-directory: frontend

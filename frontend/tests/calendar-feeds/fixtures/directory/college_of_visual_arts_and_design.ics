@@ -1,0 +1,53 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Visual Arts and Design
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161851Z
+UID:tag:localist.com\,2008:EventInstance_54046186481925
+DTSTART:20260922T170000Z
+DTEND:20260922T220000Z
+DESCRIPTION:The Curiosity Lab is an interdisciplinary hub for design\, expe
+ rimental learning and advanced technology. Our mission is to cultivate exp
+ erimental mindsets and foster multi-area collaboration.
+GEO:33.213091;-97.145488
+LOCATION:Art Building\, 160
+SUMMARY:The Curiosity Lab
+URL;VALUE=URI:https://calendar.unt.edu/event/the-curiosity-lab
+CATEGORIES:Social & Entertainment
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161851Z
+UID:tag:localist.com\,2008:EventInstance_53816642075614
+DTSTART:20260922T210000Z
+DTEND:20260922T230000Z
+DESCRIPTION:Meet art and design professionals at Creative Futures! Creative
+ s from across DFW are excited to talk with CVAD students and share their p
+ aths.\n\nStudents\,\n\nBe prepared to introduce yourself.Research the vend
+ ors ahead of time. Vendor bios coming soon!Come with questions for specifi
+ c vendors based on your research and personal path.Remember to send thank 
+ you notes after the event! Either handwritten or via email.You never know 
+ where these connections can take you!
+GEO:33.213091;-97.145488
+LOCATION:Art Building\, C103 (Cora Stafford Gallery)
+SUMMARY:Creative Futures
+URL;VALUE=URI:https://calendar.unt.edu/event/creative-futures-321
+CATEGORIES:Fairs & Tradeshows
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161851Z
+UID:tag:localist.com\,2008:EventInstance_54046186482950
+DTSTART:20260923T170000Z
+DTEND:20260923T220000Z
+DESCRIPTION:The Curiosity Lab is an interdisciplinary hub for design\, expe
+ rimental learning and advanced technology. Our mission is to cultivate exp
+ erimental mindsets and foster multi-area collaboration.
+GEO:33.213091;-97.145488
+LOCATION:Art Building\, 160
+SUMMARY:The Curiosity Lab
+URL;VALUE=URI:https://calendar.unt.edu/event/the-curiosity-lab
+CATEGORIES:Social & Entertainment
+END:VEVENT
+END:VCALENDAR

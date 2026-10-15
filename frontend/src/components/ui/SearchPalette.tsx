@@ -13,7 +13,7 @@ import { useModalLayer } from "./modal-layer";
  */
 export type SearchItem = {
   id: string;
-  /** Course code or short identifier, set in Syne 13. */
+  /** Course code or short identifier, set as a `.ui-code`. */
   code?: string;
   title: string;
   /** Right-hand meta: status or "Needs CSCE 2110". */

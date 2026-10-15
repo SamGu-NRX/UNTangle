@@ -1,12 +1,16 @@
 "use client";
 
-import { LngLatBounds, Map as MapLibreMap, Marker, getVersion, setWorkerUrl } from "maplibre-gl";
+import { LngLat, LngLatBounds, Map as MapLibreMap, Marker, getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { activeCampus, type CampusConfig } from "@/lib/campus/config";
 import { START_KEY, stopNumbersLabel, type Itinerary, type ItineraryLeg, type ItineraryStop } from "@/lib/map-itinerary";
 import type { ClassDay, MapRoutePoint } from "@/lib/types";
-import { OSM_CONTRIBUTORS_ATTRIBUTION, campusMapStyle } from "@/components/map/campus-style";
+import { campusAttribution, campusMapStyle } from "@/components/map/campus-style";
+import { setBuildingHighlights } from "@/components/map/building-highlight";
+import { foldAttributionOnFirstInteraction } from "@/components/map/attribution";
+import { prewarmStreetZoom } from "@/components/map/prewarm";
+import { dayBuildingHighlights } from "@/lib/campus/map-detail/highlight";
 import { startMap } from "@/components/map/start-map";
 import {
   ROUTE_HIT_LAYER,
@@ -16,6 +20,7 @@ import {
   setRouteData,
 } from "@/components/map/map-layers";
 import type { MapSelection } from "@/components/map/selection";
+import { dayTilt } from "@/components/map/day-tilt";
 
 /**
  * Camera padding in CSS px: the measured panel or sheet plus clearance, and
@@ -30,12 +35,14 @@ export type DayFrame = { day: ClassDay; instant: boolean };
 type Props = {
   campus?: CampusConfig;
   itinerary: Itinerary;
+  /** The plan's courses in order, which picks each class building's course color (as the Week grid does). */
+  courseOrder?: readonly string[];
   selection: MapSelection;
   onSelect: (selection: MapSelection) => void;
   padding: CameraPadding;
   frame: DayFrame;
   reducedMotion: boolean;
-  /** Skip camera moves (the phone sheet is at full height and hides the map). */
+  /** The phone sheet is at full height and hides the map: skip camera moves and make the map inert. */
   frozen: boolean;
   /** The attribution row's height whenever it changes, so the phone sheet stops below it. */
   onCreditsHeight: (height: number) => void;
@@ -44,9 +51,10 @@ type Props = {
 /*
  * Camera values from the design's camera spec (apple-maps-web/camera.md,
  * MOTION.md §6): north up, a 500 ms flight with a 45° tilt when a stop is
- * chosen, flat views for the whole day and for legs, and instant moves for
- * the keyboard, first render and resizes. They are the design's proposals,
- * not measured optima.
+ * chosen, flat views for legs, and instant moves for the keyboard, first
+ * render and resizes. The whole day opens tilted too when it fits at street
+ * zoom (camera.md, "Whole itinerary"). They are the design's proposals, not
+ * measured optima.
  */
 const FLIGHT_MS = 500;
 /** How long a flight waits for the phone sheet to start its snap to half (MOTION.md §6). */
@@ -59,6 +67,8 @@ const OVERVIEW_MAX_ZOOM = 15.6;
 const STREET_PITCH = 45;
 const MAX_PITCH = 50;
 const FLAT_BELOW_ZOOM = 16;
+/** camera.md's provisional clearance: a tilted fit starts this many zoom levels farther out, then every point is checked. */
+const TILT_CLEARANCE = 0.45;
 
 /**
  * How far past the routing bounds people may pan, in degrees (about 3.3 km).
@@ -139,7 +149,6 @@ function mappedPoints(itinerary: Itinerary): MapRoutePoint[] {
   return itinerary.start ? [itinerary.start.place.point, ...stops] : stops;
 }
 
-/** Every leg the map draws: the walk from the starting point, then the walks between classes. */
 /** The padding with the attribution row's measured height added to the bottom. */
 function withCredits(map: MapLibreMap, padding: CameraPadding): CameraPadding {
   const container = map.getContainer();
@@ -163,8 +172,57 @@ function legEnds(itinerary: Itinerary, leg: ItineraryLeg): MapRoutePoint[] {
   });
 }
 
+/** Every leg the map draws: the walk from the starting point, then the walks between classes. */
 function drawnItinerary(itinerary: Itinerary): Itinerary {
   return itinerary.start ? { ...itinerary, legs: [itinerary.start.leg, ...itinerary.legs] } : itinerary;
+}
+
+type Camera = { center: [number, number]; zoom: number; pitch: number; bearing: 0 };
+
+/**
+ * The whole day's camera: tilted when the flat fit reaches street zoom and
+ * every stop still lands inside the visible map once tilted, flat otherwise
+ * (camera.md: visibility beats a decorative tilt). The check jumps to the
+ * tilted camera, projects each stop and jumps back in one task, so no frame
+ * shows the trial.
+ */
+function dayCamera(
+  map: MapLibreMap,
+  box: LngLatBounds,
+  points: MapRoutePoint[],
+  padding: CameraPadding,
+  maxZoom: number,
+  choice: boolean | null,
+  reducedMotion: boolean,
+): Camera | null {
+  const fit = map.cameraForBounds(box, { padding, maxZoom, bearing: 0 });
+  if (!fit?.center || fit.zoom === undefined) return null;
+  const center = LngLat.convert(fit.center);
+  const flat: Camera = { center: [center.lng, center.lat], zoom: fit.zoom, pitch: 0, bearing: 0 };
+  const tilted: Camera = { ...flat, zoom: fit.zoom - TILT_CLEARANCE, pitch: STREET_PITCH };
+  if (!dayTilt({ automatic: true, choice, reducedMotion })) return flat;
+  // As with the 3D control, an explicit tilt brings a broad day to street zoom.
+  // Only the automatic opening tilt yields to the all-stops-visible check below.
+  if (choice === true) return { ...tilted, zoom: Math.max(tilted.zoom, FLAT_BELOW_ZOOM) };
+  if (points.length === 0 || tilted.zoom < FLAT_BELOW_ZOOM) return flat;
+  const before = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+  map.jumpTo(tilted);
+  const { clientWidth: width, clientHeight: height } = map.getContainer();
+  const fits = points.every((point) => {
+    const { x, y } = map.project([point.lng, point.lat]);
+    return x >= padding.left && x <= width - padding.right && y >= padding.top && y <= height - padding.bottom;
+  });
+  map.jumpTo(before);
+  return fits ? tilted : flat;
+}
+
+/**
+ * A zoom step that leaves street zoom flattens in the same move, so an
+ * instant (keyboard) step stays instant instead of handing a 250 ms
+ * flattening to the zoomend handler.
+ */
+function zoomCamera(map: MapLibreMap, zoom: number): { zoom: number; pitch?: number } {
+  return zoom < FLAT_BELOW_ZOOM && map.getPitch() > 0 ? { zoom, pitch: 0 } : { zoom };
 }
 
 /** Below this much visible map (px) a fit has nothing useful to aim at; camera.md's floor. */
@@ -174,7 +232,20 @@ const MIN_FRAME_HEIGHT = 100;
 const KEY_PAN_PX = 100;
 const KEY_ZOOM = 1;
 
-export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelect, padding, frame: dayFrame, reducedMotion, frozen, onCreditsHeight }: Props) {
+const NO_COURSES: readonly string[] = [];
+
+export function MapCanvas({
+  campus = activeCampus,
+  itinerary,
+  courseOrder = NO_COURSES,
+  selection,
+  onSelect,
+  padding,
+  frame: dayFrame,
+  reducedMotion,
+  frozen,
+  onCreditsHeight,
+}: Props) {
   const { bounds } = campus;
   const maxBounds = new LngLatBounds(
     [bounds.west - PAN_MARGIN, bounds.south - PAN_MARGIN],
@@ -203,10 +274,19 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
   const [tilesFailed, setTilesFailed] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [pitch, setPitch] = useState(0);
+  /** The 3D control's last requested pitch while its ease runs. */
+  const pitchTarget = useRef<number | null>(null);
+
+  // Keep the student's choice across reframes, even after a camera move ends.
+  // Declared before the camera effects, so a new day's fit already sees it cleared.
+  const tiltChoice = useRef<boolean | null>(null);
+  useEffect(() => {
+    tiltChoice.current = null;
+  }, [dayFrame.day]);
 
   // Latest values for map event handlers, which are bound once.
-  const latest = useRef({ itinerary, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight });
-  latest.current = { itinerary, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight };
+  const latest = useRef({ itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight });
+  latest.current = { itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight };
 
   /* ---------- create the map once ---------- */
   useEffect(() => {
@@ -222,9 +302,11 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
       maxZoom: 19,
       maxPitch: latest.current.reducedMotion ? 0 : MAX_PITCH,
       maxBounds,
-      attributionControl: { compact: true, customAttribution: OSM_CONTRIBUTORS_ATTRIBUTION },
+      // Compact (behind an (i) button) only at 640 px or narrower; see attribution.ts.
+      attributionControl: { customAttribution: campusAttribution(campus) },
       // North stays up: no drag, twist or keyboard rotation, and no touch
-      // tilt. The camera tilts only when a stop is chosen.
+      // tilt. The camera tilts only for a chosen stop, the day's fit at
+      // street zoom, or the 3D control.
       dragRotate: false,
       pitchWithRotate: false,
       fadeDuration: latest.current.reducedMotion ? 0 : 150,
@@ -259,20 +341,23 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
       if (Object.hasOwn(pan, event.key)) {
         map.panBy(pan[event.key], { duration: 0 });
       } else if (event.key === "+" || event.key === "=") {
-        map.jumpTo({ zoom: map.getZoom() + KEY_ZOOM });
+        map.jumpTo(zoomCamera(map, map.getZoom() + KEY_ZOOM));
       } else if (event.key === "-" || event.key === "_") {
-        map.jumpTo({ zoom: map.getZoom() - KEY_ZOOM });
+        map.jumpTo(zoomCamera(map, map.getZoom() - KEY_ZOOM));
       } else {
         return;
       }
       event.preventDefault();
     };
     canvas.addEventListener("keydown", onKeyDown);
+    const stopFolding = foldAttributionOnFirstInteraction(map);
 
     map.on("load", () => {
       addRouteOverlay(map);
       setStyleReady(true);
       container.dataset.ready = "true";
+      // Once the day is framed and drawn, compile the street-zoom shaders before the first flight needs them.
+      map.once("idle", () => prewarmStreetZoom(map));
     });
 
     // The camera as plain attributes: what a browser test (or a curious
@@ -294,6 +379,9 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
     });
 
     map.on("pitchend", () => setPitch(map.getPitch()));
+    map.on("moveend", () => {
+      pitchTarget.current = null;
+    });
 
     // A drag takes the camera: a flight waiting for the sheet never starts,
     // and no correction follows the one in progress.
@@ -344,6 +432,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
       creditsObserver.disconnect();
       cancelPendingFlight();
       canvas.removeEventListener("keydown", onKeyDown);
+      stopFolding();
       markers.forEach(({ marker }) => marker.remove());
       markers.clear();
       startMarkerRef.current?.remove();
@@ -386,6 +475,17 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
     setRouteData(map, drawn);
     setLegSelection(map, drawn, selection?.kind === "leg" ? selection.key : null);
   }, [itinerary, selection, styleReady]);
+
+  /* ---------- the day's buildings, in course colors ---------- */
+  // The parent passes a fresh course list each render; repaint only when a building or its color changes.
+  const highlightSignature = dayBuildingHighlights(itinerary.stops, courseOrder)
+    .map((highlight) => `${highlight.buildingId}:${highlight.slot}`)
+    .join("|");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !styleReady) return;
+    setBuildingHighlights(map, dayBuildingHighlights(latest.current.itinerary.stops, latest.current.courseOrder));
+  }, [highlightSignature, styleReady]);
 
   /* ---------- pins ---------- */
   const pins = pinsFor(itinerary.stops);
@@ -484,7 +584,9 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
     }
     const move = animate && !reduce;
     map.stop();
-    flying.current = move;
+    // Set just before each move below: dayCamera's trial jumps fire moveend,
+    // which would otherwise end a flight that hasn't started.
+    flying.current = false;
 
     if (chosen?.kind === "stop") {
       const entry = current.stops.find((stop) => stop.key === chosen.key);
@@ -498,11 +600,14 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
           bearing: 0,
         });
         if (!camera?.center) return;
+        // Tilted unless the student turned 3D off or asks for reduced motion.
+        const pitch = dayTilt({ automatic: true, choice: tiltChoice.current, reducedMotion: reduce }) ? STREET_PITCH : 0;
+        flying.current = move;
         if (move) {
-          map.flyTo({ center: camera.center, zoom: camera.zoom, pitch: STREET_PITCH, bearing: 0, duration: FLIGHT_MS, easing: cameraEase });
+          map.flyTo({ center: camera.center, zoom: camera.zoom, pitch, bearing: 0, duration: FLIGHT_MS, easing: cameraEase });
         } else {
           // The keyboard lands where a pointer's flight would, without the flight.
-          map.jumpTo({ center: camera.center, zoom: camera.zoom, pitch: reduce ? 0 : STREET_PITCH, bearing: 0 });
+          map.jumpTo({ center: camera.center, zoom: camera.zoom, pitch, bearing: 0 });
         }
         return;
       }
@@ -516,20 +621,18 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
           : null;
       if (box) {
         // Legs stay flat: a tilted fit can push part of a bent path out of view.
+        flying.current = move;
         map.fitBounds(box, { padding: space, maxZoom: LEG_MAX_ZOOM, pitch: 0, bearing: 0, duration: move ? FLIGHT_MS : 0, easing: cameraEase });
         return;
       }
     }
 
-    const day = boundsOf(mappedPoints(current));
-    map.fitBounds(day ?? campusBounds, {
-      padding: space,
-      maxZoom: day ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM,
-      pitch: 0,
-      bearing: 0,
-      duration: move ? FLIGHT_MS : 0,
-      easing: cameraEase,
-    });
+    const points = mappedPoints(current);
+    const day = boundsOf(points);
+    const camera = dayCamera(map, day ?? campusBounds, points, space, day ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM, tiltChoice.current, reduce);
+    if (!camera) return;
+    flying.current = move;
+    map.easeTo({ ...camera, duration: move ? FLIGHT_MS : 0, easing: cameraEase });
   }, []);
 
   aimRef.current = aim;
@@ -604,11 +707,25 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
     if (!map) return;
     cancelPendingFlight();
     map.stop();
-    map.easeTo({ zoom: map.getZoom() + delta, duration: controlMs(event, CONTROL_MS), easing: cameraEase });
+    map.easeTo({ ...zoomCamera(map, map.getZoom() + delta), duration: controlMs(event, CONTROL_MS), easing: cameraEase });
   };
-  const flatten = (event: { detail: number }) => {
+  // 3D on lifts the camera to street zoom if it's farther out (DESIGN.md: 3D at street zoom only).
+  // A press during the 250 ms ease reverses the requested direction, not the half-way pitch.
+  const toggle3d = (event: { detail: number }) => {
+    const map = mapRef.current;
+    if (!map || reducedMotion) return;
+    const tilted = map.isMoving() && pitchTarget.current !== null ? pitchTarget.current > 0 : map.getPitch() >= 1;
     cancelPendingFlight();
-    mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: controlMs(event, CONTROL_MS), easing: cameraEase });
+    map.stop();
+    tiltChoice.current = !tilted;
+    pitchTarget.current = tilted ? 0 : STREET_PITCH;
+    map.easeTo({
+      pitch: tilted ? 0 : STREET_PITCH,
+      zoom: tilted ? map.getZoom() : Math.max(map.getZoom(), FLAT_BELOW_ZOOM),
+      bearing: 0,
+      duration: controlMs(event, CONTROL_MS),
+      easing: cameraEase,
+    });
   };
   const fitDay = (event: { detail: number }) => {
     const map = mapRef.current;
@@ -616,15 +733,10 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
     onSelect(null);
     cancelPendingFlight();
     map.stop();
-    const box = boundsOf(mappedPoints(itinerary));
-    map.fitBounds(box ?? campusBounds, {
-      padding: withCredits(map, padding),
-      maxZoom: box ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM,
-      pitch: 0,
-      bearing: 0,
-      duration: controlMs(event, FLIGHT_MS),
-      easing: cameraEase,
-    });
+    const points = mappedPoints(itinerary);
+    const box = boundsOf(points);
+    const camera = dayCamera(map, box ?? campusBounds, points, withCredits(map, padding), box ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM, tiltChoice.current, reducedMotion);
+    if (camera) map.easeTo({ ...camera, duration: controlMs(event, FLIGHT_MS), easing: cameraEase });
   };
 
   if (unavailable) {
@@ -639,7 +751,9 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
   }
 
   return (
-    <div className="mv-canvas">
+    // At full the sheet covers the map and its controls sit off screen; inert
+    // keeps the canvas, markers and buttons out of the tab order until it collapses.
+    <div className="mv-canvas" inert={frozen}>
       <div ref={containerRef} className="mv-canvas__map" data-testid="campus-map" />
       <div className="mv-controls" role="group" aria-label="Map controls">
         <div className="mv-controls__stack">
@@ -652,16 +766,19 @@ export function MapCanvas({ campus = activeCampus, itinerary, selection, onSelec
         </div>
         <button
           type="button"
-          className="mv-control"
-          onClick={flatten}
-          aria-label="Flatten the map"
-          disabled={pitch < 1}
+          className="mv-control mv-control--text"
+          onClick={toggle3d}
+          aria-label="3D view"
+          aria-pressed={pitch >= 1}
+          aria-disabled={reducedMotion || undefined}
+          aria-describedby={reducedMotion ? "mv-3d-note" : undefined}
+          title={reducedMotion ? "3D is off while your device asks for reduced motion" : undefined}
         >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path className="mv-compass-n" d="M8 2.5 10.2 8H5.8Z" />
-            <path className="mv-compass-s" d="M8 13.5 5.8 8h4.4Z" />
-          </svg>
+          3D
         </button>
+        {reducedMotion ? (
+          <span id="mv-3d-note" className="mv-visually-hidden">3D is off while your device asks for reduced motion.</span>
+        ) : null}
         <button type="button" className="mv-control" onClick={fitDay} aria-label="Show the whole day">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" /></svg>
         </button>

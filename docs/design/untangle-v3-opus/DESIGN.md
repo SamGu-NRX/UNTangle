@@ -177,9 +177,12 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 ### 4.6 Sign in (`06-sign-in.html`)
 
 - A dialog on desktop, a sheet on phone, over the current screen.
-- Content: "Sign in", "Keep your schedules on every device. What you made as a guest comes with you.", Email (`autocomplete=username`, `inputmode=email`, no autocapitalize), Password (`current-password`, Show, Forgot it?), a full-width **Sign in**, "New here? Create an account", and "You can use UNTangle without an account. Signing in only syncs."
-- "Create an account" switches the title and button in place and reserves the help line, so the form never jumps.
-- Errors sit under the field in danger text ("That password doesn't match this email. Try again, or reset it."). No magic-link button and no social buttons.
+- **Changed by the sign-in decision** ([`../untangle-v3.md`](../untangle-v3.md#decisions-taken-defaults-until-sam-says-otherwise): magic link first, password second). The mockup follows the shipped `/auth` (`components/auth-client.tsx`) in three views, swapped in place with focus moved to the new heading:
+  - **Link** (the default): "Sign in", "Keep your schedules on every device. What you made as a guest comes with you. We'll email you a sign-in link. No password needed.", UNT email (`autocomplete=email`, `inputmode=email`, no autocapitalize), a full-width **Email me a sign-in link**, and "Use a password instead".
+  - **Sent**: "Check your UNT email", the address, "It works once and expires in 5 minutes.", Resend link, "Use a different email" and "Use a password instead".
+  - **Password**: "Sign in with a password", UNT email (`autocomplete=email`, matching the shipped `/auth`), Password (`current-password`, Show, Forgot it?), **Sign in**, and "Email me a link instead".
+- There is no separate create-account mode: the first link creates the account. Every view ends with "You can use UNTangle without an account. Signing in only syncs."
+- Errors sit under the field in danger text and are tied to it with `aria-describedby` ("Use a UNT email address ending in @unt.edu or @my.unt.edu.", "That password doesn't match this email. Try again, or reset it."). No social buttons.
 
 ## 5. Grid, spacing and breakpoints
 
@@ -345,7 +348,7 @@ Event states: default, `selected` (2px course-color ring, options visible), `con
 - **Copying UTRP's look** (burnt orange, outline buttons in three colors, a 375ms dialog with a 250ms ease-in exit, `Dialog.tsx:58-65`). The flow is taken; the look and that exit curve are not.
 - **Live constraints with no Build button.** Live updates still happen while the options bar is open. An explicit Auto / Build button is kept because vsb users already know it, and an action you trigger is easier to undo than a schedule that changes under you.
 - **Stagger-on-load for lists.** Lists run to 100+ rows and are seen dozens of times a day.
-- **3D tilt as a default.** It applies only on explicit stop or leg selection at street zoom (camera.md), never on load.
+- **3D tilt for every day.** Sam asked for the map to show the campus in 3D, so a day opens tilted to 45° when its whole route fits at street zoom with every stop in view (camera.md, "Whole itinerary"). A day too spread out for that opens flat, where stops stay comparable, and the 3D control tilts it on request.
 - **Dark mode in this pass.** The tokens are role-named so a dark set can be added; no dark palette has been designed or contrast-checked.
 
 ## 12. Decisions for the lead

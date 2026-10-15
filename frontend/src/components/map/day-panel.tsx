@@ -248,6 +248,24 @@ export function DayHero({
   );
 }
 
+/**
+ * The hero on another campus's map (`?campus=ut-austin`): the planner and its
+ * sections are UNT's, so that map has buildings and no day to lead with.
+ */
+export function OtherCampusHero({ campusName, homeName }: { campusName: string; homeName: string }) {
+  return (
+    <div className="mv-hero">
+      <p className="mv-hero__label">{campusName} map</p>
+      <p className="mv-hero__sub">
+        This {campusName} map shows buildings only. Your plan&rsquo;s classes are at {homeName}, so their walks are in Day.
+      </p>
+      <Link className="mv-link mv-hero__show" href="/day">
+        Day
+      </Link>
+    </div>
+  );
+}
+
 /* ---------- itinerary ---------- */
 
 function legTone(leg: ItineraryLeg, past: boolean): PathLeg {
