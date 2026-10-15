@@ -84,6 +84,12 @@ test("empty input yields empty output and a single event passes through unchange
 test("titles in non-Latin scripts stay distinct", () => {
   expect(normalizeEventTitle("日本語")).not.toBe(normalizeEventTitle("中文"));
   expect(dedupeEvents([event({ title: "日本語" }), event({ title: "中文" })]).length).toBe(2);
+  // Titles that differ only by a vowel sign (a combining mark) stay distinct.
+  expect(normalizeEventTitle("कि")).not.toBe(normalizeEventTitle("की"));
+});
+
+test("one title in composed and decomposed form normalizes the same", () => {
+  expect(normalizeEventTitle("Caf\u00e9 Night")).toBe(normalizeEventTitle("Cafe\u0301 Night"));
 });
 
 test("a chain whose ends are more than the window apart collapses through its middle", () => {

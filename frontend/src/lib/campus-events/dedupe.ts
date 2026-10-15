@@ -11,11 +11,12 @@ import type { NormalizedEvent } from "./types";
 /** Two occurrences of one event may start this far apart, in milliseconds. */
 export const DEDUPE_START_WINDOW_MS = 5 * 60 * 1000;
 
-/** Lowercase, turn everything but letters and digits (in any script) into spaces, collapse whitespace. */
+/** NFC, lowercase, turn everything but letters, combining marks and digits (in any script) into spaces, collapse whitespace. */
 export function normalizeEventTitle(title: string): string {
   return title
+    .normalize("NFC")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, " ")
     .trim();
 }
 
