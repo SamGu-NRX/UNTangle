@@ -103,6 +103,9 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     expect((await repo.pull("alice")).find((d) => d.documentId === "deleted")).toMatchObject({ documentId: "deleted", kind: "schedule", revision: 2, deleted: true });
     await expect(repo.get("alice", "deleted")).rejects.toMatchObject({ status: 404 });
     await expect(put("deleted", { baseRevision: 1 })).rejects.toMatchObject({ code: "REVISION_CONFLICT", revision: 2 });
+    await expect(put("deleted", { baseRevision: 2 })).rejects.toMatchObject({ code: "DOCUMENT_DELETED", revision: 2 });
+    await expect(put("deleted", { baseRevision: 2, body: null })).rejects.toMatchObject({ code: "DOCUMENT_DELETED", revision: 2 });
+    expect((await repo.pull("alice")).find((d) => d.documentId === "deleted")).toMatchObject({ revision: 2, deleted: true });
   });
 
   test("versions are create-only, with database enforcement and a shared document id namespace", async () => {
