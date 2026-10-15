@@ -28,15 +28,25 @@ afterAll(() => {
 });
 
 const router = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch: async () => {} };
-const label = (button: HTMLButtonElement) => button.querySelector(".ui-btn__label")?.textContent ?? button.textContent ?? "";
-const named = (root: Element, text: string) => [...root.querySelectorAll<HTMLButtonElement>("button")].find(button => label(button).trim() === text);
+/** Week sits inside the app shell; this stands in for the shell's search hooks. */
+const shell = { openSearch() {}, setSearchProvider() {}, pageState: new Map<string, unknown>() };
+/** A button by its visible label, or by its accessible name for an icon button. */
+const label = (button: HTMLButtonElement) => (button.querySelector(".ui-btn__label")?.textContent || button.textContent || button.getAttribute("aria-label") || "").trim();
+const named = (root: Element, text: string) => [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => label(button) === text);
 
 test("Undo control restores the student's stored picks in the rendered week", async () => {
-  const { ScheduleClient } = await import("@/components/schedule-client");
-  const planner = await mountPlanner(() => <AppRouterContext.Provider value={router}><ScheduleClient /></AppRouterContext.Provider>);
+  const { WeekPage } = await import("@/app/schedule/week-page");
+  const { ShellContext } = await import("@/components/shell/shell-context");
+  const planner = await mountPlanner(() => (
+    <AppRouterContext.Provider value={router}>
+      <ShellContext.Provider value={shell}>
+        <WeekPage hostId="untangle" query={null} week={null} />
+      </ShellContext.Provider>
+    </AppRouterContext.Provider>
+  ));
   try {
     await planner.get().afterHydration();
-    await planner.run(p => {
+    await planner.run((p) => {
       p.setCourseStatus("ANTH 1010", "inProgress");
       p.setCourseStatus("MATH 1710", "inProgress");
       p.setOptimization("clusterNight");
@@ -45,20 +55,34 @@ test("Undo control restores the student's stored picks in the rendered week", as
     const grid = () => planner.container.querySelector<HTMLElement>('section[aria-label*="week" i]')!;
     const before = grid().textContent;
     expect(before).toContain("ANTH 1010");
-    await act(async () => { named(planner.container, "Optimize week")!.click(); });
-    for (let attempt = 0; attempt < 100 && !named(planner.container, "Use option A"); attempt++) {
-      await act(async () => { await Bun.sleep(10); });
+    // Auto shows its alternatives one at a time; "Use this" puts the one on screen on the week.
+    await act(async () => {
+      named(planner.container, "Auto")!.click();
+    });
+    const usable = () => {
+      const use = named(planner.container, "Use this");
+      return use && !use.disabled ? use : undefined;
+    };
+    for (let attempt = 0; attempt < 200 && !usable(); attempt++) {
+      await act(async () => {
+        await Bun.sleep(10);
+      });
     }
-    const use = named(planner.container, "Use option A");
+    const use = usable();
     expect(use).not.toBeUndefined();
-    await act(async () => { use!.click(); });
+    await act(async () => {
+      use!.click();
+    });
     expect(grid().textContent).not.toBe(before);
+    expect(planner.get().sectionPicks).not.toEqual({ "ANTH 1010": "anth-1010-003" });
     const undo = named(planner.container, "Undo");
-    expect(undo).not.toBeUndefined();
-    await act(async () => { undo!.click(); });
+    expect(undo?.disabled).toBe(false);
+    await act(async () => {
+      undo!.click();
+    });
     expect(grid().textContent).toBe(before);
     expect(planner.get().sectionPicks).toEqual({ "ANTH 1010": "anth-1010-003" });
-    expect(named(planner.container, "Undo")).toBeUndefined();
+    expect(named(planner.container, "Undo")?.disabled).toBe(true);
   } finally {
     await planner.unmount();
   }

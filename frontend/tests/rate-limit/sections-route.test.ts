@@ -15,3 +15,13 @@ test("the sections route answers 429 once an anonymous caller passes its budget"
   for (let i = 0; i < budgets.sections.ip; i++) expect((await call()).status).toBe(400);
   expect((await call()).status).toBe(429);
 });
+
+test("the class-number route is rate limited like the per-course route", async () => {
+  pinClockMidWindow();
+  const { GET } = await import("@/app/api/sections/[term]/class/[number]/route");
+  const params = { term: "x", number: "21843" };
+  const call = () => GET(new Request("http://localhost/api/sections/x/class/21843", { headers: { "x-real-ip": "192.0.2.78" } }),
+    { params: Promise.resolve(params) });
+  for (let i = 0; i < budgets.sections.ip; i++) expect((await call()).status).toBe(400);
+  expect((await call()).status).toBe(429);
+});

@@ -1,0 +1,941 @@
+/*
+ * Week's Preferences popover (r3 mockup, /tmp/untangle-mockups/r3/preferences.html).
+ * Motion: the popover scales in from its button (220ms ease-out, 140ms out),
+ * a leaning's editor opens with grid-template-rows (the one sanctioned height
+ * animation), and pressables scale to .97. Keyboard opens skip the motion;
+ * reduced motion keeps only fades.
+ */
+
+.block[data-hue="1"] { --c: var(--c1); --ct: var(--c1t); }
+.block[data-hue="2"] { --c: var(--c2); --ct: var(--c2t); }
+.block[data-hue="3"] { --c: var(--c3); --ct: var(--c3t); }
+.block[data-hue="4"] { --c: var(--c4); --ct: var(--c4t); }
+.block[data-hue="5"] { --c: var(--c5); --ct: var(--c5t); }
+.block[data-hue="6"] { --c: var(--c6); --ct: var(--c6t); }
+
+.code {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ───────── Shell ───────── */
+
+.pop {
+  position: fixed;
+  z-index: 60;
+  width: min(452px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+  /* Grows out of the Preferences button, which sits above the nub. */
+  transform-origin: calc(100% - var(--nub, 60px)) -8px;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.97);
+  transition:
+    opacity var(--t-exit) var(--ease-out),
+    transform var(--t-exit) var(--ease-out);
+}
+.pop[data-shown] {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--t-enter);
+}
+.pop[data-instant] {
+  transition-duration: 0ms;
+}
+.nub {
+  position: absolute;
+  top: -6px;
+  right: calc(var(--nub, 60px) - 6px);
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-radius: 3px 0 0 0;
+  background: var(--paper);
+  transform: rotate(45deg);
+}
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: none;
+  padding: 14px 14px 10px 20px;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--t-hover) ease;
+}
+.head[data-scrolled] {
+  border-bottom-color: var(--line);
+}
+.head > div {
+  flex: 1;
+  min-width: 0;
+}
+.head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  outline: none;
+}
+.head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.sheet .head {
+  padding: 0 12px 8px 20px;
+}
+.sheetBody {
+  padding-bottom: calc(24px + var(--safe-b));
+}
+
+/* ───────── Sections ───────── */
+
+.sec {
+  container-type: inline-size;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--line);
+}
+.sec:first-child {
+  padding-top: 2px;
+  border-top: 0;
+}
+.sec h3 {
+  /* A section scrolled to (keyboard focus, a link) keeps its padding under the head's rule. */
+  scroll-margin-top: 14px;
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+.secSub {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: -4px 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.hint svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* ───────── The painted grid ───────── */
+
+.paint {
+  --rowh: 10.5px;
+  --gut: 50px;
+  display: grid;
+  grid-template-columns: var(--gut) minmax(0, 1fr);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.paint[data-touch] {
+  --rowh: 17px;
+}
+.paintDays {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.paintDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition:
+    background-color var(--t-hover) ease,
+    color var(--t-hover) ease,
+    transform var(--t-press) var(--ease-out);
+}
+.paint[data-touch] .paintDay {
+  height: 44px;
+}
+.paintDay:active {
+  transform: scale(0.97);
+}
+.paintDay span,
+.paintDay small {
+  line-height: 1.2;
+}
+.paintDay small {
+  height: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--attention);
+  opacity: 0;
+  transition: opacity var(--t-hover) ease;
+}
+.paintDay[aria-pressed="true"] {
+  color: var(--ink-3);
+}
+.paintDay[aria-pressed="true"] span {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.paintDay[aria-pressed="true"] small {
+  height: auto;
+  opacity: 1;
+}
+.paintDay:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .paintDay:hover {
+    background: var(--paper-2);
+  }
+}
+.paintGutter {
+  position: relative;
+}
+.paintGutter > span {
+  position: absolute;
+  right: 17px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+.paintBody {
+  --hatch: repeating-linear-gradient(135deg, rgba(79, 101, 79, 0.2) 0 1px, transparent 1px 7px);
+  position: relative;
+  height: calc(var(--rows) * var(--rowh));
+  overflow: hidden;
+  border-radius: 10px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px),
+    linear-gradient(to right, var(--line) 1px, transparent 1px);
+  background-size:
+    100% calc(var(--rowh) * 2),
+    20% 100%;
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: crosshair;
+  touch-action: pan-y;
+  outline: none;
+}
+.paintBody:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--line), var(--focus);
+}
+.outside,
+.dayOff {
+  position: absolute;
+  pointer-events: none;
+  background-color: var(--paper-2);
+  background-image: var(--hatch);
+}
+.outside {
+  left: 0;
+  right: 0;
+}
+.outside[data-edge="top"] {
+  top: 0;
+}
+.outside[data-edge="bottom"] {
+  bottom: 0;
+}
+.dayOff {
+  top: 0;
+  bottom: 0;
+  width: 20%;
+}
+.edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid var(--brand-2);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.block,
+.preview {
+  position: absolute;
+  width: 20%;
+  padding: 1.5px 2px;
+  pointer-events: none;
+}
+.block > span {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  padding: 3px 5px 3px 7px;
+  border-radius: 6px;
+  background-color: #e7ece6;
+  background-image: repeating-linear-gradient(135deg, rgba(79, 101, 79, 0.46) 0 1.25px, transparent 1.25px 6px);
+  box-shadow: inset 0 0 0 1px rgba(79, 101, 79, 0.45);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A named block wears its hue; the bar is a clipped ::before, never an inset shadow that curls at the corner. */
+.block[data-named] > span {
+  position: relative;
+  background: var(--ct);
+  box-shadow: none;
+  color: color-mix(in oklab, var(--c) 72%, #000);
+}
+.block[data-named] > span::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--c);
+}
+.preview {
+  border-radius: 6px;
+  outline: 1.5px dashed var(--brand-2);
+  outline-offset: -1.5px;
+  background: color-mix(in oklab, var(--brand-2) 12%, transparent);
+}
+.preview[data-mode="free"] {
+  background: color-mix(in oklab, var(--paper) 70%, transparent);
+}
+.cellHover,
+.cellCursor {
+  position: absolute;
+  width: 20%;
+  height: var(--rowh);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.cellHover {
+  box-shadow: inset 0 0 0 1.5px rgba(0, 122, 64, 0.45);
+}
+.cellCursor {
+  box-shadow: inset 0 0 0 2px var(--brand-2);
+}
+.paintBody[data-painting] .cellHover {
+  display: none;
+}
+.knob {
+  position: absolute;
+  right: -13px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: -13px;
+  padding: 0;
+  border: 1.5px solid var(--brand-2);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--brand-2);
+  box-shadow: var(--shadow-1);
+  cursor: ns-resize;
+  touch-action: none;
+  transition: transform var(--t-press) var(--ease-out);
+}
+/* A 44px target around the 26px knob. */
+.knob::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+.knob[data-active] {
+  transform: scale(1.08);
+}
+.knob:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ───────── The ledger under the grid ───────── */
+
+.ledger,
+.srows {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ledger {
+  margin-top: 18px;
+}
+.srows {
+  margin: 0;
+}
+.ledger li,
+.srows li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.ledger li:first-child,
+.srows li:first-child {
+  border-top: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ledger li,
+  .srows li {
+    animation: row-in 200ms var(--ease-out);
+  }
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+.ledgerEmpty,
+.srowEmpty {
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.srowEmpty {
+  margin: 0;
+  padding: 8px 0 10px;
+}
+.rowIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+.srows li[data-kind="lock"] .rowIcon {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.rowText b {
+  font-weight: 600;
+}
+.rowText > span {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.rowText > span[data-over] {
+  color: var(--attention);
+  font-weight: 600;
+}
+.rowX {
+  flex: none;
+  color: var(--ink-3);
+}
+.nameField {
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1.5px dashed var(--line-2);
+  background: transparent;
+  font: 600 13px/1.4 var(--font-ui);
+  color: var(--ink);
+}
+.nameField::placeholder {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.nameField:focus {
+  outline: none;
+  border-bottom: 1.5px solid var(--brand-2);
+}
+@media (pointer: coarse) {
+  .nameField {
+    font-size: 16px;
+  }
+}
+
+/* ───────── Leaning cards ───────── */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--paper);
+  text-align: left;
+  transition:
+    transform var(--t-press) var(--ease-out),
+    border-color var(--t-hover) ease,
+    box-shadow var(--t-hover) ease;
+}
+.card[data-wide] {
+  grid-column: span 2;
+}
+.card:active {
+  transform: scale(0.97);
+}
+.cardPic {
+  display: grid;
+  place-items: center;
+  height: 58px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--paper-2);
+  transition: background-color var(--t-hover) ease;
+}
+.cardPic svg {
+  display: block;
+  max-width: 100%;
+}
+.card b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.cardValue {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+.card[aria-expanded="true"] {
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 1px var(--brand-2);
+}
+.card[aria-expanded="true"] .cardPic {
+  background: var(--brand-soft);
+}
+.card[aria-expanded="true"] .cardValue {
+  color: var(--brand);
+}
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    border-color: var(--line-2);
+    box-shadow: var(--shadow-1);
+  }
+  .card[aria-expanded="true"]:hover {
+    border-color: var(--brand-2);
+    box-shadow: 0 0 0 1px var(--brand-2);
+  }
+}
+@media (pointer: coarse) {
+  .card {
+    min-height: 118px;
+  }
+}
+/* The editor opens under the cards. */
+.wellWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--t-enter) var(--ease-out);
+}
+.wellWrap[data-open] {
+  grid-template-rows: 1fr;
+}
+.wellWrap > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.well {
+  margin-top: 8px;
+  padding: 10px 14px 12px;
+  border-radius: 13px;
+  background: var(--paper-2);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.wellWrap[data-open] .well {
+  opacity: 1;
+}
+.wellHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -2px -6px 2px 0;
+}
+.wellHead b {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 650;
+}
+/*
+ * The slider's value bubble rises about 30px above the thumb while it is
+ * dragged or focused. The slider's own head row is hidden here (the well
+ * title names it), so this row keeps that room itself and the bubble never
+ * reaches the title, at any value or width.
+ */
+.slideRow {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 10px;
+  padding-top: 24px;
+}
+.endPic {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--ink-4);
+  transition:
+    color 180ms ease,
+    transform 180ms var(--ease-out);
+}
+.endPic[data-on] {
+  color: var(--brand-2);
+  transform: scale(1.08);
+}
+.slider {
+  min-width: 0;
+}
+/* The well's title names the slider and the card shows the value, so the slider's own head is for screen readers only. */
+.slider :global(.ui-slider__head) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.says {
+  min-height: 18px;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ───────── Courses and sections ───────── */
+
+.creditRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 2px 0 10px;
+}
+.creditPic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 92px;
+  height: 40px;
+  border-radius: 9px;
+  background: var(--paper-2);
+}
+.creditRow .rowText b {
+  font-size: 13.5px;
+}
+.stepper {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--paper-2);
+}
+.subHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 2px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.subHead > span {
+  flex: 1;
+}
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  margin-right: -6px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--brand-2);
+  transition:
+    background-color var(--t-hover) ease,
+    transform var(--t-press) var(--ease-out);
+}
+.add:active {
+  transform: scale(0.97);
+}
+.add[aria-expanded="true"] {
+  background: var(--brand-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .add:hover {
+    background: var(--brand-soft);
+  }
+}
+@media (pointer: coarse) {
+  .add {
+    min-height: 44px;
+  }
+}
+.picker {
+  margin: 6px 0 4px;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .picker {
+    animation: row-in 200ms var(--ease-out);
+  }
+}
+.pickerHead {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: 12.5px;
+  transition:
+    background-color var(--t-hover) ease,
+    border-color var(--t-hover) ease,
+    transform var(--t-press) var(--ease-out);
+}
+.chip:active {
+  transform: scale(0.97);
+}
+.chip[aria-pressed="true"] {
+  border-color: var(--brand-2);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.chipMeta {
+  color: var(--ink-2);
+}
+@media (pointer: coarse) {
+  .chip {
+    height: 44px;
+  }
+}
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 2px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  font-size: 13px;
+}
+.opt:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.optTag {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .opt:not(:disabled):hover {
+    background: var(--paper-2);
+  }
+}
+
+/* ───────── More settings ───────── */
+
+.moreToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 20px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  scroll-margin-top: 8px;
+  transition: background-color var(--t-hover) ease;
+}
+.moreToggle > svg:first-child {
+  color: var(--ink-3);
+}
+.moreToggle > span:nth-of-type(1) {
+  flex: none;
+}
+.moreCount {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.chev {
+  margin-left: auto;
+  color: var(--ink-3);
+  transition: transform var(--t-enter) var(--ease-out);
+}
+.moreToggle[aria-expanded="true"] .chev {
+  transform: rotate(180deg);
+}
+.moreToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .moreToggle:hover {
+    background: var(--paper-2);
+  }
+}
+.moreBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--t-enter) var(--ease-out);
+}
+.moreBody[data-open] {
+  grid-template-rows: 1fr;
+}
+.moreBody > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.moreIn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 20px 18px;
+}
+.walkRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.walkRow b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.walkRow > span {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.resetRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.resetRow > span {
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    transform: none;
+  }
+  .card,
+  .chip,
+  .add,
+  .paintDay,
+  .knob,
+  .endPic,
+  .chev {
+    transition-property: opacity, background-color, color, border-color, box-shadow;
+  }
+  .card:active,
+  .chip:active,
+  .add:active,
+  .paintDay:active {
+    transform: none;
+  }
+  .wellWrap,
+  .moreBody {
+    transition: none;
+  }
+}
+
+/* The sheet's head gets the same hairline as the popover's once its body scrolls,
+   so content passing under it reads as scrolled rather than clipped. */
+:global(.ui-sheet):has(:global(.ui-sheet__body):not([data-at-top])) .head {
+  border-bottom-color: var(--line);
+}
+
+/*
+ * A narrow section (a 320px phone; container widths are the content box, so
+ * 390 measures 350): three cards a row left about 80px each, and a title like
+ * "Well-rated instructors" ran into the card's edge. Two a row instead (Time
+ * of day keeps the full row). The credit picture shrinks so its title isn't
+ * stacked a word per line. The slider keeps its end pictures: they hold the
+ * thumb far enough in that its bubble stays inside the well at either end.
+ */
+@container (max-width: 300px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .creditPic {
+    width: 64px;
+  }
+  .creditPic svg {
+    width: 56px;
+    height: auto;
+  }
+}

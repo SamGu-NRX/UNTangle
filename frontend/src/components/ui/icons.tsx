@@ -140,6 +140,47 @@ export const DayGlyph = (p: GlyphProps) => (
   </Glyph24>
 );
 
+/* Week's glyphs (03-schedule-builder.html sprite). */
+export const SlidersGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </Glyph24>
+);
+export const ShareGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M12 15V4M8 8l4-4 4 4" />
+    <path d="M6 11.5H5.5A1.5 1.5 0 0 0 4 13v5.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V13a1.5 1.5 0 0 0-1.5-1.5H18" />
+  </Glyph24>
+);
+export const LockGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <rect x="5" y="10.5" width="14" height="10" rx="2" />
+    <path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" />
+  </Glyph24>
+);
+export const AlertGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5v5.5" />
+    <circle cx="12" cy="16.4" r=".9" fill="currentColor" stroke="none" />
+  </Glyph24>
+);
+export const ImageGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="M20.5 15.5l-5-4.5-8.5 8" />
+  </Glyph24>
+);
+export const CopyGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+  </Glyph24>
+);
+
 /** Ring spinner with one open quarter; constant motion, so linear. Pulses instead under reduced motion. */
 export function Spinner({ size = 16, className }: { size?: number; className?: string }) {
   return (
@@ -151,3 +192,63 @@ export function Spinner({ size = 16, className }: { size?: number; className?: s
     />
   );
 }
+
+/* Week preferences' glyphs (r3 preferences mockup), on the same 24px grid. */
+export const SunriseGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M3 18h18M7 18a5 5 0 0 1 10 0" />
+    <path d="M12 4v3M5.6 9.6l1.4 1.4M18.4 9.6 17 11M9.5 5.5 12 3l2.5 2.5" />
+  </Glyph24>
+);
+export const MoonGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M19.5 14.5A7.5 7.5 0 0 1 9.5 4.5a7.5 7.5 0 1 0 10 10Z" />
+  </Glyph24>
+);
+export const CalendarOffGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+    <path d="M4 10h16M8.5 3.5v3M15.5 3.5v3M10 13.5l4 4M14 13.5l-4 4" />
+  </Glyph24>
+);
+export const BriefcaseGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <rect x="3.5" y="7.5" width="17" height="12" rx="2" />
+    <path d="M9 7.5V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v1.5M3.5 12.5h17" />
+  </Glyph24>
+);
+export const BookGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5Z" />
+    <path d="M12 6.5v13" />
+  </Glyph24>
+);
+export const GearGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <circle cx="12" cy="12" r="2.5" />
+    <circle cx="12" cy="12" r="6" />
+    <path d="M12 3.5V6M12 18v2.5M3.5 12H6M18 12h2.5M6 6l1.8 1.8M16.2 16.2 18 18M6 18l1.8-1.8M16.2 7.8 18 6" />
+  </Glyph24>
+);
+export const UnlockGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <rect x="5" y="10.5" width="14" height="10" rx="2" />
+    <path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 6.8-1.2" />
+  </Glyph24>
+);
+export const BanGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M6 6l12 12" />
+  </Glyph24>
+);
+export const PointerGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M6 4.5 18 11l-5.2 1.3L10.5 18Z" />
+  </Glyph24>
+);
+export const TouchGlyph = (p: GlyphProps) => (
+  <Glyph24 {...p}>
+    <path d="M9 13V6.5a1.5 1.5 0 0 1 3 0V12M12 11a1.5 1.5 0 0 1 3 0v1M15 11.5a1.5 1.5 0 0 1 3 0V15a5 5 0 0 1-5 5h-1a5 5 0 0 1-4-2l-2.2-3a1.4 1.4 0 0 1 2.2-1.8L9 14.5" />
+  </Glyph24>
+);

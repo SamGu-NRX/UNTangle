@@ -1,4 +1,5 @@
 import {
+  classNumberPattern,
   coursePattern,
   diagnose,
   maxBytes,
@@ -35,6 +36,8 @@ type Slot = {
 
 type Loaded = VsbFile | { data: null; diagnostic: Diagnostic | null };
 
+export type ClassNumberMatch = { term: string; classNumber: string; courseCode: string; sectionId: string };
+
 const userAgent = "UNTangle/1.0 (section proxy; https://github.com/SamGu-NRX/UNTangle)";
 const noStore = { "Cache-Control": "no-store" };
 
@@ -68,6 +71,8 @@ export class SectionsProxy {
   private readonly slots = new Map<string, Slot>();
   /** Per term: when to try subject files again after vsb had none for a real subject. */
   private readonly subjectFilesOffUntil = new Map<string, number>();
+  /** Class number -> section, built once per parsed term file and dropped with it. */
+  private readonly classIndex = new WeakMap<VsbTerm, Map<string, { courseCode: string; sectionId: string; primary: boolean }>>();
   private readonly fetcher: Fetcher;
   private readonly now: () => number;
   private readonly retain: (work: Promise<void>) => void;
@@ -87,6 +92,50 @@ export class SectionsProxy {
     }
     // Upstream failures are data states (stale or unavailable), so they still answer 200.
     return Response.json(await this.getCourseSections(term, courseCode), { headers: noStore });
+  }
+
+  /** Handles GET /api/sections/[term]/class/[number]: which section a myUNT class number belongs to. */
+  async respondClassNumber(term: string, number: string): Promise<Response> {
+    if (!termPattern.test(term) || !classNumberPattern.test(number)) {
+      const error = "Expected a term like spring-2027 and a class number like 21843";
+      return Response.json({ error }, { status: 400, headers: noStore });
+    }
+    const found = await this.findClassNumber(term, number);
+    if (found === "unavailable") {
+      return Response.json({ error: `${term} sections are unavailable right now` }, { status: 503, headers: noStore });
+    }
+    if (!found) return Response.json({ error: `No ${term} section has class number ${number}` }, { status: 404, headers: noStore });
+    return Response.json(found, { headers: noStore });
+  }
+
+  /**
+   * The section a class number names, from the term file. A number shared by
+   * several options (a lab linked to more than one lecture) names the option
+   * whose primary component it is, else the first that lists it. "unavailable"
+   * when the term file could not be read, so a miss is never claimed blind.
+   */
+  async findClassNumber(term: string, number: string): Promise<ClassNumberMatch | null | "unavailable"> {
+    if (!supportedTerms.some(supported => supported.id === term)) return null;
+    const whole = await this.load(term);
+    if (!whole.data) return "unavailable";
+    let index = this.classIndex.get(whole.data);
+    if (!index) {
+      index = new Map();
+      for (const [courseCode, record] of whole.data.courses) {
+        if (!Array.isArray(record)) continue;
+        for (const section of record) {
+          for (const component of section.components) {
+            if (!component.classNumber) continue;
+            const primary = component.role === "primary";
+            const known = index.get(component.classNumber);
+            if (!known || (primary && !known.primary)) index.set(component.classNumber, { courseCode, sectionId: section.id, primary });
+          }
+        }
+      }
+      this.classIndex.set(whole.data, index);
+    }
+    const hit = index.get(number);
+    return hit ? { term, classNumber: number, courseCode: hit.courseCode, sectionId: hit.sectionId } : null;
   }
 
   async getCourseSections(term: string, courseCode: string): Promise<CourseSections> {

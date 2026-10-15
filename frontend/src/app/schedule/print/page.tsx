@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SchedulePrintView } from "@/components/schedule-print-view";
+import { PrintPage } from "./print-page";
 
-export const metadata: Metadata = { title: "Print week | UNTangle" };
+export const metadata: Metadata = { title: "Print week" };
 
 export default function SchedulePrintPage() {
-  return <SchedulePrintView />;
+  return <PrintPage />;
 }
