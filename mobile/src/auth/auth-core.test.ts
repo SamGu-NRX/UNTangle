@@ -529,6 +529,53 @@ describe("beginSignIn", () => {
     expect(harness.store.save).not.toHaveBeenCalled();
   });
 
+  it("stays signed out when the Keychain save lands after cancelSignIn", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSave: () => void = () => {};
+    const saveGate = new Promise<void>(resolve => {
+      releaseSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+    ]);
+    await harness.auth.restore();
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveEntered();
+      await saveGate;
+      await workingSave(tokens);
+    });
+    const pending = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight; // the exchange succeeded and the Keychain write is parked
+    // The student backs out while the write is in flight: when the stranded
+    // write resolves, the cancelled flow must not resurrect.
+    harness.auth.cancelSignIn();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      releaseSave();
+      await expect(pending).resolves.toEqual({ ok: false, reason: "cancelled" });
+      await flush();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await harness.store.load()).toBeNull();
+    // One save went out and the cancelled flow's own clear is the only
+    // durable cleanup; nothing may be scheduled behind it.
+    expect(harness.store.save).toHaveBeenCalledTimes(1);
+    expect(harness.store.clear).toHaveBeenCalledTimes(1);
+    expect(harness.timers).toHaveLength(0);
+    expect(harness.calls.some(call => call.url.endsWith("/api/v1/sync"))).toBe(false);
+  });
+
   it("lands signed out with a retryable failure when the Keychain save rejects", async () => {
     const harness = makeHarness([
       { status: 200, body: START_200 },
@@ -640,6 +687,44 @@ describe("signOut", () => {
     await flush();
     expect(harness.store.saved).toHaveLength(0);
     expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+  });
+
+  it("stays signed out when the sign-in's Keychain save lands after signOut", async () => {
+    let saveEntered: () => void = () => {};
+    const saveInFlight = new Promise<void>(resolve => {
+      saveEntered = resolve;
+    });
+    let releaseSave: () => void = () => {};
+    const saveGate = new Promise<void>(resolve => {
+      releaseSave = resolve;
+    });
+    const harness = makeHarness([
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+      { status: 200, body: { revoked: true } },
+    ]);
+    await harness.auth.restore();
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveEntered();
+      await saveGate;
+      await workingSave(tokens);
+    });
+    const pending = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await saveInFlight;
+    // Sign-out runs while the sign-in's Keychain write is parked: the write
+    // resolving afterwards must not sign the phone back in.
+    await harness.auth.signOut();
+    releaseSave();
+    await expect(pending).resolves.toEqual({ ok: false, reason: "cancelled" });
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(await harness.store.load()).toBeNull();
+    // signOut's own clear plus the stranded apply's durable cleanup.
+    expect(harness.store.clear).toHaveBeenCalledTimes(2);
+    expect(harness.timers).toHaveLength(0);
   });
 });
 

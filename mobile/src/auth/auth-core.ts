@@ -272,6 +272,19 @@ export function createAuth(deps: AuthDeps) {
         // starting it again is safe once the store recovers.
         return { ok: false, reason: "failed", error: "storage_failed" };
       }
+      // The save can resolve after the flow that started it is gone: a
+      // cancel or sign-out during the Keychain write bumps the generation
+      // while the generation-blind applyTokens is still in flight, and the
+      // tokens that land then belong to a flow this phone abandoned. Drop
+      // the grant from memory and clear the store — cancelSignIn never
+      // touches it, so this clear is the only durable cleanup the stray
+      // save gets — and publish nothing: the state already says signed-out,
+      // or a newer flow owns it.
+      if (generation !== signInGeneration) {
+        stored = null;
+        await deps.tokenStore.clear().catch(() => undefined);
+        return { ok: false, reason: "cancelled" };
+      }
       replaceState({ status: "signed-in", grantId: outcome.tokens.grantId, scopes: outcome.tokens.scopes, documentCount: null, countFailed: false });
       scheduleRefresh();
       // One read so the screen can say what the account holds; real sync is
