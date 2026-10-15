@@ -63,13 +63,19 @@ export function ContextPanel({ open, onClose, title, heading, returnFocus, child
   if (desktopOpen !== wasOpen) {
     setWasOpen(desktopOpen);
     if (desktopOpen) setInstant(false);
+    // Closed by the page rather than × or Escape (Remove, Use this, Enter on the
+    // selected item): a keyboard action still skips the exit.
+    else if (!instant) setInstant(keyboardFocused());
   }
   const { mounted, state } = usePresence(desktopOpen, instant ? 0 : EXIT_MS);
   const titleId = useId();
   const [shownTitle, setShownTitle] = useState(title);
   if (open && title !== shownTitle) setShownTitle(title);
 
+  /** × and Escape say how they closed the panel; any other close asks the input source. */
+  const closedHere = useRef(false);
   const closeFromKeyboard = useEffectEvent(() => {
+    closedHere.current = true;
     setInstant(true);
     onClose();
   });
@@ -106,6 +112,8 @@ export function ContextPanel({ open, onClose, title, heading, returnFocus, child
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      if (!closedHere.current) markMain("data-context-instant", keyboardFocused());
+      closedHere.current = false;
       markMain("data-context-open", false);
     };
   }, [desktopOpen, titleId]);
@@ -170,6 +178,7 @@ export function ContextPanel({ open, onClose, title, heading, returnFocus, child
           onClick={(event) => {
             // Enter or Space on Close is a keyboard action: no exit animation.
             const keyboard = event.detail === 0;
+            closedHere.current = true;
             markMain("data-context-instant", keyboard);
             setInstant(keyboard);
             onClose();

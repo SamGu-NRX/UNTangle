@@ -10,6 +10,8 @@ type Dependencies = {
   repository: DocumentRepository;
   /** authorizeV1: a device bearer token if one is sent, otherwise the browser session. */
   authorize: (request: Request, scope: DeviceScope) => Promise<Identity>;
+  /** createUserLimit: seconds to wait when the user's budget is spent, else null. */
+  limit: (route: "plannerRead" | "plannerSave", userId: string) => Promise<number | null>;
   origin: string;
   available: boolean;
 };
@@ -55,13 +57,14 @@ function documentId(value: unknown): string {
   return parsed.data;
 }
 
-export function documentHandlers({ repository, authorize, origin, available }: Dependencies) {
+export function documentHandlers({ repository, authorize, limit, origin, available }: Dependencies) {
   async function identify(request: Request, scope: DeviceScope): Promise<Identity> {
     try {
       return await authorize(request, scope);
     } catch (error) {
       if (!(error instanceof DeviceGrantError)) throw error;
       if (error.code === "unauthorized") throw new SyncError(401, "UNAUTHORIZED", "Sign in to sync documents.");
+      if (error.code === "security_change_in_progress") throw new SyncError(409, error.code, "A change to this account's security settings is in progress. Try again in a moment.");
       const message = deviceRefusals[error.code as keyof typeof deviceRefusals];
       if (!message) throw error;
       throw new SyncError(error.status, error.code, message);
@@ -70,13 +73,34 @@ export function documentHandlers({ repository, authorize, origin, available }: D
   async function handle(request: Request, scope: DeviceScope, action: (identity: Identity) => Promise<unknown>): Promise<Response> {
     try {
       const identity = await identify(request, scope);
+      // Counted per student once identified, so phones sharing a carrier NAT
+      // address don't share a budget. The route's withRateLimit guards by address.
+      let retryAfter: number | null;
+      try {
+        retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
+      } catch (error) {
+        // The error's name and code only: the store's messages can carry query values.
+        console.error("Document rate limiting unavailable", { name: (error as Error)?.name, code: (error as { code?: unknown })?.code });
+        return Response.json({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+          { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+      }
+      if (retryAfter !== null) {
+        return Response.json({ error: "Too many requests.", code: "RATE_LIMITED" },
+          { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } });
+      }
       if (!available) throw new SyncError(503, "STORAGE_UNAVAILABLE", "Document storage is unavailable.");
       return Response.json(await action(identity), { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       if (error instanceof SyncError) {
         return Response.json({ error: error.message, code: error.code,
           ...(error.revision === undefined ? {} : { revision: error.revision }) },
-        { status: error.status, headers: { "Cache-Control": "no-store" } });
+        { status: error.status, headers: {
+          "Cache-Control": "no-store",
+          // A security change normally finishes within its one request. A few
+          // seconds keeps clients from polling hard at one stuck until its
+          // 15-minute timeout. Unmeasured.
+          ...(error.code === "security_change_in_progress" ? { "Retry-After": "5" } : {}),
+        } });
       }
       // Database failures must never return a receipt or expose a student's body.
       return Response.json({ error: "Document storage is unavailable.", code: "STORAGE_UNAVAILABLE" },

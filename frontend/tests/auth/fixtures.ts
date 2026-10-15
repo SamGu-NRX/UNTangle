@@ -2,6 +2,7 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuth } from "@/lib/auth-config";
 import { memoryClaims } from "@/lib/magic-link-claims";
 import { VERIFY_PATH } from "@/lib/magic-link-url";
+import type { MemoryDeviceStore } from "../device-grants/memory-store";
 
 // The real auth flows on an in-memory database, for tests that drive the
 // better-auth handler with Requests the way a browser (or an attacker)
@@ -35,12 +36,15 @@ function withReadLatency(adapter: ReturnType<typeof memoryAdapter>): ReturnType<
   }) as ReturnType<typeof memoryAdapter>;
 }
 
-export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "finishSecurityChange"> = {}) {
+export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "finishSecurityChange" | "writeCredential" | "endStaleSession"> & { deviceStore?: MemoryDeviceStore } = {}) {
   const store: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
   const mail: { kind: string; to: string; url: string }[] = [];
   const record = async (kind: string, to: string, url: string) => {
     mail.push({ kind, to, url });
   };
+  const { deviceStore, ...security } = changes;
+  // The device store's account and session writes go to this test's tables.
+  deviceStore?.useAuthTables(store);
   const auth = createAuth({
     database: withReadLatency(memoryAdapter(store)),
     baseURL: BASE,
@@ -49,7 +53,7 @@ export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"],
     sendEmail: sendEmail ?? record,
     bumpSecurityGeneration,
     readSecurityGeneration,
-    ...changes,
+    ...security,
     // NODE_ENV=test makes better-auth skip its origin and CSRF checks; these tests run with them on.
     options: { advanced: { disableOriginCheck: false } },
   });

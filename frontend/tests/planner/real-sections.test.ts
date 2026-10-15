@@ -11,7 +11,8 @@ import { canApply, IDLE, requestKey, runReducer } from "@/components/schedule/ru
 import { firstClash } from "@/components/schedule/week-model";
 import { optimize } from "@/lib/optimizer/optimize";
 import { GOAL_WEIGHTS, NO_CONSTRAINTS } from "@/lib/optimizer/presets";
-import { buildPlanIcs, needsTermDates } from "@/lib/planner-ics";
+import { termDatesFor } from "@/lib/export/term-dates";
+import { buildWeekIcs } from "@/lib/planner-ics";
 import {
   buildOptimizeRequest,
   buildScheduleEvents,
@@ -146,11 +147,12 @@ describe("the optimizer adapter", () => {
     expect(new Set(toOptSection(weekend)!.meetings.map((m) => m.day))).toEqual(new Set(["Sat", "Sun"]));
     const events = scheduleEventsOf(weekend);
     expect(new Set(events.map((event) => event.day))).toEqual(new Set(["Sat", "Sun"]));
-    const ics = buildPlanIcs(events, null, new Date("2026-10-13T00:00:00Z")).ics;
-    expect(ics).toContain("RRULE:FREQ=WEEKLY;BYDAY=SA;UNTIL=20270507T235959");
-    expect(ics).toContain("RRULE:FREQ=WEEKLY;BYDAY=SU;UNTIL=20270507T235959");
+    const ics = buildWeekIcs([weekend], termDatesFor("Spring 2027")!, { now: new Date("2026-10-13T00:00:00Z") }).ics;
+    // The option's own dates run to May 7; weekly classes stop at the last day of classes, Apr 29.
+    expect(ics).toContain("RRULE:FREQ=WEEKLY;BYDAY=SA;UNTIL=20270430T045959Z");
+    expect(ics).toContain("RRULE:FREQ=WEEKLY;BYDAY=SU;UNTIL=20270430T045959Z");
     // The term starts Monday 2027-01-11, so the first Saturday is the 16th.
-    expect(ics).toContain("DTSTART:20270116T113000");
+    expect(ics).toContain("DTSTART;TZID=America/Chicago:20270116T113000");
   });
 
   test("a room with no catalogue building keeps its text, has no building id, and is never looked up", () => {
@@ -198,16 +200,15 @@ describe("the eight-week pair on the week and the map", () => {
     expect(walking.knownLegs).toBe(0);
   });
 
-  test("the calendar file runs each half over its own dates, with no typed term", () => {
+  test("the calendar file runs each half over its own dates", () => {
     const catalog = eightWeekPair();
-    const events = buildScheduleEvents(resolveSectionPlan(plan_(["SPAN 2040", "SPAN 2050"]), catalog));
-    expect(needsTermDates(events)).toBe(false);
-    const ics = buildPlanIcs(events, null, new Date("2026-10-13T00:00:00Z")).ics;
-    expect(ics).toContain("DTSTART:20270112T093500"); // first Tuesday of the first half
-    expect(ics).toContain("UNTIL=20270305T235959");
-    expect(ics).toContain("DTSTART:20270316T093500"); // first Tuesday of the second half
-    expect(ics).toContain("UNTIL=20270507T235959");
-    expect(ics).not.toContain("sample");
+    const sections = resolveSectionPlan(plan_(["SPAN 2040", "SPAN 2050"]), catalog).courses.flatMap((course) => (course.section ? [course.section] : []));
+    const ics = buildWeekIcs(sections, termDatesFor("Spring 2027")!, { now: new Date("2026-10-13T00:00:00Z") }).ics;
+    expect(ics).toContain("DTSTART;TZID=America/Chicago:20270112T093500"); // first Tuesday of the first half
+    expect(ics).toContain("UNTIL=20270306T055959Z"); // Mar 5, 23:59:59 CST
+    expect(ics).toContain("DTSTART;TZID=America/Chicago:20270316T093500"); // first Tuesday of the second half
+    expect(ics).toContain("UNTIL=20270430T045959Z"); // the last day of classes, not finals week
+    expect(ics).not.toContain("Sample");
   });
 });
 
@@ -382,8 +383,8 @@ describe("the Discovery Park shuttle", () => {
       dates: null,
     });
     const itinerary = buildItinerary([stop("gab", "09:00", "09:50"), stop("ntdp", "10:00", "10:50")], new Map(), new Map());
-    expect(itinerary.legs[0]).toMatchObject({ route: { kind: "shuttle", seconds: 1200 }, walkMinutes: 20, transfer: "late", leaveBy: "09:40" });
-    expect(itinerary.summary).toMatchObject({ walkMinutes: 0, shuttleLegs: 1, loading: false });
+    // A ride longer than the break leaves as the earlier class ends.
+    expect(itinerary.legs[0]).toMatchObject({ route: { kind: "shuttle", seconds: 1200 }, walkMinutes: 20, transfer: "late", leaveAt: 9 * 60 + 50 });
     expect(routeRuns(itinerary.stops)).toEqual([]);
   });
 
