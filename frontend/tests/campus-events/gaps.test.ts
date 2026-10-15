@@ -57,6 +57,27 @@ test("an event overlapping a class does not fit", () => {
   expect(eventsInGaps(schedule, [overlaps, endsTooLate], walkingTime)).toEqual([]);
 });
 
+test("two overlapping classes leave no false gap between the later pair", () => {
+  // 15:00–18:00 overlaps 16:00–17:00, so 17:00–19:00 is not a gap: the
+  // 15:00 class runs until 18:00. The blocks must merge first. The middle
+  // class's building pairs unknown buildings with the others, so walking
+  // time imposes no requirement and the interval logic is what's tested.
+  const schedule = [classAt(15, 18, "art"), classAt(16, 17, "dp"), classAt(19, 20, "art")];
+  const collides = event({ start: "2026-10-20T17:00:00.000Z", end: "2026-10-20T18:30:00.000Z" });
+  expect(eventsInGaps(schedule, [collides], walkingTime)).toEqual([]);
+});
+
+test("an event fits the gap after merged overlapping classes end", () => {
+  // The merged block ends at 18:00 (the 15:00 class ends last), so the gap
+  // runs 18:00–19:00, not 17:00–19:00.
+  const schedule = [classAt(15, 18, "art"), classAt(16, 17, "blb"), classAt(19, 20, "blb")];
+  const fits = event({ start: "2026-10-20T18:00:00.000Z", end: "2026-10-20T18:45:00.000Z" });
+  const placements = eventsInGaps(schedule, [fits], walkingTime);
+  expect(placements.length).toBe(1);
+  expect(placements[0]!.gapStart).toBe("2026-10-20T18:00:00.000Z");
+  expect(placements[0]!.gapEnd).toBe("2026-10-20T19:00:00.000Z");
+});
+
 test("walking time is counted when both buildings are known, on both sides", () => {
   const schedule = [classAt(15, 16, "art"), classAt(19, 20, "blb")];
   // Event at blb: the walk from the earlier class (art) needs 5 minutes; the walk to

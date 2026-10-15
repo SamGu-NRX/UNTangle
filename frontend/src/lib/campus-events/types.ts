@@ -71,4 +71,6 @@ export type SourceReport = {
   eventCount: number;
   /** The last error message; null when the source is ok. */
   error: string | null;
+  /** Set when events from this source were dropped to fit the response budget. */
+  note?: string;
 };

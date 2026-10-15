@@ -91,16 +91,42 @@ function matchesQuery(event: NormalizedEvent, query: EventsQuery): boolean {
   return true;
 }
 
-/** Serializes within MAX_RESPONSE_BYTES by halving the event list until it fits, setting `truncated` on the payload. */
+/** Serializes within MAX_RESPONSE_BYTES. An event too large to ever fit is dropped and noted on its source's report; the rest halve until the payload fits; `truncated` flags any drop. The loop is bounded: every pass either returns or strictly shrinks the list. */
 export function serializeEventsResponse(payload: Omit<EventsResponse, "truncated">): { json: string } {
-  let events = payload.events;
+  // An event whose own JSON exceeds the budget can never fit, so dropping it
+  // up front keeps the halving loop from stalling on it, and each drop is
+  // reported on the source it came from.
+  const oversizedDrops = new Map<string, number>();
+  let events = payload.events.filter(event => {
+    if (Buffer.byteLength(JSON.stringify(event), "utf8") > MAX_RESPONSE_BYTES) {
+      oversizedDrops.set(event.sourceId, (oversizedDrops.get(event.sourceId) ?? 0) + 1);
+      return false;
+    }
+    return true;
+  });
   for (;;) {
     const truncated = events.length < payload.events.length;
-    const json = JSON.stringify({ ...payload, events, truncated });
+    const sources = oversizedDrops.size === 0
+      ? payload.sources
+      : payload.sources.map(report => {
+          const dropped = oversizedDrops.get(report.id);
+          return dropped === undefined
+            ? report
+            : { ...report, note: `dropped ${dropped} event${dropped === 1 ? "" : "s"} too large for the response budget` };
+        });
+    const json = JSON.stringify({ ...payload, events, sources, truncated });
     if (Buffer.byteLength(json, "utf8") <= MAX_RESPONSE_BYTES || events.length === 0) {
       return { json };
     }
-    events = events.slice(0, Math.max(1, Math.floor(events.length / 2)));
+    if (events.length === 1) {
+      // A single remaining event that still does not fit cannot be halved;
+      // drop it, note its source, and serialize the rest.
+      const last = events[0]!;
+      oversizedDrops.set(last.sourceId, (oversizedDrops.get(last.sourceId) ?? 0) + 1);
+      events = [];
+    } else {
+      events = events.slice(0, Math.floor(events.length / 2));
+    }
   }
 }
 
@@ -118,7 +144,7 @@ export async function eventsHandler(request: Request, deps: EventsHandlerDeps): 
   if ("error" in parsed) {
     return Response.json({ error: parsed.error }, { status: 400 });
   }
-  const { events: allEvents, reports } = await deps.cache.getEvents();
+  const { events: allEvents, reports } = await deps.cache.getEvents({ from: parsed.query.from, to: parsed.query.to });
   const matching = allEvents.filter(event => matchesQuery(event, parsed.query));
   const deduped = dedupeEvents(matching).slice(0, MAX_EVENTS_IN_RESPONSE);
   const { json } = serializeEventsResponse({

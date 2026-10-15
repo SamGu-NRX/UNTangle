@@ -6,7 +6,7 @@
 
 import { expect, test } from "bun:test";
 
-import { eventsHandler, MAX_EVENTS_IN_RESPONSE, parseEventsQuery, serializeEventsResponse } from "@/lib/campus-events/handler";
+import { eventsHandler, MAX_EVENTS_IN_RESPONSE, MAX_RESPONSE_BYTES, parseEventsQuery, serializeEventsResponse } from "@/lib/campus-events/handler";
 import type { EventSourceCache } from "@/lib/campus-events/cache";
 import type { NormalizedEvent, SourceReport } from "@/lib/campus-events/types";
 
@@ -146,4 +146,33 @@ test("serializeEventsResponse halves oversized payloads and flags truncation", (
   expect(body.truncated).toBe(true);
   expect(body.events.length).toBeLessThan(1000);
   expect(body.events.length).toBeGreaterThan(0);
+});
+
+test("an event larger than the response budget is dropped with a per-source note", () => {
+  const bigTitle = "x".repeat(MAX_RESPONSE_BYTES); // one event alone busts the budget
+  const report = (id: string) => ({
+    id,
+    name: `Source ${id}`,
+    status: "ok" as const,
+    fetchedAt: "2026-10-20T00:00:00.000Z",
+    eventCount: 1,
+    error: null,
+  });
+  const payload = {
+    range: { from: "2026-10-20T00:00:00Z", to: "2026-10-21T00:00:00Z" },
+    building: null,
+    q: null,
+    events: [event({ sourceId: "alpha", title: bigTitle }), event({ sourceId: "beta", title: bigTitle })],
+    sources: [report("alpha"), report("beta")],
+  };
+  const { json } = serializeEventsResponse(payload);
+  const body = JSON.parse(json) as {
+    truncated: boolean;
+    events: NormalizedEvent[];
+    sources: Array<{ id: string; note?: string }>;
+  };
+  expect(body.events).toEqual([]);
+  expect(body.truncated).toBe(true);
+  expect(body.sources.find(source => source.id === "alpha")?.note).toContain("1 event");
+  expect(body.sources.find(source => source.id === "beta")?.note).toContain("1 event");
 });

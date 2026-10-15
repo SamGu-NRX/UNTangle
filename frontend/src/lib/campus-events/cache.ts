@@ -2,18 +2,16 @@
  * The per-source TTL cache behind the events API. Each source refreshes on
  * its own interval (30 minutes for directory feeds), one failing source
  * never fails the response, and a failed refresh serves the last good data
- * as "stale". Fetches are concurrency-capped out of politeness to
+ * as "stale" and backs off for the interval instead of retrying on every
+ * request. The cache stores each source's raw feed text and parses it for
+ * the requested range, so any range the API accepts is served from one
+ * fetch. Fetches are concurrency-capped out of politeness to
  * calendar.unt.edu, whose robots.txt asks crawl bots for a 1-second delay.
  */
 
 import { defaultAdapterDeps, normalizeIcsFeed, type AdapterDeps } from "./adapter";
 import type { EventSourceDef } from "./sources";
 import type { NormalizedEvent, SourceReport, SourceStatus } from "./types";
-
-/** How far before the fetch time the parse window starts: one hour of slack. */
-const PARSE_WINDOW_BEFORE_MS = 60 * 60 * 1000;
-/** How far after the fetch time the parse window reaches: one day past the API's 14-day cap. */
-const PARSE_WINDOW_AFTER_MS = 15 * 24 * 60 * 60 * 1000;
 
 export type CacheDeps = AdapterDeps & {
   /** Clock, injectable for tests. */
@@ -29,16 +27,21 @@ export const defaultCacheDeps: CacheDeps = {
 };
 
 type SourceEntry = {
-  events: NormalizedEvent[] | null;
+  /** The raw feed text from the last successful fetch; parsed per request. */
+  icsText: string | null;
+  /** When the served text was fetched; null when there is none. */
   fetchedAtMs: number | null;
+  /** When the last refresh attempt ran, successful or not. */
+  attemptedAtMs: number | null;
+  /** The last error message; null after a successful fetch. */
   error: string | null;
 };
 
 /**
- * One cache per process. `getEvents` serves every source whose cached fetch
- * is younger than its interval and refetches the rest, so a request's
- * latency is one refresh pass at most and the upstream sees each feed no
- * more often than its interval.
+ * One cache per process. `getEvents` serves every source whose last attempt
+ * is younger than its interval from the cached text and refetches the rest,
+ * so a request's latency is one refresh pass at most and the upstream sees
+ * each feed no more often than its interval — even when the feed is failing.
  */
 export class EventSourceCache {
   private readonly entries = new Map<string, SourceEntry>();
@@ -49,35 +52,35 @@ export class EventSourceCache {
     private readonly deps: CacheDeps = defaultCacheDeps,
   ) {}
 
-  private isFresh(source: EventSourceDef, nowMs: number): boolean {
+  /** A source whose last attempt is younger than its interval waits, even after a failure. */
+  private attemptedRecently(source: EventSourceDef, nowMs: number): boolean {
     const entry = this.entries.get(source.id);
-    if (entry === undefined || entry.fetchedAtMs === null || entry.events === null) return false;
-    return nowMs - entry.fetchedAtMs < source.refreshIntervalMs;
+    if (entry === undefined || entry.attemptedAtMs === null) return false;
+    return nowMs - entry.attemptedAtMs < source.refreshIntervalMs;
   }
 
   private async refreshSource(source: EventSourceDef, nowMs: number): Promise<void> {
-    const existing = this.entries.get(source.id);
-    const fetchedAtMs = nowMs;
-    const range = {
-      start: new Date(fetchedAtMs - PARSE_WINDOW_BEFORE_MS).toISOString(),
-      end: new Date(fetchedAtMs + PARSE_WINDOW_AFTER_MS).toISOString(),
-    };
     try {
-      const events = await normalizeIcsFeed(await this.deps.fetchIcs(source.url), range, source);
-      this.entries.set(source.id, { events, fetchedAtMs, error: null });
+      const icsText = await this.deps.fetchIcs(source.url);
+      this.entries.set(source.id, { icsText, fetchedAtMs: nowMs, attemptedAtMs: nowMs, error: null });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (existing?.events !== undefined && existing?.events !== null) {
-        this.entries.set(source.id, { events: existing.events, fetchedAtMs: existing.fetchedAtMs, error: message });
-      } else {
-        this.entries.set(source.id, { events: null, fetchedAtMs: null, error: message });
-      }
+      const existing = this.entries.get(source.id);
+      // Keep serving the last good text as stale; the failed attempt still
+      // counts against the interval, so a dead feed is retried at most once
+      // per interval instead of on every request.
+      this.entries.set(source.id, {
+        icsText: existing?.icsText ?? null,
+        fetchedAtMs: existing?.fetchedAtMs ?? null,
+        attemptedAtMs: nowMs,
+        error: message,
+      });
     }
   }
 
-  /** Refetches every stale source, bounded concurrency, then serves from cache. */
+  /** Refetches every source past its backoff window, bounded concurrency. */
   private async refreshStale(nowMs: number): Promise<void> {
-    const stale = this.sources.filter(source => !this.isFresh(source, nowMs));
+    const stale = this.sources.filter(source => !this.attemptedRecently(source, nowMs));
     let cursor = 0;
     const worker = async (): Promise<void> => {
       while (cursor < stale.length) {
@@ -85,7 +88,7 @@ export class EventSourceCache {
         cursor += 1;
         if (source === undefined) break;
         // A concurrent worker may have refreshed this source while this one waited.
-        if (this.isFresh(source, nowMs)) continue;
+        if (this.attemptedRecently(source, nowMs)) continue;
         let pending = this.inFlight.get(source.id);
         if (pending === undefined) {
           pending = this.refreshSource(source, nowMs).finally(() => {
@@ -100,26 +103,35 @@ export class EventSourceCache {
     await Promise.all(workers);
   }
 
-  /** The events of every source that has data, with one report per source. */
-  async getEvents(): Promise<{ events: NormalizedEvent[]; reports: SourceReport[] }> {
+  /**
+   * The events of every source that has data, parsed from the cached text
+   * for exactly the requested range, with one report per source. Any range
+   * the API accepts is served from the last fetch; no fetch misses its
+   * events because of a cached window.
+   */
+  async getEvents(range: { from: string; to: string }): Promise<{ events: NormalizedEvent[]; reports: SourceReport[] }> {
     const nowMs = this.deps.now();
     await this.refreshStale(nowMs);
+    const parseRange = { start: range.from, end: range.to };
     const events: NormalizedEvent[] = [];
     const reports: SourceReport[] = [];
     for (const source of this.sources) {
       const entry = this.entries.get(source.id);
-      const cached = entry?.events ?? null;
+      const cached = entry?.icsText ?? null;
       let status: SourceStatus = "error";
+      let eventCount = 0;
       if (cached !== null) {
         status = entry!.error === null ? "ok" : "stale";
-        events.push(...cached);
+        const normalized = normalizeIcsFeed(cached, parseRange, source);
+        events.push(...normalized);
+        eventCount = normalized.length;
       }
       reports.push({
         id: source.id,
         name: source.name,
         status,
         fetchedAt: entry?.fetchedAtMs != null ? new Date(entry.fetchedAtMs).toISOString() : null,
-        eventCount: cached?.length ?? 0,
+        eventCount,
         error: entry?.error ?? null,
       });
     }
