@@ -42,6 +42,11 @@ describe("the sign-in link page", () => {
     );
     expect(fields).toEqual({ token: "abc123", callbackURL: "/courses", errorCallbackURL: "/auth?link=failed" });
     expect(form.querySelector('button[type="submit"]')?.textContent).toBe("Sign in");
+    // The token never leaves this page through a custom scheme: any app can
+    // register untangle:// and would receive it.
+    const links = [...view.container.querySelectorAll("a")].map((link) => link.getAttribute("href") ?? "");
+    expect(links.filter((href) => !href.startsWith("/"))).toEqual([]);
+    expect(view.container.innerHTML).not.toContain("untangle://");
     await view.unmount();
   });
 

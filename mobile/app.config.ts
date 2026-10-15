@@ -25,12 +25,14 @@ const config: ExpoConfig = {
   },
   web: {
     bundler: "metro",
-    output: "static",
+    // One page that routes on the client: static pre-rendering cannot know a
+    // route's query or params (?d=Tue, /course/CSCE 2100), so React would
+    // discard that markup on every such load.
+    output: "single",
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
     "expo-router",
-    "expo-secure-store",
     [
       "expo-splash-screen",
       {
