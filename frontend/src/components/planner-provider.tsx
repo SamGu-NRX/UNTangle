@@ -531,6 +531,10 @@ function IdentityPlannerProvider({
   // Why the documents can't move forward: the last pull failed, this build can't read them, this browser
   // can't store them, or the last edit couldn't be stored (a bug, shown rather than only logged).
   const [syncProblem, setSyncProblem] = useState<"offline" | "signed-out" | "outdated" | "storage" | "save-failed" | null>(null);
+  const syncProblemRef = useRef(syncProblem);
+  useEffect(() => {
+    syncProblemRef.current = syncProblem;
+  }, [syncProblem]);
   const [schedulePreferences, setSchedulePreferencesState] = useState<SchedulePreferences>(() =>
     defaultSchedulePreferences(getInitialPlannerState().optimization),
   );
@@ -782,7 +786,8 @@ function IdentityPlannerProvider({
         if (retryTimer.current) clearTimeout(retryTimer.current);
         retryTimer.current = null;
         if (next.status === "Save not confirmed (retrying)") {
-          const delay = retryDelay.current;
+          // The server's Retry-After, when it gave one, is the earliest the write may go again.
+          const delay = Math.max(retryDelay.current, next.retryAfterMs);
           retryDelay.current = Math.min(delay * 2, 60_000);
           retryTimer.current = setTimeout(() => void runSyncRef.current?.((current) => current.drain()), delay);
         } else {
@@ -1222,13 +1227,16 @@ function IdentityPlannerProvider({
 
   const prepareSignOut = useCallback(async () => {
     const sync = syncRef.current;
-    if (!sync) return { unsynced: false, forget: async () => {} };
+    // Signed in without a document store, every edit lives only in this tab.
+    if (!sync) return { unsynced: syncProblemRef.current === "storage", forget: async () => {} };
     // A stalled request must not hold the sign-out: after a few seconds the student is asked instead.
     // 4 seconds is an unmeasured starting value.
     let stop = () => {};
     await Promise.race([saveDocuments(), new Promise<void>((resolve) => { const timer = setTimeout(resolve, 4000); stop = () => clearTimeout(timer); })]);
     stop();
-    const { unsynced } = await sync.status(readPlanner);
+    const now = await sync.status(readPlanner);
+    // Waiting in the outbox, or never reached it: an edit held by an open conflict, or one that couldn't be stored.
+    const unsynced = now.unsynced || !now.clean || now.conflictUnsaved || syncProblemRef.current === "save-failed";
     return { unsynced, forget: (discardPending: boolean) => sync.clearLocalData(discardPending) };
   }, [readPlanner, saveDocuments]);
 
@@ -1269,7 +1277,7 @@ function IdentityPlannerProvider({
                 status: "not-saved",
                 label: SAVE_LABELS["not-saved"],
                 detail: syncView.refused
-                  ? "UNTangle refused your last change, so it stays in this tab only. Reload to try again."
+                  ? "UNTangle refused your last change. It stays on this device and is sent again the next time UNTangle loads. If it's refused again, undo that change."
                   : "Your last change couldn't be stored on this device. Reload to try again.",
                 reason: "server",
               }

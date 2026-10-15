@@ -10,8 +10,13 @@ import { academicQuestions, answerAcademicQuestions, scheduleDifference } from "
 import type { AcademicQuestion, CourseFacts } from "@untangle/sync";
 import "./sync-notice.css";
 
-/** The notice's id, so the schedule pill can send focus to it. */
-export const SYNC_NOTICE_ID = "sync-notice";
+const SYNC_NOTICE_ID = "sync-notice";
+const OPEN_EVENT = "untangle:open-sync-notice";
+
+/** Opens the current conflict's choice: the questions dialog, or focus on the notice's buttons. */
+export function openSyncNotice(): void {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
 const FAILED = "Couldn't apply your choice. Check your connection and try again.";
 
 const subject = {
@@ -163,6 +168,13 @@ export function SyncNotice() {
     };
   }, [noticeKey]);
 
+  const asks = syncConflict?.kind === "academic-record" && syncConflict.latest !== null;
+  useEffect(() => {
+    const open = () => (asks ? setReviewing(true) : section.current?.focus());
+    window.addEventListener(OPEN_EVENT, open);
+    return () => window.removeEventListener(OPEN_EVENT, open);
+  }, [asks]);
+
   /** After a choice the notice goes away; focus moves to the page rather than being dropped. */
   const settled = () => {
     setReviewing(false);
@@ -177,7 +189,6 @@ export function SyncNotice() {
     if (done) settled();
     else toast({ message: FAILED, tone: "error" });
   };
-  const asks = syncConflict?.kind === "academic-record" && syncConflict.latest !== null;
 
   return (
     <>

@@ -92,6 +92,10 @@ export function httpSyncIO(account: string, fetchImpl: () => FetchLike = () => g
       if (response.ok) return { kind: "receipt", receipt: await response.json() };
       if (response.status === 401) return { kind: "needs-sign-in" };
       const { code, revision } = await refusal(response);
+      if (code === "security_change_in_progress") {
+        // The account's security settings are changing; the server says when to come back.
+        throw new RetryLaterError(Number(response.headers.get("retry-after") ?? "5"));
+      }
       const deleted = (at: number): RemoteDocument => ({ documentId: write.documentId, kind: write.kind, revision: at, schemaVersion: 1, body: null });
       if (code === "DOCUMENT_DELETED" && revision !== null) return { kind: "conflict", latest: deleted(revision) };
       if (code === "REVISION_CONFLICT" && revision !== null) {
@@ -127,6 +131,14 @@ export function httpSyncIO(account: string, fetchImpl: () => FetchLike = () => g
       return { kind: "list", list: await response.json() };
     },
   };
+}
+
+/** The server asked for the same write again later, after `seconds`. */
+export class RetryLaterError extends Error {
+  constructor(readonly seconds: number) {
+    super(`The server asked to retry in ${seconds} seconds.`);
+    this.name = "RetryLaterError";
+  }
 }
 
 /** The server answered a write with a refusal that the same bytes would get again. */
@@ -251,6 +263,8 @@ export class PlannerSync {
   private readonly sending = new Set<string>();
   /** Documents whose waiting write the server refused for good; they aren't sent again until a reload. */
   private readonly refused = new Set<string>();
+  /** When the server last asked to be retried no sooner than (epoch ms). */
+  private retryAt = 0;
   /** Set when the planner retires this identity; from then on nothing reaches the network. */
   private closed = false;
   private readonly io: PlannerSyncIO;
@@ -282,6 +296,7 @@ export class PlannerSync {
             console.error(error);
             this.refused.add(error.documentId);
           }
+          if (error instanceof RetryLaterError && Number.isFinite(error.seconds)) this.retryAt = Date.now() + error.seconds * 1000;
           throw error;
         }),
       fetch: open(io.fetch),
@@ -450,6 +465,8 @@ export class PlannerSync {
     clean: boolean;
     /** The open conflict's document has edits only this tab holds: another tab's conflict, or edits since it opened. */
     conflictUnsaved: boolean;
+    /** How long the server asked to wait before the next try; 0 when it didn't. */
+    retryAfterMs: number;
   }> {
     return this.run(async () => {
       const state = await this.engine.read();
@@ -463,6 +480,7 @@ export class PlannerSync {
         refused: state.documents.some((document) => document.pending.length > 0 && this.refused.has(document.documentId)),
         clean: equal(after, this.base),
         conflictUnsaved: conflict !== null && (conflict.source === "local" || !equal(after[conflict.kind], this.base[conflict.kind])),
+        retryAfterMs: Math.max(0, this.retryAt - Date.now()),
       };
     });
   }

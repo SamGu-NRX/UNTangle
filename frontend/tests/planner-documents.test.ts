@@ -114,8 +114,27 @@ describe("the legacy row's documents", () => {
     expect(plain(schedule.body)).toEqual({ ...fixtures.schedule, lastAuto: null });
   });
 
+  test("an empty pick is dropped with its lock, so the row still migrates", () => {
+    const legacy = { ...fixtures.savedPlan, selectedSections: { ...fixtures.savedPlan.selectedSections, "MATH 1720": "" }, lockedSections: { ...fixtures.savedPlan.lockedSections, "MATH 1720": "" } };
+    const schedule = legacyDocuments(legacy)[1].body as typeof fixtures.schedule;
+    expect(schedule.selectedSections).toEqual({ "CSCE 1040": fixtures.savedPlan.selectedSections["CSCE 1040"] });
+    expect(schedule.lockedSections).toEqual(fixtures.savedPlan.lockedSections);
+  });
+
   test("the term comes from a real pick, and only a plan without one falls back", () => {
     expect(legacyPlanTerm({ ...fixtures.savedPlan, selectedSections: { "CSCE 1040": "vsb:fall-2026:CSCE 1040:6001" } }, "spring-2027")).toBe("fall-2026");
     expect(legacyPlanTerm({ ...fixtures.savedPlan, selectedSections: { "MATH 1720": "math-1720-002" } }, "spring-2027")).toBe("spring-2027");
+  });
+});
+
+describe("the sync transport", () => {
+  test("a security change in progress is retried after the server's Retry-After, not refused", async () => {
+    const { httpSyncIO, RetryLaterError } = await import("@/lib/sync/planner-sync");
+    const io = httpSyncIO("student", () => async () =>
+      Response.json({ code: "security_change_in_progress" }, { status: 409, headers: { "Retry-After": "7" } }));
+    const bytes = JSON.stringify({ documentId: "preferences-unt", kind: "preferences" });
+    const error = await io.push("student", bytes).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(RetryLaterError);
+    expect((error as InstanceType<typeof RetryLaterError>).seconds).toBe(7);
   });
 });

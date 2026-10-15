@@ -428,10 +428,16 @@ export class PersistedDocumentStore implements LocalStore {
 }
 
 let documentStore = new PersistedDocumentStore();
-/** A fresh browser: no documents stored for anyone. */
+let documentStoreFails = false;
+/** A fresh browser: no documents stored for anyone, and a store that opens. */
 export function resetDocumentStore(): PersistedDocumentStore {
   documentStore = new PersistedDocumentStore();
+  documentStoreFails = false;
   return documentStore;
+}
+/** The browser refuses to open the document store, as IndexedDB can in some private modes. */
+export function failDocumentStore(): void {
+  documentStoreFails = true;
 }
 export const currentDocumentStore = () => documentStore;
 
@@ -474,7 +480,13 @@ export async function mountPlanner(
   const content = React.createElement(
     mod.PlannerProvider,
     // Sections answer at once from the bundled samples unless a test passes a store (section-store.test.ts).
-    { sectionStore, documentStore: async () => documentStore },
+    {
+      sectionStore,
+      documentStore: async () => {
+        if (documentStoreFails) throw new Error("IndexedDB is unavailable.");
+        return documentStore;
+      },
+    },
     React.createElement(mod.ToastProvider, null, React.createElement(Probe), extra ? extra() : null),
   );
   const tree = strict ? React.createElement(React.StrictMode, null, content) : content;

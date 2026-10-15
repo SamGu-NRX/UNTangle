@@ -107,7 +107,9 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
           ...(error.code === "security_change_in_progress" ? { "Retry-After": "5" } : {}),
         } });
       }
-      // Database failures must never return a receipt or expose a student's body.
+      // Database failures must never return a receipt or expose a student's body. The log takes the
+      // error's name and code only: messages can carry query values or a body.
+      console.error("Document request failed", { name: (error as Error)?.name, code: (error as { code?: unknown })?.code });
       return Response.json({ error: "Document storage is unavailable.", code: "STORAGE_UNAVAILABLE" },
         { status: 503, headers: { "Cache-Control": "no-store" } });
     }

@@ -65,6 +65,8 @@ export type StoredBodies = { [K in PlannerKind]: PlannerBodies[K] | null };
 export function splitPlanner(state: PlannerState, preferences: SchedulePreferences, termId: string): PlannerBodies {
   const plan = normalizePlannerState(state);
   const lastAuto = AutoTransactionSchema.safeParse(plan.coursePlan?.lastAuto ?? null);
+  // An empty option id names no section; the legacy route could store one.
+  const picks = Object.fromEntries(Object.entries(plan.selectedSections).filter(([, optionId]) => optionId !== ""));
   const planned = getPlanningTermCourseCodes(plan);
   const plannedSet = new Set(planned);
   const coursePlan = plan.coursePlan ?? { manualCredit: [], autoPlanned: [], lastAuto: null };
@@ -84,8 +86,9 @@ export function splitPlanner(state: PlannerState, preferences: SchedulePreferenc
       termId,
       name: MAIN_SCHEDULE_NAME,
       courses: planned,
-      selectedSections: Object.fromEntries(Object.entries(plan.selectedSections).filter(([, optionId]) => optionId !== "")),
-      lockedSections: plan.lockedSections ?? {},
+      selectedSections: picks,
+      // A lock pins a pick, so a lock on a pick dropped above goes with it.
+      lockedSections: Object.fromEntries(Object.entries(plan.lockedSections ?? {}).filter(([code, optionId]) => picks[code] === optionId)),
       // Auto's provenance only describes courses still planned; unplanning a course by status alone leaves it behind.
       autoPlanned: coursePlan.autoPlanned.filter((code) => plannedSet.has(code)),
       lastAuto: lastAuto.success ? lastAuto.data : null,

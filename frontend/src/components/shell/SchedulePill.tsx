@@ -7,16 +7,18 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Check, ChevronDown, ChevronRight, Close } from "@/components/ui/icons";
 import { PLANNING_TERM } from "@/lib/terms";
-import { SYNC_NOTICE_ID } from "@/components/sync-notice";
+import { openSyncNotice } from "@/components/sync-notice";
 import { SCHEDULE_NAME, chipStatusLabel, chipTone, type ChipTone } from "./plan-status";
 import { SCHEDULES_HREF } from "./routes";
 
 function useScheduleState() {
   const { saveState, isRegistered, hydrated, retrySave } = usePlanner();
-  // A conflict is settled by choosing a version (SyncNotice, or the guest's dialog); retrying changes nothing.
-  const canRetry = saveState.reason !== "conflict";
-  // A signed-in conflict's choices are in the notice; this takes keyboard focus there.
-  const toNotice = saveState.reason === "conflict" && isRegistered ? () => document.getElementById(SYNC_NOTICE_ID)?.focus() : null;
+  // Retry helps only when a request can go through again: a network failure or an ended session, or a
+  // guest's browser storage. A conflict is settled by a choice; a refused write, a failed local save or
+  // an updated app need a reload.
+  const canRetry = isRegistered ? saveState.reason === "network" || saveState.reason === "session" : saveState.reason !== "conflict";
+  // A signed-in conflict's choices are in the notice: the status itself opens them.
+  const toNotice = saveState.reason === "conflict" && isRegistered ? openSyncNotice : null;
   const tone: ChipTone = hydrated ? chipTone(saveState.status) : "saving";
   const status =
     tone === "saved"
@@ -71,18 +73,21 @@ export function SchedulePill() {
         <PillText showTerm status={status} action="Open all schedules" />
       </Link>
       {tone === "error" ? (
-        <>
-          <span className="shell-pill-error">{status}</span>
-          {canRetry ? (
-            <Button size="sm" variant="quiet" onClick={retrySave}>
-              Retry
-            </Button>
-          ) : toNotice ? (
-            <Button size="sm" variant="quiet" onClick={toNotice}>
-              See choices
-            </Button>
-          ) : null}
-        </>
+        toNotice ? (
+          // One control for the conflict: its status, which opens the choice.
+          <Button size="sm" variant="quiet" className="shell-pill-error" onClick={toNotice}>
+            {status}
+          </Button>
+        ) : (
+          <>
+            <span className="shell-pill-error">{status}</span>
+            {canRetry ? (
+              <Button size="sm" variant="quiet" onClick={retrySave}>
+                Retry
+              </Button>
+            ) : null}
+          </>
+        )
       ) : null}
     </span>
   );
@@ -147,7 +152,7 @@ export function PhoneSchedulePill() {
                   setTimeout(toNotice, 200);
                 }}
               >
-                See choices
+                {status}
               </Button>
             ) : null}
           </div>

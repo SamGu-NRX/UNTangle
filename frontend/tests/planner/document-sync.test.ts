@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } fr
 import * as fixtures from "../../../packages/contracts/tests/fixtures";
 import {
   advanceTime,
+  failDocumentStore,
   FakeDocumentServer,
   installDom,
   mountPlanner,
@@ -170,6 +171,31 @@ describe("the outbox", () => {
     expect((await store.stored(user.id)).documents).toHaveLength(3);
     await prepared.forget(true);
     expect((await store.stored(user.id)).documents).toEqual([]);
+  });
+
+  test("an edit held by an open conflict counts as unsynced at sign-out, though the outbox is empty", async () => {
+    const planner = await migratedStudent();
+    // Another tab of this browser changes Main and syncs it, so the outbox ends empty.
+    const other = new PlannerSync(store, user.id, "spring-2027", httpSyncIO(user.id, () => server.fetch as typeof fetch), {
+      state: getInitialPlannerState(),
+      preferences: defaultSchedulePreferences("clusterMorning"),
+    });
+    const seen = (await other.adopt(() => ({ state: getInitialPlannerState(), preferences: defaultSchedulePreferences("clusterMorning") })))!;
+    await other.save(() => ({ state: { ...seen.state, courseStatuses: { ...seen.state.courseStatuses, "CSCE 2100": "inProgress" } }, preferences: seen.preferences }));
+    await other.drain();
+    // This tab edits Main on its older read: a conflict only this tab knows of.
+    await planner.run((p) => p.setCourseStatus("MATH 1720", "notTaken"));
+    await waitFor(() => planner.get().syncConflict?.source === "local", "local conflict");
+    expect((await store.stored(user.id)).documents.every((document) => document.pending.length === 0)).toBe(true);
+    expect((await planner.get().prepareSignOut()).unsynced).toBe(true);
+  });
+
+  test("signed in without a document store, sign-out counts the tab's edits as unsynced", async () => {
+    failDocumentStore();
+    const planner = await mount();
+    expect(planner.get().saveState.detail).toContain("can't store your schedule");
+    await planner.run((p) => p.setSelectedMajor("math"));
+    expect((await planner.get().prepareSignOut()).unsynced).toBe(true);
   });
 });
 
