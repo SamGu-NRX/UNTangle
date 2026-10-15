@@ -105,6 +105,7 @@
 /* ───────── Sections ───────── */
 
 .sec {
+  container-type: inline-size;
   padding: 14px 20px 18px;
   border-top: 1px solid var(--line);
 }
@@ -599,11 +600,18 @@
   font-size: 13px;
   font-weight: 650;
 }
+/*
+ * The slider's value bubble rises about 30px above the thumb while it is
+ * dragged or focused. The slider's own head row is hidden here (the well
+ * title names it), so this row keeps that room itself and the bubble never
+ * reaches the title, at any value or width.
+ */
 .slideRow {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) 32px;
   align-items: center;
   gap: 10px;
+  padding-top: 24px;
 }
 .endPic {
   display: grid;
@@ -909,4 +917,25 @@
    so content passing under it reads as scrolled rather than clipped. */
 :global(.ui-sheet):has(:global(.ui-sheet__body):not([data-at-top])) .head {
   border-bottom-color: var(--line);
+}
+
+/*
+ * A narrow section (a 320px phone; container widths are the content box, so
+ * 390 measures 350): three cards a row left about 80px each, and a title like
+ * "Well-rated instructors" ran into the card's edge. Two a row instead (Time
+ * of day keeps the full row). The credit picture shrinks so its title isn't
+ * stacked a word per line. The slider keeps its end pictures: they hold the
+ * thumb far enough in that its bubble stays inside the well at either end.
+ */
+@container (max-width: 300px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .creditPic {
+    width: 64px;
+  }
+  .creditPic svg {
+    width: 56px;
+    height: auto;
+  }
 }
