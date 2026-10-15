@@ -288,6 +288,10 @@ function validateRequest(request, checkDeadline = () => {}) {
       if (section.courseCode !== course.code) {
         throw new OptimizerInputError(`section ${section.id} belongs to ${section.courseCode}, listed under ${course.code}`);
       }
+      const gpa = section.instructorGpaHundredths;
+      if (gpa !== undefined && gpa !== null && !isInteger(gpa, 0, 400)) {
+        throw new OptimizerInputError(`section ${section.id} has invalid instructor GPA hundredths ${JSON.stringify(gpa)}; expected a whole number from 0 to 400, or null when there is no accepted evidence`);
+      }
       if (section.meetings.length === 0)
         throw new OptimizerInputError(`section ${section.id} has no meetings`);
       for (const meeting of section.meetings) {
@@ -473,6 +477,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     const neutral = neutralRatingTenths(course.sections);
     neutralRatingByCourse[course.code] = neutral;
     creditsByCourse[course.code] = course.credits;
+    const evidenceCounted = course.sections.every((section) => typeof section.instructorGpaHundredths === "number");
     const allowed = allowedByCourse[courseIndex];
     const kept = [];
     for (const section of allowed) {
@@ -501,6 +506,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
         self: selfCost(section, weights, neutral),
         dayMask: meetings.reduce((mask, m) => mask | 1 << m.day, 0),
         timeSignature: signatureId,
+        evidence: evidenceCounted ? section.instructorGpaHundredths : 0,
         meetings
       });
     }
@@ -519,7 +525,9 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
       wordLo,
       wordHi: word,
       byDayMask: [],
-      sectionsBeforeConstraints: allowedSections(course, request).length
+      sectionsBeforeConstraints: allowedSections(course, request).length,
+      evidenceCounted,
+      maxEvidence: ordered.reduce((max, candidate) => Math.max(max, candidate.evidence), 0)
     });
   });
   const words = word;
@@ -622,6 +630,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     words,
     conflicts,
     walk,
+    evidenceCourses: courses.filter((course) => course.evidenceCounted).length,
     buildingCount,
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
     weekSegments: segments.count,
@@ -653,7 +662,7 @@ function dropTwins(candidates, walkingMatters) {
   for (const candidate of candidates) {
     const key = walkingMatters ? fullSignatureOf(candidate.section.meetings) : timeSignatureOf(candidate.section.meetings);
     const current = best.get(key);
-    if (!current || candidate.self < current.self || candidate.self === current.self && compareIds(candidate.section.id, current.section.id) < 0) {
+    if (!current || candidate.self < current.self || candidate.self === current.self && (candidate.evidence > current.evidence || candidate.evidence === current.evidence && compareIds(candidate.section.id, current.section.id) < 0)) {
       best.set(key, candidate);
     }
   }
@@ -676,7 +685,7 @@ function compareKeys(a, b) {
   return 0;
 }
 function leafBefore(a, b) {
-  return a.cost < b.cost || a.cost === b.cost && compareKeys(a.key, b.key) < 0;
+  return a.cost < b.cost || a.cost === b.cost && (a.evidence > b.evidence || a.evidence === b.evidence && compareKeys(a.key, b.key) < 0);
 }
 function popcount(value) {
   let v = value - (value >>> 1 & 1431655765);
@@ -684,7 +693,7 @@ function popcount(value) {
   return (v + (v >>> 4) & 252645135) * 16843009 >>> 24;
 }
 function search(prepared, budget, options) {
-  const { courses, words, conflicts, walk, buildingCount, bufferSeconds, weights } = prepared;
+  const { courses, words, conflicts, walk, buildingCount, bufferSeconds, weights, evidenceCourses } = prepared;
   const n = courses.length;
   const candidateByBit = [];
   for (const candidate of prepared.candidates)
@@ -707,6 +716,8 @@ function search(prepared, budget, options) {
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
+  let evidenceSum = 0;
+  let countedAssigned = 0;
   let assignedCount = 0;
   const previous = options.previous;
   const same = new Int32Array(previous.length);
@@ -946,13 +957,20 @@ function search(prepared, budget, options) {
     if (best !== null) {
       if (bound > best.cost)
         return Number.POSITIVE_INFINITY;
-      if (bound === best.cost && !canWinTie(candidate))
-        return Number.POSITIVE_INFINITY;
+      if (bound === best.cost) {
+        const evidenceUpper = evidenceSum + candidate.evidence + 400 * (evidenceCourses - countedAssigned - (courses[candidate.course].evidenceCounted ? 1 : 0));
+        if (!canWinTie(candidate, evidenceUpper))
+          return Number.POSITIVE_INFINITY;
+      }
     }
     return bound;
   }
-  function canWinTie(candidate) {
-    const target = best.key;
+  function canWinTie(candidate, evidenceUpper) {
+    const target = best;
+    if (evidenceUpper < target.evidence)
+      return false;
+    const keys = target.key;
+    let keyWins = false;
     for (let u = 0;u < n; u += 1) {
       let lowest;
       if (u === candidate.course)
@@ -973,10 +991,14 @@ function search(prepared, budget, options) {
           }
         }
       }
-      if (lowest !== target[u])
-        return lowest < target[u];
+      if (lowest !== keys[u]) {
+        keyWins = lowest < keys[u];
+        break;
+      }
     }
-    return false;
+    if (evidenceUpper > target.evidence)
+      return true;
+    return keyWins;
   }
   function recordLeaf() {
     const picks = assigned;
@@ -984,7 +1006,7 @@ function search(prepared, budget, options) {
     if (pairs < 0)
       return;
     const cost = selfSum + weights.fewerDays * COST_PER_DAY * popcount(daysUsed) + pairs;
-    const leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id) };
+    const leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id), evidence: evidenceSum };
     options.onLeaf?.(leaf);
     if (options.stopAtFirst) {
       best = leaf;
@@ -1348,6 +1370,9 @@ function search(prepared, budget, options) {
         next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
+      evidenceSum += candidate.evidence;
+      if (courses[candidate.course].evidenceCounted)
+        countedAssigned += 1;
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -1365,6 +1390,9 @@ function search(prepared, budget, options) {
       removeMeetings(candidate);
       daysUsed = previousDays;
       selfSum -= candidate.self;
+      evidenceSum -= candidate.evidence;
+      if (courses[candidate.course].evidenceCounted)
+        countedAssigned -= 1;
       assigned[candidate.course] = null;
     }
   }

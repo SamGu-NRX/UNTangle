@@ -117,14 +117,17 @@ export function toOptimizerCourses(
   courseCodes: readonly string[],
   catalog: SectionCatalog = sampleCatalog,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ): OptCourse[] {
   return [...new Set(courseCodes)].flatMap((code) => {
     const course = getCourseByCode(code);
     const options = catalog(code);
     if (!course || options.status !== "ready") return [];
+    const evidence = evidenceHundredths?.[code];
     const sections = options.result.sections
       .filter((section) => isCandidate(section, filter))
-      .map(toOptSection)
+      .map((section) => toOptSection(section, evidence?.[section.id]))
       .filter((section): section is OptSection => section !== null);
     if (sections.length === 0) return [];
     return [{ code, credits: Number.isFinite(course.creditHours) && course.creditHours >= 0 ? course.creditHours : 0, sections }];

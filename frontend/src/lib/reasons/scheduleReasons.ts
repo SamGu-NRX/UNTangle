@@ -40,17 +40,11 @@ import { OPT_DAYS, type OptDay, type OptSection, type ScheduleBreakdown } from "
 import type { GradeData } from "@/lib/grades";
 import type { CourseHistory } from "@/lib/grades-history/types";
 import { hasOpenSeats } from "@/lib/planner-sections";
+import { MIN_GRADED_SECTIONS } from "@/lib/sections/instructor-evidence";
 import type { Section } from "@/lib/sections/model";
 import type { Reason, ReasonEvidence, ScheduleReasonsInput, StatedPreference } from "./types";
 
 const DEFAULT_MAX_REASONS = 3;
-
-/**
- * Grade history needs at least this many of the instructor's past sections
- * of the course with A through F grades. A starting value with no evidence
- * behind it.
- */
-const MIN_GRADED_SECTIONS = 3;
 
 const DAY_NAMES: Record<OptDay, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 
@@ -244,8 +238,7 @@ function seatWarning(section: OptSection, catalog: Pick<Section, "status" | "com
 
 const aThroughF = (g: GradeData) => g.gradeA + g.gradeB + g.gradeC + g.gradeD + g.gradeF;
 
-function gradeReason(section: OptSection, history: CourseHistory): Reason | null {
-  const code = `${history.course.subject} ${history.course.number}`;
+function gradeReason(section: OptSection, history: CourseHistory): Reason | null {  const code = `${history.course.subject} ${history.course.number}`;
   if (code !== section.courseCode) throw new Error(`reasons: grade history for ${code} was given for section ${section.id} of ${section.courseCode}`);
   const graded = history.terms.flatMap((term) => term.sections).filter((past) => aThroughF(past.grades) > 0).length;
   if (graded < MIN_GRADED_SECTIONS) return null;

@@ -6,7 +6,9 @@
  * Nothing here can drop a section that some valid schedule uses, with one
  * deliberate exception: a section whose meetings and buildings are identical
  * to a cheaper one of the same course (a "twin") is dropped, because the
- * cheaper twin always ranks ahead of it (see `dropTwins`).
+ * cheaper twin always ranks ahead of it; at equal cost the twin with the
+ * stronger instructor evidence ranks ahead, and the lower id settles what
+ * the omit rule leaves equal (see `dropTwins`).
  */
 
 import {
@@ -46,6 +48,13 @@ export type Candidate = {
   /** Interned meeting-time pattern (days, starts, ends), comparable within a course. */
   timeSignature: number;
   meetings: PreparedMeeting[];
+  /**
+   * What the section's instructor adds to the evidence tie-break, in
+   * hundredths: its evidence when the course counts, else 0 (a course with
+   * any option without evidence is left out for every option, so its
+   * sections contribute nothing to any schedule).
+   */
+  evidence: number;
 };
 
 export type PreparedCourse = {
@@ -60,6 +69,10 @@ export type PreparedCourse = {
   byDayMask: Array<{ dayMask: number; bits: Uint32Array }>;
   /** Number of candidates before the time-of-day, day-off and blocked-time checks. */
   sectionsBeforeConstraints: number;
+  /** Whether every option the request lists for this course has accepted evidence (core's omit rule). */
+  evidenceCounted: boolean;
+  /** The most any live candidate contributes to the tie-break: an upper bound on the course's evidence term. */
+  maxEvidence: number;
 };
 
 export type Prepared = {
@@ -78,6 +91,8 @@ export type Prepared = {
   weights: OptWeights;
   totalCredits: number;
   maxCredits: number | null;
+  /** Courses whose evidence enters the tie-break: every option has accepted evidence. 0 leaves the tier inert. */
+  evidenceCourses: number;
   /** How many courses two alternatives must place at different times (see diversity in optimize.ts). */
   minDifferentCourses: number;
   creditsByCourse: Record<string, number>;
@@ -137,6 +152,12 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
       sectionIds.set(section.id, course.code);
       if (section.courseCode !== course.code) {
         throw new OptimizerInputError(`section ${section.id} belongs to ${section.courseCode}, listed under ${course.code}`);
+      }
+      const gpa = section.instructorGpaHundredths;
+      if (gpa !== undefined && gpa !== null && !isInteger(gpa, 0, 400)) {
+        throw new OptimizerInputError(
+          `section ${section.id} has invalid instructor GPA hundredths ${JSON.stringify(gpa)}; expected a whole number from 0 to 400, or null when there is no accepted evidence`,
+        );
       }
       if (section.meetings.length === 0) throw new OptimizerInputError(`section ${section.id} has no meetings`);
       for (const meeting of section.meetings) {
@@ -374,6 +395,11 @@ export function prepare(
     const neutral = neutralRatingTenths(course.sections);
     neutralRatingByCourse[course.code] = neutral;
     creditsByCourse[course.code] = course.credits;
+    // Core's omit rule: the course's evidence enters the tie-break only when
+    // every option the request lists has accepted evidence — one option
+    // without evidence leaves the course out for every option, so a schedule
+    // can never gain the tier by dropping that option.
+    const evidenceCounted = course.sections.every((section) => typeof section.instructorGpaHundredths === "number");
     const allowed = allowedByCourse[courseIndex];
     const kept: Candidate[] = [];
     for (const section of allowed) {
@@ -405,6 +431,9 @@ export function prepare(
         self: selfCost(section, weights, neutral),
         dayMask: meetings.reduce((mask, m) => mask | (1 << m.day), 0),
         timeSignature: signatureId,
+        // The candidate's evidence contribution: the section's own when the
+        // course counts under the omit rule, else 0 for every candidate.
+        evidence: evidenceCounted ? section.instructorGpaHundredths! : 0,
         meetings,
       });
     }
@@ -424,6 +453,8 @@ export function prepare(
       wordHi: word,
       byDayMask: [],
       sectionsBeforeConstraints: allowedSections(course, request).length,
+      evidenceCounted,
+      maxEvidence: ordered.reduce((max, candidate) => Math.max(max, candidate.evidence), 0),
     });
   });
 
@@ -537,6 +568,7 @@ export function prepare(
     words,
     conflicts,
     walk,
+    evidenceCourses: courses.filter((course) => course.evidenceCounted).length,
     buildingCount,
     bufferSeconds: bufferMinutes === null ? null : bufferMinutes * 60,
     weekSegments: segments.count,
@@ -587,7 +619,12 @@ function dropTwins(candidates: Candidate[], walkingMatters: boolean): Candidate[
     if (
       !current ||
       candidate.self < current.self ||
-      (candidate.self === current.self && compareIds(candidate.section.id, current.section.id) < 0)
+      // Equal-cost twins differ only in the tie-break: the stronger
+      // instructor's evidence wins when the course counts, and the lower id
+      // settles what the omit rule leaves equal (all evidence 0).
+      (candidate.self === current.self &&
+        (candidate.evidence > current.evidence ||
+          (candidate.evidence === current.evidence && compareIds(candidate.section.id, current.section.id) < 0)))
     ) {
       best.set(key, candidate);
     }

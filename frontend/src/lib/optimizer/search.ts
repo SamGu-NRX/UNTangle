@@ -53,6 +53,13 @@ export type Leaf = {
   cost: number;
   /** Section ids in course-code order: the tie-break key. */
   key: string[];
+  /**
+   * The tie-break evidence: the sum of the picked options' instructor
+   * evidence over the courses that count (every option the request lists has
+   * accepted evidence). Computed here from the request alone, so it never
+   * leaks grade history into the result.
+   */
+  evidence: number;
 };
 
 class BudgetExhausted {}
@@ -66,9 +73,9 @@ export function compareKeys(a: readonly string[], b: readonly string[]): number 
   return 0;
 }
 
-/** Strict order: lower cost first, then the lower tie-break key. */
-export function leafBefore(a: Pick<Leaf, "cost" | "key">, b: Pick<Leaf, "cost" | "key">): boolean {
-  return a.cost < b.cost || (a.cost === b.cost && compareKeys(a.key, b.key) < 0);
+/** Strict order: lower cost first, then stronger instructor evidence, then the lower tie-break key. */
+export function leafBefore(a: Pick<Leaf, "cost" | "key" | "evidence">, b: Pick<Leaf, "cost" | "key" | "evidence">): boolean {
+  return a.cost < b.cost || (a.cost === b.cost && (a.evidence > b.evidence || (a.evidence === b.evidence && compareKeys(a.key, b.key) < 0)));
 }
 
 function popcount(value: number): number {
@@ -91,7 +98,7 @@ type Options = {
 export type SearchOutcome = { best: Leaf | null; complete: boolean };
 
 export function search(prepared: Prepared, budget: Budget, options: Options): SearchOutcome {
-  const { courses, words, conflicts, walk, buildingCount, bufferSeconds, weights } = prepared;
+  const { courses, words, conflicts, walk, buildingCount, bufferSeconds, weights, evidenceCourses } = prepared;
   const n = courses.length;
   const candidateByBit: Candidate[] = [];
   for (const candidate of prepared.candidates) candidateByBit[candidate.bit] = candidate;
@@ -116,6 +123,10 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const dayEnd = 32 - Math.clz32(anyCandidateDays);
   let daysUsed = 0;
   let selfSum = 0;
+  let evidenceSum = 0;
+  // How many evidence-counted courses are assigned so far: with the prepared
+  // total it bounds what a branch can still add to the tie-break.
+  let countedAssigned = 0;
   let assignedCount = 0;
   const previous = options.previous;
   const same = new Int32Array(previous.length);
@@ -368,14 +379,30 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     const bound = lowerSelf + dayPrice * (popcount(nextDays) + mostNewDays) + pairs;
     if (best !== null) {
       if (bound > best.cost) return Number.POSITIVE_INFINITY;
-      if (bound === best.cost && !canWinTie(candidate)) return Number.POSITIVE_INFINITY;
+      if (bound === best.cost) {
+        // The branch's ceiling on tie-break evidence: the candidate's own
+        // evidence plus 400 per still-unassigned counted course (400 is the
+        // largest accepted value). Below the incumbent's evidence, no key
+        // can rescue the branch.
+        const evidenceUpper =
+          evidenceSum + candidate.evidence + 400 * (evidenceCourses - countedAssigned - (courses[candidate.course].evidenceCounted ? 1 : 0));
+        if (!canWinTie(candidate, evidenceUpper)) return Number.POSITIVE_INFINITY;
+      }
     }
     return bound;
   }
 
-  /** At equal cost, can some completion still have a lower tie-break key than `best`? */
-  function canWinTie(candidate: Candidate): boolean {
-    const target = best!.key;
+  /**
+   * At equal cost, can some completion still beat `best` on the tie-break:
+   * stronger instructor evidence, or equal evidence and a lower key? The
+   * caller passes the completion's evidence upper bound; below the
+   * incumbent's evidence no key can rescue the branch, so it prunes.
+   */
+  function canWinTie(candidate: Candidate, evidenceUpper: number): boolean {
+    const target = best!;
+    if (evidenceUpper < target.evidence) return false;
+    const keys = target.key;
+    let keyWins = false;
     for (let u = 0; u < n; u += 1) {
       let lowest: string;
       if (u === candidate.course) lowest = candidate.section.id;
@@ -393,9 +420,13 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           }
         }
       }
-      if (lowest !== target[u]) return lowest < target[u];
+      if (lowest !== keys[u]) {
+        keyWins = lowest < keys[u];
+        break;
+      }
     }
-    return false;
+    if (evidenceUpper > target.evidence) return true;
+    return keyWins;
   }
 
   function recordLeaf(): void {
@@ -403,7 +434,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
     const pairs = completeCost();
     if (pairs < 0) return;
     const cost = selfSum + weights.fewerDays * COST_PER_DAY * popcount(daysUsed) + pairs;
-    const leaf: Leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id) };
+    const leaf: Leaf = { picks: [...picks], cost, key: picks.map((pick) => pick.section.id), evidence: evidenceSum };
     options.onLeaf?.(leaf);
     if (options.stopAtFirst) {
       best = leaf;
@@ -747,6 +778,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       for (let w = 0; w < words; w += 1) next[w] = alive[w] & ~conflict[w];
       assigned[candidate.course] = candidate;
       selfSum += candidate.self;
+      evidenceSum += candidate.evidence;
+      if (courses[candidate.course].evidenceCounted) countedAssigned += 1;
       const previousDays = daysUsed;
       daysUsed |= candidate.dayMask;
       insertMeetings(candidate);
@@ -764,6 +797,8 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
       removeMeetings(candidate);
       daysUsed = previousDays;
       selfSum -= candidate.self;
+      evidenceSum -= candidate.evidence;
+      if (courses[candidate.course].evidenceCounted) countedAssigned -= 1;
       assigned[candidate.course] = null;
     }
   }

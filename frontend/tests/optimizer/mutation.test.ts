@@ -16,6 +16,7 @@ import {
   checkExplanations,
   checkLargeInstancesValid,
   checkRegressions,
+  evidenceInstance,
   termInstance,
   type OptimizeFn,
 } from "./checks";
@@ -41,6 +42,8 @@ const SEEDS = Array.from({ length: 400 }, (_, i) => i + 1);
 const agreement = (fn: OptimizeFn) => checkAgainstReference(fn, SEEDS);
 const TERM_SEEDS = Array.from({ length: 300 }, (_, i) => 7001 + i);
 const datedAgreement = (fn: OptimizeFn) => checkAgainstReference(fn, TERM_SEEDS, (seed) => termInstance(seed, true));
+const EVIDENCE_SEEDS = Array.from({ length: 300 }, (_, i) => 9001 + i);
+const evidenceAgreement = (fn: OptimizeFn) => checkAgainstReference(fn, EVIDENCE_SEEDS, evidenceInstance);
 const explanations = (fn: OptimizeFn) => checkExplanations(fn, [...SEEDS, ...Array.from({ length: 150 }, (_, i) => 401 + i)]).failures;
 
 const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; check: (fn: OptimizeFn) => string[] }> = [
@@ -78,6 +81,13 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
     from: " && (a.weeks & b.weeks) !== 0;",
     to: ";",
     check: datedAgreement,
+  },
+  {
+    name: "the engine reads the evidence tie-break instead of ignoring it",
+    file: "prepare.ts",
+    from: "evidence: evidenceCounted ? section.instructorGpaHundredths! : 0,",
+    to: "evidence: 0,",
+    check: evidenceAgreement,
   },
   {
     name: "the search treats every consecutive pair in a day as back to back, whatever the dates",

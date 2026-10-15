@@ -50,6 +50,21 @@ export function termInstance(seed: number, walking: boolean): OptimizeRequest {
     : { ...request, constraints: { ...request.constraints, walking: null }, weights: { ...request.weights, walking: 0 } };
 }
 
+/**
+ * Small instances with instructor evidence on about three quarters of the
+ * courses (a quarter of those only partial, which the omit rule leaves out
+ * for every option), so the evidence tier is exercised against the reference.
+ */
+export const EVIDENCE_SHAPES: InstanceShape[] = [
+  { courses: 3, sectionsPerCourse: [2, 6], style: "irregular", constraintDensity: 0.5, evidence: true, twinChance: 0.35 },
+  { courses: 4, sectionsPerCourse: [2, 5], style: "realistic", constraintDensity: 0.6, walking: "non-metric", evidence: true, twinChance: 0.35 },
+  { courses: 5, sectionsPerCourse: [2, 4], style: "realistic", constraintDensity: 0.5, evidence: true, twinChance: 0.35 },
+];
+
+export function evidenceInstance(seed: number): OptimizeRequest {
+  return generateInstance(seed, EVIDENCE_SHAPES[seed % EVIDENCE_SHAPES.length]);
+}
+
 /** The same request with every meeting's dates removed. */
 export function withoutDates(request: OptimizeRequest): OptimizeRequest {
   return {
