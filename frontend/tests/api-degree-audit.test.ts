@@ -178,6 +178,70 @@ describe("GET /api/v1/programs/[id]/audit", () => {
     expect(body.audit.policies.some((policy) => policy.status === "unverifiable")).toBe(true);
   });
 
+  test("audits the University Core: Social and Behavioral Sciences claims PADM 2100 before Option A reads it", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    pull.mockImplementation(async () => [
+      { documentId: "main", kind: "academic-record", revision: 1, deleted: false },
+    ]);
+    get.mockImplementation(async () => ({
+      kind: "academic-record",
+      body: {
+        ...recordBody,
+        transcriptRecords: [
+          {
+            id: "row-1",
+            code: "PADM 2100",
+            title: "Public Administration",
+            term: "2025 Fall",
+            grade: "A",
+            credits: 3,
+            sourceKind: "unt",
+            confidence: 1,
+            rationale: "",
+            duplicateExcluded: false,
+            appliedStatus: "completed",
+            prerequisiteSatisfied: true,
+            reviewRequired: false,
+          },
+          {
+            id: "row-2",
+            code: "PHIL 2500",
+            title: "Introduction to Philosophy",
+            term: "2025 Fall",
+            grade: "A",
+            credits: 3,
+            sourceKind: "unt",
+            confidence: 1,
+            rationale: "",
+            duplicateExcluded: false,
+            appliedStatus: "completed",
+            prerequisiteSatisfied: true,
+            reviewRequired: false,
+          },
+        ],
+      },
+    }));
+
+    const response = await auditRoute.GET(
+      new Request("http://localhost:3000/api/v1/programs/core/audit"),
+      { params: Promise.resolve({ id: "core" }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      program: { id: string };
+      audit: { requirements: { name: string; status: string; detail: string }[] };
+    };
+    expect(body.program.id).toBe("core");
+    // One course per core area: Social and Behavioral Sciences claims PADM
+    // 2100 in tree order, so Component Area Option A reads only PHIL 2500 —
+    // 1 course, 3 of 6 hours, in progress. Without the allocation the same
+    // record fills the option outright at 6/6.
+    const option = body.audit.requirements.find((node) => node.name.startsWith("Component Area Option"));
+    expect(option?.name).toContain("Option A");
+    expect(option?.status).toBe("inProgress");
+    expect(option?.detail).toContain("3/6");
+  });
+
   test("does not read another institution's record", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     pull.mockImplementation(async () => [

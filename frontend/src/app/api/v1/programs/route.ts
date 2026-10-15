@@ -5,8 +5,9 @@ import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 export const runtime = "nodejs";
 
 // The four programs with a fully captured requirements tree. The University
-// Core tree stays in the data because each major's audit reads it, but the
-// core itself is not an auditable program.
+// Core tree stays in the data because each major's audit reads it; the core
+// audits directly through /api/v1/programs/core/audit, and this index lists
+// the majors only.
 const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio"];
 
 /**

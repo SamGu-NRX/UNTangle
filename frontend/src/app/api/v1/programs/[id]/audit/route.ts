@@ -10,7 +10,11 @@ import { DEGREE_DATA } from "@/lib/degree/programs.generated";
 
 export const runtime = "nodejs";
 
-const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio"];
+// The four majors plus the University Core: the core's Component Area Option
+// is where the one-course-one-area allocation is visible in an audit, so
+// students audit their core progress directly. The program index (the listing
+// route) still lists the majors only.
+const AUDITABLE_PROGRAM_IDS = ["cs-bs", "ce-bs", "math-bsmth", "biology-bsbio", "core"];
 
 function findProgram(id: string): ProgramData | null {
   if (!AUDITABLE_PROGRAM_IDS.includes(id)) return null;

@@ -83,12 +83,28 @@ export function buildDegreeData(dataDir: string, builtAt: string): DegreeData {
   };
 }
 
+// The frontend module is a byte-exact serialization of the same data: the
+// routes import DEGREE_DATA from it, so it must be written by the same build
+// that writes programs.json. degree-data.generated.test.ts fails when either
+// committed file drifts from this serialization.
+export function toGeneratedModuleSource(data: DegreeData): string {
+  const header = [
+    "// GENERATED from packages/ingest/data/degree/programs.json by packages/ingest/src/degree/build.ts.",
+    "// Do not edit by hand: rebuild with `bun packages/ingest/src/degree/build.ts`.",
+    "// Source: UNT 2026-2027 catalog pages captured in packages/ingest/data/catalog/unt-2026-27.",
+  ];
+  return header.join("\n") + "\n" + "export const DEGREE_DATA = " + JSON.stringify(data, null, 2) + ";\n";
+}
+
 const isMain = process.argv[1] !== undefined && import.meta.url.endsWith(path.basename(process.argv[1]));
 if (isMain) {
   const dataDir = path.resolve(import.meta.dir, "../../data/catalog/unt-2026-27");
   const outFile = path.resolve(import.meta.dir, "../../data/degree/programs.json");
+  const frontendModule = path.resolve(import.meta.dir, "../../../../frontend/src/lib/degree/programs.generated.ts");
   const data = buildDegreeData(dataDir, new Date().toISOString());
   mkdirSync(path.dirname(outFile), { recursive: true });
   writeFileSync(outFile, `${JSON.stringify(data, null, 2)}\n`);
+  writeFileSync(frontendModule, toGeneratedModuleSource(data));
   console.log(`wrote ${outFile}`);
+  console.log(`wrote ${frontendModule}`);
 }
