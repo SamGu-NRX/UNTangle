@@ -301,3 +301,27 @@ describe("planner-state store (guest durability)", () => {
     }
   });
 });
+
+
+class QuarantineDeniedStorage extends MemoryStorage {
+  setItem(key: string, value: string): void {
+    if (key.startsWith("untangle.planner-state.corrupt-")) throw new Error("QuotaExceededError");
+    super.setItem(key, value);
+  }
+}
+
+it("refuses a guest write when corrupt bytes cannot be quarantined", () => {
+  const storage = new QuarantineDeniedStorage({ [PLANNER_STATE_STORE_KEY]: "corrupt original" });
+  const store = createPlannerStateStore(storage);
+  expect(store.write(stateWith({}), 0)).toMatchObject({ ok: false, failure: { kind: "corruptDataUnpreserved" } });
+  expect(storage.getItem(PLANNER_STATE_STORE_KEY)).toBe("corrupt original");
+  expect(store.listQuarantined()).toEqual([]);
+});
+
+it("refuses a mirror write when corrupt bytes cannot be quarantined", () => {
+  const storage = new QuarantineDeniedStorage({ [PLANNER_STATE_STORE_KEY]: "corrupt original" });
+  const store = createPlannerStateStore(storage);
+  store.writeMirror(stateWith({}));
+  expect(storage.getItem(PLANNER_STATE_STORE_KEY)).toBe("corrupt original");
+  expect(store.listQuarantined()).toEqual([]);
+});

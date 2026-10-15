@@ -9,7 +9,6 @@ import { SearchPalette } from "@/components/ui/SearchPalette";
 import { Toaster } from "@/components/ui/Toast";
 import { WebMcpTools } from "@/components/webmcp/WebMcpTools";
 import { courses } from "@/lib/seed-data";
-import { CLASS_NUMBER_ITEM, classNumberHref, classNumberSection } from "./class-number-search";
 import { courseHref, searchCourses } from "./course-search";
 import { useLensMemory } from "./lens-memory";
 import { lensForPath, shellModeFor } from "./routes";
@@ -45,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setSearchOpen(false);
   }
 
-  const openSearch = useCallback(() => (provider?.open ? provider.open() : setSearchOpen(true)), [provider]);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
   const api = useMemo<ShellApi>(() => ({ openSearch, setSearchProvider, pageState }), [openSearch, pageState]);
 
   // Sheets judge Back against the entry we are on; a route change moved it.
@@ -57,17 +56,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        if (provider?.open) provider.open();
-        else setSearchOpen((open) => !open);
+        setSearchOpen((open) => !open);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mode, provider]);
+  }, [mode]);
 
   const results = useMemo(() => searchCourses(courses, query), [query]);
-  const classNumber = classNumberSection(query);
-  const sections = [...(classNumber ? [classNumber] : []), ...(provider ? provider.search(query) : [{ id: "courses", label: "Courses", items: results }])];
+  const sections = provider ? provider.search(query) : [{ id: "courses", label: "Courses", items: results }];
 
   if (mode === "bare") {
     return (
@@ -102,12 +99,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         emptyQueryHint={provider?.emptyQueryHint}
         planShortcut={provider?.planShortcut}
         onSelect={(item, opts) => {
-          if (item.id.startsWith(CLASS_NUMBER_ITEM)) {
-            setSearchOpen(false);
-            setQuery("");
-            router.push(classNumberHref(item.id));
-            return;
-          }
           if (provider) {
             if (provider.onSelect(item, opts) === true) return;
             setSearchOpen(false);

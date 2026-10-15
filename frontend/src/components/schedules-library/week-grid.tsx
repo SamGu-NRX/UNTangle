@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import type { Hue } from "@/lib/course-colors";
-import { clockText, gridDays, type PlacedBlock, type WeekBlock } from "@/lib/plan-library/week";
+import { clockText, gridDays, spokenClock, type PlacedBlock, type WeekBlock } from "@/lib/plan-library/week";
 import type { ClassDay } from "@/lib/types";
 import styles from "./library.module.css";
 
@@ -153,7 +153,7 @@ export function WeekGrid({
                   height: `calc(${((item.end - item.start) / span) * 100}% - 2px)`,
                 }}
               >
-                {item.code}
+                <CodeLabel code={item.code} oneLine={item.end - item.start < TWO_LINE_MINUTES} />
               </span>
             ))}
           </div>
@@ -163,6 +163,25 @@ export function WeekGrid({
     </div>
   );
 }
+
+/** "MATH" over "2700": a narrow block shows the whole code on two lines instead of cutting it. */
+function CodeLabel({ code, oneLine }: { code: string; oneLine: boolean }) {
+  const [department, number] = code.split(" ");
+  return (
+    <>
+      <span>{department}</span>
+      {/* A block too short for two lines drops the number rather than cutting both. */}
+      {number && !oneLine ? <span>{number}</span> : null}
+    </>
+  );
+}
+
+/**
+ * Shortest block, in minutes, with room for the code's two lines at 40px an
+ * hour (library.module.css .gridBody): 2 × 11px × 1.15 plus 6px of padding
+ * and the 2px gap is 33px, which is 50 minutes.
+ */
+const TWO_LINE_MINUTES = 50;
 
 const DAY_NAMES: Record<ClassDay, string> = {
   Mon: "Monday",
@@ -180,7 +199,7 @@ function MeetingList({ items, labels }: { items: readonly PlacedBlock[]; labels?
     <ul className="sr-only-v2" aria-label="Meetings">
       {items.map((item) => (
         <li key={item.id}>
-          {item.code}, {DAY_NAMES[item.day]} {clockText(item.start)} to {clockText(item.end)}
+          {item.code}, {DAY_NAMES[item.day]} {spokenClock(item.start)} to {spokenClock(item.end)}
           {labels?.[item.variant] ? `, ${labels[item.variant]}` : ""}
         </li>
       ))}

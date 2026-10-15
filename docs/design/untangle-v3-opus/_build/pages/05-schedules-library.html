@@ -120,16 +120,18 @@ const SCHED = [
   { id: "walk", term: "Spring 2027", name: "Short walks", map: { "CSCE 2110": "001", "MATH 2700": "003", "PHYS 2220": "001", "CSCE 2610": "002", "TECM 2700": "900" }, edited: "Saved yesterday" },
   { id: "fall", term: "Fall 2026", name: "This term", active: true, now: true, map: { "CSCE 2100": "003", "ENGL 1320": "011", "PHYS 1710": "001" }, edited: "Registered Aug 12" },
 ];
-/* history: what happened, and when */
+/* history: what happened, when, and the whole week as it was then, so Restore can put it back */
+const MAIN = SCHED[0].map;
 const VERSIONS = [
-  ["Moved PHYS 2220 to §002", "Now", null],
-  ["Used option 1 from Auto", "Today at 10:44", { "PHYS 2220": "001" }],
-  ["Before Auto", "Today at 10:41", "empty"],
-  ["Started from your transcript", "Today at 10:38", "empty"],
+  { t: "Moved PHYS 2220 to §002", time: "Now", map: { ...MAIN } },
+  { t: "Used option 1 from Auto", time: "Today at 10:44", map: { ...MAIN, "PHYS 2220": "001" } },
+  { t: "Before Auto", time: "Today at 10:41", map: {} },
+  { t: "Started from your transcript", time: "Today at 10:38", map: {} },
 ];
 const fmt = (h) => { const m = Math.round(h * 60), hh = Math.floor(m / 60); return `${hh > 12 ? hh - 12 : hh}:${String(m % 60).padStart(2, "0")}`; };
 const meet = (map) => Object.entries(map).flatMap(([c, n]) => { const [d, s, e, b] = S[c].s[n]; return d.map((day, k) => ({ c, n, d: day, k, s, e, b, col: S[c].c })); });
-function stats(map) { const m = meet(map); return { days: new Set(m.map((x) => x.d)).size, first: Math.min(...m.map((x) => x.s)), last: Math.max(...m.map((x) => x.e)) }; }
+// An empty or online-only week has no first or last class (null).
+function stats(map) { const m = meet(map), timed = m.length > 0; return { days: new Set(m.map((x) => x.d)).size, first: timed ? Math.min(...m.map((x) => x.s)) : null, last: timed ? Math.max(...m.map((x) => x.e)) : null }; }
 const WALK = { main: 28, fri: 16, walk: 22, fall: 12 }, TIGHT = { main: 1, fri: 0, walk: 0, fall: 0 };
 const thumb = (map) => `<div class="thumb" aria-hidden="true">${[0, 1, 2, 3, 4].map((d) => `<div>${meet(map).filter((x) => x.d === d).map((x) => `<i data-c="${x.col}" style="top:${((x.s - 8) / 9) * 100}%;height:${((x.e - x.s) / 9) * 100}%"></i>`).join("")}</div>`).join("")}</div>`;
 function week(maps, { dimA = false } = {}) {
@@ -155,20 +157,24 @@ function renderDetail() {
   const d = $("#detail");
   if (comparing) return renderCompare();
   const s = SCHED.find((x) => x.id === sel); if (!s) { d.innerHTML = ""; return; }
-  const vmap = ver && VERSIONS[ver][2] && VERSIONS[ver][2] !== "empty" ? { ...s.map, ...VERSIONS[ver][2] } : null;
+  const picked = ver ? VERSIONS[ver] : null;
+  const vmap = picked && Object.keys(picked.map).length ? picked.map : null;
+  const count = Object.keys(s.map).length;
   d.innerHTML = `${phd(s.name)}<div class="pin"><div class="pacts"><a class="btn btn-primary btn-sm" href="03-schedule-builder.html">Open in Week</a><button class="btn btn-secondary btn-sm" data-i="share" data-is="sm">Export</button></div>
     ${week(vmap ? [s.map, vmap] : [s.map], { dimA: !!vmap })}
-    ${vmap ? `<div class="legend2"><span><i style="background:var(--c3t);box-shadow:inset 3px 0 0 var(--c3)"></i>Now</span><span><i style="outline:1.5px dashed var(--c4);outline-offset:-1.5px"></i>${VERSIONS[ver][0]}</span></div>` : ""}
-    ${s.id === "main" ? `<section class="versions"><h3>History</h3><ol class="path vlist">${VERSIONS.map(([t, time], i) => `<li class="${ver === i ? "cur" : ""}"><span class="stop ${i === 0 ? "" : "ring"}">${i === 0 ? icon("check") : ""}</span><button class="vbtn" data-ver="${i}" aria-pressed="${ver === i}"><strong>${t}</strong><span class="meta">${time}</span></button>${i ? `<button class="btn btn-secondary btn-sm restore" data-restore="${i}" aria-label="Restore ${t}">Restore</button>` : ""}${ver === i && i === 2 ? '<p class="diffbox">Spring 2027 was empty then. Restoring removes all 5 courses; Undo brings them back.</p>' : ""}</li>`).join("")}</ol></section>` : ""}</div>`;
+    ${vmap ? `<div class="legend2"><span><i style="background:var(--c3t);box-shadow:inset 3px 0 0 var(--c3)"></i>Now</span><span><i style="outline:1.5px dashed var(--c4);outline-offset:-1.5px"></i>${picked.t}</span></div>` : ""}
+    ${s.id === "main" ? `<section class="versions"><h3>History</h3><ol class="path vlist">${VERSIONS.map(({ t, time, map }, i) => `<li class="${ver === i ? "cur" : ""}"><span class="stop ${i === 0 ? "" : "ring"}">${i === 0 ? icon("check") : ""}</span><button class="vbtn" data-ver="${i}" aria-pressed="${ver === i}"><strong>${t}</strong><span class="meta">${time}</span></button>${i ? `<button class="btn btn-secondary btn-sm restore" data-restore="${i}" aria-label="Restore ${t}">Restore</button>` : ""}${ver === i && i > 0 && !Object.keys(map).length && count ? `<p class="diffbox">Spring 2027 was empty then. Restoring removes all ${count} course${count === 1 ? "" : "s"}; Undo brings them back.</p>` : ""}</li>`).join("")}</ol></section>` : ""}</div>`;
   hydrateIcons(d);
 }
 function renderCompare() {
   const d = $("#detail"); const [A, B] = picks.map((id) => SCHED.find((x) => x.id === id));
   if (!B) { d.innerHTML = `${phd("Compare")}<p class="meta pin">Pick ${A ? "one more schedule" : "two schedules"} from the list.</p>`; hydrateIcons(d); return; }
   const a = stats(A.map), b = stats(B.map);
-  const rows = [["Days on campus", a.days, b.days, b.days - a.days], ["First class", fmt(a.first), fmt(b.first), a.first - b.first], ["Last class ends", fmt(a.last), fmt(b.last), b.last - a.last], ["Walking a week", WALK[A.id] + " min", WALK[B.id] + " min", WALK[B.id] - WALK[A.id]], ["Tight walks", TIGHT[A.id], TIGHT[B.id], TIGHT[B.id] - TIGHT[A.id]]];
+  const t = (h) => (h === null ? "None" : fmt(h));
+  const later = (x, y) => (x === null || y === null ? 0 : y - x);
+  const rows = [["Days on campus", a.days, b.days, b.days - a.days], ["First class", t(a.first), t(b.first), -later(a.first, b.first)], ["Last class ends", t(a.last), t(b.last), later(a.last, b.last)], ["Walking a week", WALK[A.id] + " min", WALK[B.id] + " min", WALK[B.id] - WALK[A.id]], ["Tight walks", TIGHT[A.id], TIGHT[B.id], TIGHT[B.id] - TIGHT[A.id]]];
   const changes = Object.keys({ ...A.map, ...B.map }).map((c) => ({ c, a: A.map[c], b: B.map[c] }));
-  const sec = (c, n) => { const [dd, s] = S[c].s[n]; return dd.length ? `${dd.map((i) => "MTWRF"[i]).join("")} ${fmt(s)}` : "Online"; };
+  const sec = (c, n) => { if (!n) return "Not in this schedule"; const [dd, s] = S[c].s[n]; return dd.length ? `${dd.map((i) => "MTWRF"[i]).join("")} ${fmt(s)}` : "Online"; };
   d.innerHTML = `${phd(`${A.name} and ${B.name}`)}<div class="pin"><div class="pacts"><button class="btn btn-primary btn-sm" data-act="useb">Make ${B.name} active</button><button class="btn btn-secondary btn-sm" data-act="endcmp">Done</button></div>
     <div class="seg sm" id="cmpSeg" style="margin-bottom:12px;width:100%" aria-label="Show"><button type="button" data-v="a" aria-pressed="${cmpView === "a"}">${A.name}</button><button type="button" data-v="both" aria-pressed="${cmpView === "both"}">Both</button><button type="button" data-v="b" aria-pressed="${cmpView === "b"}">${B.name}</button></div><div id="cmpWeek">${cmpWeek(A, B)}</div>
     <div class="legend2"><span><i style="background:var(--c3t);box-shadow:inset 3px 0 0 var(--c3)"></i>${A.name}</span><span><i style="outline:1.5px dashed var(--c3);outline-offset:-1.5px"></i>${B.name}, where it differs</span></div>
@@ -192,13 +198,28 @@ document.addEventListener("click", (e) => {
     sel = id; ver = 0; renderList(); show(kb, () => $(`.srow[data-id="${id}"] .card-hit`)); return;
   }
   const v = e.target.closest("[data-ver]"); if (v && !e.target.closest("[data-restore]")) { ver = +v.dataset.ver; renderDetail(); $(`[data-ver="${ver}"]`)?.focus(); return; }
-  const r = e.target.closest("[data-restore]"); if (r) { toast(`Restored “${VERSIONS[+r.dataset.restore][0]}”`, "Undo", () => {}); ver = 0; renderDetail(); return; }
+  const r = e.target.closest("[data-restore]"); if (r) { restore(+r.dataset.restore); return; }
   const a = e.target.closest("[data-act]")?.dataset.act;
   if (a === "pclose") panel.close(kb);
   if (a === "endcmp") { if (PHONE.matches) { comparing = false; picks = []; renderList(); pop(); } else panel.close(kb); }
-  if (a === "useb") { const b = SCHED.find((x) => x.id === picks[1]); SCHED.forEach((s) => s.term === b.term && (s.active = s === b)); comparing = false; sel = b.id; renderList(); renderDetail(); toast(`${b.name} is now active for ${b.term}`, "Undo", () => {}); }
+  if (a === "useb") {
+    const b = SCHED.find((x) => x.id === picks[1]); const was = SCHED.filter((s) => s.term === b.term && s.active);
+    SCHED.forEach((s) => s.term === b.term && (s.active = s === b)); comparing = false; sel = b.id; renderList(); renderDetail();
+    toast(`${b.name} is now active for ${b.term}`, "Undo", () => { SCHED.forEach((s) => s.term === b.term && (s.active = was.includes(s))); renderList(); renderDetail(); });
+  }
   const h = e.target.closest("[data-href]"); if (h) location.href = h.dataset.href;
 });
+/* Restore puts that version's week on the schedule as a new "Now" entry; Undo takes it back off. */
+function restore(i) {
+  const s = SCHED.find((x) => x.id === sel), v = VERSIONS[i], prev = { ...s.map }, prevTime = VERSIONS[0].time;
+  s.map = { ...v.map };
+  VERSIONS[0].time = "Just now";
+  VERSIONS.unshift({ t: `Restored “${v.t}”`, time: "Now", map: { ...v.map } });
+  ver = 0; renderList(); renderDetail(); $('[data-ver="0"]')?.focus({ preventScroll: true });
+  toast(`Restored “${v.t}”`, "Undo", () => {
+    VERSIONS.shift(); VERSIONS[0].time = prevTime; s.map = prev; ver = 0; renderList(); renderDetail();
+  });
+}
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (PHONE.matches) pop(); else panel.close(true); } });
 $("#cmpBtn").onclick = (e) => { comparing = !comparing; picks = comparing ? (sel ? [sel] : []) : []; $("#cmpBtn").setAttribute("aria-pressed", comparing); renderList(); if (comparing) show(e.detail === 0); else panel.close(e.detail === 0); };
 /* phone: the detail replaces the list, so focus moves with it and comes back to the schedule's row */

@@ -6,16 +6,17 @@
  * delete it. Its only allowed edit to the list is deleting lines: a new line
  * could hide an existing test from CI, and telling a new test from a moved
  * and edited old one would rest on git's rename guess. Listing tests is the
- * lead's job, so the lead-approved label lifts the rule.
+ * lead's job, so Sam's approving review of the PR's current commit lifts the
+ * rule. The workflow applies that lift (.github/workflows/pr-rules.yml); this
+ * script always checks.
  *
  * CI runs this from the base branch (pull_request_target), so a PR can't
  * edit the check that judges it.
  */
 import { PENDING_LIST, PendingListError, parsePendingList, type PendingEntry } from "./pending-acceptance";
 import {
-  LEAD_APPROVED,
+  LIFTED_BY,
   changedFiles,
-  labelsFromEnv,
   mergeBase,
   readAt,
   requireEnv,
@@ -76,10 +77,6 @@ export function taskRuleViolations(input: TaskRuleInput): string[] {
 
 if (import.meta.main) {
   const repoDir = process.cwd();
-  if (labelsFromEnv(process.env.PR_LABELS).includes(LEAD_APPROVED)) {
-    console.log(`Skipped: the PR has the ${LEAD_APPROVED} label.`);
-    process.exit(0);
-  }
   const base = resolveCommit(repoDir, process.env.BASE_SHA ?? "HEAD");
   const head = resolveCommit(repoDir, requireEnv("HEAD_SHA"));
   const fork = mergeBase(repoDir, base, head);
@@ -95,6 +92,6 @@ if (import.meta.main) {
   }
   console.error("The PR breaks the task rule (docs/architecture/README.md):");
   for (const problem of problems) console.error(`  ${problem}`);
-  console.error(`The lead can lift this check with the ${LEAD_APPROVED} label.`);
+  console.error(LIFTED_BY);
   process.exit(1);
 }

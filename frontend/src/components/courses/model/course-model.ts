@@ -39,6 +39,8 @@ export type CourseRowModel = CatalogEntry & {
   /** What still blocks it (locked and check rows). */
   unmet: RuleNode | null;
   coveredBy: string | null;
+  /** On the student's transcript, as any record (passed, in progress or waiting for review). */
+  onTranscript: boolean;
 };
 
 export type PlanSnapshot = {
@@ -54,6 +56,12 @@ export type CourseModel = {
   rows: ReadonlyMap<string, CourseRowModel>;
   inference: InferenceResult;
   hasTranscript: boolean;
+  /**
+   * The course's prerequisites assessed as if the student had no record of
+   * the course itself. The engine stops at "taking" or "done" for a course
+   * on the record, so this is how the detail says whether the rule was met.
+   */
+  assessWithoutRecord: (id: string) => CourseAssessment | undefined;
 };
 
 export const statusLabels: Record<RowStatus, string> = {
@@ -105,6 +113,7 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
   // Courses closure satisfies, as the engine decided them (no second copy of its rules).
   const covered = inference.coverage;
   const prerequisites = new Map(profile.catalog.map((course) => [course.id, course.prerequisite]));
+  const onTranscript = transcriptCodes(profile, plan.transcript);
 
   const rows = new Map<string, CourseRowModel>();
   for (const entry of profile.entries.values()) {
@@ -158,38 +167,24 @@ export function buildCourseModel(profile: SchoolProfile, plan: PlanSnapshot): Co
       rule,
       unmet,
       coveredBy,
+      onTranscript: onTranscript.has(entry.id),
     });
   }
-  return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded) };
-}
-
-/** Counted as done in group headers: credit only. Covered courses are counted separately. */
-export const isFinished = (row: CourseRowModel) => row.status === "done";
-/** Can be added to the plan from a row or the palette without an override. */
-export const isPlannable = (row: CourseRowModel) => row.status === "available";
-
-export type CourseGroupModel = { key: string; label: string; ids: string[]; finished: number; covered: number; tag?: string };
-
-export function buildGroups(model: CourseModel, coreIds: readonly string[], majorDepartment: string | null): CourseGroupModel[] {
-  const core = coreIds.filter((id) => model.rows.has(id));
-  const coreSet = new Set(core);
-  const byDepartment = new Map<string, string[]>();
-  for (const row of model.rows.values()) {
-    if (coreSet.has(row.id)) continue;
-    byDepartment.set(row.department, [...(byDepartment.get(row.department) ?? []), row.id]);
-  }
-  const departments = [...byDepartment.keys()].sort((a, b) =>
-    a === majorDepartment ? -1 : b === majorDepartment ? 1 : a.localeCompare(b),
-  );
-  const finished = (ids: string[]) => ids.filter((id) => isFinished(model.rows.get(id)!)).length;
-  const covered = (ids: string[]) => ids.filter((id) => model.rows.get(id)!.status === "covered").length;
-  const groups: CourseGroupModel[] = [];
-  if (core.length > 0) {
-    groups.push({ key: "core", label: "Core", ids: core, finished: finished(core), covered: covered(core), tag: "Sample degree plan" });
-  }
-  for (const department of departments) {
-    const ids = byDepartment.get(department)!.sort();
-    groups.push({ key: `dept:${department}`, label: department, ids, finished: finished(ids), covered: covered(ids) });
-  }
-  return groups;
+  // Lazy and cached: one extra inference per course the detail asks about.
+  const withoutRecord = new Map<string, CourseAssessment | undefined>();
+  const assessWithoutRecord = (id: string) => {
+    if (!withoutRecord.has(id)) {
+      const overrides = new Map(evidence.overrides);
+      overrides.delete(id);
+      const without: Evidence = {
+        ...evidence,
+        transcript: evidence.transcript?.filter((completion) => completion.courseId !== id),
+        inProgress: evidence.inProgress?.filter((code) => code !== id),
+        overrides,
+      };
+      withoutRecord.set(id, inferStatuses(profile.catalog, without, profile.adapter).statuses.get(id));
+    }
+    return withoutRecord.get(id);
+  };
+  return { rows, inference, hasTranscript: plan.transcript.some((record) => !record.duplicateExcluded), assessWithoutRecord };
 }

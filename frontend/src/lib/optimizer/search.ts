@@ -178,7 +178,6 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
   const minDifferent = options.minDifferent;
 
   const walkOf = (from: number, to: number): number | null => {
-    if (from >= 0 && from === to) return 0;
     if (from < 0 || to < 0) return null;
     const seconds = walk[from * buildingCount + to];
     return seconds < 0 ? null : seconds;
@@ -222,13 +221,13 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
           if (filled > 0) {
             if (oneSegment) {
               if (filled < window) gap += window - filled;
-              if (!(prev.building >= 0 && prev.building === next.building)) {
+              if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
                 walkCost += walkFloor[(prev.building < 0 ? buildingCount : prev.building) * floorStride + (next.building < 0 ? buildingCount : next.building)];
               }
             }
           } else {
             gap += window;
-            if (!(prev.building >= 0 && prev.building === next.building)) {
+            if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
               const seconds = walkOf(prev.building, next.building);
               walkCost += seconds ?? UNKNOWN_WALK_SECONDS;
               if (bufferSeconds !== null && window * 60 < (seconds ?? UNKNOWN_WALK_SECONDS) + bufferSeconds) return -1;
@@ -269,7 +268,7 @@ export function search(prepared: Prepared, budget: Budget, options: Options): Se
         // this bound, so there is no per-segment table to build or retain.
         if (fill !== null) for (let r = 0; r < count && filled < window; r += 1) filled += fill[remaining[r]][day][cell];
         cost += weights.compact * COST_PER_GAP_MINUTE * Math.max(0, window - filled);
-        if (!(prev.building >= 0 && prev.building === next.building)) {
+        if (!(prev.building >= 0 && prev.building === next.building && walkOf(prev.building, next.building) === 0)) {
           let walking: number;
           if (filled === 0) {
             walking = walkOf(prev.building, next.building) ?? UNKNOWN_WALK_SECONDS;

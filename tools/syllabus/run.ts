@@ -108,6 +108,7 @@ async function main(): Promise<void> {
   const skipped: SkippedRow[] = [];
   let rowsInTerm = 0;
   let plannerRows = 0;
+  let syllabiUnreadable = 0;
 
   const seenSyllabusUrls = new Set<string>();
   for (const profileId of ids) {
@@ -138,15 +139,18 @@ async function main(): Promise<void> {
       if (seenSyllabusUrls.has(row.syllabusUrl)) continue; // same PDF shared across sections
 
       let textResult;
+      let downloaded = false;
       try {
         const file = await fetcher.fetch(row.syllabusUrl);
         if (file.status !== 200) {
           skipped.push({ profileId, courseCode: row.courseCode, section: row.section, term, reason: `syllabus HTTP ${file.status}` });
           continue;
         }
+        downloaded = true;
         textResult = await extractSyllabusText(file.body, file.contentType);
       } catch (err) {
         if (err instanceof StopOnHttpError) fail(err.message);
+        if (downloaded) syllabiUnreadable++;
         skipped.push({ profileId, courseCode: row.courseCode, section: row.section, term, reason: `syllabus read: ${err instanceof Error ? err.message : String(err)}` });
         continue;
       }
@@ -179,6 +183,7 @@ async function main(): Promise<void> {
     rowsInTerm,
     plannerCourseRows: plannerRows,
     syllabiDownloaded: entries.length,
+    syllabiUnreadable,
     uniqueCourses: uniqueCourses.size,
     entries,
     skipped,

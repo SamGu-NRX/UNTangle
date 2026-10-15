@@ -10,6 +10,8 @@
 
 export type SourcePolicy = {
   sourceId: string;
+  /** The institution whose data this source provides. */
+  institutionId: string;
   /** What the source is, for a reviewer. */
   description: string;
   /** How we get it: a server job fetches it, a maintainer captures it in a browser, someone curates it by hand, or we only link to it. */
@@ -42,6 +44,7 @@ function reviewed(policies: SourcePolicy[]): readonly ReviewedSourcePolicy[] {
 export const SOURCE_POLICIES: readonly ReviewedSourcePolicy[] = reviewed([
   {
     sourceId: "vsb-untgrades",
+    institutionId: "unt",
     description:
       "UNT class search, as scraped and published per term by the volunteer mirror at vsb.untgrades.app (schema v2 term and subject files). The app reads it today through frontend/src/lib/sections/proxy.ts.",
     acquisition: "server",
@@ -55,9 +58,10 @@ export const SOURCE_POLICIES: readonly ReviewedSourcePolicy[] = reviewed([
     // The README's 15-minute starting interval per term file, the same TTL
     // the proxy uses. A starting value; nothing was measured.
     minIntervalMs: 15 * 60_000,
-    // The mirror publishes no rate limit. One request at a time and the
-    // interval above are the whole budget.
-    maxRequestsPerHour: null,
+    // Four requests per hour across all URLs preserves the single-term
+    // 15-minute budget when jobs fetch multiple terms or subjects. This is
+    // a conservative starting cap, not a measured or operator-published limit.
+    maxRequestsPerHour: 4,
     maxConcurrency: 1,
     policyEvidenceUrl: null,
     policyCheckedAt: null,

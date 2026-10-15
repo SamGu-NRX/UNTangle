@@ -1,5 +1,5 @@
-import { CoursesClient } from "@/components/courses-client";
+import { CoursesView } from "@/components/courses/CoursesView";
 
 export default function CoursesPage() {
-  return <CoursesClient />;
+  return <CoursesView />;
 }

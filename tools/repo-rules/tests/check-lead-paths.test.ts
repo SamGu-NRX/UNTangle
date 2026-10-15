@@ -159,12 +159,11 @@ describe("the check, run against real commits", () => {
   afterEach(() => cleanup());
 
   const script = path.resolve(import.meta.dir, "../src/check-lead-paths.ts");
-  function check(headRef: string, labels: string[] = []) {
+  function check(headRef: string) {
     return run([process.execPath, "--no-env-file", script], dir, {
       BASE_SHA: "base",
       HEAD_SHA: git(dir, ["rev-parse", "HEAD"]),
       HEAD_REF: headRef,
-      PR_LABELS: JSON.stringify(labels),
     });
   }
   function commit(files: Record<string, string>) {
@@ -177,6 +176,7 @@ describe("the check, run against real commits", () => {
     commit({ "packages/contracts/src/ids.ts": "export const changed = 1;\n" });
     const result = check("obv/filters");
     expect(result.output).toContain("packages/contracts/src/ids.ts (packages/contracts/**)");
+    expect(result.output).toContain("Only Sam's approving review of the PR's current commit lifts this check.");
     expect(result.exitCode).toBe(1);
   });
 
@@ -194,12 +194,6 @@ describe("the check, run against real commits", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  test("lets the lead-approved label through", () => {
-    commit({ "package.json": '{ "name": "x" }\n' });
-    const result = check("obv/filters", ["lead-approved"]);
-    expect(result.output).toContain("Skipped: the PR has the lead-approved label.");
-    expect(result.exitCode).toBe(0);
-  });
 
   test("ignores branches that aren't agent branches", () => {
     commit({ "package.json": '{ "name": "x" }\n' });

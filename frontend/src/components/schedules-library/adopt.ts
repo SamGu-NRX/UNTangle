@@ -58,3 +58,14 @@ export function undoAdoption(planner: AdoptPlanner, adoption: Adoption): boolean
   planner.setSchedulePreferences(() => adoption.preferences);
   return true;
 }
+
+/**
+ * What a pending "Main now uses …" does on a commit, by the save outcome:
+ * announce once stored, wait while saving, and drop when the save failed or
+ * met a newer version, so a later, unrelated save never announces it.
+ */
+export function announcementStep(outcome: "saved" | "waiting" | "conflict" | "unsaved"): "announce" | "wait" | "drop" {
+  if (outcome === "saved") return "announce";
+  if (outcome === "waiting") return "wait";
+  return "drop";
+}

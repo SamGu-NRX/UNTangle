@@ -71,6 +71,41 @@
       "when": 1791925029109,
       "tag": "0009_revoke_unverified_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791995196100,
+      "tag": "0010_grades_history_postgres",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791996313863,
+      "tag": "0011_auth_rate_limit_cleanup_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792060203231,
+      "tag": "0012_document_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792060397324,
+      "tag": "0013_device_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792068086752,
+      "tag": "0014_device_security_changes",
+      "breakpoints": true
     }
   ]
 }

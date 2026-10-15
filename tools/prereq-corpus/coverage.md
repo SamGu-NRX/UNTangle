@@ -4,8 +4,8 @@ This report measures the bundled catalog entries, not parser accuracy. The golde
 
 | Classification | Courses |
 | --- | ---: |
-| Fully parsed | 441 |
-| Partial | 170 |
+| Fully parsed | 445 |
+| Partial | 166 |
 | Unknown | 58 |
 | Total | 669 |
 
@@ -13,7 +13,7 @@ Fully parsed includes 203 empty prerequisite strings. Partial means at least one
 
 Unknown classifications that still name a course code: 38. The required limit is fewer than 40.
 
-Unsupported mandatory major restrictions, GPA rules, placement rules, scoped department-credit totals, timing conditions, and ambiguous lists remain advisor checks. Course conjuncts are retained beside unknown leaves. Conditional major-dependent prose is kept whole. Scoped consent, equivalent, and replacement alternatives supply no closure facts, while mandatory AND siblings do. Mandatory consent does not waive course siblings. Unparsed text outside an explicitly attached escape blocks the entire rule. Equivalent alternatives retain an advisor-check leaf; direct named-course evidence still satisfies the alternative. Consent exceptions attach to preceding requirements, and replacement sentences attach to the named course. Explicit all or each grade wording applies across listed semicolon groups. Both binds to a demonstrated two-course pair; overlapping minimums within that pair use the stricter grade, and minimums outside it stay unchanged. Ambiguous scope stays unknown. Plural equivalents protect the preceding course list within its group, and singular equivalents protect their course. Unmarked trailing grades stay local. Total-hour thresholds use explicit or accepted transcript hours.
+Unsupported mandatory major restrictions, GPA rules, placement rules, scoped department-credit totals, timing conditions, and ambiguous lists remain advisor checks. Course conjuncts are retained beside unknown leaves. Conditional major-dependent prose is kept whole as a clause-scoped advisor check. An independently unmet prerequisite still locks the course; otherwise an unresolved major condition keeps eligibility unknown. Scoped consent, equivalent, and replacement alternatives supply no closure facts, while mandatory AND siblings do. Mandatory consent does not waive course siblings. Unparsed text outside an explicitly attached escape or scoped major condition blocks the entire rule. Equivalent alternatives retain an advisor-check leaf; direct named-course evidence still satisfies the alternative. Consent exceptions attach to preceding requirements, and replacement sentences attach to the named course. Explicit all or each grade wording applies across listed semicolon groups. Both binds to a demonstrated two-course pair; overlapping minimums within that pair use the stricter grade, and minimums outside it stay unchanged. Ambiguous scope stays unknown. Plural equivalents protect the preceding course list within its group, and singular equivalents protect their course. Unmarked trailing grades stay local. Total-hour thresholds use explicit or accepted transcript hours.
 
 [Per-course classifications and original text](coverage.json) carry the corpus SHA-256, 964ae522b14ed26b687ccb634b4316e6fbbd1aa73b6dba35bc465e1d04dd37d8.
 
