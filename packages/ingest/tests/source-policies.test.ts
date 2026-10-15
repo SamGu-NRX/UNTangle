@@ -30,7 +30,25 @@ describe("SOURCE_POLICIES", () => {
     expect(() => policy.allowedUrlPrefixes.push("https://example.com/")).toThrow(TypeError);
     expect(() => (SOURCE_POLICIES as SourcePolicy[]).push({ ...policy, sourceId: "unreviewed" })).toThrow(TypeError);
     expect(sourcePolicy("vsb-untgrades")).toMatchObject({ approval: "allowed", allowedUrlPrefixes: ["https://vsb.untgrades.app/data/"] });
-    expect(SOURCE_POLICIES).toHaveLength(1);
+    expect(SOURCE_POLICIES).toHaveLength(2);
+  });
+
+  describe("catalog-utexas", () => {
+    test("covers exactly the saved course pages the UT Austin parser reads", () => {
+      const policy = sourcePolicy("catalog-utexas");
+      expect(policy.institutionId).toBe("ut-austin");
+      expect(policy.approval).toBe("allowed");
+      expect(policy.acquisition).toBe("server");
+      expect(policy.minIntervalMs).toBeGreaterThan(0);
+      expect(policy.maxConcurrency).toBe(1);
+      for (const url of ["https://catalog.utexas.edu/courses/c_s/", "https://catalog.utexas.edu/courses/m/", "https://catalog.utexas.edu/courses/phy/"]) {
+        expect(policy.allowedUrlPrefixes.some((prefix) => url.startsWith(prefix))).toBe(true);
+      }
+      // The interactive schedule app is EID-gated and no page outside the
+      // course tree may be fetched by a job.
+      expect(policy.allowedUrlPrefixes.some((prefix) => "https://utdirect.utexas.edu/apps/registrar/course_schedule/20269".startsWith(prefix))).toBe(false);
+      expect(policy.allowedUrlPrefixes.some((prefix) => "https://catalog.utexas.edu/undergraduate/".startsWith(prefix))).toBe(false);
+    });
   });
 
   test("a source with no policy throws", () => {
