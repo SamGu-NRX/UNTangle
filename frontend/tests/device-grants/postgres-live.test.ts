@@ -111,6 +111,13 @@ test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse
     expect(await service.endStaleSession("t-old")).toBe(true);
     expect(await service.endStaleSession("t-missing")).toBe(false);
     expect((await pool.query(`SELECT token FROM "session" WHERE user_id = 'bob'`)).rows).toEqual([{ token: "t-now" }]);
+    // The insert refuses an existing credential row itself, without relying on the 0015 index.
+    await pool.query("DROP INDEX account_credential_user_idx");
+    await pool.query(`INSERT INTO "account" (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES ('legacy-alice', 'alice', 'credential', 'alice', NULL, now(), now())`);
+    const aliceChange = await service.beginSecurityChange("alice");
+    await expect(service.writeCredential("alice", aliceChange.changeId, "alice-hash", "insert")).rejects.toMatchObject({ code: "credential_exists", status: 409 });
+    expect((await pool.query("SELECT id FROM account WHERE user_id = 'alice' AND provider_id = 'credential'")).rows).toEqual([{ id: "legacy-alice" }]);
+    await service.finishSecurityChange("alice", aliceChange.changeId);
     const fresh = await service.exchange((await approved("bob")).deviceCode, verifier);
     expect((await service.authenticate(fresh.accessToken, "documents:read")).userId).toBe("bob");
   } finally {

@@ -75,8 +75,13 @@ export interface DeviceStore {
    * the two writes. Returns whether a session was deleted.
    */
   endStaleSession(token: string): Promise<boolean>;
-  /** Closes the change with a bump and returns the new generation. Throws, changing nothing, if it isn't the open change. */
-  finishSecurityChange(userId: string, changeId: string): Promise<number>;
+  /**
+   * Closes the change with a bump and returns the new generation. Throws,
+   * changing nothing, if it isn't the open change. With `keepSession`, that
+   * session (the caller's) moves to the new generation in the same step, so
+   * no reader sees it stale and it never moves for a change that isn't current.
+   */
+  finishSecurityChange(userId: string, changeId: string, keepSession?: string): Promise<number>;
 }
 export type SecurityChange = { changeId: string; generation: number };
 export const securityChangeInProgress = () => new DeviceGrantError("security_change_in_progress", 409);
@@ -186,7 +191,7 @@ export function createDeviceGrants(store: DeviceStore, now = Date.now) {
     beginSecurityChange: (userId: string, expectedGeneration?: number) => store.beginSecurityChange(userId, expectedGeneration),
     writeCredential: (userId: string, changeId: string, passwordHash: string, mode: "update" | "insert") => store.writeCredential(userId, changeId, passwordHash, mode),
     endStaleSession: (token: string) => store.endStaleSession(token),
-    finishSecurityChange: (userId: string, changeId: string) => store.finishSecurityChange(userId, changeId),
+    finishSecurityChange: (userId: string, changeId: string, keepSession?: string) => store.finishSecurityChange(userId, changeId, keepSession),
     bumpSecurityGeneration: (userId: string) => store.bumpGeneration(userId),
     /** The current generation, refused with `security_change_in_progress` while a change is open. */
     async readSecurityGeneration(userId: string) {
