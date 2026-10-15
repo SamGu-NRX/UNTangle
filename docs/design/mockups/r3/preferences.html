@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UNTangle mockup: Week preferences, round 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+<style>
+.mock{
+  --ground:#f4f6f3;--paper:#fff;--paper-2:#eef2ed;--paper-3:#e5ebe4;--line:#dde6dc;--line-2:#c5d3c4;
+  --ink:#1a2e1a;--ink-2:#4f654f;--ink-3:#6b806b;--ink-4:#9fb09f;
+  /* ink-3 is 4.26:1 on white, short of AA for small text; --meta is a half step darker (5.06:1) for 11-13px copy. */
+  --meta:#5f745f;
+  --brand:#00512b;--brand-2:#007a40;--brand-soft:#e3efe6;--accent:#00a855;--accent-soft:#dff5e8;
+  --attn:#8a6100;--attn-bg:#fbf3df;--danger:#b3261e;--danger-bg:#fbeae8;
+  --c1:#3f7a4f;--c1s:#e6f0e8;--c2:#a3613f;--c2s:#f6ebe4;--c3:#4b6a8a;--c3s:#e6ecf2;
+  --c4:#8d7325;--c4s:#f5f0e0;--c5:#7a5272;--c5s:#f1e8f0;--c6:#3d7a7a;--c6s:#e3f0f0;
+  --sh-1:0 1px 2px rgba(20,40,22,.07);
+  --sh-2:0 24px 48px -12px rgba(20,40,22,.22),0 4px 10px rgba(20,40,22,.08);
+  --ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1);--ease-drawer:cubic-bezier(.32,.72,0,1);
+  --hatch:repeating-linear-gradient(135deg,rgba(79,101,79,.2) 0 1px,transparent 1px 7px);
+  --hatch-strong:repeating-linear-gradient(135deg,rgba(79,101,79,.46) 0 1.25px,transparent 1.25px 6px);
+  container-type:inline-size;
+  font-family:"DM Sans",system-ui,sans-serif;font-optical-sizing:auto;color:var(--ink);
+  -webkit-font-smoothing:antialiased;max-width:1440px;margin:0 auto;padding:12px 10px 40px;
+  font-size:14px;line-height:1.45;
+}
+.mock *,.mock *::before,.mock *::after{box-sizing:border-box}
+:where(.mock) :where(button,input,select){font:inherit;color:inherit}
+.mock button{cursor:pointer}
+.mock :focus{outline:none}
+.mock :focus-visible{outline:2px solid var(--brand-2);outline-offset:2px;border-radius:8px}
+.hgi{line-height:1;font-size:18px}
+.tnum{font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+
+/* ---------- reviewer chrome (not product) ---------- */
+.rv{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px 12px;margin-bottom:14px;box-shadow:var(--sh-1)}
+.rv-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rv-mark{font-family:Syne,sans-serif;font-weight:800;color:var(--brand);font-size:17px;letter-spacing:-.01em}
+.rv-title{font-weight:600;font-size:15px}
+.rv-tag{font-size:12px;color:var(--meta)}
+.rv-dirs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px;background:var(--paper-2);padding:4px;border-radius:12px}
+.rv-dir{border:0;background:transparent;border-radius:9px;padding:8px 10px;text-align:left;display:flex;flex-direction:column;gap:1px;transition:background-color .15s ease,box-shadow .15s ease}
+.rv-dir b{font-weight:600;font-size:13.5px}
+.rv-dir span{font-size:11.5px;color:var(--meta)}
+.rv-dir[aria-selected="true"]{background:var(--paper);box-shadow:var(--sh-1),0 0 0 1px var(--line)}
+.rv-line{margin:10px 2px 0;font-size:13px;color:var(--ink-2)}
+.rv-tools{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--meta);align-items:center}
+.rv-tools label{display:inline-flex;align-items:center;gap:6px}
+.demo{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#4b2fa8;background:#f1ecff;border-radius:4px;padding:1px 5px;margin-right:2px}
+.rv-seg{display:inline-flex;gap:2px;background:var(--paper-2);border-radius:8px;padding:2px}
+.rv-seg button{border:0;background:transparent;border-radius:6px;padding:3px 9px;font-size:12px}
+.rv-seg button[aria-pressed="true"]{background:var(--paper);box-shadow:var(--sh-1);color:var(--ink);font-weight:600}
+.rv-link{border:0;background:none;color:var(--brand-2);font-size:12.5px;padding:0;text-decoration:underline;text-underline-offset:2px}
+@container (max-width:700px){.rv-dirs{grid-template-columns:1fr 1fr}.rv-dir span{display:none}}
+/* reviewer notes: dashed violet, clearly not product UI */
+.rn{display:none;margin:10px 0 0;border:1.5px dashed #7b5cd6;color:#4b2fa8;background:#f5f1ff;border-radius:8px;padding:6px 9px;font-size:11.5px;line-height:1.4}
+.rn b{font-weight:700}
+.rn code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;background:#ebe4ff;border-radius:3px;padding:0 3px}
+.show-notes .rn{display:block}
+
+/* ---------- stage ---------- */
+.stage{display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
+@container (min-width:1180px){.stage{grid-template-columns:minmax(0,1fr) 390px;align-items:start}}
+.view{margin:0;min-width:0}
+.view figcaption{font-size:12px;color:var(--meta);margin:0 0 8px 4px;font-weight:500}
+
+/* ---------- desktop frame: app shell + Week ---------- */
+.dk{position:relative;height:880px;border-radius:14px;border:1px solid var(--line);background:var(--ground);overflow:hidden;display:grid;grid-template-rows:52px auto minmax(0,1fr);box-shadow:var(--sh-1);container-type:inline-size;container-name:dk}
+.app-bar{display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--ground)}
+.wordmark{font-family:Syne,sans-serif;font-weight:800;color:var(--brand);font-size:19px;letter-spacing:-.01em}
+.lenses{display:flex;gap:2px;font-size:13px;color:var(--meta)}
+.lenses span{padding:6px 11px;border-radius:8px}
+.lenses .on{background:var(--brand);color:#fff;font-weight:600}
+.app-bar .sp{flex:1}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-size:11px;font-weight:700}
+
+/* Week top bar: term on the left, Courses and Preferences on the right */
+.wk-bar{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.wk-term{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.wk-term b{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.wk-term span{font-size:12px;color:var(--meta)}
+.wk-bar .sp{flex:1}
+.top-btn{position:relative;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px 0 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);font-size:13px;font-weight:600;color:var(--ink);transition:transform .12s var(--ease-out),background-color .15s ease,border-color .15s ease,box-shadow .15s ease}
+.top-btn i{font-size:17px;color:var(--ink-2)}
+.top-btn:active{transform:scale(.97)}
+.top-btn .count{font-size:11.5px;font-weight:650;color:var(--ink-2);background:var(--paper-2);border-radius:6px;padding:1px 6px;font-variant-numeric:tabular-nums}
+.top-btn[aria-expanded="true"]{background:var(--brand-soft);border-color:color-mix(in oklab,var(--brand-2) 40%,var(--line));color:var(--brand)}
+.top-btn[aria-expanded="true"] i{color:var(--brand)}
+@media (hover:hover) and (pointer:fine){.top-btn:hover{border-color:var(--line-2);box-shadow:var(--sh-1)}}
+.wk{position:relative;padding:0 16px 16px 8px;min-height:0}
+/* narrow review columns: the frame keeps its bar on one line */
+@container dk (max-width:600px){.lenses,.avatar{display:none}.wk-term span{display:none}.top-btn .count{display:none}.wk-bar{padding-left:12px;padding-right:12px}}
+@container dk (max-width:420px){.top-btn{padding:0 10px}.top-btn[data-open="courses"]{font-size:0;gap:0}.top-btn[data-open="courses"] i{font-size:17px}}
+
+/* ---------- phone frame ---------- */
+.ph{width:min(390px,100%);height:844px;margin:0 auto;border-radius:52px;padding:10px;background:#142218;box-shadow:var(--sh-2)}
+.ph-screen{position:relative;height:100%;border-radius:42px;overflow:hidden;background:var(--ground);container-type:inline-size;container-name:ph;display:flex;flex-direction:column}
+.ph-status{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:6px 28px 0 30px;font-size:14px;font-weight:600;position:relative;z-index:1}
+.ph-status::after{content:"";position:absolute;left:50%;top:10px;width:108px;height:30px;border-radius:20px;background:#0b130d;transform:translateX(-50%)}
+.ph-status i{font-size:15px}
+.ph .wk-bar{padding:6px 12px 6px 16px;gap:6px}
+.ph .top-btn{height:44px;padding:0 12px}
+.ph .top-btn.icon-only{width:44px;padding:0;justify-content:center}
+.ph .wk{flex:1;padding:0 10px 0 2px;overflow:hidden}
+@container ph (max-width:360px){.ph .wk-term span,.ph .top-btn .count{display:none}.ph .wk-bar{padding-left:12px}.ph .top-btn{padding:0 10px}}
+.tabbar{flex:none;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:var(--paper);padding:6px 10px 26px}
+.tabbar span{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:600;color:var(--meta);min-height:44px;justify-content:center}
+.tabbar span.on{color:var(--brand)}
+.tabbar i{font-size:20px}
+.scrim{position:absolute;inset:0;background:rgba(20,40,22,.2);z-index:5;transition:opacity .24s ease}
+.scrim.off{opacity:0;pointer-events:none}
+
+/* ---------- popover (desktop) ---------- */
+.pop{position:absolute;z-index:6;top:var(--top,112px);right:16px;width:min(452px,calc(100% - 32px));max-height:calc(100% - var(--top,112px) - 14px);display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2);transform-origin:var(--ox,90%) -8px;transition:transform .2s var(--ease-out),opacity .2s var(--ease-out)}
+.pop.closed{opacity:0;transform:translateY(-4px) scale(.97);pointer-events:none;transition-duration:.14s}
+.pop .nub{position:absolute;top:-6px;left:var(--nx,90%);width:12px;height:12px;margin-left:-6px;background:var(--paper);border-left:1px solid var(--line);border-top:1px solid var(--line);border-radius:3px 0 0 0;transform:rotate(45deg)}
+.pop.small{width:300px;padding:14px 16px}
+.pop.small h3{margin:0 0 4px;font-size:14px;font-weight:650}
+.pop.small p{margin:0;font-size:12.5px;color:var(--ink-2)}
+.pop.small a{display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:13px;font-weight:600;color:var(--brand-2)}
+.pop.small .rn{display:block}
+
+/* ---------- sheet (phone) ---------- */
+.sheet{position:absolute;z-index:6;left:0;right:0;bottom:0;height:calc(100% - 104px);display:flex;flex-direction:column;background:var(--paper);border-radius:22px 22px 0 0;box-shadow:0 -10px 40px -10px rgba(20,40,22,.25);transform:translateY(0);transition:transform .34s var(--ease-drawer)}
+.sheet.closed{transform:translateY(102%);transition-duration:.24s}
+.sheet.dragging{transition:none}
+.grab{flex:none;height:22px;display:grid;place-items:center;touch-action:none;cursor:grab;border:0;background:none;width:100%;padding:0}
+.grab::before{content:"";width:38px;height:5px;border-radius:3px;background:var(--line-2)}
+.sheet.small{height:auto;padding:0 18px 34px}
+.sheet.small h3{margin:4px 0 4px;font-size:16px;font-weight:650}
+.sheet.small p{margin:0;font-size:13px;color:var(--ink-2)}
+.sheet.small a{display:inline-flex;align-items:center;gap:5px;margin-top:12px;font-size:14px;font-weight:600;color:var(--brand-2);min-height:44px}
+.sheet.small .rn{display:block}
+
+/* ---------- panel internals (shared by popover and sheet) ---------- */
+.pn-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 10px 20px;flex:none;border-bottom:1px solid transparent;transition:border-color .15s ease}
+.pn-head.scrolled{border-bottom-color:var(--line)}
+.sheet .pn-head{padding-top:2px}
+.pn-head h2{margin:0;font-size:17px;font-weight:650;letter-spacing:-.015em;line-height:1.25}
+.pn-sub{margin:2px 0 0;font-size:12.5px;color:var(--meta);display:flex;align-items:center;gap:6px;min-height:20px}
+.pn-head .grow{flex:1;min-width:0}
+.icon-btn{width:34px;height:34px;border-radius:10px;border:0;background:transparent;display:grid;place-items:center;color:var(--ink-2);flex:none;transition:transform .12s var(--ease-out),background-color .15s ease}
+.icon-btn:active{transform:scale(.97)}
+.sheet .icon-btn{width:44px;height:44px}
+@media (hover:hover) and (pointer:fine){.icon-btn:hover{background:var(--paper-2)}}
+.pn-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.pn-foot{flex:none;border-top:1px solid var(--line);background:var(--paper);padding:10px 16px;display:flex;align-items:center;gap:8px;border-radius:0 0 16px 16px}
+.sheet .pn-foot{padding-bottom:28px;border-radius:0}
+.pn-foot .msg{flex:1;font-size:12.5px;color:var(--ink-2);min-width:0}
+.preset-pill{display:inline-flex;align-items:center;gap:5px;border:0;background:none;padding:0;color:var(--ink-2);font-size:12.5px;font-weight:600}
+.preset-pill i{font-size:14px;color:var(--brand-2)}
+.edited{font-size:11px;font-weight:600;color:var(--attn);background:var(--attn-bg);border-radius:5px;padding:1px 6px}
+
+.sec{padding:14px 20px 18px;border-top:1px solid var(--line)}
+.sec:first-child{border-top:0;padding-top:2px}
+.sec-h{display:flex;align-items:baseline;gap:8px;margin:0 0 2px}
+.sec-h h3{margin:0;font-size:14px;font-weight:650;letter-spacing:-.005em}
+.sec-h .kind{font-size:11px;font-weight:650;color:var(--meta);background:var(--paper-2);border-radius:5px;padding:1px 6px}
+.sec-sub{margin:0 0 12px;font-size:12.5px;color:var(--meta)}
+.hint{display:flex;gap:6px;align-items:flex-start;margin:0 0 10px;font-size:12px;color:var(--meta)}
+.hint i{font-size:14px;margin-top:1px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:9px;padding:0 12px;height:34px;font-size:13px;font-weight:600;transition:transform .12s var(--ease-out),background-color .15s ease;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn i{font-size:15px}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-quiet{background:transparent;color:var(--ink-2)}
+.btn-soft{background:var(--paper-2);color:var(--ink)}
+.sheet .btn{height:44px}
+@media (hover:hover) and (pointer:fine){.btn-primary:hover{background:#00451f}.btn-quiet:hover,.btn-soft:hover{background:var(--paper-3)}}
+
+/* ---------- week view ---------- */
+.wv{display:grid;grid-template-columns:var(--gut,44px) minmax(0,1fr);grid-template-rows:auto auto;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.wv-days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.wv-day{border:0;background:transparent;border-radius:9px;min-height:var(--head,36px);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--ink-2);padding:2px 0;transition:background-color .15s ease,color .15s ease}
+.wv-day small{font-size:10.5px;font-weight:600;color:var(--attn);height:0;overflow:hidden;opacity:0;transition:opacity .15s ease}
+.wv-day[aria-pressed="true"]{color:var(--ink-3)}
+.wv-day[aria-pressed="true"] span{text-decoration:line-through;text-decoration-thickness:1.5px}
+.wv-day[aria-pressed="true"] small{height:auto;opacity:1}
+@media (hover:hover) and (pointer:fine){button.wv-day:hover{background:var(--paper-2)}}
+.wv-gut{position:relative}
+.wv-hour{position:absolute;right:17px;transform:translateY(-50%);border:0;background:none;padding:2px 3px;border-radius:5px;font-size:10.5px;color:var(--meta);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.1}
+@media (hover:hover) and (pointer:fine){button.wv-hour:hover{background:var(--paper-2);color:var(--ink)}}
+.wv-body{position:relative;height:calc(28 * var(--rowh));border-radius:10px;background-color:var(--paper);
+  background-image:linear-gradient(to bottom,var(--line) 1px,transparent 1px),linear-gradient(to right,var(--line) 1px,transparent 1px);
+  background-size:100% calc(var(--rowh) * 2),20% 100%;box-shadow:inset 0 0 0 1px var(--line);touch-action:pan-y}
+.wv--edit .wv-body{cursor:crosshair}
+.wv-l{position:absolute;inset:0;pointer-events:none}
+.wv-ow{position:absolute;left:0;right:0;background-color:var(--paper-2);background-image:var(--hatch)}
+.wv-ow.top{top:0;border-radius:10px 10px 0 0}.wv-ow.bot{bottom:0;border-radius:0 0 10px 10px}
+.wv-off{position:absolute;top:0;bottom:0;width:20%;background-color:var(--paper-2);background-image:var(--hatch)}
+.wv-edge{position:absolute;left:0;right:0;height:0;border-top:1.5px solid var(--brand-2);opacity:.8}
+.wv-b{position:absolute;padding:1.5px 2px}
+.wv-b>div{height:100%;border-radius:6px;overflow:hidden;font-size:10.5px;font-weight:650;line-height:1.15;padding:3px 5px}
+.wv-b.unnamed>div{background-color:#e7ece6;background-image:var(--hatch-strong);box-shadow:inset 0 0 0 1px rgba(79,101,79,.45)}
+.wv-b.named>div{background:var(--hs);box-shadow:inset 3px 0 0 var(--hc);color:color-mix(in oklab,var(--hc) 72%,#000)}
+.wv-b.preview>div{outline:1.5px dashed var(--brand-2);outline-offset:-1.5px}
+.wv-hover{position:absolute;width:20%;height:calc(var(--rowh));border-radius:5px;box-shadow:inset 0 0 0 1.5px rgba(0,122,64,.45);opacity:0;transition:opacity .1s ease}
+.wv-focus{position:absolute;width:20%;height:var(--rowh);border-radius:5px;box-shadow:inset 0 0 0 2px var(--brand-2);display:none}
+.wv-body:focus-visible{outline:2px solid var(--brand-2);outline-offset:3px}
+.wv-body:focus-visible .wv-focus{display:block}
+.wv.holding .wv-body{box-shadow:inset 0 0 0 2px var(--brand-2)}
+.wv-knob{position:absolute;right:-13px;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:var(--paper);border:1.5px solid var(--brand-2);color:var(--brand-2);display:grid;place-items:center;z-index:3;touch-action:none;cursor:ns-resize;box-shadow:var(--sh-1);padding:0;transition:transform .12s var(--ease-out)}
+.wv-knob i{font-size:14px}
+.wv-knob::before{content:"";position:absolute;inset:-9px}
+.wv-knob:active{transform:scale(.94)}
+.wv-knob:focus-visible{outline-offset:2px;border-radius:50%}
+/* course blocks: transform-only so they glide when preferences change */
+.cr{position:absolute;top:0;left:0;width:20%;padding:1.5px 2.5px;transition:transform .32s var(--ease-io),opacity .2s ease;will-change:transform}
+.cr>div{height:100%;border-radius:7px;background:var(--hs);box-shadow:inset 3px 0 0 var(--hc);padding:4px 6px;overflow:hidden;color:color-mix(in oklab,var(--hc) 72%,#000);font-size:11px;font-weight:650;line-height:1.2}
+.cr small{display:block;font-weight:500;font-size:10px;opacity:.9;font-variant-numeric:tabular-nums}
+.cr .lk{font-size:10px;margin-left:2px;vertical-align:-1px}
+.cr.gone{opacity:0}
+.cr.dragging,.wv.live .cr{transition:transform .12s linear,opacity .2s ease}
+
+/* ---------- ledger: one fact per row ---------- */
+.lg{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column}
+.lg li{display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 0;border-top:1px solid var(--line);font-size:13px;animation:rowin .2s var(--ease-out)}
+.lg li:first-child{border-top:0}
+.lg .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--paper-2);color:var(--ink-2);flex:none}
+.lg .ic i{font-size:15px}
+.lg .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.lg .tx b{font-weight:600}
+.lg .tx span{font-size:12px;color:var(--meta)}
+.x{width:32px;height:32px;border:0;background:none;border-radius:8px;color:var(--ink-3);display:grid;place-items:center;flex:none;transition:background-color .15s ease,color .15s ease}
+.sheet .x{width:44px;height:44px}
+@media (hover:hover) and (pointer:fine){.x:hover{background:var(--paper-2);color:var(--ink)}}
+.lg .name{border:0;border-bottom:1.5px dashed var(--line-2);background:transparent;padding:2px 0;font-weight:600;width:100%;font-size:13px}
+.sheet .lg .name{font-size:16px}
+.lg .name::placeholder{color:var(--ink-3);font-weight:500}
+.lg .name:focus{border-bottom-color:var(--brand-2);border-bottom-style:solid}
+.lg .rename{border:0;background:none;padding:0;font-weight:600;text-align:left;font-size:13px}
+.lg li.warn .ic{background:var(--attn-bg);color:var(--attn)}
+.lg li.empty{color:var(--meta);font-size:12.5px}
+@keyframes rowin{from{opacity:0;transform:translateY(-3px)}}
+
+/* ---------- leaning cards ---------- */
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.card{position:relative;border:1px solid var(--line);background:var(--paper);border-radius:13px;padding:8px 8px 9px;text-align:left;display:flex;flex-direction:column;gap:7px;min-width:0;transition:transform .12s var(--ease-out),border-color .15s ease,box-shadow .15s ease,background-color .15s ease}
+.card:active{transform:scale(.97)}
+.card.wide{grid-column:span 2}
+.card .pic{height:58px;border-radius:9px;background:var(--paper-2);display:grid;place-items:center;overflow:hidden;color:var(--ink-2);transition:background-color .15s ease}
+.card .pic svg{display:block;max-width:100%}
+.card b{font-size:12.5px;font-weight:650;display:block;line-height:1.25}
+.card .val{font-size:12px;color:var(--meta);display:block;line-height:1.3;margin-top:1px}
+.card[aria-expanded="true"]{border-color:var(--brand-2);box-shadow:0 0 0 1px var(--brand-2)}
+.card[aria-expanded="true"] .pic{background:var(--brand-soft)}
+.card[aria-expanded="true"] .val{color:var(--brand)}
+@media (hover:hover) and (pointer:fine){.card:hover{border-color:var(--line-2);box-shadow:var(--sh-1)}.card[aria-expanded="true"]:hover{border-color:var(--brand-2);box-shadow:0 0 0 1px var(--brand-2)}}
+.sheet .card{min-height:118px}
+/* the editor opens under the cards; grid-rows is the one sanctioned height animation */
+.well-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s var(--ease-out)}
+.well-wrap.open{grid-template-rows:1fr}
+.well-wrap>div{overflow:hidden;min-height:0}
+.well{margin-top:8px;border-radius:13px;background:var(--paper-2);padding:12px 14px 10px;opacity:0;transition:opacity .18s ease}
+.well-wrap.open .well{opacity:1}
+.well-h{display:flex;align-items:center;gap:8px;margin:0 0 2px}
+.well-h b{font-size:13px;font-weight:650;flex:1}
+.well-h .icon-btn{width:30px;height:30px;margin:-4px -6px -4px 0}
+.sheet .well-h .icon-btn{width:44px;height:44px;margin:-10px -12px -10px 0}
+
+/* picture slider */
+.sl{padding:2px 0 0}
+.sl-row{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:10px}
+.sl-pic{width:32px;height:32px;display:grid;place-items:center;color:var(--ink-4);transition:color .18s ease,transform .18s var(--ease-out)}
+.sl-pic svg{display:block}
+.sl-pic.on{color:var(--brand-2);transform:scale(1.08)}
+.sl-pic .hgi{font-size:22px}
+.sl-track{position:relative;height:44px;touch-action:pan-y;cursor:pointer}
+.sl-in{position:absolute;left:11px;right:11px;top:50%;height:0}
+.sl-rail{position:absolute;left:-11px;right:-11px;top:-2px;height:4px;border-radius:2px;background:var(--paper-3)}
+.well .sl-rail{background:#d9e2d8}
+.sl-tick{position:absolute;top:-2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--line-2)}
+.sl-tick.mid{top:-6px;height:12px;width:2px;margin-left:-1px;border-radius:1px;background:var(--ink-4)}
+.sl-fill{position:absolute;top:-2px;height:4px;width:100%;transform-origin:left center;background:var(--brand-2);border-radius:2px}
+.sl-run{position:absolute;left:0;top:0;width:100%;height:0;transition:transform .16s var(--ease-out)}
+.sl-thumb{position:absolute;left:-11px;top:-11px;width:22px;height:22px;border-radius:50%;background:var(--paper);box-shadow:0 0 0 1px var(--line-2),0 2px 6px rgba(20,40,22,.18);transition:transform .12s var(--ease-out)}
+.sl-track.drag .sl-run{transition:none}
+.sl-track.drag .sl-thumb{transform:scale(1.1)}
+.sl-track:focus-visible{outline:none}
+.sl-track:focus-visible .sl-thumb{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--brand-2)}
+.sl-ends{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--meta);margin-top:-6px}
+.sl-ends span{transition:color .15s ease}
+.sl-ends .on{color:var(--ink);font-weight:600}
+.sl-out{margin:6px 0 0;font-size:12.5px;color:var(--ink-2);min-height:18px}
+.sl-out.neutral{color:var(--meta)}
+
+/* ---------- courses and sections ---------- */
+.cl{display:flex;align-items:center;gap:12px;min-height:56px;padding:4px 0 10px}
+.cl .tx{flex:1;min-width:0}
+.cl .tx b{display:block;font-size:13.5px;font-weight:600}
+.cl .tx span{display:block;font-size:12px;color:var(--meta)}
+.cl .tx span.over{color:var(--attn);font-weight:600}
+.cl-pic{flex:none;width:92px;height:40px;border-radius:9px;background:var(--paper-2);display:grid;place-items:center}
+.sheet .cl-pic{width:76px}
+.sheet .cl-pic svg{width:64px}
+.step{display:inline-flex;align-items:center;gap:2px;background:var(--paper-2);border-radius:10px;padding:3px;flex:none}
+.step button{width:30px;height:30px;border:0;border-radius:8px;background:transparent;display:grid;place-items:center;color:var(--ink-2);transition:background-color .15s ease,transform .12s var(--ease-out)}
+.step button:active{transform:scale(.94)}
+.step button:disabled{opacity:.35;cursor:default}
+.sheet .step button{width:40px;height:40px}
+@media (hover:hover) and (pointer:fine){.step button:not(:disabled):hover{background:var(--paper)}}
+.sub-h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;color:var(--meta);margin:12px 0 2px}
+.sub-h .grow{flex:1}
+.sub-h .add{border:0;background:none;color:var(--brand-2);font-weight:650;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:7px;margin-right:-6px}
+.sub-h .add i{font-size:14px}
+.sheet .sub-h .add{min-height:44px;margin:-6px -6px -6px 0}
+@media (hover:hover) and (pointer:fine){.sub-h .add:hover{background:var(--brand-soft)}}
+.srow{display:flex;align-items:center;gap:10px;min-height:46px;border-top:1px solid var(--line);font-size:13px;animation:rowin .2s var(--ease-out)}
+.srow:first-of-type{border-top:0}
+.srow .ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--paper-2);color:var(--ink-2)}
+.srow .ic i{font-size:15px}
+.srow.lock .ic{background:var(--brand-soft);color:var(--brand)}
+.srow .tx{flex:1;min-width:0}
+.srow .tx b{display:block;font-weight:600}
+.srow .tx span{display:block;font-size:12px;color:var(--meta)}
+.srow.empty{color:var(--meta);font-size:12.5px;min-height:38px}
+.picker{margin:6px 0 4px;border:1px solid var(--line);border-radius:12px;padding:10px 12px 8px;animation:rowin .2s var(--ease-out)}
+.picker-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:650;margin-bottom:8px}
+.picker-h .grow{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:8px;height:30px;padding:0 10px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s ease,border-color .15s ease}
+.chip .sw8{width:8px;height:8px;border-radius:2px;background:var(--hc)}
+.chip[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand-2);color:var(--brand)}
+.sheet .chip{height:40px}
+.opt{display:flex;align-items:center;gap:10px;width:100%;border:0;border-top:1px solid var(--line);background:none;text-align:left;min-height:44px;padding:4px 2px;font-size:13px;border-radius:0}
+.opt .tx{flex:1;min-width:0}
+.opt .tx b{display:block;font-weight:600}
+.opt .tx span{display:block;font-size:12px;color:var(--meta)}
+.opt .tag{font-size:11px;font-weight:650;color:var(--meta)}
+.opt:disabled{cursor:default;opacity:.55}
+@media (hover:hover) and (pointer:fine){.opt:not(:disabled):hover{background:var(--paper-2)}}
+
+/* ---------- rows, switches, disclosure ---------- */
+.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .tx{flex:1;min-width:0}
+.row .tx b{display:block;font-weight:600;font-size:13.5px}
+.row .tx span{display:block;font-size:12px;color:var(--meta)}
+.row.stack{flex-direction:column;align-items:stretch;gap:8px}
+.sw{position:relative;width:40px;height:24px;border-radius:12px;border:0;background:var(--line-2);flex:none;padding:0;transition:background-color .18s ease}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(20,40,22,.25);transition:transform .18s var(--ease-out)}
+.sw[aria-checked="true"]{background:var(--brand-2)}
+.sw[aria-checked="true"]::after{transform:translateX(16px)}
+.sw::before{content:"";position:absolute;inset:-10px -4px}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;background:var(--paper-2);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;border-radius:8px;min-height:32px;padding:0 4px;font-size:12px;font-weight:600;color:var(--ink-2);transition:background-color .15s ease,color .15s ease,box-shadow .15s ease}
+.seg button[aria-checked="true"]{background:var(--paper);color:var(--ink);box-shadow:var(--sh-1)}
+.sheet .seg button{min-height:40px}
+.more-t{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:14px 20px;font-weight:600;font-size:14px;text-align:left;border-top:1px solid var(--line)}
+.more-t .n{font-weight:500;font-size:12.5px;color:var(--meta)}
+.more-t .grow{flex:1}
+.more-t .chev{transition:transform .22s var(--ease-out);color:var(--ink-3)}
+.more-t[aria-expanded="true"] .chev{transform:rotate(180deg)}
+@media (hover:hover) and (pointer:fine){.more-t:hover{background:var(--paper-2)}}
+.more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .24s var(--ease-out)}
+.more>div{overflow:hidden;min-height:0}
+.more.open{grid-template-rows:1fr}
+.more-in{padding:0 20px 16px}
+.preset-list{display:flex;flex-direction:column}
+.preset-row{display:flex;align-items:center;gap:10px;min-height:44px;border:0;border-top:1px solid var(--line);background:none;width:100%;text-align:left;padding:0;font-size:13.5px}
+.preset-row .ck{width:20px;color:var(--brand-2)}
+.save-form{display:flex;gap:8px;align-items:center;margin-top:6px}
+.save-form input{flex:1;min-width:0;height:36px;border:1px solid var(--line-2);border-radius:9px;padding:0 10px}
+.sheet .save-form input{height:44px;font-size:16px}
+.save-form input:focus{border-color:var(--brand-2);box-shadow:0 0 0 3px var(--brand-soft)}
+
+/* the one-time "these live here" pulse on the Preferences button after reset */
+@media (prefers-reduced-motion:reduce){
+  .mock *,.mock *::before,.mock *::after{transition-property:opacity,background-color,color,border-color,box-shadow!important;animation:none!important}
+  .pop.closed{transform:none}
+  .sheet.closed{transform:translateY(102%);opacity:0}
+  .sheet{transition:opacity .2s ease!important}
+}
+</style>
+</head>
+<body>
+<div class="mock" id="app">
+  <header class="rv">
+    <div class="rv-top">
+      <span class="rv-mark">UNTangle</span>
+      <span class="rv-title">Week preferences</span>
+      <span class="rv-tag">Round 3. One direction: the painted grid for hard limits and picture cards for leanings, in a popover from Week's top bar (a bottom sheet on phone). Desktop and phone share one state.</span>
+    </div>
+    <div class="rv-dirs" role="tablist" aria-label="Start from">
+      <button class="rv-dir" role="tab" data-scene="open" aria-selected="true"><b>Popover open</b><span>As it opens from the top bar</span></button>
+      <button class="rv-dir" role="tab" data-scene="lean" aria-selected="false"><b>Changing a leaning</b><span>A picture card opened</span></button>
+      <button class="rv-dir" role="tab" data-scene="courses" aria-selected="false"><b>Courses and sections</b><span>Locked and skipped sections</span></button>
+      <button class="rv-dir" role="tab" data-scene="closed" aria-selected="false"><b>Closed</b><span>The Week, with both buttons</span></button>
+    </div>
+    <p class="rv-line">Everything works: paint the grid, drag the sun and moon, open a card and drag its slider (the classes behind move), step the credit limit, lock or skip a section, open More settings, close with the X, Escape or a click outside, and reopen from Preferences. On the phone, drag the grabber down to dismiss.</p>
+    <div class="rv-tools">
+      <span><span class="demo">Demo</span> Credits in the course cart</span>
+      <span class="rv-seg" id="rv-planned"><button data-v="10">10</button><button data-v="14" aria-pressed="true">14</button><button data-v="17">17</button></span>
+      <label><input type="checkbox" id="rv-preset"> <span class="demo">Demo</span> Student has a saved preset</label>
+      <label><input type="checkbox" id="rv-notes"> Review notes</label>
+      <button class="rv-link" id="rv-reset">Reset demo</button>
+    </div>
+    <p class="rn"><b>Demo controls</b> are not product UI. "Credits in the course cart" stands in for what the student picked in the Courses popover (owned by the course-cart mockup); the credit limit row reads it. "Saved preset" fakes a student who already saved one, so the preset pill and the Update footer show.</p>
+  </header>
+  <div class="stage">
+    <figure class="view"><figcaption>Desktop, 1440 wide</figcaption><div class="dk" id="dk"></div></figure>
+    <figure class="view"><figcaption>Phone, 390 wide</figcaption><div class="ph"><div class="ph-screen" id="ph"></div></div></figure>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+/* ================= model ================= */
+const T0 = 480, T1 = 1320, SPAN = T1 - T0, STEP = 30, R = SPAN / STEP; // 8 AM to 10 PM in half hours
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const PLURAL = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays"];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+/* piecewise-linear lookup over integer stops, so fractional values mid-drag glide between them */
+const at = (v, pts) => { const x = clamp(v, 0, pts.length - 1), i = Math.min(pts.length - 2, Math.floor(x)); return lerp(pts[i], pts[i + 1], x - i); };
+const fmt = (m, suffix = true) => { const hh = Math.floor(m / 60), mm = m % 60; const h12 = hh % 12 || 12; return h12 + (mm ? ":" + String(mm).padStart(2, "0") : "") + (suffix ? (hh >= 12 ? " PM" : " AM") : ""); };
+const range = (a, b) => ((a >= 720) === (b >= 720) ? `${fmt(a, false)}–${fmt(b)}` : `${fmt(a)}–${fmt(b)}`);
+const dayList = (ds) => { if (ds.length === 5) return "Every weekday"; const n = ds.map((d) => DAYS[d]); return n.length < 2 ? n.join("") : n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; };
+const h = (s) => { const t = document.createElement("template"); t.innerHTML = s.trim(); return t.content.firstElementChild; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+const uid = (p) => p + Math.random().toString(36).slice(2, 7);
+
+const HUES = { work: 2, job: 2, lunch: 4, practice: 6, gym: 6, rehearsal: 5, shift: 2 };
+const hueFor = (label) => { const k = label.trim().toLowerCase(); if (HUES[k]) return HUES[k]; let x = 0; for (const c of k) x = (x * 31 + c.charCodeAt(0)) % 997; return [2, 4, 5, 6, 3][x % 5]; };
+const iconFor = (label) => { const k = label.trim().toLowerCase(); if (/work|job|shift/.test(k)) return "briefcase-01"; if (/lunch|eat/.test(k)) return "restaurant-01"; if (/practice|gym|run/.test(k)) return "running-shoes"; if (/club|meet/.test(k)) return "user-group"; return "calendar-03"; };
+
+/* The courses in the cart, with real-looking sections. Section numbers and
+   times are invented for the mockup. */
+const CART = [
+  { code: "MATH 1710", title: "Calculus I", hue: 3, credits: 4, sections: [
+    { id: "001", days: [0, 2, 4], start: 480, len: 50, who: "Ramos" },
+    { id: "002", days: [0, 2], start: 570, len: 80, who: "Chen" },
+    { id: "003", days: [1, 3], start: 660, len: 80, who: "Okafor" } ] },
+  { code: "CSCE 1030", title: "Computer Science I", hue: 1, credits: 4, sections: [
+    { id: "001", days: [0, 2], start: 660, len: 80, who: "Shah" },
+    { id: "002", days: [1, 3], start: 840, len: 80, who: "Ali" },
+    { id: "003", days: [0, 2, 4], start: 780, len: 50, who: "Moreno" } ] },
+  { code: "ENGL 1320", title: "Writing II", hue: 2, credits: 3, sections: [
+    { id: "002", days: [1, 3], start: 570, len: 80, who: "Park" },
+    { id: "004", days: [0, 2, 4], start: 600, len: 50, who: "Webb" },
+    { id: "007", days: [], start: null, len: 0, who: "Ibarra" } ] },
+  { code: "HIST 2610", title: "US History to 1865", hue: 5, credits: 3, sections: [
+    { id: "001", days: [0, 2], start: 840, len: 80, who: "Grant" },
+    { id: "003", days: [1, 3], start: 750, len: 80, who: "Diaz" } ] },
+];
+const sec = (code, id) => CART.find((c) => c.code === code).sections.find((s) => s.id === id);
+const secWhen = (s) => (s.start === null ? "Online, no set time" : `${s.days.map((d) => DAYS[d]).join(" ")} ${range(s.start, s.start + s.len)}`);
+
+/* Leanings. Each maps to the planner's PreferenceWeights (0..4 each).
+   Time of day is one control over two weights: leaning earlier sets
+   mornings and zeroes evenings, as applyChoice and applyIntent do on alpha. */
+const LEVEL = ["Doesn't matter", "A little", "Some", "A lot", "Most"];
+const LEANS = {
+  time: { title: "Time of day", min: -2, max: 2, bi: true, wide: true, left: "Earlier", right: "Later",
+    val: ["As early as it can", "Earlier", "Any time", "Later", "As late as it can"],
+    say: ["Puts classes as early in the day as it can.", "Leans toward morning sections.", "No preference. Classes go wherever they fit.", "Leans toward afternoon sections.", "Puts classes as late in the day as it can."],
+    weights: (v) => { const r = Math.round(v), w = [0, 2, 4][Math.abs(r)]; return { mornings: r < 0 ? w : 0, evenings: r > 0 ? w : 0 }; } },
+  fewerDays: { title: "Fewer days on campus", min: 0, max: 4, left: "Doesn't matter", right: "Matters most", val: LEVEL,
+    say: ["Uses whichever days fit best.", "Breaks ties toward fewer days.", "Favors fewer days on campus.", "Strongly favors fewer days on campus.", "Fits classes into as few days as it can."],
+    weights: (v) => ({ fewerDays: Math.round(v) }) },
+  compact: { title: "Short gaps", min: 0, max: 4, left: "Doesn't matter", right: "Back-to-back", val: LEVEL,
+    say: ["Doesn't mind long gaps between classes.", "Breaks ties toward shorter gaps.", "Favors shorter gaps between classes.", "Strongly favors short gaps.", "Packs classes back-to-back wherever it can."],
+    weights: (v) => ({ compact: Math.round(v) }) },
+  walking: { title: "Short walks", min: 0, max: 4, left: "Doesn't matter", right: "Matters most", val: LEVEL,
+    say: ["Doesn't weigh walking distance.", "Breaks ties toward shorter walks.", "Favors nearby buildings.", "Strongly favors nearby buildings.", "Counts short walks above everything else it leans on."],
+    weights: (v) => ({ walking: Math.round(v) }) },
+  rating: { title: "Well-rated instructors", min: 0, max: 4, left: "Doesn't matter", right: "Matters most", val: LEVEL,
+    say: ["Doesn't look at instructor ratings.", "Breaks ties toward better-rated instructors.", "Favors instructors students rate highly.", "Strongly favors highly rated instructors.", "Counts instructor ratings above everything else it leans on."],
+    weights: (v) => ({ rating: Math.round(v) }) },
+};
+const LEAN_ORDER = ["time", "fewerDays", "compact", "walking", "rating"];
+const leanIdx = (k, v) => Math.round(v) - LEANS[k].min;
+
+const WALK = [{ v: 0, label: "Fit the break" }, { v: 5, label: "+5 min" }, { v: 10, label: "+10 min" }, { v: null, label: "Don't check" }];
+
+function initial() {
+  const busy = Array(5 * R).fill(null);
+  const run = (d, a, b, l) => { for (let m = a; m < b; m += STEP) busy[d * R + (m - T0) / STEP] = l; };
+  run(1, 900, 1020, "Work"); run(3, 900, 1020, "Work");
+  return {
+    win: { start: 540, end: 1320 }, daysOff: [], busy,
+    time: -1, fewerDays: 2, compact: 1, walking: 3, rating: 2,
+    maxCredits: 15, planned: 14, fullTime: true,
+    walkBuffer: 0, openSeats: false, otherSites: false, ask: true,
+    locked: { "MATH 1710": "002" }, skipped: [{ code: "ENGL 1320", id: "004" }],
+    presets: [], active: null, baseline: null,
+  };
+}
+const CORE = ["win", "daysOff", "busy", "time", "fewerDays", "compact", "walking", "rating", "maxCredits", "fullTime", "walkBuffer", "openSeats", "otherSites", "locked", "skipped"];
+const snap = (s) => JSON.stringify(CORE.map((k) => (typeof s[k] === "number" && k !== "maxCredits" ? Math.round(s[k]) : s[k])));
+/* alpha's DEFAULT_SCHEDULE_CONSTRAINTS plus the "compact" goal weights */
+const DEFAULTS = { win: { start: T0, end: T1 }, daysOff: [], busy: Array(5 * R).fill(null), time: 0, fewerDays: 2, compact: 4, walking: 0, rating: 0, maxCredits: null, fullTime: true, walkBuffer: 0, openSeats: false, otherSites: false };
+
+function createStore(init) {
+  let s = init; const subs = new Set();
+  return {
+    get: () => s,
+    set(patch) { s = { ...s, ...(typeof patch === "function" ? patch(s) : patch) }; subs.forEach((f) => f(s)); },
+    sub(f) { subs.add(f); f(s); return () => subs.delete(f); },
+  };
+}
+const store = createStore(initial());
+const subs = [];
+const watch = (f) => subs.push(store.sub(f));
+
+/* busy cells -> runs -> groups */
+function runsOf(busy) {
+  const out = [];
+  for (let d = 0; d < 5; d++) {
+    let r = 0;
+    while (r < R) {
+      if (busy[d * R + r] === null) { r++; continue; }
+      let e = r, label = "";
+      while (e < R && busy[d * R + e] !== null) { if (!label && busy[d * R + e]) label = busy[d * R + e]; e++; }
+      out.push({ d, r0: r, r1: e, label });
+      r = e;
+    }
+  }
+  return out;
+}
+const normalize = (busy) => { const b = busy.slice(); runsOf(b).forEach((u) => { for (let r = u.r0; r < u.r1; r++) b[u.d * R + r] = u.label; }); return b; };
+function groupsOf(busy) {
+  const m = new Map();
+  runsOf(busy).forEach((u) => {
+    const k = `${u.r0}|${u.r1}|${u.label}`;
+    const g = m.get(k) || { r0: u.r0, r1: u.r1, label: u.label, days: [], runs: [] };
+    g.days.push(u.d); g.runs.push(u); m.set(k, g);
+  });
+  return [...m.values()].sort((a, b) => a.r0 - b.r0 || a.days[0] - b.days[0]);
+}
+
+/* Where Auto would put classes under these preferences. A picture of the
+   optimizer's leanings for the mockup, not the optimizer. */
+function layout(s) {
+  const active = [0, 1, 2, 3, 4].filter((d) => !s.daysOff.includes(d));
+  const occ = [[], [], [], [], []];
+  runsOf(s.busy).forEach((u) => occ[u.d].push([T0 + u.r0 * STEP, T0 + u.r1 * STEP]));
+  const ws = s.win.start, we = s.win.end;
+  const free = (d, a, b) => a >= ws && b <= we && active.includes(d) && !occ[d].some(([x, y]) => a < y && b > x);
+  const out = [], missed = [], flow = [];
+  CART.forEach((c, ci) => {
+    const lockId = s.locked[c.code];
+    if (lockId) {
+      const sc = sec(c.code, lockId);
+      if (sc.start === null) return;
+      sc.days.forEach((d, k) => {
+        if (free(d, sc.start, sc.start + sc.len)) { out.push({ id: ci * 3 + k, code: c.code, hue: c.hue, d, start: sc.start, len: sc.len, locked: true }); occ[d].push([sc.start, sc.start + sc.len]); }
+        else missed.push(c.code);
+      });
+    } else for (let k = 0; k < 2; k++) flow.push({ id: ci * 3 + k, code: c.code, hue: c.hue, len: 80 });
+  });
+  flow.push({ id: 20, code: "CSCE 1030 lab", hue: 6, len: 110 });
+  if (!active.length) { flow.forEach((m) => missed.push(m.code)); return { blocks: out, missed }; }
+  const nd = clamp(Math.round(at(s.fewerDays, [5, 4, 4, 3, 2])), 1, active.length);
+  const days = [1, 3, 0, 2, 4].filter((d) => active.includes(d)).slice(0, nd).sort((a, b) => a - b);
+  const per = days.map(() => []);
+  flow.forEach((m, i) => per[i % nd].push(m));
+  const gap = at(s.compact, [60, 45, 30, 15, 10]);
+  const tryAt = (d, m, from) => {
+    let a = Math.max(ws, from);
+    for (let n = 0; n < 60 && a + m.len <= we; n++) {
+      const hit = occ[d].find(([x, y]) => a < y && a + m.len > x);
+      if (!hit) return free(d, a, a + m.len) ? a : null;
+      a = Math.ceil((hit[1] + 10) / 5) * 5;
+    }
+    return null;
+  };
+  days.forEach((d, j) => {
+    const list = per[j];
+    const total = list.reduce((a, m) => a + m.len, 0) + gap * (list.length - 1);
+    const mid = Math.max(ws, 600), late = Math.max(ws, we - total - 60);
+    let cur = Math.round((s.time <= 0 ? lerp(mid, ws, -s.time / 2) : lerp(mid, late, s.time / 2)) / 5) * 5;
+    list.forEach((m) => {
+      let a = tryAt(d, m, cur), dd = d;
+      if (a === null) { for (const o of active) { const t = tryAt(o, m, ws); if (t !== null) { a = t; dd = o; break; } } }
+      if (a === null) { missed.push(m.code); return; }
+      out.push({ id: m.id, code: m.code, hue: m.hue, d: dd, start: a, len: m.len });
+      occ[dd].push([a, a + m.len]);
+      if (dd === d) cur = a + m.len + gap;
+    });
+  });
+  return { blocks: out, missed };
+}
+
+/* ================= pictures (SVG strings) ================= */
+/* tint=false draws in currentColor (slider ends light up when you lean that way);
+   tint=true uses the course hues for card faces. */
+function timePic(v, W = 120, H = 56, tint = true) {
+  const small = W < 50, sr = small ? 4 : Math.max(6, H * 0.13), cx = W / 2, cy = H - (small ? 3 : 7), r = Math.min(W / 2 - sr - 3, H - sr * 2 - 4), th = Math.PI * (1 - (clamp(v, -2, 2) + 2) / 4);
+  const x = cx + r * Math.cos(th), y = cy - r * Math.sin(th), moon = v > 1.2;
+  const sky = `<path d="M${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="none" stroke="var(--ink-4)" stroke-width="${small ? 1.5 : 1.8}" stroke-dasharray="${small ? "1.5 2.5" : "2 4"}" stroke-linecap="round"/>`;
+  const ground = `<line x1="${small ? 1 : 6}" x2="${W - (small ? 1 : 6)}" y1="${cy}" y2="${cy}" stroke="var(--ink-4)" stroke-width="1.2"/>`;
+  const fg = tint ? null : "currentColor";
+  const body = moon ? `<circle cx="${x}" cy="${y}" r="${sr}" fill="${fg || "var(--c3)"}"/><circle cx="${x + sr * 0.5}" cy="${y - sr * 0.4}" r="${sr * 0.85}" fill="var(--paper-2)"/>` : `<circle cx="${x}" cy="${y}" r="${sr}" fill="${fg || "#e0a52b"}"/>`;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${sky}${ground}${body}</svg>`;
+}
+function daysPic(v, W = 70, H = 46, tint = true) {
+  const nd = clamp(Math.round(at(v, [5, 4, 4, 3, 2])), 1, 5), on = [1, 3, 0, 2, 4].slice(0, nd).sort((a, b) => a - b);
+  const cw = W / 5, counts = [0, 0, 0, 0, 0], hues = [[], [], [], [], []], hs = [3, 1, 2, 5, 6];
+  for (let i = 0; i < 8; i++) { counts[on[i % nd]]++; hues[on[i % nd]].push(hs[i % 5]); }
+  const top = H * 0.06, colH = H * 0.88, bh = colH / 4.4;
+  let s = "";
+  for (let d = 0; d < 5; d++) {
+    const has = counts[d] > 0;
+    s += `<rect x="${d * cw + 1}" y="${top}" width="${cw - 2}" height="${colH}" rx="2" fill="${tint ? "var(--paper)" : "currentColor"}" opacity="${tint ? (has ? 1 : 0.45) : 0.12}"/>`;
+    for (let k = 0; k < counts[d]; k++) s += `<rect x="${d * cw + 1}" y="${top + 1 + k * (bh + 0.8)}" width="${cw - 2}" height="${bh}" rx="1.5" fill="${tint ? `var(--c${hues[d][k]})` : "currentColor"}" opacity="${tint ? 0.85 : 1}"/>`;
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`;
+}
+function gapsPic(v, W = 40, H = 46, tint = true) {
+  const g = at(v, [9, 6.5, 4.2, 2, 0.6]) * H / 46, L = H * 0.2, tot = 3 * L + 2 * g, y0 = (H - tot) / 2, x = W * 0.18, w = W * 0.64;
+  const fills = tint ? ["var(--c3)", "var(--c1)", "var(--c2)"] : ["currentColor", "currentColor", "currentColor"];
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${[0, 1, 2].map((i) => `<rect x="${x}" y="${y0 + i * (L + g)}" width="${w}" height="${L}" rx="${Math.max(1.6, H / 26)}" fill="${fills[i]}" opacity="${tint ? 0.85 : 0.55 + i * 0.15}"/>`).join("")}</svg>`;
+}
+function walkPic(v, W = 70, H = 46, tint = true) {
+  const t = clamp(v, 0, 4) / 4, b = Math.min(W, H) * 0.24, x2 = lerp(W - 4, W * 0.5, t), y2 = lerp(H * 0.34, H * 0.56, t);
+  const bc = tint ? "var(--ink-2)" : "currentColor", pc = tint ? "var(--brand-2)" : "currentColor", sw = Math.max(1.6, H / 22);
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><rect x="4" y="${H * 0.58}" width="${b}" height="${b}" rx="1.5" fill="${bc}"/><rect x="${x2 - b}" y="${y2 - b}" width="${b}" height="${b}" rx="1.5" fill="${bc}"/><path d="M${4 + b} ${H * 0.58 + b * 0.5} Q ${(x2 + 4) / 2} ${H * 0.98} ${x2 - b * 0.5} ${y2}" fill="none" stroke="${pc}" stroke-width="${sw}" stroke-dasharray="${sw} ${Math.max(2.4, H / 14)}" stroke-linecap="round"/></svg>`;
+}
+function starPath(cx, cy, R1) { const r2 = R1 * 0.45; let p = ""; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r2 : R1; p += (i ? "L" : "M") + (cx + rr * Math.cos(a)).toFixed(2) + " " + (cy + rr * Math.sin(a)).toFixed(2); } return p + "Z"; }
+function ratingPic(v, W = 70, H = 46, tint = true) {
+  const lit = at(v, [0, 2, 3, 4, 5]), n = 5, gap = W / n, R1 = Math.min(gap * 0.42, H * 0.22), cy = H / 2;
+  let s = "";
+  for (let i = 0; i < n; i++) {
+    const f = clamp(lit - i, 0, 1), cx = gap * (i + 0.5);
+    s += `<path d="${starPath(cx, cy, R1)}" fill="${tint ? "var(--paper)" : "none"}" stroke="${tint ? "var(--ink-4)" : "currentColor"}" stroke-width="1.2" stroke-linejoin="round" opacity="${tint ? 1 : 0.5}"/>`;
+    if (f > 0) s += `<path d="${starPath(cx, cy, R1)}" fill="${tint ? "#e0a52b" : "currentColor"}" opacity="${f}"/>`;
+  }
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${s}</svg>`;
+}
+const PIC = { time: timePic, fewerDays: daysPic, compact: gapsPic, walking: walkPic, rating: ratingPic };
+/* the end pictures beside each slider, drawn in currentColor so they light up */
+const ENDPIC = {
+  time: ['<i class="hgi hgi-stroke hgi-sunrise" aria-hidden="true"></i>', '<i class="hgi hgi-stroke hgi-moon-02" aria-hidden="true"></i>'],
+  fewerDays: [daysPic(0, 30, 30, false), daysPic(4, 30, 30, false)],
+  compact: [gapsPic(0, 30, 30, false), gapsPic(4, 30, 30, false)],
+  walking: [walkPic(0, 30, 30, false), walkPic(4, 30, 30, false)],
+  rating: [ratingPic(0, 30, 30, false), ratingPic(4, 30, 30, false)],
+};
+const ZONES = [[0, 12, "var(--paper-3)"], [12, 15, "var(--accent-soft)"], [15, 18, "var(--attn-bg)"], [18, 21, "var(--danger-bg)"]];
+function creditPic(planned, max, W = 80, H = 26) {
+  const x = (c) => (Math.min(c, 21) / 21) * W, y = H / 2 - 4;
+  const cap = max === null ? 21 : max;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${ZONES.map(([a, b, c]) => `<rect x="${x(a)}" y="${y}" width="${x(b) - x(a)}" height="8" fill="${c}"/>`).join("")}<rect x="0" y="${y}" width="${x(Math.min(planned, cap))}" height="8" fill="var(--brand-2)"/>${planned > cap ? `<rect x="${x(cap)}" y="${y}" width="${x(planned) - x(cap)}" height="8" fill="var(--attn)"/>` : ""}<rect x="${x(12) - 0.75}" y="${y - 3}" width="1.5" height="14" fill="var(--ink-3)"/>${max === null ? "" : `<rect x="${x(cap) - 1.5}" y="${y - 6}" width="3" height="20" rx="1.5" fill="var(--ink)"/>`}</svg>`;
+}
+
+/* ================= components ================= */
+/* Week view: the paint grid in the panel and the real Week behind it. */
+function WeekView(opt) {
+  const { edit = false, courses = false, rowh = 13, touch = false, times = true } = opt;
+  const el = h(`<div class="wv${edit ? " wv--edit" : ""}" style="--rowh:${rowh}px;--gut:50px;--head:${touch ? 40 : edit ? 34 : 36}px">
+    <div></div>
+    <div class="wv-days">${DAYS.map((d, i) => edit ? `<button class="wv-day" data-day="${i}" aria-pressed="false" aria-label="${PLURAL[i]} off"><span>${d}</span><small>Off</small></button>` : `<div class="wv-day"><span>${d}</span><small>Off</small></div>`).join("")}</div>
+    <div class="wv-gut">${Array.from({ length: 14 }, (_, i) => { const m = T0 + i * 60; const lbl = i === 0 || m === 720 ? fmt(m) : fmt(m, false); if (rowh < 11 && i % 2) return ""; return edit ? `<button class="wv-hour" data-hour="${m}" style="top:${(i * 60 / SPAN) * 100}%" aria-label="Block ${fmt(m)} to ${fmt(m + 60)} every weekday">${lbl}</button>` : `<span class="wv-hour" style="top:${(i * 60 / SPAN) * 100}%">${lbl}</span>`; }).join("")}
+      ${edit ? `<button class="wv-knob" data-knob="start" role="slider" aria-label="Earliest class start" aria-valuemin="${T0}" aria-valuemax="${T1}"><i class="hgi hgi-stroke hgi-sunrise"></i></button><button class="wv-knob" data-knob="end" role="slider" aria-label="Latest class end" aria-valuemin="${T0}" aria-valuemax="${T1}"><i class="hgi hgi-stroke hgi-moon-02"></i></button>` : ""}</div>
+    <div class="wv-body"${edit ? ` tabindex="0" role="application" aria-label="Times you can't have class. Arrow keys move, Space blocks or frees a half hour."` : ""}>
+      <div class="wv-l"><div class="wv-ow top"></div><div class="wv-ow bot"></div><div class="offs"></div><div class="busy"></div><div class="crs"></div>
+      <div class="wv-edge s"></div><div class="wv-edge e"></div><div class="wv-hover"></div><div class="wv-focus"></div></div>
+    </div></div>`);
+  const body = el.querySelector(".wv-body"), busyL = el.querySelector(".busy"), crsL = el.querySelector(".crs");
+  const pct = (m) => ((m - T0) / SPAN) * 100;
+  let preview = null;
+  function drawBusy(busy, prev) {
+    busyL.innerHTML = runsOf(busy).map((u) => {
+      const named = !!u.label, hue = named ? hueFor(u.label) : 0;
+      return `<div class="wv-b ${named ? "named" : "unnamed"}${prev ? " preview" : ""}" style="left:${u.d * 20}%;width:20%;top:${(u.r0 / R) * 100}%;height:${((u.r1 - u.r0) / R) * 100}%;${named ? `--hc:var(--c${hue});--hs:var(--c${hue}s)` : ""}"><div>${named && u.r1 - u.r0 >= 2 && rowh >= 10 ? esc(u.label) : ""}</div></div>`;
+    }).join("");
+  }
+  const crsEls = new Map();
+  function drawCourses(s) {
+    const { blocks } = layout(s);
+    const seen = new Set();
+    blocks.forEach((b) => {
+      seen.add(b.id);
+      let e = crsEls.get(b.id);
+      if (!e) { e = h(`<div class="cr"><div></div></div>`); crsL.appendChild(e); crsEls.set(b.id, e); }
+      e.classList.remove("gone");
+      e.style.setProperty("--hc", `var(--c${b.hue})`); e.style.setProperty("--hs", `var(--c${b.hue}s)`);
+      e.style.height = (b.len / SPAN) * 100 + "%";
+      e.style.transform = `translate(${b.d * 100}%, ${((b.start - T0) / b.len) * 100}%)`;
+      e.firstChild.innerHTML = `${esc(b.code)}${b.locked ? '<i class="hgi hgi-stroke hgi-square-lock-02 lk" aria-label="Locked"></i>' : ""}${times && rowh >= 15 ? `<small>${range(Math.round(b.start / 5) * 5, Math.round((b.start + b.len) / 5) * 5)}</small>` : ""}`;
+    });
+    crsEls.forEach((e, id) => { if (!seen.has(id)) e.classList.add("gone"); });
+  }
+  function update(s) {
+    el.querySelectorAll(".wv-day").forEach((b, i) => { if (b.tagName === "BUTTON") b.setAttribute("aria-pressed", s.daysOff.includes(i)); });
+    el.querySelector(".offs").innerHTML = s.daysOff.map((d) => `<div class="wv-off" style="left:${d * 20}%"></div>`).join("");
+    el.querySelector(".wv-ow.top").style.height = pct(s.win.start) + "%"; el.querySelector(".wv-ow.bot").style.height = 100 - pct(s.win.end) + "%";
+    const es = el.querySelector(".wv-edge.s"), ee = el.querySelector(".wv-edge.e");
+    es.style.top = pct(s.win.start) + "%"; es.style.display = s.win.start > T0 ? "" : "none";
+    ee.style.top = pct(s.win.end) + "%"; ee.style.display = s.win.end < T1 ? "" : "none";
+    el.querySelectorAll(".wv-knob").forEach((k) => { const v = s.win[k.dataset.knob]; k.style.top = pct(v) + "%"; k.setAttribute("aria-valuenow", v); k.setAttribute("aria-valuetext", fmt(v)); });
+    if (!preview) drawBusy(s.busy, false);
+    if (courses) drawCourses(s);
+  }
+  watch(update);
+  /* while a leaning slider is being dragged, follow it closely instead of easing behind it */
+  if (courses) watch(() => el.classList.toggle("live", document.querySelector(".sl-track.drag") !== null));
+  if (!edit) return el;
+
+  /* painting */
+  const cellAt = (x, y) => { const r = body.getBoundingClientRect(); return { d: clamp(Math.floor(((x - r.left) / r.width) * 5), 0, 4), r: clamp(Math.floor(((y - r.top) / r.height) * R), 0, R - 1) }; };
+  let anchor = null, mode = null, cur = null;
+  const rectBusy = () => {
+    const b = store.get().busy.slice();
+    const d0 = Math.min(anchor.d, cur.d), d1 = Math.max(anchor.d, cur.d), r0 = Math.min(anchor.r, cur.r), r1 = Math.max(anchor.r, cur.r);
+    for (let d = d0; d <= d1; d++) for (let r = r0; r <= r1; r++) { const i = d * R + r; b[i] = mode ? (b[i] === null ? "" : b[i]) : null; }
+    return b;
+  };
+  const begin = (c) => { anchor = cur = c; mode = store.get().busy[c.d * R + c.r] === null; preview = rectBusy(); drawBusy(preview, true); };
+  const move = (c) => { if (!anchor || (c.d === cur.d && c.r === cur.r)) return; cur = c; preview = rectBusy(); drawBusy(preview, true); };
+  const commit = () => { if (!anchor) return; const b = normalize(rectBusy()); anchor = null; preview = null; store.set({ busy: b }); };
+  const hover = el.querySelector(".wv-hover");
+  body.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch" || e.button !== 0) return;
+    e.preventDefault(); body.focus({ preventScroll: true }); body.setPointerCapture(e.pointerId); begin(cellAt(e.clientX, e.clientY)); hover.style.opacity = 0;
+  });
+  body.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "touch") return;
+    const c = cellAt(e.clientX, e.clientY);
+    if (anchor) move(c); else if (matchMedia("(hover:hover)").matches) { hover.style.left = c.d * 20 + "%"; hover.style.top = (c.r / R) * 100 + "%"; hover.style.opacity = 1; }
+  });
+  body.addEventListener("pointerup", (e) => { if (e.pointerType !== "touch") commit(); });
+  body.addEventListener("pointercancel", () => { anchor = null; preview = null; update(store.get()); });
+  body.addEventListener("pointerleave", () => { hover.style.opacity = 0; });
+  /* touch: tap toggles a half hour; press and hold, then drag, paints; a quick swipe scrolls */
+  let hold = null, t0 = null, holding = false, moved = false;
+  body.addEventListener("touchstart", (e) => {
+    if (e.touches.length > 1) { clearTimeout(hold); return; }
+    const t = e.touches[0]; t0 = { x: t.clientX, y: t.clientY, at: performance.now() }; moved = false; holding = false;
+    const c = cellAt(t.clientX, t.clientY);
+    hold = setTimeout(() => { holding = true; el.classList.add("holding"); begin(c); if (navigator.vibrate) navigator.vibrate(8); }, 260);
+  }, { passive: true });
+  body.addEventListener("touchmove", (e) => {
+    const t = e.touches[0];
+    if (holding) { e.preventDefault(); move(cellAt(t.clientX, t.clientY)); return; }
+    if (Math.hypot(t.clientX - t0.x, t.clientY - t0.y) > 8) { moved = true; clearTimeout(hold); }
+  }, { passive: false });
+  body.addEventListener("touchend", (e) => {
+    clearTimeout(hold); el.classList.remove("holding");
+    if (holding) { holding = false; commit(); e.preventDefault(); return; }
+    if (!moved && t0 && performance.now() - t0.at < 260) { const t = e.changedTouches[0]; begin(cellAt(t.clientX, t.clientY)); commit(); e.preventDefault(); }
+  });
+  /* keyboard */
+  const fc = { d: 1, r: 12 }, ring = el.querySelector(".wv-focus");
+  const place = () => { ring.style.left = fc.d * 20 + "%"; ring.style.top = (fc.r / R) * 100 + "%"; };
+  place();
+  body.addEventListener("keydown", (e) => {
+    const k = e.key;
+    if (k === "ArrowLeft") fc.d = clamp(fc.d - 1, 0, 4); else if (k === "ArrowRight") fc.d = clamp(fc.d + 1, 0, 4);
+    else if (k === "ArrowUp") fc.r = clamp(fc.r - 1, 0, R - 1); else if (k === "ArrowDown") fc.r = clamp(fc.r + 1, 0, R - 1);
+    else if (k === " " || k === "Enter") { begin({ ...fc }); commit(); } else return;
+    e.preventDefault(); place();
+  });
+  /* day and hour headers */
+  el.querySelectorAll(".wv-day").forEach((b) => b.addEventListener("click", () => {
+    const d = +b.dataset.day; store.set((s) => ({ daysOff: s.daysOff.includes(d) ? s.daysOff.filter((x) => x !== d) : [...s.daysOff, d].sort() }));
+  }));
+  el.querySelectorAll("button.wv-hour").forEach((b) => b.addEventListener("click", () => {
+    const m = +b.dataset.hour, r0 = (m - T0) / STEP, s = store.get();
+    const days = [0, 1, 2, 3, 4].filter((d) => !s.daysOff.includes(d));
+    const all = days.every((d) => s.busy[d * R + r0] !== null && s.busy[d * R + r0 + 1] !== null);
+    const nb = s.busy.slice(); days.forEach((d) => { nb[d * R + r0] = all ? null : nb[d * R + r0] ?? ""; nb[d * R + r0 + 1] = all ? null : nb[d * R + r0 + 1] ?? ""; });
+    store.set({ busy: normalize(nb) });
+  }));
+  /* class hours: sunrise and moon knobs in the time column */
+  el.querySelectorAll(".wv-knob").forEach((k) => {
+    const which = k.dataset.knob;
+    const setTo = (m) => store.set((s) => { const w = { ...s.win }; if (which === "start") w.start = clamp(m, T0, w.end - 60); else w.end = clamp(m, w.start + 60, T1); return { win: w }; });
+    k.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); k.setPointerCapture(e.pointerId); k.dataset.drag = "1"; });
+    k.addEventListener("pointermove", (e) => { if (!k.dataset.drag) return; const r = body.getBoundingClientRect(); setTo(T0 + Math.round((((e.clientY - r.top) / r.height) * SPAN) / STEP) * STEP); });
+    const up = () => { delete k.dataset.drag; }; k.addEventListener("pointerup", up); k.addEventListener("pointercancel", up);
+    k.addEventListener("keydown", (e) => { const d = { ArrowUp: -STEP, ArrowDown: STEP, PageUp: -60, PageDown: 60 }[e.key]; if (d) { e.preventDefault(); setTo(store.get().win[which] + d); } });
+  });
+  return el;
+}
+
+/* One fact per row, read back from the grid in plain words. */
+function Ledger() {
+  const el = h(`<ul class="lg" aria-live="polite"></ul>`);
+  const row = (ic, inner, act, cls = "") => `<li class="${cls}"><span class="ic"><i class="hgi hgi-stroke hgi-${ic}" aria-hidden="true"></i></span><span class="tx">${inner}</span>${act || ""}</li>`;
+  const x = (act, label) => `<button class="x" data-act="${act}" aria-label="${esc(label)}"><i class="hgi hgi-stroke hgi-cancel-01"></i></button>`;
+  let groups = [];
+  function update(s) {
+    if (el.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;
+    groups = groupsOf(s.busy);
+    const items = [];
+    if (s.win.start > T0) items.push(row("sunrise", `<b>No class before ${fmt(s.win.start)}</b>`, x("start", "Allow classes before " + fmt(s.win.start))));
+    if (s.win.end < T1) items.push(row("moon-02", `<b>No class after ${fmt(s.win.end)}</b>`, x("end", "Allow classes after " + fmt(s.win.end))));
+    s.daysOff.forEach((d) => items.push(row("calendar-block-01", `<b>No class on ${PLURAL[d]}</b>`, x("off:" + d, "Allow classes on " + PLURAL[d]))));
+    groups.forEach((g, i) => {
+      const when = `${dayList(g.days)}, ${range(T0 + g.r0 * STEP, T0 + g.r1 * STEP)}`;
+      if (g.label) items.push(row(iconFor(g.label), `<button class="rename" data-g="${i}" aria-label="Rename ${esc(g.label)}">${esc(g.label)}</button><span>${when}</span>`, x("g:" + i, "Remove " + g.label)));
+      else items.push(row("paint-brush-02", `<input class="name" data-g="${i}" placeholder="Name this, like Work" aria-label="Name the busy time ${when}" maxlength="24"><span>${when}</span>`, x("g:" + i, "Remove busy time " + when)));
+    });
+    const { missed } = layout(s);
+    [...new Set(missed)].forEach((c) => items.push(row("alert-02", `<b>${esc(c)} doesn't fit these times</b><span>Unblock some time, or Auto leaves it out.</span>`, "", "warn")));
+    el.innerHTML = items.join("") || `<li class="empty">Nothing blocked. Auto can use any weekday from 8 AM to 10 PM.</li>`;
+  }
+  const setLabel = (i, label) => { const g = groups[i]; if (!g) return; const b = store.get().busy.slice(); g.runs.forEach((u) => { for (let r = u.r0; r < u.r1; r++) b[u.d * R + r] = label; }); store.set({ busy: b }); };
+  el.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-act],.rename"); if (!t) return;
+    if (t.classList.contains("rename")) { const i = +t.dataset.g; const inp = h(`<input class="name" value="${esc(groups[i].label)}" data-g="${i}" aria-label="Name" maxlength="24">`); t.replaceWith(inp); inp.focus(); inp.select(); return; }
+    const a = t.dataset.act;
+    if (a === "start") store.set((s) => ({ win: { ...s.win, start: T0 } }));
+    else if (a === "end") store.set((s) => ({ win: { ...s.win, end: T1 } }));
+    else if (a.startsWith("off:")) { const d = +a.slice(4); store.set((s) => ({ daysOff: s.daysOff.filter((v) => v !== d) })); }
+    else if (a.startsWith("g:")) { const g = groups[+a.slice(2)]; const b = store.get().busy.slice(); g.runs.forEach((u) => { for (let r = u.r0; r < u.r1; r++) b[u.d * R + r] = null; }); store.set({ busy: b }); }
+  });
+  el.addEventListener("keydown", (e) => { if (e.target.classList.contains("name") && e.key === "Enter") e.target.blur(); if (e.key === "Escape" && e.target.classList.contains("name")) { e.stopPropagation(); e.target.value = ""; e.target.blur(); } });
+  el.addEventListener("focusout", (e) => { if (!e.target.classList.contains("name")) return; const v = e.target.value.trim(); const i = +e.target.dataset.g; setTimeout(() => { if (v) setLabel(i, v); else update(store.get()); }, 0); });
+  watch(update);
+  return el;
+}
+
+/* Bipolar or one-sided slider with a picture at each end. Values are continuous
+   while dragging, so the card picture and the week move with the thumb; release
+   snaps to one of five stops, which are the planner's integer weights. */
+function Slider(key) {
+  const d = LEANS[key], span = d.max - d.min;
+  const ticks = Array.from({ length: span + 1 }, (_, i) => `<span class="sl-tick${d.bi && i === span / 2 ? " mid" : ""}" style="left:${(i / span) * 100}%"></span>`).join("");
+  const el = h(`<div class="sl">
+    <div class="sl-row"><span class="sl-pic l">${ENDPIC[key][0]}</span>
+      <div class="sl-track" role="slider" tabindex="0" aria-label="${d.title}" aria-valuemin="${d.min}" aria-valuemax="${d.max}">
+        <div class="sl-in"><div class="sl-rail"></div>${ticks}<div class="sl-fill" style="left:${d.bi ? 50 : 0}%"></div><div class="sl-run"><span class="sl-thumb"></span></div></div>
+      </div><span class="sl-pic r">${ENDPIC[key][1]}</span></div>
+    <div class="sl-ends"><span class="l">${d.left}</span><span class="r">${d.right}</span></div>
+    <p class="sl-out"></p>
+    <p class="rn"></p></div>`);
+  const tr = el.querySelector(".sl-track"), inner = el.querySelector(".sl-in"), run = el.querySelector(".sl-run"), fill = el.querySelector(".sl-fill"), out = el.querySelector(".sl-out"), note = el.querySelector(".rn");
+  function update(s) {
+    const v = s[key], p = (v - d.min) / span;
+    run.style.transform = `translateX(${p * 100}%)`;
+    fill.style.width = d.bi ? "50%" : "100%";
+    fill.style.transform = `scaleX(${d.bi ? v / (span / 2) : p})`;
+    const lean = d.bi ? (v < -0.25 ? "l" : v > 0.25 ? "r" : "") : v >= 2.5 ? "r" : v <= 0.5 ? "l" : "";
+    el.querySelectorAll(".sl-pic,.sl-ends span").forEach((n) => n.classList.toggle("on", n.classList.contains(lean)));
+    const say = d.say[leanIdx(key, v)];
+    out.textContent = say; out.classList.toggle("neutral", d.bi ? Math.round(v) === 0 : Math.round(v) === 0);
+    tr.setAttribute("aria-valuenow", Math.round(v)); tr.setAttribute("aria-valuetext", `${d.val[leanIdx(key, v)]}. ${say}`);
+    note.innerHTML = `<b>Planner fields.</b> ${Object.entries(d.weights(v)).map(([k, w]) => `<code>weights.${k} = ${w}</code>`).join(" ")}`;
+  }
+  const pos = (x) => { const r = inner.getBoundingClientRect(); return clamp(d.min + ((x - r.left) / r.width) * span, d.min, d.max); };
+  tr.addEventListener("pointerdown", (e) => { if (e.button) return; tr.setPointerCapture(e.pointerId); tr.classList.add("drag"); store.set({ [key]: pos(e.clientX) }); });
+  tr.addEventListener("pointermove", (e) => { if (tr.classList.contains("drag")) store.set({ [key]: pos(e.clientX) }); });
+  const end = () => { if (!tr.classList.contains("drag")) return; tr.classList.remove("drag"); store.set((s) => ({ [key]: Math.round(s[key]) })); };
+  tr.addEventListener("pointerup", end); tr.addEventListener("pointercancel", end);
+  tr.addEventListener("keydown", (e) => { const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key]; if (step) { e.preventDefault(); store.set((s) => ({ [key]: clamp(Math.round(s[key]) + step, d.min, d.max) })); } if (e.key === "Home") { e.preventDefault(); store.set({ [key]: d.min }); } if (e.key === "End") { e.preventDefault(); store.set({ [key]: d.max }); } });
+  watch(update);
+  return el;
+}
+
+/* Leanings: one picture card per planner weight. The card's face is a
+   picture of its current value; opening a card shows its slider below. */
+function Leanings(sheet) {
+  const el = h(`<div><div class="cards" role="group" aria-label="Leanings"></div><div class="well-wrap"><div><div class="well" role="region" aria-live="polite"></div></div></div></div>`);
+  const cards = el.querySelector(".cards"), wrap = el.querySelector(".well-wrap"), well = el.querySelector(".well");
+  const wellId = uid("well-");
+  well.id = wellId;
+  cards.innerHTML = LEAN_ORDER.map((k) => `<button class="card${LEANS[k].wide ? " wide" : ""}" data-k="${k}" aria-expanded="false" aria-controls="${wellId}"><span class="pic"></span><span><b>${LEANS[k].title}</b><span class="val"></span></span></button>`).join("");
+  const size = (k) => (k === "time" ? (sheet ? [190, 56] : [200, 56]) : k === "compact" ? [40, 46] : [70, 46]);
+  watch((s) => cards.querySelectorAll(".card").forEach((b) => {
+    const k = b.dataset.k, [W, H] = size(k);
+    b.querySelector(".pic").innerHTML = PIC[k](s[k], W, H, true);
+    b.querySelector(".val").textContent = LEANS[k].val[leanIdx(k, s[k])];
+  }));
+  let open = null, openSubs = [];
+  const show = (k) => {
+    openSubs.forEach((u) => u()); openSubs = [];
+    cards.querySelectorAll(".card").forEach((b) => b.setAttribute("aria-expanded", b.dataset.k === k));
+    if (!k) { open = null; wrap.classList.remove("open"); return; }
+    open = k; const before = subs.length;
+    well.innerHTML = "";
+    well.append(h(`<div class="well-h"><b>${LEANS[k].title}</b><button class="icon-btn" data-close aria-label="Close ${LEANS[k].title}"><i class="hgi hgi-stroke hgi-cancel-01" style="font-size:16px"></i></button></div>`), Slider(k));
+    openSubs = subs.splice(before);
+    wrap.classList.add("open");
+  };
+  cards.addEventListener("click", (e) => { const b = e.target.closest(".card"); if (b) show(open === b.dataset.k ? null : b.dataset.k); });
+  well.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) { const k = open; show(null); cards.querySelector(`[data-k="${k}"]`).focus(); } });
+  el.addEventListener("keydown", (e) => { if (e.key === "Escape" && open) { e.stopPropagation(); const k = open; show(null); cards.querySelector(`[data-k="${k}"]`).focus(); } });
+  el.openCard = show;
+  return el;
+}
+
+/* Credit limit, then locked and skipped sections: settings about specific classes. */
+const CREDIT_STEPS = Array.from({ length: 19 }, (_, i) => i + 3);
+function CreditRow() {
+  const el = h(`<div class="cl"><span class="cl-pic"></span><span class="tx"><b></b><span></span></span>
+    <span class="step" role="group" aria-label="Credit limit"><button data-d="-1" aria-label="Lower the credit limit"><i class="hgi hgi-stroke hgi-minus-sign" style="font-size:15px"></i></button><button data-d="1" aria-label="Raise the credit limit"><i class="hgi hgi-stroke hgi-add-01" style="font-size:15px"></i></button></span></div>`);
+  el.querySelector(".tx b").setAttribute("aria-live", "polite");
+  watch((s) => {
+    const m = s.maxCredits, p = s.planned, over = m !== null && p > m;
+    el.querySelector(".cl-pic").innerHTML = creditPic(p, m, 80, 26);
+    el.querySelector(".tx b").textContent = m === null ? "No credit limit" : `At most ${m} credits`;
+    const sub = el.querySelector(".tx span");
+    sub.textContent = over ? `Your cart has ${p}. Auto will leave a class out.` : `Your cart has ${p}.${p < 12 ? " Full-time starts at 12." : ""}`;
+    sub.classList.toggle("over", over);
+    el.querySelector('[data-d="-1"]').disabled = m === 3;
+    el.querySelector('[data-d="1"]').disabled = m === null;
+  });
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-d]"); if (!b) return;
+    const d = +b.dataset.d;
+    store.set((s) => {
+      const m = s.maxCredits;
+      if (m === null) return d < 0 ? { maxCredits: 21 } : {};
+      const n = m + d;
+      return { maxCredits: n > 21 ? null : clamp(n, 3, 21) };
+    });
+  });
+  return el;
+}
+function CourseSettings() {
+  const el = h(`<div></div>`);
+  el.append(CreditRow());
+  const body = h(`<div>
+    <p class="sub-h"><span class="grow">Locked sections</span><button class="add" data-pick="lock"><i class="hgi hgi-stroke hgi-add-01"></i>Lock a section</button></p><div class="locks"></div><div class="pk-lock"></div>
+    <p class="sub-h"><span class="grow">Skipped sections</span><button class="add" data-pick="skip"><i class="hgi hgi-stroke hgi-add-01"></i>Skip a section</button></p><div class="skips"></div><div class="pk-skip"></div>
+  </div>`);
+  el.append(body);
+  let picking = null, course = null;
+  function draw(s) {
+    const locks = Object.entries(s.locked);
+    body.querySelector(".locks").innerHTML = locks.length ? locks.map(([c, id]) => `<div class="srow lock"><span class="ic"><i class="hgi hgi-stroke hgi-square-lock-02"></i></span><span class="tx"><b>${c}, section ${id}</b><span>${secWhen(sec(c, id))}</span></span><button class="x" data-unlock="${c}" aria-label="Unlock ${c}"><i class="hgi hgi-stroke hgi-square-unlock-02"></i></button></div>`).join("")
+      : `<div class="srow empty">None. Auto may pick any section of every course.</div>`;
+    body.querySelector(".skips").innerHTML = s.skipped.length ? s.skipped.map((k, i) => `<div class="srow"><span class="ic"><i class="hgi hgi-stroke hgi-unavailable"></i></span><span class="tx"><b>${k.code}, section ${k.id}</b><span>${secWhen(sec(k.code, k.id))}</span></span><button class="x" data-unskip="${i}" aria-label="Stop skipping ${k.code} section ${k.id}"><i class="hgi hgi-stroke hgi-cancel-01"></i></button></div>`).join("")
+      : `<div class="srow empty">None. Auto may pick any section that fits.</div>`;
+    ["lock", "skip"].forEach((kind) => {
+      const box = body.querySelector(".pk-" + kind);
+      if (picking !== kind) { box.innerHTML = ""; return; }
+      const c = course && CART.find((x) => x.code === course);
+      box.innerHTML = `<div class="picker" role="group" aria-label="${kind === "lock" ? "Lock" : "Skip"} a section"><div class="picker-h"><span class="grow">${kind === "lock" ? "Lock a section of" : "Skip a section of"}</span><button class="icon-btn" data-cancel aria-label="Cancel" style="width:28px;height:28px"><i class="hgi hgi-stroke hgi-cancel-01" style="font-size:15px"></i></button></div>
+        <div class="chips">${CART.map((x) => `<button class="chip" data-course="${x.code}" aria-pressed="${x.code === course}" style="--hc:var(--c${x.hue})"><span class="sw8"></span>${x.code}</button>`).join("")}</div>
+        ${c ? c.sections.map((sc) => {
+          const isLocked = s.locked[c.code] === sc.id, isSkipped = s.skipped.some((k) => k.code === c.code && k.id === sc.id);
+          const off = kind === "lock" ? isLocked || isSkipped : isLocked || isSkipped;
+          const tag = isLocked ? "Locked" : isSkipped ? "Skipped" : "";
+          return `<button class="opt" data-sec="${sc.id}"${off ? " disabled" : ""}><span class="tx"><b>Section ${sc.id}</b><span>${secWhen(sc)}, ${sc.who}</span></span><span class="tag">${tag}</span></button>`;
+        }).join("") : ""}</div>`;
+    });
+  }
+  body.addEventListener("click", (e) => {
+    const t = e.target;
+    const pk = t.closest("[data-pick]"); if (pk) { picking = picking === pk.dataset.pick ? null : pk.dataset.pick; course = null; draw(store.get()); if (picking) body.querySelector(`.pk-${picking} .chip`)?.focus(); return; }
+    if (t.closest("[data-cancel]")) { const k = picking; picking = null; draw(store.get()); body.querySelector(`[data-pick="${k}"]`).focus(); return; }
+    const ch = t.closest("[data-course]"); if (ch) { course = ch.dataset.course; draw(store.get()); body.querySelector(`.pk-${picking} [data-course="${course}"]`)?.focus(); return; }
+    const op = t.closest("[data-sec]"); if (op && !op.disabled) {
+      const id = op.dataset.sec, c = course, kind = picking; picking = null; course = null;
+      if (kind === "lock") store.set((s) => ({ locked: { ...s.locked, [c]: id } }));
+      else store.set((s) => ({ skipped: [...s.skipped, { code: c, id }] }));
+      body.querySelector(`[data-pick="${kind}"]`).focus();
+      return;
+    }
+    const ul = t.closest("[data-unlock]"); if (ul) { store.set((s) => { const l = { ...s.locked }; delete l[ul.dataset.unlock]; return { locked: l }; }); return; }
+    const us = t.closest("[data-unskip]"); if (us) store.set((s) => ({ skipped: s.skipped.filter((_, i) => i !== +us.dataset.unskip) }));
+  });
+  body.addEventListener("keydown", (e) => { if (e.key === "Escape" && picking) { e.stopPropagation(); const k = picking; picking = null; draw(store.get()); body.querySelector(`[data-pick="${k}"]`).focus(); } });
+  watch(draw);
+  el.append(h(`<p class="rn"><b>Lead's reading, Sam to confirm.</b> "Select the classes that we don't have" read as: settings about specific classes get their own section, below the time settings. Locks are <code>PlannerState.lockedSections</code>; skips are <code>constraints.excludedSections</code> (the "Skip" chip in alpha's section picker). There is no field for skipping a whole course or an instructor; to drop a course, remove it from the cart. <b>Credit limit</b> is <code>constraints.maxCredits</code> (3 to 21, or No limit, as alpha's selector). The cart's credit bar shows the same ceiling; only one of the two should be editable, to be settled with the course-cart owner.</p>`));
+  return el;
+}
+
+function Switch(key, label, desc, onSet) {
+  const id = uid("l-");
+  const el = h(`<div class="row"><div class="tx"><b id="${id}">${label}</b><span></span></div><button class="sw" role="switch" aria-checked="false" aria-labelledby="${id}"></button></div>`);
+  const sw = el.querySelector(".sw");
+  sw.addEventListener("click", () => { const v = !store.get()[key]; store.set(onSet ? onSet(v) : { [key]: v }); });
+  watch((s) => { sw.setAttribute("aria-checked", !!s[key]); el.querySelector(".tx span").textContent = typeof desc === "function" ? desc(s[key]) : desc; });
+  return el;
+}
+function WalkCheck() {
+  const id = uid("wk-");
+  const el = h(`<div class="row stack"><div class="tx"><b id="${id}">Time to walk between classes</b><span></span></div><div class="seg" role="radiogroup" aria-labelledby="${id}">${WALK.map((w, i) => `<button role="radio" data-i="${i}" aria-checked="false">${w.label}</button>`).join("")}</div></div>`);
+  const btns = [...el.querySelectorAll("[role=radio]")];
+  watch((s) => {
+    const i = WALK.findIndex((w) => w.v === s.walkBuffer);
+    btns.forEach((b, j) => { b.setAttribute("aria-checked", i === j); b.tabIndex = i === j ? 0 : -1; });
+    el.querySelector(".tx span").textContent = s.walkBuffer === null ? "Auto doesn't check walks. A schedule may leave no time to get there." : s.walkBuffer === 0 ? "Every walk fits in the break between classes." : `Every walk fits in the break with ${s.walkBuffer} minutes to spare.`;
+  });
+  el.addEventListener("click", (e) => { const b = e.target.closest("[role=radio]"); if (b) store.set({ walkBuffer: WALK[+b.dataset.i].v }); });
+  el.addEventListener("keydown", (e) => { const d = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key]; if (!d) return; e.preventDefault(); const i = (WALK.findIndex((w) => w.v === store.get().walkBuffer) + d + 4) % 4; store.set({ walkBuffer: WALK[i].v }); btns[i].focus(); });
+  return el;
+}
+
+const pick = (s) => Object.fromEntries(CORE.map((k) => [k, s[k]]));
+/* scroll position that brings `node` to the top of scroller `sc`; offsetTop is relative to the popover, not the scroller */
+const scrollTopFor = (sc, node) => sc.scrollTop + node.getBoundingClientRect().top - sc.getBoundingClientRect().top - 6;
+function savePreset(name) {
+  const s = store.get(); const data = JSON.stringify(pick(s));
+  store.set({ presets: [...s.presets, { name, data, snap: snap(s) }], active: s.presets.length, baseline: snap(s) });
+}
+function MoreRows() {
+  const el = h(`<div></div>`);
+  el.append(
+    WalkCheck(),
+    Switch("openSeats", "Open seats only", "Auto suggests only sections with a seat open. Full and wait-listed ones stay pickable by hand."),
+    Switch("otherSites", "Include other UNT sites", "Frisco and other campuses outside Denton. Discovery Park counts as Denton."),
+    Switch("fullTime", "Stay full-time", "Auto keeps you at 12 credits or more."),
+  );
+  el.append(h(`<p class="rn"><b>New, no planner field:</b> "Stay full-time" needs a minimum-credit input. The preference schema has <code>hard.creditMin</code>, but <code>applyIntent</code> lists it as unsupported because the optimizer only has <code>maxCredits</code>. Walking, open seats and other sites map to <code>walkingBufferMinutes</code> (0, 5, 10 or null, alpha's four options), <code>openSeatsOnly</code> and <code>otherSites</code>.</p>`));
+  el.append(Switch("ask", "Ask me before building a schedule", (v) => (v ? "Shows the short questions about your week before a new schedule." : "Goes straight to the builder.")));
+  const pre = h(`<div><p class="sub-h">Presets</p><div class="pre"></div></div>`);
+  el.append(pre);
+  let saving = false;
+  const drawPre = (s) => {
+    if (pre.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;
+    const box = pre.querySelector(".pre");
+    const list = s.presets.map((p, i) => `<button class="preset-row" data-p="${i}" aria-pressed="${s.active === i}"><span class="ck">${s.active === i ? '<i class="hgi hgi-stroke hgi-tick-02"></i>' : ""}</span><span style="flex:1">${esc(p.name)}</span></button>`).join("");
+    box.innerHTML = `<div class="preset-list">${list}</div>` + (saving ? `<form class="save-form"><input aria-label="Preset name" value="${s.presets.length ? "Lighter week" : "Work weeks"}" maxlength="28"><button class="btn btn-primary">Save</button></form>`
+      : `<div class="row" style="border-top:${s.presets.length ? "1px solid var(--line)" : "0"}"><span class="tx"><span>${s.presets.length ? "" : "Save these settings so you can switch back to them."}</span></span><button class="btn btn-soft" data-save><i class="hgi hgi-stroke hgi-bookmark-02"></i>Save as preset</button></div>`);
+    if (saving) { const i = box.querySelector("input"); i.focus(); i.select(); }
+  };
+  pre.addEventListener("click", (e) => {
+    if (e.target.closest("[data-save]")) { saving = true; drawPre(store.get()); }
+    const p = e.target.closest("[data-p]"); if (p) { const pr = store.get().presets[+p.dataset.p]; store.set({ ...JSON.parse(pr.data), active: +p.dataset.p, baseline: pr.snap }); }
+  });
+  pre.addEventListener("submit", (e) => { e.preventDefault(); const name = pre.querySelector("input").value.trim() || "My week"; saving = false; savePreset(name); });
+  pre.addEventListener("keydown", (e) => { if (e.key === "Escape" && saving) { e.stopPropagation(); saving = false; drawPre(store.get()); pre.querySelector("[data-save]").focus(); } });
+  watch(drawPre);
+  el.append(h(`<p class="rn"><b>New, no planner field:</b> "Ask me before building" (the onboarding switch) and named presets. Alpha keeps one set of preferences per browser; its only presets are the five goal weight sets in <code>optimizer/presets.ts</code>.</p>`));
+  const reset = h(`<div class="row"><span class="tx"><span>Clears your times, leanings and credit limit. Locked and skipped sections stay.</span></span><button class="btn btn-quiet" data-reset><i class="hgi hgi-stroke hgi-rotate-left-01"></i>Back to defaults</button></div>`);
+  reset.querySelector("button").addEventListener("click", () => store.set(() => ({ ...DEFAULTS, busy: Array(5 * R).fill(null) })));
+  el.append(reset);
+  return el;
+}
+const changedCount = (s) => ["walkBuffer", "openSeats", "otherSites", "fullTime"].filter((k) => s[k] !== DEFAULTS[k]).length + (s.ask ? 0 : 1);
+
+function More() {
+  const id = uid("more-");
+  const el = h(`<div><button class="more-t" aria-expanded="false" aria-controls="${id}"><i class="hgi hgi-stroke hgi-settings-02" style="color:var(--ink-3)"></i><span>More settings</span><span class="n"></span><span class="grow"></span><i class="hgi hgi-stroke hgi-arrow-down-01 chev"></i></button><div class="more" id="${id}" inert><div><div class="more-in"></div></div></div></div>`);
+  el.querySelector(".more-in").append(MoreRows());
+  const t = el.querySelector(".more-t"), m = el.querySelector(".more");
+  t.addEventListener("click", () => {
+    const o = t.getAttribute("aria-expanded") !== "true"; t.setAttribute("aria-expanded", o); m.classList.toggle("open", o); m.inert = !o;
+    /* scroll only the panel; scrollIntoView would also shift the clipped frames around it */
+    const sc = t.closest(".pn-scroll");
+    if (o && sc) setTimeout(() => sc.scrollTo({ top: scrollTopFor(sc, t), behavior: reduce.matches ? "auto" : "smooth" }), 60);
+  });
+  watch((s) => { const n = changedCount(s); el.querySelector(".n").textContent = n ? `${n} changed` : ""; });
+  return el;
+}
+
+/* Panel header and footer: preset context lives here once a preset exists. */
+function PanelHead({ onClose, sheet }) {
+  const el = h(`<div class="pn-head"><div class="grow"><h2 tabindex="-1">Preferences</h2><p class="pn-sub"></p></div><button class="icon-btn" aria-label="Close preferences"><i class="hgi hgi-stroke hgi-cancel-01"></i></button></div>`);
+  el.querySelector(".icon-btn").addEventListener("click", onClose);
+  watch((s) => {
+    const p = el.querySelector(".pn-sub");
+    if (s.active === null) { p.textContent = "Auto builds your week around these."; return; }
+    const edited = s.baseline !== snap(s);
+    p.innerHTML = `<button class="preset-pill" aria-label="Preset ${esc(s.presets[s.active].name)}. Switch presets in More settings."><i class="hgi hgi-stroke hgi-bookmark-02"></i>${esc(s.presets[s.active].name)}</button>${edited ? '<span class="edited">Edited</span>' : ""}`;
+  });
+  return el;
+}
+function PanelFoot() {
+  const el = h(`<div class="pn-foot" hidden><span class="msg"></span><button class="btn btn-quiet" data-new>Save as new</button><button class="btn btn-primary" data-up>Update</button></div>`);
+  watch((s) => {
+    const edited = s.active !== null && s.baseline !== snap(s);
+    el.hidden = !edited;
+    if (s.active !== null) el.querySelector(".msg").textContent = `Changed since you saved ${s.presets[s.active].name}.`;
+  });
+  el.querySelector("[data-up]").addEventListener("click", () => { const s = store.get(); const presets = s.presets.slice(); presets[s.active] = { ...presets[s.active], data: JSON.stringify(pick(s)), snap: snap(s) }; store.set({ presets, baseline: snap(s) }); });
+  el.querySelector("[data-new]").addEventListener("click", () => savePreset("Copy of " + store.get().presets[store.get().active].name));
+  return el;
+}
+
+/* The panel: hard limits, leanings, then course-level settings, then More. */
+function Panel({ sheet, onClose }) {
+  const frag = document.createDocumentFragment();
+  const head = PanelHead({ onClose, sheet });
+  const sc = h(`<div class="pn-scroll"></div>`);
+  sc.addEventListener("scroll", () => head.classList.toggle("scrolled", sc.scrollTop > 2), { passive: true });
+  const g = h(`<section class="sec"><div class="sec-h"><h3>Times you can't have class</h3></div><p class="sec-sub">Auto never puts a class here.</p>
+    <p class="hint"><i class="hgi hgi-stroke hgi-${sheet ? "touch-01" : "cursor-pointer-01"}"></i><span>${sheet ? "Tap a half hour, or press and hold, then drag. Tap a day to take it off. Drag the sun and moon to set your class hours." : "Drag over times you can't do. Click a day to take it off. Drag the sun and moon to set your class hours."}</span></p></section>`);
+  g.append(WeekView({ edit: true, rowh: sheet ? 17 : 10.5, touch: sheet }), Ledger());
+  const ln = h(`<section class="sec" data-sec="lean"><div class="sec-h"><h3>Leanings</h3></div><p class="sec-sub">Auto follows these when it can. ${sheet ? "Tap" : "Open"} one to change it; your week moves as you do.</p></section>`);
+  const lean = Leanings(sheet);
+  ln.append(lean, h(`<p class="rn"><b>Matches the planner.</b> Five cards, one per <code>PreferenceWeights</code> field (0 to 4). Time of day is one control over <code>mornings</code> and <code>evenings</code>: one step is 2, two steps is 4, the other side is 0, matching <code>STRENGTH_WEIGHT</code> and <code>applyChoice</code>. Changed from round 2 because the planner can't do them: "Breaks between classes" and "Spread across the week" (no spreading term, <code>spreadOut</code> is unsupported), and "Good grades" (alpha ranks student star ratings, not past grades; <code>easierGraders</code> is unsupported). The Shape of your days section and its preview are gone; the real Week behind the popover is the preview, and the explanation moved to onboarding.</p>`));
+  const cs = h(`<section class="sec" data-sec="courses"><div class="sec-h"><h3>Courses and sections</h3></div><p class="sec-sub">Settings for specific classes in your cart.</p></section>`);
+  cs.append(CourseSettings());
+  sc.append(g, ln, cs, More());
+  frag.append(head, sc, PanelFoot());
+  frag.lean = lean; frag.scroll = sc;
+  return frag;
+}
+
+/* ================= frames ================= */
+const LENSES = `<nav class="lenses" aria-label="Lenses"><span>Courses</span><span class="on" aria-current="page">Week</span><span>Day</span></nav>`;
+function TopBar(phone) {
+  return h(`<div class="wk-bar"><div class="wk-term"><b>Fall 2026</b><span>${phone ? "4 courses" : "Built from 4 courses"}</span></div><span class="sp"></span>
+    <button class="top-btn" data-open="courses" aria-expanded="false" aria-haspopup="dialog"><i class="hgi hgi-stroke hgi-book-open-01"></i>Courses<span class="count">4</span></button>
+    <button class="top-btn${phone ? "" : ""}" data-open="prefs" aria-expanded="false" aria-haspopup="dialog"><i class="hgi hgi-stroke hgi-sliders-horizontal"></i>Preferences</button></div>`);
+}
+const coursesNote = `<p class="rn"><b>Owned by the course-cart mockup.</b> This round, the cart lives in a popover from this Courses button. It is drawn in its own file; this one only draws the shared bar. Note: alpha's lens tabs also have a "Courses" (the degree), so two things in view are called Courses.</p>`;
+
+let ctl = null; // per-mount controllers for the scene tabs
+function Desktop() {
+  const dk = document.getElementById("dk");
+  dk.innerHTML = "";
+  dk.append(h(`<div class="app-bar"><span class="wordmark">UNTangle</span>${LENSES}<span class="sp"></span><span class="avatar">SG</span></div>`));
+  const bar = TopBar(false); dk.append(bar);
+  const wk = h(`<div class="wk"></div>`); wk.append(WeekView({ courses: true, rowh: 23.5 })); dk.append(wk);
+  const pop = h(`<section class="pop closed" role="dialog" aria-label="Preferences" inert><span class="nub" aria-hidden="true"></span></section>`);
+  const cpop = h(`<section class="pop small closed" role="dialog" aria-label="Courses" inert><span class="nub" aria-hidden="true"></span><h3>Courses</h3><p>Pick what to take this term, or let Auto pick, then build the week from it.</p><a href="./course-cart.html">Open the course cart mockup<i class="hgi hgi-stroke hgi-arrow-right-01" style="font-size:15px"></i></a>${coursesNote}</section>`);
+  const panel = Panel({ sheet: false, onClose: () => close(true) });
+  pop.append(panel); dk.append(pop, cpop);
+  const btn = { prefs: bar.querySelector('[data-open="prefs"]'), courses: bar.querySelector('[data-open="courses"]') };
+  const pops = { prefs: pop, courses: cpop };
+  let openKey = null;
+  const place = (k) => {
+    const p = pops[k], b = btn[k], fr = dk.getBoundingClientRect(), br = b.getBoundingClientRect();
+    p.style.setProperty("--top", br.bottom - fr.top + 10 + "px");
+    const pr = p.getBoundingClientRect();
+    const right = k === "prefs" ? 16 : Math.max(16, fr.right - br.right - (pr.width - br.width) / 2 - 40);
+    p.style.right = right + "px";
+    const pr2 = p.getBoundingClientRect();
+    const nx = br.left + br.width / 2 - pr2.left;
+    p.style.setProperty("--nx", nx + "px"); p.style.setProperty("--ox", nx + "px");
+  };
+  function open(k, focus = true) {
+    if (openKey && openKey !== k) close(false);
+    openKey = k; const p = pops[k];
+    place(k);
+    p.classList.remove("closed"); p.inert = false; btn[k].setAttribute("aria-expanded", "true");
+    if (focus) (p.querySelector("h2") || p.querySelector("h3")).focus?.({ preventScroll: true });
+    if (k === "courses") p.querySelector("a").focus({ preventScroll: true });
+  }
+  function close(returnFocus) {
+    if (!openKey) return;
+    const k = openKey; openKey = null;
+    pops[k].classList.add("closed"); pops[k].inert = true; btn[k].setAttribute("aria-expanded", "false");
+    if (returnFocus) btn[k].focus({ preventScroll: true });
+  }
+  Object.entries(btn).forEach(([k, b]) => b.addEventListener("click", () => (openKey === k ? close(true) : open(k))));
+  dk.addEventListener("keydown", (e) => { if (e.key === "Escape" && openKey) { e.preventDefault(); close(true); } });
+  dk.addEventListener("pointerdown", (e) => { if (!openKey) return; if (pops[openKey].contains(e.target) || btn[openKey].contains(e.target)) return; close(false); });
+  new ResizeObserver(() => openKey && place(openKey)).observe(dk);
+  return { open, close, lean: panel.lean, scroll: panel.scroll };
+}
+
+function Phone() {
+  const ph = document.getElementById("ph");
+  ph.innerHTML = "";
+  ph.append(h(`<div class="ph-status"><span>9:41</span><span style="display:flex;gap:5px"><i class="hgi hgi-stroke hgi-wifi-01"></i></span></div>`));
+  const bar = TopBar(true); ph.append(bar);
+  const wk = h(`<div class="wk"></div>`); wk.append(WeekView({ courses: true, rowh: 22, times: false })); ph.append(wk);
+  ph.append(h(`<nav class="tabbar" aria-label="Lenses"><span><i class="hgi hgi-stroke hgi-mortarboard-02"></i>Courses</span><span class="on" aria-current="page"><i class="hgi hgi-stroke hgi-calendar-03"></i>Week</span><span><i class="hgi hgi-stroke hgi-sun-03"></i>Day</span></nav>`));
+  const scrim = h(`<div class="scrim off"></div>`);
+  const sheet = h(`<section class="sheet closed" role="dialog" aria-modal="true" aria-label="Preferences" inert><button class="grab" aria-label="Close preferences"></button></section>`);
+  const csheet = h(`<section class="sheet small closed" role="dialog" aria-modal="true" aria-label="Courses" inert><button class="grab" aria-label="Close courses"></button><h3>Courses</h3><p>Pick what to take this term, or let Auto pick, then build the week from it.</p><a href="./course-cart.html">Open the course cart mockup<i class="hgi hgi-stroke hgi-arrow-right-01" style="font-size:15px"></i></a>${coursesNote}</section>`);
+  const panel = Panel({ sheet: true, onClose: () => close(true) });
+  sheet.append(panel);
+  ph.append(scrim, sheet, csheet);
+  const btn = { prefs: bar.querySelector('[data-open="prefs"]'), courses: bar.querySelector('[data-open="courses"]') };
+  const sheets = { prefs: sheet, courses: csheet };
+  let openKey = null;
+  function open(k, focus = true) {
+    if (openKey && openKey !== k) close(false);
+    openKey = k; const s = sheets[k];
+    s.classList.remove("closed"); s.style.transform = ""; s.inert = false; scrim.classList.remove("off"); btn[k].setAttribute("aria-expanded", "true");
+    if (focus) setTimeout(() => (s.querySelector("h2") || s.querySelector("h3"))?.focus?.({ preventScroll: true }), 30);
+  }
+  function close(returnFocus) {
+    if (!openKey) return;
+    const k = openKey; openKey = null; const s = sheets[k];
+    s.classList.add("closed"); s.style.transform = ""; s.inert = true; scrim.classList.add("off"); btn[k].setAttribute("aria-expanded", "false");
+    if (returnFocus) btn[k].focus({ preventScroll: true });
+  }
+  sheets.courses.querySelector("h3").tabIndex = -1;
+  Object.entries(btn).forEach(([k, b]) => b.addEventListener("click", () => (openKey === k ? close(true) : open(k))));
+  scrim.addEventListener("click", () => close(true));
+  ph.addEventListener("keydown", (e) => { if (e.key === "Escape" && openKey) { e.preventDefault(); close(true); } });
+  /* drag the grabber down to dismiss: a fast flick or past a third of the height closes it */
+  Object.values(sheets).forEach((s) => {
+    const g = s.querySelector(".grab");
+    let y0 = 0, t0 = 0, dy = 0, dragging = false;
+    g.addEventListener("pointerdown", (e) => { dragging = true; dy = 0; y0 = e.clientY; t0 = performance.now(); g.setPointerCapture(e.pointerId); s.classList.add("dragging"); });
+    g.addEventListener("pointermove", (e) => { if (!dragging) return; const raw = e.clientY - y0; dy = raw < 0 ? -Math.sqrt(-raw) * 2 : raw; s.style.transform = `translateY(${dy}px)`; });
+    const end = () => {
+      if (!dragging) return; dragging = false; s.classList.remove("dragging");
+      const v = dy / Math.max(1, performance.now() - t0);
+      if (Math.abs(dy) < 4) { close(true); return; } // a tap on the grabber closes, as its label says
+      if (dy > s.offsetHeight / 3 || v > 0.11 * 4) close(true); else s.style.transform = "";
+    };
+    g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
+  });
+  return { open, close, lean: panel.lean, scroll: panel.scroll };
+}
+
+/* ================= mount and review controls ================= */
+function mount(scene) {
+  subs.forEach((u) => u()); subs.length = 0;
+  const d = Desktop(), p = Phone();
+  ctl = { d, p };
+  if (scene !== "closed") { d.open("prefs", false); p.open("prefs", false); }
+  requestAnimationFrame(() => {
+    const jump = (name) => [d, p].forEach((c) => { c.scroll.scrollTop = scrollTopFor(c.scroll, c.scroll.querySelector(`[data-sec="${name}"]`)); });
+    if (scene === "lean") { d.lean.openCard("time"); p.lean.openCard("time"); jump("lean"); }
+    if (scene === "courses") jump("courses");
+  });
+}
+let scene = new URLSearchParams(location.search).get("scene") || "open";
+document.querySelectorAll(".rv-dir").forEach((b) => {
+  b.setAttribute("aria-selected", b.dataset.scene === scene);
+  b.addEventListener("click", () => { scene = b.dataset.scene; document.querySelectorAll(".rv-dir").forEach((x) => x.setAttribute("aria-selected", x === b)); mount(scene); });
+});
+document.getElementById("rv-planned").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; document.querySelectorAll("#rv-planned button").forEach((x) => x.setAttribute("aria-pressed", x === b)); store.set({ planned: +b.dataset.v }); });
+document.getElementById("rv-preset").addEventListener("change", (e) => { if (e.target.checked) savePreset("Work weeks"); else store.set({ presets: [], active: null, baseline: null }); });
+document.getElementById("rv-notes").addEventListener("change", (e) => document.getElementById("app").classList.toggle("show-notes", e.target.checked));
+document.getElementById("rv-reset").addEventListener("click", () => { const keep = store.get().planned; store.set({ ...initial(), planned: keep }); document.getElementById("rv-preset").checked = false; mount(scene); });
+if (new URLSearchParams(location.search).get("notes")) { document.getElementById("rv-notes").checked = true; document.getElementById("app").classList.add("show-notes"); }
+mount(scene);
+})();
+</script>
+</body>
+</html>

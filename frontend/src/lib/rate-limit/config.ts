@@ -29,6 +29,11 @@ export const budgets = {
   mapResolve: { user: 60, ip: 60 },
   // Serves cached directory feeds; upstream refresh is bounded by the cache, not by callers.
   campusEvents: { user: 60, ip: 60 },
+  // /api/v1 document routes, counted by address before sign-in is checked;
+  // each student is then counted against plannerRead or plannerSave. Loose
+  // because many phones can share one carrier NAT address: room for 25
+  // students reading at their full budget. Unmeasured starting value.
+  documentFlood: { ip: 3000 },
   plannerRead: { user: 120, ip: 360 },
   plannerSave: { user: 60, ip: 180 },
   sections: { user: 60, ip: 180 },

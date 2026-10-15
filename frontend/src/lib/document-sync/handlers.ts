@@ -1,13 +1,27 @@
+import type { DeviceGrantErrorCode, DeviceScope } from "../../../../packages/contracts/src/device-grant";
 import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
+import { DeviceGrantError } from "@/server/auth/device-grants";
 import { SyncError } from "./decision";
 import type { DocumentRepository } from "./repository";
 
 export type DocumentContext = { params: Promise<{ id: string }> };
+type Identity = { userId: string; source: "device" | "browser" };
 type Dependencies = {
   repository: DocumentRepository;
-  session: (request: Request) => Promise<{ user: { id: string } } | null>;
+  /** authorizeV1: a device bearer token if one is sent, otherwise the browser session. */
+  authorize: (request: Request, scope: DeviceScope) => Promise<Identity>;
+  /** createUserLimit: seconds to wait when the user's budget is spent, else null. */
+  limit: (route: "plannerRead" | "plannerSave", userId: string) => Promise<number | null>;
   origin: string;
   available: boolean;
+};
+
+// Device refusals return the contract's code with a fixed sentence, so a
+// response never carries an exception message or the token itself.
+const deviceRefusals: Partial<Record<DeviceGrantErrorCode, string>> = {
+  invalid_token: "The device token is invalid or has expired.",
+  insufficient_scope: "This device can't use documents.",
+  ambiguous_credentials: "Send a device token or a session cookie, not both.",
 };
 
 // Bound buffering before JSON parsing. 1 MiB is a protective starting limit,
@@ -43,13 +57,36 @@ function documentId(value: unknown): string {
   return parsed.data;
 }
 
-export function documentHandlers({ repository, session, origin, available }: Dependencies) {
-  async function handle(request: Request, action: (userId: string) => Promise<unknown>): Promise<Response> {
+export function documentHandlers({ repository, authorize, limit, origin, available }: Dependencies) {
+  async function identify(request: Request, scope: DeviceScope): Promise<Identity> {
     try {
-      const identity = await session(request);
-      if (!identity?.user.id) throw new SyncError(401, "UNAUTHORIZED", "Sign in to sync documents.");
+      return await authorize(request, scope);
+    } catch (error) {
+      if (!(error instanceof DeviceGrantError)) throw error;
+      if (error.code === "unauthorized") throw new SyncError(401, "UNAUTHORIZED", "Sign in to sync documents.");
+      const message = deviceRefusals[error.code as keyof typeof deviceRefusals];
+      if (!message) throw error;
+      throw new SyncError(error.status, error.code, message);
+    }
+  }
+  async function handle(request: Request, scope: DeviceScope, action: (identity: Identity) => Promise<unknown>): Promise<Response> {
+    try {
+      const identity = await identify(request, scope);
+      // Counted per student once identified, so phones sharing a carrier NAT
+      // address don't share a budget. The route's withRateLimit guards by address.
+      let retryAfter: number | null;
+      try {
+        retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
+      } catch {
+        return Response.json({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+          { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+      }
+      if (retryAfter !== null) {
+        return Response.json({ error: "Too many requests.", code: "RATE_LIMITED" },
+          { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } });
+      }
       if (!available) throw new SyncError(503, "STORAGE_UNAVAILABLE", "Document storage is unavailable.");
-      return Response.json(await action(identity.user.id), { headers: { "Cache-Control": "no-store" } });
+      return Response.json(await action(identity), { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       if (error instanceof SyncError) {
         return Response.json({ error: error.message, code: error.code,
@@ -62,20 +99,21 @@ export function documentHandlers({ repository, session, origin, available }: Dep
     }
   }
   return {
-    put: (request: Request, context: DocumentContext) => handle(request, async (userId) => {
-      // PUT already requires a browser preflight. Check Origin too, as these
-      // routes use cookies and better-auth's checks cover only its own routes.
-      if (request.headers.get("origin") !== origin) throw new SyncError(403, "INVALID_ORIGIN", "Write from the app's own origin.");
+    put: (request: Request, context: DocumentContext) => handle(request, "documents:write", async ({ userId, source }) => {
+      // PUT already requires a browser preflight. Check Origin too, as cookies
+      // are ambient and better-auth's checks cover only its own routes. A
+      // bearer token is sent deliberately, so device writes skip this check.
+      if (source === "browser" && request.headers.get("origin") !== origin) throw new SyncError(403, "INVALID_ORIGIN", "Write from the app's own origin.");
       if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
         throw new SyncError(415, "INVALID_CONTENT_TYPE", "Use application/json.");
       }
       const id = documentId((await context.params).id);
       return repository.write(userId, await readBytes(request), id);
     }),
-    get: (request: Request, context: DocumentContext) => handle(request, async (userId) =>
+    get: (request: Request, context: DocumentContext) => handle(request, "documents:read", async ({ userId }) =>
       repository.get(userId, documentId((await context.params).id))),
-    pull: (request: Request) => handle(request, (userId) => repository.pull(userId)),
-    versions: (request: Request) => handle(request, async (userId) => {
+    pull: (request: Request) => handle(request, "documents:read", ({ userId }) => repository.pull(userId)),
+    versions: (request: Request) => handle(request, "documents:read", async ({ userId }) => {
       const params = new URL(request.url).searchParams;
       for (const key of params.keys()) {
         if (!["scheduleId", "page"].includes(key) || params.getAll(key).length !== 1) {

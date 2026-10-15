@@ -75,6 +75,15 @@ export const AutoTransactionSchema = z
 /** Minutes after midnight. */
 const minute = z.int().min(0).max(24 * 60);
 
+/** A real calendar date (YYYY-MM-DD that names an actual day), per parseSchedulePreferences. */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "A date is YYYY-MM-DD.")
+  .refine((value) => {
+    const ms = Date.parse(`${value}T00:00:00Z`);
+    return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === value;
+  }, "A date names a real calendar day.");
+
 export const BlockedTimeSchema = z
   .strictObject({
     id: z.string(),
@@ -82,8 +91,19 @@ export const BlockedTimeSchema = z
     day: WeekDaySchema,
     start: minute,
     end: minute,
+    // The real date ranges the block applies to, when it is not weekly
+    // (calendar busy time from a connected feed). Absent, null, or empty
+    // means every week.
+    dates: z
+      .array(z.strictObject({ start: isoDate, end: isoDate }))
+      .nullable()
+      .optional(),
   })
-  .refine((block) => block.end > block.start, { message: "A blocked time ends after it starts.", path: ["end"] });
+  .refine((block) => block.end > block.start, { message: "A blocked time ends after it starts.", path: ["end"] })
+  .refine((block) => (block.dates ?? []).every((range) => range.start <= range.end), {
+    message: "A blocked-time date range ends on or after it starts.",
+    path: ["dates"],
+  });
 
 /** Fails the parse when `values` repeats one. */
 function requireUnique(values: readonly string[], ctx: z.RefinementCtx, path: string, what: string) {

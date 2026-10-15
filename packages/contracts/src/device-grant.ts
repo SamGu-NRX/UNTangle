@@ -24,5 +24,6 @@ export const exchangeDeviceGrant = z.object({ deviceCode: opaque, codeVerifier: 
 export const refreshDeviceGrant = z.object({ refreshToken: opaque }).strict();
 export const deviceTokenResponse = z.object({ accessToken: opaque, refreshToken: opaque, tokenType: z.literal("Bearer"), expiresIn: z.number().int().positive(), scopes: z.array(deviceScope), grantId: z.string() }).strict();
 export const deviceGrantError = z.object({ error: z.enum(["invalid_request", "invalid_grant", "authorization_pending", "access_denied", "expired_token", "invalid_token", "insufficient_scope", "ambiguous_credentials", "forbidden_origin", "unauthorized", "account_changed", "rate_limited", "unavailable"]) }).strict();
+export type DeviceGrantErrorCode = z.infer<typeof deviceGrantError>["error"];
 export type StartDeviceGrant = z.infer<typeof startDeviceGrant>;
 export type DeviceTokenResponse = z.infer<typeof deviceTokenResponse>;
