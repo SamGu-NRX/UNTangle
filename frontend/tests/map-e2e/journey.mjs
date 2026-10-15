@@ -139,6 +139,21 @@ async function settle(page, ms = 900) {
   await pause(page, ms);
 }
 
+/**
+ * The camera once a stop's flight has landed (zoomed past 17), or after 6 s.
+ * Under software WebGL a tilted flight's frames come slowly (13 to 87 frames
+ * in 3 s on a dev server), and the camera is recorded only at moveend. A fixed
+ * 1.4 s wait failed that way on PR #128's first CI run: the screenshot taken
+ * right after the check shows the flight had landed by then.
+ */
+async function landed(page) {
+  await page
+    .waitForFunction(() => Number(document.querySelector('[data-testid="campus-map"]')?.dataset.zoom) > 17, null, { timeout: 6000 })
+    .catch(() => undefined);
+  await pause(page, 200);
+  return camera(page);
+}
+
 async function openMap(page) {
   await page.goto(`${BASE}/map`, { waitUntil: "domcontentloaded" });
   await page.locator(".mv-stop").nth(3).waitFor({ timeout: 30000 });
@@ -456,8 +471,7 @@ async function desktop(browser) {
   const gabRow = page.locator(".mv-stop").nth(1);
   const gabKey = await gabRow.getAttribute("data-stop-key");
   await gabRow.click();
-  await settle(page, 1400);
-  after = await camera(page);
+  after = await landed(page);
   const gabPin = page.locator(".mv-pin", { has: page.locator(".mv-pin__disc", { hasText: /^2$/ }) });
   check("desktop: selecting a row selects its pin", (await gabPin.getAttribute("data-selected")) === "true");
   check("desktop: selecting a row flies in and tilts", after.zoom > 17 && after.pitch > 30, `zoom ${after.zoom}, pitch ${after.pitch}`);
@@ -541,8 +555,7 @@ async function desktop(browser) {
 
   // 3D is now off by choice: a chosen stop flies there flat, until the day changes.
   await gabRow.click();
-  await settle(page, 1400);
-  after = await camera(page);
+  after = await landed(page);
   check("desktop: with 3D turned off, a chosen stop stays flat", after.zoom > 17 && after.pitch < 1, `zoom ${after.zoom}, pitch ${after.pitch}`);
   await page.keyboard.press("Escape");
 
@@ -556,8 +569,7 @@ async function desktop(browser) {
   check("desktop: the first day is the stepper's start", await page.getByRole("button", { name: "Previous day" }).isDisabled());
   await settle(page, 1200);
   await gabRow.click();
-  await settle(page, 1400);
-  after = await camera(page);
+  after = await landed(page);
   check("desktop: a new day forgets the 3D choice, so a chosen stop tilts again", after.pitch > 30, `pitch ${after.pitch}`);
   await page.keyboard.press("Escape");
   await settle(page, 400);
