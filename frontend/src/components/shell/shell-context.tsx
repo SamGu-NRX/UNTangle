@@ -16,6 +16,11 @@ export type ShellSearchProvider = {
   placeholder?: string;
   emptyQueryHint?: ReactNode;
   planShortcut?: boolean;
+  /**
+   * A lens that shows search in its own panel (Week) takes the top bar's
+   * search and ⌘K here instead of the palette opening.
+   */
+  open?: () => void;
 };
 
 export type ShellApi = {
