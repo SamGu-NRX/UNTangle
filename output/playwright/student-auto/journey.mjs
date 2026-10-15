@@ -65,7 +65,7 @@ function loadModule(name, envPath) {
   }
 }
 const { chromium } = loadModule("playwright", process.env.PLAYWRIGHT_MODULE);
-const axeSource = readFileSync(process.env.AXE_PATH ?? loadModule.resolve?.("axe-core") ?? "axe-core", "utf8");
+const axeSource = readFileSync(process.env.AXE_PATH ?? createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
 
 function findBun() {
   if (process.env.UNTANGLE_BUN) return process.env.UNTANGLE_BUN;
@@ -197,12 +197,18 @@ async function runViewport(context, name) {
   const looksRight = main(page).getByRole("button", { name: "Looks right" });
   await looksRight.waitFor({ state: "visible", timeout: 30000 });
   const reviewRegion = main(page).getByRole("region", { name: "Courses found" });
-  const rowCount = await reviewRegion.locator("li").filter({ hasText: "Grade" }).count();
+  const reviewRows = (await reviewRegion.locator("li").filter({ hasText: "Grade" }).allTextContents()).map((row) => row.replace(/\s+/g, " ").trim());
   await shot("02-review.png");
+  // the synthetic transcript's exact completed record: code and the grade the row shows
+  const transcript = [
+    ["MATH 1710", "Grade B"],
+    ["ENGL 1310", "Grade A"],
+    ["CSCE 1040", "Grade A"],
+  ];
   const imported = check(
     `${name}: transcript import matched the three completed courses`,
-    rowCount >= 3 && (await looksRight.isEnabled()),
-    `${rowCount} review rows`,
+    reviewRows.length === 3 && transcript.every(([code, fact]) => reviewRows.some((row) => row.includes(code) && row.includes(fact))) && (await looksRight.isEnabled()),
+    reviewRows.map((row) => row.slice(0, 40)).join(" | ") || "no graded rows",
   );
   await looksRight.click();
 
@@ -228,7 +234,12 @@ async function runViewport(context, name) {
   const trayText = (await result.textContent()) ?? "";
   const trayRows = await page.locator('[data-flip^="tray:"]').allTextContents();
   await shot("04-tray-auto.png");
-  check(`${name}: tray Auto planned courses`, /Planned/.test(trayText), trayText.trim());
+  const trayJoined = trayRows.map((row) => row.replace(/\s+/g, " ").trim()).join(" | ");
+  check(
+    `${name}: tray Auto planned CSCE 2100 and MATH 1720`,
+    trayRows.length === 2 && trayJoined.includes("CSCE 2100") && trayJoined.includes("MATH 1720") && /Planned/.test(trayText),
+    `${trayText.trim().slice(0, 40)} | ${trayJoined.slice(0, 100)}`,
+  );
   soft(`${name}: tray result "${trayText.trim()}"; rows: ${trayRows.map((row) => row.trim().slice(0, 40)).join(" | ")}`);
 
   // 3. Week: preferences, then Auto
@@ -258,42 +269,72 @@ async function runViewport(context, name) {
   const total = Number((countText.match(/1 of (\d+)/) ?? [])[1] ?? 0);
   check(`${name}: Auto found options to compare`, total > 0, countText);
 
-  // 4. walk every option; the grid must stay feasible for the student's rules
+  // 4. walk every option; the grid must stay feasible for the student's rules.
+  // The strip swaps its count through an animation, so after every Next click
+  // poll for the pill text to change — otherwise iteration 2+ can audit option
+  // 1 while labelling it option 2.
+  const count = strip.locator('[data-part="count"]').first();
+  const readCount = () => count.textContent().then((text) => (text ?? "").trim());
+  // each option's week as the browser renders it: per course, the sorted
+  // "day time-range" strings the grid events show (the app's own timeRange),
+  // comparable against the solver's rendered meetings rank by rank
+  const weekOf = () =>
+    page.evaluate(() => {
+      const out = {};
+      for (const el of document.querySelectorAll("[data-event]")) {
+        const code = (el.getAttribute("data-key") ?? "").split("#")[0];
+        const day = el.closest("[data-day]")?.getAttribute("data-day");
+        if (!code || !day) continue;
+        const time = [...el.querySelectorAll("span")].map((span) => span.textContent ?? "").find((text) => /\d{1,2}:\d{2}/.test(text)) ?? "";
+        (out[code] ??= []).push(`${day} ${time}`);
+      }
+      for (const key of Object.keys(out)) out[key].sort();
+      return out;
+    });
   const optionChecks = [];
   for (let index = 1; index <= total; index += 1) {
     await axe(page, `${name}/option-${index}`);
     const fridayEvents = await page.locator('[data-day="Fri"] [data-event]').count();
     const conflicts = await page.locator('[data-event][data-conflict]').count();
-    optionChecks.push({ index, fridayEvents, conflicts });
+    optionChecks.push({ index, fridayEvents, conflicts, week: await weekOf() });
     await shot(`07-option-${index}.png`);
-    if (index < total) await strip.getByRole("button", { name: "Next" }).click();
+    if (index < total) {
+      const before = await readCount();
+      await strip.getByRole("button", { name: "Next" }).click();
+      await page
+        .waitForFunction(
+          (prev) => {
+            const text = (document.querySelector('[data-part="count"]')?.textContent ?? "").trim();
+            return /\d+ of \d+/.test(text) && text !== prev;
+          },
+          before,
+          { timeout: 5000 },
+        )
+        .catch(() => {});
+    }
   }
   for (const { index, fridayEvents, conflicts } of optionChecks) {
     check(`${name}: option ${index} shows no Friday meetings`, fridayEvents === 0, `${fridayEvents} Friday events`);
     check(`${name}: option ${index} shows no conflicts`, conflicts === 0, `${conflicts} conflict-marked events`);
   }
 
-  // details on option 1, then use it
-  // walk back to option 1 by the strip's count pill ([data-part="count"]). The
-  // pill swaps its text through an exit/enter animation, so the DOM lags a
-  // click behind — after every Next click, poll for the text to change.
-  const count = strip.locator('[data-part="count"]').first();
-  let previous = (await count.textContent()) ?? "";
+  // details on option 1, then use it: walk back to option 1 by the strip's
+  // count pill ([data-part="count"]), polling after every Next click
+  let previous = await readCount();
   for (let index = 0; index < total; index += 1) {
-    if (previous.trim().startsWith("1 ")) break;
+    if (previous.startsWith("1 ")) break;
     await strip.getByRole("button", { name: "Next" }).click();
     await page
       .waitForFunction(
-        ([prev]) => {
-          const el = document.querySelector('[data-part="count"]');
-          const text = (el?.textContent ?? "").trim();
+        (prev) => {
+          const text = (document.querySelector('[data-part="count"]')?.textContent ?? "").trim();
           return /\d+ of \d+/.test(text) && text !== prev;
         },
-        [previous],
+        previous,
         { timeout: 5000 },
       )
       .catch(() => {});
-    previous = (await count.textContent()) ?? "";
+    previous = await readCount();
   }
   await strip.getByRole("button", { name: "Details" }).click();
   await page.waitForTimeout(600);
@@ -337,18 +378,22 @@ async function runViewport(context, name) {
   check(`${name}: applied plan stored sections`, Boolean(state?.selectedSections && Object.keys(state.selectedSections).length > 0), `${Object.keys(state?.selectedSections ?? {}).length} courses applied`);
   writeFileSync(join(viewDir, "state.json"), captured.state ?? "{}");
   writeFileSync(join(viewDir, "prefs.json"), captured.prefs ?? "{}");
+  // the exact optimizer job Week Auto posted to its worker, for the solver to
+  // compare against its rebuilt request
+  const solverRequest = await page.evaluate(() => (window.__solverRequests ?? [])[0] ?? null);
+  writeFileSync(join(viewDir, "worker-request.json"), JSON.stringify(solverRequest, null, 2));
 
   check(`${name}: no page errors`, errors.length === 0, errors.join("; ").slice(0, 200));
   await page.close();
-  return { viewDir, countText, total, trayText, trayRows, state, prefsKey: captured.prefsKey };
+  return { viewDir, countText, total, trayText, trayRows, state, prefsKey: captured.prefsKey, optionChecks };
 }
 
 /* ───────── the solver comparison for one run ───────── */
 
-function runSolver(statePath, prefsPath) {
+function runSolver(statePath, prefsPath, workerPath) {
   const bun = findBun();
   if (!bun) throw new Error("bun not found (set UNTANGLE_BUN); the solver needs it to import the app's optimizer");
-  const run = spawnSync(bun, [join(here, "solver.ts"), "solve", statePath, prefsPath], {
+  const run = spawnSync(bun, [join(here, "solver.ts"), "solve", statePath, prefsPath, workerPath], {
     cwd: repoRoot,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -357,8 +402,9 @@ function runSolver(statePath, prefsPath) {
   return JSON.parse(run.stdout);
 }
 
-function verifySolve(name, solve, uiTotal) {
+function verifySolve(name, solve, uiTotal, optionChecks) {
   check(`${name}: solver enumerated a small request`, solve.combinations <= 150000, `${solve.combinations} combinations over ${solve.planCourses.join(", ")}`);
+  check(`${name}: the request Week Auto sent matched the rebuilt one`, solve.workerRequestMatched === true, String(solve.workerRequestMatched));
   check(`${name}: Auto finished optimal`, solve.engine.status === "optimal", solve.engine.status);
   check(`${name}: the reference proved the request feasible`, solve.reference.feasible === true, String(solve.reference.feasible));
   check(
@@ -387,6 +433,30 @@ function verifySolve(name, solve, uiTotal) {
     `${solve.engine.minDifferentCourses} vs ${solve.reference.minDifferent}`,
   );
   check(`${name}: the week offered what the engine returned`, uiTotal === solve.engine.options.length, `UI ${uiTotal} vs engine ${solve.engine.options.length}`);
+  // each option on screen must be the engine's option, rank by rank: per course,
+  // the sorted "day time-range" strings the grid shows (the app's own timeRange)
+  // must equal the solver's rendered meetings for that rank's sections
+  const canon = (list) => [...(list ?? [])].sort().join(" | ");
+  const engineWeeks = solve.engine.options.map((option) => {
+    const week = {};
+    for (const section of option.sections) week[section.courseCode] = [...section.week].sort();
+    return week;
+  });
+  const mismatches = optionChecks
+    .map(({ index, week }, position) => {
+      const engine = engineWeeks[position] ?? {};
+      const wrong = [...new Set([...Object.keys(week), ...Object.keys(engine)])].filter((code) => canon(week[code]) !== canon(engine[code]));
+      return { index, wrong, week, engine };
+    })
+    .filter(({ wrong }) => wrong.length > 0);
+  check(
+    `${name}: the browser's options match the engine's, rank by rank`,
+    optionChecks.length === engineWeeks.length && mismatches.length === 0,
+    mismatches
+      .map(({ index, wrong, week, engine }) => `option ${index}: ${wrong.map((code) => `${code} browser [${(week[code] ?? []).join("; ")}] engine [${(engine[code] ?? []).join("; ")}]`).join(", ")}`)
+      .join(" | ")
+      .slice(0, 400),
+  );
   return solve;
 }
 
@@ -412,12 +482,26 @@ try {
   const sections = JSON.parse(sectionsRun.stdout);
   const responses = Object.entries(sections.responses);
 
-  for (const [name, viewport] of [
-    ["desktop", { width: 1440, height: 900 }],
-    ["phone", { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }],
+  for (const [name, options] of [
+    ["desktop", { viewport: { width: 1440, height: 900 } }],
+    ["phone", { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }],
   ]) {
     const browser = await chromium.launch();
-    const context = await browser.newContext({ baseURL: base, timezoneId: "America/Chicago", viewport });
+    const context = await browser.newContext({ baseURL: base, timezoneId: "America/Chicago", ...options });
+    // record the optimizer job the Week page's Auto posts to its worker, so the
+    // solver can prove its rebuilt request equals what the app actually sent
+    await context.addInitScript(() => {
+      window.__solverRequests = [];
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (message, ...rest) {
+        try {
+          if (message && typeof message === "object" && message.request && Array.isArray(message.request.courses)) {
+            window.__solverRequests.push(JSON.parse(JSON.stringify(message)));
+          }
+        } catch {}
+        return post.call(this, message, ...rest);
+      };
+    });
     // register the miss-recording 404 FIRST: Playwright gives the last-registered matching route
     // precedence, so the recorded capture below shadows it and only unseen section paths 404
     await context.route("**/api/sections/**", (route) => {
@@ -431,11 +515,11 @@ try {
     );
 
     const run = await runViewport(context, name);
-    const solve = runSolver(join(run.viewDir, "state.json"), join(run.viewDir, "prefs.json"));
+    const solve = runSolver(join(run.viewDir, "state.json"), join(run.viewDir, "prefs.json"), join(run.viewDir, "worker-request.json"));
     writeFileSync(join(run.viewDir, "solve.json"), JSON.stringify(solve, null, 2));
-    verifySolve(name, solve, run.total);
+    verifySolve(name, solve, run.total, run.optionChecks);
     appliedMatches(name, solve, run.state);
-    report.viewports[name] = { ...run, solve: { planCourses: solve.planCourses, engineCosts: solve.engine.costs, refCosts: solve.reference.costs, combinations: solve.combinations, minDifferent: solve.reference.minDifferent } };
+    report.viewports[name] = { ...run, solve: { planCourses: solve.planCourses, byCourse: solve.engine.options.map((option) => option.byCourse ?? {}), engineCosts: solve.engine.costs, refCosts: solve.reference.costs, combinations: solve.combinations, minDifferent: solve.reference.minDifferent } };
     await browser.close();
   }
 
@@ -477,7 +561,10 @@ writeFileSync(
         "",
         "| rank | Auto cost | reference cost | sections |",
         "|---|---|---|---|",
-        ...run.solve.engineCosts.map((cost, index) => `| ${index + 1} | ${cost} | ${run.solve.refCosts[index]} | ${run.solve.planCourses.map((code) => code.replace(" ", "")).join(" ")} |`),
+        ...run.solve.engineCosts.map((cost, index) => {
+          const sections = Object.entries(run.solve.byCourse?.[index] ?? {}).map(([code, id]) => `${code.replace(" ", "")}=${id}`).join(" ");
+          return `| ${index + 1} | ${cost} | ${run.solve.refCosts[index]} | ${sections} |`;
+        }),
         "",
       ].join("\n"),
     ),

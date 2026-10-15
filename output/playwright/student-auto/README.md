@@ -30,10 +30,9 @@ transcript (`src/components/courses/model/sample-transcript.ts`), which the
 
 - Completed: MATH 1710 (B, Fall 2025), ENGL 1310 (A, Fall 2025),
   CSCE 1040 (A, Spring 2026) — the same course set as the app's sample
-  transcript, which the 2026-27 catalog's inference engine can verify, so the
-  import produces the same model the sample flow does
-  by the app's own import pipeline and saved from the review screen with
-  "Looks right".
+  transcript. The synthetic PDF goes through the app's own import pipeline
+  and is saved from the review screen with "Looks right", so the planner's
+  model is produced end to end rather than injected.
 - Major: Computer Science. Then the Courses tray's Auto plans the next term.
 - Preferences on the Week page: nothing before 10 AM, Fridays off, and two
   "Work" busy blocks painted onto the grid — Tuesday and Thursday, 5–9 PM.

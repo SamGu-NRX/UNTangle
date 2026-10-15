@@ -34,6 +34,10 @@ import { optimize } from "../../../frontend/src/lib/optimizer/optimize";
 import { fromPlainRequest, runJob, toPlainRequest } from "../../../frontend/src/lib/optimizer/worker/protocol";
 import { combinationCount, referenceFeasible, referenceTopK, violations } from "../../../frontend/tests/optimizer/reference";
 import { courseResult, parseTerm } from "../../../frontend/src/lib/sections/vsb";
+import type { OptimizeJob, OptimizeReply } from "../../../frontend/src/lib/optimizer/worker/protocol";
+// the grid renders times with the app's own timeRange, so the solver emits
+// meetings in that same format and the journey can compare them to the DOM
+import { timeRange } from "../../../frontend/src/components/schedule-builder/week";
 import fixture from "../../../frontend/tests/optimizer/scenarios/fixtures/spring-2027-trimmed.json";
 
 const CHECKED_AT = "2026-10-15T11:09:00.000Z";
@@ -86,6 +90,10 @@ function describe(request: ReturnType<typeof buildOptimizeRequest>, schedule: { 
       label: section.label ?? section.id,
       rating: section.rating,
       meetings: section.meetings.map((m) => `${m.day} ${Math.floor(m.start / 60)}:${String(m.start % 60).padStart(2, "0")}-${Math.floor(m.end / 60)}:${String(m.end % 60).padStart(2, "0")}`),
+      // timed meetings rendered exactly as the week grid renders them
+      week: section.meetings
+        .filter((m) => m.day != null && m.start != null && m.end != null)
+        .map((m) => `${m.day} ${timeRange(m.start, m.end)}`),
     })),
     violations: problems,
   };
@@ -113,7 +121,7 @@ function timePatterns(request: ReturnType<typeof buildOptimizeRequest>, byCourse
   return patterns;
 }
 
-function modeSolve(statePath: string, prefsPath: string) {
+function modeSolve(statePath: string, prefsPath: string, workerPath?: string) {
   const state = normalizePlannerState(JSON.parse(readFileSync(statePath, "utf8")));
   const stored = JSON.parse(readFileSync(prefsPath, "utf8"));
   const preferences = parseSchedulePreferences(stored.preferences ?? stored);
@@ -123,11 +131,27 @@ function modeSolve(statePath: string, prefsPath: string) {
   const request = buildOptimizeRequest(state, preferences, { catalog });
   const plain = toPlainRequest(request);
 
+  // Week Auto hands its worker the request through postMessage; the journey
+  // records that job with an init-script hook. When the capture exists, the
+  // rebuilt request must equal it (modulo `now`, which timestamps the build),
+  // so the engine and reference below argue about what Auto actually solved.
+  const worker = workerPath ? (JSON.parse(readFileSync(workerPath, "utf8")) as OptimizeJob | null) : null;
+  if (worker?.request) {
+    const canon = (value: Record<string, unknown>) => JSON.stringify({ ...value, now: "" }, Object.keys(value).sort());
+    if (canon(worker.request as unknown as Record<string, unknown>) !== canon(plain as unknown as Record<string, unknown>)) {
+      const sent = worker.request as unknown as Record<string, unknown>;
+      const rebuilt = plain as unknown as Record<string, unknown>;
+      const differing = Object.keys({ ...sent, ...rebuilt }).filter((key) => JSON.stringify(sent[key]) !== JSON.stringify(rebuilt[key]));
+      throw new Error(`the request Week Auto sent differs from the rebuilt one in: ${differing.join(", ")}`);
+    }
+  }
+
   // The exact run the Week page's worker performs, budget for budget.
-  const replies: Array<{ phase: string; result: ReturnType<typeof optimize> }> = [];
-  runJob({ id: 1, request: plain }, { optimize: (r) => optimize(r), post: (reply) => replies.push(reply as { phase: string; result: ReturnType<typeof optimize> }) });
+  const replies: OptimizeReply[] = [];
+  runJob({ id: 1, request: plain }, { optimize: (r) => optimize(r), post: (reply) => replies.push(reply) });
   const final = replies.at(-1);
   if (!final) throw new Error("the optimizer job posted no reply");
+  if (final.phase === "error") throw new Error(`the optimizer job failed: ${final.message}`);
   const result = final.result;
 
   const engineInput = fromPlainRequest(plain, 3000);
@@ -151,7 +175,8 @@ function modeSolve(statePath: string, prefsPath: string) {
         fixedCredits: engineInput.fixedCredits,
         locks: engineInput.locks,
         combinations: combinationCount(engineInput),
-        phases: replies.map((reply) => ({ phase: reply.phase, status: reply.result.status, schedules: reply.result.schedules.length })),
+        workerRequestMatched: worker?.request != null,
+        phases: replies.filter((reply) => reply.phase !== "error").map((reply) => ({ phase: reply.phase, status: reply.result.status, schedules: reply.result.schedules.length })),
         engine: {
           status: result.status,
           minDifferentCourses: result.stats.minDifferentCourses,
@@ -174,7 +199,7 @@ function modeSolve(statePath: string, prefsPath: string) {
 
 const [mode, ...args] = process.argv.slice(2);
 if (mode === "sections") modeSections();
-else if (mode === "solve") modeSolve(args[0], args[1]);
+else if (mode === "solve") modeSolve(args[0], args[1], args[2]);
 else {
   console.error("usage: bun solver.ts sections | solve <state.json> <prefs.json>");
   process.exit(2);
