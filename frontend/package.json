@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@untangle/core": "workspace:*",
+    "@untangle/ingest": "workspace:*",
     "better-auth": "^1.5.5",
     "drizzle-orm": "^0.45.1",
     "leaflet": "^1.9.4",

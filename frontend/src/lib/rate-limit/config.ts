@@ -16,6 +16,8 @@ export function budgetWindowMs(budget: { windowSeconds?: number }): number {
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Pure computation over captured catalog data; audits are per-record and cheap.
+  degreeAudit: { user: 60, ip: 120 },
   // Unmeasured starting caps: grant creation and human approval are infrequent;
   // token polling needs room for the advertised five-second interval.
   deviceStart: { ip: 10, windowSeconds: 600 },
