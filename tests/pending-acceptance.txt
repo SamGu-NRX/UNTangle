@@ -13,4 +13,3 @@
 # Step 1 lanes (docs/tasks/<lane>.md).
 packages/core/tests/filters/filters.test.ts
 packages/core/tests/occurrences/occurrences.test.ts
-packages/ingest/tests/section-release.test.ts
