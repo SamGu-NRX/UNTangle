@@ -84,11 +84,24 @@ export function buildResultsTableHtml(rows: FixtureRow[] = classSearchRows): str
   ].join("");
 }
 
+// An approximation of PeopleSoft's classic results grid (Arial 12px, ruled
+// cells, zebra rows, a grey header), so journey captures show the extension's
+// markers in the density they meet on the real page. Styling only: ids and
+// cell text, which the parser reads, are unchanged.
+const PORTAL_STYLE = [
+  "body{margin:0;font:12px/1.35 Arial,Helvetica,sans-serif;color:#000;background:#fff}",
+  "h1{margin:0;padding:10px 12px;font:bold 15px Arial,sans-serif;color:#fff;background:#4e6a8c}",
+  "#CLASS_SRCH_WRK2_RESULTS{margin:12px;border-collapse:collapse;border:1px solid #9aa9bb}",
+  "#CLASS_SRCH_WRK2_RESULTS th{padding:4px 8px;text-align:left;font-weight:bold;background:#dde3ea;border:1px solid #9aa9bb}",
+  "#CLASS_SRCH_WRK2_RESULTS td{padding:4px 8px;border:1px solid #c9d1db;vertical-align:top}",
+  "#CLASS_SRCH_WRK2_RESULTS tr:nth-child(even) td{background:#f3f5f8}",
+].join("");
+
 export function buildClassSearchHtml(): string {
   return [
     "<!doctype html>",
     '<html lang="en">',
-    "<head><meta charset=\"utf-8\" /><title>UNT Class Search</title></head>",
+    `<head><meta charset="utf-8" /><title>UNT Class Search</title><style>${PORTAL_STYLE}</style></head>`,
     "<body>",
     '<h1>UNT Class Search</h1>',
     // The page-level term indicator the parser reads.

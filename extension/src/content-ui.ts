@@ -1,180 +1,93 @@
-/**
- * DOM rendering for the facts the service worker returns: one annotation row
- * per section row carrying the Main-schedule conflict badge, the instructor
- * grade panel, and the Add button. Every state - pending, unknown,
- * unavailable, no match, failed - renders as its own honest copy.
- */
-import type { AddOutcome, ConflictVerdict, GradesVerdict, ParsedSectionRow } from "./shared/messages";
-import { SCHEDULE_NAME } from "./config";
-
+import { extensionTokens } from "@untangle/tokens/extension";
+import { isMarkerState, MARKER_STATES, PILL_CSS, type MarkerState } from "./shared/marker-states";
+import { trackPress } from "./shared/press";
 export const ANNOTATION_ATTRIBUTE = "data-unt-row";
-export const BADGE_ATTRIBUTE = "data-unt-badge";
-export const GRADES_ATTRIBUTE = "data-unt-grades";
-export const ADD_ATTRIBUTE = "data-unt-add";
-export const RETRY_ATTRIBUTE = "data-unt-retry";
-
-function text(tag: string, value: string, className: string): HTMLElement {
-  const element = document.createElement(tag);
-  element.className = className;
-  element.textContent = value;
-  return element;
+// The page can read everything drawn here, so a marker carries one state word
+// and its glyph, never a preview detail. Anything else the worker might send
+// renders as "Cannot check".
+//
+// Motion (MOTION.md §3 and §10): the marker fades in when its first verdict
+// arrives, and re-enters with a 2px blur when the verdict changes, so a
+// change made in the panel shows on the page. Opacity, blur and scale only,
+// so the table never reflows. Reduced motion keeps a 120ms fade. Hover
+// changes the border instantly: nothing animates on hover in the table.
+const STYLE = `:host { all: initial; display: block; ${extensionTokens} }
+button { appearance: none; display: inline-flex; align-items: center; min-height: 24px; margin: 0; padding: 2px 0; border: 0; background: none; cursor: pointer; outline: 2px solid transparent; outline-offset: 2px; -webkit-tap-highlight-color: transparent; }
+@media (pointer: coarse) { button { min-height: 44px; } }
+${PILL_CSS}
+.pill { transition: transform var(--t-press) var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { button:hover .pill { border-color: currentColor; } }
+button[data-pressed] .pill { transform: scale(.97); }
+button:focus-visible .pill { box-shadow: var(--focus); }
+button[data-waiting] { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .pill { transition: none; } button[data-pressed] .pill { transform: none; } }`;
+function animateIn(pill: HTMLElement, first: boolean): void {
+  if (typeof pill.animate !== "function")
+    return;
+  const reduce = pill.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const frames = reduce || first
+    ? [{ opacity: first ? 0 : 0.4 }, { opacity: 1 }]
+    : [{ opacity: 0.4, transform: "scale(.96)", filter: "blur(2px)" }, { opacity: 1, transform: "none", filter: "none" }];
+  pill.animate(frames, { duration: reduce ? 120 : 160, easing: "cubic-bezier(.23, 1, .32, 1)" });
 }
-
-function minutesLabel(minutes: number): string {
-  const hour = Math.floor(minutes / 60) % 24;
-  const minute = minutes % 60;
-  const meridiem = hour < 12 ? "AM" : "PM";
-  const display = hour % 12 === 0 ? 12 : hour % 12;
-  return `${display}:${String(minute).padStart(2, "0")} ${meridiem}`;
-}
-
-export function conflictCopy(verdict: ConflictVerdict): { state: string; label: string; detail: string | null } {
-  switch (verdict.kind) {
-    case "conflict": {
-      const first = verdict.hits[0];
-      const detail =
-        first === undefined
-          ? null
-          : `${first.courseCode} ${first.day} ${minutesLabel(first.startMinutes)} - ${minutesLabel(first.endMinutes)}`;
-      return { state: "conflict", label: `Conflicts with ${SCHEDULE_NAME}`, detail };
-    }
-    case "clear":
-      return { state: "clear", label: `No conflict with ${SCHEDULE_NAME}`, detail: null };
-    case "unknown": {
-      const reason =
-        verdict.reason === "row-time-missing"
-          ? `this row has no meeting times to check against ${SCHEDULE_NAME}`
-          : verdict.reason === "schedule-time-missing"
-            ? `a ${SCHEDULE_NAME} section has no meeting times to compare`
-            : `${SCHEDULE_NAME} is unavailable right now`;
-      return { state: "unknown", label: `Cannot check against ${SCHEDULE_NAME}`, detail: reason };
-    }
-  }
-}
-
-export function gradesCopy(verdict: GradesVerdict): { state: string; label: string; detail: string | null } {
-  switch (verdict.kind) {
-    case "history": {
-      const letters = Object.entries(verdict.counts)
-        .filter(([, count]) => count > 0)
-        .map(([letter, count]) => `${letter} ${Math.round((count / verdict.total) * 100)}%`)
-        .join(", ");
-      const gpa = verdict.gpa === null ? null : `GPA ${verdict.gpa.toFixed(2)}`;
-      const detail = [gpa, `${verdict.total} grades`, letters || null].filter(part => part !== null).join(" - ");
-      return { state: "history", label: `Grade history - ${verdict.instructorName} - ${verdict.courseCode}`, detail };
-    }
-    case "no-history":
-      return {
-        state: "no-history",
-        label: "No grade history",
-        detail: verdict.detail === "no-course-history" ? "for this course" : "for this instructor",
-      };
-    case "no-match":
-      return { state: "no-match", label: "No confident instructor match", detail: verdict.reason };
-    case "unavailable":
-      return {
-        state: "unavailable",
-        label: "Grade history unavailable",
-        detail:
-          verdict.retryAfterSeconds === undefined
-            ? verdict.message
-            : `${verdict.message} Try again in ${verdict.retryAfterSeconds}s.`,
-      };
-  }
-}
-
-const ADD_COPY: Record<AddOutcome, { state: string; label: string }> = {
-  added: { state: "added", label: `Added to ${SCHEDULE_NAME}` },
-  "already-scheduled": { state: "already-scheduled", label: `Already in ${SCHEDULE_NAME}` },
-  "conflict-write": { state: "conflict-write", label: `${SCHEDULE_NAME} changed during the add; try again` },
-  "signed-out": { state: "signed-out", label: "Sign in to UNTangle to add" },
-  "not-found": { state: "not-found", label: "Class number not in this term" },
-  failed: { state: "failed", label: "Could not add; try again" },
-};
-
-/** Builds the annotation row for one parsed section row. DOM-facing, thin. */
-export function buildAnnotationRow(row: ParsedSectionRow): HTMLTableRowElement {
-  const tr = document.createElement("tr");
-  tr.setAttribute(ANNOTATION_ATTRIBUTE, row.rowId);
-  const cell = document.createElement("td");
-  cell.colSpan = 8;
-
-  const badge = text("span", `Checking against ${SCHEDULE_NAME}...`, "unt-badge");
-  badge.setAttribute(BADGE_ATTRIBUTE, "pending");
-  badge.title = "";
-  cell.appendChild(badge);
-
-  const grades = text("span", "Grade history: checking", "unt-grades");
-  grades.setAttribute(GRADES_ATTRIBUTE, "pending");
-  cell.appendChild(grades);
-
-  const add = document.createElement("button");
-  add.type = "button";
-  add.className = "unt-add";
-  add.textContent = `Add to ${SCHEDULE_NAME}`;
-  add.setAttribute(ADD_ATTRIBUTE, "idle");
-  cell.appendChild(add);
-
-  tr.appendChild(cell);
-  return tr;
-}
-
-/** Applies a facts result to the row's annotation. DOM-facing, thin. */
-export function applyFacts(annotation: HTMLTableRowElement, conflict: ConflictVerdict, grades: GradesVerdict): void {
-  annotation.querySelector(`[${RETRY_ATTRIBUTE}]`)?.remove();
-  const badge = annotation.querySelector<HTMLElement>(`[${BADGE_ATTRIBUTE}]`);
-  if (badge) {
-    const copy = conflictCopy(conflict);
-    badge.setAttribute(BADGE_ATTRIBUTE, copy.state);
-    badge.textContent = copy.detail === null ? copy.label : `${copy.label} - ${copy.detail}`;
-    badge.title = copy.detail ?? "";
-  }
-  const gradesElement = annotation.querySelector<HTMLElement>(`[${GRADES_ATTRIBUTE}]`);
-  if (gradesElement) {
-    const copy = gradesCopy(grades);
-    gradesElement.setAttribute(GRADES_ATTRIBUTE, copy.state);
-    gradesElement.textContent = copy.detail === null ? copy.label : `${copy.label} - ${copy.detail}`;
-  }
-}
-
-/** Applies an add result to the row's annotation. DOM-facing, thin. */
-export function applyAdd(annotation: HTMLTableRowElement, outcome: AddOutcome): void {
-  const button = annotation.querySelector<HTMLButtonElement>(`[${ADD_ATTRIBUTE}]`);
-  if (!button) return;
-  const copy = ADD_COPY[outcome];
-  button.setAttribute(ADD_ATTRIBUTE, copy.state);
-  button.textContent = copy.label;
-  button.disabled = outcome === "added" || outcome === "already-scheduled";
-}
-
 /**
- * An honest, retryable error state for a facts round-trip that died (a
- * sleeping worker, a closed port): the pending copies never pass for a
- * verdict, and the Retry button re-requests rather than faking one.
+ * One marker under a class-search row: a single button that proposes the
+ * section, which opens the trusted panel. It never adds. `subject` names the
+ * section in the accessible name, as "CSCE 1030 section 001".
  */
-export function applyFactsError(annotation: HTMLTableRowElement, retry: () => void): void {
-  const gradesElement = annotation.querySelector<HTMLElement>(`[${GRADES_ATTRIBUTE}]`);
-  if (gradesElement) {
-    gradesElement.setAttribute(GRADES_ATTRIBUTE, "error");
-    gradesElement.textContent = "Grade history: could not load; try again";
-  }
-  const existing = annotation.querySelector<HTMLButtonElement>(`[${RETRY_ATTRIBUTE}]`);
-  const retryButton = existing ?? createRetryButton(retry);
-  retryButton.textContent = "Retry facts";
-  retryButton.disabled = false;
-  if (!existing) annotation.querySelector("td")?.appendChild(retryButton);
-}
-
-function createRetryButton(retry: () => void): HTMLButtonElement {
+export function buildMarker(rowId: string, select: () => void, subject = "this section"): {
+  host: HTMLTableRowElement;
+  update: (marker: string) => void;
+} {
+  const host = document.createElement("tr");
+  host.setAttribute(ANNOTATION_ATTRIBUTE, rowId);
+  const cell = document.createElement("td");
+  cell.colSpan = 20;
+  // The page's own cell styles (borders, zebra fills, padding) would turn
+  // the marker row into a full table row; keep it a slim strip, with room
+  // above the pill for its 4px focus ring.
+  cell.style.cssText = "padding:4px 6px 4px;border:0;background:transparent;height:auto;line-height:0";
+  const mount = document.createElement("span");
+  cell.append(mount);
+  host.append(cell);
+  const root = mount.attachShadow({ mode: "open" });
+  const style = document.createElement("style");
+  style.textContent = STYLE;
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "unt-add";
-  button.setAttribute(RETRY_ATTRIBUTE, "");
-  button.addEventListener("click", event => {
-    // Same trust rule as the Add button: page scripts cannot drive it.
-    if (!event.isTrusted) return;
-    button.disabled = true;
-    retry();
-  });
-  return button;
+  button.addEventListener("click", () => select());
+  trackPress(button);
+  const pill = document.createElement("span");
+  pill.className = "pill";
+  const glyph = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  glyph.setAttribute("viewBox", "0 0 16 16");
+  glyph.setAttribute("aria-hidden", "true");
+  const word = document.createElement("span");
+  pill.append(glyph, word);
+  button.append(pill);
+  root.append(style, button);
+  let shown: MarkerState | null = null;
+  const render = (state: MarkerState) => {
+    host.setAttribute("data-unt-marker", state);
+    button.dataset.marker = state;
+    pill.dataset.marker = state;
+    glyph.innerHTML = MARKER_STATES[state].glyph;
+    word.textContent = MARKER_STATES[state].word;
+    button.setAttribute("aria-label", `${MARKER_STATES[state].name}. Review ${subject} in UNTangle`);
+  };
+  // Until the worker answers, the marker holds its place but shows nothing:
+  // "Cannot check" would be a claim made before anything was checked.
+  render("unknown");
+  button.dataset.waiting = "";
+  const update = (marker: string) => {
+    const state = isMarkerState(marker) ? marker : "unknown";
+    if (state === shown)
+      return;
+    const first = shown === null;
+    shown = state;
+    render(state);
+    delete button.dataset.waiting;
+    animateIn(pill, first);
+  };
+  return { host, update };
 }

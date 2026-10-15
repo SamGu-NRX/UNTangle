@@ -1,202 +1,162 @@
-/**
- * Contract-accurate local stub of the UNTangle API for the extension journey.
- *
- * It reproduces the guard semantics the real routes enforce - planner GET
- * gated on the Better Auth session cookie, POST requiring X-Planner-Base-
- * Revision (428 without it, 409 on a stale revision), ClassNumberMatch for
- * known class numbers, and HistoryResult envelopes from the grades routes -
- * so the journey exercises the extension's real client behavior offline.
- * Everything binds to localhost only.
- *
- * Run: bun --no-env-file extension/e2e/stub-untangle.ts
- */
-
-const PORT = Number(process.env.STUB_PORT ?? 3217);
-const SESSION_COOKIE = "better-auth.session_token";
-const SESSION_VALUE = "journey-session-token";
-/** The seeded Main schedule: CSCE 1040, MWF 9:30 AM - 10:20 AM, spring 2027. */
-const SECTION_1040 = "vsb:spring-2027:CSCE 1040:10001";
-const SMITH_ID = JSON.stringify(["John", "Smith"]);
-
+// Fixture-only server. No UNT calls, real credentials or session cookies.
+import { isCommand, isRecord, type AddOptionCommand, type AddReply, type Preview } from "../src/shared/extension-api";
+const json = (body: unknown, status = 200) => Response.json(body, { status });
 let revision = 1;
-let selectedSections: Record<string, string> = { "CSCE 1040": SECTION_1040 };
-const observedWrites: Array<{ header: string | null; body: unknown }> = [];
-/** Journey diagnostics: every request the stub sees. */
-const requestLog: Array<{ method: string; path: string; cookie: boolean }> = [];
-
-const gradesBlock = { gradeA: 18, gradeB: 4, gradeC: 1, gradeD: 1, gradeF: 0, gradeP: 0, gradeNP: 0, gradeW: 0, gradeWF: 0, gradeI: 0, gradePR: 0, gradeNPR: 0, gradeZ: 0, gradeSuppressed: 0, totalEnroll: 24 };
-
-const smithHistory = {
-  counts: { A: 18, B: 4, C: 1, D: 1 },
-  total: 24,
-  grades: gradesBlock,
-  instructor: { id: SMITH_ID, firstName: "John", lastName: "Smith", name: "John Smith" },
-  courses: [
-    {
-      counts: { A: 18, B: 4, C: 1, D: 1 },
-      total: 24,
-      grades: gradesBlock,
-      course: { subject: "CSCE", number: "1030", title: "Computer Science I" },
-      terms: [],
-      sectionCount: 1,
-      gpa: 3.4,
-    },
-  ],
-};
-
-function plannerState() {
+let dropNext = false;
+// Journey knobs, one per panel state that a healthy server never shows.
+// Preview failure and delays last until cleared; command outcomes apply once.
+let failPreviewFor: string | null = null;
+let previewDelayMs = 0;
+let commandDelayMs = 0;
+let nextCommand: "reject" | "unauthorized" | null = null;
+const receipts = new Map<string, {
+  body: string;
+  reply: AddReply;
+}>();
+const writes: AddOptionCommand[] = [];
+const requests: {
+  path: string;
+  cookie: boolean;
+  bearer: boolean;
+}[] = [];
+const auth = new Map<string, {
+  state: string;
+  redirectUri: string;
+  challenge: string;
+  code: string;
+  consumed: boolean;
+}>();
+const token = "fixture-access-token";
+const titles: Record<string, string> = { "14523": "CSCE 1030", "15802": "ENGL 1310", "16077": "CSCE 2100" };
+const grades = { source: "UNT grade records" };
+function preview(classNumber: string): Preview {
+  const base = { scheduleId: "main", optionId: `section-${classNumber}`, revision, title: titles[classNumber], details: [] as string[], inSchedule: writes.some(w => w.optionId === `section-${classNumber}`) };
+  if (classNumber === "14523") {
+    return {
+      ...base, conflict: "conflict", courseTitle: "Computer Science I", section: "001",
+      meetings: [{ days: "Mon Wed Fri", time: "9:00 to 9:50 AM", room: "NTDP B185" }],
+      clashes: [{ kind: "course", name: "CSCE 1040", when: "Mon Wed Fri 9:30 to 10:20 AM" }, { kind: "busy", name: "Work", when: "Mon 9:00 to 10:00 AM" }],
+      grades: { ...grades, status: "history", instructor: "John Smith", averageGpa: 3.4, students: 146, terms: "2019 to 2025" },
+    };
+  }
+  if (classNumber === "15802") {
+    return {
+      ...base, conflict: revision >= 2 ? "conflict" : "clear", courseTitle: "College Writing I", section: "005",
+      meetings: [{ days: "Mon Wed Fri", time: "1:00 to 1:50 PM", room: "LANG 115" }],
+      clashes: revision >= 2 ? [{ kind: "course", name: "HIST 2610", when: "Mon Wed Fri 1:00 to 1:50 PM" }] : [],
+      grades: { ...grades, status: "none", instructor: "Jane Doe" },
+    };
+  }
   return {
-    courseStatuses: {},
-    selectedSections: { ...selectedSections },
-    optimization: "compact",
-    activeDay: "Mon",
-    selectedMajor: null,
-    transcriptRecords: [],
-    updatedAt: new Date().toISOString(),
+    ...base, conflict: "unknown", unknownReason: "no-set-time", courseTitle: "Foundations of Computing", section: "004",
+    meetings: [{ days: "Online", time: null, room: null }],
+    grades: { ...grades, status: "unavailable", instructor: null },
   };
 }
-
-function isSectionMap(value: unknown): value is Record<string, string> {
-  return typeof value === "object" && value !== null && Object.values(value).every(entry => typeof entry === "string");
-}
-
-function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
-}
-
-function hasSession(request: Request): boolean {
-  const cookie = request.headers.get("cookie") ?? "";
-  return cookie.split(";").some(part => part.trim() === `${SESSION_COOKIE}=${SESSION_VALUE}`);
-}
-
-const sessionPage = [
-  "<!doctype html>",
-  '<html lang="en"><head><meta charset="utf-8" /><title>UNTangle session</title></head>',
-  "<body><p id=\"session\">Stub session established</p></body></html>",
-].join("");
-
-const classNumberMatches: Record<string, unknown> = {
-  "14523": { term: "spring-2027", classNumber: "14523", courseCode: "CSCE 1030", sectionId: "vsb:spring-2027:CSCE 1030:001" },
-  "15802": { term: "spring-2027", classNumber: "15802", courseCode: "ENGL 1310", sectionId: "vsb:spring-2027:ENGL 1310:005" },
-  "16077": { term: "spring-2027", classNumber: "16077", courseCode: "CSCE 2100", sectionId: "vsb:spring-2027:CSCE 2100:004" },
-};
-
-const csce1040Sections = {
-  term: "spring-2027",
-  courseCode: "CSCE 1040",
-  courseTitle: "Introductory Computer Science",
-  sections: [
-    {
-      id: SECTION_1040,
-      meetings: ["Mon", "Wed", "Fri"].map(day => ({
-        day,
-        startMinutes: 570,
-        endMinutes: 620,
-        dates: { start: "2027-01-19", end: "2027-05-07" },
-        async: false,
-        tba: false,
-      })),
-    },
-  ],
-};
-
-// The journey adds ENGL 1310 to Main; afterwards the remaining rows' conflict
-// checks need its meetings, so the per-course route must serve this course.
-const engl1310Sections = {
-  term: "spring-2027",
-  courseCode: "ENGL 1310",
-  courseTitle: "Writing and Rhetoric I",
-  sections: [
-    {
-      id: "vsb:spring-2027:ENGL 1310:005",
-      meetings: ["Mon", "Wed", "Fri"].map(day => ({
-        day,
-        startMinutes: 780,
-        endMinutes: 830,
-        dates: { start: "2027-01-19", end: "2027-05-07" },
-        async: false,
-        tba: false,
-      })),
-    },
-  ],
-};
-
 Bun.serve({
-  port: PORT,
+  hostname: "127.0.0.1", port: Number(process.env.STUB_PORT ?? 3217),
   async fetch(request): Promise<Response> {
-    const { pathname } = new URL(request.url);
-
-    if (pathname === "/health") return json({ ok: true });
-    if (pathname === "/__log") return json({ requests: requestLog });
-    requestLog.push({ method: request.method, path: pathname, cookie: hasSession(request) });
-    if (pathname === "/__observed") return json({ writes: observedWrites });
-    if (pathname === "/session") {
-      return new Response(sessionPage, {
-        status: 200,
-        headers: {
-          "content-type": "text/html",
-          // SameSite=None + Secure so the extension's service-worker fetches
-          // carry it across origins; 127.0.0.1 is a trustworthy origin, so
-          // the Secure attribute is honored over http.
-          "set-cookie": `${SESSION_COOKIE}=${SESSION_VALUE}; Path=/; SameSite=None; Secure`,
-        },
-      });
+    const url = new URL(request.url);
+    const path = url.pathname;
+    if (path === "/health")
+      return json({ ok: true });
+    if (path === "/__observed")
+      return json({ writes, requests, revision });
+    if (path === "/__advance" && request.method === "POST") {
+      revision++;
+      return json({ revision });
     }
-
-    if (pathname === "/api/planner") {
-      if (!hasSession(request)) return json({ error: "Unauthorized" }, 401);
-      if (request.method === "GET") {
-        return json({ state: plannerState(), revision, persistent: true });
+    if (path === "/__drop-next" && request.method === "POST") {
+      dropNext = true;
+      return json({ ok: true });
+    }
+    if (path === "/__knobs" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body))
+        return json({ error: "invalid knobs" }, 400);
+      if (body.failPreviewFor === null || typeof body.failPreviewFor === "string")
+        failPreviewFor = body.failPreviewFor;
+      if (typeof body.previewDelayMs === "number")
+        previewDelayMs = body.previewDelayMs;
+      if (typeof body.commandDelayMs === "number")
+        commandDelayMs = body.commandDelayMs;
+      if (body.nextCommand === "reject" || body.nextCommand === "unauthorized")
+        nextCommand = body.nextCommand;
+      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand });
+    }
+    requests.push({ path, cookie: request.headers.has("cookie"), bearer: request.headers.get("authorization") === `Bearer ${token}` });
+    if (request.headers.has("cookie"))
+      return json({ error: "Cookies forbidden" }, 400);
+    if (path === "/api/v1/devices/authorize" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || body.kind !== "extension" || body.codeChallengeMethod !== "S256" || typeof body.codeChallenge !== "string" || typeof body.state !== "string" || typeof body.redirectUri !== "string")
+        return json({ error: "invalid_request" }, 400);
+      const id = crypto.randomUUID();
+      auth.set(id, { state: body.state, redirectUri: body.redirectUri, challenge: body.codeChallenge, code: crypto.randomUUID(), consumed: false });
+      return json({ authorizationUrl: `http://127.0.0.1:3217/device/approve?id=${id}` });
+    }
+    if (path === "/device/approve") {
+      const grant = auth.get(url.searchParams.get("id") ?? "");
+      if (!grant)
+        return json({ error: "not found" }, 404);
+      const callback = new URL(grant.redirectUri);
+      callback.searchParams.set("state", grant.state);
+      callback.searchParams.set("code", grant.code);
+      return Response.redirect(callback.href);
+    }
+    if (path === "/api/v1/devices/token" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isRecord(body) || typeof body.codeVerifier !== "string")
+        return json({ error: "invalid_grant" }, 400);
+      const verifier = new Bun.CryptoHasher("sha256").update(body.codeVerifier).digest("base64url");
+      const grant = [...auth.values()].find(g => !g.consumed && g.code === body.code && g.redirectUri === body.redirectUri && g.challenge === verifier);
+      if (!grant)
+        return json({ error: "invalid_grant" }, 400);
+      grant.consumed = true;
+      return json({ accessToken: token, grantId: "fixture-grant", accountId: "fixture-account", expiresAt: Date.now() + 3600000 });
+    }
+    if (request.headers.get("authorization") !== `Bearer ${token}`)
+      return json({ error: "Unauthorized" }, 401);
+    const match = path.match(/^\/api\/v1\/extension\/preview\/spring-2027\/(\d{4,5})$/);
+    if (match) {
+      const classNumber = match[1];
+      if (!titles[classNumber])
+        return json({ error: "not found" }, 404);
+      if (previewDelayMs > 0)
+        await Bun.sleep(previewDelayMs);
+      if (failPreviewFor === classNumber)
+        return json({ error: "fixture failure" }, 500);
+      return json(preview(classNumber));
+    }
+    if (path === "/api/v1/extension/commands" && request.method === "POST") {
+      const body: unknown = await request.json();
+      if (!isCommand(body))
+        return json({ error: "invalid command" }, 422);
+      if (commandDelayMs > 0)
+        await Bun.sleep(commandDelayMs);
+      const forced = nextCommand;
+      nextCommand = null;
+      if (forced === "unauthorized")
+        return json({ error: "Unauthorized" }, 401);
+      if (forced === "reject")
+        return json({ kind: "rejection", operationId: body.operationId, reason: "forbidden" }, 403);
+      const encoded = JSON.stringify(body);
+      const existing = receipts.get(body.operationId);
+      if (existing)
+        return existing.body === encoded ? json(existing.reply) : json({ kind: "rejection", operationId: body.operationId, reason: "forbidden" }, 403);
+      if (body.expectedRevision !== revision)
+        return json({ kind: "rejection", operationId: body.operationId, reason: "stale-revision" }, 409);
+      revision++;
+      writes.push(body);
+      const reply: AddReply = { kind: "receipt", operationId: body.operationId, committedRevision: revision };
+      receipts.set(body.operationId, { body: encoded, reply });
+      if (dropNext) {
+        dropNext = false;
+        return json({ error: "response lost after commit" }, 503);
       }
-      if (request.method === "POST") {
-        const header = request.headers.get("X-Planner-Base-Revision");
-        if (header === null || !/^\d+$/.test(header)) return json({ error: "Missing X-Planner-Base-Revision" }, 428);
-        const body: unknown = await request.json().catch(() => null);
-        if (!body || typeof body !== "object" || !isSectionMap((body as Record<string, unknown>).selectedSections)) {
-          return json({ error: "Invalid planner state" }, 422);
-        }
-        if (Number(header) !== revision) {
-          return json({ error: "Stale revision", state: plannerState(), revision }, 409);
-        }
-        selectedSections = { ...(body as Record<string, unknown>).selectedSections as Record<string, string> };
-        revision += 1;
-        observedWrites.push({ header, body });
-        return json({ state: plannerState(), revision, persistent: true });
-      }
-      return json({ error: "Method not allowed" }, 405);
+      return json(reply);
     }
-
-    const classMatch = pathname.match(/^\/api\/sections\/(spring|summer|fall)-\d{4}\/class\/\d{4,5}$/);
-    if (classMatch && request.method === "GET") {
-      const classNumber = pathname.split("/").at(-1) ?? "";
-      const match = classNumberMatches[classNumber];
-      return match ? json(match) : json({ error: "Not found" }, 404);
-    }
-
-    const sectionsMatch = pathname.match(/^\/api\/sections\/(spring|summer|fall)-\d{4}\/([A-Z]{2,4})\/(\d{4})$/);
-    if (sectionsMatch && request.method === "GET") {
-      if (sectionsMatch[2] === "CSCE" && sectionsMatch[3] === "1040") return json(csce1040Sections);
-      if (sectionsMatch[2] === "ENGL" && sectionsMatch[3] === "1310") return json(engl1310Sections);
-      return json({ error: "Not found" }, 404);
-    }
-
-    if (pathname === "/api/grades/search" && request.method === "GET") {
-      const query = new URL(request.url).searchParams.get("q") ?? "";
-      if (query.toLowerCase().includes("smith")) {
-        return json({ status: "ok", source: "untgrades.app", data: { courses: [], instructors: [smithHistory.instructor] } });
-      }
-      return json({ status: "no-history", source: "untgrades.app", data: null });
-    }
-
-    const instructorMatch = pathname.match(/^\/api\/grades\/instructors\/(.+)$/);
-    if (instructorMatch && request.method === "GET") {
-      const id = decodeURIComponent(instructorMatch[1]);
-      if (id === SMITH_ID) return json({ status: "ok", source: "untgrades.app", data: smithHistory });
-      return json({ status: "no-history", source: "untgrades.app", data: null });
-    }
-
-    return json({ error: "Not found" }, 404);
+    return json({ error: "not found" }, 404);
   },
 });
-
-console.log(`stub-untangle listening on http://127.0.0.1:${PORT}`);
+console.log("stub-untangle listening on http://127.0.0.1:3217");

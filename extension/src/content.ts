@@ -1,99 +1,84 @@
-/**
- * The content script. Parses visible results rows, asks the service worker
- * for facts, renders the annotation rows, and watches for PeopleSoft
- * re-renders. It sends no fetches of its own and stays dormant on pages
- * without a results grid - including the mock's transcript page.
- */
-import { applyAdd, applyFacts, applyFactsError, ANNOTATION_ATTRIBUTE, buildAnnotationRow } from "./content-ui";
+import { ANNOTATION_ATTRIBUTE, buildMarker } from "./content-ui";
 import { extractRows } from "./lib/parse-row";
-import type { ParsedSectionRow, WorkerResponse } from "./shared/messages";
-
-const RESCAN_DEBOUNCE_MS = 200;
-
-function send(message: { type: "facts/request" | "add/request"; row: ParsedSectionRow }): Promise<WorkerResponse | undefined> {
-  return chrome.runtime.sendMessage(message) as Promise<WorkerResponse | undefined>;
+import { isRecord, type SectionRef } from "./shared/extension-api";
+// Base64 of frontend/src/app/fonts/dm-sans-latin-opsz-normal.woff2, set by scripts/build.ts.
+declare const __DM_SANS_WOFF2__: string;
+type Mounted = { key: string; host: HTMLTableRowElement; update: (marker: string) => void };
+const mounted = new Map<string, Mounted>();
+let fontLoaded = false;
+// Shadow roots can't declare fonts, so DM Sans is registered with the page's
+// font set from bytes bundled into this script. That fetches nothing and
+// needs no web-accessible resource.
+function loadFont(): void {
+  if (fontLoaded || typeof FontFace !== "function")
+    return;
+  fontLoaded = true;
+  const bytes = Uint8Array.from(atob(__DM_SANS_WOFF2__), char => char.charCodeAt(0));
+  const face = new FontFace("DM Sans", bytes, { weight: "100 1000", style: "normal" });
+  document.fonts.add(face);
+  void face.load().catch(() => { });
 }
-
-/** Asks the worker for facts and renders them, or an honest retryable error. */
-function requestFacts(row: ParsedSectionRow, annotation: HTMLTableRowElement, fail: () => void): void {
-  void send({ type: "facts/request", row })
-    .then(response => {
-      if (response === undefined || response.type !== "facts/result" || response.rowId !== row.rowId) {
-        fail();
-        return;
-      }
-      applyFacts(annotation, response.conflict, response.grades);
-    })
-    .catch(fail);
+function requestMarker(ref: SectionRef, update: (marker: string) => void): void {
+  void chrome.runtime.sendMessage({ type: "marker/request", ref }).then((reply: unknown) => {
+    update(isRecord(reply) && typeof reply.marker === "string" ? reply.marker : "unknown");
+  }).catch(() => update("unknown"));
 }
-
-/** Rebuilds every annotation except the given row's own, whose state the student just set. */
-function refreshOtherRows(rowId: string): void {
-  for (const annotation of document.querySelectorAll(`[${ANNOTATION_ATTRIBUTE}]`)) {
-    if (annotation.getAttribute(ANNOTATION_ATTRIBUTE) === rowId) continue;
-    annotation.remove();
-  }
-  rescan();
-}
-
-/** One annotation row per section row; rows already annotated are left alone. */
-function annotate(rows: ParsedSectionRow[]): void {
-  for (const row of rows) {
-    if (document.querySelector(`[${ANNOTATION_ATTRIBUTE}="${CSS.escape(row.rowId)}"]`)) continue;
+/**
+ * Adds a marker under each section row that lacks one, and drops markers whose
+ * row is gone or now shows another section. With `recheck`, existing markers
+ * ask the worker again and update in place, so a changed verdict re-enters
+ * instead of the whole strip flashing.
+ */
+function rescan(recheck = false): void {
+  const seen = new Set<string>();
+  for (const row of extractRows(document)) {
+    seen.add(row.rowId);
+    const ref = { term: row.term, classNumber: row.classNumber };
+    const key = `${ref.term}:${ref.classNumber}`;
     const anchor = document.getElementById(row.rowId);
-    if (!anchor || !anchor.parentElement) continue;
-    const annotation = buildAnnotationRow(row);
-    anchor.parentElement.insertBefore(annotation, anchor.nextSibling);
-
-    const fail = () => applyFactsError(annotation, () => requestFacts(row, annotation, fail));
-    requestFacts(row, annotation, fail);
-
-    const button = annotation.querySelector<HTMLButtonElement>("button[data-unt-add]");
-    button?.addEventListener("click", event => {
-      // A page script can call click() on this shared button; only a real
-      // user click may submit a planner write with the student's session.
-      if (!event.isTrusted) return;
-      button.disabled = true;
-      void send({ type: "add/request", row })
-        .then(response => {
-          // No answer is not a success: restore the retryable failed state.
-          if (response === undefined || response.type !== "add/result" || response.rowId !== row.rowId) {
-            applyAdd(annotation, "failed");
-            return;
-          }
-          applyAdd(annotation, response.outcome);
-          // The schedule changed: every other row's badge is now stale.
-          if (response.outcome === "added") refreshOtherRows(row.rowId);
-        })
-        .catch(() => {
-          applyAdd(annotation, "failed");
-        });
-    });
+    const existing = mounted.get(row.rowId);
+    if (existing && existing.key === key && existing.host.isConnected && existing.host.previousElementSibling === anchor) {
+      if (recheck)
+        requestMarker(ref, existing.update);
+      continue;
+    }
+    existing?.host.remove();
+    mounted.delete(row.rowId);
+    if (!anchor?.parentElement)
+      continue;
+    loadFont();
+    const marker = buildMarker(row.rowId, () => { void chrome.runtime.sendMessage({ type: "proposal/request", ref }); }, `${row.courseSubject} ${row.courseNumber} section ${row.sectionNumber}`);
+    anchor.parentElement.insertBefore(marker.host, anchor.nextSibling);
+    mounted.set(row.rowId, { key, host: marker.host, update: marker.update });
+    requestMarker(ref, marker.update);
+  }
+  for (const [rowId, marker] of mounted) {
+    if (!seen.has(rowId)) {
+      marker.host.remove();
+      mounted.delete(rowId);
+    }
+  }
+  // Markers this script didn't mount, such as one left by an earlier copy of it.
+  for (const stray of document.querySelectorAll(`[${ANNOTATION_ATTRIBUTE}]`)) {
+    if (![...mounted.values()].some(marker => marker.host === stray))
+      stray.remove();
   }
 }
-
-function rescan(): void {
-  annotate(extractRows(document));
-}
-
-let rescanTimer: ReturnType<typeof setTimeout> | undefined;
-
-function scheduleRescan(): void {
-  if (rescanTimer !== undefined) clearTimeout(rescanTimer);
-  rescanTimer = setTimeout(() => {
-    rescanTimer = undefined;
-    rescan();
-  }, RESCAN_DEBOUNCE_MS);
-}
-
+let timer: ReturnType<typeof setTimeout> | undefined;
 function start(): void {
   rescan();
-  // PeopleSoft re-renders the results grid in place; annotations must follow.
-  new MutationObserver(scheduleRescan).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(() => {
+    if (timer)
+      clearTimeout(timer);
+    timer = setTimeout(() => rescan(), 200);
+  }).observe(document.body, { childList: true, subtree: true });
 }
-
-if (document.readyState === "loading") {
+if (document.readyState === "loading")
   document.addEventListener("DOMContentLoaded", start, { once: true });
-} else {
+else
   start();
-}
+chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (sender.id === chrome.runtime.id && !sender.tab && isRecord(message) && message.type === "markers/refresh")
+    rescan(true);
+});
+window.addEventListener("focus", () => rescan(true));

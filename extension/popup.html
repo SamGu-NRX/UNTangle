@@ -1,50 +1,14 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <title>UNTangle Class Search</title>
-    <style>
-      body {
-        font-family: system-ui, sans-serif;
-        font-size: 13px;
-        margin: 0;
-        padding: 12px;
-        min-width: 260px;
-        color: #1c1c1c;
-      }
-      h1 {
-        font-size: 14px;
-        margin: 0 0 8px;
-      }
-      p {
-        margin: 4px 0;
-      }
-      a {
-        color: #04480c;
-      }
-      .pending {
-        color: #666;
-      }
-      .signed-out,
-      .unreachable {
-        color: #8a1f1f;
-      }
-      .signed-in {
-        color: #04480c;
-      }
-      .origin {
-        color: #666;
-        word-break: break-all;
-      }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UNTangle</title>
   </head>
   <body>
-    <main>
-      <h1>UNTangle Class Search</h1>
-      <p id="session" class="pending">Checking UNTangle session...</p>
-      <p id="origin" class="origin"></p>
-      <p><a id="open-untangle" href="#" target="_blank" rel="noreferrer">Open UNTangle</a></p>
-    </main>
-    <script src="popup.js"></script>
+    <header class="bar"><span class="wordmark">UNTangle</span></header>
+    <main id="view" aria-labelledby="view-title"></main>
+    <footer id="actions" class="foot"></footer>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>
