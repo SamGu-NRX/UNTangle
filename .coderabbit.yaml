@@ -3,6 +3,8 @@
 # default branch". Every UNTangle PR targets alpha or edge, so until 2026-10-15 none was auto-reviewed.
 # Drafts are skipped: UNTangle is public, so reviews come from CodeRabbit's free OSS quota, which ran out
 # repeatedly on 2026-10-15 ("Review limit reached"). The lead requests "@coderabbitai review" on a draft it needs.
+# inheritance: values this file leaves out come from the org and UI settings instead of CodeRabbit's defaults.
+inheritance: true
 reviews:
   auto_review:
     enabled: true
