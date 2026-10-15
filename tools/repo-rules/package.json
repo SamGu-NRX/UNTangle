@@ -1,0 +1,21 @@
+{
+  "name": "@untangle/repo-rules",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "bun --no-env-file src/run-tests.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@untangle/contracts": "workspace:*",
+    "@untangle/core": "workspace:*",
+    "@untangle/ingest": "workspace:*",
+    "@untangle/sync": "workspace:*",
+    "@untangle/tokens": "workspace:*",
+    "eslint": "^9",
+    "typescript": "^5"
+  }
+}

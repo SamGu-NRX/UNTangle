@@ -1,0 +1,9 @@
+{
+  // Tests run in Bun, so they get Bun's types. The source is checked on its
+  // own by tsconfig.json, without them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src", "tests"]
+}

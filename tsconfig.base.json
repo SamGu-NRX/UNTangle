@@ -1,0 +1,21 @@
+{
+  // Shared by the packages in packages/. Each package's tsconfig.json sets the
+  // environment its source runs in; tsconfig.test.json adds Bun's types for
+  // its tests. Options match frontend/tsconfig.json where they overlap, so a
+  // module moved out of frontend/ compiles the same way.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "strict": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    // No ambient @types package is loaded unless a tsconfig names it, so
+    // Node's or Bun's globals never leak into code that must not use them.
+    "types": []
+  }
+}
