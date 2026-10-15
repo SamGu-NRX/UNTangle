@@ -116,7 +116,7 @@ for (const vp of VIEWPORTS) {
     await setup.getByRole("button", { name: "Skip this question" }).click();
     await page.waitForTimeout(350);
 
-    check(`${tag}: step 4 asks about instructors`, (await heading()) === "How much do well-rated instructors matter?", await heading());
+    check(`${tag}: step 4 asks about instructors`, (await heading()) === "How much do well\u2011rated instructors matter?", await heading());
     await setup.getByRole("radio", { name: "Some" }).click();
     await shot("04-rating");
     await axe(page, `${tag} step 4, instructors`);

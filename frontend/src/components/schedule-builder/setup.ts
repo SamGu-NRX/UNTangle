@@ -62,7 +62,8 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
   },
   fewerDays: { question: "How much do fewer days on campus matter?", answers: HOW_MUCH },
   walking: { question: "How much do short walks between classes matter?", answers: HOW_MUCH },
-  rating: { question: "How much do well-rated instructors matter?", sub: "From student star ratings.", answers: HOW_MUCH },
+  // A no-break hyphen (U+2011): "well-" never ends a line with "rated" on the next.
+  rating: { question: "How much do well\u2011rated instructors matter?", sub: "From student star ratings.", answers: HOW_MUCH },
 };
 
 /** What Auto does with an answer, said under the picture: the Preferences card's line, with Auto as its subject. */

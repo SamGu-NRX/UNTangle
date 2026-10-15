@@ -397,13 +397,23 @@ export function SetupAuto(props: Props) {
 
   // More of the step below what shows, for the footer's fade: an empty mark at the step's end is
   // out of sight (clipped by the scrolling body) exactly when there is more to scroll to.
+  // The same at the start: out of sight means the step has scrolled, and the head gets a hairline.
+  const start = useRef<HTMLSpanElement>(null);
   const end = useRef<HTMLSpanElement>(null);
   const [more, setMore] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const mark = end.current;
-    if (!open || !mark) return;
-    const observer = new IntersectionObserver(([entry]) => setMore(!entry.isIntersecting));
-    observer.observe(mark);
+    const first = start.current;
+    const last = end.current;
+    if (!open || !first || !last) return;
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === first) setScrolled(!entry.isIntersecting);
+        else setMore(!entry.isIntersecting);
+      }
+    });
+    observer.observe(first);
+    observer.observe(last);
     return () => observer.disconnect();
   }, [open, index, phone]);
 
@@ -444,6 +454,7 @@ export function SetupAuto(props: Props) {
   const canContinue = step.kind !== "question" || picked.has(step.key);
   const pane = (
     <div key={index} className={styles.pane} data-dir={dir} data-instant={instant ? "" : undefined}>
+      <span ref={start} className={styles.start} aria-hidden="true" />
       {step.kind === "question" ? (
         <QuestionPane
           questionKey={step.key}
@@ -529,7 +540,7 @@ export function SetupAuto(props: Props) {
       initialFocus={heading}
       returnFocus={returnFocus}
       footer={foot}
-      className={styles.dialog}
+      className={`${styles.dialog}${scrolled ? ` ${styles.scrolled}` : ""}`}
     >
       {pane}
     </Dialog>

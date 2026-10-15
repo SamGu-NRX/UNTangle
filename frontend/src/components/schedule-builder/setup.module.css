@@ -29,8 +29,19 @@
   min-width: 0;
   padding-top: 0;
 }
+/* The step carries the top padding, so text scrolled up clips right under the head instead of
+   leaving pieces of glyphs in the body's padding; once scrolled, the head gets Preferences' hairline. */
 .dialog :global(.ui-dialog__body) {
-  padding: 20px 24px 20px;
+  padding: 0 24px 20px;
+}
+.dialog :global(.ui-dialog__head) {
+  padding-bottom: 6px;
+}
+.dialog .pane {
+  padding-top: 14px;
+}
+.scrolled :global(.ui-dialog__head) {
+  box-shadow: 0 1px 0 var(--line);
 }
 .dialog :global(.ui-dialog__foot) {
   display: block;
@@ -338,7 +349,7 @@
   left: 0;
   right: 0;
   bottom: calc(100% + 1px);
-  height: 28px;
+  height: 44px;
   background: linear-gradient(to top, var(--paper), transparent);
   pointer-events: none;
 }
@@ -359,7 +370,12 @@
   visibility: hidden;
 }
 
-/* The scroll mark at a step's end: no size, so it never adds scroll. */
+/* The scroll marks at a step's start and end: no size, so they never add scroll. */
+.start {
+  display: block;
+  height: 1px;
+  margin-bottom: -1px;
+}
 .end {
   display: block;
   height: 1px;

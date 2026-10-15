@@ -99,7 +99,7 @@ describe("Set up Auto, step by step", () => {
     expect(latest.weights.walking).toBe(4);
     await click(button("Continue"));
 
-    expect(heading()).toBe("How much do well-rated instructors matter?");
+    expect(heading()).toBe("How much do well\u2011rated instructors matter?");
     await click(radio("Some"));
     expect(latest.weights.rating).toBe(2);
     await click(button("Continue"));
