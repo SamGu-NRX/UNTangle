@@ -35,9 +35,7 @@ const rejection = (operationId: string, reason: RejectionReason, status: number)
 
 export type CommandOutcome = { status: number; body: ExtensionAddReply };
 
-/** The schedule body with the option applied as the course's pick. Applying an
- * option twice changes nothing, so rebuilding these bytes reproduces the
- * original write exactly. */
+/** The schedule body with the option applied as the course's pick. */
 function scheduleWithOption(current: ScheduleBody, option: { courseCode: string; id: string }): ScheduleBody {
   return {
     ...current,
