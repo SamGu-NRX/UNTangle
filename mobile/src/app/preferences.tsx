@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ClassDay } from "@/lib/types";
 import { clockWithPeriod, rangeText } from "@/plan/day-plan";
-import { sectionNumber, sectionsOf } from "@/plan/guest-plan";
+import { creditsText, sectionNumber, sectionsOf } from "@/plan/guest-plan";
 import { usePlan } from "@/plan/plan-store";
 import {
   busyBlocks,
@@ -386,7 +386,7 @@ export default function PreferencesSheet() {
         <Section title="Courses and sections" sub="Settings for specific classes in your plan.">
           <View style={styles.creditRow}>
             <View style={styles.flex}>
-              <Txt variant="bodyStrong">At most {prefs.maxCredits} credits</Txt>
+              <Txt variant="bodyStrong">At most {creditsText(prefs.maxCredits)}</Txt>
               <Txt variant="meta" tone={week.credits > prefs.maxCredits ? "attention" : "ink2"}>
                 Your plan has {week.credits}.
               </Txt>

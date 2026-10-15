@@ -9,6 +9,7 @@ import {
   courseByCode,
   courseGroups,
   courseState,
+  creditsText,
   firstFittingSection,
   samplePicks,
   samplePlannedCodes,
@@ -107,6 +108,12 @@ describe("section picking", () => {
     }
     expect(firstFittingSection("CSCE 2610", picks)).toBeNull();
     expect(firstFittingSection("CSCE 2610", {})).toBe(target[0]);
+  });
+
+  it("words one credit in the singular", () => {
+    expect(creditsText(1)).toBe("1 credit");
+    expect(creditsText(0)).toBe("0 credits");
+    expect(creditsText(15)).toBe("15 credits");
   });
 
   it("counts the credits of the picked courses", () => {

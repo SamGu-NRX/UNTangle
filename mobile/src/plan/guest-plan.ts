@@ -168,3 +168,8 @@ export function weekOf(picks: Picks): GuestWeek {
 }
 
 export const planningTermLabel = planningTerm.label;
+
+/** "1 credit", "15 credits" (copy.md: credit, never hours or units). */
+export function creditsText(count: number): string {
+  return `${count} ${count === 1 ? "credit" : "credits"}`;
+}

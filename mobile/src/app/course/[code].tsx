@@ -10,6 +10,7 @@ import {
   conflictsWith,
   courseByCode,
   courseState,
+  creditsText,
   currentTermLabel,
   planningTermLabel,
   sectionNumber,
@@ -188,7 +189,7 @@ export default function CourseSheet() {
                 : WORD[state.kind]}
         </Txt>
         <Txt variant="meta" tone="ink2" style={styles.credits}>
-          {course.creditHours} credits
+          {creditsText(course.creditHours)}
         </Txt>
       </View>
 

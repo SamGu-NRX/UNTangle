@@ -7,6 +7,7 @@ import type { Course } from "@/lib/types";
 import {
   courseGroups,
   courseState,
+  creditsText,
   currentTermLabel,
   planningTermLabel,
   type CourseState,
@@ -42,7 +43,7 @@ function metaFor(state: CourseState, course: Course): string {
     case "locked":
       return `Needs ${state.needs}`;
     case "available":
-      return `${course.creditHours} credits`;
+      return creditsText(course.creditHours);
   }
 }
 
@@ -228,7 +229,7 @@ export default function CoursesScreen() {
             <View style={styles.trayHead}>
               <Txt variant="title">{planningTermLabel}</Txt>
               <Txt variant="meta" tone="ink2">
-                {week.credits} credits
+                {creditsText(week.credits)}
               </Txt>
             </View>
             {plannedCodes.length ? (

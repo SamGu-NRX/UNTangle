@@ -6,7 +6,7 @@ import Animated, { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated
 import type { ClassDay } from "@/lib/types";
 import { runAuto, type AutoResult } from "@/plan/auto";
 import { dayPlan, sampleStart } from "@/plan/day-plan";
-import { planningTermLabel, weekOf, type Picks } from "@/plan/guest-plan";
+import { creditsText, planningTermLabel, weekOf, type Picks } from "@/plan/guest-plan";
 import { usePlan } from "@/plan/plan-store";
 import { gridDays } from "@/plan/preferences";
 import { color, layout, radius, shadow, space } from "@/theme/tokens";
@@ -85,7 +85,7 @@ export default function WeekScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <ViewHead title={planningTermLabel} meta={`${shown.credits} credits`} tag="Sample sections" />
+      <ViewHead title={planningTermLabel} meta={creditsText(shown.credits)} tag="Sample sections" />
 
       <View style={styles.actions}>
         <Button
