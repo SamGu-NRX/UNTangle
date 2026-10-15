@@ -104,9 +104,9 @@ export type OptionsFeed = {
 export type BuilderSetup = {
   /**
    * Open it on this visit: the student has never skipped or finished it on
-   * this browser and has no saved preferences. Decided once per identity
-   * when its preferences load, so answering the first question (which saves
-   * preferences) doesn't close it.
+   * this browser and has no saved preferences. Read once per identity when
+   * its preferences load, so it describes the student's arrival, not the
+   * preferences the setup's own answers then save.
    */
   due: boolean;
   /** Skipping or finishing it: it never opens on its own again for this identity. */

@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
 import { act } from "react";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { GUEST_ID_KEY } from "@/components/schedule/preferences-store";
+import { setupSeenKey } from "@/components/schedule/setup-store";
 import { installDom, mountPlanner, removeDom, setSession } from "./planner/test-dom";
 
 let previousActEnvironment: boolean | undefined;
@@ -35,6 +37,9 @@ const label = (button: HTMLButtonElement) => (button.querySelector(".ui-btn__lab
 const named = (root: Element, text: string) => [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => label(button) === text);
 
 test("Undo control restores the student's stored picks in the rendered week", async () => {
+  // A returning guest: Set up Auto was already seen, so it doesn't cover the week (its gate has its own test).
+  window.localStorage.setItem(GUEST_ID_KEY, "guest-undo-0001");
+  window.localStorage.setItem(setupSeenKey({ kind: "guest", id: "guest-undo-0001" }), "2026-10-15T00:00:00.000Z");
   const { WeekPage } = await import("@/app/schedule/week-page");
   const { ShellContext } = await import("@/components/shell/shell-context");
   const planner = await mountPlanner(() => (

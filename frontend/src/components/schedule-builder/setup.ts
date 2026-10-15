@@ -101,5 +101,13 @@ export function skipStep(p: SchedulePreferences, before: SchedulePreferences, st
   return p;
 }
 
-/** Whether the setup changed anything the student would want an Undo for. */
-export const changedSince = (p: SchedulePreferences, before: SchedulePreferences) => JSON.stringify(p) !== JSON.stringify(before);
+/**
+ * Puts back every field the setup writes, as `before` had them, and leaves
+ * the rest as they are now: a change another tab or tool made while the
+ * setup was open survives its Undo.
+ */
+export const restoreSetup = (p: SchedulePreferences, before: SchedulePreferences): SchedulePreferences =>
+  SETUP_STEPS.reduce((q, step) => skipStep(q, before, step), p);
+
+/** Whether the setup's own fields differ from `before`: restoring them would change something. */
+export const setupChanged = (p: SchedulePreferences, before: SchedulePreferences) => JSON.stringify(restoreSetup(p, before)) !== JSON.stringify(p);

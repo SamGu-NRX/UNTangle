@@ -23,7 +23,7 @@ import { changedCount, newBusyId } from "./limits";
 import { addBusy, preferenceSummary } from "./preferences";
 import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
-import { changedSince } from "./setup";
+import { restoreSetup, setupChanged } from "./setup";
 import { SetupAuto, type SetupClose } from "./SetupAuto";
 import type { SharedWeek } from "./share";
 import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
@@ -162,9 +162,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       else if (!strip.better) setStrip({ ...strip, better: true });
     }
   }
-  // Set up Auto opens by itself at most once per visit, decided when preferences first load: a sign-in
-  // later in the visit doesn't pop it up. A share link, a search from another lens or an open panel is
-  // what the student came for, so it waits for a later visit.
+  // Set up Auto opens by itself at most once per mount of Week, decided when preferences first load.
+  // A sign-in remounts Week under the new identity, so an account with nothing saved on this browser
+  // gets its own first run. A share link, a search from another lens or an open panel is what the
+  // student came for, so it waits for a later visit.
   if (!setupDecided && host.preferencesReady) {
     setSetupDecided(true);
     if (host.setup?.due && !shared && !searchRequest && !strip && !panel) setSetup({ open: true, mode: "first" });
@@ -248,12 +249,12 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     setSetup((s) => ({ ...s, open: false }));
     host.setup?.markSeen();
     if (building) auto(fromKeyboard);
-    // Answers were saved as they were given, so closing keeps them; Undo puts back what was there before.
+    // Answers were saved as they were given, so closing keeps them; Undo puts back the setup's fields.
     const after = host.preferences;
-    if (changedSince(after, before)) {
+    if (setupChanged(after, before)) {
       const undoSetup = () => {
         setupUndo.current = null;
-        host.setPreferences(() => before);
+        host.setPreferences((current) => restoreSetup(current, before));
         toast("Your preferences are back to how they were");
       };
       const id = toast({ message: "Saved your answers to Preferences", action: { label: "Undo", onClick: undoSetup } });
@@ -264,10 +265,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
     // Nothing moves from the keyboard (MOTION.md §1), and nothing moves beside Auto's reveal (§8).
     if (finished && !fromKeyboard && !building) setRing((n) => n + 1);
   };
-  // A preference changed after the setup closed: its Undo would wipe that change too, so it goes.
+  // One of the setup's fields changed after it closed: its Undo would wipe that change too, so it goes.
   useEffect(() => {
     const pending = setupUndo.current;
-    if (!pending || !changedSince(host.preferences, pending.after)) return;
+    if (!pending || !setupChanged(host.preferences, pending.after)) return;
     setupUndo.current = null;
     dismissToast(pending.toast);
   }, [host.preferences]);

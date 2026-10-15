@@ -84,10 +84,17 @@ function browserStorage(): Storage | null {
 }
 
 /**
+ * Identities marked seen during this page's life, so a browser that reads
+ * storage but refuses the write still doesn't reopen the setup when Week
+ * remounts.
+ */
+const seenThisPage = new Set<string>();
+
+/**
  * Set up Auto's gate for the identity whose preferences are loaded. `due`
- * is read from storage once per identity, while rendering the first time
- * that identity appears: the setup's own answers save preferences, and
- * re-reading then would close it after the first question.
+ * is read from storage once per identity, when it first appears, so it
+ * describes the student's arrival: the setup's own first answer saves
+ * preferences, after which a fresh read would say "not due".
  */
 function useSetup(ready: boolean, stamp: string): BuilderSetup {
   const identity = loadedIdentity(ready, stamp, ready ? browserStorage() : null);
@@ -95,11 +102,12 @@ function useSetup(ready: boolean, stamp: string): BuilderSetup {
   const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
   if (gate.tag !== tag) {
     const storage = identity ? browserStorage() : null;
-    setGate({ tag, identity, due: Boolean(identity && storage && setupDue(storage, identity)) });
+    setGate({ tag, identity, due: Boolean(identity && tag && storage && !seenThisPage.has(tag) && setupDue(storage, identity)) });
   }
   return {
     due: gate.due,
     markSeen: () => {
+      if (gate.tag) seenThisPage.add(gate.tag);
       const storage = browserStorage();
       if (gate.identity && storage) markSetupSeen(storage, gate.identity, new Date());
       setGate((current) => ({ ...current, due: false }));
