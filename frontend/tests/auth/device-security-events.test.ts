@@ -320,7 +320,41 @@ test("a failed change-password start blocks the password write", async () => {
   expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
 });
 
-test("a failed change-password completion leaves device access blocked, like a reset", async () => {
+function credentialHash(t: ReturnType<typeof setup>) {
+  return (t.store.account as { providerId: string; password: string | null }[]).find((row) => row.providerId === "credential")?.password;
+}
+
+test.each([false, true])("change-password blocks devices from before its write until after it (revokeOtherSessions: %p)", async (revokeOtherSessions) => {
+  const service = createDeviceGrants(new MemoryDeviceStore());
+  const begun = deferred(), release = deferred();
+  let hashAtFinish: string | null | undefined;
+  const t: ReturnType<typeof setup> = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
+    beginSecurityChange: async (userId) => { await service.beginSecurityChange(userId); begun.resolve(); await release.promise; },
+    finishSecurityChange: async (userId) => { hashAtFinish = credentialHash(t); await service.finishSecurityChange(userId); },
+  });
+  const cookie = await otpSignIn(t);
+  expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
+  const userId = (t.store.user as { id: string }[])[0].id;
+  const previousTokens = await devices(service, userId);
+  const oldHash = credentialHash(t);
+  const change = t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456", revokeOtherSessions }, cookie);
+  try {
+    await begun.promise;
+    expect(credentialHash(t)).toBe(oldHash);
+    for (const tokens of previousTokens) {
+      await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+      await expect(service.refresh(tokens.refreshToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
+    }
+    const pending = await service.start({ clientKind: "mobile", codeChallenge: pkceChallenge(verifier), codeChallengeMethod: "S256" });
+    await expect(service.approve(pending.userCode, userId, "approve", 0)).rejects.toMatchObject({ code: "invalid_token" });
+  } finally { release.resolve(); }
+  expect((await change).status).toBe(200);
+  expect(hashAtFinish).not.toBe(oldHash);
+  expect(hashAtFinish).toBe(credentialHash(t));
+  expect(typeof await service.readSecurityGeneration(userId)).toBe("number");
+});
+
+test.each([false, true])("a failed change-password completion leaves device access blocked, like a reset (revokeOtherSessions: %p)", async (revokeOtherSessions) => {
   const service = createDeviceGrants(new MemoryDeviceStore());
   const t = setup(undefined, service.bumpSecurityGeneration, service.readSecurityGeneration, {
     beginSecurityChange: service.beginSecurityChange,
@@ -330,7 +364,10 @@ test("a failed change-password completion leaves device access blocked, like a r
   expect((await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie))).status).toBe(200);
   const userId = (t.store.user as { id: string }[])[0].id;
   const previousTokens = await devices(service, userId);
-  expect((await t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456" }, cookie)).status).toBe(500);
+  const oldHash = credentialHash(t);
+  expect((await t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456", revokeOtherSessions }, cookie)).status).toBe(500);
+  // The password did change; only the completion failed, so the barrier stays closed.
+  expect(credentialHash(t)).not.toBe(oldHash);
   await expect(service.readSecurityGeneration(userId)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
   for (const tokens of previousTokens) {
     await expect(service.authenticate(tokens.accessToken)).rejects.toMatchObject({ code: "invalid_token", status: 401 });
@@ -348,5 +385,9 @@ test("a password write outside reset and change-password fails loudly instead of
   const userId = (t.store.user as { id: string }[])[0].id;
   const ctx = await t.auth.$context;
   await expect(ctx.internalAdapter.updatePassword(userId, await ctx.password.hash("server-side-789"))).rejects.toThrow("no device-revocation handling");
+  const account = (t.store.account as { id: string; providerId: string }[]).find((row) => row.providerId === "credential")!;
+  for (const cleared of [null, ""]) {
+    await expect(ctx.internalAdapter.updateAccount(account.id, { password: cleared } as never)).rejects.toThrow("no device-revocation handling");
+  }
   expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
 });

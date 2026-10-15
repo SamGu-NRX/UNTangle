@@ -173,7 +173,8 @@ export function createAuth({ database, baseURL, secret, claims, sendEmail, bumpS
           // finishPasswordChange closes it. A failure before then leaves it
           // closed for recovery, as with a reset.
           before: async (account, ctx) => {
-            if (!account.password || ctx?.path === "/reset-password") return;
+            // Any value counts as a write, including null or "", which clears the password.
+            if (account.password === undefined || ctx?.path === "/reset-password") return;
             if (ctx?.path !== "/change-password")
               throw new Error(`A password write on ${ctx?.path ?? "a server-side call"} has no device-revocation handling.`);
             const userId = ctx.context.session?.user.id;
