@@ -45,9 +45,7 @@ arguments, so tests run the whole flow with a fake client and a controllable
 fingerprint it was built against. The two environment variables must be set
 together, in two places: a local `mobile/.env.local` (gitignored) for
 development, and the EAS cloud environment so build workers bundle the real
-values (`eas env:set --environment production --name
-EXPO_PUBLIC_EAS_PROJECT_ID --value <uuid>`, then the same for the update
-URL — `eas env:create` is deprecated in current eas-cli, use `env:set`):
+values — the exact commands are steps 4–5 of the setup section below:
 
 ```
 EXPO_PUBLIC_EAS_PROJECT_ID=<uuid from eas init>
@@ -58,13 +56,54 @@ EXPO_PUBLIC_EAS_UPDATE_URL=https://u.expo.dev/<same uuid>
 `preview → preview`, `production → production`. Users only ever receive
 updates from the production channel.
 
-## First production build (one time)
+## Setup only Sam can do (one time)
 
-1. In `mobile/`, run `eas init` and put the printed project id and update URL
-   into the two environment variables above.
-2. `eas build --profile production --platform ios` and submit to TestFlight /
-   the App Store. Until the first production build exists there is nothing
-   that can receive updates.
+Each step below needs a password, an Apple or Expo account session, or a
+decision about UNTangle's identity — none of it is scriptable for a teammate.
+Run in this order from `mobile/` unless noted.
+
+1. **Enroll the Apple Developer account** —
+   https://developer.apple.com/programs/ (sign in, complete enrollment, and
+   accept the latest agreement under https://developer.apple.com/account). No
+   CLI command; EAS cannot build or submit for iOS until the account is
+   active.
+2. **Create the App Store Connect app** — in App Store Connect
+   (https://appstoreconnect.apple.com), My Apps → "+" → New App, with the
+   bundle id step 7's build will use. Before building, set that real
+   identifier as `ios.bundleIdentifier` in `mobile/app.config.ts` — the
+   checked-in value is the placeholder `app.untangle.mobile.placeholder`.
+3. `npx eas-cli login` — sign in to the Expo account that will own the
+   UNTangle project.
+4. `eas init` — creates the EAS project and prints the project id and update
+   URL. Put both into the two variables below in `mobile/.env.local`
+   (gitignored):
+
+   ```
+   EXPO_PUBLIC_EAS_PROJECT_ID=<uuid from eas init>
+   EXPO_PUBLIC_EAS_UPDATE_URL=https://u.expo.dev/<same uuid>
+   ```
+
+5. **`eas env:create` for both variables in production and in preview**, so
+   EAS build workers bundle the real values:
+
+   ```
+   eas env:create --non-interactive --environment production --name EXPO_PUBLIC_EAS_PROJECT_ID --value <uuid>
+   eas env:create --non-interactive --environment production --name EXPO_PUBLIC_EAS_UPDATE_URL --value https://u.expo.dev/<uuid>
+   eas env:create --non-interactive --environment preview --name EXPO_PUBLIC_EAS_PROJECT_ID --value <uuid>
+   eas env:create --non-interactive --environment preview --name EXPO_PUBLIC_EAS_UPDATE_URL --value https://u.expo.dev/<uuid>
+   ```
+
+   (current eas-cli prints that `env:create` is deprecated in favor of
+   `env:set`, which also updates existing variables; both create the
+   variables.)
+6. `eas credentials -p ios` — generate and assign the iOS distribution
+   certificate and provisioning profile; accept the defaults to let EAS
+   manage them.
+7. `eas build --profile production --platform ios` — the first production
+   build, on the production channel. Until it exists nothing can receive an
+   update, so the publish guard refuses every publish.
+8. `eas submit` — once the build finishes, send it to App Store Connect /
+   TestFlight (eas-cli prompts for the build and the app from step 2).
 
 ## Publishing an update
 
@@ -126,10 +165,11 @@ file; they were never captured from a live EAS account.
 
 ## Validation on this branch
 
-- `bun --no-env-file run turbo run typecheck lint test` — 26/26 tasks pass,
-  including the 10 mobile suites (108 tests), among them the startup-wiring
-  suite (`start.test.ts`), which asserts that no transition ever calls
-  `reloadAsync`.
+- `bun --no-env-file run turbo run typecheck lint test` — 27/27 tasks pass
+  (mobile now ships a `typecheck` script, so turbo runs the same tsc gate CI
+  does), including the 10 mobile suites (108 tests), among them the
+  startup-wiring suite (`start.test.ts`), which asserts that no transition
+  ever calls `reloadAsync`.
 - `bunx expo config --type public` renders the placeholder pair with no
   environment and the real pair with both variables set; partial or malformed
   pairs fail config resolution with a message naming both variables.
@@ -148,8 +188,9 @@ file; they were never captured from a live EAS account.
 
 ## Deliberately not done yet
 
-- No EAS project exists for UNTangle, so `eas init`, the first production
-  build, and a live-channel update are still pending — the guard's live path
-  is validated offline only.
+- Every step in "Setup only Sam can do" is still pending — no Apple Developer
+  enrollment, App Store Connect app, or EAS project exists for UNTangle, so a
+  live-channel update has never run and the guard's live path is validated
+  offline only.
 - Android is configured (profiles, channels, export guard) but untested on a
   device; iOS is the shipping target.
