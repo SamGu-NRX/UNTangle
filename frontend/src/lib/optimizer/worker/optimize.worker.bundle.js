@@ -360,6 +360,13 @@ function validateRequest(request, checkDeadline = () => {}) {
     if (!DAY_INDEX.has(block.day) || !isInteger(block.start, 0, 24 * 60) || !isInteger(block.end, 0, 24 * 60) || block.end <= block.start) {
       throw new OptimizerInputError(`blocked time ${block.id} is invalid`);
     }
+    if (block.dates !== undefined && block.dates !== null) {
+      if (!Array.isArray(block.dates)) {
+        throw new OptimizerInputError(`blocked time ${block.id} has invalid dates: expected an array of ranges`);
+      }
+      for (const range of block.dates)
+        validateDates(range, `blocked time ${block.id}`);
+    }
   }
   const fixedCredits = request.fixedCredits ?? 0;
   if (!(Number.isFinite(fixedCredits) && fixedCredits >= 0)) {
@@ -378,7 +385,7 @@ function validateRequest(request, checkDeadline = () => {}) {
 function overlaps(a, b) {
   return a.day === b.day && a.start < b.end && b.start < a.end && (a.weeks & b.weeks) !== 0;
 }
-function passesTimeConstraints(section, constraints) {
+function passesTimeConstraints(section, constraints, term = null) {
   const off = new Set(constraints.daysOff);
   for (const meeting of section.meetings) {
     if (constraints.earliestStart !== null && meeting.start < constraints.earliestStart)
@@ -388,11 +395,42 @@ function passesTimeConstraints(section, constraints) {
     if (off.has(meeting.day))
       return false;
     for (const block of constraints.blocked) {
-      if (block.day === meeting.day && meeting.start < block.end && block.start < meeting.end)
+      if (blockConflicts(block, meeting, term))
         return false;
     }
   }
   return true;
+}
+function blockConflicts(block, meeting, term) {
+  if (block.day !== meeting.day)
+    return false;
+  if (meeting.start >= block.end || block.start >= meeting.end)
+    return false;
+  const ranges = block.dates;
+  if (!ranges || ranges.length === 0)
+    return true;
+  const own = meeting.dates ?? term;
+  if (!own)
+    return true;
+  const ownStart = dayNumber(own.start);
+  const ownEnd = dayNumber(own.end);
+  if (ownStart === null || ownEnd === null)
+    return true;
+  const weekday = OPT_DAYS.indexOf(block.day);
+  for (const range of ranges) {
+    const start = dayNumber(range.start);
+    const end = dayNumber(range.end);
+    if (start === null || end === null)
+      continue;
+    const first = Math.max(start, ownStart);
+    const last = Math.min(end, ownEnd);
+    if (first > last)
+      continue;
+    const firstMatch = first + (weekday - (first + 3) % 7 + 7) % 7;
+    if (firstMatch <= last)
+      return true;
+  }
+  return false;
 }
 var datesKey = (m) => m.dates ? `${m.dates.start}/${m.dates.end}` : "";
 function timeSignatureOf(meetings) {
@@ -409,7 +447,7 @@ function allowedSections(course, request) {
 function minDifferentCourses(request) {
   let variable = 0;
   for (const course of request.courses) {
-    const signatures = new Set(allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints)).map((section) => timeSignatureOf(section.meetings)));
+    const signatures = new Set(allowedSections(course, request).filter((section) => passesTimeConstraints(section, request.constraints, request.term ?? null)).map((section) => timeSignatureOf(section.meetings)));
     if (signatures.size >= 2)
       variable += 1;
   }
@@ -446,7 +484,7 @@ function prepare(request, deadline = Number.POSITIVE_INFINITY, now = () => perfo
     }
     return index;
   };
-  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)));
+  const allowedByCourse = sortedCourses.map((course) => allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints, request.term ?? null)));
   const segments = weekSegments(allowedByCourse.flatMap((list) => list.flatMap((section) => section.meetings)), request.term, checkDeadline);
   let globalMinDuration = Number.POSITIVE_INFINITY;
   for (const list of allowedByCourse) {
@@ -1714,6 +1752,10 @@ function explainSentence(request, members) {
     const onlyB = onlySection(b);
     if (conditions.length === 0) {
       if (onlyA && onlyB) {
+        if (locked.has(a) || locked.has(b)) {
+          const named = (code, only) => locked.has(code) ? describe(code) : `${code} (${pattern(only)})`;
+          return `${named(a, onlyA)} and ${named(b, onlyB)} overlap.`.replace(/^./, (s) => s.toUpperCase());
+        }
         const datesA = dated ? datesOf(onlyA) : null;
         const datesB = dated ? datesOf(onlyB) : null;
         const both = datesA && datesB ? `: ${describePattern(onlyA)} (${datesA}) and ${describePattern(onlyB)} (${datesB})` : ` (${describePattern(onlyA)} and ${describePattern(onlyB)})`;

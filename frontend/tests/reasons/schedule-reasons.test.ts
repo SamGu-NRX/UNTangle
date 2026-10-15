@@ -7,6 +7,9 @@ import type { CourseHistory, GradeCounts } from "@/lib/grades-history/types";
 import type { Section } from "@/lib/sections/model";
 import { scheduleReasons } from "@/lib/reasons";
 import type { Reason, ScheduleReasonsInput, StatedPreference } from "@/lib/reasons/types";
+
+/** How Week names options; the engine takes names from its caller. */
+const optionName = (index: number) => `option ${index + 1}`;
 import { FIRST_HALF, SECOND_HALF } from "../optimizer/generator";
 
 type Course = OptimizeRequest["courses"][number];
@@ -90,9 +93,9 @@ const DIRECTION: Record<StatedPreference, [string, string]> = {
   rating: ["higher", "lower"],
 };
 
-/** Numbers in a sentence, ignoring course codes like "MATH 1650" (identifiers, not quantities). */
+/** Numbers in a sentence, ignoring course codes like "MATH 1650" and option names like "option 2" (identifiers, not quantities). */
 function numericTokens(text: string): number[] {
-  return [...text.replace(/[A-Z]{2,4}\s\d+[A-Z]?/g, " ").matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+  return [...text.replace(/[A-Z]{2,4}\s\d+[A-Z]?/g, " ").replace(/option \d+/gi, " ").matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
 }
 
 function check(req: OptimizeRequest, alternatives: RankedSchedule[], index: number, reason: Reason): void {
@@ -106,8 +109,7 @@ function check(req: OptimizeRequest, alternatives: RankedSchedule[], index: numb
   }
   if (reason.kind !== "comparison" && reason.kind !== "trade-off") return;
   // Direction: the sentence must point the way the optimizer's own term does.
-  const letter = /Option ([A-Z])/.exec(sentence)![1];
-  const other = letter.charCodeAt(0) - 65;
+  const other = Number(/option (\d+)/.exec(sentence)![1]) - 1;
   const preference = reason.preference!;
   const mine = COST_TERM[preference](termsOf(req, alternatives[index]));
   const theirs = COST_TERM[preference](termsOf(req, alternatives[other]));
@@ -119,10 +121,10 @@ function check(req: OptimizeRequest, alternatives: RankedSchedule[], index: numb
 }
 
 /** Reasons for every option, each checked. */
-function reasonsFor(req: OptimizeRequest, extra: Omit<ScheduleReasonsInput, "alternatives" | "request" | "index"> = {}): Reason[][] {
+function reasonsFor(req: OptimizeRequest, extra: Omit<ScheduleReasonsInput, "alternatives" | "request" | "index" | "optionName"> = {}): Reason[][] {
   const alternatives = optimal(req);
   return alternatives.map((_, index) => {
-    const reasons = scheduleReasons({ alternatives, request: req, index, ...extra });
+    const reasons = scheduleReasons({ alternatives, request: req, index, optionName, ...extra });
     for (const reason of reasons) check(req, alternatives, index, reason);
     return reasons;
   });
@@ -168,14 +170,28 @@ describe("scheduleReasons", () => {
     const [first] = reasonsFor(walkingRequest());
     const walking = about(first, "walking");
     expect(walking.length).toBe(1);
-    expect(walking[0].sentence).toBe("Travel between back-to-back classes takes 16 minutes less than in Option B.");
+    expect(walking[0].sentence).toBe("Travel between back-to-back classes takes 16 minutes less than in option 2.");
     expect(walking[0].kind).toBe("comparison");
     expect(about(first, "compact").map((reason) => reason.kind)).toEqual(["preference-met"]);
   });
 
+  test("options are named by the caller, in the sentence and its evidence", () => {
+    const req = walkingRequest();
+    const alternatives = optimal(req);
+    const named = (index: number) => ["the first week", "the second week", "the third week"][index];
+    const [walking] = scheduleReasons({ alternatives, request: req, index: 0, optionName: named }).filter((reason) => reason.preference === "walking");
+    expect(walking.sentence).toBe("Travel between back-to-back classes takes 16 minutes less than in the second week.");
+    expect(walking.evidence.numbers.map((entry) => entry.label)).toEqual([
+      "The first week: known travel seconds",
+      "The second week: known travel seconds",
+      "difference as quoted",
+    ]);
+    expect(walking.sentence).not.toMatch(/Option [A-Z]/);
+  });
+
   test("a ranked-first schedule still names what it gives up", () => {
     const [first] = reasonsFor(rankedFirstRequest({ fewerDays: 3, compact: 1 }));
-    expect(sentences(first)).toEqual(["Your classes fall on 1 fewer weekday than in Option B.", "Time between classes is 120 minutes longer than in Option B."]);
+    expect(sentences(first)).toEqual(["Your classes fall on 1 fewer weekday than in option 2.", "Time between classes is 120 minutes longer than in option 2."]);
     expect(first.map((reason) => reason.kind)).toEqual(["comparison", "trade-off"]);
   });
 
@@ -204,8 +220,8 @@ describe("scheduleReasons", () => {
   });
 
   test("weekdays are not compared across different sessions", () => {
-    // Option B meets Monday in the first half and Wednesday in the second:
-    // two weekdays, but one day a week, like Option A's Monday all term.
+    // option 2 meets Monday in the first half and Wednesday in the second:
+    // two weekdays, but one day a week, like option 1's Monday all term.
     const req = request(
       [
         course("MATH 1650", [
@@ -222,7 +238,7 @@ describe("scheduleReasons", () => {
 
   test("at most three reasons by default, and maxReasons is honored or rejected", () => {
     const req = fourFactsRequest();
-    const base = { alternatives: optimal(req), request: req, index: 0 };
+    const base = { alternatives: optimal(req), request: req, index: 0, optionName };
     expect(scheduleReasons(base).length).toBe(3);
     expect(scheduleReasons({ ...base, maxReasons: 4 }).length).toBe(4);
     expect(scheduleReasons({ ...base, maxReasons: 0 })).toEqual([]);
@@ -237,7 +253,7 @@ describe("scheduleReasons", () => {
 
   test("an index outside the alternatives is a programming error", () => {
     const req = walkingRequest();
-    const base = { alternatives: optimal(req), request: req };
+    const base = { alternatives: optimal(req), request: req, optionName };
     expect(() => scheduleReasons({ ...base, index: -1 })).toThrow("reasons: index must point at one of the alternatives");
     expect(() => scheduleReasons({ ...base, index: base.alternatives.length })).toThrow("reasons: index must point at one of the alternatives");
   });
@@ -271,8 +287,8 @@ describe("scheduleReasons", () => {
     test("at least is bounded by the other option's known travel", () => {
       const [first, second] = reasonsFor(atLeastRequest([at("Tue", 600, 660, "LAB"), at("Wed", 600, 660, "GHOST")]));
       // 960 known seconds against 300: at least 11 minutes, whatever the unknown walk takes.
-      expect(sentences(about(first, "walking"))).toEqual(["Travel between back-to-back classes takes at least 11 minutes less than in Option B."]);
-      // Option B quotes only what is known, and says what is not.
+      expect(sentences(about(first, "walking"))).toEqual(["Travel between back-to-back classes takes at least 11 minutes less than in option 2."]);
+      // option 2 quotes only what is known, and says what is not.
       expect(about(second, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([
         ["Travel between back-to-back classes adds up to 16 minutes, not counting 1 walk with no known time.", "fact"],
       ]);
@@ -291,13 +307,13 @@ describe("scheduleReasons", () => {
     });
 
     test("this option's known travel above the other's exact travel is at least that much more", () => {
-      // Option A wins on weekdays (3 against Option B's 4, which adds
+      // option 1 wins on weekdays (3 against option 2's 4, which adds
       // Thursday). Its 960 known seconds plus an unknown walk, against Option
       // B's 300, is at least 11 minutes more.
       const req = atLeastRequest([at("Mon", 600, 660, "SCI"), at("Thu", 600, 660)], [at("Mon", 600, 660, "LAB"), at("Tue", 600, 660, "GHOST")], { fewerDays: 4, walking: 1 });
       const [first] = reasonsFor(req);
       expect(about(first, "walking").map((reason) => [reason.sentence, reason.kind])).toEqual([
-        ["Travel between back-to-back classes takes at least 11 minutes more than in Option B.", "trade-off"],
+        ["Travel between back-to-back classes takes at least 11 minutes more than in option 2.", "trade-off"],
       ]);
     });
 
@@ -319,7 +335,7 @@ describe("scheduleReasons", () => {
         evenings: 2,
       });
       const [first, second] = reasonsFor(req);
-      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["On average its classes end 480 minutes later than Option B's.", "comparison"]]);
+      expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([["On average its classes end 480 minutes later than option 2's.", "comparison"]]);
       expect(sentences(second)).toEqual(["Your latest class ends at 11 AM."]);
     });
 
@@ -334,8 +350,8 @@ describe("scheduleReasons", () => {
       );
       const [first] = reasonsFor(req);
       expect(first.map((reason) => [reason.sentence, reason.kind])).toEqual([
-        ["Your classes fall on 1 fewer weekday than in Option B.", "comparison"],
-        ["On average its classes end 240 minutes earlier than Option B's.", "trade-off"],
+        ["Your classes fall on 1 fewer weekday than in option 2.", "comparison"],
+        ["On average its classes end 240 minutes earlier than option 2's.", "trade-off"],
       ]);
     });
   });
@@ -354,7 +370,7 @@ describe("scheduleReasons", () => {
       { term: { start: "2027-01-11", end: "2027-05-07" } },
     );
     const [first] = reasonsFor(req);
-    expect(sentences(first)).toEqual(["On average its classes start 45 minutes earlier than Option B's."]);
+    expect(sentences(first)).toEqual(["On average its classes start 45 minutes earlier than option 2's."]);
   });
 
   test("no time-of-day comparison when 7 AM or 10 PM cuts a class's value to 0", () => {
@@ -384,7 +400,7 @@ describe("scheduleReasons", () => {
     test("the comparison is the average per course", () => {
       // 5 and 5 against 4 and 4: a sum of 2 points over 2 courses.
       const [first, second] = reasonsFor(ratingRequest(5));
-      expect(sentences(first)).toEqual(["Its instructors' ratings average 1 point higher than Option B's."]);
+      expect(sentences(first)).toEqual(["Its instructors' ratings average 1 point higher than option 2's."]);
       expect(sentences(second)).toEqual(["Its instructors average a rating of 4 across 2 rated sections."]);
     });
 
@@ -411,7 +427,7 @@ describe("scheduleReasons", () => {
     const warn = (seat: Pick<Section, "status" | "components">, maxReasons?: number) => {
       const req = fourFactsRequest();
       const alternatives = optimal(req);
-      const reasons = scheduleReasons({ alternatives, request: req, index: 0, seats: { s0: seat }, maxReasons });
+      const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName, seats: { s0: seat }, maxReasons });
       for (const reason of reasons) check(req, alternatives, 0, reason);
       return reasons;
     };
@@ -442,7 +458,7 @@ describe("scheduleReasons", () => {
     const req = () => request([course("BIOL 2040", [section("b0", "BIOL 2040", [at("Mon", 540, 600)], 4, "001")])], {});
     const gradeReasons = (h: CourseHistory) => {
       const alternatives = optimal(req());
-      const reasons = scheduleReasons({ alternatives, request: req(), index: 0, instructorGradeHistory: { b0: h } });
+      const reasons = scheduleReasons({ alternatives, request: req(), index: 0, optionName, instructorGradeHistory: { b0: h } });
       for (const reason of reasons) check(req(), alternatives, 0, reason);
       return reasons;
     };
@@ -490,7 +506,7 @@ describe("instructor evidence tie-break", () => {
   test("an equal-cost tie won on grade history says so in plain words", () => {
     const req = tied();
     const alternatives = optimal(req);
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0 });
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
     const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
     expect(tie?.sentence).toBe("Students in this instructor's sections averaged a 3.9.");
     expect(tie?.evidence.numbers).toContainEqual({ label: "average grade points of sections with grade history", value: 3.9 });
@@ -503,7 +519,7 @@ describe("instructor evidence tie-break", () => {
     // then the winner quotes the mean over both of its known sections.
     const req = tied(3.5, 3.5);
     const alternatives = optimal(req);
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0 });
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
     const tie = reasons.find((reason) => reason.kind === "grade-history" && reason.preference === null);
     // (3.9 + 3.5) / 2 over the two known sections.
     expect(tie?.sentence).toBe("Students in these instructors' sections averaged a 3.7.");
@@ -529,7 +545,7 @@ describe("instructor evidence tie-break", () => {
         expect(picked?.instructorGpa === undefined || picked?.instructorGpa === null).toBe(true);
       }
     }
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0 });
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
     expect(reasons.some((reason) => reason.kind === "grade-history" && reason.preference === null)).toBe(false);
   });
 
@@ -543,7 +559,7 @@ describe("instructor evidence tie-break", () => {
     );
     const alternatives = optimal(req);
     expect(alternatives[0]!.cost).not.toBe(alternatives[1]!.cost);
-    const reasons = scheduleReasons({ alternatives, request: req, index: 0 });
+    const reasons = scheduleReasons({ alternatives, request: req, index: 0, optionName });
     expect(reasons.some((reason) => reason.kind === "grade-history" && reason.preference === null)).toBe(false);
   });
 });

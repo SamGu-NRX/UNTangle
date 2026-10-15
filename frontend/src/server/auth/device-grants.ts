@@ -57,14 +57,36 @@ export interface DeviceStore {
    * session) is no longer current. Returns the generation it opened at.
    */
   beginSecurityChange(userId: string, expectedGeneration?: number): Promise<SecurityChange>;
-  /** Whether `changeId` is still the account's open change (a timed-out one may have been replaced). */
-  holdsSecurityChange(userId: string, changeId: string): Promise<boolean>;
-  /** Closes the change with a bump and returns the new generation. Throws, changing nothing, if it isn't the open change. */
-  finishSecurityChange(userId: string, changeId: string): Promise<number>;
+  /**
+   * Writes the account's password, in one transaction that locks the
+   * account's security row and refuses (`stale_session`) unless `changeId` is
+   * still the account's change. A timed-out change nobody has replaced still
+   * writes; once another change replaces it, its write can't land. "update"
+   * changes the existing credential; "insert" creates the first and is
+   * refused (`credential_exists`) if any credential row exists. These writes
+   * bypass better-auth's adapter, so they assume no secondary storage and
+   * better-auth's default ids (auth-config.ts refuses generateId).
+   */
+  writeCredential(userId: string, changeId: string, passwordHash: string, mode: "update" | "insert"): Promise<void>;
+  /**
+   * Deletes the session if it was issued under an older generation and no
+   * change is open, in one statement. A change moves its caller's own session
+   * forward while the change is open, so that session is never caught between
+   * the two writes. Returns whether a session was deleted.
+   */
+  endStaleSession(token: string): Promise<boolean>;
+  /**
+   * Closes the change with a bump and returns the new generation. Throws,
+   * changing nothing, if it isn't the open change. With `keepSession`, that
+   * session (the caller's) moves to the new generation in the same step, so
+   * no reader sees it stale and it never moves for a change that isn't current.
+   */
+  finishSecurityChange(userId: string, changeId: string, keepSession?: string): Promise<number>;
 }
 export type SecurityChange = { changeId: string; generation: number };
 export const securityChangeInProgress = () => new DeviceGrantError("security_change_in_progress", 409);
 export const staleSession = () => new DeviceGrantError("stale_session", 401);
+export const credentialExists = () => new DeviceGrantError("credential_exists", 409);
 export const changeNotCurrent = () => new Error("This account security change is no longer the open one.");
 export type DeviceIdentity = { userId: string; grantId: string; clientKind: DeviceClientKind; scopes: readonly DeviceScope[]; scheduleId: string | null };
 
@@ -167,8 +189,9 @@ export function createDeviceGrants(store: DeviceStore, now = Date.now) {
       });
     },
     beginSecurityChange: (userId: string, expectedGeneration?: number) => store.beginSecurityChange(userId, expectedGeneration),
-    holdsSecurityChange: (userId: string, changeId: string) => store.holdsSecurityChange(userId, changeId),
-    finishSecurityChange: (userId: string, changeId: string) => store.finishSecurityChange(userId, changeId),
+    writeCredential: (userId: string, changeId: string, passwordHash: string, mode: "update" | "insert") => store.writeCredential(userId, changeId, passwordHash, mode),
+    endStaleSession: (token: string) => store.endStaleSession(token),
+    finishSecurityChange: (userId: string, changeId: string, keepSession?: string) => store.finishSecurityChange(userId, changeId, keepSession),
     bumpSecurityGeneration: (userId: string) => store.bumpGeneration(userId),
     /** The current generation, refused with `security_change_in_progress` while a change is open. */
     async readSecurityGeneration(userId: string) {

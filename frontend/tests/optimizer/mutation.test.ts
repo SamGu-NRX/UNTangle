@@ -117,8 +117,8 @@ const MUTATIONS: Array<{ name: string; file: string; from: string; to: string; c
   {
     name: "a blocked time that only touches a class blocks it",
     file: "prepare.ts",
-    from: "if (block.day === meeting.day && meeting.start < block.end && block.start < meeting.end) return false;",
-    to: "if (block.day === meeting.day && meeting.start <= block.end && block.start <= meeting.end) return false;",
+    from: "if (meeting.start >= block.end || block.start >= meeting.end) return false;",
+    to: "if (meeting.start > block.end || block.start > meeting.end) return false;",
     check: agreement,
   },
   {

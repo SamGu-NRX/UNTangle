@@ -27,7 +27,7 @@ export function TopBar({ lens, hrefs, onPick, onSearch }: LensNav & { onSearch: 
       </Link>
       <ViewTabs lens={lens} hrefs={hrefs} onPick={onPick} />
       {/* The same field on every lens, so nothing in the bar moves when the lens changes. */}
-      <SearchTrigger className="shell-search" onClick={onSearch} />
+      <SearchTrigger className="shell-search" placeholder="Search courses or class numbers" onClick={onSearch} />
       <span className="shell-spacer" />
       <SchedulePill />
       <AccountMenu />
