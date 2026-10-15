@@ -7,8 +7,7 @@
     "extension",
     "mobile",
     "packages/*",
-    "tools/repo-rules",
-    "tools/*"
+    "tools/repo-rules"
   ],
   "scripts": {
     "setup": "node scripts/dev.mjs --setup-only",
