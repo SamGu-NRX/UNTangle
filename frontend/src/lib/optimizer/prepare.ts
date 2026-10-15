@@ -16,6 +16,7 @@ import {
   OPT_DAYS,
   OptimizerInputError,
   type OptConstraints,
+  type OptBlockedTime,
   type OptCourse,
   type OptDateRange,
   type OptimizeRequest,
@@ -209,6 +210,12 @@ export function validateRequest(request: OptimizeRequest, checkDeadline: () => v
     if (!DAY_INDEX.has(block.day) || !isInteger(block.start, 0, 24 * 60) || !isInteger(block.end, 0, 24 * 60) || block.end <= block.start) {
       throw new OptimizerInputError(`blocked time ${block.id} is invalid`);
     }
+    if (block.dates !== undefined && block.dates !== null) {
+      if (!Array.isArray(block.dates)) {
+        throw new OptimizerInputError(`blocked time ${block.id} has invalid dates: expected an array of ranges`);
+      }
+      for (const range of block.dates) validateDates(range, `blocked time ${block.id}`);
+    }
   }
   const fixedCredits = request.fixedCredits ?? 0;
   if (!(Number.isFinite(fixedCredits) && fixedCredits >= 0)) {
@@ -233,18 +240,54 @@ function overlaps(a: PreparedMeeting, b: PreparedMeeting) {
  * The checks a section passes or fails on its own: start and end of day,
  * days off, blocked times. Shared with the diversity rule, which counts
  * time options after exactly these checks.
+ *
+ * `term` carries the request's real term dates, so a dated blocked time only
+ * excludes meetings that actually run during it. Absent dates on either side
+ * mean every week, and a meeting without its own dates inside a dated term is
+ * blocked by any dated range that covers its weekday.
  */
-export function passesTimeConstraints(section: OptSection, constraints: OptConstraints): boolean {
+export function passesTimeConstraints(
+  section: OptSection,
+  constraints: OptConstraints,
+  term: OptDateRange | null = null,
+): boolean {
   const off = new Set(constraints.daysOff);
   for (const meeting of section.meetings) {
     if (constraints.earliestStart !== null && meeting.start < constraints.earliestStart) return false;
     if (constraints.latestEnd !== null && meeting.end > constraints.latestEnd) return false;
     if (off.has(meeting.day)) return false;
     for (const block of constraints.blocked) {
-      if (block.day === meeting.day && meeting.start < block.end && block.start < meeting.end) return false;
+      if (blockConflicts(block, meeting, term)) return false;
     }
   }
   return true;
+}
+
+/** Same day and overlapping times; dated blocks only bite when the weeks overlap too. */
+function blockConflicts(block: OptBlockedTime, meeting: OptMeeting, term: OptDateRange | null): boolean {
+  if (block.day !== meeting.day) return false;
+  if (meeting.start >= block.end || block.start >= meeting.end) return false;
+  const ranges = block.dates;
+  if (!ranges || ranges.length === 0) return true;
+  const own = meeting.dates ?? term;
+  if (!own) return true; // the meeting runs every week, so any dated range hits it
+  const ownStart = dayNumber(own.start);
+  const ownEnd = dayNumber(own.end);
+  if (ownStart === null || ownEnd === null) return true;
+  const weekday = OPT_DAYS.indexOf(block.day);
+  for (const range of ranges) {
+    const start = dayNumber(range.start);
+    const end = dayNumber(range.end);
+    if (start === null || end === null) continue;
+    const first = Math.max(start, ownStart);
+    const last = Math.min(end, ownEnd);
+    if (first > last) continue;
+    // The first weekday matching the block's day on or after `first`. Epoch
+    // day 0 was a Thursday, index 3 in OPT_DAYS.
+    const firstMatch = first + ((weekday - ((first + 3) % 7) + 7) % 7);
+    if (firstMatch <= last) return true;
+  }
+  return false;
 }
 
 /** Absent and null dates both mean every week. */
@@ -282,12 +325,14 @@ export function allowedSections(course: OptCourse, request: Pick<OptimizeRequest
  * when fewer courses have a choice of times after locks, exclusions and the
  * time constraints. Never below 1.
  */
-export function minDifferentCourses(request: Pick<OptimizeRequest, "courses" | "locks" | "excluded" | "constraints">): number {
+export function minDifferentCourses(
+  request: Pick<OptimizeRequest, "courses" | "locks" | "excluded" | "constraints" | "term">,
+): number {
   let variable = 0;
   for (const course of request.courses) {
     const signatures = new Set(
       allowedSections(course, request)
-        .filter((section) => passesTimeConstraints(section, request.constraints))
+        .filter((section) => passesTimeConstraints(section, request.constraints, request.term ?? null))
         .map((section) => timeSignatureOf(section.meetings)),
     );
     if (signatures.size >= 2) variable += 1;
@@ -339,7 +384,7 @@ export function prepare(
   // Sections that pass the time constraints come first, so nothing below
   // (buildings, walking times, conflicts) is spent on sections that can't be used.
   const allowedByCourse = sortedCourses.map((course) =>
-    allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints)),
+    allowedSections(course, request).filter((section) => passesTimeConstraints(section, constraints, request.term ?? null)),
   );
   // Segments from the usable sections only: fewer ranges, fewer segments.
   // Any set of cuts that includes a schedule's own gives it the same pairs.
