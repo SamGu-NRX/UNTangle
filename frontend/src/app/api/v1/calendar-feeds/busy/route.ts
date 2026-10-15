@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { withRateLimit } from "@/lib/rate-limit/server";
-import { calendarDateOfInstant, parseRangeInstant, FLOATING_TIME_ZONE } from "@/lib/calendar-feeds/datetime";
+import { calendarDateOfInstant, parseRangeInstant, zoneWallTime, FLOATING_TIME_ZONE } from "@/lib/calendar-feeds/datetime";
 import { CalendarFetchError, CalendarParseError } from "@/lib/calendar-feeds/errors";
 import { fetchCalendarIcs } from "@/lib/calendar-feeds/fetch";
 import { parseCalendarFeed } from "@/lib/calendar-feeds/parse";
-import { busyFromFeed } from "@/lib/calendar-feeds/busy";
+import { busyFromFeed, type BusyOccurrence } from "@/lib/calendar-feeds/busy";
 import { serializeBusy } from "@/lib/calendar-feeds/busy-serialize";
 import { TOO_MANY_EVENTS_MESSAGE } from "@/lib/calendar-feeds/preview";
 import { validateCalendarUrl } from "@/lib/calendar-feeds/ssrf";
@@ -15,7 +15,7 @@ import type { ParseRange } from "@/lib/calendar-feeds/types";
 // node:dns needs the Node runtime; the Edge runtime has no DNS resolver.
 export const runtime = "nodejs";
 
-/** The default busy window: now through now plus 60 days. */
+/** The default busy window without a term: now through now plus 60 days. */
 const DEFAULT_RANGE_DAYS = 60;
 
 type BusyBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown; termStart?: unknown; termEnd?: unknown };
@@ -27,9 +27,11 @@ type BusyBody = { url: unknown; rangeStart?: unknown; rangeEnd?: unknown; termSt
  * SSRF-hardened fetcher.
  *
  * Request: `{ url, rangeStart?, rangeEnd?, termStart?, termEnd? }`. The
- * range is half-open and defaults to now through now plus 60 days; termStart
- * and termEnd (inclusive ISO dates) additionally scope the pieces to the
- * planning term. Each instant is an ISO 8601 date-time such as
+ * range is half-open. termStart and termEnd (inclusive ISO dates) scope the
+ * pieces to the planning term; with a term and no range, the range is the
+ * whole term in America/Chicago, and a given range must cover the term.
+ * Without either, the range is now through now plus 60 days. Each instant
+ * is an ISO 8601 date-time such as
  * `2026-10-14T09:00:00Z` or `2026-10-14T09:00:00-05:00`; a value without an
  * offset is a floating time and reads as America/Chicago. Floating times
  * inside the feed (no TZID, no Z) also read as America/Chicago, or the
@@ -67,12 +69,12 @@ async function busyHandler(request: Request) {
   if (body === null || typeof body.url !== "string" || body.url === "") {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const range = resolveRange(body.rangeStart, body.rangeEnd);
-  if (range === null) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-  }
   const term = resolveTerm(body.termStart, body.termEnd);
   if (term === null) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const range = resolveRange(body.rangeStart, body.rangeEnd, term);
+  if (range === null) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   if (!validateCalendarUrl(body.url).ok) {
@@ -97,13 +99,35 @@ async function busyHandler(request: Request) {
   }
   const json = serializeBusy({
     range,
-    occurrences: busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }),
+    occurrences: clipToRange(busyFromFeed(result, term ?? { start: zonedDateOf(range.start), end: zonedDateOf(range.end) }), range),
     skipped: result.skipped,
   });
   if (json === null) {
     return NextResponse.json({ error: TOO_MANY_EVENTS_MESSAGE }, { status: 422 });
   }
   return new NextResponse(json, { status: 200, headers: { "content-type": "application/json" } });
+}
+
+/**
+ * Each piece cut to the half-open range, dropping pieces left empty. The
+ * pieces cover whole local dates of the term, so an event straddling either
+ * end of the range would otherwise come back uncut. Pieces are local
+ * (America/Chicago) dates and minutes, so the range ends are compared as
+ * local dates and minutes too.
+ */
+function clipToRange(pieces: BusyOccurrence[], range: ParseRange): BusyOccurrence[] {
+  const local = (instant: string) => {
+    const wall = zoneWallTime(Date.parse(instant), FLOATING_TIME_ZONE);
+    return { date: zonedDateOf(instant), minutes: wall.hour * 60 + wall.minute };
+  };
+  const from = local(range.start);
+  const to = local(range.end);
+  return pieces.flatMap((piece) => {
+    if (piece.date < from.date || piece.date > to.date) return [];
+    const startMinutes = piece.date === from.date ? Math.max(piece.startMinutes, from.minutes) : piece.startMinutes;
+    const endMinutes = piece.date === to.date ? Math.min(piece.endMinutes, to.minutes) : piece.endMinutes;
+    return startMinutes < endMinutes ? [{ ...piece, startMinutes, endMinutes }] : [];
+  });
 }
 
 /**
@@ -120,9 +144,17 @@ function zonedDateOf(instant: string): string {
   return `${String(date.year).padStart(4, "0")}-${month}-${day}`;
 }
 
-/** The requested range as UTC instants, or now through now plus 60 days; null when malformed. */
-function resolveRange(rangeStart: unknown, rangeEnd: unknown): ParseRange | null {
+/**
+ * The requested range as UTC instants; null when malformed, or when a term is
+ * given and the range does not cover it, since the parse drops every
+ * occurrence outside the range. Without a range: the term's own window, else
+ * now through now plus 60 days.
+ */
+function resolveRange(rangeStart: unknown, rangeEnd: unknown, term: { start: string; end: string } | undefined): ParseRange | null {
+  const window = term ? termWindow(term) : undefined;
+  if (window === null) return null;
   if (rangeStart === undefined && rangeEnd === undefined) {
+    if (window) return { start: new Date(window.startMs).toISOString(), end: new Date(window.endMs).toISOString() };
     const startMs = Date.now();
     return {
       start: new Date(startMs).toISOString(),
@@ -133,7 +165,21 @@ function resolveRange(rangeStart: unknown, rangeEnd: unknown): ParseRange | null
   const startMs = parseRangeInstant(rangeStart);
   const endMs = parseRangeInstant(rangeEnd);
   if (startMs === null || endMs === null || endMs <= startMs) return null;
+  if (window && (startMs > window.startMs || endMs < window.endMs)) return null;
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
+}
+
+/**
+ * The term as a half-open range: midnight at its start to midnight after its
+ * end, in America/Chicago. Null when that falls outside what the range parser
+ * reads, such as the day after 9999-12-31.
+ */
+function termWindow(term: { start: string; end: string }): { startMs: number; endMs: number } | null {
+  const dayAfterEnd = new Date(Date.parse(`${term.end}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  // parseRangeInstant reads a time without an offset as America/Chicago.
+  const startMs = parseRangeInstant(`${term.start}T00:00:00`);
+  const endMs = parseRangeInstant(`${dayAfterEnd}T00:00:00`);
+  return startMs === null || endMs === null ? null : { startMs, endMs };
 }
 
 /** The requested term as inclusive ISO dates; undefined when absent, null when malformed or inverted. */

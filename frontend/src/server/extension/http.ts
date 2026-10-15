@@ -161,10 +161,13 @@ export function createExtensionHttp({ grants, store, sections, origin, extension
         }
         const identity = await authenticate(await requireBearer(request));
         // The bound schedule is the only one this grant reads or writes.
-        const [termSections, schedule, preferences] = await Promise.all([
+        // Busy blocks come from the preferences of Main's own institution.
+        const [termSections, { schedule, preferences }] = await Promise.all([
           sections.termSections(params.term),
-          loadSchedule(identity),
-          store.preferences(identity.userId),
+          loadSchedule(identity).then(async (schedule) => ({
+            schedule,
+            preferences: schedule ? await store.preferences(identity.userId, schedule.body.institutionId) : null,
+          })),
         ]);
         const preview = buildPreview({
           scheduleId: identity.scheduleId,
