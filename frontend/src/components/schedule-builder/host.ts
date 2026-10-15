@@ -64,8 +64,11 @@ export type BuilderSearch = {
 
 /** Changes to the week. Each is one undoable step. */
 export type BuilderEdits = {
-  /** Puts `sectionId` on the week, adding the course when it isn't there. */
-  place: (courseCode: string, sectionId: string) => void;
+  /**
+   * Puts `sectionId` on the week, adding the course when it isn't there.
+   * Returns why it refused, changing nothing; null when it placed the section.
+   */
+  place: (courseCode: string, sectionId: string) => string | null;
   remove: (courseCode: string) => void;
   keep: (courseCode: string, kept: boolean) => void;
   /**

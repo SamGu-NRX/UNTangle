@@ -239,8 +239,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
 
   const place = (section: Section, overlaps: string[], fromKeyboard: boolean) => {
     const what = section.courseCode in current ? `Moved ${section.courseCode} to section ${sectionLabel(section)}` : `Added ${section.courseCode} section ${sectionLabel(section)}`;
+    const refused = host.edits.place(section.courseCode, section.id);
+    // Nothing changed, so there is nothing to undo: an Undo here would take back an earlier edit.
+    if (refused) return void toast({ message: refused, tone: "error" });
     keyboard.current = fromKeyboard;
-    host.edits.place(section.courseCode, section.id);
     setPreview(null);
     toast({ message: overlaps.length > 0 ? `${what}. It overlaps ${andList(overlaps)}.` : what, action: undoAction });
   };

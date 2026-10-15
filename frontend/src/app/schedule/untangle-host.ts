@@ -184,7 +184,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     canUndo: historySize > 0,
     place: (code, sectionId) => {
       const refused = refusal(code);
-      if (refused) return void toast({ message: refused, tone: "error" });
+      if (refused) return refused;
       change([code], (plan) => ({
         ...plan,
         courseStatuses: { ...plan.courseStatuses, [code]: "inProgress" },
@@ -192,6 +192,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
         // A kept section the student moves by hand stays kept, on its new section.
         lockedSections: plan.lockedSections?.[code] ? { ...plan.lockedSections, [code]: sectionId } : plan.lockedSections,
       }));
+      return null;
     },
     remove: (code) =>
       change([code], (plan) => ({

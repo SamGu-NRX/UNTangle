@@ -89,6 +89,76 @@ test("Undo control restores the student's stored picks in the rendered week", as
   }
 });
 
+test("a refused add shows why, offers no Undo, and leaves the earlier edit alone", async () => {
+  const { WeekPage } = await import("@/app/schedule/week-page");
+  const { ShellContext } = await import("@/components/shell/shell-context");
+  const { Toaster } = await import("@/components/ui/Toast");
+  const { mount } = await import("./ui/dom");
+  const toaster = await mount(<Toaster />);
+  const planner = await mountPlanner(() => (
+    <AppRouterContext.Provider value={router}>
+      <ShellContext.Provider value={shell}>
+        <WeekPage hostId="untangle" query={null} week={null} />
+      </ShellContext.Provider>
+    </AppRouterContext.Provider>
+  ));
+  /** Types into Find courses, opening it first if needed, and expands the matching course. */
+  const search = async (query: string) => {
+    if (!document.querySelector("aside input")) {
+      await act(async () => {
+        [...planner.container.querySelectorAll<HTMLButtonElement>("button")].find((b) => label(b).startsWith("Courses"))!.click();
+      });
+    }
+    const panel = document.querySelector("aside")!;
+    const input = panel.querySelector<HTMLInputElement>("input")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!.call(input, query);
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      [...panel.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.startsWith(query))!.click();
+    });
+    return panel;
+  };
+  try {
+    await planner.get().afterHydration();
+    await planner.run((p) => {
+      p.setCourseStatus("ANTH 1010", "inProgress");
+      p.setSection("ANTH 1010", "anth-1010-003");
+      p.setCourseStatus("MATH 1710", "completed");
+    });
+    // The earlier edit: ANTH 1010 moves to section 001 through Week, so Undo has something to take back.
+    let panel = await search("ANTH 1010");
+    await act(async () => {
+      [...panel.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.getAttribute("aria-label")?.startsWith("Add section 001"))!.click();
+    });
+    await waitFor(() => planner.get().sectionPicks["ANTH 1010"] === "anth-1010-001", "ANTH 1010 moved");
+
+    // MATH 1710 is done, so the host refuses it.
+    panel = await search("MATH 1710");
+    await act(async () => {
+      [...panel.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.getAttribute("aria-label")?.startsWith("Add section"))!.click();
+    });
+    await act(async () => {
+      await Bun.sleep(200);
+    });
+    const toastShown = document.querySelector("[data-ui-live]")?.textContent;
+    // A student presses whatever the toast offers; nothing there may take back the ANTH 1010 move.
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(".ui-toast__action")?.click();
+    });
+    await act(async () => {
+      await Bun.sleep(50);
+    });
+    expect(planner.get().sectionPicks["ANTH 1010"]).toBe("anth-1010-001");
+    expect(planner.get().plannerState.courseStatuses["MATH 1710"]).toBe("completed");
+    expect(toastShown).toBe("MATH 1710 is done already.");
+  } finally {
+    await planner.unmount();
+    await toaster.unmount();
+  }
+});
+
 /** Week's host on the real planner, without the page around it. */
 async function mountHost() {
   const { useUntangleHost } = await import("@/app/schedule/untangle-host");

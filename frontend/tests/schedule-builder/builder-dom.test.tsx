@@ -42,7 +42,7 @@ const preferences: SchedulePreferences = {
 const course = (s: Section, locked = false): WeekCourse => ({ code: s.courseCode, title: s.courseCode, credits: 3, section: s, state: "placed", locked });
 
 function host(courses: WeekCourse[], feed: Partial<OptionsFeed> = {}) {
-  const edits = { place: mock(() => {}), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: true };
+  const edits = { place: mock((): string | null => null), remove: mock(() => {}), keep: mock(() => {}), use: mock((): string[] => []), clear: mock(() => {}), undo: mock(() => {}), canUndo: true };
   const optimizer: OptionsFeed = {
     runId: null,
     status: "idle",
