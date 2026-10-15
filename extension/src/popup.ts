@@ -80,7 +80,9 @@ h2 + .meta { margin-top: var(--s1); }
 /* The hidden busy label is wider; right-align so "Sign out" meets the edge. */
 .btn--quiet .btn__label { justify-content: flex-end; }
 .btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus); }
-.btn[data-pressed]:not([aria-busy=true]) { transform: scale(.97); }
+.btn[data-pressed]:not([aria-busy=true]):not([aria-disabled=true]) { transform: scale(.97); }
+/* While another button's request runs, the rest ignore presses and say so. */
+.btn[aria-disabled=true] { cursor: default; opacity: .56; }
 @media (hover: hover) and (pointer: fine) { .btn--primary:hover { background: var(--brand-2); } .btn--secondary:hover, .btn--quiet:hover { background: var(--paper-2); } .btn--quiet:hover { color: var(--ink); } }
 .btn__stack { display: inline-grid; }
 .btn__label { grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); }
@@ -316,6 +318,7 @@ function setBusy(id: string | null): void {
   clearTimeout(spinnerTimer);
   for (const element of document.querySelectorAll<HTMLButtonElement>("button")) {
     element.setAttribute("aria-busy", String(element.id === id));
+    element.setAttribute("aria-disabled", String(id !== null && element.id !== id));
     element.removeAttribute("data-loading");
   }
   if (id !== null)
@@ -323,12 +326,16 @@ function setBusy(id: string | null): void {
 }
 async function send(message: object, from?: string): Promise<void> {
   setBusy(from ?? null);
+  // A background status poll that changes nothing leaves the screen, and the
+  // student's focus and selection, alone.
+  let unchanged = false;
   try {
     const next: unknown = await chrome.runtime.sendMessage(message);
     if (!next || typeof next !== "object" || typeof (next as PanelState).signedIn !== "boolean")
       throw new Error("Invalid worker response");
     // SAFETY: the worker is this extension's own background, and signedIn was checked above.
     const reply = next as PanelState;
+    unchanged = from === undefined && !unreachable && JSON.stringify(reply) === JSON.stringify(state);
     unreachable = false;
     if (reply.working) {
       // Another request holds the worker; keep asking.
@@ -345,7 +352,8 @@ async function send(message: object, from?: string): Promise<void> {
   }
   finally {
     setBusy(null);
-    render();
+    if (!unchanged)
+      render();
   }
 }
 // Loading copy shows only after 400ms (copy.md), so a fast answer never flashes.
