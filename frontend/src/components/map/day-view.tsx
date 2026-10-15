@@ -322,7 +322,7 @@ export function DayView({ campusId, places }: { campusId: string; places: readon
       data-shell-body="full-bleed"
       data-layout={isPhone ? "phone" : "desktop"}
       data-detent={isPhone ? detent : undefined}
-      style={{ "--mv-sheet-visible": `${isPhone ? sheetVisible : 0}px` } as CSSProperties}
+      style={{ "--mv-sheet-visible": `${isPhone ? sheetVisible : 0}px`, "--mv-credits": `${Math.ceil(creditsHeight)}px` } as CSSProperties}
     >
       <h1 className="mv-visually-hidden">Day</h1>
       {isPhone ? (

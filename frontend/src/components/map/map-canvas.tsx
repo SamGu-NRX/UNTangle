@@ -481,11 +481,12 @@ export function MapCanvas({
   const highlightSignature = dayBuildingHighlights(itinerary.stops, courseOrder)
     .map((highlight) => `${highlight.buildingId}:${highlight.slot}`)
     .join("|");
+  const startLabel = itinerary.start?.place.name ?? null;
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReady) return;
-    setBuildingHighlights(map, dayBuildingHighlights(latest.current.itinerary.stops, latest.current.courseOrder));
-  }, [highlightSignature, styleReady]);
+    setBuildingHighlights(map, dayBuildingHighlights(latest.current.itinerary.stops, latest.current.courseOrder), startLabel);
+  }, [highlightSignature, startLabel, styleReady]);
 
   /* ---------- pins ---------- */
   const pins = pinsFor(itinerary.stops);
@@ -554,7 +555,6 @@ export function MapCanvas({
     const element = document.createElement("span");
     element.className = "mv-start-pin";
     element.setAttribute("aria-hidden", "true");
-    element.title = startName;
     startMarkerRef.current = new Marker({ element }).setLngLat([startPoint.lng, startPoint.lat]).addTo(map);
   }, [startPoint, startName]);
 

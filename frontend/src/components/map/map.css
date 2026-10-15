@@ -6,6 +6,8 @@
 
 .mv-root {
   --mv-brand: var(--brand, #00512b);
+  /* The 3D control's pressed fill (#56). */
+  --mv-brand-soft: var(--brand-soft, #e4f0e8);
   --mv-accent: var(--accent, #00a855);
   --mv-ink: var(--ink, #1a2e1a);
   --mv-ink-2: var(--ink-2, #586e58);
@@ -160,8 +162,13 @@
   z-index: 3;
 }
 
+/*
+ * The phone's credit line opens on load and can wrap to two lines (it folds
+ * behind (i) on the first tap; attribution.ts), so the controls sit 12px
+ * above its measured height rather than a fixed 40px.
+ */
 .mv-root[data-layout="phone"] .mv-controls {
-  bottom: calc(var(--mv-sheet-visible, 0px) + 40px);
+  bottom: calc(var(--mv-sheet-visible, 0px) + var(--mv-credits, 28px) + 12px);
 }
 
 /* At full the sheet covers the map, and the camera is frozen. */
@@ -281,7 +288,8 @@
   background: var(--mv-brand);
   box-shadow: var(--mv-shadow-2);
   color: #fff;
-  font: 700 12px/1 var(--font-mark);
+  /* Pin numbers are DM Sans 700 (Sam's rule 4: Syne is for the wordmarks only). */
+  font: 700 12px/1 var(--font-ui);
   transform-origin: 50% 100%;
   transition: transform 160ms var(--mv-ease-out), background-color 160ms ease;
 }
@@ -319,7 +327,9 @@
 }
 
 /* The starting point: the itinerary's open ring, on the map. */
+/* Decorative: the list names the place, and its label sits below. Taps fall through to the map. */
 .mv-start-pin {
+  pointer-events: none;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -416,7 +426,8 @@
 
 .mv-hero__big {
   margin: 2px 0 0;
-  font: 700 46px/1 var(--font-mark);
+  /* The leave-by numeral is DM Sans 700 (Sam's rule 4). */
+  font: 700 46px/1 var(--font-ui);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums lining-nums;
   color: var(--mv-ink);
@@ -518,8 +529,10 @@ button.mv-leg__row {
   }
 }
 
+/* Course codes are DM Sans 600 with tabular numerals (Sam's rule 4). */
 .mv-stop__code {
-  font: 700 14px/20px var(--font-mark);
+  font: 600 14px/20px var(--font-ui);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
