@@ -41,12 +41,12 @@ function setSession(session: { user: { id: string } } | null) {
   sessionMock.mockImplementation(async () => session);
 }
 
-let POST: typeof import("@/app/api/calendar-feeds/busy/route").POST;
+let POST: typeof import("@/app/api/v1/calendar-feeds/busy/route").POST;
 
 beforeAll(async () => {
   // Most tests run as an authenticated user; the 401 test opts out.
   setSession({ user: { id: "user-1" } });
-  ({ POST } = await import("@/app/api/calendar-feeds/busy/route"));
+  ({ POST } = await import("@/app/api/v1/calendar-feeds/busy/route"));
 });
 
 /** A tiny valid feed whose single event is 2026-01-15 14:00-15:00Z. */
@@ -54,7 +54,7 @@ const TINY_ICS =
   "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:x@t\r\nSUMMARY:Tiny event\r\nDTSTART:20260115T140000Z\r\nDTEND:20260115T150000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
 
 function busyRequest(body: unknown, ip = "192.0.2.77"): Request {
-  return new Request("http://localhost:3000/api/calendar-feeds/busy", {
+  return new Request("http://localhost:3000/api/v1/calendar-feeds/busy", {
     method: "POST",
     headers: { "content-type": "application/json", "x-real-ip": ip },
     body: JSON.stringify(body),
@@ -72,6 +72,10 @@ function tinyResponse(): Response {
   return new Response(TINY_ICS, { status: 200, headers: { "content-type": "text/calendar" } });
 }
 
+/** A fake Google secret-address URL: the private token must never leak anywhere. */
+const SECRET_TOKEN = "9f2c7f6a1d84b0e3a51c02bb77d4e5f1";
+const SECRET_URL = `https://calendar.google.com/calendar/ical/student%40unt.edu/private-${SECRET_TOKEN}/basic.ics`;
+
 test("answers 401 without a session", async () => {
   setSession(null);
   const response = await POST(busyRequest(VALID_BODY));
@@ -86,7 +90,7 @@ test("answers 400 on a malformed body", async () => {
   for (const body of ["not json", null, {}, { url: 42 }, { url: "" }]) {
     const request =
       body === "not json"
-        ? new Request("http://localhost:3000/api/calendar-feeds/busy", {
+        ? new Request("http://localhost:3000/api/v1/calendar-feeds/busy", {
             method: "POST",
             headers: { "content-type": "application/json", "x-real-ip": "192.0.2.77" },
             body: body,
@@ -110,8 +114,13 @@ test("answers 200 with title-free dated pieces on success", async () => {
   setSession({ user: { id: "user-success" } });
   const response = await POST(busyRequest(VALID_BODY, "192.0.2.78"));
   expect(response.status).toBe(200);
+  // The tests exercise the exact versioned URL the client ships against.
+  expect(busyRequest(VALID_BODY).url).toBe("http://localhost:3000/api/v1/calendar-feeds/busy");
   const payload = await response.json();
-  expect(payload.url).toBe("https://calendar.example.com/feed.ics");
+  // The requested URL is never echoed back: a Google secret-address URL
+  // would carry its private token into the response body.
+  expect(payload.url).toBeUndefined();
+  expect(JSON.stringify(payload)).not.toContain("calendar.example.com");
   expect(payload.range).toEqual({ start: "2026-01-01T00:00:00.000Z", end: "2026-03-01T00:00:00.000Z" });
   // The real parser ran over the mocked feed text: one busy piece, weekday
   // and minutes derivable from the date, and no id or event fields.
@@ -120,6 +129,66 @@ test("answers 200 with title-free dated pieces on success", async () => {
   expect(JSON.stringify(payload)).not.toContain("Tiny event");
   expect(fetchStub).toHaveBeenCalledTimes(1);
   expect(fetchStub.mock.calls[0]?.[0].toString()).toBe("https://calendar.example.com/feed.ics");
+});
+
+test("skipped entries carry an index and a reason, never event text", async () => {
+  setSession({ user: { id: "user-skipped" } });
+  // An override whose recurring master is missing is skipped; the parser
+  // records the event's summary and UID internally.
+  const orphan =
+    "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:orphan@t\r\nSUMMARY:Internal reorg plans\r\nRECURRENCE-ID:20260120T140000Z\r\nDTSTART:20260120T140000Z\r\nDTEND:20260120T150000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+  fetchStub.mockImplementation(async () => new Response(orphan, { status: 200, headers: { "content-type": "text/calendar" } }));
+  try {
+    const response = await POST(busyRequest(VALID_BODY, "192.0.2.91"));
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.skipped).toEqual([{ index: 0, reason: "RECURRENCE-ID override has no matching recurring event" }]);
+    const text = JSON.stringify(payload);
+    expect(text).not.toContain("Internal reorg plans");
+    expect(text).not.toContain("orphan@t");
+    expect(text).not.toContain("summary");
+    expect(text).not.toContain("uid");
+  } finally {
+    fetchStub.mockImplementation(async () => tinyResponse());
+  }
+});
+
+test("the secret-address URL never appears in a body, error body, or captured log", async () => {
+  setSession({ user: { id: "user-privacy" } });
+  dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
+  fetchStub.mockImplementation(async () => tinyResponse());
+  const consoleSpies = [mock(console, "log"), mock(console, "warn"), mock(console, "error"), mock(console, "info")];
+  try {
+    // Success: the requested URL is not echoed back at all.
+    const ok = await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL }, "192.0.2.87"));
+    expect(ok.status).toBe(200);
+    expect(await ok.text()).not.toContain(SECRET_TOKEN);
+
+    // Fetch failure: the fetcher's internal error text (which can name the
+    // URL) never reaches the response body.
+    fetchStub.mockImplementation(async () => {
+      throw new TypeError(`fetch failed for ${SECRET_URL}`);
+    });
+    const unreachable = await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL }, "192.0.2.88"));
+    expect(unreachable.status).toBe(502);
+    expect(await unreachable.text()).not.toContain(SECRET_TOKEN);
+
+    // Parse failure: the complaint is generic too.
+    fetchStub.mockImplementation(async () => new Response("not an iCalendar file", { status: 200, headers: { "content-type": "text/calendar" } }));
+    const unparseable = await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL }, "192.0.2.89"));
+    expect(unparseable.status).toBe(400);
+    expect(await unparseable.text()).not.toContain(SECRET_TOKEN);
+
+    // And no captured log line carries the secret.
+    for (const spy of consoleSpies) {
+      for (const call of spy.mock.calls) {
+        expect(JSON.stringify(call)).not.toContain(SECRET_TOKEN);
+      }
+    }
+  } finally {
+    fetchStub.mockImplementation(async () => tinyResponse());
+    for (const spy of consoleSpies) spy.mockRestore();
+  }
 });
 
 test("termStart and termEnd scope the pieces to the term's real dates", async () => {

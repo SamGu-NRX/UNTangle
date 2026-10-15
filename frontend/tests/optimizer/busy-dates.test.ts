@@ -107,3 +107,37 @@ describe("dated blocked times", () => {
     expect(back.constraints.blocked).toEqual([tuesdayBusy]);
   });
 });
+
+describe("acceptance: a work shift holds the slot only in its own weeks", () => {
+  const addDays = (date: string, days: number): string =>
+    new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+  // Week n begins term start + (n-1)*7 days; weeks a to b span term start
+  // + (a-1)*7 through term start + b*7 - 1.
+  const weeks = (from: number, to: number) => ({
+    start: addDays(FULL_TERM.start, (from - 1) * 7),
+    end: addDays(FULL_TERM.start, to * 7 - 1),
+  });
+  // The shift: Tuesdays 14:00-18:00, weeks 1 to 8 only.
+  const shift: OptBlockedTime = {
+    id: "cal-0",
+    label: "Calendar busy",
+    day: "Tue",
+    start: 840,
+    end: 1080,
+    dates: [weeks(1, 8)],
+  };
+
+  test("auto avoids the blocked slot in weeks 1 to 8 and takes the free section", () => {
+    const result = optimize(request([slot(weeks(1, 8), 840, 1080), slot(weeks(9, 16), 780, 870)], [shift]));
+    expect(result.status).toBe("optimal");
+    if (result.status !== "optimal") return;
+    expect(result.schedules.map((s) => s.byCourse["SPAN 2040"])).toEqual(["s1"]);
+  });
+
+  test("a section meeting the blocked slot only in weeks 9 to 16 stays eligible", () => {
+    const result = optimize(request([slot(weeks(9, 16), 840, 1080)], [shift]));
+    expect(result.status).toBe("optimal");
+    if (result.status !== "optimal") return;
+    expect(result.schedules.map((s) => s.byCourse["SPAN 2040"])).toEqual(["s0"]);
+  });
+});

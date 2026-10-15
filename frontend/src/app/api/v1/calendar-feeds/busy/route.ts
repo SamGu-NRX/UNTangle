@@ -97,7 +97,6 @@ async function busyHandler(request: Request) {
     return NextResponse.json({ error: "Could not parse the calendar feed" }, { status: 400 });
   }
   const json = serializeBusy({
-    url: body.url,
     range,
     occurrences: busyFromFeed(result, term ?? { start: range.start.slice(0, 10), end: range.end.slice(0, 10) }),
     skipped: result.skipped,
