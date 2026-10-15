@@ -28,7 +28,8 @@ export const SCHEDULES_HREF = "/schedules";
  * - the printable schedule is a paper layout;
  * - /dev pages are specimen sheets for the controls.
  */
-const BARE_PREFIXES = ["/auth", "/forgot-password", "/schedule/print", "/dev"];
+// Device consent is a focused sign-in task, outside the planner navigation.
+const BARE_PREFIXES = ["/device", "/auth", "/forgot-password", "/schedule/print", "/dev"];
 
 function startsWithSegment(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);

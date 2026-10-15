@@ -92,6 +92,13 @@
       "when": 1792060203231,
       "tag": "0012_document_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792060397324,
+      "tag": "0013_device_grants",
+      "breakpoints": true
     }
   ]
 }

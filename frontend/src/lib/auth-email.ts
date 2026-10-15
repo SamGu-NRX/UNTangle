@@ -15,14 +15,14 @@
 
 import { EmailBudgetExceeded, type SendBudget } from "@/lib/email-budget";
 
-export type AuthEmailKind = "magic-link" | "password-reset" | "password-added";
+export type AuthEmailKind = "magic-link" | "password-reset" | "password-added" | "email-code";
 
 type Env = Record<string, string | undefined>;
 
 /** Resend's shared sender, for development with a key but no verified domain. */
 const DEV_FROM = "UNTangle <onboarding@resend.dev>";
 
-const copy: Record<AuthEmailKind, { subject: string; heading: string; body: string; action: string; footer?: string }> = {
+const copy: Record<Exclude<AuthEmailKind, "email-code">, { subject: string; heading: string; body: string; action: string; footer?: string }> = {
   "magic-link": {
     subject: "Your UNTangle sign-in link",
     heading: "Sign in to UNTangle",
@@ -52,8 +52,17 @@ function escapeHtml(value: string): string {
 
 export type RenderedEmail = { subject: string; html: string; text: string };
 
-/** One template for every auth email: the wordmark, one button, the link as text, and the ignore line. */
+/** Link emails carry one action; sign-in codes have no link or button. */
 export function renderAuthEmail(kind: AuthEmailKind, url: string): RenderedEmail {
+  if (kind === "email-code") {
+    const subject = "Your UNTangle sign-in code";
+    const text = `Your sign-in code is ${url}. It works once and expires in 5 minutes. Enter it in the UNTangle page you opened. Never share it with anyone.`;
+    return {
+      subject,
+      text,
+      html: `<html lang="en"><body><h1>Sign in to UNTangle</h1><p>Your sign-in code is <strong>${escapeHtml(url)}</strong>.</p><p>It works once and expires in 5 minutes. Enter it in the UNTangle page you opened. Never share it with anyone.</p></body></html>`,
+    };
+  }
   const { subject, heading, body, action, footer = IGNORE } = copy[kind];
   const href = escapeHtml(url);
   const html = `<!doctype html>
