@@ -327,11 +327,14 @@
   text-align: center;
   color: var(--ink-2);
 }
-/* Room above the first hour, so a class starting on the hour doesn't sit on the day header and the hour can carry its label. */
+/*
+ * Room above the first hour, so a class starting on the hour doesn't sit on
+ * the day header and the hour can carry its label. The columns span it, so
+ * their dividers run up to the header; WeekGrid's `at` adds it to every top.
+ */
 .gridBody {
   --grid-top: 10px;
   position: relative;
-  padding-top: var(--grid-top);
   border-top: 1px solid var(--line);
 }
 .gutter {
@@ -350,6 +353,7 @@
   border-left: 1px solid var(--line);
   background-image: linear-gradient(var(--line) 1px, transparent 1px);
   background-size: 100% var(--hh);
+  background-position: 0 var(--grid-top);
 }
 @media (hover: hover) and (pointer: fine) {
   .day {

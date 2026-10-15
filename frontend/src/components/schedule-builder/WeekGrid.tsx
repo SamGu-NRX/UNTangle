@@ -64,7 +64,8 @@ const SNAP = 15;
 /** A drag this close to a section outline's center drops onto it. */
 const SNAP_RADIUS = 90;
 
-const at = (minutes: number, first: number): string => `calc(${(minutes - first * 60) / 60} * var(--hh))`;
+/** Down from the top of a column: the inset above the first hour (builder.module.css), then the hours. */
+const at = (minutes: number, first: number): string => `calc(var(--grid-top) + ${(minutes - first * 60) / 60} * var(--hh))`;
 const span = (start: number, end: number): string => `calc(${(end - start) / 60} * var(--hh))`;
 
 function lane(placement: Placement | undefined): CSSProperties {
@@ -112,7 +113,8 @@ export function WeekGrid(props: Props) {
 
   const minuteAt = (column: HTMLElement, clientY: number) => {
     const rect = column.getBoundingClientRect();
-    const raw = first * 60 + ((clientY - rect.top) / rect.height) * (last - first) * 60;
+    const inset = parseFloat(getComputedStyle(column).getPropertyValue("--grid-top")) || 0;
+    const raw = first * 60 + ((clientY - rect.top - inset) / (rect.height - inset)) * (last - first) * 60;
     return Math.max(first * 60, Math.min(last * 60, Math.round(raw / SNAP) * SNAP));
   };
 
@@ -261,7 +263,7 @@ export function WeekGrid(props: Props) {
           >
             {props.limits?.daysOff.includes(day) ? <div className={styles.limit} style={{ top: 0, bottom: 0 }} aria-hidden="true" /> : null}
             {props.limits?.earliestStart != null && props.limits.earliestStart > first * 60 ? (
-              <div className={styles.limit} data-edge="start" style={{ top: 0, height: span(first * 60, props.limits.earliestStart) }} aria-hidden="true" />
+              <div className={styles.limit} data-edge="start" style={{ top: 0, height: at(props.limits.earliestStart, first) }} aria-hidden="true" />
             ) : null}
             {props.limits?.latestEnd != null && props.limits.latestEnd < last * 60 ? (
               <div className={styles.limit} data-edge="end" style={{ top: at(props.limits.latestEnd, first), bottom: 0 }} aria-hidden="true" />
