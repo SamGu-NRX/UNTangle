@@ -22,7 +22,10 @@ type Pic = {
   w: number;
   h: number;
   tint?: boolean;
-  /** Time of day only: name the arc's ends and top (8 AM, Noon, 10 PM), for Set up Auto's large picture. */
+  /**
+   * Time of day only: name the arc's ends, 8 AM and 10 PM (the painted grid's day), for Set up Auto's
+   * large picture. The top isn't labeled: the day's midpoint is 3 PM, and "Noon" there would be wrong.
+   */
   labels?: boolean;
 };
 
@@ -51,10 +54,9 @@ export function TimePic({ v, w, h, tint = true, labels = false }: Pic) {
       <path d={`M${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--ink-4)" strokeWidth={small ? 1.5 : 1.8} strokeDasharray={small ? "1.5 2.5" : "2 4"} strokeLinecap="round" />
       <line x1={small ? 1 : 6} x2={w - (small ? 1 : 6)} y1={cy} y2={cy} stroke="var(--ink-4)" strokeWidth={1.2} />
       {labels ? (
-        <g fontSize={10.5} fill="var(--ink-2)" textAnchor="middle">
-          <text x={cx - r} y={cy + 14}>8 AM</text>
-          <text x={cx} y={cy - r - 8}>Noon</text>
-          <text x={cx + r} y={cy + 14}>10 PM</text>
+        <g fontSize={11} fill="var(--ink-2)" textAnchor="middle">
+          <text x={cx - r} y={cy + 15}>8 AM</text>
+          <text x={cx + r} y={cy + 15}>10 PM</text>
         </g>
       ) : null}
       {moon ? (

@@ -146,10 +146,12 @@
   outline-offset: 2px;
 }
 /*
- * After Set up Auto finishes, one ring leaves the Preferences button twice,
- * so the student sees where the answers now live. It waits for the dialog's
- * exit (--t-exit), then grows and fades (--t-reveal, the rare-moment
- * duration). Shown once per student; reduced motion keeps only the fade.
+ * After Set up Auto finishes with no course to build, one ring leaves the
+ * Preferences button twice, so the student sees where the answers now live.
+ * (With courses, Auto's reveal runs instead and nothing else moves, MOTION.md
+ * §8.) It waits for the dialog's exit (--t-exit), then grows and fades
+ * (--t-reveal, the rare-moment duration); r3's onboarding mockup draws the
+ * same ring. Reduced motion keeps only the fade.
  */
 .topButton[data-ring] {
   position: relative;
@@ -171,7 +173,7 @@
   }
   to {
     opacity: 0;
-    transform: scale(1.08, 1.3);
+    transform: scale(1.1);
   }
 }
 @keyframes ring-fade {

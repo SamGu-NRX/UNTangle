@@ -6,12 +6,12 @@ import { ContextPanel } from "@/components/ui/ContextPanel";
 import { AlertGlyph, BookGlyph, SearchGlyph, ShareGlyph, SlidersGlyph, TrayIn, Undo } from "@/components/ui/icons";
 import { ProvenanceTag } from "@/components/ui/ProvenanceTag";
 import { StatusGlyph } from "@/components/ui/StatusGlyph";
-import { toast } from "@/components/ui/Toast";
+import { dismissToast, toast } from "@/components/ui/Toast";
 import { keyboardFocused } from "@/components/ui/input-source";
 import { PHONE_QUERY, useMediaQuery } from "@/components/ui/use-media-query";
 import { assignColors } from "@/lib/course-colors";
 import type { Day, Section } from "@/lib/sections";
-import type { WeekDay } from "@/lib/types";
+import type { SchedulePreferences, WeekDay } from "@/lib/types";
 import { answerFor, describeAlternative, type AnswerCourse } from "./answer";
 import styles from "./builder.module.css";
 import { hasNoSetTime, isTimed, meetingsOverlap } from "./conflicts";
@@ -90,8 +90,10 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   /** Set up Auto: opened by itself once on a first visit ("first"), or from Preferences ("again"). */
   const [setup, setSetup] = useState<{ open: boolean; mode: "first" | "again" }>({ open: false, mode: "first" });
   const [setupDecided, setSetupDecided] = useState(false);
-  /** After the setup finishes, the Preferences button rings once to show where the answers live. */
+  /** After the setup finishes, the Preferences button rings to show where the answers live. */
   const [ring, setRing] = useState(0);
+  /** The setup's Undo toast and the preferences it left; a later change makes that Undo stale. */
+  const setupUndo = useRef<{ toast: number; after: SchedulePreferences } | null>(null);
   /** The last change came from the keyboard: the grid updates without moving (MOTION.md §3). */
   const keyboard = useRef(false);
   /** The last change undoes or leaves a preview: an exit, so it moves a little faster (MOTION.md §7). */
@@ -160,11 +162,12 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       else if (!strip.better) setStrip({ ...strip, better: true });
     }
   }
-  // Set up Auto opens by itself once, when this identity's preferences have loaded and the host says it's due.
-  // A share link, a search from another lens or an open panel is what the student came for; it waits for a later visit.
-  if (!setupDecided && host.setup?.due && host.preferencesReady) {
+  // Set up Auto opens by itself at most once per visit, decided when preferences first load: a sign-in
+  // later in the visit doesn't pop it up. A share link, a search from another lens or an open panel is
+  // what the student came for, so it waits for a later visit.
+  if (!setupDecided && host.preferencesReady) {
     setSetupDecided(true);
-    if (!shared && !searchRequest && !strip && !panel) setSetup({ open: true, mode: "first" });
+    if (host.setup?.due && !shared && !searchRequest && !strip && !panel) setSetup({ open: true, mode: "first" });
   }
 
   const selectedCourse = panel?.kind === "event" ? host.courses.find((course) => course.code === panel.code) ?? null : null;
@@ -241,22 +244,33 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   };
   const closeSetup = ({ finished, fromKeyboard, before }: SetupClose) => {
     const mode = setup.mode;
+    const building = finished && host.courses.length > 0;
     setSetup((s) => ({ ...s, open: false }));
     host.setup?.markSeen();
-    if (finished && host.courses.length > 0) auto(fromKeyboard);
+    if (building) auto(fromKeyboard);
     // Answers were saved as they were given, so closing keeps them; Undo puts back what was there before.
-    if (changedSince(host.preferences, before)) {
+    const after = host.preferences;
+    if (changedSince(after, before)) {
       const undoSetup = () => {
+        setupUndo.current = null;
         host.setPreferences(() => before);
         toast("Your preferences are back to how they were");
       };
-      toast({ message: "Saved your answers to Preferences", action: { label: "Undo", onClick: undoSetup } });
+      const id = toast({ message: "Saved your answers to Preferences", action: { label: "Undo", onClick: undoSetup } });
+      setupUndo.current = { toast: id, after };
     } else if (!finished && mode === "first") {
       toast({ message: "Skipped setup", action: { label: "Show setup again", onClick: () => openSetup("first") } });
     }
-    // From the keyboard nothing moves (MOTION.md §1).
-    if (finished && !fromKeyboard) setRing((n) => n + 1);
+    // Nothing moves from the keyboard (MOTION.md §1), and nothing moves beside Auto's reveal (§8).
+    if (finished && !fromKeyboard && !building) setRing((n) => n + 1);
   };
+  // A preference changed after the setup closed: its Undo would wipe that change too, so it goes.
+  useEffect(() => {
+    const pending = setupUndo.current;
+    if (!pending || !changedSince(host.preferences, pending.after)) return;
+    setupUndo.current = null;
+    dismissToast(pending.toast);
+  }, [host.preferences]);
   useEffect(() => {
     if (ring === 0) return;
     // The ring runs about 1s (--t-exit, then two --t-reveal passes); this clears it once it has finished.

@@ -97,7 +97,9 @@ for (const vp of VIEWPORTS) {
     await setup.getByRole("radio", { name: "Mornings, if they fit" }).click();
     await page.waitForTimeout(400);
     check(`${tag}: an answer shows on Week's Preferences button at once`, (await prefCount()) === before + 1, `${before} to ${await prefCount()}`);
-    check(`${tag}: the picture says what Auto does with it`, (await setup.getByText("Auto leans toward morning sections.").count()) === 1);
+    // The caption under the picture, and the same words announced once for the pick.
+    check(`${tag}: the picture says what Auto does with it`, (await setup.locator("p", { hasText: "Auto leans toward morning sections." }).count()) === 1);
+    check(`${tag}: the pick is announced`, (await setup.locator('[aria-live="polite"]', { hasText: "Auto leans toward morning sections." }).count()) === 1);
     await setup.getByRole("button", { name: "Continue", exact: true }).click();
     await page.waitForTimeout(350);
 

@@ -298,6 +298,39 @@ describe("Set up Auto on Week", () => {
     await view.unmount();
   });
 
+  test("a preference changed after the setup retires its Undo, so Undo can't wipe that change", async () => {
+    const { host } = weekHost({ due: true, markSeen: () => {} }, []);
+    const view = await renderWeek(host);
+    await click(radio("No preference"));
+    await view.refresh();
+    for (const name of ["Continue", "Skip this question", "Skip this question", "Skip this question", "Skip this step"]) {
+      await click(button(name));
+      await view.refresh();
+    }
+    await click(button("Done"));
+    expect(toastText()).toBe("Saved your answers to Preferences");
+    host.setPreferences((p) => ({ ...p, weights: { ...p.weights, rating: 4 } }));
+    await view.refresh();
+    const { act } = await import("react");
+    await act(() => new Promise((resolve) => setTimeout(resolve, 250)));
+    expect(toastText()).toBe("");
+    await view.unmount();
+  });
+
+  test("an answer changed with the arrow keys doesn't animate", async () => {
+    const { view } = await renderSetup();
+    const group = dialog()!.querySelector('[role="radiogroup"]')!;
+    await click(radio("No preference"));
+    await press(radio("No preference"), "ArrowUp");
+    expect(group.hasAttribute("data-instant")).toBe(true);
+    // Arrows wrap, and Home and End reach the ends.
+    await press(radio("Mornings, if they fit"), "End");
+    expect(radio("As late as I can").getAttribute("aria-checked")).toBe("true");
+    await press(radio("As late as I can"), "ArrowDown");
+    expect(radio("As early as I can").getAttribute("aria-checked")).toBe("true");
+    await view.unmount();
+  });
+
   test("Preferences reopens it with the answers Auto follows now", async () => {
     const view = await renderWeek(weekHost({ due: false, markSeen: () => {} }).host);
     await click(button("Preferences"));

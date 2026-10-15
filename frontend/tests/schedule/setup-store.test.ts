@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { GUEST_ID_KEY, preferencesKey, readGuestId, readOrCreateGuestId, writeStoredPreferences, type Identity } from "@/components/schedule/preferences-store";
-import { markSetupSeen, setupDue, setupSeenKey } from "@/components/schedule/setup-store";
+import { loadedIdentity, markSetupSeen, setupDue, setupSeenKey } from "@/components/schedule/setup-store";
 import { defaultSchedulePreferences } from "@/lib/planner";
 
 function memoryStorage() {
@@ -83,5 +83,26 @@ describe("readGuestId", () => {
     const storage = memoryStorage();
     storage.setItem(GUEST_ID_KEY, "x");
     expect(readGuestId(storage)).toBeNull();
+  });
+});
+
+describe("loadedIdentity", () => {
+  test("nothing until preferences are ready", () => {
+    expect(loadedIdentity(false, "user:abc", memoryStorage())).toBeNull();
+  });
+
+  test("an account comes from the plan's stamp", () => {
+    expect(loadedIdentity(true, "user:abc", null)).toEqual({ kind: "user", id: "abc" });
+  });
+
+  test("a guest is this browser's guest id", () => {
+    const storage = memoryStorage();
+    storage.setItem(GUEST_ID_KEY, "guest-0001-aaaa");
+    expect(loadedIdentity(true, "guest", storage)).toEqual({ kind: "guest", id: "guest-0001-aaaa" });
+  });
+
+  test("a guest with no id or no storage has no identity, so nothing is marked seen", () => {
+    expect(loadedIdentity(true, "guest", memoryStorage())).toBeNull();
+    expect(loadedIdentity(true, "guest", null)).toBeNull();
   });
 });

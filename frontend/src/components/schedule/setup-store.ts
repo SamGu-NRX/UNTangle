@@ -5,7 +5,20 @@
  * guest id otherwise, so a second account on the same browser still gets
  * its own first run.
  */
-import { preferencesKey, readStoredPreferences, type Identity } from "./preferences-store";
+import { preferencesKey, readGuestId, readStoredPreferences, type Identity } from "./preferences-store";
+
+/**
+ * The identity whose preferences are loaded, as the planner keys them: the
+ * account in the plan's stamp ("user:<id>"), else this browser's guest id,
+ * which the planner creates before it reads a guest's preferences. Null
+ * until they are ready, and when there is no usable storage or guest id.
+ */
+export function loadedIdentity(ready: boolean, stamp: string, storage: Pick<Storage, "getItem"> | null): Identity | null {
+  if (!ready) return null;
+  if (stamp.startsWith("user:")) return { kind: "user", id: stamp.slice("user:".length) };
+  const id = storage ? readGuestId(storage) : null;
+  return id ? { kind: "guest", id } : null;
+}
 
 export const SETUP_SEEN_PREFIX = "untangle-setup-auto-seen:v1:";
 

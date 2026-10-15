@@ -91,6 +91,8 @@ function useGlide(target: number, glide: boolean): number {
   const current = useRef(target);
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const moves = glide && !reduced;
+  // A jump (keyboard, reduced motion) moves the drawn value too, so a later glide never starts from a stale frame.
+  if (!moves && shown !== target) setShown(target);
   useEffect(() => {
     const from = current.current;
     if (from === target) return;
@@ -170,10 +172,13 @@ function QuestionPane({ questionKey: k, value, picked, onPick, onContinue, phone
   const checked = picked ? q.answers.findIndex((a) => a.value === value) : -1;
 
   const onKey = (event: KeyboardEvent<HTMLButtonElement>, i: number) => {
-    const by = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
-    if (by !== undefined) {
+    const n = q.answers.length;
+    const from = checked < 0 ? i : checked;
+    // Radio group keys (WAI-ARIA APG): arrows move and wrap, Home and End jump to the ends.
+    const to = { ArrowDown: from + 1, ArrowRight: from + 1, ArrowUp: from - 1, ArrowLeft: from - 1, Home: 0, End: n - 1 }[event.key];
+    if (to !== undefined) {
       event.preventDefault();
-      const next = Math.max(0, Math.min(q.answers.length - 1, (checked < 0 ? i : checked) + by));
+      const next = (to + n) % n;
       setGlide(false);
       onPick(q.answers[next].value);
       answers.current[next]?.focus();
@@ -195,10 +200,20 @@ function QuestionPane({ questionKey: k, value, picked, onPick, onContinue, phone
       <div className={styles.picbox} aria-hidden="true">
         <Pic v={shown} w={Math.round(w * scale)} h={Math.round(h * scale)} labels={k === "time"} />
       </div>
-      <p className={styles.say} data-idle={picked || hover !== null ? undefined : ""} aria-live="polite">
+      <p className={styles.say} data-idle={picked || hover !== null ? undefined : ""} aria-hidden="true">
         {picked || hover !== null ? autoSays(k, target) : "Pick an answer to see what Auto does with it."}
       </p>
-      <div className={styles.answers} role="radiogroup" aria-labelledby={headingId} onPointerLeave={() => setHover(null)}>
+      {/* Announces a pick, never a hover preview. */}
+      <span className="sr-only-v2" aria-live="polite">
+        {picked ? autoSays(k, value) : ""}
+      </span>
+      <div
+        className={styles.answers}
+        role="radiogroup"
+        aria-labelledby={headingId}
+        data-instant={glide ? undefined : ""}
+        onPointerLeave={() => setHover(null)}
+      >
         {q.answers.map((a, i) => (
           <button
             key={a.value}
@@ -380,6 +395,18 @@ export function SetupAuto(props: Props) {
     }
   }
 
+  // More of the step below what shows, for the footer's fade: an empty mark at the step's end is
+  // out of sight (clipped by the scrolling body) exactly when there is more to scroll to.
+  const end = useRef<HTMLSpanElement>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const mark = end.current;
+    if (!open || !mark) return;
+    const observer = new IntersectionObserver(([entry]) => setMore(!entry.isIntersecting));
+    observer.observe(mark);
+    return () => observer.disconnect();
+  }, [open, index, phone]);
+
   useEffect(() => {
     if (!moved.current) return;
     moved.current = false;
@@ -438,11 +465,12 @@ export function SetupAuto(props: Props) {
       ) : (
         <ReadyPane preferences={p} onEdit={edit} heading={heading} headingId={headingId} touch={touch} />
       )}
+      <span ref={end} className={styles.end} aria-hidden="true" />
     </div>
   );
 
   const foot = (
-    <div className={styles.foot}>
+    <div className={styles.foot} data-more={more ? "" : undefined}>
       <IconButton label="Back" className={styles.back} data-hidden={index === 0 ? "" : undefined} disabled={index === 0} onClick={(event) => go(index - 1, event.detail === 0)}>
         <ChevronLeft size={20} />
       </IconButton>

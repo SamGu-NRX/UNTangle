@@ -8,6 +8,17 @@
 
 /* ───────── Shell ───────── */
 
+/*
+ * The dialog's top edge stays put from step to step (steps differ in height,
+ * and a centred dialog moved its progress and × every time): it sits where a
+ * 760px dialog would be centred, and grows downward. The layer pads 24px.
+ */
+.dialog {
+  --top: max(0px, calc(50dvh - 404px));
+  align-self: flex-start;
+  margin-top: var(--top);
+  max-height: calc(100dvh - 48px - var(--top));
+}
 /* The head holds the progress where a title would be; the primitive's × stays beside it. */
 .dialog :global(.ui-dialog__head) {
   align-items: center;
@@ -128,11 +139,12 @@
   }
 }
 
+/* Ink, not brand green: color is for meaning, and a header carries none (do-not.md). */
 .eyebrow {
   margin: 0 0 6px;
   font-size: 12.5px;
   font-weight: 650;
-  color: var(--brand-2);
+  color: var(--ink-2);
 }
 .title {
   margin: 0;
@@ -175,7 +187,7 @@
 .say {
   min-height: 20px;
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   line-height: 20px;
   text-align: center;
   color: var(--ink-2);
@@ -199,6 +211,8 @@
   font-size: 14.5px;
   font-weight: 550;
   color: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
   transition:
     background-color var(--t-hover) ease,
     transform var(--t-press) var(--ease-out);
@@ -251,6 +265,11 @@
   opacity: 1;
   transform: none;
 }
+/* An answer changed from the keyboard changes at once (Sam's rule 10). */
+.answers[data-instant] .answer,
+.answers[data-instant] .dot::after {
+  transition: none;
+}
 
 /* ───────── Shape of your days ───────── */
 
@@ -261,7 +280,7 @@
 }
 .gapsLabel {
   margin: 0 0 -14px;
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 650;
 }
 
@@ -278,7 +297,7 @@
 }
 .none {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--ink-2);
 }
 .rows {
@@ -295,7 +314,7 @@
   min-height: 44px;
   padding: 4px 0;
   border-top: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .rows li:first-child {
   border-top: 0;
@@ -304,12 +323,24 @@
 /* ───────── Footer: Back, then Skip and Continue at the right ───────── */
 
 .foot {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 24px 18px;
   border-top: 1px solid var(--line);
   background: var(--paper);
+}
+/* More of the step below: the content fades into the footer, so it reads as scrolled, not cut. */
+.foot[data-more]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 1px);
+  height: 28px;
+  background: linear-gradient(to top, var(--paper), transparent);
+  pointer-events: none;
 }
 /* Above the painted grid's sun and moon knobs (z-index 3) as they scroll under it. Sticky
    offsets count from inside the scroller's padding, so it reaches down over that padding. */
@@ -328,13 +359,25 @@
   visibility: hidden;
 }
 
+/* The scroll mark at a step's end: no size, so it never adds scroll. */
+.end {
+  display: block;
+  height: 1px;
+  margin-top: -1px;
+}
+
+/* Reduced motion: fades and color changes stay, movement goes. */
 @media (prefers-reduced-motion: reduce) {
-  .answer,
-  .dot::after,
-  .chapter i::after {
-    transition-property: opacity, background-color;
+  .answer {
+    transition: background-color var(--t-hover) ease;
   }
   .answer:active {
     transform: none;
+  }
+  .dot::after {
+    transition: opacity var(--t-hover) ease;
+  }
+  .chapter i::after {
+    transition: background-color var(--t-hover) ease;
   }
 }

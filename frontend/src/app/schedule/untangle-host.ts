@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import type { BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
-import { readGuestId, type Identity } from "@/components/schedule/preferences-store";
-import { markSetupSeen, setupDue } from "@/components/schedule/setup-store";
+import type { Identity } from "@/components/schedule/preferences-store";
+import { loadedIdentity, markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
 import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
@@ -84,27 +84,13 @@ function browserStorage(): Storage | null {
 }
 
 /**
- * The identity whose preferences are loaded, as the planner keys them: the
- * account in the plan's stamp ("user:<id>"), else this browser's guest id,
- * which the planner creates before it reads a guest's preferences. Null
- * until they are ready, and when storage is unusable.
- */
-function loadedIdentity(ready: boolean, stamp: string): Identity | null {
-  if (!ready) return null;
-  if (stamp.startsWith("user:")) return { kind: "user", id: stamp.slice("user:".length) };
-  const storage = browserStorage();
-  const id = storage ? readGuestId(storage) : null;
-  return id ? { kind: "guest", id } : null;
-}
-
-/**
  * Set up Auto's gate for the identity whose preferences are loaded. `due`
  * is read from storage once per identity, while rendering the first time
  * that identity appears: the setup's own answers save preferences, and
  * re-reading then would close it after the first question.
  */
 function useSetup(ready: boolean, stamp: string): BuilderSetup {
-  const identity = loadedIdentity(ready, stamp);
+  const identity = loadedIdentity(ready, stamp, ready ? browserStorage() : null);
   const tag = identity ? `${identity.kind}:${identity.id}` : null;
   const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
   if (gate.tag !== tag) {
