@@ -1,7 +1,8 @@
 # UNTangle mobile
 
-The iOS-first Expo app for UNTangle: Courses, Week, and Day, with UNT-email
-magic-link sign-in. Expo Router drives navigation; the schedule screens are
+The iOS-first Expo app for UNTangle: Courses, Week, and Day. It runs as a
+guest on a labeled sample student until device sign-in ships; it holds no
+sign-in credential. Expo Router drives navigation; the schedule screens are
 built from the same pure TypeScript modules the web frontend uses
 (see `SHARED.md`).
 
@@ -20,21 +21,23 @@ bun --no-env-file x expo export --platform web   # web bundle (what CI builds)
 
 ## Layout
 
-- `src/app` - Expo Router routes: tabs for Courses/Week/Day, plus
-  `/sign-in` and `/auth/callback` (the `untangle://auth/callback`
-  deep-link target; the scheme is set in `app.config.ts`).
-- `src/data` - API modules, each taking an injected fetch for tests:
-  `planner.ts` (GET /api/planner), `sections.ts` (GET /api/sections/...),
-  `magic-link.ts` (sign-in request and token verify), `session.ts`
-  (SecureStore session cookie), `api-base.ts` + `http.ts` (base URL and
-  injected-fetch request helper with cookie replay).
-- `src/schedule` - glue between the API modules and the shared week
-  builders: `sample-schedule.ts` (the labeled sample), `remote-catalog.ts`,
-  and the `useScheduleView` hook.
+- `src/app` - Expo Router routes: tabs for Courses, Week and Day, and three
+  routes presented as form sheets: `course/[code]`, `preferences` and
+  `sign-in` (which explains that sign-in arrives with device sign-in).
+- `src/theme` - the v3 tokens from `frontend/src/app/globals.css`;
+  `tokens.test.ts` fails when the two drift apart.
+- `src/plan` - the guest's plan: the sample record and course groups
+  (`guest-plan.ts`), Week preferences (`preferences.ts`), Auto on the web's
+  optimizer (`auto.ts`), Day's stops and leave-by times (`day-plan.ts`).
+- `src/ui` - press feedback, haptics, the tab and status glyphs, the week
+  grid and the stepped slider.
+- `src/data` - unauthenticated API modules with an injected fetch, kept for
+  when device sign-in gives the app a credential.
 
 ## Verification environment note
 
-Expo web on Linux is the only platform this repo's CI and sandbox can run;
-there is no iOS simulator here. Native behavior (SecureStore, deep links on
-device) is unit-tested against mocks and remains for real-device checks
-listed in the Before TestFlight notes of the workspace PR.
+Expo web is the only platform this repo's CI can run; there is no iOS
+simulator there. The web export is a single page (`web.output: "single"` in
+`app.config.ts`). Native-only behavior still needs a device: the form-sheet
+detents and grabber, haptics, the slider's drag and release, and the
+press-scale timing.
