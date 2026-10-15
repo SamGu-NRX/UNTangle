@@ -3,7 +3,7 @@ import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
 import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
-import type { SavedPlanStore, SavedPlanStoreFailure } from "@/lib/saved-plans/store";
+import type { SavedPlanStore, SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
 
@@ -160,4 +160,39 @@ export function downloadFile(blob: Blob, name: string, host: DownloadHost = brow
 /** Lines with keys that can't repeat, even when two lines say the same thing. */
 export function keyedLines(lines: readonly string[]): Array<{ key: string; text: string }> {
   return lines.map((text, index) => ({ key: `${index}:${text}`, text }));
+}
+
+/** What the library page shows from the saved-plan store. */
+export type LibraryView =
+  | { phase: "loading"; storeAvailable: false; storageDisabled: false; quarantined: [] }
+  | {
+      phase: "ready" | "unavailable";
+      read: StoreReadResult;
+      storeAvailable: boolean;
+      /** The banner: browser storage itself refused, for a prepared identity. */
+      storageDisabled: boolean;
+      quarantined: Array<{ key: string; size: number }>;
+    };
+
+const LOADING_VIEW: LibraryView = { phase: "loading", storeAvailable: false, storageDisabled: false, quarantined: [] };
+
+/**
+ * Reads the library for the identity the planner has prepared (#93). Until
+ * one is prepared nothing is read: the page shows loading, the disabled-storage
+ * banner waits (the store refuses reads then for a reason that isn't the
+ * browser's), and no quarantined keys are listed.
+ */
+export function readLibraryView(
+  store: Pick<SavedPlanStore, "available" | "list" | "listQuarantined">,
+  identityReady: boolean,
+): LibraryView {
+  if (!identityReady) return LOADING_VIEW;
+  const read = store.list();
+  return {
+    phase: read.ok ? "ready" : "unavailable",
+    read,
+    storeAvailable: store.available,
+    storageDisabled: !store.available,
+    quarantined: store.listQuarantined(),
+  };
 }

@@ -145,3 +145,32 @@ describe("notice lines", () => {
     expect(keyed.map((line) => line.text)).toEqual(["Unreadable: bad", "Unreadable: bad", "Other"]);
   });
 });
+
+describe("reading the library for an identity", () => {
+  function fakeStore(available: boolean) {
+    const reads: string[] = [];
+    return {
+      reads,
+      store: {
+        available,
+        list: () => (reads.push("list"), { ok: true as const, doc: { storeSchemaVersion: 1 as const, revision: 1, plans: [], unreadable: [] }, notices: [] }),
+        listQuarantined: () => (reads.push("listQuarantined"), [{ key: "untangle.saved-plans.corrupt-guest:1", size: 3 }]),
+      },
+    };
+  }
+
+  it("shows loading and reads nothing until the planner has prepared an identity", async () => {
+    const { readLibraryView } = await import("@/components/schedules-library/view-model");
+    const { store, reads } = fakeStore(false);
+    expect(readLibraryView(store, false)).toEqual({ phase: "loading", storeAvailable: false, storageDisabled: false, quarantined: [] });
+    expect(reads).toEqual([]);
+  });
+
+  it("once prepared, reads the library and its quarantined keys, and only then reports storage turned off", async () => {
+    const { readLibraryView } = await import("@/components/schedules-library/view-model");
+    const ready = fakeStore(true);
+    expect(readLibraryView(ready.store, true)).toMatchObject({ phase: "ready", storeAvailable: true, storageDisabled: false, quarantined: [{ size: 3 }] });
+    expect(ready.reads).toEqual(["list", "listQuarantined"]);
+    expect(readLibraryView(fakeStore(false).store, true)).toMatchObject({ storageDisabled: true });
+  });
+});

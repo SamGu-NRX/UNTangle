@@ -25,7 +25,7 @@ import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } 
 import { CompareView, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
-import { downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, whenText } from "./view-model";
+import { downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, readLibraryView, whenText, type LibraryView } from "./view-model";
 import { WeekThumb } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -51,6 +51,7 @@ type ListState =
   | { phase: "ready"; doc: ReadDoc; notices: SavedPlanStoreFailure[] };
 
 const LOADING: ListState = { phase: "loading" };
+const LOADING_VIEW: LibraryView = { phase: "loading", storeAvailable: false, storageDisabled: false, quarantined: [] };
 const noopSubscribe = () => () => {};
 const toListState = (result: StoreReadResult): ListState =>
   result.ok ? { phase: "ready", doc: result.doc, notices: result.notices } : { phase: "unavailable", message: result.failure.message };
@@ -81,17 +82,20 @@ export function SchedulesClient() {
 
   // The store is synchronous: read during render through a versioned cache, re-read on every write.
   const [storeVersion, setStoreVersion] = useState(0);
-  const cache = useRef<{ version: number; state: ListState } | null>(null);
+  const cache = useRef<{ version: number; identityReady: boolean; view: LibraryView } | null>(null);
+  // No identity's library is read until the planner has prepared one (readLibraryView).
+  const identityReady = planner.identityReady;
   const readLibrary = useCallback(() => {
-    if (!cache.current || cache.current.version !== storeVersion) {
-      cache.current = { version: storeVersion, state: toListState(store.list()) };
+    if (!cache.current || cache.current.version !== storeVersion || cache.current.identityReady !== identityReady) {
+      cache.current = { version: storeVersion, identityReady, view: readLibraryView(store, identityReady) };
     }
-    return cache.current.state;
-  }, [store, storeVersion]);
+    return cache.current.view;
+  }, [store, storeVersion, identityReady]);
   const bump = useCallback(() => setStoreVersion((n) => n + 1), []);
   useEffect(() => subscribeSavedPlans(bump), [bump]);
-  const list = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING);
-  const storeAvailable = useSyncExternalStore(noopSubscribe, () => store.available, () => false);
+  const view = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING_VIEW);
+  const list: ListState = view.phase === "loading" ? LOADING : toListState(view.read);
+  const { storeAvailable, storageDisabled, quarantined } = view;
   const minute = useSyncExternalStore(subscribeMinute, currentMinute, () => 0);
 
   const plans = list.phase === "ready" ? list.doc.plans : [];
@@ -496,7 +500,7 @@ export function SchedulesClient() {
         </section>
       ) : null}
 
-      <LibraryNotices store={store} list={list} storeAvailable={storeAvailable} />
+      <LibraryNotices list={list} storageDisabled={storageDisabled} quarantined={quarantined} />
     </div>
   );
 
@@ -569,18 +573,16 @@ export function SchedulesClient() {
  * lost) and quarantined bytes. Each line is there only while it is true.
  */
 function LibraryNotices({
-  store,
   list,
-  storeAvailable,
+  storageDisabled,
+  quarantined,
 }: {
-  store: ReturnType<typeof createSavedPlanStore>;
   list: ListState;
-  storeAvailable: boolean;
+  storageDisabled: boolean;
+  quarantined: ReadonlyArray<{ key: string; size: number }>;
 }) {
-  // A cheap key scan; recomputed with every library read.
-  const quarantined = store.listQuarantined();
   const lines: string[] = [];
-  if (!storeAvailable) {
+  if (storageDisabled) {
     lines.push("Saved copies can't be kept because this browser's storage is turned off. Main still saves.");
   } else if (list.phase === "unavailable") lines.push(list.message);
   if (list.phase === "ready") {

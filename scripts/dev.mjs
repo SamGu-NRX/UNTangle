@@ -34,9 +34,10 @@ function run(command, args, options = {}) {
 function ensureDependencies() {
   if (skipInstall) return;
 
-  if (!fs.existsSync(path.join(rootDir, "node_modules")) || !fs.existsSync(path.join(frontendDir, "node_modules"))) {
-    run(commandName, ["install", "--frozen-lockfile"], { cwd: rootDir });
-  }
+  // Always install: a pull can add a workspace or a dependency while every
+  // node_modules folder already exists, and a frozen install with nothing to
+  // do takes about a second.
+  run(commandName, ["install", "--frozen-lockfile"], { cwd: rootDir });
 }
 
 function readText(filePath) {

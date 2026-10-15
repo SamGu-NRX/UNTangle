@@ -61,8 +61,8 @@ const plannerDoc = {
 
 /** Runs in the page before its scripts: a model context that records what registers. */
 function installStub(doc) {
-  if (!window.localStorage.getItem("untangle.planner-state.v1")) {
-    window.localStorage.setItem("untangle.planner-state.v1", JSON.stringify(doc));
+  if (!window.localStorage.getItem("untangle.planner-state.v1:guest")) {
+    window.localStorage.setItem("untangle.planner-state.v1:guest", JSON.stringify(doc));
   }
   const tools = new Map();
   const log = [];
@@ -215,7 +215,7 @@ async function phone(browser) {
 /** Without WebMCP the page must not even download the tools. */
 async function unsupported(browser) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await context.addInitScript((doc) => window.localStorage.setItem("untangle.planner-state.v1", JSON.stringify(doc)), plannerDoc);
+  await context.addInitScript((doc) => window.localStorage.setItem("untangle.planner-state.v1:guest", JSON.stringify(doc)), plannerDoc);
   const page = await context.newPage();
   const scripts = [];
   page.on("response", (response) => {

@@ -1,0 +1,8 @@
+{
+  // Repository checks run in Bun: the test runner, CI checks and their tests.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src", "tests"]
+}
