@@ -23,7 +23,7 @@ import {
 import { findOption, optionIdLabel, planningTerm, sectionRef } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
-import { fetchCourseHistory } from "@/lib/grades-history/course-history";
+import { fetchCourseHistory, fetchMissingHistories } from "@/lib/grades-history/course-history";
 import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
 import { courseEvidenceHundredths } from "@/lib/sections/instructor-evidence";
 import { optionReasons } from "./option-reasons";
@@ -284,31 +284,49 @@ export function useUntangleHost(brand: Brand): BuilderHost {
   // tie-break, so a throttle never reads as weak grades.
   const [evidenceHundredths, setEvidenceHundredths] = useState<Record<string, Record<string, number | null>>>({});
   const planningCodes = getPlanningTermCourseCodes(plannerState).join("\n");
+  // One fetch per course per session: a course's history does not change
+  // with the catalog, so each catalogVersion re-maps the cached results
+  // instead of refetching every history. Failures cache too, so one dead
+  // course costs one bounded attempt, never a retry loop.
+  const historiesRef = useRef(new Map<string, Promise<HistoryResult<CourseHistory>>>());
   useEffect(() => {
     const codes = planningCodes.split("\n").filter(Boolean);
     if (codes.length === 0) {
       setEvidenceHundredths({});
       return;
     }
+    const fetchOne = (code: string) => {
+      const [subject, number = ""] = code.split(" ");
+      // A history the browser cannot read (offline, endpoint down, a test
+      // DOM with no origin) maps to nulls like any other unavailable
+      // source: unknown evidence never enters the tie-break, and one dead
+      // course never blanks the others.
+      return fetchCourseHistory(subject, number).catch(
+        (): HistoryResult<CourseHistory> => ({
+          status: "unavailable",
+          source: "untgrades.app",
+          data: null,
+          error: { reason: "upstream", message: "course history request failed" },
+        }),
+      );
+    };
+    // Only loaded courses fetch, as before; a course first fetches when its
+    // sections load, then never again this session.
+    const fetchable = new Set(
+      codes.filter((code) => {
+        const loaded = sectionCatalog(code);
+        return loaded.status === "ready" && loaded.result.sections.length > 0 && code.includes(" ");
+      }),
+    );
+    historiesRef.current = fetchMissingHistories(fetchable, historiesRef.current, fetchOne);
+    const histories = historiesRef.current;
     let cancelled = false;
     void Promise.all(
       codes.map(async (code) => {
         const loaded = sectionCatalog(code);
         const sections = loaded.status === "ready" ? loaded.result.sections : [];
-        const [subject, number = ""] = code.split(" ");
-        if (sections.length === 0 || !number) return [code, {}] as const;
-        // A history the browser cannot read (offline, endpoint down, a test
-        // DOM with no origin) maps to nulls like any other unavailable
-        // source: unknown evidence never enters the tie-break, and one dead
-        // course never blanks the others.
-        const result = await fetchCourseHistory(subject, number).catch(
-          (): HistoryResult<CourseHistory> => ({
-            status: "unavailable",
-            source: "untgrades.app",
-            data: null,
-            error: { reason: "upstream", message: "course history request failed" },
-          }),
-        );
+        if (sections.length === 0 || !fetchable.has(code)) return [code, {}] as const;
+        const result = await histories.get(code)!;
         return [code, courseEvidenceHundredths(sections, result)] as const;
       }),
     ).then((entries) => {
