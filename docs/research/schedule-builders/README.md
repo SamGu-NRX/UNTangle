@@ -32,6 +32,18 @@ live products and change without notice, so each capture records what it shows.
 | `captures/vsb-concordia.png` | Visual Schedule Builder at Concordia | https://vsb.concordia.ca/ | The official VSB deployment's criteria step (it redirects to `/criteria.jsp` before showing a timetable) |
 | `captures/penncourseplan.png` | Penn Course Plan | https://penncourseplan.com/ | Search results pane with Filter by Difficulty, Course Quality, Instructor Quality, CU, Type, Day/Time, Is Open; Cart, Alerts, Map, Breaks tabs; a "Please log in" modal (Penn Course Plan now requires PennKey sign-in) |
 
+![GT Scheduler with its sorting dropdown, Schedule Combinations counter, Finals and Map tabs](captures/gt-scheduler.png)
+
+![Coursicle schedule maker with named schedules and a colored week grid with lunch and work blocks](captures/coursicle-maker.png)
+
+![BerkeleyTime scheduler, which requires sign-in; nav shows Catalog, Scheduler, GradTrak, Grades, Enrollment](captures/berkeleytime.png)
+
+![UNT Schedule Builder mirror: Spring 2027, 3048 courses, Registration list, Busy times, Saved schedules](captures/vsb-unt-mirror.png)
+
+![Concordia's official Visual Schedule Builder criteria step](captures/vsb-concordia.png)
+
+![Penn Course Plan search pane with quality and difficulty filters and a PennKey login modal](captures/penncourseplan.png)
+
 ---
 
 ## 1. Visual Schedule Builder (VSB)
@@ -357,10 +369,11 @@ enrollment histories are the feature Berkeley students cite it for
 UNTangle has `Section.seats` and `Section.status` (`frontend/src/lib/sections/model.ts`)
 but throws the history away.
 
-**Files.** New `frontend/src/lib/sections/fill-history.ts` (accumulator and rates),
-`frontend/src/lib/section-store.ts` (write snapshots),
-`frontend/src/lib/reasons/scheduleReasons.ts` (a reason line),
-`courses/` ingest job for the snapshot schedule.
+**Files.** New `frontend/src/lib/sections/fill-history.ts` (accumulator and rates);
+`packages/ingest/src/section-release.ts` (write the seat snapshot into each governed
+release); `frontend/src/lib/reasons/scheduleReasons.ts` (a reason line); new
+`frontend/src/components/schedule/FillRateNote.tsx` (the note under a section row,
+modeled on the existing `SampleNote.tsx`).
 
 **Acceptance check.** A fixture test feeds two synthetic snapshots (open at t0, full at
 t1) and asserts the computed rate and the "usually fills early" label; a second test
@@ -379,10 +392,11 @@ cut; the watch list is computed from the saved-plan store plus the newest sectio
 gap students fill by refreshing myUNT. UTRP's Schedule Backup exists for the same
 panic (https://www.reddit.com/r/UTAustin/comments/1g6s585/ut_registration_plus_v2_has_released/).
 
-**Files.** `frontend/src/lib/saved-plans/store.ts` (enumerate pinned sections per plan),
+**Files.** `frontend/src/lib/saved-plans/store.ts` (enumerate pinned sections per plan);
 new `frontend/src/lib/sections/watch.ts` (plan-by-plan feasibility check against current
-statuses), one API route under `frontend/src/app/api/v1/` reusing the `sections`
-rate-limit budget.
+statuses); new `frontend/src/app/api/sections/watch/route.ts`, following the shape of
+the existing `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` and
+reusing its `withRateLimit("sections", ...)` budget.
 
 **Acceptance check.** A test with a saved-plan fixture naming one waitlisted section and
 a sections fixture where it is open returns the plan in the watch result with reason
@@ -455,10 +469,11 @@ GT Scheduler's events that both filter combinations and fold into the compactnes
 sorting option). UNTangle already parses feed events; PR #58's rail only accepts
 hand-typed blocks.
 
-**Files.** `frontend/src/components/schedule/constraint-logic.ts` (build a `BlockDraft`
-from a feed event; reuse `parseBlockDraft` validation),
-`frontend/src/lib/calendar-feeds/` (event lookup by id),
-`frontend/src/components/schedule/WeekGrid.tsx` (entry point on a hatched or busy block).
+**Files.** `frontend/src/lib/calendar-feeds/parse.ts` (event lookup by id from an
+already-parsed feed); `frontend/src/components/schedule/constraint-logic.ts` (build a
+`BlockDraft` from the event; reuse `parseBlockDraft` validation);
+`frontend/src/components/schedule/WeekGrid.tsx` (entry point on a hatched or busy
+block).
 
 **Acceptance check.** A unit test converts a fixture event (Tue 18:00 to 20:00) into a
 `BlockedTime` that `parseSchedulePreferences` accepts, and a duplicate conversion is
@@ -467,9 +482,12 @@ rejected as an existing blocked-time id.
 ### 7. Serve a stale term snapshot with a banner instead of failing at registration peaks
 
 **The change.** Persist each successfully fetched term section file as the served
-fallback: when the untgrades mirror is down or slow, the handler serves the last good
-snapshot and the UI shows a dated "course data from October 4, refreshed 8:02 AM"
-banner instead of an error. Warm the snapshot on a schedule during registration windows.
+fallback: `frontend/src/lib/sections/proxy.ts` already keeps an in-process slot per term
+file (data, checkedAt, diagnostic, retryAt), so extend it to persist the last good file
+and serve that with a stale diagnostic when the untgrades mirror is down or slow; the
+section route keeps responding through `sections/server.ts` with no shape change. The UI
+shows a dated "course data from October 4, refreshed 8:02 AM" banner instead of an
+error. Warm the snapshot on a schedule during registration windows.
 
 **Why.** Builders failing during the enrollment window is the loudest, most repeated
 complaint in the entire study: five separate outage threads across two schools
@@ -484,11 +502,16 @@ data has one third-party source"). The UNT mirror's own header advertises its da
 ("Updated 10/4/2026", verified in `captures/vsb-unt-mirror.png`), so the date banner
 matches student expectations.
 
-**Files.** `frontend/src/lib/sections/config.ts` (snapshot write and fallback read),
-`frontend/src/lib/data-provenance.ts` (staleness flag into the response),
-`frontend/src/components/schedule/` (banner read from the same provenance).
+**Files.** `frontend/src/lib/sections/proxy.ts` (persist the last good file and serve it
+on upstream failure); `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts`
+(the handler whose response carries the staleness diagnostic);
+`frontend/src/lib/data-provenance.ts` (staleness into the response's provenance); new
+`frontend/src/components/schedule/DataAgeNote.tsx` (the dated banner, modeled on the
+existing `SampleNote.tsx`).
 
-**Acceptance check.** A handler test stubs the upstream fetch as failing, seeds a
+**Acceptance check.** A test on the
+`frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` handler (through
+`sectionsProxy.respond`) stubs the upstream fetch as failing, seeds a persisted
 snapshot, and asserts the response serves the snapshot with a provenance entry whose
 retrieved-at date is the snapshot's; with no snapshot present the response stays the
 existing error.
