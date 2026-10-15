@@ -4,10 +4,16 @@ import { getServerSession } from "@/lib/auth-server";
 import { hasDatabaseUrl } from "@/lib/db";
 import { loadPlannerState, savePlannerState } from "@/lib/persistence";
 import { normalizePlannerState } from "@/lib/planner";
-import { BASE_REVISION_HEADER } from "@/lib/planner-save";
 import { validatePlannerStatePayload } from "@/lib/planner-validation";
 
 export const runtime = "nodejs";
+
+/**
+ * The legacy planner row, kept for clients from before documents
+ * (docs/architecture/README.md, "Migration"). Reads still answer; writes are
+ * refused once the row has moved into documents.
+ */
+const BASE_REVISION_HEADER = "X-Planner-Base-Revision";
 
 async function getPlanner(request: Request) {
   const session = await getServerSession(request);
@@ -78,6 +84,15 @@ async function savePlanner(request: Request) {
       // No storage on this deployment: surfaces as `Not saved…` in the
       // client, never as a false `Saved`.
       return NextResponse.json({ state: null, persistent: false });
+    }
+    if (result.kind === "upgrade-required") {
+      // Not 409: a client from before documents reads 409 as another tab's
+      // save and offers to overwrite it. Any other error is a failed save it
+      // keeps in memory and offers to retry.
+      return NextResponse.json(
+        { error: "UNTangle was updated. Reload to keep editing.", code: "UPGRADE_REQUIRED" },
+        { status: 426 },
+      );
     }
     if (result.kind === "conflict") {
       return NextResponse.json(

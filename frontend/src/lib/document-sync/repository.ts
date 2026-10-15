@@ -5,6 +5,7 @@ import { PullListSchema, ReceiptSchema, VersionListPageSchema } from "../../../.
 import { documents, receipts, versions, users, schema } from "@/lib/db/schema";
 import { decideWrite, parseWrite, SyncError, type CurrentDocument } from "./decision";
 import { decodePage, encodePage } from "./pagination";
+import { ensureLegacyMigrated, migrateLegacyPlanner } from "./legacy-migration";
 
 // A fixed bound keeps history reads small. 50 is an unmeasured starting page size.
 const VERSION_PAGE_SIZE = 50;
@@ -20,6 +21,9 @@ export function documentRepository(db: NodePgDatabase<typeof schema>) {
         // userId comes only from the verified session, never the request body.
         const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
         if (!owner) throw new SyncError(401, "UNAUTHORIZED", "Sign in to sync documents.");
+        // Also here, not only in pull: once any document is written the legacy write path must be closed,
+        // or an old tab's save would be acknowledged and then dropped by the migration.
+        await migrateLegacyPlanner(tx, userId);
         const [savedReceipt] = await tx.select().from(receipts).where(and(eq(receipts.userId, userId), eq(receipts.operationId, write.operationId)));
         const receipt = savedReceipt ? ReceiptSchema.parse(savedReceipt) : null;
         // Replays need no document read, and still work after later edits or deletion.
@@ -65,6 +69,11 @@ export function documentRepository(db: NodePgDatabase<typeof schema>) {
     },
 
     async pull(userId: string) {
+      // Every client pulls before it writes, so the first pull moves the legacy row.
+      await ensureLegacyMigrated(db, userId, async (tx) => {
+        const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+        return owner !== undefined;
+      });
       const rows = await db.select({ documentId: documents.id, kind: documents.kind, revision: documents.revision, deleted: documents.deleted })
         .from(documents).where(eq(documents.userId, userId)).orderBy(documents.id);
       return PullListSchema.parse(rows);
