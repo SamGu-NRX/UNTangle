@@ -1,17 +1,35 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { deviceGrants, deviceSecurity, deviceTokens } from "@/lib/db/schema";
-import { changeNotCurrent, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore } from "./device-grants";
+import { accounts, deviceGrants, deviceSecurity, deviceTokens, sessions } from "@/lib/db/schema";
+import { changeNotCurrent, credentialExists, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore } from "./device-grants";
 
 // Database time, so every instance agrees on when a change went stale.
 const staleBefore = sql`now() - ${sql.raw(`interval '${securityChangeTimeout} milliseconds'`)}`;
 const changeOpen = sql<boolean>`(${deviceSecurity.changeId} IS NOT NULL AND ${deviceSecurity.changeStartedAt} > ${staleBefore})`;
 
-export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib/db/schema").schema>, "transaction" | "insert" | "update" | "select">): DeviceStore {
+export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib/db/schema").schema>, "transaction" | "insert" | "update" | "select" | "delete">): DeviceStore {
   async function readGeneration(userId: string) {
     const [row] = await db.select({ generation: deviceSecurity.generation, changing: changeOpen }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId));
     return row ?? { generation: 0, changing: false };
+  }
+  /** The check and the write in one transaction (DeviceStore.writeCredential). */
+  async function lockedCredentialWrite(userId: string, changeId: string, passwordHash: string, mode: "update" | "insert") {
+    await db.transaction(async tx => {
+      // The row lock makes the check and the write one step: a change that
+      // replaces this one waits for the write, or the write sees it and stops.
+      const [row] = await tx.select({ changeId: deviceSecurity.changeId }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId)).for("update");
+      if (row?.changeId !== changeId) throw staleSession();
+      const now = new Date();
+      const credential = and(eq(accounts.userId, userId), eq(accounts.providerId, "credential"));
+      if (mode === "update") {
+        const updated = await tx.update(accounts).set({ password: passwordHash, updatedAt: now }).where(credential).returning({ id: accounts.id });
+        if (updated.length === 0) throw new Error("No credential to update.");
+      } else {
+        // account_credential_user_idx (0015) refuses a second credential too.
+        await tx.insert(accounts).values({ id: randomUUID(), accountId: userId, providerId: "credential", userId, password: passwordHash, createdAt: now, updatedAt: now });
+      }
+    });
   }
   return {
     readGeneration,
@@ -55,10 +73,25 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
       // Refused. Read again only to say why.
       throw (await readGeneration(userId)).changing ? securityChangeInProgress() : staleSession();
     },
-    async holdsSecurityChange(userId, changeId) {
-      const [row] = await db.select({ userId: deviceSecurity.userId }).from(deviceSecurity)
-        .where(and(eq(deviceSecurity.userId, userId), eq(deviceSecurity.changeId, changeId)));
-      return row !== undefined;
+    async writeCredential(userId, changeId, passwordHash, mode) {
+      try { await lockedCredentialWrite(userId, changeId, passwordHash, mode); } catch (error) {
+        if (error instanceof DeviceGrantError) throw error;
+        // A failed query's message lists its parameters, the password hash
+        // among them. Keep only the database's error code and constraint.
+        const failure = error as { cause?: { code?: string; constraint?: string }; code?: string; constraint?: string };
+        const database = failure.cause ?? (failure.code ? failure : null);
+        if (!database) throw error;
+        if (mode === "insert" && database.code === "23505" && database.constraint === "account_credential_user_idx") throw credentialExists();
+        throw new Error(`Credential write failed: ${[database.code, database.constraint].filter(Boolean).join(" ")}`);
+      }
+    },
+    async endStaleSession(token) {
+      const current = sql`coalesce((select ${deviceSecurity.generation} from ${deviceSecurity} where ${deviceSecurity.userId} = ${sessions.userId}), 0)`;
+      const changing = sql`exists (select 1 from ${deviceSecurity} where ${deviceSecurity.userId} = ${sessions.userId} and ${changeOpen})`;
+      const deleted = await db.delete(sessions)
+        .where(and(eq(sessions.token, token), sql`${sessions.securityGeneration} <> ${current}`, sql`not ${changing}`))
+        .returning({ id: sessions.id });
+      return deleted.length > 0;
     },
     async finishSecurityChange(userId, changeId) {
       const [row] = await db.update(deviceSecurity)
