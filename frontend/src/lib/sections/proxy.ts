@@ -10,7 +10,7 @@ import {
   ttlMs,
   vsbUrl,
 } from "./config";
-import type { CourseSections, Diagnostic } from "./model";
+import type { CourseSections, Diagnostic, Section } from "./model";
 import { sampleResult } from "./sample";
 import { courseResult, parseTerm, type VsbFile, type VsbTerm } from "./vsb";
 
@@ -152,6 +152,21 @@ export class SectionsProxy {
       diagnostic ??= result ?? file.diagnostic;
     }
     return sampleResult(term, courseCode, diagnostic);
+  }
+
+  /** Every real section of one term, from the whole term file, for the
+   * class-number lookups the extension preview makes before it knows a course
+   * code. Null while the term file is unavailable; synthetic samples carry no
+   * class numbers to look up. */
+  async termSections(term: string): Promise<Section[] | null> {
+    if (!termPattern.test(term)) return null;
+    const whole = await this.load(term);
+    if (!whole.data) return null;
+    const sections: Section[] = [];
+    for (const value of whole.data.courses.values()) {
+      if (Array.isArray(value)) sections.push(...value);
+    }
+    return sections;
   }
 
   /** The subject file (when vsb has one) ahead of the term file. */
