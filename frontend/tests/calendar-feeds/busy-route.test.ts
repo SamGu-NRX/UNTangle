@@ -157,7 +157,17 @@ test("the secret-address URL never appears in a body, error body, or captured lo
   setSession({ user: { id: "user-privacy" } });
   dnsLookup.mockImplementation(async () => [{ address: "93.184.216.34", family: 4 }]);
   fetchStub.mockImplementation(async () => tinyResponse());
-  const consoleSpies = [mock(console, "log"), mock(console, "warn"), mock(console, "error"), mock(console, "info")];
+  // Capture every console method by direct assignment: bun:test's mock()
+  // wraps a bare function, not an object method.
+  const originalConsole = [console.log, console.warn, console.error, console.info];
+  const captured: unknown[][] = [];
+  const capture = (...args: unknown[]) => {
+    captured.push(args);
+  };
+  console.log = capture;
+  console.warn = capture;
+  console.error = capture;
+  console.info = capture;
   try {
     // Success: the requested URL is not echoed back at all.
     const ok = await POST(busyRequest({ ...VALID_BODY, url: SECRET_URL }, "192.0.2.87"));
@@ -180,14 +190,15 @@ test("the secret-address URL never appears in a body, error body, or captured lo
     expect(await unparseable.text()).not.toContain(SECRET_TOKEN);
 
     // And no captured log line carries the secret.
-    for (const spy of consoleSpies) {
-      for (const call of spy.mock.calls) {
-        expect(JSON.stringify(call)).not.toContain(SECRET_TOKEN);
-      }
+    for (const args of captured) {
+      expect(JSON.stringify(args)).not.toContain(SECRET_TOKEN);
     }
   } finally {
     fetchStub.mockImplementation(async () => tinyResponse());
-    for (const spy of consoleSpies) spy.mockRestore();
+    console.log = originalConsole[0];
+    console.warn = originalConsole[1];
+    console.error = originalConsole[2];
+    console.info = originalConsole[3];
   }
 });
 
