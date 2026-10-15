@@ -1,0 +1,104 @@
+{
+  "startedAt": "2026-10-14T00:19:40.483Z",
+  "base": "http://127.0.0.1:3301",
+  "gl": "swiftshader",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "loadBytes": {
+    "other": {
+      "bytes": 159336,
+      "requests": 25
+    },
+    "javascript": {
+      "bytes": 702602,
+      "requests": 22
+    },
+    "tilejson": {
+      "bytes": 2423,
+      "requests": 1
+    },
+    "basemap tiles": {
+      "bytes": 159138,
+      "requests": 2
+    },
+    "glyphs": {
+      "bytes": 43225,
+      "requests": 1
+    }
+  },
+  "phoneFlights": [
+    {
+      "frames": 86,
+      "windowMs": 2083,
+      "p50": 16.7,
+      "p95": 83.3,
+      "max": 183.3,
+      "over33": 5,
+      "over50": 5
+    },
+    {
+      "frames": 104,
+      "windowMs": 2050,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 149.9,
+      "over33": 4,
+      "over50": 2
+    },
+    {
+      "frames": 110,
+      "windowMs": 2017,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 166.7,
+      "over33": 1,
+      "over50": 1
+    },
+    {
+      "frames": 122,
+      "windowMs": 2067,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    },
+    {
+      "frames": 113,
+      "windowMs": 2017,
+      "p50": 16.7,
+      "p95": 33.3,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    },
+    {
+      "frames": 121,
+      "windowMs": 2066,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 2,
+      "over50": 0
+    }
+  ],
+  "phoneFlightsPooled": {
+    "frames": 656,
+    "windowMs": 12299,
+    "p50": 16.7,
+    "p95": 16.8,
+    "max": 183.3,
+    "over33": 12,
+    "over50": 8
+  },
+  "desktop-3d-coreCamera": {
+    "zoom": "16.80",
+    "pitch": "45.0",
+    "center": "33.213187,-97.148659"
+  },
+  "phone-3d-coreCamera": {
+    "zoom": "16.80",
+    "pitch": "45.0",
+    "center": "33.212689,-97.148148"
+  },
+  "finishedAt": "2026-10-14T00:20:20.350Z"
+}

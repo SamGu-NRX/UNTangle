@@ -22,6 +22,7 @@ import { useItinerary } from "@/components/map/use-itinerary";
 import { usePageState } from "@/components/shell/shell-context";
 import { classDays, weekDays, type ClassDay } from "@/lib/types";
 import "@/components/map/map.css";
+import { getPlanningTermCourseCodes } from "@/lib/planner";
 
 const MapCanvas = dynamic(() => import("@/components/map/map-canvas").then((module) => module.MapCanvas), {
   ssr: false,
@@ -202,6 +203,8 @@ export function MapClient({ campusId = activeCampus.id }: { campusId?: string })
         key={campus.id}
         campus={campus}
         itinerary={itinerary}
+        day={activeDay}
+        courseOrder={getPlanningTermCourseCodes(plannerState)}
         selection={selection}
         onSelect={select}
         insets={insets}

@@ -1,0 +1,208 @@
+{
+  "startedAt": "2026-10-13T23:42:53.629Z",
+  "base": "http://127.0.0.1:3301",
+  "checks": [
+    {
+      "name": "desktop: four Monday classes listed in time order",
+      "passed": true,
+      "detail": "1ANTH 3700Pe, 2ANTH 1010In, 3BIOL 1720Bi, 4BMEN 1400So"
+    },
+    {
+      "name": "desktop: walkway legs show minutes, distance and source",
+      "passed": true,
+      "detail": "4 min · 0.2 mivia campus walkwaysLeave by 11:56 AM · 70 min break | 13 min · 0.6 mivia campus walkwaysLeave by 12:47 PM · 10 min breakThe walk is 3 min longer than the break."
+    },
+    {
+      "name": "desktop: a walk leg has a leave-by time",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: one numbered pin per mapped building",
+      "passed": true,
+      "detail": "3 pins"
+    },
+    {
+      "name": "desktop: tight transfer flagged",
+      "passed": true,
+      "detail": "13 min · 0.6 mivia campus walkwaysLeave by 12:47 PM · 10 min breakThe walk is 3 min longer than the break."
+    },
+    {
+      "name": "desktop: summary counts the late transfer as late, not tight",
+      "passed": true,
+      "detail": "4 classes · 0.8 mi · 17 min walking · 1 late transfer · 1 not on map"
+    },
+    {
+      "name": "desktop: off-campus stop listed as not on map, with its reason",
+      "passed": true,
+      "detail": "4BMEN 1400Software for Biomedical Engineers2:30–3:50 PM · Discovery ParkNot on map Discovery Park is off the main campus, so there's no walking route to it."
+    },
+    {
+      "name": "desktop: legs touching the off-campus stop say there is no route",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: attribution credits OpenStreetMap contributors and OpenFreeMap",
+      "passed": true,
+      "detail": "© OpenStreetMap contributors | OpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+    },
+    {
+      "name": "desktop: wheel zooms in",
+      "passed": true,
+      "detail": "16.01 -> 16.6"
+    },
+    {
+      "name": "desktop: keyboard minus zooms out",
+      "passed": true,
+      "detail": "16.6 -> 15.6"
+    },
+    {
+      "name": "desktop: zoom-in button zooms in",
+      "passed": true,
+      "detail": "15.6 -> 16.6"
+    },
+    {
+      "name": "desktop: drag pans the map",
+      "passed": true,
+      "detail": "33.210938,-97.152042 -> 33.211479,-97.150746"
+    },
+    {
+      "name": "desktop: selecting a row selects its pin",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: selecting a row flies in and tilts",
+      "passed": true,
+      "detail": "zoom 17.8, pitch 45"
+    },
+    {
+      "name": "desktop: selected row is marked",
+      "passed": true,
+      "detail": "Mon-1-ANTH 1010-12:00"
+    },
+    {
+      "name": "desktop: zooming out keeps the selection",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: selecting a pin selects its row",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: the previous row is no longer selected",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: selecting a leg frames it flat",
+      "passed": true,
+      "detail": "pitch 0"
+    },
+    {
+      "name": "desktop: Escape clears the selection",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: an empty day says so",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "axe zero serious/critical: desktop /map",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop print: the map is hidden and the itinerary remains",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "desktop: no uncaught page errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: itinerary is a bottom sheet at half height",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: tapping a pin selects its row",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: the selected pin sits above the sheet",
+      "passed": true,
+      "detail": "pin bottom 297, sheet top 418"
+    },
+    {
+      "name": "phone: dragging up opens the sheet to full",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: off-campus stop is listed at full height",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: dragging down collapses the sheet to peek",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: map pans while the sheet is at peek",
+      "passed": true,
+      "detail": "33.213984 -> 33.214297"
+    },
+    {
+      "name": "axe zero serious/critical: phone /map",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "phone: no uncaught page errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "reduced motion: choosing a stop jumps there flat",
+      "passed": true,
+      "detail": "zoom 17.8, pitch 0"
+    },
+    {
+      "name": "no WebGL: the page says the map is unavailable",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no WebGL: the itinerary still lists classes and walking minutes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no WebGL: no uncaught page errors",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "axe": [
+    {
+      "label": "desktop /map",
+      "violations": []
+    },
+    {
+      "label": "phone /map",
+      "violations": []
+    }
+  ],
+  "finishedAt": "2026-10-13T23:43:39.386Z",
+  "summary": "38/38 checks passed"
+}
