@@ -213,7 +213,7 @@ describe("device token rotation and revocation", () => {
     await expect(t.service.writeCredential("alice", abandoned.changeId, "late-hash", "update")).rejects.toMatchObject(stale);
     expect(account[0].password).toBe("stalled-hash");
     await t.service.writeCredential("alice", next.changeId, "next-hash", "update");
-    await expect(t.service.writeCredential("alice", next.changeId, "second-hash", "insert")).rejects.toThrow("already has a credential");
+    await expect(t.service.writeCredential("alice", next.changeId, "second-hash", "insert")).rejects.toMatchObject({ code: "credential_exists", status: 409 });
     expect(account).toHaveLength(1);
     expect(account[0].password).toBe("next-hash");
     await expect(t.service.finishSecurityChange("alice", abandoned.changeId)).rejects.toThrow("no longer the open one");

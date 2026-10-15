@@ -96,8 +96,10 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
           ...(error.revision === undefined ? {} : { revision: error.revision }) },
         { status: error.status, headers: {
           "Cache-Control": "no-store",
-          // A security change takes one request; a second later it has finished or failed.
-          ...(error.code === "security_change_in_progress" ? { "Retry-After": "1" } : {}),
+          // A security change normally finishes within its one request. A few
+          // seconds keeps clients from polling hard at one stuck until its
+          // 15-minute timeout. Unmeasured.
+          ...(error.code === "security_change_in_progress" ? { "Retry-After": "5" } : {}),
         } });
       }
       // Database failures must never return a receipt or expose a student's body.

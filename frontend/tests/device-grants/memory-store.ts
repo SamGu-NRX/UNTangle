@@ -1,4 +1,4 @@
-import { changeNotCurrent, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore, type DeviceToken, type DeviceTransaction, type Grant, type SecurityChange } from "@/server/auth/device-grants";
+import { changeNotCurrent, credentialExists, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore, type DeviceToken, type DeviceTransaction, type Grant, type SecurityChange } from "@/server/auth/device-grants";
 
 type State = {
   grants: Map<string, Grant>;
@@ -86,7 +86,7 @@ export class MemoryDeviceStore implements DeviceStore {
         if (credentials.length === 0) throw new Error("No credential to update.");
         for (const row of credentials) Object.assign(row, { password: passwordHash, updatedAt: new Date(this.now()) });
       } else {
-        if (credentials.length > 0) throw new Error("This account already has a credential.");
+        if (credentials.length > 0) throw credentialExists();
         account.push({ id: crypto.randomUUID(), accountId: userId, providerId: "credential", userId, password: passwordHash, createdAt: new Date(this.now()), updatedAt: new Date(this.now()) });
       }
     });

@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { setPasswordHandler } from "@/lib/account-password";
 import { createDeviceGrants, pkceChallenge, securityChangeTimeout } from "@/server/auth/device-grants";
 import { createV1Auth } from "@/server/auth/v1-auth";
+import { memoryAdapter } from "better-auth/adapters/memory";
+import { createAuth } from "@/lib/auth-config";
+import { memoryClaims } from "@/lib/magic-link-claims";
 import { createDeviceHttp } from "@/server/auth/device-http";
 import type { DeviceGrants } from "@/server/auth/device-grants";
 import { MemoryDeviceStore } from "../device-grants/memory-store";
@@ -18,7 +21,7 @@ function grantsWithStore(store: MemoryDeviceStore, clock?: () => number) {
 function storeDeps(service: DeviceGrants) {
   const devices = stores.get(service);
   if (!devices) throw new Error("Create the service with grantsWithStore.");
-  return { writeCredential: service.writeCredential, endStaleSession: service.endStaleSession, devices };
+  return { writeCredential: service.writeCredential, endStaleSession: service.endStaleSession, deviceStore: devices };
 }
 const verifier = "x".repeat(43);
 const inProgress = { code: "security_change_in_progress", status: 409 };
@@ -628,9 +631,11 @@ describe("sessions and security changes after the second review", () => {
 });
 
 /** The device store's security functions, as auth-config takes them; `at` names pause points for race tests. */
-function securityDeps(store: MemoryDeviceStore, service: DeviceGrants, at: (name: string) => Promise<void>) {
+function securityDeps(service: DeviceGrants, at: (name: string) => Promise<void>) {
   return {
-    beginSecurityChange: service.beginSecurityChange, finishSecurityChange: service.finishSecurityChange, endStaleSession: service.endStaleSession, devices: store,
+    ...storeDeps(service),
+    beginSecurityChange: service.beginSecurityChange,
+    finishSecurityChange: async (...args: Parameters<DeviceGrants["finishSecurityChange"]>) => { await at("finish"); return service.finishSecurityChange(...args); },
     writeCredential: async (...args: Parameters<DeviceGrants["writeCredential"]>) => { await at("credential-write"); return service.writeCredential(...args); },
   };
 }
@@ -643,7 +648,7 @@ describe("third review: credential writes, stale sessions and refusals", () => {
     const pauses = new Map<string, { hit: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> }>();
     const arm = (name: string) => { const pause = { hit: deferred(), release: deferred() }; pauses.set(name, pause); return pause; };
     const at = async (name: string) => { const pause = pauses.get(name); if (pause) { pauses.delete(name); pause.hit.resolve(); await pause.release.promise; } };
-    const t: ReturnType<typeof setup> = setup(undefined, service.bumpSecurityGeneration, async (userId) => { await at("read"); return service.readSecurityGeneration(userId); }, securityDeps(store, service, at));
+    const t: ReturnType<typeof setup> = setup(undefined, service.bumpSecurityGeneration, async (userId) => { await at("read"); return service.readSecurityGeneration(userId); }, securityDeps(service, at));
     const cookie = await otpSignIn(t);
     const userId = (t.store.user as { id: string }[])[0].id;
     const credentials = () => (t.store.account as { providerId: string; password: string | null }[]).filter((row) => row.providerId === "credential");
@@ -741,18 +746,55 @@ describe("third review: credential writes, stale sessions and refusals", () => {
     expect(hasSession(cookie)).toBe(true);
   });
 
-  test("a stale-session check that overlaps the caller's own sign-out of other sessions doesn't sign the caller out", async () => {
+  // The race the single conditional DELETE removes (reading the session, then
+  // the generation, around the caller's restamp) has no pause point inside one
+  // statement. This checks the caller's session at the points a reader can see:
+  // while its own change is open after the restamp, and after it finishes.
+  test("the caller's session survives stale checks during and after its own sign-out of other sessions", async () => {
     const { t, cookie, arm, hasSession, service } = await harness();
     await otpSignIn(t);
-    const pause = arm("read");
-    const check = t.get(`${BASE}/api/auth/get-session`, cookie);
-    const paused = await Promise.race([pause.hit.promise.then(() => true), check.then(() => false)]);
-    expect((await t.post("/revoke-other-sessions", {}, cookie)).status).toBe(200);
-    pause.release.resolve();
-    await check;
-    if (paused) expect(hasSession(cookie)).toBe(true);
-    expect(hasSession(cookie)).toBe(true);
+    const pause = arm("finish");
+    const signOut = t.post("/revoke-other-sessions", {}, cookie);
+    await pause.hit.promise;
+    try {
+      expect(await t.session(cookie)).not.toBeNull();
+      expect(hasSession(cookie)).toBe(true);
+    } finally { pause.release.resolve(); }
+    expect((await signOut).status).toBe(200);
+    expect(await t.session(cookie)).not.toBeNull();
     expect(await documentAccess(t, service, cookie)).toBe(true);
+  });
+
+  test("an expired session on a sign-out route opens no change", async () => {
+    const { t, cookie, service, userId } = await harness();
+    const second = await otpSignIn(t);
+    const before = await service.readSecurityGeneration(userId);
+    for (const [path, session] of [["/revoke-sessions", cookie], ["/revoke-other-sessions", second]] as const) {
+      const row = (t.store.session as { token: string; expiresAt: Date }[]).find((row) => session.includes(row.token))!;
+      row.expiresAt = new Date(Date.now() - 1000);
+      expect((await t.post(path, {}, session)).status).toBe(401);
+    }
+    expect(await service.readSecurityGeneration(userId)).toBe(before);
+  });
+
+  test("a sign-out during an open change answers 409, not 500", async () => {
+    const { t, cookie, service, userId } = await harness();
+    const change = await service.beginSecurityChange(userId);
+    for (const path of ["/revoke-sessions", "/revoke-other-sessions"]) {
+      const refused = await t.post(path, {}, cookie);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ code: "security_change_in_progress" });
+    }
+    await service.finishSecurityChange(userId, change.changeId);
+  });
+
+  test("set-password on an account with an empty legacy credential row answers PASSWORD_ALREADY_SET", async () => {
+    const { t, cookie, userId, credentials } = await harness();
+    (t.store.account as Record<string, unknown>[]).push({ id: "legacy", accountId: userId, providerId: "credential", userId, password: null, createdAt: new Date(), updatedAt: new Date() });
+    const refused = await setPasswordHandler(t.auth, { sendEmail: t.send })(passwordRequest(cookie));
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({ code: "PASSWORD_ALREADY_SET" });
+    expect(credentials()).toHaveLength(1);
   });
 
   test("a sign-out the endpoint fails moves no generation", async () => {
@@ -777,7 +819,18 @@ describe("third review: credential writes, stale sessions and refusals", () => {
       expect((await t.post("/change-password", { currentPassword: password, newPassword: "changed-password-456" }, cookie)).status).toBe(500);
     } finally { store.writeCredential = original; }
     expect(typeof await service.readSecurityGeneration(userId)).toBe("number");
+    expect(await documentAccess(t, service, cookie)).toBe(true);
     expect((await t.post("/sign-in/email", { email: VICTIM, password })).status).toBe(200);
+  });
+
+  test("the change store must come complete, with the generation reader, and can't be combined with custom ids", () => {
+    const service = grantsWithStore(new MemoryDeviceStore());
+    const { deviceStore, ...rest } = storeDeps(service);
+    void deviceStore;
+    const complete = { ...rest, beginSecurityChange: service.beginSecurityChange, finishSecurityChange: service.finishSecurityChange };
+    expect(() => setup(undefined, service.bumpSecurityGeneration, undefined, complete)).toThrow("must be configured together");
+    expect(() => createAuth({ database: memoryAdapter({}), baseURL: BASE, secret: "test-secret-at-least-32-characters-long", claims: memoryClaims(), sendEmail: async () => {},
+      readSecurityGeneration: service.readSecurityGeneration, ...complete, options: { advanced: { database: { generateId: () => "id" } } } })).toThrow("generateId");
   });
 
   test("password sign-in gives the same answer for an unknown email and for an account with a change open", async () => {

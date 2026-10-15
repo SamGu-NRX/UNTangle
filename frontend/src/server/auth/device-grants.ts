@@ -60,9 +60,12 @@ export interface DeviceStore {
   /**
    * Writes the account's password, in one transaction that locks the
    * account's security row and refuses (`stale_session`) unless `changeId` is
-   * still the open change. A request that stalled past the timeout, and whose
-   * change another one replaced, can't land its write after the newer one.
-   * "update" changes the existing credential; "insert" creates the first.
+   * still the account's change. A timed-out change nobody has replaced still
+   * writes; once another change replaces it, its write can't land. "update"
+   * changes the existing credential; "insert" creates the first and is
+   * refused (`credential_exists`) if any credential row exists. These writes
+   * bypass better-auth's adapter, so they assume no secondary storage and
+   * better-auth's default ids (auth-config.ts refuses generateId).
    */
   writeCredential(userId: string, changeId: string, passwordHash: string, mode: "update" | "insert"): Promise<void>;
   /**
@@ -78,6 +81,7 @@ export interface DeviceStore {
 export type SecurityChange = { changeId: string; generation: number };
 export const securityChangeInProgress = () => new DeviceGrantError("security_change_in_progress", 409);
 export const staleSession = () => new DeviceGrantError("stale_session", 401);
+export const credentialExists = () => new DeviceGrantError("credential_exists", 409);
 export const changeNotCurrent = () => new Error("This account security change is no longer the open one.");
 export type DeviceIdentity = { userId: string; grantId: string; clientKind: DeviceClientKind; scopes: readonly DeviceScope[]; scheduleId: string | null };
 

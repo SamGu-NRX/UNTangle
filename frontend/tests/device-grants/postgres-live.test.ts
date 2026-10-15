@@ -87,8 +87,10 @@ test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse
     const replacement = await service.beginSecurityChange("bob");
     await expect(service.writeCredential("bob", opened.value.changeId, "late-hash", "update")).rejects.toMatchObject({ code: "stale_session", status: 401 });
     await service.writeCredential("bob", replacement.changeId, "reset-hash", "update");
+    // The unique index refuses it, as a typed error that carries no query text or hash.
     const duplicate = await service.writeCredential("bob", replacement.changeId, "second-hash", "insert").then(() => null, (error: Error) => error);
-    expect(duplicate?.message).toBe("Credential write failed: 23505 account_credential_user_idx");
+    expect(duplicate).toMatchObject({ code: "credential_exists", status: 409 });
+    expect(`${duplicate?.message} ${JSON.stringify(duplicate)}`).not.toContain("second-hash");
     expect((await pool.query("SELECT password FROM account WHERE user_id = 'bob' AND provider_id = 'credential'")).rows).toEqual([{ password: "reset-hash" }]);
     await expect(service.finishSecurityChange("bob", opened.value.changeId)).rejects.toThrow("no longer the open one");
     await expect(service.readSecurityGeneration("bob")).rejects.toMatchObject({ code: "security_change_in_progress" });

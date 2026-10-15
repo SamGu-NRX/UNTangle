@@ -102,7 +102,7 @@ describe("document HTTP boundaries", () => {
     // A session that may survive the change is told to retry, not that it's signed out.
     const during = await browser.put(request(), context);
     expect(during.status).toBe(409);
-    expect(during.headers.get("retry-after")).toBe("1");
+    expect(during.headers.get("retry-after")).toBe("5");
     expect(await during.json()).toMatchObject({ code: "security_change_in_progress" });
     await grants.finishSecurityChange("alice", change.changeId);
     generation = 3;

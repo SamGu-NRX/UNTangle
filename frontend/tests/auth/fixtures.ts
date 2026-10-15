@@ -36,15 +36,15 @@ function withReadLatency(adapter: ReturnType<typeof memoryAdapter>): ReturnType<
   }) as ReturnType<typeof memoryAdapter>;
 }
 
-export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "finishSecurityChange" | "writeCredential" | "endStaleSession"> & { devices?: MemoryDeviceStore } = {}) {
+export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "finishSecurityChange" | "writeCredential" | "endStaleSession"> & { deviceStore?: MemoryDeviceStore } = {}) {
   const store: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
   const mail: { kind: string; to: string; url: string }[] = [];
   const record = async (kind: string, to: string, url: string) => {
     mail.push({ kind, to, url });
   };
-  const { devices, ...security } = changes;
+  const { deviceStore, ...security } = changes;
   // The device store's account and session writes go to this test's tables.
-  devices?.useAuthTables(store);
+  deviceStore?.useAuthTables(store);
   const auth = createAuth({
     database: withReadLatency(memoryAdapter(store)),
     baseURL: BASE,

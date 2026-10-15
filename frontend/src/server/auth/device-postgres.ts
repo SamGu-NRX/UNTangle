@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { accounts, deviceGrants, deviceSecurity, deviceTokens, sessions } from "@/lib/db/schema";
-import { changeNotCurrent, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore } from "./device-grants";
+import { changeNotCurrent, credentialExists, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore } from "./device-grants";
 
 // Database time, so every instance agrees on when a change went stale.
 const staleBefore = sql`now() - ${sql.raw(`interval '${securityChangeTimeout} milliseconds'`)}`;
@@ -81,6 +81,7 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
         const failure = error as { cause?: { code?: string; constraint?: string }; code?: string; constraint?: string };
         const database = failure.cause ?? (failure.code ? failure : null);
         if (!database) throw error;
+        if (mode === "insert" && database.code === "23505" && database.constraint === "account_credential_user_idx") throw credentialExists();
         throw new Error(`Credential write failed: ${[database.code, database.constraint].filter(Boolean).join(" ")}`);
       }
     },
