@@ -84,7 +84,7 @@ function contentWords(value: string): Set<string> {
     value
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter((word) => word.length > 2 && !["the", "and", "for", "you", "your", "will", "are", "with", "that", "this", "from", "have", "not"].includes(word)),
+      .filter((word) => word.length > 2 && !["the", "and", "for", "you", "your", "will", "are", "with", "that", "this", "from", "have"].includes(word)),
   );
 }
 
@@ -97,6 +97,12 @@ function overlaps(a: string, b: string): boolean {
   return shared / Math.min(wa.size, wb.size) >= 0.5;
 }
 
+function attendanceMatches(extracted: string, labeled: string): boolean {
+  // Shared topic words cannot make a negated requirement equal a positive one.
+  const negated = /\b(?:not|never)\b|n't\b|\bno\s+(?:class\s+)?attendance\b/i;
+  return negated.test(extracted) === negated.test(labeled) && overlaps(extracted, labeled);
+}
+
 function nameMatches(extracted: string, labeled: string): boolean {
   const a = normalizeForComparison(extracted);
   const b = normalizeForComparison(labeled);
@@ -104,10 +110,10 @@ function nameMatches(extracted: string, labeled: string): boolean {
   return a.includes(b) || b.includes(a) || overlaps(extracted, labeled);
 }
 
-function rate(tally: Tally): { precision: number | null; recall: number | null; f1: number | null } {
+export function rate(tally: Tally): { precision: number | null; recall: number | null; f1: number | null } {
   const precision = tally.tp + tally.fp > 0 ? tally.tp / (tally.tp + tally.fp) : null;
   const recall = tally.tp + tally.fn > 0 ? tally.tp / (tally.tp + tally.fn) : null;
-  const f1 = precision !== null && recall !== null && precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : null;
+  const f1 = precision === null || recall === null ? null : precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
   return { precision, recall, f1 };
 }
 
@@ -139,7 +145,7 @@ export function scoreEntries(documents: { entry: LabelEntry; text: string }[]) {
 
     // Attendance
     if (facts.attendancePolicy.found) {
-      const labeled = entry.attendance.present && entry.attendance.excerpt && overlaps(facts.attendancePolicy.source.quote, entry.attendance.excerpt);
+      const labeled = entry.attendance.present && entry.attendance.excerpt && attendanceMatches(facts.attendancePolicy.source.quote, entry.attendance.excerpt);
       if (entry.attendance.present && labeled) attendance.tp++;
       else {
         attendance.fp++;
@@ -168,13 +174,29 @@ export function scoreEntries(documents: { entry: LabelEntry; text: string }[]) {
     if (facts.gradingWeights.found) {
       const extracted = facts.gradingWeights.components;
       const labeledComponents = entry.gradingWeights.present ? entry.gradingWeights.components ?? [] : [];
-      const matched = new Set<number>();
-      for (const label of labeledComponents) {
-        const hit = extracted.findIndex((c, i) => !matched.has(i) && c.weightPct === label.weightPct && nameMatches(c.name, label.name));
-        if (hit >= 0) {
-          matched.add(hit);
-          weightsComponents.tp++;
-        } else {
+      // Reassign earlier matches when a later label needs their component.
+      // Greedy matching can consume "Midterm Exam" for the broader "Exam" label.
+      const owners = new Map<number, number>();
+      const assign = (labelIndex: number, visited: Set<number>): boolean => {
+        const label = labeledComponents[labelIndex];
+        for (let i = 0; i < extracted.length; i++) {
+          const component = extracted[i];
+          if (visited.has(i) || component.weightPct !== label.weightPct || !nameMatches(component.name, label.name)) continue;
+          visited.add(i);
+          const owner = owners.get(i);
+          if (owner === undefined || assign(owner, visited)) {
+            owners.set(i, labelIndex);
+            return true;
+          }
+        }
+        return false;
+      };
+      for (let i = 0; i < labeledComponents.length; i++) assign(i, new Set<number>());
+      const matched = new Set(owners.keys());
+      const matchedLabels = new Set(owners.values());
+      for (const [i, label] of labeledComponents.entries()) {
+        if (matchedLabels.has(i)) weightsComponents.tp++;
+        else {
           weightsComponents.fn++;
           misses.push(`${entry.id} weights: missed labeled component ${label.name} ${label.weightPct}%`);
         }

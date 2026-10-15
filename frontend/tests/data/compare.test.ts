@@ -140,7 +140,7 @@ describe("catalog ingest comparison", () => {
 
   test("computes the online share as 33.3 for 1 of 3 sections", () => {
     const report = compareBundles(currentFixture(), candidateFixture());
-    expect(report.onlineShare).toEqual({ onlineSections: 1, totalSections: 3, percent: 33.3 });
+    expect(report.onlineShare).toEqual({ onlineSections: 1, unknownSections: 1, totalSections: 3, percent: 33.3 });
   });
 
   test("computes unresolved prerequisite edges with a current-bundle context count", () => {
@@ -176,7 +176,7 @@ describe("catalog ingest comparison", () => {
       { buildings: [], courses: [], sections: [] },
       { ...candidateFixture(), sections: [] },
     );
-    expect(report.onlineShare).toEqual({ onlineSections: 0, totalSections: 0, percent: 0 });
+    expect(report.onlineShare).toEqual({ onlineSections: 0, unknownSections: 0, totalSections: 0, percent: 0 });
     expect(report.buildingsUsed).toEqual([]);
     expect(report.currentBuildingsUsed).toEqual([]);
     expect(report.meetingsPerBuilding).toEqual([]);
@@ -195,7 +195,7 @@ describe("catalog ingest comparison", () => {
     expect(first).toContain("- PHIL 1050");
     expect(first).toContain("| art | Art Building | 2 |");
     expect(first).toContain("| chem | Chemistry Building | 1 |");
-    expect(first).toContain("1 of 3 candidate sections (33.3%) are online or have no in-person meeting.");
+    expect(first).toContain("1 of 3 candidate sections (33.3%) are explicitly online; 1 have unknown modality.");
     expect(first).toContain("- CHEM 3010 requires MATH 1650 (no candidate course)");
     expect(first).toContain("Context: the current bundle has 0 unresolved prerequisite edge(s).");
     expect(first).toContain("- id: fall-2026");
@@ -231,4 +231,12 @@ describe("catalog ingest comparison", () => {
     expect(report.counts.current).toEqual({ courses: 1, sections: 1, buildings: 1 });
     expect(report.currentBuildingsUsed).toEqual(["art"]);
   });
+});
+
+
+test("missing meetings do not turn unknown modality into online", () => {
+  const candidate = candidateFixture();
+  candidate.sections[0].meetings = [];
+  candidate.sections[0].modality = "unknown";
+  expect(compareBundles(currentFixture(), candidate).onlineShare).toEqual({ onlineSections: 1, unknownSections: 1, totalSections: 3, percent: 33.3 });
 });

@@ -15,7 +15,7 @@ import { createPortal } from "react-dom";
 import { useBackToClose } from "./back-close";
 import { cx } from "./cx";
 import { keyboardFocused } from "./input-source";
-import { useModalLayer } from "./modal-layer";
+import { FOCUSABLE, useModalLayer } from "./modal-layer";
 import {
   BOUNCE_VELOCITY,
   DRAG_HYSTERESIS,
@@ -74,7 +74,10 @@ export type BottomSheetProps = {
   returnFocus?: () => HTMLElement | null;
   /** Content under the handle that also drags the sheet (title, switcher). */
   header?: ReactNode;
-  /** Element to focus on open (modal sheets). Default: the first focusable. */
+  /**
+   * Element to focus on open (modal sheets). Default: the sheet's first
+   * heading, else its first control after the resize handle, else the sheet.
+   */
   initialFocus?: RefObject<HTMLElement | null>;
   children?: ReactNode;
   className?: string;
@@ -82,6 +85,39 @@ export type BottomSheetProps = {
 
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/**
+ * Where focus lands when a modal sheet opens without an `initialFocus`: the
+ * sheet's heading, else its first control other than the resize handle,
+ * else the sheet itself. The handle comes first in the DOM, but it is
+ * chrome; focusing it drew a ring around it whenever a sheet opened without
+ * a pointer press (a deep link, a keyboard). It stays in the Tab order, so a
+ * keyboard user who reaches it still sees its ring.
+ */
+function openingFocus(sheet: HTMLElement | null): HTMLElement | null {
+  if (!sheet) return null;
+  const candidates = (selector: string) =>
+    Array.from(sheet.querySelectorAll<HTMLElement>(selector)).filter((el) => ownedAndShown(el, sheet));
+  const heading = candidates("h1, h2, h3, h4, h5, h6")[0];
+  if (heading) {
+    // Focusable by script only; ui.css draws no ring on it, as it is not a control.
+    if (!heading.hasAttribute("tabindex")) heading.tabIndex = -1;
+    heading.setAttribute("data-sheet-start", "");
+    return heading;
+  }
+  return candidates(FOCUSABLE).find((el) => !el.classList.contains("ui-sheet__handle")) ?? sheet;
+}
+
+/**
+ * True when `el` belongs to this sheet rather than to a dialog, menu or
+ * listbox nested in it, and is rendered and reachable: not inside an inert
+ * or hidden subtree, and not display:none or visibility:hidden.
+ */
+function ownedAndShown(el: HTMLElement, sheet: HTMLElement): boolean {
+  if (el.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') !== sheet) return false;
+  if (el.closest("[inert], [hidden], [aria-hidden='true']")) return false;
+  return typeof el.checkVisibility === "function" ? el.checkVisibility({ visibilityProperty: true }) : true;
 }
 
 type Drag = {
@@ -183,9 +219,15 @@ export function BottomSheet({
   const dismissByBack = useBackToClose(open && closeOnBack, () => onOpenChange(false));
   const requestClose = () => (closeOnBack ? dismissByBack() : onOpenChange(false));
 
+  // Chosen in a layout effect, which runs before the layer's effect moves focus in.
+  const defaultFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (open && modal && !initialFocus) defaultFocus.current = openingFocus(sheetRef.current);
+  }, [open, modal, initialFocus]);
+
   useModalLayer(modal && open, rootRef, {
     onEscape: dismissible ? requestClose : undefined,
-    initialFocus,
+    initialFocus: initialFocus ?? defaultFocus,
     returnFocus,
   });
 
@@ -268,22 +310,37 @@ export function BottomSheet({
     stopSpring.current = () => cancelAnimationFrame(frame);
   };
 
+  /**
+   * Below the top detent the body cannot scroll, so focus that lands out of
+   * sight (Tab, a screen reader, the opening focus) raises the sheet to show
+   * it. Measured where the sheet comes to rest, not where it is now, since
+   * the opening focus arrives while the sheet is still rising. Before the
+   * sheet is placed there is nothing to measure; placing it checks again.
+   */
+  const raiseToShow = (el: Element) => {
+    if (expanded || y.current === null || !bodyRef.current?.contains(el)) return;
+    const resting = el.getBoundingClientRect().bottom - y.current + (offsets[index] ?? 0);
+    if (resting > window.innerHeight) {
+      keyboardMove.current = true;
+      setIndex(topIndex);
+    }
+  };
+
   // Enter from below the screen, or fade in under reduced motion.
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
     if (!open || !sheet || viewportHeight === 0 || y.current !== null) return;
     const target = offsets[index] ?? 0;
-    if (keyboardMotion) {
+    if (keyboardMotion || prefersReducedMotion()) {
       place(target);
-      return;
+      if (!keyboardMotion) sheet.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "ease-out" });
+    } else {
+      place(closedOffset);
+      moveTo(target, null, SETTLE);
     }
-    if (prefersReducedMotion()) {
-      place(target);
-      sheet.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "ease-out" });
-      return;
-    }
-    place(closedOffset);
-    moveTo(target, null, SETTLE);
+    // On a first open the opening focus came before the sheet could be
+    // measured and placed, so its check was skipped; run it now.
+    if (document.activeElement) raiseToShow(document.activeElement);
   });
 
   // Settle whenever the target moves: a detent change, new geometry, or a
@@ -510,14 +567,7 @@ export function BottomSheet({
           data-at-top={bodyAtTop ? "" : undefined}
           onScroll={(event) => setBodyAtTop(event.currentTarget.scrollTop <= 0)}
           onPointerDown={(event) => onPointerDown(event, true)}
-          onFocus={(event) => {
-            // Below the top detent the body cannot scroll, so focus that lands
-            // out of sight (Tab, a screen reader) raises the sheet to show it.
-            if (!expanded && event.target.getBoundingClientRect().bottom > window.innerHeight) {
-              keyboardMove.current = true;
-              setIndex(topIndex);
-            }
-          }}
+          onFocus={(event) => raiseToShow(event.target)}
         >
           {children}
         </div>

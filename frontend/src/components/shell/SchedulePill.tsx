@@ -19,20 +19,26 @@ function useScheduleState() {
 }
 
 /**
- * Term in ink, schedule name quieter beside it; the gap separates them. The
- * accessible name starts with the visible words (WCAG 2.5.3), then adds the
- * save state and, when given, where the pill goes.
+ * The schedule name, with the term before it when there is room for both.
+ * The name is the pill's one fact, so it never gives way to the term: on
+ * phones the term is left to the screen's own header and the sheet's
+ * title, and a long name ends in an ellipsis. The accessible name starts
+ * with the visible words (WCAG 2.5.3), then adds whichever words were left
+ * out, the save state and, when given, where the pill goes.
  */
-function PillText({ term, status, action }: { term: string; status: string; action?: string }) {
+export function PillText({ showTerm, status, action }: { showTerm: boolean; status: string; action?: string }) {
   return (
     <>
       <span className="shell-pill__dot" aria-hidden="true" />
-      <span className="shell-pill__term">{term}</span>{" "}
+      {showTerm ? (
+        <>
+          <span className="shell-pill__term">{PLANNING_TERM.name}</span>{" "}
+        </>
+      ) : null}
       <span className="shell-pill__name">{SCHEDULE_NAME}</span>
       <ChevronDown size={14} className="shell-pill__chevron" />
       <span className="sr-only-v2">
-        {" "}
-        schedule. {status}.{action ? ` ${action}` : ""}
+        {showTerm ? " schedule" : ` schedule for ${PLANNING_TERM.name}`}. {status}.{action ? ` ${action}` : ""}
       </span>
     </>
   );
@@ -52,7 +58,7 @@ export function SchedulePill() {
         className="shell-pill"
         data-tone={tone}
       >
-        <PillText term={PLANNING_TERM.name} status={status} action="Open all schedules" />
+        <PillText showTerm status={status} action="Open all schedules" />
       </Link>
       {tone === "error" ? (
         <>
@@ -82,7 +88,7 @@ export function PhoneSchedulePill() {
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
-        <PillText term={PLANNING_TERM.shortName} status={status} />
+        <PillText showTerm={false} status={status} />
       </button>
       <BottomSheet
         open={open}

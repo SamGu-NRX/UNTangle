@@ -325,7 +325,9 @@ function walks(map) {
 }
 function stats(map) {
   const m = meetings(map); const days = new Set(m.map((x) => x.d)); const ws = walks(map);
-  return { days: days.size, first: Math.min(...m.map((x) => x.s)), last: Math.max(...m.map((x) => x.e)), walk: ws.reduce((a, w) => a + w.w, 0), tight: ws.filter((w) => w.kind).length, conf: conflicts(m).size };
+  // An empty or online-only week has no first or last class (null), not Math.min of nothing.
+  const timed = m.length > 0;
+  return { days: days.size, first: timed ? Math.min(...m.map((x) => x.s)) : null, last: timed ? Math.max(...m.map((x) => x.e)) : null, walk: ws.reduce((a, w) => a + w.w, 0), tight: ws.filter((w) => w.kind).length, conf: conflicts(m).size };
 }
 
 /* ---------- rendering ---------- */
@@ -455,9 +457,11 @@ function prefsHTML() {
 }
 function altHTML() {
   const a = stats(sched), b = stats(OPTIONS[optIndex].map), o = OPTIONS[optIndex];
-  const rows = [["Days on campus", a.days, b.days, b.days - a.days], ["First class", fmt(a.first), fmt(b.first), a.first - b.first], ["Last class ends", fmt(a.last), fmt(b.last), b.last - a.last], ["Walking a week", a.walk + " min", b.walk + " min", b.walk - a.walk], ["Tight or late walks", a.tight, b.tight, b.tight - a.tight]];
+  const t = (h) => (h === null ? "None" : fmt(h));
+  const later = (x, y) => (x === null || y === null ? 0 : y - x); // no class on one side: nothing to compare
+  const rows = [["Days on campus", a.days, b.days, b.days - a.days], ["First class", t(a.first), t(b.first), -later(a.first, b.first)], ["Last class ends", t(a.last), t(b.last), later(a.last, b.last)], ["Walking a week", a.walk + " min", b.walk + " min", b.walk - a.walk], ["Tight or late walks", a.tight, b.tight, b.tight - a.tight]];
   const changes = Object.keys(o.map).filter((c) => o.map[c] !== sched[c]);
-  const sec = (c, n) => { const s = secOf(c, n); return s.online ? "Online" : `${dayStr(s.days)} ${fmt(s.s)}`; };
+  const sec = (c, n) => { const s = n && secOf(c, n); return !s ? "Not in your week" : s.online ? "Online" : `${dayStr(s.days)} ${fmt(s.s)}`; };
   return `${panelHead(`Option ${optIndex + 1} next to your week`)}
     <div class="psec"><table class="cmp"><thead><tr><th></th><th>Now</th><th>Option ${optIndex + 1}</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="${r[3] < 0 ? "better" : r[3] > 0 ? "worse" : ""}">${r[2]}</td></tr>`).join("")}</tbody></table></div>
     <div class="psec"><div class="label">Sections that change</div>${changes.map((c) => `<div class="chg" data-c="${SECTIONS[c].c}"><span class="cdot"></span><b class="code" style="font-size:13px">${c}</b><span class="from">${sec(c, sched[c])}</span>${icon("chevR", "sm")}<span>${sec(c, o.map[c])}</span></div>`).join("")}</div>
@@ -616,9 +620,10 @@ function openExport() {
     <section class="xsec"><h3>${icon("calendar")}Calendar file</h3><p class="help">Spring 2027, Jan 19 to May 7. Weekly repeats skip spring break (Mar 15–19). Online classes are left out.</p>${HOST === "untangle" ? `<div class="tline">Leave-by alerts<button class="switch" role="switch" aria-checked="true" aria-label="Leave-by alerts"></button></div>` : ""}<button class="btn btn-secondary" data-i="download">Download .ics</button></section>
     <section class="xsec"><h3>${icon("image")}Picture of the week</h3><button class="btn btn-secondary" data-i="download">Download .png</button></section>
     <section class="xsec"><h3>${icon("share")}Share and back up</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" data-i="copy" data-is="sm">Copy share link</button><button class="btn btn-secondary btn-sm">Print</button><button class="btn btn-secondary btn-sm">Save file</button><button class="btn btn-ink btn-sm">Open a file</button></div></section>`;
-  if (PHONE.matches) { $("#sbody").innerHTML = `<div style="padding:0 16px">${html}</div>`; hydrateIcons($("#sbody")); $("[data-xclose]", $("#sbody")).onclick = () => sheet.close(); sheet.open(1); return; }
-  $("#xdialog").innerHTML = html; hydrateIcons($("#xdialog"));
-  $$(".switch", $("#xdialog")).forEach((s) => (s.onclick = () => s.setAttribute("aria-checked", s.getAttribute("aria-checked") !== "true")));
+  // The same export lands in the phone sheet or the desktop dialog; its switches work in either.
+  const wireSwitches = (root) => $$(".switch", root).forEach((s) => (s.onclick = () => s.setAttribute("aria-checked", s.getAttribute("aria-checked") !== "true")));
+  if (PHONE.matches) { $("#sbody").innerHTML = `<div style="padding:0 16px">${html}</div>`; hydrateIcons($("#sbody")); wireSwitches($("#sbody")); $("[data-xclose]", $("#sbody")).onclick = () => sheet.close(); sheet.open(1); return; }
+  $("#xdialog").innerHTML = html; hydrateIcons($("#xdialog")); wireSwitches($("#xdialog"));
   $("#xwrap").style.display = ""; $("#xscrim").classList.add("on"); requestAnimationFrame(() => $("#xdialog").classList.add("on")); modalOpen($("#xwrap"), $("[data-xclose]", $("#xdialog")));
   $("[data-xclose]", $("#xdialog")).onclick = closeExport;
 }

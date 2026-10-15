@@ -48,7 +48,7 @@ Icon buttons need labels:
 
 **Check with:**
 ```bash
-python scripts/contrast-check.py #333333 #ffffff
+python scripts/contrast-check.py "#333333" "#ffffff"
 ```
 
 **Common failures:**
@@ -259,7 +259,7 @@ Good: "Required fields are marked with * (asterisk)"
 **In code:**
 ```bash
 # Contrast check
-python scripts/contrast-check.py #hex1 #hex2
+python scripts/contrast-check.py "#hex1" "#hex2"
 ```
 
 ---

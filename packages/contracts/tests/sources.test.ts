@@ -6,6 +6,7 @@ import { decoded, rejections } from "./helpers";
 
 const server: SourcePolicy = {
   sourceId: "vsb-untgrades",
+  institutionId: "unt",
   description: "UNT class search, as mirrored by vsb.untgrades.app.",
   acquisition: "server",
   approval: "allowed",
@@ -13,7 +14,7 @@ const server: SourcePolicy = {
   redistribution: "unverified",
   allowedUrlPrefixes: ["https://vsb.untgrades.app/data/"],
   minIntervalMs: 900_000,
-  maxRequestsPerHour: null,
+  maxRequestsPerHour: 4,
   maxConcurrency: 1,
   policyEvidenceUrl: null,
   policyCheckedAt: null,
@@ -21,6 +22,7 @@ const server: SourcePolicy = {
 
 const linkOnly: SourcePolicy = {
   sourceId: "ratemyprofessors",
+  institutionId: "unt",
   description: "RateMyProfessors: a link only.",
   acquisition: "link-only",
   approval: "allowed",

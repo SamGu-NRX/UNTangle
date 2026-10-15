@@ -39,6 +39,7 @@ function historyBody(courseCount = 1): InstructorHistory {
     grades: gradeData,
     instructor: smith,
     courses: courseCount === 0 ? [] : [course],
+    gpa: 3.35,
   };
 }
 

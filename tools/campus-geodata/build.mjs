@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pedestrianDirections } from "./pedestrian-directions.mjs";
+import { assertUnconditionalPedestrianAccess, pedestrianDirections } from "./pedestrian-directions.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rawDir = process.argv[4] ?? join(here, "raw");
@@ -210,6 +210,7 @@ function main() {
   for (const way of rawWays) {
     const tags = way.tags ?? {};
     if (!KEEP_HIGHWAY.has(tags.highway)) continue;
+    assertUnconditionalPedestrianAccess(tags, way.id);
     // UNT's pinned reciprocal extract hash is part of its matrix metadata.
     const directions = definition.pedestrianDirectionPolicy === "legacy-unt-reciprocal"
       ? undefined : pedestrianDirections(tags, way.id);

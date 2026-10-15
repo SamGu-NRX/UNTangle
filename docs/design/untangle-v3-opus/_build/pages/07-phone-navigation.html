@@ -116,7 +116,7 @@
       <div class="wbar glass-panel"><button class="btn btn-secondary" data-open="search" data-i="search">Add</button><button class="btn btn-primary" data-i="trayin">Auto</button></div>
     </section>
     <section class="tab" id="tab-day" aria-label="Day">
-      <div class="mapbg" role="img" aria-label="Campus map with today's walking route"></div>
+      <div class="mapbg" role="img" aria-label="Static UNT campus map capture from another sample day, with a green route past the General Academic Building"></div>
     </section>
   </main>
   <nav class="tabbar" aria-label="Views"><a href="#" data-go="courses" aria-current="page" data-i="courses">Courses</a><a href="#" data-go="week" data-i="week">Week</a><a href="#" data-go="day" data-i="day">Day</a></nav>
@@ -141,35 +141,69 @@ if (!asPhone) {
   const EV = [[0, 9, 0.83, 3, "CSCE 2110"], [2, 9, 0.83, 3, "CSCE 2110"], [4, 9, 0.83, 3, "CSCE 2110"], [0, 10, 0.83, 1, "MATH 2700"], [2, 10, 0.83, 1, "MATH 2700"], [4, 10, 0.83, 1, "MATH 2700"], [0, 11, 0.83, 4, "PHYS 2220"], [2, 11, 0.83, 4, "PHYS 2220"], [1, 12.5, 1.33, 6, "CSCE 2610"], [3, 12.5, 1.33, 6, "CSCE 2610"]];
   $("#wkbd").innerHTML = '<div></div>' + [0, 1, 2, 3, 4].map((d) => `<div class="col">${EV.filter((e) => e[0] === d).map((e) => `<button class="e" data-c="${e[3]}" data-code="${e[4]}" style="top:${(e[1] - 8) * 52 + 1}px;height:${e[2] * 52 - 2}px">${e[4].replace(" ", "<br>")}</button>`).join("")}</div>`).join("");
   const tabs = { courses: $("#tab-courses"), week: $("#tab-week"), day: $("#tab-day") };
-  const sheet = new Sheet($("#sheet"), { detents: [() => innerHeight * 0.52, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true });
+  // One shared sheet element, but its state belongs to the tab that opened it: leaving a tab hides
+  // that tab's sheet instantly and coming back restores it at the same detent (HANDOFF slice 3).
+  let sheetKind = null;
+  const parked = {};
+  // An open sheet or the search layer holds one history entry, so browser Back closes it before
+  // leaving the page (DESIGN.md: Back closes the top sheet; tabs are not history).
+  // `holding` keeps the entry while a tab switch hides one sheet and may restore another.
+  let layerEntry = false, skipPops = 0, closingFromHistory = false, holding = false;
+  const searchOn = () => $("#search").classList.contains("on");
+  const pushEntry = () => { if (!layerEntry) { history.pushState({ layer: true }, ""); layerEntry = true; } };
+  const dropEntry = () => { if (layerEntry && !closingFromHistory && !holding) { layerEntry = false; skipPops++; history.back(); } };
+  const sheet = new Sheet($("#sheet"), {
+    detents: [() => innerHeight * 0.52, () => innerHeight * 0.92], modal: true, scrim: $("#scrim"), dismissible: true,
+    // Every way the sheet closes (drag, scrim, ×, Esc, Back, a tab switch) ends here.
+    onDetent: (i) => { if (i < 0) { sheetKind = null; if (!searchOn()) dropEntry(); } },
+  });
   const daySheet = new Sheet($("#daysheet"), { detents: [() => 200, () => innerHeight * 0.5], bottomInset: () => 56 });
   let current = "courses";
   function go(t) {
     if (t === current) { tabs[t].scrollTo({ top: 0, behavior: reduced() ? "auto" : "smooth" }); return; } // re-tap scrolls to top
-    if (sheet.index >= 0) sheet.close();
+    holding = true;
+    if (searchOn()) closeSearch();
+    if (sheet.index >= 0) { parked[current] = { kind: sheetKind, index: sheet.index }; sheet.close(0, { instant: true }); }
     Object.entries(tabs).forEach(([k, el]) => el.classList.toggle("on", k === t));
     $$(".tabbar a").forEach((a) => a.setAttribute("aria-current", a.dataset.go === t ? "page" : "false"));
     $(".pheader").style.display = t === "day" ? "none" : "";
     if (t === "day") daySheet.open(0); else if (daySheet.index >= 0) { daySheet.index = -1; daySheet.setY(daySheet.closedY()); }
     current = t;
+    const back = parked[t]; delete parked[t];
+    if (back) openSheet(back.kind, { index: back.index, instant: true });
+    holding = false;
+    if (sheet.index < 0) dropEntry();
   }
-  function openSheet(kind) {
+  function openSheet(kind, { index = 0, instant = false } = {}) {
     const html = kind === "prefs"
       ? `<div class="dsheet-h"><h2 class="title">Preferences</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><p class="meta" style="margin-bottom:12px">Auto follows these. Most weeks need none. The full panel is in 03-schedule-builder.html.</p><div class="label" style="margin-bottom:6px">Start after</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"><button class="chip">Any time</button><button class="chip" aria-pressed="true">9 AM</button><button class="chip">10 AM</button><button class="chip">11 AM</button></div><div class="label" style="margin-bottom:6px">Busy times</div><p style="font-size:14px">Work, Tue and Thu 3:00–5:00</p>`
       : kind === "sched"
       ? `<div class="dsheet-h"><h2 class="title">Spring 2027 schedules</h2><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><div class="sched-list"><button aria-current="true"><span>Main</span><span class="meta">Mon to Fri</span><span class="ck">${icon("check")}</span></button><button><span>Fridays off</span><span class="meta">Mon to Thu</span></button><button><span>Short walks</span><span class="meta">Mon to Fri</span></button><button style="color:var(--brand-2)">${icon("plus")}New schedule</button></div><a class="btn btn-secondary" style="width:100%;margin-top:12px" href="05-schedules-library.html">All schedules and compare</a>`
       : `<div class="dsheet-h"><span class="code">MATH 3680</span><span class="tag">3 credits</span><button class="btn btn-ink btn-icon btn-sm" data-sclose aria-label="Close">${icon("close")}</button></div><h2 class="title">Applied Statistics</h2><p class="meta" style="margin:4px 0 14px">You can take this. Full detail is in 02-courses.html.</p><button class="btn btn-primary" style="width:100%">${icon("plus")}Add to Spring 2027</button><button class="btn btn-quiet" style="width:100%;margin-top:6px" data-go="week">See it in Week</button>`;
     $("#sbody").innerHTML = html; $("[data-sclose]", $("#sbody")).onclick = () => sheet.close();
-    if (sheet.index >= 0) swap($("#sbody"), () => {}); else sheet.open(0);
+    sheetKind = kind;
+    if (sheet.index >= 0) swap($("#sbody"), () => {}); else sheet.open(index, { instant });
+    pushEntry();
   }
+  function openSearch() { $("#search").classList.add("on"); $("#sq").focus(); pushEntry(); }
+  function closeSearch() { $("#search").classList.remove("on"); if (sheet.index < 0) dropEntry(); }
+  addEventListener("popstate", (e) => {
+    if (skipPops) { skipPops--; return; }
+    // Forward onto a layer entry whose layer is gone: adopt the entry, so the next layer reuses it.
+    if (e.state?.layer && !searchOn() && sheet.index < 0) { layerEntry = true; return; }
+    layerEntry = false; closingFromHistory = true;
+    if (searchOn()) closeSearch(); else if (sheet.index >= 0) sheet.close();
+    closingFromHistory = false;
+    if (searchOn() || sheet.index >= 0) pushEntry(); // a layer is still open under the one Back closed
+  });
   document.addEventListener("click", (e) => {
     const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); go(g.dataset.go); return; }
-    const o = e.target.closest("[data-open]"); if (o) { const k = o.dataset.open; if (k === "search") { $("#search").classList.add("on"); $("#sq").focus(); } else openSheet(k); return; }
-    if (e.target.closest("[data-close-search]")) $("#search").classList.remove("on");
+    const o = e.target.closest("[data-open]"); if (o) { const k = o.dataset.open; if (k === "search") openSearch(); else openSheet(k); return; }
+    if (e.target.closest("[data-close-search]")) closeSearch();
     const ev = e.target.closest(".wk .e"); if (ev) { $$(".wk .e").forEach((x) => x.classList.toggle("hl", x.dataset.code === ev.dataset.code)); openSheet("detail"); }
   });
   $("#scrim").onclick = () => sheet.close();
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if ($("#search").classList.contains("on")) $("#search").classList.remove("on"); else if (sheet.index >= 0) sheet.close(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (searchOn()) closeSearch(); else if (sheet.index >= 0) sheet.close(); } });
   addEventListener("message", (e) => { const k = e.data?.go; if (!k) return; if (k === "sched" || k === "detail") openSheet(k); else go(k); });
   const start = Q.get("tab") || (Q.get("now") === "term" ? "day" : "courses");
   if (start !== "courses") go(start);

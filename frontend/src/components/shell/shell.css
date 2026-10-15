@@ -4,6 +4,13 @@
  * the breakpoint every current view uses): a 52px frosted header and a
  * frosted tab bar, with the header hidden on Day. Nothing here animates:
  * lens switches are instant.
+ *
+ * The bars' fills are 98% opaque because the blur alone does not hide what
+ * scrolls under them. In Chromium, text under the old 88 to 92% fills
+ * stayed sharp and readable beneath the tab labels, in the app and on a
+ * plain test page with the same bar (Playwright 1.64 Chromium captures, Oct
+ * 2026). At 98% it is all but gone and the labels read cleanly; the blur
+ * still carries the colour of a map or a course block.
  */
 
 .shell {
@@ -52,7 +59,7 @@
 /* ───────── Desktop top bar ───────── */
 
 .shell-topbar {
-  --glass-fill: rgba(255, 255, 255, 0.92);
+  --glass-fill: rgba(255, 255, 255, 0.98);
   --glass-blur: 16px;
   --glass-saturate: 1.6;
   position: sticky;
@@ -80,7 +87,7 @@
   flex: 1;
 }
 
-/* Schedule pill: term in ink, schedule name quieter, set apart by the gap. */
+/* Schedule pill: the schedule name, after the term on desktop. */
 .shell-pill-group {
   display: inline-flex;
   align-items: center;
@@ -122,8 +129,10 @@
 .shell-pill[data-tone="error"] .shell-pill__dot {
   background: var(--danger);
 }
-/* The term is set lighter before the name; the gap separates them, no glyph. */
+/* The term is set lighter before the name; the gap separates them, no glyph.
+   When the pill runs short, the term gives way long before the name does. */
 .shell-pill__term {
+  flex-shrink: 20;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,6 +140,9 @@
   color: var(--ink-2);
 }
 .shell-pill__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 650;
 }
 .shell-pill__chevron {
@@ -162,7 +174,7 @@
   border-radius: 50%;
   background: var(--brand-soft);
   color: var(--brand);
-  font: 700 12px/1 var(--font-mark);
+  font: 700 12px/1 var(--font-ui);
   cursor: pointer;
 }
 .shell-avatar--placeholder {
@@ -213,7 +225,7 @@
   }
 }
 
-/* Narrow desktop and tablet: search folds to its icon. */
+/* Narrow desktop and tablet: search folds to its glyph, drawn as the compact field. */
 @media (max-width: 1023px) {
   .shell-topbar {
     gap: 12px;
@@ -223,14 +235,18 @@
   }
   .shell-search {
     flex: none;
-    width: 40px;
+    width: 36px;
     justify-content: center;
     padding: 0;
-    background: transparent;
     color: var(--ink-2);
   }
   .shell-search .ui-search-trigger__visible {
     display: none;
+  }
+}
+@media (max-width: 1023px) and (pointer: coarse) {
+  .shell-search {
+    width: 44px;
   }
 }
 
@@ -293,7 +309,7 @@
     display: none;
   }
   .shell-pheader {
-    --glass-fill: rgba(244, 246, 243, 0.9);
+    --glass-fill: rgba(244, 246, 243, 0.98);
     --glass-blur: 16px;
     --glass-saturate: 1.6;
     position: sticky;
@@ -303,7 +319,8 @@
     align-items: center;
     gap: 8px;
     height: calc(var(--header-h) + var(--safe-t));
-    padding: var(--safe-t) max(8px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+    /* 16px on both sides, the page's own margin. */
+    padding: var(--safe-t) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   }
   .shell-pheader .shell-wordmark {
     margin-right: auto;
@@ -327,7 +344,14 @@
     display: block;
   }
   .shell-pheader .shell-avatar {
-    margin: 0 6px;
+    margin-left: 6px;
+  }
+  /* The person glyph's outer stroke edge sits 12.5px inside the 40px Sign
+     in button (9px of button around the 22px glyph box, 3.5px inside the
+     box, measured in Chromium), so it pulls out by that much to end on the
+     same 16px line as the content below. Its 44px target stays on screen. */
+  .shell-pheader .shell-signin {
+    margin-right: -12.5px;
   }
   /* Day: the map runs to the top edge. */
   .shell[data-lens="day"] {
@@ -340,7 +364,7 @@
     padding-bottom: var(--shell-bottom-h);
   }
   .shell-tabbar {
-    --glass-fill: rgba(255, 255, 255, 0.88);
+    --glass-fill: rgba(255, 255, 255, 0.98);
     --glass-blur: 20px;
     --glass-saturate: 1.8;
     position: fixed;
@@ -449,30 +473,6 @@
 .shell-sheet-foot a {
   font-weight: 600;
   color: var(--brand-2);
-}
-
-/* ───────── A page with its own header ───────── */
-
-/*
- * The standalone UNT Schedule Builder (lib/brand.ts) draws its own bar and
- * has no lenses to switch, so a page marked data-shell-chrome="own" hides
- * the shell's top bar, phone header and tab bar.
- */
-.shell:has([data-shell-chrome="own"]) {
-  --shell-top-h: calc(var(--topbar-h) + var(--safe-t));
-  --shell-bottom-h: 0px;
-}
-.shell:has([data-shell-chrome="own"]) :is(.shell-topbar, .shell-pheader, .shell-tabbar) {
-  display: none;
-}
-/* Its bar is fixed, outside <main>; <main> starts below it. */
-.shell:has([data-shell-chrome="own"]) .shell-main {
-  padding-top: var(--shell-top-h);
-}
-@media (max-width: 759px) {
-  .shell:has([data-shell-chrome="own"]) {
-    --shell-top-h: calc(var(--header-h) + var(--safe-t));
-  }
 }
 
 /* ───────── Full-bleed view bodies (ShellFullBleed) ───────── */

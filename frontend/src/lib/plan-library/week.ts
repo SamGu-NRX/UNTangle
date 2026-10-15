@@ -28,6 +28,12 @@ export function clockText(minutes: number): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
+/** "1:00 PM": a time with its half of the day, for a screen reader, which has no grid to place it on. */
+export function spokenClock(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  return `${clockText(minutes)} ${h < 12 ? "AM" : "PM"}`;
+}
+
 /** The meetings a saved state would show, with each unpicked course on the goal's recommended section. */
 export function eventsOf(state: PlannerState, catalog: SectionCatalog): ScheduleEvent[] {
   return buildScheduleEvents(resolveSectionPlan(normalizePlannerState(state), catalog));

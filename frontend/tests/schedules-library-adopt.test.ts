@@ -90,3 +90,13 @@ describe("Use in Main, then Undo", () => {
     expect(undone).toBe(false);
   });
 });
+
+describe("the Use in Main announcement", () => {
+  test("is said once stored, waits while saving, and is dropped when the save fails or conflicts", async () => {
+    const { announcementStep } = await import("@/components/schedules-library/adopt");
+    expect(announcementStep("saved")).toBe("announce");
+    expect(announcementStep("waiting")).toBe("wait");
+    expect(announcementStep("unsaved")).toBe("drop");
+    expect(announcementStep("conflict")).toBe("drop");
+  });
+});

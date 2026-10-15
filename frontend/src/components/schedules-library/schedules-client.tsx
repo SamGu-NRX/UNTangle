@@ -19,11 +19,13 @@ import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
 import { PLANNING_TERM } from "@/lib/terms";
 import { createSavedPlanStore, exportPlanJson, subscribeSavedPlans, type SavedPlanStoreFailure, type StoreReadResult } from "@/lib/saved-plans/store";
 import type { PlannerState } from "@/lib/types";
-import { adoptCopy, noteLanded, undoAdoption, type Adoption } from "./adopt";
+import { PlannerPersistencePanel } from "@/components/planner-persistence-panel";
+import { saveOutcome } from "@/lib/connect/review";
+import { adoptCopy, announcementStep, noteLanded, undoAdoption, type Adoption } from "./adopt";
 import { CompareView, type CompareSide } from "./compare-view";
 import { PushView } from "./push-view";
 import { ScheduleDetail } from "./schedule-detail";
-import { exportFileName, hasSavedCopy, whenText } from "./view-model";
+import { downloadFile, exportFileName, hasSavedCopy, importScheduleFile, keyedLines, readLibraryView, whenText, type LibraryView } from "./view-model";
 import { WeekThumb } from "./week-grid";
 import styles from "./library.module.css";
 
@@ -49,6 +51,7 @@ type ListState =
   | { phase: "ready"; doc: ReadDoc; notices: SavedPlanStoreFailure[] };
 
 const LOADING: ListState = { phase: "loading" };
+const LOADING_VIEW: LibraryView = { phase: "loading", storeAvailable: false, storageDisabled: false, quarantined: [] };
 const noopSubscribe = () => () => {};
 const toListState = (result: StoreReadResult): ListState =>
   result.ok ? { phase: "ready", doc: result.doc, notices: result.notices } : { phase: "unavailable", message: result.failure.message };
@@ -79,17 +82,20 @@ export function SchedulesClient() {
 
   // The store is synchronous: read during render through a versioned cache, re-read on every write.
   const [storeVersion, setStoreVersion] = useState(0);
-  const cache = useRef<{ version: number; state: ListState } | null>(null);
+  const cache = useRef<{ version: number; identityReady: boolean; view: LibraryView } | null>(null);
+  // No identity's library is read until the planner has prepared one (readLibraryView).
+  const identityReady = planner.identityReady;
   const readLibrary = useCallback(() => {
-    if (!cache.current || cache.current.version !== storeVersion) {
-      cache.current = { version: storeVersion, state: toListState(store.list()) };
+    if (!cache.current || cache.current.version !== storeVersion || cache.current.identityReady !== identityReady) {
+      cache.current = { version: storeVersion, identityReady, view: readLibraryView(store, identityReady) };
     }
-    return cache.current.state;
-  }, [store, storeVersion]);
+    return cache.current.view;
+  }, [store, storeVersion, identityReady]);
   const bump = useCallback(() => setStoreVersion((n) => n + 1), []);
   useEffect(() => subscribeSavedPlans(bump), [bump]);
-  const list = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING);
-  const storeAvailable = useSyncExternalStore(noopSubscribe, () => store.available, () => false);
+  const view = useSyncExternalStore(noopSubscribe, readLibrary, () => LOADING_VIEW);
+  const list: ListState = view.phase === "loading" ? LOADING : toListState(view.read);
+  const { storeAvailable, storageDisabled, quarantined } = view;
   const minute = useSyncExternalStore(subscribeMinute, currentMinute, () => 0);
 
   const plans = list.phase === "ready" ? list.doc.plans : [];
@@ -221,14 +227,22 @@ export function SchedulesClient() {
     if (pendingUndo.current) noteLanded(pendingUndo.current, planner);
   });
 
-  async function adoptEntry(entry: Entry) {
-    const snapshot = entry.snapshot;
-    if (!snapshot) return;
-    await planner.afterHydration();
-    const adoption = adoptCopy(plannerNow.current, snapshot);
-    pendingUndo.current = adoption;
+  // Success is said only once the new Main is stored (#37's honest-save rule). Until then, or
+  // when the save fails or meets a newer version from another tab, the save panel shows below.
+  const announce = useRef<{ name: string; adoption: Adoption } | null>(null);
+  const outcome = saveOutcome(planner.saveState.status, Boolean(planner.conflict));
+  useEffect(() => {
+    // Runs on every commit: the save state arriving re-renders this page.
+    if (!announce.current) return;
+    const step = announcementStep(outcome);
+    if (step === "wait") return;
+    const pending = announce.current;
+    announce.current = null;
+    // A save that failed or met a newer version isn't this adoption landing; a later save mustn't announce it.
+    if (step === "drop") return;
+    const { name, adoption } = pending;
     toast({
-      message: `Main now uses ${entry.name}`,
+      message: `Main now uses ${name}`,
       action: {
         label: "Undo",
         onClick: () => {
@@ -240,6 +254,15 @@ export function SchedulesClient() {
         },
       },
     });
+  });
+
+  async function adoptEntry(entry: Entry) {
+    const snapshot = entry.snapshot;
+    if (!snapshot) return;
+    await planner.afterHydration();
+    const adoption = adoptCopy(plannerNow.current, snapshot);
+    pendingUndo.current = adoption;
+    announce.current = { name: entry.name, adoption };
   }
 
   function saveCopy(name: string) {
@@ -259,33 +282,19 @@ export function SchedulesClient() {
   }
 
   function exportPlan(plan: SavedPlanSnapshot) {
-    const blob = new Blob([exportPlanJson(plan)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = exportFileName(plan);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadFile(new Blob([exportPlanJson(plan)], { type: "application/json" }), exportFileName(plan));
     toast(`Exported “${plan.name}”`);
   }
 
   async function importFile(file: File) {
     setImportError(null);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(await file.text());
-    } catch {
-      setImportError("That file isn't a schedule file. It has to be the .json UNTangle exports.");
-      return;
-    }
-    const result = store.importPlan(parsed);
+    const result = await importScheduleFile(store, file);
     if (!result.ok) {
-      setImportError(result.failure.message);
+      setImportError(result.message);
+      if (result.kind === "identityChanged") bump();
       return;
     }
-    toast(`Added “${result.snapshot.name}”`);
+    toast(`Added “${result.name}”`);
     bump();
   }
 
@@ -332,6 +341,8 @@ export function SchedulesClient() {
   }
 
   const mainSaved = hasSavedCopy(plannerState, live);
+  // Main isn't stored: a conflict with another tab, or a failed, refused or signed-out save.
+  const saveTrouble = ["conflict", "unsaved"].includes(saveOutcome(planner.saveState.status, Boolean(planner.conflict)));
   const sides: CompareSide[] = picks.map((id) => find(id)).filter((entry): entry is Entry => entry !== null);
   const colors = weekColors(...all.map((entry) => entry.blocks));
 
@@ -378,14 +389,15 @@ export function SchedulesClient() {
           aria-pressed={on}
           onClick={() => pickRow(entry)}
         />
-        {comparing && pickIndex >= 0 ? (
-          <span className={styles.pick} aria-hidden="true">
-            {"AB"[pickIndex]}
-          </span>
-        ) : null}
         <WeekThumb blocks={entry.blocks} colors={colors} />
         <div className={styles.rowText}>
           <span className={styles.rowName}>
+            {/* Beside the name, so it never covers the drawn week. */}
+            {comparing && pickIndex >= 0 ? (
+              <span className={styles.pick} aria-hidden="true">
+                {"AB"[pickIndex]}
+              </span>
+            ) : null}
             {entry.active ? <span className={styles.dot} aria-hidden="true" /> : null}
             {entry.name}
           </span>
@@ -448,6 +460,11 @@ export function SchedulesClient() {
           event.target.value = "";
         }}
       />
+      {saveTrouble ? (
+        <div className={styles.saveTrouble}>
+          <PlannerPersistencePanel />
+        </div>
+      ) : null}
       {comparing && phone && sides.length < 2 ? (
         <p className={styles.quiet} role="status">
           Pick {sides.length ? "one more schedule" : "two schedules"} to compare.
@@ -483,7 +500,7 @@ export function SchedulesClient() {
         </section>
       ) : null}
 
-      <LibraryNotices store={store} list={list} storeAvailable={storeAvailable} />
+      <LibraryNotices list={list} storageDisabled={storageDisabled} quarantined={quarantined} />
     </div>
   );
 
@@ -556,18 +573,16 @@ export function SchedulesClient() {
  * lost) and quarantined bytes. Each line is there only while it is true.
  */
 function LibraryNotices({
-  store,
   list,
-  storeAvailable,
+  storageDisabled,
+  quarantined,
 }: {
-  store: ReturnType<typeof createSavedPlanStore>;
   list: ListState;
-  storeAvailable: boolean;
+  storageDisabled: boolean;
+  quarantined: ReadonlyArray<{ key: string; size: number }>;
 }) {
-  // A cheap key scan; recomputed with every library read.
-  const quarantined = store.listQuarantined();
   const lines: string[] = [];
-  if (!storeAvailable) {
+  if (storageDisabled) {
     lines.push("Saved copies can't be kept because this browser's storage is turned off. Main still saves.");
   } else if (list.phase === "unavailable") lines.push(list.message);
   if (list.phase === "ready") {
@@ -583,8 +598,8 @@ function LibraryNotices({
   if (!lines.length) return null;
   return (
     <div className={styles.notices} role="status">
-      {lines.map((line) => (
-        <p key={line}>{line}</p>
+      {keyedLines(lines).map((line) => (
+        <p key={line.key}>{line.text}</p>
       ))}
     </div>
   );

@@ -9,10 +9,10 @@ Readers: the lead choosing between this direction and the parallel Fable one, an
 Three devices carry the identity. Each one encodes something true, so none of them is decoration.
 
 1. **The path line.** The map's route style (a green core with a white casing, and numbered discs with a white ring) appears wherever order is real and nowhere else. It shows the day's walk on the map and in the itinerary, a course's prerequisite chain, the three import steps, and a schedule's version history. Solid means satisfied or upcoming, dashed means not yet met, grey means already passed. A student who learns the line on the map can read it everywhere.
-2. **Building plates.** Building codes (`GAB`, `CURY`, `PHYS`) are set as small dark-green plates in Syne caps, the way campus signs show them. The room number follows in body type: `[GAB] 535`. Plates appear on events, sections, stops and itinerary rows.
-3. **The leave-by numeral.** The one large piece of type in the product is the time you need to leave, in Syne 700 at 44 to 46px: "Leave Kerr Hall by **8:49**". It answers the 8 a.m. question before anything else does.
+2. **Building plates.** Building codes (`GAB`, `CURY`, `PHYS`) are set as small dark-green plates in DM Sans 700 caps, the way campus signs show them. The room number follows in body type: `[GAB] 535`. Plates appear on events, sections, stops and itinerary rows.
+3. **The leave-by numeral.** The one large piece of type in the product is the time you need to leave, in DM Sans 700 at 44 to 46px: "Leave Kerr Hall by **8:49**". It answers the 8 a.m. question before anything else does.
 
-What stays from v2: the greens (#00512b, #00a855, #1a2e1a), Syne for the wordmark and course codes, DM Sans (self-hosted, optical-size axis) for everything else, inferred statuses with no per-row status chips, provenance as a small dotted tag, and fast-where-frequent motion.
+What stays from v2: the greens (#00512b, #00a855, #1a2e1a), Syne for the wordmark, DM Sans (self-hosted, optical-size axis) for everything else (see §6), inferred statuses with no per-row status chips, provenance as a small dotted tag, and fast-where-frequent motion.
 
 ## 2. Departures from v2
 
@@ -127,7 +127,7 @@ No extension, no upload, no banner. The flow never shows more than one primary b
 - **Groups**: To check (attention glyph; meta says why, such as "Needs instructor consent"), You can take (subheads by requirement; each row has a 32px `+` that adds to the tray), Taking now, Later (collapsed; meta "Needs CSCE 2110", where the code links to that course), Done (collapsed; "Grade A", "Covered by CSCE 1040").
 - **Desktop rail**: major (opens the major search dialog), credit progress (done, taking and a striped planned segment), a section index with counts, and provenance "From transcript, Oct 13". (Removed by rule 8; these move to the page header and the degree dialog.)
 - **Course detail** (a 460px side panel that pushes the list; a sheet on phone), modelled on UTRP's popup (`HeadingAndActions.tsx`, `GradeDistribution.tsx`, `Description.tsx`), in this order:
-  1. Code (Syne 22, brand), credits tag, title, status line.
+  1. Code (DM Sans 600 22, brand), credits tag, title, status line.
   2. **Add to Spring 2027** ("Week picks the best section, or choose one below"), then link-outs RateMyProf ↗, Syllabi and CV ↗, SPOT evaluations ↗. They follow the selected instructor and are disabled under "All instructors" with a reason, as UTRP disables them without an instructor.
   3. **Path**: the prerequisite chain as a horizontal path line (done prerequisites solid with a check and their grade, this course in accent, up to two unlocks dashed). Below it, the catalog rule checked against the student's record: "Catalog rule: MATH 1710 and MATH 1720, C or better. **You meet it** with MATH 1710 (B), MATH 1720 (B)." This is UTRP's bolded prerequisite line, made personal.
   4. **Sections**: a mini week of the active schedule, then section rows. Each row has a one-tap `+`, the time, instructor ★, building plate and seats. Pointing at or tapping a row paints it on the mini week before you add it, in red where it overlaps. A conflicting row shows "Overlaps MATH 2700 on Mon, Wed and Fri" and a red-outlined `+`; a full section shows a lock and "Full, 4 waiting".
@@ -142,7 +142,7 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 - **Tabs** for named schedules (Main, Fridays off, + New). Undo, Clear, Export and **Auto** / **Build my schedule** sit on the right.
 - **Stats line**: credits, courses, days on campus, first to last class, minutes walking a week, tight walks (attention) and conflicts (danger), with "Sample sections".
 - **Find courses** (left): search, Open seats, TAMS rules, Filters. A result expands in place into section rows with a one-tap `+` and conflicts shown before adding. Pointing at a section paints a dashed ghost on the main grid; an overlapping ghost takes the right half of the slot in red, like UTRP's overlap groups (`calendar/utils.ts:492`).
-- **Grid**: Mon to Fri (Saturday appears only when something meets then), 8 a.m. to at least 5 p.m., 64px hours on desktop and 52px on phone. Events use the department tint with a 3px left bar, the code in Syne, the time, a building plate and a lock when locked. **Walk chips** sit between consecutive classes with a gap of 30 minutes or less ("4 min", or "8 min" in attention when the walk plus a 2-minute buffer is at least the break). Busy times are hatched. A **No set time** strip below the grid holds online and async sections.
+- **Grid**: Mon to Fri (Saturday appears only when something meets then), 8 a.m. to at least 5 p.m., 64px hours on desktop and 52px on phone. Events use the department tint with a 3px left bar, the code in DM Sans 600, the time, a building plate and a lock when locked. **Walk chips** sit between consecutive classes with a gap of 30 minutes or less ("4 min", or "8 min" in attention when the walk plus a 2-minute buffer is at least the break). Busy times are hatched. A **No set time** strip below the grid holds online and async sections.
 - **Choosing a section on the grid**: select an event and the course's other sections appear as dotted outlines (`§002`), red where they clash. Click one, or drag the event and drop it near one, to switch.
 - **Registration list** (right): color, code, section, days and time, class number, conflict or waitlist note, lock, remove, and "Copy class numbers for myUNT".
 - **Preferences**: Start after (Any time, 9, 10 or 11 AM), chips (No Fridays, Lunch break, Short walks, Fewer days, Top-rated profs), busy times (add by dragging on the grid).
@@ -170,16 +170,19 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 ### 4.5 Schedules library and compare (`05-schedules-library.html`)
 
 - Schedules grouped by term. Each card has a mini week, name, active dot, credits, days, first to last class, when it was edited, and ⋯ (rename, duplicate, export, delete). The in-session term carries "Day uses this term".
-- **Detail**: Open in Week, Export, stats in Syne, a week grid, and **History** on the path line (Now, Used option A from Auto, Before Auto saved automatically, Started from your transcript). Selecting a version overlays it as dashed outlines on the grid; Restore is one tap and undoable. Auto's plan-scoped transaction makes the "Before Auto" snapshot free.
+- **Detail**: Open in Week, Export, stats in DM Sans 600, a week grid, and **History** on the path line (Now, Used option A from Auto, Before Auto saved automatically, Started from your transcript). Selecting a version overlays it as dashed outlines on the grid; Restore is one tap and undoable. Auto's plan-scoped transaction makes the "Before Auto" snapshot free.
 - **Compare**: Compare turns on A and B badges on the cards. The comparison has a segmented control with the two names and Both (Both shows A solid and B dashed where they differ, and the events that change move between views), a table of changes (days, earliest, last class, walking, tight walks; better in brand, worse in attention), "Sections that change" with old and new, "Same in both", and **Make B active**.
 - Phone: the list pushes to detail (slides in from the right) and compare pushes once two are picked.
 
 ### 4.6 Sign in (`06-sign-in.html`)
 
 - A dialog on desktop, a sheet on phone, over the current screen.
-- Content: "Sign in", "Keep your schedules on every device. What you made as a guest comes with you.", Email (`autocomplete=username`, `inputmode=email`, no autocapitalize), Password (`current-password`, Show, Forgot it?), a full-width **Sign in**, "New here? Create an account", and "You can use UNTangle without an account. Signing in only syncs."
-- "Create an account" switches the title and button in place and reserves the help line, so the form never jumps.
-- Errors sit under the field in danger text ("That password doesn't match this email. Try again, or reset it."). No magic-link button and no social buttons.
+- **Changed by the sign-in decision** ([`../untangle-v3.md`](../untangle-v3.md#decisions-taken-defaults-until-sam-says-otherwise): magic link first, password second). The mockup follows the shipped `/auth` (`components/auth-client.tsx`) in three views, swapped in place with focus moved to the new heading:
+  - **Link** (the default): "Sign in", "Keep your schedules on every device. What you made as a guest comes with you. We'll email you a sign-in link. No password needed.", UNT email (`autocomplete=email`, `inputmode=email`, no autocapitalize), a full-width **Email me a sign-in link**, and "Use a password instead".
+  - **Sent**: "Check your UNT email", the address, "It works once and expires in 5 minutes.", Resend link, "Use a different email" and "Use a password instead".
+  - **Password**: "Sign in with a password", UNT email (`autocomplete=email`, matching the shipped `/auth`), Password (`current-password`, Show, Forgot it?), **Sign in**, and "Email me a link instead".
+- There is no separate create-account mode: the first link creates the account. Every view ends with "You can use UNTangle without an account. Signing in only syncs."
+- Errors sit under the field in danger text and are tied to it with `aria-describedby` ("Use a UNT email address ending in @unt.edu or @my.unt.edu.", "That password doesn't match this email. Try again, or reset it."). No social buttons.
 
 ## 5. Grid, spacing and breakpoints
 
@@ -190,7 +193,7 @@ Grounded in UTRP's add-from-row and calendar flows and in vsb's three-column lay
 
 ## 6. Type
 
-DM Sans for UI (variable, optical size automatic); Syne 700/800 for the wordmark, course codes, building plates, pin numbers, Syne figures and the leave-by numeral. No sentence is ever set in Syne.
+DM Sans for UI (variable, optical size automatic). Syne 800 is for the wordmark only: Sam's rule of Oct 14, made from a Week screenshot, which supersedes this section's earlier use of Syne for codes, plates, pins and figures. Codes, section numbers, chips and figures are DM Sans 600; building plates, pin numbers and the leave-by numeral are DM Sans 700.
 
 | Token | Size / line | Weight | Use |
 | --- | --- | --- | --- |
@@ -200,12 +203,12 @@ DM Sans for UI (variable, optical size automatic); Syne 700/800 for the wordmark
 | input | 15 desktop, 16 coarse | 400 | stops iOS zoom |
 | title | 18 / 24, −0.005em | 620 | panel titles, tray title |
 | h1 | 22 / 28 app, 28 / 34 import, −0.012 to −0.018em | 640–650 | one per screen |
-| code | Syne 700, 12–14 rows, 20–22 detail | 700 | course codes |
-| figure | Syne 700, 18–20 | 700 | stats |
-| numeral | Syne 700, 44–46 / 1, −0.02em, tabular | 700 | leave-by only |
-| wordmark | Syne 800, 22 desktop, 19 phone | 800 | header |
+| code | DM Sans, 12–14 rows, 20–22 detail | 600 | course codes, section numbers |
+| figure | DM Sans, 18–20, tabular | 600 | stats |
+| numeral | DM Sans, 44–46 / 1, −0.02em, tabular | 700 | leave-by only |
+| wordmark | Syne, 22 desktop, 19 phone | 800 | header; the only Syne |
 
-`font-variant-numeric: tabular-nums` applies globally, and lining figures apply in Syne.
+`font-variant-numeric: tabular-nums` applies globally.
 
 ## 7. Color and elevation tokens
 
@@ -234,7 +237,7 @@ Paste into `frontend/src/app/globals.css` (this replaces the v2 block; the motio
   --c5: #7a5272; --c5t: #f1e8f0;  /* plum  */
   --c6: #3d7a7a; --c6t: #e3f0f0;  /* teal  */
 
-  --font-ui: "DM Sans", ui-sans-serif, sans-serif; --font-mark: "Syne", "DM Sans", sans-serif;
+  --font-ui: "DM Sans", ui-sans-serif, sans-serif; --font-mark: "Syne", "DM Sans", sans-serif; /* wordmark only */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
   --r-xs: 4px; --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
 
@@ -277,7 +280,7 @@ States are listed where an engineer needs them. Names are React component names.
 
 ### 8.3 Courses
 - **TermTray**: states `empty`, `running` (the Auto button holds its width with a spinner), `filled`, `just-filled` (result line with Undo), `over-credit` (attention meta "18 credits, above your usual 15").
-- **CourseRow**: `data-s` = available, planned, check, taking, locked, done, covered; `aria-selected` while its detail is open; one action slot (`+` on available, `−` in the tray).
+- **CourseRow**: the code in DM Sans 600 13, the title 14 and at most one fact; `data-s` = available, planned, check, taking, locked, done, covered; `aria-selected` while its detail is open; one action slot (`+` on available, `−` in the tray).
 - **CourseGroup**: header button with count, tag, chevron; `data-open`.
 - **CourseDetail**: sections as in §4.2. States: `loading` (the header renders from the row at once; the rest shows a 2-line shimmer per section), `no-grades`, `instructor-fallback`, `error` ("Couldn't load grades. Retry").
 - **MajorPicker**: search, catalog-year segmented control, options with a check.
@@ -345,7 +348,7 @@ Event states: default, `selected` (2px course-color ring, options visible), `con
 - **Copying UTRP's look** (burnt orange, outline buttons in three colors, a 375ms dialog with a 250ms ease-in exit, `Dialog.tsx:58-65`). The flow is taken; the look and that exit curve are not.
 - **Live constraints with no Build button.** Live updates still happen while the options bar is open. An explicit Auto / Build button is kept because vsb users already know it, and an action you trigger is easier to undo than a schedule that changes under you.
 - **Stagger-on-load for lists.** Lists run to 100+ rows and are seen dozens of times a day.
-- **3D tilt as a default.** It applies only on explicit stop or leg selection at street zoom (camera.md), never on load.
+- **3D tilt for every day.** Sam asked for the map to show the campus in 3D, so a day opens tilted to 45° when its whole route fits at street zoom with every stop in view (camera.md, "Whole itinerary"). A day too spread out for that opens flat, where stops stay comparable, and the 3D control tilts it on request.
 - **Dark mode in this pass.** The tokens are role-named so a dark set can be added; no dark palette has been designed or contrast-checked.
 
 ## 12. Decisions for the lead

@@ -1,6 +1,9 @@
 import { normalizePlannerState } from "@/lib/planner";
+import type { PlanLockChange } from "@/lib/plan-library/diff";
 import type { SectionReferenceReport } from "@/lib/plan-library/snapshot";
+import { optionIdLabel, sectionRef } from "@/lib/planner-sections";
 import type { SavedPlanSnapshot } from "@/lib/plan-library/snapshot-types";
+import type { SavedPlanStore, SavedPlanStoreFailure, StoreReadResult } from "@/lib/saved-plans/store";
 import { workingStateFingerprint } from "@/lib/saved-plans/restore-adapter";
 import type { PlannerState } from "@/lib/types";
 
@@ -84,4 +87,112 @@ export function adoptableSide<T extends { active: boolean }>(a: T, b: T): T | nu
   if (!b.active) return b;
   if (!a.active) return a;
   return null;
+}
+
+/**
+ * What "Use in Main" does to section locks, one line per course: the grid
+ * doesn't draw locks, and locks decide what Auto may move later.
+ * `changes` compares the copy (savedPlan) with Main (workingState).
+ */
+export function lockChangeLines(changes: readonly PlanLockChange[]): string[] {
+  return changes.map(({ courseCode, savedPlan, workingState }) => {
+    if (!savedPlan) return `${courseCode}: Use in Main unlocks its section.`;
+    // A real option reads "class 12345"; a sample one is just its number, so say "section 001".
+    const label = sectionRef(savedPlan).provenance === "real" ? optionIdLabel(savedPlan) : `section ${optionIdLabel(savedPlan)}`;
+    return workingState
+      ? `${courseCode}: Use in Main locks it to ${label} instead.`
+      : `${courseCode}: Use in Main locks it to ${label}.`;
+  });
+}
+
+/**
+ * Opens a schedule file into this browser's library for whoever is signed in
+ * when it was chosen. The identity is captured before the file is read, so a
+ * file that finishes reading after a sign-in or sign-out is refused
+ * ("identityChanged") and lands in neither account's library (#77).
+ */
+export async function importScheduleFile(
+  store: Pick<SavedPlanStore, "captureIdentity" | "importPlan">,
+  file: Pick<File, "text">,
+): Promise<{ ok: true; name: string } | { ok: false; kind: SavedPlanStoreFailure["kind"] | "notJson"; message: string }> {
+  const identity = store.captureIdentity();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    return { ok: false, kind: "notJson", message: "That file isn't a schedule file. It has to be the .json UNTangle exports." };
+  }
+  const result = store.importPlan(parsed, undefined, identity);
+  return result.ok ? { ok: true, name: result.snapshot.name } : { ok: false, kind: result.failure.kind, message: result.failure.message };
+}
+
+/** What downloadFile needs from the browser; tests pass fakes. */
+export type DownloadHost = {
+  createObjectURL(blob: Blob): string;
+  revokeObjectURL(url: string): void;
+  createLink(): { href: string; download: string; click(): void; remove(): void };
+  /** Runs `run` in a later task. */
+  later(run: () => void): void;
+};
+
+const browserDownload = (): DownloadHost => ({
+  createObjectURL: (blob) => URL.createObjectURL(blob),
+  revokeObjectURL: (url) => URL.revokeObjectURL(url),
+  createLink: () => document.body.appendChild(document.createElement("a")),
+  later: (run) => window.setTimeout(run, 0),
+});
+
+/**
+ * Saves `blob` as `name`. The object URL is revoked in a later task, not in
+ * the click's: some browsers start the download after the click returns, and
+ * revoking first cancels it or saves an empty file.
+ */
+export function downloadFile(blob: Blob, name: string, host: DownloadHost = browserDownload()) {
+  const url = host.createObjectURL(blob);
+  const link = host.createLink();
+  link.href = url;
+  link.download = name;
+  link.click();
+  link.remove();
+  host.later(() => host.revokeObjectURL(url));
+}
+
+/** Lines with keys that can't repeat, even when two lines say the same thing. */
+export function keyedLines(lines: readonly string[]): Array<{ key: string; text: string }> {
+  return lines.map((text, index) => ({ key: `${index}:${text}`, text }));
+}
+
+/** What the library page shows from the saved-plan store. */
+export type LibraryView =
+  | { phase: "loading"; storeAvailable: false; storageDisabled: false; quarantined: [] }
+  | {
+      phase: "ready" | "unavailable";
+      read: StoreReadResult;
+      storeAvailable: boolean;
+      /** The banner: browser storage itself refused, for a prepared identity. */
+      storageDisabled: boolean;
+      quarantined: Array<{ key: string; size: number }>;
+    };
+
+const LOADING_VIEW: LibraryView = { phase: "loading", storeAvailable: false, storageDisabled: false, quarantined: [] };
+
+/**
+ * Reads the library for the identity the planner has prepared (#93). Until
+ * one is prepared nothing is read: the page shows loading, the disabled-storage
+ * banner waits (the store refuses reads then for a reason that isn't the
+ * browser's), and no quarantined keys are listed.
+ */
+export function readLibraryView(
+  store: Pick<SavedPlanStore, "available" | "list" | "listQuarantined">,
+  identityReady: boolean,
+): LibraryView {
+  if (!identityReady) return LOADING_VIEW;
+  const read = store.list();
+  return {
+    phase: read.ok ? "ready" : "unavailable",
+    read,
+    storeAvailable: store.available,
+    storageDisabled: !store.available,
+    quarantined: store.listQuarantined(),
+  };
 }

@@ -36,12 +36,6 @@ export type ScheduleReasonsInput = {
   alternatives: readonly RankedSchedule[];
   /** Which of the alternatives is being explained. */
   index: number;
-  /**
-   * How the caller's UI names the alternative at a rank, as a phrase that
-   * reads inside a sentence ("option 2"). Sentences compare against it, so
-   * they match what the student sees on screen.
-   */
-  optionName: (index: number) => string;
   /** The exact request the alternatives came from, `walkingTime` included. Store it with the results; do not rebuild it. */
   request: OptimizeRequest;
   /** Section id -> the catalog section's status and seats. Sections without an entry get no seat warning. */

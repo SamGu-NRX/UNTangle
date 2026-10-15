@@ -20,6 +20,13 @@ export interface SyllabusText {
   pages: number | null;
 }
 
+export class NoTextLayerError extends Error {
+  constructor(readonly pages: number) {
+    super("PDF has no text layer");
+    this.name = "NoTextLayerError";
+  }
+}
+
 export function pdfItemsToText(items: TextContent["items"]): string {
   let text = "";
   for (const item of items) {
@@ -43,6 +50,7 @@ async function pdfToText(body: Buffer): Promise<SyllabusText> {
     text += pdfItemsToText(content.items);
     text += "\n";
   }
+  if (!text.trim()) throw new NoTextLayerError(doc.numPages);
   return { text, kind: "pdf", pages: doc.numPages };
 }
 
@@ -70,8 +78,7 @@ export async function extractSyllabusText(body: Buffer, contentType: string): Pr
     try {
       return await pdfToText(body);
     } catch (err) {
-      // A damaged or scanned PDF yields no text layer; report that honestly
-      // instead of falling back to something that would look like text.
+      if (err instanceof NoTextLayerError) throw err;
       throw new Error(`pdf text extraction failed (${err instanceof Error ? err.message : String(err)})`);
     }
   }

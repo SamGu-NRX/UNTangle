@@ -93,6 +93,8 @@ test("all bundled sources match the report and produce engine assessments", asyn
   expect(result.statuses.size).toBe(669);
   expect([...result.statuses.values()].some(course => course.status === "done" || course.status === "taking")).toBe(false);
   for (const entry of catalogEntries) if (parseUntPrerequisite(entry.prerequisites).coverage !== "full") {
-    expect(result.statuses.get(normalizeUntCourseId(entry.course_number))?.status).toBe("unknown");
+    // Major-conditioned clauses cannot override an independently unmet prerequisite.
+    const expected = ["CSCE2610", "MATH3000"].includes(entry.course_number) ? "locked" : "unknown";
+    expect(result.statuses.get(normalizeUntCourseId(entry.course_number))?.status).toBe(expected);
   }
 });

@@ -1,26 +1,49 @@
 name: PR rules
 
-# pull_request_target runs this file as it is on the default branch, and each
-# job checks out the PR's base commit to run the scripts and read the lists
-# from there, so a PR can't edit the checks that judge it. Nothing from the PR
-# is checked out or run: its commits are fetched only so git can diff them.
-# Labels re-run the checks, since lead-approved lifts them.
+# Two repository rules, reported as commit statuses on the PR's head commit:
+# "Task rule" and "Path ownership". The alpha and main rulesets require both
+# (.github/rulesets/). Sam's approving review of the head commit lifts them.
+#
+# The check jobs check out the PR's base commit and run the scripts and read
+# the lists from there, so a PR can't edit the checks that judge it. Nothing
+# from the PR is checked out or run: its commits are fetched only so git can
+# diff them. They run with read access only, and with no approval input, so a
+# base with older scripts runs them as strictly as a new one.
+#
+# Report reads Sam's reviews, applies the lift, and posts both statuses. A
+# status is posted explicitly because the jobs' own checks attach to the
+# default branch's commit (GITHUB_SHA for pull_request_target), not the PR's.
+#
+# pull_request_target runs this file as it is on the default branch.
+# pull_request_review runs the copy in the PR's merge commit instead, which
+# for a PR that doesn't edit this file is the base branch's copy. A PR that
+# edits it changes only what runs on its own reviews, and merging still needs
+# Sam's approving review, which lifts these checks anyway.
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    # edited covers a change of base branch; a title edit re-runs harmlessly.
+    types: [opened, synchronize, reopened, edited]
     branches: [alpha, main, edge]
+  pull_request_review:
+    types: [submitted, dismissed]
 
 permissions:
   contents: read
 
+# The newest event wins. Every run reads the reviews when it reports, so the
+# run that survives decides from the latest state.
 concurrency:
   group: pr-rules-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   task-rule:
-    name: Task rule
+    name: Check the task rule
+    # pull_request_review has no branch filter.
+    if: contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref)
     runs-on: ubuntu-latest
+    outputs:
+      checked: ${{ steps.tools.outputs.present }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -28,23 +51,38 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Look for the check on the base commit
+        id: tools
+        run: |
+          if [ -f tools/repo-rules/src/check-task-rule.ts ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Task rule not checked::The base commit has no tools/repo-rules/src/check-task-rule.ts, so this PR passes without a check."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Fetch the PR's commits
+        if: steps.tools.outputs.present == 'true'
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.tools.outputs.present == 'true'
         with:
           bun-version-file: package.json
       - name: Check the task rule
+        if: steps.tools.outputs.present == 'true'
         run: bun --no-env-file tools/repo-rules/src/check-task-rule.ts
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
 
   path-ownership:
-    name: Path ownership
+    name: Check path ownership
+    # pull_request_review has no branch filter.
+    if: contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref)
     runs-on: ubuntu-latest
+    outputs:
+      checked: ${{ steps.tools.outputs.present }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -52,17 +90,116 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Look for the check on the base commit
+        id: tools
+        run: |
+          if [ -f tools/repo-rules/src/check-lead-paths.ts ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Path ownership not checked::The base commit has no tools/repo-rules/src/check-lead-paths.ts, so this PR passes without a check."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Fetch the PR's commits
+        if: steps.tools.outputs.present == 'true'
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.tools.outputs.present == 'true'
         with:
           bun-version-file: package.json
       - name: Check lead-owned paths
+        if: steps.tools.outputs.present == 'true'
         run: bun --no-env-file tools/repo-rules/src/check-lead-paths.ts
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+
+  report:
+    name: Report
+    needs: [task-rule, path-ownership]
+    # Reports a failed or skipped check too, so it never leaves a stale status.
+    if: ${{ !cancelled() && contains(fromJSON('["alpha", "main", "edge"]'), github.event.pull_request.base.ref) }}
+    runs-on: ubuntu-latest
+    # The only job that writes, and it runs nothing from the PR or its base.
+    permissions:
+      statuses: write
+      pull-requests: read
+    steps:
+      - name: Post each rule's status on the head commit
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Read from this file, so a PR into alpha or main can't add to it.
+          APPROVERS: '["SamGu-NRX"]'
+          TASK_RULE_RESULT: ${{ needs.task-rule.result }}
+          TASK_RULE_CHECKED: ${{ needs.task-rule.outputs.checked }}
+          PATH_OWNERSHIP_RESULT: ${{ needs.path-ownership.result }}
+          PATH_OWNERSHIP_CHECKED: ${{ needs.path-ownership.outputs.checked }}
+        with:
+          # The script lives here, not in a file, so the job needs no checkout.
+          # tools/repo-rules/tests/report.test.ts runs this exact text.
+          script: |
+            let approvers;
+            try {
+              approvers = JSON.parse(process.env.APPROVERS ?? "");
+            } catch {
+              approvers = undefined;
+            }
+            if (!Array.isArray(approvers) || approvers.length === 0 || !approvers.every((login) => typeof login === "string" && login !== "")) {
+              throw new Error(`APPROVERS must be a non-empty JSON array of GitHub logins, got ${process.env.APPROVERS}`);
+            }
+            const pr = context.payload.pull_request;
+            if (!pr?.number || !pr.head?.sha) throw new Error("The event carries no pull request with a head commit.");
+            const { owner, repo } = context.repo;
+
+            // The REST API documents no order for reviews. submitted_at has one-second
+            // steps, so ids break ties.
+            const newest = (items) =>
+              items.toSorted((a, b) => a.submitted_at.localeCompare(b.submitted_at) || a.id - b.id).at(-1);
+
+            // Sam approved this commit when his latest review that approves or blocks is
+            // an approval of the PR's head. A later request for changes replaces it, and
+            // a dismissed approval reads as DISMISSED. A comment-only review changes
+            // nothing, as on GitHub. Reviews belong to one PR, so another PR with the
+            // same head is judged on its own reviews.
+            function samApproval(reviews) {
+              const latest = newest(
+                reviews.filter((review) => approvers.includes(review.user?.login) && ["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(review.state)),
+              );
+              if (latest === undefined) return { approved: false, reason: "Sam hasn't reviewed this PR." };
+              if (latest.state === "CHANGES_REQUESTED") return { approved: false, reason: "Sam's latest review requests changes." };
+              if (latest.state === "DISMISSED") return { approved: false, reason: "Sam's latest review was dismissed." };
+              if (latest.commit_id !== pr.head.sha) return { approved: false, reason: "Sam approved an earlier commit." };
+              return { approved: true, reason: "Sam approved this commit." };
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: pr.number, per_page: 100 });
+            const approval = samApproval(reviews);
+            core.notice(approval.reason, { title: approval.approved ? "Approved" : "Not approved" });
+
+            const RESULTS = ["success", "failure", "cancelled", "skipped"];
+            const rules = [
+              { context: "Task rule", result: process.env.TASK_RULE_RESULT, checked: process.env.TASK_RULE_CHECKED },
+              { context: "Path ownership", result: process.env.PATH_OWNERSHIP_RESULT, checked: process.env.PATH_OWNERSHIP_CHECKED },
+            ];
+            const target_url = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            for (const rule of rules) {
+              if (!RESULTS.includes(rule.result)) throw new Error(`${rule.context}: unknown job result ${JSON.stringify(rule.result)}.`);
+              let state;
+              let description;
+              if (rule.result === "success") {
+                if (rule.checked !== "true" && rule.checked !== "false") {
+                  throw new Error(`${rule.context}: the job passed without saying whether it ran the check (${JSON.stringify(rule.checked)}).`);
+                }
+                state = "success";
+                description = rule.checked === "true" ? "Passed." : "The base commit has no check to run.";
+              } else if (approval.approved) {
+                state = "success";
+                description = "Sam approved this commit, which lifts this check.";
+              } else {
+                state = "failure";
+                description = rule.result === "failure" ? "Fails. Only Sam's approving review of this commit lifts it." : `The check didn't finish (${rule.result}).`;
+              }
+              await github.rest.repos.createCommitStatus({ owner, repo, sha: pr.head.sha, context: rule.context, state, description, target_url });
+            }

@@ -1,0 +1,108 @@
+{
+  "startedAt": "2026-10-14T00:18:57.829Z",
+  "base": "http://127.0.0.1:3302",
+  "gl": "swiftshader",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "loadBytes": {
+    "other": {
+      "bytes": 159392,
+      "requests": 25
+    },
+    "javascript": {
+      "bytes": 704703,
+      "requests": 22
+    },
+    "tilejson": {
+      "bytes": 2428,
+      "requests": 1
+    },
+    "campus map data": {
+      "bytes": 178770,
+      "requests": 1
+    },
+    "basemap tiles": {
+      "bytes": 159121,
+      "requests": 2
+    },
+    "glyphs": {
+      "bytes": 88775,
+      "requests": 2
+    }
+  },
+  "phoneFlights": [
+    {
+      "frames": 64,
+      "windowMs": 2083,
+      "p50": 16.7,
+      "p95": 150,
+      "max": 416.6,
+      "over33": 6,
+      "over50": 5
+    },
+    {
+      "frames": 102,
+      "windowMs": 2050,
+      "p50": 16.7,
+      "p95": 16.7,
+      "max": 266.6,
+      "over33": 2,
+      "over50": 2
+    },
+    {
+      "frames": 105,
+      "windowMs": 2033,
+      "p50": 16.7,
+      "p95": 33.4,
+      "max": 83.4,
+      "over33": 4,
+      "over50": 1
+    },
+    {
+      "frames": 119,
+      "windowMs": 2033,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    },
+    {
+      "frames": 110,
+      "windowMs": 2017,
+      "p50": 16.7,
+      "p95": 33.4,
+      "max": 33.4,
+      "over33": 4,
+      "over50": 0
+    },
+    {
+      "frames": 118,
+      "windowMs": 2050,
+      "p50": 16.7,
+      "p95": 16.8,
+      "max": 33.4,
+      "over33": 0,
+      "over50": 0
+    }
+  ],
+  "phoneFlightsPooled": {
+    "frames": 618,
+    "windowMs": 12266,
+    "p50": 16.7,
+    "p95": 33.3,
+    "max": 416.6,
+    "over33": 16,
+    "over50": 8
+  },
+  "desktop-3d-coreCamera": {
+    "zoom": "16.80",
+    "pitch": "45.0",
+    "center": "33.213187,-97.148659"
+  },
+  "phone-3d-coreCamera": {
+    "zoom": "16.80",
+    "pitch": "45.0",
+    "center": "33.212689,-97.148148"
+  },
+  "finishedAt": "2026-10-14T00:19:38.328Z"
+}

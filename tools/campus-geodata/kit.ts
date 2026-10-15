@@ -85,8 +85,8 @@ export function readDefinition(path: string): CampusDefinition {
     );
   return d;
 }
-export async function fetchCampus(d: CampusDefinition) {
-  const raw = join(here, "raw");
+export async function fetchCampus(d: CampusDefinition, { fetcher = fetch, rawDir = join(here, "raw") }: { fetcher?: typeof fetch; rawDir?: string } = {}) {
+  const raw = rawDir;
   mkdirSync(raw, { recursive: true });
   const paths =
     d.id === "unt-denton"
@@ -102,21 +102,28 @@ export async function fetchCampus(d: CampusDefinition) {
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
   ]) {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "User-Agent":
-          "UNTangle-campus-kit/1.0 (offline UNT and UT Austin walking research; https://github.com/SamGu-NRX/UNTangle)",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ data: query }),
-      signal: AbortSignal.timeout(240000),
-    });
-    if (!response.ok) {
-      console.error(`Overpass ${endpoint}: HTTP ${response.status}`);
+    let response: Response;
+    let bytes: string;
+    try {
+      response = await fetcher(endpoint, {
+        method: "POST",
+        headers: {
+          "User-Agent":
+            "UNTangle-campus-kit/1.0 (offline UNT and UT Austin walking research; https://github.com/SamGu-NRX/UNTangle)",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ data: query }),
+        signal: AbortSignal.timeout(240000),
+      });
+      if (!response.ok) {
+        console.error(`Overpass ${endpoint}: HTTP ${response.status}`);
+        continue;
+      }
+      bytes = await response.text();
+    } catch (error) {
+      console.error(`Overpass ${endpoint}: transport failed`, error);
       continue;
     }
-    const bytes = await response.text();
     const parsed = JSON.parse(bytes);
     if (!Array.isArray(parsed.elements) || parsed.remark)
       throw new Error(

@@ -83,6 +83,7 @@
   margin: 0;
 }
 .auth__aside {
+  margin-right: 12px;
   border-radius: 4px;
   font: 600 var(--text-meta) / var(--lh-meta) var(--font-ui);
   color: var(--brand-2);
@@ -92,9 +93,10 @@
   box-shadow: var(--focus);
 }
 /* Show / Hide sits inside the password field, as tall as the field allows. */
+/* Its text ends 12px inside the field, where "Forgot it?" ends above (see .auth__aside). */
 .auth__show {
   height: 36px;
-  margin-right: -6px;
+  margin-right: -10px;
   padding: 0 10px;
   border-radius: var(--r-sm);
   font: 600 var(--text-meta) / 1 var(--font-ui);
@@ -179,11 +181,16 @@
 .auth-dialog .ui-dialog__body {
   padding: 18px 26px 22px;
 }
+/* The sheet's grab area already pads 16px: 4px more puts the wordmark on the form's 20px edge,
+   and the close button's glyph (8px inside its 32px box) ends on the same edge on the right. */
 .auth-sheet__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px 0 20px;
+  padding: 4px 0 0 4px;
+}
+.auth-sheet__head > .ui-btn {
+  margin-right: -4px;
 }
 /* The sheet body already pads 16px and the safe area. */
 .auth-sheet .auth__panel {
