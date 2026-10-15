@@ -65,8 +65,17 @@ describe.skipIf(!url)("extension add-option on Postgres", () => {
     repo = documentRepository(db);
     // The production store the routes use, built over the live database.
     store = extensionStore(db);
-    // The student's Main schedule at revision 1, written through the repository.
-    await repo.write("alice", bytes(write({ documentId: "ext-main", operationId: "seed-1", body: schedule })), "ext-main");
+    // Main carries another course's pick before the add: jsonb re-sorts object
+    // keys on the way through Postgres, so a rebuilt-byte replay check would
+    // refuse a genuine retry from here on.
+    await repo.write(
+      "alice",
+      bytes(write({
+        documentId: "ext-main", operationId: "seed-1",
+        body: { ...schedule, courses: ["MATH 1710"], selectedSections: { "MATH 1710": "vsb:spring-2027:MATH 1710:001" } },
+      })),
+      "ext-main",
+    );
   });
 
   afterAll(async () => {
@@ -82,13 +91,16 @@ describe.skipIf(!url)("extension add-option on Postgres", () => {
     expect(outcome.body).toMatchObject({ kind: "receipt", operationId: "live-op-1", committedRevision: 2 });
     expect(await store.getDocument("alice", "ext-main")).toMatchObject({
       revision: 2,
-      body: { courses: ["CSCE 1030"], selectedSections: { "CSCE 1030": csce1030.id } },
+      body: { courses: ["MATH 1710", "CSCE 1030"], selectedSections: { "MATH 1710": "vsb:spring-2027:MATH 1710:001", "CSCE 1030": csce1030.id } },
     });
   });
 
   test("a repeated operation id returns the original receipt and writes nothing", async () => {
     const first = await apply(command());
     const retry = await apply(command());
+    // The schedule already carries the MATH 1710 pick, so the committed bytes
+    // and a rebuild differ in jsonb key order: the replay answers from the
+    // committed effect, not from the bytes.
     expect(retry.status).toBe(200);
     expect(retry.body).toEqual(first.body);
     expect((await store.getDocument("alice", "ext-main")).revision).toBe(2);

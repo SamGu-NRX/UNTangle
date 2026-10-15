@@ -329,6 +329,27 @@ describe("extension add-option commands", () => {
     store.write = original;
   });
 
+  test("a retry after adding onto a schedule that already has picks returns the original receipt", async () => {
+    // Postgres stores bodies as jsonb, which re-sorts object keys, so once the
+    // schedule carries another course's pick the rebuilt write bytes can never
+    // reproduce the receipt's hash. The replay verifies the committed effect:
+    // the command's option is the pick recorded for its course.
+    const h = setup({
+      sections,
+      scheduleBody: scheduleBody({ courses: ["MATH 1710"], selectedSections: { "MATH 1710": "vsb:spring-2027:MATH 1710:001" } }),
+    });
+    const token = await h.issue();
+    const add = addCommand({ optionId: extensionOptionId(csce1030) as string });
+    const first = await h.add(token, add);
+    expect(first.status).toBe(200);
+    const originalReply = await readAddReply(first);
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+    const retry = await h.add(token, add);
+    expect(retry.status).toBe(200);
+    expect(await readAddReply(retry)).toEqual(originalReply);
+    expect((await h.store.getDocument("alice", scheduleId)).revision).toBe(2);
+  });
+
   test("a stale expected revision is a typed rejection, never an overwrite", async () => {
     const h = setup();
     const token = await h.issue();
@@ -360,6 +381,9 @@ describe("extension add-option commands", () => {
     const foreign = setup({ sections, scheduleBody: scheduleBody({ institutionId: "ut" }) });
     const foreignReply = await foreign.add(await foreign.issue(), addCommand());
     expect(foreignReply.status).toBe(403);
+    const foreignBody = await readAddReply(foreignReply);
+    if (foreignBody.kind !== "rejection") throw new Error(`expected a rejection, got ${foreignBody.kind}`);
+    expect(foreignBody.reason).toBe("forbidden");
   });
 
   test("an unknown option id is not-found and keeps the operation uncommitted", async () => {

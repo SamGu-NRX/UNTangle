@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 /**
  * The extension's single command, add-option, applied through the same server
  * write path document sync uses (frontend/src/lib/document-sync): a whole
@@ -72,10 +70,11 @@ function buildWritePayload(command: ExtensionAddOptionCommand, scheduleId: strin
  * and is refused with the client's own forbidden rejection. A retry that fits
  * the relationship is answered with the original receipt even though the
  * schedule has since moved on — the add committed and only its response was
- * lost. Byte comparison stays possible only while the schedule still stands
- * at the committed revision, where rebuilding this request's write and
- * hashing it catches a reuse with different bytes; once the state has moved,
- * the receipt itself is the answer.
+ * lost. While the schedule still stands at the committed revision, the
+ * command's option must be the pick recorded for its course; anything else
+ * gets the forbidden rejection. (Postgres stores document bodies as jsonb,
+ * which re-sorts object keys, so rebuilt write bytes cannot be compared
+ * against the receipt's hash.)
  */
 async function verifiedReplay(
   deps: { store: ExtensionStore; sections: SectionsSource },
@@ -97,10 +96,11 @@ async function verifiedReplay(
     const sections = await deps.sections.termSections(current.data.termId);
     const section = sections?.find((candidate) => sectionMatchesOptionId(candidate, command.optionId)) ?? null;
     if (!section) return refuse();
-    const bytes = new TextEncoder().encode(
-      JSON.stringify(buildWritePayload(command, identity.scheduleId, scheduleWithOption(current.data, section))),
-    );
-    if (createHash("sha256").update(bytes).digest("hex") !== receipt.writeSha256) return refuse();
+    // jsonb re-sorts object keys on the way through Postgres, so the rebuilt
+    // write bytes cannot reproduce the receipt's hash even for the identical
+    // command. The check the hash stood for is the committed effect: the
+    // command's option is the pick recorded for its course.
+    if (current.data.selectedSections[section.courseCode] !== section.id) return refuse();
   }
   return { status: 200, body: { kind: "receipt", operationId: command.operationId, committedRevision: receipt.committedRevision } };
 }
