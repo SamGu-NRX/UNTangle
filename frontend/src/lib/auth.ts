@@ -2,7 +2,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/lib/db";
 import { accounts, authRateLimits, sessions, users, verifications } from "@/lib/db/schema";
 import { assertEmailConfigured, isProductionServer } from "@/lib/auth-email";
-import { beginSecurityChange, bumpSecurityGeneration, finishSecurityChange, readSecurityGeneration } from "@/server/auth/device-runtime";
+import { beginSecurityChange, bumpSecurityGeneration, endStaleSession, finishSecurityChange, readSecurityGeneration, writeCredential } from "@/server/auth/device-runtime";
 import { createAuth } from "@/lib/auth-config";
 import { createAuthEmailSender } from "@/lib/email";
 import { recipientBudget } from "@/lib/email-budget";
@@ -65,4 +65,6 @@ export const auth = createAuth({
   readSecurityGeneration,
   beginSecurityChange,
   finishSecurityChange,
+  writeCredential,
+  endStaleSession,
 });

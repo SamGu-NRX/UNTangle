@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, text, timestamp, boolean, bigint, primaryKey, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("user", {
   id: text("id").primaryKey(),
@@ -55,7 +55,11 @@ export const accounts = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_user_id_idx").on(table.userId)],
+  (table) => [
+    index("account_user_id_idx").on(table.userId),
+    // One password per account (0015); DeviceStore.writeCredential relies on it.
+    uniqueIndex("account_credential_user_idx").on(table.userId).where(sql`${table.providerId} = 'credential'`),
+  ],
 );
 
 export const verifications = pgTable(
@@ -193,8 +197,14 @@ export const versions = pgTable("versions", {
 export const deviceSecurity = pgTable("device_security", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   generation: integer("generation").notNull().default(0),
+  // Unused since 0014 (single changes with a start time, below). Kept so an
+  // instance still running 0013 code during a deploy doesn't fail; drop later.
   activeTransitions: integer("active_transitions").notNull().default(0),
-});
+  changeId: text("change_id"),
+  changeStartedAt: timestamp("change_started_at", { withTimezone: true }),
+}, (table) => [
+  check("device_security_change_check", sql`(${table.changeId} IS NULL) = (${table.changeStartedAt} IS NULL)`),
+]);
 export const deviceGrants = pgTable("device_grant", {
   id: text("id").primaryKey(),
   deviceCodeHash: text("device_code_hash").notNull().unique(),

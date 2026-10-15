@@ -7,7 +7,7 @@ import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
 import { postgresDeviceStore } from "@/server/auth/device-postgres";
 
 const url = process.env.RATE_LIMIT_TEST_DATABASE_URL;
-test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse, generation revocation and isolation", async () => {
+test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse, generation revocation, isolation and security changes", async () => {
   expect(new URL(url!).hostname).toMatch(/^(localhost|127\.0\.0\.1)$/);
   const schema = `device_test_${crypto.randomUUID().replaceAll("-", "")}`;
   const pool = new Pool({ connectionString: url, max: 8, options: `-c search_path=${schema} -c timezone=Pacific/Kiritimati` });
@@ -60,6 +60,59 @@ test.skipIf(!url)("Postgres device grants: concurrent consumption, refresh reuse
     const stored = JSON.stringify((await pool.query("SELECT * FROM device_grant")).rows);
     expect(stored.includes(grant.deviceCode)).toBe(false);
     expect(stored.includes(grant.userCode)).toBe(false);
+
+    // Security changes: one at a time across instances, refused on a moved
+    // generation, and stale after the timeout by the database's clock.
+    time = Date.now();
+    const bobDevice = await service.exchange((await approved("bob")).deviceCode, verifier);
+    const generation = await service.readSecurityGeneration("bob");
+    await expect(service.beginSecurityChange("bob", generation - 1)).rejects.toMatchObject({ code: "stale_session", status: 401 });
+    expect(await service.readSecurityGeneration("bob")).toBe(generation);
+    const begins = await Promise.allSettled(clients.map(client => client.beginSecurityChange("bob", generation)));
+    expect(begins.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    // The losers see the winner's bump or its open change; either way, refused.
+    expect(begins.filter(result => result.status === "rejected").every(result => ["security_change_in_progress", "stale_session"].includes((result as PromiseRejectedResult).reason.code))).toBe(true);
+    const opened = begins.find(result => result.status === "fulfilled");
+    if (!opened || opened.status !== "fulfilled") throw new Error("Expected one change to open");
+    expect(opened.value.generation).toBe(generation + 1);
+    await expect(clients[1].beginSecurityChange("bob")).rejects.toMatchObject({ code: "security_change_in_progress", status: 409 });
+    await expect(service.readSecurityGeneration("bob")).rejects.toMatchObject({ code: "security_change_in_progress" });
+    await expect(service.authenticate(bobDevice.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
+    await expect(pool.query("UPDATE device_security SET change_id = NULL WHERE user_id = 'bob'")).rejects.toThrow("device_security_change_check");
+    await pool.query("UPDATE device_security SET change_started_at = now() - interval '15 minutes 1 second' WHERE user_id = 'bob'");
+    expect(await service.readSecurityGeneration("bob")).toBe(generation + 1);
+    await expect(service.authenticate(bobDevice.accessToken)).rejects.toMatchObject({ code: "invalid_token" });
+    // A timed-out change that nobody replaced still writes; once replaced, its write is refused in the same locked step.
+    await service.writeCredential("bob", opened.value.changeId, "stalled-hash", "insert");
+    const replacement = await service.beginSecurityChange("bob");
+    await expect(service.writeCredential("bob", opened.value.changeId, "late-hash", "update")).rejects.toMatchObject({ code: "stale_session", status: 401 });
+    await service.writeCredential("bob", replacement.changeId, "reset-hash", "update");
+    // The unique index refuses it, as a typed error that carries no query text or hash.
+    const duplicate = await service.writeCredential("bob", replacement.changeId, "second-hash", "insert").then(() => null, (error: Error) => error);
+    expect(duplicate).toMatchObject({ code: "credential_exists", status: 409 });
+    expect(`${duplicate?.message} ${JSON.stringify(duplicate)}`).not.toContain("second-hash");
+    expect((await pool.query("SELECT password FROM account WHERE user_id = 'bob' AND provider_id = 'credential'")).rows).toEqual([{ password: "reset-hash" }]);
+    await expect(service.finishSecurityChange("bob", opened.value.changeId)).rejects.toThrow("no longer the open one");
+    await expect(service.readSecurityGeneration("bob")).rejects.toMatchObject({ code: "security_change_in_progress" });
+    expect(await service.finishSecurityChange("bob", replacement.changeId)).toBe(generation + 3);
+    expect((await pool.query("SELECT change_id, change_started_at FROM device_security WHERE user_id = 'bob'")).rows).toEqual([{ change_id: null, change_started_at: null }]);
+    await expect(service.finishSecurityChange("nobody", replacement.changeId)).rejects.toThrow("no longer the open one");
+    expect(await service.readSecurityGeneration("nobody")).toBe(0);
+
+    // Stale sessions: one conditional delete, which spares current sessions and sessions during a change.
+    const current = await service.readSecurityGeneration("bob");
+    await pool.query(`INSERT INTO "session" (id, expires_at, token, updated_at, user_id, security_generation) VALUES
+      ('s-old', now() + interval '1 day', 't-old', now(), 'bob', $1), ('s-now', now() + interval '1 day', 't-now', now(), 'bob', $2)`, [current - 1, current]);
+    const during = await service.beginSecurityChange("bob");
+    expect(await service.endStaleSession("t-old")).toBe(false);
+    await service.finishSecurityChange("bob", during.changeId);
+    await pool.query(`UPDATE "session" SET security_generation = $1 WHERE token = 't-now'`, [current + 2]);
+    expect(await service.endStaleSession("t-now")).toBe(false);
+    expect(await service.endStaleSession("t-old")).toBe(true);
+    expect(await service.endStaleSession("t-missing")).toBe(false);
+    expect((await pool.query(`SELECT token FROM "session" WHERE user_id = 'bob'`)).rows).toEqual([{ token: "t-now" }]);
+    const fresh = await service.exchange((await approved("bob")).deviceCode, verifier);
+    expect((await service.authenticate(fresh.accessToken, "documents:read")).userId).toBe("bob");
   } finally {
     await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     await pool.end();

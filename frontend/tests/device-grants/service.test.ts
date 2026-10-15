@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
+import { createDeviceGrants, pkceChallenge, securityChangeTimeout } from "@/server/auth/device-grants";
 import type { DeviceClientKind } from "../../../packages/contracts/src/device-grant";
 import { MemoryDeviceStore } from "./memory-store";
 
 const verifier = "a".repeat(43);
 const day = 86400_000;
 function setup() {
-  const store = new MemoryDeviceStore();
   let time = Date.UTC(2026, 9, 15);
+  const store = new MemoryDeviceStore(() => time);
   const service = createDeviceGrants(store, () => time);
   const advance = (ms: number) => { time += ms; };
   async function start(kind: DeviceClientKind = "mobile", scheduleId = "alice-schedule") {
@@ -24,6 +24,8 @@ function setup() {
 
 const invalidToken = { code: "invalid_token", status: 401 };
 const insufficientScope = { code: "insufficient_scope", status: 403 };
+const inProgress = { code: "security_change_in_progress", status: 409 };
+const stale = { code: "stale_session", status: 401 };
 
 describe("device grant approval and PKCE", () => {
   test("PKCE mismatch is rejected without consuming the valid exchange", async () => {
@@ -162,25 +164,81 @@ describe("device token rotation and revocation", () => {
     expect((await t.service.authenticate(bob.accessToken)).userId).toBe("bob");
   });
 
-  test("overlapping security transitions remain blocked until their final completion", async () => {
+  test("one security change runs at a time, and it blocks only its own account", async () => {
     const t = setup();
     const alice = await t.issue();
     const bob = await t.issue("mobile", "bob");
-    await t.service.beginSecurityChange("alice");
-    await t.service.beginSecurityChange("alice");
-    await expect(t.service.readSecurityGeneration("alice")).rejects.toMatchObject(invalidToken);
+    const change = await t.service.beginSecurityChange("alice");
+    expect(change.generation).toBe(1);
+    await expect(t.service.beginSecurityChange("alice")).rejects.toMatchObject(inProgress);
+    await expect(t.service.readSecurityGeneration("alice")).rejects.toMatchObject(inProgress);
     await expect(t.service.authenticate(alice.accessToken)).rejects.toMatchObject(invalidToken);
     expect((await t.service.authenticate(bob.accessToken)).userId).toBe("bob");
-    await t.service.finishSecurityChange("alice");
-    await expect(t.service.readSecurityGeneration("alice")).rejects.toMatchObject(invalidToken);
+    expect(await t.service.finishSecurityChange("alice", change.changeId)).toBe(2);
+    expect(await t.service.readSecurityGeneration("alice")).toBe(2);
     await expect(t.service.refresh(alice.refreshToken)).rejects.toMatchObject(invalidToken);
-    await t.service.finishSecurityChange("alice");
-    expect(await t.service.readSecurityGeneration("alice")).toBe(4);
-    await expect(t.service.authenticate(alice.accessToken)).rejects.toMatchObject(invalidToken);
     const fresh = await t.issue();
     expect((await t.service.authenticate(fresh.accessToken)).userId).toBe("alice");
-    await expect(t.service.finishSecurityChange("alice")).rejects.toThrow("No active account security change to finish");
+    await expect(t.service.finishSecurityChange("alice", change.changeId)).rejects.toThrow("no longer the open one");
+    await expect(t.service.finishSecurityChange("carol", change.changeId)).rejects.toThrow("no longer the open one");
+    expect(await t.service.readSecurityGeneration("alice")).toBe(2);
+  });
+
+  test("a change that names the caller's generation is refused, with no bump, once the generation has moved", async () => {
+    const t = setup();
+    await t.service.bumpSecurityGeneration("alice");
+    await expect(t.service.beginSecurityChange("alice", 0)).rejects.toMatchObject(stale);
+    expect(await t.service.readSecurityGeneration("alice")).toBe(1);
+    const change = await t.service.beginSecurityChange("alice", 1);
+    expect(await t.service.finishSecurityChange("alice", change.changeId)).toBe(3);
+  });
+
+  test("an abandoned change stops blocking after its timeout; its late finish changes nothing", async () => {
+    const t = setup();
+    const alice = await t.issue();
+    const abandoned = await t.service.beginSecurityChange("alice");
+    t.advance(securityChangeTimeout - 1);
+    await expect(t.service.readSecurityGeneration("alice")).rejects.toMatchObject(inProgress);
+    await expect(t.service.beginSecurityChange("alice")).rejects.toMatchObject(inProgress);
+    t.advance(1);
+    expect(await t.service.readSecurityGeneration("alice")).toBe(1);
+    await expect(t.service.authenticate(alice.accessToken)).rejects.toMatchObject(invalidToken);
+    await expect(t.service.refresh(alice.refreshToken)).rejects.toMatchObject(invalidToken);
+    // Still its own until replaced: a stalled request may still write under it.
+    const account = [{ id: "credential-1", userId: "alice", providerId: "credential", password: "old-hash" }];
+    t.store.useAuthTables({ account, session: [] });
+    await t.service.writeCredential("alice", abandoned.changeId, "stalled-hash", "update");
+    expect(account[0].password).toBe("stalled-hash");
+    const next = await t.service.beginSecurityChange("alice");
+    await expect(t.service.writeCredential("alice", abandoned.changeId, "late-hash", "update")).rejects.toMatchObject(stale);
+    expect(account[0].password).toBe("stalled-hash");
+    await t.service.writeCredential("alice", next.changeId, "next-hash", "update");
+    await expect(t.service.writeCredential("alice", next.changeId, "second-hash", "insert")).rejects.toMatchObject({ code: "credential_exists", status: 409 });
+    expect(account).toHaveLength(1);
+    expect(account[0].password).toBe("next-hash");
+    await expect(t.service.finishSecurityChange("alice", abandoned.changeId)).rejects.toThrow("no longer the open one");
+    await expect(t.service.readSecurityGeneration("alice")).rejects.toMatchObject(inProgress);
+    expect(await t.service.finishSecurityChange("alice", next.changeId)).toBe(3);
+    const fresh = await t.issue();
     expect((await t.service.authenticate(fresh.accessToken)).userId).toBe("alice");
+  });
+
+  test("a session from an older generation is deleted, unless a change is open or it is current", async () => {
+    const t = setup();
+    const session = [
+      { token: "old", userId: "alice", securityGeneration: 0 },
+      { token: "current", userId: "alice", securityGeneration: 2 },
+      { token: "bob", userId: "bob", securityGeneration: 0 },
+    ];
+    t.store.useAuthTables({ account: [], session });
+    const change = await t.service.beginSecurityChange("alice");
+    expect(await t.service.endStaleSession("old")).toBe(false);
+    await t.service.finishSecurityChange("alice", change.changeId);
+    expect(await t.service.endStaleSession("current")).toBe(false);
+    expect(await t.service.endStaleSession("bob")).toBe(false);
+    expect(await t.service.endStaleSession("old")).toBe(true);
+    expect(await t.service.endStaleSession("missing")).toBe(false);
+    expect(session.map(row => row.token)).toEqual(["current", "bob"]);
   });
 
   test("storage holds only token and grant-code hashes", async () => {
