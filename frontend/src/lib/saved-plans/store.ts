@@ -23,7 +23,45 @@ import type { PlannerState } from "@/lib/types";
  *   the UI additionally listens to `storage` events to stay current.
  */
 
-export const SAVED_PLANS_STORE_KEY = "untangle.saved-plans.v1";
+export const LEGACY_SAVED_PLANS_STORE_KEY = "untangle.saved-plans.v1";
+export const SAVED_PLANS_STORE_KEY = `${LEGACY_SAVED_PLANS_STORE_KEY}:guest`;
+
+export function savedPlansKey(userId: string | null): string {
+  return userId === null ? SAVED_PLANS_STORE_KEY : `${LEGACY_SAVED_PLANS_STORE_KEY}:user:${encodeURIComponent(userId)}`;
+}
+
+// The library view keeps its store across account changes. Until the provider
+// confirms an identity, browser-backed stores refuse reads and writes.
+let browserIdentity: string | null | undefined;
+let browserIdentityToken = Symbol("saved-plan identity");
+export function getSavedPlanIdentity(): string | null | undefined {
+  return browserIdentity;
+}
+export function setSavedPlanIdentity(userId: string | null | undefined): void {
+  browserIdentity = userId;
+  browserIdentityToken = Symbol("saved-plan identity");
+  // The live library read performs migration so its notice reaches the view.
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SAVED_PLANS_CHANGED_EVENT));
+}
+
+export function clearSavedPlansIdentity(userId: string | null): void {
+  if (typeof window === "undefined") return;
+  const prefix = identityQuarantinePrefix(userId);
+  try {
+    const storage = window.localStorage;
+    storage.removeItem(savedPlansKey(userId));
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(prefix)) storage.removeItem(key);
+    }
+  } catch {
+    // Cleanup cannot access storage while the browser denies it.
+  }
+}
+
+function identityQuarantinePrefix(userId: string | null): string {
+  return `${QUARANTINE_PREFIX}${userId === null ? "guest" : `user:${encodeURIComponent(userId)}`}:`;
+}
 /** Fired on window after every successful library write in this tab. */
 export const SAVED_PLANS_CHANGED_EVENT = "untangle:saved-plans-changed";
 export const SAVED_PLANS_STORE_SCHEMA_VERSION = 1;
@@ -32,17 +70,18 @@ const MAX_FRESHNESS_ATTEMPTS = 3;
 
 /** Quarantine keys are unique per event: a same-millisecond collision must
  * never overwrite an earlier quarantine (that would destroy stored bytes). */
-function newQuarantineKey(): string {
+function newQuarantineKey(prefix: string): string {
   const unique =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-  return `${QUARANTINE_PREFIX}${Date.now()}-${unique}`;
+  return `${prefix}${Date.now()}-${unique}`;
 }
 
 export type SavedPlanStoreFailure = {
   kind:
     | "storageUnavailable"
+    | "identityChanged"
     | "corruptDataRecovered"
     | "quotaExceeded"
     | "invalidPayload"
@@ -179,11 +218,23 @@ export type SavedPlanStore = {
   renamePlan(planId: string, name: string): StoreWriteResult<SavedPlanSnapshot>;
   duplicatePlan(planId: string, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
   setPlanArchived(planId: string, archived: boolean, now?: Date): StoreWriteResult<SavedPlanSnapshot>;
-  importPlan(raw: unknown, now?: Date): ImportPlanResult;
+  /** Capture before async work, then pass to importPlan to refuse account changes. */
+  captureIdentity(): symbol;
+  importPlan(raw: unknown, now?: Date, identityToken?: symbol): ImportPlanResult;
 };
 
-export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
+export function createSavedPlanStore(storage?: Storage | null, userId: string | null = null): SavedPlanStore {
+  const identity = () => storage === undefined ? browserIdentity : userId;
+  const storeKey = () => {
+    const current = identity();
+    return current === undefined ? null : savedPlansKey(current);
+  };
+  const quarantinePrefix = () => {
+    const current = identity();
+    return current === undefined ? null : identityQuarantinePrefix(current);
+  };
   const resolvedStorage = storage === undefined ? defaultStorage() : storage;
+  let migrationNotices: SavedPlanStoreFailure[] = [];
   let available = resolvedStorage !== null;
   if (resolvedStorage) {
     // A storage object can exist yet deny every access (private mode,
@@ -199,7 +250,9 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
     if (!resolvedStorage) {
       return undefined;
     }
-    const quarantineKey = newQuarantineKey();
+    const prefix = quarantinePrefix();
+    if (!prefix) return undefined;
+    const quarantineKey = newQuarantineKey(prefix);
     try {
       resolvedStorage.setItem(quarantineKey, raw);
       return quarantineKey;
@@ -217,7 +270,17 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
       return { failed: false, raw: null };
     }
     try {
-      return { failed: false, raw: resolvedStorage.getItem(SAVED_PLANS_STORE_KEY) };
+      const key = storeKey();
+      if (!key) return { failed: true };
+      // Old libraries contain no account ownership evidence. Keep their bytes
+      // outside every identity's recovery UI rather than assigning them by login.
+      const legacy = resolvedStorage.getItem(LEGACY_SAVED_PLANS_STORE_KEY);
+      if (legacy !== null) {
+        resolvedStorage.setItem(newQuarantineKey(`${QUARANTINE_PREFIX}legacy-`), legacy);
+        resolvedStorage.removeItem(LEGACY_SAVED_PLANS_STORE_KEY);
+        migrationNotices = [{ kind: "corruptDataRecovered", message: "An older shared-browser library was quarantined because its owner could not be established." }];
+      }
+      return { failed: false, raw: resolvedStorage.getItem(key) };
     } catch {
       // Storage exists but is inaccessible (disabled, permission-denied):
       // that is a structured failure, not an empty library.
@@ -246,15 +309,15 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
             : "Saved-plan storage held unreadable data; the library restarted empty, and the unreadable bytes could not be kept because storage refused the write.",
           quarantinedTo,
         };
-        return { ok: true, doc: emptyDoc(), notices: [notice] };
+        return { ok: true, doc: emptyDoc(), notices: [...migrationNotices, notice] };
       }
       return {
         ok: true,
         doc: parsed.doc,
-        notices: parsed.notice ? [parsed.notice] : [],
+        notices: [...migrationNotices, ...(parsed.notice ? [parsed.notice] : [])],
       };
     }
-    return { ok: true, doc: emptyDoc(), notices: [] };
+    return { ok: true, doc: emptyDoc(), notices: migrationNotices };
   }
 
   function writeDoc(doc: SavedPlanStoreDoc): SavedPlanStoreFailure | null {
@@ -265,7 +328,9 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
       };
     }
     try {
-      resolvedStorage.setItem(SAVED_PLANS_STORE_KEY, JSON.stringify(doc));
+      const key = storeKey();
+      if (!key) return storageUnavailableFailure();
+      resolvedStorage.setItem(key, JSON.stringify(doc));
       // `storage` events only reach other tabs; views in this tab (the plan
       // library while the top bar's "Save a copy" writes) hear this one.
       if (typeof window !== "undefined") window.dispatchEvent(new Event(SAVED_PLANS_CHANGED_EVENT));
@@ -347,11 +412,13 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
   }
 
   return {
-    available,
+    get available() { return available && storeKey() !== null; },
     listQuarantined() {
       if (!resolvedStorage) {
         return [];
       }
+      const prefix = quarantinePrefix();
+      if (!prefix) return [];
       const keys: Array<{ key: string; size: number }> = [];
       for (let index = resolvedStorage.length - 1; index >= 0; index -= 1) {
         let key: string | null = null;
@@ -360,7 +427,7 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
         } catch {
           continue;
         }
-        if (key && key.startsWith(QUARANTINE_PREFIX)) {
+        if (key && key.startsWith(prefix)) {
           try {
             keys.push({ key, size: (resolvedStorage.getItem(key) ?? "").length });
           } catch {
@@ -372,7 +439,8 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
     },
 
     readQuarantined(key: string) {
-      if (!resolvedStorage || !key.startsWith(QUARANTINE_PREFIX)) {
+      const prefix = quarantinePrefix();
+      if (!resolvedStorage || !prefix || !key.startsWith(prefix)) {
         return null;
       }
       try {
@@ -464,7 +532,14 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
       });
     },
 
-    importPlan(raw, now) {
+    captureIdentity() {
+      return browserIdentityToken;
+    },
+
+    importPlan(raw, now, identityToken) {
+      if (identityToken !== undefined && identityToken !== browserIdentityToken) {
+        return { ok: false, failure: { kind: "identityChanged", message: "The account changed while the file was loading. Choose the file again for this account." } };
+      }
       if (!available) {
         return {
           ok: false,
@@ -513,7 +588,7 @@ export function createSavedPlanStore(storage?: Storage | null): SavedPlanStore {
 export function subscribeSavedPlans(listener: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const onStorage = (event: StorageEvent) => {
-    if (event.key === null || event.key === SAVED_PLANS_STORE_KEY) listener();
+    if (event.key === null || event.key === (browserIdentity === undefined ? SAVED_PLANS_STORE_KEY : savedPlansKey(browserIdentity))) listener();
   };
   window.addEventListener(SAVED_PLANS_CHANGED_EVENT, listener);
   window.addEventListener("storage", onStorage);

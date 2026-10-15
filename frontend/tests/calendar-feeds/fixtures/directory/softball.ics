@@ -1,0 +1,47 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - Softball
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T162135Z
+UID:tag:localist.com\,2008:EventInstance_53976070793819
+DTSTART:20261003T190000Z
+DTEND:20261003T210000Z
+DESCRIPTION:University of North Texas Softball vs Northern Oklahoma College
+GEO:33.201168;-97.162001
+LOCATION:Lovelace Stadium
+SUMMARY:UNT Softball vs Northern Oklahoma College
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-soft
+ ball-vs-northern-oklahoma-college
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162135Z
+UID:tag:localist.com\,2008:EventInstance_53976070819424
+DTSTART:20261010T000000Z
+DTEND:20261010T020000Z
+DESCRIPTION:Watch the University of North Texas Mean Green Softball Team as
+  they take on Southeastern Oklahoma!
+GEO:33.201168;-97.162001
+LOCATION:Lovelace Stadium
+SUMMARY:UNT Softball vs Southeastern Oklahoma
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-soft
+ ball-vs-southeastern-oklahoma
+CATEGORIES:Athletics
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T162135Z
+UID:tag:localist.com\,2008:EventInstance_53976070831717
+DTSTART:20261013T230000Z
+DTEND:20261014T010000Z
+DESCRIPTION:Watch the University of North Texas Mean Green Softball Team as
+  they take on Murray State College!
+LOCATION:Tishomingo\, OK\, Softball Field
+SUMMARY:UNT Softball at Murray State College
+URL;VALUE=URI:https://calendar.unt.edu/event/university-of-north-texas-soft
+ ball-at-murray-state-college
+CATEGORIES:Athletics
+END:VEVENT
+END:VCALENDAR

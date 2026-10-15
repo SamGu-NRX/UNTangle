@@ -109,7 +109,7 @@ Motion serves spatial consistency: one occasional selection shows how a building
 
 Use UNTangle's existing `--ease-out-strong`, `cubic-bezier(0.19, 1, 0.22, 1)`. MapLibre needs a function rather than CSS text. Invert the cubic's x coordinate before evaluating y; applying its y polynomial directly to time is a different curve. The prototype includes that function as `cameraEase`. It starts decisively and settles without a spring or overshoot.
 
-Call `map.stop()` before starting a new camera request. Invalidate any pending post-fit callback first. A later selection wins immediately; do not queue flights or disable controls while flying. A user gesture cancels the pending projected-fit correction so it cannot snap the camera back after a pan.
+Call `map.stop()` before starting a new camera request. Invalidate any pending post-fit callback first. A later selection wins immediately; do not queue flights or disable controls while flying. A user gesture cancels the pending projected-fit correction so it cannot snap the camera back after a pan. Waiting for `movestart` is too late in 5.6.2: a gesture stops the flight, which fires the pending `moveend` before the gesture's `movestart`. The prototype's correction therefore runs only when the camera reached its target.
 
 ## Reduced motion and keyboard
 

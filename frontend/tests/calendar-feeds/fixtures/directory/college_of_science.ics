@@ -1,0 +1,88 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Science
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161842Z
+UID:tag:localist.com\,2008:EventInstance_53916295554657
+DTSTART:20260914T130000Z
+DTEND:20260915T010000Z
+DESCRIPTION:CAARI-SNEAP-WOTWISI 2026 brings together researchers\, accelera
+ tor personnel\, engineers\, students\, and industry professionals from aro
+ und the world to exchange advances in accelerator science\, accelerator ap
+ plications\, materials research\, and related technologies.\n\nThe three m
+ eetings will be held concurrently at the University of North Texas\, creat
+ ing opportunities for interdisciplinary discussion\, networking\, collabor
+ ation\, and interaction among accelerator researchers and users from a bro
+ ad range of scientific and industrial fields.
+GEO:33.210932;-97.147274
+LOCATION:Emerald Ballroom at the University Union\, 314
+SUMMARY:International Conference CAARI-SNEAP-WOTWISI 2026
+URL;VALUE=URI:https://calendar.unt.edu/event/international-conference-caari
+ -sneap-wotwisi-2026
+CATEGORIES:Conferences & Meetings
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161842Z
+UID:tag:localist.com\,2008:EventInstance_53916295555682
+DTSTART:20260915T130000Z
+DTEND:20260916T010000Z
+DESCRIPTION:CAARI-SNEAP-WOTWISI 2026 brings together researchers\, accelera
+ tor personnel\, engineers\, students\, and industry professionals from aro
+ und the world to exchange advances in accelerator science\, accelerator ap
+ plications\, materials research\, and related technologies.\n\nThe three m
+ eetings will be held concurrently at the University of North Texas\, creat
+ ing opportunities for interdisciplinary discussion\, networking\, collabor
+ ation\, and interaction among accelerator researchers and users from a bro
+ ad range of scientific and industrial fields.
+GEO:33.210932;-97.147274
+LOCATION:Emerald Ballroom at the University Union\, 314
+SUMMARY:International Conference CAARI-SNEAP-WOTWISI 2026
+URL;VALUE=URI:https://calendar.unt.edu/event/international-conference-caari
+ -sneap-wotwisi-2026
+CATEGORIES:Conferences & Meetings
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261014T161842Z
+UID:tag:localist.com\,2008:EventInstance_53925044346627
+DTSTART:20260915T203000Z
+DTEND:20260915T213000Z
+DESCRIPTION:Title: How Do Ion Beams Probe and Reshape Materials?\n\nAbstrac
+ t: \n\nIon beams provide a powerful way to both characterize materials and
+  deliberately modify their structure. When energetic ions enter a solid\, 
+ they interact with atomic nuclei and electrons. Analysis of the resulting 
+ scattered particles and other signals can reveal crystalline structure\, l
+ attice defects\, elemental composition\, and depth-dependent distributions
+ . Rutherford backscattering spectrometry (RBS) combined with ion channelin
+ g can quantify crystalline disorder and track how radiation damage accumul
+ ates or recovers. At the same time\, energetic ions drive materials far fr
+ om equilibrium. Energy transferred through collisions with atomic nuclei p
+ roduces atomic displacements and collision cascades\, whereas energy trans
+ ferred to electrons generates electronic excitation and ionization. These 
+ processes can create defects and disorder\, but they can also promote defe
+ ct recombination\, atomic rearrangement\, grain-boundary motion\, recrysta
+ llization\, and phase transformation. Increasing evidence shows that elect
+ ronic excitation can interact strongly with displacement damage\, producin
+ g structural responses that cannot be understood from atomic collisions al
+ one.\n\nBy controlling ion species\, energy\, fluence\, and irradiation te
+ mperature\, ion beams can therefore be used to direct defect populations a
+ nd microstructure. This presentation will introduce the fundamental physic
+ s of ion-solid interactions and explain these concepts using materials wit
+ h contrasting bonding and electronic structures\, including silicon carbid
+ e\, complex oxides\, and metallic alloys. Examples will show how crystal s
+ tructure\, bonding\, and chemical complexity influence the balance between
+  defect production and recovery\, as well as interface and phase stability
+ . Together\, ion beam analysis and modification provide complementary appr
+ oaches for linking atomic-scale radiation processes to materials performan
+ ce and for developing radiation-tolerant materials for advanced energy tec
+ hnologies\, electronics\, and other extreme environments.
+GEO:33.21307;-97.146589
+LOCATION:Physics Building\, 104
+SUMMARY:UNT Physics Colloquium Presents Dr. Yanwen Zhang 
+URL;VALUE=URI:https://calendar.unt.edu/event/unt-physics-colloquium-present
+ s-dr-yanwen-zhang
+CATEGORIES:Lectures & Speakers
+END:VEVENT
+END:VCALENDAR

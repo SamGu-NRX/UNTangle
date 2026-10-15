@@ -29,7 +29,7 @@ export type CompareReport = {
   buildingsUsed: BuildingUsage[];
   currentBuildingsUsed: string[];
   meetingsPerBuilding: { id: string; meetings: number }[];
-  onlineShare: { onlineSections: number; totalSections: number; percent: number };
+  onlineShare: { onlineSections: number; unknownSections: number; totalSections: number; percent: number };
   prereqUnresolved: { course: string; prerequisite: string }[];
   prereqUnresolvedCurrentCount: number;
   term: { id: string; label: string; classesStart: string | null; classesEnd: string | null } | null;
@@ -104,8 +104,7 @@ function meetingCounts(sections: { meetings: { buildingId: string | null }[] }[]
 }
 
 function isOnlineSection(section: CandidateSection): boolean {
-  if (section.modality === "online") return true;
-  return !section.meetings.some((meeting) => meeting.buildingId !== null);
+  return section.modality === "online";
 }
 
 export function compareBundles(current: CurrentBundle, candidate: CandidateBundle): CompareReport {
@@ -135,6 +134,7 @@ export function compareBundles(current: CurrentBundle, candidate: CandidateBundl
 
   const totalSections = candidate.sections.length;
   const onlineSections = candidate.sections.filter(isOnlineSection).length;
+  const unknownSections = candidate.sections.filter(section => section.modality === undefined || section.modality === "unknown").length;
   const percent =
     totalSections === 0 ? 0 : Number(((onlineSections / totalSections) * 100).toFixed(1));
 
@@ -171,7 +171,7 @@ export function compareBundles(current: CurrentBundle, candidate: CandidateBundl
     buildingsUsed,
     currentBuildingsUsed,
     meetingsPerBuilding,
-    onlineShare: { onlineSections, totalSections, percent },
+    onlineShare: { onlineSections, unknownSections, totalSections, percent },
     prereqUnresolved,
     prereqUnresolvedCurrentCount,
     term: { ...candidate.term },
@@ -235,7 +235,7 @@ export function renderReport(report: CompareReport): string {
   push("## Online share");
   push();
   push(
-    `${report.onlineShare.onlineSections} of ${report.onlineShare.totalSections} candidate sections (${report.onlineShare.percent.toFixed(1)}%) are online or have no in-person meeting.`,
+    `${report.onlineShare.onlineSections} of ${report.onlineShare.totalSections} candidate sections (${report.onlineShare.percent.toFixed(1)}%) are explicitly online; ${report.onlineShare.unknownSections} have unknown modality.`,
   );
   push();
   push("## Unresolved prerequisite references (candidate)");

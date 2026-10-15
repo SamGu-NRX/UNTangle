@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { ClassDaySchema } from "./filters";
 import { CourseCodeSchema } from "./ids";
-import { SourceIdSchema } from "./sources";
+import { SourceIdSchema, sourceMatchesInstitution } from "./sources";
 
 /** A JSON path into the raw response: `$`, then `.name`, `[0]` or `["key"]` steps. */
 const jsonPath = z.string().max(300).regex(/^\$(?:\.[a-z_]+|\[\d+\]|\["[^"\\]+"\])+$/, 'A source path looks like $.courses["MATH 1680"].sections[0].status.');
@@ -127,7 +127,7 @@ export const ReleaseManifestSchema = z.strictObject({
     components: z.int().min(0),
     meetings: z.int().min(0),
   }),
-});
+}).refine(sourceMatchesInstitution, { path: ["institutionId"], message: "The vsb-untgrades source belongs to unt." });
 
 export const SectionReleaseSchema = z
   .strictObject({ manifest: ReleaseManifestSchema, courses: z.array(CourseRecordSchema).min(1) })
