@@ -16,13 +16,13 @@
 //            use until its button is pressed).
 // axe (WCAG 2.0-2.2 A/AA) on every state. Writes screenshots and report.json.
 //   node journey.mjs <baseUrl> <mockUrl> <outDir>
-import { chromium } from "playwright";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const require = createRequire(import.meta.url);
-const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+const axeSource = readFileSync(process.env.AXE_PATH ?? require.resolve("axe-core/axe.min.js"), "utf8");
 const [base, mock, out] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
 const results = [];
@@ -94,10 +94,15 @@ async function toCourses(page) {
   }
 }
 
-// v3: the import is its own page at /connect; Courses' Auto-fill menu goes there.
+// v3: the import is its own page at /connect. Courses reaches it from the empty state's
+// "Import your transcript" or, once there is a plan, from the degree dialog behind the degree line.
 async function openConnectFromCourses(page) {
-  await page.getByRole("button", { name: "More Auto-fill options" }).filter({ visible: true }).first().click();
-  await page.getByRole("menuitem", { name: "Import a transcript" }).click();
+  const fromEmpty = page.getByRole("button", { name: /Import your transcript/ });
+  if (await fromEmpty.isVisible().catch(() => false)) await fromEmpty.click();
+  else {
+    await page.locator("[data-degree]").click();
+    await page.getByRole("dialog", { name: "Your degree" }).getByRole("button", { name: /^Import/ }).click();
+  }
   await page.waitForURL(/\/connect$/);
   const stage = page.getByRole("main");
   await stage.getByRole("heading", { level: 1 }).waitFor();
@@ -336,8 +341,8 @@ async function markACourseDone(page) {
   // "load", not "networkidle": since #39, the test server has a database URL it
   // can't reach, and this page's network didn't go idle within 30 s.
   await page.goto(`${base}/courses/math/1710`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Status options for MATH 1710" }).first().click();
-  await page.getByRole("menuitem", { name: "I have credit for this" }).click();
+  // v3 Courses: the course detail offers it as a button, not a status menu.
+  await page.getByRole("button", { name: "I have credit for this" }).first().click();
   await page.waitForTimeout(400);
 }
 
@@ -384,7 +389,8 @@ async function plansCompareRestore(page, size) {
   const mainNow = async () => {
     await page.waitForTimeout(1500);
     return page.evaluate(() => {
-      const doc = JSON.parse(localStorage.getItem("untangle.planner-state.v1") ?? "null");
+      // The guest's own key since #77 (local planner data per identity).
+      const doc = JSON.parse(localStorage.getItem("untangle.planner-state.v1:guest") ?? "null");
       const state = doc?.state ?? doc;
       return JSON.stringify({ statuses: state?.courseStatuses, plan: state?.coursePlan, records: state?.transcriptRecords?.length });
     });
@@ -398,6 +404,7 @@ async function plansCompareRestore(page, size) {
   check(size, "library: the result is announced once, by the toast's live region", announcers === 1, `${announcers} live regions`);
   check(size, "library: using a copy keeps you in the library and offers Undo", page.url().endsWith("/schedules") && (await page.getByRole("button", { name: "Undo" }).count()) === 1);
   const adopted = await mainNow();
+  check(size, "library: Main is read from storage", before !== JSON.stringify({}) && !before.includes('"statuses":null') && before.includes("statuses"), before.slice(0, 80));
   check(size, "library: using the copy changed Main", adopted !== before);
   await page.getByRole("button", { name: "Undo" }).click();
   const undone = await mainNow();

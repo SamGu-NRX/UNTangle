@@ -7,22 +7,19 @@
  * live here so they are tested once:
  * - a stop that could not be placed stays in the list with its reason;
  * - only a walkway route (or ORS) has walking minutes and a "leave by" time;
- * - a straight-line estimate has no minutes, only an approximate distance;
+ * - a straight-line estimate shows distance only, never minutes;
  * - a transfer is "late" when the walk takes longer than the break, and
- *   "tight" when leaving on time means leaving as the earlier class ends
- *   (lib/leave-by.ts). Both are flagged;
+ *   "tight" when it leaves two minutes or less to spare (the design's rule:
+ *   walk >= gap - 2). Both are flagged;
  * - two classes that never meet in the same week (first and second
  *   eight-week sessions) have no walk between them;
  * - main campus to Discovery Park is a shuttle ride with a fixed estimate,
- *   never routed on foot; it can be tight or late like a walk;
- * - the walk from the student's starting point to the first class is the
- *   day's first leg, when a starting point is set.
+ *   never routed on foot; it can be tight or late like a walk.
  */
 import { haversineMetersBetween } from "@/lib/campus/geo";
 import { stopIdentity } from "@/lib/campus/route-legs";
 import { walkingMinutes } from "@/lib/campus/speeds";
-import { isTight, leaveBy } from "@/lib/leave-by";
-import { DISCOVERY_PARK_ID, meetTogether, rangeLabel } from "@/lib/planner-sections";
+import { meetTogether, rangeLabel } from "@/lib/planner-sections";
 import { isShuttleLeg, SHUTTLE_SECONDS } from "@/lib/planner-walking";
 import type { MapResolvedLocation, MapRouteLeg, MapRoutePoint, MapStop } from "@/lib/types";
 
@@ -69,57 +66,51 @@ export type LegRoute =
 
 export type ItineraryLeg = {
   key: string;
-  /** The earlier stop's key, or START_KEY for the walk from the starting point. */
   fromKey: string;
   toKey: string;
-  /** Minutes between the end of one class and the start of the next (negative when they overlap); null from the starting point. */
-  gapMinutes: number | null;
+  /** Minutes between the end of one class and the start of the next. Negative when they overlap. */
+  gapMinutes: number;
   route: LegRoute;
   /** Rounded up, so "leave by" never promises time you don't have. Null when the walk time is unknown. */
   walkMinutes: number | null;
-  /**
-   * When to leave, in minutes after midnight (lib/leave-by.ts), never before
-   * the earlier class ends. Only when the walk time is known and nonzero.
-   */
-  leaveAt: number | null;
+  /** "HH:MM" (24-hour) to leave the earlier class. Only when the walk time is known and nonzero. */
+  leaveBy: string | null;
   transfer: TransferFit;
 };
 
 /** "unknown" when the walk time is unknown (lookup pending, straight-line, or no route). */
 export type TransferFit = "ok" | "tight" | "late" | "unknown";
 
+/** A transfer with this many minutes of slack or fewer counts as tight. */
+export const TIGHT_SLACK_MINUTES = 2;
+
 export function transferFit(walkMinutes: number | null, gapMinutes: number): TransferFit {
   if (walkMinutes === null) return "unknown";
   if (walkMinutes > gapMinutes) return "late";
   // Same building needs no walk, so it is never tight, however short the break.
-  // Measured from the earlier class's end, which is minute 0 here.
-  if (walkMinutes > 0 && isTight(leaveBy(gapMinutes, walkMinutes), 0)) return "tight";
+  if (walkMinutes > 0 && walkMinutes >= gapMinutes - TIGHT_SLACK_MINUTES) return "tight";
   return "ok";
 }
 
-/** Where the student's day begins, such as their residence hall. */
-export type StartPlace = { name: string; point: MapRoutePoint };
-
-/** The fromKey of the walk from the starting point. */
-export const START_KEY = "start";
-
-/**
- * The day's walking, in minutes: the walk from the starting point and every
- * walk between classes with a known time. Shuttle rides aren't walking, and
- * a straight-line estimate has no time to add.
- */
-export function dayWalkMinutes(itinerary: Itinerary): number {
-  const legs = itinerary.start ? [itinerary.start.leg, ...itinerary.legs] : itinerary.legs;
-  return legs.reduce((total, leg) => total + (leg.route.kind === "walk" ? (leg.walkMinutes ?? 0) : 0), 0);
-}
-
-export type Itinerary = {
-  /** The starting point and the walk from it to the first class; null with no starting point or no classes. */
-  start: { place: StartPlace; leg: ItineraryLeg } | null;
-  stops: ItineraryStop[];
-  /** Walks between consecutive classes; legs[i] runs from stops[i] to stops[i + 1]. */
-  legs: ItineraryLeg[];
+export type DaySummary = {
+  classes: number;
+  mapped: number;
+  unresolved: number;
+  /** Totals over legs with a walkway route only; straight-line estimates are counted in estimatedLegs. */
+  walkMinutes: number;
+  /** Shuttle rides between main campus and Discovery Park; not in walkMinutes. */
+  shuttleLegs: number;
+  walkMeters: number;
+  /** Walk longer than the break. */
+  lateTransfers: number;
+  /** Walk fits, with two minutes or less to spare. Late transfers are not counted here. */
+  tightTransfers: number;
+  /** Legs whose time is unknown: straight-line estimates. */
+  estimatedLegs: number;
+  loading: boolean;
 };
+
+export type Itinerary = { stops: ItineraryStop[]; legs: ItineraryLeg[]; summary: DaySummary };
 
 /** A routing answer for one ordered pair of map points. "failed" means the request did not return. */
 export type PairAnswer = MapRouteLeg | "failed";
@@ -136,6 +127,16 @@ export function fromMinutes(total: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+/** "13:05" -> "1:05 PM". */
+export function formatClock(value: string): string {
+  const total = toMinutes(value);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
+
 const metersPerMile = 1609.344;
 const feetPerMeter = 3.28084;
 
@@ -146,23 +147,6 @@ export function formatDistance(meters: number): string {
     return `${Math.max(10, Math.round((meters * feetPerMeter) / 10) * 10)} ft`;
   }
   return `${miles.toFixed(miles < 10 ? 1 : 0)} mi`;
-}
-
-/**
- * Minutes after midnight on a 12-hour clock, and its half of the day:
- * { clock: "8:49", half: "AM" }. Day always shows the half, because an
- * evening class makes a bare "8:00" ambiguous.
- */
-export function clockParts(total: number): { clock: string; half: "AM" | "PM" } {
-  const wrapped = ((total % 1440) + 1440) % 1440;
-  const hours = Math.floor(wrapped / 60);
-  return { clock: `${hours % 12 === 0 ? 12 : hours % 12}:${String(wrapped % 60).padStart(2, "0")}`, half: hours < 12 ? "AM" : "PM" };
-}
-
-/** "8:49 AM", "1:05 PM". */
-export function formatTime(total: number): string {
-  const { clock, half } = clockParts(total);
-  return `${clock} ${half}`;
 }
 
 /** Whole minutes, rounded up; the campus-wide rule in lib/campus/speeds.ts. */
@@ -259,25 +243,14 @@ export function placementKey(placement: MappedPlacement): string {
   return pointKey(placement.point, placement.buildingId);
 }
 
-type RunPoint = { key: string; point: MapRoutePoint; buildingId?: string };
-
-function startPoint(start: StartPlace): RunPoint {
-  return { key: pointKey(start.point), point: start.point };
-}
-
 /**
  * Stretches of consecutive placed stops, with repeated buildings merged.
  * Each stretch with two or more points is one routing request; an unplaced
- * stop ends a stretch, because nobody can route through it. The walk from
- * the starting point to the first class is a request of its own.
+ * stop ends a stretch, because nobody can route through it.
  */
-export function routeRuns(stops: ItineraryStop[], start: StartPlace | null = null): RunPoint[][] {
-  const runs: RunPoint[][] = [];
-  const first = stops[0]?.placement;
-  if (start && first?.kind === "mapped" && placementKey(first) !== startPoint(start).key) {
-    runs.push([startPoint(start), { key: placementKey(first), point: first.point, buildingId: first.buildingId }]);
-  }
-  let current: RunPoint[] = [];
+export function routeRuns(stops: ItineraryStop[]): Array<Array<{ key: string; point: MapRoutePoint; buildingId?: string }>> {
+  const runs: Array<Array<{ key: string; point: MapRoutePoint; buildingId?: string }>> = [];
+  let current: Array<{ key: string; point: MapRoutePoint; buildingId?: string }> = [];
   let previous: ItineraryStop | null = null;
   for (const entry of stops) {
     // Nothing is routed between classes in different weeks, or across the shuttle.
@@ -311,25 +284,19 @@ function legRoute(from: ItineraryStop, to: ItineraryStop, answers: ReadonlyMap<s
   if (from.placement.kind !== "mapped" || to.placement.kind !== "mapped") {
     return from.placement.kind === "resolving" || to.placement.kind === "resolving" ? { kind: "loading" } : { kind: "no-route" };
   }
-  return routeBetween(
-    { key: placementKey(from.placement), point: from.placement.point },
-    { key: placementKey(to.placement), point: to.placement.point },
-    answers,
-  );
-}
-
-function routeBetween(from: RunPoint, to: RunPoint, answers: ReadonlyMap<string, PairAnswer>): LegRoute {
-  if (from.key === to.key) {
+  const fromKey = placementKey(from.placement);
+  const toKey = placementKey(to.placement);
+  if (fromKey === toKey) {
     return { kind: "same-building" };
   }
-  const answer = answers.get(pairKey(from.key, to.key));
+  const answer = answers.get(pairKey(fromKey, toKey));
   if (answer === undefined) {
     return { kind: "loading" };
   }
   if (answer === "failed" || answer.source === "fallback") {
     // A request that never came back still has an honest answer: the
-    // straight line between the two places, with no walking time.
-    const geometry = [from.point, to.point];
+    // straight line between the two buildings, as distance only.
+    const geometry = [from.placement.point, to.placement.point];
     const meters = answer === "failed" ? haversineMetersBetween(geometry[0], geometry[1]) : answer.distanceMeters;
     return { kind: "straight-line", meters, geometry: answer === "failed" ? geometry : answer.geometry };
   }
@@ -342,41 +309,10 @@ function routeBetween(from: RunPoint, to: RunPoint, answers: ReadonlyMap<string,
   };
 }
 
-function routeMinutes(route: LegRoute): number | null {
-  if (route.kind === "walk" || route.kind === "shuttle") return walkMinutesFromSeconds(route.seconds);
-  return route.kind === "same-building" ? 0 : null;
-}
-
-function startLeg(start: StartPlace, first: ItineraryStop, answers: ReadonlyMap<string, PairAnswer>): ItineraryLeg {
-  const { placement } = first;
-  // Starting points are on main campus (they're limited to the routing
-  // bounds), so a first class at Discovery Park is the shuttle ride.
-  const route: LegRoute =
-    first.stop.buildingId === DISCOVERY_PARK_ID
-      ? { kind: "shuttle", seconds: SHUTTLE_SECONDS }
-      : placement.kind === "mapped"
-        ? routeBetween(startPoint(start), { key: placementKey(placement), point: placement.point }, answers)
-        : placement.kind === "resolving"
-          ? { kind: "loading" }
-          : { kind: "no-route" };
-  const walkMinutes = routeMinutes(route);
-  return {
-    key: `${START_KEY}>${first.key}`,
-    fromKey: START_KEY,
-    toKey: first.key,
-    gapMinutes: null,
-    route,
-    walkMinutes,
-    leaveAt: walkMinutes ? leaveBy(toMinutes(first.stop.start), walkMinutes) : null,
-    transfer: "ok",
-  };
-}
-
 export function buildItinerary(
   stops: MapStop[],
   lookups: ReadonlyMap<string, StopLookup>,
   answers: ReadonlyMap<string, PairAnswer>,
-  start: StartPlace | null = null,
 ): Itinerary {
   const labels = stops.map((stop) => rangeLabel(stop.dates));
   const counts = new Map<string, number>();
@@ -396,8 +332,12 @@ export function buildItinerary(
     const from = entries[index];
     const gapMinutes = toMinutes(to.stop.start) - toMinutes(from.stop.end);
     const route = legRoute(from, to, answers);
-    const walkMinutes = routeMinutes(route);
-    const previousEnd = toMinutes(from.stop.end);
+    const walkMinutes =
+      route.kind === "walk" || route.kind === "shuttle"
+        ? walkMinutesFromSeconds(route.seconds)
+        : route.kind === "same-building"
+          ? 0
+          : null;
     return {
       key: `${from.key}>${to.key}`,
       fromKey: from.key,
@@ -405,14 +345,24 @@ export function buildItinerary(
       gapMinutes,
       route,
       walkMinutes,
-      leaveAt: walkMinutes ? Math.max(leaveBy(toMinutes(to.stop.start), walkMinutes), previousEnd) : null,
+      leaveBy: walkMinutes ? fromMinutes(toMinutes(to.stop.start) - walkMinutes) : null,
       transfer: route.kind === "other-weeks" ? "ok" : transferFit(walkMinutes, gapMinutes),
     };
   });
 
-  return {
-    start: start && entries.length > 0 ? { place: start, leg: startLeg(start, entries[0], answers) } : null,
-    stops: entries,
-    legs,
+  const summary: DaySummary = {
+    classes: entries.length,
+    mapped: entries.filter((entry) => entry.placement.kind === "mapped").length,
+    unresolved: entries.filter((entry) => entry.placement.kind === "unresolved").length,
+    walkMinutes: legs.reduce((total, leg) => total + (leg.route.kind === "shuttle" ? 0 : (leg.walkMinutes ?? 0)), 0),
+    shuttleLegs: legs.filter((leg) => leg.route.kind === "shuttle").length,
+    walkMeters: legs.reduce((total, leg) => total + (leg.route.kind === "walk" ? leg.route.meters : 0), 0),
+    lateTransfers: legs.filter((leg) => leg.transfer === "late").length,
+    tightTransfers: legs.filter((leg) => leg.transfer === "tight").length,
+    estimatedLegs: legs.filter((leg) => leg.route.kind === "straight-line").length,
+    loading:
+      entries.some((entry) => entry.placement.kind === "resolving") || legs.some((leg) => leg.route.kind === "loading"),
   };
+
+  return { stops: entries, legs, summary };
 }

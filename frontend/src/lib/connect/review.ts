@@ -78,8 +78,11 @@ export function creditLine(selection: readonly TranscriptCourseRecord[]): string
   const done = sum("completed");
   const taking = sum("inProgress");
   const credits = (n: number) => `${formatCredits(n)} ${n === 1 ? "credit" : "credits"}`;
-  if (done && taking) return `${credits(done)} done and ${formatCredits(taking)} in progress.`;
-  if (done) return `${credits(done)} done.`;
+  // Worded by which statuses are present, so zero-credit rows still read as what they are.
+  const hasDone = selection.some((record) => record.appliedStatus === "completed");
+  const hasTaking = selection.some((record) => record.appliedStatus === "inProgress");
+  if (hasDone && hasTaking) return `${credits(done)} done and ${formatCredits(taking)} in progress.`;
+  if (hasDone) return `${credits(done)} done.`;
   return `${credits(taking)} in progress.`;
 }
 
@@ -130,7 +133,11 @@ export function missingApprovedRecords(
   current: readonly TranscriptCourseRecord[],
 ): TranscriptCourseRecord[] {
   const byId = new Map(current.map((record) => [record.id, record]));
-  return approved.filter((record) => byId.get(record.id)?.appliedStatus !== record.appliedStatus);
+  // Status and the review flag decide whether a record counts as transcript evidence.
+  return approved.filter((record) => {
+    const held = byId.get(record.id);
+    return held?.appliedStatus !== record.appliedStatus || held.reviewRequired !== record.reviewRequired;
+  });
 }
 
 /** The planner's save states (planner-provider's PlannerSaveStatus). */
@@ -159,8 +166,13 @@ export function importSaveOutcome({
   status: SaveStatus;
   conflict: boolean;
 }): ImportSaveOutcome {
+  if (!conflict && missingApprovedRecords(approved, current).length) return "dropped";
+  return saveOutcome(status, conflict);
+}
+
+/** Whether an edit to the plan has been stored: the honest-save rule for any action that reports success. */
+export function saveOutcome(status: SaveStatus, conflict: boolean): "saved" | "waiting" | "conflict" | "unsaved" {
   if (conflict) return "conflict";
-  if (missingApprovedRecords(approved, current).length) return "dropped";
   if (status === "saved") return "saved";
   if (status === "saving" || status === "pending") return "waiting";
   return "unsaved";

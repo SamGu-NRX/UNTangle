@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { clockText, compareRows, gridDays, overlayBlocks, plannedSections, sectionChanges, usesSampleSections, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
+import { clockText, compareRows, gridDays, overlayBlocks, plannedSections, sectionChanges, spokenClock, usesSampleSections, weekBlocks, weekStats, type PlannedSection } from "@/lib/plan-library/week";
 import { getInitialPlannerState } from "@/lib/planner";
 import { sampleCatalog } from "@/lib/planner-sections";
 import type { WalkingTime } from "@/lib/planner-walking";
@@ -173,6 +173,10 @@ describe("the week's blocks", () => {
       ["CSCE 2110-0", "Tue"],
       ["CSCE 2110-1", "Thu"],
     ]);
+  });
+
+  test("spoken times say AM or PM, since the list has no grid to place them", () => {
+    expect([spokenClock(540), spokenClock(720), spokenClock(780), spokenClock(0)]).toEqual(["9:00 AM", "12:00 PM", "1:00 PM", "12:00 AM"]);
   });
 
   test("clock text has no AM or PM and wraps at noon", () => {

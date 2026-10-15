@@ -18,6 +18,11 @@ export type ContextPanelProps = {
   onClose: () => void;
   /** The panel's heading and accessible name, such as "CSCE 2110". */
   title: string;
+  /**
+   * Shown in place of `title` when the heading needs more than text (a code
+   * and a tag). When set, the phone sheet shows it too, with a Close button.
+   */
+  heading?: ReactNode;
   /** The selected item, which takes focus back when the panel closes. */
   returnFocus: () => HTMLElement | null;
   children: ReactNode;
@@ -48,7 +53,7 @@ function markMain(name: string, on: boolean) {
  * The page under a panel moves with a transform, so a lens using it should
  * not rely on position: fixed inside <main>.
  */
-export function ContextPanel({ open, onClose, title, returnFocus, children }: ContextPanelProps) {
+export function ContextPanel({ open, onClose, title, heading, returnFocus, children }: ContextPanelProps) {
   const phone = useMediaQuery(PHONE_QUERY);
   const isClient = useIsClient();
   /** Closing from the keyboard skips the exit; reset whenever the panel opens again. */
@@ -58,19 +63,13 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
   if (desktopOpen !== wasOpen) {
     setWasOpen(desktopOpen);
     if (desktopOpen) setInstant(false);
-    // Closed by the page rather than × or Escape (Remove, Use this, Enter on the
-    // selected item): a keyboard action still skips the exit.
-    else if (!instant) setInstant(keyboardFocused());
   }
   const { mounted, state } = usePresence(desktopOpen, instant ? 0 : EXIT_MS);
   const titleId = useId();
   const [shownTitle, setShownTitle] = useState(title);
   if (open && title !== shownTitle) setShownTitle(title);
 
-  /** × and Escape say how they closed the panel; any other close asks the input source. */
-  const closedHere = useRef(false);
   const closeFromKeyboard = useEffectEvent(() => {
-    closedHere.current = true;
     setInstant(true);
     onClose();
   });
@@ -107,8 +106,6 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      if (!closedHere.current) markMain("data-context-instant", keyboardFocused());
-      closedHere.current = false;
       markMain("data-context-open", false);
     };
   }, [desktopOpen, titleId]);
@@ -136,6 +133,16 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
         title={shownTitle}
         detents={["52%", "92%"]}
         returnFocus={returnFocus}
+        header={
+          heading ? (
+            <div className="ui-context__head ui-context__head--sheet">
+              <h2 className="ui-context__title">{heading}</h2>
+              <IconButton label={`Close ${shownTitle}`} size="sm" onClick={onClose}>
+                <Close />
+              </IconButton>
+            </div>
+          ) : undefined
+        }
       >
         {children}
       </BottomSheet>
@@ -155,7 +162,7 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
     >
       <div className="ui-context__head">
         <h2 id={titleId} className="ui-context__title">
-          {shownTitle}
+          {heading ?? shownTitle}
         </h2>
         <IconButton
           label={`Close ${shownTitle}`}
@@ -163,7 +170,6 @@ export function ContextPanel({ open, onClose, title, returnFocus, children }: Co
           onClick={(event) => {
             // Enter or Space on Close is a keyboard action: no exit animation.
             const keyboard = event.detail === 0;
-            closedHere.current = true;
             markMain("data-context-instant", keyboard);
             setInstant(keyboard);
             onClose();

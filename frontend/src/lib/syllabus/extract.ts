@@ -147,6 +147,7 @@ function attendancePolicy(sentences: Sentence[]): FactResult {
 
 interface CountMention {
   count: number;
+  total: boolean;
 }
 
 /**
@@ -162,11 +163,12 @@ function examCountPhrase(sentence: string): CountMention[] {
     `\\b(${numberWord.source})\\s*(?:(?:\\w+\\s+){0,2}?)(exams|exam|midterms|midterm|tests|test|finals|final)\\b(?!(?:\\s*(?:is|are|was|were|will|counts|count|worth|covers|covers|schedule|date|time)))(?![^.,;]{0,20}\\bpercent|%)`,
     "gi",
   );
+  const totalPhrase = new RegExp(`^${numberWord.source}\\s+(?:exams?|tests?)\\b`, "i");
   for (const match of sentence.matchAll(phrase)) {
     const raw = match[1].toLowerCase();
     const count = /^\d+$/.test(raw) ? Number(raw) : WORD_NUMBERS[raw];
     if (count === undefined || count < 1 || count > 20) continue;
-    mentions.push({ count });
+    mentions.push({ count, total: totalPhrase.test(match[0]) });
   }
   return mentions;
 }
@@ -183,18 +185,24 @@ function examCount(sentences: Sentence[]): FactResult & { count?: number } {
   for (const sentence of sentences) {
     if (!EXAM_TOPIC.test(sentence.text)) continue;
     // "Exam 3 covers chapters 5-6" is a schedule entry, not a total.
-    if (EXAM_NOISE.test(sentence.text) || EXAM_SCHEDULE_POSITION.test(sentence.text)) continue;
+    if (EXAM_NOISE.test(sentence.text)) continue;
+    // Date/week suffixes must not erase an explicit total stated before them.
+    // Schedule rows start at that position and therefore supply no count phrase.
+    const schedulePosition = sentence.text.search(EXAM_SCHEDULE_POSITION);
+    const countText = schedulePosition < 0 ? sentence.text : sentence.text.slice(0, schedulePosition);
     const introducer =
       /\b(there (?:are|will be)|you (?:will |may )?(?:have|take)|we (?:will |may )?(?:have|take)|i (?:will )?(?:have|give)|will (?:have|be)|consists? of|include[sd]?|plus|and)\b/i;
-    const mentions = examCountPhrase(sentence.text);
+    const mentions = examCountPhrase(countText);
     if (mentions.length === 0) continue;
-    const introOk = introducer.test(sentence.text) || /\bexams?\b/i.test(sentence.text);
+    const introOk = introducer.test(countText) || /\bexams?\b/i.test(countText);
     if (!introOk) continue;
     // "three exams" as one mention is the total. Multiple mentions joined in
     // one sentence ("two midterms and a final") sum when the sentence reads
     // as an enumeration; otherwise the first mention is the stated total.
     const enumeration = mentions.length > 1 && /\b(and|plus)\b/i.test(sentence.text);
-    const total = enumeration ? mentions.reduce((sum, m) => sum + m.count, 0) : mentions[0].count;
+    // An umbrella count such as "three exams" already includes its listed parts.
+    const explicitTotal = mentions.find((mention) => mention.total);
+    const total = explicitTotal?.count ?? (enumeration ? mentions.reduce((sum, m) => sum + m.count, 0) : mentions[0].count);
     candidates.push({ sentence, total });
   }
   if (candidates.length === 0) return { found: false, reason: "no sentence states a number of exams" };

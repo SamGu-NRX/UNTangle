@@ -4,9 +4,12 @@
  * the planner's current state, so Auto ownership and Undo cannot drift
  * between what is shown and what is tested.
  */
-import { takeFromAutoRun } from "@/lib/planner";
-import type { AutoTransaction, CoursePlan, CourseStatus, MajorId } from "@/lib/types";
-import { undoBlocker, undoStatuses, type AutoOutcome } from "./auto";
+import { getPlanningTermCourseCodes, normalizePlannerState, takeFromAutoRun } from "@/lib/planner";
+import type { PlanTransaction } from "@/lib/planner-transaction";
+import type { AutoTransaction, CoursePlan, CourseStatus, Major, MajorId, PlannerState } from "@/lib/types";
+import type { SchoolProfile } from "../school";
+import { computeAuto, describeAuto, undoBlocker, undoStatuses, type AutoOutcome } from "./auto";
+import { buildCourseModel, type PlanSnapshot } from "./course-model";
 
 export type PlanParts = { courseStatuses: Record<string, CourseStatus>; coursePlan: CoursePlan };
 export type PlanUpdate = (current: PlanParts) => Partial<PlanParts>;
@@ -53,5 +56,113 @@ export function undoAuto(major: MajorId | null): PlanUpdate {
       courseStatuses: undoStatuses(run, current.courseStatuses),
       coursePlan: { ...current.coursePlan, autoPlanned: run.autoPlannedBefore, lastAuto: null },
     };
+  };
+}
+
+const EMPTY_PLAN: CoursePlan = { manualCredit: [], autoPlanned: [], lastAuto: null };
+
+/** What the course model reads from a plan. */
+export function snapshotOf(plan: PlannerState): PlanSnapshot {
+  const coursePlan = plan.coursePlan ?? EMPTY_PLAN;
+  return {
+    statuses: plan.courseStatuses,
+    transcript: plan.transcriptRecords,
+    planned: new Set(getPlanningTermCourseCodes(plan)),
+    manualCredit: new Set(coursePlan.manualCredit),
+    autoPlanned: new Set(coursePlan.autoPlanned),
+  };
+}
+
+/** An update applied to a whole plan, as planner-provider's updateCoursePlan does. */
+export function withPlanUpdate(plan: PlannerState, update: PlanUpdate): PlannerState {
+  const coursePlan = plan.coursePlan ?? EMPTY_PLAN;
+  const next = update({ courseStatuses: plan.courseStatuses, coursePlan });
+  return { ...plan, courseStatuses: next.courseStatuses ?? plan.courseStatuses, coursePlan: next.coursePlan ?? coursePlan };
+}
+
+/**
+ * Auto as one transaction (planner-provider's `transact`): it decides on the
+ * plan as it is when it commits, not as the last render saw it, and changes
+ * nothing when there is nothing to change.
+ */
+export function autoTransaction(profile: SchoolProfile, major: Major, run: { id: string; at: string }) {
+  return (plan: PlannerState): PlanTransaction<AutoOutcome | "major-changed"> => {
+    // The student changed the major while Auto waited: its picks were for the old one.
+    if (plan.selectedMajor !== major.id) return { result: "major-changed" };
+    const model = buildCourseModel(profile, snapshotOf(plan));
+    const outcome = computeAuto(model, plan.courseStatuses, major.coreCourseCodes, profile.autoCreditBudget);
+    if (outcome.changes.length === 0) return { result: outcome };
+    const summary = describeAuto(outcome, model.hasTranscript, profile.planningTerm);
+    const update = applyAuto(outcome, { ...run, major: major.id, changes: outcome.changes, summary, needsCheck: outcome.needsCheck });
+    return { next: withPlanUpdate(plan, update), result: outcome };
+  };
+}
+
+/** Undo of the pending Auto run as a transaction; the result says whether it ran. */
+export function undoAutoTransaction(major: MajorId | null) {
+  return (plan: PlannerState): PlanTransaction<boolean> => {
+    const run = plan.coursePlan?.lastAuto;
+    if (!run || undoBlocker(run, plan.courseStatuses, major)) return { result: false };
+    return { next: withPlanUpdate(plan, undoAuto(major)), result: true };
+  };
+}
+
+/** What a hand edit to one course changed, so its Undo can tell whether that is still the plan. */
+export type EditReceipt = {
+  id: string;
+  before: { status: CourseStatus | undefined; section: string | undefined; lock: string | undefined };
+  after: { status: CourseStatus | undefined; section: string | undefined; lock: string | undefined };
+};
+
+/**
+ * A hand edit to one course as a transaction: its status, and optionally its
+ * section, as planner-provider's setSection does (a lock moves with the pick).
+ * Any edit takes the course from a pending Auto run.
+ */
+export function courseEdit(id: string, change: { status?: CourseStatus; section?: string }) {
+  return (plan: PlannerState): PlanTransaction<EditReceipt> => {
+    const before = { status: plan.courseStatuses[id], section: plan.selectedSections[id], lock: plan.lockedSections?.[id] };
+    let next = withPlanUpdate(
+      plan,
+      manualEdit(change.status ? { [id]: change.status } : {}, (current) => ({ autoPlanned: current.autoPlanned.filter((code) => code !== id) }), [id]),
+    );
+    if (change.section !== undefined) {
+      next = {
+        ...next,
+        selectedSections: { ...next.selectedSections, [id]: change.section },
+        lockedSections: before.lock !== undefined ? { ...next.lockedSections, [id]: change.section } : next.lockedSections,
+      };
+    }
+    // The plan as the next transaction will see it: normalizing drops the section of a course taken out of the plan.
+    const settled = normalizePlannerState(next);
+    return {
+      next,
+      result: { id, before, after: { status: settled.courseStatuses[id], section: settled.selectedSections[id], lock: settled.lockedSections?.[id] } },
+    };
+  };
+}
+
+/**
+ * Puts one course back as it was before `receipt`, or refuses (false) once
+ * the course has changed again. A course changed and then changed back to the
+ * same values counts as unchanged, as in the WebMCP tools' Undo.
+ */
+export function undoCourseEdit({ id, before, after }: EditReceipt) {
+  return (plan: PlannerState): PlanTransaction<boolean> => {
+    // Locking or unlocking the section (in Week) is a change too: Undo would overwrite it.
+    if (plan.courseStatuses[id] !== after.status || plan.selectedSections[id] !== after.section || plan.lockedSections?.[id] !== after.lock) {
+      return { result: false };
+    }
+    const next = withPlanUpdate(plan, manualEdit({ [id]: before.status ?? "notTaken" }, () => ({}), [id]));
+    const selectedSections = { ...next.selectedSections };
+    if (before.section === undefined) delete selectedSections[id];
+    else selectedSections[id] = before.section;
+    let lockedSections = next.lockedSections;
+    if (lockedSections?.[id] !== before.lock) {
+      lockedSections = { ...lockedSections };
+      if (before.lock === undefined) delete lockedSections[id];
+      else lockedSections[id] = before.lock;
+    }
+    return { next: { ...next, selectedSections, lockedSections }, result: true };
   };
 }

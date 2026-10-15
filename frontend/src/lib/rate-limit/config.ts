@@ -16,11 +16,22 @@ export function budgetWindowMs(budget: { windowSeconds?: number }): number {
  */
 export const budgets = {
   auth: { ip: 30 },
+  // Unmeasured starting caps: grant creation and human approval are infrequent;
+  // token polling needs room for the advertised five-second interval.
+  deviceStart: { ip: 10, windowSeconds: 600 },
+  deviceInspect: { ip: 30, windowSeconds: 600 },
+  deviceApprove: { user: 10, ip: 10, windowSeconds: 600 },
+  deviceToken: { ip: 120 },
   // Each preview fetches an outside URL; this is an unmeasured starting value.
   calendarFeedPreview: { user: 10, ip: 5, windowSeconds: 600 },
   grades: { user: 60, ip: 180 },
   mapRoute: { user: 60, ip: 60 },
   mapResolve: { user: 60, ip: 60 },
+  // /api/v1 document routes, counted by address before sign-in is checked;
+  // each student is then counted against plannerRead or plannerSave. Loose
+  // because many phones can share one carrier NAT address: room for 25
+  // students reading at their full budget. Unmeasured starting value.
+  documentFlood: { ip: 3000 },
   plannerRead: { user: 120, ip: 360 },
   plannerSave: { user: 60, ip: 180 },
   sections: { user: 60, ip: 180 },
@@ -65,4 +76,20 @@ export function checkProductionEnv(env: Partial<NodeJS.ProcessEnv> = process.env
     throw new Error("Production needs RATE_LIMIT_TRUSTED_PROXY set to vercel, cloudflare or reverse-proxy (VERCEL=1 implies vercel).");
   }
   if (!env.DATABASE_URL) throw new Error("Production needs DATABASE_URL: rate-limit counters are shared through Postgres.");
+}
+
+/** Better Auth 1.5.5 special rules and the installed magic-link plugin's override.
+ * The atomic layer enforces these before handlers; Better Auth counts after handlers.
+ */
+export function authPathBudget(path: string): Budget | null {
+  if (path.startsWith("/sign-in/magic-link") || path.startsWith("/magic-link/verify")) {
+    return { ip: 5, windowSeconds: 60 };
+  }
+  if (["/sign-in", "/sign-up", "/change-password", "/change-email"].some(prefix => path.startsWith(prefix))) {
+    return { ip: 3, windowSeconds: 10 };
+  }
+  if (["/request-password-reset", "/send-verification-email", "/email-otp/send-verification-otp", "/email-otp/request-password-reset"].includes(path) || path.startsWith("/forget-password")) {
+    return { ip: 3, windowSeconds: 60 };
+  }
+  return null;
 }

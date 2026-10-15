@@ -1,15 +1,15 @@
 /**
  * The Path ownership check: a PR from an agent branch (obv/*) may not touch
  * a path the lead owns, as listed in .github/lead-owned-paths.txt, unless
- * the lead added the lead-approved label.
+ * Sam approved the PR's current commit in a review. The workflow applies that
+ * lift (.github/workflows/pr-rules.yml); this script always checks.
  *
  * CI runs this from the base branch (pull_request_target) and reads the list
  * from the base commit, so a PR can't shorten the list that judges it.
  */
 import {
-  LEAD_APPROVED,
+  LIFTED_BY,
   changedFiles,
-  labelsFromEnv,
   mergeBase,
   readAt,
   requireEnv,
@@ -58,10 +58,6 @@ if (import.meta.main) {
     console.log(`Skipped: ${headRef} is not an agent branch (obv/*).`);
     process.exit(0);
   }
-  if (labelsFromEnv(process.env.PR_LABELS).includes(LEAD_APPROVED)) {
-    console.log(`Skipped: the PR has the ${LEAD_APPROVED} label.`);
-    process.exit(0);
-  }
   const base = resolveCommit(repoDir, process.env.BASE_SHA ?? "HEAD");
   const head = resolveCommit(repoDir, requireEnv("HEAD_SHA"));
   const list = readAt(repoDir, base, LEAD_OWNED_PATHS);
@@ -74,7 +70,7 @@ if (import.meta.main) {
   console.error(`This agent PR touches paths the lead owns (${LEAD_OWNED_PATHS}):`);
   for (const { path, pattern } of touched) console.error(`  ${path} (${pattern})`);
   console.error(
-    `Propose the change in the PR description instead. The lead can approve it with the ${LEAD_APPROVED} label.`,
+    `Propose the change in the PR description instead. ${LIFTED_BY}`,
   );
   process.exit(1);
 }

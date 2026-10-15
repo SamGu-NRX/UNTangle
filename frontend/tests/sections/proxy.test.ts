@@ -108,7 +108,7 @@ describe("subject files", () => {
   test("a published subject file is used, and the term file covers courses it lacks", async () => {
     const term = {
       ...fixture,
-      courses: { ...fixture.courses, "MATH 1710": { ...fixture.courses["MATH 1680"] } },
+      courses: { ...fixture.courses, "MATH 1710": { ...fixture.courses["MATH 1680"], course_code: "MATH 1710" } },
     };
     const subjectFile = { ...fixture, note: "MATH subject file", courses: {
       "MATH 1680": fixture.courses["MATH 1680"],

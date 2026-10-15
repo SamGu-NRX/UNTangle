@@ -73,6 +73,28 @@ describe("stop on resource refusal", () => {
       } finally { mock.mockRestore(); pause.mockRestore(); }
     });
   }
+  test("a refusal cancels queued resources and robots requests", async () => {
+    const requests: string[] = [];
+    let refuse: (() => void) | undefined;
+    const mock = mockFetch(async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.endsWith("/robots.txt")) return new Response("User-agent: *\n");
+      if (url.endsWith("/first.pdf")) await new Promise<void>((resolve) => { refuse = resolve; });
+      return new Response(null, { status: 503 });
+    });
+    try {
+      const client = fetcher();
+      await client.assertAllowed("https://example.invalid/first.pdf");
+      const first = client.fetch("https://example.invalid/first.pdf");
+      while (!refuse) await Promise.resolve();
+      const queued = [client.fetch("https://example.invalid/second.pdf"), client.fetch("https://other.invalid/third.pdf")];
+      refuse();
+      const results = await Promise.allSettled([first, ...queued]);
+      expect(results.map((result) => result.status === "rejected" ? result.reason.message : "success")).toEqual(Array(3).fill("run stopped: https://example.invalid/first.pdf returned HTTP 503"));
+      expect(requests).toEqual(["https://example.invalid/robots.txt", "https://example.invalid/first.pdf"]);
+    } finally { mock.mockRestore(); }
+  });
   test("reports the actual redirected URL that refused the request", async () => {
     const mock = mockFetch(async (input) => {
       const url = String(input);
@@ -206,6 +228,18 @@ describe("robots groups and specificity", () => {
         await expect(client.assertAllowed(`https://example.invalid${route}`)).rejects.toBeInstanceOf(DisallowedByRobots);
       }
       await expect(client.assertAllowed("https://example.invalid/public.pdf")).resolves.toBeUndefined();
+    });
+  });
+  test("wildcard-only disallow blocks unless an allow rule actually matches", async () => {
+    await withRobots("User-agent: *\nDisallow: *", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/file.pdf")).rejects.toBeInstanceOf(DisallowedByRobots);
+    });
+    await withRobots("User-agent: *\nDisallow: *\nAllow: /public", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/private")).rejects.toBeInstanceOf(DisallowedByRobots);
+      await expect(client.assertAllowed("https://example.invalid/public/file.pdf")).resolves.toBeUndefined();
+    });
+    await withRobots("User-agent: *\nDisallow: *\nAllow: *", async (client) => {
+      await expect(client.assertAllowed("https://example.invalid/file.pdf")).resolves.toBeUndefined();
     });
   });
   test("wildcard expansion does not outrank a literal disallow", async () => {

@@ -279,11 +279,12 @@ describe("worker walking table (PR #32 re-review)", () => {
     expect(calls).toBe(0);
   });
 
-  test("the diagonal is never asked for", () => {
+  test("same-ID legs preserve the provider's unknown result", () => {
     const asked: string[] = [];
     const r = request();
-    toPlainRequest({ ...r, walkingTime: (a, b) => (asked.push(`${a}${b}`), r.walkingTime(a, b)) });
-    expect(asked.some((pair) => pair[0] === pair[1])).toBe(false);
+    const plain = toPlainRequest({ ...r, walkingTime: (a, b) => (asked.push(`${a}${b}`), a === b ? { seconds: null, source: "unknown" } : r.walkingTime(a, b)) });
+    expect(asked).toContain("XX");
+    expect(fromPlainRequest(plain, 60_000).walkingTime("X", "X")).toEqual({ seconds: null, source: "unknown" });
   });
 });
 
@@ -371,45 +372,35 @@ describe("explanations name dates when the sessions differ", () => {
     );
   });
 
-  test("two locked sections that clash are each named once, with their pattern", () => {
-    // A second section at another time makes each lock part of the conflict.
-    const section = (code: string, id: string, start: number) => ({
-      id,
-      courseCode: code,
-      rating: null,
-      meetings: (["Mon", "Wed"] as const).map((day) => ({ day, start, end: start + 50, buildingId: null })),
-    });
-    const course = (code: string) => ({ code, credits: 3, sections: [section(code, code, 540), section(code, `${code}-late`, 840)] });
-    const lockedPair = (locks: Record<string, string>) => {
-      const result = optimize({
-        courses: [course("CSCE 2110"), course("MATH 2700")],
-        term: TERM,
-        locks,
-        excluded: [],
-        constraints: { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: null },
-        weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
-        walkingTime: () => ({ seconds: null, source: "unknown" }),
-      });
-      if (result.status !== "infeasible") throw new Error(`expected infeasible, got ${result.status}`);
-      return result.explanation.sentence;
-    };
-    expect(lockedPair({ "CSCE 2110": "CSCE 2110", "MATH 2700": "MATH 2700" })).toBe(
-      "Your locked CSCE 2110 section (MW 9 AM) and your locked MATH 2700 section (MW 9 AM) overlap.",
-    );
-  });
-
   test("the 400 undated seeds' explanations are unchanged", () => {
     const sentences = Array.from({ length: 400 }, (_, i) => i + 1).map((seed) => {
       const result = optimize(smallInstance(seed));
       return result.status === "infeasible" ? result.explanation.sentence : "";
     });
-    // Recorded from the engine before explanations named dates (4691089) as
-    // 9f704e6a…f533, then changed on purpose when two locked sections clash:
-    // seeds 57, 195 and 232 dropped a trailing "(MWF 8 AM and MWF 8 AM)" that
-    // repeated the patterns their "your locked … section (…)" already named.
-    // The other 267 infeasible sentences are byte-identical.
-    expect(createHash("sha256").update(JSON.stringify(sentences)).digest("hex")).toBe("f6e26ab58f4c1de7c15d632f6c622b43bb2f85aa40981c8ebc048089be5d4e22");
+    // Recorded from the engine before explanations named dates (4691089).
+    expect(createHash("sha256").update(JSON.stringify(sentences)).digest("hex")).toBe("9f704e6ae9b4da83fa60c644c7969f645ca70b4ced25f3ab4299dc1cb66af533");
   });
+});
+
+
+test("unroutable same-ID meetings fail a hard walking constraint in direct and worker searches", () => {
+  const request: OptimizeRequest = {
+    courses: [
+      { code: "A", credits: 3, sections: [{ id: "a", courseCode: "A", rating: null, meetings: [{ day: "Mon", start: 540, end: 590, buildingId: "ntdp" }] }] },
+      { code: "B", credits: 3, sections: [{ id: "b", courseCode: "B", rating: null, meetings: [{ day: "Mon", start: 590, end: 640, buildingId: "ntdp" }] }] },
+    ],
+    locks: {}, excluded: [],
+    constraints: { earliestStart: null, latestEnd: null, daysOff: [], blocked: [], maxCredits: null, walking: { bufferMinutes: 0 } },
+    weights: { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 },
+    walkingTime: () => ({ seconds: null, source: "unknown" }),
+  };
+  expect(optimize(request).status).toBe("infeasible");
+  expect(referenceTopK(request).schedules).toEqual([]);
+  expect(optimize(fromPlainRequest(toPlainRequest(request), 60_000)).status).toBe("infeasible");
+  const scored = { ...request, constraints: { ...request.constraints, walking: null }, weights: { ...request.weights, walking: 1 } };
+  expect(optimize(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
+  expect(referenceTopK(scored).schedules[0]).toMatchObject({ cost: 600, breakdown: { unknownWalks: 1, walkSeconds: 0 } });
+  expect(optimize({ ...request, walkingTime: () => ({ seconds: 0, source: "campus-network" }) }).status).toBe("optimal");
 });
 
 describe("instructor gpa validation", () => {

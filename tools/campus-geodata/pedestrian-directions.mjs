@@ -9,11 +9,7 @@ const deniedAccess = new Set(["no", "private"]);
  */
 export function pedestrianDirections(tags, wayId) {
   const source = Object.fromEntries(directionKeys.filter(key => tags[key] !== undefined).map(key => [key, tags[key]]));
-  for (const key of Object.keys(tags)) {
-    if (/^(oneway:foot|foot:(forward|backward)|access:(forward|backward)):/.test(key)) {
-      throw new Error(`OSM way ${wayId}: unsupported pedestrian direction tag ${key}=${tags[key]}`);
-    }
-  }
+  assertUnconditionalPedestrianAccess(tags, wayId);
   const oneway = tags["oneway:foot"];
   let forward = true;
   let backward = true;
@@ -39,4 +35,13 @@ export function pedestrianDirections(tags, wayId) {
   const forwardAccess = directionAllowed("forward");
   const backwardAccess = directionAllowed("backward");
   return { forward: forward && forwardAccess, backward: backward && backwardAccess, tags: source };
+}
+
+/** Reject time-dependent access before a campus chooses its direction policy. */
+export function assertUnconditionalPedestrianAccess(tags, wayId) {
+  for (const key of Object.keys(tags)) {
+    if (/^(?:foot:conditional|access:conditional)(?::|$)/.test(key) || /^(oneway:foot|foot:(forward|backward)|access:(forward|backward)):/.test(key)) {
+      throw new Error(`OSM way ${wayId}: unsupported pedestrian direction tag ${key}=${tags[key]}`);
+    }
+  }
 }

@@ -95,3 +95,82 @@ describe("which compared schedule Use in Main applies to", () => {
     expect(adoptableSide(main, main)).toBeNull();
   });
 });
+
+describe("what Use in Main does to locks", () => {
+  it("names each lock it adds, moves or removes", async () => {
+    const { lockChangeLines } = await import("@/components/schedules-library/view-model");
+    expect(
+      lockChangeLines([
+        { courseCode: "ANTH 1010", savedPlan: "anth-1010-002", workingState: null },
+        { courseCode: "BIOL 1112", savedPlan: "biol-1112-003", workingState: "biol-1112-001" },
+        { courseCode: "CHEM 1410", savedPlan: null, workingState: "chem-1410-001" },
+      ]),
+    ).toEqual([
+      "ANTH 1010: Use in Main locks it to section 002.",
+      "BIOL 1112: Use in Main locks it to section 003 instead.",
+      "CHEM 1410: Use in Main unlocks its section.",
+    ]);
+  });
+});
+
+describe("downloading a schedule file", () => {
+  it("revokes the file's URL only in a later task, after the click", async () => {
+    const { downloadFile } = await import("@/components/schedules-library/view-model");
+    const events: string[] = [];
+    const queued: Array<() => void> = [];
+    downloadFile(new Blob(["{}"]), "untangle-main.json", {
+      createObjectURL: () => (events.push("create"), "blob:1"),
+      revokeObjectURL: (url) => events.push(`revoke ${url}`),
+      createLink: () => ({
+        href: "",
+        download: "",
+        click() {
+          events.push(`click ${this.href} as ${this.download}`);
+        },
+        remove: () => events.push("remove"),
+      }),
+      later: (run) => queued.push(run),
+    });
+    expect(events).toEqual(["create", "click blob:1 as untangle-main.json", "remove"]);
+    queued.forEach((run) => run());
+    expect(events.at(-1)).toBe("revoke blob:1");
+  });
+});
+
+describe("notice lines", () => {
+  it("get keys that differ even when two lines say the same thing", async () => {
+    const { keyedLines } = await import("@/components/schedules-library/view-model");
+    const keyed = keyedLines(["Unreadable: bad", "Unreadable: bad", "Other"]);
+    expect(new Set(keyed.map((line) => line.key)).size).toBe(3);
+    expect(keyed.map((line) => line.text)).toEqual(["Unreadable: bad", "Unreadable: bad", "Other"]);
+  });
+});
+
+describe("reading the library for an identity", () => {
+  function fakeStore(available: boolean) {
+    const reads: string[] = [];
+    return {
+      reads,
+      store: {
+        available,
+        list: () => (reads.push("list"), { ok: true as const, doc: { storeSchemaVersion: 1 as const, revision: 1, plans: [], unreadable: [] }, notices: [] }),
+        listQuarantined: () => (reads.push("listQuarantined"), [{ key: "untangle.saved-plans.corrupt-guest:1", size: 3 }]),
+      },
+    };
+  }
+
+  it("shows loading and reads nothing until the planner has prepared an identity", async () => {
+    const { readLibraryView } = await import("@/components/schedules-library/view-model");
+    const { store, reads } = fakeStore(false);
+    expect(readLibraryView(store, false)).toEqual({ phase: "loading", storeAvailable: false, storageDisabled: false, quarantined: [] });
+    expect(reads).toEqual([]);
+  });
+
+  it("once prepared, reads the library and its quarantined keys, and only then reports storage turned off", async () => {
+    const { readLibraryView } = await import("@/components/schedules-library/view-model");
+    const ready = fakeStore(true);
+    expect(readLibraryView(ready.store, true)).toMatchObject({ phase: "ready", storeAvailable: true, storageDisabled: false, quarantined: [{ size: 3 }] });
+    expect(ready.reads).toEqual(["list", "listQuarantined"]);
+    expect(readLibraryView(fakeStore(false).store, true)).toMatchObject({ storageDisabled: true });
+  });
+});

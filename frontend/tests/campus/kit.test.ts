@@ -3,12 +3,12 @@ import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSyn
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { buildCampus, readDefinition } from "../../../tools/campus-geodata/kit";
+import { buildCampus, fetchCampus, readDefinition } from "../../../tools/campus-geodata/kit";
 import { checkDataset } from "@/lib/campus/contract/check";
 import { createDatasetGraph, routeBetweenPoints } from "@/lib/campus/graph";
 import { buildingAnchor, getWalkingSeconds, matrixBuildingIds } from "@/lib/campus/walking-times";
 import { campusById, campusResolver, utAustin, untDenton } from "@/lib/campus/config";
-import { createCampusResolver } from "@/lib/campus-locations";
+import { createCampusResolver, resolveCampusBuilding } from "@/lib/campus-locations";
 import { POST as routePOST } from "@/app/api/map/route/route";
 import { POST as resolvePOST } from "@/app/api/map/resolve/route";
 import utData from "@/lib/campus/data/ut-austin/campus-map.json";
@@ -443,4 +443,56 @@ test("campus definition errors identify the boundary before extraction", () => {
     writeFileSync(path, JSON.stringify(valid));
     expect(readDefinition(path).id).toBe("ut-austin");
   } finally { rmSync(temporary, {recursive: true, force: true}); }
+});
+
+test("global conditional pedestrian access fails closed", () => {
+  for (const key of ["access:conditional", "foot:conditional"]) {
+    expect(() => pedestrianDirections({ [key]: "no @ (Mo-Fr)" }, 10)).toThrow(`OSM way 10: unsupported pedestrian direction tag ${key}`);
+  }
+  expect(pedestrianDirections({ foot: "yes" }, 10)).toMatchObject({ forward: true, backward: true });
+});
+
+test("canonical UT IDs never alias another building after losing their number", () => {
+  const resolver = campusResolver(utAustin);
+  const library = resolver.resolveBuilding("Perry-Castaneda Library")!;
+  expect(resolver.resolveBuilding("", library.id)?.id).toBe(library.id);
+  expect(resolver.resolveBuilding("", "osm-999999")).toBeNull();
+  expect(resolver.resolveBuilding("osm-999999")).toBeNull();
+  expect(resolver.resolveBuilding("Perry-Castaneda Library", "osm-999999")?.id).toBe(library.id);
+});
+
+test("a rejected primary fetch reaches the mirror and caches its snapshot", async () => {
+  const rawDir = mkdtempSync(join(tmpdir(), "campus-fetch-fallback-"));
+  const errors = console.error;
+  console.error = () => {};
+  const endpoints: string[] = [];
+  try {
+    const definition = { ...readDefinition(join(import.meta.dir, "../../../tools/campus-geodata/campuses/ut-austin.json")), id: "fixture-campus" };
+    await fetchCampus(definition, { rawDir, fetcher: (async (url) => {
+      endpoints.push(String(url));
+      if (endpoints.length === 1) throw new TypeError("connection refused");
+      return Response.json({ elements: [{ type: "node", id: 1 }] });
+    }) as typeof fetch });
+    expect(endpoints).toEqual(["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]);
+    expect(JSON.parse(readFileSync(join(rawDir, "fixture-campus-pedestrian.json"), "utf8"))).toEqual({ elements: [{ type: "node", id: 1 }] });
+  } finally { console.error = errors; rmSync(rawDir, { recursive: true, force: true }); }
+});
+
+test("buildingId still accepts UNT mnemonics after exact canonical lookup", () => {
+  expect(resolveCampusBuilding("Room 252", "HKRY")?.id).toBe("hick");
+});
+
+test.each(["access:conditional", "foot:conditional", "foot:backward:conditional"])("UNT reciprocal extraction rejects %s", key => {
+  const temporary = mkdtempSync(join(tmpdir(), "campus-kit-unt-conditional-"));
+  try {
+    const definition = join(import.meta.dir, "../../../tools/campus-geodata/campuses/unt-denton.json");
+    const snapshot = { elements: [{ type: "way", id: 10, tags: { highway: "footway", [key]: "no @ (Mo-Fr)" }, geometry: [
+      { lat: 33.211, lon: -97.147 }, { lat: 33.212, lon: -97.147 },
+    ] }] };
+    writeFileSync(join(temporary, "overpass-pedestrian-snapshot.json"), JSON.stringify(snapshot));
+    writeFileSync(join(temporary, "overpass-buildings-snapshot.json"), JSON.stringify({ elements: [] }));
+    expect(() => buildCampus(definition, join(temporary, "out"), temporary)).toThrow(`OSM way 10: unsupported pedestrian direction tag ${key}`);
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 });

@@ -2,7 +2,6 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import styles from "./courses.module.css";
-import type { RowStatus } from "./model/course-model";
 import { ruleTokens, type RuleNode } from "./model/rules";
 
 export type CourseNavigation = {
@@ -19,16 +18,9 @@ export function courseHref(id: string): string {
 }
 
 /**
- * Covered and Check have no glyph in ui/StatusGlyph (it draws the five
- * DESIGN.md states), so the Courses view keeps this one with all seven.
- */
-export function StatusGlyph({ status }: { status: RowStatus }) {
-  return <span className={styles.glyph} data-status={status} aria-hidden="true" />;
-}
-
-/**
- * A course code that opens the panel. A code the catalog does not carry stays
- * plain text with an explanation, so following it can never empty the panel.
+ * A course code that opens the detail. A code the catalog does not carry
+ * stays plain text with an explanation, so following it can never empty the
+ * detail.
  */
 export function CourseLink({ id, children }: { id: string; children?: ReactNode }) {
   const { open, isKnown } = useContext(CourseNavigationContext);
@@ -41,12 +33,11 @@ export function CourseLink({ id, children }: { id: string; children?: ReactNode 
   }
   return (
     <a
-      className={styles.link}
+      className={styles.courseLink}
       href={courseHref(id)}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault();
-        event.stopPropagation();
         open(id);
       }}
     >
