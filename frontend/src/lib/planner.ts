@@ -229,8 +229,10 @@ export function recommendSections(
   // Campus walkway times plus the Discovery Park shuttle, the same provider Optimize uses.
   walkingTime: WalkingTimeFn = plannerTravelTime,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ) {
-  const optimizerCourses = toOptimizerCourses(courseCodes, catalog, filter).filter(
+  const optimizerCourses = toOptimizerCourses(courseCodes, catalog, filter, evidenceHundredths).filter(
     (course) => !(course.code in fixedSelections) || course.sections.some((section) => section.id === fixedSelections[course.code]),
   );
   const locks = Object.fromEntries(
@@ -450,9 +452,11 @@ export function heldOutCourses(
   catalog: SectionCatalog,
   filter: CandidateFilter,
   courseCodes: readonly string[] = getPlanningTermCourseCodes(state),
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ): HeldOutCourse[] {
   const locked = getLockedSelections(state);
-  const offered = new Map(toOptimizerCourses(courseCodes, catalog, filter).map((course) => [course.code, course]));
+  const offered = new Map(toOptimizerCourses(courseCodes, catalog, filter, evidenceHundredths).map((course) => [course.code, course]));
   return courseCodes.flatMap((code): HeldOutCourse[] => {
     const pick = state.selectedSections[code];
     if (!pick || offered.get(code)?.sections.some((section) => section.id === pick)) return [];
@@ -494,7 +498,7 @@ export function buildOptimizeRequest(
 ): OptimizeRequest {
   const catalog = options.catalog ?? sampleCatalog;
   const codes = options.courseCodes ?? getPlanningTermCourseCodes(state);
-  const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes).map((course) => course.code));
+  const held = new Set(heldOutCourses(state, catalog, preferences.constraints, codes, options.evidenceHundredths).map((course) => course.code));
   const keptAsIs = [...held].flatMap((code): OptCourse[] => {
     const section = findOption(catalog, code, state.selectedSections[code]);
     const fixed = section && toOptSection(section);

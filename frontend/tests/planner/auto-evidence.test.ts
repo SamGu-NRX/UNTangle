@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
-import { buildOptimizeRequest, getCourseByCode } from "@/lib/planner";
+import { buildOptimizeRequest, DEFAULT_CANDIDATE_FILTER, getCourseByCode, heldOutCourses, recommendSections } from "@/lib/planner";
 import type { SectionCatalog } from "@/lib/planner-sections";
 import type { CourseSections, Meeting, Section } from "@/lib/sections/model";
 import { defaultPlannerState } from "@/lib/seed-data";
@@ -120,5 +120,28 @@ describe("the Auto request the real builder hands the engine", () => {
     });
     const byCode = Object.fromEntries(request.courses.map((course) => [course.code, course]));
     for (const entry of byCode[A].sections) expect("instructorGpaHundredths" in entry).toBe(false);
+  });
+});
+
+describe("recommendSections and heldOutCourses carry the evidence map", () => {
+  test("the tie-break picks the stronger instructor when costs tie", () => {
+    // Both options meet at 9:00 alone, so every goal weight costs them the
+    // same and the evidence tier decides: 002's 350 outranks 001's 280
+    // instead of the id order.
+    const recommended = recommendSections("clusterMorning", [A], {}, catalog, undefined, DEFAULT_CANDIDATE_FILTER, strongEvidence);
+    expect(recommended[A]).toBe("anth-1010-002");
+  });
+
+  test("without evidence the tie falls back to the section-id order", () => {
+    const recommended = recommendSections("clusterMorning", [A], {}, catalog);
+    expect(recommended[A]).toBe("anth-1010-001");
+  });
+
+  test("held-out classification is evidence-independent, and the builder threads the map", () => {
+    const picked = { ...defaultPlannerState, selectedSections: { [A]: "anth-1010-002" } };
+    // The pick is among the loaded options, so nothing is held out, with or
+    // without the map.
+    expect(heldOutCourses(picked, catalog, preferences.constraints, [A], strongEvidence)).toEqual([]);
+    expect(heldOutCourses(picked, catalog, preferences.constraints, [A])).toEqual([]);
   });
 });

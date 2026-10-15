@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import type { InstanceShape } from "./generator";
 import { generateInstance } from "./generator";
 
 const SHAPE = {
@@ -16,7 +17,7 @@ const SHAPE = {
   constraintDensity: 0.5,
   evidence: true,
   twinChance: 0.35,
-} as const;
+} satisfies InstanceShape;
 
 const INSTANCES = Array.from({ length: 120 }, (_, i) => generateInstance(9001 + i, SHAPE));
 
