@@ -154,6 +154,20 @@ describe("document bodies reject what the app could not have written", () => {
     ]);
   });
 
+  test("a dated blocked time names real days in order", () => {
+    const block = { id: "block-1", label: "Work", day: "Tue", start: 840, end: 1080 };
+    const withDates = (dates: unknown) => ({ ...preferences, constraints: { ...preferences.constraints, blocked: [{ ...block, dates }] } });
+    expect(rejections(PreferencesBodySchema, withDates([{ start: "2027-01-11", end: "2027-03-05" }]))).toEqual([]);
+    expect(rejections(PreferencesBodySchema, withDates(null))).toEqual([]);
+    expect(rejections(PreferencesBodySchema, withDates([]))).toEqual([]);
+    expect(rejections(PreferencesBodySchema, withDates([{ start: "2027-02-30", end: "2027-03-05" }]))).toEqual([
+      "constraints.blocked.0.dates.0.start: A date names a real calendar day.",
+    ]);
+    expect(rejections(PreferencesBodySchema, withDates([{ start: "2027-03-05", end: "2027-01-11" }]))).toEqual([
+      "constraints.blocked.0.dates: A blocked-time date range ends on or after it starts.",
+    ]);
+  });
+
   test("two blocked times with one id", () => {
     const blocked = [
       { id: "block-1", label: "Work", day: "Mon", start: 720, end: 840 },
