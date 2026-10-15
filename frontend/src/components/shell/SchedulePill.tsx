@@ -79,7 +79,7 @@ export function SchedulePill() {
             </Button>
           ) : toNotice ? (
             <Button size="sm" variant="quiet" onClick={toNotice}>
-              Choose what to keep
+              See choices
             </Button>
           ) : null}
         </>
@@ -147,7 +147,7 @@ export function PhoneSchedulePill() {
                   setTimeout(toNotice, 200);
                 }}
               >
-                Choose what to keep
+                See choices
               </Button>
             ) : null}
           </div>
