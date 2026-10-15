@@ -1,7 +1,7 @@
 -- Read-only. Lists accounts with more than one credential (password) row:
 -- the accounts migration 0015 refuses to index. 0015 itself removes rows
--- without a password beside exactly one with a password, so an account with
--- rows_with_password = 1 resolves on its own. Every other listed account
+-- without a password from an account that has a row with one, so an account
+-- with rows_with_password = 1 resolves on its own. Every other listed account
 -- needs a person before 0015 runs again: with rows_with_password >= 2, decide
 -- with the student which password to keep; with rows_with_password = 0, keep
 -- one empty row and delete the rest.

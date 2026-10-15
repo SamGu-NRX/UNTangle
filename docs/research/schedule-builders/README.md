@@ -336,10 +336,13 @@ Ranked by value to a UNT student:
 the one whose sections are all open first; today a closed or waitlisted section ties
 freely because seats are only a filter (`openSeatsOnly`) and a reason warning
 (`frontend/src/lib/reasons/scheduleReasons.ts` refuses to rank a not-open section away,
-but the cost function itself is seat-blind). Add seat status as a cost term after the
-instructor-strength evidence term (merged into alpha in PR #96) and before the section-id order,
-and let Auto include a waitlisted section when it wins on cost,
-saying so in the alternative's detail line.
+but the cost function itself is seat-blind). Auto breaks equal costs by section ids alone
+(`frontend/src/lib/optimizer/optimize.ts`, "Order and ties" in its header). PR #96 added
+an instructor-strength tie-break to alpha in `packages/core/src/instructor-tiebreak.ts`,
+but no frontend code imports it, so Auto doesn't use it. Add seat status as a tie-break
+before the section-id order (after the instructor tie-break, if that gets wired in first),
+and let Auto include a waitlisted section when it wins on cost, saying so in the
+alternative's detail line.
 
 **Why.** The registration-night failure students describe is a schedule that dies
 because a full section was ranked indifferently (VSB and Seneca threads in section 1).
@@ -391,11 +394,15 @@ abstain-when-evidence-is-thin rule.
 
 **The change.** A saved plan that depends on a closed or waitlisted section gets a Watch
 entry, and an in-app badge when that section opens. Saved plans live only in the
-browser (`frontend/src/lib/saved-plans/store.ts` is a localStorage store), and no job
+browser today (`frontend/src/lib/saved-plans/store.ts` is a localStorage store), and no job
 sends section snapshots to the frontend, so the first cut runs in the browser: when the
 student opens Schedules, it reads the watched sections' current status through the
 existing section route and compares. No push and no digest in the first cut; both need
-a server-side copy of saved plans, which does not exist yet.
+saved plans on the server. The storage for that already exists: the `documents` table
+accepts `kind = 'schedule'` (`frontend/src/lib/db/schema.ts`), served by
+`frontend/src/app/api/v1/documents/[id]` and `frontend/src/app/api/v1/sync`. No client
+writes saved plans to it yet. A server-side watch should start by syncing saved plans
+there, not by adding a second store.
 
 **Why.** Seat alerts are Coursicle's single most praised feature
 (https://www.reddit.com/r/Coursicle/comments/1mby86r/what_is_coursicle/) and the exact
@@ -422,7 +429,7 @@ blocks a hard conflict in Auto plus a named clash in the Week answer line.
 
 **Why.** GT Scheduler ships a Finals tab as a headline feature (captured in
 `captures/gt-scheduler.png`, https://gt-scheduler.org/); no other builder in this study
-does it. UNTangle already has the term-level finals window: `Session.finalExams` in
+does it. UNTangle already has each session's finals window: `Session.finalExams` in
 `frontend/src/lib/terms/terms.ts` holds its first and last day, and PR #58's ICS export
 uses the term calendar to leave finals week out. What is missing is each section's own
 exam slot, which UNT publishes by class number.
@@ -448,7 +455,8 @@ is not enough: every alternative must differ from the earlier ones in at least
 header), the search keeps a pool of 64 leaves (`POOL_SIZE`), and `prepare.ts` rejects
 any `k` outside 1..20. The mode needs its own enumeration path with the diversity rule
 off and its own node budget. It also has to decide whether `dropTwins` in `prepare.ts`
-applies: that step keeps only the cheapest of two sections that meet at the same times,
+applies: that step keeps only the cheapest of two sections that meet at the same times
+(and in the same buildings, when walking matters),
 which is right for ranking and wrong for a list meant to show every section. Render the
 result with a virtualized list.
 
@@ -522,8 +530,8 @@ or slow. `frontend/src/lib/sections/proxy.ts` keeps one in-process slot per term
 and already answers `stale` from it after the TTL lapses, but a cold start or a second
 instance has no slot. The durable copy is the last good release the section release job
 writes (`packages/ingest/src/release-job/publish.ts`): the proxy falls back to that
-release when its slot is empty and the upstream fetch fails, and marks the response
-stale; the section route keeps responding through `sections/server.ts` with no shape
+release when its slot is empty and the upstream fetch fails, converts its
+`CourseRecord`s to the route's `Section` shape, and marks the response stale; the section route keeps responding through `sections/server.ts` with no shape
 change. Today the release job writes to a local directory; the storage host and
 Postgres pointer it names as later work have to land first, so a deployed app can read
 the release. The UI shows a dated "course data from October 4, refreshed 8:02 AM"
@@ -547,7 +555,10 @@ upstream failure); `packages/ingest/src/release-job/publish.ts` (the `ReleaseSin
 app reads the last good release from);
 `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` (the handler whose
 response carries the staleness diagnostic); `frontend/src/lib/sections/model.ts`
-(`RealProvenance.updatedAt` and `checkedAt` carry the release's date); new
+(`RealProvenance.updatedAt` and `RealCourseSections.checkedAt` carry the release's
+date); new `frontend/src/lib/sections/release.ts` (converts a `SectionRelease` from
+`packages/ingest/src/section-release.ts`, whose courses are `CourseRecord`s, into the
+route's `Section` shape; nothing in the frontend reads a release today); new
 `frontend/src/components/schedule-builder/DataAgeNote.tsx` (the dated banner above the
 week).
 
