@@ -4,7 +4,7 @@ import { LngLat, LngLatBounds, Map as MapLibreMap, Marker, getVersion, setWorker
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { activeCampus, type CampusConfig } from "@/lib/campus/config";
-import { stopNumbersLabel, type Itinerary, type ItineraryStop } from "@/lib/map-itinerary";
+import { START_KEY, stopNumbersLabel, type Itinerary, type ItineraryLeg, type ItineraryStop } from "@/lib/map-itinerary";
 import type { ClassDay, MapRoutePoint } from "@/lib/types";
 import { campusAttribution, campusMapStyle } from "@/components/map/campus-style";
 import { setBuildingHighlights } from "@/components/map/building-highlight";
@@ -22,31 +22,43 @@ import {
 import type { MapSelection } from "@/components/map/selection";
 import { dayTilt } from "@/components/map/day-tilt";
 
-export type CameraInsets = { top: number; right: number; bottom: number; left: number };
+/**
+ * Camera padding in CSS px: the measured panel or sheet plus clearance, and
+ * the controls, so a framed target lands in visible map. The attribution
+ * row is added here, measured, because it grows when expanded.
+ */
+export type CameraPadding = { top: number; right: number; bottom: number; left: number };
+
+/** The day being framed; a new object asks for a fresh fit, animated unless `instant`. */
+export type DayFrame = { day: ClassDay; instant: boolean };
 
 type Props = {
   campus?: CampusConfig;
   itinerary: Itinerary;
-  day: ClassDay;
   /** The plan's courses in order, which picks each class building's course color (as the Week grid does). */
   courseOrder?: readonly string[];
   selection: MapSelection;
   onSelect: (selection: MapSelection) => void;
-  /** Space covered by the panel or sheet, so the camera centers in what's visible. */
-  insets: CameraInsets;
+  padding: CameraPadding;
+  frame: DayFrame;
   reducedMotion: boolean;
   /** The phone sheet is at full height and hides the map: skip camera moves and make the map inert. */
   frozen: boolean;
+  /** The attribution row's height whenever it changes, so the phone sheet stops below it. */
+  onCreditsHeight: (height: number) => void;
 };
 
 /*
- * Camera values from the design's camera spec (apple-maps-web/camera.md):
- * north up, a 500 ms flight with a 45° tilt when a stop is chosen, flat
- * views for legs, and instant moves everywhere else. They are the design's
- * proposals, not measured optima. The whole day opens tilted too when it
- * fits at street zoom (camera.md, "Whole itinerary").
+ * Camera values from the design's camera spec (apple-maps-web/camera.md,
+ * MOTION.md §6): north up, a 500 ms flight with a 45° tilt when a stop is
+ * chosen, flat views for legs, and instant moves for the keyboard, first
+ * render and resizes. The whole day opens tilted too when it fits at street
+ * zoom (camera.md, "Whole itinerary"). They are the design's proposals, not
+ * measured optima.
  */
 const FLIGHT_MS = 500;
+/** How long a flight waits for the phone sheet to start its snap to half (MOTION.md §6). */
+const AFTER_SHEET_MS = 60;
 const CONTROL_MS = 250;
 const STOP_ZOOM = 17.8;
 const DAY_MAX_ZOOM = 17.6;
@@ -58,8 +70,15 @@ const FLAT_BELOW_ZOOM = 16;
 /** camera.md's provisional clearance: a tilted fit starts this many zoom levels farther out, then every point is checked. */
 const TILT_CLEARANCE = 0.45;
 
-/** How far past the routing bounds people may pan, in degrees (about 1.1 km). */
-const PAN_MARGIN = 0.01;
+/**
+ * How far past the routing bounds people may pan, in degrees (about 3.3 km).
+ * Was 0.01. A phone's half sheet leaves a strip of map about 210 px tall;
+ * fitting a campus-wide day into it zooms out to about z14, where the whole
+ * 788 px canvas spans about 6 km. With the old margin MapLibre then pinned
+ * the center inside the limit and the day slid under the sheet (390x844,
+ * Kerr Hall to ENV). 0.03 is the smallest round margin that framed that day.
+ */
+const PAN_MARGIN = 0.03;
 
 /**
  * UNTangle's strong ease-out, cubic-bezier(0.19, 1, 0.22, 1), as a function
@@ -126,7 +145,36 @@ function boundsOf(points: MapRoutePoint[]): LngLatBounds | null {
 }
 
 function mappedPoints(itinerary: Itinerary): MapRoutePoint[] {
-  return itinerary.stops.flatMap((entry) => (entry.placement.kind === "mapped" ? [entry.placement.point] : []));
+  const stops = itinerary.stops.flatMap((entry) => (entry.placement.kind === "mapped" ? [entry.placement.point] : []));
+  return itinerary.start ? [itinerary.start.place.point, ...stops] : stops;
+}
+
+/** The padding with the attribution row's measured height added to the bottom. */
+function withCredits(map: MapLibreMap, padding: CameraPadding): CameraPadding {
+  const container = map.getContainer();
+  const credits = container.querySelector(".maplibregl-ctrl-bottom-right")?.getBoundingClientRect().height ?? 0;
+  const space = { ...padding, bottom: padding.bottom + Math.round(credits) };
+  // Beside the recorded camera (data-zoom, data-center): what the last framing kept clear.
+  container.dataset.padding = `${space.top},${space.right},${space.bottom},${space.left}`;
+  return space;
+}
+
+/**
+ * A leg's ends as the map marks them: the stop pins (on the building's
+ * point) or the starting point. A route starts at a walkway node beside the
+ * building, so its own geometry can leave a pin outside the fit.
+ */
+function legEnds(itinerary: Itinerary, leg: ItineraryLeg): MapRoutePoint[] {
+  return [leg.fromKey, leg.toKey].flatMap((key) => {
+    if (itinerary.start && key === START_KEY) return [itinerary.start.place.point];
+    const placement = itinerary.stops.find((entry) => entry.key === key)?.placement;
+    return placement?.kind === "mapped" ? [placement.point] : [];
+  });
+}
+
+/** Every leg the map draws: the walk from the starting point, then the walks between classes. */
+function drawnItinerary(itinerary: Itinerary): Itinerary {
+  return itinerary.start ? { ...itinerary, legs: [itinerary.start.leg, ...itinerary.legs] } : itinerary;
 }
 
 type Camera = { center: [number, number]; zoom: number; pitch: number; bearing: 0 };
@@ -142,7 +190,7 @@ function dayCamera(
   map: MapLibreMap,
   box: LngLatBounds,
   points: MapRoutePoint[],
-  padding: CameraInsets,
+  padding: CameraPadding,
   maxZoom: number,
   choice: boolean | null,
   reducedMotion: boolean,
@@ -177,15 +225,6 @@ function zoomCamera(map: MapLibreMap, zoom: number): { zoom: number; pitch?: num
   return zoom < FLAT_BELOW_ZOOM && map.getPitch() > 0 ? { zoom, pitch: 0 } : { zoom };
 }
 
-function withMargin(insets: CameraInsets, margin: number) {
-  return {
-    top: insets.top + margin,
-    right: insets.right + margin,
-    bottom: insets.bottom + margin,
-    left: insets.left + margin,
-  };
-}
-
 /** Below this much visible map (px) a fit has nothing useful to aim at; camera.md's floor. */
 const MIN_FRAME_WIDTH = 120;
 const MIN_FRAME_HEIGHT = 100;
@@ -195,7 +234,18 @@ const KEY_ZOOM = 1;
 
 const NO_COURSES: readonly string[] = [];
 
-export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder = NO_COURSES, selection, onSelect, insets, reducedMotion, frozen }: Props) {
+export function MapCanvas({
+  campus = activeCampus,
+  itinerary,
+  courseOrder = NO_COURSES,
+  selection,
+  onSelect,
+  padding,
+  frame: dayFrame,
+  reducedMotion,
+  frozen,
+  onCreditsHeight,
+}: Props) {
   const { bounds } = campus;
   const maxBounds = new LngLatBounds(
     [bounds.west - PAN_MARGIN, bounds.south - PAN_MARGIN],
@@ -205,6 +255,21 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new globalThis.Map<string, { marker: Marker; element: HTMLButtonElement }>());
+  const startMarkerRef = useRef<Marker | null>(null);
+  /** A selection flight scheduled but not started; a drag or a newer request cancels it. */
+  const pendingFlight = useRef<{ timer: ReturnType<typeof setTimeout>; frame: number } | null>(null);
+  /** An animated move of ours is running; a padding change waits for it to end. */
+  const flying = useRef(false);
+  const reframeAfterFlight = useRef(false);
+  /** `aim`, for map events bound once at creation. */
+  const aimRef = useRef<(animate: boolean) => void>(() => undefined);
+  const cancelPendingFlight = () => {
+    const pending = pendingFlight.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    cancelAnimationFrame(pending.frame);
+    pendingFlight.current = null;
+  };
   const [styleReady, setStyleReady] = useState(false);
   const [tilesFailed, setTilesFailed] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -213,14 +278,15 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
   const pitchTarget = useRef<number | null>(null);
 
   // Keep the student's choice across reframes, even after a camera move ends.
+  // Declared before the camera effects, so a new day's fit already sees it cleared.
   const tiltChoice = useRef<boolean | null>(null);
   useEffect(() => {
     tiltChoice.current = null;
-  }, [day]);
+  }, [dayFrame.day]);
 
   // Latest values for map event handlers, which are bound once.
-  const latest = useRef({ itinerary, courseOrder, selection, onSelect, insets, reducedMotion, frozen });
-  latest.current = { itinerary, courseOrder, selection, onSelect, insets, reducedMotion, frozen };
+  const latest = useRef({ itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight });
+  latest.current = { itinerary, courseOrder, selection, onSelect, padding, reducedMotion, frozen, onCreditsHeight };
 
   /* ---------- create the map once ---------- */
   useEffect(() => {
@@ -271,6 +337,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
         ArrowLeft: [-KEY_PAN_PX, 0],
         ArrowRight: [KEY_PAN_PX, 0],
       };
+      if (Object.hasOwn(pan, event.key) || ["+", "=", "-", "_"].includes(event.key)) cancelPendingFlight();
       if (Object.hasOwn(pan, event.key)) {
         map.panBy(pan[event.key], { duration: 0 });
       } else if (event.key === "+" || event.key === "=") {
@@ -316,6 +383,21 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
       pitchTarget.current = null;
     });
 
+    // A drag takes the camera: a flight waiting for the sheet never starts,
+    // and no correction follows the one in progress.
+    map.on("dragstart", () => {
+      cancelPendingFlight();
+      reframeAfterFlight.current = false;
+    });
+    map.on("moveend", () => {
+      if (!flying.current) return;
+      flying.current = false;
+      if (reframeAfterFlight.current && !pendingFlight.current) {
+        reframeAfterFlight.current = false;
+        aimRef.current(false);
+      }
+    });
+
     // Flat again below street zoom, so the overview reads like a plan.
     map.on("zoomend", () => {
       if (map.getZoom() < FLAT_BELOW_ZOOM && map.getPitch() > 0 && !map.isMoving()) {
@@ -341,12 +423,20 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
       if (typeof key === "string") latest.current.onSelect({ kind: "leg", key });
     });
 
+    const credits = container.querySelector(".maplibregl-ctrl-bottom-right");
+    const creditsObserver = new ResizeObserver(() => latest.current.onCreditsHeight(credits?.getBoundingClientRect().height ?? 0));
+    if (credits) creditsObserver.observe(credits);
+
     const markers = markersRef.current;
     return () => {
+      creditsObserver.disconnect();
+      cancelPendingFlight();
       canvas.removeEventListener("keydown", onKeyDown);
       stopFolding();
       markers.forEach(({ marker }) => marker.remove());
       markers.clear();
+      startMarkerRef.current?.remove();
+      startMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -362,6 +452,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
       map.scrollZoom.enable();
       return;
     }
+    cancelPendingFlight();
     map.stop();
     map.jumpTo({ pitch: 0 });
     map.scrollZoom.disable();
@@ -380,8 +471,9 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReady) return;
-    setRouteData(map, itinerary);
-    setLegSelection(map, itinerary, selection?.kind === "leg" ? selection.key : null);
+    const drawn = drawnItinerary(itinerary);
+    setRouteData(map, drawn);
+    setLegSelection(map, drawn, selection?.kind === "leg" ? selection.key : null);
   }, [itinerary, selection, styleReady]);
 
   /* ---------- the day's buildings, in course colors ---------- */
@@ -389,11 +481,12 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
   const highlightSignature = dayBuildingHighlights(itinerary.stops, courseOrder)
     .map((highlight) => `${highlight.buildingId}:${highlight.slot}`)
     .join("|");
+  const startLabel = itinerary.start?.place.name ?? null;
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleReady) return;
-    setBuildingHighlights(map, dayBuildingHighlights(latest.current.itinerary.stops, latest.current.courseOrder));
-  }, [highlightSignature, styleReady]);
+    setBuildingHighlights(map, dayBuildingHighlights(latest.current.itinerary.stops, latest.current.courseOrder), startLabel);
+  }, [highlightSignature, startLabel, styleReady]);
 
   /* ---------- pins ---------- */
   const pins = pinsFor(itinerary.stops);
@@ -441,11 +534,29 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
     for (const { element } of markersRef.current.values()) {
       const isSelected = selectedKey !== null && (element.dataset.stopKeys ?? "").split("|").includes(selectedKey);
       element.dataset.selected = isSelected ? "true" : "false";
+      // A keyboard choice changes the pin at once.
+      element.dataset.instant = selection?.instant ? "true" : "false";
       element.setAttribute("aria-pressed", isSelected ? "true" : "false");
       // The marker element is the button itself; raise it over its neighbours.
       element.style.zIndex = isSelected ? "2" : "1";
     }
   }, [selection, pinSignature]);
+
+  /* ---------- starting point ---------- */
+  const startPoint = itinerary.start?.place.point ?? null;
+  const startName = itinerary.start?.place.name ?? null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    startMarkerRef.current?.remove();
+    startMarkerRef.current = null;
+    if (!startPoint || !startName) return;
+    // The ring the itinerary starts from; the list names it, so it's decorative here.
+    const element = document.createElement("span");
+    element.className = "mv-start-pin";
+    element.setAttribute("aria-hidden", "true");
+    startMarkerRef.current = new Marker({ element }).setLngLat([startPoint.lng, startPoint.lat]).addTo(map);
+  }, [startPoint, startName]);
 
   /* ---------- camera ---------- */
   const daySignature = itinerary.stops.map((entry) => entry.key).join("|");
@@ -455,13 +566,14 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
 
   /**
    * Point the camera at the selection, or at the whole day when nothing is
-   * selected. Insets are the panel or sheet's space, so the target lands in
-   * the visible part of the map. `animate` is for pointer choices only.
+   * selected, inside the measured padding. `animate` is for pointer choices
+   * only, and never under reduced motion.
    */
-  const frame = useCallback((animate: boolean) => {
+  const aim = useCallback((animate: boolean) => {
     const map = mapRef.current;
     if (!map) return;
-    const { itinerary: current, selection: chosen, insets: space, reducedMotion: reduce, frozen: hidden } = latest.current;
+    const { itinerary: current, selection: chosen, padding, reducedMotion: reduce, frozen: hidden } = latest.current;
+    const space = withCredits(map, padding);
     const canvas = map.getCanvas().getBoundingClientRect();
     if (
       hidden ||
@@ -472,6 +584,9 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
     }
     const move = animate && !reduce;
     map.stop();
+    // Set just before each move below: dayCamera's trial jumps fire moveend,
+    // which would otherwise end a flight that hasn't started.
+    flying.current = false;
 
     if (chosen?.kind === "stop") {
       const entry = current.stops.find((stop) => stop.key === chosen.key);
@@ -480,91 +595,119 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
         // The padding goes into this calculation only; passing it to flyTo
         // would make it stick to the map and add to every later fit.
         const camera = map.cameraForBounds(new LngLatBounds([point.lng, point.lat], [point.lng, point.lat]), {
-          padding: withMargin(space, 40),
+          padding: space,
           maxZoom: STOP_ZOOM,
           bearing: 0,
         });
         if (!camera?.center) return;
+        // Tilted unless the student turned 3D off or asks for reduced motion.
+        const pitch = dayTilt({ automatic: true, choice: tiltChoice.current, reducedMotion: reduce }) ? STREET_PITCH : 0;
+        flying.current = move;
         if (move) {
-          map.flyTo({ center: camera.center, zoom: camera.zoom, pitch: dayTilt({ automatic: true, choice: tiltChoice.current, reducedMotion: reduce }) ? STREET_PITCH : 0, bearing: 0, duration: FLIGHT_MS, easing: cameraEase });
+          map.flyTo({ center: camera.center, zoom: camera.zoom, pitch, bearing: 0, duration: FLIGHT_MS, easing: cameraEase });
         } else {
-          map.jumpTo({ center: camera.center, zoom: camera.zoom, pitch: dayTilt({ automatic: map.getPitch() >= 1, choice: tiltChoice.current, reducedMotion: reduce }) ? STREET_PITCH : 0, bearing: 0 });
+          // The keyboard lands where a pointer's flight would, without the flight.
+          map.jumpTo({ center: camera.center, zoom: camera.zoom, pitch, bearing: 0 });
         }
         return;
       }
     }
 
     if (chosen?.kind === "leg") {
-      const leg = current.legs.find((candidate) => candidate.key === chosen.key);
-      const box = leg && (leg.route.kind === "walk" || leg.route.kind === "straight-line") ? boundsOf(leg.route.geometry) : null;
+      const leg = drawnItinerary(current).legs.find((candidate) => candidate.key === chosen.key);
+      const box =
+        leg && (leg.route.kind === "walk" || leg.route.kind === "straight-line")
+          ? boundsOf([...leg.route.geometry, ...legEnds(current, leg)])
+          : null;
       if (box) {
         // Legs stay flat: a tilted fit can push part of a bent path out of view.
-        map.fitBounds(box, {
-          padding: withMargin(space, 56),
-          maxZoom: LEG_MAX_ZOOM,
-          pitch: 0,
-          bearing: 0,
-          duration: move ? FLIGHT_MS : 0,
-          easing: cameraEase,
-        });
+        flying.current = move;
+        map.fitBounds(box, { padding: space, maxZoom: LEG_MAX_ZOOM, pitch: 0, bearing: 0, duration: move ? FLIGHT_MS : 0, easing: cameraEase });
         return;
       }
     }
 
     const points = mappedPoints(current);
     const day = boundsOf(points);
-    const camera = dayCamera(map, day ?? campusBounds, points, withMargin(space, 44), day ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM, tiltChoice.current, reduce);
+    const camera = dayCamera(map, day ?? campusBounds, points, space, day ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM, tiltChoice.current, reduce);
     if (!camera) return;
-    map.easeTo({ ...camera, duration: move ? CONTROL_MS : 0, easing: cameraEase });
+    flying.current = move;
+    map.easeTo({ ...camera, duration: move ? FLIGHT_MS : 0, easing: cameraEase });
   }, []);
 
-  // A new day, or its stops moving: frame it at once (first render and day
-  // switches are instant).
+  aimRef.current = aim;
+
+  // A new day, or its places arriving (building lookups, the starting
+  // point): frame it. Only a day switched from a pointer flies; first
+  // render, data arriving and the keyboard are instant.
+  const lastDayFrame = useRef(dayFrame);
   useEffect(() => {
-    frame(false);
-  }, [day, daySignature, mappedSignature, frame]);
+    const animate = dayFrame !== lastDayFrame.current && !dayFrame.instant;
+    lastDayFrame.current = dayFrame;
+    cancelPendingFlight();
+    aim(animate);
+  }, [dayFrame, daySignature, mappedSignature, aim]);
 
   // A selection, or its target arriving later (a building lookup, a route):
-  // fly there for a pointer choice, jump for a keyboard one. Deferred a frame
-  // so the sheet has settled and the insets are current.
+  // fly there for a pointer choice, jump for a keyboard one. It waits a frame
+  // for layout, and after a sheet snap it waits for the sheet to get going.
   const target = (() => {
     if (!selection) return "none";
     if (selection.kind === "stop") {
       const entry = itinerary.stops.find((stop) => stop.key === selection.key);
       return entry?.placement.kind === "mapped" ? `stop:${selection.key}:${entry.placement.point.lat},${entry.placement.point.lng}` : `pending:${selection.key}`;
     }
-    const leg = itinerary.legs.find((candidate) => candidate.key === selection.key);
+    const leg = drawnItinerary(itinerary).legs.find((candidate) => candidate.key === selection.key);
     return leg && (leg.route.kind === "walk" || leg.route.kind === "straight-line")
       ? `leg:${selection.key}:${leg.route.geometry.length}`
       : `pending:${selection.key}`;
   })();
   useEffect(() => {
+    cancelPendingFlight();
     if (target === "none" || target.startsWith("pending:")) return;
-    const animate = !latest.current.selection?.instant;
-    const handle = requestAnimationFrame(() => frame(animate));
-    return () => cancelAnimationFrame(handle);
-  }, [target, frame]);
+    const chosen = latest.current.selection;
+    const pending = {
+      frame: 0,
+      timer: setTimeout(() => {
+        pending.frame = requestAnimationFrame(() => {
+          pendingFlight.current = null;
+          aim(!chosen?.instant);
+        });
+      }, chosen?.afterSheet ? AFTER_SHEET_MS : 0),
+    };
+    pendingFlight.current = pending;
+    return cancelPendingFlight;
+  }, [target, aim]);
 
-  // The panel or sheet settled at a new size: reframe instantly, no replayed flight.
-  const insetSignature = `${insets.top},${insets.right},${insets.bottom},${insets.left},${frozen}`;
-  const firstInsets = useRef(true);
+  // The panel or sheet settled at a new size: reframe instantly, without
+  // replaying a flight. A flight already on its way used the new padding.
+  const paddingSignature = `${padding.top},${padding.right},${padding.bottom},${padding.left},${frozen}`;
+  const firstPadding = useRef(true);
   useEffect(() => {
-    if (firstInsets.current) {
-      firstInsets.current = false;
+    if (firstPadding.current) {
+      firstPadding.current = false;
       return;
     }
-    const handle = requestAnimationFrame(() => frame(false));
+    if (pendingFlight.current) return;
+    if (flying.current) {
+      reframeAfterFlight.current = true;
+      return;
+    }
+    // A student's own pan or zoom keeps the camera; the next selection uses the new padding.
+    if (mapRef.current?.isMoving()) return;
+    const handle = requestAnimationFrame(() => aim(false));
     return () => cancelAnimationFrame(handle);
-  }, [insetSignature, frame]);
+  }, [paddingSignature, aim]);
 
   /* ---------- controls ---------- */
-  // Pointer presses ease for 250 ms; keyboard presses (detail 0) and reduced motion jump.
-  const controlMs = (event: { detail: number }) => (reducedMotion || event.detail === 0 ? 0 : CONTROL_MS);
+  // Pointer presses move; keyboard presses (detail 0) and reduced motion jump.
+  const controlMs = (event: { detail: number }, ms: number) => (reducedMotion || event.detail === 0 ? 0 : ms);
   const zoomBy = (delta: number, event: { detail: number }) => {
     const map = mapRef.current;
     if (!map) return;
+    cancelPendingFlight();
     map.stop();
-    map.easeTo({ ...zoomCamera(map, map.getZoom() + delta), duration: controlMs(event), easing: cameraEase });
+    map.easeTo({ ...zoomCamera(map, map.getZoom() + delta), duration: controlMs(event, CONTROL_MS), easing: cameraEase });
   };
   // 3D on lifts the camera to street zoom if it's farther out (DESIGN.md: 3D at street zoom only).
   // A press during the 250 ms ease reverses the requested direction, not the half-way pitch.
@@ -572,6 +715,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
     const map = mapRef.current;
     if (!map || reducedMotion) return;
     const tilted = map.isMoving() && pitchTarget.current !== null ? pitchTarget.current > 0 : map.getPitch() >= 1;
+    cancelPendingFlight();
     map.stop();
     tiltChoice.current = !tilted;
     pitchTarget.current = tilted ? 0 : STREET_PITCH;
@@ -579,7 +723,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
       pitch: tilted ? 0 : STREET_PITCH,
       zoom: tilted ? map.getZoom() : Math.max(map.getZoom(), FLAT_BELOW_ZOOM),
       bearing: 0,
-      duration: controlMs(event),
+      duration: controlMs(event, CONTROL_MS),
       easing: cameraEase,
     });
   };
@@ -587,11 +731,12 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
     const map = mapRef.current;
     if (!map) return;
     onSelect(null);
+    cancelPendingFlight();
     map.stop();
     const points = mappedPoints(itinerary);
     const box = boundsOf(points);
-    const camera = dayCamera(map, box ?? campusBounds, points, withMargin(insets, 44), box ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM, tiltChoice.current, reducedMotion);
-    if (camera) map.easeTo({ ...camera, duration: controlMs(event), easing: cameraEase });
+    const camera = dayCamera(map, box ?? campusBounds, points, withCredits(map, padding), box ? DAY_MAX_ZOOM : OVERVIEW_MAX_ZOOM, tiltChoice.current, reducedMotion);
+    if (camera) map.easeTo({ ...camera, duration: controlMs(event, FLIGHT_MS), easing: cameraEase });
   };
 
   if (unavailable) {
@@ -610,7 +755,7 @@ export function MapCanvas({ campus = activeCampus, itinerary, day, courseOrder =
     // keeps the canvas, markers and buttons out of the tab order until it collapses.
     <div className="mv-canvas" inert={frozen}>
       <div ref={containerRef} className="mv-canvas__map" data-testid="campus-map" />
-      <div className="mv-controls" style={{ bottom: insets.bottom + 16 }} role="group" aria-label="Map controls">
+      <div className="mv-controls" role="group" aria-label="Map controls">
         <div className="mv-controls__stack">
           <button type="button" className="mv-control" onClick={(event) => zoomBy(1, event)} aria-label="Zoom in">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
