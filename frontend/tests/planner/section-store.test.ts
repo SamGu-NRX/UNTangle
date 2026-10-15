@@ -10,7 +10,7 @@ import { createSectionStore } from "@/lib/section-store";
 import type { CourseSections } from "@/lib/sections";
 import { getInitialPlannerState, normalizePlannerState, resolveSectionPlan } from "@/lib/planner";
 import { courseAs, fixtureCatalog, fixtureInput, optionsOf, renumber } from "../sections/real-term";
-import { FakePlannerServer, flushSaves, installDom, mountPlanner, removeDom, setSession, waitFor } from "./test-dom";
+import { FakeDocumentServer, flushSaves, installDom, mountPlanner, removeDom, setSession, waitFor } from "./test-dom";
 
 const MATH_ID = "vsb:spring-2027:MATH 1680:6862+6863";
 
@@ -137,7 +137,7 @@ describe("the planner with real sections", () => {
   beforeEach(() => {
     window.localStorage.clear();
     previousFetch = globalThis.fetch;
-    globalThis.fetch = new FakePlannerServer().fetch as typeof fetch;
+    globalThis.fetch = new FakeDocumentServer().fetch as typeof fetch;
     setSession(null);
   });
   afterEach(async () => {

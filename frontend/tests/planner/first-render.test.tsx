@@ -11,22 +11,25 @@ import { useEffect, type ReactNode } from "react";
 // CSS modules have no loader under bun test: each class name is its own key.
 mock.module("@/components/schedules-library/library.module.css", () => ({ default: new Proxy({}, { get: (_, key) => String(key) }) }));
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import type { Identity, StoreState } from "@untangle/sync";
 import { getInitialPlannerState } from "@/lib/planner";
 import { createPlannerStateStore, LEGACY_PLANNER_STATE_STORE_KEY, plannerStateKey } from "@/lib/planner-store";
 import { createSavedPlanStore, savedPlansKey, setSavedPlanIdentity } from "@/lib/saved-plans/store";
 import type { PlannerState } from "@/lib/types";
 import {
   advanceTime,
-  FakePlannerServer,
+  FakeDocumentServer,
   failSessionLookup,
   installDom,
   mountPlanner,
   pendSessionLookup,
   removeDom,
+  resetDocumentStore,
   resetSignOut,
   setSession,
   setSignOut,
   waitFor,
+  type PersistedDocumentStore,
 } from "./test-dom";
 
 const userA = { id: "first-render-a", email: "a@my.unt.edu", name: "A" };
@@ -45,7 +48,8 @@ const router = {
 const STORAGE_PROBE_KEY = "untangle.storage-probe";
 
 let previousFetch: typeof fetch;
-let server: FakePlannerServer;
+let server: FakeDocumentServer;
+let store: PersistedDocumentStore;
 const mounted: Array<() => Promise<void>> = [];
 
 const consoleError = console.error;
@@ -67,8 +71,9 @@ beforeEach(() => {
   window.localStorage.clear();
   setSavedPlanIdentity(undefined);
   pushes.length = 0;
+  store = resetDocumentStore();
   previousFetch = globalThis.fetch;
-  server = new FakePlannerServer();
+  server = new FakeDocumentServer();
   globalThis.fetch = server.fetch as typeof fetch;
 });
 afterEach(async () => {
@@ -104,6 +109,25 @@ function observeStorage() {
   };
 }
 
+/** Records which identities read or write this browser's document store until `restore()`. */
+function observeDocumentStore() {
+  const calls: string[] = [];
+  const read = store.read;
+  const transact = store.transact;
+  store.read = (identity: Identity) => { calls.push(`read:${identity.kind}:${identity.id}`); return read.call(store, identity); };
+  store.transact = <T,>(identity: Identity, change: (state: StoreState) => T) => {
+    calls.push(`transact:${identity.kind}:${identity.id}`);
+    return transact.call(store, identity, change) as Promise<T>;
+  };
+  return {
+    calls,
+    restore() {
+      store.read = read;
+      store.transact = transact;
+    },
+  };
+}
+
 function legacyPlanner(state: PlannerState) {
   const raw = JSON.stringify({ storeSchemaVersion: 1, revision: 7, savedAt: "2026-10-14T12:00:00Z", state });
   window.localStorage.setItem(LEGACY_PLANNER_STATE_STORE_KEY, raw);
@@ -130,14 +154,15 @@ for (const answer of ["signed in as A", "no session"] as const) {
         <PlansClient />
       </AppRouterContext.Provider>
     );
-    server.writeElsewhere(stateA());
-    createPlannerStateStore(window.localStorage, null).writeMirror({ ...getInitialPlannerState(), activeDay: "Thu" });
+    server.seedPlan(userA.id, stateA());
+    expect(createPlannerStateStore(window.localStorage, null).write({ ...getInitialPlannerState(), activeDay: "Thu" }, 0).ok).toBe(true);
     expect(createSavedPlanStore(window.localStorage, null).savePlan({ state: getInitialPlannerState(), name: "Guest copy" }).ok).toBe(true);
     // Written last: a guest store quarantines a legacy planner on any access.
     const raw = legacyPlanner(stateA());
     pendSessionLookup();
 
     const storage = observeStorage();
+    const documents = observeDocumentStore();
     let planner: Awaited<ReturnType<typeof mountPlanner>>;
     try {
       planner = await mountPlanner(views, undefined, false, { hydrate: true });
@@ -151,8 +176,11 @@ for (const answer of ["signed in as A", "no session"] as const) {
       expect(mounts).toBe(1);
       // The library view checks storage with a key that holds no one's data; nothing else is touched.
       expect(storage.calls.filter((call) => !call.endsWith(`:${STORAGE_PROBE_KEY}`))).toEqual([]);
+      expect(documents.calls).toEqual([]);
+      expect(server.pulls).toBe(0);
     } finally {
       storage.restore();
+      documents.restore();
     }
     expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBe(raw);
 
@@ -171,6 +199,7 @@ for (const answer of ["signed in as A", "no session"] as const) {
       expect(planner.get().plannerState.transcriptRecords).toEqual([]);
       expect(window.localStorage.getItem(LEGACY_PLANNER_STATE_STORE_KEY)).toBeNull();
       expect(Object.keys(window.localStorage).filter((key) => key.includes("corrupt-legacy-"))).toHaveLength(1);
+      expect(server.pulls).toBe(0);
     }
     await waitFor(() => planner.container.textContent?.includes(answer === "no session" ? "Guest copy" : "Save a copy of Main to try another week") ?? false, "library read");
     expect(mounts).toBe(1);
@@ -179,7 +208,7 @@ for (const answer of ["signed in as A", "no session"] as const) {
 
 test("a pending first lookup leaves the legacy planner for the account it belongs to", async () => {
   const raw = legacyPlanner(stateA());
-  server.writeElsewhere(stateA());
+  server.seedPlan(userA.id, stateA());
   pendSessionLookup();
   const planner = await mountPlanner();
   mounted.push(planner.unmount);
@@ -205,17 +234,17 @@ test("an account switch remounts the views, so state they hold for A cannot reac
     held.push({ identity: planner.planStamp.identity, note });
     return null;
   }
-  server.writeElsewhere(stateA());
+  server.seedPlan(userA.id, stateA());
   setSession(userA);
   const planner = await mountPlanner(() => <NoteView />);
   mounted.push(planner.unmount);
   await waitFor(() => planner.get().hydrated, "A loaded");
-  globalThis.fetch = new FakePlannerServer().fetch as typeof fetch;
   await planner.run(() => setSession({ id: "first-render-b", email: "b@my.unt.edu", name: "B" }));
   await waitFor(() => planner.get().hydrated && planner.get().planStamp.identity === "user:first-render-b", "B loaded");
   const seenByB = held.filter((frame) => frame.identity === "user:first-render-b");
   expect(seenByB.length).toBeGreaterThan(0);
   for (const frame of seenByB) expect(frame.note).toBe("kept since user:first-render-b");
+  expect(planner.get().plannerState.transcriptRecords).toEqual([]);
 });
 
 async function mountAccountMenu() {
@@ -235,7 +264,7 @@ const avatar = () => document.querySelector<HTMLButtonElement>(`button[aria-labe
 const signInLink = () => [...document.querySelectorAll("a")].find((link) => link.textContent?.trim() === "Sign in") ?? null;
 
 test("the account menu keeps the confirmed account through a failed or pending lookup until sign-out is confirmed", async () => {
-  server.writeElsewhere(stateA());
+  server.seedPlan(userA.id, stateA());
   setSession(userA);
   const planner = await mountAccountMenu();
   await waitFor(() => planner.get().hydrated, "A loaded");
@@ -266,14 +295,15 @@ const toastText = () => document.querySelector(".ui-toast__message")?.textConten
 
 for (const failure of ["rejects", "returns an error"] as const) {
   test(`a sign-out that ${failure} says so, keeps the account's local data, and Try again signs out`, async () => {
-    server.writeElsewhere(stateA());
+    server.seedPlan(userA.id, stateA());
     setSession(userA);
     const planner = await mountAccountMenu();
-    await waitFor(() => planner.get().hydrated && planner.get().saveState.label === "Saved", "A loaded");
-    await planner.run((p) => p.setActiveDay("Thu"));
-    await waitFor(() => window.localStorage.getItem(plannerStateKey(userA.id)) !== null, "A backup written");
+    await waitFor(() => planner.get().hydrated && planner.get().saveState.label === "Saved on this device", "A loaded");
+    await planner.run((p) => p.setSelectedMajor("math"));
+    await waitFor(() => planner.get().saveState.label === "Synced", "A synced");
     expect(createSavedPlanStore().savePlan({ state: stateA(), name: "A copy" }).ok).toBe(true);
-    const backup = window.localStorage.getItem(plannerStateKey(userA.id));
+    const documents = JSON.stringify(await store.stored(userA.id));
+    expect(documents).toContain(transcript.id);
     const library = window.localStorage.getItem(savedPlansKey(userA.id));
 
     setSignOut(failure === "rejects"
@@ -283,7 +313,7 @@ for (const failure of ["rejects", "returns an error"] as const) {
     await waitFor(() => toastText() !== null, "failure toast");
     expect(toastText()).toBe("Couldn't sign out. You're still signed in on this device.");
     expect(document.querySelector(".ui-toast")?.getAttribute("data-tone")).toBe("error");
-    expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBe(backup);
+    expect(JSON.stringify(await store.stored(userA.id))).toBe(documents);
     expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBe(library);
     expect(pushes).toEqual([]);
     expect(planner.get().isRegistered).toBe(true);
@@ -294,6 +324,7 @@ for (const failure of ["rejects", "returns an error"] as const) {
     await planner.run(() => retry!.click());
     await waitFor(() => pushes.length === 1, "signed out");
     expect(pushes).toEqual(["/"]);
+    expect((await store.stored(userA.id)).documents).toEqual([]);
     expect(window.localStorage.getItem(plannerStateKey(userA.id))).toBeNull();
     expect(window.localStorage.getItem(savedPlansKey(userA.id))).toBeNull();
   });

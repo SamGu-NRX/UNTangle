@@ -1,5 +1,6 @@
 import type { DeviceGrantErrorCode, DeviceScope } from "../../../../packages/contracts/src/device-grant";
 import { DocumentIdSchema } from "../../../../packages/contracts/src/ids";
+import { ACCOUNT_HEADER } from "../../../../packages/contracts/src/sync";
 import { DeviceGrantError } from "@/server/auth/device-grants";
 import { SyncError } from "./decision";
 import type { DocumentRepository } from "./repository";
@@ -73,6 +74,10 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
   async function handle(request: Request, scope: DeviceScope, action: (identity: Identity) => Promise<unknown>): Promise<Response> {
     try {
       const identity = await identify(request, scope);
+      const expected = request.headers.get(ACCOUNT_HEADER);
+      if (expected !== null && expected !== identity.userId) {
+        throw new SyncError(401, "ACCOUNT_CHANGED", "This tab is syncing for another account. Sign in again to continue.");
+      }
       // Counted per student once identified, so phones sharing a carrier NAT
       // address don't share a budget. The route's withRateLimit guards by address.
       let retryAfter: number | null;
@@ -102,7 +107,9 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
           ...(error.code === "security_change_in_progress" ? { "Retry-After": "5" } : {}),
         } });
       }
-      // Database failures must never return a receipt or expose a student's body.
+      // Database failures must never return a receipt or expose a student's body. The log takes the
+      // error's name and code only: messages can carry query values or a body.
+      console.error("Document request failed", { name: (error as Error)?.name, code: (error as { code?: unknown })?.code });
       return Response.json({ error: "Document storage is unavailable.", code: "STORAGE_UNAVAILABLE" },
         { status: 503, headers: { "Cache-Control": "no-store" } });
     }

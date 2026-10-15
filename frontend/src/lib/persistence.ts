@@ -1,7 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, hasDatabaseUrl } from "@/lib/db";
-import { plannerStates } from "@/lib/db/schema";
+import { plannerMigrations, plannerStates, users } from "@/lib/db/schema";
 import { normalizePlannerState, serializePlannerPayload } from "@/lib/planner";
+import { plannerStateFromRow } from "@/lib/document-sync/legacy-migration";
 import type { PlannerApiPayload, PlannerState } from "@/lib/types";
 
 export type StoredPlannerState = { state: PlannerApiPayload; revision: number };
@@ -9,51 +10,37 @@ export type StoredPlannerState = { state: PlannerApiPayload; revision: number };
 export type PlannerSaveResult =
   | { kind: "saved"; state: PlannerApiPayload; revision: number }
   /** The row is at a different revision than the save was based on; nothing was written. */
-  | { kind: "conflict"; current: StoredPlannerState | null };
+  | { kind: "conflict"; current: StoredPlannerState | null }
+  /** The row has moved into documents, so this client is out of date; nothing was written. */
+  | { kind: "upgrade-required" };
+
+type Reader = Pick<typeof db, "select">;
+
+async function readPlannerState(reader: Reader, userId: string): Promise<StoredPlannerState | null> {
+  const [row] = await reader.select().from(plannerStates).where(eq(plannerStates.userId, userId)).limit(1);
+  return row ? plannerStateFromRow(row) : null;
+}
 
 export async function loadPlannerState(userId: string): Promise<StoredPlannerState | null> {
-  if (!hasDatabaseUrl) {
-    return null;
-  }
-
-  const [plannerState] = await db
-    .select()
-    .from(plannerStates)
-    .where(eq(plannerStates.userId, userId))
-    .limit(1);
-
-  if (!plannerState) {
-    return null;
-  }
-
-  return {
-    revision: plannerState.revision,
-    state: {
-      courseStatuses: plannerState.courseStatuses as PlannerState["courseStatuses"],
-      selectedSections: plannerState.selectedSections as PlannerState["selectedSections"],
-      optimization: plannerState.optimization as PlannerState["optimization"],
-      activeDay: plannerState.activeDay as PlannerState["activeDay"],
-      selectedMajor: plannerState.selectedMajor as PlannerState["selectedMajor"],
-      transcriptRecords: plannerState.transcriptRecords as PlannerState["transcriptRecords"],
-      lockedSections: plannerState.lockedSections as Record<string, string>,
-      coursePlan: (plannerState.coursePlan ?? undefined) as PlannerState["coursePlan"],
-      updatedAt: plannerState.updatedAt.toISOString(),
-      routeStops: plannerState.routeStops as PlannerApiPayload["routeStops"],
-    },
-  };
+  return hasDatabaseUrl ? readPlannerState(db, userId) : null;
 }
 
 /**
  * Compare-and-set write. `baseRevision` is the revision the client last read
- * or wrote (0 = it saw no row). Each branch is one SQL statement, so two
- * concurrent saves from the same base cannot both succeed.
+ * or wrote (0 = it saw no row).
+ *
+ * It holds the same user row lock as the document write path, and refuses
+ * once the user's row has moved into documents (legacy-migration.ts): a
+ * legacy write that landed after the move would be acknowledged and then
+ * never read again.
  */
 export async function savePlannerState(
   userId: string,
   state: PlannerState,
   baseRevision: number,
+  database: typeof db | null = hasDatabaseUrl ? db : null,
 ): Promise<PlannerSaveResult | null> {
-  if (!hasDatabaseUrl) {
+  if (!database) {
     return null;
   }
 
@@ -73,22 +60,28 @@ export async function savePlannerState(
     updatedAt: new Date(payload.updatedAt),
   };
 
-  const written =
-    baseRevision === 0
-      ? await db
-          .insert(plannerStates)
-          .values({ userId, ...columns, revision: 1 })
-          .onConflictDoNothing({ target: plannerStates.userId })
-          .returning({ revision: plannerStates.revision })
-      : await db
-          .update(plannerStates)
-          .set({ ...columns, revision: sql`${plannerStates.revision} + 1` })
-          .where(and(eq(plannerStates.userId, userId), eq(plannerStates.revision, baseRevision)))
-          .returning({ revision: plannerStates.revision });
+  return database.transaction(async (tx): Promise<PlannerSaveResult> => {
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+    const [migrated] = await tx.select({ userId: plannerMigrations.userId }).from(plannerMigrations).where(eq(plannerMigrations.userId, userId));
+    if (migrated) {
+      return { kind: "upgrade-required" };
+    }
+    const written =
+      baseRevision === 0
+        ? await tx
+            .insert(plannerStates)
+            .values({ userId, ...columns, revision: 1 })
+            .onConflictDoNothing({ target: plannerStates.userId })
+            .returning({ revision: plannerStates.revision })
+        : await tx
+            .update(plannerStates)
+            .set({ ...columns, revision: sql`${plannerStates.revision} + 1` })
+            .where(and(eq(plannerStates.userId, userId), eq(plannerStates.revision, baseRevision)))
+            .returning({ revision: plannerStates.revision });
 
-  if (written.length === 1) {
-    return { kind: "saved", state: payload, revision: written[0].revision };
-  }
-
-  return { kind: "conflict", current: await loadPlannerState(userId) };
+    if (written.length === 1) {
+      return { kind: "saved", state: payload, revision: written[0].revision };
+    }
+    return { kind: "conflict", current: await readPlannerState(tx, userId) };
+  });
 }

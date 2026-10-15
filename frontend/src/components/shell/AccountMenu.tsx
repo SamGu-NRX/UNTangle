@@ -7,7 +7,9 @@ import { clearSavedPlansIdentity } from "@/lib/saved-plans/store";
 import { useState } from "react";
 import { openSignIn } from "@/components/auth-shell";
 import { authClient } from "@/lib/auth-client";
-import { useConfirmedAccount } from "@/components/planner-provider";
+import { useConfirmedAccount, usePlanner } from "@/components/planner-provider";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { UserGlyph } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { toast } from "@/components/ui/Toast";
@@ -34,6 +36,10 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const account = useConfirmedAccount();
   const router = useRouter();
   const [settingPassword, setSettingPassword] = useState(false);
+  const { prepareSignOut } = usePlanner();
+  // Open while waiting writes need the student's choice before signing out.
+  const [unsyncedAsk, setUnsyncedAsk] = useState(false);
+  const [busy, setBusy] = useState<"sync" | "discard" | null>(null);
 
   if (account.status === "checking") {
     // Hold the avatar's space so the bar does not shift when the session lands.
@@ -51,7 +57,17 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     );
   }
   const { user } = account;
-  const signOut = async () => {
+  /**
+   * Signing out deletes this account's documents from the browser, so a
+   * write still waiting for the server is never dropped without the
+   * student's choice (docs/architecture/README.md, "Local data belongs to one identity").
+   */
+  const signOut = async ({ discard = false, prepared: given }: { discard?: boolean; prepared?: Awaited<ReturnType<typeof prepareSignOut>> } = {}) => {
+    const prepared = given ?? (await prepareSignOut());
+    if (prepared.unsynced && !discard) {
+      setUnsyncedAsk(true);
+      return false;
+    }
     let failed: boolean;
     try {
       failed = Boolean((await authClient.signOut()).error);
@@ -63,15 +79,32 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       toast({
         message: "Couldn't sign out. You're still signed in on this device.",
         tone: "error",
-        action: { label: "Try again", onClick: () => void signOut() },
+        action: { label: "Try again", onClick: () => void signOut({ discard, prepared }) },
       });
-      return;
+      return false;
     }
+    setUnsyncedAsk(false);
+    await prepared.forget(discard).catch((error: unknown) => console.error("Couldn't clear this account's documents from the browser", error));
     clearPlannerIdentity(user.id);
     clearSavedPlansIdentity(user.id);
     clearPlannerIdentity(null);
     clearSavedPlansIdentity(null);
     router.push("/");
+    return true;
+  };
+  /** "Sync now" tries the waiting writes once more; "Sign out and discard" signs out with them still waiting. */
+  const settle = async (choice: "sync" | "discard") => {
+    setBusy(choice);
+    try {
+      const prepared = await prepareSignOut();
+      if (choice === "sync" && prepared.unsynced) {
+        toast({ message: "Couldn't sync, so you're still signed in. Try again, or sign out and discard them.", tone: "error" });
+        return;
+      }
+      await signOut({ discard: choice === "discard", prepared });
+    } finally {
+      setBusy(null);
+    }
   };
   return (
     <>
@@ -85,7 +118,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
           {
             id: "sign-out",
             label: "Sign out",
-            onSelect: signOut,
+            onSelect: () => void signOut(),
           },
         ]}
         trigger={(props) => (
@@ -95,6 +128,23 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         )}
       />
       <SetPasswordDialog open={settingPassword} onOpenChange={setSettingPassword} />
+      <Dialog
+        open={unsyncedAsk}
+        onOpenChange={setUnsyncedAsk}
+        role="alertdialog"
+        title="Some changes haven't synced"
+        description="Sync now, or sign out and discard them?"
+        footer={
+          <>
+            <Button variant="destructive" loading={busy === "discard"} disabled={busy !== null} onClick={() => void settle("discard")}>
+              Sign out and discard
+            </Button>
+            <Button loading={busy === "sync"} disabled={busy !== null} onClick={() => void settle("sync")}>
+              Sync now
+            </Button>
+          </>
+        }
+      />
     </>
   );
 }

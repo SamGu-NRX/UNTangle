@@ -173,6 +173,14 @@ describe("POST /api/planner", () => {
     expect(savePlannerState).not.toHaveBeenCalled();
   });
 
+  test("answers 426, not 409, once the row has moved into documents, so an old tab keeps its edits and never overwrites", async () => {
+    getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
+    savePlannerState.mockImplementation(async () => ({ kind: "upgrade-required" }));
+    const response = await POST(postRequest(getInitialPlannerState()));
+    expect(response.status).toBe(426);
+    expect(await response.json()).toEqual({ error: "UNTangle was updated. Reload to keep editing.", code: "UPGRADE_REQUIRED" });
+  });
+
   test("answers 409 with the newer stored version when the base revision is stale", async () => {
     getServerSession.mockImplementation(async () => ({ user: { id: "user-1" } }));
     const theirs = { ...getInitialPlannerState(), optimization: "compact" };

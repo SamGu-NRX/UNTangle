@@ -45,6 +45,14 @@ describe("document HTTP boundaries", () => {
     }
     expect((await handlers.pull(request())).status).toBe(200);
   });
+  test("a request naming another account than the session's is refused before it touches storage", async () => {
+    const named = (account: string) => request(undefined, { "x-untangle-account": account });
+    const refused = await handlers.put(named("bob"), context);
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "ACCOUNT_CHANGED" });
+    expect((await handlers.pull(named("bob"))).status).toBe(401);
+    expect((await handlers.put(named("alice"), context)).status).toBe(200);
+  });
   test("missing storage never acknowledges a write", async () => {
     const unavailable = documentHandlers({ repository: fakeRepository, authorize: cookieAuth(identity), limit: unlimited, origin, available: false });
     const response = await unavailable.put(request(), context);

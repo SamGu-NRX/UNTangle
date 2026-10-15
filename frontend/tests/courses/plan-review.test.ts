@@ -3,11 +3,11 @@
  * PlannerProvider with the same plan-edit functions the Courses view uses.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { FakePlannerServer, installDom, mountPlanner, removeDom, setSession, waitFor } from "../planner/test-dom";
+import { FakeDocumentServer, installDom, mountPlanner, removeDom, setSession, waitFor } from "../planner/test-dom";
 
 mock.module("@/components/courses/courses.module.css", () => ({ default: new Proxy({}, { get: (_, key) => String(key) }) }));
 
-let server: FakePlannerServer;
+let server: FakeDocumentServer;
 let previousFetch: typeof fetch;
 const mounted: Array<() => Promise<void>> = [];
 
@@ -44,7 +44,7 @@ describe("coursePlan through the real provider", () => {
   });
   beforeEach(() => {
     window.localStorage.clear();
-    server = new FakePlannerServer();
+    server = new FakeDocumentServer();
     previousFetch = globalThis.fetch;
     globalThis.fetch = server.fetch as typeof fetch;
     setSession(null);

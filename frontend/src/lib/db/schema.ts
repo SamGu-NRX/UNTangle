@@ -177,6 +177,14 @@ export const receipts = pgTable("receipts", {
   check("receipts_revision", sql`${table.committedRevision} > 0`),
 ]);
 
+// A row means the user's planner_state row has moved into documents
+// (lib/document-sync/legacy-migration.ts). It is written even for a user with
+// no legacy row, so the legacy write path can refuse every later write.
+export const plannerMigrations = pgTable("planner_migration", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  migratedAt: timestamp("migrated_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
+});
+
 // Versions have no update path. The migration also rejects direct SQL updates.
 export const versions = pgTable("versions", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -237,6 +245,7 @@ export const schema = {
   verifications,
   magicLinkClaims,
   plannerStates,
+  plannerMigrations,
   apiRateLimits,
   authRateLimits,
   gradesHistoryCache,

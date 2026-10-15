@@ -1,0 +1,142 @@
+/*
+ * A signed-in student's open sync conflict. It waits for a choice without
+ * blocking the page, so it sits at the bottom-left on desktop, clear of
+ * Week's rail, and above the tab bar on phones. A light surface, not the ink
+ * toast: it asks for a decision rather than reporting one.
+ */
+.sync-notice {
+  position: fixed;
+  left: 24px;
+  bottom: calc(24px + var(--safe-b));
+  /* Above the shell bars (40), under popovers (60), sheets (75) and dialogs (80): it must not cover what the student opened. */
+  z-index: 50;
+  display: grid;
+  gap: 4px;
+  width: min(400px, calc(100vw - 48px));
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  outline: none;
+  opacity: 1;
+  transition: opacity 120ms var(--ease-out);
+}
+@starting-style {
+  .sync-notice {
+    opacity: 0;
+  }
+}
+/* The rise is motion; with reduced motion only the 120ms fade stays (DESIGN.md §6). */
+@media (prefers-reduced-motion: no-preference) {
+  .sync-notice {
+    transform: translateY(0);
+    transition:
+      opacity var(--t-enter) var(--ease-out),
+      transform var(--t-enter) var(--ease-out);
+  }
+  @starting-style {
+    .sync-notice {
+      transform: translateY(8px);
+    }
+  }
+}
+.sync-notice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 759px) {
+  .sync-notice {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    /* Week's bottom bar lifts toasts with --toast-lift; the notice clears it the same way. */
+    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b) + var(--toast-lift, 0px));
+  }
+}
+
+/* Room below the page and above the notice (SyncNotice measures it), so nothing scrolls or tabs into place under it. */
+html:has(.sync-notice) {
+  scroll-padding-bottom: calc(var(--sync-notice-h, 0px) + 36px);
+}
+body:has(.sync-notice) .shell-main::after {
+  content: "";
+  display: block;
+  height: calc(var(--sync-notice-h, 0px) + 24px);
+}
+/* Toasts stack above the notice instead of covering its buttons. */
+body:has(.sync-notice) .ui-toaster {
+  bottom: calc(24px + var(--safe-b) + var(--sync-notice-h, 0px) + 12px);
+}
+@media (max-width: 759px) {
+  body:has(.sync-notice) .ui-toaster {
+    bottom: calc(var(--tabbar-h) + 12px + var(--safe-b) + var(--toast-lift, 0px) + var(--sync-notice-h, 0px) + 8px);
+  }
+}
+
+.sync-notice__title {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: 600;
+}
+.sync-notice__detail {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}
+.sync-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sync-questions {
+  display: grid;
+  gap: 12px;
+}
+.sync-question {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sync-question legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font: 600 var(--text-md) / var(--lh-md) var(--font-ui);
+}
+.sync-question__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--t-hover) ease,
+    background-color var(--t-hover) ease;
+}
+.sync-question__option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.sync-question__option input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+.sync-question__option > span {
+  display: grid;
+  gap: 2px;
+}
+.sync-question__where {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--ink-2);
+}

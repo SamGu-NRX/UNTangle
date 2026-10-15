@@ -342,7 +342,8 @@ export function SchedulesClient() {
 
   const mainSaved = hasSavedCopy(plannerState, live);
   // Main isn't stored: a conflict with another tab, or a failed, refused or signed-out save.
-  const saveTrouble = ["conflict", "unsaved"].includes(saveOutcome(planner.saveState.status, Boolean(planner.conflict)));
+  // A signed-in conflict has its own notice (SyncNotice); this panel would only repeat it.
+  const saveTrouble = !planner.syncConflict && ["conflict", "unsaved"].includes(saveOutcome(planner.saveState.status, Boolean(planner.conflict)));
   const sides: CompareSide[] = picks.map((id) => find(id)).filter((entry): entry is Entry => entry !== null);
   const colors = weekColors(...all.map((entry) => entry.blocks));
 

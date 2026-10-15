@@ -135,8 +135,7 @@ export function PlannerPersistencePanel() {
         {conflict && conflictSummary ? (
           <div className="persistence__conflict">
             <p>
-              This tab has unsaved edits, and another {conflict.source === "server" ? "tab or device" : "tab"} saved a
-              newer version of this schedule. Choose which version to keep. Nothing is overwritten until you decide.
+              This tab has unsaved edits, and another tab saved a newer version of this schedule. Choose which version to keep. Nothing is overwritten until you decide.
             </p>
             <div className="persistence__version">
               <strong>This tab (unsaved)</strong>

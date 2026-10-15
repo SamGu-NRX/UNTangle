@@ -32,10 +32,12 @@ function forget(...names: string[]) {
 export function WeekPage({ hostId, query, week }: { hostId: HostId; query: string | null; week: string | null }) {
   const brand = brandFor(hostId);
   const host = useUntangleHost(brand);
-  const { sectionPlan, saveState, tookNewerVersion, storeNotices } = usePlanner();
+  const { sectionPlan, saveState, tookNewerVersion, storeNotices, syncConflict } = usePlanner();
   // The save bar shows only when saving needs the student (a conflict with another tab, a failure);
   // it stays mounted for its status region and the conflict dialog.
-  const saveCalm = ["saved", "saving", "pending"].includes(saveState.status) && !tookNewerVersion && storeNotices.length === 0;
+  // A signed-in conflict has its own notice on every lens (SyncNotice), so the bar stays quiet for it.
+  const saveCalm =
+    (["saved", "saving", "pending"].includes(saveState.status) || syncConflict !== null) && !tookNewerVersion && storeNotices.length === 0;
   const phone = useMediaQuery(PHONE_QUERY);
   const isClient = useIsClient();
   // ?q= arrives from the top bar's class-number result on another lens.

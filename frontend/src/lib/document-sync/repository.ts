@@ -5,15 +5,29 @@ import { PullListSchema, ReceiptSchema, VersionListPageSchema } from "../../../.
 import { documents, receipts, versions, users, schema } from "@/lib/db/schema";
 import { decideWrite, parseWrite, SyncError, type CurrentDocument } from "./decision";
 import { decodePage, encodePage } from "./pagination";
+import { ensureLegacyMigrated } from "./legacy-migration";
 
 // A fixed bound keeps history reads small. 50 is an unmeasured starting page size.
 const VERSION_PAGE_SIZE = 50;
 
 export function documentRepository(db: NodePgDatabase<typeof schema>) {
+  /**
+   * Moves the user's legacy row into documents, in its own committed
+   * transaction, before any read or write of them. Every route does it: a
+   * write can arrive before a successful pull, and a refused write must not
+   * roll the migration back and leave its documents unreadable.
+   */
+  const migrated = (userId: string) =>
+    ensureLegacyMigrated(db, userId, async (tx) => {
+      const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+      return owner !== undefined;
+    });
+
   return {
     async write(userId: string, bytes: Uint8Array, documentId: string) {
       const { write, writeSha256 } = parseWrite(bytes);
       if (write.documentId !== documentId) throw new SyncError(400, "ID_MISMATCH", "The URL and write must name the same document.");
+      await migrated(userId);
       return db.transaction(async (tx) => {
         // Lock a row that exists even for a first write. All writes for one user
         // serialize, including concurrent operation ids targeting different documents.
@@ -54,6 +68,7 @@ export function documentRepository(db: NodePgDatabase<typeof schema>) {
     },
 
     async get(userId: string, documentId: string) {
+      await migrated(userId);
       const [document] = await db.select().from(documents).where(and(eq(documents.userId, userId), eq(documents.id, documentId)));
       if (document) {
         if (document.deleted) throw new SyncError(404, "NOT_FOUND", "The document does not exist.");
@@ -65,6 +80,7 @@ export function documentRepository(db: NodePgDatabase<typeof schema>) {
     },
 
     async pull(userId: string) {
+      await migrated(userId);
       const rows = await db.select({ documentId: documents.id, kind: documents.kind, revision: documents.revision, deleted: documents.deleted })
         .from(documents).where(eq(documents.userId, userId)).orderBy(documents.id);
       return PullListSchema.parse(rows);

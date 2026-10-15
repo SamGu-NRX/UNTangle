@@ -5,7 +5,7 @@
  * the provider unmounts. Probes from the Sol review of 65ad03d.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { FakePlannerServer, installDom, removeDom, setSession, sleep, waitFor, type PlannerValue } from "../planner/test-dom";
+import { FakeDocumentServer, installDom, removeDom, setSession, sleep, waitFor, type PlannerValue } from "../planner/test-dom";
 import type { TransactionOutcome } from "@/lib/planner-transaction";
 import type { PlannerState, WeekDay } from "@/lib/types";
 
@@ -20,7 +20,7 @@ afterAll(() => {
 beforeEach(() => {
   window.localStorage.clear();
   previousFetch = globalThis.fetch;
-  globalThis.fetch = new FakePlannerServer().fetch as typeof fetch;
+  globalThis.fetch = new FakeDocumentServer().fetch as typeof fetch;
   setSession(null);
 });
 afterEach(async () => {
