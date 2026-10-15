@@ -33,7 +33,7 @@ The signature is spatial, not decorative: selecting a numbered stop raises the v
 
 The first four sources belong to the runtime overlays. `unt-campus-labels` already belongs to `style.json`; replace its sample collection with the full campus catalogue using `GeoJSONSource.setData`.
 
-A repeated visit to GAB needs a different stop occurrence ID from the first visit. Do not use its building ID as both stop IDs. All features require explicit, unique `feature.id` values within their source. Do not enable `generateId`; array reorderings would move selection to another feature.
+A repeated visit to GAB needs a different stop occurrence ID from the first visit. Do not use its building ID as both stop IDs. All features require explicit, unique `feature.id` values within their source. Do not enable `generateId`; array reorderings would move selection to another feature. MapLibre keeps only numeric ids, so `addCampusOverlays` copies each id into a `key` property and sets `promoteId: "key"` on the route and stop sources (the app's `map-layers.ts` does the same); later `setData` calls must carry `key` too.
 
 The route adapter must preserve the API's coordinate order from departure to arrival. Use each `/api/map/route` leg's geometry, distance and minutes independently. Validate its actual response shape in the application adapter; `OverlayData` is a rendering interface, not a claim about that endpoint's schema. Require finite WGS84 coordinates in `[longitude, latitude]` order, at least two coordinates per line, and an explicit boolean fallback flag. Reject malformed geometry instead of silently drawing a straight shortcut.
 

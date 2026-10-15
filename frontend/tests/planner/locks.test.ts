@@ -149,6 +149,26 @@ describe("lock control in the planner", () => {
     await planner.run((p) => p.setOptimization("clusterMorning"));
   }
 
+  test("stored section picks exclude recommendations and Undo restores only those picks", async () => {
+    const planner = await mountWithLocks();
+    await takeCourses(planner);
+    const before = { ...planner.get().sectionPicks };
+    const shown = planner.get().plannerState.selectedSections;
+    expect(Object.keys(shown).sort()).toEqual([...COURSES].sort());
+    expect(before).toEqual({});
+    const [code] = COURSES;
+    const choice = { [code]: shown[code] };
+    const { undoSnapshotForPick, sectionsKey, undoAvailable, locksKey } = await import("@/components/schedule/run-state");
+    const snapshot = undoSnapshotForPick({ sections: before, goal: planner.get().plannerState.optimization, letter: "A", epoch: planner.get().planEpoch, locks: locksKey({}) }, choice);
+    await planner.run(p => p.applySchedule(choice));
+    expect(snapshot.after).toBe(JSON.stringify([[code, shown[code]]]));
+    expect(planner.get().sectionPicks).toEqual(choice);
+    expect(undoAvailable(snapshot, planner.get().planEpoch, locksKey({}), sectionsKey(planner.get().sectionPicks))).toBe(true);
+    await planner.run(p => p.restoreSchedule(snapshot));
+    expect(planner.get().sectionPicks).toEqual({});
+    expect(Object.keys(planner.get().plannerState.selectedSections).sort()).toEqual([...COURSES].sort());
+  });
+
   // The name is the button's text (visible "Lock" + visually hidden rest); no aria-label.
   const button = (container: HTMLElement, courseCode: string) =>
     [...container.querySelectorAll("button")].find((b) =>

@@ -1,0 +1,22 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:icalendar-ruby
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Calendar - College of Health and Public Service
+X-WR-TIMEZONE:Eastern Time (US & Canada)
+BEGIN:VEVENT
+DTSTAMP:20261014T161807Z
+UID:tag:localist.com\,2008:EventInstance_53853106370770
+DTSTART:20260917T170000Z
+DTEND:20260917T180000Z
+DESCRIPTION:Join your College of Science and College of Public Affairs and 
+ Health Science Career Coaches for a panel of professionals in the fields o
+ f forensics science and criminal justice.
+GEO:33.210068;-97.148954
+LOCATION:Willis Library\, 130
+SUMMARY:Forensics & Criminal Justice Panel
+URL;VALUE=URI:https://calendar.unt.edu/event/forensics-criminal-justice-pan
+ el
+CATEGORIES:Workshops & Training
+END:VEVENT
+END:VCALENDAR

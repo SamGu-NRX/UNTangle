@@ -118,7 +118,7 @@ describe("MCP replay and history service", () => {
     // Only CSCE 1030 section rows were captured; narrow the course list locally.
     const { service } = await setup({ instructorCourseOnly: true });
     const history = await service.getInstructorHistory("Pradhumna Lal", "Shrestha");
-    expect(history).toMatchObject({ status: "ok", data: { total: 394, counts: { A: 86, B: 58, C: 63, D: 43, F: 89, W: 55 }, courses: [{ sectionCount: 4, total: 394 }] } });
+    expect(history).toMatchObject({ status: "ok", data: { total: 394, gpa: 2.03, counts: { A: 86, B: 58, C: 63, D: 43, F: 89, W: 55 }, courses: [{ sectionCount: 4, total: 394 }] } });
     if (history.status !== "ok") throw new Error("Expected instructor history");
     expect(history.data.courses[0].terms.flatMap((t) => t.sections).map((s) => s.instructor.id)).toEqual(Array(4).fill('["Pradhumna Lal","Shrestha"]'));
   });
@@ -274,4 +274,15 @@ describe("route status mapping", () => {
     }
     expect(fake.requests).toHaveLength(0);
   });
+});
+
+
+test("mixed-case SSE media type still parses the RPC result", async () => {
+  const client = new GradesMcpClient({ limiter: new GradesLimiter(fastClock(), 0), fetch: (async (_url, init) => {
+    const request = JSON.parse(String(init?.body));
+    return new Response(`data: ${JSON.stringify({ jsonrpc: "2.0", id: request.id, result: { tools: [] } })}\n\n`, {
+      headers: { "Content-Type": "Text/Event-Stream; charset=utf-8" },
+    });
+  }) as typeof fetch });
+  expect(await client.rpc("tools/list", {})).toEqual({ tools: [] });
 });

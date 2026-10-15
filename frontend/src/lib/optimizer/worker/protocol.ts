@@ -52,8 +52,8 @@ export type OptimizeReply =
  * relaxation that brings a section back still has its walks. Without
  * walking, walks only feed the breakdown of returned schedules, which use
  * allowed sections alone, so only their buildings are tabulated (none when
- * everything is filtered out). The diagonal is never asked (the same
- * building is 0 before the provider is consulted).
+ * everything is filtered out). Same-ID legs also come from the provider: an
+ * off-campus or otherwise unroutable building may remain unknown.
  */
 export function toPlainRequest(request: OptimizeRequest): PlainRequest {
   const { walkingTime, now: _now, timeBudgetMs: _budget, maxNodes: _nodes, ...rest } = request;
@@ -69,8 +69,7 @@ export function toPlainRequest(request: OptimizeRequest): PlainRequest {
   const ids = [
     ...new Set(sections.flatMap((section) => section.meetings.map((meeting) => meeting.buildingId).filter((id): id is string => id !== null))),
   ].sort();
-  const same: OptWalkingTime = { seconds: 0, source: "campus-network" };
-  const legs = ids.flatMap((from) => ids.map((to) => (from === to ? same : walkingTime(from, to))));
+  const legs = ids.flatMap((from) => ids.map((to) => walkingTime(from, to)));
   return { ...rest, walking: { ids, legs } };
 }
 

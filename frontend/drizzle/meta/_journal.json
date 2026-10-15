@@ -75,8 +75,22 @@
     {
       "idx": 10,
       "version": "7",
-      "when": 1792045025695,
-      "tag": "0010_document_sync",
+      "when": 1791995196100,
+      "tag": "0010_grades_history_postgres",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791996313863,
+      "tag": "0011_auth_rate_limit_cleanup_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792060203231,
+      "tag": "0012_document_sync",
       "breakpoints": true
     }
   ]

@@ -96,7 +96,6 @@ export type RefSchedule = {
 };
 
 function walkBetween(request: OptimizeRequest, a: string | null, b: string | null): number | null {
-  if (a !== null && b !== null && a === b) return 0;
   if (a === null || b === null) return null;
   const leg = request.walkingTime(a, b);
   // Contract: fractional seconds are rounded to whole seconds.
@@ -140,7 +139,7 @@ export function violations(request: OptimizeRequest, chosen: OptSection[]): stri
   }
   if (c.walking !== null) {
     for (const [prev, next] of backToBackPairs(request, chosen)) {
-      if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
+      if (prev.buildingId !== null && prev.buildingId === next.buildingId && walkBetween(request, prev.buildingId, next.buildingId) === 0) continue;
       const walk = walkBetween(request, prev.buildingId, next.buildingId) ?? UNKNOWN_WALK;
       if ((next.start - prev.end) * 60 < walk + c.walking.bufferMinutes * 60) problems.push(`walk ${prev.owner} -> ${next.owner}`);
     }
@@ -162,7 +161,6 @@ export function referenceCost(request: OptimizeRequest, chosen: OptSection[]): P
   const days = new Set(all.map((m) => m.day));
   for (const [prev, next] of backToBackPairs(request, chosen)) {
     gap += Math.max(0, next.start - prev.end);
-    if (prev.buildingId !== null && prev.buildingId === next.buildingId) continue;
     const seconds = walkBetween(request, prev.buildingId, next.buildingId);
     if (seconds === null) unknown += 1;
     else walk += seconds;

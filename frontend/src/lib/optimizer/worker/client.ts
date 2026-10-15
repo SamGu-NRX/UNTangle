@@ -60,6 +60,17 @@ export class OptimizerClient {
     return id;
   }
 
+  /**
+   * Stops the newest job if it may still reply (the follow-up search after
+   * an unproven first answer runs for up to FINAL_BUDGET_MS). A worker with
+   * nothing pending is kept, so the next run skips loading it again.
+   */
+  cancel() {
+    if (!this.pending) return;
+    this.pending = false;
+    this.dropWorker();
+  }
+
   dispose() {
     this.pending = false;
     this.dropWorker();

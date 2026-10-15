@@ -1,5 +1,5 @@
 {
-  "id": "864216a7-851e-4f5e-894d-e9d4ec0bc9c3",
+  "id": "fed4b10a-6da7-45bd-b2b1-f58afc2cc9c9",
   "prevId": "c334667c-3737-4797-8f88-72d3291a1ee0",
   "version": "7",
   "dialect": "postgresql",
@@ -224,109 +224,72 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.documents": {
-      "name": "documents",
+    "public.grades_history_budget": {
+      "name": "grades_history_budget",
       "schema": "",
       "columns": {
-        "user_id": {
-          "name": "user_id",
+        "source": {
+          "name": "source",
           "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "next_permit_at": {
+          "name": "next_permit_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "id": {
-          "name": "id",
-          "type": "text",
+        "cooldown_until": {
+          "name": "cooldown_until",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "kind": {
-          "name": "kind",
-          "type": "text",
+        "sent_at": {
+          "name": "sent_at",
+          "type": "bigint[]",
           "primaryKey": false,
           "notNull": true
-        },
-        "institution_id": {
-          "name": "institution_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "body": {
-          "name": "body",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "deleted": {
-          "name": "deleted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp (3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "documents_user_id_user_id_fk": {
-          "name": "documents_user_id_user_id_fk",
-          "tableFrom": "documents",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "documents_user_id_id_pk": {
-          "name": "documents_user_id_id_pk",
-          "columns": [
-            "user_id",
-            "id"
-          ]
-        }
-      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "documents_kind": {
-          "name": "documents_kind",
-          "value": "\"documents\".\"kind\" in ('academic-record', 'schedule', 'preferences')"
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.grades_history_cache": {
+      "name": "grades_history_cache",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
         },
-        "documents_revision": {
-          "name": "documents_revision",
-          "value": "\"documents\".\"revision\" > 0"
+        "record": {
+          "name": "record",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
         },
-        "documents_tombstone": {
-          "name": "documents_tombstone",
-          "value": "\"documents\".\"deleted\" = (\"documents\".\"body\" is null)"
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         }
       },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.magic_link_claim": {
@@ -462,74 +425,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.receipts": {
-      "name": "receipts",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "operation_id": {
-          "name": "operation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "write_sha256": {
-          "name": "write_sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "committed_revision": {
-          "name": "committed_revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "receipts_user_id_user_id_fk": {
-          "name": "receipts_user_id_user_id_fk",
-          "tableFrom": "receipts",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "receipts_user_id_operation_id_pk": {
-          "name": "receipts_user_id_operation_id_pk",
-          "columns": [
-            "user_id",
-            "operation_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "receipts_hash": {
-          "name": "receipts_hash",
-          "value": "\"receipts\".\"write_sha256\" ~ '^[0-9a-f]{64}$'"
-        },
-        "receipts_revision": {
-          "name": "receipts_revision",
-          "value": "\"receipts\".\"committed_revision\" > 0"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.session": {
@@ -763,150 +658,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.versions": {
-      "name": "versions",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "institution_id": {
-          "name": "institution_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "schedule_id": {
-          "name": "schedule_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "body": {
-          "name": "body",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp (3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "versions_user_created_idx": {
-          "name": "versions_user_created_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "versions_schedule_created_idx": {
-          "name": "versions_schedule_created_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "schedule_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "versions_user_id_user_id_fk": {
-          "name": "versions_user_id_user_id_fk",
-          "tableFrom": "versions",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "versions_user_id_id_pk": {
-          "name": "versions_user_id_id_pk",
-          "columns": [
-            "user_id",
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "versions_reason": {
-          "name": "versions_reason",
-          "value": "\"versions\".\"reason\" in ('before-auto', 'restore-point', 'import')"
-        }
-      },
       "isRLSEnabled": false
     }
   },
