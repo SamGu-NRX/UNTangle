@@ -24,6 +24,13 @@ const TOKENS_B: DeviceTokens = {
   refreshToken: "refresh-d".padEnd(43, "d"),
   grantId: "grant-1",
 };
+/** A different grant: re-sign-in replaces the grant, not just the tokens. */
+const TOKENS_GRANT_TWO: DeviceTokens = {
+  ...TOKENS_A,
+  accessToken: "access-e".padEnd(43, "e"),
+  refreshToken: "refresh-f".padEnd(43, "f"),
+  grantId: "grant-2",
+};
 const SYNC_200 = [
   { documentId: "doc-1", kind: "schedule", revision: 1, deleted: false },
   { documentId: "doc-2", kind: "schedule", revision: 2, deleted: false },
@@ -373,6 +380,36 @@ describe("beginSignIn", () => {
     expect(harness.auth.getState()).toEqual({ status: "signed-out" });
     expect(harness.store.save).not.toHaveBeenCalled();
   });
+
+  it("lands signed out with a retryable failure when the Keychain save rejects", async () => {
+    const harness = makeHarness([
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+      { status: 200, body: START_200 },
+      { status: 200, body: TOKENS_A },
+      { status: 200, body: SYNC_200 },
+    ]);
+    await harness.auth.restore();
+    let saveCalls = 0;
+    const workingSave = harness.store.save;
+    harness.store.save = jest.fn(async (tokens: StoredTokens) => {
+      saveCalls += 1;
+      if (saveCalls === 1) throw new Error("Keychain write failed");
+      await workingSave(tokens);
+    });
+    // The exchange succeeds and the Keychain write does not: beginSignIn must
+    // resolve with a retryable failure instead of throwing with an
+    // un-persisted grant left live in memory.
+    await expect(harness.auth.beginSignIn()).resolves.toEqual({ ok: false, reason: "failed", error: "storage_failed" });
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+    expect(harness.store.clear).toHaveBeenCalled();
+    expect(harness.timers).toHaveLength(0);
+    // A retry once the store recovers succeeds end to end.
+    await expect(harness.auth.beginSignIn()).resolves.toEqual({ ok: true });
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-1", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+  });
 });
 
 describe("signOut", () => {
@@ -493,6 +530,136 @@ describe("document count", () => {
     expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-1", scopes: TOKENS_A.scopes, documentCount: null, countFailed: true });
     await harness.auth.refreshDocumentCount();
     expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-1", scopes: TOKENS_A.scopes, documentCount: 2, countFailed: false });
+  });
+});
+
+describe("grant identity", () => {
+  const list = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({ documentId: `doc-${i + 1}`, kind: "schedule", revision: 1, deleted: false }));
+
+  /**
+   * Answers the device endpoints immediately and parks each count read on its
+   * own gate, so the world can move on before an answer lands. `entered[i]`
+   * resolves when read i is in flight; `release[i]` lets its answer through.
+   * The token endpoint grants A first, then B.
+   */
+  function gatedSyncFetch(syncResponses: Array<{ status: number; body: unknown }>): {
+    fetchLike: FetchLike;
+    entered: Array<Promise<void>>;
+    release: Array<() => void>;
+  } {
+    const entered: Array<Promise<void>> = [];
+    const enteredResolvers: Array<() => void> = [];
+    const release: Array<() => void> = [];
+    const released: Array<Promise<void>> = [];
+    for (let i = 0; i < syncResponses.length; i += 1) {
+      entered.push(new Promise<void>(resolve => enteredResolvers.push(resolve)));
+      released.push(new Promise<void>(resolve => release.push(resolve)));
+    }
+    let tokenCalls = 0;
+    let syncCalls = 0;
+    const grants = [TOKENS_A, TOKENS_GRANT_TWO];
+    const fetchLike: FetchLike = async url => {
+      if (url.endsWith("/api/v1/device/start")) return jsonResponse(START_200, 200);
+      if (url.endsWith("/api/v1/device/token")) {
+        const grant = grants[Math.min(tokenCalls, grants.length - 1)];
+        tokenCalls += 1;
+        return jsonResponse(grant, 200);
+      }
+      if (url.endsWith("/api/v1/sync")) {
+        const step = syncResponses[syncCalls] ?? { status: 200, body: [] };
+        const index = syncCalls;
+        syncCalls += 1;
+        enteredResolvers[index]?.();
+        if (index < released.length) await released[index];
+        return jsonResponse(step.body, step.status);
+      }
+      return jsonResponse({ revoked: true }, 200);
+    };
+    return { fetchLike, entered, release };
+  }
+
+  it("applies nothing to the new grant when a stale count lands after re-sign-in", async () => {
+    const { fetchLike, entered, release } = gatedSyncFetch([
+      { status: 200, body: list(2) }, // grant A's answer, held in flight
+      { status: 200, body: list(5) }, // grant B's own answer
+    ]);
+    const harness = makeHarness([], { fetchLike });
+    await harness.auth.restore();
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await expect(first).resolves.toEqual({ ok: true });
+    await entered[0];
+    // The world moves on while A's count flies: sign out, sign in as grant B.
+    await harness.auth.signOut();
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await expect(second).resolves.toEqual({ ok: true });
+    await entered[1];
+    // A's stale answer resolves into B's session and must not touch it.
+    release[0]();
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: null, countFailed: false });
+    // B's own answer still lands normally.
+    release[1]();
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 5, countFailed: false });
+  });
+
+  it("does not clear the new grant when the old grant's 401 lands after re-sign-in", async () => {
+    const { fetchLike, entered, release } = gatedSyncFetch([
+      { status: 401, body: { error: "unauthorized" } }, // grant A's stale answer
+      { status: 200, body: list(5) },
+    ]);
+    const harness = makeHarness([], { fetchLike });
+    await harness.auth.restore();
+    const first = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await expect(first).resolves.toEqual({ ok: true });
+    await entered[0];
+    await harness.auth.signOut();
+    const second = harness.auth.beginSignIn();
+    await waitFor(harness.auth, "awaiting-approval");
+    await expect(second).resolves.toEqual({ ok: true });
+    await entered[1];
+    // The 401 names a grant this phone replaced: it may not sign B out.
+    release[0]();
+    await flush();
+    expect(harness.store.clear).toHaveBeenCalledTimes(1); // sign-out's own clear
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: null, countFailed: false });
+    await expect(harness.auth.getAccessToken()).resolves.toBe(TOKENS_GRANT_TWO.accessToken);
+    release[1]();
+    await flush();
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-2", scopes: TOKENS_A.scopes, documentCount: 5, countFailed: false });
+    expect(harness.store.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("still signs out when the count load gets a 401 for the active grant", async () => {
+    const harness = makeHarness([{ status: 401, body: { error: "unauthorized" } }]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    // The same grant is still active, so the 401 means the grant is gone.
+    expect(harness.auth.getState()).toEqual({ status: "signed-out" });
+    expect(harness.store.clear).toHaveBeenCalled();
+    await expect(harness.auth.getAccessToken()).resolves.toBeNull();
+  });
+
+  it("loads the count even when the read triggers its own refresh", async () => {
+    const harness = makeHarness([
+      { status: 200, body: SYNC_200 }, // restore's count read
+      { status: 200, body: TOKENS_B }, // the retry refreshes: same grant, rotated tokens
+      { status: 200, body: list(7) },
+    ]);
+    harness.store.load = jest.fn(async () => activeTokens());
+    await harness.auth.restore();
+    await flush();
+    harness.advance(300_000 - 30_000); // inside the refresh margin
+    await harness.auth.refreshDocumentCount();
+    // The refresh rotates the tokens object for the same grant; the guard is
+    // grant identity, not object identity, so the count still lands.
+    expect(harness.store.saved[0]?.accessToken).toBe(TOKENS_B.accessToken);
+    expect(harness.auth.getState()).toEqual({ status: "signed-in", grantId: "grant-1", scopes: TOKENS_A.scopes, documentCount: 7, countFailed: false });
   });
 });
 

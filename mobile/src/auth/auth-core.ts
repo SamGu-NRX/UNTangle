@@ -180,13 +180,33 @@ export function createAuth(deps: AuthDeps) {
     return stored.accessToken;
   }
 
-  function applyTokens(tokens: DeviceTokens) {
+  async function applyTokens(tokens: DeviceTokens): Promise<boolean> {
     stored = storedFromDeviceTokens(tokens, now());
-    return deps.tokenStore.save(stored);
+    try {
+      await deps.tokenStore.save(stored);
+      return true;
+    } catch {
+      // A Keychain write that fails must not leave the un-persisted grant
+      // live in memory, where cancelSignIn would only reset the UI around
+      // it. Drop the grant and land signed-out so the caller can surface a
+      // retryable failure; the clear is best-effort because a store that
+      // cannot save may not clear either.
+      stored = null;
+      await deps.tokenStore.clear().catch(() => undefined);
+      replaceState({ status: "signed-out" });
+      return false;
+    }
   }
 
   async function loadDocumentCount(): Promise<void> {
+    // The read belongs to the grant it started for: a sign-out (or a fresh
+    // sign-in) while it flies makes the answer stale, and applying it — or
+    // treating its 401 as a lost grant — would touch the wrong account. The
+    // grant id is the identity here, not the tokens object: this read's own
+    // refresh legitimately rotates tokens for the same grant.
+    const grantAtStart = stored?.grantId;
     const accessToken = await getAccessToken();
+    if (stored?.grantId !== grantAtStart) return;
     if (!accessToken || !stored) {
       // No live token, no count this round: the screen's retry stays on.
       if (state.status === "signed-in") replaceState({ ...state, countFailed: true });
@@ -195,6 +215,7 @@ export function createAuth(deps: AuthDeps) {
     // A retry counts as loading again, not as another failure, while it runs.
     if (state.status === "signed-in" && state.countFailed) replaceState({ ...state, countFailed: false });
     const result = await fetchSyncList(accessToken, deps.fetchLike);
+    if (stored?.grantId !== grantAtStart) return;
     if (result.ok) {
       // Tombstoned entries are deleted documents, not documents to count.
       const active = result.entries.filter(entry => !entry.deleted).length;
@@ -223,7 +244,11 @@ export function createAuth(deps: AuthDeps) {
     });
     if (generation !== signInGeneration) return { ok: false, reason: "cancelled" };
     if (outcome.ok) {
-      await applyTokens(outcome.tokens);
+      if (!(await applyTokens(outcome.tokens))) {
+        // Nothing was persisted and nothing is live: the flow failed, and
+        // starting it again is safe once the store recovers.
+        return { ok: false, reason: "failed", error: "storage_failed" };
+      }
       replaceState({ status: "signed-in", grantId: outcome.tokens.grantId, scopes: outcome.tokens.scopes, documentCount: null, countFailed: false });
       scheduleRefresh();
       // One read so the screen can say what the account holds; real sync is
