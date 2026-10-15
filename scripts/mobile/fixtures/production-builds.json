@@ -1,0 +1,47 @@
+{
+  "note": "Synthetic `eas build:list --json` shape (no EAS project existed when this was written; nothing was captured from a live EAS account). Build build-1 carries the fingerprint `npx --no-install expo-updates fingerprint:generate --platform ios` computed in mobile/ on 2026-10-15, so the offline dry run exercises the guard's passing path.",
+  "currentBuilds": [],
+  "allDataIsLoaded": true,
+  "allBuilds": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "status": "FINISHED",
+      "platform": "ios",
+      "channel": "production",
+      "profile": "production",
+      "appVersion": "1.0.0",
+      "sdkVersion": "57.0.0",
+      "runtimeVersion": "36647ac1512c29889f0ad622e98950d072e40f5b"
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "status": "FINISHED",
+      "platform": "ios",
+      "channel": "production",
+      "profile": "production",
+      "appVersion": "1.0.0",
+      "sdkVersion": "57.0.0",
+      "runtimeVersion": "0000000000000000000000000000000000000000000000000000000000000abc"
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "status": "FINISHED",
+      "platform": "ios",
+      "channel": "preview",
+      "profile": "preview",
+      "appVersion": "1.0.0",
+      "sdkVersion": "57.0.0",
+      "runtimeVersion": "36647ac1512c29889f0ad622e98950d072e40f5b"
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "status": "NEW",
+      "platform": "ios",
+      "channel": "production",
+      "profile": "production",
+      "appVersion": "1.0.0",
+      "sdkVersion": "57.0.0",
+      "runtimeVersion": "36647ac1512c29889f0ad622e98950d072e40f5b"
+    }
+  ]
+}

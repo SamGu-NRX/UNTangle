@@ -1,12 +1,17 @@
 import type { ExpoConfig } from "expo/config";
 
+import { resolveEasProject } from "./src/updates/eas-project";
+
 /**
- * Placeholder for values that need a real EAS project: the iOS bundle id, the
- * OTA updates URL, and the EAS project id. No EAS account exists yet, so these
- * are syntactically valid placeholders that keep every build and test green
- * until `eas init` runs. Each is flagged TO-FINALIZE below and in the PR.
+ * The EAS Update coordinates come from the environment (EXPO_PUBLIC_EAS_PROJECT_ID
+ * and EXPO_PUBLIC_EAS_UPDATE_URL, see docs/mobile/ota.md). Until `eas init` runs,
+ * the env is empty and config falls back to a syntactically valid placeholder so
+ * every build and test stays green; `resolveEasProject(..., { allowPlaceholder:
+ * false })` in the publish script and in the runtime update controller is where
+ * the missing environment becomes a clear error. Placeholder spots are flagged
+ * TO-FINALIZE below.
  */
-const PLACEHOLDER_EAS_PROJECT_ID = "00000000-0000-0000-0000-000000000000";
+const eas = resolveEasProject(process.env, { allowPlaceholder: true });
 
 const config: ExpoConfig = {
   name: "UNTangle",
@@ -44,15 +49,18 @@ const config: ExpoConfig = {
     ],
   ],
   updates: {
-    // TO-FINALIZE: EAS Update URL placeholder. expo-updates requires a valid
-    // URL shape even before an EAS project exists; `eas init` replaces it.
-    url: `https://u.expo.dev/${PLACEHOLDER_EAS_PROJECT_ID}`,
+    url: eas.updateUrl,
     fallbackToCacheTimeout: 0,
   },
-  runtimeVersion: { policy: "appVersion" },
+  // The fingerprint policy ties the runtime version to everything that can
+  // touch the native runtime, so an update can never claim to match a build
+  // it does not run on (docs/architecture/README.md, "Mobile"). The price is
+  // a new build whenever the fingerprint changes, which the publish script
+  // enforces by refusing updates whose fingerprint matches no production
+  // build in the stores.
+  runtimeVersion: { policy: "fingerprint" },
   extra: {
-    // TO-FINALIZE: the real id once the EAS project is created and linked.
-    eas: { projectId: PLACEHOLDER_EAS_PROJECT_ID },
+    eas: { projectId: eas.projectId },
   },
 };
 
