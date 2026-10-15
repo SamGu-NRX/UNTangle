@@ -9,6 +9,17 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {}
+    "lint": {},
+    // Not cached: a package's types depend on other workspace packages,
+    // whose files are not part of this package's cache key.
+    "typecheck": {
+      "cache": false
+    },
+    // Not cached: tests read files outside their package (course data,
+    // tools/) and environment variables. The root `test` script passes
+    // --env-mode=loose so opt-in variables such as GRADES_LIVE reach them.
+    "test": {
+      "cache": false
+    }
   }
 }

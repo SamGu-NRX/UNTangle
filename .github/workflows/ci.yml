@@ -1,7 +1,8 @@
 name: CI
 
 on:
-  # main is listed so a ruleset on main can require these checks; edge is the unreviewed integration branch.
+  # main is listed so a ruleset on main can require these checks; edge is the
+  # unreviewed integration branch, which runs its own copy of this file.
   pull_request:
     branches: [alpha, main, edge]
   push:
@@ -44,6 +45,7 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      # Every workspace package's typecheck script, through turbo.
       - name: Typecheck
         run: bun --no-env-file x tsc --noEmit
         working-directory: frontend
@@ -53,6 +55,8 @@ jobs:
       - name: Typecheck (mobile)
         run: bun --no-env-file x tsc --noEmit
         working-directory: mobile
+      - name: Typecheck all workspaces
+        run: bun --no-env-file run typecheck
 
   lint:
     name: Lint
@@ -70,6 +74,7 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      # Every workspace package's lint script, through turbo.
       - name: Lint
         run: bun --no-env-file run lint
 
@@ -89,10 +94,11 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      # --isolate gives every test file a fresh global object: some suites share
-      # in-memory stores through module state, so without it runs interfere.
-      # The timeout must clear slow CI runners: the default 5s is too tight for
-      # the map routing and optimizer walk-cost tests.
+      # Every workspace package's test script, through turbo. frontend's script
+      # keeps --isolate (some suites share in-memory stores through module
+      # state, so without it runs interfere) and --timeout=20000 (the default
+      # 5s is too tight on CI runners for the map routing and optimizer
+      # walk-cost tests).
       - name: Unit tests
         run: bun --no-env-file test --isolate --timeout=20000
         working-directory: frontend
@@ -103,6 +109,8 @@ jobs:
       - name: Unit tests (mobile)
         run: bun --no-env-file run test
         working-directory: mobile
+      - name: Test all workspaces
+        run: bun --no-env-file run test
 
   build:
     name: Build

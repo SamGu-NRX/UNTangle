@@ -5,7 +5,10 @@
   "workspaces": [
     "frontend",
     "extension",
-    "mobile"
+    "mobile",
+    "packages/*",
+    "tools/repo-rules",
+    "tools/*"
   ],
   "scripts": {
     "setup": "node scripts/dev.mjs --setup-only",
@@ -13,7 +16,9 @@
     "dev": "node scripts/dev.mjs",
     "dev:turbo": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "typecheck": "turbo run typecheck --continue",
+    "test": "turbo run test --continue --env-mode=loose"
   },
   "devDependencies": {
     "turbo": "^2.8.19"

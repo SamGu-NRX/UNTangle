@@ -1,0 +1,9 @@
+{
+  // Source runs in Bun, in scheduled jobs and on the server, never in a client.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["bun"]
+  },
+  "include": ["src"]
+}

@@ -28,6 +28,7 @@
       "name": "frontend",
       "version": "0.1.0",
       "dependencies": {
+        "@untangle/core": "workspace:*",
         "better-auth": "^1.5.5",
         "drizzle-orm": "^0.45.1",
         "leaflet": "^1.9.4",
@@ -98,6 +99,68 @@
         "jest-expo": "~57.0.6",
         "typescript": "~6.0.3",
         "typescript-eslint": "^8.71.2",
+      },
+    },
+    "packages/contracts": {
+      "name": "@untangle/contracts",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "eslint": "^9",
+        "typescript": "^5",
+      },
+    },
+    "packages/core": {
+      "name": "@untangle/core",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "eslint": "^9",
+        "typescript": "^5",
+      },
+    },
+    "packages/ingest": {
+      "name": "@untangle/ingest",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "eslint": "^9",
+        "typescript": "^5",
+      },
+    },
+    "packages/sync": {
+      "name": "@untangle/sync",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "eslint": "^9",
+        "typescript": "^5",
+      },
+    },
+    "packages/tokens": {
+      "name": "@untangle/tokens",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "eslint": "^9",
+        "typescript": "^5",
+      },
+    },
+    "tools/repo-rules": {
+      "name": "@untangle/repo-rules",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "@untangle/contracts": "workspace:*",
+        "@untangle/core": "workspace:*",
+        "@untangle/ingest": "workspace:*",
+        "@untangle/sync": "workspace:*",
+        "@untangle/tokens": "workspace:*",
+        "eslint": "^9",
+        "typescript": "^5",
       },
     },
   },
@@ -909,6 +972,18 @@
     "@unrs/resolver-binding-win32-ia32-msvc": ["@unrs/resolver-binding-win32-ia32-msvc@1.11.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-DCEI6t5i1NmAZp6pFonpD5m7i6aFrpofcp4LA2i8IIq60Jyo28hamKBxNrZcyOwVOZkgsRp9O2sXWBWP8MnvIQ=="],
 
     "@unrs/resolver-binding-win32-x64-msvc": ["@unrs/resolver-binding-win32-x64-msvc@1.11.1", "", { "os": "win32", "cpu": "x64" }, "sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g=="],
+
+    "@untangle/contracts": ["@untangle/contracts@workspace:packages/contracts"],
+
+    "@untangle/core": ["@untangle/core@workspace:packages/core"],
+
+    "@untangle/ingest": ["@untangle/ingest@workspace:packages/ingest"],
+
+    "@untangle/repo-rules": ["@untangle/repo-rules@workspace:tools/repo-rules"],
+
+    "@untangle/sync": ["@untangle/sync@workspace:packages/sync"],
+
+    "@untangle/tokens": ["@untangle/tokens@workspace:packages/tokens"],
 
     "@xmldom/xmldom": ["@xmldom/xmldom@0.8.15", "", {}, "sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA=="],
 
