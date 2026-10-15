@@ -321,6 +321,8 @@ export function resolveSectionPlan(
   catalog: SectionCatalog = sampleCatalog,
   filter: CandidateFilter = DEFAULT_CANDIDATE_FILTER,
   walkingTime: WalkingTimeFn = plannerTravelTime,
+  /** Per course, per section id, the option's accepted instructor evidence in hundredths (instructor-evidence.ts). */
+  evidenceHundredths?: Readonly<Record<string, Record<string, number | null>>>,
 ): SectionPlan {
   const placed = getPlanningTermCourseCodes(state).map((code): PlannedCourse => {
     const options = catalog(code);
@@ -337,7 +339,7 @@ export function resolveSectionPlan(
   const open = placed.filter((course) => course.state === "choose");
   const recommended =
     open.length > 0
-      ? recommendSections(state.optimization, [...Object.keys(chosen), ...open.map((course) => course.code)], chosen, catalog, walkingTime, filter)
+      ? recommendSections(state.optimization, [...Object.keys(chosen), ...open.map((course) => course.code)], chosen, catalog, walkingTime, filter, evidenceHundredths)
       : {};
   const courses = placed.map((course): PlannedCourse => {
     if (course.state !== "choose") return course;

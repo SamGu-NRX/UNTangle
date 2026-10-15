@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { optimize } from "@/lib/optimizer/optimize";
-import { buildOptimizeRequest, DEFAULT_CANDIDATE_FILTER, getCourseByCode, heldOutCourses, recommendSections } from "@/lib/planner";
+import { buildOptimizeRequest, DEFAULT_CANDIDATE_FILTER, getCourseByCode, heldOutCourses, recommendSections, resolveSectionPlan } from "@/lib/planner";
 import type { SectionCatalog } from "@/lib/planner-sections";
 import type { CourseSections, Meeting, Section } from "@/lib/sections/model";
 import { defaultPlannerState } from "@/lib/seed-data";
@@ -143,5 +143,19 @@ describe("recommendSections and heldOutCourses carry the evidence map", () => {
     // without the map.
     expect(heldOutCourses(picked, catalog, preferences.constraints, [A], strongEvidence)).toEqual([]);
     expect(heldOutCourses(picked, catalog, preferences.constraints, [A])).toEqual([]);
+  });
+});
+
+describe("resolveSectionPlan carries the evidence map", () => {
+  const planned = { ...defaultPlannerState, courseStatuses: { ...defaultPlannerState.courseStatuses, [A]: "inProgress" as const } };
+
+  test("the suggestion tie-break picks the stronger instructor when costs tie", () => {
+    const plan = resolveSectionPlan(planned, catalog, DEFAULT_CANDIDATE_FILTER, undefined, strongEvidence);
+    expect(plan.selections[A]).toBe("anth-1010-002");
+  });
+
+  test("without evidence the suggestion falls back to the section-id order", () => {
+    const plan = resolveSectionPlan(planned, catalog);
+    expect(plan.selections[A]).toBe("anth-1010-001");
   });
 });
