@@ -10,6 +10,8 @@ type Dependencies = {
   repository: DocumentRepository;
   /** authorizeV1: a device bearer token if one is sent, otherwise the browser session. */
   authorize: (request: Request, scope: DeviceScope) => Promise<Identity>;
+  /** createUserLimit: seconds to wait when the user's budget is spent, else null. */
+  limit: (route: "plannerRead" | "plannerSave", userId: string) => Promise<number | null>;
   origin: string;
   available: boolean;
 };
@@ -55,7 +57,7 @@ function documentId(value: unknown): string {
   return parsed.data;
 }
 
-export function documentHandlers({ repository, authorize, origin, available }: Dependencies) {
+export function documentHandlers({ repository, authorize, limit, origin, available }: Dependencies) {
   async function identify(request: Request, scope: DeviceScope): Promise<Identity> {
     try {
       return await authorize(request, scope);
@@ -70,6 +72,13 @@ export function documentHandlers({ repository, authorize, origin, available }: D
   async function handle(request: Request, scope: DeviceScope, action: (identity: Identity) => Promise<unknown>): Promise<Response> {
     try {
       const identity = await identify(request, scope);
+      // Counted per student once identified, so phones sharing a carrier NAT
+      // address don't share a budget. The route's withRateLimit guards by address.
+      const retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
+      if (retryAfter !== null) {
+        return Response.json({ error: "Too many requests.", code: "RATE_LIMITED" },
+          { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } });
+      }
       if (!available) throw new SyncError(503, "STORAGE_UNAVAILABLE", "Document storage is unavailable.");
       return Response.json(await action(identity), { headers: { "Cache-Control": "no-store" } });
     } catch (error) {

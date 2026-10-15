@@ -8,6 +8,8 @@ import { documentHandlers } from "@/lib/document-sync/handlers";
 import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
 import { postgresDeviceStore } from "@/server/auth/device-postgres";
 import { createV1Auth } from "@/server/auth/v1-auth";
+import { createUserLimit } from "@/lib/rate-limit/wrapper";
+import { postgresStore } from "@/lib/rate-limit/store";
 import { bytes, schedule, versionBody, write } from "./fixtures";
 
 // Same opt-in as auth/rate-limit live tests; only a disposable schema on localhost.
@@ -179,8 +181,8 @@ describe.skipIf(!url)("document sync on Postgres", () => {
   });
 
   test("HTTP handlers return contracts and a conflict without exposing another user's document", async () => {
-    const authorize = createV1Auth(createDeviceGrants(postgresDeviceStore(drizzle(pool, { schema }))), async () => ({ user: { id: "alice", emailVerified: true } }));
-    const handlers = documentHandlers({ repository: repo, authorize, origin: "http://localhost:3000", available: true });
+    const authorize = createV1Auth(createDeviceGrants(postgresDeviceStore(drizzle(pool, { schema }))), async () => ({ user: { id: "alice", emailVerified: true }, session: { securityGeneration: 0 } }));
+    const handlers = documentHandlers({ repository: repo, authorize, limit: async () => null, origin: "http://localhost:3000", available: true });
     const context = { params: Promise.resolve({ id: "http" }) };
     const request = () => new Request("http://localhost:3000/api/v1/documents/http", { method: "PUT", headers: { origin: "http://localhost:3000", "content-type": "application/json" }, body: JSON.stringify(write({ documentId: "http", operationId: crypto.randomUUID() })) });
     const saved = await handlers.put(request(), context);
@@ -199,7 +201,8 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     const grants = createDeviceGrants(postgresDeviceStore(drizzle(pool, { schema })), () => time);
     // The browser session is bob's: a response as alice proves the token chose the user.
     const handlers = documentHandlers({ repository: repo, origin: "http://localhost:3000", available: true,
-      authorize: createV1Auth(grants, async () => ({ user: { id: "bob", emailVerified: true } })) });
+      limit: createUserLimit({ store: postgresStore(drizzle(pool)), secret: "live-test-secret" }),
+      authorize: createV1Auth(grants, async () => ({ user: { id: "bob", emailVerified: true }, session: { securityGeneration: 0 } })) });
     const verifier = "d".repeat(43);
     async function issue(userId: string, clientKind: "mobile" | "extension" = "mobile") {
       const common = { codeChallenge: pkceChallenge(verifier), codeChallengeMethod: "S256" as const };
@@ -250,5 +253,22 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     time += 5 * 60_000;
     expect((await handlers.pull(pull(bearer(bob.accessToken)))).status).toBe(401);
     expect(await repo.get("alice", "device-doc")).toMatchObject({ revision: 1 });
+  });
+
+  test("a cookie session from before the account's last security change is refused through Postgres", async () => {
+    const grants = createDeviceGrants(postgresDeviceStore(drizzle(pool, { schema })));
+    let stamped = await grants.readSecurityGeneration("alice");
+    const handlers = documentHandlers({ repository: repo, limit: async () => null, origin: "http://localhost:3000", available: true,
+      authorize: createV1Auth(grants, async () => ({ user: { id: "alice", emailVerified: true }, session: { securityGeneration: stamped } })) });
+    const pull = () => handlers.pull(new Request("http://localhost:3000/api/v1/sync", { headers: { cookie: "better-auth.session_token=x" } }));
+    expect((await pull()).status).toBe(200);
+    const change = await grants.beginSecurityChange("alice", stamped);
+    const during = await pull();
+    expect(during.status).toBe(401);
+    expect(await during.json()).toMatchObject({ code: "UNAUTHORIZED" });
+    await grants.finishSecurityChange("alice", change);
+    expect((await pull()).status).toBe(401);
+    stamped = await grants.readSecurityGeneration("alice");
+    expect((await pull()).status).toBe(200);
   });
 });
