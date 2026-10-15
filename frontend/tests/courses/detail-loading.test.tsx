@@ -38,14 +38,16 @@ test("before the saved plan loads, the course detail shows loading and no status
     );
 
   const loading = render(false);
-  expect(loading).toContain('aria-label="Loading your plan"');
+  expect(loading).toContain("Loading your courses");
   expect(loading).toContain(row.title);
   expect(loading).not.toContain("Add to");
   expect(loading).not.toContain("You can take this");
   expect(loading).not.toContain("I have credit for this");
+  // Nothing renders below the title until the plan is read, so nothing moves when it arrives.
+  expect(loading).not.toContain("Grades");
 
   const loaded = render(true);
-  expect(loaded).not.toContain("Loading your plan");
+  expect(loaded).not.toContain("Loading your courses");
   expect(loaded).toContain("You can take this");
   expect(loaded).toContain(`Add to ${profile.planningTerm}`);
 });

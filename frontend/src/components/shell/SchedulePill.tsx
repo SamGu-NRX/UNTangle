@@ -7,11 +7,16 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Check, ChevronDown, ChevronRight, Close } from "@/components/ui/icons";
 import { PLANNING_TERM } from "@/lib/terms";
+import { SYNC_NOTICE_ID } from "@/components/sync-notice";
 import { SCHEDULE_NAME, chipStatusLabel, chipTone, type ChipTone } from "./plan-status";
 import { SCHEDULES_HREF } from "./routes";
 
 function useScheduleState() {
   const { saveState, isRegistered, hydrated, retrySave } = usePlanner();
+  // A conflict is settled by choosing a version (SyncNotice, or the guest's dialog); retrying changes nothing.
+  const canRetry = saveState.reason !== "conflict";
+  // A signed-in conflict's choices are in the notice; this takes keyboard focus there.
+  const toNotice = saveState.reason === "conflict" && isRegistered ? () => document.getElementById(SYNC_NOTICE_ID)?.focus() : null;
   const tone: ChipTone = hydrated ? chipTone(saveState.status) : "saving";
   const status =
     tone === "saved"
@@ -20,7 +25,7 @@ function useScheduleState() {
       : hydrated
         ? chipStatusLabel(saveState.status, saveState.label)
         : "Loading";
-  return { tone, status, detail: saveState.detail, isRegistered, retrySave };
+  return { tone, status, detail: saveState.detail, isRegistered, retrySave, canRetry, toNotice };
 }
 
 /**
@@ -55,7 +60,7 @@ export function PillText({ showTerm, status, action }: { showTerm: boolean; stat
  * beside it, because the library is the wrong place to fix that.
  */
 export function SchedulePill() {
-  const { tone, status, retrySave } = useScheduleState();
+  const { tone, status, retrySave, canRetry, toNotice } = useScheduleState();
   return (
     <span className="shell-pill-group">
       <Link
@@ -68,9 +73,15 @@ export function SchedulePill() {
       {tone === "error" ? (
         <>
           <span className="shell-pill-error">{status}</span>
-          <Button size="sm" variant="quiet" onClick={retrySave}>
-            Retry
-          </Button>
+          {canRetry ? (
+            <Button size="sm" variant="quiet" onClick={retrySave}>
+              Retry
+            </Button>
+          ) : toNotice ? (
+            <Button size="sm" variant="quiet" onClick={toNotice}>
+              Choose what to keep
+            </Button>
+          ) : null}
         </>
       ) : null}
     </span>
@@ -82,7 +93,7 @@ export function SchedulePill() {
  * a link to the library. Picking a schedule never leaves the lens you are on.
  */
 export function PhoneSchedulePill() {
-  const { tone, status, detail, isRegistered, retrySave } = useScheduleState();
+  const { tone, status, detail, isRegistered, retrySave, canRetry, toNotice } = useScheduleState();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -123,9 +134,22 @@ export function PhoneSchedulePill() {
         {tone === "error" ? (
           <div className="shell-sheet-error">
             {detail ? <p>{detail}</p> : null}
-            <Button variant="secondary" onClick={retrySave}>
-              Retry saving
-            </Button>
+            {canRetry ? (
+              <Button variant="secondary" onClick={retrySave}>
+                Retry saving
+              </Button>
+            ) : toNotice ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  // The sheet covers the notice; close it first, then focus the notice once it's back in view.
+                  setOpen(false);
+                  setTimeout(toNotice, 200);
+                }}
+              >
+                Choose what to keep
+              </Button>
+            ) : null}
           </div>
         ) : null}
         <Link href={SCHEDULES_HREF} className="ui-btn ui-btn--secondary shell-sheet-link" data-ui="" onClick={() => setOpen(false)}>

@@ -1,15 +1,24 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
+import { toast } from "@/components/ui/Toast";
 import { usePlanner, type SyncConflict } from "@/components/planner-provider";
 import { getMajorById } from "@/lib/planner";
 import { academicQuestions, answerAcademicQuestions, scheduleDifference } from "@/lib/sync/planner-sync";
 import type { AcademicQuestion, CourseFacts } from "@untangle/sync";
 import "./sync-notice.css";
 
-const subject = { schedule: "Main", "academic-record": "Your courses", preferences: "Your preferences" } as const;
+/** The notice's id, so the schedule pill can send focus to it. */
+export const SYNC_NOTICE_ID = "sync-notice";
+const FAILED = "Couldn't apply your choice. Check your connection and try again.";
+
+const subject = {
+  schedule: { name: "Main", deleted: "Main was" },
+  "academic-record": { name: "Your courses", deleted: "Your courses were" },
+  preferences: { name: "Your preferences", deleted: "Your preferences were" },
+} as const;
 
 function courseFact(facts: CourseFacts): string {
   if (facts.manualCredit) return "Done (your credit mark)";
@@ -18,26 +27,27 @@ function courseFact(facts: CourseFacts): string {
   return "Not taken";
 }
 
-/** The two sides of one question, other device's first, as the student reads them. */
-function sides(question: AcademicQuestion): { name: string; latest: string; mine: string } {
+/** The two sides of one question as the student reads them, and whether to say which device each came from. */
+function sides(question: AcademicQuestion): { name: string; latest: string; mine: string; where: boolean } {
   switch (question.kind) {
     case "course": {
       const latest = courseFact(question.latest), mine = courseFact(question.local);
-      // Same status, different transcript rows: say so rather than show two equal choices.
+      // Same status, different transcript details: the device is the whole difference.
       return latest === mine
-        ? { name: question.course, latest: `${latest}, other device's transcript rows`, mine: `${mine}, this device's transcript rows` }
-        : { name: question.course, latest, mine };
+        ? { name: question.course, latest: "Transcript from the other device", mine: "Transcript from this device", where: false }
+        : { name: question.course, latest, mine, where: true };
     }
     case "major":
-      return { name: "Major", latest: getMajorById(question.latest)?.name ?? "No major", mine: getMajorById(question.local)?.name ?? "No major" };
+      return { name: "Major", latest: getMajorById(question.latest)?.name ?? "No major", mine: getMajorById(question.local)?.name ?? "No major", where: true };
     case "catalogId":
-      return { name: "Catalog year", latest: question.latest ?? "Not set", mine: question.local ?? "Not set" };
+      return { name: "Catalog year", latest: question.latest ?? "Not set", mine: question.local ?? "Not set", where: true };
     case "transcript-id":
-      return { name: "A transcript row", latest: "The other device's", mine: "This device's" };
+      // A transcript row moved to another course on one side; the row itself names no course to show.
+      return { name: "A transcript entry", latest: "Keep the other device's", mine: "Keep this device's", where: false };
   }
 }
 
-/** One question, as a pair of radios; the other device's value is chosen until the student picks. */
+/** One question as a pair of radios; the other device's value is chosen until the student picks. */
 function Question({ question, value, onChange }: { question: AcademicQuestion; value: "latest" | "mine"; onChange: (value: "latest" | "mine") => void }) {
   const name = useId();
   const text = sides(question);
@@ -49,7 +59,7 @@ function Question({ question, value, onChange }: { question: AcademicQuestion; v
           <input type="radio" name={name} checked={value === side} onChange={() => onChange(side)} />
           <span>
             {text[side]}
-            <span className="sync-question__where">{side === "latest" ? "Other device" : "This device"}</span>
+            {text.where ? <span className="sync-question__where">{side === "latest" ? "Other device" : "This device"}</span> : null}
           </span>
         </label>
       ))}
@@ -57,7 +67,7 @@ function Question({ question, value, onChange }: { question: AcademicQuestion; v
   );
 }
 
-function AcademicReview({ conflict, open, onOpenChange }: { conflict: SyncConflict; open: boolean; onOpenChange: (open: boolean) => void }) {
+function AcademicReview({ conflict, open, onOpenChange, onSettled }: { conflict: SyncConflict; open: boolean; onOpenChange: (open: boolean) => void; onSettled: () => void }) {
   const { settleSyncConflict } = usePlanner();
   const questions = academicQuestions(conflict);
   const [answers, setAnswers] = useState<Array<"latest" | "mine">>(() => questions.map(() => "latest"));
@@ -71,19 +81,21 @@ function AcademicReview({ conflict, open, onOpenChange }: { conflict: SyncConfli
       width={520}
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={saving} onClick={() => onOpenChange(false)}>
             Not now
           </Button>
           <Button
             loading={saving}
             onClick={async () => {
               setSaving(true);
-              try {
-                await settleSyncConflict({ kind: "answers", body: answerAcademicQuestions(conflict, answers) });
-                onOpenChange(false);
-              } finally {
-                setSaving(false);
+              const settled = await settleSyncConflict({ kind: "answers", body: answerAcademicQuestions(conflict, answers) });
+              setSaving(false);
+              // On failure the dialog stays open with the student's answers.
+              if (!settled) {
+                toast({ message: FAILED, tone: "error" });
+                return;
               }
+              onSettled();
             }}
           >
             Save choices
@@ -106,85 +118,110 @@ function AcademicReview({ conflict, open, onOpenChange }: { conflict: SyncConfli
 }
 
 function copyFor(conflict: SyncConflict): { title: string; detail: string } {
-  const where = conflict.source === "local" ? "in another tab" : "on another device";
+  // "Somewhere else" for this browser's own conflicts: another tab, or another device's change a pull brought in.
+  const where = conflict.source === "local" ? "somewhere else" : "on another device";
   if (conflict.latest === null) {
-    return { title: `${subject[conflict.kind]} was deleted ${where}.`, detail: "Keep yours to save it again, or use the latest and let it go." };
+    return { title: `${subject[conflict.kind].deleted} deleted ${where}.`, detail: "Keep yours to save it again, or use the latest and let it go." };
   }
   if (conflict.kind === "schedule") {
     const differ = scheduleDifference(conflict.mine, conflict.latest);
-    return {
-      title: `Main changed ${where}.`,
-      detail:
-        differ === 0
-          ? "Your version and the latest one differ. Keep yours as a copy in Schedules, or use the latest."
-          : `${differ} ${differ === 1 ? "course differs" : "courses differ"} from your version. Keep yours as a copy in Schedules, or use the latest.`,
-    };
+    const what = differ === 0 ? "Your version and the latest one differ." : `${differ} ${differ === 1 ? "course differs" : "courses differ"} from your version.`;
+    return { title: `Main changed ${where}.`, detail: `${what} Keep yours as a copy in Schedules on this device, or use the latest.` };
   }
-  return { title: `Your courses changed ${where} too.`, detail: "Choose what to keep where both changed." };
+  return { title: `${subject[conflict.kind].name} changed ${where} too.`, detail: "Choose what to keep where both changed." };
 }
 
 /**
  * The signed-in student's open sync conflict, on every lens (docs/architecture/README.md,
  * "Conflicts depend on the document kind"). It never blocks the page: the student keeps
- * working on their own version until they choose. Nothing is dropped either way; a schedule
- * not used is kept in Schedules.
+ * working on their own version until they choose, and a schedule they don't use is kept
+ * in Schedules. The page leaves room for it below its content (--sync-notice-h), so it
+ * never hides what keyboard focus lands on.
  */
 export function SyncNotice() {
   const { syncConflict, settleSyncConflict, clientOutdated } = usePlanner();
   const [reviewing, setReviewing] = useState(false);
   const [busy, setBusy] = useState<"use-latest" | "keep-mine" | null>(null);
+  const section = useRef<HTMLElement>(null);
+  const copy = clientOutdated
+    ? { title: "UNTangle was updated.", detail: "Reload to keep editing. Your changes on this device are kept." }
+    : syncConflict
+      ? copyFor(syncConflict)
+      : null;
+  const noticeKey = clientOutdated ? "outdated" : syncConflict ? `${syncConflict.documentId}:${syncConflict.source}` : null;
 
-  if (clientOutdated) {
-    return (
-      <section className="sync-notice" aria-labelledby="sync-notice-title" data-ui="">
-        <p className="sync-notice__title" id="sync-notice-title" role="status">
-          UNTangle was updated.
-        </p>
-        <p className="sync-notice__detail">Reload to keep editing. Your changes on this device are kept.</p>
-        <div className="sync-notice__actions">
-          <Button size="sm" onClick={() => window.location.reload()}>
-            Reload
-          </Button>
-        </div>
-      </section>
-    );
-  }
-  if (!syncConflict) return null;
+  // The notice's height, for the page's bottom space and the toasts above it.
+  useEffect(() => {
+    const element = section.current;
+    const root = document.documentElement;
+    if (!element) return;
+    const observer = new ResizeObserver(() => root.style.setProperty("--sync-notice-h", `${element.offsetHeight}px`));
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--sync-notice-h");
+    };
+  }, [noticeKey]);
 
-  const { title, detail } = copyFor(syncConflict);
-  const asks = syncConflict.kind === "academic-record" && syncConflict.latest !== null;
-  const choose = async (kind: "use-latest" | "keep-mine") => {
-    setBusy(kind);
-    try {
-      await settleSyncConflict({ kind });
-    } finally {
-      setBusy(null);
+  /** After a choice the notice goes away; focus moves to the page rather than being dropped. */
+  const settled = () => {
+    setReviewing(false);
+    if (section.current?.contains(document.activeElement) || document.activeElement === document.body) {
+      document.getElementById("main")?.focus();
     }
   };
+  const choose = async (kind: "use-latest" | "keep-mine") => {
+    setBusy(kind);
+    const done = await settleSyncConflict({ kind });
+    setBusy(null);
+    if (done) settled();
+    else toast({ message: FAILED, tone: "error" });
+  };
+  const asks = syncConflict?.kind === "academic-record" && syncConflict.latest !== null;
 
   return (
-    <section className="sync-notice" aria-labelledby="sync-notice-title" data-ui="" key={`${syncConflict.documentId}:${syncConflict.source}`}>
-      <p className="sync-notice__title" id="sync-notice-title" role="status">
-        {title}
+    <>
+      {/* Always present, so a screen reader announces the title when it arrives. */}
+      <p className="sr-only-v2" role="status">
+        {copy?.title ?? ""}
       </p>
-      <p className="sync-notice__detail">{detail}</p>
-      <div className="sync-notice__actions">
-        {asks ? (
-          <Button size="sm" onClick={() => setReviewing(true)}>
-            Choose what to keep
-          </Button>
-        ) : (
-          <>
-            <Button size="sm" variant="secondary" loading={busy === "use-latest"} disabled={busy !== null} onClick={() => choose("use-latest")}>
-              Use the latest
-            </Button>
-            <Button size="sm" loading={busy === "keep-mine"} disabled={busy !== null} onClick={() => choose("keep-mine")}>
-              {syncConflict.latest === null ? "Keep mine" : "Keep mine as a copy"}
-            </Button>
-          </>
-        )}
-      </div>
-      {asks ? <AcademicReview conflict={syncConflict} open={reviewing} onOpenChange={setReviewing} /> : null}
-    </section>
+      {copy ? (
+        <section
+          ref={section}
+          id={SYNC_NOTICE_ID}
+          tabIndex={-1}
+          className="sync-notice"
+          aria-labelledby="sync-notice-title"
+          data-ui=""
+          key={noticeKey}
+        >
+          <p className="sync-notice__title" id="sync-notice-title">
+            {copy.title}
+          </p>
+          <p className="sync-notice__detail">{copy.detail}</p>
+          <div className="sync-notice__actions">
+            {clientOutdated ? (
+              <Button size="sm" onClick={() => window.location.reload()}>
+                Reload
+              </Button>
+            ) : asks ? (
+              <Button size="sm" onClick={() => setReviewing(true)}>
+                Choose what to keep
+              </Button>
+            ) : (
+              <>
+                <Button size="sm" variant="secondary" loading={busy === "use-latest"} disabled={busy !== null} onClick={() => choose("use-latest")}>
+                  Use the latest
+                </Button>
+                <Button size="sm" loading={busy === "keep-mine"} disabled={busy !== null} onClick={() => choose("keep-mine")}>
+                  {syncConflict?.latest === null ? "Keep mine" : "Keep mine as a copy"}
+                </Button>
+              </>
+            )}
+          </div>
+          {asks && syncConflict ? <AcademicReview conflict={syncConflict} open={reviewing} onOpenChange={setReviewing} onSettled={settled} /> : null}
+        </section>
+      ) : null}
+    </>
   );
 }

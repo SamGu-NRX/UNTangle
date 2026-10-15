@@ -39,7 +39,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const { prepareSignOut } = usePlanner();
   // Open while waiting writes need the student's choice before signing out.
   const [unsyncedAsk, setUnsyncedAsk] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [busy, setBusy] = useState<"sync" | "discard" | null>(null);
 
   if (account.status === "checking") {
     // Hold the avatar's space so the bar does not shift when the session lands.
@@ -62,8 +62,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
    * write still waiting for the server is never dropped without the
    * student's choice (docs/architecture/README.md, "Local data belongs to one identity").
    */
-  const signOut = async ({ discard = false }: { discard?: boolean } = {}) => {
-    const prepared = await prepareSignOut();
+  const signOut = async ({ discard = false, prepared: given }: { discard?: boolean; prepared?: Awaited<ReturnType<typeof prepareSignOut>> } = {}) => {
+    const prepared = given ?? (await prepareSignOut());
     if (prepared.unsynced && !discard) {
       setUnsyncedAsk(true);
       return false;
@@ -79,7 +79,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       toast({
         message: "Couldn't sign out. You're still signed in on this device.",
         tone: "error",
-        action: { label: "Try again", onClick: () => void signOut({ discard }) },
+        action: { label: "Try again", onClick: () => void signOut({ discard, prepared }) },
       });
       return false;
     }
@@ -92,16 +92,18 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     router.push("/");
     return true;
   };
-  const syncThenSignOut = async () => {
-    setSyncing(true);
+  /** "Sync now" tries the waiting writes once more; "Sign out and discard" signs out with them still waiting. */
+  const settle = async (choice: "sync" | "discard") => {
+    setBusy(choice);
     try {
-      if ((await prepareSignOut()).unsynced) {
-        toast({ message: "Couldn't sync. Check your connection and try again.", tone: "error" });
+      const prepared = await prepareSignOut();
+      if (choice === "sync" && prepared.unsynced) {
+        toast({ message: "Couldn't sync, so you're still signed in. Try again, or sign out and discard them.", tone: "error" });
         return;
       }
-      await signOut();
+      await signOut({ discard: choice === "discard", prepared });
     } finally {
-      setSyncing(false);
+      setBusy(null);
     }
   };
   return (
@@ -130,14 +132,14 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         open={unsyncedAsk}
         onOpenChange={setUnsyncedAsk}
         role="alertdialog"
-        title="Some changes haven't synced."
+        title="Some changes haven't synced"
         description="Sync now, or sign out and discard them?"
         footer={
           <>
-            <Button variant="destructive" disabled={syncing} onClick={() => void signOut({ discard: true })}>
+            <Button variant="destructive" loading={busy === "discard"} disabled={busy !== null} onClick={() => void settle("discard")}>
               Sign out and discard
             </Button>
-            <Button loading={syncing} onClick={() => void syncThenSignOut()}>
+            <Button loading={busy === "sync"} disabled={busy !== null} onClick={() => void settle("sync")}>
               Sync now
             </Button>
           </>

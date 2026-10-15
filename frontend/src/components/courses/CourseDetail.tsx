@@ -93,11 +93,13 @@ export function CourseDetail({ row, model, profile, options, placed, chosenSecti
             {statusLine(row, term)}
           </p>
         ) : (
-          <div className={styles.loading} role="status" aria-label="Loading your plan">
-            <span className={styles.shimmer} />
-          </div>
+          // data-ui keeps the 400ms delay under reduced motion (globals.css); the fade itself is opacity only.
+          <p className={styles.detailLoading} role="status" data-ui="">
+            <span className={styles.srOnly}>Loading your courses</span>
+          </p>
         )}
       </div>
+      {/* Everything below waits for the plan, so nothing above it moves when it arrives. */}
       {planLoaded ? (
         <>
           <DetailActionsPart row={row} term={term} actions={actions} />
@@ -118,24 +120,24 @@ export function CourseDetail({ row, model, profile, options, placed, chosenSecti
               gpaOf={(name) => slices.get(instructorKey(name))?.gpa ?? null}
             />
           </section>
+          <section className={styles.dsec} aria-labelledby="detail-grades">
+            <h3 id="detail-grades">Grades</h3>
+            <Grades
+              courseId={row.id}
+              view={view}
+              retry={retry}
+              sectionInstructors={sectionInstructors}
+              initialInstructor={initialInstructor}
+              linkOuts={profile.linkOuts}
+            />
+          </section>
+          {row.description ? (
+            <section className={styles.dsec} aria-labelledby="detail-about">
+              <h3 id="detail-about">About</h3>
+              <About text={row.description} />
+            </section>
+          ) : null}
         </>
-      ) : null}
-      <section className={styles.dsec} aria-labelledby="detail-grades">
-        <h3 id="detail-grades">Grades</h3>
-        <Grades
-          courseId={row.id}
-          view={view}
-          retry={retry}
-          sectionInstructors={sectionInstructors}
-          initialInstructor={initialInstructor}
-          linkOuts={profile.linkOuts}
-        />
-      </section>
-      {row.description ? (
-        <section className={styles.dsec} aria-labelledby="detail-about">
-          <h3 id="detail-about">About</h3>
-          <About text={row.description} />
-        </section>
       ) : null}
     </div>
   );
