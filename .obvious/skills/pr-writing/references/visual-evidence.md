@@ -16,9 +16,9 @@ Record motion at normal speed, showing the trigger, the transition and the settl
 
 Attach inline evidence through GitHub's repository attachments, especially in a private repository. Keep sensitive captures off anonymous public image hosts. A private raw-file URL or a local path won't render inline.
 
-Use the GitHub CLI's attachment support if the installed version has it. Check `gh pr create --help` for `--attach` first. Otherwise use GitHub's attachment UI while signed in, or an uploader the repository already trusts. Don't carry one app's authentication workaround into another project. If a local tool composes the before-and-after image, check where it writes its output before you run it, so it doesn't upload captures somewhere else.
+Use the GitHub CLI's attachment support if the installed version has it. Check `gh pr edit --help` for `--attach` first. Otherwise use GitHub's attachment UI while signed in, or an uploader the repository already trusts. Don't carry one app's authentication workaround into another project. If a local tool composes the before-and-after image, check where it writes its output before you run it, so it doesn't upload captures somewhere else.
 
-With CLI attachment support, reference the local files in the Markdown body and pass each file with `--attach` next to `--body-file`. The CLI swaps those references for uploaded URLs. If an upload fails partway, look at the returned PR and its body before retrying. The CLI can exit nonzero after it has already created the PR. Fix that PR instead of opening another.
+CLI attachments go on a PR that already exists; this skill never creates one. Reference the local files in the Markdown body and run `gh pr edit <number> --body-file <file>` with `--attach` for each file. The CLI swaps those references for uploaded URLs. If an upload fails partway, the CLI still updates the PR with the files that uploaded, so look at the PR's body before retrying. When there is no PR yet, hand back the draft body and the evidence paths.
 
 Show a pair in a small Markdown table. Give each image alt text that says what it shows. Put a video in its own paragraph so GitHub renders it as a player. Keep the original attachment URLs when you edit an existing body.
 
