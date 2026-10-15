@@ -8,6 +8,20 @@ import { changeNotCurrent, credentialExists, DeviceGrantError, securityChangeInP
 const staleBefore = sql`now() - ${sql.raw(`interval '${securityChangeTimeout} milliseconds'`)}`;
 const changeOpen = sql<boolean>`(${deviceSecurity.changeId} IS NOT NULL AND ${deviceSecurity.changeStartedAt} > ${staleBefore})`;
 
+/**
+ * The database's error code and constraint from a failed query, never its
+ * message: drizzle's message lists the query's parameters (a password hash,
+ * a session token), and better-auth logs whole errors. A refusal or an error
+ * of our own is rethrown unchanged.
+ */
+function databaseFailure(error: unknown): { code?: string; constraint?: string } {
+  if (error instanceof DeviceGrantError) throw error;
+  const failure = error as { cause?: { code?: string; constraint?: string }; code?: string; constraint?: string };
+  const database = failure?.cause ?? (failure?.code ? failure : null);
+  if (!database) throw error;
+  return { code: database.code, constraint: database.constraint };
+}
+
 export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib/db/schema").schema>, "transaction" | "insert" | "update" | "select" | "delete">): DeviceStore {
   async function readGeneration(userId: string) {
     const [row] = await db.select({ generation: deviceSecurity.generation, changing: changeOpen }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId));
@@ -26,7 +40,10 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
         const updated = await tx.update(accounts).set({ password: passwordHash, updatedAt: now }).where(credential).returning({ id: accounts.id });
         if (updated.length === 0) throw new Error("No credential to update.");
       } else {
-        // account_credential_user_idx (0015) refuses a second credential too.
+        // Any credential row refuses, even one without a password, as the
+        // DeviceStore contract says. account_credential_user_idx (0015) also refuses.
+        const [existing] = await tx.select({ id: accounts.id }).from(accounts).where(credential).limit(1);
+        if (existing) throw credentialExists();
         await tx.insert(accounts).values({ id: randomUUID(), accountId: userId, providerId: "credential", userId, password: passwordHash, createdAt: now, updatedAt: now });
       }
     });
@@ -75,12 +92,7 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
     },
     async writeCredential(userId, changeId, passwordHash, mode) {
       try { await lockedCredentialWrite(userId, changeId, passwordHash, mode); } catch (error) {
-        if (error instanceof DeviceGrantError) throw error;
-        // A failed query's message lists its parameters, the password hash
-        // among them. Keep only the database's error code and constraint.
-        const failure = error as { cause?: { code?: string; constraint?: string }; code?: string; constraint?: string };
-        const database = failure.cause ?? (failure.code ? failure : null);
-        if (!database) throw error;
+        const database = databaseFailure(error);
         if (mode === "insert" && database.code === "23505" && database.constraint === "account_credential_user_idx") throw credentialExists();
         throw new Error(`Credential write failed: ${[database.code, database.constraint].filter(Boolean).join(" ")}`);
       }
@@ -88,10 +100,14 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
     async endStaleSession(token) {
       const current = sql`coalesce((select ${deviceSecurity.generation} from ${deviceSecurity} where ${deviceSecurity.userId} = ${sessions.userId}), 0)`;
       const changing = sql`exists (select 1 from ${deviceSecurity} where ${deviceSecurity.userId} = ${sessions.userId} and ${changeOpen})`;
-      const deleted = await db.delete(sessions)
-        .where(and(eq(sessions.token, token), sql`${sessions.securityGeneration} <> ${current}`, sql`not ${changing}`))
-        .returning({ id: sessions.id });
-      return deleted.length > 0;
+      try {
+        const deleted = await db.delete(sessions)
+          .where(and(eq(sessions.token, token), sql`${sessions.securityGeneration} <> ${current}`, sql`not ${changing}`))
+          .returning({ id: sessions.id });
+        return deleted.length > 0;
+      } catch (error) {
+        throw new Error(`Stale-session check failed: ${databaseFailure(error).code ?? "unknown"}`);
+      }
     },
     async finishSecurityChange(userId, changeId) {
       const [row] = await db.update(deviceSecurity)
