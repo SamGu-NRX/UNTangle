@@ -418,8 +418,9 @@ uses (`lib/terms/terms.ts`) already knows which days are finals days.
 
 **Files.** `frontend/src/lib/sections/model.ts` (optional `exam` meetings per section or
 per class number), `frontend/src/lib/optimizer/prepare.ts` and `optimize.ts` (exam
-conflicts join the hard constraints), `frontend/src/lib/reasons/scheduleReasons.ts`,
-`courses/` ingest for the exam schedule.
+conflicts join the hard constraints), `frontend/src/lib/reasons/scheduleReasons.ts`, new
+`packages/ingest/src/exam-schedule.ts` (the exam-schedule ingest, beside the existing
+`section-release.ts` and `source-policies.ts`).
 
 **Acceptance check.** An engine test with two sections whose exam blocks overlap proves
 infeasible with an explanation naming the exam conflict, and a control test with
@@ -472,8 +473,11 @@ hand-typed blocks.
 **Files.** `frontend/src/lib/calendar-feeds/parse.ts` (event lookup by id from an
 already-parsed feed); `frontend/src/components/schedule/constraint-logic.ts` (build a
 `BlockDraft` from the event; reuse `parseBlockDraft` validation);
-`frontend/src/components/schedule/WeekGrid.tsx` (entry point on a hatched or busy
-block).
+`frontend/src/components/schedule/ConstraintRail.tsx` (entry point: a "convert from
+calendar feed" affordance on the rail's blocked-times control). A click-on-grid
+affordance would touch the lead-owned `frontend/src/components/schedule/WeekGrid.tsx`
+(listed in `.github/lead-owned-paths.txt`), so that part is lead-only and out of an
+agent PR's scope.
 
 **Acceptance check.** A unit test converts a fixture event (Tue 18:00 to 20:00) into a
 `BlockedTime` that `parseSchedulePreferences` accepts, and a duplicate conversion is
