@@ -5,6 +5,9 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { schema } from "@/lib/db/schema";
 import { documentRepository, type DocumentRepository } from "@/lib/document-sync/repository";
 import { documentHandlers } from "@/lib/document-sync/handlers";
+import { createDeviceGrants, pkceChallenge } from "@/server/auth/device-grants";
+import { postgresDeviceStore } from "@/server/auth/device-postgres";
+import { createV1Auth } from "@/server/auth/v1-auth";
 import { bytes, schedule, versionBody, write } from "./fixtures";
 
 // Same opt-in as auth/rate-limit live tests; only a disposable schema on localhost.
@@ -176,7 +179,8 @@ describe.skipIf(!url)("document sync on Postgres", () => {
   });
 
   test("HTTP handlers return contracts and a conflict without exposing another user's document", async () => {
-    const handlers = documentHandlers({ repository: repo, session: async () => ({ user: { id: "alice" } }), origin: "http://localhost:3000", available: true });
+    const authorize = createV1Auth(createDeviceGrants(postgresDeviceStore(drizzle(pool, { schema }))), async () => ({ user: { id: "alice", emailVerified: true } }));
+    const handlers = documentHandlers({ repository: repo, authorize, origin: "http://localhost:3000", available: true });
     const context = { params: Promise.resolve({ id: "http" }) };
     const request = () => new Request("http://localhost:3000/api/v1/documents/http", { method: "PUT", headers: { origin: "http://localhost:3000", "content-type": "application/json" }, body: JSON.stringify(write({ documentId: "http", operationId: crypto.randomUUID() })) });
     const saved = await handlers.put(request(), context);
@@ -188,5 +192,63 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     const loaded = await handlers.get(new Request("http://localhost:3000/api/v1/documents/http"), context);
     expect(await loaded.json()).toMatchObject({ documentId: "http", kind: "schedule", revision: 1, schemaVersion: 1, body: schedule });
     expect(loaded.headers.get("cache-control")).toBe("no-store");
+  });
+
+  test("device bearer tokens read and write their own user's documents through Postgres grants", async () => {
+    let time = Date.now();
+    const grants = createDeviceGrants(postgresDeviceStore(drizzle(pool, { schema })), () => time);
+    // The browser session is bob's: a response as alice proves the token chose the user.
+    const handlers = documentHandlers({ repository: repo, origin: "http://localhost:3000", available: true,
+      authorize: createV1Auth(grants, async () => ({ user: { id: "bob", emailVerified: true } })) });
+    const verifier = "d".repeat(43);
+    async function issue(userId: string, clientKind: "mobile" | "extension" = "mobile") {
+      const common = { codeChallenge: pkceChallenge(verifier), codeChallengeMethod: "S256" as const };
+      const pending = await grants.start(clientKind === "mobile" ? { ...common, clientKind } : { ...common, clientKind, scheduleId: "device-doc" });
+      await grants.approve(pending.userCode, userId, "approve", await grants.readSecurityGeneration(userId));
+      return grants.exchange(pending.deviceCode, verifier);
+    }
+    const context = { params: Promise.resolve({ id: "device-doc" }) };
+    const bearer = (token: string, extra: Record<string, string> = {}) => ({ authorization: `Bearer ${token}`, ...extra });
+    const put = (headers: Record<string, string>) => new Request("http://localhost:3000/api/v1/documents/device-doc", { method: "PUT",
+      headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(write({ documentId: "device-doc", operationId: crypto.randomUUID() })) });
+    const get = (headers: Record<string, string>) => new Request("http://localhost:3000/api/v1/documents/device-doc", { headers });
+    const pull = (headers: Record<string, string>) => new Request("http://localhost:3000/api/v1/sync", { headers });
+
+    const alice = await issue("alice");
+    const saved = await handlers.put(put(bearer(alice.accessToken)), context);
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({ userId: "alice", committedRevision: 1 });
+    expect(await (await handlers.get(get(bearer(alice.accessToken)), context)).json()).toMatchObject({ documentId: "device-doc", revision: 1 });
+    expect((await (await handlers.pull(pull(bearer(alice.accessToken)))).json() as { documentId: string }[]).some((d) => d.documentId === "device-doc")).toBe(true);
+    expect((await handlers.versions(new Request("http://localhost:3000/api/v1/versions", { headers: bearer(alice.accessToken) }))).status).toBe(200);
+
+    const bob = await issue("bob");
+    expect((await handlers.get(get(bearer(bob.accessToken)), context)).status).toBe(404);
+    expect((await (await handlers.pull(pull(bearer(bob.accessToken)))).json() as { documentId: string }[]).some((d) => d.documentId === "device-doc")).toBe(false);
+
+    const extension = await issue("alice", "extension");
+    for (const response of [await handlers.get(get(bearer(extension.accessToken)), context), await handlers.put(put(bearer(extension.accessToken)), context)]) {
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "insufficient_scope" });
+    }
+    const ambiguous = await handlers.get(get(bearer(alice.accessToken, { cookie: "better-auth.session_token=x" })), context);
+    expect(ambiguous.status).toBe(400);
+    expect(await ambiguous.json()).toMatchObject({ code: "ambiguous_credentials" });
+
+    const rotated = await grants.refresh(alice.refreshToken);
+    expect((await handlers.get(get(bearer(rotated.accessToken)), context)).status).toBe(200);
+    await grants.revoke(rotated.accessToken);
+    for (const token of [alice.accessToken, rotated.accessToken]) {
+      const refused = await handlers.get(get(bearer(token)), context);
+      expect(refused.status).toBe(401);
+      expect(await refused.text()).not.toContain(token);
+    }
+    const second = await issue("alice");
+    await grants.bumpSecurityGeneration("alice");
+    expect((await handlers.put(put(bearer(second.accessToken)), context)).status).toBe(401);
+    expect((await handlers.get(get(bearer(bob.accessToken)), context)).status).toBe(404);
+    time += 5 * 60_000;
+    expect((await handlers.pull(pull(bearer(bob.accessToken)))).status).toBe(401);
+    expect(await repo.get("alice", "device-doc")).toMatchObject({ revision: 1 });
   });
 });
