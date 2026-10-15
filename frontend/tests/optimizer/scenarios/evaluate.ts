@@ -9,7 +9,7 @@
  * and infeasibility handling with actionable relaxation suggestions.
  */
 
-import { buildOptimizeRequest, getCourseByCode } from "@/lib/planner";
+import { buildOptimizeRequest, getCourseByCode, toOptimizerCourses } from "@/lib/planner";
 import { optimize } from "@/lib/optimizer/optimize";
 import type { OptimizeRequest, OptimizeResult } from "@/lib/optimizer/types";
 import type { PlannerState } from "@/lib/types";
@@ -74,23 +74,43 @@ export function buildState(scenario: StudentScenario, catalog: ReturnType<typeof
 
 /**
  * Both solvers consume the same request, so comparing them cannot catch a
- * request that lost part of the scenario. Each next-term course must be
- * searched or counted in fixedCredits, each lock on a searched course kept,
- * and maxCredits carried.
+ * request that lost part of the scenario. A next-term course may stay out of
+ * the search only when it has no offered timed section, or when the student's
+ * pick is not one (a held pick with nothing to place); its credits then go in
+ * fixedCredits unless the course has no classes this term. Each scenario lock
+ * on a searched course must be kept, an extra lock is allowed only on such a
+ * held pick, and maxCredits must be carried.
  */
 export function requestFailures(
   scenario: StudentScenario,
   state: PlannerState,
   request: OptimizeRequest,
+  catalog: ReturnType<typeof scenarioCatalog>,
 ): string[] {
   const failures: string[] = [];
   const locked = state.lockedSections ?? {};
+  const constraints = scenario.preferences.constraints;
+  const offered = (code: string) =>
+    new Set(toOptimizerCourses([code], catalog, constraints).flatMap((course) => course.sections.map((section) => section.id)));
+  const heldPick = (code: string) => {
+    const pick = state.selectedSections[code];
+    return pick !== undefined && !offered(code).has(pick);
+  };
   const searched = new Set(request.courses.map((course) => course.code));
   for (const code of searched) {
     if (!scenario.nextTerm.includes(code)) failures.push(`request searches ${code}, which the scenario does not take`);
   }
   const ridesAlong = scenario.nextTerm.filter((code) => !searched.has(code));
-  const credits = ridesAlong.reduce((sum, code) => sum + (getCourseByCode(code)?.creditHours ?? 0), 0);
+  for (const code of ridesAlong) {
+    const count = offered(code).size;
+    if (count > 0 && !heldPick(code)) failures.push(`request leaves ${code} out of the search, but it has ${count} offered section(s)`);
+  }
+  const credits = ridesAlong
+    .filter((code) => {
+      const loaded = catalog(code);
+      return !(loaded.status === "ready" && loaded.result.availability === "no_classes");
+    })
+    .reduce((sum, code) => sum + (getCourseByCode(code)?.creditHours ?? 0), 0);
   if ((request.fixedCredits ?? 0) !== credits) {
     failures.push(`fixedCredits is ${request.fixedCredits ?? 0}, but ${ridesAlong.join(", ") || "no course"} outside the search carry ${credits}`);
   }
@@ -99,14 +119,16 @@ export function requestFailures(
       failures.push(`request locks ${code} to ${request.locks[code] ?? "nothing"}, not the scenario's ${sectionId}`);
     }
   }
-  // A pick the optimizer may not offer is held as a one-option lock (heldOutCourses in planner.ts).
+  // A pick the optimizer may not offer is held as a one-option lock (heldOutCourses in planner.ts);
+  // a pick it can offer stays free to move.
   for (const [code, sectionId] of Object.entries(request.locks)) {
-    if (!(code in locked) && sectionId !== state.selectedSections[code]) {
-      failures.push(`request locks ${code} to ${sectionId}, which the scenario neither locks nor picks`);
+    if (code in locked) continue;
+    if (sectionId !== state.selectedSections[code] || !heldPick(code)) {
+      failures.push(`request locks ${code} to ${sectionId}, which the scenario doesn't lock and the planner needn't hold`);
     }
   }
-  if (request.constraints.maxCredits !== scenario.preferences.constraints.maxCredits) {
-    failures.push(`maxCredits is ${request.constraints.maxCredits}, not the scenario's ${scenario.preferences.constraints.maxCredits}`);
+  if (request.constraints.maxCredits !== constraints.maxCredits) {
+    failures.push(`maxCredits is ${request.constraints.maxCredits}, not the scenario's ${constraints.maxCredits}`);
   }
   return failures;
 }
@@ -146,7 +168,7 @@ export function evaluateScenario(scenario: StudentScenario): ScenarioEvaluation 
   });
 
   const combos = combinationCount(request);
-  const failures = requestFailures(scenario, state, request);
+  const failures = requestFailures(scenario, state, request, catalog);
   const notRun: ScenarioEvaluation = {
     id: scenario.id,
     ok: false,

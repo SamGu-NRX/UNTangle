@@ -364,10 +364,11 @@ the seat term is 0 when every section is open, so existing pinned costs do not m
 **The change.** Snapshot each term section's seat counts on a schedule (the section file
 is already cached per process) and store the history. With only this term's snapshots,
 a section row states what changed this term, e.g. "12 open on Oct 3, full on Oct 10".
-A past-terms claim such as "usually full by the first day" needs snapshots that cover a
-past term's add/drop window, so the label can rest on how long the section sat open
-across that window, as Penn's `percent_open` does. Abstain from any claim with fewer
-than two snapshots.
+A claim about one past term, such as "full by the first day last spring", needs
+snapshots that cover that term's add/drop window, so it can rest on how long the
+section sat open across the window, as Penn's `percent_open` does. A "usually full by
+the first day" label needs that evidence from more than one past term. Abstain from any
+claim with fewer than two snapshots.
 
 **Why.** Penn computes exactly this as `percent_open`, a time-weighted fraction of the
 add/drop window a section sat open
@@ -384,10 +385,11 @@ release); `frontend/src/lib/reasons/scheduleReasons.ts` (a reason line); new
 row).
 
 **Acceptance check.** A fixture test feeds two synthetic current-term snapshots (open at
-t0, full at t1) and asserts the current-term sentence and no "usually fills early"
-label. A second test feeds a past term's snapshots spanning its add/drop window and
-asserts the time-weighted open fraction and the label. A third asserts abstention (no
-claim rendered) with a single snapshot, matching the repo's
+t0, full at t1) and asserts the current-term sentence and no "usually" label. A second
+test feeds one past term's snapshots spanning its add/drop window and asserts the
+time-weighted open fraction and a sentence naming that term, still with no "usually"
+label; a third adds a second past term and asserts the label. A fourth asserts
+abstention (no claim rendered) with a single snapshot, matching the repo's
 abstain-when-evidence-is-thin rule.
 
 ### 3. Watch a full section from a saved plan
@@ -413,12 +415,16 @@ panic (https://www.reddit.com/r/UTAustin/comments/1g6s585/ut_registration_plus_v
 new `frontend/src/lib/sections/watch.ts` (a pure plan-by-plan check of pinned sections
 against current statuses, run in the browser); the existing
 `frontend/src/app/api/sections/[term]/[subject]/[number]/route.ts` supplies the statuses
-under its `withRateLimit("sections", ...)` budget;
+under its `withRateLimit("sections", ...)` budget, 60 requests a minute per signed-in
+user (`frontend/src/lib/rate-limit/config.ts`). The check fetches each watched course
+once, not once per plan, and paces requests to stay under that budget; a course whose
+request fails or gets a 429 is shown as not checked, never as still closed;
 `frontend/src/components/schedules-library/schedules-client.tsx` (the badge).
 
 **Acceptance check.** A test with a saved-plan fixture naming one waitlisted section and
 a sections fixture where it is open returns the plan in the watch result with reason
-"CSCE 1030-030 opened"; the same fixtures with the section still closed return no entry.
+"CSCE 1030-030 opened"; the same fixtures with the section still closed return no entry,
+and a 429 for that course returns it as not checked.
 No network in tests; both fixtures committed with their source recorded.
 
 ### 4. Final-exam conflict checking
