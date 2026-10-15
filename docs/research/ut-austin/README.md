@@ -158,9 +158,10 @@ https://catalog.utexas.edu/undergraduate/programs/computer-science-computer-scie
 https://catalog.utexas.edu/undergraduate/programs/computer-science-computer-science-honors-option-bscompsci/
 and https://catalog.utexas.edu/undergraduate/programs/computer-science-turing-scholars-honors-option-bscompsci/.
 The program page carries the requirement blocks (core curriculum, major requirements,
-electives, upper-division minimums) in the same Courseleaf HTML the degree-plan pipeline
-already parses for UNT
-(packages/ingest/src/degree/, per the repo's degree-plan work).
+electives, upper-division minimums) in the same Courseleaf HTML. On alpha today, UNT degree
+plans are hand-encoded requirement trees under `frontend/src/lib/pathing/plans/` with the
+requirement types in `frontend/src/lib/pathing/requirements.ts`; the catalog-derived ingest
+pipeline that would parse UNT and UT pages into those trees is pending in draft PR #116.
 
 Difference from UNT: UNT degree plans were encoded from catalog.unt.edu pages with UNT's own
 core component areas; UT's core adds areas UNT's core does not have in the same form,
@@ -220,9 +221,10 @@ duplicates; a waitlist never guarantees a seat; and automated waitlists run from
 of registration through an early-semester deadline (the registrar's waitlist page,
 https://registrar.utexas.edu/staff/waitlists, retrieved October 15, 2026; the Law school
 states its own fourth-class-day end, https://law.utexas.edu/students/registration-planning/registration-adds-and-drops/waitlist-information-policies/).
-myUNT waitlists behave differently in the details UNTangle models today (UNT caps and
-deadlines differ), so waitlist modeling must live behind the campus adapter, not in shared
-core logic.
+myUNT waitlists behave differently in the details UNTangle models today (UNT's registrar
+documents its own waitlist capacity, course-load limits and automatic enrollment rules,
+https://registrar.unt.edu/waitlists.html, retrieved October 15, 2026), so waitlist modeling
+must live behind the campus adapter, not in shared core logic.
 
 Maximum hours: UT's published registration limits are 17 hours for undergraduates in
 fall/spring and 14 in summer (graduate 15/12, Law 16), published in the schedule glossary
@@ -236,7 +238,7 @@ way PR #63 did for UNT's thresholds.
   now; UNT has Denton and Frisco sharing a registration system.
 - Codes: UT codes carry a spaced abbreviation ("C S 301K") and topic blocks grant credit
   under several codes at once ("M 175T, 275T, 375T, 475T"); the parser expands them onto one
-  record. UNT codes never repeat an abbreviation across a block.
+  record.
 - Prerequisites: UT prints one merged "Pre/Corequisites" field per block in the current
   catalog; the parser keeps the label and text. The UNT prereq grammar parser
   (frontend/src/lib/prereq/) must accept UT's sentence forms before shared logic can run.
