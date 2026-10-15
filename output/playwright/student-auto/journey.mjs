@@ -65,7 +65,16 @@ function loadModule(name, envPath) {
   }
 }
 const { chromium } = loadModule("playwright", process.env.PLAYWRIGHT_MODULE);
-const axeSource = readFileSync(process.env.AXE_PATH ?? createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
+const axePath =
+  process.env.AXE_PATH ??
+  (() => {
+    try {
+      return createRequire(import.meta.url).resolve("axe-core/axe.min.js");
+    } catch {
+      throw new Error("axe-core is not installed where the journey can resolve it; set AXE_PATH to axe.min.js or add axe-core at the repo root");
+    }
+  })();
+const axeSource = readFileSync(axePath, "utf8");
 
 function findBun() {
   if (process.env.UNTANGLE_BUN) return process.env.UNTANGLE_BUN;
@@ -301,7 +310,7 @@ async function runViewport(context, name) {
     if (index < total) {
       const before = await readCount();
       await strip.getByRole("button", { name: "Next" }).click();
-      await page
+      const advanced = await page
         .waitForFunction(
           (prev) => {
             const text = (document.querySelector('[data-part="count"]')?.textContent ?? "").trim();
@@ -310,10 +319,24 @@ async function runViewport(context, name) {
           before,
           { timeout: 5000 },
         )
-        .catch(() => {});
+        .then(() => true)
+        .catch(() => false);
+      if (!advanced) {
+        throw new Error(`the option strip never left "${before}" after Next; auditing would relabel the same option`);
+      }
     }
   }
-  for (const { index, fridayEvents, conflicts } of optionChecks) {
+  for (const [position, { index, fridayEvents, conflicts, week }] of optionChecks.entries()) {
+    if (position > 0) {
+      // a transition that never swapped the grid would relabel option i as
+      // option i+1; the engine's diversity contract makes identical rendered
+      // meetings across consecutive ranks impossible, so identical weeks fail
+      check(
+        `${name}: option ${index} renders different meetings than option ${index - 1}`,
+        JSON.stringify(week) !== JSON.stringify(optionChecks[position - 1].week),
+        "identical rendered meetings would mean the same option was audited twice",
+      );
+    }
     check(`${name}: option ${index} shows no Friday meetings`, fridayEvents === 0, `${fridayEvents} Friday events`);
     check(`${name}: option ${index} shows no conflicts`, conflicts === 0, `${conflicts} conflict-marked events`);
   }
