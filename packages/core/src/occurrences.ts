@@ -11,6 +11,8 @@
  * whether two things overlap.
  */
 
+import { DAY_MS, OccurrenceZone, dateMs, instantMs, isoDate } from "./occurrence-time";
+
 /** A calendar date, YYYY-MM-DD, read as a plain date in the campus time zone. */
 export type IsoDate = string;
 
@@ -115,10 +117,39 @@ export function meetingOccurrences(
   calendar: ClassCalendar,
   timeZone: string,
 ): MeetingOccurrence[] {
-  void meetings;
-  void calendar;
-  void timeZone;
-  throw new Error("Not built yet: docs/tasks/calendar-occurrences.md");
+  const zone = new OccurrenceZone(timeZone);
+  const session = dateBounds(calendar.first, calendar.last);
+  const noClass = calendar.noClass.map(({ begin, end }) => dateBounds(begin, end));
+  const weekdays: readonly ClassDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const pieces: MeetingOccurrence[] = [];
+
+  meetings.forEach((meeting, meetingIndex) => {
+    const ownFirst = meeting.dates.start === null ? session.first : dateMs(meeting.dates.start);
+    const ownLast = meeting.dates.end === null ? session.last : dateMs(meeting.dates.end);
+    if (meeting.dates.start !== null && meeting.dates.end !== null && ownLast < ownFirst) {
+      throw new RangeError(`Meeting ${meetingIndex} ends before its first date`);
+    }
+    const { day, startMinutes, endMinutes } = meeting;
+    if (meeting.async || day === null || startMinutes === null || endMinutes === null) return;
+    if (
+      !Number.isInteger(startMinutes) || !Number.isInteger(endMinutes) ||
+      startMinutes < 0 || endMinutes > 1440 || endMinutes <= startMinutes
+    ) {
+      throw new RangeError(`Meeting ${meetingIndex} needs an increasing minute range within 0 to 1440`);
+    }
+
+    const first = Math.max(session.first, ownFirst);
+    const last = Math.min(session.last, ownLast);
+    const weekday = weekdays.indexOf(day);
+    const firstMatch = first + ((weekday - new Date(first).getUTCDay() + 7) % 7) * DAY_MS;
+    for (let date = firstMatch; date <= last; date += 7 * DAY_MS) {
+      if (noClass.some(({ first, last }) => first <= date && date <= last)) continue;
+      const start = zone.resolve(date, startMinutes);
+      const end = zone.resolve(date, endMinutes);
+      pieces.push(...zone.split(start, end).map((piece) => ({ ...piece, meetingIndex })));
+    }
+  });
+  return pieces.sort((a, b) => a.start.localeCompare(b.start) || a.meetingIndex - b.meetingIndex);
 }
 
 /**
@@ -137,8 +168,44 @@ export function meetingOccurrences(
  * event isn't in `events`.
  */
 export function feedOccurrences(feed: ParsedFeed, range: DateRange, timeZone: string): FeedOccurrence[] {
-  void feed;
-  void range;
-  void timeZone;
-  throw new Error("Not built yet: docs/tasks/calendar-occurrences.md");
+  const zone = new OccurrenceZone(timeZone);
+  const bounds = dateBounds(range.first, range.last);
+  const windowStart = zone.resolve(bounds.first);
+  const windowEnd = zone.resolve(bounds.last + DAY_MS);
+  const events = new Map(feed.events.map((event) => [event.id, event]));
+  const pieces: FeedOccurrence[] = [];
+  for (const occurrence of feed.occurrences) {
+    const event = events.get(occurrence.eventId);
+    if (event === undefined) throw new RangeError(`Occurrence references missing event ${occurrence.eventId}`);
+    const start = instantMs(occurrence.start);
+    const end = instantMs(occurrence.end);
+    const flags = { eventId: event.id, allDay: event.isAllDay, busy: !event.transparent };
+    if (event.isAllDay) {
+      if (start % DAY_MS !== 0 || end % DAY_MS !== 0) {
+        throw new RangeError(`All-day event ${event.id} must name dates at UTC midnight`);
+      }
+      for (let date = Math.max(start, bounds.first); date < end && date <= bounds.last; date += DAY_MS) {
+        pieces.push({
+          date: isoDate(date),
+          startMinutes: 0,
+          endMinutes: 1440,
+          start: new Date(zone.resolve(date)).toISOString(),
+          end: new Date(zone.resolve(date + DAY_MS)).toISOString(),
+          ...flags,
+        });
+      }
+    } else {
+      const clippedStart = Math.max(start, windowStart);
+      const clippedEnd = Math.min(end, windowEnd);
+      pieces.push(...zone.split(clippedStart, clippedEnd).map((piece) => ({ ...piece, ...flags })));
+    }
+  }
+  return pieces.sort((a, b) => a.start.localeCompare(b.start) || a.eventId - b.eventId);
+}
+
+function dateBounds(firstDate: IsoDate, lastDate: IsoDate): { first: number; last: number } {
+  const first = dateMs(firstDate);
+  const last = dateMs(lastDate);
+  if (last < first) throw new RangeError(`Date range ends before it starts: ${firstDate} to ${lastDate}`);
+  return { first, last };
 }
