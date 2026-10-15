@@ -1,5 +1,5 @@
 import { DeviceClient } from "./lib/device-client";
-import type { DeviceAuth } from "./lib/worker-controller";
+import type { DeviceAuth, SessionStore } from "./lib/worker-controller";
 import type { LocalStore } from "./lib/outbox";
 import { PlannerClient } from "./lib/planner-client";
 import { WorkerController } from "./lib/worker-controller";
@@ -10,23 +10,21 @@ const store: LocalStore = {
   remove: async (key) => { await chrome.storage.local.remove(key); },
   all: () => chrome.storage.local.get(null),
 };
-// A connected port means a trusted panel is open. When the panel closes, its
-// port disconnects and the sign-in poll stops with it.
-const panelPorts = new Set<chrome.runtime.Port>();
-chrome.runtime.onConnect.addListener(port => {
-  if (port.name !== "panel")
-    return;
-  panelPorts.add(port);
-  port.onDisconnect.addListener(() => panelPorts.delete(port));
-});
+// The pending sign-in holds a PKCE verifier. Session storage keeps it in
+// memory only, and content scripts can't read it at its default access level.
+const signIns: SessionStore = {
+  get: async (key) => (await chrome.storage.session.get(key))[key],
+  set: async (key, value) => { await chrome.storage.session.set({ [key]: value }); },
+  remove: async (key) => { await chrome.storage.session.remove(key); },
+};
 const devices = new DeviceClient(fetch.bind(globalThis), {
   // The approval page opens as a normal browser tab, never a content script
   // and never an identity window: the student signs in where UNTangle lives.
   openTab: url => { void chrome.tabs.create({ url }); },
-  panelOpen: () => panelPorts.size > 0,
 });
 const auth: DeviceAuth = {
-  signIn: input => devices.signIn(input),
+  start: scheduleId => devices.start(scheduleId),
+  poll: (pending, current) => devices.poll(pending, current),
   refresh: refreshToken => devices.refresh(refreshToken),
   revoke: accessToken => devices.revoke(accessToken),
 };
@@ -36,7 +34,7 @@ async function refreshMarkers(): Promise<void> {
       await chrome.tabs.sendMessage(tab.id, { type: "markers/refresh" }).catch(() => { });
   }
 }
-const controller = new WorkerController(store, new PlannerClient(fetch.bind(globalThis)), auth, refreshMarkers);
+const controller = new WorkerController(store, signIns, new PlannerClient(fetch.bind(globalThis)), auth, refreshMarkers);
 const ready = (async () => {
   // Local storage is exposed to content scripts unless this is set. The stored
   // token pair stays visible to trusted extension contexts only.

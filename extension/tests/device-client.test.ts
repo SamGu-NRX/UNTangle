@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { deviceGrantStarted, deviceTokenResponse, startDeviceGrant } from "../../packages/contracts/src/device-grant";
-import { DeviceClient, GrantRevoked, SignInCancelled, SignInDenied, SignInExpired } from "../src/lib/device-client";
+import { DeviceClient, GrantRevoked, isPendingSignIn, SignInCancelled, SignInDenied, SignInExpired } from "../src/lib/device-client";
 import { isTokenResponse, type DeviceTokenResponse } from "../src/shared/extension-api";
 import { StudentError } from "../src/shared/student-error";
 import type { FetchLike } from "../src/lib/planner-client";
@@ -24,23 +24,23 @@ const tokens: DeviceTokenResponse = {
   grantId: "grant-1",
 };
 
-function makeClient(fetchImpl: FetchLike, panelOpen: () => boolean = () => true) {
+function makeClient(fetchImpl: FetchLike) {
   let now = 1_000_000;
   const opened: string[] = [];
   const waits: number[] = [];
   const client = new DeviceClient(fetchImpl, {
     openTab: url => opened.push(url),
-    panelOpen,
     // The injected delay advances the fake clock, so expiry tests stay instant.
     delay: async ms => { waits.push(ms); now += ms; },
     now: () => now,
   });
-  return { client, opened, waits };
+  // Start, then poll for as long as the sign-in stays the stored one.
+  const signIn = async (current: () => Promise<boolean> = async () => true) => client.poll(await client.start("main"), current);
+  return { client, opened, waits, signIn };
 }
 
 test("start follows the contract, opens the approval page with the user code, and exchanges with S256", async () => {
   let challenge = "";
-  const codes: string[] = [];
   const f = fakeFetch(async (index, request) => {
     expect(request.init?.credentials).toBe("omit");
     const body = JSON.parse(String(request.init?.body));
@@ -63,9 +63,11 @@ test("start follows the contract, opens the approval page with the user code, an
     return jsonResponse(tokens);
   });
   const h = makeClient(f.fetchImpl);
-  const result = await h.client.signIn({ scheduleId: "main", onUserCode: code => codes.push(code) });
-  expect(result).toEqual(tokens);
-  expect(codes).toEqual([started.userCode]);
+  const pending = await h.client.start("main");
+  // What the worker stores for a restart is exactly what it later polls.
+  expect(isPendingSignIn(structuredClone(pending))).toBe(true);
+  expect(pending).toMatchObject({ deviceCode: started.deviceCode, userCode: started.userCode, intervalMs: 5000, deadline: 1_000_000 + 600_000 });
+  expect(await h.client.poll(pending, async () => true)).toEqual(tokens);
   // The page is a normal tab on the server's own /device route, code in the query.
   expect(h.opened).toEqual(["http://127.0.0.1:3217/device?user_code=ABCD2345"]);
   expect(f.requests.map(r => new URL(r.url).pathname)).toEqual(["/api/v1/device/start", "/api/v1/device/token"]);
@@ -75,14 +77,14 @@ test("polling honours the server interval and backs off on slow_down", async () 
   // Request 0 is /device/start; the token polls follow.
   const f = fakeFetch(index => jsonResponse(index === 0 ? started : index === 1 ? { error: "authorization_pending" } : index === 2 ? { error: "slow_down" } : index === 3 ? { error: "authorization_pending" } : tokens, index > 0 && index < 4 ? 400 : 200));
   const h = makeClient(f.fetchImpl);
-  await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).resolves.toEqual(tokens);
+  await expect(h.signIn()).resolves.toEqual(tokens);
   expect(h.waits).toEqual([5000, 5000, 10000, 10000]);
 });
 
 test("a denied approval stops after one poll with the denied error", async () => {
   const f = fakeFetch(index => jsonResponse(index === 0 ? started : { error: "access_denied" }, index === 0 ? 200 : 400));
   const h = makeClient(f.fetchImpl);
-  await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInDenied);
+  await expect(h.signIn()).rejects.toBeInstanceOf(SignInDenied);
   expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(1);
 });
 
@@ -92,7 +94,7 @@ test("polling stops at the deadline even while the server says pending", async (
   const expiring = deviceGrantStarted.parse({ ...started, expiresIn: 3, interval: 1 });
   const f = fakeFetch(index => jsonResponse(index === 0 ? expiring : { error: "authorization_pending" }, index === 0 ? 200 : 400));
   const h = makeClient(f.fetchImpl);
-  await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInExpired);
+  await expect(h.signIn()).rejects.toBeInstanceOf(SignInExpired);
   // The final sleep lands on the deadline; no third token call happens.
   expect(h.waits).toEqual([1000, 1000, 1000]);
   expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(2);
@@ -106,20 +108,20 @@ test("a transport hiccup keeps polling until the deadline", async () => {
     throw new Error("offline");
   });
   const h = makeClient(f.fetchImpl);
-  await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInExpired);
+  await expect(h.signIn()).rejects.toBeInstanceOf(SignInExpired);
   expect(h.waits).toEqual([1000, 1000, 1000]);
   expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(2);
 });
 
-test("closing the trusted panel stops the poll", async () => {
-  let open = true;
+test("the poll stops once its sign-in is no longer the stored one", async () => {
+  let stored = true;
   const f = fakeFetch(index => {
     if (index === 1)
-      open = false; // The panel closes while the first poll is in flight.
+      stored = false; // The stored sign-in is cleared while the first poll is in flight.
     return jsonResponse(index === 0 ? started : { error: "authorization_pending" }, index === 0 ? 200 : 400);
   });
-  const h = makeClient(f.fetchImpl, () => open);
-  await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toBeInstanceOf(SignInCancelled);
+  const h = makeClient(f.fetchImpl);
+  await expect(h.signIn(async () => stored)).rejects.toBeInstanceOf(SignInCancelled);
   expect(f.requests.filter(r => new URL(r.url).pathname === "/api/v1/device/token")).toHaveLength(1);
 });
 
@@ -132,7 +134,7 @@ test("a malformed token payload never signs in", async () => {
   expect(isTokenResponse({ ...tokens, scopes: ["documents:read"] })).toBe(false);
   const f = fakeFetch(index => jsonResponse(index === 0 ? started : { ...tokens, accessToken: "short" }));
   const h = makeClient(f.fetchImpl);
-  await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toThrow("Invalid device grant response");
+  await expect(h.signIn()).rejects.toThrow("Invalid device grant response");
   expect(h.opened).toHaveLength(1); // The page opened, but no tokens were returned.
 });
 
@@ -140,7 +142,7 @@ test("an approval page on another origin or path is never opened", async () => {
   for (const verificationUri of ["https://evil.test/device", "http://127.0.0.1:3217/device/approve", "http://127.0.0.1:3217/"]) {
     const f = fakeFetch(() => jsonResponse(deviceGrantStarted.parse({ ...started, verificationUri })));
     const h = makeClient(f.fetchImpl);
-    await expect(h.client.signIn({ scheduleId: "main", onUserCode: () => { } })).rejects.toThrow("Untrusted verification URL");
+    await expect(h.signIn()).rejects.toThrow("Untrusted verification URL");
     expect(h.opened).toHaveLength(0);
     expect(f.requests).toHaveLength(1);
   }

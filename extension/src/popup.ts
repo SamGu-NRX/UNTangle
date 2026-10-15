@@ -24,7 +24,7 @@ html { background: var(--paper); }
 body { width: 380px; max-width: 100%; margin: 0 auto; color: var(--ink); background: var(--paper); font: 400 var(--text-body)/var(--lh-body) var(--font-ui); -webkit-font-smoothing: antialiased; }
 @media (min-width: 381px) and (max-width: 440px) { body { width: 100%; } }
 h1, h2, p { margin: 0; }
-.bar { display: flex; align-items: center; height: 48px; padding: 0 var(--s6); border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 var(--s6); border-bottom: 1px solid var(--line); }
 .wordmark { font: 800 18px/1 var(--font-mark); letter-spacing: -.01em; color: var(--brand); }
 main { padding: var(--s5) var(--s6) var(--s6); }
 .foot { position: sticky; bottom: 0; padding: var(--s4) var(--s6) var(--s5); background: var(--paper); border-top: 1px solid var(--line); }
@@ -65,6 +65,8 @@ h2 + .meta { margin-top: var(--s1); }
 .state h1 + .lead { margin-top: var(--s2); }
 .state p:not(.lead) { margin-top: var(--s2); color: var(--ink-2); }
 .state p.small { margin-top: var(--s3); font-size: var(--text-meta); line-height: var(--lh-meta); }
+.state p.note { color: var(--attention); }
+.state .note + .lead { margin-top: var(--s3); }
 .mark { display: block; width: 40px; height: 40px; margin-bottom: var(--s4); }
 .loading { display: flex; align-items: center; gap: var(--s2); color: var(--ink-2); }
 
@@ -72,9 +74,14 @@ h2 + .meta { margin-top: var(--s1); }
 .btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: 10px var(--s4); border: 0; border-radius: 10px; font: 600 15px/20px var(--font-ui); text-align: center; text-wrap: balance; cursor: pointer; user-select: none; touch-action: manipulation; transition: background-color 160ms ease, transform var(--t-press) var(--ease-out); }
 .btn--primary { color: var(--paper); background: var(--brand); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 1px 2px rgba(0, 40, 20, .28); }
 .btn--secondary { color: var(--ink); background: var(--paper); box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-1); }
+/* Sign out in the top bar: a quiet text action with a full 44px target, its
+   text aligned to the bar's right padding. */
+.btn--quiet { width: auto; margin-right: calc(-1 * var(--s3)); padding: 0 var(--s3); border-radius: var(--r-sm); font-weight: 500; font-size: var(--text-body); color: var(--ink-2); background: transparent; }
+/* The hidden busy label is wider; right-align so "Sign out" meets the edge. */
+.btn--quiet .btn__label { justify-content: flex-end; }
 .btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus); }
 .btn[data-pressed]:not([aria-busy=true]) { transform: scale(.97); }
-@media (hover: hover) and (pointer: fine) { .btn--primary:hover { background: var(--brand-2); } .btn--secondary:hover { background: var(--paper-2); } }
+@media (hover: hover) and (pointer: fine) { .btn--primary:hover { background: var(--brand-2); } .btn--secondary:hover, .btn--quiet:hover { background: var(--paper-2); } .btn--quiet:hover { color: var(--ink); } }
 .btn__stack { display: inline-grid; }
 .btn__label { grid-area: 1 / 1; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); }
 .btn__label--loading, .btn[data-loading] .btn__label:not(.btn__label--loading) { visibility: hidden; }
@@ -96,6 +103,8 @@ h2 + .meta { margin-top: var(--s1); }
 }`;
 document.head.append(style);
 
+const bar = document.querySelector<HTMLElement>(".bar")!;
+const wordmark = bar.querySelector(".wordmark")!;
 const view = document.querySelector<HTMLElement>("#view")!;
 const actions = document.querySelector<HTMLElement>("#actions")!;
 type Child = Node | string | null | false;
@@ -216,7 +225,7 @@ function result(kind: keyof typeof MARKS | null, title: string, ...body: Child[]
 function lead(kind: keyof typeof MARKS, text: string): Node[] {
   return [h("div", { class: "state" }, mark(kind), h("p", { class: "lead", id: "view-title", tabindex: "-1" }, text))];
 }
-function button(id: string, label: string, busyLabel: string, variant: "primary" | "secondary", run: (event: MouseEvent) => void): HTMLButtonElement {
+function button(id: string, label: string, busyLabel: string, variant: "primary" | "secondary" | "quiet", run: (event: MouseEvent) => void): HTMLButtonElement {
   // The name stays the visible label while busy; aria-busy says it's working.
   const element = h("button", { id, type: "button", class: `btn btn--${variant}`, "aria-label": label },
     h("span", { class: "btn__stack" }, h("span", { class: "btn__label" }, label), h("span", { class: "btn__label btn__label--loading", "aria-hidden": "true" }, h("span", { class: "spinner" }), busyLabel)));
@@ -237,31 +246,29 @@ function screen(): Screen {
     return { name: "loading", body: slow ? [h("p", { class: "loading", id: "view-title" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Checking Main")] : [], foot: [] };
   const next = state;
   const signIn = () => button("sign-in", "Sign in", "Signing in", "primary", () => void send({ type: "panel/sign-in" }, "sign-in"));
-  const signOut = () => button("sign-out", "Sign out", "Signing out", "secondary", () => void send({ type: "panel/sign-out" }, "sign-out"));
   const failure = next.outcome === "error" ? h("p", { class: "alert", role: "alert" }, next.notice) : null;
-  // A device sign-in holds the worker while the student approves in the
-  // UNTangle tab; the panel shows the code to match meanwhile.
+  // The worker polls a device sign-in until the student approves or the code
+  // expires; the panel only shows the code to match, and can close.
   if (next.userCode !== null)
     return { name: "signing-in", body: result(null, "Approve this browser in UNTangle",
       h("p", { class: "lead" }, "A UNTangle tab opened so you can sign in and approve this browser."),
-      h("p", { class: "small" }, "Check that this code matches the one shown in that tab before you approve."),
+      h("p", { class: "small" }, "Check that this code matches the one shown in that tab before you approve. This panel can close while you do."),
       h("p", { class: "code", id: "user-code" }, next.userCode)), foot: [] };
-  if (!next.signedIn && next.pending > 0) {
-    return { name: "needs-sign-in", body: result(null, confirmedTitle ? `Sign in to finish adding ${confirmedTitle}` : "Sign in to finish your add",
-      h("p", { class: "lead" }, "The add is saved in this browser. Once you sign in, UNTangle sends it to Main.")), foot: [failure, signIn()].filter(n => n !== null) };
-  }
   if (!next.signedIn) {
+    const n = next.discarded;
     return { name: "signed-out", body: result(null, "Sign in to check class search",
+      n > 0 ? h("p", { class: "note", role: "status" }, `Your sign-in ended before UNTangle confirmed ${n === 1 ? "1 add" : `${n} adds`}, so this browser discarded ${n === 1 ? "it" : "them"}. Check Main, and add ${n === 1 ? "it" : "them"} again if missing.`) : null,
       h("p", { class: "lead" }, "UNTangle opens a window where you sign in and approve this browser. Then every section in myUNT class search shows whether it fits Main."),
       h("p", { class: "small" }, "This browser can read Main and add the sections you confirm here. It can't change anything else in your account.")), foot: [failure, signIn()].filter(n => n !== null) };
   }
   if (next.pending > 0) {
     return { name: "waiting", body: result("waiting", confirmedTitle ? `${confirmedTitle} is waiting to sync` : "Waiting to sync",
-      h("p", { class: "lead" }, "The add is saved in this browser, and UNTangle hasn't confirmed it yet. Chrome sends it again when it restarts.")),
+      h("p", { class: "lead" }, "The add is saved in this browser, and UNTangle hasn't confirmed it yet. Chrome sends it again when it restarts."),
+      h("p", { class: "small" }, next.pending === 1 ? "Signing out discards this add." : `Signing out discards these ${next.pending} adds.`)),
     foot: [failure, button("retry", "Sync now", "Syncing", "primary", () => void send({ type: "panel/retry" }, "retry"))].filter(n => n !== null) };
   }
   if (next.outcome === "added" && !next.preview)
-    return { name: "added", body: result("added", confirmedTitle ? `Added ${confirmedTitle} to Main` : "Added to Main", h("p", { class: "lead" }, "Choose another section on class search to check it against Main.")), foot: [signOut()] };
+    return { name: "added", body: result("added", confirmedTitle ? `Added ${confirmedTitle} to Main` : "Added to Main", h("p", { class: "lead" }, "Choose another section on class search to check it against Main.")), foot: [] };
   if (next.outcome === "rejected" && !next.preview)
     return { name: "rejected", body: result("problem", `Couldn't add ${named}`, h("p", { class: "lead" }, "UNTangle didn't accept this add, and Main is unchanged. Choose another section on class search.")), foot: [] };
   if (next.preview) {
@@ -277,7 +284,7 @@ function screen(): Screen {
   }
   if (next.outcome === "error")
     return { name: "error", body: lead("problem", next.notice), foot: [button("reload", "Retry", "Loading", "secondary", () => void send({ type: "panel/status" }, "reload"))] };
-  return { name: "empty", body: result(null, "Choose a section on class search", h("p", { class: "lead" }, "Select the marker under any section in myUNT class search. Its check against Main opens here.")), foot: [signOut()] };
+  return { name: "empty", body: result(null, "Choose a section on class search", h("p", { class: "lead" }, "Select the marker under any section in myUNT class search. Its check against Main opens here.")), foot: [] };
 }
 
 function render(): void {
@@ -287,6 +294,9 @@ function render(): void {
   view.setAttribute("aria-busy", String(next.name === "loading"));
   view.replaceChildren(...next.body);
   actions.replaceChildren(...next.foot);
+  // Sign out sits in the top bar on every signed-in screen.
+  const signedIn = !unreachable && state?.signedIn === true;
+  bar.replaceChildren(wordmark, ...signedIn ? [button("sign-out", "Sign out", "Signing out", "quiet", () => void send({ type: "panel/sign-out" }, "sign-out"))] : []);
   if (next.name === "added" && enterAdded)
     view.querySelector(".state")?.setAttribute("data-enter", "");
   enterAdded = false;
@@ -304,7 +314,7 @@ let spinnerTimer: ReturnType<typeof setTimeout> | undefined;
 function setBusy(id: string | null): void {
   busy = id;
   clearTimeout(spinnerTimer);
-  for (const element of actions.querySelectorAll<HTMLButtonElement>("button")) {
+  for (const element of document.querySelectorAll<HTMLButtonElement>("button")) {
     element.setAttribute("aria-busy", String(element.id === id));
     element.removeAttribute("data-loading");
   }
@@ -313,12 +323,6 @@ function setBusy(id: string | null): void {
 }
 async function send(message: object, from?: string): Promise<void> {
   setBusy(from ?? null);
-  // A device sign-in holds the worker until the student approves in the
-  // UNTangle tab, so this request's own reply lands only after approval.
-  // A parallel status poll draws the matching code while the worker is busy;
-  // it stops on its own once a reply reports the worker is no longer working.
-  if ((message as { type?: string }).type === "panel/sign-in")
-    setTimeout(() => void send({ type: "panel/status" }), 300);
   try {
     const next: unknown = await chrome.runtime.sendMessage(message);
     if (!next || typeof next !== "object" || typeof (next as PanelState).signedIn !== "boolean")
@@ -327,16 +331,14 @@ async function send(message: object, from?: string): Promise<void> {
     const reply = next as PanelState;
     unreachable = false;
     if (reply.working) {
-      // Another request holds the worker; keep asking. A sign-in in flight
-      // draws its matching code while it waits.
-      if (reply.userCode !== null) {
-        state = reply;
-        render();
-      }
+      // Another request holds the worker; keep asking.
       setTimeout(() => void send({ type: "panel/status" }), 300);
       return;
     }
     state = reply;
+    // While a sign-in is in flight, ask again until it ends.
+    if (reply.userCode !== null)
+      setTimeout(() => void send({ type: "panel/status" }), 1000);
   }
   catch {
     unreachable = true;
@@ -352,7 +354,4 @@ setTimeout(() => {
   if (!state && !unreachable)
     render();
 }, 400);
-// The panel's port tells the worker a trusted panel is open; when the panel
-// closes, the port disconnects and a running sign-in poll stops with it.
-chrome.runtime.connect({ name: "panel" });
 void send({ type: "panel/status" });

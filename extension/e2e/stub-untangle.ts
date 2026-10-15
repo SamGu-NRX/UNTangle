@@ -13,6 +13,8 @@ let commandDelayMs = 0;
 let nextCommand: "reject" | "unauthorized" | null = null;
 // Seconds an issued access token lives; null restores the real 5 minutes.
 let accessExpiresInSeconds: number | null = null;
+// When set, the /device page waits for its Approve button instead of approving on load.
+let holdApproval = false;
 const receipts = new Map<string, {
   body: string;
   reply: AddReply;
@@ -28,6 +30,8 @@ const requests: {
 // stored secrets, statuses move pending to approved to active (or denied).
 const base = "http://127.0.0.1:3217";
 type GrantState = {
+  /** Like the server's grant.id: one per sign-in, kept across refreshes. */
+  id: string;
   deviceCode: string;
   userCode: string;
   codeChallenge: string;
@@ -52,7 +56,7 @@ async function issue(grant: GrantState): Promise<unknown> {
     tokenType: "Bearer",
     expiresIn: accessExpiresInSeconds ?? 300,
     scopes: ["schedule:read", "schedule:add-option"],
-    grantId: "fixture-grant",
+    grantId: grant.id,
   });
 }
 const findAccess = (token: string) => [...grants.values()].flatMap(grant => grant.access.map(entry => ({ grant, entry }))).find(({ entry, grant }) => entry.token === token && entry.expiresAt > Date.now() && grant.status === "active");
@@ -119,7 +123,9 @@ Bun.serve({
         accessExpiresInSeconds = body.accessExpiresInSeconds;
       if (body.accessExpiresInSeconds === null)
         accessExpiresInSeconds = null;
-      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand, accessExpiresInSeconds });
+      if (typeof body.holdApproval === "boolean")
+        holdApproval = body.holdApproval;
+      return json({ failPreviewFor, previewDelayMs, commandDelayMs, nextCommand, accessExpiresInSeconds, holdApproval });
     }
     requests.push({ path, cookie: request.headers.has("cookie"), bearer: request.headers.get("authorization")?.startsWith("Bearer ") === true });
     if (request.headers.has("cookie"))
@@ -130,7 +136,7 @@ Bun.serve({
       if (!parsed.success)
         return json({ error: "invalid_request" }, 400);
       const grant: GrantState = {
-        deviceCode: opaque(), userCode: base32(), codeChallenge: parsed.data.codeChallenge, verifier: null,
+        id: crypto.randomUUID(), deviceCode: opaque(), userCode: base32(), codeChallenge: parsed.data.codeChallenge, verifier: null,
         scheduleId: parsed.data.clientKind === "extension" ? parsed.data.scheduleId : "",
         status: "pending", codeExpiresAt: Date.now() + 600_000, refresh: null, access: [],
       };
@@ -203,16 +209,19 @@ Bun.serve({
       found.grant.status = "revoked";
       return json({ revoked: true });
     }
-    // The stub's /device page: a signed-in student who approves at once. The
-    // page reads the code from its own URL, like the real approval page does.
+    // The stub's /device page: a signed-in student who approves at once, or
+    // on the Approve button while holdApproval is set. The page reads the code
+    // from its own URL, like the real approval page does.
     if (path === "/device") {
-      return new Response(`<!doctype html><meta charset="utf-8"><title>Connect a device</title><p id="result">Working</p><script>
+      return new Response(`<!doctype html><meta charset="utf-8"><title>Connect a device</title><p id="result">Working</p><button id="approve" type="button">Approve</button><script>
         const userCode = new URLSearchParams(location.search).get("user_code");
-        fetch("/api/v1/device/approve", { method: "POST", credentials: "same-origin",
+        const approve = () => fetch("/api/v1/device/approve", { method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json", "X-UNTangle-Device": "1" },
           body: JSON.stringify({ userCode, expectedUserId: "fixture-account", decision: "approve" }) })
           .then(response => document.getElementById("result").textContent = response.ok ? "Approved. You can close this tab." : "Couldn't approve (HTTP " + response.status + ")")
           .catch(() => document.getElementById("result").textContent = "Couldn't reach the server");
+        document.getElementById("approve").addEventListener("click", approve);
+        if (!${holdApproval}) approve();
       </script>`, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     }
     const match = path.match(/^\/api\/v1\/extension\/preview\/spring-2027\/(\d{4,5})$/);
