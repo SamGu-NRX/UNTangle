@@ -150,25 +150,25 @@ function termDates(rng: Rng): OptDateRange | null {
 export function generateInstance(seed: number, shape: InstanceShape): OptimizeRequest {
   const rng = mulberry32(seed);
   const building = () => (chance(rng, 0.1) ? pick(rng, UNKNOWN_BUILDINGS) : pick(rng, KNOWN_BUILDINGS));
-  // Instructor evidence, in whole hundredths 0 to 400; null marks a section
-  // with no accepted evidence, and the omit rule then leaves the whole
-  // course out of the tie-break tier. Drawn per course as the shape doc
-  // says: about half the courses fully evidenced, a quarter partial, a
-  // quarter with none. Off shapes draw nothing, so their instances stay
-  // byte-identical to the no-evidence generator.
-  const evidenceRoll = shape.evidence ? rng() : -1;
-  const gpa = (): number | null | undefined =>
-    evidenceRoll < 0
-      ? undefined
-      : evidenceRoll < 0.5
-        ? 100 + int(rng, 0, 300)
-        : evidenceRoll < 0.75
-          ? chance(rng, 0.5)
-            ? null
-            : 100 + int(rng, 0, 300)
-          : null;
   const courses: OptCourse[] = [];
   for (let c = 0; c < shape.courses; c += 1) {
+    // Instructor evidence, in whole hundredths 0 to 400; null marks a section
+    // with no accepted evidence, and the omit rule then leaves the whole
+    // course out of the tie-break tier. The tier roll happens per course as
+    // the shape doc says: about half the courses fully evidenced, a quarter
+    // partial, a quarter with none. Off shapes draw nothing, so their
+    // instances stay byte-identical to the no-evidence generator.
+    const evidenceRoll = shape.evidence ? rng() : -1;
+    const gpa = (): number | null | undefined =>
+      evidenceRoll < 0
+        ? undefined
+        : evidenceRoll < 0.5
+          ? int(rng, 0, 400)
+          : evidenceRoll < 0.75
+            ? chance(rng, 0.5)
+              ? null
+              : int(rng, 0, 400)
+            : null;
     const code = `GEN ${1000 + c * 10 + int(rng, 0, 9)}`;
     const count = Array.isArray(shape.sectionsPerCourse)
       ? int(rng, shape.sectionsPerCourse[0], shape.sectionsPerCourse[1])
