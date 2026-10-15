@@ -71,6 +71,13 @@
       "when": 1791925029109,
       "tag": "0009_revoke_unverified_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792045025695,
+      "tag": "0010_document_sync",
+      "breakpoints": true
     }
   ]
 }
