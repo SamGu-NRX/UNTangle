@@ -180,7 +180,7 @@ Surface:
 - `map/{route,resolve}`;
 - `catalog/{institution}/manifest`;
 - `calendar-feeds/preview`;
-- `devices/{authorize,token,revoke}`;
+- `device/{start,approve,inspect,token,refresh,revoke}`;
 - `account` (export, delete).
 
 ## Sign-in for each client
@@ -213,10 +213,12 @@ Each grant records the account's security generation, and any mismatch ends the 
 
 better-auth's own session revocation doesn't touch grants, so this wiring is a release gate.
 
+A grant hands out an access token and a refresh token that lasts as long as the grant. Each refresh returns a new pair and marks the old refresh token used. Presenting a used refresh token revokes the whole grant, so every token from that grant stops working; a stolen refresh token and its legitimate copy can't both stay alive.
+
 These lifetimes are starting values, with nothing measured behind them:
-- mobile: 7 days idle, 30 days absolute;
-- extension: 30 days absolute, since its access is read-mostly and students shouldn't need an email code daily during registration week;
-- no refresh tokens in v1.
+- access token: 5 minutes, never past the grant's own expiry;
+- mobile: 7 days idle, 30 days absolute. Each refresh restarts the idle clock, capped at the absolute expiry;
+- extension: 30 days absolute and no idle limit, since its access is read-mostly and students shouldn't need an email code daily during registration week.
 
 CORS:
 - Device calls carry `Authorization` and omit credentials. A request with both a device token and an account cookie is rejected.

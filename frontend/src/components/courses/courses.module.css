@@ -1,43 +1,10 @@
 /*
- * Courses view. Every color, curve and shadow reads the v2 token names from
- * docs/design/untangle-v2/DESIGN.md §3 with that document's value as the
- * fallback, so this works before the foundation tokens land in globals.css
- * and follows them after. Components use the local --c-* names only.
+ * Courses (docs/design/untangle-v3-opus/02-courses.html, after the
+ * simplification rules): a 720px column with the degree line, the term tray
+ * (the only surface), then the groups as rows on the page with hairlines.
+ * Motion follows MOTION.md: colors on hover, transforms for every move
+ * (reveal.ts), nothing on keyboard actions.
  */
-.tokens {
-  --c-bg: var(--bg, #f4f6f4);
-  --c-surface: var(--surface, #ffffff);
-  --c-surface-2: var(--surface-2, #eef2ee);
-  --c-surface-3: var(--surface-3, #e6ece6);
-  --c-line: var(--line, #dde8dd);
-  --c-line-strong: var(--line-strong, #c3d2c3);
-  --c-ink: var(--ink, #1a2e1a);
-  --c-ink-2: var(--ink-2, #586e58);
-  --c-ink-3: var(--ink-3, #6b826b);
-  --c-ink-4: var(--ink-4, #93a593);
-  --c-brand: var(--brand, #00512b);
-  --c-brand-hover: var(--brand-hover, #007a40);
-  --c-brand-soft: var(--brand-soft, #e4f0e8);
-  --c-accent: var(--accent, #00a855);
-  --c-danger: var(--danger, #b3261e);
-  --c-danger-soft: var(--danger-soft, #fbeae8);
-  --c-overlay: var(--overlay, rgba(26, 46, 26, 0.32));
-  --c-shadow-1: var(--shadow-1, 0 1px 2px rgba(26, 46, 26, 0.06));
-  --c-shadow-2: var(--shadow-2, 0 4px 12px rgba(26, 46, 26, 0.08), 0 1px 2px rgba(26, 46, 26, 0.06));
-  --c-shadow-3: var(--shadow-3, 0 16px 40px rgba(26, 46, 26, 0.14), 0 2px 6px rgba(26, 46, 26, 0.08));
-  --c-ease-out: var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
-  --c-ease-sheet: var(--ease-sheet, cubic-bezier(0.32, 0.72, 0, 1));
-  --c-focus: var(--focus, 0 0 0 2px #ffffff, 0 0 0 4px #00a855);
-  --c-display: var(--font-display, "Syne", sans-serif);
-  --c-body: var(--font-body), system-ui, sans-serif;
-
-  font-family: var(--c-body);
-  color: var(--c-ink);
-  font-size: 14px;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-  -webkit-tap-highlight-color: transparent;
-}
 
 .srOnly {
   position: absolute;
@@ -51,896 +18,1126 @@
   border: 0;
 }
 
-/* ---------- primitives ---------- */
-
-.link {
-  appearance: none;
-  border: 0;
-  padding: 0;
-  background: none;
-  font: inherit;
-  font-weight: 600;
-  color: var(--c-brand);
-  text-decoration: none;
-  cursor: pointer;
-  border-radius: 4px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .link:hover {
-    text-decoration: underline;
-  }
-}
-.link:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
-}
-
-.ext {
-  font-size: 11px;
-  color: var(--c-ink-3);
-  margin-left: 1px;
+.page {
+  width: 100%;
+  max-width: calc(720px + 48px);
+  margin: 0 auto;
+  padding: 28px 24px 96px;
 }
 
 .meta {
-  font-size: 12.5px;
-  line-height: 18px;
-  color: var(--c-ink-2);
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
 }
 
-.code {
-  font: 700 13px/1 var(--c-display);
-  letter-spacing: 0.01em;
-  color: var(--c-ink);
-  white-space: nowrap;
-}
+/* ───────── Degree line ───────── */
 
-.spacer {
-  flex: 1;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ---------- status glyph ---------- */
-
-.glyph {
-  position: relative;
-  display: inline-block;
-  flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-}
-.glyph[data-status="done"] {
-  background: var(--c-ink-3);
-}
-.glyph[data-status="done"]::after,
-.glyph[data-status="covered"]::after {
-  content: "";
-  position: absolute;
-  left: 5.5px;
-  top: 2.5px;
-  width: 3.5px;
-  height: 7.5px;
-  border: solid #ffffff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.glyph[data-status="covered"] {
-  border: 1.5px solid var(--c-ink-3);
-}
-.glyph[data-status="covered"]::after {
-  left: 4px;
-  top: 1px;
-  border-color: var(--c-ink-3);
-}
-.glyph[data-status="taking"] {
-  border: 1.5px solid var(--c-accent);
-  background: linear-gradient(90deg, var(--c-accent) 50%, transparent 50%);
-}
-.glyph[data-status="planned"] {
-  background: var(--c-brand);
-}
-.glyph[data-status="available"] {
-  border: 1.5px solid var(--c-ink-4);
-}
-.glyph[data-status="locked"] {
-  border: 1.5px dotted var(--c-ink-4);
-}
-.glyph[data-status="check"] {
-  border: 1.5px dotted var(--c-ink-4);
-}
-.glyph[data-status="check"]::after {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: var(--c-ink-4);
-}
-
-/* ---------- view header ---------- */
-
-.root {
-  position: relative;
-}
-
-.viewhead {
+.degree {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 44px;
-  padding: 0 0 12px;
-  border-bottom: 1px solid var(--c-line);
+  margin: 0 4px 20px;
 }
-.headMeta {
-  display: flex;
+.degreeButton {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  height: 36px;
+  margin-left: -10px;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: var(--ink);
+  font: 650 15px/1 var(--font-ui);
+  transition: background-color var(--t-hover) ease;
+}
+.degreeButton svg {
+  color: var(--ink-3);
 }
 .progress {
-  width: 120px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--c-surface-3);
-  overflow: hidden;
-}
-.progress > i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--c-brand);
-  transform-origin: left center;
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
-.phoneHead {
+.phoneSearch {
   display: none;
 }
 
-/* The major picker is the view title: ui/Select's trigger without the field chrome, sized to its text. */
-.majorPicker {
-  flex: none;
-}
-.majorPicker :global(.ui-select__trigger) {
-  width: auto;
-  height: 36px;
-  min-width: 0;
-  padding: 0 8px 0 10px;
-  margin-left: -10px;
-  border-color: transparent;
-  background: transparent;
-  font: 600 15px/22px var(--c-body);
-  color: var(--c-ink);
-}
-.majorPicker :global(.ui-select__value--placeholder) {
-  color: var(--c-brand);
-}
-.majorPicker :global(.ui-select__trigger[aria-expanded="true"]) {
-  border-color: var(--c-line-strong);
-  background: var(--c-surface);
-}
-@media (hover: hover) and (pointer: fine) {
-  .majorPicker :global(.ui-select__trigger:hover) {
-    background: var(--c-surface-2);
-  }
-}
-.instructorPicker {
-  width: min(200px, 48%);
-}
-.loading {
-  display: grid;
-  place-items: center;
-  padding: 64px;
-  color: var(--c-ink-3);
-}
-.loading .spinner {
-  width: 20px;
-  height: 20px;
-}
-.unknownCourse {
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-  cursor: help;
-}
+/* ───────── Term tray ───────── */
 
-/* ---------- auto control + note ---------- */
-
-.spark {
-  font-size: 14px;
-  line-height: 1;
+.tray {
+  padding: 4px 0 8px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
 }
-
-.autonote {
+.trayHead {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 36px;
-  margin-top: 12px;
-  padding: 8px 8px 8px 12px;
-  border-radius: 8px;
-  background: var(--c-brand-soft);
-  font-size: 13px;
-  line-height: 18px;
+  padding: 14px 20px 10px;
 }
-.autonote .spark {
-  color: var(--c-brand);
-}
-.autonoteText {
-  min-width: 0;
-}
-
-/* ---------- body: list + panel ---------- */
-
-.body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-}
-.root[data-panel="open"] .body {
-  grid-template-columns: minmax(0, 1fr) var(--panel-w, 520px);
-  column-gap: 24px;
-}
-.list {
-  width: 100%;
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 12px 0 48px;
-}
-.root[data-panel="open"] .list {
+.trayTitle {
   margin: 0;
+  font: 650 20px/26px var(--font-ui);
+  letter-spacing: -0.012em;
 }
-/* Beside the panel the list is ~800px; give the title the room and let long meta ellipsize. */
-.root[data-panel="open"] .row {
-  grid-template-columns: 16px 92px minmax(0, 1fr) 36px 168px 72px;
+.trayMeta {
+  margin: 1px 0 0;
+  font-size: var(--text-meta);
+  line-height: var(--lh-meta);
+  color: var(--ink-2);
 }
-
-.group {
-  margin-top: 12px;
+.trayMeta[data-tone="attention"] {
+  color: var(--attention);
 }
-.groupHeadRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.groupHeading {
+/* The title takes the free space, so Auto stays at the right edge whether or not ⋯ shows beside it. */
+.trayHeading {
   flex: 1;
   min-width: 0;
+}
+.result {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -4px 20px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+}
+.trayRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.trayRows .row {
+  margin: 0 8px;
+}
+.trayFoot {
+  display: flex;
+  padding: 4px 12px 0 10px;
+}
+.weekLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  color: var(--brand-2);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color var(--t-hover) ease;
+}
+.weekLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.trayEmpty {
+  display: grid;
+  gap: 10px;
+  padding: 2px 20px 14px;
+}
+.trayEmpty p {
+  margin: 0;
+  text-wrap: pretty;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.ghosts {
+  display: grid;
+  gap: 6px;
+}
+.ghosts i {
+  display: block;
+  height: 36px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 10px;
+}
+
+/* ───────── Groups ───────── */
+
+.group {
+  margin-top: 24px;
+}
+.groupHeading {
   margin: 0;
 }
 .groupHead {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  height: 36px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--c-ink-2);
-  font: inherit;
+  min-height: 44px;
+  /* Text starts where the rows' glyphs start; the chevron centers on the rows' +/− column. */
+  padding: 0 16px 0 12px;
+  border-radius: 10px;
+  color: var(--ink);
+  font: 650 15px/1 var(--font-ui);
   text-align: left;
-  cursor: pointer;
-  user-select: none;
+  transition: background-color var(--t-hover) ease;
 }
 .groupHead:focus-visible {
   outline: none;
-  box-shadow: var(--c-focus);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
 }
 .chev {
-  flex: none;
-  color: var(--c-ink-3);
-  transition: transform 160ms var(--c-ease-out);
+  margin-left: auto;
+  color: var(--ink-3);
 }
-.groupHead[aria-expanded="false"] .chev {
+/* Opens and closes at once: no height animation (MOTION.md §7). */
+.group[data-open="false"] .chev {
   transform: rotate(-90deg);
 }
-.gname {
-  font: 600 11px/16px var(--c-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--c-ink-2);
+.sub {
+  margin: 0;
+  padding: 14px 0 4px 42px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
 }
 .rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--c-line);
+}
+.more {
+  display: block;
+  width: 100%;
+  height: 40px;
+  margin-top: 2px;
+  padding-left: 42px;
   border-radius: 10px;
-  background: var(--c-surface);
-  overflow: hidden;
+  color: var(--brand-2);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: background-color var(--t-hover) ease;
+}
+.more:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+/* ───────── Course row ───────── */
+
+/*
+ * The detail button stretches over the row with ::after; the action sits
+ * beside it, above that layer. Rows sit on the page with a hairline between.
+ */
 .row {
   position: relative;
   display: grid;
-  /* Fixed credit and meta tracks keep those columns aligned from row to row. */
-  grid-template-columns: 16px 92px minmax(0, 1fr) 36px 220px 72px;
+  grid-template-columns: minmax(0, 1fr) 36px;
   align-items: center;
-  column-gap: 14px;
-  height: 44px;
-  padding: 0 12px 0 14px;
-  border-top: 1px solid var(--c-line);
-  transition: background-color 160ms ease;
+  min-height: 48px;
+  padding: 0 6px 0 12px;
+  border-radius: 10px;
+  list-style: none;
+  transition: background-color var(--t-hover) ease;
 }
-.row:first-child {
-  border-top: 0;
-}
-.row[data-selected="true"] {
-  background: var(--c-brand-soft);
-  box-shadow: inset 2px 0 0 var(--c-brand);
+.row + .row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 42px;
+  right: 8px;
+  height: 1px;
+  background: var(--line);
 }
 .rowOpen {
-  grid-column: 1 / 5;
   display: grid;
-  grid-template-columns: subgrid;
+  grid-template-columns: 18px 88px minmax(0, 1fr) auto;
   align-items: center;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
+  gap: 12px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 12px 0 0;
+  color: var(--ink);
   text-align: left;
-  cursor: pointer;
-  touch-action: manipulation;
 }
 .rowOpen::after {
   content: "";
   position: absolute;
   inset: 0;
+  border-radius: 10px;
 }
 .rowOpen:focus-visible {
   outline: none;
 }
 .rowOpen:focus-visible::after {
-  border-radius: 9px;
-  box-shadow: inset 0 0 0 2px var(--c-accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
-.rowTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.lead {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
 }
-.row[data-status="locked"] .rowTitle,
-.row[data-status="covered"] .rowTitle {
-  color: var(--c-ink-2);
-}
-.rowCredits {
-  font-size: 12.5px;
-  color: var(--c-ink-2);
-  white-space: nowrap;
-}
-.rowMeta {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12.5px;
-  color: var(--c-ink-2);
-  text-align: right;
-  pointer-events: none;
-}
-.rowMeta a {
-  pointer-events: auto;
-}
-.rowStatus {
-  position: relative;
-  z-index: 1;
-  justify-self: end;
-  font-size: 12.5px;
-  color: var(--c-ink-2);
-  white-space: nowrap;
-  pointer-events: none;
-}
-.overrideMark {
-  pointer-events: auto;
-  appearance: none;
-  border: 0;
-  padding: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-  cursor: pointer;
+.dot {
+  width: 12px;
+  height: 12px;
   border-radius: 4px;
+  background: var(--ink-4);
 }
-.overrideMark:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
+.dot[data-hue="1"] { background: var(--c1); }
+.dot[data-hue="2"] { background: var(--c2); }
+.dot[data-hue="3"] { background: var(--c3); }
+.dot[data-hue="4"] { background: var(--c4); }
+.dot[data-hue="5"] { background: var(--c5); }
+.dot[data-hue="6"] { background: var(--c6); }
+/* Course codes in DM Sans 600: Syne is for the wordmark only (Sam, Oct 14). */
+.code {
+  font: 600 13px/1 var(--font-ui);
+  white-space: nowrap;
 }
-.rowAction {
+.title {
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row:is([data-status="locked"], [data-status="done"], [data-status="covered"]) .title {
+  color: var(--ink-2);
+}
+.fact {
+  font-size: 13px;
+  color: var(--ink-2);
+  text-align: right;
+  white-space: nowrap;
+}
+.fact[data-tone="attention"] {
+  color: var(--attention);
+}
+.act {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--brand-2);
+  transition: background-color var(--t-hover) ease;
+}
+.act::after {
+  content: "";
   position: absolute;
-  z-index: 2;
-  right: 92px;
-  top: 6px;
-  opacity: 0;
-  pointer-events: none;
+  inset: -6px;
 }
-.row:focus-within .rowAction {
-  opacity: 1;
-  pointer-events: auto;
+.act:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
-.row:focus-within .rowMeta[data-hideable="true"] {
+/* Square on the left so the 3px bar stays straight instead of curling round the corner. */
+.row[data-selected] {
+  border-radius: 0 10px 10px 0;
+  background: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.row[data-selected] .rowOpen::after {
+  border-radius: 0 10px 10px 0;
+}
+/* Auto's picks tint before they leave for the tray (MOTION.md §8, 120ms). */
+.row[data-chosen] {
+  background: var(--brand-soft);
+  transition-duration: 120ms;
+}
+/* A tray row whose flight has not landed holds its place unseen. */
+.row[data-pending] {
   visibility: hidden;
 }
+/* A row moving between the tray and its group passes over the rows on its way. */
+.row[data-lifted] {
+  z-index: 3;
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
+}
+.row[data-flyer] {
+  z-index: 50;
+  pointer-events: none;
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
+  will-change: transform;
+}
+.row[data-flyer]::before {
+  display: none;
+}
+
 @media (hover: hover) and (pointer: fine) {
+  .degreeButton:hover,
+  .groupHead:hover,
+  .more:hover,
+  .weekLink:hover {
+    background: rgba(26, 46, 26, 0.05);
+  }
   .row:hover {
-    background: var(--c-surface-2);
+    background: rgba(26, 46, 26, 0.04);
   }
-  .row[data-selected="true"]:hover {
-    background: var(--c-brand-soft);
+  .trayRows .row:hover {
+    background: var(--paper-2);
   }
-  .row:hover .rowAction {
-    opacity: 1;
-    pointer-events: auto;
+  .row[data-selected]:hover {
+    background: var(--brand-soft);
   }
-  .row:hover .rowMeta[data-hideable="true"] {
-    visibility: hidden;
+  .act:hover {
+    background: var(--brand-soft);
+  }
+}
+/* 44px targets on a coarse pointer, without moving anything. */
+@media (pointer: coarse) {
+  .act::after {
+    inset: -8px;
+  }
+  .degreeButton,
+  .textButton {
+    position: relative;
+  }
+  .degreeButton::after,
+  .textButton::after {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+  }
+  .weekLink,
+  .more {
+    min-height: 44px;
   }
 }
 
-.emptyList {
-  padding: 32px 12px;
-  color: var(--c-ink-2);
-  text-align: center;
-}
+/* ───────── Degree dialog ───────── */
 
-/* ---------- empty state ---------- */
-
-.empty {
-  width: min(480px, 100%);
-  margin: 72px auto 0;
-  padding: 20px;
-  border: 1px solid var(--c-line);
-  border-radius: 14px;
-  background: var(--c-surface);
+.majorSearch {
+  margin-bottom: 12px;
 }
-.emptyTitle {
-  margin: 0 0 12px;
-  font: 600 15px/22px var(--c-body);
+.majorList {
+  max-height: 300px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-.emptyOption {
+.majorRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
-  min-height: 56px;
-  margin-top: 8px;
-  padding: 8px 14px;
-  border: 1px solid var(--c-line);
+  min-height: 48px;
+  padding: 0 12px;
   border-radius: 10px;
-  background: var(--c-surface);
-  color: var(--c-ink);
-  font: inherit;
+  color: var(--ink);
+  font-size: 15px;
   text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    transform 120ms var(--c-ease-out),
-    background-color 160ms ease;
+  transition: background-color var(--t-hover) ease;
 }
-.emptyOption:active {
-  transform: scale(0.97);
-}
-.emptyOption:focus-visible {
-  outline: none;
-  box-shadow: var(--c-focus);
-}
-.emptyOption[data-primary="true"] {
-  border-color: transparent;
-  background: var(--c-brand-soft);
-}
-.emptyOption strong,
-.emptyOption .meta {
-  display: block;
-}
-.emptyOption strong {
+.majorRow[aria-pressed="true"] {
+  background: var(--brand-soft);
+  color: var(--brand);
   font-weight: 600;
 }
+.majorRow:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
 @media (hover: hover) and (pointer: fine) {
-  .emptyOption:hover {
-    background: var(--c-surface-2);
-  }
-  .emptyOption[data-primary="true"]:hover {
-    background: #d9eadf;
+  .majorRow:not([aria-pressed="true"]):hover {
+    background: var(--paper-2);
   }
 }
-
-/* ---------- detail panel ---------- */
-
-/* The shell publishes its top bar height as --shell-top-h; the panel sticks just under it. */
-.panelCol {
-  position: sticky;
-  top: var(--shell-top-h, 57px);
-  align-self: start;
+.majorEmpty {
+  margin: 0;
+  padding: 12px;
+  font-size: 14px;
+  color: var(--ink-2);
 }
-.panel {
-  height: calc(100dvh - var(--shell-top-h, 57px));
-  overflow: auto;
-  overscroll-behavior: contain;
-  border-left: 1px solid var(--c-line);
-  background: var(--c-surface);
-  transition:
-    opacity 200ms var(--c-ease-out),
-    transform 200ms var(--c-ease-out);
-}
-/* Enter: from 16px right and transparent. Exit (ui/use-presence "closed"): back out, faster. */
-@starting-style {
-  .panel {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-}
-.panel[data-state="closed"] {
-  opacity: 0;
-  transform: translateX(16px);
-  transition-duration: 150ms;
-}
-
-.pHead {
-  position: relative;
-  padding: 20px 56px 0 24px;
-}
-.codeline {
+.majorSource {
+  text-wrap: pretty;
   display: flex;
   align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.majorSource > :nth-child(2) {
+  margin-left: auto;
+}
+/* The quiet button's 12px padding would inset its text from the dialog's right edge. */
+.majorSource > :last-child {
+  margin-right: -12px;
+}
+.majorCore {
+  text-wrap: pretty;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ───────── Detail (panel on desktop, sheet on phone) ───────── */
+
+.panelHeading {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  /* As tall as its ⋯ button even when there is none, so the close button lines up either way. */
-  min-height: 32px;
 }
-.bigcode {
-  /* DM Sans: Syne is for the wordmarks only (Sam's rule 4). */
-  font: 600 20px/24px var(--c-body);
-  font-variant-numeric: lining-nums tabular-nums;
-  color: var(--c-brand);
+.panelCode {
+  color: var(--brand);
+  font: 600 22px/28px var(--font-ui);
+  letter-spacing: -0.01em;
 }
-.pStatus {
+.creditsTag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px dotted var(--line-2);
+  border-radius: 6px;
+  color: var(--ink-2);
+  font: 550 11px/1 var(--font-ui);
+  white-space: nowrap;
+}
+/* --detail-pad matches the panel's body padding (24px) or the phone sheet's (16px), so sections run edge to edge without overflowing. */
+.detail {
+  --detail-pad: 24px;
+  padding-bottom: 8px;
+}
+.detailHead {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 14px;
+}
+.detailTitle {
+  margin: 0;
+  font: 620 var(--text-title) / var(--lh-title) var(--font-ui);
+  letter-spacing: -0.005em;
+}
+.detailStatus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
-  color: var(--c-ink-2);
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
 }
-.pTitle {
-  margin: 6px 0 0;
-  font: 600 18px/24px var(--c-body);
-  color: var(--c-ink);
+.detailStatus > span {
+  display: inline-flex;
 }
-.pMeta {
-  margin: 4px 0 0;
+.detailActions {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding-bottom: 18px;
 }
-.pNote {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--c-surface-2);
-  font-size: 12.5px;
-  line-height: 18px;
-  color: var(--c-ink-2);
-}
-.pNote q {
-  color: var(--c-ink);
-}
-/* Level with the code line: as far down as .pHead's top padding, and 32px tall like its ⋯ button. */
-.pClose {
-  position: absolute;
-  right: 16px;
-  top: 20px;
-}
-.pActions {
+/* Quiet buttons pull left by their 12px padding, so their text starts at the title's edge. */
+.quietActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 16px 24px 0;
+  gap: 4px;
+  margin-left: -12px;
 }
-.pSec {
-  padding: 24px 24px 0;
+.detailActions > :global(.ui-btn--quiet) {
+  margin-left: -12px;
 }
-.pSec:last-child {
-  padding-bottom: 32px;
+.dsec {
+  margin: 0 calc(-1 * var(--detail-pad));
+  padding: 18px var(--detail-pad);
+  border-top: 1px solid var(--line);
 }
-.secHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 32px;
-}
-.h3 {
-  margin: 0;
-  white-space: nowrap;
-  font: 600 15px/22px var(--c-body);
-}
-.desc {
-  margin: 0;
-  color: var(--c-ink-2);
-}
-.desc[data-clamped="true"] {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.dsec h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 650;
 }
 
-.figs {
-  display: flex;
-  align-items: flex-end;
-  gap: 28px;
-  margin-top: 12px;
+.path {
+  margin-bottom: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.fig b {
+.path li {
+  min-width: 76px;
+}
+.pathCode {
   display: block;
-  font: 700 20px/24px var(--c-display);
-  color: var(--c-ink);
-}
-.fig span {
-  font: 600 11px/16px var(--c-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--c-ink-2);
-}
-.credit a {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  font: 600 12px/16px var(--font-ui);
   white-space: nowrap;
 }
-.credit {
-  margin-top: 10px;
-  display: flex;
+.pathMeta {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+.rule {
+  margin: 12px 0 0;
+  text-wrap: pretty;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-2);
+}
+.rule b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.ok {
+  color: var(--brand);
+  font-weight: 600;
+}
+.courseLink {
+  white-space: nowrap;
+  color: var(--brand-2);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.courseLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+@media (hover: hover) and (pointer: fine) {
+  .courseLink:hover {
+    text-decoration: underline;
+  }
+}
+.unknownCourse {
+  white-space: nowrap;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+/* Sections: the week in miniature, then one row per section. */
+.miniDays {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.miniWeek {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  height: 112px;
+}
+.miniWeek > div {
+  position: relative;
+  border-radius: 6px;
+  background: var(--paper-2);
+}
+.block {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  /* Square on the left, where the course color runs, so the bar stays straight. */
+  border-radius: 0 3px 3px 0;
+  background: var(--paper-3);
+  box-shadow: inset 2px 0 0 var(--ink-4);
+}
+.block[data-hue="1"] { background: var(--c1t); box-shadow: inset 2px 0 0 var(--c1); }
+.block[data-hue="2"] { background: var(--c2t); box-shadow: inset 2px 0 0 var(--c2); }
+.block[data-hue="3"] { background: var(--c3t); box-shadow: inset 2px 0 0 var(--c3); }
+.block[data-hue="4"] { background: var(--c4t); box-shadow: inset 2px 0 0 var(--c4); }
+.block[data-hue="5"] { background: var(--c5t); box-shadow: inset 2px 0 0 var(--c5); }
+.block[data-hue="6"] { background: var(--c6t); box-shadow: inset 2px 0 0 var(--c6); }
+/* The section being considered: fades in over 120ms (MOTION.md §3, ghost preview). */
+.ghost {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border: 1.5px dashed var(--brand-2);
+  border-radius: 4px;
+  background: rgba(0, 122, 64, 0.08);
+  opacity: 1;
+  transition: opacity 120ms var(--ease-out);
+}
+@starting-style {
+  .ghost {
+    opacity: 0;
+  }
+}
+.ghost[data-instant] {
+  transition: none;
+}
+.ghost[data-clash] {
+  border-color: var(--danger);
+  background: rgba(179, 38, 30, 0.1);
+}
+.miniCaption {
+  margin: 4px 0 8px;
+  text-wrap: pretty;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.coarsePointer {
+  display: none;
+}
+@media (pointer: coarse) {
+  .finePointer {
+    display: none;
+  }
+  .coarsePointer {
+    display: inline;
+  }
+}
+.sections {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Without an add button (a course you can't add), the text starts at the heading's edge. */
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 10px 0;
+}
+.section[data-addable] {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+.section + .section {
+  border-top: 1px solid var(--line);
+}
+.addSection {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #fff;
+  transition:
+    transform var(--t-press) var(--ease-out),
+    background-color var(--t-hover) ease;
+}
+.addSection::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+.addSection:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.addSection[data-state="on"] {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.addSection[data-state="warn"] {
+  background: var(--paper);
+  color: var(--danger);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+.addSection[data-state="warn"]:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--danger), var(--focus);
+}
+.addSection[data-state="full"] {
+  background: var(--paper-3);
+  color: var(--ink-4);
+}
+/* Press feedback for a pointer only; a keyboard press shows its ring instead (MOTION.md §3). */
+@media (prefers-reduced-motion: no-preference) {
+  .addSection:not(:disabled, [aria-disabled="true"]):active:not(:focus-visible) {
+    transform: scale(0.97);
+  }
+}
+/* The section's text is a button that previews it on the mini week. */
+.sectionBody {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 2px 0;
+  border-radius: 6px;
+  color: var(--ink);
+  text-align: left;
+}
+.sectionBody:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* The time wraps under the section number when a lab adds a second pattern, instead of running off a phone sheet. */
+.sectionWhen {
+  display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  font-size: 14px;
+  font-weight: 550;
+}
+.pattern {
+  white-space: nowrap;
+}
+.sectionCode {
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-ui);
+}
+.sectionWho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.gpa {
+  color: var(--ink);
+  font-weight: 550;
+}
+.sectionNote {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.conflict {
+  display: block;
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+/* Seats or a raw status from UNT: short, but wraps rather than pushing past the sheet's edge. */
+.seats {
+  max-width: 7.5em;
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: right;
+  text-wrap: balance;
+}
+.seats[data-full] {
+  color: var(--attention);
+}
+.textButton {
+  min-width: 44px;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--brand-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.extLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  border-radius: 4px;
+  color: var(--brand-2);
+  font-weight: 600;
+  text-decoration: none;
+}
+.extLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Grades */
+/* Chips wrap rather than scroll, so no name is cut at the panel's edge. */
+.instructorChips {
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.fallback {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--attention);
+}
+.figures {
+  display: flex;
+  gap: 22px;
+  margin-bottom: 14px;
+}
+.figures b {
+  display: block;
+  font: 600 20px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.figures span {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.bars {
+  display: grid;
+  gap: 6px;
+}
+.bar {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.track {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--paper-2);
+}
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--brand);
+  transform-origin: left;
+}
+/* A pointer pick of another instructor grows the bars to their new share. */
+@media (prefers-reduced-motion: no-preference) {
+  .fill {
+    transition: transform 240ms var(--ease-out);
+  }
+  .bars[data-instant] .fill {
+    transition: none;
+  }
+}
+.pct {
+  color: var(--ink-2);
+  text-align: right;
 }
 .stateLine {
-  margin-top: 12px;
-  padding: 14px;
-  border: 1px dashed var(--c-line-strong);
-  border-radius: 10px;
-  color: var(--c-ink);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 .stateLine p {
   margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
 }
-.shimmer {
-  position: relative;
-  height: 12px;
-  margin-top: 10px;
+.description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink-2);
+}
+.description[data-clamped] {
+  display: -webkit-box;
   overflow: hidden;
-  border-radius: 6px;
-  background: var(--c-surface-2);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
-/* The sheen moves with transform so the loop stays off the paint path. */
-.shimmer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, var(--c-surface-3), transparent);
-  transform: translateX(-100%);
-  animation: shimmer 1.2s linear infinite;
+
+.shimmer {
+  display: block;
+  height: 12px;
+  margin: 10px 0;
+  border-radius: 6px;
+  background: var(--paper-2);
 }
 .shimmer + .shimmer {
   width: 60%;
 }
-@keyframes shimmer {
-  to {
-    transform: translateX(100%);
-  }
+.loading {
+  padding: 24px 0;
 }
 
-.secRows {
-  margin: 10px 0 0;
+/* ───────── Empty state ───────── */
+
+.empty {
+  padding: 8px 0;
+}
+.emptyTitle {
+  margin: 0 0 12px;
+  font: 650 20px/26px var(--font-ui);
+  letter-spacing: -0.012em;
+}
+.emptyList {
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--c-line);
-  border-radius: 10px;
-  overflow: hidden;
+  list-style: none;
 }
-.secRow {
+.emptyList li + li {
+  border-top: 1px solid var(--line);
+}
+.emptyOption {
   display: grid;
-  /* Wide enough for a linked option's "§110 + 111", which wraps after the "+". */
-  grid-template-columns: 16px 56px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 7px 12px;
-  border-top: 1px solid var(--c-line);
-  cursor: pointer;
-  transition: background-color 120ms ease;
+  gap: 2px;
+  width: 100%;
+  padding: 14px 12px;
+  border-radius: 10px;
+  text-align: left;
+  transition: background-color var(--t-hover) ease;
 }
-.secRow:first-child {
-  border-top: 0;
+.emptyOption strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
 }
-.secRow[data-checked="true"] {
-  background: var(--c-brand-soft);
+.emptyOption span {
+  font-size: 13px;
+  color: var(--ink-2);
 }
-.secRow[data-disabled="true"] {
-  cursor: default;
+.emptyOption:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
-.secRow .code {
-  white-space: normal;
-  line-height: 16px;
-}
-.secLines {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 18px;
-}
-.secLines small {
-  font-size: 12.5px;
-  color: var(--c-ink-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.secLines small[data-conflict="true"] {
-  color: var(--c-danger);
-}
-/* ---------- reduced motion ---------- */
-
-@media (prefers-reduced-motion: reduce) {
-  .emptyOption,
-  .chev {
-    transition: background-color 160ms ease;
-  }
-  .emptyOption:active {
-    transform: none;
-  }
-  /* Fades stay at 120ms; nothing moves. Matches the closed selector's specificity. */
-  .panel,
-  .panel[data-state="closed"] {
-    transition: opacity 120ms ease;
-    transform: none;
-  }
-  @starting-style {
-    .panel {
-      transform: none;
-    }
-  }
-  .spinner {
-    animation-duration: 1.6s;
-  }
-  .shimmer::after {
-    animation: none;
+@media (hover: hover) and (pointer: fine) {
+  .emptyOption:hover {
+    background: rgba(26, 46, 26, 0.04);
   }
 }
 
-/* ---------- phone ---------- */
+/* The result line holds its place while rows land, then fades in (MOTION.md §8, 200ms). */
+.result[data-hidden] {
+  visibility: hidden;
+}
+.result[data-fresh] {
+  transition: opacity 120ms var(--ease-out);
+}
+.result[data-fresh][data-hidden] {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .result[data-fresh] {
+    transition-duration: 200ms;
+  }
+}
+
+/* ───────── Phone ───────── */
 
 @media (max-width: 759px) {
-  .viewhead {
-    display: none;
-  }
-  .phoneHead {
-    display: block;
-    padding: 0 0 4px;
+  .page {
+    padding: 0 12px 32px;
   }
   .phoneSearch {
+    position: sticky;
+    top: calc(var(--header-h) + var(--safe-t));
+    z-index: 20;
+    display: block;
+    padding: 4px 0 8px;
+    background: linear-gradient(var(--ground) 80%, rgba(244, 246, 243, 0));
+  }
+  .phoneSearch > button {
     width: 100%;
   }
-  /* No keyboard shortcut to show on a phone. */
-  .phoneSearch :global(.ui-search__kbd) {
-    display: none;
+  .degree {
+    gap: 8px;
+    margin: 2px 2px 12px;
   }
-  .phoneBar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-  }
-  .majorPicker :global(.ui-select__trigger) {
+  .degreeButton {
     font-size: 14px;
   }
-  .panelCol {
-    display: none;
+  .progress {
+    font-size: 13px;
   }
-  .root[data-panel="open"] .body {
-    grid-template-columns: minmax(0, 1fr);
+  .trayHead {
+    padding: 12px 16px 8px;
   }
-  /* Phone: spark and sentence on the first line, links on the second, dismiss in the corner. */
-  .autonote {
-    position: relative;
-    flex-wrap: wrap;
-    row-gap: 4px;
-    padding-right: 48px;
-    font-size: 12.5px;
+  .detail {
+    --detail-pad: 16px;
   }
-  .autonoteText {
-    flex: 1 1 calc(100% - 32px);
+  /* Four stops fit a 360px screen: about 76px each, and a code at 12px is about 62px wide. */
+  .path {
+    --path-gap: 8px;
   }
-  .autonote :global(.ui-tag) {
-    display: none;
+  .path li {
+    min-width: 0;
   }
-  .noteDismiss {
-    position: absolute;
-    top: 0;
-    right: 0;
+  /* With a fact on two lines, the code lines up with its first line. */
+  .code,
+  .fact {
+    align-self: start;
+  }
+  .code {
+    line-height: 16px;
+  }
+  /* One left edge with the tray's title. */
+  .result {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+  .trayFoot {
+    padding-left: 6px;
+  }
+  .trayRows .row {
+    margin: 0 4px;
+  }
+  .group {
+    margin-top: 18px;
   }
   .row {
-    grid-template-columns: 16px minmax(0, 1fr) auto;
-    grid-template-rows: 20px 18px;
-    height: auto;
-    min-height: 52px;
-    padding: 8px 14px;
-    column-gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    min-height: 58px;
+    padding: 0 4px 0 10px;
   }
+  .row + .row::before {
+    left: 40px;
+  }
+  /* The code keeps its width; a long fact gives way and ends in an ellipsis. */
   .rowOpen {
-    grid-column: 1 / 3;
-    grid-row: 1 / 3;
-    grid-template-columns: 16px minmax(0, 1fr);
-    grid-template-rows: 20px 18px;
+    grid-template-columns: 18px auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     column-gap: 12px;
+    row-gap: 2px;
+    min-height: 58px;
+    padding: 8px 8px 8px 0;
   }
-  .rowOpen > .glyph {
+  .lead {
     grid-row: 1 / 3;
   }
-  .rowOpen > .code {
+  .code {
     grid-column: 2;
     grid-row: 1;
   }
-  .rowOpen > .rowTitle {
-    grid-column: 2;
+  .title {
+    grid-column: 2 / 4;
     grid-row: 2;
+    font-size: 15px;
+  }
+  /* A long fact wraps on the right rather than hiding the part the student acts on. */
+  .fact {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    max-width: 100%;
     font-size: 12.5px;
-    color: var(--c-ink-2);
+    line-height: 16px;
+    white-space: normal;
+    text-wrap: balance;
   }
-  .rowOpen > .rowCredits {
-    display: none;
+  .act {
+    width: 40px;
+    height: 40px;
   }
-  .rowMeta {
-    grid-column: 3;
-    grid-row: 2;
-    max-width: 140px;
+  /* Subheads and Show more start where the codes do: 10px row padding, 18px glyph, 12px gap. */
+  .sub,
+  .more {
+    padding-left: 40px;
   }
-  .rowStatus {
-    grid-column: 3;
-    grid-row: 1;
-  }
-  .rowAction {
-    display: none;
-  }
-  .pHead {
-    padding: 4px 52px 0 4px;
-  }
-  .pClose {
-    right: 0;
-    top: 4px;
-  }
-  .pActions {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding: 14px 4px 2px;
-  }
-  .pSec {
-    padding: 20px 4px 0;
-  }
-  .figs {
-    gap: 20px;
-  }
-  .secHead > .meta {
-    display: none;
-  }
-}
-
-.retry {
-  margin-top: 10px;
-}
-.moreSections {
-  display: inline-block;
-  margin-top: 10px;
-  font-size: 12.5px;
 }
