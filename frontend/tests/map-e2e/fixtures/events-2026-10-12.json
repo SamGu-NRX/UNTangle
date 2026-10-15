@@ -1,0 +1,157 @@
+{
+  "range": {
+    "from": "2026-10-12T05:00:00.000Z",
+    "to": "2026-10-13T05:00:00.000Z"
+  },
+  "building": null,
+  "q": null,
+  "events": [
+    {
+      "sourceId": "calendar",
+      "url": "https://calendar.unt.edu/event/registration-opens-badminton-t",
+      "title": "Registration Opens: Badminton Tournaments",
+      "start": "2026-10-12T05:00:00.000Z",
+      "end": "2026-10-13T05:00:00.000Z",
+      "isAllDay": true,
+      "location": "Pohl Recreation Center, Physical Education Building",
+      "buildingId": null,
+      "tags": [
+        "Recreational Sports"
+      ]
+    },
+    {
+      "sourceId": "student_organizations",
+      "url": "https://calendar.unt.edu/event/college-democrats-regular-meet",
+      "title": "College Democrats Regular Meeting",
+      "start": "2026-10-12T15:30:00.000Z",
+      "end": "2026-10-12T16:30:00.000Z",
+      "isAllDay": false,
+      "location": "Wooten Hall, 121",
+      "buildingId": "wh",
+      "tags": [
+        "Student Organizations"
+      ]
+    },
+    {
+      "sourceId": "student_organizations",
+      "url": "https://calendar.unt.edu/event/the-dialogue-society-general-b",
+      "title": "The Dialogue Society – General Body Meeting #1",
+      "start": "2026-10-12T16:00:00.000Z",
+      "end": "2026-10-12T16:45:00.000Z",
+      "isAllDay": false,
+      "location": "University Union, 401",
+      "buildingId": "uu",
+      "tags": [
+        "Student Organizations"
+      ]
+    },
+    {
+      "sourceId": "career_center",
+      "url": "https://calendar.unt.edu/event/road-trip-to-registration-920",
+      "title": "Road Trip to Registration",
+      "start": "2026-10-12T16:15:00.000Z",
+      "end": "2026-10-12T16:53:00.000Z",
+      "isAllDay": false,
+      "location": "Sage Hall, Sage Lawn",
+      "buildingId": "sage",
+      "tags": [
+        "Career Center"
+      ]
+    },
+    {
+      "sourceId": "college_of_science",
+      "url": "https://calendar.unt.edu/event/unt-physics-colloquium-present",
+      "title": "UNT Physics Colloquium Presents Dr. Yanwen Zhang",
+      "start": "2026-10-12T16:20:00.000Z",
+      "end": "2026-10-12T16:58:00.000Z",
+      "isAllDay": false,
+      "location": "Physics Building, 104",
+      "buildingId": "phys",
+      "tags": [
+        "College of Science"
+      ]
+    },
+    {
+      "sourceId": "libraries",
+      "url": "https://calendar.unt.edu/event/tinkercad-workshop",
+      "title": "TinkerCAD Workshop",
+      "start": "2026-10-12T16:30:00.000Z",
+      "end": "2026-10-12T16:50:00.000Z",
+      "isAllDay": false,
+      "location": "Willis Library, The Spark Makerspace Willis Library",
+      "buildingId": null,
+      "tags": [
+        "Libraries"
+      ]
+    },
+    {
+      "sourceId": "student_organizations",
+      "url": "https://calendar.unt.edu/event/itds-cybersecurity-club-genera",
+      "title": "ITDS Cybersecurity Club: General Body Meeting",
+      "start": "2026-10-12T17:52:00.000Z",
+      "end": "2026-10-12T17:58:00.000Z",
+      "isAllDay": false,
+      "location": "Business Leadership Building, 245",
+      "buildingId": "blb",
+      "tags": [
+        "Student Organizations"
+      ]
+    },
+    {
+      "sourceId": "career_center",
+      "url": "https://calendar.unt.edu/event/resume-cover-letter-workshop-l",
+      "title": "Resume & Cover Letter Workshop — Discovery Park",
+      "start": "2026-10-12T19:10:00.000Z",
+      "end": "2026-10-12T19:25:00.000Z",
+      "isAllDay": false,
+      "location": "Discovery Park Building, G165",
+      "buildingId": null,
+      "tags": [
+        "Career Center"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "calendar",
+      "name": "calendar",
+      "status": "ok",
+      "fetchedAt": "2026-10-12T13:30:00.000Z",
+      "eventCount": 1,
+      "error": null
+    },
+    {
+      "id": "career_center",
+      "name": "career_center",
+      "status": "ok",
+      "fetchedAt": "2026-10-12T13:30:00.000Z",
+      "eventCount": 2,
+      "error": null
+    },
+    {
+      "id": "college_of_science",
+      "name": "college_of_science",
+      "status": "ok",
+      "fetchedAt": "2026-10-12T13:30:00.000Z",
+      "eventCount": 1,
+      "error": null
+    },
+    {
+      "id": "libraries",
+      "name": "libraries",
+      "status": "ok",
+      "fetchedAt": "2026-10-12T13:30:00.000Z",
+      "eventCount": 1,
+      "error": null
+    },
+    {
+      "id": "student_organizations",
+      "name": "student_organizations",
+      "status": "ok",
+      "fetchedAt": "2026-10-12T13:30:00.000Z",
+      "eventCount": 3,
+      "error": null
+    }
+  ],
+  "truncated": false
+}
