@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
 import type { BuilderEdits, BuilderHost, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
 import { isStale, requestKey } from "@/components/schedule/run-state";
@@ -23,6 +23,9 @@ import {
 import { findOption, optionIdLabel, planningTerm, sectionRef } from "@/lib/planner-sections";
 import { isShuttleLeg, plannerTravelTime } from "@/lib/planner-walking";
 import { findClassNumber } from "@/lib/sections/client";
+import { fetchCourseHistory } from "@/lib/grades-history/course-history";
+import type { CourseHistory, HistoryResult } from "@/lib/grades-history/types";
+import { courseEvidenceHundredths } from "@/lib/sections/instructor-evidence";
 import { optionReasons } from "./option-reasons";
 import { courses as catalog } from "@/lib/seed-data";
 import type { CourseStatus, PlannerState } from "@/lib/types";
@@ -275,12 +278,53 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     },
   };
 
+  // Accepted instructor evidence for Auto's tie-break: per course, each
+  // section's instructor mean from the grade-history service. A course the
+  // service cannot read maps to nulls — unknown evidence never enters the
+  // tie-break, so a throttle never reads as weak grades.
+  const [evidenceHundredths, setEvidenceHundredths] = useState<Record<string, Record<string, number | null>>>({});
+  const planningCodes = getPlanningTermCourseCodes(plannerState).join("\n");
+  useEffect(() => {
+    const codes = planningCodes.split("\n").filter(Boolean);
+    if (codes.length === 0) {
+      setEvidenceHundredths({});
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      codes.map(async (code) => {
+        const loaded = sectionCatalog(code);
+        const sections = loaded.status === "ready" ? loaded.result.sections : [];
+        const [subject, number = ""] = code.split(" ");
+        if (sections.length === 0 || !number) return [code, {}] as const;
+        // A history the browser cannot read (offline, endpoint down, a test
+        // DOM with no origin) maps to nulls like any other unavailable
+        // source: unknown evidence never enters the tie-break, and one dead
+        // course never blanks the others.
+        const result = await fetchCourseHistory(subject, number).catch(
+          (): HistoryResult<CourseHistory> => ({
+            status: "unavailable",
+            source: "untgrades.app",
+            data: null,
+            error: { reason: "upstream", message: "course history request failed" },
+          }),
+        );
+        return [code, courseEvidenceHundredths(sections, result)] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) setEvidenceHundredths(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [planningCodes, sectionCatalog, catalogVersion]);
+
   // Auto: the same request the optimizer receives everywhere in UNTangle.
   const request = useMemo(
-    () => buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog }),
+    () => buildOptimizeRequest(plannerState, schedulePreferences, { catalog: sectionCatalog, evidenceHundredths }),
     // catalogVersion is how the catalog says it has more loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plannerState, schedulePreferences, sectionCatalog, catalogVersion],
+    [plannerState, schedulePreferences, sectionCatalog, catalogVersion, evidenceHundredths],
   );
   const inputKey = requestKey(request);
   const relax = (suggestion: RelaxSuggestion) => {
