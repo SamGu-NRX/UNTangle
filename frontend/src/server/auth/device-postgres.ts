@@ -2,14 +2,19 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { deviceGrants, deviceSecurity, deviceTokens } from "@/lib/db/schema";
-import { DeviceGrantError, securityChangeTimeout, type DeviceStore } from "./device-grants";
+import { changeNotCurrent, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore } from "./device-grants";
 
 // Database time, so every instance agrees on when a change went stale.
 const staleBefore = sql`now() - ${sql.raw(`interval '${securityChangeTimeout} milliseconds'`)}`;
 const changeOpen = sql<boolean>`(${deviceSecurity.changeId} IS NOT NULL AND ${deviceSecurity.changeStartedAt} > ${staleBefore})`;
 
-export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib/db/schema").schema>, "transaction" | "insert" | "update">): DeviceStore {
+export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib/db/schema").schema>, "transaction" | "insert" | "update" | "select">): DeviceStore {
+  async function readGeneration(userId: string) {
+    const [row] = await db.select({ generation: deviceSecurity.generation, changing: changeOpen }).from(deviceSecurity).where(eq(deviceSecurity.userId, userId));
+    return row ?? { generation: 0, changing: false };
+  }
   return {
+    readGeneration,
     transaction: work => db.transaction(async tx => work({
       async grantBy(field, value) {
         const [grant] = await tx.select().from(deviceGrants).where(eq(deviceGrants[field], value)).for("update");
@@ -35,31 +40,33 @@ export function postgresDeviceStore(db: Pick<NodePgDatabase<typeof import("@/lib
       },
     })),
     async beginSecurityChange(userId, expectedGeneration) {
-      const id = randomUUID();
+      const changeId = randomUUID();
       await db.insert(deviceSecurity).values({ userId }).onConflictDoNothing();
       // One statement checks and opens, so two changes can't both pass the check.
-      const rows = await db.update(deviceSecurity)
-        .set({ generation: sql`${deviceSecurity.generation} + 1`, changeId: id, changeStartedAt: sql`now()` })
+      const [row] = await db.update(deviceSecurity)
+        .set({ generation: sql`${deviceSecurity.generation} + 1`, changeId, changeStartedAt: sql`now()` })
         .where(and(
           eq(deviceSecurity.userId, userId),
           or(isNull(deviceSecurity.changeId), lte(deviceSecurity.changeStartedAt, staleBefore)),
           expectedGeneration === undefined ? undefined : eq(deviceSecurity.generation, expectedGeneration),
         ))
-        .returning({ userId: deviceSecurity.userId });
-      if (rows.length !== 1) throw new DeviceGrantError("account_changed", 409);
-      return id;
+        .returning({ generation: deviceSecurity.generation });
+      if (row) return { changeId, generation: row.generation };
+      // Refused. Read again only to say why.
+      throw (await readGeneration(userId)).changing ? securityChangeInProgress() : staleSession();
+    },
+    async holdsSecurityChange(userId, changeId) {
+      const [row] = await db.select({ userId: deviceSecurity.userId }).from(deviceSecurity)
+        .where(and(eq(deviceSecurity.userId, userId), eq(deviceSecurity.changeId, changeId)));
+      return row !== undefined;
     },
     async finishSecurityChange(userId, changeId) {
-      const mine = sql`${deviceSecurity.changeId} IS NOT DISTINCT FROM ${changeId}`;
-      const rows = await db.update(deviceSecurity)
-        .set({
-          generation: sql`${deviceSecurity.generation} + 1`,
-          changeId: sql`CASE WHEN ${mine} THEN NULL ELSE ${deviceSecurity.changeId} END`,
-          changeStartedAt: sql`CASE WHEN ${mine} THEN NULL ELSE ${deviceSecurity.changeStartedAt} END`,
-        })
-        .where(eq(deviceSecurity.userId, userId))
-        .returning({ userId: deviceSecurity.userId });
-      if (rows.length !== 1) throw new Error("No account security change to finish");
+      const [row] = await db.update(deviceSecurity)
+        .set({ generation: sql`${deviceSecurity.generation} + 1`, changeId: null, changeStartedAt: null })
+        .where(and(eq(deviceSecurity.userId, userId), eq(deviceSecurity.changeId, changeId)))
+        .returning({ generation: deviceSecurity.generation });
+      if (!row) throw changeNotCurrent();
+      return row.generation;
     },
     async bumpGeneration(userId) {
       await db.insert(deviceSecurity).values({ userId, generation: 1 }).onConflictDoUpdate({ target: deviceSecurity.userId, set: { generation: sql`${deviceSecurity.generation} + 1` } });

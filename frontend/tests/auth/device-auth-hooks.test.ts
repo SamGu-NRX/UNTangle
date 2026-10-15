@@ -151,27 +151,29 @@ describe("security generation hooks", () => {
     const setPassword = setPasswordHandler(t.auth, { sendEmail: t.send });
     expect((await setPassword(passwordRequest(cookie, "short"))).status).toBe(400);
     expect(bumped).toEqual([]);
+    // Without the change store, each change is two plain bumps.
     expect((await setPassword(passwordRequest(cookie))).status).toBe(200);
-    expect(bumped).toEqual([userId]);
+    expect(bumped).toHaveLength(2);
     expect((await setPassword(passwordRequest(cookie))).status).toBe(400);
-    expect(bumped).toEqual([userId]);
+    expect(bumped).toHaveLength(2);
     await t.post("/sign-in/magic-link", { email: VICTIM, callbackURL: "/courses" });
     expect((await t.get(t.lastVerifyLink())).status).toBe(302);
-    expect(bumped).toEqual([userId]);
+    expect(bumped).toHaveLength(2);
     await t.post("/request-password-reset", { email: VICTIM, redirectTo: "/forgot-password" });
     const token = new URL(t.lastLink("password-reset")).pathname.split("/").pop()!;
     expect((await t.post("/reset-password", { token: "wrong", newPassword: "new-password-456" })).status).toBe(400);
     expect((await t.post("/reset-password", { token, newPassword: "short" })).status).toBe(400);
-    expect(bumped).toHaveLength(1);
+    expect(bumped).toHaveLength(2);
     expect((await t.post("/reset-password", { token, newPassword: "new-password-456" })).status).toBe(200);
-    expect(bumped).toEqual([userId, userId, userId]);
+    expect(bumped).toHaveLength(4);
     const second = await otpSignIn(t);
     const third = await otpSignIn(t);
     expect((await t.post("/revoke-other-sessions", {}, cookieFrom(second))).status).toBe(200);
-    expect(bumped).toEqual([userId, userId, userId, userId]);
+    expect(bumped).toHaveLength(6);
     expect(await t.session(cookieFrom(third))).toBeNull();
     expect((await t.post("/revoke-sessions", {}, cookieFrom(second))).status).toBe(200);
-    expect(bumped).toEqual([userId, userId, userId, userId, userId]);
+    expect(bumped).toHaveLength(8);
+    expect(bumped.every((id) => id === userId)).toBe(true);
     expect(await t.session(cookieFrom(second))).toBeNull();
   });
   test("a valid OTP cleans an unverified account before a new session; wrong OTP leaves it alone", async () => {

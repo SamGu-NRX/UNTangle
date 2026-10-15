@@ -1,4 +1,4 @@
-import { DeviceGrantError, securityChangeTimeout, type DeviceStore, type DeviceToken, type DeviceTransaction, type Grant } from "@/server/auth/device-grants";
+import { changeNotCurrent, DeviceGrantError, securityChangeInProgress, securityChangeTimeout, staleSession, type DeviceStore, type DeviceToken, type DeviceTransaction, type Grant, type SecurityChange } from "@/server/auth/device-grants";
 
 type State = {
   grants: Map<string, Grant>;
@@ -52,22 +52,30 @@ export class MemoryDeviceStore implements DeviceStore {
     });
   }
 
-  beginSecurityChange(userId: string, expectedGeneration?: number): Promise<string> {
+  readGeneration(userId: string) {
+    return this.exclusive(async draft => ({ generation: draft.generations.get(userId) ?? 0, changing: this.open(draft, userId) }));
+  }
+  beginSecurityChange(userId: string, expectedGeneration?: number): Promise<SecurityChange> {
     return this.exclusive(async draft => {
       const generation = draft.generations.get(userId) ?? 0;
-      if (this.open(draft, userId) || (expectedGeneration !== undefined && expectedGeneration !== generation))
-        throw new DeviceGrantError("account_changed", 409);
-      const id = crypto.randomUUID();
+      if (this.open(draft, userId)) throw securityChangeInProgress();
+      if (expectedGeneration !== undefined && expectedGeneration !== generation) throw staleSession();
+      const changeId = crypto.randomUUID();
       draft.generations.set(userId, generation + 1);
-      draft.changes.set(userId, { id, startedAt: this.now() });
-      return id;
+      draft.changes.set(userId, { id: changeId, startedAt: this.now() });
+      return { changeId, generation: generation + 1 };
     });
   }
-  finishSecurityChange(userId: string, changeId: string): Promise<void> {
+  holdsSecurityChange(userId: string, changeId: string): Promise<boolean> {
+    return this.exclusive(async draft => draft.changes.get(userId)?.id === changeId);
+  }
+  finishSecurityChange(userId: string, changeId: string): Promise<number> {
     return this.exclusive(async draft => {
-      if (!draft.generations.has(userId)) throw new Error("No account security change to finish");
-      draft.generations.set(userId, draft.generations.get(userId)! + 1);
-      if (draft.changes.get(userId)?.id === changeId) draft.changes.delete(userId);
+      if (draft.changes.get(userId)?.id !== changeId) throw changeNotCurrent();
+      const generation = draft.generations.get(userId)! + 1;
+      draft.generations.set(userId, generation);
+      draft.changes.delete(userId);
+      return generation;
     });
   }
 

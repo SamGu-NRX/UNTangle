@@ -1,5 +1,5 @@
 {
-  "id": "9bc150b1-fe8e-4c91-b61d-f3dc7ba8289e",
+  "id": "2c073ca6-883b-4dae-91f2-6bf741fa28af",
   "prevId": "08821778-6c22-4482-a8ab-cb6858389845",
   "version": "7",
   "dialect": "postgresql",
@@ -426,7 +426,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "device_security_change_check": {
+          "name": "device_security_change_check",
+          "value": "(\"device_security\".\"change_id\" IS NULL) = (\"device_security\".\"change_started_at\" IS NULL)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.device_token": {

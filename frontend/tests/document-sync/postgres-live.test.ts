@@ -266,7 +266,7 @@ describe.skipIf(!url)("document sync on Postgres", () => {
     const during = await pull();
     expect(during.status).toBe(401);
     expect(await during.json()).toMatchObject({ code: "UNAUTHORIZED" });
-    await grants.finishSecurityChange("alice", change);
+    await grants.finishSecurityChange("alice", change.changeId);
     expect((await pull()).status).toBe(401);
     stamped = await grants.readSecurityGeneration("alice");
     expect((await pull()).status).toBe(200);

@@ -36,23 +36,36 @@ export interface DeviceTransaction {
  * Each account has a security generation; grants and browser sessions record
  * the one they were issued under, and any later bump ends them.
  *
- * A security change (password reset or change, unverified-account cleanup) is
- * a bump before its credential writes and another after them. While it's open,
- * `generation()` refuses, so nothing can be issued under a generation the
- * change is about to end. One change runs per account at a time; a second
- * one is refused with `account_changed`, so a slower change can never land its
- * write after a faster one. A change left open longer than
- * securityChangeTimeout stops blocking, and the next change replaces it. Its
- * first bump has already ended the account's earlier grants and sessions.
+ * A security change (password reset or change, sign-outs, setting a password,
+ * unverified-account cleanup) is a bump when it opens and another when it
+ * finishes. While it's open, the generation can't be read, so nothing can be
+ * issued under a generation the change is about to end. One change runs per
+ * account at a time; a second is refused with `security_change_in_progress`,
+ * so a slower change can never land its write after a faster one. A change
+ * left open longer than securityChangeTimeout stops blocking, and the next
+ * change replaces it. Its first bump has already ended the account's earlier
+ * grants and sessions.
  */
 export interface DeviceStore {
   transaction<T>(work: (tx: DeviceTransaction) => Promise<T>): Promise<T>;
+  /** An unlocked read, for comparisons that issue nothing. A missing account reads as generation 0. */
+  readGeneration(userId: string): Promise<{ generation: number; changing: boolean }>;
   bumpGeneration(userId: string): Promise<void>;
-  /** Opens a change and returns its id. With `expectedGeneration`, also refuses unless the generation is still that value. */
-  beginSecurityChange(userId: string, expectedGeneration?: number): Promise<string>;
-  /** Bumps the generation and closes the change if it is still the open one. */
-  finishSecurityChange(userId: string, changeId: string): Promise<void>;
+  /**
+   * Opens a change. Refused with `security_change_in_progress` while another
+   * is open, and with `stale_session` when `expectedGeneration` (the caller's
+   * session) is no longer current. Returns the generation it opened at.
+   */
+  beginSecurityChange(userId: string, expectedGeneration?: number): Promise<SecurityChange>;
+  /** Whether `changeId` is still the account's open change (a timed-out one may have been replaced). */
+  holdsSecurityChange(userId: string, changeId: string): Promise<boolean>;
+  /** Closes the change with a bump and returns the new generation. Throws, changing nothing, if it isn't the open change. */
+  finishSecurityChange(userId: string, changeId: string): Promise<number>;
 }
+export type SecurityChange = { changeId: string; generation: number };
+export const securityChangeInProgress = () => new DeviceGrantError("security_change_in_progress", 409);
+export const staleSession = () => new DeviceGrantError("stale_session", 401);
+export const changeNotCurrent = () => new Error("This account security change is no longer the open one.");
 export type DeviceIdentity = { userId: string; grantId: string; clientKind: DeviceClientKind; scopes: readonly DeviceScope[]; scheduleId: string | null };
 
 export function createDeviceGrants(store: DeviceStore, now = Date.now) {
@@ -154,9 +167,15 @@ export function createDeviceGrants(store: DeviceStore, now = Date.now) {
       });
     },
     beginSecurityChange: (userId: string, expectedGeneration?: number) => store.beginSecurityChange(userId, expectedGeneration),
+    holdsSecurityChange: (userId: string, changeId: string) => store.holdsSecurityChange(userId, changeId),
     finishSecurityChange: (userId: string, changeId: string) => store.finishSecurityChange(userId, changeId),
     bumpSecurityGeneration: (userId: string) => store.bumpGeneration(userId),
-    readSecurityGeneration: (userId: string) => run(tx => tx.generation(userId)),
+    /** The current generation, refused with `security_change_in_progress` while a change is open. */
+    async readSecurityGeneration(userId: string) {
+      const { generation, changing } = await store.readGeneration(userId);
+      if (changing) throw securityChangeInProgress();
+      return generation;
+    },
   };
 }
 export type DeviceGrants = ReturnType<typeof createDeviceGrants>;

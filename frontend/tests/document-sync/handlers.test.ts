@@ -102,7 +102,7 @@ describe("document HTTP boundaries", () => {
     const during = await browser.put(request(), context);
     expect(during.status).toBe(401);
     expect(await during.json()).toMatchObject({ code: "UNAUTHORIZED" });
-    await grants.finishSecurityChange("alice", change);
+    await grants.finishSecurityChange("alice", change.changeId);
     generation = 3;
     expect((await browser.put(request(), context)).status).toBe(200);
   });
@@ -244,6 +244,20 @@ describe("document rate limits", () => {
     }
     expect((await device.put(put(tokens[0]), context)).status).toBe(429);
     expect((await device.put(request(), context)).status).toBe(429);
+  });
+
+  test("a failed per-student count says abuse prevention is unavailable, not storage", async () => {
+    const failing = documentHandlers({ repository: fakeRepository, authorize: cookieAuth(identity), origin, available: true,
+      limit: async () => { throw new Error("rate-limit store unavailable"); } });
+    const response = await failing.pull(request());
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("60");
+    expect(await response.json()).toEqual({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" });
+  });
+
+  test("a session without a security generation is a loud error, not generation 0", async () => {
+    const authorize = createV1Auth(createDeviceGrants(new MemoryDeviceStore()), async () => ({ user: { id: "alice", emailVerified: true }, session: {} }) as never);
+    await expect(authorize(request(), "documents:read")).rejects.toThrow("Session has no securityGeneration.");
   });
 
   test("the pre-sign-in guard is per address and looser than any per-student budget", () => {

@@ -74,7 +74,13 @@ export function documentHandlers({ repository, authorize, limit, origin, availab
       const identity = await identify(request, scope);
       // Counted per student once identified, so phones sharing a carrier NAT
       // address don't share a budget. The route's withRateLimit guards by address.
-      const retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
+      let retryAfter: number | null;
+      try {
+        retryAfter = await limit(scope === "documents:write" ? "plannerSave" : "plannerRead", identity.userId);
+      } catch {
+        return Response.json({ error: "Abuse prevention unavailable. Try again later.", code: "RATE_LIMIT_UNAVAILABLE" },
+          { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+      }
       if (retryAfter !== null) {
         return Response.json({ error: "Too many requests.", code: "RATE_LIMITED" },
           { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } });

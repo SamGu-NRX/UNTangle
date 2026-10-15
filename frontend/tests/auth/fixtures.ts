@@ -35,7 +35,7 @@ function withReadLatency(adapter: ReturnType<typeof memoryAdapter>): ReturnType<
   }) as ReturnType<typeof memoryAdapter>;
 }
 
-export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "finishSecurityChange"> = {}) {
+export function setup(sendEmail?: Parameters<typeof createAuth>[0]["sendEmail"], bumpSecurityGeneration?: Parameters<typeof createAuth>[0]["bumpSecurityGeneration"], readSecurityGeneration?: Parameters<typeof createAuth>[0]["readSecurityGeneration"], changes: Pick<Parameters<typeof createAuth>[0], "beginSecurityChange" | "holdsSecurityChange" | "finishSecurityChange"> = {}) {
   const store: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
   const mail: { kind: string; to: string; url: string }[] = [];
   const record = async (kind: string, to: string, url: string) => {

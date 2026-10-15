@@ -198,7 +198,9 @@ export const deviceSecurity = pgTable("device_security", {
   activeTransitions: integer("active_transitions").notNull().default(0),
   changeId: text("change_id"),
   changeStartedAt: timestamp("change_started_at", { withTimezone: true }),
-});
+}, (table) => [
+  check("device_security_change_check", sql`(${table.changeId} IS NULL) = (${table.changeStartedAt} IS NULL)`),
+]);
 export const deviceGrants = pgTable("device_grant", {
   id: text("id").primaryKey(),
   deviceCodeHash: text("device_code_hash").notNull().unique(),
