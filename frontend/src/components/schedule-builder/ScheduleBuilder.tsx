@@ -23,6 +23,8 @@ import { changedCount, newBusyId } from "./limits";
 import { addBusy, preferenceSummary } from "./preferences";
 import { PreferencesPopover } from "./PreferencesPopover";
 import { SearchPanel } from "./SearchPanel";
+import { changedSince } from "./setup";
+import { SetupAuto, type SetupClose } from "./SetupAuto";
 import type { SharedWeek } from "./share";
 import { andList, dayLetters, eventsOf, optionName, optionTitle, placeEvents, sectionLabel, walksOf } from "./week";
 import { WeekGrid, type Busy, type Ghost, type Outline } from "./WeekGrid";
@@ -85,6 +87,11 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   /** Preferences is its own popover (a sheet on phones), not the contextual panel: the week stays in view behind it. */
   const [prefsOpen, setPrefsOpen] = useState(false);
   const prefsButton = useRef<HTMLButtonElement>(null);
+  /** Set up Auto: opened by itself once on a first visit ("first"), or from Preferences ("again"). */
+  const [setup, setSetup] = useState<{ open: boolean; mode: "first" | "again" }>({ open: false, mode: "first" });
+  const [setupDecided, setSetupDecided] = useState(false);
+  /** After the setup finishes, the Preferences button rings once to show where the answers live. */
+  const [ring, setRing] = useState(0);
   /** The last change came from the keyboard: the grid updates without moving (MOTION.md §3). */
   const keyboard = useRef(false);
   /** The last change undoes or leaves a preview: an exit, so it moves a little faster (MOTION.md §7). */
@@ -153,6 +160,13 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
       else if (!strip.better) setStrip({ ...strip, better: true });
     }
   }
+  // Set up Auto opens by itself once, when this identity's preferences have loaded and the host says it's due.
+  // A share link, a search from another lens or an open panel is what the student came for; it waits for a later visit.
+  if (!setupDecided && host.setup?.due && host.preferencesReady) {
+    setSetupDecided(true);
+    if (!shared && !searchRequest && !strip && !panel) setSetup({ open: true, mode: "first" });
+  }
+
   const selectedCourse = panel?.kind === "event" ? host.courses.find((course) => course.code === panel.code) ?? null : null;
   if (panel?.kind === "event" && !selectedCourse) setPanel(null);
   if (panel?.kind === "option" && strip?.kind !== "options") setPanel(null);
@@ -221,6 +235,34 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
   });
 
   const closePrefs = useCallback(() => setPrefsOpen(false), []);
+  const openSetup = (mode: "first" | "again") => {
+    setPrefsOpen(false);
+    setSetup({ open: true, mode });
+  };
+  const closeSetup = ({ finished, fromKeyboard, before }: SetupClose) => {
+    const mode = setup.mode;
+    setSetup((s) => ({ ...s, open: false }));
+    host.setup?.markSeen();
+    if (finished && host.courses.length > 0) auto(fromKeyboard);
+    // Answers were saved as they were given, so closing keeps them; Undo puts back what was there before.
+    if (changedSince(host.preferences, before)) {
+      const undoSetup = () => {
+        host.setPreferences(() => before);
+        toast("Your preferences are back to how they were");
+      };
+      toast({ message: "Saved your answers to Preferences", action: { label: "Undo", onClick: undoSetup } });
+    } else if (!finished && mode === "first") {
+      toast({ message: "Skipped setup", action: { label: "Show setup again", onClick: () => openSetup("first") } });
+    }
+    // From the keyboard nothing moves (MOTION.md §1).
+    if (finished && !fromKeyboard) setRing((n) => n + 1);
+  };
+  useEffect(() => {
+    if (ring === 0) return;
+    // The ring runs about 1s (--t-exit, then two --t-reveal passes); this clears it once it has finished.
+    const t = window.setTimeout(() => setRing(0), 1600);
+    return () => window.clearTimeout(t);
+  }, [ring]);
   const prefsAnchor = useCallback(() => prefsButton.current, []);
 
   const openPanel = (next: Panel) => {
@@ -468,6 +510,7 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
             ref={prefsButton}
             type="button"
             className={styles.topButton}
+            data-ring={ring > 0 ? ring : undefined}
             aria-expanded={prefsOpen}
             aria-haspopup="dialog"
             aria-describedby={summary ? "pref-summary" : undefined}
@@ -636,7 +679,23 @@ export function ScheduleBuilder({ host, scheduleName, searchRequest, shared, onS
         options={host.search.options}
         load={host.search.load}
         touch={!fine}
+        onSetUp={host.setup ? () => openSetup("again") : null}
       />
+
+      {host.setup ? (
+        <SetupAuto
+          open={setup.open}
+          mode={setup.mode}
+          preferences={host.preferences}
+          onChange={host.setPreferences}
+          newId={newBusyId}
+          canBuild={host.courses.length > 0}
+          phone={phone}
+          touch={!fine}
+          onClose={closeSetup}
+          returnFocus={prefsAnchor}
+        />
+      ) : null}
 
       <ExportSheet
         open={exporting}

@@ -100,6 +100,19 @@ export type OptionsFeed = {
   close: () => void;
 };
 
+/** "Set up Auto": the short first-run setup over Week (r3 mockup, onboarding.html). */
+export type BuilderSetup = {
+  /**
+   * Open it on this visit: the student has never skipped or finished it on
+   * this browser and has no saved preferences. Decided once per identity
+   * when its preferences load, so answering the first question (which saves
+   * preferences) doesn't close it.
+   */
+  due: boolean;
+  /** Skipping or finishing it: it never opens on its own again for this identity. */
+  markSeen: () => void;
+};
+
 export type BuilderHost = {
   brand: BuilderBrand;
   term: BuilderTerm;
@@ -112,6 +125,11 @@ export type BuilderHost = {
   setPreferences: (update: (current: SchedulePreferences) => SchedulePreferences) => void;
   /** False until saved preferences have loaded; the panel waits rather than overwrite them. */
   preferencesReady: boolean;
+  /**
+   * The first-run setup, or null for a host without one: the standalone
+   * builder, whose build button isn't named Auto.
+   */
+  setup: BuilderSetup | null;
   walk: WalkFn;
   search: BuilderSearch;
   edits: BuilderEdits;

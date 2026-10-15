@@ -145,6 +145,48 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/*
+ * After Set up Auto finishes, one ring leaves the Preferences button twice,
+ * so the student sees where the answers now live. It waits for the dialog's
+ * exit (--t-exit), then grows and fades (--t-reveal, the rare-moment
+ * duration). Shown once per student; reduced motion keeps only the fade.
+ */
+.topButton[data-ring] {
+  position: relative;
+}
+.topButton[data-ring]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--brand-2);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  animation: ring var(--t-reveal) var(--ease-out) var(--t-exit) 2;
+}
+@keyframes ring {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.08, 1.3);
+  }
+}
+@keyframes ring-fade {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topButton[data-ring]::after {
+    animation-name: ring-fade;
+  }
+}
 .count {
   min-width: 18px;
   padding: 1px 6px;

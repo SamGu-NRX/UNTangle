@@ -1,0 +1,340 @@
+/*
+ * Set up Auto (r3 mockup, onboarding.html). Motion: the dialog and sheet
+ * move as the primitives do; a new step slides 14px in from the side it
+ * comes from with a fade (--t-enter, --ease-out); a progress segment fills
+ * by scaleX (--t-move); an answer's dot grows from .4. A keyboard move
+ * skips all of it, and reduced motion keeps only the fades.
+ */
+
+/* ───────── Shell ───────── */
+
+/* The head holds the progress where a title would be; the primitive's × stays beside it. */
+.dialog :global(.ui-dialog__head) {
+  align-items: center;
+  padding-top: 14px;
+}
+.dialog :global(.ui-dialog__title) {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0;
+}
+.dialog :global(.ui-dialog__body) {
+  padding: 20px 24px 20px;
+}
+.dialog :global(.ui-dialog__foot) {
+  display: block;
+  padding: 0;
+}
+.head {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+.sheetHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 2px 4px 4px;
+}
+/* The sheet's body scrolls; this column fills it so Continue sits at the bottom on short steps too.
+   It reaches over the body's bottom padding, which the footer's own padding replaces. */
+.sheetFlow {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100% + 16px + var(--safe-b));
+  margin-bottom: calc(-16px - var(--safe-b));
+}
+.sheetBody {
+  flex: 1;
+  padding: 12px 2px 16px;
+}
+
+/* ───────── Progress ───────── */
+
+.progress {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+.chapter {
+  display: flex;
+  flex-basis: 0;
+  gap: 3px;
+}
+.chapter i {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--paper-3);
+}
+.chapter i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--brand-2);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--t-move) var(--ease-out);
+}
+.chapter i[data-state="done"]::after,
+.chapter i[data-state="on"]::after {
+  transform: scaleX(1);
+}
+/* A skipped step reads as passed, not answered. */
+.chapter i[data-state="skipped"]::after {
+  transform: scaleX(1);
+  background: var(--line-2);
+}
+.progress[data-instant] i::after {
+  transition: none;
+}
+
+/* ───────── A step ───────── */
+
+.pane {
+  container-type: inline-size;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pane:not([data-instant]) {
+    animation: pane-in var(--t-enter) var(--ease-out);
+  }
+  .pane[data-dir="back"]:not([data-instant]) {
+    animation-name: pane-back;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pane:not([data-instant]) {
+    animation: pane-fade 120ms ease;
+  }
+}
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+@keyframes pane-back {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+@keyframes pane-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--brand-2);
+}
+.title {
+  margin: 0;
+  font: 640 var(--text-h1) / var(--lh-h1) var(--font-ui);
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+/* Focused by script when a step opens, as a starting point for Tab and the screen reader; not a control. */
+.title:focus {
+  outline: none;
+}
+.lede {
+  margin: 6px 0 14px;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.title + .picbox {
+  margin-top: 14px;
+}
+
+/* ───────── What matters: a picture over its answers ───────── */
+
+.picbox {
+  display: grid;
+  place-items: center;
+  height: 150px;
+  margin: 0 0 6px;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--paper-2);
+}
+.picbox svg {
+  display: block;
+  max-width: calc(100% - 24px);
+  overflow: visible;
+}
+.say {
+  min-height: 20px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+  color: var(--ink-2);
+}
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.answer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  text-align: left;
+  font-size: 14.5px;
+  font-weight: 550;
+  color: var(--ink);
+  transition:
+    background-color var(--t-hover) ease,
+    transform var(--t-press) var(--ease-out);
+}
+.answer:active {
+  transform: scale(0.985);
+}
+.answer[aria-checked="true"] {
+  border-color: var(--brand-2);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 1px var(--brand-2);
+}
+.answer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .answer:hover {
+    border-color: var(--line-2);
+  }
+  .answer[aria-checked="true"]:hover {
+    border-color: var(--brand-2);
+  }
+}
+.dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--line-2);
+}
+.dot::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-2);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity var(--t-hover) ease,
+    transform var(--t-hover) var(--ease-out);
+}
+.answer[aria-checked="true"] .dot {
+  box-shadow: inset 0 0 0 1.5px var(--brand-2);
+}
+.answer[aria-checked="true"] .dot::after {
+  opacity: 1;
+  transform: none;
+}
+
+/* ───────── Shape of your days ───────── */
+
+.gaps {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.gapsLabel {
+  margin: 0 0 -14px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+/* ───────── Ready ───────── */
+
+.subHead {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+.subHead:not(:first-of-type) {
+  margin-top: 18px;
+}
+.none {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rows li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.rows li:first-child {
+  border-top: 0;
+}
+
+/* ───────── Footer: Back, then Skip and Continue at the right ───────── */
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+/* Above the painted grid's sun and moon knobs (z-index 3) as they scroll under it. Sticky
+   offsets count from inside the scroller's padding, so it reaches down over that padding. */
+.sheet .foot {
+  position: sticky;
+  bottom: calc(-16px - var(--safe-b));
+  z-index: 4;
+  margin: 0 -16px;
+  padding: 10px 16px calc(14px + var(--safe-b));
+}
+.grow {
+  flex: 1;
+}
+/* Kept in place on the first step so Skip and Continue don't shift when it appears. */
+.back[data-hidden] {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .answer,
+  .dot::after,
+  .chapter i::after {
+    transition-property: opacity, background-color;
+  }
+  .answer:active {
+    transform: none;
+  }
+}

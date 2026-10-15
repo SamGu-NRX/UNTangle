@@ -2,7 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { usePlanner } from "@/components/planner-provider";
-import type { BuilderEdits, BuilderHost, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import type { BuilderEdits, BuilderHost, BuilderSetup, OptionsFeed, SearchHit, WeekCourse } from "@/components/schedule-builder/host";
+import { readGuestId, type Identity } from "@/components/schedule/preferences-store";
+import { markSetupSeen, setupDue } from "@/components/schedule/setup-store";
 import { isStale, requestKey } from "@/components/schedule/run-state";
 import { useOptimizerRuns } from "@/components/schedule/use-optimizer";
 import { searchCourses } from "@/components/shell/course-search";
@@ -73,6 +75,52 @@ function noteFor(course: PlannedCourse): { state: WeekCourse["state"]; note?: st
   }
 }
 
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The identity whose preferences are loaded, as the planner keys them: the
+ * account in the plan's stamp ("user:<id>"), else this browser's guest id,
+ * which the planner creates before it reads a guest's preferences. Null
+ * until they are ready, and when storage is unusable.
+ */
+function loadedIdentity(ready: boolean, stamp: string): Identity | null {
+  if (!ready) return null;
+  if (stamp.startsWith("user:")) return { kind: "user", id: stamp.slice("user:".length) };
+  const storage = browserStorage();
+  const id = storage ? readGuestId(storage) : null;
+  return id ? { kind: "guest", id } : null;
+}
+
+/**
+ * Set up Auto's gate for the identity whose preferences are loaded. `due`
+ * is read from storage once per identity, while rendering the first time
+ * that identity appears: the setup's own answers save preferences, and
+ * re-reading then would close it after the first question.
+ */
+function useSetup(ready: boolean, stamp: string): BuilderSetup {
+  const identity = loadedIdentity(ready, stamp);
+  const tag = identity ? `${identity.kind}:${identity.id}` : null;
+  const [gate, setGate] = useState<{ tag: string | null; identity: Identity | null; due: boolean }>({ tag: null, identity: null, due: false });
+  if (gate.tag !== tag) {
+    const storage = identity ? browserStorage() : null;
+    setGate({ tag, identity, due: Boolean(identity && storage && setupDue(storage, identity)) });
+  }
+  return {
+    due: gate.due,
+    markSeen: () => {
+      const storage = browserStorage();
+      if (gate.identity && storage) markSetupSeen(storage, gate.identity, new Date());
+      setGate((current) => ({ ...current, due: false }));
+    },
+  };
+}
+
 /**
  * The schedule builder's host in UNTangle: the week is the student's plan
  * (planner-provider), every change is one checked `transact`, and Undo puts
@@ -94,6 +142,7 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     planStamp,
   } = planner;
 
+  const setup = useSetup(preferencesReady, planStamp.identity);
   const history = useRef<Snapshot[]>([]);
   const [historySize, setHistorySize] = useState(0);
   const { state: run, run: startRun, close: closeRun } = useOptimizerRuns();
@@ -405,6 +454,8 @@ export function useUntangleHost(brand: Brand): BuilderHost {
     defaults: defaultSchedulePreferences(plannerState.optimization),
     setPreferences: setSchedulePreferences,
     preferencesReady,
+    // The setup speaks of Auto by name; the standalone builder's button is called something else.
+    setup: brand.id === "untangle" ? setup : null,
     walk,
     search,
     edits,
