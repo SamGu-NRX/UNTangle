@@ -1,0 +1,37 @@
+{
+  "experiment": "l2-degree-plan",
+  "description": "Multi-semester degree-plan feasibility projection over UNTangle's generated catalog, compared bounded vs exhaustive. A planning proposal, not an official degree audit; not a re-run of PR4's single-semester schedule oracle.",
+  "anchor": { "year": 2026, "kind": "F" },
+  "anchorNote": "Anchor = the current Fall 2026 term; the user's P (Taking) courses live here, pinned. Horizons start 2027 Spring (term-chronology order Spring < Summer < Fall; summer excluded by assumption).",
+  "bounded": { "topK": 200, "nodeBudget": 200000 },
+  "exhaustive": { "nodeBudget": 5000000 },
+  "scenarioSets": [
+    {
+      "id": "handpicked",
+      "scenarios": [
+        { "id": "cs-seed-defaults-15h-6t", "major": "cs", "initialStatuses": "seed-defaults", "termCap": 15, "horizon": 6, "equivalence": "assume" },
+        { "id": "cs-seed-defaults-12h-4t", "major": "cs", "initialStatuses": "seed-defaults", "termCap": 12, "horizon": 4, "equivalence": "assume" },
+        { "id": "cs-fresh-12h-6t-assume", "major": "cs", "initialStatuses": "fresh", "termCap": 12, "horizon": 6, "equivalence": "assume" },
+        { "id": "cs-fresh-12h-6t-strict", "major": "cs", "initialStatuses": "fresh", "termCap": 12, "horizon": 6, "equivalence": "strict" },
+        { "id": "cs-seed-defaults-3h-6t", "major": "cs", "initialStatuses": "seed-defaults", "termCap": 3, "horizon": 6, "equivalence": "assume" },
+        { "id": "ce-fresh-15h-6t-assume", "major": "ce", "initialStatuses": "fresh", "termCap": 15, "horizon": 6, "equivalence": "assume" },
+        { "id": "ce-fresh-15h-6t-strict", "major": "ce", "initialStatuses": "fresh", "termCap": 15, "horizon": 6, "equivalence": "strict" },
+        { "id": "math-fresh-12h-6t-assume", "major": "math", "initialStatuses": "fresh", "termCap": 12, "horizon": 6, "equivalence": "assume" },
+        { "id": "math-fresh-12h-6t-strict", "major": "math", "initialStatuses": "fresh", "termCap": 12, "horizon": 6, "equivalence": "strict" },
+        { "id": "cs-all-done-12h-4t", "major": "cs", "initialStatuses": "all-done", "termCap": 12, "horizon": 4, "equivalence": "assume" }
+      ]
+    },
+    {
+      "id": "randomized",
+      "generator": {
+        "majors": ["cs", "ce", "math"],
+        "seeds": [1337, 4096, 90210, 65537, 314159, 271828, 161803, 577215],
+        "termCaps": [12, 15],
+        "horizons": [4, 6],
+        "doneFractions": [0.0, 0.3, 0.6],
+        "equivalence": "assume",
+        "note": "Deterministic mulberry32; a scenario per (seed, major, cap, horizon, fraction) combination: 8*3*2*2*3 = 288 cases. Done subsets are drawn uniformly over the universe (the app lets users set statuses arbitrarily, so topological consistency is not assumed)."
+      }
+    }
+  ]
+}
