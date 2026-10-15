@@ -48,6 +48,24 @@ export type ImportanceAnswers = {
   timeOfDay: { lean: "earlier" | "later"; importance: Importance } | null;
 };
 
+const ZERO_WEIGHTS: Readonly<PreferenceWeights> = { fewerDays: 0, compact: 0, mornings: 0, evenings: 0, walking: 0, rating: 0 };
+
+// Match frontend/src/lib/optimizer/presets.ts without importing the web app into core.
+const GOAL_WEIGHTS: Record<PresetKey, Readonly<PreferenceWeights>> = {
+  clusterMorning: { ...ZERO_WEIGHTS, mornings: 4, compact: 1 },
+  clusterNight: { ...ZERO_WEIGHTS, evenings: 4, compact: 1 },
+  compact: { ...ZERO_WEIGHTS, compact: 4, fewerDays: 2 },
+  minimizeDistance: { ...ZERO_WEIGHTS, walking: 4, compact: 1 },
+  maximizeProfessor: { ...ZERO_WEIGHTS, rating: 4, compact: 1 },
+};
+
+function importanceWeight(importance: Importance, question: string): number {
+  if (!Number.isInteger(importance) || importance < 1 || importance > 5) {
+    throw new Error(`${question}: importance must be a whole number from 1 to 5`);
+  }
+  return importance - 1;
+}
+
 /**
  * The weights the answers ask for.
  *
@@ -64,6 +82,20 @@ export type ImportanceAnswers = {
  * never clamps or rounds a bad answer into a valid one.
  */
 export function weightsFromImportance(answers: ImportanceAnswers): PreferenceWeights {
-  void answers;
-  throw new Error("Not built yet: docs/tasks/importance-to-weights.md");
+  if (answers.preset !== null && !Object.hasOwn(GOAL_WEIGHTS, answers.preset)) {
+    throw new Error(`Unknown importance preset: ${answers.preset}`);
+  }
+  const weights = { ...(answers.preset === null ? ZERO_WEIGHTS : GOAL_WEIGHTS[answers.preset]) };
+  for (const key of ["fewerDays", "compact", "walking", "rating"] as const) {
+    const importance = answers[key];
+    if (importance !== null) weights[key] = importanceWeight(importance, key);
+  }
+  if (answers.timeOfDay !== null) {
+    const { lean, importance } = answers.timeOfDay;
+    if (lean !== "earlier" && lean !== "later") throw new Error(`Unknown time-of-day lean: ${lean}`);
+    const weight = importanceWeight(importance, "timeOfDay");
+    weights.mornings = lean === "earlier" ? weight : 0;
+    weights.evenings = lean === "later" ? weight : 0;
+  }
+  return weights;
 }
