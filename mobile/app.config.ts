@@ -14,7 +14,6 @@ const config: ExpoConfig = {
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
-  scheme: "untangle",
   userInterfaceStyle: "automatic",
   ios: {
     // TO-FINALIZE: neutral placeholder until the EAS project exists; must be

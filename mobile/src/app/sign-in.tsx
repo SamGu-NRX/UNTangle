@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { StyleSheet, View } from "react-native";
@@ -40,13 +40,6 @@ export default function SignInSheet() {
   const close = () => (router.canGoBack() ? router.back() : router.replace("/courses"));
   const [starting, setStarting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const [countFailed, setCountFailed] = useState(false);
-
-  // A fresh sheet starts clean; a sign-in that ends while the sheet is open
-  // (deny, expire) lands in signed-out with the reason on screen.
-  useEffect(() => {
-    if (state.status === "signed-out") setCountFailed(false);
-  }, [state.status]);
 
   const start = () => {
     setStarting(true);
@@ -58,14 +51,6 @@ export default function SignInSheet() {
       })
       .catch(() => setFailure("Sign-in stopped before this phone was approved."))
       .finally(() => setStarting(false));
-  };
-
-  const retryCount = () => {
-    setCountFailed(false);
-    void auth.refreshDocumentCount().then(() => {
-      const settled = auth.getState();
-      if (settled.status === "signed-in" && settled.documentCount === null) setCountFailed(true);
-    });
   };
 
   const signOut = () => {
@@ -93,6 +78,8 @@ export default function SignInSheet() {
     );
   } else if (state.status === "signed-in") {
     const canWrite = state.scopes.includes("documents:write");
+    const countFailed = state.countFailed;
+    const retryCount = () => void auth.refreshDocumentCount();
     body = (
       <>
         <Txt variant="body" style={styles.lede}>

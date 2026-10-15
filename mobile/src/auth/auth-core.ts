@@ -22,7 +22,14 @@ export type AuthState =
   | { status: "restoring" }
   | { status: "signed-out" }
   | { status: "awaiting-approval"; start: SignInStart }
-  | { status: "signed-in"; grantId: string; scopes: readonly string[]; documentCount: number | null };
+  | {
+      status: "signed-in";
+      grantId: string;
+      scopes: readonly string[];
+      documentCount: number | null;
+      /** The last count load failed; the screen offers a retry until one lands. */
+      countFailed: boolean;
+    };
 
 export type SignInResult =
   | { ok: true }
@@ -44,6 +51,13 @@ export type AuthDeps = {
 
 const defaultSetTimer = (handler: () => void, milliseconds: number): unknown => setTimeout(handler, milliseconds);
 const defaultClearTimer = (handle: unknown): void => clearTimeout(handle as ReturnType<typeof setTimeout>);
+
+/**
+ * How long a transiently failed refresh waits before retrying on its own:
+ * short enough to refresh inside the margin on a blip, far enough apart that
+ * an outage never becomes a hot loop.
+ */
+const REFRESH_RETRY_MS = 30_000;
 
 export function createAuth(deps: AuthDeps) {
   const now = deps.now ?? Date.now;
@@ -85,6 +99,18 @@ export function createAuth(deps: AuthDeps) {
     }, delay);
   }
 
+  function scheduleRefreshRetry() {
+    cancelRefreshTimer();
+    if (!stored) return;
+    // A refresh the server could not answer must not leave the access token
+    // to cross its margin silently: retry on a fixed backoff so the margin
+    // never reaches zero while the grant itself is still live.
+    refreshHandle = setTimer(() => {
+      refreshHandle = null;
+      void getAccessToken();
+    }, REFRESH_RETRY_MS);
+  }
+
   /**
    * The bearer token for API calls. Hands back the access token while it
    * still has margin to live, refreshes first when it is close to expiry,
@@ -95,11 +121,14 @@ export function createAuth(deps: AuthDeps) {
     if (stored.accessExpiresAt - marginMs > now()) return stored.accessToken;
     // Single-flight: two callers near expiry share one refresh, so the
     // first refresh token is used exactly once.
-    refreshInFlight = refreshInFlight ?? refreshTokens();
+    const promise = refreshInFlight ?? refreshTokens();
+    refreshInFlight = promise;
     try {
-      return await refreshInFlight;
+      return await promise;
     } finally {
-      refreshInFlight = null;
+      // Clear the slot only if it still holds the promise this caller
+      // awaited; a refresh started meanwhile owns it now.
+      if (refreshInFlight === promise) refreshInFlight = null;
     }
   }
 
@@ -115,26 +144,37 @@ export function createAuth(deps: AuthDeps) {
 
   async function refreshTokens(): Promise<string | null> {
     if (!stored) return null;
+    const grantAtStart = stored;
     const outcome = await postDeviceEndpoint<DeviceTokens>(
       DEVICE_REFRESH_PATH,
       { refreshToken: stored.refreshToken },
       guardDeviceTokens,
       { fetchLike: deps.fetchLike },
     );
+    // A refresh that resolves after the world changed — sign-out cleared the
+    // grant, or a new sign-in replaced it — must save nothing and touch no
+    // state: the answer belongs to a grant this phone no longer holds.
+    if (stored !== grantAtStart) return null;
     if (!outcome.ok) {
       if (outcome.error === "network" || outcome.error === "unavailable" || outcome.error === "rate_limited") {
-        // The grant is not lost; the server just cannot answer right now. No
-        // reschedule: a zero-delay timer would retry in a hot loop, so the
-        // next call or timer does the retrying instead.
+        // The grant is not lost; the server just cannot answer right now.
+        // A backoff timer keeps the retry alive when nothing else calls.
+        scheduleRefreshRetry();
         return null;
       }
-      await handleGrantLost();
+      // Only the contract's own refusals end the grant: a 400 or 401 naming
+      // invalid_token or invalid_grant. The limiter's 429, a 503, and any
+      // body this client does not know all keep the tokens for a later try.
+      const refused = outcome.status === 400 || outcome.status === 401;
+      if (refused && (outcome.error === "invalid_token" || outcome.error === "invalid_grant")) {
+        await handleGrantLost();
+      }
       return null;
     }
     stored = storedFromDeviceTokens(outcome.value, now());
     await deps.tokenStore.save(stored);
     if (state.status === "signed-in") {
-      replaceState({ status: "signed-in", grantId: stored.grantId, scopes: stored.scopes, documentCount: state.documentCount });
+      replaceState({ ...state, grantId: stored.grantId, scopes: stored.scopes });
       scheduleRefresh();
     }
     return stored.accessToken;
@@ -147,17 +187,27 @@ export function createAuth(deps: AuthDeps) {
 
   async function loadDocumentCount(): Promise<void> {
     const accessToken = await getAccessToken();
-    if (!accessToken || !stored) return;
+    if (!accessToken || !stored) {
+      // No live token, no count this round: the screen's retry stays on.
+      if (state.status === "signed-in") replaceState({ ...state, countFailed: true });
+      return;
+    }
+    // A retry counts as loading again, not as another failure, while it runs.
+    if (state.status === "signed-in" && state.countFailed) replaceState({ ...state, countFailed: false });
     const result = await fetchSyncList(accessToken, deps.fetchLike);
     if (result.ok) {
-      if (state.status === "signed-in") replaceState({ ...state, documentCount: result.entries.length });
+      // Tombstoned entries are deleted documents, not documents to count.
+      const active = result.entries.filter(entry => !entry.deleted).length;
+      if (state.status === "signed-in") replaceState({ ...state, documentCount: active, countFailed: false });
       return;
     }
     if (result.reason === "unauthorized") {
       await handleGrantLost();
       return;
     }
-    // Unavailable: leave the count null; the sign-in screen offers a retry.
+    // Unavailable: the count did not load, and the sign-in screen offers a
+    // retry until one lands.
+    if (state.status === "signed-in") replaceState({ ...state, countFailed: true });
   }
 
   async function runSignInPolling(generation: number, deviceCode: string, verifier: string, intervalSeconds: number, start: SignInStart): Promise<SignInResult> {
@@ -174,7 +224,7 @@ export function createAuth(deps: AuthDeps) {
     if (generation !== signInGeneration) return { ok: false, reason: "cancelled" };
     if (outcome.ok) {
       await applyTokens(outcome.tokens);
-      replaceState({ status: "signed-in", grantId: outcome.tokens.grantId, scopes: outcome.tokens.scopes, documentCount: null });
+      replaceState({ status: "signed-in", grantId: outcome.tokens.grantId, scopes: outcome.tokens.scopes, documentCount: null, countFailed: false });
       scheduleRefresh();
       // One read so the screen can say what the account holds; real sync is
       // the next task. Not awaited to the result: the state updates when it
@@ -198,13 +248,22 @@ export function createAuth(deps: AuthDeps) {
 
     /** Reads the Keychain once at startup and lands in the stored state. */
     async restore(): Promise<void> {
-      stored = await deps.tokenStore.load();
+      try {
+        stored = await deps.tokenStore.load();
+      } catch {
+        // An unreadable Keychain must not wedge the app in "restoring": the
+        // student signs in again and the store rewrites the envelope.
+        stored = null;
+      }
       if (!stored) {
         replaceState({ status: "signed-out" });
         return;
       }
-      replaceState({ status: "signed-in", grantId: stored.grantId, scopes: stored.scopes, documentCount: null });
+      replaceState({ status: "signed-in", grantId: stored.grantId, scopes: stored.scopes, documentCount: null, countFailed: false });
       scheduleRefresh();
+      // One read so the restored screen can say what the account holds; not
+      // awaited: the state updates when the count lands.
+      void loadDocumentCount();
     },
 
     /**
@@ -242,7 +301,11 @@ export function createAuth(deps: AuthDeps) {
     async signOut(): Promise<void> {
       signInGeneration += 1;
       cancelRefreshTimer();
-      const accessToken = stored?.accessToken ?? null;
+      // Revoke with a live token: the server refuses an expired one, and a
+      // refused revoke leaves the grant live for its idle limit. When a
+      // refresh is in flight the token is past its margin, so getAccessToken
+      // waits for it and hands back the fresh token it lands.
+      const accessToken = await getAccessToken();
       if (accessToken) {
         // Best effort: a refused token means the grant is already gone, and a
         // network failure leaves the grant to die on its idle limit. Either
@@ -254,6 +317,9 @@ export function createAuth(deps: AuthDeps) {
           { fetchLike: deps.fetchLike, headers: { Authorization: `Bearer ${accessToken}` } },
         ).catch(() => null);
       }
+      // A refresh that landed during the revoke scheduled a new timer; none
+      // may outlive the sign-out.
+      cancelRefreshTimer();
       stored = null;
       await deps.tokenStore.clear();
       replaceState({ status: "signed-out" });

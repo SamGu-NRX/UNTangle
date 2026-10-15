@@ -153,6 +153,31 @@ describe("pollForToken", () => {
     expect(waits).toEqual([10_000]);
   });
 
+  it("keeps polling through the rate limiter's real 429 body", async () => {
+    // The limiter's 429 body is not a contract code; classification must go
+    // by status, so the poll backs off and resumes instead of failing.
+    const { fetchLike, calls } = queueFetch([
+      jsonResponse({ error: "Too many requests" }, 429),
+      jsonResponse({ error: "authorization_pending" }, 400),
+      jsonResponse(TOKEN_200),
+    ]);
+    const waits: number[] = [];
+    const result = await pollForToken({ ...base, fetchLike, sleep: async ms => void waits.push(ms) });
+    expect(result).toEqual({ ok: true, tokens: TOKEN_200 });
+    expect(waits).toEqual([10_000, 10_000]);
+    expect(calls).toHaveLength(3);
+  });
+
+  it("keeps polling through the limiter's real 503 body", async () => {
+    const { fetchLike, calls } = queueFetch([
+      jsonResponse({ error: "Abuse prevention unavailable. Try again later." }, 503),
+      jsonResponse(TOKEN_200),
+    ]);
+    const result = await pollForToken({ ...base, fetchLike });
+    expect(result).toEqual({ ok: true, tokens: TOKEN_200 });
+    expect(calls).toHaveLength(2);
+  });
+
   it("retries through network failures and unavailable servers", async () => {
     const { fetchLike } = queueFetch([new Error("offline"), jsonResponse({ error: "unavailable" }, 503), jsonResponse(TOKEN_200)]);
     const result = await pollForToken({ ...base, fetchLike });

@@ -73,6 +73,39 @@ function isScopes(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(scope => SCOPE_NAMES.includes(scope));
 }
 
+/** Every code the device-grant contract can put in an error body. */
+const CONTRACT_ERROR_CODES: ReadonlySet<string> = new Set<string>([
+  "invalid_request",
+  "invalid_grant",
+  "authorization_pending",
+  "access_denied",
+  "expired_token",
+  "invalid_token",
+  "insufficient_scope",
+  "ambiguous_credentials",
+  "forbidden_origin",
+  "unauthorized",
+  "account_changed",
+  "rate_limited",
+  "unavailable",
+  "slow_down",
+]);
+
+/**
+ * Classifies a non-200 device-endpoint response. The HTTP status decides
+ * first: the rate limiter's real 429 body is {"error":"Too many requests"}
+ * and its 503 bodies are non-contract too, so a body string is trusted only
+ * when it is one of the contract's codes. An unrecognized body reads as
+ * unavailable — retry later — never as a lost grant.
+ */
+export function classifyDeviceError(status: number, payload: unknown): DeviceGrantErrorCode {
+  if (status === 429) return "rate_limited";
+  if (status >= 500) return "unavailable";
+  const code = isRecord(payload) && typeof payload.error === "string" ? payload.error : null;
+  if (code !== null && CONTRACT_ERROR_CODES.has(code)) return code as DeviceGrantErrorCode;
+  return "unavailable";
+}
+
 /**
  * One POST to a device-grant endpoint. Returns the parsed JSON on 200 and a
  * typed failure otherwise; network errors become { error: "network" } so the
@@ -92,8 +125,7 @@ export async function postDeviceEndpoint<T>(
   }
   if (response.status !== 200) {
     const payload = (await response.json().catch(() => null)) as unknown;
-    const code = isRecord(payload) && typeof payload.error === "string" ? payload.error : "unavailable";
-    return { ok: false, error: code as DeviceGrantErrorCode, status: response.status };
+    return { ok: false, error: classifyDeviceError(response.status, payload), status: response.status };
   }
   const payload = (await response.json().catch(() => null)) as unknown;
   const value = guard(payload);

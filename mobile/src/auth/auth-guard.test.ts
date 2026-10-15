@@ -19,7 +19,7 @@ const { join } = require("node:path") as Path;
 declare const __dirname: string;
 
 const AUTH = __dirname;
-const ROOTS = [AUTH, join(AUTH, "..", "app"), join(AUTH, "..", "data"), join(AUTH, "..", "plan")];
+const SRC = join(AUTH, "..");
 
 function sourceFiles(root: string): string[] {
   const entries = readdirSync(root);
@@ -36,8 +36,7 @@ function sourceFiles(root: string): string[] {
   return files.sort();
 }
 
-const all = ROOTS.flatMap(root => sourceFiles(root));
-const unique = [...new Set(all)];
+const unique = [...new Set(sourceFiles(SRC))];
 /** Block comments hold design history (http.ts documents the removed untangle:// scheme), not usage. */
 const stripBlockComments = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, "");
 const read = (file: string) => stripBlockComments(readFileSync(file, "utf8"));
@@ -65,6 +64,30 @@ describe("module boundaries", () => {
       const text = read(file);
       return /from ["']expo-linking["']|Linking\.|openAuthSessionAsync|getInitialURL|untangle:\/\//.test(text);
     });
+    expect(offenders).toEqual([]);
+  });
+
+  it("scans every mobile source directory, present and future", () => {
+    // The guard reads the whole src tree; a new directory is covered without
+    // anyone remembering to add it to a root list.
+    expect(unique.length).toBeGreaterThan(0);
+    expect(unique.every(file => file.startsWith(`${SRC}/`))).toBe(true);
+  });
+
+  it("keeps +native-intent files out of the app", () => {
+    // expo-router's +native-intent convention is the hook that lets a native
+    // deep link hand the app a URL; the architecture allows no scheme-based
+    // entry points at all, so no such file may exist.
+    const offenders = unique.filter(file => /\+native-intent\.(ts|tsx)$/.test(file));
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps search-param hooks out of the auth module and the sign-in screen", () => {
+    // Reading search params is how a token-in-URL bug sneaks in; the auth
+    // module and the sign-in screen have no use for them.
+    const signIn = join(SRC, "app", "sign-in.tsx");
+    const scoped = unique.filter(file => file.startsWith(`${AUTH}/`) || file === signIn);
+    const offenders = scoped.filter(file => /useLocalSearchParams|useGlobalSearchParams|useSearchParams/.test(read(file)));
     expect(offenders).toEqual([]);
   });
 
