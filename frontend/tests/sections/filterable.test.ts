@@ -72,6 +72,13 @@ describe("the site directory", () => {
     expect(filterContextForCourse("ANTH 1010").sites?.byRoomCode.ZZZ).toBeUndefined();
   });
 
+  test("off-campus buildings are another UNT site; Discovery Park stays Denton", () => {
+    const sites = filterContextForCourse("ANTH 1010").sites;
+    expect(sites?.byBuildingId.mgvp).toBe("unt-other");
+    expect(sites?.byBuildingId.ath1).toBe("unt-other");
+    expect(sites?.byBuildingId.ntdp).toBe("unt-denton");
+  });
+
   test("credit hours come from the bundled catalogue, null when it does not list the course", () => {
     expect(filterContextForCourse("ANTH 1010").creditHours).toBe(3);
     expect(filterContextForCourse("NOPE 9999").creditHours).toBeNull();
@@ -94,6 +101,12 @@ describe("evaluateSectionFilters", () => {
     const denton: SectionFilter = { kind: "site", allowed: ["unt-denton"] };
     expect(evaluateSectionFilters(section({}, [meeting()]), [denton])).toBe("pass");
     expect(evaluateSectionFilters(section({}, [meeting({ buildingId: "mars", buildingCode: "MARS", kind: "unknown" })]), [denton])).toBe("unknown");
+  });
+
+  test("a site filter fails an off-campus building meeting, which unt-other passes", () => {
+    const mgvp = section({}, [meeting({ buildingId: "mgvp", buildingCode: "MGVP", buildingName: "Mean Green Village Parking", offCampus: true })]);
+    expect(evaluateSectionFilters(mgvp, [{ kind: "site", allowed: ["unt-denton"] }])).toBe("fail");
+    expect(evaluateSectionFilters(mgvp, [{ kind: "site", allowed: ["unt-other"] }])).toBe("pass");
   });
 
   test("a days filter judges the meetings' days", () => {

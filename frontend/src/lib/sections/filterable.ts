@@ -7,27 +7,37 @@
  * the part the section cannot know: the course's credit hours from the
  * bundled catalogue and the campus site of every place a meeting can be in.
  *
- * Sites, conservatively: campus-catalogue buildings are UNT Denton, and so
- * are the room codes the planner counts as Denton sites (MGV, MHA); the
- * Frisco codes map to unt-frisco. A place the directory does not name is
- * unknown, and unknown never satisfies a site filter
- * (docs/architecture/README.md). Pure and import-safe from client code.
+ * Sites, conservatively: on-campus catalogue buildings are UNT Denton, and
+ * so are the room codes the planner counts as Denton sites (MGV, MHA); the
+ * Frisco codes map to unt-frisco. Off-campus catalogue buildings map to
+ * unt-other — the planner's "another UNT site" (planner-sections.ts
+ * otherSiteOf: off-campus except Discovery Park, which stays Denton) — so a
+ * section meeting there never passes a Denton site filter. A place the
+ * directory does not name is unknown, and unknown never satisfies a site
+ * filter (docs/architecture/README.md). Pure and import-safe from client code.
  */
 
 import { evaluateFilters, type FilterableSection, type FilterContext, type SiteDirectory, type SectionFilter } from "@untangle/core/filters";
 import { campusBuildings } from "@/lib/campus-locations";
+import { DISCOVERY_PARK_ID } from "@/lib/planner-sections";
 import { courses } from "@/lib/seed-data";
 import type { Section } from "./model";
 
-/** The one campus site the catalogue buildings and Denton room codes are in. */
+/** Campus sites the directory names: Denton, Frisco, and "another UNT site". */
 const DENTON = "unt-denton";
 const FRISCO = "unt-frisco";
+const OTHER = "unt-other";
 
 /** Room codes the campus catalogue does not map, with their sites (planner-sections.ts). */
 const roomCodeSites: Readonly<Record<string, string>> = { MGV: DENTON, MHA: DENTON, FRLD: FRISCO, FRISCO: FRISCO };
 
 export const siteDirectory: SiteDirectory = {
-  byBuildingId: Object.fromEntries(campusBuildings.map((building) => [building.id, DENTON])),
+  byBuildingId: Object.fromEntries(
+    campusBuildings.map((building) => [
+      building.id,
+      building.isOffCampus && building.id !== DISCOVERY_PARK_ID ? OTHER : DENTON,
+    ]),
+  ),
   byRoomCode: roomCodeSites,
 };
 
